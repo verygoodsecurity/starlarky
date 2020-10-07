@@ -4,36 +4,55 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>net.starlark.java</groupId>
-    <artifactId>starlark-interpreter</artifactId>
+    <groupId>com.verygood.security</groupId>
+    <artifactId>starlarky</artifactId>
+    <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
+    <modules>
+        <module>libstarlark</module>
+        <module>larky</module>
+    </modules>
 
-
+    <properties>
+        <maven-compiler-plugin.version>3.6.2</maven-compiler-plugin.version>
+        <javax.annotation.version>1.3.2</javax.annotation.version>
+        <google-guava.version>29.0-jre</google-guava.version>
+        <google-auto-value.version>1.7.4</google-auto-value.version>
+        <projectlombok.version>1.18.12</projectlombok.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
 
     <dependencies>
         <dependency>
             <groupId>javax.annotation</groupId>
             <artifactId>javax.annotation-api</artifactId>
-            <version>1.3.2</version>
+            <version>${javax.annotation.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>29.0-jre</version>
+            <version>${google-guava.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.google.auto.value</groupId>
             <artifactId>auto-value-annotations</artifactId>
-            <version>1.7.4</version>
+            <version>${google-auto-value.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.12</version>
+            <version>${projectlombok.version}</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+              <groupId>com.google.auto.value</groupId>
+              <artifactId>auto-value</artifactId>
+              <version>${google-auto-value.version}</version>
+              <optional>true</optional>
         </dependency>
     </dependencies>
 
@@ -42,6 +61,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
                 <configuration>
                     <source>8</source>
                     <target>8</target>
