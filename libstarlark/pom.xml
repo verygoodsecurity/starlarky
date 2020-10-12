@@ -9,8 +9,9 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.verygood.security</groupId>
+    <groupId>net.starlark.java</groupId>
     <artifactId>libstarlark</artifactId>
     <packaging>jar</packaging>
+    <version>1.0-SNAPSHOT</version>
 
 </project>
