@@ -1,6 +1,8 @@
 package com.verygood.security.larky;
 
 
+import com.google.common.annotations.VisibleForTesting;
+
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.Mutability;
@@ -95,7 +97,8 @@ public class Larky {
      }
 
      /** Execute a Starlark file. */
-     private static int execute(ParserInput input) {
+     @VisibleForTesting
+     static int execute(ParserInput input) {
        try {
          Starlark.execFile(input, OPTIONS, module, thread);
          return 0;
