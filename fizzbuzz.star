@@ -7,4 +7,5 @@ def fizz_buzz(n):
     if i % 5 == 0:
       s += "Buzz"
     print(s if s else i)
+
 fizz_buzz(20)
