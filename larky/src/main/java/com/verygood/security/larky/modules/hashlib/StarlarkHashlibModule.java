@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.hashlib;
 
+import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
@@ -23,8 +24,11 @@ public class StarlarkHashlibModule implements StarlarkValue {
   @StarlarkMethod(
       name = "md5",
       doc = "hex digest",
+      parameters = {
+          @Param(name = "toHash", doc = "String to md5 hash")
+      },
       useStarlarkThread = true)
-  String md5(String toHash, StarlarkThread thread) throws EvalException, NoSuchAlgorithmException {
+  public String md5(String toHash, StarlarkThread thread) throws EvalException, NoSuchAlgorithmException {
     MessageDigest md = MessageDigest.getInstance("MD5");
     md.update(toHash.getBytes());
     byte[] digest = md.digest();
