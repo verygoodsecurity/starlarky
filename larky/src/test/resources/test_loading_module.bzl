@@ -1,2 +1,2 @@
-load("hash", "md5")
-print(md5("hello"))
+#load("hashlib", "md5")
+print(hashlib.md5("hello"))

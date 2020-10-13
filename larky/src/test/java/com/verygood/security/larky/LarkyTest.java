@@ -1,5 +1,17 @@
 package com.verygood.security.larky;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+
+import com.verygood.security.larky.config.Config;
+import com.verygood.security.larky.config.ConfigFile;
+import com.verygood.security.larky.config.PathBasedConfigFile;
+import com.verygood.security.larky.config.SkylarkParser;
+import com.verygood.security.larky.modules.ModuleSet;
+import com.verygood.security.larky.modules.hashlib.StarlarkHashlibModule;
+import com.verygood.security.larky.util.console.StarlarkMode;
+import com.verygood.security.larky.util.console.testing.TestingConsole;
+
 import net.starlark.java.syntax.ParserInput;
 
 import org.junit.Assert;
@@ -36,7 +48,7 @@ public class LarkyTest {
   }
 
   @org.junit.Test
-  public void main2() {
+  public void main2() throws IOException {
     Path resourceDirectory = Paths.get(
         "src",
         "test",
@@ -45,18 +57,21 @@ public class LarkyTest {
     String absolutePath = resourceDirectory.toFile().getAbsolutePath();
 
     System.out.println(absolutePath);
-
-    try {
-      Assert.assertEquals(
-          "Did not successfully evaluate Starlark file",
-          0,
-          Larky.execute(ParserInput.readFile(absolutePath))
-      );
-    } catch (IOException e) {
-      System.err.println(e.getMessage());
-      System.err.println(e.getCause().toString());
-      Throwable t = e.getCause();
-      Assert.fail(t.toString());
-    }
+    ModuleSet moduleSet = ModuleSet.getInstance(
+        ImmutableSet.of(
+            StarlarkHashlibModule.class
+        ),
+        ImmutableMap.<String, Object>builder().build()
+    );
+    SkylarkParser parser = new SkylarkParser(
+        moduleSet.getStaticModules(),
+        StarlarkMode.STRICT);
+    Config config;
+    ConfigFile configFile = new PathBasedConfigFile(
+        Paths.get(absolutePath),
+        null,
+        null);
+    config = parser.loadConfig(configFile, moduleSet, new TestingConsole());
+    System.out.println("hello");
   }
 }
