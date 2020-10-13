@@ -3,10 +3,10 @@ package com.verygood.security.larky;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import com.verygood.security.larky.lang.Config;
-import com.verygood.security.larky.lang.ConfigFile;
-import com.verygood.security.larky.lang.PathBasedConfigFile;
-import com.verygood.security.larky.lang.SkylarkParser;
+import com.verygood.security.larky.lang.ParsedStarFile;
+import com.verygood.security.larky.lang.StarFile;
+import com.verygood.security.larky.lang.PathBasedStarFile;
+import com.verygood.security.larky.lang.LarkyParser;
 import com.verygood.security.larky.modules.ModuleSet;
 import com.verygood.security.larky.modules.hashlib.StarlarkHashlibModule;
 import com.verygood.security.larky.console.StarlarkMode;
@@ -63,15 +63,15 @@ public class LarkyTest {
         ),
         ImmutableMap.<String, Object>builder().build()
     );
-    SkylarkParser parser = new SkylarkParser(
+    LarkyParser parser = new LarkyParser(
         moduleSet.getStaticModules(),
         StarlarkMode.STRICT);
-    Config config;
-    ConfigFile configFile = new PathBasedConfigFile(
+    ParsedStarFile config;
+    StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),
         null,
         null);
-    config = parser.loadConfig(configFile, moduleSet, new TestingConsole());
+    config = parser.loadStarFile(starFile, moduleSet, new TestingConsole());
     System.out.println("hello");
   }
 }
