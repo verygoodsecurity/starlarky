@@ -3,14 +3,14 @@ package com.verygood.security.larky;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import com.verygood.security.larky.config.Config;
-import com.verygood.security.larky.config.ConfigFile;
-import com.verygood.security.larky.config.PathBasedConfigFile;
-import com.verygood.security.larky.config.SkylarkParser;
+import com.verygood.security.larky.lang.Config;
+import com.verygood.security.larky.lang.ConfigFile;
+import com.verygood.security.larky.lang.PathBasedConfigFile;
+import com.verygood.security.larky.lang.SkylarkParser;
 import com.verygood.security.larky.modules.ModuleSet;
 import com.verygood.security.larky.modules.hashlib.StarlarkHashlibModule;
-import com.verygood.security.larky.util.console.StarlarkMode;
-import com.verygood.security.larky.util.console.testing.TestingConsole;
+import com.verygood.security.larky.console.StarlarkMode;
+import com.verygood.security.larky.console.testing.TestingConsole;
 
 import net.starlark.java.syntax.ParserInput;
 

@@ -18,7 +18,7 @@ package com.verygood.security.larky.modules;
 
 import com.google.common.collect.ImmutableMap;
 
-import com.verygood.security.larky.config.ConfigFile;
+import com.verygood.security.larky.lang.ConfigFile;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkThread;
