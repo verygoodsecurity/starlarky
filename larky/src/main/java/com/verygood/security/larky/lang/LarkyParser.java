@@ -53,29 +53,29 @@ import java.util.function.Supplier;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
- * Loads Copybara configs out of Skylark files.
+ * Loads Larky out of Starlark files.
  */
-public class SkylarkParser {
+public class LarkyParser {
 
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
-  private static final String BARA_SKY = ".bara.sky";
+  private static final String STAR_EXTENSION = ".star";
   // For now all the modules are namespaces. We don't use variables except for 'core'.
   private final Iterable<Class<?>> modules;
   private final StarlarkMode validation;
 
-  public SkylarkParser(Set<Class<?>> staticModules, StarlarkMode validation) {
+  public LarkyParser(Set<Class<?>> staticModules, StarlarkMode validation) {
     this.modules = ImmutableSet.<Class<?>>builder()
         .addAll(staticModules).build();
     this.validation = validation;
   }
 
-  public Config loadConfig(ConfigFile config, ModuleSet moduleSet, Console console)
+  public ParsedStarFile loadStarFile(StarFile config, ModuleSet moduleSet, Console console)
       throws IOException {
-    return getConfigWithTransitiveImports(config, moduleSet, console).config;
+    return getStarFileWithTransitiveImports(config, moduleSet, console).config;
   }
 
-  private Config loadConfigInternal(ConfigFile content, ModuleSet moduleSet,
-      Supplier<ImmutableMap<String, ConfigFile>> configFilesSupplier, Console console)
+  private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSet moduleSet,
+                                              Supplier<ImmutableMap<String, StarFile>> configFilesSupplier, Console console)
       throws IOException {
     Module module;
     try {
@@ -84,17 +84,17 @@ public class SkylarkParser {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
     }
-    return new Config(content.path(), module.getTransitiveBindings());
+    return new ParsedStarFile(content.path(), module.getTransitiveBindings());
   }
 
   @VisibleForTesting
-  public Module executeSkylark(ConfigFile content, ModuleSet moduleSet, Console console)
+  public Module executeSkylark(StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException {
-    CapturingConfigFile capturingConfigFile = new CapturingConfigFile(content);
-    ConfigFilesSupplier configFilesSupplier = new ConfigFilesSupplier();
+    CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
+    StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
-    Module module = new Evaluator(moduleSet, content, configFilesSupplier, console).eval(content);
-    configFilesSupplier.setConfigFiles(capturingConfigFile.getAllLoadedFiles());
+    Module module = new Evaluator(moduleSet, content, starFilesSupplier, console).eval(content);
+    starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
     return module;
   }
 
@@ -108,38 +108,38 @@ public class SkylarkParser {
    * @throws RuntimeException If config is invalid, references an invalid file or contains
    *     dependency cycles.
    */
-  public ConfigWithDependencies getConfigWithTransitiveImports(
-      ConfigFile config, ModuleSet moduleSet, Console console)
+  public StarFileWithDependencies getStarFileWithTransitiveImports(
+      StarFile config, ModuleSet moduleSet, Console console)
       throws IOException {
-    CapturingConfigFile capturingConfigFile = new CapturingConfigFile(config);
-    ConfigFilesSupplier configFilesSupplier = new ConfigFilesSupplier();
+    CapturingStarFile capturingConfigFile = new CapturingStarFile(config);
+    StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
-    Config parsedConfig = loadConfigInternal(capturingConfigFile, moduleSet, configFilesSupplier,
+    ParsedStarFile parsedConfig = loadStarFileInternal(capturingConfigFile, moduleSet, starFilesSupplier,
         console);
 
-    ImmutableMap<String, ConfigFile> allLoadedFiles = capturingConfigFile.getAllLoadedFiles();
+    ImmutableMap<String, StarFile> allLoadedFiles = capturingConfigFile.getAllLoadedFiles();
 
-    configFilesSupplier.setConfigFiles(allLoadedFiles);
+    starFilesSupplier.setStarFiles(allLoadedFiles);
 
-    return new ConfigWithDependencies(allLoadedFiles, parsedConfig);
+    return new StarFileWithDependencies(allLoadedFiles, parsedConfig);
   }
 
-  private static class ConfigFilesSupplier
-      implements Supplier<ImmutableMap<String, ConfigFile>> {
+  private static class StarFilesSupplier
+      implements Supplier<ImmutableMap<String, StarFile>> {
 
-    private ImmutableMap<String, ConfigFile> configFiles = null;
+    private ImmutableMap<String, StarFile> starFiles = null;
 
-    void setConfigFiles(ImmutableMap<String, ConfigFile> configFiles) {
-      Preconditions.checkState(this.configFiles == null, "Already set");
-      this.configFiles = checkNotNull(configFiles);
+    void setStarFiles(ImmutableMap<String, StarFile> starFiles) {
+      Preconditions.checkState(this.starFiles == null, "Already set");
+      this.starFiles = checkNotNull(starFiles);
     }
 
     @Override
-    public ImmutableMap<String, ConfigFile> get() {
+    public ImmutableMap<String, StarFile> get() {
       // We need to load all the files before knowing the set of files in the config.
-      checkNotNull(configFiles, "Don't call the supplier before loading"
+      checkNotNull(starFiles, "Don't call the supplier before loading"
           + " finishes.");
-      return configFiles;
+      return starFiles;
     }
   }
 
@@ -147,20 +147,20 @@ public class SkylarkParser {
    * A class that contains a loaded config and all the config files that were
    * accessed during the parsing.
    */
-  public static class ConfigWithDependencies {
-    private final ImmutableMap<String, ConfigFile> files;
-    private final Config config;
+  public static class StarFileWithDependencies {
+    private final ImmutableMap<String, StarFile> files;
+    private final ParsedStarFile config;
 
-    private ConfigWithDependencies(ImmutableMap<String, ConfigFile> files, Config config) {
+    private StarFileWithDependencies(ImmutableMap<String, StarFile> files, ParsedStarFile config) {
       this.config = config;
       this.files = files;
     }
 
-    public Config getConfig() {
+    public ParsedStarFile getConfig() {
       return config;
     }
 
-    public ImmutableMap<String, ConfigFile> getFiles() {
+    public ImmutableMap<String, StarFile> getFiles() {
       return files;
     }
   }
@@ -173,21 +173,21 @@ public class SkylarkParser {
     private final LinkedHashSet<String> pending = new LinkedHashSet<>();
     private final Map<String, Module> loaded = new HashMap<>();
     private final Console console;
-    private final ConfigFile mainConfigFile;
+    private final StarFile mainStarFile;
     // Predeclared environment shared by all files (modules) loaded.
     private final ImmutableMap<String, Object> environment;
     private final ModuleSet moduleSet;
 
-    private Evaluator(ModuleSet moduleSet, ConfigFile mainConfigFile,
-        Supplier<ImmutableMap<String, ConfigFile>> configFilesSupplier,
+    private Evaluator(ModuleSet moduleSet, StarFile mainStarFile,
+        Supplier<ImmutableMap<String, StarFile>> configFilesSupplier,
         Console console) {
       this.console = checkNotNull(console);
-      this.mainConfigFile = checkNotNull(mainConfigFile);
+      this.mainStarFile = checkNotNull(mainStarFile);
       this.moduleSet = checkNotNull(moduleSet);
       this.environment = createEnvironment(this.moduleSet, configFilesSupplier);
     }
 
-    private Module eval(ConfigFile content)
+    private Module eval(StarFile content)
         throws IOException, InterruptedException {
       if (pending.contains(content.path())) {
         throw throwCycleError(content.path());
@@ -223,13 +223,13 @@ public class SkylarkParser {
       // process loads
       Map<String, Module> loadedModules = new HashMap<>();
       for (String load : prog.getLoads()) {
-        Module loadedModule = eval(content.resolve(load + BARA_SKY));
+        Module loadedModule = eval(content.resolve(load + STAR_EXTENSION));
         loadedModules.put(load, loadedModule);
       }
 
       // execute
       updateEnvironmentForConfigFile(
-          this::starlarkPrint, content, mainConfigFile, environment, moduleSet);
+          this::starlarkPrint, content, mainStarFile, environment, moduleSet);
       try (Mutability mu = Mutability.create("CopybaraModules")) {
         StarlarkThread thread = new StarlarkThread(mu, semantics);
         thread.setLoader(loadedModules::get);
@@ -281,15 +281,15 @@ public class SkylarkParser {
   // StarlarkThread.setThreadLocal and leaving the modules alone as nature intended.
   private void updateEnvironmentForConfigFile(
       StarlarkThread.PrintHandler printHandler,
-      ConfigFile currentConfigFile,
-      ConfigFile mainConfigFile,
+      StarFile currentStarFile,
+      StarFile mainStarFile,
       Map<String, Object> environment,
       ModuleSet moduleSet) {
     for (Object module : moduleSet.getModules().values()) {
       // We mutate the module per file loaded. Not ideal but it is the best we can do.
       if (module instanceof LabelsAwareModule) {
         LabelsAwareModule m = (LabelsAwareModule) module;
-        m.setConfigFile(mainConfigFile, currentConfigFile);
+        m.setConfigFile(mainStarFile, currentStarFile);
         m.setPrintHandler(printHandler);
       }
     }
@@ -298,7 +298,7 @@ public class SkylarkParser {
       // We mutate the module per file loaded. Not ideal but it is the best we can do.
       if (LabelsAwareModule.class.isAssignableFrom(module)) {
         LabelsAwareModule m = (LabelsAwareModule) environment.get(getModuleName(module));
-        m.setConfigFile(mainConfigFile, currentConfigFile);
+        m.setConfigFile(mainStarFile, currentStarFile);
         m.setPrintHandler(printHandler);
       }
     }
@@ -309,7 +309,7 @@ public class SkylarkParser {
    * loaded).
    */
   private ImmutableMap<String, Object> createEnvironment(
-      ModuleSet moduleSet, Supplier<ImmutableMap<String, ConfigFile>> configFilesSupplier) {
+      ModuleSet moduleSet, Supplier<ImmutableMap<String, StarFile>> configFilesSupplier) {
     Map<String, Object> env = Maps.newHashMap();
     for (Entry<String, Object> module : moduleSet.getModules().entrySet()) {
       logger.atInfo().log("Creating variable for %s", module.getKey());

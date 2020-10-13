@@ -25,7 +25,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * An object representing a configuration file and that it can be used to resolve
  * other config files relative to this one.
  */
-public interface ConfigFile {
+public interface StarFile {
 
   /**
    * Check if the path is absolute and validates that the path is normalized
@@ -48,7 +48,7 @@ public interface ConfigFile {
    *
    * @throws CannotResolveLabel if the path cannot be resolved to a content
    */
-  ConfigFile resolve(String path) ;
+  StarFile resolve(String path) ;
 
   /**
    * Resolved, non-relative name of the config file.
@@ -73,7 +73,7 @@ public interface ConfigFile {
 
   /**
    * Return a {@code String} representing a stable identifier that works between different
-   * {@link ConfigFile} implementations. Note that this is best effort based on several heuristics.
+   * {@link StarFile} implementations. Note that this is best effort based on several heuristics.
    *
    * <p>If root is not defined or cannot be computed, it will return the absolute path.
    *

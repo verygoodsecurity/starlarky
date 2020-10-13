@@ -32,11 +32,11 @@ import lombok.ToString;
  */
 @EqualsAndHashCode
 @ToString
-public final class Config {
+public final class ParsedStarFile {
   private final String location;
   private final Map<String, Object> globals;
 
-  public Config(String location, Map<String, Object> globals) {
+  public ParsedStarFile(String location, Map<String, Object> globals) {
     this.location = Preconditions.checkNotNull(location);
     this.globals = ImmutableMap.copyOf(Preconditions.checkNotNull(globals));
   }
