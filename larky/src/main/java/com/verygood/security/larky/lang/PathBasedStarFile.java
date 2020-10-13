@@ -32,13 +32,13 @@ import javax.annotation.Nullable;
  * A Skylark dependency resolver that resolves relative paths and absolute paths if
  * {@code rootPath} is defined.
  */
-public class PathBasedConfigFile implements ConfigFile {
+public class PathBasedStarFile implements StarFile {
 
   private final Path path;
   @Nullable private final Path rootPath;
   private final String identifierPrefix;
 
-  public PathBasedConfigFile(
+  public PathBasedStarFile(
       Path path, @Nullable Path rootPath, @Nullable String identifierPrefix) {
     /*logFileContent=*/
     Preconditions.checkArgument(path.isAbsolute());
@@ -52,8 +52,8 @@ public class PathBasedConfigFile implements ConfigFile {
   }
 
   @Override
-  public ConfigFile resolve(String path) {
-    Path resolved = ConfigFile.isAbsolute(path)
+  public StarFile resolve(String path) {
+    Path resolved = StarFile.isAbsolute(path)
         ? relativeToRoot(path)
         : relativeToCurrentPath(path);
 
@@ -65,7 +65,7 @@ public class PathBasedConfigFile implements ConfigFile {
       throw new RuntimeException(
           String.format("Cannot find '%s'. '%s' is not a file.", path, resolved));
     }
-    return new PathBasedConfigFile(resolved, rootPath, identifierPrefix);
+    return new PathBasedStarFile(resolved, rootPath, identifierPrefix);
   }
 
   @Override
