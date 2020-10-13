@@ -46,11 +46,11 @@ import javax.annotation.Nullable;
 /**
  * Utilities for dealing with Skylark parameter objects and converting them to Java ones.
  */
-public final class SkylarkUtil {
+public final class StarlarkUtil {
   private static final Pattern LABEL_VAR = Pattern
       .compile("\\$\\{(" + MaybeLabel.VALID_LABEL.pattern() + ")}");
 
-  private SkylarkUtil() {
+  private StarlarkUtil() {
   }
 
   /**

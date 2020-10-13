@@ -30,17 +30,17 @@ import java.util.Set;
  * A config file that records the children created from it. Useful for collecting dependencies in
  * dry runs.
  */
-class CapturingConfigFile implements ConfigFile {
-  private final Set<CapturingConfigFile> children = new LinkedHashSet<>();
-  private final ConfigFile wrapped;
+class CapturingStarFile implements StarFile {
+  private final Set<CapturingStarFile> children = new LinkedHashSet<>();
+  private final StarFile wrapped;
 
-  CapturingConfigFile(ConfigFile config) {
+  CapturingStarFile(StarFile config) {
     this.wrapped = Preconditions.checkNotNull(config);
   }
 
   @Override
-  public ConfigFile resolve(String path)  {
-    CapturingConfigFile resolved = new CapturingConfigFile(wrapped.resolve(path));
+  public StarFile resolve(String path)  {
+    CapturingStarFile resolved = new CapturingStarFile(wrapped.resolve(path));
     children.add(resolved);
     return resolved;
   }
@@ -65,23 +65,23 @@ class CapturingConfigFile implements ConfigFile {
    * @return A Map mapping the path to the wrapped ConfigFile for each ConfigFile created by this or
    *     one of its descendants. Includes this.
    */
-  ImmutableMap<String, ConfigFile> getAllLoadedFiles() {
-    Map<String, ConfigFile> map = new HashMap<>();
+  ImmutableMap<String, StarFile> getAllLoadedFiles() {
+    Map<String, StarFile> map = new HashMap<>();
     getAllLoadedFiles(map);
     return ImmutableMap.copyOf(map);
   }
 
-  private void getAllLoadedFiles(Map<String, ConfigFile> map) {
+  private void getAllLoadedFiles(Map<String, StarFile> map) {
     map.put(path(), this.wrapped);
-    for (CapturingConfigFile child : children) {
+    for (CapturingStarFile child : children) {
       child.getAllLoadedFiles(map);
     }
   }
 
   @Override
   public boolean equals(Object otherObject) {
-    if (otherObject instanceof CapturingConfigFile) {
-      CapturingConfigFile other = (CapturingConfigFile) otherObject;
+    if (otherObject instanceof CapturingStarFile) {
+      CapturingStarFile other = (CapturingStarFile) otherObject;
       return other.wrapped.equals(this.wrapped) && this.children.equals(other.children);
     }
     return false;
