@@ -35,5 +35,8 @@ public class ModuleSet {
     return modules;
   }
 
-
+  public static ModuleSet getInstance(ImmutableSet<Class<?>> staticModules,
+                                      ImmutableMap<String, Object> modules) {
+    return new ModuleSet(staticModules, modules);
+  }
 }
