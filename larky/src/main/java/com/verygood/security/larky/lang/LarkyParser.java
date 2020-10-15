@@ -230,7 +230,7 @@ public class LarkyParser {
       // execute
       updateEnvironmentForConfigFile(
           this::starlarkPrint, content, mainStarFile, environment, moduleSet);
-      try (Mutability mu = Mutability.create("CopybaraModules")) {
+      try (Mutability mu = Mutability.create("LarkyModules")) {
         StarlarkThread thread = new StarlarkThread(mu, semantics);
         thread.setLoader(loadedModules::get);
         thread.setPrintHandler(this::starlarkPrint);

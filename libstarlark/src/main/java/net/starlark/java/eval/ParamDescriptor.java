@@ -30,9 +30,7 @@ import net.starlark.java.syntax.SyntaxError;
 final class ParamDescriptor {
 
   private final String name;
-  private final boolean reboxInt; // whether StarlarkInt is converted to Integer
   @Nullable private final Object defaultValue;
-  private final boolean noneable;
   private final boolean named;
   private final boolean positional;
   private final List<Class<?>> allowedClasses; // non-empty
@@ -43,36 +41,18 @@ final class ParamDescriptor {
   private ParamDescriptor(
       String name,
       String defaultExpr,
-      boolean noneable,
       boolean named,
       boolean positional,
       List<Class<?>> allowedClasses,
-      boolean reboxInt,
       @Nullable String disabledByFlag) {
     this.name = name;
-    this.reboxInt = reboxInt;
-    try {
-      this.defaultValue =
-          defaultExpr.isEmpty() ? null : reboxIntMaybe(evalDefault(name, defaultExpr));
-    } catch (EvalException ex) {
-      throw new IllegalStateException(ex); // bad default
-    }
-    this.noneable = noneable;
+    // TODO(adonovan): apply the same validation logic to the default value
+    // as we do to caller-supplied values (see BuiltinCallable.checkParamValue).
+    this.defaultValue = defaultExpr.isEmpty() ? null : evalDefault(name, defaultExpr);
     this.named = named;
     this.positional = positional;
     this.allowedClasses = allowedClasses;
     this.disabledByFlag = disabledByFlag;
-  }
-
-  /**
-   * Converts (if necessary for this parameter) a StarlarkInt argument to an Integer parameter,
-   * applying a range check.
-   */
-  Object reboxIntMaybe(Object value) throws EvalException {
-    if (reboxInt && value instanceof StarlarkInt) {
-      return ((StarlarkInt) value).toInt(getName()); // may fail
-    }
-    return value;
   }
 
   /**
@@ -92,44 +72,31 @@ final class ParamDescriptor {
       Preconditions.checkState(!disabledByFlag.isEmpty());
     }
 
-    // A parameter of type Integer may accept an argument of type StarlarkInt,
-    // in which case BuiltinCallable.fastcall will apply this range check
-    // and convert (rebox) the argument.
-    // We also do this conversion for a parameter type of (say) Object
-    // if the allowedClasses include Integer.
-    boolean reboxInt = paramClass == Integer.class;
-
     // Compute set of allowed classes.
     ParamType[] allowedTypes = param.allowedTypes();
     List<Class<?>> allowedClasses = new ArrayList<>();
     if (allowedTypes.length > 0) {
       for (ParamType pt : allowedTypes) {
         allowedClasses.add(pt.type());
-        if (pt.type() == Integer.class) {
-          reboxInt = true;
-        }
       }
+    } else if (param.type() == Void.class) {
+      // If no Param.type type was specified, use the class of the parameter itself.
+      // Interpret primitive boolean parameter as j.l.Boolean.
+      allowedClasses.add(paramClass == Boolean.TYPE ? Boolean.class : paramClass);
     } else {
       allowedClasses.add(param.type());
-      if (param.type() == Integer.class) {
-        reboxInt = true;
-      }
     }
-    if (param.noneable()) {
-      // A few annotations redundantly declare NoneType.
-      if (!allowedClasses.contains(NoneType.class)) {
-        allowedClasses.add(NoneType.class);
-      }
+
+    if (param.noneable() && !allowedClasses.contains(NoneType.class)) {
+      allowedClasses.add(NoneType.class);
     }
 
     return new ParamDescriptor(
         param.name(),
         defaultExpr,
-        param.noneable(),
         param.named(),
         param.positional(),
         allowedClasses,
-        reboxInt,
         disabledByFlag);
   }
 
@@ -145,11 +112,6 @@ final class ParamDescriptor {
 
   List<Class<?>> getAllowedClasses() {
     return allowedClasses;
-  }
-
-  /** @see Param#noneable() */
-  boolean isNoneable() {
-    return noneable;
   }
 
   /** @see Param#positional() */
