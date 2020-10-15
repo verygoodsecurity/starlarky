@@ -107,6 +107,7 @@ jobs:
       - checkout
       - <<: *install-java
       - <<: *attach-workspace
+      - <<: *restore-maven-cache
       - <<: *restore-graalvm-cache
       - <<: *install-graalvm
       - <<: *save-graalvm-cache
@@ -114,7 +115,7 @@ jobs:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
           no_output_timeout: 30m
-      - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-runner \;
+      - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-runner
       - store_artifacts:
           path: *executable_results_directory
 
