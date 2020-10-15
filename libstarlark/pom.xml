@@ -11,5 +11,6 @@
 
     <groupId>com.verygood.security</groupId>
     <artifactId>libstarlark</artifactId>
+    <packaging>jar</packaging>
 
 </project>
