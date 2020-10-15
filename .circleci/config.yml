@@ -9,6 +9,7 @@ job-defaults: &job-defaults
     - EXECUTABLE_RESULT_PATH: *executable_results_directory
     - TEST_RESULTS_PATH: *test_results_directory
     - MAVEN_OPTS: -Xmx6400m
+    - GRAALVM_HOME: /home/circleci/starlarky/.graalvm
 
 install-java: &install-java
   run:
@@ -17,6 +18,15 @@ install-java: &install-java
       sudo apt-get update && sudo apt-get install openjdk-11-jdk maven
       sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
       sudo update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
+
+install-graalvm: &install-graalvm
+  run:
+    name: Install GraalVM
+    command: [ ! -d $GRAALVM_HOME ] \
+      && curl https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-20.2.0/graalvm-ce-java11-linux-amd64-20.2.0.tar.gz -O -J -L \
+      && tar xfz graalvm-ce-java11-linux-amd64-20.2.0.tar.gz \
+      && mv graalvm-ce-java11-20.2.0 .graalvm \
+      && rm graalvm-ce-java11-linux-amd64-20.2.0.tar.gz
 
 # Template to save Maven dependency cache to restore it in another jobs
 save-maven-cache: &save-maven-cache
@@ -28,6 +38,16 @@ save-maven-cache: &save-maven-cache
 restore-maven-cache: &restore-maven-cache
   restore_cache:
     key: starlarky-{{ checksum "pom.xml" }}
+
+save-graalvm-cache: &save-graalvm-cache
+  save_cache:
+    key: starlarky-{{ checksum ".circleci/config.yml" }}
+    paths:
+      - $GRAALVM_HOME
+
+restore-graalvm-cache: &restore-graalvm-cache
+  restore_cache:
+    key: starlarky-{{ checksum ".circleci/config.yml" }}
 
 persist-workspace: &persist-workspace
   persist_to_workspace:
@@ -79,20 +99,18 @@ jobs:
 
   deploy:
     <<: *job-defaults
-    environment:
-      GRAALVM_HOME: /home/circleci/starlarky/.graalvm
     machine:
       image: ubuntu-1604:202007-01
     steps:
       - checkout
       - <<: *install-java
       - <<: *attach-workspace
-      - run:
-          name: Install GraalVM
-          command: curl https://github.com/oracle/graal/archive/vm-20.2.0.tar.gz -O -J -L && tar xfz graal-vm-20.2.0.tar.gz && mv graal-vm-20.2.0 .graalvm && rm graal-vm-20.2.0.tar.gz
+      - <<: *restore-graalvm-cache
+      - <<: *install-graalvm
       - run:
           name: Install native-image
           command: $GRAALVM_HOME/bin/gu install native-image
+      - <<: *save-graalvm-cache
       - run:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
