@@ -10,6 +10,14 @@ job-defaults: &job-defaults
     - TEST_RESULTS_PATH: *test_results_directory
     - MAVEN_OPTS: -Xmx6400m
 
+install-java: &install-java
+  run:
+    name: Install OpenJDK11 and Maven
+    command: |
+      sudo apt-get update && sudo apt-get install openjdk-11-jdk maven
+      sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
+      sudo update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
+
 # Template to save Maven dependency cache to restore it in another jobs
 save-maven-cache: &save-maven-cache
   save_cache:
@@ -36,7 +44,7 @@ jobs:
   build:
     <<: *job-defaults
     machine:
-      enabled: true
+      image: ubuntu-1604:202007-01
     steps:
       - checkout
       - <<: *restore-maven-cache
@@ -49,7 +57,7 @@ jobs:
   test:
     <<: *job-defaults
     machine:
-      enabled: true
+      image: ubuntu-1604:202007-01
     steps:
       - checkout
       - <<: *restore-maven-cache
@@ -72,7 +80,7 @@ jobs:
     environment:
       GRAALVM_HOME: /home/circleci/starlarky/.graalvm
     machine:
-      enabled: true
+      image: ubuntu-1604:202007-01
     steps:
       - checkout
       - <<: *attach-workspace
