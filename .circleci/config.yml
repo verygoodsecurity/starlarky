@@ -47,6 +47,7 @@ jobs:
       image: ubuntu-1604:202007-01
     steps:
       - checkout
+      - <<: *install-java
       - <<: *restore-maven-cache
       - run:
           name: Maven Clean Package
@@ -60,6 +61,7 @@ jobs:
       image: ubuntu-1604:202007-01
     steps:
       - checkout
+      - <<: *install-java
       - <<: *restore-maven-cache
       - run: mkdir -p $TEST_RESULTS_PATH/junit/
       - run: mkdir -p $TEST_RESULTS_PATH/coverage/
@@ -83,6 +85,7 @@ jobs:
       image: ubuntu-1604:202007-01
     steps:
       - checkout
+      - <<: *install-java
       - <<: *attach-workspace
       - run:
           name: Install GraalVM
