@@ -18,7 +18,7 @@ package com.verygood.security.larky.modules;
 
 import com.google.common.collect.ImmutableMap;
 
-import com.verygood.security.larky.config.ConfigFile;
+import com.verygood.security.larky.lang.StarFile;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkThread;
@@ -34,11 +34,11 @@ public interface LabelsAwareModule {
   /**
    * Called before invoking any methods on a module in order to give the module access to the
    * current config file. This may be called multiple times, in which case only the most recent
-   * {@link ConfigFile} should be used.
+   * {@link StarFile} should be used.
    *
    * TODO(copybara-team): Figure out how this works with concurrent loading.
    */
-  default void setConfigFile(ConfigFile mainConfigFile, ConfigFile currentConfigFile) {
+  default void setConfigFile(StarFile mainStarFile, StarFile currentStarFile) {
 
   }
 
@@ -46,7 +46,7 @@ public interface LabelsAwareModule {
    * A Supplier that returns all the files loaded by the configuration loading. The supplier
    * shouldn't be evaluated before loading finishes.
    */
-  default void setAllConfigResources(Supplier<ImmutableMap<String, ConfigFile>> configs) {
+  default void setAllConfigResources(Supplier<ImmutableMap<String, StarFile>> configs) {
 
   }
 
