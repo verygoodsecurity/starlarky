@@ -73,22 +73,22 @@ jobs:
       GRAALVM_HOME: /home/circleci/starlarky/.graalvm
     machine:
       enabled: true
-      steps:
-        - checkout
-        - <<: *attach-workspace
-        - run:
-            name: Install GraalVM
-            command: curl https://github.com/oracle/graal/releases/download/vm-19.1.1/graalvm-ce-linux-amd64-19.1.1.tar.gz -O -J -L && tar xfz graalvm-ce-linux-amd64-19.1.1.tar.gz && mv graalvm-ce-19.1.1 .graalvm && rm graalvm-ce-linux-amd64-19.1.1.tar.gz
-        - run:
-            name: Install native-image
-            command: $GRAALVM_HOME/bin/gu install native-image
-        - run:
-            name: Build (Native)
-            command: mvn package -Pnative -DskipTests
-            no_output_timeout: 30m
-        - run: find . -type f -regex ".*/larky/target/larky-*" -exec cp --parents {} $EXECUTABLE_RESULT_PATH/ \;
-        - store_artifacts:
-            path: *executable_results_directory
+    steps:
+      - checkout
+      - <<: *attach-workspace
+      - run:
+          name: Install GraalVM
+          command: curl https://github.com/oracle/graal/releases/download/vm-19.1.1/graalvm-ce-linux-amd64-19.1.1.tar.gz -O -J -L && tar xfz graalvm-ce-linux-amd64-19.1.1.tar.gz && mv graalvm-ce-19.1.1 .graalvm && rm graalvm-ce-linux-amd64-19.1.1.tar.gz
+      - run:
+          name: Install native-image
+          command: $GRAALVM_HOME/bin/gu install native-image
+      - run:
+          name: Build (Native)
+          command: mvn package -Pnative -DskipTests
+          no_output_timeout: 30m
+      - run: find . -type f -regex ".*/larky/target/larky-*" -exec cp --parents {} $EXECUTABLE_RESULT_PATH/ \;
+      - store_artifacts:
+          path: *executable_results_directory
 
 workflows:
   version: 2
