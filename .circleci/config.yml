@@ -27,7 +27,8 @@ install-graalvm: &install-graalvm
         && curl https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-20.2.0/graalvm-ce-java11-linux-amd64-20.2.0.tar.gz -O -J -L \
         && tar xfz graalvm-ce-java11-linux-amd64-20.2.0.tar.gz \
         && mv graalvm-ce-java11-20.2.0 .graalvm \
-        && rm graalvm-ce-java11-linux-amd64-20.2.0.tar.gz
+        && rm graalvm-ce-java11-linux-amd64-20.2.0.tar.gz \
+        && $GRAALVM_HOME/bin/gu install native-image
 
 # Template to save Maven dependency cache to restore it in another jobs
 save-maven-cache: &save-maven-cache
@@ -108,15 +109,12 @@ jobs:
       - <<: *attach-workspace
       - <<: *restore-graalvm-cache
       - <<: *install-graalvm
-      - run:
-          name: Install native-image
-          command: $GRAALVM_HOME/bin/gu install native-image
       - <<: *save-graalvm-cache
       - run:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
           no_output_timeout: 30m
-      - run: find . -type f -regex ".*/larky/target/larky-*" -exec cp --parents {} $EXECUTABLE_RESULT_PATH/ \;
+      - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-runner \;
       - store_artifacts:
           path: *executable_results_directory
 
