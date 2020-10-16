@@ -13,4 +13,39 @@
     <artifactId>libstarlark</artifactId>
     <packaging>jar</packaging>
 
+    <build>
+        <resources>
+               <resource>
+                   <directory>src/main/java</directory>
+               </resource>
+               <resource>
+                   <directory>src/main/resources</directory>
+               </resource>
+               <resource>
+                   <directory>src/test/java</directory>
+               </resource>
+               <resource>
+                   <directory>src/test/resources</directory>
+               </resource>
+           </resources>
+        <plugins>
+          <!-- Make sure we generate src jars too -->
+          <plugin>
+             <groupId>org.apache.maven.plugins</groupId>
+             <artifactId>maven-source-plugin</artifactId>
+             <executions>
+                <execution>
+                   <id>attach-sources</id>
+                   <goals>
+                      <goal>jar</goal>
+                      <goal>test-jar</goal>
+                   </goals>
+                </execution>
+             </executions>
+             <inherited>true</inherited>
+          </plugin>
+       </plugins>
+    </build>
+
+
 </project>
