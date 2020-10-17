@@ -25,7 +25,7 @@ import com.google.common.flogger.FluentLogger;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
-import com.verygood.security.larky.modules.ModuleSet;
+import com.verygood.security.larky.ModuleSet;
 
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;

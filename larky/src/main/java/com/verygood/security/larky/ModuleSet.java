@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules;
+package com.verygood.security.larky;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;

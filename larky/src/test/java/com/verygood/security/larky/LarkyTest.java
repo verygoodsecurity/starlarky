@@ -5,7 +5,6 @@ import com.verygood.security.larky.lang.LarkyParser;
 import com.verygood.security.larky.lang.ParsedStarFile;
 import com.verygood.security.larky.lang.PathBasedStarFile;
 import com.verygood.security.larky.lang.StarFile;
-import com.verygood.security.larky.modules.ModuleSet;
 import com.verygood.security.larky.modules.hashlib.StarlarkHashlibModule;
 
 import net.starlark.java.syntax.ParserInput;
