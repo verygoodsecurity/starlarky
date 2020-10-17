@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+"""
+git remote add bazel https://github.com/bazelbuild/bazel
+git fetch bazel --depth 1
+git subtree add --prefix .tmp/bazel bazel master --squash
+git fetch bazel master && git subtree pull --prefix .tmp/bazel bazel master --squash
+"""
 import os
 import subprocess
 
@@ -22,10 +28,19 @@ os.makedirs('.tmp', exist_ok=True)
 with cd('.tmp'):
     bazel_repo = "https://github.com/bazelbuild/bazel"
     if os.path.exists('bazel') and os.path.exists('bazel/.git'):
-        cmd = ["git", "pull"]
+        cmds = (
+            ["git", "fetch", "bazel", "master"],
+            ["git", "subtree", "pull", "--prefix", ".tmp/bazel", "bazel", "master", "--squash"],
+        )
     else:
-        cmd = ["git", "clone", "--depth", "1", bazel_repo]
-    subprocess.call(cmd)
+        cmds = (
+                ["git", "remote", "add", "bazel", bazel_repo],
+                ["git", "fetch", "bazel", "--depth", "1"],
+                ["git", "subtree", "add", "--prefix", ".tmp/bazel", "bazel", "master", "--squash"],
+        )
+
+    for cmd in cmds:
+        subprocess.call(cmd)
 
 
 subprocess.call([
