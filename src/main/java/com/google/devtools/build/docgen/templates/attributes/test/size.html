@@ -1,0 +1,50 @@
+<p><code>String "enormous", "large" "medium" or "small",
+default is "medium"; optional; <a href="#configurable-attributes">nonconfigurable</a></code></p>
+
+<p>How "heavy" the test is.</p>
+
+<p>A classification of the test's "heaviness": how much time/resources
+it needs to run.</p>
+
+<p>Unit tests are considered "small", integration tests "medium", and end-to-end tests "large" or
+"enormous". Bazel uses the size to determine a default timeout (which can be overridden using the
+<code>timeout</code> attribute) and the amount of resources that have to be acquired for the test to
+run. Test sizes correspond to the following resources and default timeouts:</p>
+
+<table style="width: 100%">
+  <tr>
+    <th>Size</th>
+    <th>RAM (in MB)</th>
+    <th>CPU (in CPU cores)</th>
+    <th>Default timeout</th>
+  </tr>
+  <tr>
+    <td>small</td>
+    <td>20</td>
+    <td>1</td>
+    <td>short (1 minute)</td>
+  </tr>
+  <tr>
+    <td>medium</td>
+    <td>100</td>
+    <td>1</td>
+    <td>moderate (5 minutes)</td>
+  </tr>
+  <tr>
+    <td>large</td>
+    <td>300</td>
+    <td>1</td>
+    <td>long (15 minutes)</td>
+  </tr>
+  <tr>
+    <td>enormous</td>
+    <td>800</td>
+    <td>1</td>
+    <td>eternal (60 minutes)</td>
+  </tr>
+</table>
+
+<p>The environment variable
+<a href="../test-encyclopedia.html#initial-conditions"><code>TEST_SIZE</code></a> will be set to the
+value of this attribute when spawning the test.</p>
+
