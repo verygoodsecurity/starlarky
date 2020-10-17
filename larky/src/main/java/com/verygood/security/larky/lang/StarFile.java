@@ -29,7 +29,7 @@ public interface StarFile {
 
   /**
    * Check if the path is absolute and validates that the path is normalized
-   * @throws CannotResolveLabel if the path is not normalized
+   * @throws RuntimeException if the path is not normalized
    */
   static boolean isAbsolute(String path)  {
     boolean isAbsolute = path.startsWith("//");
@@ -46,7 +46,7 @@ public interface StarFile {
   /**
    * Resolve {@code path} relative to the current config file.
    *
-   * @throws CannotResolveLabel if the path cannot be resolved to a content
+   * @throws RuntimeException if the path cannot be resolved to a content
    */
   StarFile resolve(String path) ;
 

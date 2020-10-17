@@ -26,9 +26,9 @@ import lombok.ToString;
 
 
 /**
- * Configuration for a Copybara project.
+ * A Parsed Larky script file.
  *
- * <p> Objects of this class represent a parsed Copybara configuration.
+ * <p> Objects of this class represent a parsed Larky script.
  */
 @EqualsAndHashCode
 @ToString

@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import javax.annotation.Nullable;
 
 /**
- * A Skylark dependency resolver that resolves relative paths and absolute paths if
+ * A Starlark dependency resolver that resolves relative paths and absolute paths if
  * {@code rootPath} is defined.
  */
 public class PathBasedStarFile implements StarFile {
