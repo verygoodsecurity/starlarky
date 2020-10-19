@@ -126,6 +126,10 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install mvn
+          command: |
+            brew install maven
+      - run:
           name: Maven Clean Package
           command: |
             mvn clean install -DskipTests dependency:go-offline -T 2.0C -B
