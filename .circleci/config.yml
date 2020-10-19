@@ -99,7 +99,7 @@ jobs:
       - store_test_results:
           path: *test_results_directory
 
-  deploy:
+  dist-linux:
     <<: *job-defaults
     machine:
       image: ubuntu-1604:202007-01
@@ -115,7 +115,27 @@ jobs:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
           no_output_timeout: 30m
-      - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-runner
+      - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-runner-linux
+      - store_artifacts:
+          path: *executable_results_directory
+
+  dist-macos:
+    <<: *job-defaults
+    machine:
+      image: ubuntu-1604:202007-01
+    steps:
+      - checkout
+#      - <<: *install-java
+      - <<: *attach-workspace
+      - <<: *restore-maven-cache
+      - <<: *restore-graalvm-cache
+      - <<: *install-graalvm
+      - <<: *save-graalvm-cache
+      - run:
+          name: Build (Native)
+          command: mvn package -Pnative -DskipTests
+          no_output_timeout: 30m
+      - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-runner-macos
       - store_artifacts:
           path: *executable_results_directory
 
@@ -130,6 +150,9 @@ workflows:
       - test:
           requires:
             - build
-      - deploy:
+      - dist-linux:
+          requires:
+            - test
+      - dist-macos:
           requires:
             - test
