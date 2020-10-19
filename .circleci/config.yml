@@ -125,12 +125,15 @@ jobs:
       xcode: 12.0.1
     steps:
       - checkout
-#      - <<: *install-java
-      - <<: *attach-workspace
-      - <<: *restore-maven-cache
-      - <<: *restore-graalvm-cache
-      - <<: *install-graalvm
-      - <<: *save-graalvm-cache
+      - run:
+          name: Maven Clean Package
+          command: |
+            mvn clean install -DskipTests dependency:go-offline -T 2.0C -B
+#      - <<: *attach-workspace
+#      - <<: *restore-maven-cache
+#      - <<: *restore-graalvm-cache
+#      - <<: *install-graalvm
+#      - <<: *save-graalvm-cache
       - run:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
@@ -143,16 +146,17 @@ workflows:
   version: 2
   build_and_tests:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-      - test:
-          requires:
-            - build
-      - dist-linux:
-          requires:
-            - test
-      - dist-macos:
-          requires:
-            - test
+      - dist-macos
+#      - build:
+#          filters:
+#            tags:
+#              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+#      - test:
+#          requires:
+#            - build
+#      - dist-linux:
+#          requires:
+#            - test
+#      - dist-macos:
+#          requires:
+#            - test
