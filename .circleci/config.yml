@@ -188,6 +188,16 @@ workflows:
       - dist-linux:
           requires:
             - build
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
       - dist-macos:
           requires:
             - build
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
