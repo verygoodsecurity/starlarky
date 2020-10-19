@@ -165,4 +165,6 @@ workflows:
       - dist-linux:
           requires:
             - build
-      - dist-macos
+      - dist-macos:
+          requires:
+            - build
