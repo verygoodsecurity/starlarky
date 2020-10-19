@@ -123,7 +123,6 @@ jobs:
     <<: *job-defaults
     environment:
       - GRAALVM_HOME: /Library/Java/JavaVirtualMachines/graalvm-ce-java11-20.2.0/Contents/Home
-      - PATH: /Library/Java/JavaVirtualMachines/graalvm-ce-java11-20.2.0/Contents/Home/bin:"$PATH"
     macos:
       xcode: 12.0.1
     steps:
