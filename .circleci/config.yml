@@ -115,7 +115,14 @@ jobs:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
           no_output_timeout: 30m
-      - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-runner-linux
+      - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-linux
+      - run:
+          name: Update GH tag artifact
+          command: |
+            if [ "${CIRCLE_TAG}" != "" ] ;
+            then
+              curl --data-binary @"$EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-linux" -H "Authorization: token $GITHUB_API_TOKEN" -H "Content-Type: application/octet-stream" "https://uploads.github.com/repos/verygoodsecurity/starlarky/releases/${CIRCLE_TAG}/assets?name=larky-${CIRCLE_TAG}-linux"
+            fi
       - store_artifacts:
           path: *executable_results_directory
 
@@ -149,7 +156,7 @@ jobs:
       - run:
           name: Copy artifact
           command: |
-            mkdir -p $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-runner-macos
+            mkdir -p $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-macos
       - store_artifacts:
           path: *executable_results_directory
 
