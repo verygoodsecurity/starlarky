@@ -164,5 +164,5 @@ workflows:
       - test
       - dist-linux:
           requires:
-            - test
+            - build
       - dist-macos
