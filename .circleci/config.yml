@@ -157,17 +157,12 @@ workflows:
   version: 2
   build_and_tests:
     jobs:
+      - build:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+      - test
+      - dist-linux:
+          requires:
+            - test
       - dist-macos
-#      - build:
-#          filters:
-#            tags:
-#              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-#      - test:
-#          requires:
-#            - build
-#      - dist-linux:
-#          requires:
-#            - test
-#      - dist-macos:
-#          requires:
-#            - test
