@@ -136,7 +136,7 @@ jobs:
           command: |
             brew cask install graalvm/tap/graalvm-ce-java11
             xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-ce-java11-20.2.0
-            gu install native-image
+            $GRAALVM_HOME/bin/gu install native-image
       - run:
           name: Maven Clean Package
           command: |
