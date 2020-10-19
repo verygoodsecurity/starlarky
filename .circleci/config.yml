@@ -121,6 +121,9 @@ jobs:
 
   dist-macos:
     <<: *job-defaults
+    environment:
+      - GRAALVM_HOME: /Library/Java/JavaVirtualMachines/graalvm-ce-java11-20.2.0/Contents/Home
+      - PATH: /Library/Java/JavaVirtualMachines/graalvm-ce-java11-20.2.0/Contents/Home/bin:"$PATH"
     macos:
       xcode: 12.0.1
     steps:
@@ -129,19 +132,16 @@ jobs:
           name: Install mvn
           command: |
             brew install maven
+      - run:
+          name: Install GRAALVM
+          command: |
             brew cask install graalvm/tap/graalvm-ce-java11
-            export PATH=/Library/Java/JavaVirtualMachines/graalvm-ce-java11-20.2.0/Contents/Home/bin:"$PATH"
             xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-ce-java11-20.2.0
             gu install native-image
       - run:
           name: Maven Clean Package
           command: |
             mvn clean install -DskipTests dependency:go-offline -T 2.0C -B
-#      - <<: *attach-workspace
-#      - <<: *restore-maven-cache
-#      - <<: *restore-graalvm-cache
-#      - <<: *install-graalvm
-#      - <<: *save-graalvm-cache
       - run:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
