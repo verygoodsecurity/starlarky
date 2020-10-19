@@ -123,6 +123,7 @@ jobs:
     <<: *job-defaults
     environment:
       - GRAALVM_HOME: /Library/Java/JavaVirtualMachines/graalvm-ce-java11-20.2.0/Contents/Home
+      - EXECUTABLE_RESULT_PATH: *executable_results_directory
     macos:
       xcode: 12.0.1
     steps:
@@ -148,8 +149,7 @@ jobs:
       - run:
           name: Copy artifact
           command: |
-            mkdir -p $EXECUTABLE_RESULT_PATH
-            cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-runner-macos
+            mkdir -p $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-runner-macos
       - store_artifacts:
           path: *executable_results_directory
 
