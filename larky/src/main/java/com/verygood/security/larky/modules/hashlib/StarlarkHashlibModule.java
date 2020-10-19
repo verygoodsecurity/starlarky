@@ -13,7 +13,6 @@ import java.security.NoSuchAlgorithmException;
 import javax.xml.bind.DatatypeConverter;
 
 
-
 /** A Starlark structure to deliver information about the system we are running on. */
 @StarlarkBuiltin(
     name = "hashlib",

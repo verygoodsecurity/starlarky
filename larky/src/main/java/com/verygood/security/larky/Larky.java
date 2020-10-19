@@ -19,9 +19,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.time.Duration;
 
+import io.quarkus.runtime.QuarkusApplication;
+import io.quarkus.runtime.annotations.QuarkusMain;
+
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public class Larky {
+@QuarkusMain
+public class Larky implements QuarkusApplication {
 
     private static final String START_PROMPT = ">> ";
      private static final String CONTINUATION_PROMPT = ".. ";
@@ -116,10 +120,11 @@ public class Larky {
        }
      }
 
-     public static void main(String[] args) throws IOException {
-       String file = null;
-       String cmd = null;
-       String cpuprofile = null;
+  @Override
+  public int run(String... args) throws Exception {
+    String file = null;
+    String cmd = null;
+    String cpuprofile = null;
 
        // parse flags
        int i;
@@ -184,6 +189,7 @@ public class Larky {
          Starlark.stopCpuProfile();
        }
 
-       System.exit(exit);
-     }
+    System.exit(exit);
+    return exit;
+  }
 }
