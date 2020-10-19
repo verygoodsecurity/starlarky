@@ -121,8 +121,8 @@ jobs:
 
   dist-macos:
     <<: *job-defaults
-    machine:
-      image: ubuntu-1604:202007-01
+    macos:
+      xcode: 12.0.1
     steps:
       - checkout
 #      - <<: *install-java
