@@ -1,0 +1,1 @@
+print(hashlib.md5("hello"))

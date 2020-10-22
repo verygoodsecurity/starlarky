@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.hashlib;
+package com.verygood.security.larky.stdlib;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -31,6 +31,7 @@ public class StarlarkHashlibModule implements StarlarkValue {
     MessageDigest md = MessageDigest.getInstance("MD5");
     md.update(toHash.getBytes());
     byte[] digest = md.digest();
+
     String myHash = DatatypeConverter
         .printHexBinary(digest)
         .toUpperCase();

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.lang;
+package com.verygood.security.larky.parser;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -23,13 +23,12 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.FluentLogger;
 
-import com.verygood.security.larky.modules.LabelsAwareModule;
-import com.verygood.security.larky.modules.ModuleSet;
+import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
-import com.verygood.security.larky.console.StarlarkMode;
+import com.verygood.security.larky.ModuleSet;
 
+import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;
-import net.starlark.java.annot.StarlarkInterfaceUtils;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.Mutability;
@@ -57,29 +56,37 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class LarkyParser {
 
+  /**
+   * Modes for parsing config files.
+   */
+  public enum StarlarkMode {
+    LOOSE,
+    STRICT
+  }
+
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
   private static final String STAR_EXTENSION = ".star";
   // For now all the modules are namespaces. We don't use variables except for 'core'.
   private final Iterable<Class<?>> modules;
   private final StarlarkMode validation;
 
-  public LarkyParser(Set<Class<?>> staticModules, StarlarkMode validation) {
+  public LarkyParser(Set<Class<?>> modules, StarlarkMode validation) {
     this.modules = ImmutableSet.<Class<?>>builder()
-        .addAll(staticModules).build();
+        .addAll(modules).build();
     this.validation = validation;
   }
 
   public ParsedStarFile loadStarFile(StarFile config, ModuleSet moduleSet, Console console)
       throws IOException {
-    return getStarFileWithTransitiveImports(config, moduleSet, console).config;
+    return getStarFileWithTransitiveImports(config, moduleSet, console).starFile;
   }
 
   private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSet moduleSet,
-                                              Supplier<ImmutableMap<String, StarFile>> configFilesSupplier, Console console)
+                                              Console console)
       throws IOException {
     Module module;
     try {
-      module = new Evaluator(moduleSet, content, configFilesSupplier, console).eval(content);
+      module = new Evaluator(moduleSet, console).eval(content);
     } catch (InterruptedException e) {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
@@ -93,7 +100,7 @@ public class LarkyParser {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
-    Module module = new Evaluator(moduleSet, content, starFilesSupplier, console).eval(content);
+    Module module = new Evaluator(moduleSet, console).eval(content);
     starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
     return module;
   }
@@ -101,20 +108,20 @@ public class LarkyParser {
   /**
    * Collect all ConfigFiles retrieved by the parser while loading {code config}.
    *
-   * @param config Root file of the configuration.
+   * @param starScriptFile Root file of the configuration.
    * @param console the console to use for printing error/information
-   * @return A map linking paths to the captured ConfigFiles and the parsed Config
+   * @return A map linking paths to the captured StarFile and the parsed StarFile
    * @throws IOException If files cannot be read
    * @throws RuntimeException If config is invalid, references an invalid file or contains
    *     dependency cycles.
    */
   public StarFileWithDependencies getStarFileWithTransitiveImports(
-      StarFile config, ModuleSet moduleSet, Console console)
+      StarFile starScriptFile, ModuleSet moduleSet, Console console)
       throws IOException {
-    CapturingStarFile capturingConfigFile = new CapturingStarFile(config);
+    CapturingStarFile capturingConfigFile = new CapturingStarFile(starScriptFile);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
-    ParsedStarFile parsedConfig = loadStarFileInternal(capturingConfigFile, moduleSet, starFilesSupplier,
+    ParsedStarFile parsedConfig = loadStarFileInternal(capturingConfigFile, moduleSet,
         console);
 
     ImmutableMap<String, StarFile> allLoadedFiles = capturingConfigFile.getAllLoadedFiles();
@@ -148,20 +155,20 @@ public class LarkyParser {
    * accessed during the parsing.
    */
   public static class StarFileWithDependencies {
-    private final ImmutableMap<String, StarFile> files;
-    private final ParsedStarFile config;
+    private final ImmutableMap<String, StarFile> allFiles;
+    private final ParsedStarFile starFile;
 
-    private StarFileWithDependencies(ImmutableMap<String, StarFile> files, ParsedStarFile config) {
-      this.config = config;
-      this.files = files;
+    private StarFileWithDependencies(ImmutableMap<String, StarFile> allFiles, ParsedStarFile starFile) {
+      this.starFile = starFile;
+      this.allFiles = allFiles;
     }
 
-    public ParsedStarFile getConfig() {
-      return config;
+    public ParsedStarFile getStarFile() {
+      return starFile;
     }
 
-    public ImmutableMap<String, StarFile> getFiles() {
-      return files;
+    public ImmutableMap<String, StarFile> getAllFiles() {
+      return allFiles;
     }
   }
 
@@ -173,18 +180,14 @@ public class LarkyParser {
     private final LinkedHashSet<String> pending = new LinkedHashSet<>();
     private final Map<String, Module> loaded = new HashMap<>();
     private final Console console;
-    private final StarFile mainStarFile;
     // Predeclared environment shared by all files (modules) loaded.
     private final ImmutableMap<String, Object> environment;
     private final ModuleSet moduleSet;
 
-    private Evaluator(ModuleSet moduleSet, StarFile mainStarFile,
-        Supplier<ImmutableMap<String, StarFile>> configFilesSupplier,
-        Console console) {
+    private Evaluator(ModuleSet moduleSet, Console console) {
       this.console = checkNotNull(console);
-      this.mainStarFile = checkNotNull(mainStarFile);
       this.moduleSet = checkNotNull(moduleSet);
-      this.environment = createEnvironment(this.moduleSet, configFilesSupplier);
+      this.environment = createEnvironment(this.moduleSet);
     }
 
     private Module eval(StarFile content)
@@ -206,10 +209,15 @@ public class LarkyParser {
 
       // parse & compile
       ParserInput input = ParserInput.fromUTF8(content.readContentBytes(), content.path());
-      FileOptions options =
-          validation == StarlarkMode.STRICT
-              ? STARLARK_STRICT_FILE_OPTIONS
-              : STARLARK_LOOSE_FILE_OPTIONS;
+      FileOptions options;
+      if (validation == StarlarkMode.STRICT) {
+        options = STARLARK_STRICT_FILE_OPTIONS;
+      } else if (validation == StarlarkMode.LOOSE) {
+        options = STARLARK_LOOSE_FILE_OPTIONS;
+      }
+      else {
+        throw new RuntimeException("Undefined StarlarkMode: " + validation);
+      }
       Program prog;
       try {
         prog = Program.compileFile(StarlarkFile.parse(input, options), module);
@@ -228,9 +236,7 @@ public class LarkyParser {
       }
 
       // execute
-      updateEnvironmentForConfigFile(
-          this::starlarkPrint, content, mainStarFile, environment, moduleSet);
-      try (Mutability mu = Mutability.create("CopybaraModules")) {
+      try (Mutability mu = Mutability.create("LarkyModules")) {
         StarlarkThread thread = new StarlarkThread(mu, semantics);
         thread.setLoader(loadedModules::get);
         thread.setPrintHandler(this::starlarkPrint);
@@ -263,59 +269,24 @@ public class LarkyParser {
 
   // Even in strict mode, we allow top-level if and for statements.
   private static final FileOptions STARLARK_STRICT_FILE_OPTIONS =
-      FileOptions.DEFAULT.toBuilder() //
+      FileOptions.DEFAULT.toBuilder()
           .allowToplevelRebinding(true)
           .build();
 
   private static final FileOptions STARLARK_LOOSE_FILE_OPTIONS =
       STARLARK_STRICT_FILE_OPTIONS.toBuilder()
-          // TODO(malcon): stop allowing invalid escapes such as "[\s\S]",
-          // which appears in devtools/blaze/bazel/admin/copybara/docs.bara.sky.
-          // This is a breaking change but trivially fixed.
-          .restrictStringEscapes(false)
+          .restrictStringEscapes(true)
           .requireLoadStatementsFirst(false)
           .build();
-
-  /** Updates the module globals with information about the current loaded config file. */
-  // TODO(copybara-team): evaluate the cleaner approach of saving the varying parts in the
-  // StarlarkThread.setThreadLocal and leaving the modules alone as nature intended.
-  private void updateEnvironmentForConfigFile(
-      StarlarkThread.PrintHandler printHandler,
-      StarFile currentStarFile,
-      StarFile mainStarFile,
-      Map<String, Object> environment,
-      ModuleSet moduleSet) {
-    for (Object module : moduleSet.getModules().values()) {
-      // We mutate the module per file loaded. Not ideal but it is the best we can do.
-      if (module instanceof LabelsAwareModule) {
-        LabelsAwareModule m = (LabelsAwareModule) module;
-        m.setConfigFile(mainStarFile, currentStarFile);
-        m.setPrintHandler(printHandler);
-      }
-    }
-    for (Class<?> module : modules) {
-      logger.atInfo().log("Creating variable for %s", module.getName());
-      // We mutate the module per file loaded. Not ideal but it is the best we can do.
-      if (LabelsAwareModule.class.isAssignableFrom(module)) {
-        LabelsAwareModule m = (LabelsAwareModule) environment.get(getModuleName(module));
-        m.setConfigFile(mainStarFile, currentStarFile);
-        m.setPrintHandler(printHandler);
-      }
-    }
-  }
 
   /**
    * Create the environment for all evaluations (will be shared between all the dependent files
    * loaded).
    */
-  private ImmutableMap<String, Object> createEnvironment(
-      ModuleSet moduleSet, Supplier<ImmutableMap<String, StarFile>> configFilesSupplier) {
+  private ImmutableMap<String, Object> createEnvironment(ModuleSet moduleSet) {
     Map<String, Object> env = Maps.newHashMap();
     for (Entry<String, Object> module : moduleSet.getModules().entrySet()) {
       logger.atInfo().log("Creating variable for %s", module.getKey());
-      if (module.getValue() instanceof LabelsAwareModule) {
-        ((LabelsAwareModule) module.getValue()).setAllConfigResources(configFilesSupplier);
-      }
       // Modules shouldn't use the same name
       env.put(module.getKey(), module.getValue());
     }
@@ -325,22 +296,16 @@ public class LarkyParser {
       // Create the module object and associate it with the functions
       ImmutableMap.Builder<String, Object> envBuilder = ImmutableMap.builder();
       try {
-        if (StarlarkInterfaceUtils.getStarlarkBuiltin(module) != null) {
-          Starlark.addModule(envBuilder, module.getConstructor().newInstance());
+        StarlarkBuiltin annot = StarlarkAnnotations.getStarlarkBuiltin(module);
+        if (annot != null) {
+          envBuilder.put(annot.name(), module.getConstructor().newInstance());
+        } else if (module.isAnnotationPresent(Library.class)) {
+          Starlark.addMethods(envBuilder, module.getConstructor().newInstance());
         }
-//        else if (module.isAnnotationPresent(Library.class)) {
-//          Starlark.addMethods(envBuilder, module.getConstructor().newInstance());
-//        }
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
       env.putAll(envBuilder.build());
-
-      // Add the options to the module that require them
-      if (LabelsAwareModule.class.isAssignableFrom(module)) {
-        ((LabelsAwareModule) env.get(getModuleName(module)))
-            .setAllConfigResources(configFilesSupplier);
-      }
     }
     return ImmutableMap.copyOf(env);
   }
@@ -348,4 +313,5 @@ public class LarkyParser {
   private static String getModuleName(Class<?> cls) {
     return cls.getAnnotation(StarlarkBuiltin.class).name();
   }
+
 }

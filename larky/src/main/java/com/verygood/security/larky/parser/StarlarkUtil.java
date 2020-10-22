@@ -14,17 +14,12 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.lang;
+package com.verygood.security.larky.parser;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
-
-import com.verygood.security.larky.templatetoken.LabelTemplate;
-import com.verygood.security.larky.templatetoken.LabelTemplate.LabelNotFoundException;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -32,23 +27,16 @@ import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
 /**
- * Utilities for dealing with Skylark parameter objects and converting them to Java ones.
+ * Utilities for dealing with Starlark parameter objects and converting them to Java ones.
  */
 public final class StarlarkUtil {
-  private static final Pattern LABEL_VAR = Pattern
-      .compile("\\$\\{(" + MaybeLabel.VALID_LABEL.pattern() + ")}");
 
   private StarlarkUtil() {
   }
@@ -97,44 +85,6 @@ public final class StarlarkUtil {
       throws EvalException {
     if (!condition) {
       throw Starlark.errorf(format, args);
-    }
-  }
-  /**
-   * A utility for resolving list of string labels to values
-   */
-  public static ImmutableList<String> mapLabels(
-      Function<String, ? extends Collection<String>> labelsMapper, List<String> list) {
-    ImmutableList.Builder<String> result = ImmutableList.builder();
-    for (String element : list) {
-      Matcher matcher = LABEL_VAR.matcher(element);
-      if (!matcher.matches()) {
-        result.add(element);
-        continue;
-      }
-      String label = matcher.group(1);
-      Collection<String> values = labelsMapper.apply(label);
-      if (values == null) {
-        continue;
-      }
-      result.addAll(Objects.requireNonNull(values));
-    }
-    return result.build();
-  }
-
-  public static String mapLabels(Function<String, ? extends Collection<String>> labelsMapper,
-      String template)  {
-    return mapLabels(labelsMapper, template, null);
-  }
-
-  public static String mapLabels(Function<String, ? extends Collection<String>> labelsMapper,
-      String template, String fieldName) {
-    try {
-      return new LabelTemplate(template).resolve(labelsMapper.andThen(
-          e ->  e == null ? null : Iterables.getFirst(e, null)));
-    } catch (LabelNotFoundException e) {
-      throw new RuntimeException(
-          String.format("Cannot find '%s' label for template '%s' defined in field '%s'",
-              e.getLabel(), template, fieldName), e);
     }
   }
 
