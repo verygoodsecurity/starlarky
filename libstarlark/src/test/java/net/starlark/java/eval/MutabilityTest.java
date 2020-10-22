@@ -15,8 +15,7 @@
 package net.starlark.java.eval;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-;
+import static org.junit.Assert.assertThrows;
 
 import net.starlark.java.eval.Mutability.Freezable;
 import org.junit.Test;
@@ -28,7 +27,7 @@ import org.junit.runners.JUnit4;
 public final class MutabilityTest {
 
   /** A trivial Freezable that can do nothing but freeze. */
-  private static class DummyFreezable implements Freezable {
+  private static class DummyFreezable implements Mutability.Freezable {
     private final Mutability mutability;
 
     public DummyFreezable(Mutability mutability) {

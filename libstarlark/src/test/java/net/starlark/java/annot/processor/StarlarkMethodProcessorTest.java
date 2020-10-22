@@ -14,17 +14,15 @@
 
 package net.starlark.java.annot.processor;
 
+import static com.google.common.truth.Truth.assertAbout;
+import static com.google.testing.compile.JavaSourceSubjectFactory.javaSource;
+
 import com.google.common.io.Resources;
 import com.google.testing.compile.JavaFileObjects;
-
+import javax.tools.JavaFileObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import javax.tools.JavaFileObject;
-
-import static com.google.common.truth.Truth.assertAbout;
-import static com.google.testing.compile.JavaSourceSubjectFactory.javaSource;
 
 /** Unit tests for StarlarkMethodProcessor. */
 @RunWith(JUnit4.class)
@@ -161,27 +159,6 @@ public final class StarlarkMethodProcessorTest {
         .withErrorContaining(
             "method methodWithTooManyArguments is annotated with 1 Params plus 0 special"
                 + " parameters, yet has 2 parameter variables");
-  }
-
-  @Test
-  public void testInvalidParamNoneDefault() throws Exception {
-    assertAbout(javaSource())
-        .that(getFile("InvalidParamNoneDefault.java"))
-        .processedWith(new StarlarkMethodProcessor())
-        .failsToCompile()
-        .withErrorContaining(
-            "Parameter 'a_parameter' has 'None' default value but is not noneable.");
-  }
-
-  @Test
-  public void testParamTypeConflict() throws Exception {
-    assertAbout(javaSource())
-        .that(getFile("ParamTypeConflict.java"))
-        .processedWith(new StarlarkMethodProcessor())
-        .failsToCompile()
-        .withErrorContaining(
-            "Parameter 'a_parameter' has both 'type' and 'allowedTypes' specified."
-                + " Only one may be specified.");
   }
 
   @Test
@@ -345,16 +322,5 @@ public final class StarlarkMethodProcessorTest {
         .withErrorContaining(
             "parameter 'one' has generic type "
                 + "net.starlark.java.eval.Sequence<java.lang.String>");
-  }
-
-  @Test
-  public void testInvalidNoneableParameter() throws Exception {
-    assertAbout(javaSource())
-        .that(getFile("InvalidNoneableParameter.java"))
-        .processedWith(new StarlarkMethodProcessor())
-        .failsToCompile()
-        .withErrorContaining(
-            "Expected type 'Object' but got type 'java.lang.String' "
-                + "for noneable parameter 'aParameter'.");
   }
 }

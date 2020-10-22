@@ -43,7 +43,7 @@ public final class CpuProfilerTest {
     // That's ok; just ignore it.
 
     // Start writing profile to temporary file.
-    File profile = File.createTempFile("pprof", ".gz", null);
+    File profile = java.io.File.createTempFile("pprof", ".gz", null);
     OutputStream prof = new FileOutputStream(profile);
     Starlark.startCpuProfile(prof, Duration.ofMillis(10));
 

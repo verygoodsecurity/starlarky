@@ -15,8 +15,7 @@
 package net.starlark.java.eval;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-;
+import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -121,9 +120,7 @@ public final class EvalUtilsTest {
         if (i != j) {
           Object first = objects[i];
           Object second = objects[j];
-          assertThrows(
-              EvalUtils.ComparisonException.class,
-              () -> EvalUtils.STARLARK_COMPARATOR.compare(first, second));
+          assertThrows(ClassCastException.class, () -> Starlark.ORDERING.compare(first, second));
         }
       }
     }
@@ -132,8 +129,7 @@ public final class EvalUtilsTest {
   @Test
   public void testComparatorWithNones() throws Exception {
     assertThrows(
-        EvalUtils.ComparisonException.class,
-        () -> EvalUtils.STARLARK_COMPARATOR.compare(Starlark.NONE, Starlark.NONE));
+        ClassCastException.class, () -> Starlark.ORDERING.compare(Starlark.NONE, Starlark.NONE));
   }
 
   @Test

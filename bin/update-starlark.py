@@ -135,11 +135,13 @@ for submodule_dir in get_submodules(os.getcwd()):
 #     subprocess.call(cmd)
 
 
-subprocess.call([
-    'rsync',
-     '-avz',
-     '--progress',
-     '--exclude=BUILD',
-    '.tmp/bazel/src/main/java/net/',
-    'libstarlark/src/main/java/net/',
-], cwd=os.getcwd())
+for target_dir in ('src/main', 'src/test',):
+    subprocess.call([
+        'rsync',
+        '-avz',
+        '--progress',
+        '--exclude=BUILD',
+        f'.tmp/bazel/{target_dir}/java/net/',
+        f'libstarlark/{target_dir}/java/net/',
+        '--delete',
+    ], cwd=os.getcwd())
