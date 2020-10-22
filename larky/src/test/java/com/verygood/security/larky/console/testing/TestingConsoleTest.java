@@ -27,7 +27,7 @@ import org.junit.runners.JUnit4;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.verygood.security.larky.console.Message.MessageType;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.Assert.assertThrows;
 
 @RunWith(JUnit4.class)
 public final class TestingConsoleTest {

@@ -28,7 +28,7 @@ import java.io.IOException;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.verygood.security.larky.console.Message.MessageType;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;

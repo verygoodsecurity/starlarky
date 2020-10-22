@@ -9,13 +9,11 @@ import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 
-import java.util.Map;
-
 // A trivial struct-like class with Starlark fields defined by a map.
 public class SimpleStruct implements ClassObject {
     final ImmutableMap<String, Object> fields;
 
-    SimpleStruct(ImmutableMap<String, Object> fields) {
+    public SimpleStruct(ImmutableMap<String, Object> fields) {
       this.fields = fields;
     }
 
@@ -40,7 +38,7 @@ public class SimpleStruct implements ClassObject {
       // Any methods are still accessible through dir/getattr/hasattr.
       p.append("simplestruct(");
       String sep = "";
-      for (Map.Entry<String, Object> e : fields.entrySet()) {
+      for (var e : fields.entrySet()) {
         p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue());
         sep = ", ";
       }

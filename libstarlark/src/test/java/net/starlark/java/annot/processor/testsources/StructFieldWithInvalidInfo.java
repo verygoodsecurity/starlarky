@@ -15,6 +15,7 @@
 package net.starlark.java.annot.processor.testsources;
 
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 /** Test case which verifies a struct field method cannot specify useStarlarkThread. */

@@ -31,6 +31,7 @@ public class StarlarkHashlibModule implements StarlarkValue {
     MessageDigest md = MessageDigest.getInstance("MD5");
     md.update(toHash.getBytes());
     byte[] digest = md.digest();
+
     String myHash = DatatypeConverter
         .printHexBinary(digest)
         .toUpperCase();

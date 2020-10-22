@@ -32,7 +32,7 @@ import java.nio.charset.StandardCharsets;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static com.verygood.security.larky.console.Message.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.Assert.assertThrows;
 
 @RunWith(JUnit4.class)
 public class ConsoleTest {
