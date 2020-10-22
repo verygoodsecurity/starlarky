@@ -39,7 +39,7 @@ public final class ParserInput {
   private final String file;
   private final char[] content;
 
-  private ParserInput(char[] content, String file) {
+  public ParserInput(char[] content, String file) {
     this.content = content;
     this.file = Preconditions.checkNotNull(file);
   }
@@ -52,6 +52,12 @@ public final class ParserInput {
   /** Returns the apparent file name of the input source. */
   public String getFile() {
     return file;
+  }
+
+  public static ParserInput preAppend(ParserInput prepend, ParserInput file) {
+    char[] content = String.join("\n", String.valueOf(prepend.getContent()), String.valueOf(file.getContent())).toCharArray();
+    String fileName = String.join("+", prepend.getFile(), file.getFile());
+    return new ParserInput(content, fileName);
   }
 
   /**
