@@ -218,6 +218,9 @@ workflows:
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+      - dist-test:
+          requires:
+            - build-dist-linux
       - dist-linux:
           requires:
             - build-dist-linux
