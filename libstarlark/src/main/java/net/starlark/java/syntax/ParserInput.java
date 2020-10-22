@@ -39,7 +39,7 @@ public final class ParserInput {
   private final String file;
   private final char[] content;
 
-  public ParserInput(char[] content, String file) {
+  private ParserInput(char[] content, String file) {
     this.content = content;
     this.file = Preconditions.checkNotNull(file);
   }
