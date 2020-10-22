@@ -123,7 +123,7 @@ jobs:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
           no_output_timeout: 30m
-      - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-linux
+      - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-runner $EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-linux
       - run:
           name: Update GH tag artifact
           command: |
@@ -165,7 +165,7 @@ jobs:
       - run:
           name: Copy artifact
           command: |
-            mkdir -p $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-1.0-SNAPSHOT-runner $EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-macos
+            mkdir -p $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-runner $EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-macos
       - run:
           name: Upload assets
           command: |
