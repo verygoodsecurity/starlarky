@@ -106,14 +106,13 @@ jobs:
       - store_test_results:
           path: *test_results_directory
 
-  dist-linux:
+  build-dist-linux:
     <<: *job-defaults
     machine:
       image: ubuntu-1604:202007-01
     steps:
       - checkout
       - <<: *install-java
-      - <<: *install-gh
       - <<: *attach-workspace
       - <<: *restore-maven-cache
       - <<: *restore-graalvm-cache
@@ -123,6 +122,34 @@ jobs:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
           no_output_timeout: 30m
+      - <<: *persist-workspace
+
+  dist-test:
+    <<: *job-defaults
+    machine:
+      image: ubuntu-1604:202007-01
+    steps:
+      - checkout
+      - <<: *attach-workspace
+      - run: cp ./larky/target/larky-runner .
+      - run:
+          name: Python test
+          command: |
+            python -m venv venv
+            . ./venv/bin/activate
+            pip install wheel twine pytest
+            python setup.py bdist_wheel
+            pip install ./dist/pylarky-0.0.2-py3-none-any.whl
+            pytest pylark/tests
+
+  dist-linux:
+    <<: *job-defaults
+    machine:
+      image: ubuntu-1604:202007-01
+    steps:
+      - checkout
+      - <<: *install-gh
+      - <<: *attach-workspace
       - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-runner $EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-linux
       - run:
           name: Update GH tag artifact
@@ -185,9 +212,15 @@ workflows:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
       - test
-      - dist-linux:
+      - build-dist-linux:
           requires:
             - build
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+      - dist-linux:
+          requires:
+            - build-dist-linux
           filters:
             branches:
               only: master
