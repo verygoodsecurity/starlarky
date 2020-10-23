@@ -5,8 +5,10 @@ import com.verygood.security.larky.parser.LarkyParser;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.PathBasedStarFile;
 import com.verygood.security.larky.parser.StarFile;
-import com.verygood.security.larky.stdlib.StarlarkHashlibModule;
+import com.verygood.security.larky.stdlib.LarkyBuiltin;
+import com.verygood.security.larky.stdlib.LarkyHashlibModule;
 
+import net.starlark.java.lib.json.Json;
 import net.starlark.java.syntax.ParserInput;
 
 import org.junit.Assert;
@@ -54,8 +56,35 @@ public class LarkyTest {
     System.out.println(absolutePath);
 
     LarkyParser parser = new LarkyParser(
-        new HashSet<Class<?>>() {{
-          add(StarlarkHashlibModule.class);
+        new HashSet<>() {{
+          add(LarkyHashlibModule.class);
+        }},
+        LarkyParser.StarlarkMode.STRICT);3
+    StarFile starFile = new PathBasedStarFile(
+        Paths.get(absolutePath),
+        null,
+        null);
+    ParsedStarFile config;
+
+    //env.put("json", Json.INSTANCE);
+    ModuleSet moduleSet = ModuleSet.getInstance(Json.INSTANCE);
+    config = parser.loadStarFile(starFile, moduleSet, new TestingConsole());
+    System.out.println("hello");
+  }
+
+  @org.junit.Test
+  public void test3() throws IOException {
+    Path resourceDirectory = Paths.get(
+        "src",
+        "test",
+        "resources",
+        "test_struct.star");
+    String absolutePath = resourceDirectory.toFile().getAbsolutePath();
+    System.out.println(absolutePath);
+
+    LarkyParser parser = new LarkyParser(
+        new HashSet<>() {{
+          add(LarkyBuiltin.class);
         }},
         LarkyParser.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
@@ -65,6 +94,5 @@ public class LarkyTest {
     ParsedStarFile config;
     ModuleSet moduleSet = ModuleSet.getInstance();
     config = parser.loadStarFile(starFile, moduleSet, new TestingConsole());
-    System.out.println("hello");
   }
 }

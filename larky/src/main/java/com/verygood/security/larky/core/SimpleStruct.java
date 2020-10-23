@@ -5,45 +5,52 @@ import com.google.common.collect.ImmutableMap;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.ClassObject;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 
 // A trivial struct-like class with Starlark fields defined by a map.
 public class SimpleStruct implements ClassObject {
-    final ImmutableMap<String, Object> fields;
 
-    public SimpleStruct(ImmutableMap<String, Object> fields) {
-      this.fields = fields;
-    }
+  private final ImmutableMap<String, Object> fields;
 
-    @Override
-    public ImmutableCollection<String> getFieldNames() {
-      return fields.keySet();
-    }
+  SimpleStruct(ImmutableMap<String, Object> fields) {
+    this.fields = fields;
+  }
 
-    @Override
-    public Object getValue(String name) {
-      return fields.get(name);
-    }
+  public static SimpleStruct create(Dict<String, Object> kwargs, StarlarkSemantics semantics) {
+    return new SimpleStruct(ImmutableMap.copyOf(kwargs));
+  }
 
-    @Override
-    public String getErrorMessageForUnknownField(String name) {
-      return null;
-    }
+  @Override
+  public ImmutableCollection<String> getFieldNames() {
+    return fields.keySet();
+  }
 
-    @Override
-    public void repr(Printer p) {
-      // This repr function prints only the fields.
-      // Any methods are still accessible through dir/getattr/hasattr.
-      p.append("simplestruct(");
-      String sep = "";
-      for (var e : fields.entrySet()) {
-        p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue());
-        sep = ", ";
-      }
-      p.append(")");
+  @Override
+  public Object getValue(String name) {
+    return fields.get(name);
+  }
+
+  @Override
+  public String getErrorMessageForUnknownField(String name) {
+    return null;
+  }
+
+  @Override
+  public void repr(Printer p) {
+    // This repr function prints only the fields.
+    // Any methods are still accessible through dir/getattr/hasattr.
+    p.append("simplestruct(");
+    String sep = "";
+    for (var e : fields.entrySet()) {
+      p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue());
+      sep = ", ";
     }
+    p.append(")");
+  }
 
   // SimpleStructWithMethods augments SimpleStruct's fields with annotated Java methods.
   private static final class SimpleStructWithMethods extends SimpleStruct {
@@ -58,7 +65,7 @@ public class SimpleStruct implements ClassObject {
 
           @Override
           public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
-            return "fromValues";
+            return "bar";
           }
         };
 
@@ -96,4 +103,4 @@ public class SimpleStruct implements ClassObject {
     }
   }
 
-  }
+}

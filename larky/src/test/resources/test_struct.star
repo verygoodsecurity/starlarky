@@ -8,8 +8,10 @@ def _to_dict(s):
       nested values.
     """
     attributes = dir(s)
-    attributes.remove("to_json")
-    attributes.remove("to_proto")
+    if "to_json" in attributes:
+        attributes.remove("to_json")
+    if "to_proto" in attributes:
+        attributes.remove("to_proto")
     return {key: getattr(s, key) for key in attributes}
 
 structs = struct(
@@ -18,4 +20,7 @@ structs = struct(
 
 s = struct(x = 2, y = 3)
 v = s.x + getattr(s, "y")
-print(v)
+print("v is: ", v, " and expected value is 5?: ", v == 5)
+
+print(structs)
+print(structs.to_dict(s))
