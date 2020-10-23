@@ -13,6 +13,11 @@
 // limitations under the License.
 package net.starlark.java.annot;
 
+import net.starlark.java.eval.Sequence;
+import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.Tuple;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -41,7 +46,7 @@ import java.lang.annotation.Target;
  * concrete implementation of an abstract interface. Overriding an annotation is useful when the
  * class should have its own distinct user-visible API or documentation. For example, {@link
  * Sequence} is an abstract type implemented by both {@link StarlarkList} and {@link
- * Sequence.Tuple}, all three of which are annotated. Annotating the list and tuple types allows
+ * Tuple}, all three of which are annotated. Annotating the list and tuple types allows
  * them to define different methods, while annotating {@link Sequence} allows them to be identified
  * as a single type for the purpose of type checking, documentation, and error messages.
  *
