@@ -516,7 +516,7 @@ final class Eval {
       }
       if (dict.size() == before) {
         fr.setErrorLocation(entry.getColonLocation());
-        throw Starlark.errorf("Duplicated key %s when creating dictionary", Starlark.repr(k));
+        throw Starlark.errorf("dictionary expression has duplicate key: %s", Starlark.repr(k));
       }
     }
     return dict;
@@ -795,7 +795,7 @@ final class Eval {
           DictExpression.Entry body = (DictExpression.Entry) comp.getBody();
           Object k = eval(fr, body.getKey());
           try {
-            EvalUtils.checkHashable(k);
+            Starlark.checkHashable(k);
             Object v = eval(fr, body.getValue());
             dict.put(k, v, (Location) null);
           } catch (EvalException ex) {

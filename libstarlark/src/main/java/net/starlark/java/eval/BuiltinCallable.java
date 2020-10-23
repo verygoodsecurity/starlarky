@@ -31,6 +31,7 @@ import net.starlark.java.spelling.SpellChecker;
  * StarlarkMethod#structField} is true.
  */
 // TODO(adonovan): rename AnnotatedMethod?
+// TODO(adonovan): annotate with type="builtin_function_or_method"
 public final class BuiltinCallable implements StarlarkCallable {
 
   private final Object obj;
@@ -185,7 +186,6 @@ public final class BuiltinCallable implements StarlarkCallable {
       }
 
       Object value = positional[argIndex++];
-      value = param.reboxIntMaybe(value);
       checkParamValue(param, value);
       vector[paramIndex] = value;
     }
@@ -268,7 +268,6 @@ public final class BuiltinCallable implements StarlarkCallable {
         continue;
       }
 
-      value = param.reboxIntMaybe(value);
       checkParamValue(param, value);
 
       // duplicate?
@@ -351,19 +350,6 @@ public final class BuiltinCallable implements StarlarkCallable {
       throw Starlark.errorf(
           "in call to %s(), parameter '%s' got value of type '%s', want '%s'",
           methodName, param.getName(), Starlark.type(value), param.getTypeErrorMessage());
-    }
-
-    // None is valid if and only if the parameter is marked noneable,
-    // in which case the above check passes as the list of classes will include NoneType.
-    // The reason for this check is to ensure that merely having type=Object.class
-    // does not allow None as an argument value; I'm not sure why, that but that's the
-    // historical behavior.
-    //
-    // We do this check second because the first check prints a better error
-    // that enumerates the allowed types.
-    if (value == Starlark.NONE && !param.isNoneable()) {
-      throw Starlark.errorf(
-          "in call to %s(), parameter '%s' cannot be None", methodName, param.getName());
     }
   }
 

@@ -18,7 +18,6 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -30,9 +29,7 @@ import net.starlark.java.syntax.SyntaxError;
 final class ParamDescriptor {
 
   private final String name;
-  private final boolean reboxInt; // whether StarlarkInt is converted to Integer
   @Nullable private final Object defaultValue;
-  private final boolean noneable;
   private final boolean named;
   private final boolean positional;
   private final List<Class<?>> allowedClasses; // non-empty
@@ -43,36 +40,18 @@ final class ParamDescriptor {
   private ParamDescriptor(
       String name,
       String defaultExpr,
-      boolean noneable,
       boolean named,
       boolean positional,
       List<Class<?>> allowedClasses,
-      boolean reboxInt,
       @Nullable String disabledByFlag) {
     this.name = name;
-    this.reboxInt = reboxInt;
-    try {
-      this.defaultValue =
-          defaultExpr.isEmpty() ? null : reboxIntMaybe(evalDefault(name, defaultExpr));
-    } catch (EvalException ex) {
-      throw new IllegalStateException(ex); // bad default
-    }
-    this.noneable = noneable;
+    // TODO(adonovan): apply the same validation logic to the default value
+    // as we do to caller-supplied values (see BuiltinCallable.checkParamValue).
+    this.defaultValue = defaultExpr.isEmpty() ? null : evalDefault(name, defaultExpr);
     this.named = named;
     this.positional = positional;
     this.allowedClasses = allowedClasses;
     this.disabledByFlag = disabledByFlag;
-  }
-
-  /**
-   * Converts (if necessary for this parameter) a StarlarkInt argument to an Integer parameter,
-   * applying a range check.
-   */
-  Object reboxIntMaybe(Object value) throws EvalException {
-    if (reboxInt && value instanceof StarlarkInt) {
-      return ((StarlarkInt) value).toInt(getName()); // may fail
-    }
-    return value;
   }
 
   /**
@@ -92,44 +71,25 @@ final class ParamDescriptor {
       Preconditions.checkState(!disabledByFlag.isEmpty());
     }
 
-    // A parameter of type Integer may accept an argument of type StarlarkInt,
-    // in which case BuiltinCallable.fastcall will apply this range check
-    // and convert (rebox) the argument.
-    // We also do this conversion for a parameter type of (say) Object
-    // if the allowedClasses include Integer.
-    boolean reboxInt = paramClass == Integer.class;
-
     // Compute set of allowed classes.
     ParamType[] allowedTypes = param.allowedTypes();
     List<Class<?>> allowedClasses = new ArrayList<>();
     if (allowedTypes.length > 0) {
       for (ParamType pt : allowedTypes) {
         allowedClasses.add(pt.type());
-        if (pt.type() == Integer.class) {
-          reboxInt = true;
-        }
       }
     } else {
-      allowedClasses.add(param.type());
-      if (param.type() == Integer.class) {
-        reboxInt = true;
-      }
-    }
-    if (param.noneable()) {
-      // A few annotations redundantly declare NoneType.
-      if (!allowedClasses.contains(NoneType.class)) {
-        allowedClasses.add(NoneType.class);
-      }
+      // Use the class of the parameter itself.
+      // Interpret primitive boolean parameter as j.l.Boolean.
+      allowedClasses.add(paramClass == Boolean.TYPE ? Boolean.class : paramClass);
     }
 
     return new ParamDescriptor(
         param.name(),
         defaultExpr,
-        param.noneable(),
         param.named(),
         param.positional(),
         allowedClasses,
-        reboxInt,
         disabledByFlag);
   }
 
@@ -140,16 +100,22 @@ final class ParamDescriptor {
 
   /** Returns a description of allowed argument types suitable for an error message. */
   String getTypeErrorMessage() {
-    return allowedClasses.stream().map(Starlark::classType).collect(Collectors.joining(" or "));
+    // Result has one of these forms:
+    // "a"
+    // "a or b"
+    // "a, b, or c"
+    StringBuilder buf = new StringBuilder();
+    for (int i = 0, n = allowedClasses.size(); i < n; i++) {
+      if (i > 0) {
+        buf.append(n == 2 ? " or " : i < n - 1 ? ", " : ", or ");
+      }
+      buf.append(Starlark.classType(allowedClasses.get(i)));
+    }
+    return buf.toString();
   }
 
   List<Class<?>> getAllowedClasses() {
     return allowedClasses;
-  }
-
-  /** @see Param#noneable() */
-  boolean isNoneable() {
-    return noneable;
   }
 
   /** @see Param#positional() */
