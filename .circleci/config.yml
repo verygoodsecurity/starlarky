@@ -135,7 +135,7 @@ jobs:
       - run:
           name: Python test
           command: |
-            python -m venv venv
+            python3 -m venv venv
             . ./venv/bin/activate
             pip install wheel twine pytest
             python setup.py bdist_wheel
