@@ -65,7 +65,7 @@ public class SimpleStruct implements ClassObject {
 
           @Override
           public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
-            return "fromValues";
+            return "bar";
           }
         };
 

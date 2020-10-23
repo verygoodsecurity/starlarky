@@ -8,6 +8,7 @@ import com.verygood.security.larky.parser.StarFile;
 import com.verygood.security.larky.stdlib.LarkyBuiltin;
 import com.verygood.security.larky.stdlib.LarkyHashlibModule;
 
+import net.starlark.java.lib.json.Json;
 import net.starlark.java.syntax.ParserInput;
 
 import org.junit.Assert;
@@ -58,13 +59,15 @@ public class LarkyTest {
         new HashSet<>() {{
           add(LarkyHashlibModule.class);
         }},
-        LarkyParser.StarlarkMode.STRICT);
+        LarkyParser.StarlarkMode.STRICT);3
     StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),
         null,
         null);
     ParsedStarFile config;
-    ModuleSet moduleSet = ModuleSet.getInstance();
+
+    //env.put("json", Json.INSTANCE);
+    ModuleSet moduleSet = ModuleSet.getInstance(Json.INSTANCE);
     config = parser.loadStarFile(starFile, moduleSet, new TestingConsole());
     System.out.println("hello");
   }

@@ -8,7 +8,6 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.StarlarkThread;
-import net.starlark.java.eval.StarlarkValue;
 
 
 /** A collection of global Larky API functions that mimic python's built-ins, to a certain extent.
@@ -17,7 +16,7 @@ import net.starlark.java.eval.StarlarkValue;
  *  to all Larky star scripts. Examples: struct, json, etc..
  * */
 @Library
-public final class LarkyBuiltin implements StarlarkValue {
+public final class LarkyBuiltin {
 
   public LarkyBuiltin() {}
 
@@ -36,6 +35,5 @@ public final class LarkyBuiltin implements StarlarkValue {
   public SimpleStruct struct(Dict<String, Object> kwargs, StarlarkThread thread)  {
     return SimpleStruct.create(kwargs, thread.getSemantics());
   }
-  //env.put("json", Json.INSTANCE);
 
 }
