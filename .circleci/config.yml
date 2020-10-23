@@ -140,7 +140,7 @@ jobs:
             pip install wheel twine pytest
             python setup.py bdist_wheel
             pip install ./dist/pylarky-0.0.2-py3-none-any.whl
-            pytest pylark/tests
+            pytest pylarky/tests
 
   dist-linux:
     <<: *job-defaults
