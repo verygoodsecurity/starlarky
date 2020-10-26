@@ -121,6 +121,7 @@
             </build>
             <properties>
                 <quarkus.package.type>native</quarkus.package.type>
+                <quarkus.package.output-name>larky</quarkus.package.output-name>
             </properties>
         </profile>
     </profiles>
