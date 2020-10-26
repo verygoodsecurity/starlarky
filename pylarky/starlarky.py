@@ -13,17 +13,22 @@ def evaluate(script, input_data: str) -> str:
     input_file.flush()
 
     __evaluate(script, input_file.name, output_file.name)
+    output = open(output_file.name, mode='r').read()
 
-    return open(output_file.name, mode='r').read()
+    input_file.close()
+    output_file.close()
+
+    return output
 
 
 def __evaluate(script, input_path, output_path):
-    code = subprocess.call([RUNNER_EXECUATBLE,
-                            INPUT_PARAM, input_path,
-                            OUTPUT_PARAM, output_path,
-                            script])
-    if code != 0:
-        raise FailedEvaluation(f'Evaluation returned non-zero return code. Code: {code}')
+    try:
+        subprocess.call([RUNNER_EXECUATBLE,
+                         INPUT_PARAM, input_path,
+                         OUTPUT_PARAM, output_path,
+                         script])
+    except Exception as e:
+        raise FailedEvaluation(f'Starlark evaluation failed. Error: {e}')
 
 
 class FailedEvaluation(Exception):
