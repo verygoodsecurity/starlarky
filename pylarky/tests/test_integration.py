@@ -32,6 +32,6 @@ modify()
     script_file.write(starlark_script)
     script_file.flush()
 
-    with pytest.raises(CalledProcessError):
+    with pytest.raises(FailedEvaluation):
         assert evaluate(script_file.name,
                         'ctx = {"body": "thisisabody", "headers": {"accept": "xml", "content": "still-xml"}}')
