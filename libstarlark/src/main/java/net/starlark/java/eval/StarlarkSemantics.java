@@ -17,6 +17,9 @@ package net.starlark.java.eval;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSortedMap;
+
+import net.starlark.java.syntax.FileOptions;
+
 import java.util.HashMap;
 import java.util.Map;
 

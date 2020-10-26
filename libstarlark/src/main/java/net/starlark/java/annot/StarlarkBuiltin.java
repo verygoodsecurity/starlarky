@@ -13,6 +13,11 @@
 // limitations under the License.
 package net.starlark.java.annot;
 
+import net.starlark.java.eval.Sequence;
+import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.Tuple;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -35,13 +40,13 @@ import java.lang.annotation.Target;
  * the minimum element in the partial order of all annotations defined on C and its ancestors, where
  * the order relationship is X < Y if X annotates a subtype of what Y annotates.) The lookup logic
  * for retrieving a class's {@link StarlarkBuiltin} is implemented by {@link
- * StarlarkInterfaceUtils#getStarlarkBuiltin}.
+ * StarlarkAnnotations#getStarlarkBuiltin}.
  *
  * <p>Inheriting an annotation is useful when the class is an implementation detail, such as a
  * concrete implementation of an abstract interface. Overriding an annotation is useful when the
  * class should have its own distinct user-visible API or documentation. For example, {@link
  * Sequence} is an abstract type implemented by both {@link StarlarkList} and {@link
- * Sequence.Tuple}, all three of which are annotated. Annotating the list and tuple types allows
+ * Tuple}, all three of which are annotated. Annotating the list and tuple types allows
  * them to define different methods, while annotating {@link Sequence} allows them to be identified
  * as a single type for the purpose of type checking, documentation, and error messages.
  *
@@ -56,7 +61,13 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface StarlarkBuiltin {
 
-  /** The name of this data type, as returned by the Starlark expression {@code type(x)}. */
+  /**
+   * The name of this data type, as returned by the Starlark expression {@code type(x)}.
+   *
+   * <p>Applications should ensure that data type names are unique. This is especially important for
+   * a type that implements Comparable, as its {@code compareTo} method may be passed any value of
+   * the same Starlark type, not necessarily one of the same Java class.
+   */
   String name();
 
   /** Module documentation in HTML. May be empty only if {@code !documented()}. */
