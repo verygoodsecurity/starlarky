@@ -16,6 +16,8 @@ package net.starlark.java.syntax;
 
 import com.google.auto.value.AutoValue;
 
+import net.starlark.java.eval.StarlarkSemantics;
+
 /**
  * FileOptions is a set of options that affect the static processing---scanning, parsing, validation
  * (identifier resolution), and compilation---of a single Starlark file. These options affect the

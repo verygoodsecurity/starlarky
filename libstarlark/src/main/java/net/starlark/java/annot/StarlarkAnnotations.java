@@ -18,14 +18,12 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import javax.annotation.Nullable;
 
-/** Helpers for accessing Starlark interface annotations. */
-// TODO(adonovan): make this private, and move methods to Starlark{Builtin,Method}.
-public class StarlarkInterfaceUtils {
+/** Utility functions for Starlark annotations. */
+public final class StarlarkAnnotations {
 
   /**
    * Returns the more specific class of two classes. Class x is more specific than class y if x is
-   * assignable to y. For example, of Integer.class and Object.class, Integer.class is more
-   * specific.
+   * assignable to y. For example, of String.class and Object.class, String.class is more specific.
    *
    * <p>If either class is null, returns the other class.
    *
@@ -197,4 +195,6 @@ public class StarlarkInterfaceUtils {
     }
     return callable;
   }
+
+  private StarlarkAnnotations() {}
 }

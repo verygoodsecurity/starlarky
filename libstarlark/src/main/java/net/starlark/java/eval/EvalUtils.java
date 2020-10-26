@@ -14,7 +14,6 @@
 package net.starlark.java.eval;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.Ordering;
 import java.util.IllegalFormatException;
 import net.starlark.java.syntax.Location;
 import net.starlark.java.syntax.TokenKind;
@@ -23,114 +22,6 @@ import net.starlark.java.syntax.TokenKind;
 final class EvalUtils {
 
   private EvalUtils() {}
-
-  /**
-   * The exception that STARLARK_COMPARATOR might throw. This is an unchecked exception because
-   * Comparator doesn't let us declare exceptions. It should normally be caught and wrapped in an
-   * EvalException.
-   */
-  static class ComparisonException extends RuntimeException {
-    ComparisonException(String msg) {
-      super(msg);
-    }
-  }
-
-  /**
-   * Compare two Starlark values.
-   *
-   * <p>It may throw an unchecked exception ComparisonException that should be wrapped in an
-   * EvalException.
-   */
-  // TODO(adonovan): consider what API to expose around comparison and ordering. Java's three-valued
-  // comparator cannot properly handle weakly or partially ordered values such as IEEE754 floats.
-  static final Ordering<Object> STARLARK_COMPARATOR =
-      new Ordering<Object>() {
-        private int compareLists(Sequence<?> o1, Sequence<?> o2) {
-          if (o1 instanceof RangeList || o2 instanceof RangeList) {
-            // RangeLists don't support ordered comparison, only equality.
-            throw new ComparisonException("Cannot compare range objects");
-          }
-
-          for (int i = 0; i < Math.min(o1.size(), o2.size()); i++) {
-            int cmp = compare(o1.get(i), o2.get(i));
-            if (cmp != 0) {
-              return cmp;
-            }
-          }
-          return Integer.compare(o1.size(), o2.size());
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public int compare(Object o1, Object o2) {
-
-          // optimize the most common cases
-
-          if (o1 instanceof String && o2 instanceof String) {
-            return ((String) o1).compareTo((String) o2);
-          }
-          if (o1 instanceof StarlarkInt && o2 instanceof StarlarkInt) {
-            // int <=> int
-            return StarlarkInt.compare((StarlarkInt) o1, (StarlarkInt) o2);
-          }
-
-          o1 = Starlark.fromJava(o1, null);
-          o2 = Starlark.fromJava(o2, null);
-
-          if (o1 instanceof Sequence
-              && o2 instanceof Sequence
-              && o1 instanceof Tuple == o2 instanceof Tuple) {
-            return compareLists((Sequence) o1, (Sequence) o2);
-          }
-
-          if (o1 instanceof ClassObject) {
-            throw new ComparisonException("Cannot compare structs");
-          }
-          try {
-            return ((Comparable<Object>) o1).compareTo(o2);
-          } catch (ClassCastException e) {
-            throw new ComparisonException(
-                "Cannot compare " + Starlark.type(o1) + " with " + Starlark.type(o2));
-          }
-        }
-      };
-
-  /** Throws EvalException if x is not hashable. */
-  static void checkHashable(Object x) throws EvalException {
-    if (!isHashable(x)) {
-      // This results in confusing errors such as "unhashable type: tuple".
-      // TODO(adonovan): ideally the error message would explain which
-      // element of, say, a tuple is unhashable. The only practical way
-      // to implement this is by implementing isHashable as a call to
-      // Object.hashCode within a try/catch, and requiring all
-      // unhashable Starlark values to throw a particular unchecked exception
-      // with a helpful error message.
-      throw Starlark.errorf("unhashable type: '%s'", Starlark.type(x));
-    }
-  }
-
-  /**
-   * Reports whether a legal Starlark value is considered hashable to Starlark, and thus suitable as
-   * a key in a dict.
-   */
-  static boolean isHashable(Object o) {
-    // Bazel makes widespread assumptions that all Starlark values can be hashed
-    // by Java code, so we cannot implement isHashable by having
-    // StarlarkValue.hashCode throw an unchecked exception, which would be more
-    // efficient. Instead, before inserting a value in a dict, we must first ask
-    // it whether it isHashable, and then call its hashCode method only if so.
-    // For structs and tuples, this unfortunately visits the object graph twice.
-    //
-    // One subtlety: the struct.isHashable recursively asks whether its
-    // elements are immutable, not hashable. Consequently, even though a list
-    // may not be used as a dict key (even if frozen), a struct containing
-    // a list is hashable. TODO(adonovan): fix this inconsistency.
-    // Requires an incompatible change flag.
-    if (o instanceof StarlarkValue) {
-      return ((StarlarkValue) o).isHashable();
-    }
-    return Starlark.isImmutable(o);
-  }
 
   static void addIterator(Object x) {
     if (x instanceof Mutability.Freezable) {
@@ -387,12 +278,12 @@ final class EvalUtils {
         "unsupported binary operation: %s %s %s", Starlark.type(x), op, Starlark.type(y));
   }
 
-  /** Implements comparison operators. */
+  // Defines the behavior of the language's ordered comparison operators (< <= => >).
   private static int compare(Object x, Object y) throws EvalException {
     try {
-      return STARLARK_COMPARATOR.compare(x, y);
-    } catch (ComparisonException e) {
-      throw new EvalException(e);
+      return Starlark.compareUnchecked(x, y);
+    } catch (ClassCastException ex) {
+      throw new EvalException(ex.getMessage());
     }
   }
 

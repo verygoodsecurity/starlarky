@@ -44,7 +44,7 @@ import net.starlark.java.annot.StarlarkBuiltin;
             + "('a', 'b', 'c', 'd')[::2]  # ('a', 'c')\n"
             + "('a', 'b', 'c', 'd')[3:0:-1]  # ('d', 'c', 'b')</pre>"
             + "Tuples are immutable, therefore <code>x[1] = \"a\"</code> is not supported.")
-public final class Tuple<E> extends AbstractList<E> implements Sequence<E> {
+public final class Tuple<E> extends AbstractList<E> implements Sequence<E>, Comparable<Tuple<?>> {
 
   private final Object[] elems;
 
@@ -115,13 +115,10 @@ public final class Tuple<E> extends AbstractList<E> implements Sequence<E> {
   }
 
   @Override
-  public boolean isHashable() {
+  public void checkHashable() throws EvalException {
     for (Object x : elems) {
-      if (!EvalUtils.isHashable(x)) {
-        return false;
-      }
+      Starlark.checkHashable(x);
     }
-    return true;
   }
 
   @Override
@@ -135,6 +132,11 @@ public final class Tuple<E> extends AbstractList<E> implements Sequence<E> {
     // because it considers the class, not just the elements.
     return this == that
         || (that instanceof Tuple && Arrays.equals(this.elems, ((Tuple) that).elems));
+  }
+
+  @Override
+  public int compareTo(Tuple<?> that) {
+    return Sequence.compare(this, that);
   }
 
   @Override
