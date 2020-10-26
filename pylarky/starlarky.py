@@ -7,18 +7,11 @@ OUTPUT_PARAM = '-output'
 
 
 def evaluate(script, input_data: str) -> str:
-    output_file = tempfile.NamedTemporaryFile(mode='w+')
-    input_file = tempfile.NamedTemporaryFile(mode='w+')
-    input_file.write(input_data)
-    input_file.flush()
-
-    __evaluate(script, input_file.name, output_file.name)
-    output = open(output_file.name, mode='r').read()
-
-    input_file.close()
-    output_file.close()
-
-    return output
+    with tempfile.NamedTemporaryFile(mode='w+') as output_file, tempfile.NamedTemporaryFile(mode='w+') as input_file:
+        input_file.write(input_data)
+        input_file.flush()
+        __evaluate(script, input_file.name, output_file.name)
+        return output_file.read()
 
 
 def __evaluate(script, input_path, output_path):
