@@ -1,6 +1,6 @@
 import tempfile
 import pytest
-from pylarky.starlarky import evaluate, CalledProcessError
+from pylarky.starlarky import evaluate, FailedEvaluation
 
 
 def test_evaluation():
