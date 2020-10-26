@@ -2,6 +2,7 @@
 # load("/lib/builtinz", "setz")  # does not work
 # load("./lib/builtinz", "setz") # works
 load("lib/builtinz", "setz")
+load("hashlib", "md5")
 
 # # request = struct(
 # #     max_content_length = native.request.max_content_length,
@@ -13,4 +14,5 @@ load("lib/builtinz", "setz")
 #
 # load("operations.star", "common")
 # common.reject()
-setz.make()
+print(setz.make())
+print(md5("foo"))
