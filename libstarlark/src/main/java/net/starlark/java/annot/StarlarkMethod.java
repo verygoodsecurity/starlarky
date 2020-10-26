@@ -27,7 +27,7 @@ import java.lang.annotation.Target;
  * corresponding {@code @StarlarkMethod} annotation, if it has one, by scanning all methods of the
  * same name in its class hierarchy, without worrying about complications like overloading or
  * generics. The lookup functionality is implemented by {@link
- * StarlarkInterfaceUtils#getStarlarkMethod}.
+ * StarlarkAnnotations#getStarlarkMethod}.
  *
  * <p>Methods having this annotation must satisfy the following requirements, which are enforced at
  * compile time by {@link StarlarkMethodProcessor}:
@@ -63,15 +63,6 @@ import java.lang.annotation.Target;
  *   <li>Noneable parameter variables must be declared with type Object, as the actual value may be
  *       either {@code None} or some other value, which do not share a superclass other than Object
  *       (or StarlarkValue, which is typically no more descriptive than Object).
- *   <li>A parameter may have type Integer, or have a {@link Param#type} or {@link
- *       Param#allowedTypes} annotation that includes Integer.class, even though Integer is not a
- *       legal Starlark value type. When called from Starlark code, such a parameter accepts
- *       StarlarkInt values, but only in the signed 32-bit value range. These values are "reboxed"
- *       to Integer. Note that reboxing will still occur in the case where the annotation-declared
- *       types include Integer.class but the parameter's type is Object. This means the parameter's
- *       value cannot be assumed to be a legal Starlark value and should not be freely passed to
- *       other functions in the Starlark API that require a legal value. To avoid the range and
- *       legality limitations of reboxing, simply use StarlarkInt in place of Integer.
  *   <li>Parameter variables whose class is generic must be declared using wildcard types. For
  *       example, {@code Sequence<?>} is allowed but {@code Sequence<String>} is forbidden. This is
  *       because the call-time dynamic checks verify the class but cannot verify the type
@@ -84,6 +75,11 @@ import java.lang.annotation.Target;
  *   <li>Each class may have up to one method annotated with {@code selfCall}, which must not be
  *       marked {@code structField=true}.
  * </ul>
+ *
+ * <p>When an annotated method is called from Starlark, it is a dynamic error if it returns null,
+ * unless the method is marked as {@link #allowReturnNones}, in which case {@link Starlark#fromJava}
+ * converts the Java null value to {@link Starlark#NONE}. This feature prevents a method whose
+ * declared (and documented) result type is T from unexpectedly returning a value of type NoneType.
  */
 // TODO(adonovan): rename to StarlarkAttribute and factor Starlark{Method,Field} as subinterfaces.
 @Target({ElementType.METHOD})
@@ -164,8 +160,8 @@ public @interface StarlarkMethod {
   boolean selfCall() default false;
 
   /**
-   * Set it to true if the Java method may return <code>null</code> (which will then be converted to
-   * <code>None</code>). If not set and the Java method returns null, an error will be raised.
+   * Permits the Java method to return null, which {@link Starlark#fromJava} then converts to {@link
+   * Starlark#NONE}. If false, a null result causes the Starlark call to fail.
    */
   boolean allowReturnNones() default false;
 

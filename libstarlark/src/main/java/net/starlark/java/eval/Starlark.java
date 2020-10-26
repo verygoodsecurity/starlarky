@@ -17,6 +17,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Ordering;
 import com.google.errorprone.annotations.CheckReturnValue;
 import com.google.errorprone.annotations.FormatMethod;
 import java.io.IOException;
@@ -30,8 +31,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
+import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;
-import net.starlark.java.annot.StarlarkInterfaceUtils;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.spelling.SpellChecker;
 import net.starlark.java.syntax.Expression;
@@ -137,6 +138,20 @@ public final class Starlark {
       return ((StarlarkValue) x).isImmutable();
     } else {
       throw new IllegalArgumentException("invalid Starlark value: " + x.getClass());
+    }
+  }
+
+  /**
+   * Returns normally if the Starlark value is hashable and thus suitable as a dict key.
+   *
+   * @throws EvalException otherwise.
+   */
+  public static void checkHashable(Object x) throws EvalException {
+    if (x instanceof StarlarkValue) {
+      ((StarlarkValue) x).checkHashable();
+    } else {
+      Starlark.checkValid(x);
+      // String and Boolean are hashable.
     }
   }
 
@@ -270,12 +285,6 @@ public final class Starlark {
       return "string";
     } else if (StarlarkInt.class.isAssignableFrom(c)) {
       return "int";
-    } else if (c.equals(Integer.class)) {
-      // Integer is not a legal Starlark value, but it is used for parameter types
-      // in built-in functions; StarlarkBuiltin.fastcall does a range check
-      // and reboxing. Use of this type means "signed 32-bit int value",
-      // but that's a lot for an error message.
-      return "int";
     } else if (c.equals(Boolean.class)) {
       return "bool";
     }
@@ -299,13 +308,26 @@ public final class Starlark {
       return "unbound";
     }
 
-    StarlarkBuiltin module = StarlarkInterfaceUtils.getStarlarkBuiltin(c);
+    // Abstract types, often used as parameter types.
+    // Note == not isAssignableFrom: we don't want any
+    // concrete types to inherit these names.
+    if (c == StarlarkIterable.class) {
+      return "iterable";
+    } else if (c == Sequence.class) {
+      return "sequence";
+    } else if (c == StarlarkCallable.class) {
+      return "callable";
+    }
+
+    StarlarkBuiltin module = StarlarkAnnotations.getStarlarkBuiltin(c);
     if (module != null) {
       return module.name();
+    }
 
-    } else if (StarlarkCallable.class.isAssignableFrom(c)) {
+    if (StarlarkCallable.class.isAssignableFrom(c)) {
       // All callable values have historically been lumped together as "function".
-      // TODO(adonovan): built-in types that don't use StarlarkModule should report
+      // TODO(adonovan): eliminate this case.
+      // Built-in types that don't use StarlarkModule should report
       // their own type string, but this is a breaking change as users often
       // use type(x)=="function" for Starlark and built-in functions.
       return "function";
@@ -325,10 +347,63 @@ public final class Starlark {
       // Any class of java.util.Map that isn't a Dict.
       return "Map";
 
+    } else if (c.equals(Integer.class)) {
+      // Integer is not a legal Starlark value, but it does appear as
+      // the return type for many built-in functions.
+      return "int";
+
     } else {
       String simpleName = c.getSimpleName();
       return simpleName.isEmpty() ? c.getName() : simpleName;
     }
+  }
+
+  /**
+   * The ordering relation over (some) Starlark values.
+   *
+   * <p>Starlark values are ordered as follows.
+   *
+   * <ul>
+   *   <li>{@code False < True}.
+   *   <li>int values are ordered according to mathematical tradition.
+   *   <li>Strings are ordered lexicographically by their elements (chars). So too are lists and
+   *       tuples, though lists are not comparable with tuples.
+   *   <li>If x implements Comparable, its {@code compareTo(y)} method may be called to determine
+   *       the comparison if x and y have the same Starlark type, though not necessary the same Java
+   *       class.
+   *   <li>Ordered comparison of any other values is an error (ClassCastException).
+   * </ul>
+   *
+   * <p>This method defines a strict weak ordering that is consistent with {@link Object#equals}.
+   */
+  public static final Ordering<Object> ORDERING =
+      new Ordering<Object>() {
+        @Override
+        public int compare(Object x, Object y) {
+          return compareUnchecked(x, y);
+        }
+      };
+
+  /**
+   * Defines the strict weak ordering of Starlark values used for sorting and the comparison
+   * operators. Throws ClassCastException on failure.
+   */
+  static int compareUnchecked(Object x, Object y) {
+    if (sameType(x, y)) {
+      // Ordered? e.g. string, int, bool.
+      if (x instanceof Comparable) {
+        @SuppressWarnings("unchecked")
+        Comparable<Object> xcomp = (Comparable<Object>) x;
+        return xcomp.compareTo(y);
+      }
+    }
+
+    throw new ClassCastException(
+        String.format("unsupported comparison: %s <=> %s", Starlark.type(x), Starlark.type(y)));
+  }
+
+  private static boolean sameType(Object x, Object y) {
+    return x.getClass() == y.getClass() || Starlark.type(x).equals(Starlark.type(y));
   }
 
   /** Returns the string form of a value as if by the Starlark expression {@code str(x)}. */
@@ -660,7 +735,7 @@ public final class Starlark {
    *
    * <p>Most callers should use {@link #dir} and {@link #getattr} instead.
    */
-  // TODO(adonovan): move to StarlarkInterfaceUtils; it's a static property of the annotations.
+  // TODO(adonovan): move to StarlarkAnnotations; it's a static property of the annotations.
   public static ImmutableMap<Method, StarlarkMethod> getMethodAnnotations(Class<?> clazz) {
     ImmutableMap.Builder<Method, StarlarkMethod> result = ImmutableMap.builder();
     for (MethodDescriptor desc :
@@ -719,19 +794,6 @@ public final class Starlark {
       // whether the method was disabled by the semantics.
       env.put(name, new BuiltinCallable(v, name));
     }
-  }
-
-  /**
-   * Adds to the environment {@code env} the value {@code v}, under its annotated name. The class of
-   * {@code v} must have or inherit a {@link StarlarkBuiltin} annotation.
-   */
-  public static void addModule(ImmutableMap.Builder<String, Object> env, Object v) {
-    Class<?> cls = v.getClass();
-    StarlarkBuiltin annot = StarlarkInterfaceUtils.getStarlarkBuiltin(cls);
-    if (annot == null) {
-      throw new IllegalArgumentException(cls.getName() + " is not annotated with @StarlarkBuiltin");
-    }
-    env.put(annot.name(), v);
   }
 
   /**
