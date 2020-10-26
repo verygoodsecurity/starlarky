@@ -21,7 +21,7 @@ def __evaluate(script, input_path, output_path):
                       OUTPUT_PARAM, output_path,
                       script], stderr=STDOUT)
     except CalledProcessError as e:
-        raise FailedEvaluation(f'Starlark evaluation failed. \nOutput: {e.output}')
+        raise FailedEvaluation(f'Starlark evaluation failed. \nOutput: {e.output}') from e
 
 
 class FailedEvaluation(Exception):
