@@ -1,5 +1,5 @@
 import tempfile
-import subprocess
+from subprocess import PIPE, STDOUT, check_output, CalledProcessError
 
 RUNNER_EXECUATBLE = 'larky-runner'
 INPUT_PARAM = '-input'
@@ -23,12 +23,12 @@ def evaluate(script, input_data: str) -> str:
 
 def __evaluate(script, input_path, output_path):
     try:
-        subprocess.call([RUNNER_EXECUATBLE,
-                         INPUT_PARAM, input_path,
-                         OUTPUT_PARAM, output_path,
-                         script])
-    except Exception as e:
-        raise FailedEvaluation(f'Starlark evaluation failed. Error: {e}')
+        check_output([RUNNER_EXECUATBLE,
+                      INPUT_PARAM, input_path,
+                      OUTPUT_PARAM, output_path,
+                      script], stderr=STDOUT)
+    except CalledProcessError as e:
+        raise FailedEvaluation(f'Starlark evaluation failed. \nOutput: {e.output}')
 
 
 class FailedEvaluation(Exception):
