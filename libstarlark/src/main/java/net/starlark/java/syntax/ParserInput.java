@@ -54,6 +54,12 @@ public final class ParserInput {
     return file;
   }
 
+  public static ParserInput preAppend(ParserInput prepend, ParserInput file) {
+    char[] content = String.join("\n", String.valueOf(prepend.getContent()), String.valueOf(file.getContent())).toCharArray();
+    String fileName = String.join("+", prepend.getFile(), file.getFile());
+    return new ParserInput(content, fileName);
+  }
+
   /**
    * Returns an input source that uses the name and content of the specified UTF-8-encoded text
    * file.
