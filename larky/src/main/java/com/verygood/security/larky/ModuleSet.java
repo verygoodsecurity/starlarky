@@ -21,10 +21,4 @@ public class ModuleSet {
     return modules;
   }
 
-  public static ModuleSet getInstance(ImmutableMap<String, Object> modules) {
-    return new ModuleSet(modules);
-  }
-  public static ModuleSet getInstance() {
-    return new ModuleSet(ImmutableMap.<String, Object>builder().build());
-  }
 }

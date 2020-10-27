@@ -67,12 +67,12 @@ public class LarkyParser {
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
   private static final String STAR_EXTENSION = ".star";
   // For now all the modules are namespaces. We don't use variables except for 'core'.
-  private final Iterable<Class<?>> modules;
+  private final Iterable<Class<?>> globalModules;
   private final StarlarkMode validation;
 
-  public LarkyParser(Set<Class<?>> modules, StarlarkMode validation) {
-    this.modules = ImmutableSet.<Class<?>>builder()
-        .addAll(modules).build();
+  public LarkyParser(Set<Class<?>> globalModules, StarlarkMode validation) {
+    this.globalModules = ImmutableSet.<Class<?>>builder()
+        .addAll(globalModules).build();
     this.validation = validation;
   }
 
@@ -202,8 +202,6 @@ public class LarkyParser {
       pending.add(content.path());
 
       // Make the modules available as predeclared bindings.
-      // For modules that implement OptionsAwareModule, options are set in the object so
-      // that the module can construct objects that require options.
       StarlarkSemantics semantics = StarlarkSemantics.DEFAULT;
       module = Module.withPredeclared(semantics, environment);
 
@@ -291,7 +289,7 @@ public class LarkyParser {
       env.put(module.getKey(), module.getValue());
     }
 
-    for (Class<?> module : modules) {
+    for (Class<?> module : globalModules) {
       logger.atInfo().log("Creating variable for %s", module.getName());
       // Create the module object and associate it with the functions
       ImmutableMap.Builder<String, Object> envBuilder = ImmutableMap.builder();
@@ -308,10 +306,6 @@ public class LarkyParser {
       env.putAll(envBuilder.build());
     }
     return ImmutableMap.copyOf(env);
-  }
-
-  private static String getModuleName(Class<?> cls) {
-    return cls.getAnnotation(StarlarkBuiltin.class).name();
   }
 
 }

@@ -2,7 +2,6 @@
 # load("/lib/builtinz", "setz")  # does not work
 # load("./lib/builtinz", "setz") # works
 load("lib/builtinz", "setz", "collections")
-load("hashlib", "md5")
 
 # # request = struct(
 # #     max_content_length = native.request.max_content_length,
@@ -16,4 +15,6 @@ load("hashlib", "md5")
 # common.reject()
 print(collections)
 print(setz.make())
-print(md5("foo"))
+print(hashlib.md5("foo"))
+print(json.decode('{"one": 1, "two": 2}'))
+print(json.decode('"\\ud83d\\ude39\\ud83d\\udc8d"'))

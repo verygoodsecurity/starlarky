@@ -7,9 +7,12 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.ClassObject;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.Printer;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
+
+import java.util.Map;
 
 // A trivial struct-like class with Starlark fields defined by a map.
 public class SimpleStruct implements ClassObject {
@@ -43,9 +46,10 @@ public class SimpleStruct implements ClassObject {
   public void repr(Printer p) {
     // This repr function prints only the fields.
     // Any methods are still accessible through dir/getattr/hasattr.
-    p.append("simplestruct(");
+    p.append(Starlark.type(this));
+    p.append("(");
     String sep = "";
-    for (var e : fields.entrySet()) {
+    for (Map.Entry<String, Object> e : fields.entrySet()) {
       p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue());
       sep = ", ";
     }

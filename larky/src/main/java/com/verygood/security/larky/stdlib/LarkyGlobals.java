@@ -16,9 +16,7 @@ import net.starlark.java.eval.StarlarkThread;
  *  to all Larky star scripts. Examples: struct, json, etc..
  * */
 @Library
-public final class LarkyBuiltin {
-
-  public LarkyBuiltin() {}
+public final class LarkyGlobals {
 
   @StarlarkMethod(
       name = "struct",

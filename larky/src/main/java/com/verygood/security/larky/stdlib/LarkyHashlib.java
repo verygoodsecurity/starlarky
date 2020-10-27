@@ -15,7 +15,7 @@ import net.starlark.java.eval.StarlarkValue;
     name = "hashlib",
     category = "BUILTIN",
     doc = "This module implements a common interface to many different secure hash and message digest algorithms.")
-public class LarkyHashlibModule implements StarlarkValue {
+public class LarkyHashlib implements StarlarkValue {
 
   @StarlarkMethod(
       name = "md5",

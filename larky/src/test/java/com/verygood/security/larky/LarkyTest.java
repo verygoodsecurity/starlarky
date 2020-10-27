@@ -1,12 +1,14 @@
 package com.verygood.security.larky;
 
+import com.google.common.collect.ImmutableSet;
+
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.parser.LarkyParser;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.PathBasedStarFile;
 import com.verygood.security.larky.parser.StarFile;
-import com.verygood.security.larky.stdlib.LarkyBuiltin;
-import com.verygood.security.larky.stdlib.LarkyHashlibModule;
+import com.verygood.security.larky.stdlib.LarkyGlobals;
+import com.verygood.security.larky.stdlib.LarkyHashlib;
 
 import net.starlark.java.syntax.ParserInput;
 
@@ -56,7 +58,7 @@ public class LarkyTest {
 
     LarkyParser parser = new LarkyParser(
         new HashSet<>() {{
-          add(LarkyHashlibModule.class);
+          add(LarkyHashlib.class);
         }},
         LarkyParser.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
@@ -65,8 +67,7 @@ public class LarkyTest {
         null);
     ParsedStarFile config;
 
-    //env.put("json", Json.INSTANCE);
-    ModuleSet moduleSet = ModuleSet.getInstance();
+    ModuleSet moduleSet = new ModuleSupplier().create();
     config = parser.loadStarFile(starFile, moduleSet, new TestingConsole());
     System.out.println("hello");
   }
@@ -83,7 +84,7 @@ public class LarkyTest {
 
     LarkyParser parser = new LarkyParser(
         new HashSet<>() {{
-          add(LarkyBuiltin.class);
+          add(LarkyGlobals.class);
         }},
         LarkyParser.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
@@ -91,7 +92,7 @@ public class LarkyTest {
         null,
         null);
     ParsedStarFile config;
-    ModuleSet moduleSet = ModuleSet.getInstance();
+    ModuleSet moduleSet = new ModuleSupplier().create();
     config = parser.loadStarFile(starFile, moduleSet, new TestingConsole());
   }
 
@@ -106,16 +107,13 @@ public class LarkyTest {
     System.out.println(absolutePath);
 
     LarkyParser parser = new LarkyParser(
-        new HashSet<>() {{
-          add(LarkyBuiltin.class);
-        }},
+        ImmutableSet.of(LarkyGlobals.class),
         LarkyParser.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),
         null,
         null);
     ParsedStarFile config;
-    ModuleSet moduleSet = ModuleSet.getInstance();
-    config = parser.loadStarFile(starFile, moduleSet, new TestingConsole());
+    config = parser.loadStarFile(starFile, new ModuleSupplier().create(), new TestingConsole());
   }
 }
