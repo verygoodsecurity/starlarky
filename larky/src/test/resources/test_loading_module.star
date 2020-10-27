@@ -1,7 +1,7 @@
-# load("//lib/builtinz", "setz") # works, but root is not defined.
-# load("/lib/builtinz", "setz")  # does not work
-# load("./lib/builtinz", "setz") # works
-load("lib/builtinz", "setz", "collections")
+# load("//testlib/builtinz", "setz") # works, but root is not defined.
+# load("/testlib/builtinz", "setz")  # does not work
+# load("./testlib/builtinz", "setz") # works
+load("testlib/builtinz", "setz", "collections")
 
 # # request = struct(
 # #     max_content_length = native.request.max_content_length,

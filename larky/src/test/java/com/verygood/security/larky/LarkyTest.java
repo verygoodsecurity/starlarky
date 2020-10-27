@@ -3,12 +3,11 @@ package com.verygood.security.larky;
 import com.google.common.collect.ImmutableSet;
 
 import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.nativelib.LarkyGlobals;
 import com.verygood.security.larky.parser.LarkyParser;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.PathBasedStarFile;
 import com.verygood.security.larky.parser.StarFile;
-import com.verygood.security.larky.nativelib.LarkyGlobals;
-import com.verygood.security.larky.nativelib.LarkyHashlib;
 
 import net.starlark.java.syntax.ParserInput;
 
@@ -17,7 +16,6 @@ import org.junit.Assert;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashSet;
 
 public class LarkyTest {
 
@@ -57,9 +55,7 @@ public class LarkyTest {
     System.out.println(absolutePath);
 
     LarkyParser parser = new LarkyParser(
-        new HashSet<>() {{
-          add(LarkyHashlib.class);
-        }},
+        ImmutableSet.of(LarkyGlobals.class),
         LarkyParser.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),
@@ -83,9 +79,7 @@ public class LarkyTest {
     System.out.println(absolutePath);
 
     LarkyParser parser = new LarkyParser(
-        new HashSet<>() {{
-          add(LarkyGlobals.class);
-        }},
+        ImmutableSet.of(LarkyGlobals.class),
         LarkyParser.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),
