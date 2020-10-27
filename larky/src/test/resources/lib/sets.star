@@ -23,7 +23,7 @@
   `types.is_set()` method in types.bzl.
 """
 
-load("dicts.bzl", "dicts")
+load("subdir/dicts", "dicts")
 
 def _make(elements = None):
     """Creates a new set.

@@ -1,7 +1,7 @@
 # load("//lib/builtinz", "setz") # works, but root is not defined.
 # load("/lib/builtinz", "setz")  # does not work
 # load("./lib/builtinz", "setz") # works
-load("lib/builtinz", "setz")
+load("lib/builtinz", "setz", "collections")
 load("hashlib", "md5")
 
 # # request = struct(
@@ -14,5 +14,6 @@ load("hashlib", "md5")
 #
 # load("operations.star", "common")
 # common.reject()
+print(collections)
 print(setz.make())
 print(md5("foo"))
