@@ -54,7 +54,13 @@
             <artifactId>libstarlark</artifactId>
             <version>1.0-SNAPSHOT</version>
             <!-- provided, compile, runtime, test, system -->
-            <scope>provided</scope>
+            <!-- NOTE (drew): do not use provided when using GraalVM otherwise
+                 when packaging into a native image, a cryptic exception will be thrown:
+
+                 java.lang.ClassNotFoundException: net.starlark.java.syntax.SyntaxError$Exception
+                 ...
+                 -->
+            <scope>compile</scope>
         </dependency>
 
         <!-- test -->
