@@ -114,7 +114,8 @@ def remove_submodule(path):
 bazel_repo = "https://github.com/bazelbuild/bazel"
 
 
-for submodule_dir in get_submodules(os.getcwd()):
+for _submodule_dir in get_submodules(os.getcwd()):
+    submodule_dir = _submodule_dir.replace(os.getcwd() + '/', '')
     add_submodule(bazel_repo, submodule_dir)
     update_submodules(submodule_dir)
 
