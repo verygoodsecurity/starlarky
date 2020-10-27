@@ -1,4 +1,4 @@
-package com.verygood.security.larky.stdlib;
+package com.verygood.security.larky.nativelib;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;

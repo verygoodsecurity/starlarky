@@ -7,8 +7,8 @@ import com.verygood.security.larky.parser.LarkyParser;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.PathBasedStarFile;
 import com.verygood.security.larky.parser.StarFile;
-import com.verygood.security.larky.stdlib.LarkyGlobals;
-import com.verygood.security.larky.stdlib.LarkyHashlib;
+import com.verygood.security.larky.nativelib.LarkyGlobals;
+import com.verygood.security.larky.nativelib.LarkyHashlib;
 
 import net.starlark.java.syntax.ParserInput;
 

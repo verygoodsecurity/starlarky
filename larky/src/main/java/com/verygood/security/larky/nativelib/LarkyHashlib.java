@@ -1,4 +1,4 @@
-package com.verygood.security.larky.stdlib;
+package com.verygood.security.larky.nativelib;
 
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
@@ -10,7 +10,6 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 
-/** A Starlark structure to deliver information about the system we are running on. */
 @StarlarkBuiltin(
     name = "hashlib",
     category = "BUILTIN",
