@@ -84,4 +84,24 @@ public class ModuleSupplier {
     }
     throw new IllegalStateException("Cannot find @StarlarkBuiltin for " + o.getClass());
   }
+
+  /**
+   * A set of modules and options for evaluating a Skylark config file.
+   */
+  public static class ModuleSet {
+
+    private final ImmutableMap<String, Object> modules;
+
+    ModuleSet(ImmutableMap<String, Object> modules) {
+      this.modules = Preconditions.checkNotNull(modules);
+    }
+
+     /**
+     * Non-static modules.
+     */
+    public ImmutableMap<String, Object> getModules() {
+      return modules;
+    }
+
+  }
 }

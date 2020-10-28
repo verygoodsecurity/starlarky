@@ -62,7 +62,7 @@ public class LarkyTest {
         null,
         null);
     ParsedStarFile config;
-    ModuleSet moduleSet = new ModuleSupplier().create();
+    ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier().create();
     config = parser.loadStarFile(starFile, moduleSet, new TestingConsole());
   }
 

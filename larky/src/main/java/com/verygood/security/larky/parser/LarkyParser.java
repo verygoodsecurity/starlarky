@@ -23,9 +23,9 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.FluentLogger;
 
+import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
-import com.verygood.security.larky.ModuleSet;
 
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -76,12 +76,12 @@ public class LarkyParser {
     this.validation = validation;
   }
 
-  public ParsedStarFile loadStarFile(StarFile config, ModuleSet moduleSet, Console console)
+  public ParsedStarFile loadStarFile(StarFile config, ModuleSupplier.ModuleSet moduleSet, Console console)
       throws IOException {
     return getStarFileWithTransitiveImports(config, moduleSet, console).starFile;
   }
 
-  private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSet moduleSet,
+  private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSupplier.ModuleSet moduleSet,
                                               Console console)
       throws IOException {
     Module module;
@@ -95,7 +95,7 @@ public class LarkyParser {
   }
 
   @VisibleForTesting
-  public Module executeSkylark(StarFile content, ModuleSet moduleSet, Console console)
+  public Module executeSkylark(StarFile content, ModuleSupplier.ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
@@ -116,7 +116,7 @@ public class LarkyParser {
    *     dependency cycles.
    */
   public StarFileWithDependencies getStarFileWithTransitiveImports(
-      StarFile starScriptFile, ModuleSet moduleSet, Console console)
+      StarFile starScriptFile, ModuleSupplier.ModuleSet moduleSet, Console console)
       throws IOException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(starScriptFile);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
@@ -182,9 +182,9 @@ public class LarkyParser {
     private final Console console;
     // Predeclared environment shared by all files (modules) loaded.
     private final ImmutableMap<String, Object> environment;
-    private final ModuleSet moduleSet;
+    private final ModuleSupplier.ModuleSet moduleSet;
 
-    private Evaluator(ModuleSet moduleSet, Console console) {
+    private Evaluator(ModuleSupplier.ModuleSet moduleSet, Console console) {
       this.console = checkNotNull(console);
       this.moduleSet = checkNotNull(moduleSet);
       this.environment = createEnvironment(this.moduleSet);
@@ -281,7 +281,7 @@ public class LarkyParser {
    * Create the environment for all evaluations (will be shared between all the dependent files
    * loaded).
    */
-  private ImmutableMap<String, Object> createEnvironment(ModuleSet moduleSet) {
+  private ImmutableMap<String, Object> createEnvironment(ModuleSupplier.ModuleSet moduleSet) {
     Map<String, Object> env = Maps.newHashMap();
     for (Entry<String, Object> module : moduleSet.getModules().entrySet()) {
       logger.atInfo().log("Creating variable for %s", module.getKey());
