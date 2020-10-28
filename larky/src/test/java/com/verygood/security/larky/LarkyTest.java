@@ -20,7 +20,7 @@ import java.nio.file.Paths;
 public class LarkyTest {
 
   @org.junit.Test
-  public void main() {
+  public void testStarlarkExampleFile() {
     Path resourceDirectory = Paths.get(
         "src",
         "test",
@@ -45,31 +45,7 @@ public class LarkyTest {
   }
 
   @org.junit.Test
-  public void main2() throws IOException {
-    Path resourceDirectory = Paths.get(
-        "src",
-        "test",
-        "resources",
-        "test_loading_module.star");
-    String absolutePath = resourceDirectory.toFile().getAbsolutePath();
-    System.out.println(absolutePath);
-
-    LarkyParser parser = new LarkyParser(
-        ImmutableSet.of(LarkyGlobals.class),
-        LarkyParser.StarlarkMode.STRICT);
-    StarFile starFile = new PathBasedStarFile(
-        Paths.get(absolutePath),
-        null,
-        null);
-    ParsedStarFile config;
-
-    ModuleSet moduleSet = new ModuleSupplier().create();
-    config = parser.loadStarFile(starFile, moduleSet, new TestingConsole());
-    System.out.println("hello");
-  }
-
-  @org.junit.Test
-  public void test3() throws IOException {
+  public void testStructBuiltin() throws IOException {
     Path resourceDirectory = Paths.get(
         "src",
         "test",

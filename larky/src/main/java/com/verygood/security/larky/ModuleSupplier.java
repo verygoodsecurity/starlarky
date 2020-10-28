@@ -25,6 +25,7 @@ import com.verygood.security.larky.nativelib.LarkyHashlib;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.lib.json.Json;
+import net.starlark.java.lib.proto.Proto;
 
 import java.util.Map;
 import java.util.function.Function;
@@ -49,6 +50,7 @@ public class ModuleSupplier {
    */
   public ImmutableSet<StarlarkValue> getModules() {
     return ImmutableSet.of(
+        Proto.INSTANCE,
         Json.INSTANCE,
         new LarkyHashlib()
     );

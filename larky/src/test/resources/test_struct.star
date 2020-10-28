@@ -24,3 +24,13 @@ print("v is: ", v, " and expected value is 5?: ", v == 5)
 
 print(structs)
 print(structs.to_dict(s))
+print("--" * 5)
+
+pb_struct = struct(field=struct(inner_field=struct(inner_inner_field='text')))
+print(proto.encode_text(pb_struct))
+# Prints:
+# field {
+#   inner_field {
+#     inner_inner_field: "text"
+#   }
+# }
