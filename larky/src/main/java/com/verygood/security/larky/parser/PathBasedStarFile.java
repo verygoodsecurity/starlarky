@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.lang;
+package com.verygood.security.larky.parser;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import javax.annotation.Nullable;
 
 /**
- * A Skylark dependency resolver that resolves relative paths and absolute paths if
+ * A Starlark dependency resolver that resolves relative paths and absolute paths if
  * {@code rootPath} is defined.
  */
 public class PathBasedStarFile implements StarFile {
