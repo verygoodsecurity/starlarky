@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.lang;
+package com.verygood.security.larky.parser;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * A config file that records the children created from it. Useful for collecting dependencies in
+ * A Larky file that records the children created from it. Useful for collecting dependencies in
  * dry runs.
  */
 class CapturingStarFile implements StarFile {

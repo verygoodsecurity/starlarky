@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.lang;
+package com.verygood.security.larky.parser;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -26,9 +26,9 @@ import lombok.ToString;
 
 
 /**
- * Configuration for a Copybara project.
+ * A Parsed Larky script file.
  *
- * <p> Objects of this class represent a parsed Copybara configuration.
+ * <p> Objects of this class represent a parsed Larky script.
  */
 @EqualsAndHashCode
 @ToString
