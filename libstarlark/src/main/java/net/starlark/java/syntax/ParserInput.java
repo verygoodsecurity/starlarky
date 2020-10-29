@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import net.starlark.java.eval.EvalException;
 
 /**
  * The apparent name and contents of a source file, for consumption by the parser. The file name
@@ -31,7 +32,7 @@ import java.nio.file.Paths;
  * trace.
  *
  * <p>The parser consumes a stream of chars (UTF-16 codes), and the syntax positions reported by
- * {@link Node#getStartOffset} and {@link Location.column} are effectively indices into a char
+ * {@link Node#getStartOffset} and {@link Location#column()} are effectively indices into a char
  * array.
  */
 public final class ParserInput {
@@ -52,12 +53,6 @@ public final class ParserInput {
   /** Returns the apparent file name of the input source. */
   public String getFile() {
     return file;
-  }
-
-  public static ParserInput preAppend(ParserInput prepend, ParserInput file) {
-    char[] content = String.join("\n", String.valueOf(prepend.getContent()), String.valueOf(file.getContent())).toCharArray();
-    String fileName = String.join("+", prepend.getFile(), file.getFile());
-    return new ParserInput(content, fileName);
   }
 
   /**
