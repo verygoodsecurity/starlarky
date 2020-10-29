@@ -12,6 +12,7 @@ import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.syntax.FileOptions;
+import net.starlark.java.syntax.LarkyParserInputUtils;
 import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.SyntaxError;
 
@@ -23,7 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
-import java.util.Map;
 
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;
@@ -108,10 +108,13 @@ public class Larky implements QuarkusApplication {
     }
   }
 
+
   static int execute(ParserInput input, String inputFile, String outputFile) {
     try {
       if (!inputFile.equals("")) {
-        input = ParserInput.preAppend(ParserInput.readFile(inputFile), input);
+        input = LarkyParserInputUtils.preAppend(
+            ParserInput.readFile(inputFile),
+            input);
       }
       Object returnValue = Starlark.execFile(input, OPTIONS, module, thread);
       if (!outputFile.equals("") && !(returnValue instanceof NoneType)) {
