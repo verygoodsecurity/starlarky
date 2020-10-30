@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableSet;
 
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.nativelib.LarkyGlobals;
+import com.verygood.security.larky.nativelib.LarkyUnittest;
 import com.verygood.security.larky.parser.LarkyParser;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.PathBasedStarFile;
@@ -78,6 +79,30 @@ public class LarkyTest {
 
     LarkyParser parser = new LarkyParser(
         ImmutableSet.of(LarkyGlobals.class),
+        LarkyParser.StarlarkMode.STRICT);
+    StarFile starFile = new PathBasedStarFile(
+        Paths.get(absolutePath),
+        null,
+        null);
+    ParsedStarFile config;
+    config = parser.loadStarFile(starFile, new ModuleSupplier().create(), new TestingConsole());
+  }
+
+  @org.junit.Test
+  public void testUnitTestModule() throws IOException {
+    Path resourceDirectory = Paths.get(
+        "src",
+        "test",
+        "resources",
+        "test_unittest.star");
+    String absolutePath = resourceDirectory.toFile().getAbsolutePath();
+    System.out.println(absolutePath);
+
+    LarkyParser parser = new LarkyParser(
+        ImmutableSet.of(
+            LarkyGlobals.class,
+            LarkyUnittest.class
+        ),
         LarkyParser.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),

@@ -16,6 +16,8 @@
 
 package com.verygood.security.larky.parser;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -48,8 +50,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.Supplier;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Loads Larky out of Starlark files.
@@ -225,10 +225,25 @@ public class LarkyParser {
         }
         throw new RuntimeException("Error loading config file.");
       }
+      /*
+         TODO: Build better import semantics:
 
-      // process loads
+         - load from globals first.
+         - load from larkylib (native, larky)
+         - load from local path (./) <- has to be like go? //external: load('//github
+
+         Right now, it just has them all as built-ins, with namespaces
+         __builtin__.struct() // struct()
+         unittest // exists in the global namespace by default
+         import unittest // unittest
+         load('unitest', 'unitest') => it now is usable in global namespace, otherwise, unknown symbol is thrown
+       */
+      // process loads (local star files)
       Map<String, Module> loadedModules = new HashMap<>();
       for (String load : prog.getLoads()) {
+        // isLoadInLarkyLib(), loadLibrary()
+        // else, do the thing below: resolve load for built-in
+          // ->
         Module loadedModule = eval(content.resolve(load + STAR_EXTENSION));
         loadedModules.put(load, loadedModule);
       }
@@ -243,7 +258,6 @@ public class LarkyParser {
         console.error(ex.getMessageWithStack());
         throw new RuntimeException("Error loading config file", ex);
       }
-
       pending.remove(content.path());
       loaded.put(content.path(), module);
       return module;

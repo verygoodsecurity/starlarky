@@ -20,6 +20,18 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.errorprone.annotations.CheckReturnValue;
 import com.google.errorprone.annotations.FormatMethod;
+
+import net.starlark.java.annot.StarlarkAnnotations;
+import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.spelling.SpellChecker;
+import net.starlark.java.syntax.Expression;
+import net.starlark.java.syntax.FileOptions;
+import net.starlark.java.syntax.ParserInput;
+import net.starlark.java.syntax.Program;
+import net.starlark.java.syntax.StarlarkFile;
+import net.starlark.java.syntax.SyntaxError;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
@@ -31,16 +43,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
-import net.starlark.java.annot.StarlarkAnnotations;
-import net.starlark.java.annot.StarlarkBuiltin;
-import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.spelling.SpellChecker;
-import net.starlark.java.syntax.Expression;
-import net.starlark.java.syntax.FileOptions;
-import net.starlark.java.syntax.ParserInput;
-import net.starlark.java.syntax.Program;
-import net.starlark.java.syntax.StarlarkFile;
-import net.starlark.java.syntax.SyntaxError;
 
 /**
  * The Starlark class defines the most important entry points, constants, and functions needed by
