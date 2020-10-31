@@ -9,10 +9,11 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 import java.util.List;
+import java.util.Objects;
 
 
 @StarlarkBuiltin(
-    name = "assertions",
+    name = "asserts",
     category = "BUILTIN",
     doc = "This module implements a ")
 public class LarkyAssertions implements StarlarkValue {
@@ -44,7 +45,8 @@ public class LarkyAssertions implements StarlarkValue {
   public Object assertStarlark(Object cond, String msg, StarlarkThread thread)
       throws EvalException {
     if (!Starlark.truth(cond)) {
-      thread.getThreadLocal(Reporter.class).reportError(thread, "assert_: " + msg);
+      Objects.requireNonNull(thread.getThreadLocal(Reporter.class))
+          .reportError(thread, "assert_: " + msg);
     }
     return Starlark.NONE;
   }

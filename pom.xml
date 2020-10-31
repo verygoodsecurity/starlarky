@@ -94,6 +94,18 @@
             <version>${google.flogger.version}</version>
         </dependency>
 
+        <!--
+          junit is not scoped for test because we are using
+          it in larky/nativelib to offer unittest interface
+          to starlark
+        -->
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${org.junit.version}</version>
+        </dependency>
+
         <!-- test -->
         <dependency>
             <groupId>javax.xml.bind</groupId>
@@ -107,12 +119,7 @@
             <version>${google.truth.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${org.junit.version}</version>
-            <scope>test</scope>
-        </dependency>
+
         <dependency>
             <groupId>com.google.testing.compile</groupId>
             <artifactId>compile-testing</artifactId>

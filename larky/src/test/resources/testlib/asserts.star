@@ -9,54 +9,6 @@ load("sets", "sets")
 load("types", "types")
 
 
-def _suite(name, *test_rules):
-    """Defines a `test_suite` target that contains multiple tests.
-    After defining your test rules in a `.bzl` file, you need to create targets
-    from those rules so that `blaze test` can execute them. Doing this manually
-    in a BUILD file would consist of listing each test in your `load` statement
-    and then creating each target one by one. To reduce duplication, we recommend
-    writing a macro in your `.bzl` file to instantiate all targets, and calling
-    that macro from your BUILD file so you only have to load one symbol.
-    For the case where your unit tests do not take any (non-default) attributes --
-    i.e., if your unit tests do not test rules -- you can use this function to
-    create the targets and wrap them in a single test_suite target. In your
-    `.bzl` file, write:
-    ```
-    def your_test_suite():
-      unittest.suite(
-          "your_test_suite",
-          your_test,
-          your_other_test,
-          yet_another_test,
-      )
-    ```
-    Then, in your `BUILD` file, simply load the macro and invoke it to have all
-    of the targets created:
-    ```
-    load("//path/to/your/package:tests.bzl", "your_test_suite")
-    your_test_suite()
-    ```
-    If you pass _N_ unit test rules to `unittest.suite`, _N_ + 1 targets will be
-    created: a `test_suite` target named `${name}` (where `${name}` is the name
-    argument passed in here) and targets named `${name}_test_${i}`, where `${i}`
-    is the index of the test in the `test_rules` list, which is used to uniquely
-    name each target.
-    Args:
-      name: The name of the `test_suite` target, and the prefix of all the test
-          target names.
-      *test_rules: A list of test rules defines by `unittest.test`.
-    """
-    test_names = []
-    for index, test_rule in enumerate(test_rules):
-        test_name = "%s_test_%d" % (name, index)
-        test_rule(name = test_name)
-        test_names.append(test_name)
-
-    native.test_suite(
-        name = name,
-        tests = [":%s" % t for t in test_names],
-    )
-
 def _begin(ctx):
     """Begins a unit test.
     This should be the first function called in a unit test implementation
@@ -73,29 +25,6 @@ def _begin(ctx):
     """
     return struct(ctx = ctx, failures = [])
 
-def _end(env):
-    """Ends a unit test and logs the results.
-    This must be called and returned at the end of a unit test implementation function so
-    that the results are reported.
-    Args:
-      env: The test environment returned by `unittest.begin`.
-    Returns:
-      A list of providers needed to automatically register the test result.
-    """
-
-    tc = env.ctx.toolchains[TOOLCHAIN_TYPE].unittest_toolchain_info
-    testbin = env.ctx.actions.declare_file(env.ctx.label.name + tc.file_ext)
-    if env.failures:
-        cmd = tc.failure_templ % tc.join_on.join(env.failures)
-    else:
-        cmd = tc.success_templ
-
-    env.ctx.actions.write(
-        output = testbin,
-        content = cmd,
-        is_executable = True,
-    )
-    return [DefaultInfo(executable = testbin)]
 
 def _fail(env, msg):
     """Unconditionally causes the current test to fail.
@@ -222,12 +151,4 @@ asserts = struct(
     set_equals = _assert_set_equals,
     new_set_equals = _assert_new_set_equals,
     true = _assert_true,
-)
-
-unittest = struct(
-    make = _make,
-    suite = _suite,
-    begin = _begin,
-    end = _end,
-    fail = _fail,
 )

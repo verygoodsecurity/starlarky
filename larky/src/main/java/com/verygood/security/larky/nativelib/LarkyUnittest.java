@@ -24,8 +24,16 @@ import net.starlark.java.eval.StarlarkValue;
     doc = "This module implements unittests")
 public class LarkyUnittest implements StarlarkValue {
 
-  public static class LarkyTestSuite extends TestSuite implements StarlarkValue {
 
+  @StarlarkMethod(
+      name = "TestSuite",
+      useStarlarkThread = true)
+  public Object createTestSuite(StarlarkThread thread) {
+    // Starlark.call(thread, function, ImmutableList.of(), ImmutableMap.of())
+    return new LarkyTestSuite();
+  }
+
+  public static class LarkyTestSuite extends TestSuite implements StarlarkValue {
     @StarlarkMethod(
         name = "addTest",
         parameters = {
@@ -41,26 +49,26 @@ public class LarkyUnittest implements StarlarkValue {
   }
 
   @StarlarkMethod(
-      name = "TestSuite",
+      name = "FunctionTestCase",
+      parameters = {
+          @Param(name = "function"),
+      },
       useStarlarkThread = true)
-  public Object createTestSuite(StarlarkThread thread) {
-    // Starlark.call(thread, function, ImmutableList.of(), ImmutableMap.of())
-    return new LarkyTestSuite();
+  public Object addCase(Object function, StarlarkThread thread) {
+    return new LarkyFunctionTestCase(
+        thread,
+        (StarlarkFunction) function,
+        Starlark.repr(function));
   }
 
-  // here's what we have to do --
-  // larkytest should be a testcase and should be a starlark built-in
-  // it should then, be returned via test()
-  // which then should have starlarkthread iterate over the globals
-  // and extract everything of type larktytest
-  // then it will store it in a private suite? or a suite variable?
-  // then if the suite variable is there, it will add tests and run them.
-  public static class LarkyFunctionTest extends TestCase implements StarlarkValue {
+  @SuppressWarnings("UnconstructableJUnitTestCase")
+  public static class LarkyFunctionTestCase extends TestCase implements StarlarkValue {
 
-    private StarlarkThread thread;
-    private StarlarkFunction f;
+    private final StarlarkThread thread;
+    private final StarlarkFunction f;
 
-    public LarkyFunctionTest(StarlarkThread thread, StarlarkFunction f, String name) {
+    @SuppressWarnings("CdiInjectionPointsInspection")
+    public LarkyFunctionTestCase(StarlarkThread thread, StarlarkFunction f, String name) {
       super(name);
       this.thread = thread;
       this.f = f;
@@ -74,18 +82,10 @@ public class LarkyUnittest implements StarlarkValue {
   }
 
   @StarlarkMethod(
-      name = "FunctionTestCase",
-      parameters = {
-          @Param(name = "function"),
-      },
+      name = "TextTestRunner",
       useStarlarkThread = true)
-  public Object addCase(Object function, StarlarkThread thread) {
-    // Starlark.call(thread, function, ImmutableList.of(), ImmutableMap.of())
-    System.out.println(function);
-    return new LarkyFunctionTest(
-        thread,
-        (StarlarkFunction) function,
-        Starlark.repr(function));
+  public Object createTestRunner(StarlarkThread thread) {
+    return new LarkyTestRunner();
   }
 
   public static class LarkyTestRunner extends TestRunner implements StarlarkValue {
@@ -102,18 +102,9 @@ public class LarkyUnittest implements StarlarkValue {
     public void run(Object suiteTest) {
       LarkyTestSuite suite = (LarkyTestSuite) suiteTest;
       System.out.println(suite);
-      run(suite);
+      TestRunner.run(suite);
     }
 
-  }
-
-  @StarlarkMethod(
-      name = "TextTestRunner",
-      useStarlarkThread = true)
-  public Object createTestRunner(StarlarkThread thread) {
-    // Starlark.call(thread, function, ImmutableList.of(), ImmutableMap.of())
-
-    return new LarkyTestRunner();
   }
 
 }
