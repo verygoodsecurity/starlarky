@@ -1,35 +1,64 @@
 package com.verygood.security.larky.core;
 
-import com.google.common.collect.ImmutableCollection;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.ClassObject;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.syntax.Location;
 
 import java.util.Map;
 
 // A trivial struct-like class with Starlark fields defined by a map.
 public class SimpleStruct implements ClassObject {
 
-  private final ImmutableMap<String, Object> fields;
+  final Map<String, Object> fields;
 
-  SimpleStruct(ImmutableMap<String, Object> fields) {
+  SimpleStruct(Map<String, Object> fields) {
     this.fields = fields;
   }
 
-  public static SimpleStruct create(Dict<String, Object> kwargs, StarlarkSemantics semantics) {
-    return new SimpleStruct(ImmutableMap.copyOf(kwargs));
+  public static SimpleStruct create(Map<String, Object> kwargs) {
+    return new SimpleStruct(kwargs);
+  }
+
+  private static class ImmutableStruct extends SimpleStruct {
+    ImmutableStruct(ImmutableMap<String, Object> fields) {
+      super(fields);
+    }
+  }
+
+  public static SimpleStruct immutable(Dict<String, Object> kwargs, StarlarkSemantics semantics) {
+    return new ImmutableStruct(ImmutableMap.copyOf(kwargs));
+  }
+
+  private static class MutableStruct extends SimpleStruct {
+    MutableStruct(Dict<String, Object> fields) {
+      super(fields);
+    }
+
+    @Override
+    public void setField(String field, Object value) throws EvalException {
+      if (value.equals("bad")) {
+        throw Starlark.errorf("bad field value");
+      }
+      ((Dict<String, Object>) fields).put(field, value, (Location) null);
+    }
+  }
+  public static SimpleStruct mutable(Dict<String, Object> kwargs, StarlarkSemantics semantics) {
+    return new MutableStruct(kwargs);
   }
 
   @Override
-  public ImmutableCollection<String> getFieldNames() {
-    return fields.keySet();
+  public ImmutableList<String> getFieldNames() {
+    return ImmutableList.copyOf(fields.keySet());
   }
 
   @Override

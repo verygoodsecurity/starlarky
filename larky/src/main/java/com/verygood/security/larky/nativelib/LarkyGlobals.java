@@ -31,7 +31,19 @@ public final class LarkyGlobals {
     )
   @StarlarkConstructor
   public SimpleStruct struct(Dict<String, Object> kwargs, StarlarkThread thread)  {
-    return SimpleStruct.create(kwargs, thread.getSemantics());
+    return SimpleStruct.immutable(kwargs, thread.getSemantics());
+  }
+
+  @StarlarkMethod(
+      name = "mutablestruct",
+      doc = "Just like struct, but creates an mutable struct using the keyword arguments as attributes",
+      extraKeywords =
+          @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
+      useStarlarkThread = true
+    )
+  @StarlarkConstructor
+  public SimpleStruct mutablestruct(Dict<String, Object> kwargs, StarlarkThread thread)  {
+    return SimpleStruct.mutable(kwargs, thread.getSemantics());
   }
 
 }
