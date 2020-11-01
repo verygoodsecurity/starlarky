@@ -6,13 +6,11 @@ import com.google.common.collect.ImmutableMap;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.ClassObject;
 import net.starlark.java.eval.Dict;
-import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
-import net.starlark.java.syntax.Location;
 
 import java.util.Map;
 
@@ -21,6 +19,7 @@ public class SimpleStruct implements ClassObject {
 
   final Map<String, Object> fields;
 
+  @SuppressWarnings("CdiInjectionPointsInspection")
   SimpleStruct(Map<String, Object> fields) {
     this.fields = fields;
   }
@@ -29,29 +28,10 @@ public class SimpleStruct implements ClassObject {
     return new SimpleStruct(kwargs);
   }
 
-  private static class ImmutableStruct extends SimpleStruct {
-    ImmutableStruct(ImmutableMap<String, Object> fields) {
-      super(fields);
-    }
-  }
-
   public static SimpleStruct immutable(Dict<String, Object> kwargs, StarlarkSemantics semantics) {
     return new ImmutableStruct(ImmutableMap.copyOf(kwargs));
   }
 
-  private static class MutableStruct extends SimpleStruct {
-    MutableStruct(Dict<String, Object> fields) {
-      super(fields);
-    }
-
-    @Override
-    public void setField(String field, Object value) throws EvalException {
-      if (value.equals("bad")) {
-        throw Starlark.errorf("bad field value");
-      }
-      ((Dict<String, Object>) fields).put(field, value, (Location) null);
-    }
-  }
   public static SimpleStruct mutable(Dict<String, Object> kwargs, StarlarkSemantics semantics) {
     return new MutableStruct(kwargs);
   }
@@ -63,6 +43,8 @@ public class SimpleStruct implements ClassObject {
 
   @Override
   public Object getValue(String name) {
+
+    System.out.println("====> here? " + name);
     return fields.get(name);
   }
 

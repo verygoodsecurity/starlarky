@@ -111,4 +111,28 @@ public class LarkyTest {
     ParsedStarFile config;
     config = parser.loadStarFile(starFile, new ModuleSupplier().create(), new TestingConsole());
   }
+
+  @org.junit.Test
+  public void testAsserts() throws IOException {
+    Path resourceDirectory = Paths.get(
+        "src",
+        "test",
+        "resources",
+        "test_asserts.star");
+    String absolutePath = resourceDirectory.toFile().getAbsolutePath();
+    System.out.println(absolutePath);
+
+    LarkyParser parser = new LarkyParser(
+        ImmutableSet.of(
+            LarkyGlobals.class,
+            LarkyUnittest.class
+        ),
+        LarkyParser.StarlarkMode.STRICT);
+    StarFile starFile = new PathBasedStarFile(
+        Paths.get(absolutePath),
+        null,
+        null);
+    ParsedStarFile config;
+    config = parser.loadStarFile(starFile, new ModuleSupplier().create(), new TestingConsole());
+  }
 }

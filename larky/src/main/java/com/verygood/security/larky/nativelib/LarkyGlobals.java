@@ -2,11 +2,13 @@ package com.verygood.security.larky.nativelib;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
+import com.verygood.security.larky.core.CallableMutableStruct;
 import com.verygood.security.larky.core.SimpleStruct;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
 
 
@@ -46,4 +48,21 @@ public final class LarkyGlobals {
     return SimpleStruct.mutable(kwargs, thread.getSemantics());
   }
 
+  @StarlarkMethod(
+      name = "callablestruct",
+      doc = "Just like struct, but creates an callable struct using a function and its keyword arguments as its attributes",
+      parameters = {
+          @Param(
+              name = "function",
+              doc = "The function to invoke when the struct is called"
+          ),
+      },
+      extraKeywords =
+          @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
+      useStarlarkThread = true
+    )
+  @StarlarkConstructor
+  public SimpleStruct callablestruct(StarlarkFunction function, Dict<String, Object> kwargs, StarlarkThread thread)  {
+    return CallableMutableStruct.create(thread, function, kwargs);
+  }
 }
