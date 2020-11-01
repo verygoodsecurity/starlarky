@@ -43,6 +43,8 @@ public class SimpleStruct implements ClassObject {
 
   @Override
   public Object getValue(String name) {
+
+    System.out.println("====> here? " + name);
     return fields.get(name);
   }
 
