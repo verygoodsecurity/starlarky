@@ -33,7 +33,7 @@ public class CompilerOptions extends OptionsBase {
   public String output;
 
   @Option(
-      name = "output",
+      name = "log",
       abbrev = 'l',
       help = "Log output",
       category = "startup",
