@@ -9,40 +9,55 @@ import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.syntax.Location;
 
 public class CallableMutableStruct extends MutableStruct implements StarlarkCallable {
 
   private static final String FUNCTION = "function";
-  private static final String PARAMETERS = "parameters";
+  private static final String ARGS = "args";
+  private static final String KWARGS = "kwargs";
   private final StarlarkFunction method;
 
   CallableMutableStruct(Dict<String, Object> fields) {
     super(fields);
-    this.method = (StarlarkFunction) fields.get("function");
+    this.method = (StarlarkFunction) fields.get(FUNCTION);
   }
 
   public static CallableMutableStruct create(StarlarkThread thread,
                                              StarlarkFunction func,
-                                             Dict<String, Object> parameters) {
+                                             Tuple<Object> args,
+                                             Dict<String, Object> kwargs) {
 
     return new CallableMutableStruct(
         Dict.copyOf(
             thread.mutability(),
-            ImmutableMap.of(FUNCTION, func, PARAMETERS, parameters)));
+            ImmutableMap.of(FUNCTION, func, ARGS, args, KWARGS, kwargs)));
   }
 
   @Override
   public Object getValue(String name) {
-    System.out.println("====> here? " + name);
+    System.out.println("++ in callable: " + name);
     return super.getValue(name);
   }
 
   @Override
+  public void setField(String field, Object value) throws EvalException {
+    System.out.println("------- field: " + field);
+    ((Dict<String, Object>) fields).put(field, value, (Location) null);
+  }
+
+
+  @Override
   @SuppressWarnings("unchecked")
   public Object call(StarlarkThread thread, Tuple<Object> args, Dict<String, Object> kwargs) throws EvalException, InterruptedException {
-    Dict<String, Object> _params = (Dict<String, Object>) this.fields.get(PARAMETERS);
+    Dict<String, Object> _params = (Dict<String, Object>) this.fields.get(KWARGS);
     kwargs.update(Dict.empty(), _params, thread);
-    return Starlark.call(thread, this.method, args, kwargs);
+
+    Tuple<Object> joinedArgs = Tuple.concat(
+        (Tuple<Object>) this.fields.get(ARGS),
+        args);
+
+    return Starlark.call(thread, this.method, joinedArgs, kwargs);
   }
 
 
@@ -51,7 +66,7 @@ public class CallableMutableStruct extends MutableStruct implements StarlarkCall
    */
   @Override
   public String getName() {
-    return CallableMutableStruct.class.getName();
+    return method.getName();
   }
 
 }

@@ -10,6 +10,7 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.Tuple;
 
 
 /** A collection of global Larky API functions that mimic python's built-ins, to a certain extent.
@@ -55,14 +56,15 @@ public final class LarkyGlobals {
           @Param(
               name = "function",
               doc = "The function to invoke when the struct is called"
-          ),
+          )
       },
+      extraPositionals = @Param(name = "args"),
       extraKeywords =
           @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
       useStarlarkThread = true
     )
   @StarlarkConstructor
-  public SimpleStruct callablestruct(StarlarkFunction function, Dict<String, Object> kwargs, StarlarkThread thread)  {
-    return CallableMutableStruct.create(thread, function, kwargs);
+  public SimpleStruct callablestruct(StarlarkFunction function, Tuple<Object> args, Dict<String, Object> kwargs, StarlarkThread thread)  {
+    return CallableMutableStruct.create(thread, function, args, kwargs);
   }
 }

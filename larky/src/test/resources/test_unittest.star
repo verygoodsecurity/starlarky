@@ -1,9 +1,15 @@
+load("testlib/asserts", "asserts")
+
 def success():
-    print("did this work?")
+    asserts.assert_that(1).is_equal_to(1)
+    asserts.assert_(1 == 1)
+    asserts.assert_true(1 == 1)
+    asserts.assert_false(1 == 2)
 
 
 def failure():
-    fail("one")
+    asserts.assert_false(True)
+    asserts.assert_that(2).is_equal_to(1)
 
 
 def suite():
