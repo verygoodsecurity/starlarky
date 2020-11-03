@@ -44,7 +44,7 @@ public class LarkyEntrypoint {
         LogConsole.writeOnlyConsole(System.out, true)), Path.of(compilerOptions.log), Duration.ZERO);
 
     Files.writeString(Path.of(compilerOptions.output),
-        parser.executeSkylarkWithOutput(starFile, moduleSet, console),
+        (String) parser.executeSkylarkWithOutput(starFile, moduleSet, console),
         StandardOpenOption.CREATE_NEW);
   }
 
