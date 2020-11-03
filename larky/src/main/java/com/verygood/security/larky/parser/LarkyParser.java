@@ -105,6 +105,12 @@ public class LarkyParser {
     return module;
   }
 
+  @VisibleForTesting
+  public Object executeSkylarkWithOutput(StarFile content, ModuleSet moduleSet, Console console)
+      throws IOException, InterruptedException {
+    return new Evaluator(moduleSet, console).evalWithOutput(content);
+  }
+
   /**
    * Collect all ConfigFiles retrieved by the parser while loading {code config}.
    *
@@ -192,18 +198,9 @@ public class LarkyParser {
 
     private Module eval(StarFile content)
         throws IOException, InterruptedException {
-      if (pending.contains(content.path())) {
-        throw throwCycleError(content.path());
-      }
-      Module module = loaded.get(content.path());
-      if (module != null) {
-        return module;
-      }
-      pending.add(content.path());
-
       // Make the modules available as predeclared bindings.
       StarlarkSemantics semantics = StarlarkSemantics.DEFAULT;
-      module = Module.withPredeclared(semantics, environment);
+      Module module = Module.withPredeclared(semantics, environment);
 
       // parse & compile
       ParserInput input = ParserInput.fromUTF8(content.readContentBytes(), content.path());
@@ -247,6 +244,66 @@ public class LarkyParser {
       pending.remove(content.path());
       loaded.put(content.path(), module);
       return module;
+    }
+
+    private Object evalWithOutput(StarFile content)
+        throws IOException, InterruptedException {
+      if (pending.contains(content.path())) {
+        throw throwCycleError(content.path());
+      }
+      Module module = loaded.get(content.path());
+      if (module != null) {
+        return module;
+      }
+      pending.add(content.path());
+
+      // Make the modules available as predeclared bindings.
+      StarlarkSemantics semantics = StarlarkSemantics.DEFAULT;
+      module = Module.withPredeclared(semantics, environment);
+
+      // parse & compile
+      ParserInput input = ParserInput.fromUTF8(content.readContentBytes(), content.path());
+      FileOptions options;
+      if (validation == StarlarkMode.STRICT) {
+        options = STARLARK_STRICT_FILE_OPTIONS;
+      } else if (validation == StarlarkMode.LOOSE) {
+        options = STARLARK_LOOSE_FILE_OPTIONS;
+      }
+      else {
+        throw new RuntimeException("Undefined StarlarkMode: " + validation);
+      }
+      Program prog;
+      try {
+        prog = Program.compileFile(StarlarkFile.parse(input, options), module);
+      } catch (SyntaxError.Exception ex) {
+        for (SyntaxError error : ex.errors()) {
+          console.error(error.toString());
+        }
+        throw new RuntimeException("Error loading config file.");
+      }
+
+      // process loads
+      Map<String, Module> loadedModules = new HashMap<>();
+      for (String load : prog.getLoads()) {
+        Module loadedModule = eval(content.resolve(load + STAR_EXTENSION));
+        loadedModules.put(load, loadedModule);
+      }
+
+      // execute
+      Object output;
+      try (Mutability mu = Mutability.create("LarkyModules")) {
+        StarlarkThread thread = new StarlarkThread(mu, semantics);
+        thread.setLoader(loadedModules::get);
+        thread.setPrintHandler(this::starlarkPrint);
+        output = Starlark.execFileProgram(prog, module, thread);
+      } catch (EvalException ex) {
+        console.error(ex.getMessageWithStack());
+        throw new RuntimeException("Error loading config file", ex);
+      }
+
+      pending.remove(content.path());
+      loaded.put(content.path(), module);
+      return output;
     }
 
     private void starlarkPrint(StarlarkThread thread, String msg) {
