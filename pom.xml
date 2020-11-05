@@ -23,12 +23,15 @@
         <google.guava.version>29.0-jre</google.guava.version>
         <google.jimfs.version>1.1</google.jimfs.version>
         <google.truth.version>1.0.1</google.truth.version>
-        <org.jetbrains.annotations.version>20.1.0</org.jetbrains.annotations.version>
         <javax.xml.bind.jaxb-api.version>2.3.0</javax.xml.bind.jaxb-api.version>
+        <org.jetbrains.annotations.version>20.1.0</org.jetbrains.annotations.version>
         <org.junit.version>4.13.1</org.junit.version>
         <org.mockito.version>3.5.13</org.mockito.version>
         <org.projectlombok.version>1.18.12</org.projectlombok.version>
         <org.slf4j.version>1.7.30</org.slf4j.version>
+        <kr.motd.maven.os-maven-plugin.version>1.6.1</kr.motd.maven.os-maven-plugin.version>
+        <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
+        <protobuf.version>3.13.0</protobuf.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
@@ -92,6 +95,18 @@
             <groupId>com.google.flogger</groupId>
             <artifactId>flogger-slf4j-backend</artifactId>
             <version>${google.flogger.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
+            <version>${protobuf.version}</version>
         </dependency>
 
         <!--
@@ -158,6 +173,13 @@
                 <version>${maven.source.plugin.version}</version>
             </plugin>
         </plugins>
+        <extensions>
+          <extension>
+            <groupId>kr.motd.maven</groupId>
+            <artifactId>os-maven-plugin</artifactId>
+            <version>${kr.motd.maven.os-maven-plugin.version}</version>
+          </extension>
+        </extensions>
     </build>
 
 

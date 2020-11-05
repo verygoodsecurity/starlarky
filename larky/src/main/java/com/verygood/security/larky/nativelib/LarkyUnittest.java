@@ -55,30 +55,38 @@ public class LarkyUnittest implements StarlarkValue {
       },
       useStarlarkThread = true)
   public Object addCase(Object function, StarlarkThread thread) {
-    return new LarkyFunctionTestCase(
-        thread,
-        (StarlarkFunction) function,
-        Starlark.repr(function));
+    LarkyFunctionTestCase tc = new LarkyFunctionTestCase(Starlark.repr(function));
+    tc.setFunction((StarlarkFunction) function);
+    tc.setThread(thread);
+    return tc;
   }
 
-  @SuppressWarnings("UnconstructableJUnitTestCase")
-  public static class LarkyFunctionTestCase extends TestCase implements StarlarkValue {
+  static class LarkyFunctionTestCase extends TestCase implements StarlarkValue {
 
-    private final StarlarkThread thread;
-    private final StarlarkFunction f;
+    private StarlarkThread thread;
+    private StarlarkFunction function;
 
     @SuppressWarnings("CdiInjectionPointsInspection")
-    public LarkyFunctionTestCase(StarlarkThread thread, StarlarkFunction f, String name) {
+    public LarkyFunctionTestCase(String name) {
       super(name);
+    }
+
+    public void setThread(StarlarkThread thread) {
       this.thread = thread;
-      this.f = f;
+    }
+
+    public void setFunction(StarlarkFunction function) {
+      this.function = function;
     }
 
     @Override
     public void runTest() throws InterruptedException, EvalException {
-      Starlark.call(this.thread, this.f, ImmutableList.of(), ImmutableMap.of());
+      if(thread == null || function == null) {
+        throw new RuntimeException(
+            String.format("Thread (%s) and Function (%s) cannot be null!", thread, function));
+      }
+      Starlark.call(this.thread, this.function, ImmutableList.of(), ImmutableMap.of());
     }
-
   }
 
   @StarlarkMethod(

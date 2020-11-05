@@ -1,37 +1,16 @@
-
-
-
-# - name: github.com/verygoodsecurity/common/http/header/Get
-#       config:
-#         header: "Private-Key"
-#         var: "ctx.Private-Key"
-#
-
-
-# from vgs_messages.http_pb2 import HttpMessage
-# from vgs_messages.http_pb2 import HttpHeader
-# from vgs_messages.http_pb2 import HttpPhase
-
 load('urllib/request', 'Request')
+load("testlib/asserts", "asserts")
 
-def name():
+
+def _name():
     return "github.com/verygoodsecurity/xxxx/e75fcdb7-7b86-4384-870e-a24fdca31ef5/tntzr6gpm1s/16c6e5c7-8a2a-4e6e-9e78-2ffc11650a52/38c28e87-3927-4931-9be6-6c699e1954e7/Config"
 
-
-def message():
-    return struct(
-        payload=b'....',
-        phase=HttpPhase.REQUEST,
-        headers=[
-                   HttpHeader(
-                       key=b'Private-Key',
-                       value=b'1m4gHHSKpGp6lS2qKKolXQGzSAVGP5DAB2byaOuJEPyCSomz02i3vXUPWnOofNdBNmQIdEpzOY4XO9SfNSjdDrmUQ3wk4dwpST5GJexjhP9aFc6uUOd6BFNuNSk8ZIYn'
-                   )
-                ],
-    )
+# Sort the json object alphabetically
+def _get_second_item(pair):
+    return pair[1]
 
 def operate(http_message):
-    request = Request.make(
+    request = Request(
         payload=http_message.payload,
         headers=http_message.headers,
         phase=http_message.phase,
@@ -49,10 +28,6 @@ def operate(http_message):
     # Create x-secret-key header with private key header value
     request.add_header(("x-secret-key", header_value))
 
-    # Sort the json object alphabetically
-    def _get_second_item(pair):
-        return pair[1]
-
     sorted_pairs = sorted(decoded_payload.items(),
                           key=_get_second_item,
                           reverse=True)
@@ -68,22 +43,35 @@ def operate(http_message):
     return request
 
 
-def input_message():
-    return HttpMessage(
-        payload=b'{"mid":"1007778759","order_id":"ORD123","api_mode":"direct_token_api","transaction_type":"C","payer_email":"abc@abc.com","payer_name":"Payer name","card_no":"4111111111111111","exp_date":"082019","cvv2":"123","signature":"f767337b377f843abac56d843afd1b71bdd000aef1610b115b4e812dff262f105c0f67b5c41a5836fb6c2d7caeac24e969b5a2e657568e417c124281fa9ce925"}',
+def _input_message():
+    return vgs_messages.HttpMessage(
+        payload='{"mid":"1007778759","order_id":"ORD123","api_mode":"direct_token_api","transaction_type":"C","payer_email":"abc@abc.com","payer_name":"Payer name","card_no":"4111111111111111","exp_date":"082019","cvv2":"123","signature":"f767337b377f843abac56d843afd1b71bdd000aef1610b115b4e812dff262f105c0f67b5c41a5836fb6c2d7caeac24e969b5a2e657568e417c124281fa9ce925"}',
         headers=[
-           HttpHeader(
-               key=b'Private-Key',
-               value=b'1m4gHHSKpGp6lS2qKKolXQGzSAVGP5DAB2byaOuJEPyCSomz02i3vXUPWnOofNdBNmQIdEpzOY4XO9SfNSjdDrmUQ3wk4dwpST5GJexjhP9aFc6uUOd6BFNuNSk8ZIYn'
+            vgs_messages.HttpHeader(
+               key='Private-Key',
+               value='1m4gHHSKpGp6lS2qKKolXQGzSAVGP5DAB2byaOuJEPyCSomz02i3vXUPWnOofNdBNmQIdEpzOY4XO9SfNSjdDrmUQ3wk4dwpST5GJexjhP9aFc6uUOd6BFNuNSk8ZIYn'
            )
         ],
         uri="/post",
-        phase=HttpPhase.REQUEST)
+        phase=vgs_messages.HttpPhase.REQUEST)
 
 
 
-def test_config():
-    request = operate(input_message())
-    payload = json.decode(redacted_message.payload)
-    assert_eq(len(payload), 10)
-    assert_eq(payload['signature'], 'f767337b377f843abac56d843afd1b71bdd000aef1610b115b4e812dff262f105c0f67b5c41a5836fb6c2d7caeac24e969b5a2e657568e417c124281fa9ce926')
+def _test_config():
+    modified = operate(_input_message())
+    payload = json.decode(modified.payload)
+    asserts.assert_that(payload).is_length(10)
+    (asserts
+     .assert_that(payload['signature'])
+     .is_equal_to('f767337b377f843abac56d843afd1b71bdd000aef1610b115b4e812dff262f105c0f67b5c41a5836fb6c2d7caeac24e969b5a2e657568e417c124281fa9ce926'))
+
+
+def suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.FunctionTestCase(_test_config))
+    return suite
+
+
+runner = unittest.TextTestRunner()
+runner.run(suite())
+

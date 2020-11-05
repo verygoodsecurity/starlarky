@@ -36,13 +36,11 @@ public class CallableMutableStruct extends MutableStruct implements StarlarkCall
 
   @Override
   public Object getValue(String name) {
-    System.out.println("++ in callable: " + name);
     return super.getValue(name);
   }
 
   @Override
   public void setField(String field, Object value) throws EvalException {
-    System.out.println("------- field: " + field);
     ((Dict<String, Object>) fields).put(field, value, (Location) null);
   }
 
