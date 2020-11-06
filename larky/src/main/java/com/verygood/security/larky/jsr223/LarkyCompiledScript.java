@@ -1,4 +1,4 @@
-package com.verygood.security.larky.scriptengine;
+package com.verygood.security.larky.jsr223;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
