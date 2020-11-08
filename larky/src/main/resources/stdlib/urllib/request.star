@@ -22,7 +22,7 @@ def _make(elements = None):
 
 def _get_method(self):
     """Return a string indicating the HTTP request method."""
-    default_method = "POST" if self.data is not None else "GET"
+    default_method = "POST" if self.data != None else "GET"
     return getattr(self, 'method', default_method)
 
 
@@ -30,7 +30,7 @@ def _get_full_url(self):
     return self.full_url
 
 
-def _set_proxy(self):
+def _set_proxy(self, host, type):
     if self.type == 'https' and not self._tunnel_host:
         self._tunnel_host = self.host
     else:
@@ -70,7 +70,9 @@ def _remove_header(self, header_name):
 
 
 def _header_items(self):
-    hdrs = {**self.unredirected_hdrs, **self.headers}
+    hdrs = {}
+    hdrs.update(self.unredirected_hdrs)
+    hdrs.update(self.headers)
     return list(hdrs.items())
 
 

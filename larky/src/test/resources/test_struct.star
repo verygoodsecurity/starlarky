@@ -1,3 +1,6 @@
+load("@stdlib/proto", "proto")
+
+
 def _to_dict(s):
     """Converts a `struct` to a `dict`.
     Args:

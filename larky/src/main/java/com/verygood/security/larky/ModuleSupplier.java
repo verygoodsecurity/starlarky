@@ -35,14 +35,18 @@ import java.util.function.Function;
  */
 public class ModuleSupplier {
 
-  private final Map<String, String> environment;
+  private final Map<String, Object> environment;
 
   public ModuleSupplier() {
-    this(ImmutableMap.<String,String>builder().build());
+    this(ImmutableMap.<String,Object>builder().build());
   }
 
-  public ModuleSupplier(Map<String, String> environment) {
+  public ModuleSupplier(Map<String, Object> environment) {
     this.environment = Preconditions.checkNotNull(environment);
+  }
+
+  public ModuleSupplier(ImmutableSet<StarlarkValue> moduleSet) {
+    this.environment = moduleSetAsMap(Preconditions.checkNotNull(moduleSet));
   }
 
   /**
@@ -56,21 +60,28 @@ public class ModuleSupplier {
     );
   }
 
-  public Map<String, String> getEnvironment() {
+  public Map<String, Object> getEnvironment() {
     return environment;
   }
 
   public final ModuleSet create() {
-    return new ModuleSet(modulesToVariableMap());
+    return new ModuleSet(ImmutableMap.<String, Object>builder()
+            .putAll(modulesToVariableMap())
+            .putAll(getEnvironment())
+            .build()); // should allow overrides ;
   }
 
-  private ImmutableMap<String, Object> modulesToVariableMap() {
-    return getModules()
+  private ImmutableMap<String, Object> moduleSetAsMap(ImmutableSet<StarlarkValue> moduleSet) {
+    return moduleSet
         .stream()
         .collect(
             ImmutableMap.toImmutableMap(
-                this::findClosestStarlarkBuiltinName,
-                Function.identity()));
+                   this::findClosestStarlarkBuiltinName,
+                   Function.identity()));
+  }
+
+  public ImmutableMap<String, Object> modulesToVariableMap() {
+    return moduleSetAsMap(getModules());
   }
 
   private String findClosestStarlarkBuiltinName(Object o) {

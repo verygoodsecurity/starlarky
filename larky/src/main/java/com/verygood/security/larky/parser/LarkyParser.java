@@ -78,24 +78,6 @@ public class LarkyParser {
     this.validation = validation;
   }
 
-  public ParsedStarFile loadStarFile(StarFile config, ModuleSupplier.ModuleSet moduleSet, Console console)
-      throws IOException {
-    return getStarFileWithTransitiveImports(config, moduleSet, console).getStarFile();
-  }
-
-  private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSupplier.ModuleSet moduleSet,
-                                              Console console)
-      throws IOException {
-    Module module;
-    try {
-      module = new LarkyEvaluator(this, moduleSet, console).eval(content);
-    } catch (InterruptedException e) {
-      // This should not happen since we shouldn't have anything interruptable during loading.
-      throw new RuntimeException("Internal error", e);
-    }
-    return new ParsedStarFile(content.path(), module.getTransitiveBindings());
-  }
-
   @VisibleForTesting
   public Module executeSkylark(StarFile content, ModuleSupplier.ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException {
@@ -105,6 +87,11 @@ public class LarkyParser {
     Module module = new LarkyEvaluator(this, moduleSet, console).eval(content);
     starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
     return module;
+  }
+
+  public ParsedStarFile loadStarFile(StarFile config, ModuleSupplier.ModuleSet moduleSet, Console console)
+      throws IOException {
+    return getStarFileWithTransitiveImports(config, moduleSet, console).getStarFile();
   }
 
   /**
@@ -131,6 +118,19 @@ public class LarkyParser {
     starFilesSupplier.setStarFiles(allLoadedFiles);
 
     return new StarFileWithDependencies(allLoadedFiles, parsedConfig);
+  }
+
+  private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSupplier.ModuleSet moduleSet,
+                                              Console console)
+      throws IOException {
+    Module module;
+    try {
+      module = new LarkyEvaluator(this, moduleSet, console).eval(content);
+    } catch (InterruptedException e) {
+      // This should not happen since we shouldn't have anything interruptable during loading.
+      throw new RuntimeException("Internal error", e);
+    }
+    return new ParsedStarFile(content.path(), module.getTransitiveBindings());
   }
 
   private static class StarFilesSupplier
