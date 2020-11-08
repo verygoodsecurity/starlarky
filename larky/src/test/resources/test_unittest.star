@@ -7,17 +7,17 @@ def success():
     asserts.assert_false(1 == 2)
 
 
-def _failure():
+def failure():
     asserts.assert_false(True)
     asserts.assert_that(2).is_equal_to(1)
-
-failure = unittest.expectedFailure(_failure)
 
 
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.FunctionTestCase(success))
-    suite.addTest(unittest.FunctionTestCase(failure))
+    suite.addTest(unittest.expectedFailure(
+        unittest.FunctionTestCase(failure)
+    ))
     return suite
 
 
