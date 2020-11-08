@@ -5,7 +5,7 @@ import com.google.common.collect.ImmutableSet;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.nativelib.LarkyGlobals;
 import com.verygood.security.larky.nativelib.LarkyUnittest;
-import com.verygood.security.larky.parser.LarkyParser;
+import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.PathBasedStarFile;
 import com.verygood.security.larky.parser.StarFile;
@@ -19,16 +19,18 @@ import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.syntax.ParserInput;
 
 import org.junit.Assert;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.stream.Stream;
 
 public class LarkyTest {
 
-  @org.junit.Test
+  @Test
   public void testStarlarkExampleFile() {
     Path resourceDirectory = Paths.get(
         "src",
@@ -53,7 +55,50 @@ public class LarkyTest {
     }
   }
 
-  @org.junit.Test
+  @Test
+  public void testStdLib() throws IOException {
+    Path stdlibTestDir = Paths.get(
+            "src",
+            "test",
+            "resources",
+            "stdlib_tests");
+    LarkyScript interpreter = new LarkyScript(
+      ImmutableSet.of(
+          LarkyGlobals.class
+      ),
+      LarkyScript.StarlarkMode.STRICT);
+
+    ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier(ImmutableSet.of(
+      new LarkyUnittest(),
+      new VGSMessages()
+    )).create();
+
+    TestingConsole console = new TestingConsole();
+    try (Stream<Path> paths = Files.walk(stdlibTestDir)) {
+      paths
+        .filter(Files::isRegularFile)
+        //.filter(f -> f.getFileName().startsWith("test_") && f.endsWith(".star"))
+        .filter(f -> {
+          String fileName = f.getFileName().toString();
+          return fileName.startsWith("test_") && fileName.endsWith(".star");
+        })
+        .forEach(f -> {
+          try {
+            console.info("Running test: " + f);
+            interpreter.evaluate(
+              new PathBasedStarFile(f.toAbsolutePath(), null, null),
+              moduleSet,
+              console
+            );
+            console.info("Successfully executed: " + f);
+          } catch (IOException e) {
+            Assert.fail(e.getMessage());
+          }
+        });
+    }
+  }
+
+  @Test
   public void testStructBuiltin() throws IOException {
     Path resourceDirectory = Paths.get(
         "src",
@@ -63,19 +108,19 @@ public class LarkyTest {
     String absolutePath = resourceDirectory.toFile().getAbsolutePath();
     System.out.println(absolutePath);
 
-    LarkyParser parser = new LarkyParser(
+    LarkyScript parser = new LarkyScript(
         ImmutableSet.of(LarkyGlobals.class),
-        LarkyParser.StarlarkMode.STRICT);
+        LarkyScript.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),
         null,
         null);
     ParsedStarFile config;
     ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier().create();
-    config = parser.loadStarFile(starFile, moduleSet, new TestingConsole());
+    config = parser.evaluate(starFile, moduleSet, new TestingConsole());
   }
 
-  @org.junit.Test
+  @Test
   public void testLoadingModules() throws IOException {
     Path resourceDirectory = Paths.get(
         "src",
@@ -85,18 +130,18 @@ public class LarkyTest {
     String absolutePath = resourceDirectory.toFile().getAbsolutePath();
     System.out.println(absolutePath);
 
-    LarkyParser parser = new LarkyParser(
+    LarkyScript parser = new LarkyScript(
         ImmutableSet.of(LarkyGlobals.class),
-        LarkyParser.StarlarkMode.STRICT);
+        LarkyScript.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),
         null,
         null);
     ParsedStarFile config;
-    config = parser.loadStarFile(starFile, new ModuleSupplier().create(), new TestingConsole());
+    config = parser.evaluate(starFile, new ModuleSupplier().create(), new TestingConsole());
   }
 
-  @org.junit.Test
+  @Test
   public void testUnitTestModule() throws IOException {
     Path resourceDirectory = Paths.get(
         "src",
@@ -106,42 +151,18 @@ public class LarkyTest {
     String absolutePath = resourceDirectory.toFile().getAbsolutePath();
     System.out.println(absolutePath);
 
-    LarkyParser parser = new LarkyParser(
+    LarkyScript parser = new LarkyScript(
         ImmutableSet.of(
             LarkyGlobals.class,
             LarkyUnittest.class
         ),
-        LarkyParser.StarlarkMode.STRICT);
+        LarkyScript.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),
         null,
         null);
     ParsedStarFile config;
-    config = parser.loadStarFile(starFile, new ModuleSupplier().create(), new TestingConsole());
-  }
-
-  @org.junit.Test
-  public void testAsserts() throws IOException {
-    Path resourceDirectory = Paths.get(
-        "src",
-        "test",
-        "resources",
-        "test_asserts.star");
-    String absolutePath = resourceDirectory.toFile().getAbsolutePath();
-    System.out.println(absolutePath);
-
-    LarkyParser parser = new LarkyParser(
-        ImmutableSet.of(
-            LarkyGlobals.class,
-            LarkyUnittest.class
-        ),
-        LarkyParser.StarlarkMode.STRICT);
-    StarFile starFile = new PathBasedStarFile(
-        Paths.get(absolutePath),
-        null,
-        null);
-    ParsedStarFile config;
-    config = parser.loadStarFile(starFile, new ModuleSupplier().create(), new TestingConsole());
+    config = parser.evaluate(starFile, new ModuleSupplier().create(), new TestingConsole());
   }
 
   @StarlarkBuiltin(
@@ -183,7 +204,7 @@ public class LarkyTest {
 
   }
 
-  @org.junit.Test
+  @Test
   public void testFCOAlternative() throws IOException, URISyntaxException {
 
     Path resourceDirectory = Paths.get(
@@ -198,22 +219,18 @@ public class LarkyTest {
     System.out.println(httpPhase);
 
 
-    LarkyParser parser = new LarkyParser(
+    LarkyScript parser = new LarkyScript(
         ImmutableSet.of(
             LarkyGlobals.class
         ),
-        LarkyParser.StarlarkMode.STRICT);
+        LarkyScript.StarlarkMode.STRICT);
 
-    URL stdlib = this.getClass().getClassLoader().getResource("stdlib");
-    if (stdlib == null) throw new AssertionError("Cannot find: " + stdlib);
-    String identifierPrefix = "@stdlib";
     StarFile starFile = new PathBasedStarFile(
-        Paths.get(absolutePath),
-        Paths.get(stdlib.toURI()),
-        identifierPrefix);
-
+            Paths.get(absolutePath),
+            null,
+            null);
     ParsedStarFile config;
-    config = parser.loadStarFile(starFile, new ModuleSupplier(ImmutableSet.of(
+    config = parser.evaluate(starFile, new ModuleSupplier(ImmutableSet.of(
         new LarkyUnittest(),
         new VGSMessages()
     )).create(), new TestingConsole());
