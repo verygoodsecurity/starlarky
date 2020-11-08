@@ -23,6 +23,8 @@ import net.starlark.java.eval.StarlarkValue;
 
 import java.io.PrintStream;
 import java.util.Iterator;
+import lombok.Getter;
+import lombok.Setter;
 
 
 @StarlarkBuiltin(
@@ -47,12 +49,10 @@ public class LarkyUnittest implements StarlarkValue {
             @Param(name = "functionTestCase"),
         }
     )
-    public Object addTest(Object functionTestCase) {
+    public Object addTestToSuite(Object functionTestCase) {
       super.addTest((Test) functionTestCase);
       return Starlark.NONE;
     }
-
-
   }
 
   @StarlarkMethod(
@@ -61,16 +61,22 @@ public class LarkyUnittest implements StarlarkValue {
           @Param(name = "function"),
       },
       useStarlarkThread = true)
-  public Object addTestCase(Object function, StarlarkThread thread) {
+  public Object addFunctionUnderTest(Object function, StarlarkThread thread) {
     LarkyFunctionTestCase tc = new LarkyFunctionTestCase(Starlark.repr(function));
     tc.setFunction((StarlarkFunction) function);
     tc.setThread(thread);
     return tc;
   }
 
+
   static class LarkyFunctionTestCase extends TestCase implements StarlarkValue {
 
+    @Getter
+    @Setter
     private StarlarkThread thread;
+
+    @Getter
+    @Setter
     private StarlarkFunction function;
 
     @SuppressWarnings("CdiInjectionPointsInspection")
@@ -78,12 +84,10 @@ public class LarkyUnittest implements StarlarkValue {
       super(name);
     }
 
-    public void setThread(StarlarkThread thread) {
-      this.thread = thread;
-    }
-
-    public void setFunction(StarlarkFunction function) {
-      this.function = function;
+    public LarkyFunctionTestCase(LarkyFunctionTestCase other) {
+      super(other.getName());
+      setFunction(other.getFunction());
+      setThread(other.getThread());
     }
 
     @Override
@@ -112,6 +116,7 @@ public class LarkyUnittest implements StarlarkValue {
 
   public static class LarkyTestRunner extends TestRunner implements StarlarkValue {
     public LarkyTestRunner() {
+      //super(System.out);
       super(new NullPrintStream());
     }
 
@@ -141,15 +146,35 @@ public class LarkyUnittest implements StarlarkValue {
 
   @StarlarkMethod(
       name = "expectedFailure",
-      doc = "Mark the test as an expected failure. If the test fails it will be considered a " +
+      doc = "Mark the test case as an expected failure. If the test fails it will be considered a " +
           "success. If the test passes, it will be considered a failure.",
       parameters = {
-                 @Param(name = "function"),
-             },
-      useStarlarkThread = true
+                 @Param(name = "testCase"),
+             }
   )
-  public Object expectTestFailure(Object function, StarlarkThread thread) {
-    return (StarlarkFunction) function;
+  public Object expectTestFailure(Object testCase) {
+    return new ExpectedFailure((LarkyFunctionTestCase) testCase);
+  }
+
+  @SuppressWarnings("UnconstructableJUnitTestCase")
+  static class ExpectedFailure extends LarkyFunctionTestCase {
+
+    @SuppressWarnings("CdiInjectionPointsInspection")
+    public ExpectedFailure(LarkyFunctionTestCase other) {
+      super(other);
+    }
+
+    @Override
+    public void runTest() {
+      try {
+        super.runTest();
+        fail(String.format("Expected %s to fail, but it succeeded.", getName()));
+      }
+      catch(EvalException|InterruptedException e) {
+        // expected
+      }
+    }
+
   }
 
 }
