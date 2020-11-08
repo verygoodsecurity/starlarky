@@ -54,14 +54,14 @@ final class LarkyEvaluator {
   // Predeclared environment shared by all files (modules) loaded.
   private final ImmutableMap<String, Object> environment;
   private final ModuleSupplier.ModuleSet moduleSet;
-  private final LarkyParser.StarlarkMode validationMode;
+  private final LarkyScript.StarlarkMode validationMode;
 
-  LarkyEvaluator(LarkyParser larkyParser, ModuleSupplier.ModuleSet moduleSet, Console console) {
+  LarkyEvaluator(LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console) {
     this.console = checkNotNull(console);
     this.moduleSet = checkNotNull(moduleSet);
-    this.validationMode = larkyParser.getValidation();
+    this.validationMode = larkyScript.getValidation();
     //todo(mahmoudimus): convert to builder pattern
-    this.environment = createEnvironment(larkyParser.getGlobalModules());
+    this.environment = createEnvironment(larkyScript.getGlobalModules());
   }
 
   private void starlarkPrint(StarlarkThread thread, String msg) {
@@ -108,6 +108,13 @@ final class LarkyEvaluator {
   }
 
   class LarkyLoader implements StarlarkThread.Loader {
+    /*
+       Right now, it just has them all as built-ins, with namespaces
+       __builtin__.struct() // struct()
+       unittest // exists in the global namespace by default
+       import unittest // unittest
+       load('unitest', 'unitest') => it now is usable in global namespace, otherwise, unknown symbol is thrown
+     */
     /**
      * load("//testlib/builtinz", "setz") # works, but root is not defined.
      * load("./testlib/builtinz", "setz") # works
@@ -117,12 +124,12 @@ final class LarkyEvaluator {
     private static final String STDLIB = "@stdlib";
     private final StarFile content;
     private final LarkyEvaluator evaluator;
-    private final ImmutableMap<String, Object> modules;
+    private final ImmutableMap<String, Object> nativeJavaModule;
 
     LarkyLoader(StarFile content, LarkyEvaluator evaluator) {
       this.content = content;
       this.evaluator = evaluator;
-      this.modules = evaluator.getModuleSet().getModules();
+      this.nativeJavaModule = evaluator.getModuleSet().getModules();
     }
 
     @Nullable
@@ -139,7 +146,7 @@ final class LarkyEvaluator {
           }
         }
         else {
-            loadedModule = evaluator.eval(content.resolve(moduleToLoad + LarkyParser.STAR_EXTENSION));
+            loadedModule = evaluator.eval(content.resolve(moduleToLoad + LarkyScript.STAR_EXTENSION));
         }
       } catch (IOException|InterruptedException e) {
         throw new RuntimeException(e);
@@ -155,6 +162,17 @@ final class LarkyEvaluator {
       return (Module) evaluator.environment.get(moduleToLoad);
     }
 
+    private Module fromStdlib(String moduleToLoad) throws IOException, InterruptedException {
+      /*
+       * Check if the module is in the module set. If it is, return a module with an environment
+       * of the module that was passed in via the module set.
+       */
+      if (nativeJavaModule.containsKey(moduleToLoad)) {
+        return getNativeModule(moduleToLoad);
+      }
+      return getStarModule(moduleToLoad);
+    }
+
     Field removeFinalFromField(Field field) throws Exception {
        field.setAccessible(true);
        Field modifiersField = Field.class.getDeclaredField("modifiers");
@@ -163,31 +181,28 @@ final class LarkyEvaluator {
        return field;
     }
 
-    private Module fromStdlib(String moduleToLoad) throws IOException, InterruptedException {
-      /*
-       * Check if the module is in the module set. If it is, return a module with an environment
-       * of the module that was passed in via the module set.
-       */
-      if (modules.containsKey(moduleToLoad)) {
-        Module newModule = Module.withPredeclared(StarlarkSemantics.DEFAULT, ImmutableMap.of());
-        newModule.setClientData(moduleToLoad);
-        newModule.setGlobal(moduleToLoad, modules.get(moduleToLoad));
-        // We have to do this via reflection because we're not doing any bindings via load..
-        HashSet<String> build = new HashSet<>(ImmutableSet.<String>builder()
-            .addAll(newModule.getExportedGlobals().keySet())
-            .add(moduleToLoad)
-            .build());
-        try {
-          // update globals with the export, I think this could be a bug in Module for keeping the exportedGlobal private
-          Field exportedGlobals = removeFinalFromField(newModule.getClass().getDeclaredField("exportedGlobals"));
-          exportedGlobals.set(newModule, build);
-        } catch (Exception e) {
-          throw new RuntimeException(e);
-        }
-        return newModule;
-
-
+    @NotNull
+    private Module getNativeModule(String moduleToLoad) {
+      Module newModule = Module.withPredeclared(StarlarkSemantics.DEFAULT, ImmutableMap.of());
+      newModule.setClientData(moduleToLoad);
+      newModule.setGlobal(moduleToLoad, nativeJavaModule.get(moduleToLoad));
+      // We have to do this via reflection because we're not doing any bindings via load..
+      HashSet<String> build = new HashSet<>(ImmutableSet.<String>builder()
+          .addAll(newModule.getExportedGlobals().keySet())
+          .add(moduleToLoad)
+          .build());
+      try {
+        // update globals with the export, I think this could be a bug in Module for keeping the exportedGlobal private
+        Field exportedGlobals = removeFinalFromField(newModule.getClass().getDeclaredField("exportedGlobals"));
+        exportedGlobals.set(newModule, build);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
+      return newModule;
+    }
+
+    @NotNull
+    private Module getStarModule(String moduleToLoad) throws IOException, InterruptedException {
       /*
       * If the module set does not contain the module to load, then we try to load it from the
       * stdlib.
@@ -203,7 +218,6 @@ final class LarkyEvaluator {
           STDLIB);
       larky = larky.resolve(withExtension(moduleToLoad));
       return evaluator.eval(larky);
-      //evaluator.getModuleSet().modulesToVariableMap().get;//evaluator.environment.findtarget
     }
 
     @Nullable
@@ -224,7 +238,7 @@ final class LarkyEvaluator {
     @SuppressWarnings("UnstableApiUsage")
     private String withExtension(String moduleToLoad) {
       String nameWithoutExtension = Files.getNameWithoutExtension(moduleToLoad);
-      String fname = Files.simplifyPath(nameWithoutExtension + LarkyParser.STAR_EXTENSION);
+      String fname = Files.simplifyPath(nameWithoutExtension + LarkyScript.STAR_EXTENSION);
       return StarFile.ABSOLUTE_PREFIX + moduleToLoad.replace(nameWithoutExtension, fname);
     }
 
@@ -232,29 +246,10 @@ final class LarkyEvaluator {
 
   @NotNull
   private Map<String, Module> processLoads(StarFile content, Program prog) {
-    /*
-       TODO: Build better import semantics:
-
-       - load from globals first.
-       - load from larkylib (native, larky)
-       - load from local path (./) <- has to be like go? //external: load('//github
-
-       Right now, it just has them all as built-ins, with namespaces
-       __builtin__.struct() // struct()
-       unittest // exists in the global namespace by default
-       import unittest // unittest
-       load('unitest', 'unitest') => it now is usable in global namespace, otherwise, unknown symbol is thrown
-     */
-    // process loads (local star files)
     Map<String, Module> loadedModules = new HashMap<>();
     LarkyLoader larkyLoader = new LarkyLoader(content, this);
     for (String load : prog.getLoads()) {
-      logger.atInfo().log("Loading %s + %s", load, LarkyParser.STAR_EXTENSION);
-
-      // isLoadInLarkyLib(), loadLibrary()
-      // else, do the thing below: resolve load for built-in
-      // ->
-      //Module loadedModule = eval(content.resolve(load + LarkyParser.STAR_EXTENSION));
+      //Module loadedModule = eval(content.resolve(load + LarkyScript.STAR_EXTENSION));
       Module loadedModule = larkyLoader.load(load);
       loadedModules.put(load, loadedModule);
     }
@@ -277,10 +272,10 @@ final class LarkyEvaluator {
 
   private FileOptions getStarlarkValidationOptions() {
     FileOptions options;
-    if (validationMode == LarkyParser.StarlarkMode.STRICT) {
-      options = LarkyParser.STARLARK_STRICT_FILE_OPTIONS;
-    } else if (validationMode == LarkyParser.StarlarkMode.LOOSE) {
-      options = LarkyParser.STARLARK_LOOSE_FILE_OPTIONS;
+    if (validationMode == LarkyScript.StarlarkMode.STRICT) {
+      options = LarkyScript.STARLARK_STRICT_FILE_OPTIONS;
+    } else if (validationMode == LarkyScript.StarlarkMode.LOOSE) {
+      options = LarkyScript.STARLARK_LOOSE_FILE_OPTIONS;
     } else {
       throw new RuntimeException("Undefined StarlarkMode: " + validationMode);
     }

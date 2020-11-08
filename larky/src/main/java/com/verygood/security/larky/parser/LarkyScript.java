@@ -36,7 +36,7 @@ import java.util.function.Supplier;
 /**
  * Loads Larky out of Starlark files.
  */
-public class LarkyParser {
+public class LarkyScript {
 
   public static final String STAR_EXTENSION = ".star";
 
@@ -72,7 +72,7 @@ public class LarkyParser {
   private final Iterable<Class<?>> globalModules;
   private final StarlarkMode validation;
 
-  public LarkyParser(Set<Class<?>> globalModules, StarlarkMode validation) {
+  public LarkyScript(Set<Class<?>> globalModules, StarlarkMode validation) {
     this.globalModules = ImmutableSet.<Class<?>>builder()
         .addAll(globalModules).build();
     this.validation = validation;
@@ -89,7 +89,7 @@ public class LarkyParser {
     return module;
   }
 
-  public ParsedStarFile loadStarFile(StarFile config, ModuleSupplier.ModuleSet moduleSet, Console console)
+  public ParsedStarFile evaluate(StarFile config, ModuleSupplier.ModuleSet moduleSet, Console console)
       throws IOException {
     return getStarFileWithTransitiveImports(config, moduleSet, console).getStarFile();
   }
