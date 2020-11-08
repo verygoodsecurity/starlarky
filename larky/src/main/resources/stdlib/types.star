@@ -126,6 +126,23 @@ def _is_set(v):
     """
     return type(v) == _a_struct_type and hasattr(v, "_values") and _is_dict(v._values)
 
+
+def _MethodType(func, instance):
+    """
+    Binds func to the instance class `ab`
+    :return:
+    """
+    return callablestruct(func, instance)
+
+
+def _is_instance(instance, some_class):
+    t = type(instance)
+    cls_type = str(some_class)
+    if 'built-in' in cls_type:
+        cls_type = cls_type.split(" ")[-1].rpartition(">")[0]
+    return t == cls_type
+
+
 types = struct(
     is_list = _is_list,
     is_string = _is_string,
@@ -136,4 +153,6 @@ types = struct(
     is_dict = _is_dict,
     is_function = _is_function,
     is_set = _is_set,
+    is_instance = _is_instance,
+    MethodType = _MethodType,
 )

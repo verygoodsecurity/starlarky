@@ -1,4 +1,4 @@
-load("testlib/asserts", "asserts")
+load("@stdlib/asserts", "asserts")
 
 def success():
     asserts.assert_that(1).is_equal_to(1)
@@ -7,9 +7,11 @@ def success():
     asserts.assert_false(1 == 2)
 
 
-def failure():
+def _failure():
     asserts.assert_false(True)
     asserts.assert_that(2).is_equal_to(1)
+
+failure = unittest.expectedFailure(_failure)
 
 
 def suite():

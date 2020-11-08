@@ -17,9 +17,9 @@
 package com.verygood.security.larky.parser;
 
 
-import java.io.IOException;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.io.IOException;
 
 /**
  * An object representing a configuration file and that it can be used to resolve
@@ -27,12 +27,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public interface StarFile {
 
+  String ABSOLUTE_PREFIX = "//";
+
   /**
    * Check if the path is absolute and validates that the path is normalized
    * @throws RuntimeException if the path is not normalized
    */
   static boolean isAbsolute(String path)  {
-    boolean isAbsolute = path.startsWith("//");
+    boolean isAbsolute = path.startsWith(ABSOLUTE_PREFIX);
     // Remove '//' for absolute paths
     String withoutPrefix = isAbsolute ? path.substring(2) : path;
     try {

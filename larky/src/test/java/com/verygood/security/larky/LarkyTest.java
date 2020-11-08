@@ -21,6 +21,8 @@ import net.starlark.java.syntax.ParserInput;
 import org.junit.Assert;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -182,7 +184,8 @@ public class LarkyTest {
   }
 
   @org.junit.Test
-  public void testFCOAlternative() throws IOException {
+  public void testFCOAlternative() throws IOException, URISyntaxException {
+
     Path resourceDirectory = Paths.get(
         "src",
         "test",
@@ -197,16 +200,22 @@ public class LarkyTest {
 
     LarkyParser parser = new LarkyParser(
         ImmutableSet.of(
-            LarkyGlobals.class,
-            LarkyUnittest.class,
-            VGSMessages.class
+            LarkyGlobals.class
         ),
         LarkyParser.StarlarkMode.STRICT);
+
+    URL stdlib = this.getClass().getClassLoader().getResource("stdlib");
+    if (stdlib == null) throw new AssertionError("Cannot find: " + stdlib);
+    String identifierPrefix = "@stdlib";
     StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),
-        null,
-        null);
+        Paths.get(stdlib.toURI()),
+        identifierPrefix);
+
     ParsedStarFile config;
-    config = parser.loadStarFile(starFile, new ModuleSupplier().create(), new TestingConsole());
+    config = parser.loadStarFile(starFile, new ModuleSupplier(ImmutableSet.of(
+        new LarkyUnittest(),
+        new VGSMessages()
+    )).create(), new TestingConsole());
   }
 }

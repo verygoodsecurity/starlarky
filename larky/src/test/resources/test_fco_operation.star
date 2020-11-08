@@ -1,11 +1,16 @@
-load('urllib/request', 'Request')
-load("testlib/asserts", "asserts")
+load('@stdlib/json', 'json')
+load('@stdlib/unittest', 'unittest')
+load('@stdlib/urllib/request', 'Request')
+load("@stdlib/hashlib", "hashlib")
+load("@stdlib/asserts", "asserts")
+load("@stdlib/vgs_messages", "vgs_messages")
+load("testlib/builtinz", "simple_set")
+
 
 
 def _name():
     return "github.com/verygoodsecurity/xxxx/e75fcdb7-7b86-4384-870e-a24fdca31ef5/tntzr6gpm1s/16c6e5c7-8a2a-4e6e-9e78-2ffc11650a52/38c28e87-3927-4931-9be6-6c699e1954e7/Config"
 
-# Sort the json object alphabetically
 def _get_second_item(pair):
     return pair[1]
 
@@ -28,9 +33,11 @@ def operate(http_message):
     # Create x-secret-key header with private key header value
     request.add_header(("x-secret-key", header_value))
 
+    # Sort the json object alphabetically
     sorted_pairs = sorted(decoded_payload.items(),
                           key=_get_second_item,
                           reverse=True)
+
     # Concatenate all the values of json object into single string
     # Sha512 hash the concat string
     signature = hashlib.sha512("".join([v for _, v in sorted_pairs]))

@@ -3,8 +3,10 @@ package com.verygood.security.larky.parser;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.FluentLogger;
+import com.google.common.io.Files;
 
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
@@ -25,9 +27,17 @@ import net.starlark.java.syntax.StarlarkFile;
 import net.starlark.java.syntax.SyntaxError;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 
@@ -51,7 +61,7 @@ final class LarkyEvaluator {
     this.moduleSet = checkNotNull(moduleSet);
     this.validationMode = larkyParser.getValidation();
     //todo(mahmoudimus): convert to builder pattern
-    this.environment = createEnvironment(this.moduleSet, larkyParser.getGlobalModules());
+    this.environment = createEnvironment(larkyParser.getGlobalModules());
   }
 
   private void starlarkPrint(StarlarkThread thread, String msg) {
@@ -86,16 +96,142 @@ final class LarkyEvaluator {
       thread.setPrintHandler(this::starlarkPrint);
       Starlark.execFileProgram(prog, module, thread);
     } catch (EvalException ex) {
-      console.error(ex.getMessageWithStack());
-      throw new RuntimeException("Error loading config file", ex);
+      throw new RuntimeException("\n" + ex.getMessageWithStack());
     }
     pending.remove(content.path());
     loaded.put(content.path(), module);
     return module;
   }
 
+  public ModuleSupplier.ModuleSet getModuleSet() {
+    return moduleSet;
+  }
+
+  class LarkyLoader implements StarlarkThread.Loader {
+    /**
+     * load("//testlib/builtinz", "setz") # works, but root is not defined.
+     * load("./testlib/builtinz", "setz") # works
+     * load("testlib/builtinz", "setz", "collections")
+     * load("/testlib/builtinz", "setz")  # does not work
+     */
+    private static final String STDLIB = "@stdlib";
+    private final StarFile content;
+    private final LarkyEvaluator evaluator;
+    private final ImmutableMap<String, Object> modules;
+
+    LarkyLoader(StarFile content, LarkyEvaluator evaluator) {
+      this.content = content;
+      this.evaluator = evaluator;
+      this.modules = evaluator.getModuleSet().getModules();
+    }
+
+    @Nullable
+    @Override
+    public Module load(String moduleToLoad) {
+      Module loadedModule = null;
+      try {
+        if(moduleToLoad.startsWith(STDLIB)) {
+          String targetModule = moduleToLoad.replace(STDLIB + "/", "");
+          if (inEnvironment(targetModule)) {
+            loadedModule = fromEnvironment(targetModule);
+          } else {
+            loadedModule = fromStdlib(targetModule);
+          }
+        }
+        else {
+            loadedModule = evaluator.eval(content.resolve(moduleToLoad + LarkyParser.STAR_EXTENSION));
+        }
+      } catch (IOException|InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+      return loadedModule;
+    }
+
+    private boolean inEnvironment(String moduleToLoad) {
+      return evaluator.environment.containsKey(moduleToLoad);
+    }
+
+    private Module fromEnvironment(String moduleToLoad) {
+      return (Module) evaluator.environment.get(moduleToLoad);
+    }
+
+    Field removeFinalFromField(Field field) throws Exception {
+       field.setAccessible(true);
+       Field modifiersField = Field.class.getDeclaredField("modifiers");
+       modifiersField.setAccessible(true);
+       modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
+       return field;
+    }
+
+    private Module fromStdlib(String moduleToLoad) throws IOException, InterruptedException {
+      /*
+       * Check if the module is in the module set. If it is, return a module with an environment
+       * of the module that was passed in via the module set.
+       */
+      if (modules.containsKey(moduleToLoad)) {
+        Module newModule = Module.withPredeclared(StarlarkSemantics.DEFAULT, ImmutableMap.of());
+        newModule.setClientData(moduleToLoad);
+        newModule.setGlobal(moduleToLoad, modules.get(moduleToLoad));
+        // We have to do this via reflection because we're not doing any bindings via load..
+        HashSet<String> build = new HashSet<>(ImmutableSet.<String>builder()
+            .addAll(newModule.getExportedGlobals().keySet())
+            .add(moduleToLoad)
+            .build());
+        try {
+          // update globals with the export, I think this could be a bug in Module for keeping the exportedGlobal private
+          Field exportedGlobals = removeFinalFromField(newModule.getClass().getDeclaredField("exportedGlobals"));
+          exportedGlobals.set(newModule, build);
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+        return newModule;
+
+
+      }
+      /*
+      * If the module set does not contain the module to load, then we try to load it from the
+      * stdlib.
+      *
+      * If it is not found in our stdlib location, we expect the evaluator to throw an error.
+       */
+      Path stdlib_path = getStdlibPath();
+      assert stdlib_path != null;
+      //String target = moduleToLoad.replace(STDLIB + "/", "");
+      StarFile larky = new PathBasedStarFile(
+          Path.of("/"),
+          stdlib_path,
+          STDLIB);
+      larky = larky.resolve(withExtension(moduleToLoad));
+      return evaluator.eval(larky);
+      //evaluator.getModuleSet().modulesToVariableMap().get;//evaluator.environment.findtarget
+    }
+
+    @Nullable
+    private Path getStdlibPath() {
+      URL resourceUrl = this.getClass().getClassLoader()
+          .getResource(STDLIB.replace("@", ""));
+      assert resourceUrl != null;
+      URI resourceAsURI;
+      try {
+        resourceAsURI = resourceUrl.toURI();
+      } catch (URISyntaxException e) {
+        return null;
+      }
+
+      return Path.of(resourceAsURI);
+    }
+
+    @SuppressWarnings("UnstableApiUsage")
+    private String withExtension(String moduleToLoad) {
+      String nameWithoutExtension = Files.getNameWithoutExtension(moduleToLoad);
+      String fname = Files.simplifyPath(nameWithoutExtension + LarkyParser.STAR_EXTENSION);
+      return StarFile.ABSOLUTE_PREFIX + moduleToLoad.replace(nameWithoutExtension, fname);
+    }
+
+  }
+
   @NotNull
-  private Map<String, Module> processLoads(StarFile content, Program prog) throws IOException, InterruptedException {
+  private Map<String, Module> processLoads(StarFile content, Program prog) {
     /*
        TODO: Build better import semantics:
 
@@ -111,11 +247,15 @@ final class LarkyEvaluator {
      */
     // process loads (local star files)
     Map<String, Module> loadedModules = new HashMap<>();
+    LarkyLoader larkyLoader = new LarkyLoader(content, this);
     for (String load : prog.getLoads()) {
+      logger.atInfo().log("Loading %s + %s", load, LarkyParser.STAR_EXTENSION);
+
       // isLoadInLarkyLib(), loadLibrary()
       // else, do the thing below: resolve load for built-in
       // ->
-      Module loadedModule = eval(content.resolve(load + LarkyParser.STAR_EXTENSION));
+      //Module loadedModule = eval(content.resolve(load + LarkyParser.STAR_EXTENSION));
+      Module loadedModule = larkyLoader.load(load);
       loadedModules.put(load, loadedModule);
     }
     return loadedModules;
@@ -162,13 +302,8 @@ final class LarkyEvaluator {
     * Create the environment for all evaluations (will be shared between all the dependent files
     * loaded).
     */
-  public ImmutableMap<String, Object> createEnvironment(ModuleSupplier.ModuleSet moduleSet, Iterable<Class<?>> globalModules) {
+  private ImmutableMap<String, Object> createEnvironment(Iterable<Class<?>> globalModules) {
      Map<String, Object> env = Maps.newHashMap();
-     for (Map.Entry<String, Object> module : moduleSet.getModules().entrySet()) {
-       logger.atInfo().log("Creating variable for %s", module.getKey());
-       // Modules shouldn't use the same name
-       env.put(module.getKey(), module.getValue());
-     }
 
      for (Class<?> module : globalModules) {
        logger.atInfo().log("Creating variable for %s", module.getName());
