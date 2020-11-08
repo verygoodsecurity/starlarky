@@ -108,7 +108,7 @@ public class LarkyTest {
     String absolutePath = resourceDirectory.toFile().getAbsolutePath();
     System.out.println(absolutePath);
 
-    LarkyScript parser = new LarkyScript(
+    LarkyScript interpreter = new LarkyScript(
         ImmutableSet.of(LarkyGlobals.class),
         LarkyScript.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
@@ -117,7 +117,7 @@ public class LarkyTest {
         null);
     ParsedStarFile config;
     ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier().create();
-    config = parser.evaluate(starFile, moduleSet, new TestingConsole());
+    config = interpreter.evaluate(starFile, moduleSet, new TestingConsole());
   }
 
   @Test
@@ -130,7 +130,7 @@ public class LarkyTest {
     String absolutePath = resourceDirectory.toFile().getAbsolutePath();
     System.out.println(absolutePath);
 
-    LarkyScript parser = new LarkyScript(
+    LarkyScript interpreter = new LarkyScript(
         ImmutableSet.of(LarkyGlobals.class),
         LarkyScript.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
@@ -138,7 +138,7 @@ public class LarkyTest {
         null,
         null);
     ParsedStarFile config;
-    config = parser.evaluate(starFile, new ModuleSupplier().create(), new TestingConsole());
+    config = interpreter.evaluate(starFile, new ModuleSupplier().create(), new TestingConsole());
   }
 
   @Test
@@ -151,7 +151,7 @@ public class LarkyTest {
     String absolutePath = resourceDirectory.toFile().getAbsolutePath();
     System.out.println(absolutePath);
 
-    LarkyScript parser = new LarkyScript(
+    LarkyScript interpreter = new LarkyScript(
         ImmutableSet.of(
             LarkyGlobals.class,
             LarkyUnittest.class
@@ -162,7 +162,7 @@ public class LarkyTest {
         null,
         null);
     ParsedStarFile config;
-    config = parser.evaluate(starFile, new ModuleSupplier().create(), new TestingConsole());
+    config = interpreter.evaluate(starFile, new ModuleSupplier().create(), new TestingConsole());
   }
 
   @StarlarkBuiltin(
@@ -219,7 +219,7 @@ public class LarkyTest {
     System.out.println(httpPhase);
 
 
-    LarkyScript parser = new LarkyScript(
+    LarkyScript interpreter = new LarkyScript(
         ImmutableSet.of(
             LarkyGlobals.class
         ),
@@ -230,7 +230,7 @@ public class LarkyTest {
             null,
             null);
     ParsedStarFile config;
-    config = parser.evaluate(starFile, new ModuleSupplier(ImmutableSet.of(
+    config = interpreter.evaluate(starFile, new ModuleSupplier(ImmutableSet.of(
         new LarkyUnittest(),
         new VGSMessages()
     )).create(), new TestingConsole());
