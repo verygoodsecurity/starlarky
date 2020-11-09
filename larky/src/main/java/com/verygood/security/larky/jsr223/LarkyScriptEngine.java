@@ -30,7 +30,7 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    */
   @Override
   public CompiledScript compile(String script) throws ScriptException {
-    return null;
+    return new LarkyCompiledScript(this, script);
   }
 
   /**
