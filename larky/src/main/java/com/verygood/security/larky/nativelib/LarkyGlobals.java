@@ -2,8 +2,8 @@ package com.verygood.security.larky.nativelib;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
-import com.verygood.security.larky.core.CallableMutableStruct;
-import com.verygood.security.larky.core.SimpleStruct;
+import com.verygood.security.larky.stdtypes.structs.CallableMutableStruct;
+import com.verygood.security.larky.stdtypes.structs.SimpleStruct;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;

@@ -1,6 +1,17 @@
 package com.verygood.security.larky.jsr223;
 
-import java.lang.reflect.Field;
+import com.google.common.collect.ImmutableSet;
+
+import com.verygood.security.larky.ModuleSupplier;
+import com.verygood.security.larky.console.LogConsole;
+import com.verygood.security.larky.nativelib.LarkyGlobals;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.StarFile;
+
+import net.starlark.java.eval.Module;
+
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import javax.script.Bindings;
@@ -9,41 +20,32 @@ import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
+
 public class LarkyCompiledScript extends CompiledScript {
+  private static final String DEFAULT_SCRIPT_NAME = "larky.star";
   private final LarkyScriptEngine engine;
-  private final Class<?> compiledClass;
-  private final Object compiledInstance;
+  private final StarFile script;
 
-   /**
+  /**
     * Construct a {@link LarkyCompiledScript}.
-    *
-    * @param engine the {@link LarkyScriptEngine} that compiled this script
-    * @param compiledClass the compiled {@link Class}
-    * @param compiledInstance the instance of the compiled {@link Class}
-    */
-   LarkyCompiledScript(LarkyScriptEngine engine, Class<?> compiledClass, Object compiledInstance) {
+    *  @param engine the {@link LarkyScriptEngine} that compiled this script
+    * @param content Contents of a StarFile
+   */
+   LarkyCompiledScript(LarkyScriptEngine engine, String content) {
        this.engine = engine;
-       this.compiledClass = compiledClass;
-       this.compiledInstance = compiledInstance;
+       //StarlarkFile.parse(ParserInput.fromString(content, ""));
+       this.script = InMemMapBackedStarFile.createStarFile(DEFAULT_SCRIPT_NAME, content);
    }
 
    /**
-    * Returns the compiled {@link Class}.
+    * Returns content of starfile
     *
-    * @return the compiled {@link Class}.
+    * @return the {@link StarFile}.
     */
-   public Class<?> getCompiledClass() {
-       return compiledClass;
+   public StarFile getScript() {
+       return script;
    }
 
-   /**
-    * Returns the instance of the compiled {@link Class}.
-    *
-    * @return the instance of the compiled {@link Class} or {@code null}
-    */
-   public Object getCompiledInstance() {
-       return compiledInstance;
-   }
 
    @Override
    public ScriptEngine getEngine() {
@@ -52,52 +54,69 @@ public class LarkyCompiledScript extends CompiledScript {
 
    @Override
    public Object eval(ScriptContext context) throws ScriptException {
-       Bindings globalBindings = context.getBindings(ScriptContext.GLOBAL_SCOPE);
-       Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
+     Bindings globalBindings = context.getBindings(ScriptContext.GLOBAL_SCOPE);
+     Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
+     Map<String, Object> mergedBindings = mergeBindings(globalBindings, engineBindings);
+     //pushVariables(globalBindings, engineBindings);
+     //TODO(mahmoudimus): Put this in LarkyScriptEngine?
+     LarkyScript interpreter = new LarkyScript(
+         ImmutableSet.of(
+             LarkyGlobals.class
+         ),
+         LarkyScript.StarlarkMode.STRICT);
 
-       pushVariables(globalBindings, engineBindings);
-       Object result = eval(); //TODO(mahmoud): FIX THIS
-       //Object result = executionStrategy.execute(compiledInstance);
-       pullVariables(globalBindings, engineBindings);
+     ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier(mergedBindings).create();
+     LogConsole console = LogConsole.writeOnlyConsole(System.out, false);
 
-       return result;
+     Module result = null;
+     try {
+       result = interpreter.executeSkylark(
+           script,
+           moduleSet,
+           console
+       );
+     } catch (IOException|InterruptedException e) {
+       throw new ScriptException(e);
+     }
+     //pullVariables(globalBindings, engineBindings);
+     return result;
    }
 
-   private void pushVariables(Bindings globalBindings, Bindings engineBindings) throws ScriptException {
-       Map<String, Object> mergedBindings = mergeBindings(globalBindings, engineBindings);
-
-       for (Map.Entry<String, Object> entry : mergedBindings.entrySet()) {
-           String name = entry.getKey();
-           Object value = entry.getValue();
-
-           try {
-               Field field = compiledClass.getField(name);
-               field.set(compiledInstance, value);
-           } catch (NoSuchFieldException | IllegalAccessException e) {
-               throw new ScriptException(e);
-           }
-       }
-   }
-
-   private void pullVariables(Bindings globalBindings, Bindings engineBindings) throws ScriptException {
-       for (Field field : compiledClass.getFields()) {
-           try {
-               String name = field.getName();
-               Object value = field.get(compiledInstance);
-               setBindingsValue(globalBindings, engineBindings, name, value);
-           } catch (IllegalAccessException e) {
-               throw new ScriptException(e);
-           }
-       }
-   }
-
-   private void setBindingsValue(Bindings globalBindings, Bindings engineBindings, String name, Object value) {
-       if (!engineBindings.containsKey(name) && globalBindings.containsKey(name)) {
-           globalBindings.put(name, value);
-       } else {
-           engineBindings.put(name, value);
-       }
-   }
+//   private void pushVariables(Bindings globalBindings, Bindings engineBindings) throws ScriptException {
+//     Map<String, Object> mergedBindings = mergeBindings(globalBindings, engineBindings);
+//
+//       for (Map.Entry<String, Object> entry : mergedBindings.entrySet()) {
+//           String name = entry.getKey();
+//           Object value = entry.getValue();
+//
+//           try {
+//               Field field = compiledClass.getField(name);
+//               field.set(compiledInstance, value);
+//           } catch (NoSuchFieldException | IllegalAccessException e) {
+//               throw new ScriptException(e);
+//           }
+//       }
+//   }
+//
+//   private void pullVariables(Bindings globalBindings, Bindings engineBindings) throws ScriptException {
+//       for (Field field : compiledClass.getFields()) {
+//           try {
+//               String name = field.getName();
+//               Object value = field.get(compiledInstance);
+//               setBindingsValue(globalBindings, engineBindings, name, value);
+//           } catch (IllegalAccessException e) {
+//               throw new ScriptException(e);
+//           }
+//       }
+//   }
+//
+//   private void setBindingsValue(Bindings globalBindings, Bindings engineBindings, String name, Object value) {
+//       if (!engineBindings.containsKey(name) && globalBindings.containsKey(name)) {
+//           globalBindings.put(name, value);
+//       } else {
+//           engineBindings.put(name, value);
+//       }
+//   }
 
    private Map<String, Object> mergeBindings(Bindings... bindingsToMerge) {
        Map<String, Object> variables = new HashMap<>();

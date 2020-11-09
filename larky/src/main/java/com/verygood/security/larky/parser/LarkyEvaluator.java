@@ -139,8 +139,8 @@ final class LarkyEvaluator {
       try {
         if(moduleToLoad.startsWith(STDLIB)) {
           String targetModule = moduleToLoad.replace(STDLIB + "/", "");
-          if (inEnvironment(targetModule)) {
-            loadedModule = fromEnvironment(targetModule);
+          if (inEvaluatorEnvironment(targetModule)) {
+            loadedModule = fromEvaluatorEnvironment(targetModule);
           } else {
             loadedModule = fromStdlib(targetModule);
           }
@@ -154,11 +154,11 @@ final class LarkyEvaluator {
       return loadedModule;
     }
 
-    private boolean inEnvironment(String moduleToLoad) {
+    private boolean inEvaluatorEnvironment(String moduleToLoad) {
       return evaluator.environment.containsKey(moduleToLoad);
     }
 
-    private Module fromEnvironment(String moduleToLoad) {
+    private Module fromEvaluatorEnvironment(String moduleToLoad) {
       return (Module) evaluator.environment.get(moduleToLoad);
     }
 
@@ -192,7 +192,9 @@ final class LarkyEvaluator {
           .add(moduleToLoad)
           .build());
       try {
-        // update globals with the export, I think this could be a bug in Module for keeping the exportedGlobal private
+        // update globals with the export,
+        // TODO(mahmoudimus): I think this could be a bug in Starlark.Eval.Module
+        //                    for keeping the exportedGlobal private
         Field exportedGlobals = removeFinalFromField(newModule.getClass().getDeclaredField("exportedGlobals"));
         exportedGlobals.set(newModule, build);
       } catch (Exception e) {
@@ -265,7 +267,7 @@ final class LarkyEvaluator {
       for (SyntaxError error : ex.errors()) {
         console.error(error.toString());
       }
-      throw new RuntimeException("Error loading config file.");
+      throw new RuntimeException("Error compiling Starlark program: " + input.getFile());
     }
     return prog;
   }

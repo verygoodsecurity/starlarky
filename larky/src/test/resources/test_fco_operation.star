@@ -14,11 +14,11 @@ def _name():
 def _get_second_item(pair):
     return pair[1]
 
-def operate(http_message):
+def operate(message, ctx):
     request = Request(
-        payload=http_message.payload,
-        headers=http_message.headers,
-        phase=http_message.phase,
+        payload=message.payload,
+        headers=message.headers,
+        phase=message.phase,
     )
 
     # Remove “signature” from json object (if it exists)
