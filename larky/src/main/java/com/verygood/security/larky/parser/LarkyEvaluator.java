@@ -3,7 +3,6 @@ package com.verygood.security.larky.parser;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.FluentLogger;
 import com.google.common.io.Files;
@@ -30,14 +29,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 
@@ -173,31 +169,28 @@ final class LarkyEvaluator {
       return getStarModule(moduleToLoad);
     }
 
-    Field removeFinalFromField(Field field) throws Exception {
-       field.setAccessible(true);
-       Field modifiersField = Field.class.getDeclaredField("modifiers");
-       modifiersField.setAccessible(true);
-       modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-       return field;
-    }
-
     @NotNull
     private Module getNativeModule(String moduleToLoad) {
-      Module newModule = Module.withPredeclared(StarlarkSemantics.DEFAULT, ImmutableMap.of());
+      Module newModule = Module.withPredeclared(
+          StarlarkSemantics.DEFAULT,
+          ImmutableMap.of("_" + moduleToLoad, nativeJavaModule.get(moduleToLoad)));
       newModule.setClientData(moduleToLoad);
-      newModule.setGlobal(moduleToLoad, nativeJavaModule.get(moduleToLoad));
-      // We have to do this via reflection because we're not doing any bindings via load..
-      HashSet<String> build = new HashSet<>(ImmutableSet.<String>builder()
-          .addAll(newModule.getExportedGlobals().keySet())
-          .add(moduleToLoad)
-          .build());
-      try {
-        // update globals with the export,
-        // TODO(mahmoudimus): I think this could be a bug in Starlark.Eval.Module
-        //                    for keeping the exportedGlobal private
-        Field exportedGlobals = removeFinalFromField(newModule.getClass().getDeclaredField("exportedGlobals"));
-        exportedGlobals.set(newModule, build);
-      } catch (Exception e) {
+
+      // We have to do this because Starlark Builtins are not actual modules, so as a result, they
+      // do not export themselves to the modules.
+      //
+      // To circumvent around this limitation, we create an in-memory module and just evaluate it
+      // to export the methods.
+      // TODO(mahmoudimus): Move this to ModuleSupplier?
+      try (Mutability mu = Mutability.create("InMemoryNativeModule")) {
+        StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+        Starlark.execFile(
+            ParserInput.fromString(String.format("%1$s = _%1$s", moduleToLoad), "<builtin>"),
+            this.evaluator.getStarlarkValidationOptions(),
+            newModule,
+            thread
+        );
+      } catch (InterruptedException | EvalException | SyntaxError.Exception e) {
         throw new RuntimeException(e);
       }
       return newModule;
