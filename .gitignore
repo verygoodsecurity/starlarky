@@ -82,3 +82,6 @@ venv
 dist
 build
 pylarky.egg-info
+__pycache__/
+larky_pb2.py
+larky_pb2_grpc.py

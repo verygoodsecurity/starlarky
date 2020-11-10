@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+option java_package = "com.verygood.security.messages.operations.starlark";
+
+message StarlarkRequest {
+  string script = 1;
+  string payload = 2;
+  string main_fn = 3;
+  map<string, string> ctx = 7;
+}
+
+
+message StarlarkResponse {
+  string payload = 1;
+  map<string, string> ctx = 2;
+}
+
+
+service ComputeService {
+  rpc Compute (StarlarkRequest) returns (StarlarkResponse);
+}
