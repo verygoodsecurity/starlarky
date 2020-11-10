@@ -37,7 +37,7 @@ public class LarkyScriptEngineTest {
         "    return get_area(x, y), get_perimeter(x, y)",
         "",
         "def get_area(x, y):",
-        "    return x * y + math.pi / 8.0 * pow(x, 2)",
+        "    return x * y + math.pi / 8.0 * math.pow(x, 2.0)",
         "",
         "def get_perimeter(x, y):",
         "    return x + 2.0 * y + math.pi / 2.0 * x",
