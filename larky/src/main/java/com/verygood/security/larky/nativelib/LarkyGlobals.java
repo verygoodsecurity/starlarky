@@ -6,9 +6,14 @@ import com.verygood.security.larky.stdtypes.structs.CallableMutableStruct;
 import com.verygood.security.larky.stdtypes.structs.SimpleStruct;
 
 import net.starlark.java.annot.Param;
+import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkFunction;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
@@ -66,5 +71,47 @@ public final class LarkyGlobals {
   @StarlarkConstructor
   public SimpleStruct callablestruct(StarlarkFunction function, Tuple<Object> args, Dict<String, Object> kwargs, StarlarkThread thread)  {
     return CallableMutableStruct.create(thread, function, args, kwargs);
+  }
+
+  @StarlarkMethod(
+      name = "pow",
+      doc = "Return base to the power exp; if mod is present, return base to " +
+          "the power exp, modulo mod (computed more efficiently than pow(base, exp) % mod). " +
+          "" +
+          "The two-argument form pow(base, exp) is equivalent to using the power operator: base**exp.",
+      parameters = {
+          @Param(
+              name = "base",
+              doc = "The function to invoke when the struct is called",
+              named = true
+          ),
+          @Param(
+              name = "exp",
+              doc = "The function to invoke when the struct is called",
+              named = true
+          ),
+          @Param(
+              name = "mod",
+              doc = "",
+              named = true,
+              allowedTypes = {
+                  @ParamType(type = String.class),
+                  @ParamType(type = NoneType.class),
+              },
+              defaultValue = "None"
+          )
+      }
+    )
+  public StarlarkInt pow(StarlarkInt base, StarlarkInt exp, Object mod) throws EvalException {
+    if(Starlark.isNullOrNone(mod)) {
+      return StarlarkInt.of(
+          base.toBigInteger()
+              .pow(exp.toInt("exp " + exp.toString() + " is too big."))
+      );
+    }
+    return StarlarkInt.of(
+      base.toBigInteger()
+          .modPow(exp.toBigInteger(), ((StarlarkInt) mod).toBigInteger())
+    );
   }
 }

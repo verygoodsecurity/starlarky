@@ -89,7 +89,7 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    */
   @Override
   public Object eval(String script, ScriptContext context) throws ScriptException {
-    return null;
+    return eval(script, context.getBindings(ScriptContext.ENGINE_SCOPE));
   }
 
   /**
@@ -188,7 +188,7 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    */
   @Override
   public Object eval(Reader reader, Bindings n) throws ScriptException {
-    return null;
+    return eval(readScript(reader), n);
   }
 
   /**
@@ -204,7 +204,7 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    */
   @Override
   public void put(String key, Object value) {
-
+    getBindings(ScriptContext.ENGINE_SCOPE).put(key, value);
   }
 
   /**
@@ -219,7 +219,7 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    */
   @Override
   public Object get(String key) {
-    return null;
+    return getBindings(ScriptContext.ENGINE_SCOPE).get(key);
   }
 
   /**
