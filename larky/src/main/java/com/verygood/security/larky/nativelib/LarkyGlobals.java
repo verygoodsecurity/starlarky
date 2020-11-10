@@ -2,12 +2,15 @@ package com.verygood.security.larky.nativelib;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
+import com.verygood.security.larky.core.CallableMutableStruct;
 import com.verygood.security.larky.core.SimpleStruct;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.Tuple;
 
 
 /** A collection of global Larky API functions that mimic python's built-ins, to a certain extent.
@@ -31,7 +34,37 @@ public final class LarkyGlobals {
     )
   @StarlarkConstructor
   public SimpleStruct struct(Dict<String, Object> kwargs, StarlarkThread thread)  {
-    return SimpleStruct.create(kwargs, thread.getSemantics());
+    return SimpleStruct.immutable(kwargs, thread.getSemantics());
   }
 
+  @StarlarkMethod(
+      name = "mutablestruct",
+      doc = "Just like struct, but creates an mutable struct using the keyword arguments as attributes",
+      extraKeywords =
+          @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
+      useStarlarkThread = true
+    )
+  @StarlarkConstructor
+  public SimpleStruct mutablestruct(Dict<String, Object> kwargs, StarlarkThread thread)  {
+    return SimpleStruct.mutable(kwargs, thread.getSemantics());
+  }
+
+  @StarlarkMethod(
+      name = "callablestruct",
+      doc = "Just like struct, but creates an callable struct using a function and its keyword arguments as its attributes",
+      parameters = {
+          @Param(
+              name = "function",
+              doc = "The function to invoke when the struct is called"
+          )
+      },
+      extraPositionals = @Param(name = "args"),
+      extraKeywords =
+          @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
+      useStarlarkThread = true
+    )
+  @StarlarkConstructor
+  public SimpleStruct callablestruct(StarlarkFunction function, Tuple<Object> args, Dict<String, Object> kwargs, StarlarkThread thread)  {
+    return CallableMutableStruct.create(thread, function, args, kwargs);
+  }
 }
