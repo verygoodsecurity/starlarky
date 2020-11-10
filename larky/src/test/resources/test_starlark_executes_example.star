@@ -11,6 +11,17 @@ people = {
 
 names = ", ".join(people.keys())  # Alice, Bob, Charlie, Dave
 
+foo = people.pop("Alice")
+print("foo is: {} and it should equal 22? {} ".format(foo, foo == 22))
+
+
+def pop_ifexists(target, key):
+    if key in target:
+        _value = target.pop(key)
+    return target
+
+print(pop_ifexists(people, "Dave"))
+
 # Define a function
 def greet(name):
     """Return a greeting."""

@@ -25,6 +25,7 @@ import com.verygood.security.larky.nativelib.LarkyHashlib;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.lib.json.Json;
+import net.starlark.java.lib.proto.Proto;
 
 import java.util.Map;
 import java.util.function.Function;
@@ -49,6 +50,7 @@ public class ModuleSupplier {
    */
   public ImmutableSet<StarlarkValue> getModules() {
     return ImmutableSet.of(
+        Proto.INSTANCE,
         Json.INSTANCE,
         new LarkyHashlib()
     );
@@ -81,5 +83,25 @@ public class ModuleSupplier {
       cls = cls.getSuperclass();
     }
     throw new IllegalStateException("Cannot find @StarlarkBuiltin for " + o.getClass());
+  }
+
+  /**
+   * A set of modules and options for evaluating a Skylark config file.
+   */
+  public static class ModuleSet {
+
+    private final ImmutableMap<String, Object> modules;
+
+    ModuleSet(ImmutableMap<String, Object> modules) {
+      this.modules = Preconditions.checkNotNull(modules);
+    }
+
+     /**
+     * Non-static modules.
+     */
+    public ImmutableMap<String, Object> getModules() {
+      return modules;
+    }
+
   }
 }
