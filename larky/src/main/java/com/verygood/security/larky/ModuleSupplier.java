@@ -20,6 +20,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
+import com.verygood.security.larky.nativelib.LarkyC99Math;
 import com.verygood.security.larky.nativelib.LarkyHashlib;
 
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -56,7 +57,8 @@ public class ModuleSupplier {
     return ImmutableSet.of(
         Proto.INSTANCE,
         Json.INSTANCE,
-        new LarkyHashlib()
+        new LarkyHashlib(),
+        new LarkyC99Math()
     );
   }
 
