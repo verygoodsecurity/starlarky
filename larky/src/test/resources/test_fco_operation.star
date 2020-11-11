@@ -3,22 +3,24 @@ load('@stdlib/unittest', 'unittest')
 load('@stdlib/urllib/request', 'Request')
 load("@stdlib/hashlib", "hashlib")
 load("@stdlib/asserts", "asserts")
-load("@stdlib/vgs_messages", "vgs_messages")
-load("testlib/builtinz", "simple_set")
 
+load("testlib/vgs_messages", "http_pb2")
+load("testlib/builtinz", "simple_set")
 
 
 def _name():
     return "github.com/verygoodsecurity/xxxx/e75fcdb7-7b86-4384-870e-a24fdca31ef5/tntzr6gpm1s/16c6e5c7-8a2a-4e6e-9e78-2ffc11650a52/38c28e87-3927-4931-9be6-6c699e1954e7/Config"
 
+
 def _get_second_item(pair):
     return pair[1]
 
-def operate(message, ctx):
+
+def process(message, ctx):
     request = Request(
-        payload=message.payload,
+        message.uri,
+        data=message.payload,
         headers=message.headers,
-        phase=message.phase,
     )
 
     # Remove “signature” from json object (if it exists)
@@ -51,21 +53,20 @@ def operate(message, ctx):
 
 
 def _input_message():
-    return vgs_messages.HttpMessage(
+    return http_pb2.HttpMessage(
         payload='{"mid":"1007778759","order_id":"ORD123","api_mode":"direct_token_api","transaction_type":"C","payer_email":"abc@abc.com","payer_name":"Payer name","card_no":"4111111111111111","exp_date":"082019","cvv2":"123","signature":"f767337b377f843abac56d843afd1b71bdd000aef1610b115b4e812dff262f105c0f67b5c41a5836fb6c2d7caeac24e969b5a2e657568e417c124281fa9ce925"}',
         headers=[
-            vgs_messages.HttpHeader(
+            http_pb2.HttpHeader(
                key='Private-Key',
                value='1m4gHHSKpGp6lS2qKKolXQGzSAVGP5DAB2byaOuJEPyCSomz02i3vXUPWnOofNdBNmQIdEpzOY4XO9SfNSjdDrmUQ3wk4dwpST5GJexjhP9aFc6uUOd6BFNuNSk8ZIYn'
            )
         ],
         uri="/post",
-        phase=vgs_messages.HttpPhase.REQUEST)
-
+        phase=http_pb2.HttpPhase.REQUEST)
 
 
 def _test_config():
-    modified = operate(_input_message())
+    modified = process(_input_message(), {})
     payload = json.decode(modified.payload)
     asserts.assert_that(payload).is_length(10)
     (asserts

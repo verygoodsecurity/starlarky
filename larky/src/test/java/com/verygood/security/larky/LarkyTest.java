@@ -69,8 +69,7 @@ public class LarkyTest {
       LarkyScript.StarlarkMode.STRICT);
 
     ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier(ImmutableSet.of(
-      new LarkyUnittest(),
-      new VGSMessages()
+      new LarkyUnittest()
     )).create();
 
     TestingConsole console = new TestingConsole();
@@ -166,11 +165,11 @@ public class LarkyTest {
   }
 
   @StarlarkBuiltin(
-      name = "vgs_messages",
+      name = "FCOHelper",
       category = "BUILTIN",
       doc = "messages namespace"
   )
-  public static class VGSMessages implements StarlarkValue {
+  public static class FCOHelper implements StarlarkValue {
 
     @StarlarkMethod(
         name = "HttpMessage",
@@ -232,7 +231,7 @@ public class LarkyTest {
     ParsedStarFile config;
     config = interpreter.evaluate(starFile, new ModuleSupplier(ImmutableSet.of(
         new LarkyUnittest(),
-        new VGSMessages()
+        new FCOHelper()
     )).create(), new TestingConsole());
   }
 }
