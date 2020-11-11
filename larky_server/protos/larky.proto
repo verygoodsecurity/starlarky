@@ -16,6 +16,6 @@ message StarlarkResponse {
 }
 
 
-service ComputeService {
+service LarkyRuntimeService {
   rpc Compute (StarlarkRequest) returns (StarlarkResponse);
 }

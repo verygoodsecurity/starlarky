@@ -48,10 +48,10 @@ def run():
     # NOTE(gRPC Python Team): .close() is possible on a channel and should be
     # used in circumstances in which the with statement does not fit the needs
     # of the code.
-    with grpc.insecure_channel('localhost:50051') as channel:
-        stub = larky_pb2_grpc.ComputeServiceStub(channel)
+    with grpc.insecure_channel('[::]:50051',) as channel:
+        stub = larky_pb2_grpc.LarkyRuntimeServiceStub(channel)
         print(stub.Compute(default_request()))
-4
+
 
 if __name__ == '__main__':
     logging.basicConfig()

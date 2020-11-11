@@ -8,7 +8,7 @@ import larky_pb2_grpc
 from larky_server.utils import preprocess_larky_request, eval_request
 
 
-class LarkyService(larky_pb2_grpc.ComputeService):
+class LarkyService(larky_pb2_grpc.LarkyRuntimeService):
 
     def __init__(self):
         pass
@@ -26,8 +26,8 @@ class LarkyService(larky_pb2_grpc.ComputeService):
 
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    larky_pb2_grpc.add_ComputeServiceServicer_to_server(LarkyService(), server)
-    server.add_insecure_port('[::]:50051')
+    larky_pb2_grpc.add_LarkyRuntimeServiceServicer_to_server(LarkyService(), server)
+    server.add_insecure_port('0.0.0.0:50051')
     server.start()
     server.wait_for_termination()
 
