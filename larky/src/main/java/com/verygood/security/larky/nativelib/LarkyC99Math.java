@@ -22,6 +22,28 @@ public class LarkyC99Math implements StarlarkValue {
   }
 
   @StarlarkMethod(
+      name = "sqrt",
+      doc = "Returns the correctly rounded positive square root of a double value. " +
+          "" +
+          "Special cases:\n" +
+          "- If the argument is NaN or less than zero, then the result is NaN.\n" +
+          "- If the argument is positive infinity, then the result is positive infinity.\n" +
+          "- If the argument is positive zero or negative zero, then the result is the same as the argument.\n" +
+          "" +
+          "Otherwise, the result is the double value closest to the true mathematical square root of the argument value.",
+      parameters = {
+          @Param(
+              name = "a",
+              doc = "a value"
+          )
+      }
+  )
+  public StarlarkFloat sqrt(Object a) {
+    double x = Double.parseDouble(String.valueOf(a));
+    return StarlarkFloat.of(Math.sqrt(x));
+  }
+
+  @StarlarkMethod(
       name = "pow",
       doc = "Return x raised to the power y. Exceptional cases follow Annex ‘F’ of the C99 standard" +
           " as far as possible. " +

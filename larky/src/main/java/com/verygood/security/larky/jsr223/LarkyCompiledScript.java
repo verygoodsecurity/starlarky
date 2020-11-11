@@ -7,9 +7,9 @@ import com.verygood.security.larky.console.StreamWriterConsole;
 import com.verygood.security.larky.nativelib.LarkyGlobals;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.StarFile;
 
-import net.starlark.java.eval.Module;
 import net.starlark.java.eval.Starlark;
 
 import java.io.IOException;
@@ -60,7 +60,6 @@ public class LarkyCompiledScript extends CompiledScript {
      Bindings globalBindings = context.getBindings(ScriptContext.GLOBAL_SCOPE);
      Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
      Map<String, Object> mergedBindings = mergeBindings(globalBindings, engineBindings);
-     //pushVariables(globalBindings, engineBindings);
      //TODO(mahmoudimus): Put this in LarkyScriptEngine?
      Map<String, Object> globalStarlarkValues = mergedBindings
          .entrySet()
@@ -79,55 +78,37 @@ public class LarkyCompiledScript extends CompiledScript {
      ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier().create();
      Writer writer = context.getWriter();
 
-     Module result = null;
+     ParsedStarFile result = null;
      try {
-       result = interpreter.executeSkylark(
+       result = interpreter.evaluate(
            script,
            moduleSet,
            new StreamWriterConsole(writer)
        );
-     } catch (IOException|InterruptedException e) {
+     } catch (IOException e) {
        throw new ScriptException(e);
      }
-     //pullVariables(globalBindings, engineBindings);
+     setBindingsValue(globalBindings, engineBindings, result.getGlobals());
      return result;
    }
 
-//   private void pushVariables(Bindings globalBindings, Bindings engineBindings) throws ScriptException {
-//     Map<String, Object> mergedBindings = mergeBindings(globalBindings, engineBindings);
-//
-//       for (Map.Entry<String, Object> entry : mergedBindings.entrySet()) {
-//           String name = entry.getKey();
-//           Object value = entry.getValue();
-//
-//           try {
-//               Field field = compiledClass.getField(name);
-//               field.set(compiledInstance, value);
-//           } catch (NoSuchFieldException | IllegalAccessException e) {
-//               throw new ScriptException(e);
-//           }
-//       }
-//   }
-//
-//   private void pullVariables(Bindings globalBindings, Bindings engineBindings) throws ScriptException {
-//       for (Field field : compiledClass.getFields()) {
-//           try {
-//               String name = field.getName();
-//               Object value = field.get(compiledInstance);
-//               setBindingsValue(globalBindings, engineBindings, name, value);
-//           } catch (IllegalAccessException e) {
-//               throw new ScriptException(e);
-//           }
-//       }
-//   }
-//
-//   private void setBindingsValue(Bindings globalBindings, Bindings engineBindings, String name, Object value) {
-//       if (!engineBindings.containsKey(name) && globalBindings.containsKey(name)) {
-//           globalBindings.put(name, value);
-//       } else {
-//           engineBindings.put(name, value);
-//       }
-//   }
+
+  private void setBindingsValue(Bindings globalBindings, Bindings engineBindings, Map<String, Object> moduleGlobals) {
+    for (Map.Entry<String, Object> entry : moduleGlobals.entrySet()) {
+      String name = entry.getKey();
+      Object value = entry.getValue();
+      if (globalBindings != null && globalBindings.containsKey(name)) {
+        globalBindings.put(name, value);
+      }
+      // by default, if defined values are not globals, they belong in engine binding scope
+      // to allow for multiple evals() of an instance
+      // TODO(mahmoudimus): is this threadsafe?
+      else if (engineBindings != null) {
+        engineBindings.put(name, value);
+      }
+    }
+  }
+
 
    private Map<String, Object> mergeBindings(Bindings... bindingsToMerge) {
        Map<String, Object> variables = new HashMap<>();

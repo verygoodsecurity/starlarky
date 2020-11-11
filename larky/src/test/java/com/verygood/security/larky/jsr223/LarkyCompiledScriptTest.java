@@ -2,7 +2,7 @@ package com.verygood.security.larky.jsr223;
 
 import static org.junit.Assert.assertEquals;
 
-import net.starlark.java.eval.Module;
+import com.verygood.security.larky.parser.ParsedStarFile;
 
 import org.junit.Test;
 
@@ -41,8 +41,8 @@ public class LarkyCompiledScriptTest {
 
     LarkyCompiledScript instance = (LarkyCompiledScript) engine.compile(script);
     String expResult = "Hello World";
-    Module result = (Module) instance.eval();
-    assertEquals(expResult, result.getGlobal("output"));
+    ParsedStarFile result = (ParsedStarFile) instance.eval();
+    assertEquals(expResult, result.getGlobalEnvironmentVariable("output", String.class));
   }
 
   @Test
@@ -83,8 +83,8 @@ public class LarkyCompiledScriptTest {
     );
     LarkyCompiledScript instance = (LarkyCompiledScript) engine.compile(script);
     Object expResult = "I heard, Helloooo Woooorld!";
-    Module result = (Module) instance.eval(bindings);
-    assertEquals(expResult, result.getGlobal("output"));
+    ParsedStarFile result = (ParsedStarFile) instance.eval(bindings);
+    assertEquals(expResult, result.getGlobalEnvironmentVariable("output", String.class));
   }
 
 }

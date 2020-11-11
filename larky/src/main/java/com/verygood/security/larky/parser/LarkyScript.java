@@ -101,9 +101,9 @@ public class LarkyScript {
     return module;
   }
 
-  public ParsedStarFile evaluate(StarFile config, ModuleSupplier.ModuleSet moduleSet, Console console)
+  public ParsedStarFile evaluate(StarFile content, ModuleSupplier.ModuleSet moduleSet, Console console)
       throws IOException {
-    return getStarFileWithTransitiveImports(config, moduleSet, console).getStarFile();
+    return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
   }
 
   /**
@@ -142,7 +142,7 @@ public class LarkyScript {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
     }
-    return new ParsedStarFile(content.path(), module.getTransitiveBindings());
+    return new ParsedStarFile(content.path(), module.getTransitiveBindings(), module);
   }
 
   private static class StarFilesSupplier
