@@ -30,6 +30,7 @@ import net.starlark.java.eval.Module;
 import net.starlark.java.syntax.FileOptions;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -39,14 +40,6 @@ import java.util.function.Supplier;
 public class LarkyScript {
 
   public static final String STAR_EXTENSION = ".star";
-
-  public StarlarkMode getValidation() {
-    return validation;
-  }
-
-  public Iterable<Class<?>> getGlobalModules() {
-    return globalModules;
-  }
 
   /**
    * Modes for parsing config files.
@@ -69,13 +62,32 @@ public class LarkyScript {
           .build();
 
   // For now all the modules are namespaces. We don't use variables except for 'core'.
-  private final Iterable<Class<?>> globalModules;
+  private final Iterable<Class<?>> builtinModules;
   private final StarlarkMode validation;
+  private final Map<String, Object> globals;
 
-  public LarkyScript(Set<Class<?>> globalModules, StarlarkMode validation) {
-    this.globalModules = ImmutableSet.<Class<?>>builder()
-        .addAll(globalModules).build();
+  public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation) {
+    this(builtinModules, validation, ImmutableMap.of());
+  }
+
+  public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals) {
+    this.builtinModules = ImmutableSet.<Class<?>>builder()
+        .addAll(builtinModules)
+        .build();
     this.validation = validation;
+    this.globals = globals;
+  }
+
+  public StarlarkMode getValidation() {
+     return validation;
+  }
+
+  public Map<String, Object> getGlobals() {
+    return globals;
+  }
+
+  public Iterable<Class<?>> getBuiltinModules() {
+     return builtinModules;
   }
 
   @VisibleForTesting

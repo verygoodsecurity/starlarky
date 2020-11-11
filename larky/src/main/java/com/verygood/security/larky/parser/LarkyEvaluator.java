@@ -33,8 +33,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -57,11 +59,16 @@ final class LarkyEvaluator {
     this.moduleSet = checkNotNull(moduleSet);
     this.validationMode = larkyScript.getValidation();
     //todo(mahmoudimus): convert to builder pattern
-    this.environment = createEnvironment(larkyScript.getGlobalModules());
+    this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
   }
 
   private void starlarkPrint(StarlarkThread thread, String msg) {
-    console.verbose(thread.getCallerLocation() + ": " + msg);
+    if(console.isVerbose()) {
+      console.verbose(thread.getCallerLocation() + ": " + msg);
+    }
+    else {
+      console.info(msg);
+    }
   }
 
   public Module eval(StarFile content)
@@ -113,8 +120,7 @@ final class LarkyEvaluator {
      */
     /**
      * load("//testlib/builtinz", "setz") # works, but root is not defined.
-     * load("./testlib/builtinz", "setz") # works
-     * load("testlib/builtinz", "setz", "collections")
+     * load("./testlib/builtinz", "setz") # works load("testlib/builtinz", "setz", "collections")
      * load("/testlib/builtinz", "setz")  # does not work
      */
     private static final String STDLIB = "@stdlib";
@@ -133,18 +139,17 @@ final class LarkyEvaluator {
     public Module load(String moduleToLoad) {
       Module loadedModule = null;
       try {
-        if(moduleToLoad.startsWith(STDLIB)) {
+        if (moduleToLoad.startsWith(STDLIB)) {
           String targetModule = moduleToLoad.replace(STDLIB + "/", "");
           if (inEvaluatorEnvironment(targetModule)) {
             loadedModule = fromEvaluatorEnvironment(targetModule);
           } else {
             loadedModule = fromStdlib(targetModule);
           }
+        } else {
+          loadedModule = evaluator.eval(content.resolve(moduleToLoad + LarkyScript.STAR_EXTENSION));
         }
-        else {
-            loadedModule = evaluator.eval(content.resolve(moduleToLoad + LarkyScript.STAR_EXTENSION));
-        }
-      } catch (IOException|InterruptedException e) {
+      } catch (IOException | InterruptedException e) {
         throw new RuntimeException(e);
       }
       return loadedModule;
@@ -199,10 +204,10 @@ final class LarkyEvaluator {
     @NotNull
     private Module getStarModule(String moduleToLoad) throws IOException, InterruptedException {
       /*
-      * If the module set does not contain the module to load, then we try to load it from the
-      * stdlib.
-      *
-      * If it is not found in our stdlib location, we expect the evaluator to throw an error.
+       * If the module set does not contain the module to load, then we try to load it from the
+       * stdlib.
+       *
+       * If it is not found in our stdlib location, we expect the evaluator to throw an error.
        */
       Path stdlib_path = getStdlibPath();
       assert stdlib_path != null;
@@ -257,10 +262,17 @@ final class LarkyEvaluator {
     try {
       prog = Program.compileFile(StarlarkFile.parse(input, options), module);
     } catch (SyntaxError.Exception ex) {
+      List<String> errs = new ArrayList<>();
       for (SyntaxError error : ex.errors()) {
         console.error(error.toString());
+        errs.add(error.toString());
       }
-      throw new RuntimeException("Error compiling Starlark program: " + input.getFile());
+      throw new RuntimeException(
+          String.format(
+              "Error compiling Starlark program: %1$s%n" +
+                  "%2$s",
+              input.getFile(),
+              String.join("\n", errs)));
     }
     return prog;
   }
@@ -289,28 +301,29 @@ final class LarkyEvaluator {
   }
 
   /**
-    * Create the environment for all evaluations (will be shared between all the dependent files
-    * loaded).
-    */
-  private ImmutableMap<String, Object> createEnvironment(Iterable<Class<?>> globalModules) {
-     Map<String, Object> env = Maps.newHashMap();
+   * Create the environment for all evaluations (will be shared between all the dependent files
+   * loaded).
+   */
+  private ImmutableMap<String, Object> createEnvironment(Iterable<Class<?>> globalModules, Map<String, Object> globals) {
+    Map<String, Object> env = Maps.newHashMap();
 
-     for (Class<?> module : globalModules) {
-       logger.atInfo().log("Creating variable for %s", module.getName());
-       // Create the module object and associate it with the functions
-       ImmutableMap.Builder<String, Object> envBuilder = ImmutableMap.builder();
-       try {
-         StarlarkBuiltin annot = StarlarkAnnotations.getStarlarkBuiltin(module);
-         if (annot != null) {
-           envBuilder.put(annot.name(), module.getConstructor().newInstance());
-         } else if (module.isAnnotationPresent(Library.class)) {
-           Starlark.addMethods(envBuilder, module.getConstructor().newInstance());
-         }
-       } catch (ReflectiveOperationException e) {
-         throw new AssertionError(e);
-       }
-       env.putAll(envBuilder.build());
-     }
-     return ImmutableMap.copyOf(env);
-   }
+    for (Class<?> module : globalModules) {
+      logger.atInfo().log("Creating variable for %s", module.getName());
+      // Create the module object and associate it with the functions
+      ImmutableMap.Builder<String, Object> envBuilder = ImmutableMap.builder();
+      try {
+        StarlarkBuiltin annot = StarlarkAnnotations.getStarlarkBuiltin(module);
+        if (annot != null) {
+          envBuilder.put(annot.name(), module.getConstructor().newInstance());
+        } else if (module.isAnnotationPresent(Library.class)) {
+          Starlark.addMethods(envBuilder, module.getConstructor().newInstance());
+        }
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+      env.putAll(envBuilder.build());
+    }
+    env.putAll(globals);
+    return ImmutableMap.copyOf(env);
+  }
 }

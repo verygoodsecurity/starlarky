@@ -3,17 +3,20 @@ package com.verygood.security.larky.jsr223;
 import com.google.common.collect.ImmutableSet;
 
 import com.verygood.security.larky.ModuleSupplier;
-import com.verygood.security.larky.console.LogConsole;
+import com.verygood.security.larky.console.StreamWriterConsole;
 import com.verygood.security.larky.nativelib.LarkyGlobals;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.StarFile;
 
 import net.starlark.java.eval.Module;
+import net.starlark.java.eval.Starlark;
 
 import java.io.IOException;
+import java.io.Writer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
@@ -59,21 +62,29 @@ public class LarkyCompiledScript extends CompiledScript {
      Map<String, Object> mergedBindings = mergeBindings(globalBindings, engineBindings);
      //pushVariables(globalBindings, engineBindings);
      //TODO(mahmoudimus): Put this in LarkyScriptEngine?
+     Map<String, Object> globalStarlarkValues = mergedBindings
+         .entrySet()
+         .stream()
+         .collect(Collectors.toMap(
+             Map.Entry::getKey,
+             entry -> Starlark.fromJava(entry.getValue(), null), (a, b) -> b));
+
      LarkyScript interpreter = new LarkyScript(
          ImmutableSet.of(
              LarkyGlobals.class
          ),
-         LarkyScript.StarlarkMode.STRICT);
+         LarkyScript.StarlarkMode.STRICT,
+         globalStarlarkValues);
 
-     ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier(mergedBindings).create();
-     LogConsole console = LogConsole.writeOnlyConsole(System.out, false);
+     ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier().create();
+     Writer writer = context.getWriter();
 
      Module result = null;
      try {
        result = interpreter.executeSkylark(
            script,
            moduleSet,
-           console
+           new StreamWriterConsole(writer)
        );
      } catch (IOException|InterruptedException e) {
        throw new ScriptException(e);
