@@ -76,6 +76,10 @@ def _header_items(self):
     return list(hdrs.items())
 
 
+def _get_data(self):
+    return self.data
+
+
 def Request(url, data=None, headers={},
                   origin_req_host=None, unverifiable=False,
                   method=None):
@@ -90,6 +94,7 @@ def Request(url, data=None, headers={},
 
     # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = mutablestruct(
+        get_data = callablestruct(_get_data, self),
         get_method = callablestruct(_get_method, self),
         get_full_url = callablestruct(_get_full_url, self),
         set_proxy = callablestruct(_set_proxy, self),
