@@ -33,7 +33,7 @@ def process(message, ctx):
     header_value = request.remove_header("Private-Key")
 
     # Create x-secret-key header with private key header value
-    request.add_header(("x-secret-key", header_value))
+    request.add_header("x-secret-key", header_value)
 
     # Sort the json object alphabetically
     sorted_pairs = sorted(decoded_payload.items(),
@@ -68,7 +68,7 @@ def _input_message():
 
 def _test_config():
     modified = process(_input_message(), {})
-    payload = json.decode(modified.payload)
+    payload = json.decode(modified.data)
     asserts.assert_that(payload).is_length(10)
     (asserts
      .assert_that(payload['signature'])

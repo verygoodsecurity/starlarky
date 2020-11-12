@@ -200,7 +200,7 @@ def is_equal_to(self, other, **kwargs):
         if _diff:
             fail(_diff['message'])
     elif self.val != other:
-        fail('Expected <%s> to be equal to <%s>, but was not.' % (self.val, other))
+        fail('Expected <{}> to be equal to <{}>, but was not.'.format(self.val, other))
     return self
 
 
@@ -225,7 +225,7 @@ def is_not_equal_to(self, other):
         AssertionError: if actual **is** equal to expected
     """
     if self.val == other:
-        fail('Expected <%s> to be not equal to <%s>, but was.' % (self.val, other))
+        fail('Expected <{}> to be not equal to <{}>, but was.'.format(self.val, other))
     return self
 
 
