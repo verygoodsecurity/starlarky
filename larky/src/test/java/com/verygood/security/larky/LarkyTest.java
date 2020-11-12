@@ -97,6 +97,7 @@ public class LarkyTest {
     }
   }
 
+
   @Test
   public void testStructBuiltin() throws IOException {
     Path resourceDirectory = Paths.get(

@@ -90,11 +90,12 @@ def Request(url, data=None, headers={},
         headers=headers,
         origin_req_host=origin_req_host,
         unverifiable=unverifiable,
-        method=method)
+        method=method,
+        unredirected_hdrs={})
 
     # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = mutablestruct(
-        get_data = callablestruct(_get_data, self),
+        data = descriptor(callablestruct(_get_data, self)),
         get_method = callablestruct(_get_method, self),
         get_full_url = callablestruct(_get_full_url, self),
         set_proxy = callablestruct(_set_proxy, self),

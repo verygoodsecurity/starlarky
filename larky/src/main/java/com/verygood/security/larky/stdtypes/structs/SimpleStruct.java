@@ -3,9 +3,12 @@ package com.verygood.security.larky.stdtypes.structs;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 
+import com.verygood.security.larky.nativelib.LarkyDescriptor;
+
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.ClassObject;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
@@ -43,7 +46,25 @@ public class SimpleStruct implements ClassObject {
 
   @Override
   public Object getValue(String name) {
-    return fields.get(name);
+    if(name == null
+        || !fields.containsKey(name)
+        || fields.getOrDefault(name, null) == null) {
+      return null;
+    }
+
+    Object field = fields.get(name);
+    /* if we have assigned a field that is a descriptor, we can invoke it */
+    if(!LarkyDescriptor.class.isAssignableFrom(field.getClass())) {
+      return field;
+    }
+    try {
+      return ((LarkyDescriptor) field).call();
+    } catch (
+        NoSuchMethodException
+        | EvalException
+        | InterruptedException exception) {
+      throw new RuntimeException(exception);
+    }
   }
 
   @Override

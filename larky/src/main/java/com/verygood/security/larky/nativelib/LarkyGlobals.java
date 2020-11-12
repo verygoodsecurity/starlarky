@@ -12,6 +12,7 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
@@ -68,9 +69,39 @@ public final class LarkyGlobals {
           @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
       useStarlarkThread = true
     )
-  @StarlarkConstructor
   public SimpleStruct callablestruct(StarlarkFunction function, Tuple<Object> args, Dict<String, Object> kwargs, StarlarkThread thread)  {
     return CallableMutableStruct.create(thread, function, args, kwargs);
+  }
+
+  //b=struct(c=descriptor(callablestruct(_get_data, self)))
+  //b.c == _get_data(self)
+  @StarlarkMethod(
+      name = "descriptor",
+      doc = "Just like struct, but creates an descriptor-like struct using a function and " +
+          "its keyword arguments as its attributes. \n" +
+          "You can invoke a descriptor using the . instead of (). " +
+          "For example: \n" +
+          "\n"+
+          "  def get_data():\n" +
+          "      return {'foo': 1}\n"+
+          "  c = struct(data=descriptor(get_data))\n" +
+          "  assert c.data == get_data()"
+      ,
+      parameters = {
+          @Param(
+              name = "function",
+              doc = "The function to invoke when the struct is called"
+          )
+      },
+      extraPositionals = @Param(name = "args"),
+      extraKeywords =
+          @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
+      useStarlarkThread = true
+    )
+  public LarkyDescriptor descriptor(StarlarkCallable function, Tuple<Object> args, Dict<String, Object> kwargs, StarlarkThread thread)  {
+    return LarkyDescriptor.builder()
+        .callable(function)
+        .thread(thread).build();
   }
 
   @StarlarkMethod(

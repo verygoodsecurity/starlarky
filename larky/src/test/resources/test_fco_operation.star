@@ -20,11 +20,11 @@ def process(message, ctx):
     request = Request(
         message.uri,
         data=message.payload,
-        headers=message.headers,
+        headers=dict(message.headers),
     )
 
     # Remove “signature” from json object (if it exists)
-    decoded_payload = json.decode(request.get_data())
+    decoded_payload = json.decode(request.data)
     if "signature" in decoded_payload:
         _ = decoded_payload.pop("signature")
 
@@ -47,8 +47,9 @@ def process(message, ctx):
     # Set json "signature" value to the sha hash
     decoded_payload["signature"] = signature
 
+    print(json.encode(decoded_payload))
     # Set http body to updated json object
-    request.payload = json.encode(decoded_payload)
+    request.data = json.encode(decoded_payload)
     return request
 
 
@@ -76,7 +77,7 @@ def _test_config():
 
 def suite():
     suite = unittest.TestSuite()
-    suite.addTest(unittest.expectedFailure(unittest.FunctionTestCase(_test_config)))
+    suite.addTest(unittest.FunctionTestCase(_test_config))
     return suite
 
 

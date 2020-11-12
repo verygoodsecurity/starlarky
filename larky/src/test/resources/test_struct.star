@@ -1,3 +1,4 @@
+load("@stdlib/asserts", "asserts")
 load("@stdlib/proto", "proto")
 
 
@@ -37,3 +38,12 @@ print(proto.encode_text(pb_struct))
 #     inner_inner_field: "text"
 #   }
 # }
+
+# Test descriptors
+def _get_data():
+    return {'foo': 1}
+
+c = struct(
+    data=descriptor(_get_data)
+)
+asserts.assert_that(c.data).is_equal_to(_get_data())
