@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableSet;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.StreamWriterConsole;
 import com.verygood.security.larky.nativelib.LarkyGlobals;
+import com.verygood.security.larky.nativelib.PythonBuiltins;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
@@ -70,6 +71,7 @@ public class LarkyCompiledScript extends CompiledScript {
 
      LarkyScript interpreter = new LarkyScript(
          ImmutableSet.of(
+             PythonBuiltins.class,
              LarkyGlobals.class
          ),
          LarkyScript.StarlarkMode.STRICT,

@@ -19,16 +19,19 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
 
-/** A collection of global Larky API functions that mimic python's built-ins, to a certain extent.
- *
- *  A library of Starlark values (keyed by name) that are not part of core Starlark but are common
+/**
+ *  A library of Larky values (keyed by name) that are not part of core Starlark but are common
  *  to all Larky star scripts. Examples: struct, json, etc..
+ *
+ *  Namespaced by _ and should only be accessable via @stdlib/larky:
+ *
+ *    load("@stdlib/larky", "larky")
  * */
 @Library
 public final class LarkyGlobals {
 
   @StarlarkMethod(
-      name = "struct",
+      name = "_struct",
       doc =
           "Creates an immutable struct using the keyword arguments as attributes. It is used to "
               + "group multiple values together. Example:<br>"
@@ -44,7 +47,7 @@ public final class LarkyGlobals {
   }
 
   @StarlarkMethod(
-      name = "mutablestruct",
+      name = "_mutablestruct",
       doc = "Just like struct, but creates an mutable struct using the keyword arguments as attributes",
       extraKeywords =
           @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
@@ -56,7 +59,7 @@ public final class LarkyGlobals {
   }
 
   @StarlarkMethod(
-      name = "callablestruct",
+      name = "_callablestruct",
       doc = "Just like struct, but creates an callable struct using a function and its keyword arguments as its attributes",
       parameters = {
           @Param(
@@ -76,7 +79,7 @@ public final class LarkyGlobals {
   //b=struct(c=descriptor(callablestruct(_get_data, self)))
   //b.c == _get_data(self)
   @StarlarkMethod(
-      name = "descriptor",
+      name = "_descriptor",
       doc = "Just like struct, but creates an descriptor-like struct using a function and " +
           "its keyword arguments as its attributes. \n" +
           "You can invoke a descriptor using the . instead of (). " +

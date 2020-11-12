@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Skylib module containing functions checking types."""
+load("@stdlib/larky", "larky")
 
 # create instance singletons to avoid unnecessary allocations
 _a_bool_type = type(True)
@@ -20,7 +22,7 @@ _a_list_type = type([])
 _a_string_type = type("")
 _a_tuple_type = type(())
 _an_int_type = type(1)
-_a_struct_type = type(struct())
+_a_struct_type = type(larky.struct())
 
 def _a_function():
     pass
@@ -132,7 +134,7 @@ def _MethodType(func, instance):
     Binds func to the instance class `ab`
     :return:
     """
-    return callablestruct(func, instance)
+    return larky.callablestruct(func, instance)
 
 
 def _is_instance(instance, some_class):
@@ -143,7 +145,7 @@ def _is_instance(instance, some_class):
     return t == cls_type
 
 
-types = struct(
+types = larky.struct(
     is_list = _is_list,
     is_string = _is_string,
     is_bool = _is_bool,

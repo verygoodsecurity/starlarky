@@ -4,6 +4,7 @@ This exports `asserts` which contains the assertions used within tests.
 
 This is modeled after assertpy (https://github.com/assertpy/assertpy)
 """
+load("@stdlib/larky", "larky")
 
 load("sets", "sets")
 load("types", "types")
@@ -339,24 +340,24 @@ def is_not_none(self):
 
 def _AssertionBuilder(val, description, kind, expected, logger):
 
-    self = mutablestruct(val=val,
+    self =  larky.mutablestruct(val=val,
                 description=description,
                 kind=kind,
                 expected=expected,
                 logger=logger)
 
     # print(_impl_function_name(_AssertionBuilder), " - ")
-    klass = mutablestruct(
+    klass = larky.mutablestruct(
         error = fail,
-        described_as = callablestruct(described_as, self),
-        is_length = callablestruct(is_length, self),
-        is_not_equal_to = callablestruct(is_not_equal_to, self),
+        described_as = larky.callablestruct(described_as, self),
+        is_length = larky.callablestruct(is_length, self),
+        is_not_equal_to = larky.callablestruct(is_not_equal_to, self),
         is_equal_to = types.MethodType(is_equal_to, self),
-        is_instance_of = callablestruct(is_instance_of, self),
-        is_true = callablestruct(is_true, self),
-        is_false = callablestruct(is_false, self),
-        is_none = callablestruct(is_false, self),
-        is_not_none = callablestruct(is_not_none, self),
+        is_instance_of = larky.callablestruct(is_instance_of, self),
+        is_true = larky.callablestruct(is_true, self),
+        is_false = larky.callablestruct(is_false, self),
+        is_none = larky.callablestruct(is_false, self),
+        is_not_none = larky.callablestruct(is_not_none, self),
     )
     return klass
 
@@ -417,7 +418,7 @@ def _assert_true(
         fail(msg)
 
 
-asserts = struct(
+asserts = larky.struct(
     add_extension = _add_extension,
     remove_extension = _remove_extension,
     assert_that = _assert_that,
