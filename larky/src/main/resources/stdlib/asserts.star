@@ -149,6 +149,7 @@ def _compare_sets(expected, actual, msg = None):
         "message": full_msg
     }
 
+
 def is_equal_to(self, other, **kwargs):
     """Asserts that val is equal to other.
     Checks actual is equal to expected using the ``==`` operator. When val is *dict-like*,
