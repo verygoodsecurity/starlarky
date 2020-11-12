@@ -9,13 +9,7 @@ import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.PathBasedStarFile;
 import com.verygood.security.larky.parser.StarFile;
-import com.verygood.security.messages.operations.Http;
 
-import net.starlark.java.annot.Param;
-import net.starlark.java.annot.StarlarkBuiltin;
-import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.StarlarkThread;
-import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.syntax.ParserInput;
 
 import org.junit.Assert;
@@ -165,45 +159,6 @@ public class LarkyTest {
     config = interpreter.evaluate(starFile, new ModuleSupplier().create(), new TestingConsole());
   }
 
-  @StarlarkBuiltin(
-      name = "FCOHelper",
-      category = "BUILTIN",
-      doc = "messages namespace"
-  )
-  public static class FCOHelper implements StarlarkValue {
-
-    @StarlarkMethod(
-        name = "HttpMessage",
-        parameters = {
-            @Param(name = "function"),
-        },
-        useStarlarkThread = true)
-    public Object httpMessage(Object function, StarlarkThread thread) {
-      return null;
-    }
-
-    @StarlarkMethod(
-        name = "HttpHeader",
-        parameters = {
-            @Param(name = "function"),
-        },
-        useStarlarkThread = true)
-    public Object httpHeader(Object function, StarlarkThread thread) {
-      return null;
-    }
-
-    @StarlarkMethod(
-        name = "HttpPhase",
-        parameters = {
-            @Param(name = "function"),
-        },
-        useStarlarkThread = true)
-    public Object httpPhase(Object function, StarlarkThread thread) {
-      return null;
-    }
-
-  }
-
   @Test
   public void testFCOAlternative() throws IOException, URISyntaxException {
 
@@ -213,11 +168,6 @@ public class LarkyTest {
         "resources",
         "test_fco_operation.star");
     String absolutePath = resourceDirectory.toFile().getAbsolutePath();
-
-
-    Http.HttpPhase httpPhase = Http.HttpPhase.forNumber(1);
-    System.out.println(httpPhase);
-
 
     LarkyScript interpreter = new LarkyScript(
         ImmutableSet.of(
@@ -231,8 +181,7 @@ public class LarkyTest {
             null);
     ParsedStarFile config;
     config = interpreter.evaluate(starFile, new ModuleSupplier(ImmutableSet.of(
-        new LarkyUnittest(),
-        new FCOHelper()
+        new LarkyUnittest()
     )).create(), new TestingConsole());
   }
 }

@@ -12,8 +12,8 @@ def _name():
     return "github.com/verygoodsecurity/xxxx/e75fcdb7-7b86-4384-870e-a24fdca31ef5/tntzr6gpm1s/16c6e5c7-8a2a-4e6e-9e78-2ffc11650a52/38c28e87-3927-4931-9be6-6c699e1954e7/Config"
 
 
-def _get_second_item(pair):
-    return pair[1]
+def _get_first_item(pair):
+    return pair[0]
 
 
 def process(message, ctx):
@@ -30,24 +30,24 @@ def process(message, ctx):
 
     # TODO: what if this key is not in the request?
     # TODO: How do we return errors to the customer?
-    header_value = request.remove_header("Private-Key")
+    if request.has_header("Private-Key"):
+        header_value = request.get_header("Private-Key")
+        request.remove_header("Private-Key")
+        # Create x-secret-key header with private key header value
+        decoded_payload["x-secret_key"] = header_value
 
-    # Create x-secret-key header with private key header value
-    request.add_header("x-secret-key", header_value)
-
-    # Sort the json object alphabetically
-    sorted_pairs = sorted(decoded_payload.items(),
-                          key=_get_second_item,
-                          reverse=True)
-
+    # Sort the json object alphabetically (by keys!)
+    sorted_pairs = sorted(decoded_payload.items(), key=_get_first_item)
     # Concatenate all the values of json object into single string
+    concated = "".join([v for _, v in sorted_pairs])
+
     # Sha512 hash the concat string
-    signature = hashlib.sha512("".join([v for _, v in sorted_pairs]))
+    signature = hashlib.sha512(concated)
 
     # Set json "signature" value to the sha hash
     decoded_payload["signature"] = signature
+    decoded_payload.pop("x-secret_key")
 
-    print(json.encode(decoded_payload))
     # Set http body to updated json object
     request.data = json.encode(decoded_payload)
     return request
