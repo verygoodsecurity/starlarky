@@ -14,6 +14,7 @@
 
 package net.starlark.java.eval;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.AbstractList;
@@ -24,9 +25,35 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.syntax.Location;
 
-/** A StarlarkList is a mutable finite sequence of values. */
+/**
+ * A StarlarkList is a mutable finite sequence of values.
+ *
+ * <p>Starlark operations on lists, including element update and the {@code append}, {@code insert},
+ * and {@code extend} methods, may insert arbitrary Starlark values as list elements, regardless of
+ * the type argument used to reference to the list from Java code. Therefore, as long as a list is
+ * mutable, Java code should refer to it only through a type such as {@code StarlarkList<Object>} or
+ * {@code StarlarkList<?>} to avoid undermining the type-safety of the Java application. Once the
+ * list becomes frozen, it is safe to {@link #cast} it to a more specific type that accurately
+ * reflects its elements, such as {@code StarlarkList<String>}.
+ *
+ * <p>The following List methods, by inheriting their implementations from AbstractList, are
+ * effectively disabled. Use the corresponding methods with "element" in their name; they may report
+ * mutation failure by throwing a checked exception.
+ *
+ * <pre>
+ *   boolean add(E)                    -- use addElement
+ *   boolean remove(Object)            -- use removeElement
+ *   boolean addAll(Collection)        -- use addElements
+ *   boolean addAll(int, Collection)
+ *   boolean removeAll(Collection)     -- use removeElements
+ *   boolean retainAll(Collection)
+ *   void clear()                      -- use clearElements
+ *   E set(int, E)                     -- use setElementAt
+ *   void add(int, E)                  -- use addElementAt
+ *   E remove(int)                     -- use removeElementAt
+ * </pre>
+ */
 @StarlarkBuiltin(
     name = "list",
     category = "core",
@@ -50,6 +77,7 @@ public final class StarlarkList<E> extends AbstractList<E>
   // The implementation strategy is similar to ArrayList,
   // but without the extra indirection of using ArrayList.
 
+  // elems[0:size] holds the logical elements, and elems[size:] are not used.
   private int size;
   private int iteratorCount; // number of active iterators (unused once frozen)
   private Object[] elems = EMPTY_ARRAY; // elems[i] == null  iff  i >= size
@@ -59,9 +87,9 @@ public final class StarlarkList<E> extends AbstractList<E>
 
   private static final Object[] EMPTY_ARRAY = {};
 
-  private StarlarkList(@Nullable Mutability mutability, Object[] elems) {
+  private StarlarkList(@Nullable Mutability mutability, Object[] elems, int size) {
     this.elems = elems;
-    this.size = elems.length;
+    this.size = size;
     this.mutability = mutability == null ? Mutability.IMMUTABLE : mutability;
   }
 
@@ -71,7 +99,7 @@ public final class StarlarkList<E> extends AbstractList<E>
    * instance may do so.
    */
   static <T> StarlarkList<T> wrap(@Nullable Mutability mutability, Object[] elems) {
-    return new StarlarkList<>(mutability, elems);
+    return new StarlarkList<>(mutability, elems, elems.length);
   }
 
   @Override
@@ -124,7 +152,23 @@ public final class StarlarkList<E> extends AbstractList<E>
    */
   public static <T> StarlarkList<T> copyOf(
       @Nullable Mutability mutability, Iterable<? extends T> elems) {
-    return wrap(mutability, Iterables.toArray(elems, Object.class));
+    if (mutability == null
+        && elems instanceof StarlarkList
+        && ((StarlarkList) elems).isImmutable()) {
+      @SuppressWarnings("unchecked")
+      StarlarkList<T> list = (StarlarkList<T>) elems; // safe
+      return list;
+    }
+
+    Object[] array = Iterables.toArray(elems, Object.class);
+    checkElemsValid(array);
+    return wrap(mutability, array);
+  }
+
+  private static void checkElemsValid(Object[] elems) {
+    for (Object elem : elems) {
+      Starlark.checkValid(elem);
+    }
   }
 
   /**
@@ -139,7 +183,14 @@ public final class StarlarkList<E> extends AbstractList<E>
    * mutability} is null, the list is immutable.
    */
   public static <T> StarlarkList<T> of(@Nullable Mutability mutability, T... elems) {
+    checkElemsValid(elems);
     return wrap(mutability, Arrays.copyOf(elems, elems.length));
+  }
+
+  /** Returns an immutable {@code StarlarkList} with the given items. */
+  public static <T> StarlarkList<T> immutableOf(T... elems) {
+    checkElemsValid(elems);
+    return wrap(null, Arrays.copyOf(elems, elems.length));
   }
 
   @Override
@@ -202,7 +253,7 @@ public final class StarlarkList<E> extends AbstractList<E>
 
   @Override
   public int hashCode() {
-    // Roll our own hash code to avoid iterating through null part of elems.
+    // Hash the elements elems[0:size].
     int result = 1;
     for (int i = 0; i < size; i++) {
       result = 31 * result + elems[i].hashCode();
@@ -239,6 +290,9 @@ public final class StarlarkList<E> extends AbstractList<E>
   @Override
   @SuppressWarnings("unchecked")
   public E get(int i) {
+    if (i >= size) {
+      throw new IndexOutOfBoundsException();
+    }
     return (E) elems[i]; // unchecked
   }
 
@@ -278,9 +332,8 @@ public final class StarlarkList<E> extends AbstractList<E>
    * Appends an element to the end of the list, after validating that mutation is allowed.
    *
    * @param element the element to add
-   * @param unused a nonce value to select this overload, not List.add
    */
-  public void add(E element, Location unused) throws EvalException {
+  public void addElement(E element) throws EvalException {
     Starlark.checkMutable(this);
     grow(size + 1);
     elems[size++] = element;
@@ -291,9 +344,8 @@ public final class StarlarkList<E> extends AbstractList<E>
    *
    * @param index the new element's index
    * @param element the element to add
-   * @param unused a nonce value to select this overload, not List.add
    */
-  public void add(int index, E element, Location unused) throws EvalException {
+  public void addElementAt(int index, E element) throws EvalException {
     Starlark.checkMutable(this);
     grow(size + 1);
     System.arraycopy(elems, index, elems, index + 1, size - index);
@@ -305,9 +357,8 @@ public final class StarlarkList<E> extends AbstractList<E>
    * Appends all the elements to the end of the list.
    *
    * @param elements the elements to add
-   * @param unused a nonce value to select this overload, not List.addAll
    */
-  public void addAll(Iterable<? extends E> elements, Location unused) throws EvalException {
+  public void addElements(Iterable<? extends E> elements) throws EvalException {
     Starlark.checkMutable(this);
     if (elements instanceof StarlarkList) {
       StarlarkList<?> that = (StarlarkList) elements;
@@ -336,9 +387,8 @@ public final class StarlarkList<E> extends AbstractList<E>
    * range.
    *
    * @param index the index of the element to remove
-   * @param unused a nonce value to select this overload, not List.remove
    */
-  public void remove(int index, Location unused) throws EvalException {
+  public void removeElementAt(int index) throws EvalException {
     Starlark.checkMutable(this);
     int n = size - index - 1;
     if (n > 0) {
@@ -353,10 +403,10 @@ public final class StarlarkList<E> extends AbstractList<E>
           "Removes the first item from the list whose value is x. "
               + "It is an error if there is no such item.",
       parameters = {@Param(name = "x", doc = "The object to remove.")})
-  public NoneType removeObject(Object x) throws EvalException {
+  public NoneType removeElement(Object x) throws EvalException {
     for (int i = 0; i < size; i++) {
       if (elems[i].equals(x)) {
-        remove(i, (Location) null);
+        removeElementAt(i);
         return Starlark.NONE;
       }
     }
@@ -364,15 +414,12 @@ public final class StarlarkList<E> extends AbstractList<E>
   }
 
   /**
-   * Sets the position at the given index to contain the given value. The index must already have
-   * been validated to be in range.
-   *
-   * @param index the position to change
-   * @param value the new value
-   * @param unused a nonce value to select this overload, not List.set
+   * Sets the position at the given index to contain the given value. Precondition: {@code 0 <=
+   * index < size()}.
    */
-  public void set(int index, E value, Location unused) throws EvalException {
+  public void setElementAt(int index, E value) throws EvalException {
     Starlark.checkMutable(this);
+    Preconditions.checkArgument(index < size);
     elems[index] = value;
   }
 
@@ -382,12 +429,12 @@ public final class StarlarkList<E> extends AbstractList<E>
       parameters = {@Param(name = "item", doc = "Item to add at the end.")})
   @SuppressWarnings("unchecked")
   public NoneType append(Object item) throws EvalException {
-    add((E) item, (Location) null); // unchecked
+    addElement((E) item); // unchecked
     return Starlark.NONE;
   }
 
   @StarlarkMethod(name = "clear", doc = "Removes all the elements of the list.")
-  public NoneType clearMethod() throws EvalException {
+  public NoneType clearElements() throws EvalException {
     Starlark.checkMutable(this);
     for (int i = 0; i < size; i++) {
       elems[i] = null; // aid GC
@@ -405,7 +452,7 @@ public final class StarlarkList<E> extends AbstractList<E>
       })
   @SuppressWarnings("unchecked")
   public NoneType insert(StarlarkInt index, Object item) throws EvalException {
-    add(EvalUtils.toIndex(index.toInt("index"), size), (E) item, (Location) null); // unchecked
+    addElementAt(EvalUtils.toIndex(index.toInt("index"), size), (E) item); // unchecked
     return Starlark.NONE;
   }
 
@@ -416,7 +463,7 @@ public final class StarlarkList<E> extends AbstractList<E>
   public NoneType extend(Object items) throws EvalException {
     @SuppressWarnings("unchecked")
     Iterable<? extends E> src = (Iterable<? extends E>) Starlark.toIterable(items);
-    addAll(src, (Location) null);
+    addElements(src);
     return Starlark.NONE;
   }
 
@@ -477,12 +524,13 @@ public final class StarlarkList<E> extends AbstractList<E>
     int arg = i == Starlark.NONE ? -1 : Starlark.toInt(i, "i");
     int index = EvalUtils.getSequenceIndex(arg, size);
     Object result = elems[index];
-    remove(index, (Location) null);
+    removeElementAt(index);
     return result;
   }
 
+  /** Returns a new array of class Object[] containing the list elements. */
   @Override
   public Object[] toArray() {
-    return size != 0 ? Arrays.copyOf(elems, size) : EMPTY_ARRAY;
+    return size != 0 ? Arrays.copyOf(elems, size, Object[].class) : EMPTY_ARRAY;
   }
 }

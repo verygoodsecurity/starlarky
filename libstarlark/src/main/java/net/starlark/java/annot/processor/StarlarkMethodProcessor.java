@@ -17,6 +17,12 @@ package net.starlark.java.annot.processor;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.SetMultimap;
 import com.google.errorprone.annotations.FormatMethod;
+
+import net.starlark.java.annot.Param;
+import net.starlark.java.annot.ParamType;
+import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.annot.StarlarkMethod;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -39,10 +45,6 @@ import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-import net.starlark.java.annot.Param;
-import net.starlark.java.annot.ParamType;
-import net.starlark.java.annot.StarlarkBuiltin;
-import net.starlark.java.annot.StarlarkMethod;
 
 /**
  * Annotation processor for {@link StarlarkMethod}. See that class for requirements.
@@ -421,14 +423,13 @@ public class StarlarkMethodProcessor extends AbstractProcessor {
 
     if (!annot.extraPositionals().name().isEmpty()) {
       VariableElement param = params.get(index++);
-      // Allow any supertype of Tuple<Object>.
-      TypeMirror tupleOfObjectType =
-          types.getDeclaredType(
-              elements.getTypeElement("net.starlark.java.eval.Tuple"), getType("java.lang.Object"));
-      if (!types.isAssignable(tupleOfObjectType, param.asType())) {
+      // Allow any supertype of Tuple.
+      TypeMirror tupleType =
+          types.getDeclaredType(elements.getTypeElement("net.starlark.java.eval.Tuple"));
+      if (!types.isAssignable(tupleType, param.asType())) {
         errorf(
             param,
-            "extraPositionals special parameter '%s' has type %s, to which Tuple<Object> cannot be"
+            "extraPositionals special parameter '%s' has type %s, to which a Tuple cannot be"
                 + " assigned",
             param.getSimpleName(),
             param.asType());
