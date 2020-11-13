@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+load("@stdlib/larky", "larky")
 
 """Skylib module containing functions that operate on collections."""
 
@@ -65,7 +66,7 @@ def _uniq(iterable):
     # TODO(bazel-team): Remove when testing frameworks no longer require python compatibility.
     return list(unique_elements.keys())
 
-collections = struct(
+collections = larky.struct(
     after_each = _after_each,
     before_each = _before_each,
     uniq = _uniq,

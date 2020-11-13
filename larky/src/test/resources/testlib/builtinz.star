@@ -1,5 +1,5 @@
 load("subdir/collections", "collections")
-load("sets", "sets")
+load("@stdlib/sets", "sets")
 
 collections = collections
 setz = sets

@@ -15,6 +15,10 @@ You can read more about the [key differences here](https://docs.bazel.build/vers
 - Variables are frozen after mutation
 - Strings are not iterable
 
+#### Surprising Differences
+
+- No `**` operator. Instead, use `math.pow()`
+
 ## Extending Starlark
 
 The easiest way to learn about extending Starlark with custom built-ins is to look into the tests directory. 

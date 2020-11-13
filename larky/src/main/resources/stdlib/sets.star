@@ -11,11 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+load("@stdlib/larky", "larky")
 
 """Skylib module containing common hash-set algorithms.
 
   An empty set can be created using: `sets.make()`, or it can be created with some starting values
-  if you pass it an sequence: `sets.make([1, 2, 3])`. This returns a struct containing all of the
+  if you pass it an sequence: `sets.make([1, 2, 3])`. This returns a larky.struct containing all of the
   values as keys in a dictionary - this means that all passed in values must be hashable.  The
   values in the set can be retrieved using `sets.to_list(my_set)`.
 
@@ -40,7 +41,7 @@ def _make(elements = None):
     # If you change the structure of a set, you need to also update the _is_set method
     # in types.star.
     elements = elements if elements else []
-    return struct(_values = {e: None for e in elements})
+    return larky.struct(_values = {e: None for e in elements})
 
 def _copy(s):
     """Creates a new set from another set.
@@ -51,7 +52,7 @@ def _copy(s):
     Returns:
       A new set containing the same elements as `s`.
     """
-    return struct(_values = dict(s._values))
+    return larky.struct(_values = dict(s._values))
 
 def _to_list(s):
     """Creates a list from the values in the set.
@@ -176,7 +177,7 @@ def _intersection(a, b):
       A set containing the elements that are in both `a` and `b`.
     """
     shorter, longer = _get_shorter_and_longer(a, b)
-    return struct(_values = {e: None for e in shorter._values.keys() if e in longer._values})
+    return larky.struct(_values = {e: None for e in shorter._values.keys() if e in longer._values})
 
 def _union(*args):
     """Returns the union of several sets.
@@ -187,7 +188,7 @@ def _union(*args):
     Returns:
       The set union of all sets in `*args`.
     """
-    return struct(_values = dicts.add(*[s._values for s in args]))
+    return larky.struct(_values = dicts.add(*[s._values for s in args]))
 
 def _difference(a, b):
     """Returns the elements in `a` that are not in `b`.
@@ -199,7 +200,7 @@ def _difference(a, b):
     Returns:
       A set containing the elements that are in `a` but not in `b`.
     """
-    return struct(_values = {e: None for e in a._values.keys() if e not in b._values})
+    return larky.struct(_values = {e: None for e in a._values.keys() if e not in b._values})
 
 def _length(s):
     """Returns the number of elements in a set.
@@ -223,7 +224,7 @@ def _repr(s):
     """
     return repr(s._values.keys())
 
-sets = struct(
+sets = larky.struct(
     make = _make,
     copy = _copy,
     to_list = _to_list,

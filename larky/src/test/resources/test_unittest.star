@@ -1,4 +1,4 @@
-load("testlib/asserts", "asserts")
+load("@stdlib/asserts", "asserts")
 
 def success():
     asserts.assert_that(1).is_equal_to(1)
@@ -15,7 +15,9 @@ def failure():
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.FunctionTestCase(success))
-    suite.addTest(unittest.FunctionTestCase(failure))
+    suite.addTest(unittest.expectedFailure(
+        unittest.FunctionTestCase(failure)
+    ))
     return suite
 
 
