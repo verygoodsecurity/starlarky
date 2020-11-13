@@ -72,7 +72,7 @@ public final class LarkyGlobals {
           @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
       useStarlarkThread = true
     )
-  public SimpleStruct callablestruct(StarlarkFunction function, Tuple<Object> args, Dict<String, Object> kwargs, StarlarkThread thread)  {
+  public SimpleStruct callablestruct(StarlarkFunction function, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread)  {
     return CallableMutableStruct.create(thread, function, args, kwargs);
   }
 
@@ -101,7 +101,7 @@ public final class LarkyGlobals {
           @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
       useStarlarkThread = true
     )
-  public LarkyDescriptor descriptor(StarlarkCallable function, Tuple<Object> args, Dict<String, Object> kwargs, StarlarkThread thread)  {
+  public LarkyDescriptor descriptor(StarlarkCallable function, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread)  {
     return LarkyDescriptor.builder()
         .callable(function)
         .thread(thread).build();
@@ -126,7 +126,6 @@ public final class LarkyGlobals {
           ),
           @Param(
               name = "mod",
-              doc = "",
               named = true,
               allowedTypes = {
                   @ParamType(type = String.class),

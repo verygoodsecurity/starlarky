@@ -6,7 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.nativelib.LarkyDescriptor;
 
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.ClassObject;
+import net.starlark.java.eval.Structure;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
@@ -18,7 +18,7 @@ import net.starlark.java.eval.StarlarkThread;
 import java.util.Map;
 
 // A trivial struct-like class with Starlark fields defined by a map.
-public class SimpleStruct implements ClassObject {
+public class SimpleStruct implements Structure {
 
   final Map<String, Object> fields;
 

@@ -1,5 +1,7 @@
 package com.verygood.security.larky.nativelib;
 
+import com.verygood.security.larky.parser.StarlarkUtil;
+
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
@@ -93,6 +95,6 @@ public class LarkyDescriptor implements StarlarkValue {
               starlarkMethod.name() +
               Tuple.copyOf(Arrays.asList(args)));
     }
-    return Starlark.fromJava(result, mu);
+    return StarlarkUtil.valueToStarlark(result);
   }
 }
