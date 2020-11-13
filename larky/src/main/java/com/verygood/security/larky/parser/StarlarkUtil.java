@@ -152,7 +152,7 @@ public final class StarlarkUtil {
     return x == Starlark.NONE ? null : (String) x;
   }
 
-  public static Object valueToStarlark(Object x) throws EvalException {
+  public static Object valueToStarlark(Object x)  {
       // Is x a non-empty string_list_dict?
       if (x instanceof Map) {
         Map<?, ?> map = (Map<?,?>) x;
@@ -160,9 +160,13 @@ public final class StarlarkUtil {
           // Recursively convert subelements.
           Dict<Object, Object> dict = Dict.of(null);
           for (Map.Entry<?, ?> e : map.entrySet()) {
-            dict.putEntry(
-                e.getKey(),
-                Starlark.fromJava(e.getValue(),null));
+            try {
+              dict.putEntry(
+                  e.getKey(),
+                  Starlark.fromJava(e.getValue(),null));
+            } catch (EvalException evalException) {
+              throw new RuntimeException(evalException);
+            }
           }
           return dict;
         }
