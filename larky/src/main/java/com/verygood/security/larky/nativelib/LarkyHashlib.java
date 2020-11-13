@@ -29,4 +29,18 @@ public class LarkyHashlib implements StarlarkValue {
     //noinspection UnstableApiUsage
     return hashCode.toString();
   }
+
+  @StarlarkMethod(
+      name = "sha512",
+      doc = "hex digest",
+      parameters = {
+          @Param(name = "toHash", doc = "String to sha512 hash")
+      },
+      useStarlarkThread = true)
+  public String sha512(String toHash, StarlarkThread thread) {
+    //noinspection UnstableApiUsage
+    HashCode hashCode = Hashing.sha512().hashBytes(toHash.getBytes());
+    //noinspection UnstableApiUsage
+    return hashCode.toString();
+  }
 }
