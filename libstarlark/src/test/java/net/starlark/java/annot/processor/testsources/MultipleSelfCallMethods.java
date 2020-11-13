@@ -31,11 +31,11 @@ public class MultipleSelfCallMethods implements StarlarkValue {
       },
       documented = false)
   public StarlarkInt selfCallMethod(String one, StarlarkInt two) {
-    return StarlarkInt.of(0);
+    return 0;
   }
 
   @StarlarkMethod(name = "selfCallMethodTwo", selfCall = true, documented = false)
   public StarlarkInt selfCallMethodTwo() {
-    return StarlarkInt.of(0);
+    return 0;
   }
 }

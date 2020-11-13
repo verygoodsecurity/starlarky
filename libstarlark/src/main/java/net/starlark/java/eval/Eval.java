@@ -523,7 +523,7 @@ final class Eval {
       Object v = eval(fr, entry.getValue());
       int before = dict.size();
       try {
-        dict.put(k, v, (Location) null);
+        dict.putEntry(k, v);
       } catch (EvalException ex) {
         fr.setErrorLocation(entry.getColonLocation());
         throw ex;
@@ -748,7 +748,8 @@ final class Eval {
   private static Object evalComprehension(StarlarkThread.Frame fr, Comprehension comp)
       throws EvalException, InterruptedException {
     final Dict<Object, Object> dict = comp.isDict() ? Dict.of(fr.thread.mutability()) : null;
-    final ArrayList<Object> list = comp.isDict() ? null : new ArrayList<>();
+    final StarlarkList<Object> list =
+        comp.isDict() ? null : StarlarkList.of(fr.thread.mutability());
 
     // Save previous value (if any) of local variables bound in a 'for' clause
     // so we can restore them later.
@@ -811,13 +812,13 @@ final class Eval {
           try {
             Starlark.checkHashable(k);
             Object v = eval(fr, body.getValue());
-            dict.put(k, v, (Location) null);
+            dict.putEntry(k, v);
           } catch (EvalException ex) {
             fr.setErrorLocation(body.getColonLocation());
             throw ex;
           }
         } else {
-          list.add(eval(fr, ((Expression) comp.getBody())));
+          list.addElement(eval(fr, ((Expression) comp.getBody())));
         }
       }
     }
@@ -836,7 +837,7 @@ final class Eval {
       }
     }
 
-    return comp.isDict() ? dict : StarlarkList.copyOf(fr.thread.mutability(), list);
+    return comp.isDict() ? dict : list;
   }
 
   private static final Object[] EMPTY = {};
