@@ -3,7 +3,7 @@ package net.starlark.java.lib.proto;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.ClassObject;
+import net.starlark.java.eval.Structure;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Sequence;
@@ -85,7 +85,7 @@ public final class Proto implements StarlarkValue {
               + "# }\n"
               + "</pre>",
       parameters = {@Param(name = "x")})
-  public String encodeText(ClassObject x) throws EvalException {
+  public String encodeText(Structure x) throws EvalException {
     TextEncoder enc = new TextEncoder();
     enc.message(x);
     return enc.out.toString();
@@ -96,8 +96,8 @@ public final class Proto implements StarlarkValue {
     private final StringBuilder out = new StringBuilder();
     private int indent = 0;
 
-    // Encodes ClassObject x as a protocol message.
-    private void message(ClassObject x) throws EvalException {
+    // Encodes Structure x as a protocol message.
+    private void message(Structure x) throws EvalException {
       // For determinism, sort fields.
       String[] fields = x.getFieldNames().toArray(new String[0]);
       Arrays.sort(fields);
@@ -110,7 +110,7 @@ public final class Proto implements StarlarkValue {
       }
     }
 
-    // Encodes ClassObject field (name, v) as a message field
+    // Encodes Structure field (name, v) as a message field
     // (a repeated field, if v is a dict or sequence.)
     private void field(String name, Object v) throws EvalException {
       // dict?
@@ -156,12 +156,12 @@ public final class Proto implements StarlarkValue {
     }
 
     // Emits field (name, v) as a message field, or one element of a repeated field.
-    // v must be an int, float, string, bool, or ClassObject.
+    // v must be an int, float, string, bool, or Structure.
     private void fieldElement(String name, Object v) throws EvalException {
-      if (v instanceof ClassObject) {
+      if (v instanceof Structure) {
         emitLine(name, " {");
         indent++;
-        message((ClassObject) v);
+        message((Structure) v);
         indent--;
         emitLine("}");
 
