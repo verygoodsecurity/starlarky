@@ -1,0 +1,42 @@
+diff --git b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java
+index d5be296d..7e1c3b3a 100644
+--- b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java
++++ a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java
+@@ -16,7 +16,6 @@ package net.starlark.java.annot.processor.testsources;
+ 
+ import net.starlark.java.annot.Param;
+ import net.starlark.java.annot.StarlarkMethod;
+-import net.starlark.java.eval.StarlarkInt;
+ import net.starlark.java.eval.StarlarkValue;
+ 
+ /**
+diff --git b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java
+index 0280a114..cdc28ba9 100644
+--- b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java
++++ a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java
+@@ -31,11 +31,11 @@ public class MultipleSelfCallMethods implements StarlarkValue {
+       },
+       documented = false)
+   public StarlarkInt selfCallMethod(String one, StarlarkInt two) {
+-    return StarlarkInt.of(0);
++    return 0;
+   }
+ 
+   @StarlarkMethod(name = "selfCallMethodTwo", selfCall = true, documented = false)
+   public StarlarkInt selfCallMethodTwo() {
+-    return StarlarkInt.of(0);
++    return 0;
+   }
+ }
+diff --git b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java
+index 9cb56618..5ad388fa 100644
+--- b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java
++++ a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java
+@@ -15,7 +15,6 @@
+ package net.starlark.java.annot.processor.testsources;
+ 
+ import net.starlark.java.annot.StarlarkMethod;
+-import net.starlark.java.eval.StarlarkThread;
+ import net.starlark.java.eval.StarlarkValue;
+ 
+ /** Test case which verifies a struct field method cannot specify useStarlarkThread. */
