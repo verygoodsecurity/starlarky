@@ -19,9 +19,11 @@ package com.verygood.security.larky.parser;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
-import java.util.Map;
+import net.starlark.java.eval.Module;
 
+import java.util.Map;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.ToString;
 
 
@@ -34,11 +36,16 @@ import lombok.ToString;
 @ToString
 public final class ParsedStarFile {
   private final String location;
+  @Getter
   private final Map<String, Object> globals;
 
-  public ParsedStarFile(String location, Map<String, Object> globals) {
+  @Getter
+  private final Module module;
+
+  public ParsedStarFile(String location, Map<String, Object> globals, Module module) {
     this.location = Preconditions.checkNotNull(location);
     this.globals = ImmutableMap.copyOf(Preconditions.checkNotNull(globals));
+    this.module = module;
   }
 
   /**

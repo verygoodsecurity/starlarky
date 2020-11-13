@@ -1,4 +1,4 @@
-package com.verygood.security.larky.core;
+package com.verygood.security.larky.stdtypes.structs;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;

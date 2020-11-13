@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+load("@stdlib/larky", "larky")
 
 """Starlark module for working with partial function objects.
 
@@ -122,9 +123,9 @@ def _make(func, *args, **kwargs):
     Returns:
       A new `partial` that can be called using `call`
     """
-    return struct(function = func, args = args, kwargs = kwargs)
+    return larky.struct(function = func, args = args, kwargs = kwargs)
 
-partial = struct(
+partial = larky.struct(
     make = _make,
     call = _call,
 )

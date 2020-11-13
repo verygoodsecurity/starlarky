@@ -1,6 +1,8 @@
 # load("//testlib/builtinz", "setz") # works, but root is not defined.
 # load("/testlib/builtinz", "setz")  # does not work
 # load("./testlib/builtinz", "setz") # works
+load("@stdlib/json", "json")
+load("@stdlib/hashlib", "hashlib")
 load("testlib/builtinz", "setz", "collections")
 
 # # request = struct(

@@ -4,25 +4,13 @@
 
 # Direct copy from: https://github.com/python/cpython/blob/3.9/Lib/urllib/request.py
 #
-#
 
-def _make(elements = None):
-    """Creates a new Request.
-
-    Args:
-      elements: Optional sequence to construct the set out of.
-
-    Returns:
-      A Request-like object containing the passed in values.
-    """
-
-    elements = elements if elements else []
-    return struct(_values = {e: None for e in elements})
+load("@stdlib/larky", "larky")
 
 
 def _get_method(self):
     """Return a string indicating the HTTP request method."""
-    default_method = "POST" if self.data is not None else "GET"
+    default_method = "POST" if self.data != None else "GET"
     return getattr(self, 'method', default_method)
 
 
@@ -30,7 +18,7 @@ def _get_full_url(self):
     return self.full_url
 
 
-def _set_proxy(self):
+def _set_proxy(self, host, type):
     if self.type == 'https' and not self._tunnel_host:
         self._tunnel_host = self.host
     else:
@@ -70,34 +58,42 @@ def _remove_header(self, header_name):
 
 
 def _header_items(self):
-    hdrs = {**self.unredirected_hdrs, **self.headers}
+    hdrs = {}
+    hdrs.update(self.unredirected_hdrs)
+    hdrs.update(self.headers)
     return list(hdrs.items())
+
+
+def _get_data(self):
+    return self.data
 
 
 def Request(url, data=None, headers={},
                   origin_req_host=None, unverifiable=False,
                   method=None):
 
-    self = mutablestruct(
+    self = larky.mutablestruct(
         url=url,
         data=data,
         headers=headers,
         origin_req_host=origin_req_host,
         unverifiable=unverifiable,
-        method=method)
+        method=method,
+        unredirected_hdrs={})
 
     # print(_impl_function_name(_AssertionBuilder), " - ")
-    klass = mutablestruct(
-        get_method = callablestruct(_get_method, self),
-        get_full_url = callablestruct(_get_full_url, self),
-        set_proxy = callablestruct(_set_proxy, self),
-        has_proxy = callablestruct(_has_proxy, self),
-        add_header = callablestruct(_add_header, self),
-        add_unredirected_header = callablestruct(_add_unredirected_header, self),
-        has_header = callablestruct(_has_header, self),
-        get_header = callablestruct(_get_header, self),
-        remove_header = callablestruct(_remove_header, self),
-        header_items = callablestruct(_header_items, self),
+    klass = larky.mutablestruct(
+        data = larky.descriptor(larky.callablestruct(_get_data, self)),
+        get_method = larky.callablestruct(_get_method, self),
+        get_full_url = larky.callablestruct(_get_full_url, self),
+        set_proxy = larky.callablestruct(_set_proxy, self),
+        has_proxy = larky.callablestruct(_has_proxy, self),
+        add_header = larky.callablestruct(_add_header, self),
+        add_unredirected_header = larky.callablestruct(_add_unredirected_header, self),
+        has_header = larky.callablestruct(_has_header, self),
+        get_header = larky.callablestruct(_get_header, self),
+        remove_header = larky.callablestruct(_remove_header, self),
+        header_items = larky.callablestruct(_header_items, self),
     )
     return klass
 
