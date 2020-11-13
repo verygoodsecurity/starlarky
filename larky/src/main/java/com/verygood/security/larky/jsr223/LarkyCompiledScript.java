@@ -10,8 +10,7 @@ import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.StarFile;
-
-import net.starlark.java.eval.Starlark;
+import com.verygood.security.larky.parser.StarlarkUtil;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -67,7 +66,7 @@ public class LarkyCompiledScript extends CompiledScript {
          .stream()
          .collect(Collectors.toMap(
              Map.Entry::getKey,
-             entry -> Starlark.fromJava(entry.getValue(), null), (a, b) -> b));
+             entry -> StarlarkUtil.valueToStarlark(entry.getValue()), (a, b) -> b));
 
      LarkyScript interpreter = new LarkyScript(
          ImmutableSet.of(

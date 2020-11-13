@@ -9,7 +9,6 @@ import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
-import net.starlark.java.syntax.Location;
 
 public class CallableMutableStruct extends MutableStruct implements StarlarkCallable {
 
@@ -25,7 +24,7 @@ public class CallableMutableStruct extends MutableStruct implements StarlarkCall
 
   public static CallableMutableStruct create(StarlarkThread thread,
                                              StarlarkFunction func,
-                                             Tuple<Object> args,
+                                             Tuple args,
                                              Dict<String, Object> kwargs) {
 
     return new CallableMutableStruct(
@@ -41,18 +40,18 @@ public class CallableMutableStruct extends MutableStruct implements StarlarkCall
 
   @Override
   public void setField(String field, Object value) throws EvalException {
-    ((Dict<String, Object>) fields).put(field, value, (Location) null);
+    ((Dict<String, Object>) fields).putEntry(field, value);
   }
 
 
   @Override
   @SuppressWarnings("unchecked")
-  public Object call(StarlarkThread thread, Tuple<Object> args, Dict<String, Object> kwargs) throws EvalException, InterruptedException {
+  public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) throws EvalException, InterruptedException {
     Dict<String, Object> _params = (Dict<String, Object>) this.fields.get(KWARGS);
     kwargs.update(Dict.empty(), _params, thread);
 
-    Tuple<Object> joinedArgs = Tuple.concat(
-        (Tuple<Object>) this.fields.get(ARGS),
+    Tuple joinedArgs = Tuple.concat(
+        (Tuple) this.fields.get(ARGS),
         args);
 
     return Starlark.call(thread, this.method, joinedArgs, kwargs);
