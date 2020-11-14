@@ -233,27 +233,6 @@ public class LarkyScriptEngine extends AbstractScriptEngine implements Invocable
   public Object invokeMethod(Object thiz, String name, Object... args) throws ScriptException,
       NoSuchMethodException {
     throw new ScriptException("There are no methods in Starlark: " + name);
-    //
-    //         try {
-    //             interp.setLocals(new PyScriptEngineScope(this, context));
-    //             if (!(thiz instanceof PyObject)) {
-    //                 thiz = Py.java2py(thiz);
-    //             }
-    //             PyObject method = ((PyObject) thiz).__findattr__(name);
-    //             if (method == null) {
-    //                 throw new NoSuchMethodException(name);
-    //             }
-    //             //return method.__call__(Py.javas2pys(args)).__tojava__(Object.class);
-    //             PyObject result;
-    //             if(args != null) {
-    //                result = method.__call__(Py.javas2pys(args));
-    //             } else {
-    //                result = method.__call__();
-    //             }
-    //             return result.__tojava__(Object.class);
-    //         } catch (PyException pye) {
-    //             throw scriptException(pye);
-    //         }
   }
 
   /**
@@ -282,26 +261,6 @@ public class LarkyScriptEngine extends AbstractScriptEngine implements Invocable
               String.join(", ", params)
           )));
       Starlark.execFile(input, LarkyScript.STARLARK_STRICT_FILE_OPTIONS, result.getModule(), thread);
-      return result.getModule().getGlobal("output");
-
-//    }
-//    interpreter.
-//     try {
-//         interp.setLocals(new PyScriptEngineScope(this, context));
-//         PyObject function = interp.get(name);
-//         if (function == null) {
-//             throw new NoSuchMethodException(name);
-//         }
-//         PyObject result;
-//         if(args != null) {
-//             result = function.__call__(Py.javas2pys(args));
-//         } else {
-//             result = function.__call__();
-//         }
-//         return result.__tojava__(Object.class);
-//     } catch (PyException pye) {
-//         throw scriptException(pye);
-//     }
     } catch (SyntaxError.Exception e) {
       throw new NoSuchMethodException(e.getMessage());
     } catch (EvalException e) {
@@ -309,6 +268,7 @@ public class LarkyScriptEngine extends AbstractScriptEngine implements Invocable
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
+    return result.getModule().getGlobal("output");
   }
 
   /**
@@ -324,8 +284,7 @@ public class LarkyScriptEngine extends AbstractScriptEngine implements Invocable
    *                                  an interface.
    */
   public <T> T getInterface(Class<T> clasz) {
-    return null;
-    //return getInterface(new PyModule("__jsr223__", interp.getLocals()), clazz);
+    return null; // ?
   }
 
   /**
@@ -351,33 +310,7 @@ public class LarkyScriptEngine extends AbstractScriptEngine implements Invocable
     if (clasz == null || !clasz.isInterface()) {
       throw new IllegalArgumentException("interface expected");
     }
-    return null;
-//     interp.setLocals(new PyScriptEngineScope(this, context));
-//     final PyObject thiz = Py.java2py(obj);
-//     @SuppressWarnings("unchecked")
-//     T proxy = (T) Proxy.newProxyInstance(
-//         clazz.getClassLoader(),
-//         new Class[] { clazz },
-//         new InvocationHandler() {
-//             public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-//                 try {
-//                     interp.setLocals(new PyScriptEngineScope(PyScriptEngine.this, context));
-//                     PyObject pyMethod = thiz.__findattr__(method.getName());
-//                     if (pyMethod == null)
-//                         throw new NoSuchMethodException(method.getName());
-//                     PyObject result;
-//                     if(args != null) {
-//                         result = pyMethod.__call__(Py.javas2pys(args));
-//                     } else {
-//                         result = pyMethod.__call__();
-//                     }
-//                     return result.__tojava__(Object.class);
-//                 } catch (PyException pye) {
-//                     throw scriptException(pye);
-//                 }
-//             }
-//         });
-//     return proxy;
+    return null; // ?
   }
 
 }
