@@ -142,7 +142,7 @@ public class LarkyScript {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
     }
-    return new ParsedStarFile(content.path(), module.getTransitiveBindings(), module);
+    return new ParsedStarFile(content, content.path(), module.getTransitiveBindings(), module);
   }
 
   private static class StarFilesSupplier

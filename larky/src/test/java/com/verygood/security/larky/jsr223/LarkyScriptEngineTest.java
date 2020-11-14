@@ -5,12 +5,14 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.verygood.security.larky.parser.ParsedStarFile;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.StarlarkFloat;
+import net.starlark.java.eval.StarlarkInt;
 
 import org.junit.After;
 import org.junit.Before;
@@ -18,6 +20,7 @@ import org.junit.Test;
 
 import java.io.StringWriter;
 import java.io.Writer;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +29,7 @@ import java.util.stream.Collectors;
 import javax.script.Bindings;
 import javax.script.Compilable;
 import javax.script.CompiledScript;
+import javax.script.Invocable;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
@@ -89,14 +93,55 @@ public class LarkyScriptEngineTest {
   }
 
   @Test
-  public void eval() {
+  public void eval() throws ScriptException {
     assertNotNull(instance);
-
+    ParsedStarFile script = (ParsedStarFile) instance.eval("output = sum(range(11))");
+    BigInteger sum = script
+        .getGlobalEnvironmentVariable("output", StarlarkInt.class)
+        .toBigInteger();
+    assertEquals(BigInteger.valueOf(55), sum);
+    instance.put("first", "HELLO");
+    instance.put("second", "world");
+    script = (ParsedStarFile) instance.eval("output = (first.lower() + ' ' + second.upper())");
+    assertEquals("hello WORLD", script.getGlobalEnvironmentVariable("output", String.class));
   }
 
   @Test
-  public void testEval() {
+  public void testInvocableFunction() throws ScriptException, NoSuchMethodException {
     assertNotNull(instance);
+    String script = String.join("\n",
+        "",
+        "def factorial(n):",
+        "    fact = 1",
+        "    for num in range(2, n + 1):",
+        "        fact *= num",
+        "    return fact",
+        "");
+    instance.eval(script);
+    Invocable inv = (Invocable) instance;
+    Object[] params = {5};
+    StarlarkInt result = (StarlarkInt) inv.invokeFunction("factorial", params);
+    assertNotNull(result);
+    assertEquals(120, result.toIntUnchecked());
+
+  }
+
+  @Test(expected = NoSuchMethodException.class)
+  public void testInvocableNonExistingFunction() throws ScriptException, NoSuchMethodException {
+    assertNotNull(instance);
+    String script = String.join("\n",
+        "",
+        "def factorial(n):",
+        "    fact = 1",
+        "    for num in range(2, n + 1):",
+        "        fact *= num",
+        "    return fact",
+        "");
+    instance.eval(script);
+    Invocable inv = (Invocable) instance;
+    Object[] params = {5};
+    Object result = inv.invokeFunction("norman_window", params);
+    fail("Should not have gotten here!");
   }
 
   @Test

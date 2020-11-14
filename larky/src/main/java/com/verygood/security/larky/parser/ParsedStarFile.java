@@ -21,6 +21,8 @@ import com.google.common.collect.ImmutableMap;
 
 import net.starlark.java.eval.Module;
 
+import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.Map;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -34,7 +36,8 @@ import lombok.ToString;
  */
 @EqualsAndHashCode
 @ToString
-public final class ParsedStarFile {
+public final class ParsedStarFile implements StarFile {
+  private final WeakReference<StarFile> starFile;
   private final String location;
   @Getter
   private final Map<String, Object> globals;
@@ -42,7 +45,8 @@ public final class ParsedStarFile {
   @Getter
   private final Module module;
 
-  public ParsedStarFile(String location, Map<String, Object> globals, Module module) {
+  public ParsedStarFile(StarFile content, String location, Map<String, Object> globals, Module module) {
+    this.starFile = new WeakReference<>(content);
     this.location = Preconditions.checkNotNull(location);
     this.globals = ImmutableMap.copyOf(Preconditions.checkNotNull(globals));
     this.module = module;
@@ -61,5 +65,28 @@ public final class ParsedStarFile {
    */
   public <T> T getGlobalEnvironmentVariable(String name, Class<T> clazz) {
     return clazz.cast(globals.get(name));
+  }
+
+  @Override
+  public StarFile resolve(String path) {
+    // we will not resolve a parsed star file, all calls to resolving it will just be the file itself
+    return this;
+  }
+
+  @Override
+  public String path() {
+    return getLocation();
+  }
+
+  @Override
+  public byte[] readContentBytes() throws IOException {
+    StarFile f = this.starFile.get();
+    return f != null ? f.readContentBytes() : null;
+  }
+
+  @Override
+  public String getIdentifier() {
+    StarFile f = this.starFile.get();
+    return f != null ? f.getIdentifier() : "";
   }
 }

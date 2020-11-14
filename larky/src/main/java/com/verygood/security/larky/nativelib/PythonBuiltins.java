@@ -9,6 +9,11 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkIterable;
+import net.starlark.java.eval.StarlarkThread;
+
+import java.math.BigInteger;
+import java.util.Arrays;
 
 
 /**
@@ -17,7 +22,7 @@ import net.starlark.java.eval.StarlarkInt;
  * A work-in-progress to add methods as we need them.
  *
  * More here: https://docs.python.org/3/library/functions.html
- * 
+ *
  * */
 @Library
 public final class PythonBuiltins {
@@ -62,5 +67,29 @@ public final class PythonBuiltins {
       base.toBigInteger()
           .modPow(exp.toBigInteger(), ((StarlarkInt) mod).toBigInteger())
     );
+  }
+
+  @StarlarkMethod(
+      name = "sum",
+      doc = "Sums start and the items of an iterable from left to right and returns the total. " +
+          "The iterable’s items are normally numbers, and the start value is not allowed to " +
+          "be a string.",
+      parameters = {
+        @Param(name = "sequence", doc = "The iterable sequence (e.g. list) to be summed."),
+        @Param(
+            name = "start",
+            doc = "An optional start value to add all the iterable items to.",
+            named = true,
+            defaultValue = "0",
+            positional = false),
+      },
+      useStarlarkThread = true)
+  public StarlarkInt sum(StarlarkIterable<?> sequence, StarlarkInt start, StarlarkThread thread)
+      throws EvalException {
+    BigInteger startValue = start.toBigInteger();
+    BigInteger result = Arrays.stream(Starlark.toArray(sequence))
+        .map((Object item) -> ((StarlarkInt)item).toBigInteger())
+        .reduce(startValue, BigInteger::add);
+    return StarlarkInt.of(result);
   }
 }
