@@ -20,9 +20,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import net.starlark.java.eval.Module;
+import net.starlark.java.syntax.ParserInput;
+import net.starlark.java.syntax.StarlarkFile;
 
 import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.util.Map;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -37,7 +38,7 @@ import lombok.ToString;
 @EqualsAndHashCode
 @ToString
 public final class ParsedStarFile implements StarFile {
-  private final WeakReference<StarFile> starFile;
+  private final StarFile starFile;
   private final String location;
   @Getter
   private final Map<String, Object> globals;
@@ -46,10 +47,10 @@ public final class ParsedStarFile implements StarFile {
   private final Module module;
 
   public ParsedStarFile(StarFile content, String location, Map<String, Object> globals, Module module) {
-    this.starFile = new WeakReference<>(content);
+    this.starFile = Preconditions.checkNotNull(content);
     this.location = Preconditions.checkNotNull(location);
     this.globals = ImmutableMap.copyOf(Preconditions.checkNotNull(globals));
-    this.module = module;
+    this.module = Preconditions.checkNotNull(module);
   }
 
   /**
@@ -67,6 +68,11 @@ public final class ParsedStarFile implements StarFile {
     return clazz.cast(globals.get(name));
   }
 
+  public StarlarkFile toStarlarkFile() throws IOException {
+    ParserInput parserInput = ParserInput.fromUTF8(readContentBytes(), getIdentifier());
+    return StarlarkFile.parse(parserInput);
+  }
+
   @Override
   public StarFile resolve(String path) {
     // we will not resolve a parsed star file, all calls to resolving it will just be the file itself
@@ -80,13 +86,11 @@ public final class ParsedStarFile implements StarFile {
 
   @Override
   public byte[] readContentBytes() throws IOException {
-    StarFile f = this.starFile.get();
-    return f != null ? f.readContentBytes() : null;
+    return this.starFile.readContentBytes();
   }
 
   @Override
   public String getIdentifier() {
-    StarFile f = this.starFile.get();
-    return f != null ? f.getIdentifier() : "";
+    return this.starFile.getIdentifier();
   }
 }
