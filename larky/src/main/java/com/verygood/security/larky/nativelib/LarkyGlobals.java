@@ -79,8 +79,8 @@ public final class LarkyGlobals {
   //b=struct(c=descriptor(callablestruct(_get_data, self)))
   //b.c == _get_data(self)
   @StarlarkMethod(
-      name = "_descriptor",
-      doc = "Just like struct, but creates an descriptor-like struct using a function and " +
+      name = "_property",
+      doc = "Creates an property-like struct using a function and " +
           "its keyword arguments as its attributes. \n" +
           "You can invoke a descriptor using the . instead of (). " +
           "For example: \n" +
@@ -97,7 +97,12 @@ public final class LarkyGlobals {
           ),
           @Param(
               name = "setter",
-              doc = "The function to invoke when the struct is called"
+              doc = "The function to invoke when the struct is called",
+              allowedTypes = {
+                @ParamType(type = StarlarkCallable.class),
+                @ParamType(type = NoneType.class),
+              },
+              defaultValue = "None"
           )
       },
       extraPositionals = @Param(name = "args"),
@@ -105,11 +110,11 @@ public final class LarkyGlobals {
           @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
       useStarlarkThread = true
     )
-  public LarkyDescriptor descriptor(StarlarkCallable getter, StarlarkCallable setter, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread)  {
-    return LarkyDescriptor.builder()
+  public LarkyProperty descriptor(StarlarkCallable getter, Object setter, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread)  {
+    return LarkyProperty.builder()
         .thread(thread)
         .fget(getter)
-        .fset(setter)
+        .fset(setter != Starlark.NONE ? (StarlarkCallable) setter : null)
         .build();
   }
 

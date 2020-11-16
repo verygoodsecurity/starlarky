@@ -68,6 +68,10 @@ def _get_data(self):
     return self.data
 
 
+def _set_data(self, val):
+    self.data = val
+
+
 def Request(url, data=None, headers={},
                   origin_req_host=None, unverifiable=False,
                   method=None):
@@ -83,7 +87,10 @@ def Request(url, data=None, headers={},
 
     # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = larky.mutablestruct(
-        data = larky.descriptor(larky.callablestruct(_get_data, self)),
+        data = larky.property(
+            larky.callablestruct(_get_data, self),
+            larky.callablestruct(_set_data, self),
+        ),
         get_method = larky.callablestruct(_get_method, self),
         get_full_url = larky.callablestruct(_get_full_url, self),
         set_proxy = larky.callablestruct(_set_proxy, self),

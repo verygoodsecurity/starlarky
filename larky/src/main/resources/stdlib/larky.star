@@ -5,5 +5,5 @@ larky = _struct(
     struct=_struct,
     mutablestruct=_mutablestruct,
     callablestruct=_callablestruct,
-    descriptor=_descriptor,
+    property=_property,
 )

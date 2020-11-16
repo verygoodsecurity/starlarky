@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Skylib module containing functions checking types."""
 load("@stdlib/larky", "larky")
 
@@ -145,6 +144,109 @@ def _is_instance(instance, some_class):
     return t == cls_type
 
 
+def _is_subclass(sub_class, parent_class):
+    if not hasattr(sub_class, '__mro__'):
+        return False
+
+    mro = getattr(sub_class, '__mro__', [])
+    return parent_class in mro
+
+
+def _type_maker(name, *args, **kwargs):
+    print(name)
+    print(args)
+    print(kwargs)
+
+
+# Provide a PEP 3115 compliant mechanism for class creation
+def new_class(name, bases=(), kwds=None, exec_body=None):
+    """Create a class object dynamically using the appropriate metaclass."""
+    resolved_bases = resolve_bases(bases)
+    meta, ns, kwds = prepare_class(name, resolved_bases, kwds)
+    if exec_body != None:
+        exec_body(ns)
+    if resolved_bases != bases:
+        ns['__orig_bases__'] = bases
+    return meta(name, resolved_bases, ns, **kwds)
+
+
+def resolve_bases(bases):
+    """Resolve MRO entries dynamically as specified by PEP 560."""
+    new_bases = list(bases)
+    updated = False
+    shift = 0
+    for i, base in enumerate(bases):
+        if _is_instance(base, type):
+            continue
+        if not hasattr(base, "__mro_entries__"):
+            continue
+        new_base = base.__mro_entries__(bases)
+        updated = True
+        if not _is_instance(new_base, tuple):
+            fail("__mro_entries__ must return a tuple")
+        else:
+            _l = list(new_bases[:i+shift+1])
+            _l.append(new_base)
+            _l.extend(new_bases[i+shift+1:])
+            new_bases = _l
+            #new_bases[i+shift:i+shift+1] = new_base
+            shift += len(new_base) - 1
+    if not updated:
+        return bases
+    return tuple(new_bases)
+
+
+def prepare_class(name, bases=(), kwds=None):
+    """Call the __prepare__ method of the appropriate metaclass.
+
+    Returns (metaclass, namespace, kwds) as a 3-tuple
+
+    *metaclass* is the appropriate metaclass
+    *namespace* is the prepared class namespace
+    *kwds* is an updated copy of the passed in kwds argument with any
+    'metaclass' entry removed. If no kwds argument is passed in, this will
+    be an empty dict.
+    """
+    if kwds == None:
+        kwds = {}
+    else:
+        kwds = dict(kwds) # Don't alter the provided mapping
+    if 'metaclass' in kwds:
+        meta = kwds.pop('metaclass')
+    else:
+        if bases:
+            meta = type(bases[0])
+        else:
+            meta = larky.callablestruct(_type_maker, name)
+    if _is_instance(meta, type):
+        # when meta is a type, we first determine the most-derived metaclass
+        # instead of invoking the initial candidate directly
+        meta = _calculate_meta(meta, bases)
+    if hasattr(meta, '__prepare__'):
+        ns = meta.__prepare__(name, bases, **kwds)
+    else:
+        ns = {}
+    return meta, ns, kwds
+
+
+def _calculate_meta(meta, bases):
+    """Calculate the most derived metaclass."""
+    winner = meta
+    for base in bases:
+        base_meta = type(base)
+        if _is_subclass(winner, base_meta):
+            continue
+        if _is_subclass(base_meta, winner):
+            winner = base_meta
+            continue
+        # else:
+        fail("metaclass conflict: "+
+             "the metaclass of a derived class "+
+                        "must be a (non-strict) subclass "+
+                        "of the metaclasses of all its bases")
+    return winner
+
+
 types = larky.struct(
     is_list = _is_list,
     is_string = _is_string,
@@ -157,4 +259,7 @@ types = larky.struct(
     is_set = _is_set,
     is_instance = _is_instance,
     MethodType = _MethodType,
+    new_class = new_class,
+    resolve_bases = resolve_bases,
+    prepare_class = prepare_class,
 )

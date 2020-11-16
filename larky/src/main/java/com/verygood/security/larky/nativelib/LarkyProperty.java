@@ -20,7 +20,7 @@ import javax.annotation.Nullable;
 import lombok.Builder;
 
 @Builder
-public class LarkyDescriptor implements StarlarkValue {
+public class LarkyProperty implements StarlarkValue {
 
   final private StarlarkCallable fget;
   final private StarlarkCallable fset;
@@ -38,7 +38,11 @@ public class LarkyDescriptor implements StarlarkValue {
     name = "set",
     doc = "call"
   )
-  public Object set(Object val) throws InterruptedException, EvalException {
+  public Object set(Object val, String fieldName) throws InterruptedException, EvalException {
+    if(this.fset == null) {
+      throw new EvalException(String.format(
+          "Property (%1$s) does not define a setter!", fieldName));
+    }
     return Starlark.call(this.thread, this.fset, Tuple.of(val), Dict.empty());
   }
 
@@ -53,11 +57,11 @@ public class LarkyDescriptor implements StarlarkValue {
 //      useStarlarkThread = true,
 //      selfCall = true
 //  )
-//  public LarkyDescriptor create(Object callable, StarlarkThread thread) throws EvalException {
+//  public LarkyProperty create(Object callable, StarlarkThread thread) throws EvalException {
 //    return new LarkyDescriptorImpl((StarlarkCallable) callable, thread);
 //  }
 
-  public Object call() throws NoSuchMethodException, InterruptedException, EvalException {
+  public Object call() throws NoSuchMethodException, EvalException {
     return call(null, null);
   }
   /**
@@ -67,20 +71,20 @@ public class LarkyDescriptor implements StarlarkValue {
    *
    * <p>The Mutability is used if it is necessary to allocate a Starlark copy of a Java result.
    */
-  public Object call(Object[] args, @Nullable Mutability mu) throws NoSuchMethodException, EvalException, InterruptedException {
+  public Object call(Object[] args, @Nullable Mutability mu) throws NoSuchMethodException, EvalException {
     Object result = null;
     Method method = null;
 
     try {
-      if(args != null && args.length == 1) {
-        method = this.getClass().getMethod("set", Object.class);
-        result = method.invoke(this, args);
+      if(args != null && args.length == 2) {
+        method = this.getClass().getMethod("set", Object.class, String.class);
+        result = method.invoke(this, args[0], String.valueOf(args[1]));
       }
       else {
         method = this.getClass().getMethod("get");
         result = method.invoke(this);
       }
-    } catch (IllegalArgumentException | IllegalAccessException | InvocationTargetException ex) {
+    } catch (IllegalArgumentException | IllegalAccessException ex) {
       // "Can't happen": unexpected type mismatch.
       // Show details to aid debugging (see e.g. b/162444744).
       StringBuilder buf = new StringBuilder();
@@ -96,6 +100,8 @@ public class LarkyDescriptor implements StarlarkValue {
       buf.append(']');
       throw new IllegalArgumentException(buf.toString());
 
+    } catch (InvocationTargetException e) {
+      throw new EvalException(e.getCause());
     }
     if (method.getReturnType().equals(Void.TYPE)) {
       return Starlark.NONE;

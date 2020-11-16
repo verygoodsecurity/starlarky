@@ -47,13 +47,13 @@ s1 = larky.mutablestruct(state=None)
 def _set_data(self, val):
     self.state = val
 
-# Test descriptors
+# Test propertys
 def _get_data(self):
     return self.state
 
 
 c = larky.mutablestruct(
-    data=larky.descriptor(
+    data=larky.property(
         larky.callablestruct(_get_data, s1),
         larky.callablestruct(_set_data, s1),
     )

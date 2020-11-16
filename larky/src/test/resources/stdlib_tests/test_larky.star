@@ -19,7 +19,7 @@ def _test_namespace_exposes_larky_builtins():
         "struct",
         "mutablestruct",
         "callablestruct",
-        "descriptor"
+        "property"
     ]))
 
 
