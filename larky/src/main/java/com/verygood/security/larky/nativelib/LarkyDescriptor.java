@@ -22,16 +22,24 @@ import lombok.Builder;
 @Builder
 public class LarkyDescriptor implements StarlarkValue {
 
-  final private StarlarkCallable callable;
+  final private StarlarkCallable fget;
+  final private StarlarkCallable fset;
   final private StarlarkThread thread;
 
   @StarlarkMethod(
-          name = "get",
-          doc = "call",
-          structField = true
+    name = "get",
+    doc = "call"
   )
   public Object get() throws InterruptedException, EvalException {
-    return Starlark.call(this.thread, this.callable, Tuple.empty(), Dict.empty());
+    return Starlark.call(this.thread, this.fget, Tuple.empty(), Dict.empty());
+  }
+
+  @StarlarkMethod(
+    name = "set",
+    doc = "call"
+  )
+  public Object set(Object val) throws InterruptedException, EvalException {
+    return Starlark.call(this.thread, this.fset, Tuple.of(val), Dict.empty());
   }
 
 //  @StarlarkMethod(
@@ -60,11 +68,18 @@ public class LarkyDescriptor implements StarlarkValue {
    * <p>The Mutability is used if it is necessary to allocate a Starlark copy of a Java result.
    */
   public Object call(Object[] args, @Nullable Mutability mu) throws NoSuchMethodException, EvalException, InterruptedException {
-    Object result;
-    Method method = this.getClass().getMethod("get");
+    Object result = null;
+    Method method = null;
 
     try {
-      result = method.invoke(this);
+      if(args != null && args.length == 1) {
+        method = this.getClass().getMethod("set", Object.class);
+        result = method.invoke(this, args);
+      }
+      else {
+        method = this.getClass().getMethod("get");
+        result = method.invoke(this);
+      }
     } catch (IllegalArgumentException | IllegalAccessException | InvocationTargetException ex) {
       // "Can't happen": unexpected type mismatch.
       // Show details to aid debugging (see e.g. b/162444744).

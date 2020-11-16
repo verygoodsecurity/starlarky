@@ -92,7 +92,11 @@ public final class LarkyGlobals {
       ,
       parameters = {
           @Param(
-              name = "function",
+              name = "getter",
+              doc = "The function to invoke when the struct is called"
+          ),
+          @Param(
+              name = "setter",
               doc = "The function to invoke when the struct is called"
           )
       },
@@ -101,10 +105,12 @@ public final class LarkyGlobals {
           @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
       useStarlarkThread = true
     )
-  public LarkyDescriptor descriptor(StarlarkCallable function, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread)  {
+  public LarkyDescriptor descriptor(StarlarkCallable getter, StarlarkCallable setter, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread)  {
     return LarkyDescriptor.builder()
-        .callable(function)
-        .thread(thread).build();
+        .thread(thread)
+        .fget(getter)
+        .fset(setter)
+        .build();
   }
 
   @StarlarkMethod(
