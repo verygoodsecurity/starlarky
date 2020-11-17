@@ -54,8 +54,8 @@ def _get_data(self):
 
 c = larky.mutablestruct(
     data=larky.property(
-        larky.callablestruct(_get_data, s1),
-        larky.callablestruct(_set_data, s1),
+        larky.partial(_get_data, s1),
+        larky.partial(_set_data, s1),
     )
 )
 asserts.assert_that(c.data).is_equal_to(_get_data(s1))
