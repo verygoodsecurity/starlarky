@@ -73,18 +73,18 @@ public final class LarkyGlobals {
     return Partial.create(function, args, kwargs);
   }
 
-  //b=struct(c=descriptor(callablestruct(_get_data, self)))
+  //b=struct(c=property(callablestruct(_get_data, self)))
   //b.c == _get_data(self)
   @StarlarkMethod(
       name = "_property",
       doc = "Creates an property-like struct using a function and " +
           "its keyword arguments as its attributes. \n" +
-          "You can invoke a descriptor using the . instead of (). " +
+          "You can invoke a property using the . instead of (). " +
           "For example: \n" +
           "\n"+
           "  def get_data():\n" +
           "      return {'foo': 1}\n"+
-          "  c = struct(data=descriptor(get_data))\n" +
+          "  c = struct(data=property(get_data))\n" +
           "  assert c.data == get_data()"
       ,
       parameters = {
@@ -107,7 +107,7 @@ public final class LarkyGlobals {
           @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
       useStarlarkThread = true
     )
-  public LarkyProperty descriptor(StarlarkCallable getter, Object setter, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread)  {
+  public LarkyProperty property(StarlarkCallable getter, Object setter, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread)  {
     return LarkyProperty.builder()
         .thread(thread)
         .fget(getter)
