@@ -349,15 +349,15 @@ def _AssertionBuilder(val, description, kind, expected, logger):
     # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = larky.mutablestruct(
         error = fail,
-        described_as = larky.callablestruct(described_as, self),
-        is_length = larky.callablestruct(is_length, self),
-        is_not_equal_to = larky.callablestruct(is_not_equal_to, self),
+        described_as = larky.partial(described_as, self),
+        is_length = larky.partial(is_length, self),
+        is_not_equal_to = larky.partial(is_not_equal_to, self),
         is_equal_to = types.MethodType(is_equal_to, self),
-        is_instance_of = larky.callablestruct(is_instance_of, self),
-        is_true = larky.callablestruct(is_true, self),
-        is_false = larky.callablestruct(is_false, self),
-        is_none = larky.callablestruct(is_false, self),
-        is_not_none = larky.callablestruct(is_not_none, self),
+        is_instance_of = larky.partial(is_instance_of, self),
+        is_true = larky.partial(is_true, self),
+        is_false = larky.partial(is_false, self),
+        is_none = larky.partial(is_false, self),
+        is_not_none = larky.partial(is_not_none, self),
     )
     return klass
 
