@@ -65,17 +65,31 @@ public class LarkyScript {
   private final Iterable<Class<?>> builtinModules;
   private final StarlarkMode validation;
   private final Map<String, Object> globals;
+  private final ModuleSupplier.ModuleSet moduleSet;
+
+  public LarkyScript(StarlarkMode validation, ModuleSupplier.ModuleSet moduleSet) {
+    this(ModuleSupplier.CORE_MODULES, validation, ImmutableMap.of(), moduleSet);
+  }
+
+  public LarkyScript(StarlarkMode validation) {
+    this(ModuleSupplier.CORE_MODULES, validation);
+  }
 
   public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation) {
     this(builtinModules, validation, ImmutableMap.of());
   }
 
   public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals) {
+    this(ImmutableSet.<Class<?>>builder().addAll(builtinModules).build(), validation, globals, new ModuleSupplier().create());
+  }
+
+  public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals, ModuleSupplier.ModuleSet moduleSet) {
     this.builtinModules = ImmutableSet.<Class<?>>builder()
         .addAll(builtinModules)
         .build();
     this.validation = validation;
     this.globals = globals;
+    this.moduleSet = moduleSet;
   }
 
   public StarlarkMode getValidation() {
@@ -102,6 +116,11 @@ public class LarkyScript {
   }
 
   public ParsedStarFile evaluate(StarFile content, ModuleSupplier.ModuleSet moduleSet, Console console)
+      throws IOException {
+    return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
+  }
+
+  public ParsedStarFile evaluate(StarFile content, Console console)
       throws IOException {
     return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
   }

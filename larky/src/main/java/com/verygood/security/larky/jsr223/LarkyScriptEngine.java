@@ -3,6 +3,9 @@ package com.verygood.security.larky.jsr223;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.script.Bindings;
@@ -19,18 +22,20 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
 
   private ScriptContext context = new SimpleScriptContext();
 
+
   /**
    * Compiles the script (source represented as a <code>String</code>) for later execution.
    *
    * @param script The source of the script, represented as a <code>String</code>.
    * @return An instance of a subclass of <code>CompiledScript</code> to be executed later using one
    * of the <code>eval</code> methods of <code>CompiledScript</code>.
-   * @throws ScriptException      if compilation fails.
    * @throws NullPointerException if the argument is null.
    */
   @Override
-  public CompiledScript compile(String script) throws ScriptException {
-    return new LarkyCompiledScript(this, script);
+  public CompiledScript compile(String script) {
+    Reader scriptReader = getScriptReader(script);
+    context.setReader(scriptReader);
+    return new LarkyCompiledScript(this);
   }
 
   /**
@@ -332,5 +337,9 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
   @Override
   public ScriptEngineFactory getFactory() {
     return new LarkyScriptEngineFactory();
+  }
+
+  private Reader getScriptReader(String script) {
+    return new StringReader(script);
   }
 }

@@ -1,4 +1,4 @@
-package net.starlark.java.lib.proto;
+package com.verygood.security.larky.nativelib.std;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -25,13 +25,13 @@ import java.util.Map;
     name = "proto",
     category = "BUILTIN",
     doc = "A module for protocol message processing.")
-public final class Proto implements StarlarkValue {
+public final class ProtoStd implements StarlarkValue {
 
   // Note: in due course this is likely to move to net.starlark.java.lib.proto.
   // Do not add functions that would not belong there!
   // Functions related to running the protocol compiler belong in proto_common.
 
-  public static final Proto INSTANCE = new Proto();
+  public static final ProtoStd INSTANCE = new ProtoStd();
 
   @StarlarkMethod(
       name = "encode_text",

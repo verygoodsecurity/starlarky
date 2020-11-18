@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package net.starlark.java.lib.json;
+package com.verygood.security.larky.nativelib.std;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -41,15 +41,15 @@ import net.starlark.java.eval.Structure;
     name = "json",
     category = "core.lib",
     doc = "Module json is a Starlark module of JSON-related functions.")
-public final class Json implements StarlarkValue {
+public final class JsonStd implements StarlarkValue {
 
-  private Json() {}
+  private JsonStd() {}
 
   /**
    * The module instance. You may wish to add this to your predeclared environment under the name
    * "json".
    */
-  public static final Json INSTANCE = new Json();
+  public static final JsonStd INSTANCE = new JsonStd();
 
   /** An interface for StarlarkValue subclasses to define their own JSON encoding. */
   public interface Encodable {
