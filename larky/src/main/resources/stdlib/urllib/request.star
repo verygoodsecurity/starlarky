@@ -68,6 +68,10 @@ def _get_data(self):
     return self.data
 
 
+def _set_data(self, val):
+    self.data = val
+
+
 def Request(url, data=None, headers={},
                   origin_req_host=None, unverifiable=False,
                   method=None):
@@ -83,17 +87,20 @@ def Request(url, data=None, headers={},
 
     # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = larky.mutablestruct(
-        data = larky.descriptor(larky.callablestruct(_get_data, self)),
-        get_method = larky.callablestruct(_get_method, self),
-        get_full_url = larky.callablestruct(_get_full_url, self),
-        set_proxy = larky.callablestruct(_set_proxy, self),
-        has_proxy = larky.callablestruct(_has_proxy, self),
-        add_header = larky.callablestruct(_add_header, self),
-        add_unredirected_header = larky.callablestruct(_add_unredirected_header, self),
-        has_header = larky.callablestruct(_has_header, self),
-        get_header = larky.callablestruct(_get_header, self),
-        remove_header = larky.callablestruct(_remove_header, self),
-        header_items = larky.callablestruct(_header_items, self),
+        data = larky.property(
+            larky.partial(_get_data, self),
+            larky.partial(_set_data, self),
+        ),
+        get_method = larky.partial(_get_method, self),
+        get_full_url = larky.partial(_get_full_url, self),
+        set_proxy = larky.partial(_set_proxy, self),
+        has_proxy = larky.partial(_has_proxy, self),
+        add_header = larky.partial(_add_header, self),
+        add_unredirected_header = larky.partial(_add_unredirected_header, self),
+        has_header = larky.partial(_has_header, self),
+        get_header = larky.partial(_get_header, self),
+        remove_header = larky.partial(_remove_header, self),
+        header_items = larky.partial(_header_items, self),
     )
     return klass
 

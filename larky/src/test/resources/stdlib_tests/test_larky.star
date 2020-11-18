@@ -18,8 +18,8 @@ def _test_namespace_exposes_larky_builtins():
     asserts.assert_that(items).is_equal_to(sorted([
         "struct",
         "mutablestruct",
-        "callablestruct",
-        "descriptor"
+        "partial",
+        "property"
     ]))
 
 
