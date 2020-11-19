@@ -152,10 +152,11 @@ def _is_subclass(sub_class, parent_class):
     return parent_class in mro
 
 
-def _type_maker(name, *args, **kwargs):
-    print(name)
-    print(args)
-    print(kwargs)
+def _type_maker(name, resolved_bases, ns, kwds):
+    print("in type maker: ", name)
+    kwds["ns"] = ns
+    kwds["resolved_bases"] = resolved_bases
+    return _type(name=name, fields=kwds)
 
 
 # Provide a PEP 3115 compliant mechanism for class creation
