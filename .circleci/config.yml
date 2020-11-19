@@ -23,7 +23,7 @@ install-gh: &install-gh
   run:
     name: Install Go and ghr
     command: |
-      sudo apt-get install golang
+      sudo apt-get update && sudo apt-get install golang -y
       go get -u github.com/tcnksm/ghr
 
 install-graalvm: &install-graalvm
