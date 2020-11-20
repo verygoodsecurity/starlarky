@@ -322,38 +322,22 @@ final class Eval {
   private static void assignIdentifier(StarlarkThread.Frame fr, Identifier id, Object value)
       throws EvalException {
     Resolver.Binding bind = id.getBinding();
-    // Legacy hack for incomplete identifier resolution.
-    // In a <toplevel> function, assignments to unresolved identifiers
-    // update the module, except for load statements and comprehensions,
-    // which should both be file-local.
-    // Load statements don't yet use assignIdentifier,
-    // so we need consider only comprehensions.
-    // In effect, we do the missing resolution using fr.compcount.
-    Resolver.Scope scope;
-    if (bind == null) {
-      scope =
-          fn(fr).isToplevel() && fr.compcount == 0
-              ? Resolver.Scope.GLOBAL //
-              : Resolver.Scope.LOCAL;
-    } else {
-      scope = bind.getScope();
-    }
-
-    String name = id.getName();
-    switch (scope) {
+    switch (bind.getScope()) {
       case LOCAL:
-        fr.locals.put(name, value);
+        fr.locals[bind.getIndex()] = value;
         break;
       case GLOBAL:
         // Updates a module binding and sets its 'exported' flag.
         // (Only load bindings are not exported.
         // But exportedGlobals does at run time what should be done in the resolver.)
+        // TODO(adonovan): use a flat array for Module.globals too.
         Module module = fn(fr).getModule();
+        String name = id.getName();
         module.setGlobal(name, value);
         module.exportedGlobals.add(name);
         break;
       default:
-        throw new IllegalStateException(scope.toString());
+        throw new IllegalStateException(bind.getScope().toString());
     }
   }
 
@@ -648,52 +632,35 @@ final class Eval {
 
   private static Object evalIdentifier(StarlarkThread.Frame fr, Identifier id)
       throws EvalException, InterruptedException {
-    String name = id.getName();
     Resolver.Binding bind = id.getBinding();
-    if (bind == null) {
-      // Legacy behavior, to be removed.
-      Object result = fr.locals.get(name);
-      if (result != null) {
-        return result;
-      }
-      result = fn(fr).getModule().get(name);
-      if (result != null) {
-        return result;
-      }
-
-      // Assuming resolution was successfully applied before execution
-      // (which is not yet true for copybara, but will be soon),
-      // then the identifier must have been resolved but the
-      // resolution was not annotated onto the syntax tree---because
-      // it's a BUILD file that may share trees with the prelude.
-      // So this error does not mean "undefined variable" (morally a
-      // static error), but "variable was (dynamically) referenced
-      // before being bound", as in 'print(x); x=1'.
-      fr.setErrorLocation(id.getStartLocation());
-      throw Starlark.errorf("variable '%s' is referenced before assignment", name);
-    }
-
     Object result;
     switch (bind.getScope()) {
       case LOCAL:
-        result = fr.locals.get(name);
+        result = fr.locals[bind.getIndex()];
         break;
       case GLOBAL:
-        result = fn(fr).getModule().getGlobal(name);
+        result = fn(fr).getModule().getGlobal(id.getName());
         break;
       case PREDECLARED:
-        // TODO(adonovan): call getPredeclared
-        result = fn(fr).getModule().get(name);
+        // TODO(adonovan): don't call getGlobal. This requires the Resolver to distinguish
+        // "predeclared" vars from "already defined module globals" instead of lumping them
+        // together via getNames. The latter odd category exists in the REPL, and
+        // in EvaluationTestCase, which calls Starlark.execFile repeatedly on the same Module.
+        // The REPL could just create a new module for each chunk, whose predeclared vars
+        // are the previous module's globals, but things may be trickier in EvaluationTestCase.
+        Module module = fn(fr).getModule();
+        result = module.getGlobal(id.getName());
+        if (result == null) {
+          result = module.getPredeclared(id.getName());
+        }
         break;
       default:
         throw new IllegalStateException(bind.toString());
     }
     if (result == null) {
-      // Since Scope was set, we know that the local/global variable is defined,
-      // but its assignment was not yet executed.
       fr.setErrorLocation(id.getStartLocation());
       throw Starlark.errorf(
-          "%s variable '%s' is referenced before assignment.", bind.getScope(), name);
+          "%s variable '%s' is referenced before assignment.", bind.getScope(), id.getName());
     }
     return result;
   }
@@ -751,23 +718,6 @@ final class Eval {
     final StarlarkList<Object> list =
         comp.isDict() ? null : StarlarkList.of(fr.thread.mutability());
 
-    // Save previous value (if any) of local variables bound in a 'for' clause
-    // so we can restore them later.
-    // TODO(adonovan): throw all this away when we implement flat environments.
-    List<Object> saved = new ArrayList<>(); // alternating keys and values
-    for (Comprehension.Clause clause : comp.getClauses()) {
-      if (clause instanceof Comprehension.For) {
-        for (Identifier ident :
-            Identifier.boundIdentifiers(((Comprehension.For) clause).getVars())) {
-          String name = ident.getName();
-          Object value = fr.locals.get(ident.getName()); // may be null
-          saved.add(name);
-          saved.add(value);
-        }
-      }
-    }
-    fr.compcount++;
-
     // The Lambda class serves as a recursive lambda closure.
     class Lambda {
       // execClauses(index) recursively executes the clauses starting at index,
@@ -823,19 +773,6 @@ final class Eval {
       }
     }
     new Lambda().execClauses(0);
-    fr.compcount--;
-
-    // Restore outer scope variables.
-    // This loop implicitly undefines comprehension variables.
-    for (int i = 0; i != saved.size(); ) {
-      String name = (String) saved.get(i++);
-      Object value = saved.get(i++);
-      if (value != null) {
-        fr.locals.put(name, value);
-      } else {
-        fr.locals.remove(name);
-      }
-    }
 
     return comp.isDict() ? dict : list;
   }
