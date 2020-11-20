@@ -154,8 +154,9 @@ def _is_subclass(sub_class, parent_class):
 
 def _type_maker(name, resolved_bases, ns, kwds):
     print("in type maker: ", name)
-    kwds["ns"] = ns
-    kwds["resolved_bases"] = resolved_bases
+    print(resolved_bases)
+    print(ns)
+    print(kwds)
     return _type(name=name, fields=kwds)
 
 

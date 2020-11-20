@@ -22,6 +22,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.syntax.ParserInput;
 
 import org.junit.Assert;
@@ -149,7 +150,7 @@ public class LarkyTest {
           fields instanceof Sequence
               ? Sequence.cast(fields, String.class, "fields")
               : fields instanceof Dict
-              ? Dict.cast(fields, String.class, String.class, "fields").keySet()
+              ? Dict.cast(fields, String.class, StarlarkValue.class, "fields").keySet()
               : null;
 
       if(!Strings.isNullOrEmpty(name)) {

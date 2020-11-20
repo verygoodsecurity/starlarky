@@ -160,7 +160,7 @@ public class LarkyObject implements LarkyValue, Structure, HasBinary {
       List<String> unexpected = unexpectedKeys(schema, table, n);
       if (unexpected != null) {
         throw Starlark.errorf(
-            "unexpected keyword%s %s in call to instantiate LarkyValue %s",
+            "unexpected keyword%s %s in call to instantiate LarkyType %s",
             unexpected.size() > 1 ? "s" : "",
             Joiner.on(", ").join(unexpected),
             type.getPrintableName());

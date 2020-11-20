@@ -35,7 +35,38 @@ def test_new_class_basics():
     o = C()
     asserts.assert_that(str(o)).is_equal_to("<types.C object>")
     asserts.assert_that(type(o)).is_equal_to("LarkyObject")
-    o.foo()
+
+
+# stock.py
+# Example of making a class manually from parts
+# Methods
+def __init__(self, name, shares, price):
+    self.name = name
+    self.shares = shares
+    self.price = price
+
+def cost(self):
+    return self.shares * self.price
+
+cls_dict = {
+    '__init__' : __init__,
+    'cost' : cost,
+}
+
+def ns(x):
+    print("here")
+    x.update(cls_dict)
+
+
+def test_create_with_fields():
+    # ns updates schema with cls_dict
+
+    Stock = types.new_class('Stock', (), {}, ns)
+    # this completes making a normal class that acts as you would expect
+    s = Stock(name='ACME', shares=50, price=91.1)
+    print(s)
+    print(s.cost())
+
 
 
 def _suite():
@@ -43,6 +74,7 @@ def _suite():
     for t in [
         # test_,
         test_new_class_basics,
+        test_create_with_fields
     ]:
         _suite.addTest(unittest.FunctionTestCase(t))
     return _suite
