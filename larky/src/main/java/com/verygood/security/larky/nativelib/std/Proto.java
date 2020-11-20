@@ -25,13 +25,13 @@ import java.util.Map;
     name = "proto",
     category = "BUILTIN",
     doc = "A module for protocol message processing.")
-public final class ProtoStd implements StarlarkValue {
+public final class Proto implements StarlarkValue {
 
   // Note: in due course this is likely to move to net.starlark.java.lib.proto.
   // Do not add functions that would not belong there!
   // Functions related to running the protocol compiler belong in proto_common.
 
-  public static final ProtoStd INSTANCE = new ProtoStd();
+  public static final Proto INSTANCE = new Proto();
 
   @StarlarkMethod(
       name = "encode_text",

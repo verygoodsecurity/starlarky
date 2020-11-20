@@ -26,7 +26,7 @@ import net.starlark.java.eval.Tuple;
  *    load("@stdlib/larky", "larky")
  * */
 @Library
-public final class LarkyGlobalsLib {
+public final class LarkyGlobals {
 
   @StarlarkMethod(
       name = "_struct",

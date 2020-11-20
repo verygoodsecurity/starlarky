@@ -41,15 +41,15 @@ import net.starlark.java.eval.Structure;
     name = "json",
     category = "core.lib",
     doc = "Module json is a Starlark module of JSON-related functions.")
-public final class JsonStd implements StarlarkValue {
+public final class Json implements StarlarkValue {
 
-  private JsonStd() {}
+  private Json() {}
 
   /**
    * The module instance. You may wish to add this to your predeclared environment under the name
    * "json".
    */
-  public static final JsonStd INSTANCE = new JsonStd();
+  public static final Json INSTANCE = new Json();
 
   /** An interface for StarlarkValue subclasses to define their own JSON encoding. */
   public interface Encodable {
