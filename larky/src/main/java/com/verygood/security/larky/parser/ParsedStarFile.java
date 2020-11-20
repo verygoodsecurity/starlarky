@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import net.starlark.java.eval.Module;
 
 import java.util.Map;
+import javax.annotation.Nullable;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -59,7 +60,18 @@ public final class ParsedStarFile {
   /**
    * Reads values from the global frame of the skylark environment, i.e. global variables.
    */
+  @Nullable
   public <T> T getGlobalEnvironmentVariable(String name, Class<T> clazz) {
-    return clazz.cast(globals.get(name));
+    if (module.getGlobals().containsKey(name)) {
+      return clazz.cast(module.getGlobal(name));
+    }
+    if(module.getPredeclaredBindings().containsKey(name)) {
+      return clazz.cast(module.getPredeclaredBindings().get(name));
+    }
+    if (globals.containsKey(name)) {
+      return clazz.cast(globals.get(name));
+    }
+    return null;
   }
+
 }
