@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 import com.verygood.security.larky.ModuleSupplier;
+import com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import com.verygood.security.larky.console.Console;
 
 import net.starlark.java.eval.Module;
@@ -65,14 +66,17 @@ public class LarkyScript {
   private final Iterable<Class<?>> builtinModules;
   private final StarlarkMode validation;
   private final Map<String, Object> globals;
-  private final ModuleSupplier.ModuleSet moduleSet;
-
-  public LarkyScript(StarlarkMode validation, ModuleSupplier.ModuleSet moduleSet) {
-    this(ModuleSupplier.CORE_MODULES, validation, ImmutableMap.of(), moduleSet);
-  }
+  private final ModuleSet moduleSet;
 
   public LarkyScript(StarlarkMode validation) {
-    this(ModuleSupplier.CORE_MODULES, validation);
+    this(validation, new ModuleSupplier().create());
+  }
+
+  public LarkyScript(StarlarkMode validation, ModuleSet moduleSet) {
+    this(ImmutableSet.<Class<?>>builder()
+          .addAll(ModuleSupplier.CORE_MODULES)
+          .addAll(ModuleSupplier.CORE_MODULES).build(),
+        validation, ImmutableMap.of(), moduleSet);
   }
 
   public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation) {
@@ -83,7 +87,7 @@ public class LarkyScript {
     this(ImmutableSet.<Class<?>>builder().addAll(builtinModules).build(), validation, globals, new ModuleSupplier().create());
   }
 
-  public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals, ModuleSupplier.ModuleSet moduleSet) {
+  public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals, ModuleSet moduleSet) {
     this.builtinModules = ImmutableSet.<Class<?>>builder()
         .addAll(builtinModules)
         .build();
@@ -104,8 +108,12 @@ public class LarkyScript {
      return builtinModules;
   }
 
+  public ModuleSet getModuleSet() {
+    return moduleSet;
+  }
+
   @VisibleForTesting
-  public Module executeSkylark(StarFile content, ModuleSupplier.ModuleSet moduleSet, Console console)
+  public Module executeSkylark(StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
@@ -115,7 +123,17 @@ public class LarkyScript {
     return module;
   }
 
-  public ParsedStarFile evaluate(StarFile content, ModuleSupplier.ModuleSet moduleSet, Console console)
+  public Object executeSkylarkWithOutput(StarFile content, ModuleSet moduleSet, Console console)
+      throws IOException, InterruptedException {
+    CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
+    StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
+
+    Object output = new LarkyEvaluator(this, moduleSet, console).evalWithOutput(content);
+    starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
+    return output;
+  }
+
+  public ParsedStarFile evaluate(StarFile content, ModuleSet moduleSet, Console console)
       throws IOException {
     return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
   }
@@ -136,7 +154,7 @@ public class LarkyScript {
    *     dependency cycles.
    */
   public StarFileWithDependencies getStarFileWithTransitiveImports(
-      StarFile starScriptFile, ModuleSupplier.ModuleSet moduleSet, Console console)
+      StarFile starScriptFile, ModuleSet moduleSet, Console console)
       throws IOException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(starScriptFile);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
@@ -151,7 +169,7 @@ public class LarkyScript {
     return new StarFileWithDependencies(allLoadedFiles, parsedConfig);
   }
 
-  private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSupplier.ModuleSet moduleSet,
+  private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSet moduleSet,
                                               Console console)
       throws IOException {
     Module module;
