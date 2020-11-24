@@ -1,13 +1,9 @@
 import tempfile
-from subprocess import STDOUT, check_output, CalledProcessError
-
-from pylarky.request import HttpRequest
+from subprocess import PIPE, STDOUT, check_output, CalledProcessError
 
 RUNNER_EXECUATBLE = 'larky-runner'
-LOG_PARAM = '-l'
-INPUT_PARAM = '-i'
-OUTPUT_PARAM = '-o'
-SCRIPT_PARAM = '-s'
+INPUT_PARAM = '-input'
+OUTPUT_PARAM = '-output'
 
 
 def evaluate(script, input_data: str) -> str:
@@ -23,7 +19,7 @@ def __evaluate(script, input_path, output_path):
         check_output([RUNNER_EXECUATBLE,
                       INPUT_PARAM, input_path,
                       OUTPUT_PARAM, output_path,
-                      SCRIPT_PARAM, script], stderr=STDOUT)
+                      script], stderr=STDOUT)
     except CalledProcessError as e:
         raise FailedEvaluation(f'Starlark evaluation failed. \nOutput: {e.output}') from e
 
