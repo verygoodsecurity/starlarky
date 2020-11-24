@@ -43,8 +43,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 @QuarkusMain
 public class LarkyEntrypoint implements QuarkusApplication {
 
-  private static final LarkyScriptEngineFactory larkyFactory = new LarkyScriptEngineFactory();
-
   //REPL
   private static final String START_PROMPT = ">> ";
   private static final String CONTINUATION_PROMPT = ".. ";

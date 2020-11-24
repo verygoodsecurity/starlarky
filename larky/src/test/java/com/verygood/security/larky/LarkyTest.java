@@ -23,6 +23,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Stream;
 
+import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
+
 public class LarkyTest {
 
   @Test
@@ -58,11 +60,8 @@ public class LarkyTest {
             "resources",
             "stdlib_tests");
     LarkyScript interpreter = new LarkyScript(
-      ImmutableSet.of(
-          PythonBuiltinsLib.class,
-          LarkyGlobals.class
-      ),
-      LarkyScript.StarlarkMode.STRICT);
+        CORE_MODULES,
+        LarkyScript.StarlarkMode.STRICT);
 
     ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier(ImmutableSet.of(
       new UnittestModule()
@@ -105,10 +104,7 @@ public class LarkyTest {
     System.out.println(absolutePath);
 
     LarkyScript interpreter = new LarkyScript(
-        ImmutableSet.of(
-            PythonBuiltinsLib.class,
-            LarkyGlobals.class
-        ),
+        CORE_MODULES,
         LarkyScript.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),
@@ -130,10 +126,7 @@ public class LarkyTest {
     System.out.println(absolutePath);
 
     LarkyScript interpreter = new LarkyScript(
-        ImmutableSet.of(
-            PythonBuiltinsLib.class,
-            LarkyGlobals.class
-        ),
+        CORE_MODULES,
         LarkyScript.StarlarkMode.STRICT);
     StarFile starFile = new PathBasedStarFile(
         Paths.get(absolutePath),
@@ -179,10 +172,7 @@ public class LarkyTest {
     String absolutePath = resourceDirectory.toFile().getAbsolutePath();
 
     LarkyScript interpreter = new LarkyScript(
-        ImmutableSet.of(
-            PythonBuiltinsLib.class,
-            LarkyGlobals.class
-        ),
+        CORE_MODULES,
         LarkyScript.StarlarkMode.STRICT);
 
     StarFile starFile = new PathBasedStarFile(

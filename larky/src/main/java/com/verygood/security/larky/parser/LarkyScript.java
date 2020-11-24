@@ -74,8 +74,8 @@ public class LarkyScript {
 
   public LarkyScript(StarlarkMode validation, ModuleSet moduleSet) {
     this(ImmutableSet.<Class<?>>builder()
-          .addAll(ModuleSupplier.CORE_MODULES)
-          .addAll(ModuleSupplier.CORE_MODULES).build(),
+            .addAll(ModuleSupplier.CORE_MODULES)
+            .build(),
         validation, ImmutableMap.of(), moduleSet);
   }
 
@@ -97,7 +97,7 @@ public class LarkyScript {
   }
 
   public StarlarkMode getValidation() {
-     return validation;
+    return validation;
   }
 
   public Map<String, Object> getGlobals() {
@@ -105,7 +105,7 @@ public class LarkyScript {
   }
 
   public Iterable<Class<?>> getBuiltinModules() {
-     return builtinModules;
+    return builtinModules;
   }
 
   public ModuleSet getModuleSet() {
@@ -147,11 +147,11 @@ public class LarkyScript {
    * Collect all ConfigFiles retrieved by the parser while loading {code config}.
    *
    * @param starScriptFile Root file of the configuration.
-   * @param console the console to use for printing error/information
+   * @param console        the console to use for printing error/information
    * @return A map linking paths to the captured StarFile and the parsed StarFile
-   * @throws IOException If files cannot be read
+   * @throws IOException      If files cannot be read
    * @throws RuntimeException If config is invalid, references an invalid file or contains
-   *     dependency cycles.
+   *                          dependency cycles.
    */
   public StarFileWithDependencies getStarFileWithTransitiveImports(
       StarFile starScriptFile, ModuleSet moduleSet, Console console)
@@ -206,6 +206,7 @@ public class LarkyScript {
    * accessed during the parsing.
    */
   private static class StarFileWithDependencies {
+
     private final ImmutableMap<String, StarFile> allFiles;
     private final ParsedStarFile starFile;
 
