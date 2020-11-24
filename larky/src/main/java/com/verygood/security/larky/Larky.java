@@ -30,8 +30,7 @@ import io.quarkus.runtime.annotations.QuarkusMain;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-@QuarkusMain
-public class Larky implements QuarkusApplication {
+public class Larky {
 
   private static final String START_PROMPT = ">> ";
   private static final String CONTINUATION_PROMPT = ".. ";
@@ -150,8 +149,7 @@ public class Larky implements QuarkusApplication {
     Files.writeString(Paths.get(outputFile), returnValue.toString(), StandardOpenOption.CREATE);
   }
 
-  @Override
-  public int run(String... args) throws Exception {
+  public static void main(String[] args) throws Exception {
     String file = null;
     String cmd = null;
     String cpuprofile = null;
@@ -233,6 +231,5 @@ public class Larky implements QuarkusApplication {
     }
 
     System.exit(exit);
-    return exit;
   }
 }

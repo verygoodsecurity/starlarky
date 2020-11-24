@@ -1,9 +1,13 @@
 package com.verygood.security.larky.stdtypes.structs;
 
+import com.google.common.base.Joiner;
+
 import com.verygood.security.larky.nativelib.LarkyProperty;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+
+import lombok.SneakyThrows;
 
 class MutableStruct extends SimpleStruct {
   MutableStruct(Dict<String, Object> fields) {
@@ -43,6 +47,14 @@ class MutableStruct extends SimpleStruct {
     } catch (NoSuchMethodException exception) {
       throw new RuntimeException(exception);
     }
+  }
+
+  @SneakyThrows
+  @Override
+  public String toString() {
+    return this.fields.containsKey("data") ?
+        this.fields.get("data").toString():
+        Joiner.on(",").withKeyValueSeparator("=").join(this.fields);
   }
 
 }

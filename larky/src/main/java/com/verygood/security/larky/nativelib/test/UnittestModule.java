@@ -1,4 +1,4 @@
-package com.verygood.security.larky.nativelib;
+package com.verygood.security.larky.nativelib.test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -31,14 +31,14 @@ import lombok.Setter;
     name = "unittest",
     category = "BUILTIN",
     doc = "This module implements unittests")
-public class LarkyUnittest implements StarlarkValue {
+public class UnittestModule implements StarlarkValue {
 
+  public static final UnittestModule INSTANCE = new UnittestModule();
 
   @StarlarkMethod(
       name = "TestSuite",
       useStarlarkThread = true)
   public Object createTestSuite(StarlarkThread thread) {
-    // Starlark.call(thread, function, ImmutableList.of(), ImmutableMap.of())
     return new LarkyTestSuite();
   }
 

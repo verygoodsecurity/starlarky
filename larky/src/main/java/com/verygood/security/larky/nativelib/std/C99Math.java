@@ -1,4 +1,4 @@
-package com.verygood.security.larky.nativelib;
+package com.verygood.security.larky.nativelib.std;
 
 import com.google.common.math.DoubleMath;
 
@@ -14,11 +14,18 @@ import net.starlark.java.eval.StarlarkValue;
     name = "c99math",
     category = "BUILTIN",
     doc = "This module provides access to the mathematical functions defined by the C99 standard")
-public class LarkyC99Math implements StarlarkValue {
+public class C99Math implements StarlarkValue {
+
+  public static final C99Math INSTANCE = new C99Math();
 
   @StarlarkMethod(name = "PI", doc = "a constant pi", structField = true)
   public StarlarkFloat PI_CONSTANT() {
     return StarlarkFloat.of(Math.PI);
+  }
+
+  @StarlarkMethod(name = "E", doc = "a constant e", structField = true)
+  public StarlarkFloat E_CONSTANT() {
+    return StarlarkFloat.of(Math.E);
   }
 
   @StarlarkMethod(

@@ -66,7 +66,7 @@ public class LarkyScriptEngineFactory implements ScriptEngineFactory {
    */
   @Override
   public List<String> getNames() {
-    return Arrays.asList("Starlarky", "Larky", "starlarky", "larky", "vgs-larky");
+    return Arrays.asList("Starlarky", "Larky", "starlarky", "larky");
   }
 
   /**

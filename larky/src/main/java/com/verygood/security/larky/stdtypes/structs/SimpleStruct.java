@@ -42,6 +42,11 @@ public class SimpleStruct implements Structure {
   }
 
   @Override
+  public String toString() {
+    return super.toString();
+  }
+
+  @Override
   public Object getValue(String name) {
     if(name == null
         || !fields.containsKey(name)

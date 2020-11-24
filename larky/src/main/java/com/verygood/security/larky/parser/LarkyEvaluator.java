@@ -42,7 +42,7 @@ import java.util.Map;
 /**
  * An utility class for traversing and evaluating the config file dependency graph.
  */
-final class LarkyEvaluator {
+public final class LarkyEvaluator {
 
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
@@ -53,6 +53,10 @@ final class LarkyEvaluator {
   private final ImmutableMap<String, Object> environment;
   private final ModuleSupplier.ModuleSet moduleSet;
   private final LarkyScript.StarlarkMode validationMode;
+
+  public LarkyEvaluator(LarkyScript larkyScript, Console console) {
+    this(larkyScript, larkyScript.getModuleSet(), console);
+  }
 
   LarkyEvaluator(LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console) {
     this.console = checkNotNull(console);
@@ -104,6 +108,35 @@ final class LarkyEvaluator {
     pending.remove(content.path());
     loaded.put(content.path(), module);
     return module;
+  }
+
+  public Object evalWithOutput(StarFile content)
+      throws IOException, InterruptedException {
+
+    // Make the modules available as predeclared bindings.
+    StarlarkSemantics semantics = StarlarkSemantics.DEFAULT;
+    Module module = Module.withPredeclared(semantics, environment);
+
+    // parse & compile
+    FileOptions options = getStarlarkValidationOptions();
+    ParserInput input = ParserInput.fromUTF8(content.readContentBytes(), content.path());
+    Program prog = compileStarlarkProgram(module, input, options);
+    Map<String, Module> loadedModules = processLoads(content, prog);
+
+    Object starlarkOutput;
+
+    // execute
+    try (Mutability mu = Mutability.create("LarkyModules")) {
+      StarlarkThread thread = new StarlarkThread(mu, semantics);
+      thread.setLoader(loadedModules::get);
+      thread.setPrintHandler(this::starlarkPrint);
+      starlarkOutput = Starlark.execFileProgram(prog, module, thread);
+    } catch (EvalException ex) {
+      throw new RuntimeException("\n" + ex.getMessageWithStack());
+    }
+    pending.remove(content.path());
+    loaded.put(content.path(), module);
+    return starlarkOutput;
   }
 
   public ModuleSupplier.ModuleSet getModuleSet() {

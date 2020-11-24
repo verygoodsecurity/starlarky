@@ -1,4 +1,4 @@
-package com.verygood.security.larky.nativelib;
+package com.verygood.security.larky.nativelib.test;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -17,6 +17,8 @@ import java.util.Objects;
     category = "BUILTIN",
     doc = "This module implements a ")
 public class LarkyAssertions implements StarlarkValue {
+
+  public static final LarkyAssertions INSTANCE = new LarkyAssertions();
 
   public interface Reporter {
     /**
