@@ -1,4 +1,4 @@
-package net.starlark.java.lib.proto;
+package com.verygood.security.larky.nativelib.std;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;

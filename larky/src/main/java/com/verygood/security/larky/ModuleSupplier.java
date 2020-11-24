@@ -20,13 +20,17 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import com.verygood.security.larky.nativelib.LarkyC99Math;
-import com.verygood.security.larky.nativelib.LarkyHashlib;
+import com.verygood.security.larky.nativelib.LarkyGlobals;
+import com.verygood.security.larky.nativelib.PythonBuiltinsLib;
+import com.verygood.security.larky.nativelib.std.C99Math;
+import com.verygood.security.larky.nativelib.std.Hashlib;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkValue;
-import net.starlark.java.lib.json.Json;
-import net.starlark.java.lib.proto.Proto;
+import com.verygood.security.larky.nativelib.std.Json;
+import com.verygood.security.larky.nativelib.std.Proto;
+import com.verygood.security.larky.nativelib.test.LarkyAssertions;
+import com.verygood.security.larky.nativelib.test.UnittestModule;
 
 import java.util.Map;
 import java.util.function.Function;
@@ -36,10 +40,27 @@ import java.util.function.Function;
  */
 public class ModuleSupplier {
 
+  public static final ImmutableSet<Class<?>> CORE_MODULES = ImmutableSet.of(
+      LarkyGlobals.class,
+      PythonBuiltinsLib.class
+  );
+
+  public static final ImmutableSet<StarlarkValue> STD_MODULES = ImmutableSet.of(
+      Json.INSTANCE,
+      Proto.INSTANCE,
+      Hashlib.INSTANCE,
+      C99Math.INSTANCE
+  );
+
+  public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
+      UnittestModule.INSTANCE,
+      LarkyAssertions.INSTANCE
+  );
+
   private final Map<String, Object> environment;
 
   public ModuleSupplier() {
-    this(ImmutableMap.<String,Object>builder().build());
+    this(ImmutableMap.<String, Object>builder().build());
   }
 
   public ModuleSupplier(Map<String, Object> environment) {
@@ -54,12 +75,17 @@ public class ModuleSupplier {
    * Get all available modules
    */
   public ImmutableSet<StarlarkValue> getModules() {
-    return ImmutableSet.of(
-        Proto.INSTANCE,
-        Json.INSTANCE,
-        new LarkyHashlib(),
-        new LarkyC99Math()
-    );
+    return getModules(false);
+  }
+
+  public ImmutableSet<StarlarkValue> getModules(boolean withTest) {
+    return withTest ? ImmutableSet.<StarlarkValue>builder()
+        .addAll(STD_MODULES)
+        .addAll(getTestModules()).build() : STD_MODULES;
+  }
+
+  public ImmutableSet<StarlarkValue> getTestModules() {
+    return TEST_MODULES;
   }
 
   public Map<String, Object> getEnvironment() {
@@ -68,9 +94,9 @@ public class ModuleSupplier {
 
   public final ModuleSet create() {
     return new ModuleSet(ImmutableMap.<String, Object>builder()
-            .putAll(modulesToVariableMap())
-            .putAll(getEnvironment())
-            .build()); // should allow overrides ;
+        .putAll(modulesToVariableMap())
+        .putAll(getEnvironment())
+        .build()); // should allow overrides ;
   }
 
   private ImmutableMap<String, Object> moduleSetAsMap(ImmutableSet<StarlarkValue> moduleSet) {
@@ -78,8 +104,8 @@ public class ModuleSupplier {
         .stream()
         .collect(
             ImmutableMap.toImmutableMap(
-                   this::findClosestStarlarkBuiltinName,
-                   Function.identity()));
+                this::findClosestStarlarkBuiltinName,
+                Function.identity()));
   }
 
   public ImmutableMap<String, Object> modulesToVariableMap() {
@@ -109,7 +135,7 @@ public class ModuleSupplier {
       this.modules = Preconditions.checkNotNull(modules);
     }
 
-     /**
+    /**
      * Non-static modules.
      */
     public ImmutableMap<String, Object> getModules() {
