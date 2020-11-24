@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package net.starlark.java.lib.json;
+package com.verygood.security.larky.nativelib.std;
 
 import java.util.Arrays;
 import java.util.Map;

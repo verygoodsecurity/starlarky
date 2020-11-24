@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 import com.verygood.security.larky.ModuleSupplier;
+import com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import com.verygood.security.larky.console.Console;
 
 import net.starlark.java.eval.Module;
@@ -65,21 +66,38 @@ public class LarkyScript {
   private final Iterable<Class<?>> builtinModules;
   private final StarlarkMode validation;
   private final Map<String, Object> globals;
+  private final ModuleSet moduleSet;
+
+  public LarkyScript(StarlarkMode validation) {
+    this(validation, new ModuleSupplier().create());
+  }
+
+  public LarkyScript(StarlarkMode validation, ModuleSet moduleSet) {
+    this(ImmutableSet.<Class<?>>builder()
+            .addAll(ModuleSupplier.CORE_MODULES)
+            .build(),
+        validation, ImmutableMap.of(), moduleSet);
+  }
 
   public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation) {
     this(builtinModules, validation, ImmutableMap.of());
   }
 
   public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals) {
+    this(ImmutableSet.<Class<?>>builder().addAll(builtinModules).build(), validation, globals, new ModuleSupplier().create());
+  }
+
+  public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals, ModuleSet moduleSet) {
     this.builtinModules = ImmutableSet.<Class<?>>builder()
         .addAll(builtinModules)
         .build();
     this.validation = validation;
     this.globals = globals;
+    this.moduleSet = moduleSet;
   }
 
   public StarlarkMode getValidation() {
-     return validation;
+    return validation;
   }
 
   public Map<String, Object> getGlobals() {
@@ -87,11 +105,15 @@ public class LarkyScript {
   }
 
   public Iterable<Class<?>> getBuiltinModules() {
-     return builtinModules;
+    return builtinModules;
+  }
+
+  public ModuleSet getModuleSet() {
+    return moduleSet;
   }
 
   @VisibleForTesting
-  public Module executeSkylark(StarFile content, ModuleSupplier.ModuleSet moduleSet, Console console)
+  public Module executeSkylark(StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
@@ -101,7 +123,22 @@ public class LarkyScript {
     return module;
   }
 
-  public ParsedStarFile evaluate(StarFile content, ModuleSupplier.ModuleSet moduleSet, Console console)
+  public Object executeSkylarkWithOutput(StarFile content, ModuleSet moduleSet, Console console)
+      throws IOException, InterruptedException {
+    CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
+    StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
+
+    Object output = new LarkyEvaluator(this, moduleSet, console).evalWithOutput(content);
+    starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
+    return output;
+  }
+
+  public ParsedStarFile evaluate(StarFile content, ModuleSet moduleSet, Console console)
+      throws IOException {
+    return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
+  }
+
+  public ParsedStarFile evaluate(StarFile content, Console console)
       throws IOException {
     return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
   }
@@ -110,14 +147,14 @@ public class LarkyScript {
    * Collect all ConfigFiles retrieved by the parser while loading {code config}.
    *
    * @param starScriptFile Root file of the configuration.
-   * @param console the console to use for printing error/information
+   * @param console        the console to use for printing error/information
    * @return A map linking paths to the captured StarFile and the parsed StarFile
-   * @throws IOException If files cannot be read
+   * @throws IOException      If files cannot be read
    * @throws RuntimeException If config is invalid, references an invalid file or contains
-   *     dependency cycles.
+   *                          dependency cycles.
    */
   public StarFileWithDependencies getStarFileWithTransitiveImports(
-      StarFile starScriptFile, ModuleSupplier.ModuleSet moduleSet, Console console)
+      StarFile starScriptFile, ModuleSet moduleSet, Console console)
       throws IOException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(starScriptFile);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
@@ -132,7 +169,7 @@ public class LarkyScript {
     return new StarFileWithDependencies(allLoadedFiles, parsedConfig);
   }
 
-  private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSupplier.ModuleSet moduleSet,
+  private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSet moduleSet,
                                               Console console)
       throws IOException {
     Module module;
@@ -169,6 +206,7 @@ public class LarkyScript {
    * accessed during the parsing.
    */
   private static class StarFileWithDependencies {
+
     private final ImmutableMap<String, StarFile> allFiles;
     private final ParsedStarFile starFile;
 

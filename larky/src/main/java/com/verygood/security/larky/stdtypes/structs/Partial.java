@@ -57,4 +57,8 @@ public class Partial implements StarlarkCallable {
         .append(">)");
   }
 
+  @Override
+  public String toString() {
+    return String.valueOf(func_args);
+  }
 }

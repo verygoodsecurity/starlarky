@@ -118,4 +118,9 @@ public class LarkyProperty implements StarlarkValue {
     }
     return StarlarkUtil.valueToStarlark(result);
   }
+
+  @Override
+  public String toString() {
+    return fget.toString();
+  }
 }
