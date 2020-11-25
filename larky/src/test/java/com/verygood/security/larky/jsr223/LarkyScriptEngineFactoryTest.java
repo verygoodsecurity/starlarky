@@ -43,7 +43,7 @@ public class LarkyScriptEngineFactoryTest {
   public void getNames() {
     Assert.assertEquals(
         factory.getNames(),
-        Arrays.asList("Starlarky", "Larky", "starlarky", "larky", "vgs-larky"));
+        Arrays.asList("Starlarky", "Larky", "starlarky", "larky"));
   }
 
   @Test
