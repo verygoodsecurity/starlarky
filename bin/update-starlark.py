@@ -119,6 +119,9 @@ for _submodule_dir in get_submodules(os.getcwd()):
     add_submodule(bazel_repo, submodule_dir)
     update_submodules(submodule_dir)
 
+    with cd(_submodule_dir) as cwd:
+        subprocess.check_call(["git", "pull"])
+
 
 # if os.path.exists('bazel') and os.path.exists('.tmp/bazel/.git'):
 #     cmds = (
