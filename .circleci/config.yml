@@ -131,7 +131,7 @@ jobs:
     steps:
       - checkout
       - <<: *attach-workspace
-      - run: cp ./larky/target/larky-runner .
+      - run: cp ./larky/target/larky-runner ./pylarky/bin/
       - run:
           name: Python test
           command: |
