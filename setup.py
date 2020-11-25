@@ -8,5 +8,5 @@ setup(
     description='Python wrapper for starlarky runner',
     author='Very Good Security',
     license='Apache License v2.0',
-    data_files=[('bin', ['larky-runner'])]
+    package_data={"pylarky": ["bin/larky-runner"]},
 )

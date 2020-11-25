@@ -2,7 +2,10 @@ import os
 import tempfile
 from subprocess import STDOUT, check_output, CalledProcessError
 
-LARKY_RUNNER_EXECUTABLE = os.environ.get('LARKY_RUNNER_EXECUTABLE', 'larky-runner')
+import pkg_resources
+
+LARKY_RUNNER_EXECUTABLE = os.environ.get('LARKY_RUNNER_EXECUTABLE',
+                                         pkg_resources.resource_filename(__name__, "bin/larky-runner"))
 LARKY_INPUT_PARAM = os.environ.get('LARKY_INPUT_PARAM', '-input')
 LARKY_OUTPUT_PARAM = os.environ.get('LARKY_OUTPUT_PARAM', '-output')
 
