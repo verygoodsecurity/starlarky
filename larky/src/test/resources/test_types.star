@@ -64,6 +64,7 @@ def test_create_with_fields():
     Stock = types.new_class('Stock', (), {}, ns)
     # this completes making a normal class that acts as you would expect
     s = Stock(name='ACME', shares=50, price=91.1)
+    print(dir(s))
     print(s)
     print(s.cost())
 
@@ -73,7 +74,7 @@ def _suite():
     _suite = unittest.TestSuite()
     for t in [
         # test_,
-        test_new_class_basics,
+        #test_new_class_basics,
         test_create_with_fields
     ]:
         _suite.addTest(unittest.FunctionTestCase(t))

@@ -1,4 +1,4 @@
-package com.verygood.security.larky.stdtypes;
+package com.verygood.security.larky.py;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;

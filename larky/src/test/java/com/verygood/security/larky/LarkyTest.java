@@ -12,7 +12,7 @@ import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.PathBasedStarFile;
 import com.verygood.security.larky.parser.StarFile;
-import com.verygood.security.larky.stdtypes.LarkyType;
+import com.verygood.security.larky.py.LarkyType;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -146,6 +146,14 @@ public class LarkyTest {
           },
           useStarlarkThread = true)
     public LarkyType _type(String name, Object fields, StarlarkThread thread) throws EvalException {
+      System.out.println(">>>> ------ " + String.valueOf(fields));
+      return LarkyType.createExportedSchemaful(
+          new LarkyType.Key("BUILTIN", name),
+          null,
+          thread.getCallerLocation());
+    }
+
+    public LarkyType _type2(String name, Object fields, StarlarkThread thread) throws EvalException {
       Collection<String> fieldNames =
           fields instanceof Sequence
               ? Sequence.cast(fields, String.class, "fields")
