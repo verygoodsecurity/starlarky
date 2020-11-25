@@ -14,7 +14,7 @@
 package net.starlark.java.eval;
 
 import com.google.common.collect.ImmutableMap;
-
+import java.io.IOException;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.syntax.FileOptions;
@@ -23,8 +23,6 @@ import net.starlark.java.syntax.Program;
 import net.starlark.java.syntax.Resolver;
 import net.starlark.java.syntax.StarlarkFile;
 import net.starlark.java.syntax.SyntaxError;
-
-import java.io.IOException;
 
 /**
  * Examples of typical API usage of the Starlark interpreter.<br>

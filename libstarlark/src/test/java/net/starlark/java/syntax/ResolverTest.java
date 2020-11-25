@@ -17,12 +17,10 @@ import static com.google.common.truth.Truth.assertThat;
 import static net.starlark.java.syntax.LexerTest.assertContainsError;
 
 import com.google.common.base.Joiner;
-
+import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.List;
 
 /** Tests of the Starlark resolver. */
 @RunWith(JUnit4.class)
