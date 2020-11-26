@@ -15,36 +15,20 @@
 package com.verygood.security.larky.py;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.Tuple;
 import net.starlark.java.syntax.Location;
 
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
 import java.util.Objects;
-
-/**
- * A provider defined in Starlark rather than in native code.
- *
- * <p>This is a result of calling the {@code provider()} function from Starlark ({@link
- * com.google.devtools.build.lib.analysis.starlark.StarlarkRuleClassFunctions#provider}).
- *
- * <p>{@code LarkyType}s may be either schemaless or schemaful. Instances of schemaless
- * providers can have any set of fields on them, whereas instances of schemaful providers may have
- * only the fields that are named in the schema.
- *
- * <p>Exporting a {@code LarkyType} creates a key that is used to uniquely identify it.
- * Usually a provider is exported by calling {@link #export}, but a test may wish to just create a
- * pre-exported provider directly. Exported providers use only their key for {@link #equals} and
- * {@link #hashCode}.
- */
 
 @StarlarkBuiltin(
     name = "LarkyType",
@@ -71,6 +55,8 @@ import java.util.Objects;
             + "<a href=\"globals.html#provider\">provider</a> function.")
  //org.python.types.Type extends org.python.types.Object
 public class LarkyType implements StarlarkCallable, LarkyValue {
+
+  private final Tuple bases;
 
   /**
    * A serializable representation of Starlark-defined {@link LarkyType} that uniquely
@@ -146,11 +132,7 @@ public class LarkyType implements StarlarkCallable, LarkyValue {
 
   private final Location location;
 
-  // For schemaful providers, the sorted list of allowed field names.
-  // The requirement for sortedness comes from StarlarkInfo.createFromNamedArgs,
-  // as it lets us verify table ⊆ schema in O(n) time without temporaries.
-  @Nullable private final ImmutableList<String> schema;
-
+  public Dict<String, Object> __dict__;
 
   /**
    * Creates an unexported {@link LarkyType} with no schema.
@@ -160,50 +142,12 @@ public class LarkyType implements StarlarkCallable, LarkyValue {
    * @param location the location of the Starlark definition for this provider (tests may use {@link
    *     Location#BUILTIN})
    */
-  public static LarkyType createUnexportedSchemaless(Location location) {
-    return new LarkyType(/*key=*/ null, /*schema=*/ null, location);
+  public static LarkyType createUnexported(Location location, Tuple bases, Dict<String, Object> dict) {
+    return new LarkyType(location, null, bases, dict);
   }
 
-  /**
-   * Creates an unexported {@link LarkyType} with a schema.
-   *
-   * <p>The resulting object needs to be exported later (via {@link #export}).
-   *
-   * @param schema the allowed field names for instances of this provider
-   * @param location the location of the Starlark definition for this provider (tests may use {@link
-   *     Location#BUILTIN})
-   */
-  // TODO(adonovan): in what sense is this "schemaful" if schema may be null?
-  public static LarkyType createUnexportedSchemaful(
-      @Nullable Collection<String> schema, Location location) {
-    return new LarkyType(
-        /*key=*/ null, schema == null ? null : ImmutableList.sortedCopyOf(schema), location);
-  }
-
-  /**
-   * Creates an exported {@link LarkyType} with no schema.
-   *
-   * @param key the key that identifies this provider
-   * @param location the location of the Starlark definition for this provider (tests may use {@link
-   *     Location#BUILTIN})
-   */
-  public static LarkyType createExportedSchemaless(Key key, Location location) {
-    return new LarkyType(key, /*schema=*/ null, location);
-  }
-
-  /**
-   * Creates an exported {@link LarkyType} with no schema.
-   *
-   * @param key the key that identifies this provider
-   * @param schema the allowed field names for instances of this provider
-   * @param location the location of the Starlark definition for this provider (tests may use {@link
-   *     Location#BUILTIN})
-   */
-  // TODO(adonovan): in what sense is this "schemaful" if schema may be null?
-  public static LarkyType createExportedSchemaful(
-      Key key, @Nullable Collection<String> schema, Location location) {
-    return new LarkyType(
-        key, schema == null ? null : ImmutableList.sortedCopyOf(schema), location);
+  public static LarkyType createExported(Key key, Location location, Tuple bases, Dict<String, Object> dict) {
+    return new LarkyType(location, key, bases, dict);
   }
 
   /**
@@ -213,33 +157,43 @@ public class LarkyType implements StarlarkCallable, LarkyValue {
    * is schemaless.
    */
   private LarkyType(
-      @Nullable Key key, @Nullable ImmutableList<String> schema, Location location) {
-    this.schema = schema;
+      Location location,
+      @Nullable Key key,
+      Tuple bases,
+      Dict<String, Object> dict
+     ) {
     this.location = location;
-    this.key = key;  // possibly null
+    this.key = key; //possibly null
+    this.bases = bases;
+    this.__dict__ = dict;
   }
 
   @Override
   public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named)
       throws EvalException {
     if (positional.length > 0) {
+      //TODO(mahmoudimus): let us not throw an error here, we need to see if __init__ exists and call that
       throw new EvalException(
           thread.getCallerLocation(),
           String.format("%s: unexpected positional arguments", getName())
       );
     }
-    return LarkyObject.createFromNamedArgs(this, named, schema, thread.getCallerLocation());
+
+    Dict.Builder<String, Object> map = Dict.builder();
+    //int n = named.length >> 1; // number of K/V pairs
+    for (int i = 0; i < named.length - 1; i += 2) {
+      map.put(String.valueOf(named[i]), named[i+1]);
+    }
+
+    return LarkyObject.__new__(
+        this,
+        map.build(thread.mutability()),
+        thread);
   }
 
   @Override
   public String getName() {
     return key != null ? key.getExportedName() : "<no name>";
-  }
-
-  /** Returns the list of fields allowed by this provider, or null if the provider is schemaless. */
-  @Nullable
-  public ImmutableList<String> getSchema() {
-    return schema;
   }
 
   @Override
