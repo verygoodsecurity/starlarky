@@ -176,7 +176,6 @@ public class LarkyObject implements LarkyValue, Structure, HasBinary {
         /*unknownFieldError=*/ null,
         Dict.<String, Object>builder().build(starlarkThread.mutability()));
     // __init__()
-    // TODO(mahmoudimus): What if no one passed __init__
     StarlarkFunction init = (StarlarkFunction) type.__dict__.get("__init__");
     if(init != null) {
       Starlark.call(starlarkThread, init, Tuple.of(obj), table);
