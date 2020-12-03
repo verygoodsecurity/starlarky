@@ -20,17 +20,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.errorprone.annotations.CheckReturnValue;
 import com.google.errorprone.annotations.FormatMethod;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.lang.reflect.Method;
-import java.math.BigInteger;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.Immutable;
+
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -42,6 +32,18 @@ import net.starlark.java.syntax.Program;
 import net.starlark.java.syntax.Resolver;
 import net.starlark.java.syntax.StarlarkFile;
 import net.starlark.java.syntax.SyntaxError;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.lang.reflect.Method;
+import java.math.BigInteger;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 
 /**
  * The Starlark class defines the most important entry points, constants, and functions needed by
@@ -245,7 +247,9 @@ public final class Starlark {
   public static Object[] toArray(Object x) throws EvalException {
     // Specialize Sequence and Dict to avoid allocation and/or indirection.
     if (x instanceof Sequence) {
-      return ((Sequence<?>) x).toArray(new Object[((Sequence) x).size()]);
+      // The returned array type must be exactly Object[],
+      // not a subclass, so calling toArray() is not enough.
+      return ((Sequence<?>) x).toArray(EMPTY);
     } else if (x instanceof Dict) {
       return ((Dict<?, ?>) x).keySet().toArray();
     } else {
@@ -875,10 +879,10 @@ public final class Starlark {
     int[] globalIndex = module.getIndicesOfGlobals(rfn.getGlobals());
 
     StarlarkFunction toplevel = new StarlarkFunction(rfn, defaultValues, module, globalIndex);
-    return Starlark.fastcall(thread, toplevel, NOARGS, NOARGS);
+    return Starlark.fastcall(thread, toplevel, EMPTY, EMPTY);
   }
 
-  private static final Object[] NOARGS = {};
+  private static final Object[] EMPTY = {};
 
   /**
    * Parses the input as an expression, resolves it in the specified module environment, compiles
@@ -892,7 +896,7 @@ public final class Starlark {
       ParserInput input, FileOptions options, Module module, StarlarkThread thread)
       throws SyntaxError.Exception, EvalException, InterruptedException {
     StarlarkFunction fn = newExprFunction(input, options, module);
-    return Starlark.fastcall(thread, fn, NOARGS, NOARGS);
+    return Starlark.fastcall(thread, fn, EMPTY, EMPTY);
   }
 
   /** Variant of {@link #eval} that creates a module for the given predeclared environment. */
