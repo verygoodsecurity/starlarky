@@ -54,7 +54,7 @@ class MutableStruct extends SimpleStruct {
   public String toString() {
     return this.fields.containsKey("data") ?
         this.fields.get("data").toString():
-        Joiner.on(",").withKeyValueSeparator("=").join(this.fields);
+        Joiner.on(",").withKeyValueSeparator(":").join(this.fields);
   }
 
 }

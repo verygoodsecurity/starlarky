@@ -1,12 +1,12 @@
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Dict
 
 
 @dataclass
 class HttpRequest:
     url: str
     data: str
-    headers: Dict[Tuple[str, str]]
+    headers: Dict[str, str]
 
     @property
     def prefill(self) -> str:

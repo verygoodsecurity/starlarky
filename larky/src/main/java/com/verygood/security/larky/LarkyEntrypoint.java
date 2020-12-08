@@ -90,6 +90,12 @@ public class LarkyEntrypoint implements QuarkusApplication {
 
     PrependMergedStarFile prependMergedStarFile = new PrependMergedStarFile(input, script);
 
+    if (commandLine.hasOption("d")) {
+      System.out.println("==================================");
+      System.out.println(new String(prependMergedStarFile.readContentBytes()));
+      System.out.println("==================================");
+    }
+
     Console console = new FileConsole(CapturingConsole.captureAllConsole(
         LogConsole.writeOnlyConsole(System.out, true)), Path.of(logPath), Duration.ZERO);
 
@@ -160,6 +166,7 @@ public class LarkyEntrypoint implements QuarkusApplication {
     options.addOption("i", "input", true, "Input parameters");
     options.addOption("o", "output", true, "Output parameters");
     options.addOption("l", "log", true, "Log output");
+    options.addOption("d", "debug", false, "Verbose merged script");
     CommandLineParser parser = new DefaultParser();
     return parser.parse(options, args);
   }
