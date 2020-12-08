@@ -1,7 +1,5 @@
 package com.verygood.security.larky.parser;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.FluentLogger;
@@ -39,6 +37,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
+import lombok.SneakyThrows;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * An utility class for traversing and evaluating the config file dependency graph.
  */
@@ -67,10 +69,9 @@ public final class LarkyEvaluator {
   }
 
   private void starlarkPrint(StarlarkThread thread, String msg) {
-    if(console.isVerbose()) {
+    if (console.isVerbose()) {
       console.verbose(thread.getCallerLocation() + ": " + msg);
-    }
-    else {
+    } else {
       console.info(msg);
     }
   }
@@ -156,7 +157,7 @@ public final class LarkyEvaluator {
      * load("./testlib/builtinz", "setz") # works load("testlib/builtinz", "setz", "collections")
      * load("/testlib/builtinz", "setz")  # does not work
      */
-    private static final String STDLIB = "@stdlib";
+    public static final String STDLIB = "@stdlib";
     private final StarFile content;
     private final LarkyEvaluator evaluator;
     private final ImmutableMap<String, Object> nativeJavaModule;
@@ -234,25 +235,13 @@ public final class LarkyEvaluator {
       return newModule;
     }
 
+    @SneakyThrows
     @NotNull
     private Module getStarModule(String moduleToLoad) throws IOException, InterruptedException {
-      /*
-       * If the module set does not contain the module to load, then we try to load it from the
-       * stdlib.
-       *
-       * If it is not found in our stdlib location, we expect the evaluator to throw an error.
-       */
-      Path stdlib_path = getStdlibPath();
-      assert stdlib_path != null;
-      //String target = moduleToLoad.replace(STDLIB + "/", "");
-      StarFile larky = new PathBasedStarFile(
-          Path.of("/"),
-          stdlib_path,
-          STDLIB);
-      larky = larky.resolve(withExtension(moduleToLoad));
-      return evaluator.eval(larky);
+      return evaluator.eval(ResourceContentStarFile.buildStarFile(moduleToLoad));
     }
 
+    @SneakyThrows
     @Nullable
     private Path getStdlibPath() {
       URL resourceUrl = this.getClass().getClassLoader()
@@ -359,4 +348,5 @@ public final class LarkyEvaluator {
     env.putAll(globals);
     return ImmutableMap.copyOf(env);
   }
+
 }
