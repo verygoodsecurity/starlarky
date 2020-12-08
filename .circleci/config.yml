@@ -139,7 +139,7 @@ jobs:
             . ./venv/bin/activate
             pip install wheel twine pytest
             python setup.py bdist_wheel
-            pip install ./dist/pylarky-0.0.1-py3-none-any.whl
+            pip install ./dist/pylarky-nover-py3-none-any.whl
             pytest pylarky/tests
 
   dist-linux:
