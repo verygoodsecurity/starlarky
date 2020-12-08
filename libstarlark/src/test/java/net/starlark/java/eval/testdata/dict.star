@@ -39,9 +39,15 @@ assert_eq(foo.pop('a', 0), 0)
 assert_eq(foo.popitem(), ('b', [1, 2]))
 
 ---
-dict().popitem() ### dictionary is empty
+dict().popitem() ### empty dictionary
 ---
 dict(a=2).pop('z') ### KeyError: "z"
+---
+d = {}
+freeze(d)
+d.pop("nonexistent", "default") ### trying to mutate a frozen dict value
+---
+{}.pop([], 1) ### unhashable type: 'list'
 ---
 
 # update
