@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableSet;
 
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.nativelib.LarkyGlobals;
-import com.verygood.security.larky.nativelib.PythonBuiltinsLib;
+import com.verygood.security.larky.nativelib.PythonBuiltins;
 import com.verygood.security.larky.nativelib.test.UnittestModule;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
@@ -148,7 +148,7 @@ public class LarkyTest {
 
     LarkyScript interpreter = new LarkyScript(
         ImmutableSet.of(
-            PythonBuiltinsLib.class,
+            PythonBuiltins.class,
             LarkyGlobals.class,
             UnittestModule.class
         ),

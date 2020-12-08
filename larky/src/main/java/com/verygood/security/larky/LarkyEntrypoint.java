@@ -4,7 +4,6 @@ import com.verygood.security.larky.console.CapturingConsole;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.FileConsole;
 import com.verygood.security.larky.console.LogConsole;
-import com.verygood.security.larky.jsr223.LarkyScriptEngineFactory;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 import com.verygood.security.larky.parser.PrependMergedStarFile;
@@ -51,6 +50,7 @@ public class LarkyEntrypoint implements QuarkusApplication {
       new BufferedReader(new InputStreamReader(System.in, UTF_8));
   private static final StarlarkThread thread;
   private static final Module module = Module.create();
+
   static {
     Mutability mu = Mutability.create("interpreter");
     thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
@@ -67,7 +67,7 @@ public class LarkyEntrypoint implements QuarkusApplication {
       CommandLine commandLine = parseOptions(args);
       if (!commandLine.hasOption('s') || !commandLine.hasOption('o') || !commandLine.hasOption('l')) {
         System.out.println("Usage: larky-runer -s script_file -o output_file -l log_file -i input_param_file");
-      return 1;
+        return 1;
       }
       execute(commandLine);
     }
@@ -89,12 +89,14 @@ public class LarkyEntrypoint implements QuarkusApplication {
         : "";
 
     PrependMergedStarFile prependMergedStarFile = new PrependMergedStarFile(input, script);
+
     Console console = new FileConsole(CapturingConsole.captureAllConsole(
         LogConsole.writeOnlyConsole(System.out, true)), Path.of(logPath), Duration.ZERO);
 
-   String output = new LarkyScript(StarlarkMode.STRICT)
-        .executeSkylarkWithOutput(prependMergedStarFile, new ModuleSupplier().create(), console)
-       .toString();
+    String output = new LarkyScript(StarlarkMode.STRICT)
+        .executeSkylarkWithOutput(prependMergedStarFile,
+            new ModuleSupplier().create(), console)
+        .toString();
 
     Files.writeString(Path.of(outputPath), output, StandardOpenOption.CREATE);
   }
@@ -164,9 +166,9 @@ public class LarkyEntrypoint implements QuarkusApplication {
 
   private static String readFile(String filePath) {
     try {
-      return filePath.trim().isEmpty()? "" : Files.readString(Paths.get(filePath));
+      return filePath.trim().isEmpty() ? "" : Files.readString(Paths.get(filePath));
     } catch (IOException e) {
-      System.out.println("Input file path is incorrect!");
+      System.err.println("Input file path is incorrect!");
       return "";
     }
   }
