@@ -41,7 +41,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 @QuarkusMain
 public class LarkyEntrypoint implements QuarkusApplication {
-//public class LarkyEntrypoint {
 
   //REPL
   private static final String START_PROMPT = ">> ";
@@ -61,7 +60,6 @@ public class LarkyEntrypoint implements QuarkusApplication {
 
   @SneakyThrows
   @Override
-//  public static void main(String[] args) {
   public int run(String... args) {
     if (args.length == 0) {
       readEvalPrintLoop();
@@ -91,11 +89,13 @@ public class LarkyEntrypoint implements QuarkusApplication {
         : "";
 
     PrependMergedStarFile prependMergedStarFile = new PrependMergedStarFile(input, script);
+
     Console console = new FileConsole(CapturingConsole.captureAllConsole(
         LogConsole.writeOnlyConsole(System.out, true)), Path.of(logPath), Duration.ZERO);
 
     String output = new LarkyScript(StarlarkMode.STRICT)
-        .executeSkylarkWithOutput(prependMergedStarFile, new ModuleSupplier().create(), console)
+        .executeSkylarkWithOutput(prependMergedStarFile,
+            new ModuleSupplier().create(), console)
         .toString();
 
     Files.writeString(Path.of(outputPath), output, StandardOpenOption.CREATE);
@@ -168,7 +168,7 @@ public class LarkyEntrypoint implements QuarkusApplication {
     try {
       return filePath.trim().isEmpty() ? "" : Files.readString(Paths.get(filePath));
     } catch (IOException e) {
-      System.out.println("Input file path is incorrect!");
+      System.err.println("Input file path is incorrect!");
       return "";
     }
   }

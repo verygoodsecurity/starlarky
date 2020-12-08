@@ -4,7 +4,7 @@ setup(
     name='pylarky',
     packages=find_packages(),
     include_package_data=True,
-    version='0.0.2',
+    version='0.0.1',
     description='Python wrapper for starlarky runner',
     author='Very Good Security',
     license='Apache License v2.0',

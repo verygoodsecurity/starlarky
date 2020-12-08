@@ -10,23 +10,28 @@ SCRIPT_PARAM = '-s'
 
 class Evaluator:
 
-    def __init__(self, script: str, input_data: str):
-        self.script = script
-        self.input_data = input_data
+    def __init__(self, script_data: str):
+        self.script_data = script_data
 
-    def evaluate(self) -> str:
-        with tempfile.NamedTemporaryFile(mode='w+') as output_file, tempfile.NamedTemporaryFile(mode='w+') as input_file:
-            input_file.write(self.input_data)
+    def evaluate(self, input_data: str) -> str:
+        with tempfile.NamedTemporaryFile(mode='w+') as output_file, \
+                tempfile.NamedTemporaryFile(mode='w+') as input_file, \
+                tempfile.NamedTemporaryFile(mode="w+") as script_file:
+            script_file.write(self.script_data)
+            input_file.write(input_data)
+            script_file.flush()
             input_file.flush()
-            self.__evaluate(self.script, input_file.name, output_file.name)
+            self.__evaluate(script_file.name, input_file.name, output_file.name)
             return output_file.read()
 
-    def __evaluate(self, script, input_path, output_path):
+    def __evaluate(self, script_path, input_path, output_path):
         try:
-            check_output([RUNNER_EXECUATBLE,
-                          INPUT_PARAM, input_path,
-                          OUTPUT_PARAM, output_path,
-                          SCRIPT_PARAM, script], stderr=STDOUT)
+            with tempfile.NamedTemporaryFile(mode='w+') as log_file:
+                check_output([RUNNER_EXECUATBLE,
+                              INPUT_PARAM, input_path,
+                              OUTPUT_PARAM, output_path,
+                              SCRIPT_PARAM, script_path,
+                              LOG_PARAM, log_file.name], stderr=STDOUT)
         except CalledProcessError as e:
             raise FailedEvaluation(f'Starlark evaluation failed. \nOutput: {e.output}') from e
 
