@@ -185,6 +185,10 @@ public final class StarlarkList<E> extends AbstractList<E>
    * mutability} is null, the list is immutable.
    */
   public static <T> StarlarkList<T> of(@Nullable Mutability mutability, T... elems) {
+    if (elems.length == 0) {
+      return newList(mutability);
+    }
+
     checkElemsValid(elems);
     return wrap(mutability, Arrays.copyOf(elems, elems.length, Object[].class));
   }
@@ -534,5 +538,17 @@ public final class StarlarkList<E> extends AbstractList<E>
   @Override
   public Object[] toArray() {
     return size != 0 ? Arrays.copyOf(elems, size, Object[].class) : EMPTY_ARRAY;
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public <T> T[] toArray(T[] a) {
+    if (a.length < size) {
+      return (T[]) Arrays.copyOf(elems, size, a.getClass());
+    } else {
+      System.arraycopy(elems, 0, a, 0, size);
+      Arrays.fill(a, size, a.length, null);
+      return a;
+    }
   }
 }

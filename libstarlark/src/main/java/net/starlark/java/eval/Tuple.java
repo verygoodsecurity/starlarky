@@ -93,8 +93,13 @@ public final class Tuple extends AbstractList<Object>
 
   /** Returns a tuple that is the concatenation of two tuples. */
   public static Tuple concat(Tuple x, Tuple y) {
-    // TODO(adonovan): opt: exploit x + () == x; y + () == y.
-    return wrap(ObjectArrays.concat(x.elems, y.elems, Object.class));
+    if (x.isEmpty()) {
+      return y;
+    } else if (y.isEmpty()) {
+      return x;
+    } else {
+      return wrap(ObjectArrays.concat(x.elems, y.elems, Object.class));
+    }
   }
 
   @Override
@@ -151,6 +156,18 @@ public final class Tuple extends AbstractList<Object>
   @Override
   public Object[] toArray() {
     return elems.length != 0 ? Arrays.copyOf(elems, elems.length, Object[].class) : elems;
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public <T> T[] toArray(T[] a) {
+    if (a.length < elems.length) {
+      return (T[]) Arrays.copyOf(elems, elems.length, a.getClass());
+    } else {
+      System.arraycopy(elems, 0, a, 0, elems.length);
+      Arrays.fill(a, elems.length, a.length, null);
+      return a;
+    }
   }
 
   @Override

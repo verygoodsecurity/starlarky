@@ -1,0 +1,84 @@
+diff --git a/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java b/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
+index 544c7f0c..937fa2cf 100644
+--- a/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
++++ b/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
+@@ -20,19 +20,6 @@ import com.google.common.collect.Iterables;
+ import com.google.common.collect.Ordering;
+ import com.google.errorprone.annotations.CheckReturnValue;
+ import com.google.errorprone.annotations.FormatMethod;
+-
+-import net.starlark.java.annot.StarlarkAnnotations;
+-import net.starlark.java.annot.StarlarkBuiltin;
+-import net.starlark.java.annot.StarlarkMethod;
+-import net.starlark.java.spelling.SpellChecker;
+-import net.starlark.java.syntax.Expression;
+-import net.starlark.java.syntax.FileOptions;
+-import net.starlark.java.syntax.ParserInput;
+-import net.starlark.java.syntax.Program;
+-import net.starlark.java.syntax.Resolver;
+-import net.starlark.java.syntax.StarlarkFile;
+-import net.starlark.java.syntax.SyntaxError;
+-
+ import java.io.IOException;
+ import java.io.OutputStream;
+ import java.lang.reflect.Method;
+@@ -44,6 +31,17 @@ import java.util.Set;
+ import java.util.TreeSet;
+ import javax.annotation.Nullable;
+ import javax.annotation.concurrent.Immutable;
++import net.starlark.java.annot.StarlarkAnnotations;
++import net.starlark.java.annot.StarlarkBuiltin;
++import net.starlark.java.annot.StarlarkMethod;
++import net.starlark.java.spelling.SpellChecker;
++import net.starlark.java.syntax.Expression;
++import net.starlark.java.syntax.FileOptions;
++import net.starlark.java.syntax.ParserInput;
++import net.starlark.java.syntax.Program;
++import net.starlark.java.syntax.Resolver;
++import net.starlark.java.syntax.StarlarkFile;
++import net.starlark.java.syntax.SyntaxError;
+ 
+ /**
+  * The Starlark class defines the most important entry points, constants, and functions needed by
+diff --git a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java
+index d5be296d..7e1c3b3a 100644
+--- a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java
++++ b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java
+@@ -16,7 +16,6 @@ package net.starlark.java.annot.processor.testsources;
+ 
+ import net.starlark.java.annot.Param;
+ import net.starlark.java.annot.StarlarkMethod;
+-import net.starlark.java.eval.StarlarkInt;
+ import net.starlark.java.eval.StarlarkValue;
+ 
+ /**
+diff --git a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java
+index 0280a114..cdc28ba9 100644
+--- a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java
++++ b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java
+@@ -31,11 +31,11 @@ public class MultipleSelfCallMethods implements StarlarkValue {
+       },
+       documented = false)
+   public StarlarkInt selfCallMethod(String one, StarlarkInt two) {
+-    return StarlarkInt.of(0);
++    return 0;
+   }
+ 
+   @StarlarkMethod(name = "selfCallMethodTwo", selfCall = true, documented = false)
+   public StarlarkInt selfCallMethodTwo() {
+-    return StarlarkInt.of(0);
++    return 0;
+   }
+ }
+diff --git a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java
+index 9cb56618..5ad388fa 100644
+--- a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java
++++ b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java
+@@ -15,7 +15,6 @@
+ package net.starlark.java.annot.processor.testsources;
+ 
+ import net.starlark.java.annot.StarlarkMethod;
+-import net.starlark.java.eval.StarlarkThread;
+ import net.starlark.java.eval.StarlarkValue;
+ 
+ /** Test case which verifies a struct field method cannot specify useStarlarkThread. */
