@@ -15,7 +15,7 @@ public class InMemMapBackedStarFile implements StarFile {
     this.current = current;
   }
 
-  static public StarFile createStarFile(String filename, String starFileContent) {
+  public static StarFile createStarFile(String filename, String starFileContent) {
       return new InMemMapBackedStarFile(
           new ImmutableMap.Builder<String, byte[]>()
               .put(filename, starFileContent.getBytes(UTF_8))

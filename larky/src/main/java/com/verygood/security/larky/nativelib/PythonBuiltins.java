@@ -20,7 +20,7 @@ import net.starlark.java.eval.StarlarkInt;
  * 
  * */
 @Library
-public final class PythonBuiltinsLib {
+public final class PythonBuiltins {
 
   @StarlarkMethod(
       name = "pow",

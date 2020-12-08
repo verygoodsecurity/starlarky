@@ -21,7 +21,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
 import com.verygood.security.larky.nativelib.LarkyGlobals;
-import com.verygood.security.larky.nativelib.PythonBuiltinsLib;
+import com.verygood.security.larky.nativelib.PythonBuiltins;
 import com.verygood.security.larky.nativelib.std.C99Math;
 import com.verygood.security.larky.nativelib.std.Hashlib;
 
@@ -42,7 +42,7 @@ public class ModuleSupplier {
 
   public static final ImmutableSet<Class<?>> CORE_MODULES = ImmutableSet.of(
       LarkyGlobals.class,
-      PythonBuiltinsLib.class
+      PythonBuiltins.class
   );
 
   public static final ImmutableSet<StarlarkValue> STD_MODULES = ImmutableSet.of(
