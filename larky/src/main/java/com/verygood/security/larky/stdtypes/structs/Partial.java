@@ -59,6 +59,6 @@ public class Partial implements StarlarkCallable {
 
   @Override
   public String toString() {
-    return String.valueOf(func_args);
+    return func_args.toString();
   }
 }
