@@ -180,8 +180,11 @@ jobs:
             brew cask install graalvm/tap/graalvm-ce-java11
             # Brew is designed to pull latest versions for the formula
             xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-ce-java11-*
-            # We can use java_home to get JVM home folder
-            "$(/usr/libexec/java_home)/bin/gu" install native-image
+            # We can use java_home exe to set GRAALVM_HOME
+            export GRAALVM_HOME="$(/usr/libexec/java_home)"
+            # add gu to PATH
+            ln -s "$GRAALVM_HOME/bin/gu" /usr/local/bin
+            gu install native-image
       - run:
           name: Maven Clean Package
           command: |
