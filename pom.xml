@@ -11,30 +11,8 @@
     <modules>
         <module>libstarlark</module>
         <module>larky</module>
+        <module>runlarky</module>
     </modules>
-
-    <properties>
-        <maven.compiler.plugin.version>3.6.2</maven.compiler.plugin.version>
-        <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
-        <google.errorprone.version>2.4.0</google.errorprone.version>
-        <google.auto.value.version>1.7.4</google.auto.value.version>
-        <google.compile.testing.version>0.18</google.compile.testing.version>
-        <google.flogger.version>0.5.1</google.flogger.version>
-        <google.guava.version>29.0-jre</google.guava.version>
-        <google.jimfs.version>1.1</google.jimfs.version>
-        <google.truth.version>1.0.1</google.truth.version>
-        <javax.xml.bind.jaxb-api.version>2.3.0</javax.xml.bind.jaxb-api.version>
-        <org.jetbrains.annotations.version>20.1.0</org.jetbrains.annotations.version>
-        <org.junit.version>4.13.1</org.junit.version>
-        <org.mockito.version>3.5.13</org.mockito.version>
-        <org.projectlombok.version>1.18.12</org.projectlombok.version>
-        <org.slf4j.version>1.7.30</org.slf4j.version>
-        <kr.motd.maven.os-maven-plugin.version>1.6.1</kr.motd.maven.os-maven-plugin.version>
-        <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
-        <protobuf.version>3.13.0</protobuf.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    </properties>
 
     <dependencies>
         <!--
@@ -163,8 +141,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven.compiler.plugin.version}</version>
                 <configuration>
-                    <source>11</source>
-                    <target>11</target>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -181,6 +159,34 @@
           </extension>
         </extensions>
     </build>
+
+    <properties>
+        <compiler-plugin.version>3.8.1</compiler-plugin.version>
+        <surefire-plugin.version>2.22.1</surefire-plugin.version>
+        <maven.compiler.plugin.version>3.6.2</maven.compiler.plugin.version>
+        <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
+        <google.errorprone.version>2.4.0</google.errorprone.version>
+        <google.auto.value.version>1.7.4</google.auto.value.version>
+        <google.compile.testing.version>0.18</google.compile.testing.version>
+        <google.flogger.version>0.5.1</google.flogger.version>
+        <google.guava.version>29.0-jre</google.guava.version>
+        <google.jimfs.version>1.1</google.jimfs.version>
+        <google.truth.version>1.0.1</google.truth.version>
+        <javax.xml.bind.jaxb-api.version>2.3.0</javax.xml.bind.jaxb-api.version>
+        <org.jetbrains.annotations.version>20.1.0</org.jetbrains.annotations.version>
+        <org.junit.version>4.13.1</org.junit.version>
+        <org.mockito.version>3.5.13</org.mockito.version>
+        <org.projectlombok.version>1.18.12</org.projectlombok.version>
+        <org.slf4j.version>1.7.30</org.slf4j.version>
+        <kr.motd.maven.os-maven-plugin.version>1.6.1</kr.motd.maven.os-maven-plugin.version>
+        <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
+        <protobuf.version>3.13.0</protobuf.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
 
 
 </project>
