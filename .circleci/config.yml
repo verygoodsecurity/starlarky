@@ -181,7 +181,8 @@ jobs:
             # Brew is designed to pull latest versions for the formula
             xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-ce-java11-*
             # We can use java_home exe to set GRAALVM_HOME
-            export GRAALVM_HOME="$(/usr/libexec/java_home)"
+            echo 'export GRAALVM_HOME="$(/usr/libexec/java_home)"' >> $BASH_ENV
+            source $BASH_ENV
             # add gu to PATH
             ln -s "$GRAALVM_HOME/bin/gu" /usr/local/bin
             gu install native-image
