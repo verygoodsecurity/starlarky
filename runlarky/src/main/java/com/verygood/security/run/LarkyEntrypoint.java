@@ -1,5 +1,6 @@
-package com.verygood.security.larky;
+package com.verygood.security.run;
 
+import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.CapturingConsole;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.FileConsole;
