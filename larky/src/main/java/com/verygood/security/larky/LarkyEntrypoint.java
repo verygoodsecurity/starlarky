@@ -91,9 +91,9 @@ public class LarkyEntrypoint implements QuarkusApplication {
     PrependMergedStarFile prependMergedStarFile = new PrependMergedStarFile(input, script);
 
     if (commandLine.hasOption("d")) {
-      System.out.println("==================================");
-      System.out.println(new String(prependMergedStarFile.readContentBytes()));
-      System.out.println("==================================");
+      System.err.println("==================================");
+      System.err.println(new String(prependMergedStarFile.readContentBytes()));
+      System.err.println("==================================");
     }
 
     Console console = new FileConsole(CapturingConsole.captureAllConsole(
