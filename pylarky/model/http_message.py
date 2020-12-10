@@ -3,7 +3,7 @@ from typing import Dict
 
 
 @dataclass
-class HttpRequest:
+class HttpMessage:
     url: str
     data: str
     headers: Dict[str, str]
