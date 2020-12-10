@@ -1,5 +1,5 @@
 import pytest
-from pylarky.model.request import HttpRequest
+from pylarky.model.http_message import HttpMessage
 from pylarky.eval.http_evaluator import HttpEvaluator
 from pylarky.eval.evaluator import Evaluator, FailedEvaluation
 
@@ -40,7 +40,7 @@ def process(input_message):
 process(request)
     """
 
-    request = HttpRequest('http://httpbin.org/post',
+    request = HttpMessage('http://httpbin.org/post',
                           data='{"credit_card": "411111111111111111", '
                                '"cvv": "043", '
                                '"expiration_date": "03/43"}',
@@ -49,7 +49,7 @@ process(request)
                                    'Key': '1234567890'})
 
     evaluator = HttpEvaluator(starlark_script)
-    modified_request: HttpRequest = evaluator.evaluate(request)
+    modified_request: HttpMessage = evaluator.evaluate(request)
     assert modified_request.url == 'http://httpbin.org/post'
     assert modified_request.data == '{"credit_card":"411111111111111111","cvv":"043","expiration_date":"03/43","signature":"12b03226a6d8be9c6e8cd5e55dc6c7920caaa39df14aab92d5e3ea9340d1c8a4d3d0b8e4314f1f6ef131ba4bf1ceb9186ab87c801af0d5c95b1befb8cedae2b9"}'
     assert modified_request.headers == {"Content-Type": "application/json", "Accept": "application/json"}
