@@ -11,7 +11,7 @@ class HttpEvaluator(Evaluator):
         super(HttpEvaluator, self).__init__(script)
 
     def evaluate(self, http_request: HttpRequest) -> HttpRequest:
-        modified_request = super(HttpEvaluator, self).evaluate(http_request.to_starlark())
+        modified_request = super().evaluate(http_request.to_starlark())
         struct_pattern = \
             r"""^.*url = \"(?P<url>.*)\", data = \"(?P<data>.*)\", headers = (?P<headers>.*), o.*"""
         match = re.search(struct_pattern, modified_request)
