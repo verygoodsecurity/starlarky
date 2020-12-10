@@ -8,7 +8,7 @@ from pylarky.model.request import HttpRequest
 class HttpEvaluator(Evaluator):
 
     def __init__(self, script):
-        super(HttpEvaluator, self).__init__(script)
+        super().__init__(script)
 
     def evaluate(self, http_request: HttpRequest) -> HttpRequest:
         modified_request = super().evaluate(http_request.to_starlark())
