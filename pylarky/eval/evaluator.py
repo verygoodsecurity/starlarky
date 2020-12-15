@@ -1,7 +1,7 @@
 import tempfile
 from subprocess import STDOUT, check_output, CalledProcessError
 
-RUNNER_EXECUATBLE = 'larky-runner'
+RUNNER_EXECUTABLE = 'larky-runner'
 LOG_PARAM = '-l'
 INPUT_PARAM = '-i'
 OUTPUT_PARAM = '-o'
@@ -27,7 +27,7 @@ class Evaluator:
     def __evaluate(self, script_path, input_path, output_path):
         try:
             with tempfile.NamedTemporaryFile(mode='w+') as log_file:
-                check_output([RUNNER_EXECUATBLE,
+                check_output([RUNNER_EXECUTABLE,
                               INPUT_PARAM, input_path,
                               OUTPUT_PARAM, output_path,
                               SCRIPT_PARAM, script_path,

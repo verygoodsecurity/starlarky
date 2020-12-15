@@ -23,6 +23,7 @@ public class PrependMergedStarFile implements StarFile {
 
     for (String scriptLine : script.split("\n")) {
       if (!loadBlockEnded) {
+        if (scriptLine.trim().length() == 0) continue;
         if (PRELOADER_PREFIXES.stream().noneMatch(scriptLine::startsWith)) {
           loadBlockEnded = true;
           finalScript.append(input).append("\n");
