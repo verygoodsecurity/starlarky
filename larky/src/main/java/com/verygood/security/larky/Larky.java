@@ -25,9 +25,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 
-import io.quarkus.runtime.QuarkusApplication;
-import io.quarkus.runtime.annotations.QuarkusMain;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Larky {
