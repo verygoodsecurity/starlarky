@@ -54,6 +54,7 @@ public class LarkyScript {
   public static final FileOptions STARLARK_STRICT_FILE_OPTIONS =
       FileOptions.DEFAULT.toBuilder()
           .allowToplevelRebinding(true)
+          .loadBindsGlobally(true)
           .build();
 
   public static final FileOptions STARLARK_LOOSE_FILE_OPTIONS =
