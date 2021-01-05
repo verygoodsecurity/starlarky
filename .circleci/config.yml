@@ -223,6 +223,18 @@ workflows:
 
   release:
     jobs:
+      - build-dist-linux:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
+      - build-dist-macos:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
       - publish-to-gh:
           filters:
             tags:
