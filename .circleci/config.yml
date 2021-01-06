@@ -92,20 +92,7 @@ attach-dist: &attach-dist
 # === JOBS ===
 version: 2
 jobs:
-  build:
-    <<: *job-defaults
-    machine:
-      image: ubuntu-1604:202007-01
-    steps:
-      - checkout
-      - <<: *install-java
-      - <<: *restore-maven-cache
-      - run:
-          name: Maven Clean Package
-          command: |
-            mvn clean install -DskipTests dependency:go-offline -T 2.0C -B
-      - <<: *save-maven-cache
-  test:
+  build-and-test:
     <<: *job-defaults
     machine:
       image: ubuntu-1604:202007-01
@@ -116,9 +103,10 @@ jobs:
       - run: mkdir -p $TEST_RESULTS_PATH/junit/
       - run: mkdir -p $TEST_RESULTS_PATH/coverage/
       - run:
-          name: Maven Test
+          name: Maven Build/Test
           command: |
-            mvn test dependency:go-offline
+            mvn clean install dependency:go-offline -T 2.0C -B
+      - <<: *save-maven-cache
       - run: find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
       - run: find . -type f -regex ".*/target/surefire-reports/.*-output.txt" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
       - run: find . -type f -regex ".*/target/site/.*" -exec cp --parents {} $TEST_RESULTS_PATH/coverage/ \;
@@ -221,12 +209,13 @@ workflows:
   version: 2
   build_and_tests:
     jobs:
-      - build
-      - test
+      - build-and-test
       - build-dist-linux:
           requires:
-            - build
-      - build-dist-macos
+            - build-and-test
+      - build-dist-macos:
+          requires:
+            - build-and-test
 
   release:
     jobs:
