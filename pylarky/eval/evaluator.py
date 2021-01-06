@@ -1,7 +1,8 @@
+import pkg_resources
 import tempfile
 from subprocess import STDOUT, check_output, CalledProcessError
 
-RUNNER_EXECUTABLE = 'larky-runner'
+RUNNER_EXECUTABLE = pkg_resources.resource_filename('pylarky', 'larky-runner')
 LOG_PARAM = '-l'
 INPUT_PARAM = '-i'
 OUTPUT_PARAM = '-o'
