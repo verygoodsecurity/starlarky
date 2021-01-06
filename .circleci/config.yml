@@ -68,6 +68,7 @@ install_python: &install_python
       ~/.pyenv/bin/pyenv install 3.8.6
       ~/.pyenv/bin/pyenv local 3.8.6
       curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+      echo 'export PATH="$HOME/.poetry/bin:$PATH"' >> $BASH_ENV
 
 build_test_pylarky: &build_test_pylarky
   run:
