@@ -58,24 +58,24 @@ restore-graalvm-cache: &restore-graalvm-cache
   restore_cache:
     key: starlarky-{{ checksum ".circleci/config.yml" }}
 
+install_python: &install_python
+  run:
+    name: Install Python
+    command: |
+      git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+      echo 'export PYENV_ROOT="$HOME/.pyenv"' >> $BASH_ENV
+      echo 'export PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"' >> $BASH_ENV
+      ~/.pyenv/bin/pyenv install 3.8.6
+      ~/.pyenv/bin/pyenv local 3.8.6
+      curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+
 build_test_pylarky: &build_test_pylarky
-  - run:
-      name: Install Python
-      command: |
-        git clone https://github.com/pyenv/pyenv.git ~/.pyenv
-        echo 'export PYENV_ROOT="$HOME/.pyenv"' >> $BASH_ENV
-        echo 'export PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"' >> $BASH_ENV
-        ~/.pyenv/bin/pyenv install 3.8.6
-        ~/.pyenv/bin/pyenv local 3.8.6
-        curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
-  - run:
-      name: Test Python lib
-      command: |
-        poetry install
-        poetry run pytest pylarky/tests
-  - run:
-      name: Build Python package
-      command: poetry build
+  run:
+    name: Build and test pylarky
+    command: |
+      poetry install
+      poetry run pytest pylarky/tests
+      poetry build
 
 persist-dist: &persist-dist
   persist_to_workspace:
@@ -140,6 +140,7 @@ jobs:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
           no_output_timeout: 30m
+      - <<: *install_python
       - <<: *build_test_pylarky
       - run:
           name: Copy dist files
@@ -178,6 +179,7 @@ jobs:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
           no_output_timeout: 30m
+      - <<: *install_python
       - <<: *build_test_pylarky
       - run:
           name: Copy dist files
