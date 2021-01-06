@@ -3,10 +3,10 @@ job-defaults: &job-defaults
     ~/starlarky
   test_results_directory: &test_results_directory
     /tmp/test-results
-  executable_results_directory: &executable_results_directory
-    /tmp/executable-dir
+  dist_directory: &dist_directory
+    /tmp/dist
   environment:
-    - EXECUTABLE_RESULT_PATH: *executable_results_directory
+    - DIST_PATH: *dist_directory
     - TEST_RESULTS_PATH: *test_results_directory
     - MAVEN_OPTS: -Xmx6400m
     - GRAALVM_HOME: /home/circleci/starlarky/.graalvm
@@ -58,33 +58,41 @@ restore-graalvm-cache: &restore-graalvm-cache
   restore_cache:
     key: starlarky-{{ checksum ".circleci/config.yml" }}
 
-persist-workspace: &persist-workspace
-  persist_to_workspace:
-    root: .
-    paths: "*"
+install_python: &install_python
+  run:
+    name: Install Python
+    command: |
+      git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+      echo 'export PYENV_ROOT="$HOME/.pyenv"' >> $BASH_ENV
+      echo 'export PATH="$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"' >> $BASH_ENV
+      ~/.pyenv/bin/pyenv install 3.8.6
+      ~/.pyenv/bin/pyenv local 3.8.6
+      curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+      echo 'export PATH="$HOME/.poetry/bin:$PATH"' >> $BASH_ENV
 
-attach-workspace: &attach-workspace
+build_test_pylarky: &build_test_pylarky
+  run:
+    name: Build and test pylarky
+    command: |
+      poetry version ${CIRCLE_TAG}
+      poetry install
+      poetry run pytest pylarky/tests
+      poetry build
+
+persist-dist: &persist-dist
+  persist_to_workspace:
+    root: *dist_directory
+    paths:
+      - "*"
+
+attach-dist: &attach-dist
   attach_workspace:
-    at: *working_directory
+    at: *dist_directory
 
 # === JOBS ===
 version: 2
 jobs:
-  build:
-    <<: *job-defaults
-    machine:
-      image: ubuntu-1604:202007-01
-    steps:
-      - checkout
-      - <<: *install-java
-      - <<: *restore-maven-cache
-      - run:
-          name: Maven Clean Package
-          command: |
-            mvn clean install -DskipTests dependency:go-offline -T 2.0C -B
-      - <<: *save-maven-cache
-      - <<: *persist-workspace
-  test:
+  build-and-test:
     <<: *job-defaults
     machine:
       image: ubuntu-1604:202007-01
@@ -95,9 +103,10 @@ jobs:
       - run: mkdir -p $TEST_RESULTS_PATH/junit/
       - run: mkdir -p $TEST_RESULTS_PATH/coverage/
       - run:
-          name: Maven Test
+          name: Maven Build/Test
           command: |
-            mvn test dependency:go-offline
+            mvn clean install dependency:go-offline -T 2.0C -B
+      - <<: *save-maven-cache
       - run: find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
       - run: find . -type f -regex ".*/target/surefire-reports/.*-output.txt" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
       - run: find . -type f -regex ".*/target/site/.*" -exec cp --parents {} $TEST_RESULTS_PATH/coverage/ \;
@@ -113,7 +122,6 @@ jobs:
     steps:
       - checkout
       - <<: *install-java
-      - <<: *attach-workspace
       - <<: *restore-maven-cache
       - <<: *restore-graalvm-cache
       - <<: *install-graalvm
@@ -122,62 +130,29 @@ jobs:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
           no_output_timeout: 30m
-      - <<: *persist-workspace
-
-  dist-test:
-    <<: *job-defaults
-    machine:
-      image: ubuntu-1604:202007-01
-    steps:
-      - checkout
-      - <<: *attach-workspace
-      - run: cp ./runlarky/target/larky-runner .
+      - <<: *install_python
+      - <<: *build_test_pylarky
       - run:
-          name: Python test
+          name: Copy dist files
           command: |
-            python3 -m venv venv
-            . ./venv/bin/activate
-            pip install wheel twine pytest
-            python setup.py bdist_wheel
-            pip install ./dist/pylarky-nover-py3-none-any.whl
-            pytest pylarky/tests
+            mkdir ${DIST_PATH}
+            cp ./runlarky/target/larky-runner ${DIST_PATH}/larky-linux
+            cp dist/*.whl ${DIST_PATH}
+      - <<: *persist-dist
 
-  dist-linux:
+  build-dist-macos:
     <<: *job-defaults
-    machine:
-      image: ubuntu-1604:202007-01
-    steps:
-      - checkout
-      - <<: *install-gh
-      - <<: *attach-workspace
-      - run: mkdir $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-runner $EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-linux
-      - run:
-          name: Update GH tag artifact
-          command: |
-            if [ "${CIRCLE_TAG}" != "" ] ;
-            then
-              ghr -t $GITHUB_API_TOKEN ${CIRCLE_TAG} $EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-linux
-            fi
-      - store_artifacts:
-          path: *executable_results_directory
-
-  dist-macos:
-    <<: *job-defaults
-    environment:
-      - EXECUTABLE_RESULT_PATH: *executable_results_directory
     macos:
       xcode: 12.0.1
     steps:
       - checkout
       - run:
           name: Install dev
-          command: |
-            brew install maven
-            brew install ghr
+          command: brew install maven
       - run:
           name: Install GRAALVM
           command: |
-            brew cask install graalvm/tap/graalvm-ce-java11
+            brew install --cask graalvm/tap/graalvm-ce-java11
             # Brew is designed to pull latest versions for the formula
             xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-ce-java11-*
             # We can use java_home exe to set GRAALVM_HOME
@@ -194,51 +169,83 @@ jobs:
           name: Build (Native)
           command: mvn package -Pnative -DskipTests
           no_output_timeout: 30m
+      - <<: *install_python
+      - <<: *build_test_pylarky
       - run:
-          name: Copy artifact
+          name: Copy dist files
           command: |
-            mkdir -p $EXECUTABLE_RESULT_PATH && cp ./larky/target/larky-runner $EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-macos
+            mkdir ${DIST_PATH}
+            cp ./runlarky/target/larky-runner ${DIST_PATH}/larky-macos
+            cp dist/*.whl ${DIST_PATH}
+      - <<: *persist-dist
+
+  publish-to-gh:
+    <<: *job-defaults
+    docker:
+      - image: cibuilds/github:0.13
+    steps:
+      - <<: *attach-dist
       - run:
-          name: Upload assets
+          name: Create GH release
           command: |
-            if [ "${CIRCLE_TAG}" != "" ] ;
-            then
-              ghr -t $GITHUB_API_TOKEN ${CIRCLE_TAG} $EXECUTABLE_RESULT_PATH/larky-${CIRCLE_TAG}-macos
-            fi
-      - store_artifacts:
-          path: *executable_results_directory
+            mv ${DIST_PATH}/larky-linux ${DIST_PATH}/larky-${CIRCLE_TAG}-linux
+            mv ${DIST_PATH}/larky-macos ${DIST_PATH}/larky-${CIRCLE_TAG}-macos
+            ghr -draft -t ${GITHUB_API_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -n ${CIRCLE_TAG} ${CIRCLE_TAG} ${DIST_PATH}
+
+  publish-to-pypi:
+    <<: *job-defaults
+    docker:
+      - image: circleci/python
+    steps:
+      - <<: *attach-dist
+      - run:
+          name: Install twine
+          command: pip install twine
+      - run:
+          name: Upload packages
+          command: twine upload -u __token__ -p ${PYPI_TOKEN} ${DIST_PATH}/*.whl
 
 workflows:
   version: 2
   build_and_tests:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-      - test
+      - build-and-test
       - build-dist-linux:
           requires:
-            - build
+            - build-and-test
+      - build-dist-macos:
+          requires:
+            - build-and-test
+
+  release:
+    jobs:
+      - build-dist-linux:
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-      - dist-test:
+            branches:
+              ignore: /.*/
+      - build-dist-macos:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
+      - publish-to-gh:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
           requires:
             - build-dist-linux
-      - dist-linux:
+            - build-dist-macos
+      - publish-to-pypi:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
           requires:
             - build-dist-linux
-          filters:
-            branches:
-              only: master
-            tags:
-              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-      - dist-macos:
-          requires:
-            - build
-          filters:
-            branches:
-              only: master
-            tags:
-              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            - build-dist-macos
