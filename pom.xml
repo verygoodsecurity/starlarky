@@ -21,6 +21,7 @@
 
         See this issue: https://github.com/google/guava/issues/2960
         -->
+
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
@@ -32,7 +33,6 @@
             <artifactId>guava</artifactId>
             <version>${google.guava.version}</version>
         </dependency>
-
         <dependency>
             <groupId>com.google.auto.value</groupId>
             <artifactId>auto-value-annotations</artifactId>
