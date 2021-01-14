@@ -143,9 +143,9 @@ jobs:
   build-dist-macos:
     <<: *job-defaults
     macos:
-      xcode: 10.1.0
+      xcode: 10.2.1
     environment:
-      HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.5
+      HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
     steps:
       - checkout
       - run:
