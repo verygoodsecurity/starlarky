@@ -144,15 +144,17 @@ jobs:
     <<: *job-defaults
     macos:
       xcode: 10.1.0
+    environment:
+      HOMEBREW_REQUIRED_RUBY_VERSION: 2.6.3
     steps:
       - checkout
       - run:
           name: Install dev
-          command: /usr/local/bin/brew install maven
+          command: brew install maven
       - run:
           name: Install GRAALVM
           command: |
-            /usr/local/bin/brew install --cask graalvm/tap/graalvm-ce-java11
+            brew install --cask graalvm/tap/graalvm-ce-java11
             # Brew is designed to pull latest versions for the formula
             xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-ce-java11-*
             # We can use java_home exe to set GRAALVM_HOME
