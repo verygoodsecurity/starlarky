@@ -148,11 +148,11 @@ jobs:
       - checkout
       - run:
           name: Install dev
-          command: brew install maven
+          command: /usr/local/bin/brew install maven
       - run:
           name: Install GRAALVM
           command: |
-            brew install --cask graalvm/tap/graalvm-ce-java11
+            /usr/local/bin/brew install --cask graalvm/tap/graalvm-ce-java11
             # Brew is designed to pull latest versions for the formula
             xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-ce-java11-*
             # We can use java_home exe to set GRAALVM_HOME
