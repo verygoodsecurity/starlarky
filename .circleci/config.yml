@@ -176,7 +176,7 @@ jobs:
       - run:
           name: Copy dist files
           command: |
-            mkdir ${DIST_PATH}
+            mkdir -p ${DIST_PATH}
             cp ./runlarky/target/larky-runner ${DIST_PATH}/larky-macos
             cp dist/*.whl ${DIST_PATH}
       - <<: *persist-dist
