@@ -70,6 +70,16 @@ install_python: &install_python
       curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
       echo 'export PATH="$HOME/.poetry/bin:$PATH"' >> $BASH_ENV
 
+install_ruby: &install_ruby
+  run:
+    name: Install Ruby
+    command: |
+      wget -O ruby-install-0.8.1.tar.gz https://github.com/postmodern/ruby-install/archive/v0.8.1.tar.gz
+      tar -xzvf ruby-install-0.8.1.tar.gz
+      cd ruby-install-0.8.1/
+      sudo make install
+      ruby-install --system ruby 2.6.3
+
 build_test_pylarky: &build_test_pylarky
   run:
     name: Build and test pylarky
@@ -145,9 +155,10 @@ jobs:
     macos:
       xcode: 10.1.0
     environment:
-      HOMEBREW_REQUIRED_RUBY_VERSION: 2.3.7
+      HOMEBREW_REQUIRED_RUBY_VERSION: 2.6.3
     steps:
       - checkout
+      - <<: *install_ruby
       - run:
           name: Install dev
           command: brew install maven
