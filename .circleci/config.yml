@@ -145,7 +145,7 @@ jobs:
     macos:
       xcode: 10.1.0
     environment:
-      HOMEBREW_REQUIRED_RUBY_VERSION: 2.6.3
+      HOMEBREW_REQUIRED_RUBY_VERSION: 2.3.7
     steps:
       - checkout
       - run:
