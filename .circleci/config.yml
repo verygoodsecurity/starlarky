@@ -10,6 +10,7 @@ job-defaults: &job-defaults
     - TEST_RESULTS_PATH: *test_results_directory
     - MAVEN_OPTS: -Xmx6400m
     - GRAALVM_HOME: /home/circleci/starlarky/.graalvm
+    - HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
 
 install-java: &install-java
   run:
@@ -144,8 +145,6 @@ jobs:
     <<: *job-defaults
     macos:
       xcode: 10.2.1
-    environment:
-      HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
     steps:
       - checkout
       - run:
