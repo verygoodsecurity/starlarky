@@ -77,12 +77,14 @@ deploys/
 
 .tmp
 
+docs_poc/build
+
 venv
 dist
 build
 pylarky.egg-info
 __pycache__
-.python-verison
+.python-version
 pylarky/larky-runner
 
 .vscode/*
