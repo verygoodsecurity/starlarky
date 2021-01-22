@@ -25,9 +25,6 @@ from sphinx.config import ENUM, Config
 from sphinx.deprecation import (RemovedInSphinx40Warning, RemovedInSphinx50Warning,
                                 RemovedInSphinx60Warning)
 from sphinx.environment import BuildEnvironment
-from sphinx.ext.autodoc.importer import (get_class_members, get_object_members, import_module,
-                                         import_object)
-from sphinx.ext.autodoc.mock import ismock, mock
 from sphinx.locale import _, __
 from sphinx.pycode import ModuleAnalyzer, PycodeError
 from sphinx.util import inspect, logging
@@ -36,6 +33,10 @@ from sphinx.util.inspect import (evaluate_signature, getdoc, object_description,
                                  stringify_signature)
 from sphinx.util.typing import get_type_hints, restify
 from sphinx.util.typing import stringify as stringify_typehint
+
+from .importer import (get_class_members, get_object_members, import_module,
+                                         import_object)
+from .mock import ismock, mock
 
 if False:
     # For type annotation
@@ -2620,28 +2621,18 @@ def migrate_autodoc_member_order(app: Sphinx, config: Config) -> None:
         config.autodoc_member_order = 'alphabetical'  # type: ignore
 
 
-# for compatibility
-from sphinx.ext.autodoc.deprecated import DataDeclarationDocumenter  # NOQA
-from sphinx.ext.autodoc.deprecated import GenericAliasDocumenter  # NOQA
-from sphinx.ext.autodoc.deprecated import InstanceAttributeDocumenter  # NOQA
-from sphinx.ext.autodoc.deprecated import SingledispatchFunctionDocumenter  # NOQA
-from sphinx.ext.autodoc.deprecated import SingledispatchMethodDocumenter  # NOQA
-from sphinx.ext.autodoc.deprecated import SlotsAttributeDocumenter  # NOQA
-from sphinx.ext.autodoc.deprecated import TypeVarDocumenter  # NOQA
-
-
 def setup(app: Sphinx) -> Dict[str, Any]:
     app.add_autodocumenter(ModuleDocumenter)
-    app.add_autodocumenter(ClassDocumenter)
-    app.add_autodocumenter(ExceptionDocumenter)
-    app.add_autodocumenter(DataDocumenter)
-    app.add_autodocumenter(NewTypeDataDocumenter)
+    # app.add_autodocumenter(ClassDocumenter)
+    # app.add_autodocumenter(ExceptionDocumenter)
+    # app.add_autodocumenter(DataDocumenter)
+    # app.add_autodocumenter(NewTypeDataDocumenter)
     app.add_autodocumenter(FunctionDocumenter)
-    app.add_autodocumenter(DecoratorDocumenter)
-    app.add_autodocumenter(MethodDocumenter)
-    app.add_autodocumenter(AttributeDocumenter)
-    app.add_autodocumenter(PropertyDocumenter)
-    app.add_autodocumenter(NewTypeAttributeDocumenter)
+    # app.add_autodocumenter(DecoratorDocumenter)
+    # app.add_autodocumenter(MethodDocumenter)
+    # app.add_autodocumenter(AttributeDocumenter)
+    # app.add_autodocumenter(PropertyDocumenter)
+    # app.add_autodocumenter(NewTypeAttributeDocumenter)
 
     app.add_config_value('autoclass_content', 'class', True, ENUM('both', 'class', 'init'))
     app.add_config_value('autodoc_member_order', 'alphabetical', True,
@@ -2661,7 +2652,9 @@ def setup(app: Sphinx) -> Dict[str, Any]:
 
     app.connect('config-inited', migrate_autodoc_member_order, priority=800)
 
-    app.setup_extension('sphinx.ext.autodoc.type_comment')
-    app.setup_extension('sphinx.ext.autodoc.typehints')
+    # LARKY_HACK_START
+    # app.setup_extension('sphinx.ext.autodoc.type_comment')
+    # app.setup_extension('sphinx.ext.autodoc.typehints')
+    # LARKY_HACK_END
 
     return {'version': sphinx.__display_version__, 'parallel_read_safe': True}

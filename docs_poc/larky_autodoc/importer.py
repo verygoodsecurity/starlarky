@@ -20,6 +20,8 @@ from sphinx.util import logging
 from sphinx.util.inspect import (getannotations, getmro, getslots, isclass, isenumclass,
                                  safe_getattr)
 
+from .larkyhack import pythonize_larky_module
+
 if False:
     # For type annotation
     from typing import Type  # NOQA
@@ -63,15 +65,16 @@ def import_module(modname: str, warningiserror: bool = False) -> Any:
     """
     Call importlib.import_module(modname), convert exceptions to ImportError
     """
-    try:
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=ImportWarning)
-            with logging.skip_warningiserror(not warningiserror):
-                return importlib.import_module(modname)
-    except BaseException as exc:
-        # Importing modules may cause any side effects, including
-        # SystemExit, so we need to catch all errors.
-        raise ImportError(exc, traceback.format_exc()) from exc
+    with pythonize_larky_module(modname):
+        try:
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=ImportWarning)
+                with logging.skip_warningiserror(not warningiserror):
+                    return importlib.import_module(modname)
+        except BaseException as exc:
+            # Importing modules may cause any side effects, including
+            # SystemExit, so we need to catch all errors.
+            raise ImportError(exc, traceback.format_exc()) from exc
 
 
 def import_object(modname: str, objpath: List[str], objtype: str = '',
@@ -186,7 +189,7 @@ def _getannotations(obj: Any) -> Mapping[str, Any]:
 def get_object_members(subject: Any, objpath: List[str], attrgetter: Callable,
                        analyzer: ModuleAnalyzer = None) -> Dict[str, Attribute]:
     """Get members and attributes of target object."""
-    from sphinx.ext.autodoc import INSTANCEATTR
+    from . import INSTANCEATTR
 
     # the members directly defined in the class
     obj_dict = attrgetter(subject, '__dict__', {})
