@@ -27,18 +27,20 @@ def pythonize_larky_module(modname: str):
             raise Exception(f'Unable to find star-module {modname}')
 
         tmpdir = TemporaryDirectory(prefix='larky_autodoc_')
-        fake_import_path = tmpdir.name
-        dst_mod_path = Path(fake_import_path) / f'{modname}.py'
-        with open(src_mod_path) as src_mod_file, open(dst_mod_path, 'w') as dst_mod_file:
-            mod_content = remove_load_statement(src_mod_file.read())
-            dst_mod_file.write(mod_content)
-
-        sys.path.insert(0, fake_import_path)
-
         try:
+            fake_import_path = tmpdir.name
+            dst_mod_path = Path(fake_import_path) / f'{modname}.py'
+            with open(src_mod_path) as src_mod_file, open(dst_mod_path, 'w') as dst_mod_file:
+                mod_content = remove_load_statement(src_mod_file.read())
+                dst_mod_file.write(mod_content)
+
+            sys.path.insert(0, fake_import_path)
+
             yield
+
         finally:
-            sys.path.remove(fake_import_path)
+            if fake_import_path in sys.path:
+                sys.path.remove(fake_import_path)
             tmpdir.cleanup()
 
     except BaseException as exc:
