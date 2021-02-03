@@ -4,13 +4,18 @@
 Welcome to starlarky's documentation!
 =====================================
 
+.. image:: https://readthedocs.org/projects/starlarky-devel/badge/?version=latest
+:target: https://starlarky-devel.readthedocs.io/en/latest/?badge=latest
+:alt: Documentation Status
+
+
 This project adapts Google's StarLark project to integrate with Very Good Security's secure compute environment.
 
 .. toctree::
    :maxdepth: 2
 
-   "Starlarky API Guide" <autoapi/index>
-   "Glossary of terms" <glossary>
+   Starlarky API Guide <autoapi/index>
+   Glossary of terms <glossary>
 
 Index and Search
 ===================
