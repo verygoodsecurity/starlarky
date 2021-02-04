@@ -25,7 +25,7 @@ copyright = '2021, Very Good Security'
 author = 'Very Good Security'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.0'
+release = '0.0.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -35,7 +35,7 @@ release = '0.0.0'
 # ones.
 extensions = [
             'autoapi.extension',  # https://sphinx-autoapi.readthedocs.io/en/latest/tutorials.html#setting-up-automatic-api-documentation-generation
-             'sphinxcontrib.confluencebuilder',
+            'sphinxcontrib.confluencebuilder',
               ]
 
 autoapi_dirs = ['../../../pylarky']
