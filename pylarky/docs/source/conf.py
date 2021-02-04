@@ -54,23 +54,30 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', ]
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'furo'
-
+html_theme = 'furo'  # https://pradyunsg.me/furo/customisation/sidebar/
+# html_sidebars = [
+#     "sidebar/scroll-start.html",
+#     "sidebar/brand.html",
+#     "sidebar/search.html",
+#     "sidebar/navigation.html",
+#     "sidebar/ethical-ads.html",
+#     "sidebar/scroll-end.html",
+# ]
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
 # -- Confluence options
-# confluence_publish_dryrun = True # see: https://sphinxcontrib-confluencebuilder.readthedocs.io/en/latest/configuration.html#confluence-publish-dryrun
-# confluence_publish = False
-# confluence_space_name = 'EN'
-# confluence_parent_page = 'Secure Compute (Enclave) + SDLC ADR'
-# # (for confluence cloud)
-# confluence_server_url = 'https://verygoodsecurity.atlassian.net/wiki'
-# confluence_server_user = 'blaise.pabon@vgs.io'
-# confluence_server_pass = os.getenv("CONFLUENCE_KEY")
-#
+confluence_publish_dryrun = False # see: https://sphinxcontrib-confluencebuilder.readthedocs.io/en/latest/configuration.html#confluence-publish-dryrun
+confluence_publish = True
+confluence_space_name = 'PRODUCT'
+confluence_parent_page = 'Developer Resources'
+# (for confluence cloud)
+confluence_server_url = 'https://verygoodsecurity.atlassian.net/wiki'
+confluence_server_user = 'blaise.pabon@vgs.io'
+confluence_server_pass = os.getenv("CONFLUENCE_KEY")
+
 # # -- Redoc settings
 # redoc = [
 #     {

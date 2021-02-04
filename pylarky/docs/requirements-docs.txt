@@ -2,5 +2,5 @@ furo
 pydoc-markdown  # if you prefer mkdocs https://pydoc-markdown.readthedocs.io/en/latest/
 Sphinx==3.4.3
 sphinx-autoapi
-sphinxcontrib-confluencebuilder==1.2.0
+sphinxcontrib-confluencebuilder
 
