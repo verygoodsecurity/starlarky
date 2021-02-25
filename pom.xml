@@ -99,6 +99,25 @@
             <version>${org.junit.version}</version>
         </dependency>
 
+        <dependency>
+          <groupId>com.google.re2j</groupId>
+          <artifactId>re2j</artifactId>
+          <version>${google.re2j.version}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>com.google.crypto.tink</groupId>
+          <artifactId>tink</artifactId>
+          <version>${google.crypto.tink}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>org.conscrypt</groupId>
+          <artifactId>conscrypt-openjdk</artifactId>
+          <version>${org.conscrypt.version}</version>
+          <classifier>${os.detected.classifier}</classifier>
+        </dependency>
+
         <!-- test -->
         <dependency>
             <groupId>javax.xml.bind</groupId>
@@ -168,11 +187,14 @@
         <google.errorprone.version>2.5.0</google.errorprone.version>
         <google.auto.value.version>1.7.4</google.auto.value.version>
         <google.compile.testing.version>0.18</google.compile.testing.version>
+        <google.crypto.tink>1.5.0</google.crypto.tink>
         <google.flogger.version>0.5.1</google.flogger.version>
         <google.guava.version>29.0-jre</google.guava.version>
         <google.jimfs.version>1.1</google.jimfs.version>
+        <google.re2j.version>1.5</google.re2j.version>
         <google.truth.version>1.0.1</google.truth.version>
         <javax.xml.bind.jaxb-api.version>2.3.0</javax.xml.bind.jaxb-api.version>
+        <org.conscrypt.version>2.5.1</org.conscrypt.version>
         <org.jetbrains.annotations.version>20.1.0</org.jetbrains.annotations.version>
         <org.junit.version>4.13.1</org.junit.version>
         <org.mockito.version>3.5.13</org.mockito.version>
