@@ -1,0 +1,25 @@
+default_language_version:
+    python: python3.8
+default_stages: [commit, push]
+
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.2.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-case-conflict  # because it happens in filenames
+    -   id: check-yaml
+    -   id: check-added-large-files
+    -   id: check-ast
+    -   id: requirements-txt-fixer
+    -   id: detect-aws-credentials
+    -   id: detect-private-key
+# run pre-commit autoupdate to get the latest versions.
+# https://pre-commit.com/hooks.html for the list of built-in hooks
+-   repo: https://github.com/pre-commit/pygrep-hooks   # Fast, cheap, hooks
+    rev: v1.8.0  # Use the tag you want to point at
+    hooks:
+    -   id: python-no-eval
+    -   id: python-no-log-warn
+    -   id: rst-inline-touching-normal
