@@ -1,5 +1,7 @@
 package com.verygood.security.larky;
 
+import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
+
 import com.google.common.collect.ImmutableSet;
 
 import com.verygood.security.larky.console.testing.TestingConsole;
@@ -22,8 +24,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Stream;
-
-import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
 
 public class LarkyTest {
 
@@ -74,7 +74,7 @@ public class LarkyTest {
         //.filter(f -> f.getFileName().startsWith("test_") && f.endsWith(".star"))
         .filter(f -> {
           String fileName = f.getFileName().toString();
-          return fileName.startsWith("test_") && fileName.endsWith(".star");
+          return fileName.startsWith("test_re") && fileName.endsWith(".star");
         })
         .forEach(f -> {
           try {
