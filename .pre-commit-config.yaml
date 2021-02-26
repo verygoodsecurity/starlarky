@@ -20,6 +20,11 @@ repos:
 -   repo: https://github.com/pre-commit/pygrep-hooks   # Fast, cheap, hooks
     rev: v1.8.0  # Use the tag you want to point at
     hooks:
-    -   id: python-no-eval
-    -   id: python-no-log-warn
-    -   id: rst-inline-touching-normal
+    -   id: python-check-blanket-noqa # Enforce that `noqa` annotations always occur with specific codes. Sample annotations: `# noqa: F401`, `# noqa: F401,W203`
+    -   id: python-no-eval # A quick check for the `eval()` built-in function
+    -   id: python-no-log-warn # A quick check for the deprecated `.warn()` method of python loggers
+    -   id: python-use-type-annotations # Enforce that python3.6+ type annotations are used instead of type comments
+    -   id: rst-backticks # Detect common mistake of using single backticks when writing rst
+    -   id: rst-directive-colons # Detect mistake of rst directive not ending with double colon
+    -   id: rst-inline-touching-normal # Detect mistake of inline code touching normal text in rst
+    -   id: text-unicode-replacement-char # Forbid files which have a UTF-8 Unicode replacement character
