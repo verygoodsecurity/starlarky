@@ -77,7 +77,7 @@ public final class LarkyEvaluator {
   }
 
   public Module eval(StarFile content)
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, EvalException {
     if (pending.contains(content.path())) {
       throw throwCycleError(content.path());
     }
@@ -112,7 +112,7 @@ public final class LarkyEvaluator {
   }
 
   public Object evalWithOutput(StarFile content)
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, EvalException {
 
     // Make the modules available as predeclared bindings.
     StarlarkSemantics semantics = StarlarkSemantics.DEFAULT;
@@ -183,7 +183,7 @@ public final class LarkyEvaluator {
         } else {
           loadedModule = evaluator.eval(content.resolve(moduleToLoad + LarkyScript.STAR_EXTENSION));
         }
-      } catch (IOException | InterruptedException e) {
+      } catch (IOException | InterruptedException | EvalException e) {
         throw new RuntimeException(e);
       }
       return loadedModule;
@@ -279,7 +279,7 @@ public final class LarkyEvaluator {
   }
 
   @NotNull
-  private Program compileStarlarkProgram(Module module, ParserInput input, FileOptions options) {
+  private Program compileStarlarkProgram(Module module, ParserInput input, FileOptions options) throws EvalException {
     Program prog;
     try {
       prog = Program.compileFile(StarlarkFile.parse(input, options), module);
@@ -289,7 +289,7 @@ public final class LarkyEvaluator {
         console.error(error.toString());
         errs.add(error.toString());
       }
-      throw new RuntimeException(
+      throw new EvalException(
           String.format(
               "Error compiling Starlark program: %1$s%n" +
                   "%2$s",

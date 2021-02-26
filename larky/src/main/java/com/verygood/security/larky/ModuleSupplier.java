@@ -24,13 +24,14 @@ import com.verygood.security.larky.nativelib.LarkyGlobals;
 import com.verygood.security.larky.nativelib.PythonBuiltins;
 import com.verygood.security.larky.nativelib.std.C99Math;
 import com.verygood.security.larky.nativelib.std.Hashlib;
+import com.verygood.security.larky.nativelib.std.Json;
+import com.verygood.security.larky.nativelib.std.Proto;
+import com.verygood.security.larky.nativelib.std.RE2RegexEngine;
+import com.verygood.security.larky.nativelib.test.LarkyAssertions;
+import com.verygood.security.larky.nativelib.test.UnittestModule;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkValue;
-import com.verygood.security.larky.nativelib.std.Json;
-import com.verygood.security.larky.nativelib.std.Proto;
-import com.verygood.security.larky.nativelib.test.LarkyAssertions;
-import com.verygood.security.larky.nativelib.test.UnittestModule;
 
 import java.util.Map;
 import java.util.function.Function;
@@ -49,7 +50,8 @@ public class ModuleSupplier {
       Json.INSTANCE,
       Proto.INSTANCE,
       Hashlib.INSTANCE,
-      C99Math.INSTANCE
+      C99Math.INSTANCE,
+      RE2RegexEngine.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(

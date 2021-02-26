@@ -17,7 +17,7 @@ import net.starlark.java.eval.StarlarkInt;
  * A work-in-progress to add methods as we need them.
  *
  * More here: https://docs.python.org/3/library/functions.html
- * 
+ *
  * */
 @Library
 public final class PythonBuiltins {
@@ -63,4 +63,38 @@ public final class PythonBuiltins {
           .modPow(exp.toBigInteger(), ((StarlarkInt) mod).toBigInteger())
     );
   }
+//
+//  @StarlarkMethod(
+//      name = "bytes",
+//      doc = "immutable array of bytes",
+//      parameters = {
+//       @Param(
+//         name = "sequence",
+//         allowedTypes = {
+//             @ParamType(type = String.class),
+//         }
+//       )
+//     }
+//  )
+//  public StarlarkList<StarlarkInt> bytes(String sequence) {
+//    byte[] bytes = sequence.getBytes(StandardCharsets.UTF_8);
+//
+//    return StarlarkList.immutableOf(Stream.of(bytes.).map((byte[] x) -> Byte.toUnsignedInt(x)).collect();
+//  }
+//
+//  @StarlarkMethod(
+//      name = "chr",
+//      doc = "Return ascii ord",
+//      parameters = {
+//       @Param(
+//         name = "ordinal",
+//         allowedTypes = {
+//             @ParamType(type = StarlarkInt.class),
+//         }
+//       )
+//     }
+//  )
+//  public String chr(StarlarkInt ordinal) {
+//    return String.valueOf((char) ordinal.toIntUnchecked());
+//  }
 }
