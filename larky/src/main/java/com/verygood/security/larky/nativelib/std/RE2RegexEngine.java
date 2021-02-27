@@ -1,18 +1,23 @@
 package com.verygood.security.larky.nativelib.std;
 
+import com.google.common.base.Joiner;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
+
+import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkValue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 
@@ -78,8 +83,8 @@ public class RE2RegexEngine implements StarlarkValue {
               defaultValue = "0")
     })
     public static LarkyRegexPattern compile(String regex, StarlarkInt flags) {
-      return new LarkyRegexPattern()
-          .pattern(Pattern.compile(regex, flags.toIntUnchecked()));
+      int flag = flags.toIntUnchecked();
+      return new LarkyRegexPattern().pattern(Pattern.compile(regex, flag));
     }
 
     @StarlarkMethod(
@@ -155,10 +160,97 @@ public class RE2RegexEngine implements StarlarkValue {
                defaultValue = "0"
            )
      })
-    public StarlarkList<String> split(String input, StarlarkInt limit) {
-      return StarlarkList.immutableCopyOf(
-          Arrays.asList(pattern.split(input, limit.toIntUnchecked()))
-      );
+    public StarlarkList<Object> split(String input, StarlarkInt limit) {
+      Object[] strings = _py_re_split_impl(input, limit.toIntUnchecked());
+      //String[] strSplit = pattern.split(input, _limit);
+      return StarlarkList.immutableCopyOf(Arrays.asList(strings));
+    }
+
+    private String[] _jdk_split_impl(CharSequence input, int limit) {
+      ArrayList<String> matchList = new ArrayList<>();
+      Matcher m = pattern.matcher(input);
+
+      int index = 0;
+      boolean matchLimited = limit > 0;
+      // Add segments before each match found
+      while (m.find()) {
+        if (!matchLimited || matchList.size() < limit - 1) {
+          if (index == 0 && index == m.start() && m.start() == m.end()) {
+            // no empty leading substring included for zero-width match
+            // at the beginning of the input char sequence.
+            continue;
+          }
+          String match = input.subSequence(index, m.start()).toString();
+          matchList.add(match);
+          index = m.end();
+        } else if (matchList.size() == limit - 1) { // last one
+          String match = input.subSequence(index,
+              input.length()).toString();
+          matchList.add(match);
+          index = m.end();
+
+        }
+      }
+      // If no match was found, return this
+      if (index == 0) {
+        return new String[]{input.toString()};
+      }
+      if (!matchLimited || matchList.size() < limit) {
+        // Add remaining segment
+        matchList.add(input.subSequence(index, input.length()).toString());
+      }
+      // Construct result
+      int resultSize = matchList.size();
+      if (limit == 0) {
+        while (resultSize > 0 && matchList.get(resultSize - 1).equals("")) {
+          resultSize--;
+        }
+      }
+      String[] result = new String[resultSize];
+      return matchList.subList(0, resultSize).toArray(result);
+    }
+
+    private Object[] _py_re_split_impl(CharSequence input, int limit) {
+      Matcher m = pattern.matcher(input);
+      ArrayList<Object> matchList = new ArrayList<>();
+      boolean matchLimited = limit > 0;
+      boolean has_capture = m.groupCount() > 0;
+      int index = 0;
+      String match;
+
+      while(m.find()) {
+        if (!matchLimited || matchList.size() <= limit - 1) {
+          match = input.subSequence(index, m.start()).toString();
+          matchList.add(match);
+          index = m.end();
+        } else if (matchList.size() == limit - 1) { // last one
+          match = input.subSequence(index,
+                                           input.length()).toString();
+          matchList.add(match);
+          index = m.end();
+        }
+        if(has_capture) {
+          // Check if there's capture groups and add them
+          for(int i = 0; i < m.groupCount(); ++i) {
+            match = m.group(i+1);
+            matchList.add(match == null ? Starlark.NONE : match);
+          }
+        }
+      }
+
+      // If no match was found, return this
+      if (index == 0) {
+        return new String[] {input.toString()};
+      }
+      // NOTE: If maxsplit is nonzero, at most maxsplit splits occur,
+      //       and the remainder of the string is returned as the final
+      //       element of the list.
+      if (!matchLimited || matchList.size() <= limit) {
+        // Add remaining segment
+        matchList.add(input.subSequence(index, input.length()).toString());
+      }
+
+      return matchList.toArray(new Object[0]);
     }
 
     @StarlarkMethod(
@@ -277,7 +369,7 @@ public class RE2RegexEngine implements StarlarkValue {
     })
     public Object group(Object group) {
       String g;
-      if(NoneType.class.isAssignableFrom(group.getClass())) {
+      if(Starlark.isNullOrNone(group)) {
         g = matcher.group();
       }
       else if(StarlarkInt.class.isAssignableFrom(group.getClass())) {
@@ -288,8 +380,9 @@ public class RE2RegexEngine implements StarlarkValue {
         g = matcher.group(String.valueOf(group));
       }
 
-      if(g == null)
+      if(g == null) {
         return Starlark.NONE;
+      }
       return g;
 
     }
@@ -338,13 +431,18 @@ public class RE2RegexEngine implements StarlarkValue {
             name = "start",
             allowedTypes = {
                 @ParamType(type = StarlarkInt.class),
+                @ParamType(type = NoneType.class),
             },
-            defaultValue = "0"
+            defaultValue = "None"
         )
       }
     )
-    public boolean find(StarlarkInt start) {
-      return matcher.find(start.toIntUnchecked());
+    public boolean find(Object start) {
+      if(Starlark.isNullOrNone(start)) {
+        return matcher.find();
+      }
+      StarlarkInt s = (StarlarkInt) StarlarkUtil.valueToStarlark(start);
+      return matcher.find(s.toIntUnchecked());
     }
 
     @StarlarkMethod(
@@ -387,7 +485,7 @@ public class RE2RegexEngine implements StarlarkValue {
         @Param(
           name = "sb",
           allowedTypes = {
-              @ParamType(type = String.class),
+              @ParamType(type = StarlarkList.class),
           }
         ),
         @Param(
@@ -397,12 +495,16 @@ public class RE2RegexEngine implements StarlarkValue {
           }
         )}
     )
-    public LarkyRegexMatcher appendReplacement(String sb, String replacement) {
-      return new LarkyRegexMatcher(
-          matcher
-          .appendReplacement(
-              new StringBuilder().append(sb),
-              replacement));
+    public LarkyRegexMatcher appendReplacement(StarlarkList<String> sb, String replacement) {
+      StringBuilder builder = new StringBuilder().append(Joiner.on("").join(sb));
+      matcher.appendReplacement(builder, replacement);
+      try {
+        sb.clearElements();
+        sb.addElements(Arrays.asList(builder.toString().split("")));
+      } catch (EvalException e) {
+        throw new RuntimeException(e);
+      }
+      return this;
     }
 
     @StarlarkMethod(
