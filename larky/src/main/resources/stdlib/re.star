@@ -61,12 +61,67 @@ def _matcher__init__(matchobj):
             m.append(matchobj.group(i + 1))
         return tuple(m)
 
+
+
     return larky.struct(
         group=group,
-        groups=groups
+        groups=groups,
+        find=matchobj.find,
+        pattern=matchobj.pattern,
+        start=matchobj.start,
+        end=matchobj.end,
+        group_count=matchobj.group_count,
+        matches=matchobj.matches,
+        looking_at=matchobj.looking_at,
+        replace_first=matchobj.replace_first,
+        replace_all=matchobj.replace_all,
+        append_tail=matchobj.append_tail,
+        append_replacement=matchobj.append_replacement,
+        quote_replacement=matchobj.quote_replacement
     )
 
 
+def _pattern__init__(patternobj):
+
+    def search(string, flags=0):
+        return _search(patternobj.pattern(), string, flags)
+
+    def match(string, flags=0):
+        return _match(patternobj.pattern(), string, flags)
+
+    def matcher(string):
+        return _matcher__init__(patternobj.matcher(string))
+
+    def fullmatch(string, flags=0):
+        return _fullmatch(patternobj.pattern(), string, flags)
+
+    def sub(repl, string, count=0, flags=0):
+        return _sub(patternobj.pattern(), repl, string, count, flags)
+
+    def subn(repl, string, count=0, flags=0):
+        return _subn(patternobj.pattern(), repl, string, count, flags)
+
+    def split(string, maxsplit=0, flags=0):
+        return _split(patternobj.pattern(), string, maxsplit, flags)
+
+    def findall(string, flags=0):
+        return _findall(patternobj.pattern(), string, flags)
+
+    def finditer(string, flags=0):
+        return _finditer(patternobj.pattern(), string, flags)
+
+    return larky.struct(
+        search=search,
+        match=match,
+        fullmatch=fullmatch,
+        sub=sub,
+        subn=subn,
+        findall=findall,
+        finditer=finditer,
+        matcher=matcher,
+        split=split,
+        patternobj=patternobj
+    )
 # --------------------------------------------------------------------
 # public interface
 
@@ -77,7 +132,7 @@ def _match(pattern, string, flags=0):
     _matcher = _compile(pattern, flags).matcher(string)
     if not _matcher.looking_at():
         return None
-    return _matcher__init__(_matcher)
+    return _matcher
 
 
 def _fullmatch(pattern, string, flags=0):
@@ -86,7 +141,7 @@ def _fullmatch(pattern, string, flags=0):
     _matcher = _compile(pattern, flags).matcher(string)
     if not _matcher.matches():
         return None
-    return _matcher__init__(_matcher)
+    return _matcher
 
 
 def _search(pattern, string, flags=0):
@@ -95,7 +150,7 @@ def _search(pattern, string, flags=0):
     _matcher = _compile(pattern, flags).matcher(string)
     if not _matcher.find():
         return None
-    return _matcher__init__(_matcher)
+    return _matcher
 
 
 def _sub(pattern, repl, string, count=0, flags=0):
@@ -192,29 +247,78 @@ def _split(pattern, string, maxsplit=0, flags=0):
     list.  If maxsplit is nonzero, at most maxsplit splits occur,
     and the remainder of the string is returned as the final element
     of the list."""
-    return _compile(pattern, flags).split(string, maxsplit)
+    return _compile(pattern, flags).patternobj.split(string, maxsplit)
 
 
-def _findall(pattern, string, flags=0):
+def _findall(pattern, s, flags=0):
     """Return a list of all non-overlapping matches in the string.
     If one or more capturing groups are present in the pattern, return
     a list of groups; this will be a list of tuples if the pattern
     has more than one group.
     Empty matches are included in the result."""
-    return _compile(pattern, flags).findall(string)
+    res = []
+    m = _compile(pattern, flags).matcher(s)
+
+    pos = 0
+    finish = len(s)
+    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if pos > finish:
+            break
+        if not m.find(pos):
+            break
+
+        print("---> ", m.group(), ":::", m.group_count())
+        num = m.group_count()
+        if num == 0:
+            res.append(m.group())
+        elif num == 1:
+            res.append(m.group(num))
+        else:
+            res.append(tuple([m.group(_i+1) for _i in range(num)]))
+
+        print(res)
+        beg, end = m.start(), m.end()
+        pos = end
+        if beg == end:
+            # Have progress on empty matches
+            pos += 1
+
+    for i in range(len(res)):
+        x = res[i]
+        if types.is_tuple(x):
+            res[i] = tuple(["%s" % x1 for x1 in x])
+        else:
+            res[i] = "%s" % x
+    return res
 
 
 def _finditer(pattern, string, flags=0):
     """Return an iterator over all non-overlapping matches in the
     string.  For each match, the iterator returns a Match object.
     Empty matches are included in the result."""
-    return _compile(pattern, flags).finditer(string)
+    pass
+#
+#     def finditer(self, s, pos=0, endpos=-1):
+#         if endpos != -1:
+#             s = s[:endpos]
+#         res = []
+#         finish = len(s)
+#         while pos <= finish:
+#             m = self.search(s, pos)
+#             if not m:
+#                 break
+#             yield m
+#             beg, end = m.span(0)
+#             pos = end
+#             if beg == end:
+#                 # Have progress on empty matches
+#                 pos += 1
 
 
 def _compile(pattern, flags=0):
     "Compile a regular expression pattern, returning a Pattern object."
     pattern = _re2j.Pattern.compile(pattern, flags)
-    return pattern
+    return _pattern__init__(pattern)
 
 
 def _purge():

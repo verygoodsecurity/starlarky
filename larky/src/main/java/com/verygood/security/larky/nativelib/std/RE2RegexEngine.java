@@ -162,7 +162,6 @@ public class RE2RegexEngine implements StarlarkValue {
      })
     public StarlarkList<Object> split(String input, StarlarkInt limit) {
       Object[] strings = _py_re_split_impl(input, limit.toIntUnchecked());
-      //String[] strSplit = pattern.split(input, _limit);
       return StarlarkList.immutableCopyOf(Arrays.asList(strings));
     }
 
@@ -261,6 +260,23 @@ public class RE2RegexEngine implements StarlarkValue {
     public StarlarkInt groupCount() {
       return StarlarkInt.of(pattern.groupCount());
     }
+
+//    @StarlarkMethod(
+//      name = "findall",
+//      doc = "Return a list of all non-overlapping matches in the string.\n" +
+//          "\n" +
+//          "If one or more capturing groups are present in the pattern, return\n" +
+//          "a list of groups; this will be a list of tuples if the pattern\n" +
+//          "has more than one group.\n" +
+//          "\n" +
+//          "Empty matches are included in the result.",
+//      parameters = {
+//        @Param(name = "input", allowedTypes = {@ParamType(type = String.class)})
+//      }
+//    )
+//    public StarlarkList<Object> findall(String input) {
+//
+//    }
 
   }
 
