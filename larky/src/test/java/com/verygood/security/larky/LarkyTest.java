@@ -74,7 +74,7 @@ public class LarkyTest {
         //.filter(f -> f.getFileName().startsWith("test_") && f.endsWith(".star"))
         .filter(f -> {
           String fileName = f.getFileName().toString();
-          return fileName.startsWith("test_re") && fileName.endsWith(".star");
+          return fileName.startsWith("test_") && fileName.endsWith(".star");
         })
         .forEach(f -> {
           try {
