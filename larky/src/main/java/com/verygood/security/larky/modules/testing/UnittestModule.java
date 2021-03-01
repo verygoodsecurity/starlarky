@@ -1,9 +1,10 @@
-package com.verygood.security.larky.nativelib.test;
+package com.verygood.security.larky.modules.testing;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
-import com.google.common.io.ByteStreams;
+
+import com.verygood.security.larky.utils.NullPrintStream;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -21,7 +22,6 @@ import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
-import java.io.PrintStream;
 import java.util.Iterator;
 import lombok.Getter;
 import lombok.Setter;
@@ -107,13 +107,6 @@ public class UnittestModule implements StarlarkValue {
   public Object createTestRunner(StarlarkThread thread) {
     return new LarkyTestRunner();
   }
-
-  static final class NullPrintStream extends PrintStream {
-     @SuppressWarnings("UnstableApiUsage")
-     public NullPrintStream() {
-       super(ByteStreams.nullOutputStream());
-     }
-   }
 
   public static class LarkyTestRunner extends TestRunner implements StarlarkValue {
     public LarkyTestRunner() {

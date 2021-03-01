@@ -1,4 +1,4 @@
-package com.verygood.security.larky.nativelib;
+package com.verygood.security.larky.modules.globals;
 
 import com.verygood.security.larky.annot.Library;
 

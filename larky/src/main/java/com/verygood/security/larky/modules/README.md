@@ -25,3 +25,10 @@ emulate it by:
 ```
 
 Obviously, range can take a larger number to emulate infinity.
+
+### Native Module
+
+Source files for standard library _extension_ modules.
+
+These are *NOT* built-in modules, but are basically extension wrappers that help
+implement the standard library. 

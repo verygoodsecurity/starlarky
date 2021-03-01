@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.verygood.security.larky.nativelib.std;
+package com.verygood.security.larky.modules;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -35,14 +35,14 @@ import java.util.Map;
 // Tests at //src/test/java/net/starlark/java/eval:testdata/json.sky
 
 /**
- * Json defines the Starlark {@code json} module, which provides functions for encoding/decoding
+ * JsonModule defines the Starlark {@code json} module, which provides functions for encoding/decoding
  * Starlark values as JSON (https://tools.ietf.org/html/rfc8259).
  */
 @StarlarkBuiltin(
     name = "json",
     category = "core.lib",
     doc = "Module json is a Starlark module of JSON-related functions.")
-public final class Json implements StarlarkValue {
+public final class JsonModule implements StarlarkValue {
 
   //@formatter:off
   private static final String _METHOD_ENCODE_DOCUMENTATION =
@@ -82,13 +82,13 @@ public final class Json implements StarlarkValue {
           + "</ul>\n"
           + "Decoding fails if x is not a valid JSON encoding.\n";
   //@formatter:on
-  private Json() {}
+  private JsonModule() {}
 
   /**
    * The module instance. You may wish to add this to your predeclared environment under the name
    * "json".
    */
-  public static final Json INSTANCE = new Json();
+  public static final JsonModule INSTANCE = new JsonModule();
 
   /** An interface for StarlarkValue subclasses to define their own JSON encoding. */
   public interface Encodable {
