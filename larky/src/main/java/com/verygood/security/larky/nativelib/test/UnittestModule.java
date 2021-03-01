@@ -132,12 +132,14 @@ public class UnittestModule implements StarlarkValue {
       TestResult result = doRun(suite);
       if(!result.wasSuccessful()) {
         Iterator<TestFailure> it = Iterators.concat(
-            result.errors().asIterator(),
-            result.failures().asIterator());
+            Iterators.forEnumeration(result.errors()),
+            Iterators.forEnumeration(result.failures())
+        );
         //noinspection LoopStatementThatDoesntLoop
         while (it.hasNext()) {
           TestFailure f = it.next();
-          throw Starlark.errorf(f.trace());
+          //final String testFailureWithTrace = f.trace();
+          throw Starlark.errorf("%s", f.trace());
         }
       }
     }
