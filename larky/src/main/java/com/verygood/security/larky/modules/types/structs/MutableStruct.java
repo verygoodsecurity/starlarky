@@ -1,8 +1,8 @@
-package com.verygood.security.larky.stdtypes.structs;
+package com.verygood.security.larky.modules.types.structs;
 
 import com.google.common.base.Joiner;
 
-import com.verygood.security.larky.nativelib.LarkyProperty;
+import com.verygood.security.larky.modules.types.Property;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -19,12 +19,12 @@ class MutableStruct extends SimpleStruct {
     Object field = super.getValue(name);
     /* if we have assigned a field that is a descriptor, we can invoke it */
     if (field == null
-        || !LarkyProperty.class.isAssignableFrom(field.getClass())) {
+        || !Property.class.isAssignableFrom(field.getClass())) {
       return field;
     }
 
     try {
-      return ((LarkyProperty) field).call();
+      return ((Property) field).call();
     } catch (
         NoSuchMethodException
             | EvalException exception) {
@@ -37,13 +37,13 @@ class MutableStruct extends SimpleStruct {
     Object field = this.fields.get(name);
     /* if we have assigned a field that is a descriptor, we can invoke it */
     if (field == null
-        || !LarkyProperty.class.isAssignableFrom(field.getClass())) {
+        || !Property.class.isAssignableFrom(field.getClass())) {
       ((Dict<String, Object>) fields).putEntry(name, value);
       return;
     }
 
     try {
-      ((LarkyProperty) field).call(new Object[]{value, name}, null);
+      ((Property) field).call(new Object[]{value, name}, null);
     } catch (NoSuchMethodException exception) {
       throw new RuntimeException(exception);
     }

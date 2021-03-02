@@ -1,4 +1,4 @@
-package com.verygood.security.larky.nativelib.std;
+package com.verygood.security.larky.modules;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -16,7 +16,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 /**
- * Proto defines the "proto" Starlark module of utilities for protocol message processing.
+ * ProtoBufModule defines the "proto" Starlark module of utilities for protocol message processing.
  *
  * This file is copied currently from Bazel's:
  *   com.google.devtools.build.lib.packages.StarlarkLibrary
@@ -25,13 +25,13 @@ import java.util.Map;
     name = "proto",
     category = "BUILTIN",
     doc = "A module for protocol message processing.")
-public final class Proto implements StarlarkValue {
+public final class ProtoBufModule implements StarlarkValue {
 
   // Note: in due course this is likely to move to net.starlark.java.lib.proto.
   // Do not add functions that would not belong there!
   // Functions related to running the protocol compiler belong in proto_common.
 
-  public static final Proto INSTANCE = new Proto();
+  public static final ProtoBufModule INSTANCE = new ProtoBufModule();
 
   @StarlarkMethod(
       name = "encode_text",

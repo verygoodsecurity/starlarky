@@ -1,9 +1,10 @@
-package com.verygood.security.larky.nativelib;
+package com.verygood.security.larky.modules.globals;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
-import com.verygood.security.larky.stdtypes.structs.Partial;
-import com.verygood.security.larky.stdtypes.structs.SimpleStruct;
+import com.verygood.security.larky.modules.types.Property;
+import com.verygood.security.larky.modules.types.Partial;
+import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -107,8 +108,8 @@ public final class LarkyGlobals {
           @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
       useStarlarkThread = true
     )
-  public LarkyProperty property(StarlarkCallable getter, Object setter, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread)  {
-    return LarkyProperty.builder()
+  public Property property(StarlarkCallable getter, Object setter, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread)  {
+      return Property.builder()
         .thread(thread)
         .fget(getter)
         .fset(setter != Starlark.NONE ? (StarlarkCallable) setter : null)

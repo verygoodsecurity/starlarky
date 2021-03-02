@@ -20,17 +20,18 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import com.verygood.security.larky.nativelib.LarkyGlobals;
-import com.verygood.security.larky.nativelib.PythonBuiltins;
-import com.verygood.security.larky.nativelib.std.C99Math;
-import com.verygood.security.larky.nativelib.std.Hashlib;
+import com.verygood.security.larky.modules.ProtoBufModule;
+import com.verygood.security.larky.modules.globals.LarkyGlobals;
+import com.verygood.security.larky.modules.globals.PythonBuiltins;
+import com.verygood.security.larky.modules.C99MathModule;
+import com.verygood.security.larky.modules.HashModule;
+import com.verygood.security.larky.modules.JsonModule;
+import com.verygood.security.larky.modules.RegexModule;
+import com.verygood.security.larky.modules.testing.AssertionsModule;
+import com.verygood.security.larky.modules.testing.UnittestModule;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkValue;
-import com.verygood.security.larky.nativelib.std.Json;
-import com.verygood.security.larky.nativelib.std.Proto;
-import com.verygood.security.larky.nativelib.test.LarkyAssertions;
-import com.verygood.security.larky.nativelib.test.UnittestModule;
 
 import java.util.Map;
 import java.util.function.Function;
@@ -46,15 +47,16 @@ public class ModuleSupplier {
   );
 
   public static final ImmutableSet<StarlarkValue> STD_MODULES = ImmutableSet.of(
-      Json.INSTANCE,
-      Proto.INSTANCE,
-      Hashlib.INSTANCE,
-      C99Math.INSTANCE
+      JsonModule.INSTANCE,
+      ProtoBufModule.INSTANCE,
+      HashModule.INSTANCE,
+      C99MathModule.INSTANCE,
+      RegexModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
       UnittestModule.INSTANCE,
-      LarkyAssertions.INSTANCE
+      AssertionsModule.INSTANCE
   );
 
   private final Map<String, Object> environment;

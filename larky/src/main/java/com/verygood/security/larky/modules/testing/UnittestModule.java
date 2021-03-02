@@ -1,9 +1,10 @@
-package com.verygood.security.larky.nativelib.test;
+package com.verygood.security.larky.modules.testing;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
-import com.google.common.io.ByteStreams;
+
+import com.verygood.security.larky.utils.NullPrintStream;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -21,7 +22,6 @@ import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
-import java.io.PrintStream;
 import java.util.Iterator;
 import lombok.Getter;
 import lombok.Setter;
@@ -63,6 +63,7 @@ public class UnittestModule implements StarlarkValue {
       useStarlarkThread = true)
   public Object addFunctionUnderTest(Object function, StarlarkThread thread) {
     LarkyFunctionTestCase tc = new LarkyFunctionTestCase(Starlark.repr(function));
+    //TODO: if this fails, we need to return a better error message.
     tc.setFunction((StarlarkFunction) function);
     tc.setThread(thread);
     return tc;
@@ -107,13 +108,6 @@ public class UnittestModule implements StarlarkValue {
     return new LarkyTestRunner();
   }
 
-  static final class NullPrintStream extends PrintStream {
-     @SuppressWarnings("UnstableApiUsage")
-     public NullPrintStream() {
-       super(ByteStreams.nullOutputStream());
-     }
-   }
-
   public static class LarkyTestRunner extends TestRunner implements StarlarkValue {
     public LarkyTestRunner() {
       //super(System.out);
@@ -131,12 +125,14 @@ public class UnittestModule implements StarlarkValue {
       TestResult result = doRun(suite);
       if(!result.wasSuccessful()) {
         Iterator<TestFailure> it = Iterators.concat(
-            result.errors().asIterator(),
-            result.failures().asIterator());
+            Iterators.forEnumeration(result.errors()),
+            Iterators.forEnumeration(result.failures())
+        );
         //noinspection LoopStatementThatDoesntLoop
         while (it.hasNext()) {
           TestFailure f = it.next();
-          throw Starlark.errorf(f.trace());
+          //final String testFailureWithTrace = f.trace();
+          throw Starlark.errorf("%s", f.trace());
         }
       }
     }
