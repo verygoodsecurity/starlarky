@@ -85,7 +85,12 @@
                 <version>${protobuf-maven-plugin}</version>
                 <configuration>
                     <protocArtifact>
-                        com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+                    <!--
+                        See https://github.com/verygoodsecurity/starlarky/pull/58 for why
+                        ${os.detected.classifier} didn't work in some cases for my environment but
+                        ${os.detected.name}-${os.detected.arch} works better!
+                    -->
+                        com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.name}-${os.detected.arch}
                     </protocArtifact>
                 </configuration>
                 <executions>
