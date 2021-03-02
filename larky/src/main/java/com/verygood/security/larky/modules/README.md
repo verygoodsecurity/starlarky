@@ -1,4 +1,4 @@
-# Larky Native Lib
+# Larky Library of Native Module
 
 This is the Java native library that is publicly exposed for the `Larky` embedded language.
 
