@@ -1,13 +1,14 @@
 package com.verygood.security.larky.parser;
 
+import static com.verygood.security.larky.parser.LarkyEvaluator.LarkyLoader.STDLIB;
+
+import net.starlark.java.eval.EvalException;
+
 import org.apache.commons.io.IOUtils;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
-
-import lombok.SneakyThrows;
-
-import static com.verygood.security.larky.parser.LarkyEvaluator.LarkyLoader.STDLIB;
 
 public class ResourceContentStarFile implements StarFile {
 
@@ -19,22 +20,31 @@ public class ResourceContentStarFile implements StarFile {
     this.content = content;
   }
 
-  @SneakyThrows
-  public static ResourceContentStarFile buildStarFile(String resourcePath, InputStream inputStream) {
+  public static ResourceContentStarFile buildStarFile(String resourcePath, InputStream inputStream) throws IOException {
     return new ResourceContentStarFile(resourcePath,
         String.join("\n", IOUtils.readLines(inputStream, Charset.defaultCharset())).getBytes());
   }
 
-  @SneakyThrows
-  public static ResourceContentStarFile buildStarFile(String resourcePath) {
+  public static ResourceContentStarFile buildStarFile(String resourcePath) throws EvalException {
     String resourceName = resolveResourceName(resourcePath);
     InputStream resourceStream = ResourceContentStarFile.class.getClassLoader().getResourceAsStream(resourceName);
-    return buildStarFile(resourceName, resourceStream);
+    if(resourceStream == null) {
+      throw new EvalException("Unable to find resource: " + resourceName);
+    }
+    try {
+      return buildStarFile(resourceName, resourceStream);
+    } catch (IOException e) {
+      throw new EvalException(e);
+    }
   }
 
   @Override
   public StarFile resolve(String path) {
-    return buildStarFile(path);
+    try {
+      return buildStarFile(path);
+    } catch (EvalException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
