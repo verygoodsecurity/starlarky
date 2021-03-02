@@ -28,6 +28,10 @@ def _a_function():
 
 _a_function_type = type(_a_function)
 
+
+_a_lambda_type = type(lambda x: 1)
+
+
 def _is_list(v):
     """Returns True if v is an instance of a list.
 
@@ -105,6 +109,7 @@ def _is_dict(v):
     """
     return type(v) == _a_dict_type
 
+
 def _is_function(v):
     """Returns True if v is an instance of a function.
 
@@ -115,6 +120,31 @@ def _is_function(v):
       True if v is an instance of a function, False otherwise.
     """
     return type(v) == _a_function_type
+
+
+def _is_lambda(v):
+    """Returns True if v is an instance of a lambda.
+
+    Args:
+      v: The value whose type should be checked.
+
+    Returns:
+      True if v is an instance of a lambda, False otherwise.
+    """
+    return type(v) == _a_lambda_type
+
+
+def _is_callable(v):
+    """Returns True if v is a callable: an instance of a function or a lambda
+
+    Args:
+      v: The value whose type should be checked.
+
+    Returns:
+      True if v is an instance of a callable, False otherwise.
+    """
+    return _is_function(v) or _is_lambda(v)
+
 
 def _is_set(v):
     """Returns True if v is a set created by sets.make().
@@ -384,6 +414,8 @@ types = larky.struct(
     is_tuple = _is_tuple,
     is_dict = _is_dict,
     is_function = _is_function,
+    is_lambda = _is_lambda,
+    is_callable = _is_callable,
     is_set = _is_set,
     is_instance = _is_instance,
     MethodType = _MethodType,

@@ -99,6 +99,32 @@
             <version>${org.junit.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.google.re2j</groupId>
+            <artifactId>re2j</artifactId>
+            <version>${google.re2j.version}</version>
+        </dependency>
+
+        <!-- cryptography -->
+        <dependency>
+            <groupId>com.google.crypto.tink</groupId>
+            <artifactId>tink</artifactId>
+            <version>${google.crypto.tink}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.conscrypt</groupId>
+            <artifactId>conscrypt-openjdk</artifactId>
+            <version>${org.conscrypt.version}</version>
+            <classifier>${os.detected.classifier}</classifier>
+        </dependency>
+
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-ext-jdk15to18</artifactId>
+            <version>${org.bouncycastle.version}</version>
+        </dependency>
+
         <!-- test -->
         <dependency>
             <groupId>javax.xml.bind</groupId>
@@ -136,13 +162,51 @@
 
     <build>
         <plugins>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven.compiler.plugin.version}</version>
                 <configuration>
+                    <forceJavacCompilerUse>true</forceJavacCompilerUse>
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
+                    <showDeprecation>true</showDeprecation>
+                    <showWarnings>true</showWarnings>
+                    <debug>false</debug>
+                    <failOnWarning>false</failOnWarning>
+                    <compilerArgs>
+                        <compilerArg>-Xlint:unchecked</compilerArg>
+                        <!-- Required for ErrorProne -->
+                        <!-- @todo #971 Document ErrorProne tool -->
+                        <compilerArg>-XDcompilePolicy=simple</compilerArg>
+                        <!-- @todo #1170 ErrorProne: activate experimental checks -->
+                        <!--
+                            The following checks have been disabled:
+                            - MissingOverride: produce false positives with @Getter from Lombok
+                            - MixedMutabilityReturnType: because I like to use Collections.empty*() methods
+                            - UnnecessaryAnonymousClass: I prefer to have an explicit implementation in a constant
+                            - PreferJavaTimeOverload: disabled because of false positives: https://github.com/google/error-prone/issues/1435
+                        -->
+                        <compilerArg>-Xplugin:ErrorProne -Xep:MissingOverride:OFF -Xep:MixedMutabilityReturnType:OFF -Xep:UnnecessaryAnonymousClass:OFF -Xep:PreferJavaTimeOverload:OFF</compilerArg>
+                    </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>com.google.errorprone</groupId>
+                            <artifactId>error_prone_core</artifactId>
+                            <version>${google.errorprone.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${org.projectlombok.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.google.auto.value</groupId>
+                            <artifactId>auto-value</artifactId>
+                            <version>${google.auto.value.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>
@@ -150,41 +214,87 @@
                 <artifactId>maven-source-plugin</artifactId>
                 <version>${maven.source.plugin.version}</version>
             </plugin>
+            <plugin>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${os-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>detect</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
-        <extensions>
-          <extension>
-            <groupId>kr.motd.maven</groupId>
-            <artifactId>os-maven-plugin</artifactId>
-            <version>${kr.motd.maven.os-maven-plugin.version}</version>
-          </extension>
-        </extensions>
     </build>
 
+    <profiles>
+      <profile>
+        <id>jdk8</id>
+        <activation>
+          <jdk>1.8</jdk>
+        </activation>
+        <build>
+          <plugins>
+              <!-- Required for ErrorProne -->
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-compiler-plugin</artifactId>
+                 <configuration>
+                     <fork>true</fork>
+                     <compilerArgs combine.children="append">
+                         <compilerArg>
+                             -J-Xbootclasspath/p:${settings.localRepository}/com/google/errorprone/javac/${google.errorprone.javac.version}/javac-${google.errorprone.javac.version}.jar
+                         </compilerArg>
+                     </compilerArgs>
+                 </configuration>
+             </plugin>
+             <plugin>
+                 <artifactId>maven-surefire-plugin</artifactId>
+                 <version>${surefire-plugin.version}</version>
+                 <configuration>
+                     <argLine>-Xbootclasspath/p:${settings.localRepository}/com/google/errorprone/javac/${google.errorprone.javac.version}/javac-${google.errorprone.javac.version}.jar</argLine>
+                     <trimStackTrace>false</trimStackTrace>
+                 </configuration>
+             </plugin>
+
+          </plugins>
+        </build>
+      </profile>
+    </profiles>
+
     <properties>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
         <compiler-plugin.version>3.8.1</compiler-plugin.version>
         <surefire-plugin.version>2.22.1</surefire-plugin.version>
         <maven.compiler.plugin.version>3.6.2</maven.compiler.plugin.version>
         <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
-        <google.errorprone.version>2.5.0</google.errorprone.version>
-        <google.auto.value.version>1.7.4</google.auto.value.version>
+        <google.errorprone.version>2.5.1</google.errorprone.version>
+        <google.errorprone.javac.version>9+181-r4173-1</google.errorprone.javac.version>
+        <google.auto.value.version>1.7</google.auto.value.version>
         <google.compile.testing.version>0.18</google.compile.testing.version>
+        <google.crypto.tink>1.5.0</google.crypto.tink>
         <google.flogger.version>0.5.1</google.flogger.version>
-        <google.guava.version>29.0-jre</google.guava.version>
+        <google.guava.version>30.1-jre</google.guava.version>
         <google.jimfs.version>1.1</google.jimfs.version>
+        <google.re2j.version>1.5</google.re2j.version>
         <google.truth.version>1.0.1</google.truth.version>
         <javax.xml.bind.jaxb-api.version>2.3.0</javax.xml.bind.jaxb-api.version>
+        <org.conscrypt.version>2.5.1</org.conscrypt.version>
+        <org.bouncycastle.version>1.68</org.bouncycastle.version>
         <org.jetbrains.annotations.version>20.1.0</org.jetbrains.annotations.version>
         <org.junit.version>4.13.1</org.junit.version>
         <org.mockito.version>3.5.13</org.mockito.version>
         <org.projectlombok.version>1.18.12</org.projectlombok.version>
         <org.slf4j.version>1.7.30</org.slf4j.version>
-        <kr.motd.maven.os-maven-plugin.version>1.6.1</kr.motd.maven.os-maven-plugin.version>
+        <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
         <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
         <protobuf.version>3.14.0</protobuf.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 

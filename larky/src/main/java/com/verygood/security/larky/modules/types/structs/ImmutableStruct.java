@@ -1,4 +1,4 @@
-package com.verygood.security.larky.stdtypes.structs;
+package com.verygood.security.larky.modules.types.structs;
 
 import com.google.common.collect.ImmutableMap;
 

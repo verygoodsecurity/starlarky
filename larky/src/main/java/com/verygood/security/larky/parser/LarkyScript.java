@@ -27,6 +27,7 @@ import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import com.verygood.security.larky.console.Console;
 
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.syntax.FileOptions;
 
@@ -115,7 +116,7 @@ public class LarkyScript {
 
   @VisibleForTesting
   public Module executeSkylark(StarFile content, ModuleSet moduleSet, Console console)
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, EvalException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
@@ -125,7 +126,7 @@ public class LarkyScript {
   }
 
   public Object executeSkylarkWithOutput(StarFile content, ModuleSet moduleSet, Console console)
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, EvalException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
@@ -176,7 +177,7 @@ public class LarkyScript {
     Module module;
     try {
       module = new LarkyEvaluator(this, moduleSet, console).eval(content);
-    } catch (InterruptedException e) {
+    } catch (InterruptedException | EvalException e) {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
     }
