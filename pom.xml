@@ -116,7 +116,7 @@
             <groupId>org.conscrypt</groupId>
             <artifactId>conscrypt-openjdk</artifactId>
             <version>${org.conscrypt.version}</version>
-            <classifier>${os.detected.classifier}</classifier>
+            <classifier>${os.detected.name}-${os.detected.arch}</classifier>
         </dependency>
 
         <dependency>
@@ -161,6 +161,14 @@
     </dependencies>
 
     <build>
+        <extensions>
+            <extension>
+              <groupId>kr.motd.maven</groupId>
+              <artifactId>os-maven-plugin</artifactId>
+              <version>${os-maven-plugin.version}</version>
+            </extension>
+        </extensions>
+
         <plugins>
 
             <plugin>
@@ -213,19 +221,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
                 <version>${maven.source.plugin.version}</version>
-            </plugin>
-            <plugin>
-                <groupId>kr.motd.maven</groupId>
-                <artifactId>os-maven-plugin</artifactId>
-                <version>${os-maven-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>detect</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
