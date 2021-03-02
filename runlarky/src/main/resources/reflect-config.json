@@ -56,7 +56,7 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.types.structs.MutableStruct",
+    "name": "com.verygood.security.larky.modules.types.structs.MutableStruct",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -64,7 +64,7 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.types.structs.SimpleStruct",
+    "name": "com.verygood.security.larky.modules.types.structs.SimpleStruct",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -72,7 +72,7 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.types.Property",
+    "name": "com.verygood.security.larky.modules.types.Property",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -80,7 +80,7 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.types.Partial",
+    "name": "com.verygood.security.larky.modules.types.Partial",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
