@@ -9,6 +9,7 @@ import com.google.common.flogger.FluentLogger;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
+import com.verygood.security.larky.modules.utils.Reporter;
 
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -43,7 +44,7 @@ public final class LarkyEvaluator {
 
   private final LinkedHashSet<String> pending = new LinkedHashSet<>();
   private final Map<String, Module> loaded = new HashMap<>();
-  private final Console console;
+  private final Reporter reporter;
   // Predeclared environment shared by all files (modules) loaded.
   private final ImmutableMap<String, Object> environment;
   private final ModuleSupplier.ModuleSet moduleSet;
@@ -54,19 +55,11 @@ public final class LarkyEvaluator {
   }
 
   LarkyEvaluator(LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console) {
-    this.console = checkNotNull(console);
+    this.reporter = new Reporter(checkNotNull(console));
     this.moduleSet = checkNotNull(moduleSet);
     this.validationMode = larkyScript.getValidation();
     //todo(mahmoudimus): convert to builder pattern
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
-  }
-
-  private void starlarkPrint(StarlarkThread thread, String msg) {
-    if (console.isVerbose()) {
-      console.verbose(thread.getCallerLocation() + ": " + msg);
-    } else {
-      console.info(msg);
-    }
   }
 
   public Module eval(StarFile content)
@@ -94,7 +87,8 @@ public final class LarkyEvaluator {
     try (Mutability mu = Mutability.create("LarkyModules")) {
       StarlarkThread thread = new StarlarkThread(mu, semantics);
       thread.setLoader(loadedModules::get);
-      thread.setPrintHandler(this::starlarkPrint);
+      thread.setThreadLocal(Reporter.class, reporter);
+      thread.setPrintHandler(reporter::report);
       Starlark.execFileProgram(prog, module, thread);
     } catch (EvalException ex) {
       throw new RuntimeException("\n" + ex.getMessageWithStack());
@@ -123,7 +117,8 @@ public final class LarkyEvaluator {
     try (Mutability mu = Mutability.create("LarkyModules")) {
       StarlarkThread thread = new StarlarkThread(mu, semantics);
       thread.setLoader(loadedModules::get);
-      thread.setPrintHandler(this::starlarkPrint);
+      thread.setThreadLocal(Reporter.class, reporter);
+      thread.setPrintHandler(reporter::report);
       starlarkOutput = Starlark.execFileProgram(prog, module, thread);
     } catch (EvalException ex) {
       throw new RuntimeException("\n" + ex.getMessageWithStack());
@@ -245,7 +240,7 @@ public final class LarkyEvaluator {
     } catch (SyntaxError.Exception ex) {
       List<String> errs = new ArrayList<>();
       for (SyntaxError error : ex.errors()) {
-        console.error(error.toString());
+        reporter.error(error.toString());
         errs.add(error.toString());
       }
       throw new EvalException(
@@ -277,7 +272,7 @@ public final class LarkyEvaluator {
       sb.append(element).append("\n");
     }
     sb.append("* ").append(cycleElement).append("\n");
-    console.error("Cycle was detected in the configuration: \n" + sb);
+    reporter.error("Cycle was detected in the configuration: \n" + sb);
     throw new RuntimeException("Cycle was detected");
   }
 

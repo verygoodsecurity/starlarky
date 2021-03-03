@@ -124,7 +124,9 @@ public class LarkyTest {
         "test_loading_module.star");
     String absolutePath = resourceDirectory.toFile().getAbsolutePath();
     System.out.println(absolutePath);
-
+/*
+ thread.setThreadLocal(Reporter.class, ScriptTest::reportError);
+ */
     LarkyScript interpreter = new LarkyScript(
         CORE_MODULES,
         LarkyScript.StarlarkMode.STRICT);
