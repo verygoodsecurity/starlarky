@@ -177,9 +177,11 @@ public class LarkyScript {
     Module module;
     try {
       module = new LarkyEvaluator(this, moduleSet, console).eval(content);
-    } catch (InterruptedException | EvalException e) {
+    } catch (InterruptedException e) {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
+    } catch (EvalException e) {
+      throw new RuntimeException(e.getMessage(), e);
     }
     return new ParsedStarFile(
         content.path(),
