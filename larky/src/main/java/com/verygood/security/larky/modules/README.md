@@ -4,9 +4,19 @@ This is the Java native library that is publicly exposed for the `Larky` embedde
 
 All libraries here are public and form the basis of the built-ins part of `Larky` that is specific to VGS.
 
+## GraalVM Support
+
+NOTE: This library supports builds via GraalVM, in the [`runlarky`](https://github.com/verygoodsecurity/starlarky/blob/master/runlarky) folder. 
+If you add a new module or change the layout of the module here, you must take care in also updating the [`reflect-config.json`](https://github.com/verygoodsecurity/starlarky/blob/master/runlarky/src/main/resources/reflect-config.json) file
+for building a native image. 
+
+We can probably find or build a maven plugin to automatically do this as per
+[Simplifying native-image generation with Maven plugin and embeddable configuration](https://medium.com/graalvm/simplifying-native-image-generation-with-maven-plugin-and-embeddable-configuration-d5b283b92f57)
+instead of having to do this manually. 
+
 ## Python Compatibility
 
-In order to ensure that Larky is compatible with Python (besides the obvious `load()` vs `import` differences), we try to emulate Python's stdlib interface as much as possible. 
+In order to ensure that Larky is compatible with Python Simplifying native-image generation with Maven plugin and embeddable configuration(besides the obvious `load()` vs `import` differences), we try to emulate Python's stdlib interface as much as possible. 
 
 As a result, globals should not be accessed directly. Instead, access Larky native functions and methods via the [`Larky` stdlib namespace](https://github.com/verygoodsecurity/starlarky/blob/master/larky/src/main/resources/stdlib/larky.star). Again, Do not access these libraries directly, but access them through Larky StdLib via the [`larky` namespace](https://github.com/verygoodsecurity/starlarky/blob/master/larky/src/main/resources/stdlib/larky.star). 
 

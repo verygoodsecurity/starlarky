@@ -1,9 +1,10 @@
 package com.verygood.security.larky.parser;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.FluentLogger;
-import com.google.common.io.Files;
 
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
@@ -27,20 +28,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-
-import lombok.SneakyThrows;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * An utility class for traversing and evaluating the config file dependency graph.
@@ -146,19 +138,7 @@ public final class LarkyEvaluator {
   }
 
   class LarkyLoader implements StarlarkThread.Loader {
-    /*
-       Right now, it just has them all as built-ins, with namespaces
-       __builtin__.struct() // struct()
-       unittest // exists in the global namespace by default
-       import unittest // unittest
-       load('unitest', 'unitest') => it now is usable in global namespace, otherwise, unknown symbol is thrown
-     */
-    /**
-     * load("//testlib/builtinz", "setz") # works, but root is not defined.
-     * load("./testlib/builtinz", "setz") # works load("testlib/builtinz", "setz", "collections")
-     * load("/testlib/builtinz", "setz")  # does not work
-     */
-    public static final String STDLIB = "@stdlib";
+
     private final StarFile content;
     private final LarkyEvaluator evaluator;
     private final ImmutableMap<String, Object> nativeJavaModule;
@@ -174,16 +154,29 @@ public final class LarkyEvaluator {
     public Module load(String moduleToLoad) {
       Module loadedModule = null;
       try {
-        if (moduleToLoad.startsWith(STDLIB)) {
-          String targetModule = moduleToLoad.replace(STDLIB + "/", "");
-          if (inEvaluatorEnvironment(targetModule)) {
-            loadedModule = fromEvaluatorEnvironment(targetModule);
-          } else {
-            loadedModule = fromStdlib(targetModule);
-          }
-        } else {
+        if (!ResourceContentStarFile.startsWithPrefix(moduleToLoad)) {
           loadedModule = evaluator.eval(content.resolve(moduleToLoad + LarkyScript.STAR_EXTENSION));
+          return loadedModule;
         }
+
+        //  let's try to load from evaluator env
+        String targetModule = ResourceContentStarFile.getModulePath(moduleToLoad);
+        if (inEvaluatorEnvironment(targetModule)) {
+          loadedModule = fromEvaluatorEnvironment(targetModule);
+        }
+        /*
+         * Check if the module is in the module set. If it is, return a module with an environment
+         * of the module that was passed in via the module set.
+         */
+        else if(isNativeJavaModule(targetModule)) {
+          loadedModule = fromNativeModule(targetModule);
+        }
+        else {
+          // try to load from directory...
+          ResourceContentStarFile starFile = ResourceContentStarFile.buildStarFile(moduleToLoad);
+          loadedModule = evaluator.eval(starFile);
+        }
+
       } catch (IOException | InterruptedException | EvalException e) {
         throw new RuntimeException(e);
       }
@@ -198,19 +191,13 @@ public final class LarkyEvaluator {
       return (Module) evaluator.environment.get(moduleToLoad);
     }
 
-    private Module fromStdlib(String moduleToLoad) throws IOException, InterruptedException {
-      /*
-       * Check if the module is in the module set. If it is, return a module with an environment
-       * of the module that was passed in via the module set.
-       */
-      if (nativeJavaModule.containsKey(moduleToLoad)) {
-        return getNativeModule(moduleToLoad);
-      }
-      return getStarModule(moduleToLoad);
+    private boolean isNativeJavaModule(String moduleToLoad) {
+      return nativeJavaModule.containsKey(moduleToLoad);
     }
 
+
     @NotNull
-    private Module getNativeModule(String moduleToLoad) {
+    private Module fromNativeModule(String moduleToLoad) throws IOException, InterruptedException {
       Module newModule = Module.withPredeclared(
           StarlarkSemantics.DEFAULT,
           ImmutableMap.of("_" + moduleToLoad, nativeJavaModule.get(moduleToLoad)));
@@ -234,35 +221,6 @@ public final class LarkyEvaluator {
         throw new RuntimeException(e);
       }
       return newModule;
-    }
-
-    @SneakyThrows
-    @NotNull
-    private Module getStarModule(String moduleToLoad) throws IOException, InterruptedException {
-      return evaluator.eval(ResourceContentStarFile.buildStarFile(moduleToLoad));
-    }
-
-    @SneakyThrows
-    @Nullable
-    private Path getStdlibPath() {
-      URL resourceUrl = this.getClass().getClassLoader()
-          .getResource(STDLIB.replace("@", ""));
-      assert resourceUrl != null;
-      URI resourceAsURI;
-      try {
-        resourceAsURI = resourceUrl.toURI();
-      } catch (URISyntaxException e) {
-        return null;
-      }
-
-      return Paths.get(resourceAsURI);
-    }
-
-    @SuppressWarnings("UnstableApiUsage")
-    private String withExtension(String moduleToLoad) {
-      String nameWithoutExtension = Files.getNameWithoutExtension(moduleToLoad);
-      String fname = Files.simplifyPath(nameWithoutExtension + LarkyScript.STAR_EXTENSION);
-      return StarFile.ABSOLUTE_PREFIX + moduleToLoad.replace(nameWithoutExtension, fname);
     }
 
   }
