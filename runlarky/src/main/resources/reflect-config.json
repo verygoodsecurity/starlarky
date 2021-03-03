@@ -1,6 +1,6 @@
 [
   {
-    "name": "com.verygood.security.larky.nativelib.LarkyGlobals",
+    "name": "com.verygood.security.larky.modules.globals.LarkyGlobals",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -8,7 +8,7 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.nativelib.PythonBuiltins",
+    "name": "com.verygood.security.larky.modules.globals.PythonBuiltins",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -16,7 +16,7 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.nativelib.std.Json",
+    "name": "com.verygood.security.larky.modules.JsonModule",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -24,7 +24,7 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.nativelib.std.Proto",
+    "name": "com.verygood.security.larky.modules.ProtoBufModule",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -32,7 +32,7 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.nativelib.std.C99Math",
+    "name": "com.verygood.security.larky.modules.C99MathModule",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -40,7 +40,7 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.nativelib.std.Hashlib",
+    "name": "com.verygood.security.larky.modules.HashModule",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -48,7 +48,7 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.stdtypes.structs.MutableStruct",
+    "name": "com.verygood.security.larky.modules.RegexModule",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -56,7 +56,7 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.stdtypes.structs.SimpleStruct",
+    "name": "com.verygood.security.larky.modules.types.structs.MutableStruct",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -64,7 +64,23 @@
     "allPublicConstructors": true
   },
   {
-    "name": "com.verygood.security.larky.nativelib.LarkyProperty",
+    "name": "com.verygood.security.larky.modules.types.structs.SimpleStruct",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.verygood.security.larky.modules.types.Property",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.verygood.security.larky.modules.types.Partial",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -89,14 +105,6 @@
   },
   {
     "name": "net.starlark.java.eval.StarlarkList",
-    "allDeclaredFields": true,
-    "allDeclaredMethods": true,
-    "allPublicMethods": true,
-    "allDeclaredConstructors": true,
-    "allPublicConstructors": true
-  },
-  {
-    "name": "com.verygood.security.larky.stdtypes.hashing.HashObject",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,

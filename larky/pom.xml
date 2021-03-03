@@ -11,10 +11,6 @@
 
     <artifactId>larky</artifactId>
 
-    <properties>
-        <maven.compiler.parameters>true</maven.compiler.parameters>
-    </properties>
-
     <dependencies>
 
         <dependency>

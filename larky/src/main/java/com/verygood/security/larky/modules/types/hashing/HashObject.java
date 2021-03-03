@@ -1,4 +1,4 @@
-package com.verygood.security.larky.stdtypes.hashing;
+package com.verygood.security.larky.modules.types.hashing;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.StarlarkValue;

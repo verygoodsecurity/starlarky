@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.verygood.security.larky.nativelib.std;
+package com.verygood.security.larky.modules;
 
-import java.util.Arrays;
-import java.util.Map;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -31,25 +29,66 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
 
+import java.util.Arrays;
+import java.util.Map;
+
 // Tests at //src/test/java/net/starlark/java/eval:testdata/json.sky
 
 /**
- * Json defines the Starlark {@code json} module, which provides functions for encoding/decoding
+ * JsonModule defines the Starlark {@code json} module, which provides functions for encoding/decoding
  * Starlark values as JSON (https://tools.ietf.org/html/rfc8259).
  */
 @StarlarkBuiltin(
     name = "json",
     category = "core.lib",
     doc = "Module json is a Starlark module of JSON-related functions.")
-public final class Json implements StarlarkValue {
+public final class JsonModule implements StarlarkValue {
 
-  private Json() {}
+  //@formatter:off
+  private static final String _METHOD_ENCODE_DOCUMENTATION =
+      "<p>The encode function accepts one required positional argument, which it converts to"
+    + " JSON by cases:\n"
+    + "<ul>\n"
+    + "<li>None, True, and False are converted to 'null', 'true', and 'false',"
+    + " respectively.\n"
+    + "<li>An int, no matter how large, is encoded as a decimal integer. Some decoders"
+    + " may not be able to decode very large integers.\n"
+    + "<li>A float is encoded using a decimal point or an exponent or both, even if its"
+    + " numeric value is an integer. It is an error to encode a non-finite "
+    + " floating-point value.\n"
+    + "<li>A string value is encoded as a JSON string literal that denotes the value. "
+    + " Each unpaired surrogate is replaced by U+FFFD.\n"
+    + "<li>A dict is encoded as a JSON object, in key order.  It is an error if any key"
+    + " is not a string.\n"
+    + "<li>A list or tuple is encoded as a JSON array.\n"
+    + "<li>A struct-like value is encoded as a JSON object, in field name order.\n"
+    + "</ul>\n"
+    + "An application-defined type may define its own JSON encoding.\n"
+    + "Encoding any other value yields an error.\n";
+  //@formatter:on
+
+  //@formatter:off
+  private static final String _METHOD_DECODE_DOCUMENTATION =
+      "The decode function accepts one positional parameter, a JSON string.\n"
+          + "It returns the Starlark value that the string denotes.\n"
+          + "<ul>"
+          + "<li>'null', 'true', and 'false' are parsed as None, True, and False.\n"
+          + "<li>Numbers are parsed as int, or as a float if they contain"
+          + " a decimal point or an exponent. Although JSON has no syntax "
+          + " for non-finite values, very large values may be decoded as infinity.\n"
+          + "<li>a JSON object is parsed as a new unfrozen Starlark dict."
+          + " Keys must be unique strings.\n"
+          + "<li>a JSON array is parsed as new unfrozen Starlark list.\n"
+          + "</ul>\n"
+          + "Decoding fails if x is not a valid JSON encoding.\n";
+  //@formatter:on
+  private JsonModule() {}
 
   /**
    * The module instance. You may wish to add this to your predeclared environment under the name
    * "json".
    */
-  public static final Json INSTANCE = new Json();
+  public static final JsonModule INSTANCE = new JsonModule();
 
   /** An interface for StarlarkValue subclasses to define their own JSON encoding. */
   public interface Encodable {
@@ -98,6 +137,14 @@ public final class Json implements StarlarkValue {
       throw Starlark.errorf("nesting depth limit exceeded");
     }
     return enc.out.toString();
+  }
+
+  @StarlarkMethod(
+      name = "dumps",
+      doc =_METHOD_ENCODE_DOCUMENTATION,
+      parameters = {@Param(name = "x")})
+  public String dumps(Object x) throws EvalException {
+    return encode(x);
   }
 
   private static final class Encoder {
@@ -295,6 +342,15 @@ public final class Json implements StarlarkValue {
       useStarlarkThread = true)
   public Object decode(String x, StarlarkThread thread) throws EvalException {
     return new Decoder(thread.mutability(), x).decode();
+  }
+
+  @StarlarkMethod(
+      name = "loads",
+      doc =_METHOD_DECODE_DOCUMENTATION,
+      parameters = {@Param(name = "x")},
+      useStarlarkThread = true)
+  public Object loads(String x, StarlarkThread thread) throws EvalException {
+    return decode(x, thread);
   }
 
   private static final class Decoder {

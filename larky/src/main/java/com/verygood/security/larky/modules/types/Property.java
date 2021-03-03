@@ -1,4 +1,4 @@
-package com.verygood.security.larky.nativelib;
+package com.verygood.security.larky.modules.types;
 
 import com.verygood.security.larky.parser.StarlarkUtil;
 
@@ -20,7 +20,7 @@ import javax.annotation.Nullable;
 import lombok.Builder;
 
 @Builder
-public class LarkyProperty implements StarlarkValue {
+public class Property implements StarlarkValue {
 
   final private StarlarkCallable fget;
   final private StarlarkCallable fset;
@@ -45,21 +45,6 @@ public class LarkyProperty implements StarlarkValue {
     }
     return Starlark.call(this.thread, this.fset, Tuple.of(val), Dict.empty());
   }
-
-//  @StarlarkMethod(
-//      name = "descriptor",
-//      doc = "call",
-//      parameters = {
-//          @Param(
-//              name = "callable"
-//          )
-//      },
-//      useStarlarkThread = true,
-//      selfCall = true
-//  )
-//  public LarkyProperty create(Object callable, StarlarkThread thread) throws EvalException {
-//    return new LarkyDescriptorImpl((StarlarkCallable) callable, thread);
-//  }
 
   public Object call() throws NoSuchMethodException, EvalException {
     return call(null, null);
