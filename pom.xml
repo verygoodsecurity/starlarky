@@ -222,11 +222,18 @@
                 <artifactId>maven-source-plugin</artifactId>
                 <version>${maven.source.plugin.version}</version>
             </plugin>
-                 <plugin>
-                   <groupId>org.jacoco</groupId>
-                   <artifactId>jacoco-maven-plugin</artifactId>
-                   <version>0.8.7-SNAPSHOT</version>
-                  </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.6</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
