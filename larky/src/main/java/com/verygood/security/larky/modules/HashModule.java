@@ -1,4 +1,4 @@
-package com.verygood.security.larky.nativelib.std;
+package com.verygood.security.larky.modules;
 
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
@@ -14,9 +14,9 @@ import net.starlark.java.eval.StarlarkValue;
     name = "hashlib",
     category = "BUILTIN",
     doc = "This module implements a common interface to many different secure hash and message digest algorithms.")
-public class Hashlib implements StarlarkValue {
+public class HashModule implements StarlarkValue {
 
-  public static final Hashlib INSTANCE = new Hashlib();
+  public static final HashModule INSTANCE = new HashModule();
 
   @StarlarkMethod(
       name = "md5",

@@ -74,6 +74,10 @@ import net.starlark.java.annot.StarlarkMethod;
 public final class StarlarkList<E> extends AbstractList<E>
     implements Sequence<E>, StarlarkValue, Mutability.Freezable, Comparable<StarlarkList<?>> {
 
+  // It's always possible to overeat in small bites but we'll
+  // try to stop someone swallowing the world in one gulp.
+  static final int MAX_ALLOC = 1 << 30;
+
   // The implementation strategy is similar to ArrayList,
   // but without the extra indirection of using ArrayList.
 
@@ -284,9 +288,12 @@ public final class StarlarkList<E> extends AbstractList<E>
       return wrap(mutability, EMPTY_ARRAY);
     }
 
-    // TODO(adonovan): reject unreasonably large n.
     int ni = n.toInt("repeat");
-    Object[] res = new Object[ni * size];
+    long sz = (long) ni * size;
+    if (sz > MAX_ALLOC) {
+      throw Starlark.errorf("excessive repeat (%d * %d elements)", size, ni);
+    }
+    Object[] res = new Object[(int) sz];
     for (int i = 0; i < ni; i++) {
       System.arraycopy(elems, 0, res, i * size, size);
     }
@@ -334,6 +341,15 @@ public final class StarlarkList<E> extends AbstractList<E>
     }
   }
 
+  // Grow capacity enough to insert given number of elements
+  private void growAdditional(int additional) throws EvalException {
+    int mincap = size + additional;
+    if (mincap < 0 || mincap > MAX_ALLOC) {
+      throw Starlark.errorf("excessive capacity requested (%d + %d elements)", size, additional);
+    }
+    grow(mincap);
+  }
+
   /**
    * Appends an element to the end of the list, after validating that mutation is allowed.
    *
@@ -341,7 +357,7 @@ public final class StarlarkList<E> extends AbstractList<E>
    */
   public void addElement(E element) throws EvalException {
     Starlark.checkMutable(this);
-    grow(size + 1);
+    growAdditional(1);
     elems[size++] = element;
   }
 
@@ -353,7 +369,7 @@ public final class StarlarkList<E> extends AbstractList<E>
    */
   public void addElementAt(int index, E element) throws EvalException {
     Starlark.checkMutable(this);
-    grow(size + 1);
+    growAdditional(1);
     System.arraycopy(elems, index, elems, index + 1, size - index);
     elems[index] = element;
     size++;
@@ -369,20 +385,20 @@ public final class StarlarkList<E> extends AbstractList<E>
     if (elements instanceof StarlarkList) {
       StarlarkList<?> that = (StarlarkList) elements;
       // (safe even if this == that)
-      grow(this.size + that.size);
+      growAdditional(that.size);
       System.arraycopy(that.elems, 0, this.elems, this.size, that.size);
       this.size += that.size;
     } else if (elements instanceof Collection) {
       // collection of known size
       Collection<?> that = (Collection) elements;
-      grow(size + that.size());
+      growAdditional(that.size());
       for (Object x : that) {
         elems[size++] = x;
       }
     } else {
       // iterable
       for (Object x : elements) {
-        grow(size + 1);
+        growAdditional(1);
         elems[size++] = x;
       }
     }
@@ -409,11 +425,11 @@ public final class StarlarkList<E> extends AbstractList<E>
           "Removes the first item from the list whose value is x. "
               + "It is an error if there is no such item.",
       parameters = {@Param(name = "x", doc = "The object to remove.")})
-  public NoneType removeElement(Object x) throws EvalException {
+  public void removeElement(Object x) throws EvalException {
     for (int i = 0; i < size; i++) {
       if (elems[i].equals(x)) {
         removeElementAt(i);
-        return Starlark.NONE;
+        return;
       }
     }
     throw Starlark.errorf("item %s not found in list", Starlark.repr(x));
@@ -434,19 +450,17 @@ public final class StarlarkList<E> extends AbstractList<E>
       doc = "Adds an item to the end of the list.",
       parameters = {@Param(name = "item", doc = "Item to add at the end.")})
   @SuppressWarnings("unchecked")
-  public NoneType append(Object item) throws EvalException {
+  public void append(Object item) throws EvalException {
     addElement((E) item); // unchecked
-    return Starlark.NONE;
   }
 
   @StarlarkMethod(name = "clear", doc = "Removes all the elements of the list.")
-  public NoneType clearElements() throws EvalException {
+  public void clearElements() throws EvalException {
     Starlark.checkMutable(this);
     for (int i = 0; i < size; i++) {
       elems[i] = null; // aid GC
     }
     size = 0;
-    return Starlark.NONE;
   }
 
   @StarlarkMethod(
@@ -457,20 +471,18 @@ public final class StarlarkList<E> extends AbstractList<E>
         @Param(name = "item", doc = "The item.")
       })
   @SuppressWarnings("unchecked")
-  public NoneType insert(StarlarkInt index, Object item) throws EvalException {
+  public void insert(StarlarkInt index, Object item) throws EvalException {
     addElementAt(EvalUtils.toIndex(index.toInt("index"), size), (E) item); // unchecked
-    return Starlark.NONE;
   }
 
   @StarlarkMethod(
       name = "extend",
       doc = "Adds all items to the end of the list.",
       parameters = {@Param(name = "items", doc = "Items to add at the end.")})
-  public NoneType extend(Object items) throws EvalException {
+  public void extend(Object items) throws EvalException {
     @SuppressWarnings("unchecked")
     Iterable<? extends E> src = (Iterable<? extends E>) Starlark.toIterable(items);
     addElements(src);
-    return Starlark.NONE;
   }
 
   @StarlarkMethod(
@@ -499,7 +511,7 @@ public final class StarlarkList<E> extends AbstractList<E>
             named = true, // TODO(adonovan): this is wrong
             doc = "The end index of the list portion to inspect.")
       })
-  public Integer index(Object x, Object start, Object end) throws EvalException {
+  public int index(Object x, Object start, Object end) throws EvalException {
     int i = start == Starlark.NONE ? 0 : EvalUtils.toIndex(Starlark.toInt(start, "start"), size);
     int j = end == Starlark.NONE ? size : EvalUtils.toIndex(Starlark.toInt(end, "end"), size);
     for (; i < j; i++) {
