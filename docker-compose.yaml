@@ -16,4 +16,4 @@ services:
     volumes:
       - ./:/src/
       - ./test-results:/tmp/test-results/
-      - ~/.m2:/root/m2
+      - ~/.m2:/root/.m2

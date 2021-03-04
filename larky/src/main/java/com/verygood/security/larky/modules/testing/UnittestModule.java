@@ -4,7 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 
-import com.verygood.security.larky.utils.NullPrintStream;
+import com.verygood.security.larky.modules.utils.NullPrintStream;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
