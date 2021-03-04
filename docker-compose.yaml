@@ -17,7 +17,3 @@ services:
       - ./:/src/
       - ./test-results:/tmp/test-results/
       - ~/.m2:/root/m2
-    command: /src/build-and-test-java.sh
-    # command: |
-    #   ./build-and-test-java.sh &&
-    #   ./build-and-test-python.sh
