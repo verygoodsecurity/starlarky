@@ -1,0 +1,19 @@
+---
+version: "3.2"
+services:
+
+  local:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      VERSION: ${CIRCLE_TAG:-0.0.1}
+      TEST_RESULTS_PATH: /tmp/test-results/
+      DIST_PATH: /tmp/dist/
+      MAVEN_OPTS: -Xmx6400m
+      GRAALVM_HOME: /build/.graalvm
+      PYENV_ROOT: /root/.pyenv
+    volumes:
+      - ./:/src/
+      - ./test-results:/tmp/test-results/
+      - ~/.m2:/root/m2

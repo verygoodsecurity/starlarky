@@ -1,4 +1,8 @@
 # Created by .ignore support plugin (hsz.mobi)
+setup.py
+test-results/*
+.python-version
+build/*
 
 ### Java template
 *.class
