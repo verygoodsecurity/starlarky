@@ -24,6 +24,8 @@ jobs:
       run: mvn -B verify --file pom.xml
     - name: Coveralls GitHub Action
       uses: coverallsapp/github-action@v1.1.2
+      with: 
+        github-token: ${{ secrets.gh_api_key }}
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v2.2.2
       with:
