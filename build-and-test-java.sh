@@ -11,4 +11,4 @@ find . -type f -regex ".*/target/site/.*" -exec cp --parents {} $TEST_RESULTS_PA
 mvn package -Pnative -DskipTests
 mkdir ${DIST_PATH}
 cp ./runlarky/target/larky-runner ${DIST_PATH}/larky-linux
-cp dist/*.whl ${DIST_PATH}
+# cp dist/*.whl ${DIST_PATH}
