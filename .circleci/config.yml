@@ -121,8 +121,6 @@ jobs:
     machine: true
     steps:
       - checkout
-      - setup_remote_docker:
-          docker_layer_caching: true
       - <<: *restore-maven-cache
       - run: mkdir -p $TEST_RESULTS_PATH/junit/
       - run: mkdir -p $TEST_RESULTS_PATH/coverage/
