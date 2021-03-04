@@ -31,6 +31,6 @@ jobs:
       with:
         # Artifact name
         # A file, directory or wildcard pattern that describes what to upload
-        path: target/*.jar
+        path: ./**/target/*.jar
         # The desired behavior if no files are found using the provided path.
         warn: Output a warning but do not fail the action
