@@ -1,14 +1,22 @@
 package com.verygood.security.larky.modules.testing;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.re2j.Pattern;
+import com.google.re2j.PatternSyntaxException;
+
+import com.verygood.security.larky.modules.utils.Reporter;
+
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
-import java.util.List;
 import java.util.Objects;
 
 
@@ -19,22 +27,6 @@ import java.util.Objects;
 public class AssertionsModule implements StarlarkValue {
 
   public static final AssertionsModule INSTANCE = new AssertionsModule();
-
-  public interface Reporter {
-    /**
-     * Should be called by an assertion method when the test encounters an unexpected evaluation. It
-     * does not stop the program; multiple failures may be reported in a single run.
-     */
-    default void reportError(StarlarkThread thread, String message) {
-      System.err.print("Traceback (most recent call last):\n");
-      List<StarlarkThread.CallStackEntry> stack = thread.getCallStack();
-      stack = stack.subList(0, stack.size() - 1); // pop the built-in function
-      for (StarlarkThread.CallStackEntry fr : stack) {
-        System.err.printf("%s: called from %s\n", fr.location, fr.name);
-      }
-      System.err.println("Error: " + message);
-    }
-  }
 
   @StarlarkMethod(
       name = "assert_",
@@ -64,9 +56,46 @@ public class AssertionsModule implements StarlarkValue {
   public Object assertEq(Object x, Object y, StarlarkThread thread) throws EvalException {
     if (!x.equals(y)) {
       String msg = String.format("assert_eq: %s != %s", Starlark.repr(x), Starlark.repr(y));
-      thread.getThreadLocal(Reporter.class).reportError(thread, msg);
+      Objects.requireNonNull(thread.getThreadLocal(Reporter.class)).reportError(thread, msg);
     }
     return Starlark.NONE;
   }
 
+  @StarlarkMethod(
+        name = "assert_fails",
+        doc = "assert_fails asserts that evaluation of f() fails with the specified error",
+        parameters = {
+          @Param(name = "f", doc = "the Starlark function to call"),
+          @Param(
+              name = "wantError",
+              doc = "a regular expression matching the expected error message"),
+        },
+        useStarlarkThread = true)
+    public Object assertFails(StarlarkCallable f, String wantError, StarlarkThread thread)
+        throws EvalException, InterruptedException {
+      Pattern pattern;
+      try {
+        pattern = Pattern.compile(wantError);
+      } catch (PatternSyntaxException unused) {
+        throw Starlark.errorf("invalid regexp: %s", wantError);
+      }
+
+      try {
+        Starlark.call(thread, f, ImmutableList.of(), ImmutableMap.of());
+        reportErrorf(thread, "evaluation succeeded unexpectedly (want error matching %s)", wantError);
+      } catch (EvalException ex) {
+        // Verify error matches expectation.
+        String msg = ex.getMessage();
+        if (!pattern.matcher(msg).find()) {
+          reportErrorf(thread, "regular expression (%s) did not match error (%s)", pattern, msg);
+        }
+      }
+      return Starlark.NONE;
+    }
+
+  @FormatMethod
+  private static void reportErrorf(StarlarkThread thread, String format, Object... args) {
+    Objects.requireNonNull(thread.getThreadLocal(Reporter.class))
+        .reportError(thread, String.format(format, args));
+  }
 }
