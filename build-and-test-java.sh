@@ -1,5 +1,3 @@
-TEST_RESULTS_PATH=${TEST_RESULTS_PATH:-/tmp/test-results}
-
 mkdir -p $TEST_RESULTS_PATH/junit/
 mkdir -p $TEST_RESULTS_PATH/coverage/
 mvn clean install dependency:go-offline -T 2.0C -B
