@@ -22,10 +22,8 @@ jobs:
         java-version: 1.11
     - name: Build with Maven
       run: mvn -B verify --file pom.xml
-    - name: Coveralls GitHub Action
-      uses: coverallsapp/github-action@v1.1.2
-      with: 
-        github-token: ${{ secrets.gh_api_key }}
+    - name: Codecov
+      uses: codecov/codecov-action@v1.2.1
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v2.2.2
       with:
