@@ -29,8 +29,10 @@ jobs:
         verbose: true
     - name: Snyk
       uses: snyk/actions/maven-3-jdk-11@master
-        env:
-          SNYK_TOKEN: ${{ secrets.GH_API_KEY }}
+      env:
+        SNYK_TOKEN: ${{ secrets.GH_API_KEY }}
+      with:
+        args: --severity-threshold=high
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v2.2.2
       with:
