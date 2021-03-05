@@ -1,5 +1,6 @@
 # For compatibility help with Python, introduced globals are going to be using
 # this as a namespace
+load("@stdlib/assertions", _assertions="assertions")
 
 
 def _to_dict(s):
@@ -31,4 +32,5 @@ larky = _struct(
     mutablestruct=_mutablestruct,
     partial=_partial,
     property=_property,
+    assertions=_assertions
 )

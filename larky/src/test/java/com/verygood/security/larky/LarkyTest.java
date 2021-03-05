@@ -4,9 +4,9 @@ import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
 
 import com.google.common.collect.ImmutableSet;
 
+import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
-import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.modules.testing.UnittestModule;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
@@ -20,10 +20,8 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.stream.Stream;
 
 public class LarkyTest {
 
@@ -51,47 +49,6 @@ public class LarkyTest {
       Assert.fail(t.toString());
     }
   }
-
-  @Test
-  public void testStdLib() throws IOException {
-    Path stdlibTestDir = Paths.get(
-            "src",
-            "test",
-            "resources",
-            "stdlib_tests");
-    LarkyScript interpreter = new LarkyScript(
-        CORE_MODULES,
-        LarkyScript.StarlarkMode.STRICT);
-
-    ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier(ImmutableSet.of(
-      new UnittestModule()
-    )).create();
-
-    TestingConsole console = new TestingConsole();
-    try (Stream<Path> paths = Files.walk(stdlibTestDir)) {
-      paths
-        .filter(Files::isRegularFile)
-        //.filter(f -> f.getFileName().startsWith("test_") && f.endsWith(".star"))
-        .filter(f -> {
-          String fileName = f.getFileName().toString();
-          return fileName.startsWith("test_") && fileName.endsWith(".star");
-        })
-        .forEach(f -> {
-          try {
-            console.info("Running test: " + f);
-            interpreter.evaluate(
-              new PathBasedStarFile(f.toAbsolutePath(), null, null),
-              moduleSet,
-              console
-            );
-            console.info("Successfully executed: " + f);
-          } catch (IOException e) {
-            Assert.fail(e.getMessage());
-          }
-        });
-    }
-  }
-
 
   @Test
   public void testStructBuiltin() throws IOException {
