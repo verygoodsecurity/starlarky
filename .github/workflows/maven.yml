@@ -28,7 +28,9 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         verbose: true
     - name: Snyk
-      uses: snyk/actions@0.3.0
+      uses: snyk/actions/maven-3-jdk-11@master
+        env:
+          SNYK_TOKEN: ${{ secrets.GH_API_KEY }}
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v2.2.2
       with:
