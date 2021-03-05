@@ -1,0 +1,10 @@
+---
+repos:
+  -   repo: https://github.com/Lucas-C/pre-commit-hooks-bandit
+      rev: v1.0.4
+      hooks:
+      -   id: python-bandit-vulnerability-check
+  -   repo: https://github.com/maltzj/google-style-precommit-hook
+      rev: b7e9e7fcba4a5aea463e72fe9964c14877bd8130
+      hooks:
+          - id: google-style-java

@@ -77,7 +77,7 @@ smoke-tests/vault-mgmt/sandbox_auth_config.yml
 LOG_FILE_JSON_IS_UNDEFINED
 
 .tmp
-
+.cache/**
 venv
 dist
 build
