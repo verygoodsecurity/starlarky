@@ -28,7 +28,7 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         verbose: true
     - name: Snyk
-      uses: snyk/actions/maven-3-jdk-11@master
+      uses: snyk/actions/maven@master
       env:
         SNYK_TOKEN: ${{ secrets.GH_API_KEY }}
       with:
