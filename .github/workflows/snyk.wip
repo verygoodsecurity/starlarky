@@ -1,0 +1,21 @@
+---
+name: Snyk security scan
+
+#on:
+#  push:
+#    branches: [ master ]
+#  pull_request:
+#    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Snyk
+      uses: snyk/actions/maven@master
+      env:
+        SNYK_TOKEN: ${{ secrets.GH_API_KEY }}
+      with:
+        args: --severity-threshold=high

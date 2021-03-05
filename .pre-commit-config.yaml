@@ -1,5 +1,21 @@
 ---
 repos:
+  -   repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v2.3.0
+      hooks:
+        - id: check-builtin-literals
+          args: [ '--no-allow-dict-kwargs' ]
+          exclude: bumpity.py$
+        - id: check-docstring-first
+        - id: debug-statements
+          exclude: bumpity.py$
+        - id: double-quote-string-fixer
+        - id: end-of-file-fixer
+        - id: name-tests-test
+        - id: flake8
+          args: [ '--max-line-length', '100' ]
+          exclude: ^test_data/|bumpity.py$
+        - id: trailing-whitespace
   -   repo: https://github.com/Lucas-C/pre-commit-hooks-bandit
       rev: v1.0.4
       hooks:
@@ -8,3 +24,8 @@ repos:
       rev: b7e9e7fcba4a5aea463e72fe9964c14877bd8130
       hooks:
           - id: google-style-java
+#  -   repo: https://github.com/Yelp/detect-secrets
+#      rev: v1.0.1
+#      hooks:
+#        -   id: detect-secrets
+#            args: ['--baseline', '.secrets.baseline']
