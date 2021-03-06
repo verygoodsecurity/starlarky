@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableSet;
 import com.verygood.security.larky.modules.ProtoBufModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
+import com.verygood.security.larky.modules.Base64Module;
 import com.verygood.security.larky.modules.C99MathModule;
 import com.verygood.security.larky.modules.HashModule;
 import com.verygood.security.larky.modules.JsonModule;
@@ -51,6 +52,7 @@ public class ModuleSupplier {
       ProtoBufModule.INSTANCE,
       HashModule.INSTANCE,
       C99MathModule.INSTANCE,
+      Base64Module.INSTANCE,
       RegexModule.INSTANCE
   );
 

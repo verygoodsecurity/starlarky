@@ -1,4 +1,5 @@
 load("@stdlib/larky", "larky")
+load("@stdlib/base64j", "base64j")
 
 NOT_IMPLEMENTED = 'not implemented'
 
@@ -18,7 +19,7 @@ def b64encode(s, altchars=None):
         application to e.g. generate url or filesystem safe Base64 strings.
 
     """
-    return NOT_IMPLEMENTED
+    return base64j.b64encode(s, altchars)
 
 def b64decode(s, altchars=None, validate=False):
     """
@@ -37,7 +38,7 @@ def b64decode(s, altchars=None, validate=False):
         in the input result in a binascii.Error.
 
     """
-    return NOT_IMPLEMENTED
+    return base64j.b64decode(s, altchars, validate)
 
 def standard_b64encode(s):
     """
