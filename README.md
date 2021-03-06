@@ -34,7 +34,7 @@ Please make sure to update tests as appropriate.
 
 ## Code of Conduct
 
-[Our Code of Conduct](CONDUCT.md) is adapted from the [Contributor Covenant][homepage],
+[Our Code of Conduct](CODE_OF_CONDUCT.md) is adapted from the [Contributor Covenant][homepage],
 version 2.0, available at
 [https://www.contributor-covenant.org/version/2/0/code_of_conduct.html][v2.0].
 
