@@ -87,17 +87,6 @@
             <version>${protobuf.version}</version>
         </dependency>
 
-        <!--
-          junit is not scoped for test because we are using
-          it in larky/nativelib to offer unittest interface
-          to starlark
-        -->
-
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${org.junit.version}</version>
-        </dependency>
 
         <dependency>
             <groupId>com.google.re2j</groupId>
@@ -281,7 +270,6 @@
         <org.conscrypt.version>2.5.1</org.conscrypt.version>
         <org.bouncycastle.version>1.68</org.bouncycastle.version>
         <org.jetbrains.annotations.version>20.1.0</org.jetbrains.annotations.version>
-        <org.junit.version>4.13.1</org.junit.version>
         <org.mockito.version>3.5.13</org.mockito.version>
         <org.projectlombok.version>1.18.12</org.projectlombok.version>
         <org.slf4j.version>1.7.30</org.slf4j.version>

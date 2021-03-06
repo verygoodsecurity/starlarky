@@ -14,14 +14,16 @@ import com.verygood.security.larky.parser.PathBasedStarFile;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkValue;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.TestFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -29,14 +31,16 @@ import java.util.stream.Stream;
 
 public class StdLibTests {
   private static final String PROPERTY_NAME = "larky.stdlib_test";
-  private static final Path STDLIB_TEST_DIR = Paths.get("src","test", "resources", "stdlib_tests");
+  private static final Path STDLIB_TEST_DIR = Paths.get(
+      "src","test", "resources", "stdlib_tests"
+  );
   private static final TestingConsole console = new TestingConsole();
 
   private LarkyScript interpreter;
   private ModuleSupplier.ModuleSet moduleSet;
   private List<Path> stdLibTestFiles;
 
-  @Before
+  @BeforeEach
   public void setUp() {
     ImmutableSet<StarlarkValue> testModules = ImmutableSet.of(
         new UnittestModule(),
@@ -70,20 +74,23 @@ public class StdLibTests {
     return stdLibTestFiles;
   }
 
-  @Test
-  public void testStdLib() throws IOException {
-    stdLibTestFiles.forEach(f -> {
-      try {
-        console.info("Running test: " + f);
-        interpreter.evaluate(
-            new PathBasedStarFile(f.toAbsolutePath(), null, null),
-            moduleSet,
-            console
-        );
-        console.info("Successfully executed: " + f);
-      } catch (IOException | EvalException e) {
-        Assert.fail(e.getMessage());
-      }
-    });
+  @TestFactory
+  public Iterator<DynamicTest> testStdLib() throws IOException {
+    return stdLibTestFiles.stream().map(f -> DynamicTest.dynamicTest(
+        String.format("%s=%s", PROPERTY_NAME, f.getFileName()),
+        () -> {
+          try {
+            console.info("Running test: " + f);
+            interpreter.evaluate(
+                new PathBasedStarFile(f.toAbsolutePath(), null, null),
+                moduleSet,
+                console
+            );
+            console.info("Successfully executed: " + f);
+          } catch (IOException | EvalException e) {
+            Assertions.fail(e.getMessage());
+          }
+        })
+    ).iterator();
   }
 }

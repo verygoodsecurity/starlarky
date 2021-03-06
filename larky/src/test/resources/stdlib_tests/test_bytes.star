@@ -13,7 +13,7 @@ b = builtins.b
 hello = builtins.bytes("hello, 世界")
 goodbye = builtins.bytes("goodbye")
 empty = builtins.bytes("")
-#nonprinting = builtins.bytes("\t\n\x7F\u200D")  # TAB, NEWLINE, DEL, ZERO_WIDTH_JOINER
+nonprinting = builtins.bytes(r"\t\n\x7F\u200D")  # TAB, NEWLINE, DEL, ZERO_WIDTH_JOINER
 #asserts.assert_that(builtins.bytes("hello, 世界"[:-1])).is_equal_to(b("hello, 世��"))
 #
 # # bytes(iterable of int) -- construct from numeric byte values
