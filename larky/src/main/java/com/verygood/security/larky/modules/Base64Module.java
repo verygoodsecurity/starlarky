@@ -45,10 +45,10 @@ public class Base64Module implements StarlarkValue {
       useStarlarkThread = true)
   public String b64decode(String s, Object altchars, boolean validate, StarlarkThread thread) {
     //noinspection UnstableApiUsage
-    System.out.println("got " + s);
+    // System.out.println("got " + s);
     byte[] decodedBytes = Base64.getDecoder().decode(s);
     String decodedString = new String(decodedBytes);
-    System.out.println("made " + decodedString);
+    // System.out.println("made " + decodedString);
     return decodedString;
   }
 
