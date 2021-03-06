@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.Arrays;
+import lombok.Builder;
 
 /**
  * Mostly taken from Apache Arrow and from RE2j's Unicode class.
@@ -37,15 +38,17 @@ import java.util.Arrays;
  */
 public class TextUtil {
 
-  private static final ThreadLocal<CharsetEncoder> ENCODER_FACTORY =
+  @Builder.Default
+  private final ThreadLocal<CharsetEncoder> ENCODER_FACTORY =
       ThreadLocal.withInitial(() -> StandardCharsets.UTF_8.newEncoder()
           .onMalformedInput(CodingErrorAction.REPORT)
           .onUnmappableCharacter(CodingErrorAction.REPORT));
 
-  private static final ThreadLocal<CharsetDecoder> DECODER_FACTORY =
+  @Builder.Default
+  private final ThreadLocal<CharsetDecoder> DECODER_FACTORY =
       ThreadLocal.withInitial(() -> StandardCharsets.UTF_8.newDecoder()
           .onMalformedInput(CodingErrorAction.REPORT)
-          .onUnmappableCharacter(CodingErrorAction.REPORT));
+          .onUnmappableCharacter(CodingErrorAction.REPORT));;
 
   private static final byte[] EMPTY_BYTES = new byte[0];
 
@@ -63,12 +66,11 @@ public class TextUtil {
   static final int MIN_FOLD = 0x0041;
   static final int MAX_FOLD = 0x1044f;
 
-  private byte[] bytes;
+  @Builder.Default private byte[] bytes = EMPTY_BYTES;
   private int length;
 
-  public TextUtil() {
-    bytes = EMPTY_BYTES;
-  }
+  /* For static method usage */
+  private static final TextUtil INSTANCE = new TextUtil(EMPTY_BYTES);
 
   /**
    * Construct from a string.
@@ -366,6 +368,49 @@ public class TextUtil {
     return result;
   }
 
+  private String decode(ByteBuffer utf8, boolean replace)
+      throws CharacterCodingException {
+    CharsetDecoder decoder = DECODER_FACTORY.get();
+    if (replace) {
+      decoder.onMalformedInput(
+          java.nio.charset.CodingErrorAction.REPLACE);
+      decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
+    }
+    String str = decoder.decode(utf8).toString();
+    // set decoder back to its default value: REPORT
+    if (replace) {
+      decoder.onMalformedInput(CodingErrorAction.REPORT);
+      decoder.onUnmappableCharacter(CodingErrorAction.REPORT);
+    }
+    return str;
+  }
+
+  /**
+   * Converts the provided String to bytes using the UTF-8 encoding. If <code>replace</code> is
+   * true, then malformed input is replaced with the substitution character, which is U+FFFD.
+   * Otherwise the method throws a MalformedInputException.
+   *
+   * @param string  the string to encode
+   * @param replace whether to replace malformed characters with U+FFFD
+   * @return ByteBuffer: bytes stores at ByteBuffer.array() and length is ByteBuffer.limit()
+   * @throws CharacterCodingException if the string could not be encoded
+   */
+  public ByteBuffer encode(String string, boolean replace)
+      throws CharacterCodingException {
+    CharsetEncoder encoder = ENCODER_FACTORY.get();
+    if (replace) {
+      encoder.onMalformedInput(CodingErrorAction.REPLACE);
+      encoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
+    }
+    ByteBuffer bytes =
+        encoder.encode(CharBuffer.wrap(string.toCharArray()));
+    if (replace) {
+      encoder.onMalformedInput(CodingErrorAction.REPORT);
+      encoder.onUnmappableCharacter(CodingErrorAction.REPORT);
+    }
+    return bytes;
+  }
+
   // / STATIC UTILITIES FROM HERE DOWN
 
   // Returns true iff |c| is an ASCII letter or decimal digit.
@@ -391,7 +436,7 @@ public class TextUtil {
 
    // Appends a RE2 literal to |out| for rune |rune|,
    // with regexp metacharacters escaped.
-   static void escapeRune(StringBuilder out, int rune) {
+   static void escapeRegexRune(StringBuilder out, int rune) {
      if (TextUtil.isPrint(rune)) {
        if (METACHARACTERS.indexOf((char) rune) >= 0) {
          out.append('\\');
@@ -669,12 +714,12 @@ public class TextUtil {
    * @throws CharacterCodingException if this is not valid UTF-8
    */
   public static String decode(byte[] utf8) throws CharacterCodingException {
-    return decode(ByteBuffer.wrap(utf8), true);
+    return TextUtil.INSTANCE.decode(ByteBuffer.wrap(utf8), true);
   }
 
   public static String decode(byte[] utf8, int start, int length)
       throws CharacterCodingException {
-    return decode(ByteBuffer.wrap(utf8, start, length), true);
+    return TextUtil.INSTANCE.decode(ByteBuffer.wrap(utf8, start, length), true);
   }
 
   /**
@@ -691,24 +736,7 @@ public class TextUtil {
    */
   public static String decode(byte[] utf8, int start, int length, boolean replace)
       throws CharacterCodingException {
-    return decode(ByteBuffer.wrap(utf8, start, length), replace);
-  }
-
-  private static String decode(ByteBuffer utf8, boolean replace)
-      throws CharacterCodingException {
-    CharsetDecoder decoder = DECODER_FACTORY.get();
-    if (replace) {
-      decoder.onMalformedInput(
-          java.nio.charset.CodingErrorAction.REPLACE);
-      decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
-    }
-    String str = decoder.decode(utf8).toString();
-    // set decoder back to its default value: REPORT
-    if (replace) {
-      decoder.onMalformedInput(CodingErrorAction.REPORT);
-      decoder.onUnmappableCharacter(CodingErrorAction.REPORT);
-    }
-    return str;
+    return TextUtil.INSTANCE.decode(ByteBuffer.wrap(utf8, start, length), replace);
   }
 
   /**
@@ -721,33 +749,7 @@ public class TextUtil {
    */
   public static ByteBuffer encode(String string)
       throws CharacterCodingException {
-    return encode(string, true);
-  }
-
-  /**
-   * Converts the provided String to bytes using the UTF-8 encoding. If <code>replace</code> is
-   * true, then malformed input is replaced with the substitution character, which is U+FFFD.
-   * Otherwise the method throws a MalformedInputException.
-   *
-   * @param string  the string to encode
-   * @param replace whether to replace malformed characters with U+FFFD
-   * @return ByteBuffer: bytes stores at ByteBuffer.array() and length is ByteBuffer.limit()
-   * @throws CharacterCodingException if the string could not be encoded
-   */
-  public static ByteBuffer encode(String string, boolean replace)
-      throws CharacterCodingException {
-    CharsetEncoder encoder = ENCODER_FACTORY.get();
-    if (replace) {
-      encoder.onMalformedInput(CodingErrorAction.REPLACE);
-      encoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
-    }
-    ByteBuffer bytes =
-        encoder.encode(CharBuffer.wrap(string.toCharArray()));
-    if (replace) {
-      encoder.onMalformedInput(CodingErrorAction.REPORT);
-      encoder.onUnmappableCharacter(CodingErrorAction.REPORT);
-    }
-    return bytes;
+    return TextUtil.INSTANCE.encode(string, true);
   }
 
   public static final int DEFAULT_MAX_LEN = 1024 * 1024;
