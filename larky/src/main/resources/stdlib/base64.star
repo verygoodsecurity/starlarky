@@ -38,6 +38,8 @@ def b64decode(s, altchars=None, validate=False):
         in the input result in a binascii.Error.
 
     """
+    if validate:
+      return 'validate param is not supported'
     return base64j.b64decode(s, altchars, validate)
 
 def standard_b64encode(s):
