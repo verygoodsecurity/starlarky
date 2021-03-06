@@ -1,21 +1,28 @@
 package com.verygood.security.larky.modules.globals;
 
+import com.google.common.primitives.UnsignedBytes;
+
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
-import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.Partial;
+import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
+import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
+
+import java.util.stream.Collectors;
 
 
 /**
@@ -115,4 +122,31 @@ public final class LarkyGlobals {
         .fset(setter != Starlark.NONE ? (StarlarkCallable) setter : null)
         .build();
   }
+
+  @StarlarkMethod(name = "_as_bytearray", parameters = {
+      @Param(name="str", allowedTypes = {
+          @ParamType(type = StarlarkList.class),
+
+      })
+  })
+  public StarlarkList<StarlarkInt> asByteArray(StarlarkList<StarlarkInt> unsignedByteArray)
+      throws EvalException {
+    try {
+      for (StarlarkInt b1 : unsignedByteArray) {
+        // between 0 < x < 255
+        UnsignedBytes.checkedCast(b1.toNumber().longValue());
+      }
+    }
+    catch(IllegalArgumentException e) {
+      throw new EvalException(String.format("%s, want value in unsigned 8-bit range", e.getMessage()));
+    }
+    return StarlarkList.immutableCopyOf(unsignedByteArray
+        .stream()
+        .map(StarlarkInt::toNumber)
+        .map(Number::byteValue)
+        .map(Byte::toUnsignedInt)
+        .map(StarlarkInt::of)
+        .collect(Collectors.toList()));
+  }
+
 }

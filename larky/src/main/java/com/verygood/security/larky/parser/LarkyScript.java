@@ -136,12 +136,12 @@ public class LarkyScript {
   }
 
   public ParsedStarFile evaluate(StarFile content, ModuleSet moduleSet, Console console)
-      throws IOException {
+      throws IOException, EvalException {
     return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
   }
 
   public ParsedStarFile evaluate(StarFile content, Console console)
-      throws IOException {
+      throws IOException, EvalException {
     return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
   }
 
@@ -157,7 +157,7 @@ public class LarkyScript {
    */
   public StarFileWithDependencies getStarFileWithTransitiveImports(
       StarFile starScriptFile, ModuleSet moduleSet, Console console)
-      throws IOException {
+      throws IOException, EvalException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(starScriptFile);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
@@ -173,15 +173,13 @@ public class LarkyScript {
 
   private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSet moduleSet,
                                               Console console)
-      throws IOException {
+      throws IOException, EvalException {
     Module module;
     try {
       module = new LarkyEvaluator(this, moduleSet, console).eval(content);
     } catch (InterruptedException e) {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
-    } catch (EvalException e) {
-      throw new RuntimeException(e.getMessage(), e);
     }
     return new ParsedStarFile(
         content.path(),

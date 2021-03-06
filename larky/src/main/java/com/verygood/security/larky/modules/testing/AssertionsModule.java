@@ -80,17 +80,21 @@ public class AssertionsModule implements StarlarkValue {
       throw Starlark.errorf("invalid regexp: %s", wantError);
     }
 
+    String errorMsg;
     try {
       Starlark.call(thread, f, ImmutableList.of(), ImmutableMap.of());
-      reportErrorf(thread, "evaluation succeeded unexpectedly (want error matching %s)", wantError);
+      errorMsg = String.format("evaluation succeeded unexpectedly (want error matching %s)", wantError);
     } catch (EvalException ex) {
       // Verify error matches expectation.
       String msg = ex.getMessage();
-      if (!pattern.matcher(msg).find()) {
-        reportErrorf(thread, "regular expression (%s) did not match error (%s)", pattern, msg);
+      if (pattern.matcher(msg).find()) {
+        return Starlark.NONE;
       }
+      errorMsg = String.format("regular expression (%s) did not match error (%s)", pattern, msg);
     }
-    return Starlark.NONE;
+    reportErrorf(thread, "%s", errorMsg);
+    throw Starlark.errorf("%s", errorMsg);
+
   }
 
   @FormatMethod

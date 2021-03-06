@@ -16,7 +16,7 @@ def _test_namespace_exposes_larky_builtins():
     items = sorted(dir(larky))
     asserts.assert_that(items).is_length(5)
     asserts.assert_that(items).is_equal_to(sorted([
-        "assertions",
+        "bytearray",
         "struct",
         "mutablestruct",
         "partial",

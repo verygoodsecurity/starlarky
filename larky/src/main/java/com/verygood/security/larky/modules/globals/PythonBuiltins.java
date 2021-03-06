@@ -10,6 +10,9 @@ import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+
 
 /**
  * A collection of global Larky API functions that mimic python's built-ins, to a certain extent.
@@ -63,6 +66,32 @@ public final class PythonBuiltins {
           .modPow(exp.toBigInteger(), ((StarlarkInt) mod).toBigInteger())
     );
   }
+
+  @StarlarkMethod(
+        name = "ord",
+        doc = "Given a string representing one Unicode character, return an integer representing" +
+            " the Unicode code point of that character. For example, ord('a') returns the " +
+            "integer 97 and ord('€') (Euro sign) returns 8364. This is the inverse of chr().",
+        parameters = {
+         @Param(
+           name = "c",
+           allowedTypes = {
+               @ParamType(type = String.class),
+           }
+         )
+       }
+    )
+    public StarlarkInt ordinal(String c) throws EvalException {
+      if(c.length() != 1) {
+        throw new EvalException(String.format(
+            "ord() expected a character, but string of length %d found",
+            c.length()));
+      }
+
+      return StarlarkInt.of(new BigInteger(c.getBytes(StandardCharsets.UTF_8)).intValueExact());
+    }
+
+
 //
 //  @StarlarkMethod(
 //      name = "bytes",

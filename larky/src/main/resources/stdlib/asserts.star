@@ -5,13 +5,11 @@ This exports `asserts` which contains the assertions used within tests.
 This is modeled after assertpy (https://github.com/assertpy/assertpy)
 """
 load("@stdlib/larky", "larky")
+load("@stdlib/assertions", _assertions="assertions")
 
 load("sets", "sets")
 load("types", "types")
 load("partial", "partial")
-
-
-_assertions = larky.assertions
 
 # assertion extensions
 _extensions = {}

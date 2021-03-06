@@ -11,6 +11,7 @@ import com.verygood.security.larky.modules.testing.UnittestModule;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.PathBasedStarFile;
 
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkValue;
 
 import org.junit.Assert;
@@ -41,7 +42,7 @@ public class StdLibTests {
         new UnittestModule(),
         new AssertionsModule()
     );
-    moduleSet = new ModuleSupplier(testModules).create();
+    moduleSet = new ModuleSupplier().modulesToVariableMap(true);
     interpreter = new LarkyScript(CORE_MODULES, LarkyScript.StarlarkMode.STRICT);
     stdLibTestFiles = enumerateTests();
   }
@@ -80,7 +81,7 @@ public class StdLibTests {
             console
         );
         console.info("Successfully executed: " + f);
-      } catch (IOException e) {
+      } catch (IOException | EvalException e) {
         Assert.fail(e.getMessage());
       }
     });
