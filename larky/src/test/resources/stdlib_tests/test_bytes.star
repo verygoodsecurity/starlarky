@@ -1,56 +1,123 @@
 """Unit tests for test_bytes.star"""
 
+load("@stdlib/larky", "larky")
 load("@stdlib/asserts", "asserts")
 load("@stdlib/unittest", "unittest")
 load("@stdlib/builtins", "builtins")
-load("@stdlib/larky", "larky")
+load("@stdlib/types", "types")
+load("@stdlib/codecs", "codecs")
 
 
 # Tests of 'bytes' (immutable byte strings).
 b = builtins.b
 
+
+# my hack for string escapes
+def string_literal_escape(sequence, escape_char):
+    return r"\%s%s" % (escape_char, sequence)
+
+
+x = larky.partial(string_literal_escape, escape_char="x")
+u = larky.partial(string_literal_escape, escape_char="u")
+U = larky.partial(string_literal_escape, escape_char="U")
+
+# remember: decode bytes into string, encode string into bytes
+def _decode(s):
+    return codecs.decode(s, encoding='utf-8', errors='replace')
+
+
+def _encode(s):
+    x = codecs.encode(s, encoding='utf-8')
+    return x
+
+
+def debug(s):
+    print(s, _decode(b(s)))
+    return s
+
+
 # bytes(string) -- UTF-k to UTF-8 transcoding with U+FFFD replacement
+# A bit on replacement:
+#
+# The byte sequence [239, 191, 189] is the UTF-8 encoding of the Unicode
+# character U+FFFD or 'replacement character'. This occurs because input
+# may not be a valid character using UTF-8 encoding. However, note that it
+# might be a valid character using a different encoding, such as "iso-8859-1".
 hello = builtins.bytes("hello, 世界")
 goodbye = builtins.bytes("goodbye")
 empty = builtins.bytes("")
-nonprinting = builtins.bytes(r"\t\n\x7F\u200D")  # TAB, NEWLINE, DEL, ZERO_WIDTH_JOINER
-#asserts.assert_that(builtins.bytes("hello, 世界"[:-1])).is_equal_to(b("hello, 世��"))
+#nonprinting = builtins.bytes("\t\n\x7F\u200D")  # TAB, NEWLINE, DEL, ZERO_WIDTH_JOINER
+# array.array(
+#  'B',
+#  104, 101, 108, 108, 111, 44, 32, 228, 184, 150, 239, 191, 189, 239, 191, 189]
+# ).tobytes().decode('utf-8') == b"hello, 世��"
+# sliced = builtins.bytes("hello, 世界")[:-1]
+# # You can always convert a bytes object into a list of integers using list(b).
+# asserts.assert_that(list(sliced)).is_equal_to([104, 101, 108, 108, 111, 44, 32, 228, 184, 150, 231, 149])
 #
-# # bytes(iterable of int) -- construct from numeric byte values
-asserts.assert_that(builtins.bytes([65, 66, 67])).is_equal_to(b("ABC"))
-asserts.assert_that(builtins.bytes((65, 66, 67))).is_equal_to(b("ABC"))
-asserts.assert_that(builtins.bytes([0xf0, 0x9f, 0x98, 0xbf])).is_equal_to(b("😿"))
-asserts.assert_fails(lambda: builtins.bytes([300]),
-              "out of range: 300, want value in unsigned 8-bit range")
-# asserts.assert_fails(lambda: bytes([b"a"]),
-#              "at index 0, got bytes, want int")
-# asserts.assert_fails(lambda: bytes(1), "want string, bytes, or iterable of ints")
+# # contrasts with text strings, where both indexing and slicing will
+# # produce a string of length 1
+# simplestr = "hello"
+# asserts.assert_true(all([
+#     types.is_string(simplestr[0]),
+#     simplestr[0] == "h",
+#     simplestr[0:1] == simplestr[0],
+#     len(simplestr[0]) == 1,
+# ]))
+# # for bytes
+# asserts.assert_true(all([
+#     # b[0] will be an integer,
+#     sliced[0] == 104,
+#     # while b[0:1] will be a bytes object of length 1.
+#     sliced[0:1] == [104],
+# ]))
+# asserts.assert_true(
+#     codecs.decode(sliced, encoding='utf-8', errors='replace') == "hello, 世�")
+# #
+# # # bytes(iterable of int) -- construct from numeric byte values
+# asserts.assert_that(builtins.bytes([65, 66, 67])).is_equal_to(b("ABC"))
+# asserts.assert_that(builtins.bytes((65, 66, 67))).is_equal_to(b("ABC"))
+# asserts.assert_that(builtins.bytes([0xf0, 0x9f, 0x98, 0xbf])).is_equal_to(b("😿"))
+# asserts.assert_fails(lambda: builtins.bytes([300]),
+#               "out of range: 300, want value in unsigned 8-bit range")
+# # asserts.assert_fails(lambda: builtins.bytes([b("a")]),
+# #              "at index 0, got bytes, want int")
+# # asserts.assert_fails(lambda: builtins.bytes(1), "want string, bytes, or iterable of ints")
+# #
+# # literals .... not really b() simulates a literal...
+# asserts.assert_that(b("hello, 世界")).is_equal_to(hello)
+# asserts.assert_that(b("goodbye")).is_equal_to(goodbye)
+# asserts.assert_that(b("")).is_equal_to(empty)
+# # asserts.assert_that(b("\t\n\x7F\u200D")).is_equal_to(nonprinting)
+# asserts.assert_that("abc").is_not_equal_to(b("abc"))
+
+
+#asserts.assert_that(b("\012\xff\u0400\U0001F63F")).is_equal_to(b(r"\n\xffЀ😿")) # see scanner tests for more
+asserts.assert_that(
+    b(debug("\012" +
+            string_literal_escape("ff", "x") +
+            string_literal_escape("0400", "u") +
+            string_literal_escape("0001F63F", "U"))
+    )).is_equal_to(b("\n" + string_literal_escape("ff", "x") + "Ѐ😿")) # see scanner tests for more
+asserts.assert_that(b("".join(["\012", x("ff"), u("0400"), U("0001F63F")]))).is_equal_to(b(r"\n\xffЀ😿")) # see scanner tests for more
+asserts.assert_that(b(r"\r\n\t")).is_equal_to(builtins.bytes("\\r\\n\\t")) # raw
 #
-# # literals
-# asserts.assert_that(b"hello, 世界").is_equal_to(hello)
-# asserts.assert_that(b"goodbye").is_equal_to(goodbye)
-# asserts.assert_that(b"").is_equal_to(empty)
-# asserts.assert_that(b"\t\n\x7F\u200D").is_equal_to(nonprinting)
-# asserts.assert_that("abc").is_not_equal_to(b"abc")
-# asserts.assert_that(b"\012\xff\u0400\U0001F63F").is_equal_to(b"\n\xffЀ😿") # see scanner tests for more
-# asserts.assert_that(rb"\r\n\t").is_equal_to(b"\\r\\n\\t") # raw
-#
-# # type
+# type
 # asserts.assert_that(type(hello)).is_equal_to("bytes")
 #
-# # len
-# asserts.assert_that(len(hello)).is_equal_to(13)
-# asserts.assert_that(len(goodbye)).is_equal_to(7)
-# asserts.assert_that(len(empty)).is_equal_to(0)
-# asserts.assert_that(len(b"A")).is_equal_to(1)
-# asserts.assert_that(len(b"Ѐ")).is_equal_to(2)
-# asserts.assert_that(len(b"世")).is_equal_to(3)
-# asserts.assert_that(len(b"😿")).is_equal_to(4)
-#
-# # truth
-# asserts.assert_true(hello)
-# asserts.assert_true(goodbye)
-# asserts.assert_true(not empty)
+# len
+asserts.assert_that(len(hello)).is_equal_to(13)
+asserts.assert_that(len(goodbye)).is_equal_to(7)
+asserts.assert_that(len(empty)).is_equal_to(0)
+asserts.assert_that(len(b("A"))).is_equal_to(1)
+asserts.assert_that(len(b("Ѐ"))).is_equal_to(2)
+asserts.assert_that(len(b("世"))).is_equal_to(3)
+asserts.assert_that(len(b("😿"))).is_equal_to(4)
+
+# truth
+asserts.assert_true(hello)
+asserts.assert_true(goodbye)
+asserts.assert_true(not empty)
 #
 # # str(bytes) does UTF-8 to UTF-k transcoding.
 # # TODO(adonovan): specify.
@@ -67,22 +134,23 @@ asserts.assert_fails(lambda: builtins.bytes([300]),
 # asserts.assert_that(repr(goodbye)).is_equal_to('b"goodbye"')
 # asserts.assert_that(repr(empty)).is_equal_to('b""')
 # asserts.assert_that(repr(nonprinting)).is_equal_to('b"\\t\\n\\x7f\\u200d"')
-#
-# # equality
-# asserts.assert_that(hello).is_equal_to(hello)
-# asserts.assert_that(hello).is_not_equal_to(goodbye)
-# asserts.assert_that(b"goodbye").is_equal_to(goodbye)
-#
-# # ordered comparison
-# asserts.assert_that(b"abc").is_less_than(b"abd")
-# asserts.assert_that(b"abc").is_less_than(b"abcd")
-# asserts.assert_that(b"\x7f").is_less_than(b"\x80") # bytes compare as uint8, not int8
-#
-# # bytes are dict-hashable
-# dict = {hello: 1, goodbye: 2}
-# dict[b"goodbye"] = 3
-# asserts.assert_that(len(dict)).is_equal_to(2)
-# asserts.assert_that(dict[goodbye]).is_equal_to(3)
+
+# equality
+asserts.assert_that(hello).is_equal_to(hello)
+asserts.assert_that(hello).is_not_equal_to(goodbye)
+asserts.assert_that(b("goodbye")).is_equal_to(goodbye)
+
+# ordered comparison
+asserts.assert_that(b("abc")).is_less_than(b("abd"))
+asserts.assert_that(b("abc")).is_less_than(b("abcd"))
+asserts.assert_that(b(x("7f"))).is_less_than(b(x("80"))) # bytes compare as uint8, not int8
+
+# bytes are dict-hashable
+# -> # decode bytes into string!
+dict = {_decode(hello): 1, _decode(goodbye): 2}
+dict[_decode(b("goodbye"))] = 3
+asserts.assert_that(len(dict)).is_equal_to(2)
+asserts.assert_that(dict[_decode(goodbye)]).is_equal_to(3)
 #
 # # hash(bytes) is 32-bit FNV-1a.
 # asserts.assert_that(hash(b"")).is_equal_to(0x811c9dc5)

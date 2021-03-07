@@ -75,22 +75,26 @@ public class StdLibTests {
   }
 
   @TestFactory
-  public Iterator<DynamicTest> testStdLib() throws IOException {
+  public Iterator<DynamicTest> testStdLib() {
     return stdLibTestFiles.stream().map(f -> DynamicTest.dynamicTest(
         String.format("%s=%s", PROPERTY_NAME, f.getFileName()),
-        () -> {
-          try {
-            console.info("Running test: " + f);
-            interpreter.evaluate(
-                new PathBasedStarFile(f.toAbsolutePath(), null, null),
-                moduleSet,
-                console
-            );
-            console.info("Successfully executed: " + f);
-          } catch (IOException | EvalException e) {
-            Assertions.fail(e.getMessage());
-          }
-        })
-    ).iterator();
+        () -> evaluateTest(interpreter, moduleSet, f)
+    )).iterator();
+  }
+
+  private static void evaluateTest(LarkyScript interpreter,
+                                   ModuleSupplier.ModuleSet moduleSet,
+                                   Path pathToTestFile) {
+    try {
+      StdLibTests.console.info("Running test: " + pathToTestFile.toAbsolutePath());
+      interpreter.evaluate(
+          new PathBasedStarFile(pathToTestFile.toAbsolutePath(), null, null),
+          moduleSet,
+          StdLibTests.console
+      );
+      StdLibTests.console.info("Successfully executed: " + pathToTestFile);
+    } catch (IOException | EvalException e) {
+      Assertions.fail(e.getMessage());
+    }
   }
 }

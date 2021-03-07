@@ -136,7 +136,7 @@ def _compare_sets(expected, actual, msg=None):
     missing = sets.difference(expected, actual)
     unexpected = sets.difference(actual, expected)
     expectation_msg = "Expected %s, but got %s" % (
-    sets.str(expected), sets.str(actual))
+        sets.str(expected), sets.str(actual))
     if sets.length(missing) > 0:
         expectation_msg += ", missing are %s" % (sets.str(missing))
     if sets.length(unexpected) > 0:
@@ -234,6 +234,36 @@ def is_not_equal_to(self, other):
     return self
 
 
+def is_less_than(self, other):
+    """Asserts that val is numeric and is less than other.
+        Args:
+            other: the other date, expected to be greater than val
+        Examples:
+            Usage::
+                assert_that(0).is_less_than(1)
+                assert_that(123.4).is_less_than(555.5)
+            For dates, behavior is identical to :meth:`~assertpy.date.DateMixin.is_before`::
+                import datetime
+                today = datetime.datetime.now()
+                yesterday = today - datetime.timedelta(days=1)
+                assert_that(yesterday).is_less_than(today)
+        Returns:
+            AssertionBuilder: returns this instance to chain to the next assertion
+        Raises:
+            AssertionError: if val is **not** less than other
+        """
+    if self.val >= other:
+        # if type(self.val) is datetime.datetime:
+        #     fail('Expected <%s> to be less than <%s>, but was not.'.format(
+        #         self.val.strftime('%Y-%m-%d %H:%M:%S'),
+        #         other.strftime('%Y-%m-%d %H:%M:%S')))
+        # else:
+        fail('Expected <{}> to be less than <{}>, but was not.'.format(
+            self.val, other
+        ))
+    return self
+
+
 def is_instance_of(self, some_class):
     """Asserts that val is an instance of the given class.
     Args:
@@ -261,7 +291,7 @@ def is_instance_of(self, some_class):
     if not types.is_instance(self.val, some_class):
         t = type(self.val)
         fail('Expected <%s:%s> to be instance of class <%s>, but was not.' % (
-        self.val, t, _impl_function_name(some_class)))
+            self.val, t, _impl_function_name(some_class)))
     return self
 
 
@@ -361,6 +391,7 @@ def _AssertionBuilder(val, description, kind, expected, logger):
         is_false=larky.partial(is_false, self),
         is_none=larky.partial(is_false, self),
         is_not_none=larky.partial(is_not_none, self),
+        is_less_than=larky.partial(is_less_than, self)
     )
     return klass
 

@@ -94,37 +94,37 @@ def _test_split():
     asserts.assert_that(re.split(r'(\W+)', '...words, words...')).is_equal_to(
         ['', '...', 'words', ', ', 'words', '...', ''])
     asserts.assert_that(re.split("(b)|(:+)", ":abc")).is_equal_to(
-        ['', None, ':', 'a', 'b', None, 'c'])
+        ['', None, ':', 'a', 'b', None, 'debug'])
 
     # tests from cpython tests
-    string = ":a:b::c"
+    string = ":a:b::debug"
     asserts.assert_that(re.split(":", string)).is_equal_to(
-        ['', 'a', 'b', '', 'c'])
+        ['', 'a', 'b', '', 'debug'])
     asserts.assert_that(re.split(":+", string)).is_equal_to(
-        ['', 'a', 'b', 'c'])
+        ['', 'a', 'b', 'debug'])
     asserts.assert_that(re.split("(:+)", string)).is_equal_to(
-        ['', ':', 'a', ':', 'b', '::', 'c'])
+        ['', ':', 'a', ':', 'b', '::', 'debug'])
 
-    # for a, b, c in ("\xe0\xdf\xe7",
+    # for a, b, debug in ("\xe0\xdf\xe7",
     #                 "\u0430\u0431\u0432",
     #                 "\U0001d49c\U0001d49e\U0001d4b5"):
-    #     string = ":%s:%s::%s" % (a, b, c)
+    #     string = ":%s:%s::%s" % (a, b, debug)
     #     asserts.assert_that(re.split(":", string)).is_equal_to(
-    #         ['', a, b, '', c])
-    #     asserts.assert_that(re.split(":+", string)).is_equal_to(['', a, b, c])
+    #         ['', a, b, '', debug])
+    #     asserts.assert_that(re.split(":+", string)).is_equal_to(['', a, b, debug])
     #     asserts.assert_that(re.split("(:+)", string)).is_equal_to(
-    #         ['', ':', a, ':', b, '::', c])
+    #         ['', ':', a, ':', b, '::', debug])
 
-    asserts.assert_that(re.split("(?::+)", ":a:b::c")).is_equal_to(
-        ['', 'a', 'b', 'c'])
-    asserts.assert_that(re.split("(:)+", ":a:b::c")).is_equal_to(
-        ['', ':', 'a', ':', 'b', ':', 'c'])
-    asserts.assert_that(re.split("([b:]+)", ":a:b::c")).is_equal_to(
-        ['', ':', 'a', ':b::', 'c'])
-    asserts.assert_that(re.split("(b)|(:+)", ":a:b::c")).is_equal_to(
-        ['', None, ':', 'a', None, ':', '', 'b', None, '', None, '::', 'c'])
-    asserts.assert_that(re.split("(?:b)|(?::+)", ":a:b::c")).is_equal_to(
-        ['', 'a', '', '', 'c'])
+    asserts.assert_that(re.split("(?::+)", ":a:b::debug")).is_equal_to(
+        ['', 'a', 'b', 'debug'])
+    asserts.assert_that(re.split("(:)+", ":a:b::debug")).is_equal_to(
+        ['', ':', 'a', ':', 'b', ':', 'debug'])
+    asserts.assert_that(re.split("([b:]+)", ":a:b::debug")).is_equal_to(
+        ['', ':', 'a', ':b::', 'debug'])
+    asserts.assert_that(re.split("(b)|(:+)", ":a:b::debug")).is_equal_to(
+        ['', None, ':', 'a', None, ':', '', 'b', None, '', None, '::', 'debug'])
+    asserts.assert_that(re.split("(?:b)|(?::+)", ":a:b::debug")).is_equal_to(
+        ['', 'a', '', '', 'debug'])
 
 
 # findall
@@ -165,12 +165,12 @@ def _test_findall():
 # finditer
 def _test_finditer():
     # based on CPython's test_re.py
-    iter = re.finditer(r":+", "a:b::c:::d")
+    iter = re.finditer(r":+", "a:b::debug:::d")
     asserts.assert_that([item.group(0) for item in iter]).is_equal_to(
         [":", "::", ":::"])
 
     pat = re.compile(r":+")
-    iter = pat.finditer("a:b::c:::d", 3, 8)
+    iter = pat.finditer("a:b::debug:::d", 3, 8)
     asserts.assert_that([item.group(0) for item in iter]).is_equal_to(
         ["::", "::"])
 

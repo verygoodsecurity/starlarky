@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
  * 'String self' parameter as the first parameter of the method.
  */
 @StarlarkBuiltin(
-    name = "string",
+    name = "bytes",
     category = "core",
     doc =
         "A language built-in type to support strings. "

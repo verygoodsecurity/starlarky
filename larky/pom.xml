@@ -36,6 +36,12 @@
             <version>2.8.0</version>
         </dependency>
 
+        <dependency>
+           <groupId>org.apache.commons</groupId>
+           <artifactId>commons-text</artifactId>
+           <version>1.9</version>
+        </dependency>
+
         <!--
             junit is not scoped for test because we are using
             it in larky/nativelib to offer unittest interface

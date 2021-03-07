@@ -60,7 +60,7 @@ public class LarkyScript {
 
   public static final FileOptions STARLARK_LOOSE_FILE_OPTIONS =
       STARLARK_STRICT_FILE_OPTIONS.toBuilder()
-          .restrictStringEscapes(true)
+          .restrictStringEscapes(false)
           .requireLoadStatementsFirst(false)
           .build();
 
