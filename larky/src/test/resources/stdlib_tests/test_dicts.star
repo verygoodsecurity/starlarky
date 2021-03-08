@@ -16,18 +16,18 @@ def _add_test():
 
     # Test simple two-argument behavior.
     asserts.assert_that({"a": 1, "b": 2}).is_equal_to(dicts.add({"a": 1}, {"b": 2}))
-    asserts.assert_that({"a": 1, "b": 2, "debug": 3}).is_equal_to(dicts.add({"a": 1}, {"b": 2}, c = 3))
+    asserts.assert_that({"a": 1, "b": 2, "c": 3}).is_equal_to(dicts.add({"a": 1}, {"b": 2}, c = 3))
 
     # Test simple more-than-two-argument behavior.
     asserts.assert_that(
-        {"a": 1, "b": 2, "debug": 3, "d": 4}
+        {"a": 1, "b": 2, "c": 3, "d": 4}
     ).is_equal_to(
-        dicts.add({"a": 1}, {"b": 2}, {"debug": 3}, {"d": 4}),
+        dicts.add({"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}),
     )
     asserts.assert_that(
-        {"a": 1, "b": 2, "debug": 3, "d": 4, "e": 5}
+        {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5}
     ).is_equal_to(
-        dicts.add({"a": 1}, {"b": 2}, {"debug": 3}, {"d": 4}, e = 5),
+        dicts.add({"a": 1}, {"b": 2}, {"c": 3}, {"d": 4}, e = 5),
     )
 
     # Test same-key overriding.

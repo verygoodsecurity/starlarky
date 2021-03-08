@@ -49,7 +49,7 @@ public final class LarkyGlobals {
     )
   @StarlarkConstructor
   public SimpleStruct struct(Dict<String, Object> kwargs, StarlarkThread thread)  {
-    return SimpleStruct.immutable(kwargs, thread.getSemantics());
+    return SimpleStruct.immutable(kwargs, thread);
   }
 
   @StarlarkMethod(
@@ -61,7 +61,7 @@ public final class LarkyGlobals {
     )
   @StarlarkConstructor
   public SimpleStruct mutablestruct(Dict<String, Object> kwargs, StarlarkThread thread)  {
-    return SimpleStruct.mutable(kwargs, thread.getSemantics());
+    return SimpleStruct.mutable(kwargs, thread);
   }
 
   @StarlarkMethod(
@@ -148,5 +148,32 @@ public final class LarkyGlobals {
         .map(StarlarkInt::of)
         .collect(Collectors.toList()));
   }
+
+  //override built-in type
+  @StarlarkMethod(
+       name = "type",
+       doc =
+           "Returns the type name of its argument. This is useful for debugging and "
+               + "type-checking. Examples:"
+               + "<pre class=\"language-python\">"
+               + "type(2) == \"int\"\n"
+               + "type([1]) == \"list\"\n"
+               + "type(struct(a = 2)) == \"struct\""
+               + "</pre>"
+               + "This function might change in the future. To write Python-compatible code and "
+               + "be future-proof, use it only to compare return values: "
+               + "<pre class=\"language-python\">"
+               + "if type(x) == type([]):  # if x is a list"
+               + "</pre>" +
+               "\n" +
+               "Type can overridden on any LarkyObject by implementing a __type__ special method." +
+               "Otherwise, the type will default to the default Starlark::type() method invocation",
+       parameters = {@Param(name = "x", doc = "The object to check type of.")})
+   public String type(Object object) {
+     if (SimpleStruct.class.isAssignableFrom(object.getClass())) {
+       return ((SimpleStruct) object).type();
+     }
+     return Starlark.type(object);
+   }
 
 }

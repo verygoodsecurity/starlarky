@@ -6,6 +6,7 @@ load("@stdlib/unittest", "unittest")
 load("@stdlib/builtins", "builtins")
 load("@stdlib/types", "types")
 load("@stdlib/codecs", "codecs")
+load("@stdlib/escapes", "escapes")
 
 
 # Tests of 'bytes' (immutable byte strings).
@@ -91,66 +92,71 @@ empty = builtins.bytes("")
 # # asserts.assert_that(b("\t\n\x7F\u200D")).is_equal_to(nonprinting)
 # asserts.assert_that("abc").is_not_equal_to(b("abc"))
 
-
 #asserts.assert_that(b("\012\xff\u0400\U0001F63F")).is_equal_to(b(r"\n\xffЀ😿")) # see scanner tests for more
+#_escaper("\012").x("ff").u("0400").U("0001F63F").escape()
+escaped = escapes.CEscape().raw("\012").o("12").x("ff").u("0400").U("0001F63F")
+print(_decode(b(''.join(escaped.literal))))
+print(escaped)
+print(repr(escaped))
+print(type(escaped))
 asserts.assert_that(
     b(debug("\012" +
             string_literal_escape("ff", "x") +
             string_literal_escape("0400", "u") +
             string_literal_escape("0001F63F", "U"))
     )).is_equal_to(b("\n" + string_literal_escape("ff", "x") + "Ѐ😿")) # see scanner tests for more
-asserts.assert_that(b("".join(["\012", x("ff"), u("0400"), U("0001F63F")]))).is_equal_to(b(r"\n\xffЀ😿")) # see scanner tests for more
-asserts.assert_that(b(r"\r\n\t")).is_equal_to(builtins.bytes("\\r\\n\\t")) # raw
+# asserts.assert_that(b("".join(["\012", x("ff"), u("0400"), U("0001F63F")]))).is_equal_to(b(r"\n\xffЀ😿")) # see scanner tests for more
+# asserts.assert_that(b(r"\r\n\t")).is_equal_to(builtins.bytes("\\r\\n\\t")) # raw
+# #
+# # type
+# # asserts.assert_that(type(hello)).is_equal_to("bytes")
+# #
+# # len
+# asserts.assert_that(len(hello)).is_equal_to(13)
+# asserts.assert_that(len(goodbye)).is_equal_to(7)
+# asserts.assert_that(len(empty)).is_equal_to(0)
+# asserts.assert_that(len(b("A"))).is_equal_to(1)
+# asserts.assert_that(len(b("Ѐ"))).is_equal_to(2)
+# asserts.assert_that(len(b("世"))).is_equal_to(3)
+# asserts.assert_that(len(b("😿"))).is_equal_to(4)
 #
-# type
-# asserts.assert_that(type(hello)).is_equal_to("bytes")
+# # truth
+# asserts.assert_true(hello)
+# asserts.assert_true(goodbye)
+# asserts.assert_true(not empty)
+# #
+# # # str(bytes) does UTF-8 to UTF-k transcoding.
+# # # TODO(adonovan): specify.
+# # asserts.assert_that(str(hello)).is_equal_to("hello, 世界")
+# # asserts.assert_that(str(hello[:-1])).is_equal_to("hello, 世��")  # incomplete UTF-8 encoding => U+FFFD
+# # asserts.assert_that(str(goodbye)).is_equal_to("goodbye")
+# # asserts.assert_that(str(empty)).is_equal_to("")
+# # asserts.assert_that(str(nonprinting)).is_equal_to("\t\n\x7f\u200d")
+# # asserts.assert_that(str(b"\xED\xB0\x80")).is_equal_to("���") # UTF-8 encoding of unpaired surrogate => U+FFFD x 3
+# #
+# # # repr
+# # asserts.assert_that(repr(hello)).is_equal_to(r'b"hello, 世界"')
+# # asserts.assert_that(repr(hello[:-1])).is_equal_to(r'b"hello, 世\xe7\x95"')  # (incomplete UTF-8 encoding )
+# # asserts.assert_that(repr(goodbye)).is_equal_to('b"goodbye"')
+# # asserts.assert_that(repr(empty)).is_equal_to('b""')
+# # asserts.assert_that(repr(nonprinting)).is_equal_to('b"\\t\\n\\x7f\\u200d"')
 #
-# len
-asserts.assert_that(len(hello)).is_equal_to(13)
-asserts.assert_that(len(goodbye)).is_equal_to(7)
-asserts.assert_that(len(empty)).is_equal_to(0)
-asserts.assert_that(len(b("A"))).is_equal_to(1)
-asserts.assert_that(len(b("Ѐ"))).is_equal_to(2)
-asserts.assert_that(len(b("世"))).is_equal_to(3)
-asserts.assert_that(len(b("😿"))).is_equal_to(4)
-
-# truth
-asserts.assert_true(hello)
-asserts.assert_true(goodbye)
-asserts.assert_true(not empty)
+# # equality
+# asserts.assert_that(hello).is_equal_to(hello)
+# asserts.assert_that(hello).is_not_equal_to(goodbye)
+# asserts.assert_that(b("goodbye")).is_equal_to(goodbye)
 #
-# # str(bytes) does UTF-8 to UTF-k transcoding.
-# # TODO(adonovan): specify.
-# asserts.assert_that(str(hello)).is_equal_to("hello, 世界")
-# asserts.assert_that(str(hello[:-1])).is_equal_to("hello, 世��")  # incomplete UTF-8 encoding => U+FFFD
-# asserts.assert_that(str(goodbye)).is_equal_to("goodbye")
-# asserts.assert_that(str(empty)).is_equal_to("")
-# asserts.assert_that(str(nonprinting)).is_equal_to("\t\n\x7f\u200d")
-# asserts.assert_that(str(b"\xED\xB0\x80")).is_equal_to("���") # UTF-8 encoding of unpaired surrogate => U+FFFD x 3
+# # ordered comparison
+# asserts.assert_that(b("abc")).is_less_than(b("abd"))
+# asserts.assert_that(b("abc")).is_less_than(b("abcd"))
+# asserts.assert_that(b(x("7f"))).is_less_than(b(x("80"))) # bytes compare as uint8, not int8
 #
-# # repr
-# asserts.assert_that(repr(hello)).is_equal_to(r'b"hello, 世界"')
-# asserts.assert_that(repr(hello[:-1])).is_equal_to(r'b"hello, 世\xe7\x95"')  # (incomplete UTF-8 encoding )
-# asserts.assert_that(repr(goodbye)).is_equal_to('b"goodbye"')
-# asserts.assert_that(repr(empty)).is_equal_to('b""')
-# asserts.assert_that(repr(nonprinting)).is_equal_to('b"\\t\\n\\x7f\\u200d"')
-
-# equality
-asserts.assert_that(hello).is_equal_to(hello)
-asserts.assert_that(hello).is_not_equal_to(goodbye)
-asserts.assert_that(b("goodbye")).is_equal_to(goodbye)
-
-# ordered comparison
-asserts.assert_that(b("abc")).is_less_than(b("abd"))
-asserts.assert_that(b("abc")).is_less_than(b("abcd"))
-asserts.assert_that(b(x("7f"))).is_less_than(b(x("80"))) # bytes compare as uint8, not int8
-
-# bytes are dict-hashable
-# -> # decode bytes into string!
-dict = {_decode(hello): 1, _decode(goodbye): 2}
-dict[_decode(b("goodbye"))] = 3
-asserts.assert_that(len(dict)).is_equal_to(2)
-asserts.assert_that(dict[_decode(goodbye)]).is_equal_to(3)
+# # bytes are dict-hashable
+# # -> # decode bytes into string!
+# dict = {_decode(hello): 1, _decode(goodbye): 2}
+# dict[_decode(b("goodbye"))] = 3
+# asserts.assert_that(len(dict)).is_equal_to(2)
+# asserts.assert_that(dict[_decode(goodbye)]).is_equal_to(3)
 #
 # # hash(bytes) is 32-bit FNV-1a.
 # asserts.assert_that(hash(b"")).is_equal_to(0x811c9dc5)

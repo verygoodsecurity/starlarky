@@ -14,6 +14,7 @@
         <junit.version>4.13.1</junit.version>
     </properties>
 
+    <!-- TODO(mahmoudimus): mvn dependency:analyze -->
     <dependencies>
 
         <dependency>

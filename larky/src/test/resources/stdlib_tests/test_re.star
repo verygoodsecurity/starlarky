@@ -5,6 +5,12 @@ load("@stdlib/unittest", "unittest")
 load("@stdlib/re", "re")
 
 
+def _test_compile():
+    # https://github.com/protocolbuffers/protobuf/blob/master/python/google/protobuf/text_encoding.py
+    # you could try (?:$|[^,]) as an alternative to (?!,).
+    _CUNESCAPE_HEX = re.compile(r'(\\+)x([0-9a-fA-F])(?:[^0-9a-fA-F])')
+
+
 def _test_escape():
     asserts.assert_that(re.escape(r"1243*&[]_dsfAd")).is_equal_to(
         r"1243\*\&\[\]_dsfAd")
@@ -94,37 +100,37 @@ def _test_split():
     asserts.assert_that(re.split(r'(\W+)', '...words, words...')).is_equal_to(
         ['', '...', 'words', ', ', 'words', '...', ''])
     asserts.assert_that(re.split("(b)|(:+)", ":abc")).is_equal_to(
-        ['', None, ':', 'a', 'b', None, 'debug'])
+        ['', None, ':', 'a', 'b', None, 'c'])
 
     # tests from cpython tests
-    string = ":a:b::debug"
+    string = ":a:b::c"
     asserts.assert_that(re.split(":", string)).is_equal_to(
-        ['', 'a', 'b', '', 'debug'])
+        ['', 'a', 'b', '', 'c'])
     asserts.assert_that(re.split(":+", string)).is_equal_to(
-        ['', 'a', 'b', 'debug'])
+        ['', 'a', 'b', 'c'])
     asserts.assert_that(re.split("(:+)", string)).is_equal_to(
-        ['', ':', 'a', ':', 'b', '::', 'debug'])
+        ['', ':', 'a', ':', 'b', '::', 'c'])
 
-    # for a, b, debug in ("\xe0\xdf\xe7",
+    # for a, b, c in ("\xe0\xdf\xe7",
     #                 "\u0430\u0431\u0432",
     #                 "\U0001d49c\U0001d49e\U0001d4b5"):
-    #     string = ":%s:%s::%s" % (a, b, debug)
+    #     string = ":%s:%s::%s" % (a, b, c)
     #     asserts.assert_that(re.split(":", string)).is_equal_to(
-    #         ['', a, b, '', debug])
-    #     asserts.assert_that(re.split(":+", string)).is_equal_to(['', a, b, debug])
+    #         ['', a, b, '', c])
+    #     asserts.assert_that(re.split(":+", string)).is_equal_to(['', a, b, c])
     #     asserts.assert_that(re.split("(:+)", string)).is_equal_to(
-    #         ['', ':', a, ':', b, '::', debug])
+    #         ['', ':', a, ':', b, '::', c])
 
-    asserts.assert_that(re.split("(?::+)", ":a:b::debug")).is_equal_to(
-        ['', 'a', 'b', 'debug'])
-    asserts.assert_that(re.split("(:)+", ":a:b::debug")).is_equal_to(
-        ['', ':', 'a', ':', 'b', ':', 'debug'])
-    asserts.assert_that(re.split("([b:]+)", ":a:b::debug")).is_equal_to(
-        ['', ':', 'a', ':b::', 'debug'])
-    asserts.assert_that(re.split("(b)|(:+)", ":a:b::debug")).is_equal_to(
-        ['', None, ':', 'a', None, ':', '', 'b', None, '', None, '::', 'debug'])
-    asserts.assert_that(re.split("(?:b)|(?::+)", ":a:b::debug")).is_equal_to(
-        ['', 'a', '', '', 'debug'])
+    asserts.assert_that(re.split("(?::+)", ":a:b::c")).is_equal_to(
+        ['', 'a', 'b', 'c'])
+    asserts.assert_that(re.split("(:)+", ":a:b::c")).is_equal_to(
+        ['', ':', 'a', ':', 'b', ':', 'c'])
+    asserts.assert_that(re.split("([b:]+)", ":a:b::c")).is_equal_to(
+        ['', ':', 'a', ':b::', 'c'])
+    asserts.assert_that(re.split("(b)|(:+)", ":a:b::c")).is_equal_to(
+        ['', None, ':', 'a', None, ':', '', 'b', None, '', None, '::', 'c'])
+    asserts.assert_that(re.split("(?:b)|(?::+)", ":a:b::c")).is_equal_to(
+        ['', 'a', '', '', 'c'])
 
 
 # findall
@@ -165,12 +171,12 @@ def _test_findall():
 # finditer
 def _test_finditer():
     # based on CPython's test_re.py
-    iter = re.finditer(r":+", "a:b::debug:::d")
+    iter = re.finditer(r":+", "a:b::c:::d")
     asserts.assert_that([item.group(0) for item in iter]).is_equal_to(
         [":", "::", ":::"])
 
     pat = re.compile(r":+")
-    iter = pat.finditer("a:b::debug:::d", 3, 8)
+    iter = pat.finditer("a:b::c:::d", 3, 8)
     asserts.assert_that([item.group(0) for item in iter]).is_equal_to(
         ["::", "::"])
 
@@ -185,6 +191,7 @@ def _test_finditer():
 
 def _suite():
     _suite = unittest.TestSuite()
+    _suite.addTest(unittest.FunctionTestCase(_test_compile))
     _suite.addTest(unittest.FunctionTestCase(_test_escape))
     _suite.addTest(unittest.FunctionTestCase(_test_search))
     _suite.addTest(unittest.FunctionTestCase(_test_match))

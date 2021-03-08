@@ -91,7 +91,6 @@ public final class PythonBuiltins {
       return StarlarkInt.of(new BigInteger(c.getBytes(StandardCharsets.UTF_8)).intValueExact());
     }
 
-
 //
 //  @StarlarkMethod(
 //      name = "bytes",

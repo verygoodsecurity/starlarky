@@ -47,14 +47,16 @@ public class CodecsModule implements StarlarkValue {
               allowedTypes = {
                   @ParamType(type = String.class),
               },
-              defaultValue = "'utf-8'"
+              defaultValue = "'utf-8'",
+              named = true
           ),
           @Param(
               name = "errors",
               allowedTypes = {
                   @ParamType(type = String.class),
               },
-              defaultValue = "'strict'"
+              defaultValue = "'strict'",
+              named = true
           )
       }
   )
