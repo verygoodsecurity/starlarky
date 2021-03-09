@@ -23,6 +23,7 @@ import com.google.errorprone.annotations.FormatString;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 
@@ -30,7 +31,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import javax.annotation.Nullable;
 
 /**
@@ -152,7 +152,11 @@ public final class StarlarkUtil {
     return x == Starlark.NONE ? null : (String) x;
   }
 
-  public static Object valueToStarlark(Object x)  {
+  public static Object valueToStarlark(Object x) {
+    return valueToStarlark(x, null);
+  }
+
+  public static Object valueToStarlark(Object x, @Nullable Mutability mutability)  {
       // Is x a non-empty string_list_dict?
       if (x instanceof Map) {
         Map<?, ?> map = (Map<?,?>) x;
@@ -163,7 +167,7 @@ public final class StarlarkUtil {
             try {
               dict.putEntry(
                   e.getKey(),
-                  Starlark.fromJava(e.getValue(),null));
+                  Starlark.fromJava(e.getValue(),mutability));
             } catch (EvalException evalException) {
               throw new RuntimeException(evalException);
             }
@@ -172,6 +176,6 @@ public final class StarlarkUtil {
         }
       }
       // For all other attribute values, shallow conversion is safe.
-      return Starlark.fromJava(x, null);
+      return Starlark.fromJava(x, mutability);
     }
 }

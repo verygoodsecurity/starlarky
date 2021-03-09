@@ -712,6 +712,101 @@ public class TextUtil {
     return sb.toString();
   }
 
+  /**
+    * The Unicode replacement character inserted in place of decoding errors.
+    */
+   private static final char REPLACEMENT_CHAR = '\uFFFD';
+
+   /**
+    * Returns a String for the UTF-8 encoded byte sequence in <code>bytes[0..len-1]</code>. The
+    * length of the resulting String will be the exact number of characters encoded by these bytes.
+    * Since UTF-8 is a variable-length encoding, the resulting String may have a length anywhere from
+    * len/3 to len, depending on the contents of the input array.<p>
+    *
+    * In the event of a bad encoding, the UTF-8 replacement character (code point U+FFFD) is inserted
+    * for the bad byte(s), and decoding resumes from the next byte.
+    */
+   /*test*/
+   public static String decodeUTF8(byte[] bytes, int len) {
+     char[] res = new char[len];
+     int cIx = 0;
+     for (int bIx = 0; bIx < len; cIx++) {
+       byte b1 = bytes[bIx];
+       if ((b1 & 0x80) == 0) {
+         // 1-byte sequence (U+0000 - U+007F)
+         res[cIx] = (char) b1;
+         bIx++;
+       } else if ((b1 & 0xE0) == 0xC0) {
+         // 2-byte sequence (U+0080 - U+07FF)
+         byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
+         if ((b2 & 0xC0) == 0x80) {
+           res[cIx] = (char) (((b1 & 0x1F) << 6) | (b2 & 0x3F));
+           bIx += 2;
+         } else {
+           // illegal 2nd byte
+           res[cIx] = REPLACEMENT_CHAR;
+           bIx++; // skip 1st byte
+         }
+       } else if ((b1 & 0xF0) == 0xE0) {
+         // 3-byte sequence (U+0800 - U+FFFF)
+         byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
+         if ((b2 & 0xC0) == 0x80) {
+           byte b3 = (bIx + 2 < len) ? bytes[bIx + 2] : 0; // early end of array
+           if ((b3 & 0xC0) == 0x80) {
+             res[cIx] = (char) (((b1 & 0x0F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F));
+             bIx += 3;
+           } else {
+             // illegal 3rd byte
+             res[cIx] = REPLACEMENT_CHAR;
+             bIx += 2; // skip 1st TWO bytes
+           }
+         } else {
+           // illegal 2nd byte
+           res[cIx] = REPLACEMENT_CHAR;
+           bIx++; // skip 1st byte
+         }
+       } else {
+         // illegal 1st byte
+         res[cIx] = REPLACEMENT_CHAR;
+         bIx++; // skip 1st byte
+       }
+     }
+     return new String(res, 0, cIx);
+   }
+
+  /**
+     * Determine whether a string consists entirely of characters in the range 0 to 255. Only such
+     * characters are allowed in the <code>PyBytes</code> (<code>str</code>) type.
+     *
+     * @return true if and only if every character has a code less than 256
+     */
+    public static boolean isBytes(CharSequence s) {
+      int k = s.length();
+      if (k == 0) {
+        return true;
+      } else {
+        // Bitwise-or the character codes together in order to test once.
+        char c = 0;
+        // Blocks of 8 to reduce loop tests
+        while (k > 8) {
+          c |= s.charAt(--k);
+          c |= s.charAt(--k);
+          c |= s.charAt(--k);
+          c |= s.charAt(--k);
+          c |= s.charAt(--k);
+          c |= s.charAt(--k);
+          c |= s.charAt(--k);
+          c |= s.charAt(--k);
+        }
+        // Now the rest
+        while (k > 0) {
+          c |= s.charAt(--k);
+        }
+        // We require there to be no bits set from 0x100 upwards
+        return c < 0x100;
+      }
+    }
+
   // Returns true iff |c| is an ASCII letter or decimal digit.
    static boolean isalnum(int c) {
      return ('0' <= c && c <= '9') || ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');

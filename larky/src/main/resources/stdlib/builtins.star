@@ -34,6 +34,9 @@ def _bytes(s):
     :param s:
     :return:
     """
+    if hasattr(s, '__bytes__'):
+        return s.__bytes__()
+
     if types.is_string(s):
         return codecs.encode(s)
     if types.is_iterable(s):
