@@ -13,14 +13,20 @@ import net.starlark.java.eval.StarlarkThread;
 import java.util.Map;
 
 // A trivial struct-like class with Starlark fields defined by a map.
-public class SimpleStruct extends LarkyObject {
+public class SimpleStruct implements LarkyObject {
 
   final Map<String, Object> fields;
+  final StarlarkThread currentThread;
 
   //@SuppressWarnings("CdiInjectionPointsInspection")
   SimpleStruct(Map<String, Object> fields, StarlarkThread currentThread) {
-    super(currentThread);
+    this.currentThread = currentThread;
     this.fields = fields;
+  }
+
+  @Override
+  public StarlarkThread getCurrentThread() {
+    return currentThread;
   }
 
   public static SimpleStruct create(Map<String, Object> kwargs) {

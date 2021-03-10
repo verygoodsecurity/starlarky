@@ -11,15 +11,19 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-public abstract class LarkyObject implements Structure {
+public interface LarkyObject extends Structure {
 
   List<Object> EMPTY_ARGS = Collections.emptyList();
   Map<String, Object> EMPTY_KWARGS = Collections.emptyMap();
+  /*
   final StarlarkThread currentThread;
 
   public LarkyObject(StarlarkThread thread) {
     this.currentThread = thread;
   }
+*/
+  StarlarkThread getCurrentThread();
+
   /**
    * Returns the value of the field with the given name, or null if the field does not exist. The
    * interpreter (Starlark code) calls the Structure#getField method, which has access to
@@ -31,22 +35,22 @@ public abstract class LarkyObject implements Structure {
    * @throws EvalException if a user-visible error occurs (other than non-existent field).
    */
   @Nullable
-  public Object getField(String name) throws EvalException {
+  default Object getField(String name) throws EvalException {
     return getValue(name);
   }
 
-  public boolean hasStrField() throws EvalException {
+  default boolean hasStrField() throws EvalException {
     return getField(PyProtocols.__STR__) != null;
   }
 
-  public boolean hasClassField() throws EvalException {
+  default boolean hasClassField() throws EvalException {
     return getField(PyProtocols.__CLASS__) != null;
   }
 
   /**
    * Returns the name of the type of a value as if by the Starlark expression {@code type(x)}.
    */
-  public String type() {
+  default String type() {
     try {
       if (!hasClassField()) {
         return Starlark.type(this);
@@ -58,7 +62,7 @@ public abstract class LarkyObject implements Structure {
   }
 
   @Override
-  public void str(Printer printer) {
+  default void str(Printer printer) {
     try {
       if (!hasStrField()) {
         repr(printer);
@@ -74,26 +78,27 @@ public abstract class LarkyObject implements Structure {
 
   @Nullable
   @Override
-  public String getErrorMessageForUnknownField(String field) {
+  default String getErrorMessageForUnknownField(String field) {
     return String.format("'%s' object has no attribute '%s'",
         Starlark.type(this),
         field);
   }
 
-  protected Object invoke(Object function) throws EvalException {
+  default Object invoke(Object function) throws EvalException {
     return invoke(function, EMPTY_ARGS, EMPTY_KWARGS);
   }
 
-  protected Object invoke(Object function, List<Object> args) throws EvalException {
+  default Object invoke(Object function, List<Object> args) throws EvalException {
     return invoke(function, args, EMPTY_KWARGS);
   }
 
-  protected Object invoke(Object function, Map<String, Object> kwargs) throws EvalException {
+  default Object invoke(Object function, Map<String, Object> kwargs) throws EvalException {
     return invoke(function, EMPTY_ARGS, kwargs);
   }
-  protected Object invoke(Object function, List<Object> args, Map<String, Object> kwargs) throws EvalException {
+
+  default Object invoke(Object function, List<Object> args, Map<String, Object> kwargs) throws EvalException {
     try {
-      return Starlark.call(this.currentThread, function, args, kwargs);
+      return Starlark.call(getCurrentThread(), function, args, kwargs);
     } catch (InterruptedException e) {
       throw new EvalException(e.getMessage(), e.fillInStackTrace());
     }

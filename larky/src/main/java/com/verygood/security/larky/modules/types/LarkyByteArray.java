@@ -50,10 +50,11 @@ import javax.annotation.Nonnull;
     name = "bytes",
     documented = false
 )
-public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<StarlarkInt>, Comparable<LarkyByteArray> {
+public class LarkyByteArray implements LarkyObject, HasBinary, Sequence<StarlarkInt>, Comparable<LarkyByteArray> {
 
   final private List<StarlarkInt> _string;
   final private Map<String, Object> fields = new HashMap<>();
+  final StarlarkThread currentThread;
 
   /**
    * bytes() -> empty bytes object
@@ -103,7 +104,7 @@ public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<S
   }
 
   public LarkyByteArray(StarlarkThread thread, byte[] buf, int off, int ending) {
-    super(thread);
+    this.currentThread = thread;
     _string = Bytes.asList(buf)
         .stream()
         .skip(off)
@@ -118,7 +119,7 @@ public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<S
    * bytes(iterable_of_ints) -> bytes
    */
   public LarkyByteArray(StarlarkThread thread, int[] iterable_of_ints) throws EvalException {
-    super(thread);
+    this.currentThread = thread;
     try {
         _string = IntStream.of(iterable_of_ints)
             .mapToObj(UnsignedBytes::checkedCast)
@@ -140,7 +141,7 @@ public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<S
    * @param isBytes true if the client guarantees we are dealing with bytes
    */
   private LarkyByteArray(StarlarkThread thread, CharSequence string, boolean isBytes) throws EvalException {
-    super(thread);
+    this.currentThread = thread;
     if (!isBytes && !TextUtil.isBytes(string)) {
       throw Starlark.errorf("Cannot create byte with non-byte value");
     }
@@ -200,6 +201,11 @@ public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<S
         .toArray();
   }
 
+  @Override
+  public StarlarkThread getCurrentThread() {
+    return this.currentThread;
+  }
+
   // A function that returns "fromValues".
   @StarlarkBuiltin(name="bytes.elems")
   public static class Elems extends AbstractList<StarlarkInt> implements Sequence<StarlarkInt> {
@@ -236,22 +242,6 @@ public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<S
     }
   };
 
-//  @StarlarkMethod(
-//      name = "elems",
-//      doc =
-//          "Returns an iterable value containing successive 1-element substrings of the string. "
-//              + "Equivalent to <code>[s[i] for i in range(len(s))]</code>, except that the "
-//              + "returned value might not be a list.",
-//      parameters = {@Param(name = "self", doc = "This string.")})
-//  public Sequence<String> elems(String self) {
-//    // TODO(adonovan): opt: return a new type that is lazily iterable.
-//    char[] chars = self.toCharArray();
-//    Object[] strings = new Object[chars.length];
-//    for (int i = 0; i < chars.length; i++) {
-//      strings[i] = memoizedCharToString(chars[i]);
-//    }
-//    return StarlarkList.wrap(null, strings);
-//  }
 
   @StarlarkMethod(name = "callable_only_field", documented = false, structField = true)
   public String getCallableOnlyField() {
@@ -272,31 +262,6 @@ public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<S
   public String getCollisionMethod() {
     return "fromStarlarkMethod";
   }
-
-//  @StarlarkMethod(
-//    name = "elems",
-//    doc =
-//        "Returns an iterable value containing successive 1-element substrings of the string. "
-//            + "Equivalent to <code>[s[i] for i in range(len(s))]</code>, except that the "
-//            + "returned value might not be a list."
-//    )
-//  public Sequence<StarlarkInt> elems() {
-//    // A function that returns "fromValues".
-//  private static final Object returnFromValues =
-//      new StarlarkCallable() {
-//        @Override
-//        public String getName() {
-//          return "returnFromValues";
-//        }
-//
-//        @Override
-//        public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
-//          return "bar";
-//        }
-//  };
-//
-//  }
-
 
   @Nullable
   @Override
