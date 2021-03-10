@@ -15,13 +15,7 @@ public interface LarkyObject extends Structure {
 
   List<Object> EMPTY_ARGS = Collections.emptyList();
   Map<String, Object> EMPTY_KWARGS = Collections.emptyMap();
-  /*
-  final StarlarkThread currentThread;
 
-  public LarkyObject(StarlarkThread thread) {
-    this.currentThread = thread;
-  }
-*/
   StarlarkThread getCurrentThread();
 
   /**
