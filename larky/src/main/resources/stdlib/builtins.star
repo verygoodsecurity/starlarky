@@ -3,7 +3,7 @@ load("@stdlib/types", "types")
 load("@stdlib/codecs", "codecs")
 
 
-def _bytes(s):
+def _bytes(s, encoding='utf-8', errors='strict'):
     """
     While bytes literals and representations are based on ASCII text, bytes
     objects actually behave like immutable sequences of integers, with each
@@ -37,12 +37,12 @@ def _bytes(s):
     if hasattr(s, '__bytes__'):
         return s.__bytes__()
 
-    if types.is_string(s):
-        return codecs.encode(s)
-    if types.is_iterable(s):
-        return larky.bytearray(list(s))
-    else:
-        fail("TypeError: cannot convert '%s' object to bytes" % type(s))
+    # utf-8 encoding by default
+    return larky.bytearray(s, encoding, errors)
+    # if types.is_iterable(s):
+    #     return larky.bytearray(list(s))
+    # else:
+    #     fail("TypeError: cannot convert '%s' object to bytes" % type(s))
 
 
 builtins = larky.struct(

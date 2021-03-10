@@ -2,8 +2,8 @@ package com.verygood.security.larky.modules.globals;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyObject;
+import com.verygood.security.larky.modules.io.TextUtil;
+import com.verygood.security.larky.modules.types.LarkyByteArray;
 import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
@@ -22,6 +22,11 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
+
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.UnsupportedCharsetException;
 
 
 /**
@@ -122,9 +127,50 @@ public final class LarkyGlobals {
         .build();
   }
 
+  // todo: move this out of here
+  static class CodecHelper {
+    public static final String STRICT = "strict";
+    public static final String IGNORE = "ignore";
+    public static final String REPLACE = "replace";
+    public static final String BACKSLASHREPLACE = "backslashreplace";
+    public static final String NAMEREPLACE = "namereplace";
+    public static final String XMLCHARREFREPLACE = "xmlcharrefreplace";
+    public static final String SURROGATEESCAPE = "surrogateescape";
+    public static final String SURROGATEPASS = "surrogatepass";
+
+    static CodingErrorAction convertCodingErrorAction(String errors) {
+      CodingErrorAction errorAction;
+      switch (errors) {
+        case IGNORE:
+          errorAction = CodingErrorAction.IGNORE;
+          break;
+        case REPLACE:
+        case NAMEREPLACE:
+          errorAction = CodingErrorAction.REPLACE;
+          break;
+        case STRICT:
+        case BACKSLASHREPLACE:
+        case SURROGATEPASS:
+        case SURROGATEESCAPE:
+        case XMLCHARREFREPLACE:
+        default:
+          errorAction = CodingErrorAction.REPORT;
+          break;
+      }
+      return errorAction;
+    }
+
+  }
+
   @StarlarkMethod(
       name = "_as_bytearray",
-      doc = "bytes() -> empty bytes object" +
+      doc = "Construct an immutable array of bytes from:\n" +
+          "  - an iterable yielding integers in range(256)\n" +
+          "  - a text string encoded using the specified encoding\n" +
+          "  - any object implementing the buffer API.\n" +
+          "  - an integer" +
+          "\n" +
+          "bytes() -> empty bytes object" +
           "\n" +
           "bytes(int) -> bytes object of size given by the parameter initialized with null bytes" +
           "\n" +
@@ -136,9 +182,10 @@ public final class LarkyGlobals {
       parameters = {
           @Param(name = "obj", allowedTypes = {
               @ParamType(type = NoneType.class),
-              @ParamType(type = StarlarkInt.class),
               @ParamType(type = String.class),
-              @ParamType(type = LarkyByte.class),
+              @ParamType(type = LarkyByteArray.class),
+              @ParamType(type = LarkyByteArray.Elems.class),
+              @ParamType(type = StarlarkInt.class),
               @ParamType(type = StarlarkList.class),
           }, defaultValue = "None"),
           @Param(name = "encoding", allowedTypes = {
@@ -152,46 +199,89 @@ public final class LarkyGlobals {
       },
       useStarlarkThread = true
   )
-  public LarkyByte asByteArray(
+  public LarkyByteArray asByteArray(
       Object _obj,
       Object _encoding,
       Object _errors,
       StarlarkThread thread
-      ) throws EvalException {
-    LarkyByte b = new LarkyByte(thread);
-    if(Starlark.isNullOrNone(_obj)) {
-      return b;
+  ) throws EvalException {
+    //bytes() -> empty bytes object
+    if (Starlark.isNullOrNone(_obj) || LarkyByteArray.class.isAssignableFrom(_obj.getClass())) {
+      //TODO(mahmoudimus): potential copy constructor bug if class really is larkybyte..test this!
+      return StarlarkUtil.convertFromNoneable(_obj, new LarkyByteArray(thread));
     }
-    String encoding = StarlarkUtil.convertOptionalString(_encoding);
-    String errs = StarlarkUtil.convertOptionalString(_errors);
-    return b;
-  }
 
-  //override built-in type
-  @StarlarkMethod(
-      name = "type",
-      doc =
-          "Returns the type name of its argument. This is useful for debugging and "
-              + "type-checking. Examples:"
-              + "<pre class=\"language-python\">"
-              + "type(2) == \"int\"\n"
-              + "type([1]) == \"list\"\n"
-              + "type(struct(a = 2)) == \"struct\""
-              + "</pre>"
-              + "This function might change in the future. To write Python-compatible code and "
-              + "be future-proof, use it only to compare return values: "
-              + "<pre class=\"language-python\">"
-              + "if type(x) == type([]):  # if x is a list"
-              + "</pre>" +
-              "\n" +
-              "Type can overridden on any LarkyObject by implementing a __type__ special method." +
-              "Otherwise, the type will default to the default Starlark::type() method invocation",
-      parameters = {@Param(name = "x", doc = "The object to check type of.")})
-  public String type(Object object) {
-    if (LarkyObject.class.isAssignableFrom(object.getClass())) {
-      return ((LarkyObject) object).type();
+    // handle case where string is passed in.
+    // TODO: move this to LarkyBytes class
+    if (String.class.isAssignableFrom(_obj.getClass())) {
+      // _obj is a string
+      String encoding = StarlarkUtil.convertOptionalString(_encoding);
+      if (encoding == null) {
+        // if encoding is null && _obj is a string, then we have to throw an error
+        throw Starlark.errorf("string argument without an encoding");
+      }
+      Charset charset;
+      try {
+        charset = Charset.forName(encoding);
+      } catch (UnsupportedCharsetException e) {
+        throw Starlark.errorf("unknown encoding: %s", e.getMessage());
+      }
+      /*
+       mimic the python behavior such that if string is null, then we convert it to empty string:
+
+      >>> bytes('', 'utf-8')
+      b''
+      */
+
+      /*
+        errors
+          The error handling scheme to use for encoding errors.
+          The default is 'strict' meaning that encoding errors raise a
+          UnicodeEncodeError.  Other possible values are 'ignore', 'replace' and
+          'xmlcharrefreplace' as well as any other name registered with
+          codecs.register_error that can handle UnicodeEncodeErrors.
+       */
+
+      CodingErrorAction errs = CodecHelper.convertCodingErrorAction(
+          StarlarkUtil.convertFromNoneable(_errors, CodecHelper.STRICT)
+      );
+
+      CharsetDecoder decoder = charset.newDecoder();
+      decoder.onMalformedInput(errs);
+      decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
+      decoder.replaceWith(String.valueOf(TextUtil.REPLACEMENT_CHAR));
+      //bytes(string, encoding[, errors]) -> bytes
+      return new LarkyByteArray(
+          thread,
+          decoder.charset()
+              .encode(TextUtil.unescapeJavaString((String) _obj))
+      );
     }
-    return Starlark.type(object);
+
+    // here we are not null,
+    try {
+      // do we have an int?
+      _obj = StarlarkUtil.valueToStarlark(_obj, thread.mutability());
+    } catch (IllegalArgumentException x) {
+      // obj is not a value we support, gtfo here
+      throw Starlark.errorf("cannot convert '%s' to bytes", x.getMessage());
+    }
+
+    String classType = Starlark.classType(_obj.getClass());
+    try {
+      switch (classType) {
+        case "int":
+          return new LarkyByteArray(thread, ((StarlarkInt) _obj).toIntUnchecked());
+        case "bytes.elems":
+          return new LarkyByteArray(thread, (LarkyByteArray.Elems) _obj);
+        case "list":
+          return new LarkyByteArray(thread, (StarlarkList<?>) _obj);
+        default:
+          throw Starlark.errorf("unable to convert '%s' to bytes", classType);
+      }
+    } catch (ClassCastException ex) {
+      throw Starlark.errorf("%s", ex.getMessage());
+    }
   }
 
 }

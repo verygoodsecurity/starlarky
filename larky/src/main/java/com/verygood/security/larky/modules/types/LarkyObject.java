@@ -64,14 +64,38 @@ public abstract class LarkyObject implements Structure {
         repr(printer);
         return;
       }
-      String result = (String) Starlark.call(
-          this.currentThread,
-          getField(PyProtocols.__STR__),
-          EMPTY_ARGS,
-          EMPTY_KWARGS);
+      String result = (String) invoke(getField(PyProtocols.__STR__)) ;
       printer.append(result);
-    } catch (InterruptedException | EvalException e) {
+    } catch (EvalException e) {
       throw new RuntimeException(e);
+    }
+
+  }
+
+  @Nullable
+  @Override
+  public String getErrorMessageForUnknownField(String field) {
+    return String.format("'%s' object has no attribute '%s'",
+        Starlark.type(this),
+        field);
+  }
+
+  protected Object invoke(Object function) throws EvalException {
+    return invoke(function, EMPTY_ARGS, EMPTY_KWARGS);
+  }
+
+  protected Object invoke(Object function, List<Object> args) throws EvalException {
+    return invoke(function, args, EMPTY_KWARGS);
+  }
+
+  protected Object invoke(Object function, Map<String, Object> kwargs) throws EvalException {
+    return invoke(function, EMPTY_ARGS, kwargs);
+  }
+  protected Object invoke(Object function, List<Object> args, Map<String, Object> kwargs) throws EvalException {
+    try {
+      return Starlark.call(this.currentThread, function, args, kwargs);
+    } catch (InterruptedException e) {
+      throw new EvalException(e.getMessage(), e.fillInStackTrace());
     }
   }
 

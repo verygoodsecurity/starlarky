@@ -94,7 +94,7 @@ public class StdLibTests {
       );
       StdLibTests.console.info("Successfully executed: " + pathToTestFile);
     } catch (IOException | EvalException e) {
-      Assertions.fail(e.getMessage());
+      Assertions.fail(e.getMessage(), e.fillInStackTrace());
     }
   }
 }

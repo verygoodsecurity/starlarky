@@ -1,6 +1,8 @@
 package com.verygood.security.larky.modules.globals;
 
 import com.verygood.security.larky.annot.Library;
+import com.verygood.security.larky.modules.types.LarkyByteArray;
+import com.verygood.security.larky.modules.types.LarkyObject;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -91,6 +93,55 @@ public final class PythonBuiltins {
       return StarlarkInt.of(new BigInteger(c.getBytes(StandardCharsets.UTF_8)).intValueExact());
     }
 
+  //override built-in type
+  @StarlarkMethod(
+      name = "type",
+      doc =
+          "Returns the type name of its argument. This is useful for debugging and "
+              + "type-checking. Examples:"
+              + "<pre class=\"language-python\">"
+              + "type(2) == \"int\"\n"
+              + "type([1]) == \"list\"\n"
+              + "type(struct(a = 2)) == \"struct\""
+              + "</pre>"
+              + "This function might change in the future. To write Python-compatible code and "
+              + "be future-proof, use it only to compare return values: "
+              + "<pre class=\"language-python\">"
+              + "if type(x) == type([]):  # if x is a list"
+              + "</pre>" +
+              "\n" +
+              "Type can overridden on any LarkyObject by implementing a __type__ special method." +
+              "Otherwise, the type will default to the default Starlark::type() method invocation",
+      parameters = {@Param(name = "x", doc = "The object to check type of.")})
+  public String type(Object object) {
+    if (LarkyObject.class.isAssignableFrom(object.getClass())) {
+      return ((LarkyObject) object).type();
+    }
+    return Starlark.type(object);
+  }
+
+  @StarlarkMethod(
+       name = "hash",
+       doc =
+           "Return a hash value for a string. This is computed deterministically using the same "
+               + "algorithm as Java's <code>String.hashCode()</code>, namely: "
+               + "<pre class=\"language-python\">s[0] * (31^(n-1)) + s[1] * (31^(n-2)) + ... + "
+               + "s[n-1]</pre> Hashing of values besides strings is not currently supported.",
+       // Deterministic hashing is important for the consistency of builds, hence why we
+       // promise a specific algorithm. This is in contrast to Java (Object.hashCode()) and
+       // Python, which promise stable hashing only within a given execution of the program.
+       parameters = {
+         @Param(
+             name = "value",
+             doc = "String or byte value to hash.",
+             allowedTypes = {
+                 @ParamType(type = String.class),
+                 @ParamType(type = LarkyByteArray.class),
+             }),
+       })
+   public int hash(Object value) throws EvalException {
+    return value.hashCode();
+   }
 //
 //  @StarlarkMethod(
 //      name = "bytes",

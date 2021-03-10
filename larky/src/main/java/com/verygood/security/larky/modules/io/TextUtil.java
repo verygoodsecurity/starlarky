@@ -33,7 +33,6 @@ import java.util.Arrays;
  * Mostly taken from Apache Arrow and from RE2j's Unicode class.
  *
  * It allows for utilities for dealing with Unicode better than Java does.
- *
  */
 public class TextUtil {
 
@@ -45,7 +44,8 @@ public class TextUtil {
   private final ThreadLocal<CharsetDecoder> DECODER_FACTORY =
       ThreadLocal.withInitial(() -> StandardCharsets.UTF_8.newDecoder()
           .onMalformedInput(CodingErrorAction.REPORT)
-          .onUnmappableCharacter(CodingErrorAction.REPORT));;
+          .onUnmappableCharacter(CodingErrorAction.REPORT));
+  ;
 
   private static final byte[] EMPTY_BYTES = new byte[0];
 
@@ -158,8 +158,7 @@ public class TextUtil {
   /**
    * Finds any occurrence of <code>what</code> in the backing buffer, starting as position
    * <code>start</code>. The starting position is measured in bytes and the return value is in
-   * terms
-   * of byte position in the buffer. The backing buffer is not converted to a string for this
+   * terms of byte position in the buffer. The backing buffer is not converted to a string for this
    * operation.
    *
    * @param what  the string to search for
@@ -270,9 +269,8 @@ public class TextUtil {
    * Clear the string to empty.
    *
    * <em>Note</em>: For performance reasons, this call does not clear the underlying byte array
-   * that
-   * is retrievable via {@link #getBytes()}. In order to free the byte-array memory, call {@link
-   * #set(byte[])} with an empty byte array (For example, <code>new byte[0]</code>).
+   * that is retrievable via {@link #getBytes()}. In order to free the byte-array memory, call
+   * {@link #set(byte[])} with an empty byte array (For example, <code>new byte[0]</code>).
    */
   public void clear() {
     length = 0;
@@ -598,7 +596,7 @@ public class TextUtil {
             )
             ) {
               throw new IllegalArgumentException(String.format(
-                            "illegal hex digit #%d '%c' in \\x", ch, ch));
+                  "illegal hex digit #%d '%c' in \\x", ch, ch));
             }
 
           }
@@ -713,9 +711,9 @@ public class TextUtil {
   }
 
   /**
-    * The Unicode replacement character inserted in place of decoding errors.
-    */
-   private static final char REPLACEMENT_CHAR = '\uFFFD';
+   * The Unicode replacement character inserted in place of decoding errors.
+   */
+  public static final char REPLACEMENT_CHAR = '\uFFFD';
 
    /**
     * Returns a String for the UTF-8 encoded byte sequence in <code>bytes[0..len-1]</code>. The
@@ -775,235 +773,234 @@ public class TextUtil {
    }
 
   /**
-     * Determine whether a string consists entirely of characters in the range 0 to 255. Only such
-     * characters are allowed in the <code>PyBytes</code> (<code>str</code>) type.
-     *
-     * @return true if and only if every character has a code less than 256
-     */
-    public static boolean isBytes(CharSequence s) {
-      int k = s.length();
-      if (k == 0) {
-        return true;
-      } else {
-        // Bitwise-or the character codes together in order to test once.
-        char c = 0;
-        // Blocks of 8 to reduce loop tests
-        while (k > 8) {
-          c |= s.charAt(--k);
-          c |= s.charAt(--k);
-          c |= s.charAt(--k);
-          c |= s.charAt(--k);
-          c |= s.charAt(--k);
-          c |= s.charAt(--k);
-          c |= s.charAt(--k);
-          c |= s.charAt(--k);
-        }
-        // Now the rest
-        while (k > 0) {
-          c |= s.charAt(--k);
-        }
-        // We require there to be no bits set from 0x100 upwards
-        return c < 0x100;
+   * Determine whether a string consists entirely of characters in the range 0 to 255. Only such
+   * characters are allowed in the <code>PyBytes</code> (<code>str</code>) type.
+   *
+   * @return true if and only if every character has a code less than 256
+   */
+  public static boolean isBytes(CharSequence s) {
+    int k = s.length();
+    if (k == 0) {
+      return true;
+    } else {
+      // Bitwise-or the character codes together in order to test once.
+      char c = 0;
+      // Blocks of 8 to reduce loop tests
+      while (k > 8) {
+        c |= s.charAt(--k);
+        c |= s.charAt(--k);
+        c |= s.charAt(--k);
+        c |= s.charAt(--k);
+        c |= s.charAt(--k);
+        c |= s.charAt(--k);
+        c |= s.charAt(--k);
+        c |= s.charAt(--k);
       }
+      // Now the rest
+      while (k > 0) {
+        c |= s.charAt(--k);
+      }
+      // We require there to be no bits set from 0x100 upwards
+      return c < 0x100;
     }
+  }
 
   // Returns true iff |c| is an ASCII letter or decimal digit.
-   static boolean isalnum(int c) {
-     return ('0' <= c && c <= '9') || ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');
-   }
+  public static boolean isalnum(int c) {
+    return ('0' <= c && c <= '9') || ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');
+  }
 
-   // If |c| is an ASCII hex digit, returns its value, otherwise -1.
-   static int unhex(int c) {
-     if ('0' <= c && c <= '9') {
-       return c - '0';
-     }
-     if ('a' <= c && c <= 'f') {
-       return c - 'a' + 10;
-     }
-     if ('A' <= c && c <= 'F') {
-       return c - 'A' + 10;
-     }
-     return -1;
-   }
+  // If |c| is an ASCII hex digit, returns its value, otherwise -1.
+  public static int unhex(int c) {
+    if ('0' <= c && c <= '9') {
+      return c - '0';
+    }
+    if ('a' <= c && c <= 'f') {
+      return c - 'a' + 10;
+    }
+    if ('A' <= c && c <= 'F') {
+      return c - 'A' + 10;
+    }
+    return -1;
+  }
 
-   private static final String METACHARACTERS = "\\.+*?()|[]{}^$";
+  private static final String METACHARACTERS = "\\.+*?()|[]{}^$";
 
-   // Appends a RE2 literal to |out| for rune |rune|,
-   // with regexp metacharacters escaped.
-   static void escapeRegexRune(StringBuilder out, int rune) {
-     if (TextUtil.isPrint(rune)) {
-       if (METACHARACTERS.indexOf((char) rune) >= 0) {
-         out.append('\\');
-       }
-       out.appendCodePoint(rune);
-       return;
-     }
+  // Appends a RE2 literal to |out| for rune |rune|,
+  // with regexp metacharacters escaped.
+  public static void escapeRegexRune(StringBuilder out, int rune) {
+    if (TextUtil.isPrint(rune)) {
+      if (METACHARACTERS.indexOf((char) rune) >= 0) {
+        out.append('\\');
+      }
+      out.appendCodePoint(rune);
+      return;
+    }
 
-     switch (rune) {
-       case '"':
-         out.append("\\\"");
-         break;
-       case '\\':
-         out.append("\\\\");
-         break;
-       case '\t':
-         out.append("\\t");
-         break;
-       case '\n':
-         out.append("\\n");
-         break;
-       case '\r':
-         out.append("\\r");
-         break;
-       case '\b':
-         out.append("\\b");
-         break;
-       case '\f':
-         out.append("\\f");
-         break;
-       default:
-         {
-           String s = Integer.toHexString(rune);
-           if (rune < 0x100) {
-             out.append("\\x");
-             if (s.length() == 1) {
-               out.append('0');
-             }
-             out.append(s);
-           } else {
-             out.append("\\x{").append(s).append('}');
-           }
-           break;
-         }
-     }
-   }
+    switch (rune) {
+      case '"':
+        out.append("\\\"");
+        break;
+      case '\\':
+        out.append("\\\\");
+        break;
+      case '\t':
+        out.append("\\t");
+        break;
+      case '\n':
+        out.append("\\n");
+        break;
+      case '\r':
+        out.append("\\r");
+        break;
+      case '\b':
+        out.append("\\b");
+        break;
+      case '\f':
+        out.append("\\f");
+        break;
+      default: {
+        String s = Integer.toHexString(rune);
+        if (rune < 0x100) {
+          out.append("\\x");
+          if (s.length() == 1) {
+            out.append('0');
+          }
+          out.append(s);
+        } else {
+          out.append("\\x{").append(s).append('}');
+        }
+        break;
+      }
+    }
+  }
 
-   // Returns the array of runes in the specified Java UTF-16 string.
-   static int[] stringToRunes(String str) {
-     int charlen = str.length();
-     int runelen = str.codePointCount(0, charlen);
-     int[] runes = new int[runelen];
-     int r = 0, c = 0;
-     while (c < charlen) {
-       int rune = str.codePointAt(c);
-       runes[r++] = rune;
-       c += Character.charCount(rune);
-     }
-     return runes;
-   }
+  // Returns the array of runes in the specified Java UTF-16 string.
+  public static int[] stringToRunes(String str) {
+    int charlen = str.length();
+    int runelen = str.codePointCount(0, charlen);
+    int[] runes = new int[runelen];
+    int r = 0, c = 0;
+    while (c < charlen) {
+      int rune = str.codePointAt(c);
+      runes[r++] = rune;
+      c += Character.charCount(rune);
+    }
+    return runes;
+  }
 
-   // Returns the Java UTF-16 string containing the single rune |r|.
-   static String runeToString(int r) {
-     char c = (char) r;
-     return r == c ? String.valueOf(c) : new String(Character.toChars(c));
-   }
+  // Returns the Java UTF-16 string containing the single rune |r|.
+  public static String runeToString(int r) {
+    char c = (char) r;
+    return r == c ? String.valueOf(c) : new String(Character.toChars(c));
+  }
 
-   // Returns a new copy of the specified subarray.
-   @SuppressWarnings("CommentedOutCode")
-   static int[] subarray(int[] array, int start, int end) {
-     int[] r = new int[end - start];
-     //for (int i = start; i < end; ++i) {
-     //  r[i - start] = array[i];
-     //}
-     if (end - start >= 0) {
-       System.arraycopy(array, start, r, 0, end - start);
-     }
-     return r;
-   }
+  // Returns a new copy of the specified subarray.
+  @SuppressWarnings("CommentedOutCode")
+  public static int[] subarray(int[] array, int start, int end) {
+    int[] r = new int[end - start];
+    //for (int i = start; i < end; ++i) {
+    //  r[i - start] = array[i];
+    //}
+    if (end - start >= 0) {
+      System.arraycopy(array, start, r, 0, end - start);
+    }
+    return r;
+  }
 
-   // Returns a new copy of the specified subarray.
-   static byte[] subarray(byte[] array, int start, int end) {
-     byte[] r = new byte[end - start];
-     if (end - start >= 0) {
-       System.arraycopy(array, start, r, 0, end - start);
-     }
-     return r;
-   }
+  // Returns a new copy of the specified subarray.
+  public static byte[] subarray(byte[] array, int start, int end) {
+    byte[] r = new byte[end - start];
+    if (end - start >= 0) {
+      System.arraycopy(array, start, r, 0, end - start);
+    }
+    return r;
+  }
 
-   // Returns the index of the first occurrence of array |target| within
-   // array |source| after |fromIndex|, or -1 if not found.
-   static int indexOf(byte[] source, byte[] target, int fromIndex) {
-     if (fromIndex >= source.length) {
-       return target.length == 0 ? source.length : -1;
-     }
-     if (fromIndex < 0) {
-       fromIndex = 0;
-     }
-     if (target.length == 0) {
-       return fromIndex;
-     }
+  // Returns the index of the first occurrence of array |target| within
+  // array |source| after |fromIndex|, or -1 if not found.
+  public static int indexOf(byte[] source, byte[] target, int fromIndex) {
+    if (fromIndex >= source.length) {
+      return target.length == 0 ? source.length : -1;
+    }
+    if (fromIndex < 0) {
+      fromIndex = 0;
+    }
+    if (target.length == 0) {
+      return fromIndex;
+    }
 
-     byte first = target[0];
-     for (int i = fromIndex, max = source.length - target.length; i <= max; i++) {
-       // Look for first byte.
-       if (source[i] != first) {
-         while (true) {
-           if (++i > max || source[i] == first) break;
-         }
-       }
+    byte first = target[0];
+    for (int i = fromIndex, max = source.length - target.length; i <= max; i++) {
+      // Look for first byte.
+      if (source[i] != first) {
+        while (true) {
+          if (++i > max || source[i] == first) break;
+        }
+      }
 
-       // Found first byte, now look at the rest of v2.
-       if (i <= max) {
-         int j = i + 1;
-         int end = j + target.length - 1;
-         int k = 1;
-         while (j < end && source[j] == target[k]) {
-           j++;
-           k++;
-         }
+      // Found first byte, now look at the rest of v2.
+      if (i <= max) {
+        int j = i + 1;
+        int end = j + target.length - 1;
+        int k = 1;
+        while (j < end && source[j] == target[k]) {
+          j++;
+          k++;
+        }
 
-         if (j == end) {
-           return i; // found whole array
-         }
-       }
-     }
-     return -1;
-   }
+        if (j == end) {
+          return i; // found whole array
+        }
+      }
+    }
+    return -1;
+  }
 
-   // isWordRune reports whether r is consider a ``word character''
-   // during the evaluation of the \b and \B zero-width assertions.
-   // These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
-   static boolean isWordRune(int r) {
-     return (('A' <= r && r <= 'Z') || ('a' <= r && r <= 'z') || ('0' <= r && r <= '9') || r == '_');
-   }
+  // isWordRune reports whether r is consider a ``word character''
+  // during the evaluation of the \b and \B zero-width assertions.
+  // These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
+  public static boolean isWordRune(int r) {
+    return (('A' <= r && r <= 'Z') || ('a' <= r && r <= 'z') || ('0' <= r && r <= '9') || r == '_');
+  }
 
-   //// EMPTY_* flags
+  //// EMPTY_* flags
 
-   static final int EMPTY_BEGIN_LINE = 0x01;
-   static final int EMPTY_END_LINE = 0x02;
-   static final int EMPTY_BEGIN_TEXT = 0x04;
-   static final int EMPTY_END_TEXT = 0x08;
-   static final int EMPTY_WORD_BOUNDARY = 0x10;
-   static final int EMPTY_NO_WORD_BOUNDARY = 0x20;
-   static final int EMPTY_ALL = -1; // (impossible)
+  static final int EMPTY_BEGIN_LINE = 0x01;
+  static final int EMPTY_END_LINE = 0x02;
+  static final int EMPTY_BEGIN_TEXT = 0x04;
+  static final int EMPTY_END_TEXT = 0x08;
+  static final int EMPTY_WORD_BOUNDARY = 0x10;
+  static final int EMPTY_NO_WORD_BOUNDARY = 0x20;
+  static final int EMPTY_ALL = -1; // (impossible)
 
-   // emptyOpContext returns the zero-width assertions satisfied at the position
-   // between the runes r1 and r2, a bitmask of EMPTY_* flags.
-   // Passing r1 == -1 indicates that the position is at the beginning of the
-   // text.
-   // Passing r2 == -1 indicates that the position is at the end of the text.
-   // TODO(adonovan): move to Machine.
-   static int emptyOpContext(int r1, int r2) {
-     int op = 0;
-     if (r1 < 0) {
-       op |= EMPTY_BEGIN_TEXT | EMPTY_BEGIN_LINE;
-     }
-     if (r1 == '\n') {
-       op |= EMPTY_BEGIN_LINE;
-     }
-     if (r2 < 0) {
-       op |= EMPTY_END_TEXT | EMPTY_END_LINE;
-     }
-     if (r2 == '\n') {
-       op |= EMPTY_END_LINE;
-     }
-     if (isWordRune(r1) != isWordRune(r2)) {
-       op |= EMPTY_WORD_BOUNDARY;
-     } else {
-       op |= EMPTY_NO_WORD_BOUNDARY;
-     }
-     return op;
-   }
+  // emptyOpContext returns the zero-width assertions satisfied at the position
+  // between the runes r1 and r2, a bitmask of EMPTY_* flags.
+  // Passing r1 == -1 indicates that the position is at the beginning of the
+  // text.
+  // Passing r2 == -1 indicates that the position is at the end of the text.
+  // TODO(adonovan): move to Machine.
+  public static int emptyOpContext(int r1, int r2) {
+    int op = 0;
+    if (r1 < 0) {
+      op |= EMPTY_BEGIN_TEXT | EMPTY_BEGIN_LINE;
+    }
+    if (r1 == '\n') {
+      op |= EMPTY_BEGIN_LINE;
+    }
+    if (r2 < 0) {
+      op |= EMPTY_END_TEXT | EMPTY_END_LINE;
+    }
+    if (r2 == '\n') {
+      op |= EMPTY_END_LINE;
+    }
+    if (isWordRune(r1) != isWordRune(r2)) {
+      op |= EMPTY_WORD_BOUNDARY;
+    } else {
+      op |= EMPTY_NO_WORD_BOUNDARY;
+    }
+    return op;
+  }
 
 
   //is32 uses binary search to test whether rune is in the specified
@@ -1046,7 +1043,7 @@ public class TextUtil {
   }
 
   // isUpper reports whether the rune is an upper case letter.
-  static boolean isUpper(int r) {
+  public static boolean isUpper(int r) {
     // See comment in isGraphic.
     if (r <= MAX_LATIN1) {
       return Character.isUpperCase((char) r);
@@ -1055,7 +1052,7 @@ public class TextUtil {
   }
 
   // isPrint reports whether the rune is printable (Unicode L/M/N/P/S or ' ').
-  static boolean isPrint(int r) {
+  public static boolean isPrint(int r) {
     if (r <= MAX_LATIN1) {
       return (r >= 0x20 && r < 0x7F) || (r >= 0xA1 && r != 0xAD);
     }
@@ -1083,7 +1080,7 @@ public class TextUtil {
   //
   // Derived from Go's unicode.SimpleFold.
   //
-  static int simpleFold(int r) {
+  public static int simpleFold(int r) {
     // Consult caseOrbit table for special cases.
     if (r < UnicodeTables.CASE_ORBIT.length && UnicodeTables.CASE_ORBIT[r] != 0) {
       return UnicodeTables.CASE_ORBIT[r];
@@ -1279,7 +1276,7 @@ public class TextUtil {
    * @param bytes the incoming bytes
    * @return the corresponding unicode codepoint
    */
-  public static int bytesToCodePoint(ByteBuffer bytes) {
+  static public int bytesToCodePoint(ByteBuffer bytes) {
     bytes.mark();
     byte b = bytes.get();
     bytes.reset();
@@ -1329,7 +1326,7 @@ public class TextUtil {
    * @param string text to encode
    * @return number of UTF-8 bytes required to encode
    */
-  public static int utf8Length(String string) {
+  static public int utf8Length(String string) {
     CharacterIterator iter = new StringCharacterIterator(string);
     char ch = iter.first();
     int size = 0;

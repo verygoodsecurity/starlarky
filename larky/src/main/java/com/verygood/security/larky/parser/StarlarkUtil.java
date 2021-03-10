@@ -152,11 +152,11 @@ public final class StarlarkUtil {
     return x == Starlark.NONE ? null : (String) x;
   }
 
-  public static Object valueToStarlark(Object x) {
+  public static Object valueToStarlark(Object x) throws IllegalArgumentException {
     return valueToStarlark(x, null);
   }
 
-  public static Object valueToStarlark(Object x, @Nullable Mutability mutability)  {
+  public static Object valueToStarlark(Object x, @Nullable Mutability mutability) throws IllegalArgumentException {
       // Is x a non-empty string_list_dict?
       if (x instanceof Map) {
         Map<?, ?> map = (Map<?,?>) x;

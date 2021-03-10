@@ -32,6 +32,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -66,18 +67,18 @@ public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<S
    *
    * @param sizeof ->  size given by the parameter initialized
    */
-  public LarkyByteArray(StarlarkThread thread, int sizeof) throws EvalException {
+  public LarkyByteArray(StarlarkThread thread, int sizeof) {
     this(thread, ByteBuffer.allocate(sizeof));
   }
 
   /**
    * bytes(bytes_or_buffer) -> immutable copy of bytes_or_buffer
    */
-  public LarkyByteArray(StarlarkThread thread, byte[] buf) throws EvalException {
+  public LarkyByteArray(StarlarkThread thread, byte[] buf) {
     this(thread, buf, 0, buf.length);
   }
 
-  public LarkyByteArray(StarlarkThread thread, ByteBuffer buf) throws EvalException {
+  public LarkyByteArray(StarlarkThread thread, ByteBuffer buf) {
     this(thread, buf.array(), 0, buf.limit());
   }
 
@@ -88,7 +89,20 @@ public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<S
     this(thread, string, false);
   }
 
-  public LarkyByteArray(StarlarkThread thread, byte[] buf, int off, int ending) throws EvalException {
+  public LarkyByteArray(StarlarkThread thread, @Nonnull Elems elems) throws EvalException {
+    this(thread, elems.byteArray.toUnsignedBytes());
+  }
+
+  public LarkyByteArray(StarlarkThread thread, @Nonnull StarlarkList<?> list) throws EvalException {
+    this(thread,      list
+            .stream()
+            .map(StarlarkInt.class::cast)
+            .map(StarlarkInt::toIntUnchecked)
+            .mapToInt(i -> i)
+            .toArray());
+  }
+
+  public LarkyByteArray(StarlarkThread thread, byte[] buf, int off, int ending) {
     super(thread);
     _string = Bytes.asList(buf)
         .stream()
@@ -142,9 +156,19 @@ public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<S
     initFields();
   }
 
-  private void initFields() throws EvalException {
+  private void initFields() {
     fields.putAll(ImmutableMap.of(
-        "elems", new Elems(this)
+        "elems", new StarlarkCallable() {
+          @Override
+          public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) throws EvalException, InterruptedException {
+            return new Elems(LarkyByteArray.this);
+          }
+
+          @Override
+          public String getName() {
+            return "bytes.elems";
+          }
+        }
     ));
   }
 
@@ -178,23 +202,38 @@ public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<S
 
   // A function that returns "fromValues".
   @StarlarkBuiltin(name="bytes.elems")
-  static class Elems extends LarkyByteArray implements StarlarkCallable {
+  public static class Elems extends AbstractList<StarlarkInt> implements Sequence<StarlarkInt> {
 
-    public Elems(LarkyByteArray byteArray) throws EvalException {
-      super(byteArray.currentThread, byteArray.toBytes());
+    final private LarkyByteArray byteArray;
+
+    public Elems(LarkyByteArray byteArray) {
+      this.byteArray = byteArray;
     }
 
     @Override
-    public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
-      return this;
+    public void repr(Printer printer) {
+      printer.append(
+          String.format("b'\"%s\".elems()'",
+              TextUtil.decodeUTF8(
+                  this.byteArray.toBytes(),
+                  this.byteArray.toBytes().length
+              )));
     }
 
     @Override
-    public String getName() {
-      return "elems";
+    public StarlarkInt get(int index) {
+      return this.byteArray.get(index);
     }
 
+    @Override
+    public int size() {
+      return this.byteArray.size();
+    }
 
+    @Override
+    public Sequence<StarlarkInt> getSlice(Mutability mu, int start, int stop, int step) {
+      return this.byteArray.getSlice(mu, start, stop, step);
+    }
   };
 
 //  @StarlarkMethod(
@@ -265,7 +304,7 @@ public class LarkyByteArray extends LarkyObject implements HasBinary, Sequence<S
     if(name == null
            || !fields.containsKey(name)
            || fields.getOrDefault(name, null) == null) {
-      throw Starlark.errorf("'%s' object has no attribute '%s'", type(), name);
+      return null;
     }
     return fields.get(name);
   }
