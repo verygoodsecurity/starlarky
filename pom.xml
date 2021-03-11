@@ -264,7 +264,7 @@
         <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
         <google.errorprone.version>2.5.1</google.errorprone.version>
         <google.errorprone.javac.version>9+181-r4173-1</google.errorprone.javac.version>
-        <google.auto.value.version>1.7</google.auto.value.version>
+        <google.auto.value.version>1.7.4</google.auto.value.version>
         <google.compile.testing.version>0.18</google.compile.testing.version>
         <google.crypto.tink>1.5.0</google.crypto.tink>
         <google.flogger.version>0.5.1</google.flogger.version>
