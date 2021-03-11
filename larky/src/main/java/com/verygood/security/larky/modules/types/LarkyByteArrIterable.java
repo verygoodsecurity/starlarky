@@ -12,11 +12,11 @@ import java.util.AbstractList;
 
 // A function that returns "fromValues".
 @StarlarkBuiltin(name = "bytes.elems")
-public class ByteIterable extends AbstractList<StarlarkInt> implements Sequence<StarlarkInt> {
+public class LarkyByteArrIterable extends AbstractList<StarlarkInt> implements Sequence<StarlarkInt> {
 
   final private LarkyByteArray byteArray;
 
-  public ByteIterable(LarkyByteArray byteArray) {
+  public LarkyByteArrIterable(LarkyByteArray byteArray) {
     this.byteArray = byteArray;
   }
 

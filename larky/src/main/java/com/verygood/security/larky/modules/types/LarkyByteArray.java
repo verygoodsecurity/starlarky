@@ -89,7 +89,7 @@ public class LarkyByteArray implements LarkyObject, HasBinary, Sequence<Starlark
     this(thread, string, false);
   }
 
-  public LarkyByteArray(StarlarkThread thread, @Nonnull ByteIterable elems) throws EvalException {
+  public LarkyByteArray(StarlarkThread thread, @Nonnull LarkyByteArrIterable elems) throws EvalException {
     this(thread, elems.getLarkyByteArr().toUnsignedBytes());
   }
 
@@ -161,7 +161,7 @@ public class LarkyByteArray implements LarkyObject, HasBinary, Sequence<Starlark
         "elems", new StarlarkCallable() {
           @Override
           public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) throws EvalException, InterruptedException {
-            return new ByteIterable(LarkyByteArray.this);
+            return new LarkyByteArrIterable(LarkyByteArray.this);
           }
 
           @Override
