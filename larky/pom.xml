@@ -39,6 +39,7 @@
         <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
         <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
         <protobuf.version>3.14.0</protobuf.version>
+        <junit.version>4.13.1</junit.version>
     </properties>
 
     <dependencies>
@@ -137,6 +138,37 @@
             <groupId>com.google.truth</groupId>
             <artifactId>truth</artifactId>
             <version>${google.truth.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+           <groupId>org.apache.commons</groupId>
+           <artifactId>commons-text</artifactId>
+           <version>1.9</version>
+        </dependency>
+
+        <!--
+            junit is not scoped for test because we are using
+            it in larky/nativelib to offer unittest interface
+            to starlark
+        -->
+        <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>${junit.version}</version>
+        </dependency>
+
+        <!-- test -->
+        <dependency>
+              <groupId>org.junit.jupiter</groupId>
+              <artifactId>junit-jupiter-api</artifactId>
+              <version>5.7.0</version>
+              <scope>test</scope>
+          </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+            <version>5.7.0</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
