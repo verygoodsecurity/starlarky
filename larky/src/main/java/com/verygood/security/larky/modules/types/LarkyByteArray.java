@@ -13,7 +13,6 @@ import com.verygood.security.larky.modules.io.TextUtil;
 import com.verygood.security.larky.modules.utils.FnvHash;
 
 import net.starlark.java.annot.StarlarkBuiltin;
-import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.HasBinary;
 import net.starlark.java.eval.Mutability;
@@ -32,13 +31,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
+import java.util.AbstractList;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -49,7 +46,7 @@ import javax.annotation.Nonnull;
     name = "bytes",
     documented = false
 )
-public class LarkyByteArray implements LarkyObject, HasBinary, Sequence<StarlarkInt>, Comparable<LarkyByteArray> {
+public final class LarkyByteArray extends AbstractList<StarlarkInt> implements LarkyObject, HasBinary, Sequence<StarlarkInt>, Comparable<LarkyByteArray> {
 
   final private List<StarlarkInt> _string;
   final private Map<String, Object> fields = new HashMap<>();
@@ -205,29 +202,6 @@ public class LarkyByteArray implements LarkyObject, HasBinary, Sequence<Starlark
     return this.currentThread;
   }
 
-  ;
-
-
-  @StarlarkMethod(name = "callable_only_field", documented = false, structField = true)
-  public String getCallableOnlyField() {
-    return "fromStarlarkMethod";
-  }
-
-  @StarlarkMethod(name = "callable_only_method", documented = false, structField = false)
-  public String getCallableOnlyMethod() {
-    return "fromStarlarkMethod";
-  }
-
-  @StarlarkMethod(name = "collision_field", documented = false, structField = true)
-  public String getCollisionField() {
-    return "fromStarlarkMethod";
-  }
-
-  @StarlarkMethod(name = "collision_method", documented = false, structField = false)
-  public String getCollisionMethod() {
-    return "fromStarlarkMethod";
-  }
-
   @Nullable
   @Override
   public Object getValue(String name) throws EvalException {
@@ -255,10 +229,6 @@ public class LarkyByteArray implements LarkyObject, HasBinary, Sequence<Starlark
     return this._string.size();
   }
 
-  @Override
-  public boolean isEmpty() {
-    return this._string.isEmpty();
-  }
 
   @Override
   public boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
@@ -277,68 +247,6 @@ public class LarkyByteArray implements LarkyObject, HasBinary, Sequence<Starlark
     );
   }
 
-  @Override
-  public boolean contains(Object o) {
-    return this._string.contains(o);
-  }
-
-  @NotNull
-  @Override
-  public Iterator<StarlarkInt> iterator() {
-    return this._string.iterator();
-  }
-
-  @NotNull
-  @Override
-  public Object[] toArray() {
-    return this._string.toArray();
-  }
-
-  @NotNull
-  @Override
-  public <T> T[] toArray(@NotNull T[] a) {
-    return this._string.toArray(a);
-  }
-
-  @Override
-  public boolean add(StarlarkInt starlarkInt) {
-    return this._string.add(starlarkInt);
-  }
-
-  @Override
-  public boolean remove(Object o) {
-    return this._string.remove(o);
-  }
-
-  @Override
-  public boolean containsAll(@NotNull Collection<?> c) {
-    return this._string.containsAll(c);
-  }
-
-  @Override
-  public boolean addAll(@NotNull Collection<? extends StarlarkInt> c) {
-    return this._string.addAll(c);
-  }
-
-  @Override
-  public boolean addAll(int index, @NotNull Collection<? extends StarlarkInt> c) {
-    return this._string.addAll(index, c);
-  }
-
-  @Override
-  public boolean removeAll(@NotNull Collection<?> c) {
-    return this._string.removeAll(c);
-  }
-
-  @Override
-  public boolean retainAll(@NotNull Collection<?> c) {
-    return this._string.retainAll(c);
-  }
-
-  @Override
-  public void clear() {
-    this._string.clear();
-  }
 
   @Override
   public boolean equals(Object obj) {
@@ -354,49 +262,6 @@ public class LarkyByteArray implements LarkyObject, HasBinary, Sequence<Starlark
   @Override
   public StarlarkInt get(int index) {
     return this._string.get(index);
-  }
-
-  @Override
-  public StarlarkInt set(int index, StarlarkInt element) {
-    return this._string.set(index, element);
-  }
-
-  @Override
-  public void add(int index, StarlarkInt element) {
-    this._string.add(index, element);
-  }
-
-  @Override
-  public StarlarkInt remove(int index) {
-    return this._string.remove(index);
-  }
-
-  @Override
-  public int indexOf(Object o) {
-    return this._string.indexOf(o);
-  }
-
-  @Override
-  public int lastIndexOf(Object o) {
-    return this._string.lastIndexOf(o);
-  }
-
-  @NotNull
-  @Override
-  public ListIterator<StarlarkInt> listIterator() {
-    return this._string.listIterator();
-  }
-
-  @NotNull
-  @Override
-  public ListIterator<StarlarkInt> listIterator(int index) {
-    return this._string.listIterator(index);
-  }
-
-  @NotNull
-  @Override
-  public List<StarlarkInt> subList(int fromIndex, int toIndex) {
-    return this._string.subList(fromIndex, toIndex);
   }
 
   @Override
