@@ -20,6 +20,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
+import com.verygood.security.larky.modules.CodecsModule;
 import com.verygood.security.larky.modules.ProtoBufModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
@@ -51,7 +52,8 @@ public class ModuleSupplier {
       ProtoBufModule.INSTANCE,
       HashModule.INSTANCE,
       C99MathModule.INSTANCE,
-      RegexModule.INSTANCE
+      RegexModule.INSTANCE,
+      CodecsModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
@@ -111,7 +113,10 @@ public class ModuleSupplier {
   }
 
   public ImmutableMap<String, Object> modulesToVariableMap() {
-    return moduleSetAsMap(getModules());
+    return moduleSetAsMap(getModules(false));
+  }
+  public ModuleSet modulesToVariableMap(boolean withTest) {
+    return new ModuleSet(moduleSetAsMap(getModules(withTest)));
   }
 
   private String findClosestStarlarkBuiltinName(Object o) {

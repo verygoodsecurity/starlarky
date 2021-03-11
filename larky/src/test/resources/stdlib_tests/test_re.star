@@ -5,6 +5,12 @@ load("@stdlib/unittest", "unittest")
 load("@stdlib/re", "re")
 
 
+def _test_compile():
+    # https://github.com/protocolbuffers/protobuf/blob/master/python/google/protobuf/text_encoding.py
+    # you could try (?:$|[^,]) as an alternative to (?!,).
+    _CUNESCAPE_HEX = re.compile(r'(\\+)x([0-9a-fA-F])(?:[^0-9a-fA-F])')
+
+
 def _test_escape():
     asserts.assert_that(re.escape(r"1243*&[]_dsfAd")).is_equal_to(
         r"1243\*\&\[\]_dsfAd")
@@ -185,6 +191,7 @@ def _test_finditer():
 
 def _suite():
     _suite = unittest.TestSuite()
+    _suite.addTest(unittest.FunctionTestCase(_test_compile))
     _suite.addTest(unittest.FunctionTestCase(_test_escape))
     _suite.addTest(unittest.FunctionTestCase(_test_search))
     _suite.addTest(unittest.FunctionTestCase(_test_match))

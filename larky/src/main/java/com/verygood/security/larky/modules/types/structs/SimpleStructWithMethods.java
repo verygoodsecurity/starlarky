@@ -24,8 +24,7 @@ final class SimpleStructWithMethods extends SimpleStruct {
       };
 
   SimpleStructWithMethods() {
-    super(
-        ImmutableMap.of(
+    super(ImmutableMap.of(
             "values_only_field",
             "fromValues",
             "values_only_method",
@@ -33,7 +32,7 @@ final class SimpleStructWithMethods extends SimpleStruct {
             "collision_field",
             "fromValues",
             "collision_method",
-            returnFromValues));
+            returnFromValues), null);
   }
 
   @StarlarkMethod(name = "callable_only_field", documented = false, structField = true)
