@@ -3,6 +3,7 @@ package com.verygood.security.larky.modules.globals;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
 import com.verygood.security.larky.modules.io.TextUtil;
+import com.verygood.security.larky.modules.types.ByteIterable;
 import com.verygood.security.larky.modules.types.LarkyByteArray;
 import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
@@ -184,7 +185,7 @@ public final class LarkyGlobals {
               @ParamType(type = NoneType.class),
               @ParamType(type = String.class),
               @ParamType(type = LarkyByteArray.class),
-              @ParamType(type = LarkyByteArray.Elems.class),
+              @ParamType(type = ByteIterable.class),
               @ParamType(type = StarlarkInt.class),
               @ParamType(type = StarlarkList.class),
           }, defaultValue = "None"),
@@ -273,7 +274,7 @@ public final class LarkyGlobals {
         case "int":
           return new LarkyByteArray(thread, ((StarlarkInt) _obj).toIntUnchecked());
         case "bytes.elems":
-          return new LarkyByteArray(thread, (LarkyByteArray.Elems) _obj);
+          return new LarkyByteArray(thread, (ByteIterable) _obj);
         case "list":
           return new LarkyByteArray(thread, (StarlarkList<?>) _obj);
         default:

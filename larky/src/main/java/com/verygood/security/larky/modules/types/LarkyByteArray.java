@@ -32,7 +32,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
-import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -90,8 +89,8 @@ public class LarkyByteArray implements LarkyObject, HasBinary, Sequence<Starlark
     this(thread, string, false);
   }
 
-  public LarkyByteArray(StarlarkThread thread, @Nonnull Elems elems) throws EvalException {
-    this(thread, elems.byteArray.toUnsignedBytes());
+  public LarkyByteArray(StarlarkThread thread, @Nonnull ByteIterable elems) throws EvalException {
+    this(thread, elems.getLarkyByteArr().toUnsignedBytes());
   }
 
   public LarkyByteArray(StarlarkThread thread, @Nonnull StarlarkList<?> list) throws EvalException {
@@ -162,7 +161,7 @@ public class LarkyByteArray implements LarkyObject, HasBinary, Sequence<Starlark
         "elems", new StarlarkCallable() {
           @Override
           public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) throws EvalException, InterruptedException {
-            return new Elems(LarkyByteArray.this);
+            return new ByteIterable(LarkyByteArray.this);
           }
 
           @Override
@@ -206,41 +205,7 @@ public class LarkyByteArray implements LarkyObject, HasBinary, Sequence<Starlark
     return this.currentThread;
   }
 
-  // A function that returns "fromValues".
-  @StarlarkBuiltin(name="bytes.elems")
-  public static class Elems extends AbstractList<StarlarkInt> implements Sequence<StarlarkInt> {
-
-    final private LarkyByteArray byteArray;
-
-    public Elems(LarkyByteArray byteArray) {
-      this.byteArray = byteArray;
-    }
-
-    @Override
-    public void repr(Printer printer) {
-      printer.append(
-          String.format("b'\"%s\".elems()'",
-              TextUtil.decodeUTF8(
-                  this.byteArray.toBytes(),
-                  this.byteArray.toBytes().length
-              )));
-    }
-
-    @Override
-    public StarlarkInt get(int index) {
-      return this.byteArray.get(index);
-    }
-
-    @Override
-    public int size() {
-      return this.byteArray.size();
-    }
-
-    @Override
-    public Sequence<StarlarkInt> getSlice(Mutability mu, int start, int stop, int step) {
-      return this.byteArray.getSlice(mu, start, stop, step);
-    }
-  };
+  ;
 
 
   @StarlarkMethod(name = "callable_only_field", documented = false, structField = true)
