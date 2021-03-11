@@ -5,11 +5,11 @@ This exports `asserts` which contains the assertions used within tests.
 This is modeled after assertpy (https://github.com/assertpy/assertpy)
 """
 load("@stdlib/larky", "larky")
+load("@stdlib/assertions", _assertions="assertions")
 
 load("sets", "sets")
 load("types", "types")
 load("partial", "partial")
-
 
 # assertion extensions
 _extensions = {}
@@ -122,7 +122,7 @@ def is_length(self, length):
     return self
 
 
-def _compare_sets(expected, actual, msg = None):
+def _compare_sets(expected, actual, msg=None):
     """Asserts that the given `expected` and `actual` sets are equal.
     Args:
       expected: The expected set resulting from some computation.
@@ -135,7 +135,8 @@ def _compare_sets(expected, actual, msg = None):
 
     missing = sets.difference(expected, actual)
     unexpected = sets.difference(actual, expected)
-    expectation_msg = "Expected %s, but got %s" % (sets.str(expected), sets.str(actual))
+    expectation_msg = "Expected %s, but got %s" % (
+        sets.str(expected), sets.str(actual))
     if sets.length(missing) > 0:
         expectation_msg += ", missing are %s" % (sets.str(missing))
     if sets.length(unexpected) > 0:
@@ -202,7 +203,8 @@ def is_equal_to(self, other, **kwargs):
         if _diff:
             fail(_diff['message'])
     elif self.val != other:
-        fail('Expected <{}> to be equal to <{}>, but was not.'.format(self.val, other))
+        fail('Expected <{}> to be equal to <{}>, but was not.'.format(self.val,
+                                                                      other))
     return self
 
 
@@ -227,7 +229,38 @@ def is_not_equal_to(self, other):
         AssertionError: if actual **is** equal to expected
     """
     if self.val == other:
-        fail('Expected <{}> to be not equal to <{}>, but was.'.format(self.val, other))
+        fail('Expected <{}> to be not equal to <{}>, but was.'.format(self.val,
+                                                                      other))
+    return self
+
+
+def is_less_than(self, other):
+    """Asserts that val is numeric and is less than other.
+        Args:
+            other: the other date, expected to be greater than val
+        Examples:
+            Usage::
+                assert_that(0).is_less_than(1)
+                assert_that(123.4).is_less_than(555.5)
+            For dates, behavior is identical to :meth:`~assertpy.date.DateMixin.is_before`::
+                import datetime
+                today = datetime.datetime.now()
+                yesterday = today - datetime.timedelta(days=1)
+                assert_that(yesterday).is_less_than(today)
+        Returns:
+            AssertionBuilder: returns this instance to chain to the next assertion
+        Raises:
+            AssertionError: if val is **not** less than other
+        """
+    if self.val >= other:
+        # if type(self.val) is datetime.datetime:
+        #     fail('Expected <%s> to be less than <%s>, but was not.'.format(
+        #         self.val.strftime('%Y-%m-%d %H:%M:%S'),
+        #         other.strftime('%Y-%m-%d %H:%M:%S')))
+        # else:
+        fail('Expected <{}> to be less than <{}>, but was not.'.format(
+            self.val, other
+        ))
     return self
 
 
@@ -257,7 +290,8 @@ def is_instance_of(self, some_class):
     """
     if not types.is_instance(self.val, some_class):
         t = type(self.val)
-        fail('Expected <%s:%s> to be instance of class <%s>, but was not.' % (self.val, t, _impl_function_name(some_class)))
+        fail('Expected <%s:%s> to be instance of class <%s>, but was not.' % (
+            self.val, t, _impl_function_name(some_class)))
     return self
 
 
@@ -339,25 +373,25 @@ def is_not_none(self):
 
 
 def _AssertionBuilder(val, description, kind, expected, logger):
-
-    self =  larky.mutablestruct(val=val,
-                description=description,
-                kind=kind,
-                expected=expected,
-                logger=logger)
+    self = larky.mutablestruct(val=val,
+                               description=description,
+                               kind=kind,
+                               expected=expected,
+                               logger=logger)
 
     # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = larky.mutablestruct(
-        error = fail,
-        described_as = larky.partial(described_as, self),
-        is_length = larky.partial(is_length, self),
-        is_not_equal_to = larky.partial(is_not_equal_to, self),
-        is_equal_to = types.MethodType(is_equal_to, self),
-        is_instance_of = larky.partial(is_instance_of, self),
-        is_true = larky.partial(is_true, self),
-        is_false = larky.partial(is_false, self),
-        is_none = larky.partial(is_false, self),
-        is_not_none = larky.partial(is_not_none, self),
+        error=fail,
+        described_as=larky.partial(described_as, self),
+        is_length=larky.partial(is_length, self),
+        is_not_equal_to=larky.partial(is_not_equal_to, self),
+        is_equal_to=types.MethodType(is_equal_to, self),
+        is_instance_of=larky.partial(is_instance_of, self),
+        is_true=larky.partial(is_true, self),
+        is_false=larky.partial(is_false, self),
+        is_none=larky.partial(is_false, self),
+        is_not_none=larky.partial(is_not_none, self),
+        is_less_than=larky.partial(is_less_than, self)
     )
     return klass
 
@@ -369,7 +403,7 @@ def _builder(val, description='', kind=None, expected=None, logger=None):
         # glue extension method onto new builder instance
         for name, func in _extensions.items():
             meth = types.MethodType(func, ab)
-            #setattr(ab, name, meth) # -- ignore for now
+            # setattr(ab, name, meth) # -- ignore for now
     return ab
 
 
@@ -394,7 +428,7 @@ def _assert_that(val, description=''):
 
 def _assert_false(
         condition,
-        msg = "Expected condition to be false, but was true."):
+        msg="Expected condition to be false, but was true."):
     """Asserts that the given `condition` is false.
     Args:
       condition: A value that will be evaluated in a Boolean context.
@@ -406,8 +440,8 @@ def _assert_false(
 
 
 def _assert_true(
-    condition,
-    msg = "Expected condition to be true, but was false."):
+        condition,
+        msg="Expected condition to be true, but was false."):
     """Asserts that the given `condition` is true.
     Args:
       condition: A value that will be evaluated in a Boolean context.
@@ -418,11 +452,24 @@ def _assert_true(
         fail(msg)
 
 
+def _assert_fails(function, failed_with):
+    """
+    Asserts that the given `function` fails when invoked with the appropriate
+     `failed_with` message.
+
+     Example::
+       _assert_fails(lambda: min(1), "type 'int' is not iterable")
+    """
+
+    _assertions.assert_fails(function, failed_with)
+
+
 asserts = larky.struct(
-    add_extension = _add_extension,
-    remove_extension = _remove_extension,
-    assert_that = _assert_that,
-    assert_ = _assert_true,
-    assert_true = _assert_true,
-    assert_false = _assert_false
+    add_extension=_add_extension,
+    remove_extension=_remove_extension,
+    assert_that=_assert_that,
+    assert_=_assert_true,
+    assert_true=_assert_true,
+    assert_false=_assert_false,
+    assert_fails=_assert_fails,
 )

@@ -21,7 +21,7 @@ import java.util.Objects;
 
 
 @StarlarkBuiltin(
-    name = "asserts",
+    name = "assertions",
     category = "BUILTIN",
     doc = "This module implements a ")
 public class AssertionsModule implements StarlarkValue {
@@ -32,8 +32,8 @@ public class AssertionsModule implements StarlarkValue {
       name = "assert_",
       documented = false,
       parameters = {
-        @Param(name = "cond"),
-        @Param(name = "msg", defaultValue = "'assertion failed'"),
+          @Param(name = "cond"),
+          @Param(name = "msg", defaultValue = "'assertion failed'"),
       },
       useStarlarkThread = true)
   public Object assertStarlark(Object cond, String msg, StarlarkThread thread)
@@ -49,8 +49,8 @@ public class AssertionsModule implements StarlarkValue {
       name = "assert_eq",
       documented = false,
       parameters = {
-        @Param(name = "x"),
-        @Param(name = "y"),
+          @Param(name = "x"),
+          @Param(name = "y"),
       },
       useStarlarkThread = true)
   public Object assertEq(Object x, Object y, StarlarkThread thread) throws EvalException {
@@ -62,40 +62,46 @@ public class AssertionsModule implements StarlarkValue {
   }
 
   @StarlarkMethod(
-        name = "assert_fails",
-        doc = "assert_fails asserts that evaluation of f() fails with the specified error",
-        parameters = {
+      name = "assert_fails",
+      doc = "assert_fails asserts that evaluation of f() fails with the specified error",
+      parameters = {
           @Param(name = "f", doc = "the Starlark function to call"),
           @Param(
               name = "wantError",
               doc = "a regular expression matching the expected error message"),
-        },
-        useStarlarkThread = true)
-    public Object assertFails(StarlarkCallable f, String wantError, StarlarkThread thread)
-        throws EvalException, InterruptedException {
-      Pattern pattern;
-      try {
-        pattern = Pattern.compile(wantError);
-      } catch (PatternSyntaxException unused) {
-        throw Starlark.errorf("invalid regexp: %s", wantError);
-      }
-
-      try {
-        Starlark.call(thread, f, ImmutableList.of(), ImmutableMap.of());
-        reportErrorf(thread, "evaluation succeeded unexpectedly (want error matching %s)", wantError);
-      } catch (EvalException ex) {
-        // Verify error matches expectation.
-        String msg = ex.getMessage();
-        if (!pattern.matcher(msg).find()) {
-          reportErrorf(thread, "regular expression (%s) did not match error (%s)", pattern, msg);
-        }
-      }
-      return Starlark.NONE;
+      },
+      useStarlarkThread = true)
+  public Object assertFails(StarlarkCallable f, String wantError, StarlarkThread thread)
+      throws EvalException, InterruptedException {
+    Pattern pattern;
+    try {
+      pattern = Pattern.compile(wantError);
+    } catch (PatternSyntaxException unused) {
+      throw Starlark.errorf("invalid regexp: %s", wantError);
     }
+
+    String errorMsg;
+    try {
+      Starlark.call(thread, f, ImmutableList.of(), ImmutableMap.of());
+      errorMsg = String.format("evaluation succeeded unexpectedly (want error matching %s)", wantError);
+    } catch (EvalException ex) {
+      // Verify error matches expectation.
+      String msg = ex.getMessage();
+      if (pattern.matcher(msg).find()) {
+        return Starlark.NONE;
+      }
+      errorMsg = String.format("regular expression (%s) did not match error (%s)", pattern, msg);
+    }
+    reportErrorf(thread, "%s", errorMsg);
+    throw Starlark.errorf("%s", errorMsg);
+
+  }
 
   @FormatMethod
   private static void reportErrorf(StarlarkThread thread, String format, Object... args) {
     Objects.requireNonNull(thread.getThreadLocal(Reporter.class))
         .reportError(thread, String.format(format, args));
   }
+
+
 }

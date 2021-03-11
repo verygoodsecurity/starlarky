@@ -6,16 +6,17 @@ import com.verygood.security.larky.modules.types.Property;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.StarlarkThread;
 
 import lombok.SneakyThrows;
 
 class MutableStruct extends SimpleStruct {
-  MutableStruct(Dict<String, Object> fields) {
-    super(fields);
+  MutableStruct(Dict<String, Object> fields, StarlarkThread currentThread) {
+    super(fields, currentThread);
   }
 
   @Override
-  public Object getValue(String name) {
+  public Object getValue(String name) throws EvalException {
     Object field = super.getValue(name);
     /* if we have assigned a field that is a descriptor, we can invoke it */
     if (field == null
