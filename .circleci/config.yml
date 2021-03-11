@@ -59,6 +59,28 @@ restore-graalvm-cache: &restore-graalvm-cache
   restore_cache:
     key: starlarky-{{ checksum ".circleci/config.yml" }}
 
+setup-maven-distributions: &setup-maven-distributions
+  run:
+    name: Setup distrubution servers for larky
+    command: |
+      mkdir -p ~/.m2
+      cat \<< EOF > ~/.m2/settings.xml
+      <settings>
+        <servers>
+          <server>
+            <id>bintray-vg-vgs-oss</id>
+            <username>$BINTRAY_USERNAME</username>
+            <password>$BINTRAY_API_TOKEN</password>
+          </server>
+          <server>
+            <id>github</id>
+            <username>$GITHUB_USERNAME</username>
+            <password>$GITHUB_API_TOKEN</password>
+          </server>
+        </servers>
+      </settings>
+      EOF
+
 install_python: &install_python
   run:
     name: Install Python
@@ -135,6 +157,31 @@ jobs:
           path: *test_results_directory
       - store_test_results:
           path: *test_results_directory
+
+  build-dist-maven:
+    <<: *job-defaults
+    machine:
+      image: ubuntu-1604:202007-01
+    steps:
+      - checkout
+      - <<: *install-java
+      - <<: *restore-maven-cache
+      - <<: *setup-maven-distributions
+      - run:
+          name: Build and deploy libstarlark
+          command: |
+            mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl libstarlark
+            mvn clean dependency:go-offline package -pl libstarlark -U -Dmaven.test.skip.exec -T 2.0C -B
+            mvn delpoy -Pbintray -pl libstarlark
+            mvn delpoy -Pgithub -pl libstarlark
+      - run:
+          name: Build and deploy larky
+          command: |
+            mvn versions:update-property -Dproperty=libstarlark.version -DnewVersion=${CIRCLE_TAG}
+            mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl larky
+            mvn clean dependency:go-offline package -pl larky -U -Dmaven.test.skip.exec -T 2.0C -B
+            mvn delpoy -Pbintray -pl larky
+            mvn delpoy -Pgithub -pl larky
 
   build-dist-linux:
     <<: *job-defaults

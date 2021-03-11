@@ -2,21 +2,21 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <parent>
-        <groupId>com.verygood.security</groupId>
-        <artifactId>starlarky</artifactId>
-        <version>1.0-SNAPSHOT</version>
-    </parent>
+
+    <groupId>com.verygood.security</groupId>
+    <artifactId>larky</artifactId>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>larky</artifactId>
+    <properties>
+        <libstarlark.version>1.0-SNAPSHOT</libstarlark.version>
+        <common.io.version>2.8.0</common.io.version>
+    </properties>
 
     <dependencies>
-
         <dependency>
             <groupId>net.starlark.java</groupId>
             <artifactId>libstarlark</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>${libstarlark.version}</version>
             <!-- provided, compile, runtime, test, system -->
             <!-- NOTE (drew): do not use provided when using GraalVM otherwise
                  when packaging into a native image, a cryptic exception will be thrown:
@@ -30,7 +30,7 @@
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.8.0</version>
+            <version>${common.io.version}</version>
         </dependency>
     </dependencies>
 </project>
