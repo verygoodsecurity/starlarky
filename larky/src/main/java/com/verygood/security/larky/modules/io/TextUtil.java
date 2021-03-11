@@ -14,6 +14,11 @@
 */
 package com.verygood.security.larky.modules.io;
 
+import static com.verygood.security.larky.modules.io.TextUtil.CodecHelper.IGNORE;
+import static com.verygood.security.larky.modules.io.TextUtil.CodecHelper.REPLACE;
+
+import com.google.common.collect.ImmutableMap;
+
 import java.io.DataInput;
 import java.io.IOException;
 import java.nio.Buffer;
@@ -28,6 +33,8 @@ import java.nio.charset.StandardCharsets;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.Arrays;
+import java.util.Formatter;
+import java.util.Map;
 
 /**
  * Mostly taken from Apache Arrow and from RE2j's Unicode class.
@@ -1354,4 +1361,233 @@ public class TextUtil {
     }
     return size;
   }
+  public static class CodecHelper {
+    public static final String STRICT = "strict";
+    public static final String IGNORE = "ignore";
+    public static final String REPLACE = "replace";
+    public static final String BACKSLASHREPLACE = "backslashreplace";
+    public static final String NAMEREPLACE = "namereplace";
+    public static final String XMLCHARREFREPLACE = "xmlcharrefreplace";
+    public static final String SURROGATEESCAPE = "surrogateescape";
+    public static final String SURROGATEPASS = "surrogatepass";
+
+    public static CodingErrorAction convertCodingErrorAction(String errors) {
+      CodingErrorAction errorAction;
+      switch (errors) {
+        case IGNORE:
+          errorAction = CodingErrorAction.IGNORE;
+          break;
+        case REPLACE:
+        case NAMEREPLACE:
+          errorAction = CodingErrorAction.REPLACE;
+          break;
+        case STRICT:
+        case BACKSLASHREPLACE:
+        case SURROGATEPASS:
+        case SURROGATEESCAPE:
+        case XMLCHARREFREPLACE:
+        default:
+          errorAction = CodingErrorAction.REPORT;
+          break;
+      }
+      return errorAction;
+    }
+
+  }
+
+  public static String PyUnicode_DecodeRawUnicodeEscape(String str, String errors) {
+         int size = str.length();
+         StringBuilder v = new StringBuilder(size);
+
+         for (int i = 0; i < size;) {
+             char ch = str.charAt(i);
+             // Non-escape characters are interpreted as Unicode ordinals
+             if (ch != '\\') {
+                 v.append(ch);
+                 i++;
+                 continue;
+             }
+
+             // \\u-escapes are only interpreted if the number of leading backslashes is
+             // odd
+             int bs = i;
+             while (i < size) {
+                 ch = str.charAt(i);
+                 if (ch != '\\') {
+                     break;
+                 }
+                 v.append(ch);
+                 i++;
+             }
+             if (((i - bs) & 1) == 0 || i >= size || (ch != 'u' && ch != 'U')) {
+                 continue;
+             }
+             v.setLength(v.length() - 1);
+             int count = ch == 'u' ? 4 : 8;
+             i++;
+
+             // \\uXXXX with 4 hex digits, \Uxxxxxxxx with 8
+             int codePoint = 0, asDigit = -1;
+             for (int j = 0; j < count; i++, j++) {
+                 if (i == size) {
+                     // EOF in a truncated escape
+                     asDigit = -1;
+                     break;
+                 }
+
+                 ch = str.charAt(i);
+                 asDigit = Character.digit(ch, 16);
+                 if (asDigit == -1) {
+                     break;
+                 }
+                 codePoint = ((codePoint << 4) & ~0xF) + asDigit;
+             }
+             if (asDigit == -1) {
+                 i = insertReplacementAndGetResume(v, errors, "rawunicodeescape", str, bs, i,
+                                                          "truncated \\uXXXX");
+             } else {
+                 v.appendCodePoint(codePoint);
+             }
+         }
+
+         return v.toString();
+     }
+
+  public static int calcNewPosition(int size, int newPosition) {
+      if (newPosition < 0) {
+          newPosition = size + newPosition;
+      }
+      if (newPosition > size || newPosition < 0) {
+          throw new IndexOutOfBoundsException(newPosition + " out of bounds of encoded string");
+      }
+      return newPosition;
+  }
+
+  public static int insertReplacementAndGetResume(StringBuilder partialDecode,
+              String errors,
+              String encoding,
+              String toDecode,
+              int start,
+              int end,
+              String reason) {
+          if (errors != null) {
+              if (errors.equals(IGNORE)) {
+                  return end;
+              } else if (errors.equals(REPLACE)) {
+                  while (start < end) {
+                      partialDecode.appendCodePoint(REPLACEMENT_CHAR);
+                      start++;
+                  }
+                  return end;
+              }
+          }
+//          PyObject replacement = decoding_error(errors,
+//                  encoding,
+//                  toDecode,
+//                  start,
+//                  end,
+//                  reason);
+//          checkErrorHandlerReturn(errors, replacement);
+//          partialDecode.append(replacement.__getitem__(0).toString());
+          return calcNewPosition(toDecode.length(), 0);
+      }
+  private static char[] hexdigit = "0123456789ABCDEF".toCharArray();
+
+  public static byte[] utf8encode(int codepoint) {
+        return new String(new int[]{codepoint}, 0, 1).getBytes(StandardCharsets.UTF_8);
+    }
+  public static int utf8decode(byte[] bytes) {
+         return new String(bytes, StandardCharsets.UTF_8).codePointAt(0);
+     }
+
+     public static String asHex(byte[] encoded) {
+       Formatter formatter = new Formatter();
+                   for (byte b : encoded) {
+                       formatter.format("%02X ", b);
+                   }
+//                   int decoded = utf8decode(encoded);
+                   return formatter.toString();
+     }
+
+  private static final Map<Character, String> NO_REPLACEMENTS =
+      ImmutableMap.of();
+  private static final Map<Character, String> SIMPLE_REPLACEMENTS =
+      ImmutableMap.of(
+          '\n', "<newline>",
+          '\t', "<tab>",
+          '&', "<and>");
+  private static final char[] NO_CHARS = new char[0];
+
+//  UnicodeEscaper escaper = new ArrayBasedUnicodeEscaper(SIMPLE_REPLACEMENTS,
+//          Character.MIN_VALUE, Character.MAX_CODE_POINT, null) {
+//            @Override protected char[] escapeUnsafe(int c) {
+//              return NO_CHARS;
+//            }
+//      };
+//  String escaped = escaper.escape(str);
+    // The modified flag is used by cPickle.
+    public static byte[] convertToByteArray(final int[] pIntArray)
+    {
+        final byte[] array = new byte[pIntArray.length * 4];
+        for (int j = 0; j < pIntArray.length; j++)
+        {
+            final int c = pIntArray[j];
+            array[j * 4] = (byte)((c & 0xFF000000) >> 24);
+            array[j * 4 + 1] = (byte)((c & 0xFF0000) >> 16);
+            array[j * 4 + 2] = (byte)((c & 0xFF00) >> 8);
+            array[j * 4 + 3] = (byte)(c & 0xFF);
+        }
+        return array;
+    }
+
+    public static int[] convertToIntArray(final byte[] pByteArray)
+    {
+        final int[] array = new int[pByteArray.length / 4];
+        for (int i = 0; i < array.length; i++)
+            array[i] = (((int)(pByteArray[i * 4]) << 24) & 0xFF000000) |
+                    (((int)(pByteArray[i * 4 + 1]) << 16) & 0xFF0000) |
+                    (((int)(pByteArray[i * 4 + 2]) << 8) & 0xFF00) |
+                    ((int)(pByteArray[i * 4 + 3]) & 0xFF);
+        return array;
+    }
+    public static String PyUnicode_EncodeRawUnicodeEscape(byte[] bytearr, String errors,
+                                                          boolean modifed) {
+
+      // starlark compatible
+      // -> utf-k => utf-8 encoding of unpaired surrogates => U+FFFD
+
+      StringBuilder v = new StringBuilder(bytearr.length);
+      int[] arrCodePoints = stringToRunes(decodeUTF8(bytearr, bytearr.length));
+      for (int codePoint : arrCodePoints) {
+        if (codePoint >= ' ' && codePoint <= '~') {
+          v.append((char) codePoint);
+          continue;
+        }
+        if (codePoint < ' ' || codePoint == 0x7f) {
+          v.append("\\x");
+          v.append(hexdigit[codePoint & 0xF]);
+          v.append(hexdigit[(codePoint >> 4)]);
+          continue;
+        }
+
+        if (codePoint > MAX_RUNE) {
+          codePoint = REPLACEMENT_CHAR;
+        }
+
+        if (codePoint < 0x10000) {
+          v.append("\\u");
+          for (int s = 12; s >= 0; s -= 4) {
+            v.append(hexdigit[codePoint >> s & 0xF]);
+          }
+        } else {
+          v.append("\\U");
+          for (int s = 28; s >= 0; s -= 4) {
+            v.append(hexdigit[codePoint >> s & 0xF]);
+          }
+        }
+      }
+
+      String result = unescapeJavaString(v.toString());
+      return result;
+    }
 }
