@@ -14,10 +14,11 @@
 */
 package com.verygood.security.larky.modules.io;
 
-import static com.verygood.security.larky.modules.io.TextUtil.CodecHelper.IGNORE;
-import static com.verygood.security.larky.modules.io.TextUtil.CodecHelper.REPLACE;
-
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
+import com.google.common.primitives.Bytes;
+
+import org.apache.commons.text.translate.CharSequenceTranslator;
 
 import java.io.DataInput;
 import java.io.IOException;
@@ -34,6 +35,7 @@ import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.Arrays;
 import java.util.Formatter;
+import java.util.ListIterator;
 import java.util.Map;
 
 /**
@@ -1443,8 +1445,7 @@ public class TextUtil {
                  codePoint = ((codePoint << 4) & ~0xF) + asDigit;
              }
              if (asDigit == -1) {
-                 i = insertReplacementAndGetResume(v, errors, "rawunicodeescape", str, bs, i,
-                                                          "truncated \\uXXXX");
+                 i++; // TODO: bug?
              } else {
                  v.appendCodePoint(codePoint);
              }
@@ -1453,44 +1454,6 @@ public class TextUtil {
          return v.toString();
      }
 
-  public static int calcNewPosition(int size, int newPosition) {
-      if (newPosition < 0) {
-          newPosition = size + newPosition;
-      }
-      if (newPosition > size || newPosition < 0) {
-          throw new IndexOutOfBoundsException(newPosition + " out of bounds of encoded string");
-      }
-      return newPosition;
-  }
-
-  public static int insertReplacementAndGetResume(StringBuilder partialDecode,
-              String errors,
-              String encoding,
-              String toDecode,
-              int start,
-              int end,
-              String reason) {
-          if (errors != null) {
-              if (errors.equals(IGNORE)) {
-                  return end;
-              } else if (errors.equals(REPLACE)) {
-                  while (start < end) {
-                      partialDecode.appendCodePoint(REPLACEMENT_CHAR);
-                      start++;
-                  }
-                  return end;
-              }
-          }
-//          PyObject replacement = decoding_error(errors,
-//                  encoding,
-//                  toDecode,
-//                  start,
-//                  end,
-//                  reason);
-//          checkErrorHandlerReturn(errors, replacement);
-//          partialDecode.append(replacement.__getitem__(0).toString());
-          return calcNewPosition(toDecode.length(), 0);
-      }
   private static char[] hexdigit = "0123456789ABCDEF".toCharArray();
 
   public static byte[] utf8encode(int codepoint) {
@@ -1550,44 +1513,88 @@ public class TextUtil {
                     ((int)(pByteArray[i * 4 + 3]) & 0xFF);
         return array;
     }
-    public static String PyUnicode_EncodeRawUnicodeEscape(byte[] bytearr, String errors,
-                                                          boolean modifed) {
 
-      // starlark compatible
-      // -> utf-k => utf-8 encoding of unpaired surrogates => U+FFFD
-
+  /**
+   * starlark compatible
+   *   -> utf-k => utf-8 encoding of unpaired surrogates => U+FFFD
+   * @param bytearr
+   * @return utf-8 encoded string compliant with Starlark spec
+   */
+  public static String starlarkDecodeUtf8(byte[] bytearr) {
       StringBuilder v = new StringBuilder(bytearr.length);
       int[] arrCodePoints = stringToRunes(decodeUTF8(bytearr, bytearr.length));
-      for (int codePoint : arrCodePoints) {
-        if (codePoint >= ' ' && codePoint <= '~') {
-          v.append((char) codePoint);
-          continue;
-        }
-        if (codePoint < ' ' || codePoint == 0x7f) {
-          v.append("\\x");
-          v.append(hexdigit[codePoint & 0xF]);
-          v.append(hexdigit[(codePoint >> 4)]);
-          continue;
-        }
 
-        if (codePoint > MAX_RUNE) {
-          codePoint = REPLACEMENT_CHAR;
-        }
-
-        if (codePoint < 0x10000) {
-          v.append("\\u");
-          for (int s = 12; s >= 0; s -= 4) {
-            v.append(hexdigit[codePoint >> s & 0xF]);
+      ListIterator<Byte> it = Bytes.asList(bytearr).listIterator();
+      int size = 0;
+      StringBuffer surrogatePair;
+      do {
+        int ch = Byte.toUnsignedInt(it.next());
+        if ((ch >= Character.MIN_HIGH_SURROGATE) &&
+              (ch < Character.MIN_LOW_SURROGATE)) {
+          // surrogate pair?
+          int trail = it.next();
+          if ((trail > Character.MAX_HIGH_SURROGATE) &&
+              (trail <= Character.MAX_LOW_SURROGATE)) {
+            //System.out.println(Character.toChars());
+            surrogatePair = new StringBuffer(2);
+            surrogatePair.append((char) ch);
+            surrogatePair.append((char) trail);
+            v.append(surrogatePair);
+            // valid pair
+            size += 4;
+          } else {
+            // invalid pair
+            v.append("\\x");
+            v.append(CharSequenceTranslator.hex(ch));
+            v.append("\\x");
+            v.append(CharSequenceTranslator.hex(trail));
+            size += 3;
+            it.previous(); // rewind one
+          }
+        } else if (ch < 0x80) {
+          if (ch >= ' ' && ch <= '~') {
+            v.append((char) ch);
+          }
+          else if(ch < ' ') {
+            v.append("\\x");
+            v.append(hexdigit[ch & 0xF]);
+            v.append(hexdigit[(ch >> 4)]);
+          }
+          size++;
+        } else if (ch <= 0x7FF) {
+          // This is a 3 byte sequence with ranges: U+0080 - U+07FF
+          try {
+            String utf8decoded = TextUtil.decode(
+                bytearr,
+                /* zero indexed */ it.previousIndex(),
+                /* length */3);
+            v.append(utf8decoded);
+            size += 2; // current + 2
+            // advance iterator by same since string was successfully decoded
+            Iterators.advance(it, /*numberToAdvance*/2);
+          }catch (IndexOutOfBoundsException e) {
+            v.append("\\x");
+            v.append(CharSequenceTranslator.hex(ch));
+            size += 1;
+          } catch(CharacterCodingException e) {
+            // Could not decode, so fallback to escaping the sequences
+            System.err.println(e.toString());
+            // TODO, how to handle?
+            throw new RuntimeException(e);
           }
         } else {
-          v.append("\\U");
-          for (int s = 28; s >= 0; s -= 4) {
-            v.append(hexdigit[codePoint >> s & 0xF]);
+          if (ch > Character.MIN_SUPPLEMENTARY_CODE_POINT) {
+            ch = REPLACEMENT_CHAR;
           }
+          // MIN_SUPPLEMENTARY_CODE_POINT
+          // ch < 0x10000, that is, the largest char value
+          v.append("\\u");
+          for (int s = 12; s >= 0; s -= 4) {
+            v.append(hexdigit[ch >> s & 0xF]);
+          }
+          size += 3;
         }
-      }
-
-      String result = unescapeJavaString(v.toString());
-      return result;
+      } while(it.hasNext());
+    return v.toString();
     }
 }
