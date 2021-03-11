@@ -4,6 +4,7 @@
 load("@stdlib/json", "json")
 load("@stdlib/hashlib", "hashlib")
 load("testlib/builtinz", "setz", "collections")
+load("@vendor//pycryptodome", "pycryptodome")
 
 # # request = struct(
 # #     max_content_length = native.request.max_content_length,

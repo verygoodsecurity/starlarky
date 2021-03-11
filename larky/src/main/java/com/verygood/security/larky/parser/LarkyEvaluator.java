@@ -90,8 +90,6 @@ public final class LarkyEvaluator {
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
       Starlark.execFileProgram(prog, module, thread);
-    } catch (EvalException ex) {
-      throw new RuntimeException("\n" + ex.getMessageWithStack());
     }
     pending.remove(content.path());
     loaded.put(content.path(), module);

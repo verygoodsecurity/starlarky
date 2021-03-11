@@ -1,19 +1,20 @@
 package com.verygood.security.larky.parser;
 
+import static com.verygood.security.larky.ModuleSupplier.ModuleSet;
+import static com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
+
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.StreamWriterConsole;
+
+import net.starlark.java.eval.EvalException;
 
 import java.io.IOException;
 import java.io.Writer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import javax.script.Bindings;
-
-import static com.verygood.security.larky.ModuleSupplier.ModuleSet;
-import static com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 
 public class DefaultLarkyInterpreter {
 
@@ -28,11 +29,11 @@ public class DefaultLarkyInterpreter {
         mergeGlobalBindings(bindings));
   }
 
-  public ParsedStarFile evaluate(StarFile script, Writer writer) throws IOException {
+  public ParsedStarFile evaluate(StarFile script, Writer writer) throws IOException, EvalException {
     return evaluate(script, new StreamWriterConsole(writer));
   }
 
-  public ParsedStarFile evaluate(StarFile script, Console console) throws IOException {
+  public ParsedStarFile evaluate(StarFile script, Console console) throws IOException, EvalException {
     return interpreter.evaluate(
         script, moduleSet, console);
   }

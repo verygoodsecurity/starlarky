@@ -8,6 +8,8 @@ import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.StarFile;
 
+import net.starlark.java.eval.EvalException;
+
 import java.io.IOException;
 import java.io.Reader;
 import java.util.Map;
@@ -53,7 +55,7 @@ public class LarkyCompiledScript extends CompiledScript {
       ParsedStarFile result = larkyInterpreter.evaluate(script, context.getWriter());
       setBindingsValue(globalBindings, engineBindings, result.getGlobals());
       return result;
-    } catch (IOException e) {
+    } catch (IOException | EvalException e) {
       throw new ScriptException(e);
     }
   }
