@@ -18,7 +18,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.primitives.Bytes;
 
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.commons.text.translate.CharSequenceTranslator;
+import org.apache.commons.text.translate.EntityArrays;
 
 import java.io.DataInput;
 import java.io.IOException;
@@ -724,62 +726,62 @@ public class TextUtil {
    */
   public static final char REPLACEMENT_CHAR = '\uFFFD';
 
-   /**
-    * Returns a String for the UTF-8 encoded byte sequence in <code>bytes[0..len-1]</code>. The
-    * length of the resulting String will be the exact number of characters encoded by these bytes.
-    * Since UTF-8 is a variable-length encoding, the resulting String may have a length anywhere from
-    * len/3 to len, depending on the contents of the input array.<p>
-    *
-    * In the event of a bad encoding, the UTF-8 replacement character (code point U+FFFD) is inserted
-    * for the bad byte(s), and decoding resumes from the next byte.
-    */
-   /*test*/
-   public static String decodeUTF8(byte[] bytes, int len) {
-     char[] res = new char[len];
-     int cIx = 0;
-     for (int bIx = 0; bIx < len; cIx++) {
-       byte b1 = bytes[bIx];
-       if ((b1 & 0x80) == 0) {
-         // 1-byte sequence (U+0000 - U+007F)
-         res[cIx] = (char) b1;
-         bIx++;
-       } else if ((b1 & 0xE0) == 0xC0) {
-         // 2-byte sequence (U+0080 - U+07FF)
-         byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
-         if ((b2 & 0xC0) == 0x80) {
-           res[cIx] = (char) (((b1 & 0x1F) << 6) | (b2 & 0x3F));
-           bIx += 2;
-         } else {
-           // illegal 2nd byte
-           res[cIx] = REPLACEMENT_CHAR;
-           bIx++; // skip 1st byte
-         }
-       } else if ((b1 & 0xF0) == 0xE0) {
-         // 3-byte sequence (U+0800 - U+FFFF)
-         byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
-         if ((b2 & 0xC0) == 0x80) {
-           byte b3 = (bIx + 2 < len) ? bytes[bIx + 2] : 0; // early end of array
-           if ((b3 & 0xC0) == 0x80) {
-             res[cIx] = (char) (((b1 & 0x0F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F));
-             bIx += 3;
-           } else {
-             // illegal 3rd byte
-             res[cIx] = REPLACEMENT_CHAR;
-             bIx += 2; // skip 1st TWO bytes
-           }
-         } else {
-           // illegal 2nd byte
-           res[cIx] = REPLACEMENT_CHAR;
-           bIx++; // skip 1st byte
-         }
-       } else {
-         // illegal 1st byte
-         res[cIx] = REPLACEMENT_CHAR;
-         bIx++; // skip 1st byte
-       }
-     }
-     return new String(res, 0, cIx);
-   }
+  /**
+   * Returns a String for the UTF-8 encoded byte sequence in <code>bytes[0..len-1]</code>. The
+   * length of the resulting String will be the exact number of characters encoded by these bytes.
+   * Since UTF-8 is a variable-length encoding, the resulting String may have a length anywhere from
+   * len/3 to len, depending on the contents of the input array.<p>
+   *
+   * In the event of a bad encoding, the UTF-8 replacement character (code point U+FFFD) is inserted
+   * for the bad byte(s), and decoding resumes from the next byte.
+   */
+  /*test*/
+  public static String decodeUTF8(byte[] bytes, int len) {
+    char[] res = new char[len];
+    int cIx = 0;
+    for (int bIx = 0; bIx < len; cIx++) {
+      byte b1 = bytes[bIx];
+      if ((b1 & 0x80) == 0) {
+        // 1-byte sequence (U+0000 - U+007F)
+        res[cIx] = (char) b1;
+        bIx++;
+      } else if ((b1 & 0xE0) == 0xC0) {
+        // 2-byte sequence (U+0080 - U+07FF)
+        byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
+        if ((b2 & 0xC0) == 0x80) {
+          res[cIx] = (char) (((b1 & 0x1F) << 6) | (b2 & 0x3F));
+          bIx += 2;
+        } else {
+          // illegal 2nd byte
+          res[cIx] = REPLACEMENT_CHAR;
+          bIx++; // skip 1st byte
+        }
+      } else if ((b1 & 0xF0) == 0xE0) {
+        // 3-byte sequence (U+0800 - U+FFFF)
+        byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
+        if ((b2 & 0xC0) == 0x80) {
+          byte b3 = (bIx + 2 < len) ? bytes[bIx + 2] : 0; // early end of array
+          if ((b3 & 0xC0) == 0x80) {
+            res[cIx] = (char) (((b1 & 0x0F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F));
+            bIx += 3;
+          } else {
+            // illegal 3rd byte
+            res[cIx] = REPLACEMENT_CHAR;
+            bIx += 2; // skip 1st TWO bytes
+          }
+        } else {
+          // illegal 2nd byte
+          res[cIx] = REPLACEMENT_CHAR;
+          bIx++; // skip 1st byte
+        }
+      } else {
+        // illegal 1st byte
+        res[cIx] = REPLACEMENT_CHAR;
+        bIx++; // skip 1st byte
+      }
+    }
+    return new String(res, 0, cIx);
+  }
 
   /**
    * Determine whether a string consists entirely of characters in the range 0 to 255. Only such
@@ -1063,7 +1065,9 @@ public class TextUtil {
   // isPrint reports whether the rune is printable (Unicode L/M/N/P/S or ' ').
   public static boolean isPrint(int r) {
     if (r <= MAX_LATIN1) {
-      return (r >= 0x20 && r < 0x7F) || (r >= 0xA1 && r != 0xAD);
+      // Fast check for Latin-1
+      return (r >= 0x20 && r < 0x7F) // All the ASCII is printable from space through DEL-1
+          || (r >= 0xA1 && r != 0xAD); // Similarly for ¡ through ÿ...except for bizarre soft hyphen
     }
     return is(UnicodeTables.L, r)
         || is(UnicodeTables.M, r)
@@ -1363,6 +1367,7 @@ public class TextUtil {
     }
     return size;
   }
+
   public static class CodecHelper {
     public static final String STRICT = "strict";
     public static final String IGNORE = "ignore";
@@ -1398,79 +1403,80 @@ public class TextUtil {
   }
 
   public static String PyUnicode_DecodeRawUnicodeEscape(String str, String errors) {
-         int size = str.length();
-         StringBuilder v = new StringBuilder(size);
+    int size = str.length();
+    StringBuilder v = new StringBuilder(size);
 
-         for (int i = 0; i < size;) {
-             char ch = str.charAt(i);
-             // Non-escape characters are interpreted as Unicode ordinals
-             if (ch != '\\') {
-                 v.append(ch);
-                 i++;
-                 continue;
-             }
+    for (int i = 0; i < size; ) {
+      char ch = str.charAt(i);
+      // Non-escape characters are interpreted as Unicode ordinals
+      if (ch != '\\') {
+        v.append(ch);
+        i++;
+        continue;
+      }
 
-             // \\u-escapes are only interpreted if the number of leading backslashes is
-             // odd
-             int bs = i;
-             while (i < size) {
-                 ch = str.charAt(i);
-                 if (ch != '\\') {
-                     break;
-                 }
-                 v.append(ch);
-                 i++;
-             }
-             if (((i - bs) & 1) == 0 || i >= size || (ch != 'u' && ch != 'U')) {
-                 continue;
-             }
-             v.setLength(v.length() - 1);
-             int count = ch == 'u' ? 4 : 8;
-             i++;
+      // \\u-escapes are only interpreted if the number of leading backslashes is
+      // odd
+      int bs = i;
+      while (i < size) {
+        ch = str.charAt(i);
+        if (ch != '\\') {
+          break;
+        }
+        v.append(ch);
+        i++;
+      }
+      if (((i - bs) & 1) == 0 || i >= size || (ch != 'u' && ch != 'U')) {
+        continue;
+      }
+      v.setLength(v.length() - 1);
+      int count = ch == 'u' ? 4 : 8;
+      i++;
 
-             // \\uXXXX with 4 hex digits, \Uxxxxxxxx with 8
-             int codePoint = 0, asDigit = -1;
-             for (int j = 0; j < count; i++, j++) {
-                 if (i == size) {
-                     // EOF in a truncated escape
-                     asDigit = -1;
-                     break;
-                 }
+      // \\uXXXX with 4 hex digits, \Uxxxxxxxx with 8
+      int codePoint = 0, asDigit = -1;
+      for (int j = 0; j < count; i++, j++) {
+        if (i == size) {
+          // EOF in a truncated escape
+          asDigit = -1;
+          break;
+        }
 
-                 ch = str.charAt(i);
-                 asDigit = Character.digit(ch, 16);
-                 if (asDigit == -1) {
-                     break;
-                 }
-                 codePoint = ((codePoint << 4) & ~0xF) + asDigit;
-             }
-             if (asDigit == -1) {
-                 i++; // TODO: bug?
-             } else {
-                 v.appendCodePoint(codePoint);
-             }
-         }
+        ch = str.charAt(i);
+        asDigit = Character.digit(ch, 16);
+        if (asDigit == -1) {
+          break;
+        }
+        codePoint = ((codePoint << 4) & ~0xF) + asDigit;
+      }
+      if (asDigit == -1) {
+        i++; // TODO: bug?
+      } else {
+        v.appendCodePoint(codePoint);
+      }
+    }
 
-         return v.toString();
-     }
+    return v.toString();
+  }
 
   private static char[] hexdigit = "0123456789ABCDEF".toCharArray();
 
   public static byte[] utf8encode(int codepoint) {
-        return new String(new int[]{codepoint}, 0, 1).getBytes(StandardCharsets.UTF_8);
-    }
-  public static int utf8decode(byte[] bytes) {
-         return new String(bytes, StandardCharsets.UTF_8).codePointAt(0);
-     }
+    return new String(new int[]{codepoint}, 0, 1).getBytes(StandardCharsets.UTF_8);
+  }
 
-     public static String asHex(byte[] encoded) {
-       Formatter formatter = new Formatter();
-                   for (byte b : encoded) {
-                       formatter.format("%02X ", b);
-                   }
+  public static int utf8decode(byte[] bytes) {
+    return new String(bytes, StandardCharsets.UTF_8).codePointAt(0);
+  }
+
+  public static String asHex(byte[] encoded) {
+    Formatter formatter = new Formatter();
+    for (byte b : encoded) {
+      formatter.format("%02X ", b);
+    }
 //                   int decoded = utf8decode(encoded);
-                   return formatter.toString();
-     }
+    return formatter.toString();
+  }
 
   private static final Map<Character, String> NO_REPLACEMENTS =
       ImmutableMap.of();
@@ -1481,120 +1487,149 @@ public class TextUtil {
           '&', "<and>");
   private static final char[] NO_CHARS = new char[0];
 
-//  UnicodeEscaper escaper = new ArrayBasedUnicodeEscaper(SIMPLE_REPLACEMENTS,
+  //  UnicodeEscaper escaper = new ArrayBasedUnicodeEscaper(SIMPLE_REPLACEMENTS,
 //          Character.MIN_VALUE, Character.MAX_CODE_POINT, null) {
 //            @Override protected char[] escapeUnsafe(int c) {
 //              return NO_CHARS;
 //            }
 //      };
 //  String escaped = escaper.escape(str);
-    // The modified flag is used by cPickle.
-    public static byte[] convertToByteArray(final int[] pIntArray)
-    {
-        final byte[] array = new byte[pIntArray.length * 4];
-        for (int j = 0; j < pIntArray.length; j++)
-        {
-            final int c = pIntArray[j];
-            array[j * 4] = (byte)((c & 0xFF000000) >> 24);
-            array[j * 4 + 1] = (byte)((c & 0xFF0000) >> 16);
-            array[j * 4 + 2] = (byte)((c & 0xFF00) >> 8);
-            array[j * 4 + 3] = (byte)(c & 0xFF);
-        }
-        return array;
+  // The modified flag is used by cPickle.
+  public static byte[] convertToByteArray(final int[] pIntArray) {
+    final byte[] array = new byte[pIntArray.length * 4];
+    for (int j = 0; j < pIntArray.length; j++) {
+      final int c = pIntArray[j];
+      array[j * 4] = (byte) ((c & 0xFF000000) >> 24);
+      array[j * 4 + 1] = (byte) ((c & 0xFF0000) >> 16);
+      array[j * 4 + 2] = (byte) ((c & 0xFF00) >> 8);
+      array[j * 4 + 3] = (byte) (c & 0xFF);
     }
+    return array;
+  }
 
-    public static int[] convertToIntArray(final byte[] pByteArray)
-    {
-        final int[] array = new int[pByteArray.length / 4];
-        for (int i = 0; i < array.length; i++)
-            array[i] = (((int)(pByteArray[i * 4]) << 24) & 0xFF000000) |
-                    (((int)(pByteArray[i * 4 + 1]) << 16) & 0xFF0000) |
-                    (((int)(pByteArray[i * 4 + 2]) << 8) & 0xFF00) |
-                    ((int)(pByteArray[i * 4 + 3]) & 0xFF);
-        return array;
-    }
+  public static int[] convertToIntArray(final byte[] pByteArray) {
+    final int[] array = new int[pByteArray.length / 4];
+    for (int i = 0; i < array.length; i++)
+      array[i] = (((int) (pByteArray[i * 4]) << 24) & 0xFF000000) |
+          (((int) (pByteArray[i * 4 + 1]) << 16) & 0xFF0000) |
+          (((int) (pByteArray[i * 4 + 2]) << 8) & 0xFF00) |
+          ((int) (pByteArray[i * 4 + 3]) & 0xFF);
+    return array;
+  }
 
   /**
-   * starlark compatible
-   *   -> utf-k => utf-8 encoding of unpaired surrogates => U+FFFD
-   * @param bytearr
+   * starlark compatible -> utf-k => utf-8 encoding of unpaired surrogates => U+FFFD
+   *
    * @return utf-8 encoded string compliant with Starlark spec
    */
   public static String starlarkDecodeUtf8(byte[] bytearr) {
-      StringBuilder v = new StringBuilder(bytearr.length);
-      int[] arrCodePoints = stringToRunes(decodeUTF8(bytearr, bytearr.length));
+    if(bytearr.length == 0) {
+      return "";
+    }
 
-      ListIterator<Byte> it = Bytes.asList(bytearr).listIterator();
-      int size = 0;
-      StringBuffer surrogatePair;
-      do {
-        int ch = Byte.toUnsignedInt(it.next());
-        if ((ch >= Character.MIN_HIGH_SURROGATE) &&
-              (ch < Character.MIN_LOW_SURROGATE)) {
-          // surrogate pair?
-          int trail = it.next();
-          if ((trail > Character.MAX_HIGH_SURROGATE) &&
-              (trail <= Character.MAX_LOW_SURROGATE)) {
-            //System.out.println(Character.toChars());
-            surrogatePair = new StringBuffer(2);
-            surrogatePair.append((char) ch);
-            surrogatePair.append((char) trail);
-            v.append(surrogatePair);
-            // valid pair
-            size += 4;
-          } else {
-            // invalid pair
-            v.append("\\x");
-            v.append(CharSequenceTranslator.hex(ch));
-            v.append("\\x");
-            v.append(CharSequenceTranslator.hex(trail));
-            size += 3;
-            it.previous(); // rewind one
-          }
-        } else if (ch < 0x80) {
-          if (ch >= ' ' && ch <= '~') {
-            v.append((char) ch);
-          }
-          else if(ch < ' ') {
-            v.append("\\x");
-            v.append(hexdigit[ch & 0xF]);
-            v.append(hexdigit[(ch >> 4)]);
-          }
-          size++;
-        } else if (ch <= 0x7FF) {
+    StringBuilder v = new StringBuilder(bytearr.length);
+    int[] arrCodePoints = stringToRunes(decodeUTF8(bytearr, bytearr.length));
+
+    ListIterator<Byte> it = Bytes.asList(bytearr).listIterator();
+    int size = 0;
+    StringBuffer surrogatePair;
+    do {
+      int ch = Byte.toUnsignedInt(it.next());
+      if (ch > Character.MIN_SUPPLEMENTARY_CODE_POINT) {
+        ch = REPLACEMENT_CHAR;
+      }
+
+      if ((ch >= Character.MIN_HIGH_SURROGATE) && (ch < Character.MIN_LOW_SURROGATE)) {
+        // surrogate pair?
+        int trail = it.next();
+        if ((trail > Character.MAX_HIGH_SURROGATE) && (trail <= Character.MAX_LOW_SURROGATE)) {
+          //System.out.println(Character.toChars());
+          surrogatePair = new StringBuffer(2);
+          surrogatePair.append((char) ch);
+          surrogatePair.append((char) trail);
+          v.append(surrogatePair);
+          // valid pair
+          size += 4;
+        } else {
+          // invalid pair
+          v.append("\\x");
+          v.append(int2hex(ch));
+          v.append("\\x");
+          v.append(int2hex(trail));
+          size += 3;
+          it.previous(); // rewind one
+        }
+      } else if (ch < 0x80) {
+        String chStr = Character.toString((char) ch);
+        if(EntityArrays.JAVA_CTRL_CHARS_ESCAPE.containsKey(chStr)) {
+          v.append(EntityArrays
+              .JAVA_CTRL_CHARS_ESCAPE
+              .get(chStr));
+        }
+        else if ((ch >= ' ') && (ch <= '~')) {
+          v.append(chStr);
+        }
+        else {
+          v.append("\\x");
+          v.append(int2hex(ch));
+        }
+//        else {
+//          v.append(
+//              StringEscapeUtils.ESCAPE_JAVA.with(
+//                  new LookupTranslator(ImmutableMap.of()),
+//              ).escapeJava(
+//
+//              ));
+//        }
+        // 1-byte sequence (U+0000 - U+007F)
+        //v.append(StringEscapeUtils.ESCAPE_JAVA.translate(String.));
+        size++;
+      } else {
+
+        if (ch <= 0x7FF) {
           // This is a 3 byte sequence with ranges: U+0080 - U+07FF
           try {
-            String utf8decoded = TextUtil.decode(
+            byte[] arr_sub = subarray(
                 bytearr,
                 /* zero indexed */ it.previousIndex(),
-                /* length */3);
-            v.append(utf8decoded);
+                /* until..(end) */it.previousIndex()+3);
+            String s = new String(arr_sub, StandardCharsets.UTF_8);
+            if(!isPrint(s.codePointAt(0))) {
+              s = StringEscapeUtils.escapeJava(s).toLowerCase();
+            }
+            v.append(s);
+//            String utf8decoded = TextUtil.decode(
+//                bytearr,
+//                 it.previousIndex(),
+//                3,
+//                false);
+//            //v.append(StringEscapeUtils.escapeJava(utf8decoded).toLowerCase());
+//            v.append(utf8decoded);
             size += 2; // current + 2
             // advance iterator by same since string was successfully decoded
             Iterators.advance(it, /*numberToAdvance*/2);
-          }catch (IndexOutOfBoundsException e) {
+          } catch (IndexOutOfBoundsException e) {
             v.append("\\x");
-            v.append(CharSequenceTranslator.hex(ch));
+            v.append(int2hex(ch));
             size += 1;
-          } catch(CharacterCodingException e) {
-            // Could not decode, so fallback to escaping the sequences
-            System.err.println(e.toString());
-            // TODO, how to handle?
-            throw new RuntimeException(e);
           }
-        } else {
-          if (ch > Character.MIN_SUPPLEMENTARY_CODE_POINT) {
-            ch = REPLACEMENT_CHAR;
-          }
+        }
+        else {
           // MIN_SUPPLEMENTARY_CODE_POINT
           // ch < 0x10000, that is, the largest char value
+
           v.append("\\u");
           for (int s = 12; s >= 0; s -= 4) {
             v.append(hexdigit[ch >> s & 0xF]);
           }
           size += 3;
         }
-      } while(it.hasNext());
+      }
+    } while (it.hasNext());
     return v.toString();
-    }
+  }
+
+  private static String int2hex(int ch) {
+    return CharSequenceTranslator.hex(ch).toLowerCase();
+  }
 }

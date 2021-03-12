@@ -37,11 +37,6 @@ def debug(s):
     print(s, _decode(b(s)))
     return s
 
-# array.array(
-#  'B',
-#  104, 101, 108, 108, 111, 44, 32, 228, 184, 150, 239, 191, 189, 239, 191, 189]
-# ).tobytes().decode('utf-8') == b"hello, 世��"
-
 # bytes(string) -- UTF-k to UTF-8 transcoding with U+FFFD replacement
 # A bit on replacement:
 #
@@ -57,7 +52,8 @@ empty = builtins.bytes("")
 nonprinting = builtins.bytes(escapes.CEscape().raw("\t\n").x("7f").u("200D"))
 
 sliced = builtins.bytes("hello, 世界")[:-1]
-
+hello_sliced = "hello, 世界"[:-1]
+print(hello_sliced)
 
 def _test_bytes_are_ints():
     # can always convert a bytes object into a list of integers using list(b).
@@ -177,10 +173,9 @@ def _test_repr_for_bytes():
     asserts.assert_that(repr(hello)).is_equal_to(r"b'hello, 世界'")
     asserts.assert_that(repr(goodbye)).is_equal_to("b'goodbye'")
     asserts.assert_that(repr(empty)).is_equal_to("b''")
-    # TODO(mahmoudimus): I think the repr just has to be the escaped string
-    # TODO: fix
-    # asserts.assert_that(repr(hello[:-1])).is_equal_to(r"b'hello, 世\xe7\x95'")  # (incomplete UTF-8 encoding )
-    # asserts.assert_that(repr(nonprinting)).is_equal_to(r"b'\\t\\n\\x7f\\u200d'")
+    # assert.eq(repr(nonprinting), 'b"\\t\\n\\x7f\\u200d"')
+    asserts.assert_that(repr(nonprinting)).is_equal_to("b'\\t\\n\\x7f\\u200d'")
+    asserts.assert_that(repr(hello[:-1])).is_equal_to(r"b'hello, 世\xe7\x95'")  # (incomplete UTF-8 encoding )
 
 
 # equality

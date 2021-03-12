@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
+import com.google.common.escape.Escapers;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
 
@@ -26,6 +27,8 @@ import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.syntax.TokenKind;
 
+import org.apache.commons.text.StringEscapeUtils;
+import org.apache.commons.text.translate.UnicodeEscaper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -221,7 +224,19 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
   @Override
   public void repr(Printer printer) {
     // TODO(mahmoudimus): repr should just give escaped strings
-    printer.append(String.format("b'%s'", TextUtil.decodeUTF8(this.toBytes(), this.toBytes().length)));
+    // passes most tests:
+    // String s = TextUtil.decodeUTF8(this.toBytes(), this.toBytes().length);
+    String s = TextUtil.starlarkDecodeUtf8(this.toBytes());
+    System.out.println("escape: " + StringEscapeUtils.escapeJava(s));
+    System.out.println("ecma: " + StringEscapeUtils.escapeEcmaScript(s));
+    System.out.println("guava: " + Escapers.builder().build().escape(s));
+    UnicodeEscaper escaper = new UnicodeEscaper();
+    System.out.println("apache: " + escaper.translate(s).replace("\\u", "u").toLowerCase());
+    System.out.println("xx: " + TextUtil.PyUnicode_DecodeRawUnicodeEscape(s,"replace"));
+    //System.out.println("yogurt: " + TextUtil.starlarkDecodeUtf8(s, "replace", true));
+    //printer.append(String.format("b'%s'",TextUtil.unescapeJavaString(s)));
+    //printer.append(String.format("b'%s'", TextUtil.decodeUTF8(this.toBytes(), this.toBytes().length)));
+    printer.append(String.format("b'%s'",s));
   }
 
   @Override
@@ -246,7 +261,6 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
         String.format("requires bytes or int as left operand, not %s", Starlark.type(key))
     );
   }
-
 
   @Override
   public boolean equals(Object obj) {
