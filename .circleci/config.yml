@@ -171,13 +171,15 @@ jobs:
           name: Build and deploy libstarlark
           command: |
             mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl libstarlark
-            mvn clean dependency:go-offline package deploy -pl libstarlark -U -Dmaven.test.skip.exec -T 2.0C -B -P bintray,github
+            mvn clean dependency:go-offline package -pl libstarlark -U -Dmaven.test.skip.exec -T 2.0C -B 
+            mvn deploy -DskipTests -pl libstarlark -P bintray,github
       - run:
           name: Build and deploy larky
           command: |
             mvn versions:set-property -Dproperty=libstarlark.version -DnewVersion=${CIRCLE_TAG}
             mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl larky
-            mvn clean dependency:go-offline package deploy -pl larky -U -Dmaven.test.skip.exec -T 2.0C -B -P bintray,github
+            mvn clean dependency:go-offline package -pl larky -U -Dmaven.test.skip.exec -T 2.0C -B
+            mvn deploy -DskipTests -pl larky -P bintray,github
 
   build-dist-linux:
     <<: *job-defaults
