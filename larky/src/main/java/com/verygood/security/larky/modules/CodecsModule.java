@@ -2,7 +2,7 @@ package com.verygood.security.larky.modules;
 
 import com.google.common.primitives.Bytes;
 
-import com.verygood.security.larky.modules.io.TextUtil;
+import com.verygood.security.larky.modules.codecs.TextUtil;
 import com.verygood.security.larky.modules.types.LarkyByteArray;
 
 import net.starlark.java.annot.Param;

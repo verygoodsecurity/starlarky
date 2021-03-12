@@ -2,7 +2,7 @@ package com.verygood.security.larky.modules.globals;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
-import com.verygood.security.larky.modules.io.TextUtil;
+import com.verygood.security.larky.modules.codecs.TextUtil;
 import com.verygood.security.larky.modules.types.LarkyByteArrIterable;
 import com.verygood.security.larky.modules.types.LarkyByteArray;
 import com.verygood.security.larky.modules.types.Partial;

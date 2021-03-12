@@ -12,7 +12,7 @@
  limitations under the License.
 
 */
-package com.verygood.security.larky.modules.io;
+package com.verygood.security.larky.modules.codecs;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;

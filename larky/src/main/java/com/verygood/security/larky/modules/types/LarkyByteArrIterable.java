@@ -1,6 +1,6 @@
 package com.verygood.security.larky.modules.types;
 
-import com.verygood.security.larky.modules.io.TextUtil;
+import com.verygood.security.larky.modules.codecs.TextUtil;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.Mutability;

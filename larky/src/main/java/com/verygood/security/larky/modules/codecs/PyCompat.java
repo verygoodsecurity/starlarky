@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.io;
+package com.verygood.security.larky.modules.codecs;
 
 import java.util.ArrayList;
 import java.util.Collections;

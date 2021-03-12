@@ -48,12 +48,14 @@ hello = builtins.bytes("hello, 世界")
 goodbye = builtins.bytes("goodbye")
 empty = builtins.bytes("")
 
-#nonprinting = builtins.bytes("\t\n\x7F\u200D")  # TAB, NEWLINE, DEL, ZERO_WIDTH_JOINER
-nonprinting = builtins.bytes(escapes.CEscape().raw("\t\n").x("7f").u("200D"))
+nonprinting = builtins.bytes(escapes.CEscape()
+                             .raw("\t\n") # TAB, NEWLINE,
+                             .x("7f") # DEL,
+                             .u("200D")) # ZERO_WIDTH_JOINER
 
 sliced = builtins.bytes("hello, 世界")[:-1]
 hello_sliced = "hello, 世界"[:-1]
-print(hello_sliced)
+
 
 def _test_bytes_are_ints():
     # can always convert a bytes object into a list of integers using list(b).
@@ -89,13 +91,7 @@ def _test_bytes_vs_string():
 
 def _test_bytes_construction():
     # # bytes(iterable of int) -- construct from numeric byte values
-    # assert.eq(bytes([65, 66, 67]), b"ABC")
-    # assert.eq(bytes((65, 66, 67)), b"ABC")
-    # assert.eq(bytes([0xf0, 0x9f, 0x98, 0xbf]), b"😿")
-    # print(builtins.bytes([65, 66, 67]))
-    # TODO: deviation from starlark spec, we can allocate integers...though maybe
-    #  we should remove this..
-    #  asserts.assert_fails(lambda: builtins.bytes(1), "want string, bytes, or iterable of ints")
+    asserts.assert_fails(lambda: builtins.bytes(1), "want string, bytes, or iterable of ints")
     asserts.assert_that(builtins.bytes([65, 66, 67])).is_equal_to(b("ABC"))
     asserts.assert_that(builtins.bytes([0xf0, 0x9f, 0x98, 0xbf])).is_equal_to(b("😿"))
     asserts.assert_fails(lambda: builtins.bytes([300]),
