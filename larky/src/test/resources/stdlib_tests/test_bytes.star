@@ -321,8 +321,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_indexing))
     _suite.addTest(unittest.FunctionTestCase(_test_slicing))
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_are_immutable))
-    # TODO (mahmoudimus):
-    #  _suite.addTest(unittest.FunctionTestCase(_test_byte_ord))
+
     return _suite
 
 
