@@ -11,6 +11,7 @@ job-defaults: &job-defaults
     - MAVEN_OPTS: -Xmx6400m
     - GRAALVM_HOME: /home/circleci/starlarky/.graalvm
     - HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
+    - LARKY_HOME: *working_directory
 
 install-java: &install-java
   run:
@@ -112,6 +113,13 @@ attach-dist: &attach-dist
   attach_workspace:
     at: *dist_directory
 
+get-resouces: &get-resources
+  run:
+    name: Build and test pylarky
+    command: |
+      ./scripts/get_resources.sh
+
+
 # === JOBS ===
 version: 2
 jobs:
@@ -122,6 +130,7 @@ jobs:
     steps:
       - checkout
       - <<: *install-java
+      - <<: *get-resources
       - <<: *restore-maven-cache
       - run: mkdir -p $TEST_RESULTS_PATH/junit/
       - run: mkdir -p $TEST_RESULTS_PATH/coverage/
@@ -143,6 +152,7 @@ jobs:
     machine: true
     steps:
       - checkout
+      - <<: *get-resources
       - <<: *restore-maven-cache
       - run: mkdir -p $TEST_RESULTS_PATH/junit/
       - run: mkdir -p $TEST_RESULTS_PATH/coverage/
@@ -165,6 +175,7 @@ jobs:
     steps:
       - checkout
       - <<: *install-java
+      - <<: *get-resources
       - <<: *restore-maven-cache
       - <<: *setup-maven-distributions
       - run:
@@ -190,6 +201,7 @@ jobs:
     steps:
       - checkout
       - <<: *install-java
+      - <<: *get-resources
       - <<: *restore-maven-cache
       - <<: *restore-graalvm-cache
       - <<: *install-graalvm
@@ -214,6 +226,7 @@ jobs:
       xcode: 10.2.1
     steps:
       - checkout
+      - <<: *get-resources
       - run:
           name: Install dev
           command: brew install maven

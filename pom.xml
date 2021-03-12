@@ -12,6 +12,7 @@
     <modules>
         <module>libstarlark</module>
         <module>larky</module>
+        <module>larky-api</module>
     </modules>
 
     <scm>

@@ -13,6 +13,7 @@ services:
       MAVEN_OPTS: -Xmx6400m
       GRAALVM_HOME: /build/.graalvm
       PYENV_ROOT: /root/.pyenv
+      LARKY_HOME: /src
     volumes:
       - ./:/src/
       - ./test-results:/tmp/test-results/
