@@ -14,6 +14,7 @@
 */
 package com.verygood.security.larky.modules.codecs;
 
+import com.google.common.base.Utf8;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.primitives.Bytes;
@@ -1535,36 +1536,16 @@ public class TextUtil {
     StringBuffer surrogatePair;
     do {
       int ch = Byte.toUnsignedInt(it.next());
-      if (ch > Character.MIN_SUPPLEMENTARY_CODE_POINT) {
-        ch = REPLACEMENT_CHAR;
+      if (ch == '"' || ch == '\\') { // always backslashed
+        v.append('\\');
+        v.append((char) ch);
+        size++;
       }
-
-      if ((ch >= Character.MIN_HIGH_SURROGATE) && (ch < Character.MIN_LOW_SURROGATE)) {
-        // surrogate pair?
-        int trail = it.next();
-        if ((trail > Character.MAX_HIGH_SURROGATE) && (trail <= Character.MAX_LOW_SURROGATE)) {
-          //System.out.println(Character.toChars());
-          surrogatePair = new StringBuffer(2);
-          surrogatePair.append((char) ch);
-          surrogatePair.append((char) trail);
-          v.append(surrogatePair);
-          // valid pair
-          size += 4;
-        } else {
-          // invalid pair
-          v.append("\\x");
-          v.append(int2hex(ch));
-          v.append("\\x");
-          v.append(int2hex(trail));
-          size += 3;
-          it.previous(); // rewind one
-        }
-      } else if (ch < 0x80) {
+      // characters below 0x80 are represented as themselves in a single byte.
+      else if (ch < 0x80) {
         String chStr = Character.toString((char) ch);
         if(EntityArrays.JAVA_CTRL_CHARS_ESCAPE.containsKey(chStr)) {
-          v.append(EntityArrays
-              .JAVA_CTRL_CHARS_ESCAPE
-              .get(chStr));
+          v.append(EntityArrays.JAVA_CTRL_CHARS_ESCAPE.get(chStr));
         }
         else if ((ch >= ' ') && (ch <= '~')) {
           v.append(chStr);
@@ -1573,56 +1554,77 @@ public class TextUtil {
           v.append("\\x");
           v.append(int2hex(ch));
         }
-//        else {
-//          v.append(
-//              StringEscapeUtils.ESCAPE_JAVA.with(
-//                  new LookupTranslator(ImmutableMap.of()),
-//              ).escapeJava(
-//
-//              ));
-//        }
-        // 1-byte sequence (U+0000 - U+007F)
-        //v.append(StringEscapeUtils.ESCAPE_JAVA.translate(String.));
         size++;
-      } else {
-
+      }
+      else {
         if (ch <= 0x7FF) {
-          // This is a 3 byte sequence with ranges: U+0080 - U+07FF
-          try {
-            byte[] arr_sub = subarray(
-                bytearr,
+          // This is a 2 byte sequence with ranges: U+0080 - U+07FF
+          byte[] subByteArr = null;
+          if((it.previousIndex() + 3) <= bytearr.length) {
+            subByteArr = subarray(bytearr,
                 /* zero indexed */ it.previousIndex(),
-                /* until..(end) */it.previousIndex()+3);
-            String s = new String(arr_sub, StandardCharsets.UTF_8);
-            if(!isPrint(s.codePointAt(0))) {
-              s = StringEscapeUtils.escapeJava(s).toLowerCase();
-            }
-            v.append(s);
-//            String utf8decoded = TextUtil.decode(
-//                bytearr,
-//                 it.previousIndex(),
-//                3,
-//                false);
-//            //v.append(StringEscapeUtils.escapeJava(utf8decoded).toLowerCase());
-//            v.append(utf8decoded);
+                /* until..(end) */it.previousIndex() + 3);
             size += 2; // current + 2
-            // advance iterator by same since string was successfully decoded
-            Iterators.advance(it, /*numberToAdvance*/2);
-          } catch (IndexOutOfBoundsException e) {
+          }
+          //noinspection UnstableApiUsage
+          if(subByteArr != null) {
+            if(Utf8.isWellFormed(subByteArr)) {
+              // advance iterator by same since encoding is well-formed
+              Iterators.advance(it, /*numberToAdvance*/2);
+              String s = decodeUTF8(subByteArr, subByteArr.length);
+              if (!isPrint(s.codePointAt(0))) {
+                s = StringEscapeUtils.escapeJava(s).toLowerCase();
+              }
+              v.append(s);
+            }
+            else {
+              // unpaired surrogate, so iterator should be advanced by 1
+              // and we replace by U+FFFD
+              v.append(REPLACEMENT_CHAR);  // unpaired surrogate => U+FFFD?
+              size += 1;
+              Iterators.advance(it, /*numberToAdvance*/1);
+            }
+          }
+          else {
             v.append("\\x");
             v.append(int2hex(ch));
             size += 1;
           }
         }
         else {
-          // MIN_SUPPLEMENTARY_CODE_POINT
-          // ch < 0x10000, that is, the largest char value
-
-          v.append("\\u");
-          for (int s = 12; s >= 0; s -= 4) {
-            v.append(hexdigit[ch >> s & 0xF]);
+          if (ch > Character.MIN_SUPPLEMENTARY_CODE_POINT) {
+            ch = REPLACEMENT_CHAR;
           }
-          size += 3;
+          if (Character.isHighSurrogate((char) ch)) {
+            // surrogate pair?
+            int trail = it.next();
+            if (Character.isLowSurrogate((char) trail)) {
+              //System.out.println(Character.toChars());
+              surrogatePair = new StringBuffer(2);
+              surrogatePair.append((char) ch);
+              surrogatePair.append((char) trail);
+              v.append(surrogatePair);
+              // valid pair
+              size += 4;
+            } else {
+              // invalid pair
+              v.append("\\x");
+              v.append(int2hex(ch));
+              v.append("\\x");
+              v.append(int2hex(trail));
+              size += 3;
+              it.previous(); // rewind one
+            }
+          }
+          else {
+            // MIN_SUPPLEMENTARY_CODE_POINT
+            // ch < 0x10000, that is, the largest char value
+            v.append("\\u");
+            for (int s = 12; s >= 0; s -= 4) {
+              v.append(hexdigit[ch >> s & 0xF]);
+            }
+            size += 3;
+          }
         }
       }
     } while (it.hasNext());

@@ -57,8 +57,8 @@ def _test_bytes_are_ints():
     # int in bytes
     asserts.assert_that(97 in b("abc")).is_equal_to(True)  # 97='a'
     asserts.assert_that(100 in b("abc")).is_equal_to(False) # 100='d'
-    # asserts.assert_fails(lambda: 256 in b("abc"), "int in bytes: 256 out of range")
-    # asserts.assert_fails(lambda: -1 in b("abc"), "int in bytes: -1 out of range")
+    asserts.assert_fails(lambda: 256 in b("abc"), "int in bytes: 256 out of range")
+    asserts.assert_fails(lambda: -1 in b("abc"), "int in bytes: -1 out of range")
 
 
 def _test_bytes_vs_string():
@@ -80,7 +80,7 @@ def _test_bytes_vs_string():
     ]))
     asserts.assert_that(
         codecs.decode(sliced, encoding='utf-8', errors='replace')
-    ).is_equal_to("hello, 世�")
+    ).is_equal_to(r"hello, 世\xe7\x95")
 
 
 def _test_bytes_construction():
@@ -151,19 +151,19 @@ def _test_truthiness():
 
 
 def _test_codecs_does_transcoding():
-    # TODO(mahmoudimus): we are deviating from the starlark spec
-    # TODO(mahmoudimus): resolve this:
-    #  - starlark does incomplete UTF-8 encoding => U+FFFD
-    #  - python drops it
     asserts.assert_that(codecs.decode(hello)).is_equal_to("hello, 世界")
-    asserts.assert_that(codecs.decode(hello[:-1])).is_equal_to("hello, 世�")
+    asserts.assert_that(codecs.decode(hello[:-1])).is_equal_to(r"hello, 世\xe7\x95")
     asserts.assert_that(codecs.decode(goodbye)).is_equal_to("goodbye")
     asserts.assert_that(codecs.decode(empty)).is_equal_to("")
     #asserts.assert_that(codecs.decode(nonprinting)).is_equal_to("\t\n\x7f\u200d")
+    # vvvv failing :(
+    # asserts.assert_that(
+    #     str(builtins.bytes([237, 176, 128]))
+    # ).is_equal_to("���") # UTF-8 encoding of unpaired surrogate => U+FFFD x 3
+
     # asserts.assert_that(codecs.decode(
     #     b(escapes.CEscape().x("ED").x("B0").x("80"))
-    # )).is_equal_to("���") # UTF-8 encoding of unpaired surrogate => U+FFFD x 3
-
+    # )).is_equal_to("���")
 
 def _test_repr_for_bytes():
     # repr
@@ -192,10 +192,11 @@ def _test_ordered_comparison():
 def _test_bytes_are_dict_hashable():
     # bytes are dict-hashable
     # -> # decode bytes into string!
-    dict = {_decode(hello): 1, _decode(goodbye): 2}
-    dict[_decode(b("goodbye"))] = 3
+    #dict = {_decode(hello): 1, _decode(goodbye): 2}
+    dict = {hello: 1, goodbye: 2}
+    dict[b("goodbye")] = 3
     asserts.assert_that(len(dict)).is_equal_to(2)
-    asserts.assert_that(dict[_decode(goodbye)]).is_equal_to(3)
+    asserts.assert_that(dict[goodbye]).is_equal_to(3)
 
 
 def _test_byte_hashing():

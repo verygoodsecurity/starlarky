@@ -14,7 +14,6 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkValue;
 
-import java.nio.charset.CharacterCodingException;
 import java.util.stream.Collectors;
 
 
@@ -103,11 +102,7 @@ public class CodecsModule implements StarlarkValue {
           )
       }
   )
-  public String decode(LarkyByteArray bytesToDecode, String encoding, String errors) throws EvalException {
-    try {
-      return TextUtil.decode(bytesToDecode.toBytes());
-    } catch (CharacterCodingException e) {
-      throw new EvalException(e);
-    }
-}
+  public String decode(LarkyByteArray bytesToDecode, String encoding, String errors) {
+      return TextUtil.starlarkDecodeUtf8(bytesToDecode.toBytes());
+  }
 }

@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Range;
 import com.google.common.collect.Streams;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
@@ -232,6 +233,7 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
 
   @Override
   public boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
+
     if(key instanceof LarkyByteArray) {
          // https://stackoverflow.com/a/32865087/133514
          return -1 != Collections.indexOfSubList(
@@ -239,12 +241,23 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
              ((LarkyByteArray)key)) ;
        }
      else if(key instanceof StarlarkInt) {
-      return contains(key);
+      StarlarkInt _key = ((StarlarkInt) key);
+      if(!Range
+          .closed(0, 255)
+          .contains(_key.toIntUnchecked())) {
+        throw Starlark.errorf("int in bytes: %s out of range", _key);
+      }
+      return contains(_key);
      }
      //"requires bytes or int as left operand, not string"
     throw new EvalException(
         String.format("requires bytes or int as left operand, not %s", Starlark.type(key))
     );
+  }
+
+  @Override
+  public boolean isImmutable() {
+    return true;
   }
 
   @Override
