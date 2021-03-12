@@ -196,7 +196,10 @@ jobs:
       - <<: *save-graalvm-cache
       - run:
           name: Build (Native)
-          command: mvn package -Pnative -DskipTests
+          command: |
+            mvn versions:set-property -Dproperty=starlarky.version -DnewVersion=${CIRCLE_TAG} -pl runlarky
+            mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl runlarky
+            mvn package -Pnative -DskipTests
           no_output_timeout: 30m
       - <<: *install_python
       - <<: *build_test_pylarky
@@ -230,12 +233,11 @@ jobs:
             ln -s "$GRAALVM_HOME/bin/gu" /usr/local/bin
             gu install native-image
       - run:
-          name: Maven Clean Package
-          command: |
-            mvn clean install -DskipTests dependency:go-offline -T 2.0C -B
-      - run:
           name: Build (Native)
-          command: mvn package -Pnative -DskipTests
+          command: |
+            mvn versions:set-property -Dproperty=starlarky.version -DnewVersion=${CIRCLE_TAG} -pl runlarky
+            mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl runlarky
+            mvn package -Pnative -DskipTests
           no_output_timeout: 30m
       - <<: *install_python
       - <<: *build_test_pylarky
@@ -294,33 +296,33 @@ workflows:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
             branches:
               ignore: /.*/
-#      - build-dist-linux:
-#          filters:
-#            tags:
-#              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-#            branches:
-#              ignore: /.*/
-#      - build-dist-macos:
-#          filters:
-#            tags:
-#              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-#            branches:
-#              ignore: /.*/
-#      - publish-to-gh:
-#          filters:
-#            tags:
-#              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-#            branches:
-#              ignore: /.*/
-#          requires:
-#            - build-dist-linux
-#            - build-dist-macos
-#      - publish-to-pypi:
-#          filters:
-#            tags:
-#              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-#            branches:
-#              ignore: /.*/
-#          requires:
-#            - build-dist-linux
-#            - build-dist-macos
+      - build-dist-linux:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
+      - build-dist-macos:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
+      - publish-to-gh:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
+          requires:
+            - build-dist-linux
+            - build-dist-macos
+      - publish-to-pypi:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
+          requires:
+            - build-dist-linux
+            - build-dist-macos
