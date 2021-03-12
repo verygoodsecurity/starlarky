@@ -20,6 +20,7 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
@@ -146,14 +147,7 @@ public final class LarkyGlobals {
           "\n" +
           "bytes(string, encoding[, errors]) -> bytes",
       parameters = {
-          @Param(name = "obj", allowedTypes = {
-              @ParamType(type = NoneType.class),
-              @ParamType(type = String.class),
-              @ParamType(type = LarkyByteArray.class),
-              @ParamType(type = LarkyByteArrIterable.class),
-              @ParamType(type = StarlarkInt.class),
-              @ParamType(type = StarlarkList.class),
-          }, defaultValue = "None"),
+          @Param(name = "obj"),
           @Param(name = "encoding", allowedTypes = {
               @ParamType(type = NoneType.class),
               @ParamType(type = String.class),
@@ -171,6 +165,13 @@ public final class LarkyGlobals {
       Object _errors,
       StarlarkThread thread
   ) throws EvalException {
+     if(!LarkyByteArray.class.isAssignableFrom(_obj.getClass())
+         && !StarlarkIterable.class.isAssignableFrom(_obj.getClass())
+         && !String.class.isAssignableFrom(_obj.getClass())
+         && !NoneType.class.isAssignableFrom(_obj.getClass())) {
+       throw Starlark.errorf("want string, bytes, or iterable of ints. got %s", Starlark.type(_obj));
+     }
+
     //bytes() -> empty bytes object
     if (Starlark.isNullOrNone(_obj) || LarkyByteArray.class.isAssignableFrom(_obj.getClass())) {
       //TODO(mahmoudimus): potential copy constructor bug if class really is larkybyte..test this!

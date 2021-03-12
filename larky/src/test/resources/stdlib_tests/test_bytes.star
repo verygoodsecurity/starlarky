@@ -27,12 +27,6 @@ U = larky.partial(string_literal_escape, escape_char="U")
 def _decode(s):
     return codecs.decode(s, encoding='utf-8', errors='replace')
 
-
-def _encode(s):
-    x = codecs.encode(s, encoding='utf-8')
-    return x
-
-
 def debug(s):
     print(s, _decode(b(s)))
     return s
@@ -91,7 +85,8 @@ def _test_bytes_vs_string():
 
 def _test_bytes_construction():
     # # bytes(iterable of int) -- construct from numeric byte values
-    asserts.assert_fails(lambda: builtins.bytes(1), "want string, bytes, or iterable of ints")
+    asserts.assert_fails(lambda: builtins.bytes(1),
+                         "want string, bytes.*or iterable")
     asserts.assert_that(builtins.bytes([65, 66, 67])).is_equal_to(b("ABC"))
     asserts.assert_that(builtins.bytes([0xf0, 0x9f, 0x98, 0xbf])).is_equal_to(b("😿"))
     asserts.assert_fails(lambda: builtins.bytes([300]),
@@ -109,20 +104,24 @@ def _test_bytes_construction():
 
 def _test_escape_literal_workaround():
     escaped = escapes.CEscape().raw("\012").x("ff").u("0400").U("0001F63F")
-    print(_decode(b(''.join(escaped.literal))))
-    print(escaped)
-    print(repr(escaped))
-    print(type(escaped))
     asserts.assert_that(
-        #b(debug("\012" +
-        b("\012" +
-                string_literal_escape("ff", "x") +
-                string_literal_escape("0400", "u") +
-                string_literal_escape("0001F63F", "U"))
-        ).is_equal_to(b("\n" + string_literal_escape("ff", "x") + "Ѐ😿")) # see scanner tests for more
+            b(escapes.CEscape()
+              .raw("\012")
+              .esc("ff", "x")
+              .esc("0400", "u")
+              .esc("0001F63F", "U")
+            )).is_equal_to(b(escaped))
+    asserts.assert_that(
+        b(escapes.CEscape()
+          .raw("\012")
+          .esc("ff", "x")
+          .esc("0400", "u")
+          .esc("0001F63F", "U")
+        )).is_equal_to(b("\n" + string_literal_escape("ff", "x") + "Ѐ😿")) # see scanner tests for more
     asserts.assert_that(b("".join(["\012", x("ff"), u("0400"), U("0001F63F")]))).is_equal_to(b(r"\n\xffЀ😿")) # see scanner tests for more
-    # TODO: because there are no byte literals, the following assert statement
-    #  asserts.assert_that(b("\012\xff\u0400\U0001F63F")).is_equal_to(b(r"\n\xffЀ😿")) # see scanner tests for more
+    #  NOTE: because there are no byte literals (until Starlark merges byte-literals)
+    #  the following assert statement:
+    #    asserts.assert_that(b("\012\xff\u0400\U0001F63F")).is_equal_to(b(r"\n\xffЀ😿")) # see scanner tests for more
     #  has been converted to:
     asserts.assert_that(b(escaped)).is_equal_to(b(escapes.CEscape().esc("n").x("ff").raw("Ѐ😿")))
     asserts.assert_that(b(r"\r\n\t")).is_equal_to(builtins.bytes("\\r\\n\\t")) # raw
@@ -160,8 +159,10 @@ def _test_codecs_does_transcoding():
     asserts.assert_that(codecs.decode(hello[:-1])).is_equal_to("hello, 世�")
     asserts.assert_that(codecs.decode(goodbye)).is_equal_to("goodbye")
     asserts.assert_that(codecs.decode(empty)).is_equal_to("")
-    # asserts.assert_that(codecs.decode(nonprinting)).is_equal_to("\t\n\x7f\u200d")
-    # asserts.assert_that(codecs.decode(b"\xED\xB0\x80")).is_equal_to("���") # UTF-8 encoding of unpaired surrogate => U+FFFD x 3
+    #asserts.assert_that(codecs.decode(nonprinting)).is_equal_to("\t\n\x7f\u200d")
+    # asserts.assert_that(codecs.decode(
+    #     b(escapes.CEscape().x("ED").x("B0").x("80"))
+    # )).is_equal_to("���") # UTF-8 encoding of unpaired surrogate => U+FFFD x 3
 
 
 def _test_repr_for_bytes():
