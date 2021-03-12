@@ -171,17 +171,13 @@ jobs:
           name: Build and deploy libstarlark
           command: |
             mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl libstarlark
-            mvn clean dependency:go-offline package -pl libstarlark -U -Dmaven.test.skip.exec -T 2.0C -B
-            mvn deploy -Pbintray -pl libstarlark -DskipTests
-            mvn deploy -Pgithub -pl libstarlark -DskipTests
+            mvn clean dependency:go-offline package deploy -pl libstarlark -U -Dmaven.test.skip.exec -T 2.0C -B -P bintray,github
       - run:
           name: Build and deploy larky
           command: |
             mvn versions:set-property -Dproperty=libstarlark.version -DnewVersion=${CIRCLE_TAG}
             mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl larky
-            mvn clean dependency:go-offline package -pl larky -U -Dmaven.test.skip.exec -T 2.0C -B
-            mvn deploy -Pbintray -pl larky -DskipTests
-            mvn deploy -Pgithub -pl larky -DskipTests
+            mvn clean dependency:go-offline package deploy -pl larky -U -Dmaven.test.skip.exec -T 2.0C -B -P bintray,github
 
   build-dist-linux:
     <<: *job-defaults
@@ -278,13 +274,13 @@ workflows:
   build_and_tests:
     jobs:
       - build-and-test
-      - build-and-test-docker
-      - build-dist-linux:
-          requires:
-            - build-and-test
-      - build-dist-macos:
-          requires:
-            - build-and-test
+#      - build-and-test-docker
+#      - build-dist-linux:
+#          requires:
+#            - build-and-test
+#      - build-dist-macos:
+#          requires:
+#            - build-and-test
 
   release:
     jobs:
