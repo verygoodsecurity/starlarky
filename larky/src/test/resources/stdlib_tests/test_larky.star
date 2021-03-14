@@ -1,7 +1,7 @@
 """Unit tests for larky.star."""
 load("@stdlib//larky", "larky")
 
-load("@stdlib//asserts",  "asserts")
+load("@vendor//asserts",  "asserts")
 load("@stdlib//unittest", "unittest")
 
 

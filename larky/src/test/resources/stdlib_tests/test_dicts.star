@@ -1,6 +1,6 @@
 """Unit tests for dicts.star."""
 
-load("@stdlib//asserts",  "asserts")
+load("@vendor//asserts",  "asserts")
 load("@stdlib//dicts", "dicts")
 load("@stdlib//unittest", "unittest")
 

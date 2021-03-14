@@ -1,5 +1,5 @@
 load("@stdlib//larky", "larky")
-load("@stdlib//asserts", "asserts")
+load("@vendor//asserts", "asserts")
 load("@stdlib//proto", "proto")
 
 

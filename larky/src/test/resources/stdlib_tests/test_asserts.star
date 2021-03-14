@@ -5,7 +5,7 @@ This exports `asserts` which contains the assertions used within tests.
 This is modeled after assertpy (https://github.com/assertpy/assertpy)
 """
 
-load("@stdlib//asserts",  "asserts")
+load("@vendor//asserts",  "asserts")
 
 
 print(asserts)

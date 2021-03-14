@@ -1,4 +1,4 @@
-load("@stdlib//asserts", "asserts")
+load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
 
 def success():

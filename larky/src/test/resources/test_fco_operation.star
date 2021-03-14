@@ -2,7 +2,7 @@ load('@stdlib/json', 'json')
 load('@stdlib/unittest', 'unittest')
 load('@stdlib/urllib/request', 'Request')
 load("@stdlib//hashlib", "hashlib")
-load("@stdlib//asserts", "asserts")
+load("@vendor//asserts", "asserts")
 
 load("testlib/vgs_messages", "http_pb2")
 load("testlib/builtinz", "simple_set")

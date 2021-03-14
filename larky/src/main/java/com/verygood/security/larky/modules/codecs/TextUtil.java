@@ -15,7 +15,6 @@
 package com.verygood.security.larky.modules.codecs;
 
 import com.google.common.base.Utf8;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.primitives.Bytes;
 
@@ -37,9 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.Arrays;
-import java.util.Formatter;
 import java.util.ListIterator;
-import java.util.Map;
 
 /**
  * Mostly taken from Apache Arrow and from RE2j's Unicode class.
@@ -74,6 +71,11 @@ public class TextUtil {
   // Checked during test.
   static final int MIN_FOLD = 0x0041;
   static final int MAX_FOLD = 0x1044f;
+
+  /**
+   * The Unicode replacement character inserted in place of decoding errors.
+   */
+  public static final char REPLACEMENT_CHAR = '\uFFFD';
 
   private byte[] bytes = EMPTY_BYTES;
   private int length;
@@ -721,11 +723,6 @@ public class TextUtil {
     }
     return sb.toString();
   }
-
-  /**
-   * The Unicode replacement character inserted in place of decoding errors.
-   */
-  public static final char REPLACEMENT_CHAR = '\uFFFD';
 
   /**
    * Returns a String for the UTF-8 encoded byte sequence in <code>bytes[0..len-1]</code>. The
@@ -1403,120 +1400,8 @@ public class TextUtil {
 
   }
 
-  public static String PyUnicode_DecodeRawUnicodeEscape(String str, String errors) {
-    int size = str.length();
-    StringBuilder v = new StringBuilder(size);
-
-    for (int i = 0; i < size; ) {
-      char ch = str.charAt(i);
-      // Non-escape characters are interpreted as Unicode ordinals
-      if (ch != '\\') {
-        v.append(ch);
-        i++;
-        continue;
-      }
-
-      // \\u-escapes are only interpreted if the number of leading backslashes is
-      // odd
-      int bs = i;
-      while (i < size) {
-        ch = str.charAt(i);
-        if (ch != '\\') {
-          break;
-        }
-        v.append(ch);
-        i++;
-      }
-      if (((i - bs) & 1) == 0 || i >= size || (ch != 'u' && ch != 'U')) {
-        continue;
-      }
-      v.setLength(v.length() - 1);
-      int count = ch == 'u' ? 4 : 8;
-      i++;
-
-      // \\uXXXX with 4 hex digits, \Uxxxxxxxx with 8
-      int codePoint = 0, asDigit = -1;
-      for (int j = 0; j < count; i++, j++) {
-        if (i == size) {
-          // EOF in a truncated escape
-          asDigit = -1;
-          break;
-        }
-
-        ch = str.charAt(i);
-        asDigit = Character.digit(ch, 16);
-        if (asDigit == -1) {
-          break;
-        }
-        codePoint = ((codePoint << 4) & ~0xF) + asDigit;
-      }
-      if (asDigit == -1) {
-        i++; // TODO: bug?
-      } else {
-        v.appendCodePoint(codePoint);
-      }
-    }
-
-    return v.toString();
-  }
 
   private static char[] hexdigit = "0123456789ABCDEF".toCharArray();
-
-  public static byte[] utf8encode(int codepoint) {
-    return new String(new int[]{codepoint}, 0, 1).getBytes(StandardCharsets.UTF_8);
-  }
-
-  public static int utf8decode(byte[] bytes) {
-    return new String(bytes, StandardCharsets.UTF_8).codePointAt(0);
-  }
-
-  public static String asHex(byte[] encoded) {
-    Formatter formatter = new Formatter();
-    for (byte b : encoded) {
-      formatter.format("%02X ", b);
-    }
-//                   int decoded = utf8decode(encoded);
-    return formatter.toString();
-  }
-
-  private static final Map<Character, String> NO_REPLACEMENTS =
-      ImmutableMap.of();
-  private static final Map<Character, String> SIMPLE_REPLACEMENTS =
-      ImmutableMap.of(
-          '\n', "<newline>",
-          '\t', "<tab>",
-          '&', "<and>");
-  private static final char[] NO_CHARS = new char[0];
-
-  //  UnicodeEscaper escaper = new ArrayBasedUnicodeEscaper(SIMPLE_REPLACEMENTS,
-//          Character.MIN_VALUE, Character.MAX_CODE_POINT, null) {
-//            @Override protected char[] escapeUnsafe(int c) {
-//              return NO_CHARS;
-//            }
-//      };
-//  String escaped = escaper.escape(str);
-  // The modified flag is used by cPickle.
-  public static byte[] convertToByteArray(final int[] pIntArray) {
-    final byte[] array = new byte[pIntArray.length * 4];
-    for (int j = 0; j < pIntArray.length; j++) {
-      final int c = pIntArray[j];
-      array[j * 4] = (byte) ((c & 0xFF000000) >> 24);
-      array[j * 4 + 1] = (byte) ((c & 0xFF0000) >> 16);
-      array[j * 4 + 2] = (byte) ((c & 0xFF00) >> 8);
-      array[j * 4 + 3] = (byte) (c & 0xFF);
-    }
-    return array;
-  }
-
-  public static int[] convertToIntArray(final byte[] pByteArray) {
-    final int[] array = new int[pByteArray.length / 4];
-    for (int i = 0; i < array.length; i++)
-      array[i] = (((int) (pByteArray[i * 4]) << 24) & 0xFF000000) |
-          (((int) (pByteArray[i * 4 + 1]) << 16) & 0xFF0000) |
-          (((int) (pByteArray[i * 4 + 2]) << 8) & 0xFF00) |
-          ((int) (pByteArray[i * 4 + 3]) & 0xFF);
-    return array;
-  }
 
   /**
    * starlark compatible -> utf-k => utf-8 encoding of unpaired surrogates => U+FFFD
@@ -1529,7 +1414,6 @@ public class TextUtil {
     }
 
     StringBuilder v = new StringBuilder(bytearr.length);
-    int[] arrCodePoints = stringToRunes(decodeUTF8(bytearr, bytearr.length));
 
     ListIterator<Byte> it = Bytes.asList(bytearr).listIterator();
     int size = 0;
