@@ -1283,6 +1283,9 @@ public class TextUtil {
           1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3,
           3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5};
 
+  static final int[] offsetsFromUTF8 =
+      {0x00000000, 0x00003080, 0x000E2080, 0x03C82080, 0xFA082080, 0x82082080};
+
   /**
    * Returns the next code point at the current position in the buffer. The buffer's position will
    * be incremented. Any mark set on this buffer will be changed by this method!
@@ -1330,9 +1333,6 @@ public class TextUtil {
 
     return ch;
   }
-
-  static final int[] offsetsFromUTF8 =
-      {0x00000000, 0x00003080, 0x000E2080, 0x03C82080, 0xFA082080, 0x82082080};
 
   /**
    * For the given string, returns the number of UTF-8 bytes required to encode the string.
@@ -1580,9 +1580,11 @@ public class TextUtil {
             else {
               // unpaired surrogate, so iterator should be advanced by 1
               // and we replace by U+FFFD
-              v.append(REPLACEMENT_CHAR);  // unpaired surrogate => U+FFFD?
+              // v.append(REPLACEMENT_CHAR);  // unpaired surrogate => U+FFFD?
               size += 1;
-              Iterators.advance(it, /*numberToAdvance*/1);
+              //Iterators.advance(it, /*numberToAdvance*/1);
+              v.append("\\x");
+              v.append(int2hex(ch));
             }
           }
           else {
@@ -1631,7 +1633,7 @@ public class TextUtil {
     return v.toString();
   }
 
-  private static String int2hex(int ch) {
+  public static String int2hex(int ch) {
     return CharSequenceTranslator.hex(ch).toLowerCase();
   }
 }
