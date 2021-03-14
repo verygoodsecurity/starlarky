@@ -39,7 +39,7 @@ public final class UTF8JS {
 
     private UTF8JS () {}
 
-    public static String encode(String string) throws UTF8Exception {
+    public static String encode(String string, boolean strict) throws UTF8Exception {
         int[] codePoints = ucs2decode(string);
         int length = codePoints.length;
         int index = -1;
@@ -47,18 +47,18 @@ public final class UTF8JS {
         StringBuilder byteString = new StringBuilder();
         while (++index < length) {
             codePoint = codePoints[index];
-            byteString.append(encodeCodePoint(codePoint));
+            byteString.append(encodeCodePoint(codePoint, strict));
         }
         return byteString.toString();
     }
 
-    public static String decode(String byteString) throws UTF8Exception {
+    public static String decode(String byteString, boolean strict) throws UTF8Exception {
         byteArray = ucs2decode(byteString);
         byteCount = byteArray.length;
         byteIndex = 0;
         List<Integer> codePoints = new ArrayList<Integer>();
         int tmp;
-        while ((tmp = decodeSymbol()) != -1) {
+        while ((tmp = decodeSymbol(strict)) != -1) {
             codePoints.add(tmp);
         }
         return ucs2encode(listToArray(codePoints));
@@ -76,7 +76,7 @@ public final class UTF8JS {
         return output;
     }
 
-    private static String encodeCodePoint(int codePoint) throws UTF8Exception {
+    private static String encodeCodePoint(int codePoint, boolean strict) throws UTF8Exception {
         StringBuilder symbol = new StringBuilder();
         if ((codePoint & 0xFFFFFF80) == 0) {
             return symbol.append(Character.toChars(codePoint)).toString();
@@ -84,7 +84,7 @@ public final class UTF8JS {
         if ((codePoint & 0xFFFFF800) == 0) {
             symbol.append(Character.toChars(((codePoint >> 6) & 0x1F) | 0xC0));
         } else if ((codePoint & 0xFFFF0000) == 0) {
-            checkScalarValue(codePoint);
+            checkScalarValue(codePoint, strict);
             symbol.append(Character.toChars(((codePoint >> 12) & 0x0F) | 0xE0));
             symbol.append(createByte(codePoint, 6));
         } else if ((codePoint & 0xFFE00000) == 0) {
@@ -100,7 +100,7 @@ public final class UTF8JS {
         return Character.toChars(((codePoint >> shift) & 0x3F) | 0x80);
     }
 
-    private static int decodeSymbol() throws UTF8Exception {
+    private static int decodeSymbol(boolean strict) throws UTF8Exception {
         int byte1;
         int byte2;
         int byte3;
@@ -115,46 +115,55 @@ public final class UTF8JS {
             return -1;
         }
 
+        int startingByteIndex = byteIndex;
+
         byte1 = byteArray[byteIndex] & 0xFF;
         byteIndex++;
 
-        if ((byte1 & 0x80) == 0) {
-            return byte1;
-        }
-
-        if ((byte1 & 0xE0) == 0xC0) {
-            byte2 = readContinuationByte();
-            codePoint = ((byte1 & 0x1F) << 6) | byte2;
-            if (codePoint >= 0x80) {
-                return codePoint;
-            } else {
-                throw new UTF8Exception(INVALID_CONTINUATION_BYTE);
+        try {
+            if ((byte1 & 0x80) == 0) {
+                return byte1;
             }
-        }
 
-        if ((byte1 & 0xF0) == 0xE0) {
-            byte2 = readContinuationByte();
-            byte3 = readContinuationByte();
-            codePoint = ((byte1 & 0x0F) << 12) | (byte2 << 6) | byte3;
-            if (codePoint >= 0x0800) {
-                checkScalarValue(codePoint);
-                return codePoint;
-            } else {
-                throw new UTF8Exception(INVALID_CONTINUATION_BYTE);
+            if ((byte1 & 0xE0) == 0xC0) {
+                byte2 = readContinuationByte();
+                codePoint = ((byte1 & 0x1F) << 6) | byte2;
+                if (codePoint >= 0x80) {
+                    return codePoint;
+                } else {
+                    throw new UTF8Exception(INVALID_CONTINUATION_BYTE);
+                }
             }
-        }
 
-        if ((byte1 & 0xF8) == 0xF0) {
-            byte2 = readContinuationByte();
-            byte3 = readContinuationByte();
-            byte4 = readContinuationByte();
-            codePoint = ((byte1 & 0x0F) << 0x12) | (byte2 << 0x0C) | (byte3 << 0x06) | byte4;
-            if (codePoint >= 0x010000 && codePoint <= 0x10FFFF) {
-                return codePoint;
+            if ((byte1 & 0xF0) == 0xE0) {
+                byte2 = readContinuationByte();
+                byte3 = readContinuationByte();
+                codePoint = ((byte1 & 0x0F) << 12) | (byte2 << 6) | byte3;
+                if (codePoint >= 0x0800) {
+                    return checkScalarValue(codePoint, strict) ? codePoint : 0xFFFD;
+                } else {
+                    throw new UTF8Exception(INVALID_CONTINUATION_BYTE);
+                }
             }
-        }
 
-        throw new UTF8Exception(INVALID_CONTINUATION_BYTE);
+            if ((byte1 & 0xF8) == 0xF0) {
+                byte2 = readContinuationByte();
+                byte3 = readContinuationByte();
+                byte4 = readContinuationByte();
+                codePoint = ((byte1 & 0x0F) << 0x12) | (byte2 << 0x0C) | (byte3 << 0x06) | byte4;
+                if (codePoint >= 0x010000 && codePoint <= 0x10FFFF) {
+                    return codePoint;
+                }
+            }
+
+            throw new UTF8Exception(INVALID_CONTINUATION_BYTE);
+        }catch(UTF8Exception e) {
+            if(strict) {
+                throw e;
+            }
+            byteIndex = startingByteIndex + 1;
+        }
+        return 0xFFFD;
     }
 
     private static int readContinuationByte() throws UTF8Exception {
@@ -180,13 +189,17 @@ public final class UTF8JS {
         return output.toString();
     }
 
-    private static void checkScalarValue(int codePoint) throws UTF8Exception {
+    private static boolean checkScalarValue(int codePoint, boolean strict) throws UTF8Exception {
         if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
-            throw new UTF8Exception(
+            if(strict) {
+                throw new UTF8Exception(
                     "Lone surrogate U+" + Integer.toHexString(codePoint).toUpperCase() +
-                    " is not a scalar value"
-            );
+                        " is not a scalar value"
+                );
+            }
+            return false;
         }
+        return true;
     }
 
     private static int[] listToArray(List<Integer> list) {

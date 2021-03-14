@@ -1,5 +1,5 @@
-load("@stdlib/asserts", "asserts")
-load("@stdlib/unittest", "unittest")
+load("@stdlib//asserts", "asserts")
+load("@stdlib//unittest", "unittest")
 
 def success():
     asserts.assert_that(1).is_equal_to(1)

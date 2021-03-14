@@ -75,7 +75,7 @@ public class VendorLibTests {
   }
 
   @TestFactory
-  public Iterator<DynamicTest> testStdLib() {
+  public Iterator<DynamicTest> testVendorLib() {
     return vendorTestFiles.stream().map(f -> DynamicTest.dynamicTest(
         String.format("%s=%s", PROPERTY_NAME, f.getFileName()),
         () -> evaluateTest(interpreter, moduleSet, f)

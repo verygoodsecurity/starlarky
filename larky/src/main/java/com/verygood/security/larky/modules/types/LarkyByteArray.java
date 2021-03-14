@@ -27,11 +27,14 @@ import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.syntax.TokenKind;
 
+import org.apache.commons.text.StringEscapeUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -219,10 +222,69 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
     return ImmutableSet.copyOf(fields.keySet());
   }
 
+  /**
+   * Returns an input source that reads from a UTF-8-encoded byte array. The caller is free to
+   * subsequently mutate the array.
+   */
+  public static String fromASCII(byte[] bytes) {
+    CharBuffer cb = StandardCharsets.US_ASCII.decode(ByteBuffer.wrap(bytes));
+    char[] utf16 = new char[cb.length()];
+    cb.get(utf16);
+    return new String(utf16, 0, utf16.length);
+  }
+
+  @Override
+  public void str(Printer printer) {
+    /*
+    The starlark spec says that UTF-8 gets encoded to UTF-K,
+    where K is the host language: Go, Rust is UTF-8 and Java is
+    UTF-16.
+     */
+    StringBuffer sb = new StringBuffer();
+    ByteBuffer buf = ByteBuffer.wrap(toBytes());
+    int lastpos = 0;
+    int l = toBytes().length;
+    while(buf.hasRemaining()) {
+      int r = 0;
+      try {
+        r = TextUtil.bytesToCodePoint(buf);
+        if(r == -1) {
+          break;
+        }
+        lastpos = buf.position();
+      }catch(java.nio.BufferUnderflowException e) {
+        buf.position(lastpos);
+        for(int i = lastpos; i < l; i++) {
+          sb.append("\\x");
+          sb.append(Integer.toHexString(Byte.toUnsignedInt(buf.get(i))));
+        }
+        break;
+      }
+      if(Character.isLowSurrogate((char) r) || Character.isHighSurrogate((char) r)) {
+        sb.append(TextUtil.REPLACEMENT_CHAR);
+      }
+      else {
+        sb.append(TextUtil.runeToString(r));
+      }
+
+      //System.out.println(Integer.toHexString(r));
+      //System.out.println("Chars: " + Arrays.toString(Character.toChars(r)));
+    }
+    printer.append(sb.toString());
+  }
+
   @Override
   public void repr(Printer printer) {
     String s = TextUtil.starlarkDecodeUtf8(this.toBytes());
-    printer.append(String.format("b'%s'",s));
+    String escaped = StringEscapeUtils.escapeJava("b" + '"' + s + '"');
+    String unescaped = StringEscapeUtils.escapeJava("b" + '"' + TextUtil.unescapeJavaString(s).toLowerCase() + '"');
+    String s2 = String.format("b\"%s\"", s);
+
+    System.out.println("passing: " + s2);
+    System.out.println("escaped: " + TextUtil.unescapeJavaString(escaped).toLowerCase());
+    System.out.println("unescaped: " + unescaped);
+
+    printer.append(s2);
   }
 
   @Override
