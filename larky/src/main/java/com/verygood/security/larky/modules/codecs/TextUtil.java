@@ -1401,7 +1401,7 @@ public class TextUtil {
   }
 
 
-  private static char[] hexdigit = "0123456789ABCDEF".toCharArray();
+  public static char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
 
   /**
    * starlark compatible -> utf-k => utf-8 encoding of unpaired surrogates => U+FFFD
@@ -1507,7 +1507,7 @@ public class TextUtil {
             // ch < 0x10000, that is, the largest char value
             v.append("\\u");
             for (int s = 12; s >= 0; s -= 4) {
-              v.append(hexdigit[ch >> s & 0xF]);
+              v.append(HEX_DIGITS[ch >> s & 0xF]);
             }
             size += 3;
           }
