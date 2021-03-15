@@ -38,6 +38,18 @@ install-graalvm: &install-graalvm
         && rm graalvm-ce-java11-linux-amd64-20.2.0.tar.gz \
         && $GRAALVM_HOME/bin/gu install native-image
 
+build-quarkus-runnable: &build-quarkus-runnable
+  run:
+    name: Build binary for runlarky
+    command: |
+      if [ "${CIRCLE_TAG}" != "" ] ;
+      then
+        mvn versions:set-property -Dproperty=starlarky.version -DnewVersion=${CIRCLE_TAG} -pl runlarky
+        mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl runlarky
+      fi
+      mvn package -Pnative -DskipTests
+    no_output_timeout: 30m
+
 # Template to save Maven dependency cache to restore it in another jobs
 save-maven-cache: &save-maven-cache
   save_cache:
@@ -195,13 +207,7 @@ jobs:
       - <<: *restore-graalvm-cache
       - <<: *install-graalvm
       - <<: *save-graalvm-cache
-      - run:
-          name: Build (Native)
-          command: |
-            mvn versions:set-property -Dproperty=starlarky.version -DnewVersion=${CIRCLE_TAG} -pl runlarky
-            mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl runlarky
-            mvn package -Pnative -DskipTests
-          no_output_timeout: 30m
+      - <<: *build-quarkus-runnable
       - <<: *install_python
       - <<: *build_test_pylarky
       - run:
@@ -234,13 +240,7 @@ jobs:
             ln -s "$GRAALVM_HOME/bin/gu" /usr/local/bin
             gu install native-image
       - <<: *setup-maven-distributions
-      - run:
-          name: Build (Native)
-          command: |
-            mvn versions:set-property -Dproperty=starlarky.version -DnewVersion=${CIRCLE_TAG} -pl runlarky
-            mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl runlarky
-            mvn package -Pnative -DskipTests
-          no_output_timeout: 30m
+      - <<: *build-quarkus-runnable
       - <<: *install_python
       - <<: *build_test_pylarky
       - run:
