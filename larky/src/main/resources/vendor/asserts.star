@@ -465,7 +465,7 @@ def _assert_fails(function, failed_with):
 
 
 def _assert_eq(this, that):
-    return _assert_that(that).is_equal_to(that)
+    return _assert_that(this).is_equal_to(that)
 
 
 asserts = larky.struct(

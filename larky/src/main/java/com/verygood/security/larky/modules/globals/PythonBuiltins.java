@@ -1,7 +1,7 @@
 package com.verygood.security.larky.modules.globals;
 
 import com.verygood.security.larky.annot.Library;
-import com.verygood.security.larky.modules.types.LarkyByteArray;
+import com.verygood.security.larky.modules.types.LarkyByte;
 import com.verygood.security.larky.modules.types.LarkyObject;
 
 import net.starlark.java.annot.Param;
@@ -79,7 +79,7 @@ public final class PythonBuiltins {
            name = "c",
            allowedTypes = {
                @ParamType(type = String.class),
-               @ParamType(type = LarkyByteArray.class),
+               @ParamType(type = LarkyByte.class),
            }
          )
        }
@@ -91,9 +91,9 @@ public final class PythonBuiltins {
         containerSize = ((String) c).length();
         bytes = ((String) c).getBytes(StandardCharsets.UTF_8);
       }
-      else if(LarkyByteArray.class.isAssignableFrom(c.getClass())) {
-        containerSize = ((LarkyByteArray) c).size();
-        bytes = ((LarkyByteArray) c).toBytes();
+      else if(LarkyByte.class.isAssignableFrom(c.getClass())) {
+        containerSize = ((LarkyByte) c).size();
+        bytes = ((LarkyByte) c).toBytes();
       }
 
       if(containerSize != 1 || bytes == null) {
@@ -148,7 +148,7 @@ public final class PythonBuiltins {
              doc = "String or byte value to hash.",
              allowedTypes = {
                  @ParamType(type = String.class),
-                 @ParamType(type = LarkyByteArray.class),
+                 @ParamType(type = LarkyByte.class),
              }),
        })
    public int hash(Object value) throws EvalException {

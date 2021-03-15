@@ -3,8 +3,8 @@ package com.verygood.security.larky.modules.globals;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
 import com.verygood.security.larky.modules.codecs.TextUtil;
-import com.verygood.security.larky.modules.types.LarkyByteArrIterable;
-import com.verygood.security.larky.modules.types.LarkyByteArray;
+import com.verygood.security.larky.modules.types.LarkyByte;
+import com.verygood.security.larky.modules.types.LarkyByteElems;
 import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
@@ -35,9 +35,9 @@ import java.nio.charset.UnsupportedCharsetException;
  * A library of Larky values (keyed by name) that are not part of core Starlark but are common to
  * all Larky star scripts. Examples: struct, json, etc..
  *
- * Namespaced by _ and should only be accessable via @stdlib/larky:
+ * Namespaced by _ and should only be accessible via @stdlib//larky:
  *
- * load("@stdlib/larky", "larky")
+ * load("@stdlib//larky", "larky")
  */
 @Library
 public final class LarkyGlobals {
@@ -159,13 +159,13 @@ public final class LarkyGlobals {
       },
       useStarlarkThread = true
   )
-  public LarkyByteArray asByteArray(
+  public LarkyByte asByteArray(
       Object _obj,
       Object _encoding,
       Object _errors,
       StarlarkThread thread
   ) throws EvalException {
-     if(!LarkyByteArray.class.isAssignableFrom(_obj.getClass())
+     if(!LarkyByte.class.isAssignableFrom(_obj.getClass())
          && !StarlarkIterable.class.isAssignableFrom(_obj.getClass())
          && !String.class.isAssignableFrom(_obj.getClass())
          && !NoneType.class.isAssignableFrom(_obj.getClass())) {
@@ -173,9 +173,9 @@ public final class LarkyGlobals {
      }
 
     //bytes() -> empty bytes object
-    if (Starlark.isNullOrNone(_obj) || LarkyByteArray.class.isAssignableFrom(_obj.getClass())) {
+    if (Starlark.isNullOrNone(_obj) || LarkyByte.class.isAssignableFrom(_obj.getClass())) {
       //TODO(mahmoudimus): potential copy constructor bug if class really is larkybyte..test this!
-      return StarlarkUtil.convertFromNoneable(_obj, new LarkyByteArray(thread));
+      return StarlarkUtil.convertFromNoneable(_obj, new LarkyByte(thread));
     }
 
     // handle case where string is passed in.
@@ -218,7 +218,7 @@ public final class LarkyGlobals {
       decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
       decoder.replaceWith(String.valueOf(TextUtil.REPLACEMENT_CHAR));
       //bytes(string, encoding[, errors]) -> bytes
-      return new LarkyByteArray(
+      return new LarkyByte(
           thread,
           decoder.charset()
               .encode(TextUtil.unescapeJavaString((String) _obj))
@@ -238,11 +238,11 @@ public final class LarkyGlobals {
     try {
       switch (classType) {
         case "int":
-          return new LarkyByteArray(thread, ((StarlarkInt) _obj).toIntUnchecked());
+          return new LarkyByte(thread, ((StarlarkInt) _obj).toIntUnchecked());
         case "bytes.elems":
-          return new LarkyByteArray(thread, (LarkyByteArrIterable) _obj);
+          return new LarkyByte(thread, (LarkyByteElems) _obj);
         case "list":
-          return new LarkyByteArray(thread, (StarlarkList<?>) _obj);
+          return new LarkyByte(thread, (StarlarkList<?>) _obj);
         default:
           throw Starlark.errorf("unable to convert '%s' to bytes", classType);
       }

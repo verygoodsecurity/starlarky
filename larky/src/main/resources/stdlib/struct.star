@@ -14,7 +14,7 @@ def _unpack(fmt, buffer):
     return _jstruct.unpack(fmt, buffer)
 
 
-def _unpack_from(fmt, buffer, offset):
+def _unpack_from(fmt, buffer, offset=0):
     return _jstruct.unpack_from(fmt, buffer, offset)
 
 

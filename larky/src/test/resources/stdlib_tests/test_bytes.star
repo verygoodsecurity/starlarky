@@ -75,7 +75,7 @@ def _test_bytes_construction():
     asserts.assert_fails(lambda: builtins.bytes([300]),
                   "out of range: 300, want value in unsigned 8-bit range")
     asserts.assert_fails(lambda: builtins.bytes([b("a")]),
-                 "Cannot cast .*LarkyByteArray to .*StarlarkInt")
+                 "Cannot cast .*LarkyByte to .*StarlarkInt")
 
     # literals .... not really b() simulates a literal...
     asserts.assert_that(b("hello, 世界")).is_equal_to(hello)

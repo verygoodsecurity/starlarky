@@ -28,6 +28,7 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CodingErrorAction;
@@ -915,6 +916,34 @@ public class TextUtil {
       System.arraycopy(array, start, r, 0, end - start);
     }
     return r;
+  }
+
+  public static byte[] chunk(int stream, String payload) {
+    byte[] payloadBytes = payload.getBytes(Charset.defaultCharset());
+    byte[] result = new byte[payloadBytes.length + 5];
+
+    System.arraycopy(payloadBytes, 0, result, 5, payloadBytes.length);
+    result[0] = (byte) stream;
+    result[1] = (byte) (payloadBytes.length >> 24);
+    result[2] = (byte) ((payloadBytes.length >> 16) & 0xff);
+    result[3] = (byte) ((payloadBytes.length >> 8) & 0xff);
+    result[4] = (byte) (payloadBytes.length & 0xff);
+    return result;
+  }
+
+  public static byte[] concatByteArray(byte[]... chunks) {
+    int length = 0;
+    for (byte[] chunk : chunks) {
+      length += chunk.length;
+    }
+
+    byte[] result = new byte[length];
+    int previousChunks = 0;
+    for (byte[] chunk : chunks) {
+      System.arraycopy(chunk, 0, result, previousChunks, chunk.length);
+      previousChunks += chunk.length;
+    }
+    return result;
   }
 
   // Returns a new copy of the specified subarray.

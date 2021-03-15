@@ -3,7 +3,7 @@ package com.verygood.security.larky.modules;
 import com.google.common.primitives.Bytes;
 
 import com.verygood.security.larky.modules.codecs.TextUtil;
-import com.verygood.security.larky.modules.types.LarkyByteArray;
+import com.verygood.security.larky.modules.types.LarkyByte;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -81,7 +81,7 @@ public class CodecsModule implements StarlarkValue {
           @Param(
               name = "obj",
               allowedTypes = {
-                  @ParamType(type = LarkyByteArray.class),
+                  @ParamType(type = LarkyByte.class),
               }
           ),
           @Param(
@@ -102,7 +102,7 @@ public class CodecsModule implements StarlarkValue {
           )
       }
   )
-  public String decode(LarkyByteArray bytesToDecode, String encoding, String errors) {
+  public String decode(LarkyByte bytesToDecode, String encoding, String errors) {
       return TextUtil.starlarkDecodeUtf8(bytesToDecode.toBytes());
   }
 }

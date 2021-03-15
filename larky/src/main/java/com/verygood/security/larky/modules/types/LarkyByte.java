@@ -27,7 +27,6 @@ import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.syntax.TokenKind;
 
-import org.apache.commons.text.StringEscapeUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -50,7 +49,7 @@ import javax.annotation.Nonnull;
     name = "bytes",
     documented = false
 )
-public final class LarkyByteArray extends AbstractList<StarlarkInt> implements LarkyObject, HasBinary, Sequence<StarlarkInt>, Comparable<LarkyByteArray> {
+public final class LarkyByte extends AbstractList<StarlarkInt> implements LarkyObject, HasBinary, Sequence<StarlarkInt>, Comparable<LarkyByte> {
 
   final private List<StarlarkInt> _string;
   final private Map<String, Object> fields = new HashMap<>();
@@ -59,7 +58,7 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
   /**
    * bytes() -> empty bytes object
    */
-  public LarkyByteArray(StarlarkThread thread) throws EvalException {
+  public LarkyByte(StarlarkThread thread) throws EvalException {
     this(thread, "", true);
   }
 
@@ -68,33 +67,33 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
    *
    * @param sizeof ->  size given by the parameter initialized
    */
-  public LarkyByteArray(StarlarkThread thread, int sizeof) {
+  public LarkyByte(StarlarkThread thread, int sizeof) {
     this(thread, ByteBuffer.allocate(sizeof));
   }
 
   /**
    * bytes(bytes_or_buffer) -> immutable copy of bytes_or_buffer
    */
-  public LarkyByteArray(StarlarkThread thread, byte[] buf) {
+  public LarkyByte(StarlarkThread thread, byte[] buf) {
     this(thread, buf, 0, buf.length);
   }
 
-  public LarkyByteArray(StarlarkThread thread, ByteBuffer buf) {
+  public LarkyByte(StarlarkThread thread, ByteBuffer buf) {
     this(thread, buf.array(), 0, buf.limit());
   }
 
   /**
    * bytes(string, encoding[, errors]) -> bytes
    */
-  public LarkyByteArray(StarlarkThread thread, @Nonnull CharSequence string) throws EvalException {
+  public LarkyByte(StarlarkThread thread, @Nonnull CharSequence string) throws EvalException {
     this(thread, string, false);
   }
 
-  public LarkyByteArray(StarlarkThread thread, @Nonnull LarkyByteArrIterable elems) throws EvalException {
+  public LarkyByte(StarlarkThread thread, @Nonnull LarkyByteElems elems) throws EvalException {
     this(thread, elems.getLarkyByteArr().toUnsignedBytes());
   }
 
-  public LarkyByteArray(StarlarkThread thread, @Nonnull StarlarkList<?> list) throws EvalException {
+  public LarkyByte(StarlarkThread thread, @Nonnull StarlarkList<?> list) throws EvalException {
     this(thread,      list
             .stream()
             .map(StarlarkInt.class::cast)
@@ -103,7 +102,7 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
             .toArray());
   }
 
-  public LarkyByteArray(StarlarkThread thread, byte[] buf, int off, int ending) {
+  public LarkyByte(StarlarkThread thread, byte[] buf, int off, int ending) {
     this.currentThread = thread;
     _string = Bytes.asList(buf)
         .stream()
@@ -118,7 +117,7 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
   /**
    * bytes(iterable_of_ints) -> bytes
    */
-  public LarkyByteArray(StarlarkThread thread, int[] iterable_of_ints) throws EvalException {
+  public LarkyByte(StarlarkThread thread, int[] iterable_of_ints) throws EvalException {
     this.currentThread = thread;
     try {
         _string = IntStream.of(iterable_of_ints)
@@ -140,7 +139,7 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
    * @param string  a Java String to be wrapped (not null)
    * @param isBytes true if the client guarantees we are dealing with bytes
    */
-  private LarkyByteArray(StarlarkThread thread, CharSequence string, boolean isBytes) throws EvalException {
+  private LarkyByte(StarlarkThread thread, CharSequence string, boolean isBytes) throws EvalException {
     this.currentThread = thread;
     if (!isBytes && !TextUtil.isBytes(string)) {
       throw Starlark.errorf("Cannot create byte with non-byte value");
@@ -162,7 +161,7 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
         "elems", new StarlarkCallable() {
           @Override
           public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) throws EvalException, InterruptedException {
-            return new LarkyByteArrIterable(LarkyByteArray.this);
+            return new LarkyByteElems(LarkyByte.this);
           }
 
           @Override
@@ -276,14 +275,8 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
   @Override
   public void repr(Printer printer) {
     String s = TextUtil.starlarkDecodeUtf8(this.toBytes());
-    String escaped = StringEscapeUtils.escapeJava("b" + '"' + s + '"');
-    String unescaped = StringEscapeUtils.escapeJava("b" + '"' + TextUtil.unescapeJavaString(s).toLowerCase() + '"');
     String s2 = String.format("b\"%s\"", s);
-
     System.out.println("passing: " + s2);
-    System.out.println("escaped: " + TextUtil.unescapeJavaString(escaped).toLowerCase());
-    System.out.println("unescaped: " + unescaped);
-
     printer.append(s2);
   }
 
@@ -296,11 +289,11 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
   @Override
   public boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
 
-    if(key instanceof LarkyByteArray) {
+    if(key instanceof LarkyByte) {
          // https://stackoverflow.com/a/32865087/133514
          return -1 != Collections.indexOfSubList(
              this._string,
-             ((LarkyByteArray)key)) ;
+             ((LarkyByte)key)) ;
        }
      else if(key instanceof StarlarkInt) {
       StarlarkInt _key = ((StarlarkInt) key);
@@ -324,8 +317,8 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
 
   @Override
   public boolean equals(Object obj) {
-    return LarkyByteArray.class.isAssignableFrom(obj.getClass())
-        && (this.compareTo((LarkyByteArray) obj) == 0);
+    return LarkyByte.class.isAssignableFrom(obj.getClass())
+        && (this.compareTo((LarkyByte) obj) == 0);
   }
 
   @Override
@@ -339,7 +332,7 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
   }
 
   @Override
-  public int compareTo(@NotNull LarkyByteArray o) {
+  public int compareTo(@NotNull LarkyByte o) {
     return UnsignedBytes
         .lexicographicalComparator()
         .compare(toBytes(), o.toBytes());
@@ -349,7 +342,7 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
   public Sequence<StarlarkInt> getSlice(Mutability mu, int start, int stop, int step) {
     StarlarkList<StarlarkInt> c = StarlarkList.copyOf(mu, new ArrayList<>(this._string));
     try {
-      return new LarkyByteArray(
+      return new LarkyByte(
           this.currentThread,
           c.getSlice(mu, start, stop, step).stream()
               .map(StarlarkInt::toIntUnchecked)
@@ -378,7 +371,7 @@ public final class LarkyByteArray extends AbstractList<StarlarkInt> implements L
         if(that instanceof StarlarkInt) {
           int copies = ((StarlarkInt)that).toIntUnchecked();
 
-          return new LarkyByteArray(
+          return new LarkyByte(
               this.currentThread, Bytes.toArray(Streams.stream(Iterables.concat(
               Collections.nCopies(copies, this._string)))
                   .map(StarlarkInt::toNumber)
