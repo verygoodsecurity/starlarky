@@ -12,6 +12,7 @@
     <modules>
         <module>libstarlark</module>
         <module>larky</module>
+        <module>runlarky</module>
     </modules>
 
     <scm>
@@ -20,6 +21,5 @@
         <developerConnection>scm:git:git@github.com:verygoodsecurity/starlarky.git
         </developerConnection>
     </scm>
-
 
 </project>
