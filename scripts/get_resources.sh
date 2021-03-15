@@ -10,4 +10,4 @@ LARKY_REGISTRY=https://maven.pkg.github.com/verygoodsecurity/starlarky/com/veryg
 
 LARKY_V030_REGISTRY=$LARKY_REGISTRY/0.3.0/larky-0.3.0-jar-with-dependencies.jar
 LARKY_V030_PATH=$API_RESOURCE_HOME/larky-0.3.0-fat.jar
-wget --user $GITHUB_USERNAME --password $GITHUB_API_TOKEN -O $LARKY_V030_PATH $LARKY_V030_REGISTRY
+wget --user $GITHUB_USERNAME --password $GITHUB_API_TOKEN $LARKY_V030_REGISTRY
