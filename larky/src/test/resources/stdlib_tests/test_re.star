@@ -1,8 +1,8 @@
 """Unit tests for re.star"""
 
-load("@stdlib/asserts", "asserts")
-load("@stdlib/unittest", "unittest")
-load("@stdlib/re", "re")
+load("@vendor//asserts", "asserts")
+load("@stdlib//unittest", "unittest")
+load("@stdlib//re", "re")
 
 
 def _test_compile():
