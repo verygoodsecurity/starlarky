@@ -2,9 +2,9 @@ package com.verygood.security.larky.modules.globals;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
-import com.verygood.security.larky.modules.io.TextUtil;
-import com.verygood.security.larky.modules.types.LarkyByteArrIterable;
-import com.verygood.security.larky.modules.types.LarkyByteArray;
+import com.verygood.security.larky.modules.codecs.TextUtil;
+import com.verygood.security.larky.modules.types.LarkyByte;
+import com.verygood.security.larky.modules.types.LarkyByteElems;
 import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
@@ -20,6 +20,7 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
@@ -34,9 +35,9 @@ import java.nio.charset.UnsupportedCharsetException;
  * A library of Larky values (keyed by name) that are not part of core Starlark but are common to
  * all Larky star scripts. Examples: struct, json, etc..
  *
- * Namespaced by _ and should only be accessable via @stdlib/larky:
+ * Namespaced by _ and should only be accessible via @stdlib//larky:
  *
- * load("@stdlib/larky", "larky")
+ * load("@stdlib//larky", "larky")
  */
 @Library
 public final class LarkyGlobals {
@@ -128,42 +129,7 @@ public final class LarkyGlobals {
         .build();
   }
 
-  // todo: move this out of here
-  static class CodecHelper {
-    public static final String STRICT = "strict";
-    public static final String IGNORE = "ignore";
-    public static final String REPLACE = "replace";
-    public static final String BACKSLASHREPLACE = "backslashreplace";
-    public static final String NAMEREPLACE = "namereplace";
-    public static final String XMLCHARREFREPLACE = "xmlcharrefreplace";
-    public static final String SURROGATEESCAPE = "surrogateescape";
-    public static final String SURROGATEPASS = "surrogatepass";
-
-    static CodingErrorAction convertCodingErrorAction(String errors) {
-      CodingErrorAction errorAction;
-      switch (errors) {
-        case IGNORE:
-          errorAction = CodingErrorAction.IGNORE;
-          break;
-        case REPLACE:
-        case NAMEREPLACE:
-          errorAction = CodingErrorAction.REPLACE;
-          break;
-        case STRICT:
-        case BACKSLASHREPLACE:
-        case SURROGATEPASS:
-        case SURROGATEESCAPE:
-        case XMLCHARREFREPLACE:
-        default:
-          errorAction = CodingErrorAction.REPORT;
-          break;
-      }
-      return errorAction;
-    }
-
-  }
-
-  @StarlarkMethod(
+   @StarlarkMethod(
       name = "_as_bytearray",
       doc = "Construct an immutable array of bytes from:\n" +
           "  - an iterable yielding integers in range(256)\n" +
@@ -181,14 +147,7 @@ public final class LarkyGlobals {
           "\n" +
           "bytes(string, encoding[, errors]) -> bytes",
       parameters = {
-          @Param(name = "obj", allowedTypes = {
-              @ParamType(type = NoneType.class),
-              @ParamType(type = String.class),
-              @ParamType(type = LarkyByteArray.class),
-              @ParamType(type = LarkyByteArrIterable.class),
-              @ParamType(type = StarlarkInt.class),
-              @ParamType(type = StarlarkList.class),
-          }, defaultValue = "None"),
+          @Param(name = "obj"),
           @Param(name = "encoding", allowedTypes = {
               @ParamType(type = NoneType.class),
               @ParamType(type = String.class),
@@ -200,16 +159,23 @@ public final class LarkyGlobals {
       },
       useStarlarkThread = true
   )
-  public LarkyByteArray asByteArray(
+  public LarkyByte asByteArray(
       Object _obj,
       Object _encoding,
       Object _errors,
       StarlarkThread thread
   ) throws EvalException {
+     if(!LarkyByte.class.isAssignableFrom(_obj.getClass())
+         && !StarlarkIterable.class.isAssignableFrom(_obj.getClass())
+         && !String.class.isAssignableFrom(_obj.getClass())
+         && !NoneType.class.isAssignableFrom(_obj.getClass())) {
+       throw Starlark.errorf("want string, bytes, or iterable of ints. got %s", Starlark.type(_obj));
+     }
+
     //bytes() -> empty bytes object
-    if (Starlark.isNullOrNone(_obj) || LarkyByteArray.class.isAssignableFrom(_obj.getClass())) {
+    if (Starlark.isNullOrNone(_obj) || LarkyByte.class.isAssignableFrom(_obj.getClass())) {
       //TODO(mahmoudimus): potential copy constructor bug if class really is larkybyte..test this!
-      return StarlarkUtil.convertFromNoneable(_obj, new LarkyByteArray(thread));
+      return StarlarkUtil.convertFromNoneable(_obj, new LarkyByte(thread));
     }
 
     // handle case where string is passed in.
@@ -243,8 +209,8 @@ public final class LarkyGlobals {
           codecs.register_error that can handle UnicodeEncodeErrors.
        */
 
-      CodingErrorAction errs = CodecHelper.convertCodingErrorAction(
-          StarlarkUtil.convertFromNoneable(_errors, CodecHelper.STRICT)
+      CodingErrorAction errs = TextUtil.CodecHelper.convertCodingErrorAction(
+          StarlarkUtil.convertFromNoneable(_errors, TextUtil.CodecHelper.STRICT)
       );
 
       CharsetDecoder decoder = charset.newDecoder();
@@ -252,7 +218,7 @@ public final class LarkyGlobals {
       decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
       decoder.replaceWith(String.valueOf(TextUtil.REPLACEMENT_CHAR));
       //bytes(string, encoding[, errors]) -> bytes
-      return new LarkyByteArray(
+      return new LarkyByte(
           thread,
           decoder.charset()
               .encode(TextUtil.unescapeJavaString((String) _obj))
@@ -272,11 +238,11 @@ public final class LarkyGlobals {
     try {
       switch (classType) {
         case "int":
-          return new LarkyByteArray(thread, ((StarlarkInt) _obj).toIntUnchecked());
+          return new LarkyByte(thread, ((StarlarkInt) _obj).toIntUnchecked());
         case "bytes.elems":
-          return new LarkyByteArray(thread, (LarkyByteArrIterable) _obj);
+          return new LarkyByte(thread, (LarkyByteElems) _obj);
         case "list":
-          return new LarkyByteArray(thread, (StarlarkList<?>) _obj);
+          return new LarkyByte(thread, (StarlarkList<?>) _obj);
         default:
           throw Starlark.errorf("unable to convert '%s' to bytes", classType);
       }

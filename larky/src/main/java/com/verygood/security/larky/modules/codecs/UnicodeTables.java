@@ -7,7 +7,7 @@
 // Generated at 2020-06-09T16:20:06.352Z by Java 1.8.0_181 using Unicode version 6.0.0.0.
 // Do not change this file, your edits will be lost. Instead change UnicodeTablesGenerator.java.
 
-package com.verygood.security.larky.modules.io;
+package com.verygood.security.larky.modules.codecs;
 
 
 import java.util.Collections;
