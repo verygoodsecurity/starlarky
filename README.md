@@ -37,20 +37,46 @@ to maintain relevancy.
 
 See more at Libstarlarky [README](https://github.com/verygoodsecurity/starlarky/blob/master/libstarlark/README.md)
 
-To build run
+To build run this command:
 ```bash
-mvn versions:set -DnewVersion=<your-versions> -pl libstarlark (optional)
+mvn versions:set -DnewVersion=<your-version> -pl libstarlark (optional)
 mvn clean package -pl libstarlark
 ```
 
 ### Larky
 
-https://github.com/verygoodsecurity/starlarky/blob/master/larky/src/main/java/com/verygood/security/larky/modules/README.md
+_Larky_ is a maven module, that contains VGS additions to Starlark language.
+Some additions ispired and taken from [Copybara](https://github.com/google/copybara/)
 
+Here are some of them:
+- JSR223 script engine
+- Annotations to define additional libraries
+- Extension [modules](https://github.com/verygoodsecurity/starlarky/blob/master/larky/src/main/java/com/verygood/security/larky/modules/README.md)
+
+To build run this command:
+```bash
+mvn versions:set -DnewVersion=<your-version> -pl larky (optional)
+mvn versions:set-property -Dproperty=libstarlark.version -DnewVersion=<larky-version> -pl larky
+mvn clean package -pl larky
+```
 
 ### Runlarky
 
+_Runlarky_ is an example Larky invocation application
+It builds as a Quarkus executable and gives ability to run Larky with input parameters.
+
+To build run this command:
+```bash
+mvn versions:set -DnewVersion=<your-version> -pl runlarky (optional)
+mvn versions:set-property -Dproperty=starlarky.version -DnewVersion=<larky-version> -pl runlarky
+mvn clean package -pl runlarky -Pnative
+```
+
+This would build `larky-runner` executable in `runlarky/target` directory, that can be run from terminal
+
 ### Pylarky
+
+_Pylarky_ is pip lib-wrapper for runlarky to make larky calls conviniently from Python.
 
 ### Building and Running Tests
 
