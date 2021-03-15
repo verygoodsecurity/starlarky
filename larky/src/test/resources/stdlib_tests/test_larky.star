@@ -1,8 +1,8 @@
 """Unit tests for larky.star."""
-load("@stdlib/larky", "larky")
+load("@stdlib//larky", "larky")
 
-load("@stdlib/asserts",  "asserts")
-load("@stdlib/unittest", "unittest")
+load("@vendor//asserts",  "asserts")
+load("@stdlib//unittest", "unittest")
 
 
 def _test_namespace_exposes_larky_builtins():
