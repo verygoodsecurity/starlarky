@@ -24,7 +24,7 @@
         <google.errorprone.javac.version>9+181-r4173-1</google.errorprone.javac.version>
         <org.projectlombok.version>1.18.12</org.projectlombok.version>
         <google.errorprone.version>2.5.1</google.errorprone.version>
-        <google.auto.value.version>1.7</google.auto.value.version>
+        <google.auto.value.version>1.7.4</google.auto.value.version>
         <google.truth.version>1.0.1</google.truth.version>
         <google.jimfs.version>1.1</google.jimfs.version>
         <google.compile.testing.version>0.18</google.compile.testing.version>
