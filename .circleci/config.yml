@@ -1,6 +1,6 @@
 job-defaults: &job-defaults
   working_directory: &working_directory
-    ~/starlarky
+    /home/circleci/starlarky
   test_results_directory: &test_results_directory
     /tmp/test-results
   dist_directory: &dist_directory
@@ -11,7 +11,7 @@ job-defaults: &job-defaults
     - MAVEN_OPTS: -Xmx6400m
     - GRAALVM_HOME: /home/circleci/starlarky/.graalvm
     - HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
-    - LARKY_HOME: /home/circleci/starlarky
+    - LARKY_HOME: *working_directory
 
 install-java: &install-java
   run:
