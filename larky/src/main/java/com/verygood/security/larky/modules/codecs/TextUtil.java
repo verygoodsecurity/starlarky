@@ -12,7 +12,15 @@
  limitations under the License.
 
 */
-package com.verygood.security.larky.modules.io;
+package com.verygood.security.larky.modules.codecs;
+
+import com.google.common.base.Utf8;
+import com.google.common.collect.Iterators;
+import com.google.common.primitives.Bytes;
+
+import org.apache.commons.text.StringEscapeUtils;
+import org.apache.commons.text.translate.CharSequenceTranslator;
+import org.apache.commons.text.translate.EntityArrays;
 
 import java.io.DataInput;
 import java.io.IOException;
@@ -20,6 +28,7 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.CodingErrorAction;
@@ -28,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.Arrays;
+import java.util.ListIterator;
 
 /**
  * Mostly taken from Apache Arrow and from RE2j's Unicode class.
@@ -62,6 +72,11 @@ public class TextUtil {
   // Checked during test.
   static final int MIN_FOLD = 0x0041;
   static final int MAX_FOLD = 0x1044f;
+
+  /**
+   * The Unicode replacement character inserted in place of decoding errors.
+   */
+  public static final char REPLACEMENT_CHAR = '\uFFFD';
 
   private byte[] bytes = EMPTY_BYTES;
   private int length;
@@ -711,66 +726,61 @@ public class TextUtil {
   }
 
   /**
-   * The Unicode replacement character inserted in place of decoding errors.
+   * Returns a String for the UTF-8 encoded byte sequence in <code>bytes[0..len-1]</code>. The
+   * length of the resulting String will be the exact number of characters encoded by these bytes.
+   * Since UTF-8 is a variable-length encoding, the resulting String may have a length anywhere from
+   * len/3 to len, depending on the contents of the input array.<p>
+   *
+   * In the event of a bad encoding, the UTF-8 replacement character (code point U+FFFD) is inserted
+   * for the bad byte(s), and decoding resumes from the next byte.
    */
-  public static final char REPLACEMENT_CHAR = '\uFFFD';
-
-   /**
-    * Returns a String for the UTF-8 encoded byte sequence in <code>bytes[0..len-1]</code>. The
-    * length of the resulting String will be the exact number of characters encoded by these bytes.
-    * Since UTF-8 is a variable-length encoding, the resulting String may have a length anywhere from
-    * len/3 to len, depending on the contents of the input array.<p>
-    *
-    * In the event of a bad encoding, the UTF-8 replacement character (code point U+FFFD) is inserted
-    * for the bad byte(s), and decoding resumes from the next byte.
-    */
-   /*test*/
-   public static String decodeUTF8(byte[] bytes, int len) {
-     char[] res = new char[len];
-     int cIx = 0;
-     for (int bIx = 0; bIx < len; cIx++) {
-       byte b1 = bytes[bIx];
-       if ((b1 & 0x80) == 0) {
-         // 1-byte sequence (U+0000 - U+007F)
-         res[cIx] = (char) b1;
-         bIx++;
-       } else if ((b1 & 0xE0) == 0xC0) {
-         // 2-byte sequence (U+0080 - U+07FF)
-         byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
-         if ((b2 & 0xC0) == 0x80) {
-           res[cIx] = (char) (((b1 & 0x1F) << 6) | (b2 & 0x3F));
-           bIx += 2;
-         } else {
-           // illegal 2nd byte
-           res[cIx] = REPLACEMENT_CHAR;
-           bIx++; // skip 1st byte
-         }
-       } else if ((b1 & 0xF0) == 0xE0) {
-         // 3-byte sequence (U+0800 - U+FFFF)
-         byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
-         if ((b2 & 0xC0) == 0x80) {
-           byte b3 = (bIx + 2 < len) ? bytes[bIx + 2] : 0; // early end of array
-           if ((b3 & 0xC0) == 0x80) {
-             res[cIx] = (char) (((b1 & 0x0F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F));
-             bIx += 3;
-           } else {
-             // illegal 3rd byte
-             res[cIx] = REPLACEMENT_CHAR;
-             bIx += 2; // skip 1st TWO bytes
-           }
-         } else {
-           // illegal 2nd byte
-           res[cIx] = REPLACEMENT_CHAR;
-           bIx++; // skip 1st byte
-         }
-       } else {
-         // illegal 1st byte
-         res[cIx] = REPLACEMENT_CHAR;
-         bIx++; // skip 1st byte
-       }
-     }
-     return new String(res, 0, cIx);
-   }
+  /*test*/
+  public static String decodeUTF8(byte[] bytes, int len) {
+    char[] res = new char[len];
+    int cIx = 0;
+    for (int bIx = 0; bIx < len; cIx++) {
+      byte b1 = bytes[bIx];
+      if ((b1 & 0x80) == 0) {
+        // 1-byte sequence (U+0000 - U+007F)
+        res[cIx] = (char) b1;
+        bIx++;
+      } else if ((b1 & 0xE0) == 0xC0) {
+        // 2-byte sequence (U+0080 - U+07FF)
+        byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
+        if ((b2 & 0xC0) == 0x80) {
+          res[cIx] = (char) (((b1 & 0x1F) << 6) | (b2 & 0x3F));
+          bIx += 2;
+        } else {
+          // illegal 2nd byte
+          res[cIx] = REPLACEMENT_CHAR;
+          bIx++; // skip 1st byte
+        }
+      } else if ((b1 & 0xF0) == 0xE0) {
+        // 3-byte sequence (U+0800 - U+FFFF)
+        byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
+        if ((b2 & 0xC0) == 0x80) {
+          byte b3 = (bIx + 2 < len) ? bytes[bIx + 2] : 0; // early end of array
+          if ((b3 & 0xC0) == 0x80) {
+            res[cIx] = (char) (((b1 & 0x0F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F));
+            bIx += 3;
+          } else {
+            // illegal 3rd byte
+            res[cIx] = REPLACEMENT_CHAR;
+            bIx += 2; // skip 1st TWO bytes
+          }
+        } else {
+          // illegal 2nd byte
+          res[cIx] = REPLACEMENT_CHAR;
+          bIx++; // skip 1st byte
+        }
+      } else {
+        // illegal 1st byte
+        res[cIx] = REPLACEMENT_CHAR;
+        bIx++; // skip 1st byte
+      }
+    }
+    return new String(res, 0, cIx);
+  }
 
   /**
    * Determine whether a string consists entirely of characters in the range 0 to 255. Only such
@@ -906,6 +916,34 @@ public class TextUtil {
       System.arraycopy(array, start, r, 0, end - start);
     }
     return r;
+  }
+
+  public static byte[] chunk(int stream, String payload) {
+    byte[] payloadBytes = payload.getBytes(Charset.defaultCharset());
+    byte[] result = new byte[payloadBytes.length + 5];
+
+    System.arraycopy(payloadBytes, 0, result, 5, payloadBytes.length);
+    result[0] = (byte) stream;
+    result[1] = (byte) (payloadBytes.length >> 24);
+    result[2] = (byte) ((payloadBytes.length >> 16) & 0xff);
+    result[3] = (byte) ((payloadBytes.length >> 8) & 0xff);
+    result[4] = (byte) (payloadBytes.length & 0xff);
+    return result;
+  }
+
+  public static byte[] concatByteArray(byte[]... chunks) {
+    int length = 0;
+    for (byte[] chunk : chunks) {
+      length += chunk.length;
+    }
+
+    byte[] result = new byte[length];
+    int previousChunks = 0;
+    for (byte[] chunk : chunks) {
+      System.arraycopy(chunk, 0, result, previousChunks, chunk.length);
+      previousChunks += chunk.length;
+    }
+    return result;
   }
 
   // Returns a new copy of the specified subarray.
@@ -1054,7 +1092,9 @@ public class TextUtil {
   // isPrint reports whether the rune is printable (Unicode L/M/N/P/S or ' ').
   public static boolean isPrint(int r) {
     if (r <= MAX_LATIN1) {
-      return (r >= 0x20 && r < 0x7F) || (r >= 0xA1 && r != 0xAD);
+      // Fast check for Latin-1
+      return (r >= 0x20 && r < 0x7F) // All the ASCII is printable from space through DEL-1
+          || (r >= 0xA1 && r != 0xAD); // Similarly for ¡ through ÿ...except for bizarre soft hyphen
     }
     return is(UnicodeTables.L, r)
         || is(UnicodeTables.M, r)
@@ -1269,6 +1309,9 @@ public class TextUtil {
           1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3,
           3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5};
 
+  static final int[] offsetsFromUTF8 =
+      {0x00000000, 0x00003080, 0x000E2080, 0x03C82080, 0xFA082080, 0x82082080};
+
   /**
    * Returns the next code point at the current position in the buffer. The buffer's position will
    * be incremented. Any mark set on this buffer will be changed by this method!
@@ -1317,9 +1360,6 @@ public class TextUtil {
     return ch;
   }
 
-  static final int[] offsetsFromUTF8 =
-      {0x00000000, 0x00003080, 0x000E2080, 0x03C82080, 0xFA082080, 0x82082080};
-
   /**
    * For the given string, returns the number of UTF-8 bytes required to encode the string.
    *
@@ -1353,5 +1393,160 @@ public class TextUtil {
       ch = iter.next();
     }
     return size;
+  }
+
+  public static class CodecHelper {
+    public static final String STRICT = "strict";
+    public static final String IGNORE = "ignore";
+    public static final String REPLACE = "replace";
+    public static final String BACKSLASHREPLACE = "backslashreplace";
+    public static final String NAMEREPLACE = "namereplace";
+    public static final String XMLCHARREFREPLACE = "xmlcharrefreplace";
+    public static final String SURROGATEESCAPE = "surrogateescape";
+    public static final String SURROGATEPASS = "surrogatepass";
+
+    public static CodingErrorAction convertCodingErrorAction(String errors) {
+      CodingErrorAction errorAction;
+      switch (errors) {
+        case IGNORE:
+          errorAction = CodingErrorAction.IGNORE;
+          break;
+        case REPLACE:
+        case NAMEREPLACE:
+          errorAction = CodingErrorAction.REPLACE;
+          break;
+        case STRICT:
+        case BACKSLASHREPLACE:
+        case SURROGATEPASS:
+        case SURROGATEESCAPE:
+        case XMLCHARREFREPLACE:
+        default:
+          errorAction = CodingErrorAction.REPORT;
+          break;
+      }
+      return errorAction;
+    }
+
+  }
+
+
+  public static char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
+
+  /**
+   * starlark compatible -> utf-k => utf-8 encoding of unpaired surrogates => U+FFFD
+   *
+   * @return utf-8 encoded string compliant with Starlark spec
+   */
+  public static String starlarkDecodeUtf8(byte[] bytearr) {
+    if(bytearr.length == 0) {
+      return "";
+    }
+
+    StringBuilder v = new StringBuilder(bytearr.length);
+
+    ListIterator<Byte> it = Bytes.asList(bytearr).listIterator();
+    int size = 0;
+    StringBuffer surrogatePair;
+    do {
+      int ch = Byte.toUnsignedInt(it.next());
+      if (ch == '"' || ch == '\\') { // always backslashed
+        v.append('\\');
+        v.append((char) ch);
+        size++;
+      }
+      // characters below 0x80 are represented as themselves in a single byte.
+      else if (ch < 0x80) {
+        String chStr = Character.toString((char) ch);
+        if(EntityArrays.JAVA_CTRL_CHARS_ESCAPE.containsKey(chStr)) {
+          v.append(EntityArrays.JAVA_CTRL_CHARS_ESCAPE.get(chStr));
+        }
+        else if ((ch >= ' ') && (ch <= '~')) {
+          v.append(chStr);
+        }
+        else {
+          v.append("\\x");
+          v.append(int2hex(ch));
+        }
+        size++;
+      }
+      else {
+        if (ch <= 0x7FF) {
+          // This is a 2 byte sequence with ranges: U+0080 - U+07FF
+          byte[] subByteArr = null;
+          if((it.previousIndex() + 3) <= bytearr.length) {
+            subByteArr = subarray(bytearr,
+                /* zero indexed */ it.previousIndex(),
+                /* until..(end) */it.previousIndex() + 3);
+            size += 2; // current + 2
+          }
+          //noinspection UnstableApiUsage
+          if(subByteArr != null) {
+            if(Utf8.isWellFormed(subByteArr)) {
+              // advance iterator by same since encoding is well-formed
+              Iterators.advance(it, /*numberToAdvance*/2);
+              String s = decodeUTF8(subByteArr, subByteArr.length);
+              if (!isPrint(s.codePointAt(0))) {
+                s = StringEscapeUtils.escapeJava(s).toLowerCase();
+              }
+              v.append(s);
+            }
+            else {
+              // unpaired surrogate, so iterator should be advanced by 1
+              // and we replace by U+FFFD
+              // v.append(REPLACEMENT_CHAR);  // unpaired surrogate => U+FFFD?
+              size += 1;
+              //Iterators.advance(it, /*numberToAdvance*/1);
+              v.append("\\x");
+              v.append(int2hex(ch));
+            }
+          }
+          else {
+            v.append("\\x");
+            v.append(int2hex(ch));
+            size += 1;
+          }
+        }
+        else {
+          if (ch > Character.MIN_SUPPLEMENTARY_CODE_POINT) {
+            ch = REPLACEMENT_CHAR;
+          }
+          if (Character.isHighSurrogate((char) ch)) {
+            // surrogate pair?
+            int trail = it.next();
+            if (Character.isLowSurrogate((char) trail)) {
+              //System.out.println(Character.toChars());
+              surrogatePair = new StringBuffer(2);
+              surrogatePair.append((char) ch);
+              surrogatePair.append((char) trail);
+              v.append(surrogatePair);
+              // valid pair
+              size += 4;
+            } else {
+              // invalid pair
+              v.append("\\x");
+              v.append(int2hex(ch));
+              v.append("\\x");
+              v.append(int2hex(trail));
+              size += 3;
+              it.previous(); // rewind one
+            }
+          }
+          else {
+            // MIN_SUPPLEMENTARY_CODE_POINT
+            // ch < 0x10000, that is, the largest char value
+            v.append("\\u");
+            for (int s = 12; s >= 0; s -= 4) {
+              v.append(HEX_DIGITS[ch >> s & 0xF]);
+            }
+            size += 3;
+          }
+        }
+      }
+    } while (it.hasNext());
+    return v.toString();
+  }
+
+  public static String int2hex(int ch) {
+    return CharSequenceTranslator.hex(ch).toLowerCase();
   }
 }
