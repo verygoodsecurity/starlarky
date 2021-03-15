@@ -11,7 +11,7 @@ job-defaults: &job-defaults
     - MAVEN_OPTS: -Xmx6400m
     - GRAALVM_HOME: /home/circleci/starlarky/.graalvm
     - HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
-    - LARKY_HOME: *working_directory
+    - LARKY_HOME: /home/circleci/starlarky
 
 install-java: &install-java
   run:
