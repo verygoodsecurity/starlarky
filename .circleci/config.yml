@@ -190,6 +190,7 @@ jobs:
     steps:
       - checkout
       - <<: *install-java
+      - <<: *setup-maven-distributions
       - <<: *restore-maven-cache
       - <<: *restore-graalvm-cache
       - <<: *install-graalvm
@@ -232,6 +233,7 @@ jobs:
             # add gu to PATH
             ln -s "$GRAALVM_HOME/bin/gu" /usr/local/bin
             gu install native-image
+      - <<: *setup-maven-distributions
       - run:
           name: Build (Native)
           command: |
@@ -315,6 +317,7 @@ workflows:
             branches:
               ignore: /.*/
           requires:
+            - build-dist-maven
             - build-dist-linux
             - build-dist-macos
       - publish-to-pypi:
@@ -324,5 +327,6 @@ workflows:
             branches:
               ignore: /.*/
           requires:
+            - build-dist-maven
             - build-dist-linux
             - build-dist-macos
