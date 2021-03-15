@@ -1,7 +1,7 @@
 package com.verygood.security.larky.modules.globals;
 
 import com.verygood.security.larky.annot.Library;
-import com.verygood.security.larky.modules.types.LarkyByteArray;
+import com.verygood.security.larky.modules.types.LarkyByte;
 import com.verygood.security.larky.modules.types.LarkyObject;
 
 import net.starlark.java.annot.Param;
@@ -79,18 +79,30 @@ public final class PythonBuiltins {
            name = "c",
            allowedTypes = {
                @ParamType(type = String.class),
+               @ParamType(type = LarkyByte.class),
            }
          )
        }
     )
-    public StarlarkInt ordinal(String c) throws EvalException {
-      if(c.length() != 1) {
-        throw new EvalException(String.format(
-            "ord() expected a character, but string of length %d found",
-            c.length()));
+    public StarlarkInt ordinal(Object c) throws EvalException {
+      int containerSize = 0;
+      byte[] bytes = null;
+      if(String.class.isAssignableFrom(c.getClass())) {
+        containerSize = ((String) c).length();
+        bytes = ((String) c).getBytes(StandardCharsets.UTF_8);
+      }
+      else if(LarkyByte.class.isAssignableFrom(c.getClass())) {
+        containerSize = ((LarkyByte) c).size();
+        bytes = ((LarkyByte) c).toBytes();
       }
 
-      return StarlarkInt.of(new BigInteger(c.getBytes(StandardCharsets.UTF_8)).intValueExact());
+      if(containerSize != 1 || bytes == null) {
+        //"ord() expected a character, but string of length %d found", c.length()
+        throw new EvalException(
+            String.format("ord: %s has length %d, want 1", type(c), containerSize)
+        );
+      }
+      return StarlarkInt.of(new BigInteger(bytes).intValueExact());
     }
 
   //override built-in type
@@ -136,7 +148,7 @@ public final class PythonBuiltins {
              doc = "String or byte value to hash.",
              allowedTypes = {
                  @ParamType(type = String.class),
-                 @ParamType(type = LarkyByteArray.class),
+                 @ParamType(type = LarkyByte.class),
              }),
        })
    public int hash(Object value) throws EvalException {
