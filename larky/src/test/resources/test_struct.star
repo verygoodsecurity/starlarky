@@ -1,6 +1,6 @@
-load("@stdlib/larky", "larky")
-load("@stdlib/asserts", "asserts")
-load("@stdlib/proto", "proto")
+load("@stdlib//larky", "larky")
+load("@vendor//asserts", "asserts")
+load("@stdlib//proto", "proto")
 
 
 # def _to_dict(s):

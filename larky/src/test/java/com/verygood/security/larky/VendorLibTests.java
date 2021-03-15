@@ -29,16 +29,16 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
-public class StdLibTests {
-  private static final String PROPERTY_NAME = "larky.stdlib_test";
-  private static final Path STDLIB_TEST_DIR = Paths.get(
-      "src","test", "resources", "stdlib_tests"
+public class VendorLibTests {
+  private static final String PROPERTY_NAME = "larky.vendor_test";
+  private static final Path VENDOR_TEST_DIR = Paths.get(
+      "src","test", "resources", "vendor_tests"
   );
   private static final TestingConsole console = new TestingConsole();
 
   private LarkyScript interpreter;
   private ModuleSupplier.ModuleSet moduleSet;
-  private List<Path> stdLibTestFiles;
+  private List<Path> vendorTestFiles;
 
   @BeforeEach
   public void setUp() {
@@ -48,15 +48,15 @@ public class StdLibTests {
     );
     moduleSet = new ModuleSupplier().modulesToVariableMap(true);
     interpreter = new LarkyScript(CORE_MODULES, LarkyScript.StarlarkMode.STRICT);
-    stdLibTestFiles = enumerateTests();
+    vendorTestFiles = enumerateTests();
   }
 
   private List<Path> enumerateTests() {
     // Did we pass in a specific filename?
     // -Dlarky.stdlib_test=test_base64.star
     String singleTestDesired = System.getProperty(PROPERTY_NAME);
-    try (Stream<Path> testFiles = Files.walk(STDLIB_TEST_DIR)) {
-      stdLibTestFiles = testFiles
+    try (Stream<Path> testFiles = Files.walk(VENDOR_TEST_DIR)) {
+      vendorTestFiles = testFiles
           .filter(Files::isRegularFile)
           //.filter(f -> f.getFileName().startsWith("test_") && f.endsWith(".star"))
           .filter(f -> {
@@ -73,12 +73,12 @@ public class StdLibTests {
     } catch (IOException e) {
       throw new RuntimeException(e.getMessage());
     }
-    return stdLibTestFiles;
+    return vendorTestFiles;
   }
 
   @TestFactory
-  public Iterator<DynamicTest> testStdLib() {
-    return stdLibTestFiles.stream().map(f -> DynamicTest.dynamicTest(
+  public Iterator<DynamicTest> testVendorLib() {
+    return vendorTestFiles.stream().map(f -> DynamicTest.dynamicTest(
         String.format("%s=%s", PROPERTY_NAME, f.getFileName()),
         () -> evaluateTest(interpreter, moduleSet, f)
     )).iterator();
@@ -88,13 +88,13 @@ public class StdLibTests {
                                    ModuleSupplier.ModuleSet moduleSet,
                                    Path pathToTestFile) {
     try {
-      StdLibTests.console.info("Running test: " + pathToTestFile.toAbsolutePath());
+      VendorLibTests.console.info("Running test: " + pathToTestFile.toAbsolutePath());
       interpreter.evaluate(
           new PathBasedStarFile(pathToTestFile.toAbsolutePath(), null, null),
           moduleSet,
-          StdLibTests.console
+          VendorLibTests.console
       );
-      StdLibTests.console.info("Successfully executed: " + pathToTestFile);
+      VendorLibTests.console.info("Successfully executed: " + pathToTestFile);
     } catch (IOException | EvalException e) {
       Assertions.fail(e.getMessage(), e.fillInStackTrace());
     }

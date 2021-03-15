@@ -1,6 +1,6 @@
 package com.verygood.security.larky.modules.types;
 
-import com.verygood.security.larky.modules.io.TextUtil;
+import com.verygood.security.larky.modules.codecs.TextUtil;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.Mutability;
@@ -12,15 +12,15 @@ import java.util.AbstractList;
 
 // A function that returns "fromValues".
 @StarlarkBuiltin(name = "bytes.elems")
-public class LarkyByteArrIterable extends AbstractList<StarlarkInt> implements Sequence<StarlarkInt> {
+public class LarkyByteElems extends AbstractList<StarlarkInt> implements Sequence<StarlarkInt> {
 
-  final private LarkyByteArray byteArray;
+  final private LarkyByte byteArray;
 
-  public LarkyByteArrIterable(LarkyByteArray byteArray) {
+  public LarkyByteElems(LarkyByte byteArray) {
     this.byteArray = byteArray;
   }
 
-  public LarkyByteArray getLarkyByteArr() {
+  public LarkyByte getLarkyByteArr() {
     return byteArray;
   }
 

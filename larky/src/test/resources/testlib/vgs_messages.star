@@ -1,4 +1,4 @@
-load("@stdlib/larky", "larky")
+load("@stdlib//larky", "larky")
 
 
 def _HttpMessage(payload, headers, uri, phase):
