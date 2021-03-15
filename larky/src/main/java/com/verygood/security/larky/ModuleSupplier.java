@@ -20,14 +20,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import com.verygood.security.larky.modules.CodecsModule;
-import com.verygood.security.larky.modules.ProtoBufModule;
-import com.verygood.security.larky.modules.globals.LarkyGlobals;
-import com.verygood.security.larky.modules.globals.PythonBuiltins;
+import com.verygood.security.larky.modules.BinasciiModule;
 import com.verygood.security.larky.modules.C99MathModule;
+import com.verygood.security.larky.modules.CodecsModule;
 import com.verygood.security.larky.modules.HashModule;
 import com.verygood.security.larky.modules.JsonModule;
+import com.verygood.security.larky.modules.ProtoBufModule;
 import com.verygood.security.larky.modules.RegexModule;
+import com.verygood.security.larky.modules.StructModule;
+import com.verygood.security.larky.modules.globals.LarkyGlobals;
+import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
 
@@ -53,7 +55,9 @@ public class ModuleSupplier {
       HashModule.INSTANCE,
       C99MathModule.INSTANCE,
       RegexModule.INSTANCE,
-      CodecsModule.INSTANCE
+      CodecsModule.INSTANCE,
+      BinasciiModule.INSTANCE,
+      StructModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
