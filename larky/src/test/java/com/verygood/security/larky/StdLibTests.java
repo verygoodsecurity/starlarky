@@ -67,7 +67,9 @@ public class StdLibTests {
             }
 
             return fileName.startsWith("test_") && fileName.endsWith(".star");
-          }).collect(Collectors.toList());
+          })
+          .sorted()
+          .collect(Collectors.toList());
     } catch (IOException e) {
       throw new RuntimeException(e.getMessage());
     }
