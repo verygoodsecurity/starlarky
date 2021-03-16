@@ -176,4 +176,25 @@
         <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
         <google.errorprone.version>2.5.1</google.errorprone.version>
     </properties>
+
+    <profiles>
+        <profile>
+            <id>bintray</id>
+            <distributionManagement>
+                <repository>
+                    <id>bintray-vg-vgs-oss</id>
+                    <url>https://api.bintray.com/maven/vg/vgs-oss/larky-api/;publish=1</url>
+                </repository>
+            </distributionManagement>
+        </profile>
+        <profile>
+            <id>github</id>
+            <distributionManagement>
+                <repository>
+                    <id>github</id>
+                    <url>https://maven.pkg.github.com/verygoodsecurity/starlarky</url>
+                </repository>
+            </distributionManagement>
+        </profile>
+    </profiles>
 </project>
