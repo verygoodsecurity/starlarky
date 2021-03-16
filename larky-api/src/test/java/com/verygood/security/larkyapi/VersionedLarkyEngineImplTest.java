@@ -28,7 +28,7 @@ import static org.junit.Assert.assertTrue;
 
 public class VersionedLarkyEngineImplTest {
 
-  private static String version = "0.3.0";
+  private static String version = "0.4.0";
   private VersionedLarkyEngineImpl engine;
 
   @Rule
