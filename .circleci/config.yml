@@ -39,6 +39,18 @@ install-graalvm: &install-graalvm
         && rm graalvm-ce-java11-linux-amd64-20.2.0.tar.gz \
         && $GRAALVM_HOME/bin/gu install native-image
 
+build-quarkus-runnable: &build-quarkus-runnable
+  run:
+    name: Build binary for runlarky
+    command: |
+      if [ "${CIRCLE_TAG}" != "" ] ;
+      then
+        mvn versions:set-property -Dproperty=starlarky.version -DnewVersion=${CIRCLE_TAG} -pl runlarky
+        mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl runlarky
+      fi
+      mvn package -Pnative -DskipTests
+    no_output_timeout: 30m
+
 # Template to save Maven dependency cache to restore it in another jobs
 save-maven-cache: &save-maven-cache
   save_cache:
@@ -193,6 +205,7 @@ jobs:
             mvn clean dependency:go-offline package -pl larky -U -Dmaven.test.skip.exec -T 2.0C -B
             mvn deploy -DskipTests -pl larky -Pgithub
             mvn deploy -DskipTests -pl larky -Pbintray
+      - <<: *save-maven-cache
 
   build-dist-linux:
     <<: *job-defaults
@@ -201,15 +214,13 @@ jobs:
     steps:
       - checkout
       - <<: *install-java
+      - <<: *setup-maven-distributions
       - <<: *get-resources
       - <<: *restore-maven-cache
       - <<: *restore-graalvm-cache
       - <<: *install-graalvm
       - <<: *save-graalvm-cache
-      - run:
-          name: Build (Native)
-          command: mvn package -Pnative -DskipTests
-          no_output_timeout: 30m
+      - <<: *build-quarkus-runnable
       - <<: *install_python
       - <<: *build_test_pylarky
       - run:
@@ -242,14 +253,8 @@ jobs:
             # add gu to PATH
             ln -s "$GRAALVM_HOME/bin/gu" /usr/local/bin
             gu install native-image
-      - run:
-          name: Maven Clean Package
-          command: |
-            mvn clean install -DskipTests dependency:go-offline -T 2.0C -B
-      - run:
-          name: Build (Native)
-          command: mvn package -Pnative -DskipTests
-          no_output_timeout: 30m
+      - <<: *setup-maven-distributions
+      - <<: *build-quarkus-runnable
       - <<: *install_python
       - <<: *build_test_pylarky
       - run:
@@ -291,13 +296,13 @@ workflows:
   build_and_tests:
     jobs:
       - build-and-test
-#      - build-and-test-docker
-#      - build-dist-linux:
-#          requires:
-#            - build-and-test
-#      - build-dist-macos:
-#          requires:
-#            - build-and-test
+      - build-and-test-docker
+      - build-dist-linux:
+          requires:
+            - build-and-test
+      - build-dist-macos:
+          requires:
+            - build-and-test
 
   release:
     jobs:
@@ -307,33 +312,38 @@ workflows:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
             branches:
               ignore: /.*/
-#      - build-dist-linux:
-#          filters:
-#            tags:
-#              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-#            branches:
-#              ignore: /.*/
-#      - build-dist-macos:
-#          filters:
-#            tags:
-#              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-#            branches:
-#              ignore: /.*/
-#      - publish-to-gh:
-#          filters:
-#            tags:
-#              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-#            branches:
-#              ignore: /.*/
-#          requires:
-#            - build-dist-linux
-#            - build-dist-macos
-#      - publish-to-pypi:
-#          filters:
-#            tags:
-#              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-#            branches:
-#              ignore: /.*/
-#          requires:
-#            - build-dist-linux
-#            - build-dist-macos
+      - build-dist-linux:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
+          requires:
+            - build-dist-maven
+      - build-dist-macos:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
+          requires:
+            - build-dist-maven
+      - publish-to-gh:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
+          requires:
+            - build-dist-linux
+            - build-dist-macos
+      - publish-to-pypi:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
+          requires:
+            - build-dist-linux
+            - build-dist-macos
+            
