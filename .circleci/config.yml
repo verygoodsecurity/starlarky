@@ -238,11 +238,6 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Setup resources ENV
-          command: |
-            export LARKY_HOME=/Users/circleci/starlarky
-      - <<: *get-resources
-      - run:
           name: Install dev
           command: brew install maven
       - run:
@@ -257,6 +252,12 @@ jobs:
             # add gu to PATH
             ln -s "$GRAALVM_HOME/bin/gu" /usr/local/bin
             gu install native-image
+      - run:
+          name: MacOS Setup for get-resources
+          command: |
+            brew install wget
+            export LARKY_HOME=/Users/circleci/starlarky
+      - <<: *get-resources
       - <<: *setup-maven-distributions
       - <<: *build-quarkus-runnable
       - <<: *install_python
