@@ -3,8 +3,7 @@ package com.verygood.security.larky.modules.globals;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
 import com.verygood.security.larky.modules.codecs.TextUtil;
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteElems;
+import com.verygood.security.larky.modules.types.LarkyPByte;
 import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
@@ -16,12 +15,12 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
-import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
@@ -159,13 +158,13 @@ public final class LarkyGlobals {
       },
       useStarlarkThread = true
   )
-  public LarkyByte asByteArray(
+  public LarkyPByte asByteArray(
       Object _obj,
       Object _encoding,
       Object _errors,
       StarlarkThread thread
   ) throws EvalException {
-     if(!LarkyByte.class.isAssignableFrom(_obj.getClass())
+     if(!LarkyPByte.class.isAssignableFrom(_obj.getClass())
          && !StarlarkIterable.class.isAssignableFrom(_obj.getClass())
          && !String.class.isAssignableFrom(_obj.getClass())
          && !NoneType.class.isAssignableFrom(_obj.getClass())) {
@@ -173,9 +172,13 @@ public final class LarkyGlobals {
      }
 
     //bytes() -> empty bytes object
-    if (Starlark.isNullOrNone(_obj) || LarkyByte.class.isAssignableFrom(_obj.getClass())) {
-      //TODO(mahmoudimus): potential copy constructor bug if class really is larkybyte..test this!
-      return StarlarkUtil.convertFromNoneable(_obj, new LarkyByte(thread));
+    if (Starlark.isNullOrNone(_obj) || LarkyPByte.class.isAssignableFrom(_obj.getClass())) {
+      return StarlarkUtil.convertFromNoneable(
+          _obj,
+          LarkyPByte.builder(thread)
+              .setSequence(Sequence.cast(_obj, StarlarkInt.class, "nope"))
+              .build()
+      );
     }
 
     // handle case where string is passed in.
@@ -218,11 +221,10 @@ public final class LarkyGlobals {
       decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
       decoder.replaceWith(String.valueOf(TextUtil.REPLACEMENT_CHAR));
       //bytes(string, encoding[, errors]) -> bytes
-      return new LarkyByte(
-          thread,
-          decoder.charset()
+      return LarkyPByte.builder(thread)
+          .setSequence(decoder.charset()
               .encode(TextUtil.unescapeJavaString((String) _obj))
-      );
+          ).build();
     }
 
     // here we are not null,
@@ -237,16 +239,16 @@ public final class LarkyGlobals {
     String classType = Starlark.classType(_obj.getClass());
     try {
       switch (classType) {
-        case "int":
-          return new LarkyByte(thread, ((StarlarkInt) _obj).toIntUnchecked());
         case "bytes.elems":
-          return new LarkyByte(thread, (LarkyByteElems) _obj);
         case "list":
-          return new LarkyByte(thread, (StarlarkList<?>) _obj);
+          Sequence<StarlarkInt> seq = Sequence.cast(_obj, StarlarkInt.class, classType);
+          return LarkyPByte.builder(thread).setSequence(seq).build();
+        case "int":
+          // fallthrough
         default:
           throw Starlark.errorf("unable to convert '%s' to bytes", classType);
       }
-    } catch (ClassCastException ex) {
+    } catch (EvalException | ClassCastException ex) {
       throw Starlark.errorf("%s", ex.getMessage());
     }
   }
