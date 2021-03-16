@@ -1,6 +1,6 @@
 job-defaults: &job-defaults
   working_directory: &working_directory
-    /home/circleci/starlarky
+    ~starlarky
   test_results_directory: &test_results_directory
     /tmp/test-results
   dist_directory: &dist_directory
