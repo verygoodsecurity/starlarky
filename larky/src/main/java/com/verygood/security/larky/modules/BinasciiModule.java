@@ -2,7 +2,7 @@ package com.verygood.security.larky.modules;
 
 import static com.verygood.security.larky.modules.codecs.TextUtil.HEX_DIGITS;
 
-import com.verygood.security.larky.modules.types.LarkyPByte;
+import com.verygood.security.larky.modules.types.LarkyByte;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -72,8 +72,8 @@ public class BinasciiModule implements StarlarkValue {
           )
       },
       useStarlarkThread = true)
-  public LarkyPByte a2b_base64(String s, StarlarkThread thread) throws EvalException {
-    return LarkyPByte.builder(thread)
+  public LarkyByte a2b_base64(String s, StarlarkThread thread) throws EvalException {
+    return LarkyByte.builder(thread)
         .setSequence(b64decode(s.getBytes(StandardCharsets.US_ASCII)))
         .build();
   }
@@ -94,7 +94,7 @@ public class BinasciiModule implements StarlarkValue {
           )
       },
       useStarlarkThread = true)
-  public LarkyPByte a2b_hex(String hexstr, StarlarkThread thread) throws EvalException {
+  public LarkyByte a2b_hex(String hexstr, StarlarkThread thread) throws EvalException {
     int length = hexstr.length();
     if (length % 2 != 0) {
         throw new EvalException(ODD_LENGTH_STRING);
@@ -110,7 +110,7 @@ public class BinasciiModule implements StarlarkValue {
             throw new EvalException(NON_HEX_DIGIT_FOUND);
         }
     }
-    return LarkyPByte.builder(thread)
+    return LarkyByte.builder(thread)
         .setSequence(output)
         .build();
   }
@@ -127,7 +127,7 @@ public class BinasciiModule implements StarlarkValue {
       parameters = {
           @Param(
               name = "data",
-              allowedTypes = {@ParamType(type = LarkyPByte.class)}
+              allowedTypes = {@ParamType(type = LarkyByte.class)}
           ),
           @Param(
               name = "newline",
@@ -137,7 +137,7 @@ public class BinasciiModule implements StarlarkValue {
           )
       },
       useStarlarkThread = true)
-  public LarkyPByte b2a_base64(LarkyPByte data, Boolean newline, StarlarkThread thread) throws EvalException {
+  public LarkyByte b2a_base64(LarkyByte data, Boolean newline, StarlarkThread thread) throws EvalException {
     byte[] encoded;
     try {
         encoded = Base64.getEncoder().encode(data.getBytes());
@@ -148,7 +148,7 @@ public class BinasciiModule implements StarlarkValue {
         encoded = Arrays.copyOf(encoded, encoded.length + 1);
         encoded[encoded.length - 1] = '\n';
     }
-    return LarkyPByte.builder(thread)
+    return LarkyByte.builder(thread)
             .setSequence(encoded)
             .build();
 
@@ -173,14 +173,14 @@ public class BinasciiModule implements StarlarkValue {
       parameters = {
           @Param(
               name = "data",
-              allowedTypes = {@ParamType(type = LarkyPByte.class)}
+              allowedTypes = {@ParamType(type = LarkyByte.class)}
           ),
           @Param(
               name = "sep",
               allowedTypes = {
                   @ParamType(type = NoneType.class),
                   @ParamType(type = String.class),
-                  @ParamType(type = LarkyPByte.class)
+                  @ParamType(type = LarkyByte.class)
               },
               named = true,
               defaultValue = "None"
@@ -192,7 +192,7 @@ public class BinasciiModule implements StarlarkValue {
               defaultValue = "1"
           )
       })
-  public String b2a_hex(LarkyPByte binstr, Object sep, StarlarkInt bytes_per_sep) {
+  public String b2a_hex(LarkyByte binstr, Object sep, StarlarkInt bytes_per_sep) {
     StringBuilder b = new StringBuilder(binstr.size() * 2);
     byte[] bytes = binstr.getBytes();
     for (int n : bytes) {
@@ -221,7 +221,7 @@ public class BinasciiModule implements StarlarkValue {
             allowedTypes = {@ParamType(type = StarlarkInt.class)})
     }
   )
-  public StarlarkInt crc32(LarkyPByte data, StarlarkInt value) {
+  public StarlarkInt crc32(LarkyByte data, StarlarkInt value) {
     CRC32 crc32 = new CRC32();
     if(value.toIntUnchecked() != 0) {
       crc32.update(value.toIntUnchecked());

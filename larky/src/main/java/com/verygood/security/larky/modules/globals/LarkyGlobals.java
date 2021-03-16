@@ -3,7 +3,7 @@ package com.verygood.security.larky.modules.globals;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
 import com.verygood.security.larky.modules.codecs.TextUtil;
-import com.verygood.security.larky.modules.types.LarkyPByte;
+import com.verygood.security.larky.modules.types.LarkyByte;
 import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
@@ -158,13 +158,13 @@ public final class LarkyGlobals {
       },
       useStarlarkThread = true
   )
-  public LarkyPByte asByteArray(
+  public LarkyByte asByteArray(
       Object _obj,
       Object _encoding,
       Object _errors,
       StarlarkThread thread
   ) throws EvalException {
-     if(!LarkyPByte.class.isAssignableFrom(_obj.getClass())
+     if(!LarkyByte.class.isAssignableFrom(_obj.getClass())
          && !StarlarkIterable.class.isAssignableFrom(_obj.getClass())
          && !String.class.isAssignableFrom(_obj.getClass())
          && !NoneType.class.isAssignableFrom(_obj.getClass())) {
@@ -172,10 +172,10 @@ public final class LarkyGlobals {
      }
 
     //bytes() -> empty bytes object
-    if (Starlark.isNullOrNone(_obj) || LarkyPByte.class.isAssignableFrom(_obj.getClass())) {
+    if (Starlark.isNullOrNone(_obj) || LarkyByte.class.isAssignableFrom(_obj.getClass())) {
       return StarlarkUtil.convertFromNoneable(
           _obj,
-          LarkyPByte.builder(thread)
+          LarkyByte.builder(thread)
               .setSequence(Sequence.cast(_obj, StarlarkInt.class, "nope"))
               .build()
       );
@@ -221,7 +221,7 @@ public final class LarkyGlobals {
       decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
       decoder.replaceWith(String.valueOf(TextUtil.REPLACEMENT_CHAR));
       //bytes(string, encoding[, errors]) -> bytes
-      return LarkyPByte.builder(thread)
+      return LarkyByte.builder(thread)
           .setSequence(decoder.charset()
               .encode(TextUtil.unescapeJavaString((String) _obj))
           ).build();
@@ -242,7 +242,7 @@ public final class LarkyGlobals {
         case "bytes.elems":
         case "list":
           Sequence<StarlarkInt> seq = Sequence.cast(_obj, StarlarkInt.class, classType);
-          return LarkyPByte.builder(thread).setSequence(seq).build();
+          return LarkyByte.builder(thread).setSequence(seq).build();
         case "int":
           // fallthrough
         default:

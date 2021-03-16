@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Range;
 import com.google.common.collect.Streams;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
@@ -23,20 +22,16 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
-import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.syntax.TokenKind;
 
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
-import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -47,110 +42,82 @@ import javax.annotation.Nonnull;
     name = "bytes",
     documented = false
 )
-public final class LarkyByte extends AbstractList<StarlarkInt> implements LarkyObject, HasBinary, Sequence<StarlarkInt>, Comparable<LarkyByte> {
+public final class LarkyByte extends LarkyByteLike<StarlarkInt> implements LarkyObject, HasBinary {
 
-  final private List<StarlarkInt> _string;
-  final private Map<String, Object> fields = new HashMap<>();
-  final StarlarkThread currentThread;
+  private final StarlarkThread currentThread;
+  private final Map<String, Object> fields = new HashMap<>();
 
-  /**
-   * bytes() -> empty bytes object
-   */
-  public LarkyByte(StarlarkThread thread) throws EvalException {
-    this(thread, "", true);
+  public static Builder builder(StarlarkThread thread) {
+    return new Builder(thread);
   }
 
-  /**
-   * bytes(int) -> bytes object of size given by the parameter initialized with null bytes
-   *
-   * @param sizeof ->  size given by the parameter initialized
-   */
-  public LarkyByte(StarlarkThread thread, int sizeof) {
-    this(thread, ByteBuffer.allocate(sizeof));
-  }
+  public static class Builder {
+    // required parameters
+    private final StarlarkThread currentThread;
+    private Sequence<StarlarkInt> sequence;
 
-  /**
-   * bytes(bytes_or_buffer) -> immutable copy of bytes_or_buffer
-   */
-  public LarkyByte(StarlarkThread thread, byte[] buf) {
-    this(thread, buf, 0, buf.length);
-  }
+    private Builder(StarlarkThread currentThread) {
+         this.currentThread = currentThread;
+     }
 
-  public LarkyByte(StarlarkThread thread, ByteBuffer buf) {
-    this(thread, buf.array(), 0, buf.limit());
-  }
+    public Builder setSequence(byte[] buf) throws EvalException {
+        return setSequence(ByteBuffer.wrap(buf));
+    }
 
-  /**
-   * bytes(string, encoding[, errors]) -> bytes
-   */
-  public LarkyByte(StarlarkThread thread, @Nonnull CharSequence string) throws EvalException {
-    this(thread, string, false);
-  }
+    public Builder setSequence(byte[] buf, int off, int ending) throws EvalException {
+       return setSequence(ByteBuffer.wrap(buf, off, ending));
+    }
 
-  public LarkyByte(StarlarkThread thread, @Nonnull LarkyByteElems elems) throws EvalException {
-    this(thread, elems.getLarkyByteArr().toUnsignedBytes());
-  }
+    public Builder setSequence(ByteBuffer buf) throws EvalException {
+      int[] arr = new int[buf.remaining()];
+      for(int i = 0; i < arr.length; i++){
+          arr[i] = Byte.toUnsignedInt(buf.get(i));
+      }
+      return setSequence(arr);
+    }
 
-  public LarkyByte(StarlarkThread thread, @Nonnull StarlarkList<?> list) throws EvalException {
-    this(thread,      list
+    public Builder setSequence(@Nonnull CharSequence string) throws EvalException {
+      return setSequence(string.chars().toArray());
+    }
+
+    public Builder setSequence(int[] iterable_of_ints) throws EvalException {
+      setSequence(
+          StarlarkList.immutableCopyOf(
+              IntStream.of(iterable_of_ints)
+                  .mapToObj(StarlarkInt::of)
+                  .collect(Collectors.toList())
+          ));
+      return this;
+    }
+
+    public Builder setSequence(@Nonnull Sequence<?> seq) throws EvalException {
+      try {
+        sequence = StarlarkList.immutableCopyOf(
+            Sequence.cast(seq, StarlarkInt.class, "could not cast!")
             .stream()
-            .map(StarlarkInt.class::cast)
-            .map(StarlarkInt::toIntUnchecked)
-            .mapToInt(i -> i)
-            .toArray());
-  }
-
-  public LarkyByte(StarlarkThread thread, byte[] buf, int off, int ending) {
-    this.currentThread = thread;
-    _string = Bytes.asList(buf)
-        .stream()
-        .skip(off)
-        .limit(ending)
-        .map(Byte::toUnsignedInt)
-        .map(StarlarkInt::of)
-        .collect(Collectors.toList());
-    initFields();
-  }
-
-  /**
-   * bytes(iterable_of_ints) -> bytes
-   */
-  public LarkyByte(StarlarkThread thread, int[] iterable_of_ints) throws EvalException {
-    this.currentThread = thread;
-    try {
-        _string = IntStream.of(iterable_of_ints)
-            .mapToObj(UnsignedBytes::checkedCast)
+            .mapToInt(StarlarkInt::toIntUnchecked)
+            .map(UnsignedBytes::checkedCast)
+            .mapToObj(Number.class::cast)
+            .map(Number::byteValue)
             .map(Byte::toUnsignedInt)
             .map(StarlarkInt::of)
-            .collect(Collectors.toList());
-    }catch (IllegalArgumentException e) {
-      throw Starlark.errorf("%s, want value in unsigned 8-bit range", e.getMessage());
+            .collect(Collectors.toList()));
+      }catch(IllegalArgumentException e) {
+        throw Starlark.errorf("%s, want value in unsigned 8-bit range", e.getMessage());
+      }
+       return this;
+   }
+
+
+    public LarkyByte build() throws EvalException {
+        return new LarkyByte(this);
     }
-    initFields();
+
   }
 
-  /**
-   * Local-use constructor in which the client is allowed to guarantee that the
-   * <code>String</code> argument contains only characters in the byte range. We do not then
-   * range-check the characters.
-   *
-   * @param string  a Java String to be wrapped (not null)
-   * @param isBytes true if the client guarantees we are dealing with bytes
-   */
-  private LarkyByte(StarlarkThread thread, CharSequence string, boolean isBytes) throws EvalException {
-    this.currentThread = thread;
-    if (!isBytes && !TextUtil.isBytes(string)) {
-      throw Starlark.errorf("Cannot create byte with non-byte value");
-    }
-
-    try {
-      _string = string.chars()
-          .map(UnsignedBytes::checkedCast)
-          .mapToObj(StarlarkInt::of)
-          .collect(Collectors.toList());
-    }catch (IllegalArgumentException e) {
-      throw Starlark.errorf("%s, want value in unsigned 8-bit range", e.getMessage());
-    }
+  private LarkyByte(Builder builder) throws EvalException {
+    currentThread = builder.currentThread;
+    setSequenceStorage(builder.sequence);
     initFields();
   }
 
@@ -158,7 +125,7 @@ public final class LarkyByte extends AbstractList<StarlarkInt> implements LarkyO
     fields.putAll(ImmutableMap.of(
         "elems", new StarlarkCallable() {
           @Override
-          public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) throws EvalException, InterruptedException {
+          public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
             return new LarkyByteElems(LarkyByte.this);
           }
 
@@ -170,55 +137,31 @@ public final class LarkyByte extends AbstractList<StarlarkInt> implements LarkyO
     ));
   }
 
-
-  /**
-   * @return a byte array with one byte for each char in this object's underlying String. Each
-   *         byte contains the low-order bits of its corresponding char.
-   */
-  public byte[] toBytes() {
-    return Bytes.toArray(this._string.stream()
-        .map(StarlarkInt::toNumber)
-        .map(Number::byteValue)
-        .collect(Collectors.toList()));
+  @Override
+  public byte[] getBytes() {
+    return Bytes.toArray(this.getSequenceStorage().stream()
+            .map(StarlarkInt::toNumber)
+            .map(Number::byteValue)
+            .collect(Collectors.toList()));
   }
 
-  public int[] toUnsignedBytes() {
-    return this._string.stream()
-        .map(StarlarkInt::toIntUnchecked)
-        .map(Integer::byteValue)
+  @Override
+  public int[] getUnsignedBytes() {
+    return Bytes.asList(getBytes())
+        .stream()
         .map(Byte::toUnsignedInt)
         .mapToInt(i->i)
         .toArray();
   }
 
-
-  @Override
-  public StarlarkThread getCurrentThread() {
-    return this.currentThread;
-  }
-
-  @Nullable
-  @Override
-  public Object getValue(String name) throws EvalException {
-    if(name == null
-           || !fields.containsKey(name)
-           || fields.getOrDefault(name, null) == null) {
-      return null;
-    }
-    return fields.get(name);
-  }
-
-  @Override
-  public ImmutableCollection<String> getFieldNames() {
-    return ImmutableSet.copyOf(fields.keySet());
-  }
   public String getString() {
     try {
-      return TextUtil.decode(toBytes());
+      return TextUtil.decode(getBytes());
     } catch (CharacterCodingException e) {
       throw new RuntimeException(e.getMessage(), e.fillInStackTrace());
     }
   }
+
   @Override
   public void str(Printer printer) {
     /*
@@ -227,9 +170,9 @@ public final class LarkyByte extends AbstractList<StarlarkInt> implements LarkyO
     UTF-16.
      */
     StringBuffer sb = new StringBuffer();
-    ByteBuffer buf = ByteBuffer.wrap(toBytes());
+    ByteBuffer buf = ByteBuffer.wrap(getBytes());
     int lastpos = 0;
-    int l = toBytes().length;
+    int l = getBytes().length;
     while(buf.hasRemaining()) {
       int r = 0;
       try {
@@ -261,41 +204,12 @@ public final class LarkyByte extends AbstractList<StarlarkInt> implements LarkyO
 
   @Override
   public void repr(Printer printer) {
-    String s = TextUtil.starlarkDecodeUtf8(this.toBytes());
+    String s = TextUtil.starlarkDecodeUtf8(getBytes());
     String s2 = String.format("b\"%s\"", s);
     System.out.println("passing: " + s2);
     printer.append(s2);
   }
 
-  @Override
-  public int size() {
-    return this._string.size();
-  }
-
-
-  @Override
-  public boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
-
-    if(key instanceof LarkyByte) {
-         // https://stackoverflow.com/a/32865087/133514
-         return -1 != Collections.indexOfSubList(
-             this._string,
-             ((LarkyByte)key)) ;
-       }
-     else if(key instanceof StarlarkInt) {
-      StarlarkInt _key = ((StarlarkInt) key);
-      if(!Range
-          .closed(0, 255)
-          .contains(_key.toIntUnchecked())) {
-        throw Starlark.errorf("int in bytes: %s out of range", _key);
-      }
-      return contains(_key);
-     }
-     //"requires bytes or int as left operand, not string"
-    throw new EvalException(
-        String.format("requires bytes or int as left operand, not %s", Starlark.type(key))
-    );
-  }
 
   @Override
   public boolean isImmutable() {
@@ -310,36 +224,12 @@ public final class LarkyByte extends AbstractList<StarlarkInt> implements LarkyO
 
   @Override
   public int hashCode() {
-    return FnvHash.FnvHash32.hash(this.toBytes());
+    return FnvHash.FnvHash32.hash(this.getBytes());
   }
 
   @Override
   public StarlarkInt get(int index) {
-    return this._string.get(index);
-  }
-
-  @Override
-  public int compareTo(@NotNull LarkyByte o) {
-    return UnsignedBytes
-        .lexicographicalComparator()
-        .compare(toBytes(), o.toBytes());
-  }
-
-  @Override
-  public Sequence<StarlarkInt> getSlice(Mutability mu, int start, int stop, int step) {
-    StarlarkList<StarlarkInt> c = StarlarkList.copyOf(mu, new ArrayList<>(this._string));
-    try {
-      return new LarkyByte(
-          this.currentThread,
-          c.getSlice(mu, start, stop, step).stream()
-              .map(StarlarkInt::toIntUnchecked)
-              .map(Integer::byteValue)
-              .map(Byte::toUnsignedInt)
-              .mapToInt(i->i)
-              .toArray());
-    } catch (EvalException e) {
-      throw new RuntimeException(e.getMessage(), e.fillInStackTrace());
-    }
+    return this.getSequenceStorage().get(index);
   }
 
   /**
@@ -357,18 +247,60 @@ public final class LarkyByte extends AbstractList<StarlarkInt> implements LarkyO
         }
         if(that instanceof StarlarkInt) {
           int copies = ((StarlarkInt)that).toIntUnchecked();
-
-          return new LarkyByte(
-              this.currentThread, Bytes.toArray(Streams.stream(Iterables.concat(
-              Collections.nCopies(copies, this._string)))
-                  .map(StarlarkInt::toNumber)
-                  .collect(Collectors.toList())
-          ));
+          return LarkyByte.builder(getCurrentThread())
+              .setSequence(
+                  Bytes.toArray(
+                      Streams.stream(
+                          Iterables.concat(
+                              Collections.nCopies(copies, this.getSequenceStorage())
+                          ))
+                          .map(StarlarkInt::toNumber)
+                          .collect(Collectors.toList())
+                  ))
+              .build();
         }
       default:
         // unsupported binary operation!
         throw Starlark.errorf(
                 "unsupported binary operation: %s %s %s", Starlark.type(this), op, Starlark.type(that));
     }
+  }
+
+  @Override
+  public Sequence<StarlarkInt> getSlice(Mutability mu, int start, int stop, int step) {
+    StarlarkList<StarlarkInt> c = StarlarkList.copyOf(mu, new ArrayList<>(this.getSequenceStorage()));
+    try {
+      return LarkyByte.builder(getCurrentThread())
+          .setSequence(c.getSlice(mu, start, stop, step).stream()
+              .map(StarlarkInt::toIntUnchecked)
+              .map(Integer::byteValue)
+              .map(Byte::toUnsignedInt)
+              .mapToInt(i->i)
+              .toArray()
+          ).build();
+    } catch (EvalException e) {
+      throw new RuntimeException(e.getMessage(), e.fillInStackTrace());
+    }
+  }
+
+  @Nullable
+  @Override
+  public Object getValue(String name) throws EvalException {
+    if(name == null
+              || !fields.containsKey(name)
+              || fields.getOrDefault(name, null) == null) {
+         return null;
+       }
+       return fields.get(name);
+  }
+
+  @Override
+  public ImmutableCollection<String> getFieldNames() {
+    return ImmutableSet.copyOf(fields.keySet());
+  }
+
+  @Override
+  public StarlarkThread getCurrentThread() {
+    return this.currentThread;
   }
 }
