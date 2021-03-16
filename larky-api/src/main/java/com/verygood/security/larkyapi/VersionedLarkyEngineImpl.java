@@ -34,6 +34,10 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
   // Instantiating the static map
   private static Map<String, URL> larkyJarByVersion;
+  static {
+    detectVersions();
+  }
+
   private static void detectVersions() {
     larkyJarByVersion = new HashMap<>();
     try {
@@ -141,7 +145,6 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
   }
 
   public static Set<String> getSupportedVersions() {
-    detectVersions();
     return larkyJarByVersion.keySet();
   }
 
