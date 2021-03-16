@@ -127,7 +127,7 @@ attach-dist: &attach-dist
 
 get-resouces: &get-resources
   run:
-    name: Build and test pylarky
+    name: Get Additional Resources
     command: |
       ./scripts/get_resources.sh
 
