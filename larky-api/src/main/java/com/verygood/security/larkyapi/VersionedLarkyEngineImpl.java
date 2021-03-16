@@ -4,7 +4,12 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import javax.annotation.Nonnull;
-import javax.script.*;
+import javax.script.CompiledScript;
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.ScriptException;
+import javax.script.Bindings;
+import javax.script.ScriptEngineFactory;
 import java.io.Reader;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -12,17 +17,19 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
-  private Class engineClass;
-  private Class scriptClass;
-  private Class parseClass;
-  private ScriptEngine engineInstanceObj;
-  private String version;
+  final private Class engineClass;
+  final private Class scriptClass;
+  final private Class parseClass;
+  final private ScriptEngine engineInstanceObj;
+  final private String version;
 
 
   // Instantiating the static map
@@ -32,12 +39,15 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
     try {
       PathMatchingResourcePatternResolver resolver =
               new PathMatchingResourcePatternResolver(VersionedLarkyEngineImpl.class.getClassLoader());
-      Resource[] resources = resolver.getResources("classpath*:larky-?.?.?-*.jar"); // uses AntPathMatcher
+      // Get jars with format `larky-\d{1,3}.\d{1,3}.\d{1,3}-fat.jar`
+      Resource[] resources = resolver.getResources( // uses AntPathMatcher
+              "classpath*:larky-{\\d+}.{\\d+}.{\\d+}-fat.jar"
+      );
       for (Resource resource: resources){
         String file_name = resource.getFilename();
         URL file_url = resource.getURL();
 
-        Pattern pattern = Pattern.compile("\\d{1}.\\d{1}.\\d{1}");
+        Pattern pattern = Pattern.compile("\\d+.\\d+.\\d+");
         Matcher matcher = pattern.matcher(file_name);
         if (matcher.find()) {
           larkyJarByVersion.put(matcher.group(),file_url);
@@ -84,7 +94,7 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
   @Override
   public Object executeScript(String script,String outputVar)
-          throws NoSuchMethodException,IllegalAccessException,InvocationTargetException,ScriptException {
+          throws NoSuchMethodException,IllegalAccessException,InvocationTargetException, ScriptException, NullPointerException {
 
     Method compile = engineClass.getMethod("compile",String.class);
     CompiledScript compiledScript = (CompiledScript) compile.invoke(engineInstanceObj, script);

@@ -12,15 +12,19 @@ import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
 
 import java.io.PrintWriter;
+import java.io.Reader;
+import java.io.StringReader;
 import java.io.StringWriter;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import static org.hamcrest.CoreMatchers.isA;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertTrue;
+
 
 public class VersionedLarkyEngineImplTest {
 
@@ -49,12 +53,11 @@ public class VersionedLarkyEngineImplTest {
     assertNotNull(engine);
   }
 
-  /*
+
   @Test
-  public void testEngine_execScript_V2_0_exception() throws Exception {
+  public void testEngine_execScript_V0_2_0_exception() throws Exception {
     // Expect
-    exceptionRule.expect(InvocationTargetException.class);
-    exceptionRule.expectCause(isA(NullPointerException.class));
+    exceptionRule.expect(NullPointerException.class);
 
     // Setup
     String regxScript = String.join("\n",
@@ -63,7 +66,7 @@ public class VersionedLarkyEngineImplTest {
             "    return re.escape(r\"1243*&[]_dsfAd\")",
             "output = re_escape()"
     );
-    String v_2_0 = "2.0";
+    String v_2_0 = "0.2.0";
 
     // Execute
     engine = new VersionedLarkyEngineImpl(v_2_0);
@@ -71,7 +74,7 @@ public class VersionedLarkyEngineImplTest {
   }
 
   @Test
-  public void testEngine_execScript_V2_1_ok() throws Exception {
+  public void testEngine_execScript_V0_2_1_ok() throws Exception {
     // Expect
     String exp_result = "1243\\*\\&\\[\\]_dsfAd";
 
@@ -82,7 +85,7 @@ public class VersionedLarkyEngineImplTest {
             "    return re.escape(r\"1243*&[]_dsfAd\")",
             "output = re_escape()"
     );
-    String v_2_1 = "2.1";
+    String v_2_1 = "0.2.1";
 
     // Execute
     engine = new VersionedLarkyEngineImpl(v_2_1);
@@ -91,12 +94,21 @@ public class VersionedLarkyEngineImplTest {
     // Assert
     assertEquals(exp_result,output.toString());
   }
-   */
+
 
   @Test
   public void testEngine_getVersion_ok() throws Exception {
     // Assert
     assertEquals(engine.getVersion(), version);
+  }
+
+  @Test
+  public void testEngine_badVersion_exception() throws Exception {
+    // Expect
+    exceptionRule.expect(IllegalArgumentException.class);
+    exceptionRule.expectMessage("Engine Version not Found");
+
+    engine = new VersionedLarkyEngineImpl("0.0.0");
   }
 
 
@@ -123,7 +135,7 @@ public class VersionedLarkyEngineImplTest {
   }
 
   @Test
-  public void testEngine_setContext_ok() throws Exception {
+  public void testEngine_context_ok() throws Exception {
     // Expect
     String exp_result = "context_keys: [\"value2\", \"value1\"] context_values: [\"key2\", \"key1\"]\n";
 
@@ -153,6 +165,51 @@ public class VersionedLarkyEngineImplTest {
 
     // Assert
     assertEquals(exp_result, sw.toString());
+  }
+
+
+  @Test
+  public void testEngine_readerBasic_ok() throws Exception {
+    // Expect
+    String exp_result = "Hello World";
+
+    // Setup
+    String helloScript =
+            "def hello():\n" +
+            "    return \"Hello World\"\n" +
+            "output=hello()";
+
+    Reader helloReader = new StringReader(helloScript);
+
+    // Execute
+    Object output = engine.executeScript(helloReader, "output");
+
+    // Assert
+    assertEquals(exp_result, output.toString());
+  }
+
+  @Test
+  public void testEngine_readerContext_ok() throws Exception {
+    // Expect
+    String exp_result = "Hello World, I am Larky!";
+
+    // Setup
+    String helloContextScript =
+            "def hello(msg):\n" +
+                    "    return \"Hello World, {}!\".format(msg)\n" +
+                    "output=hello(my_msg)";
+
+    Reader helloContextReader = new StringReader(helloContextScript);
+    Bindings bindings = new SimpleBindings();
+    bindings.put("my_msg", "I am Larky");
+    SimpleScriptContext context = new SimpleScriptContext();
+    context.setBindings(bindings,ScriptContext.ENGINE_SCOPE);
+
+    // Execute
+    Object output = engine.executeScript(helloContextReader, "output", context);
+
+    // Assert
+    assertEquals(exp_result, output.toString());
   }
 
   @Test
