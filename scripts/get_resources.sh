@@ -66,7 +66,6 @@ echo $package_json | jq -c '.packages[]'| while read i; do
     LARKY_API_JAR=$API_RESOURCE_HOME/larky-$version-fat.jar
 
     # get jar
-    echo "wget --user $GITHUB_USERNAME --password $GITHUB_API_TOKEN -O $LARKY_API_JAR $LARKY_REGISTRY_JAR"
     wget --user $GITHUB_USERNAME --password $GITHUB_API_TOKEN -O $LARKY_API_JAR $LARKY_REGISTRY_JAR
 done
 
