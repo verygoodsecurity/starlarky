@@ -2,18 +2,37 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <parent>
-        <artifactId>starlarky</artifactId>
-        <groupId>com.verygood.security</groupId>
-        <version>1.0-SNAPSHOT</version>
-    </parent>
+
     <modelVersion>4.0.0</modelVersion>
 
+    <groupId>com.verygood.security</groupId>
     <artifactId>runlarky</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <repositories>
+        <repository>
+            <id>maven</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/verygoodsecurity/starlarky</url>
+        </repository>
+        <repository>
+            <id>vgs-oss</id>
+            <url>https://dl.bintray.com/vg/vgs-oss</url>
+        </repository>
+    </repositories>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.plugin.version>3.6.2</maven.compiler.plugin.version>
+        <maven.protobuf.plugin.version>0.6.1</maven.protobuf.plugin.version>
+        <maven.surefire.plugin.version>2.22.1</maven.surefire.plugin.version>
+        <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
+        <starlarky.version>1.0-SNAPSHOT</starlarky.version>
+        <org.projectlombok.version>1.18.12</org.projectlombok.version>
         <quarkus-plugin.version>1.8.3.Final</quarkus-plugin.version>
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
@@ -36,15 +55,22 @@
         <dependency>
             <groupId>com.verygood.security</groupId>
             <artifactId>larky</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>${starlarky.version}</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>net.starlark.java</groupId>
             <artifactId>libstarlark</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>${starlarky.version}</version>
             <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${org.projectlombok.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -60,6 +86,20 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/java</directory>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>src/test/java</directory>
+            </resource>
+            <resource>
+                <directory>src/test/resources</directory>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>io.quarkus</groupId>
@@ -77,19 +117,28 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>${compiler-plugin.version}</version>
+                <version>${maven.compiler.plugin.version}</version>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${org.projectlombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
-                <version>${protobuf-maven-plugin}</version>
+                <version>${maven.protobuf.plugin.version}</version>
                 <configuration>
                     <protocArtifact>
-                    <!--
-                        See https://github.com/verygoodsecurity/starlarky/pull/58 for why
-                        ${os.detected.classifier} didn't work in some cases for my environment but
-                        ${os.detected.name}-${os.detected.arch} works better!
-                    -->
+                        <!--
+                            See https://github.com/verygoodsecurity/starlarky/pull/58 for why
+                            ${os.detected.classifier} didn't work in some cases for my environment but
+                            ${os.detected.name}-${os.detected.arch} works better!
+                        -->
                         com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.name}-${os.detected.arch}
                     </protocArtifact>
                 </configuration>
@@ -102,6 +151,13 @@
                 </executions>
             </plugin>
         </plugins>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${os-maven-plugin.version}</version>
+            </extension>
+        </extensions>
     </build>
 
     <profiles>
@@ -116,7 +172,7 @@
                 <plugins>
                     <plugin>
                         <artifactId>maven-failsafe-plugin</artifactId>
-                        <version>${surefire-plugin.version}</version>
+                        <version>${maven.surefire.plugin.version}</version>
                         <executions>
                             <execution>
                                 <goals>

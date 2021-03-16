@@ -4,8 +4,8 @@ This exports `asserts` which contains the assertions used within tests.
 
 This is modeled after assertpy (https://github.com/assertpy/assertpy)
 """
-load("@stdlib/larky", "larky")
-load("@stdlib/assertions", _assertions="assertions")
+load("@stdlib//larky", "larky")
+load("@stdlib//assertions", _assertions="assertions")
 
 load("sets", "sets")
 load("types", "types")
@@ -464,6 +464,10 @@ def _assert_fails(function, failed_with):
     _assertions.assert_fails(function, failed_with)
 
 
+def _assert_eq(this, that):
+    return _assert_that(this).is_equal_to(that)
+
+
 asserts = larky.struct(
     add_extension=_add_extension,
     remove_extension=_remove_extension,
@@ -472,4 +476,5 @@ asserts = larky.struct(
     assert_true=_assert_true,
     assert_false=_assert_false,
     assert_fails=_assert_fails,
+    eq=_assert_eq
 )

@@ -1,8 +1,8 @@
 """Unit tests for dicts.star."""
 
-load("@stdlib/asserts",  "asserts")
-load("@stdlib/dicts", "dicts")
-load("@stdlib/unittest", "unittest")
+load("@vendor//asserts",  "asserts")
+load("@stdlib//dicts", "dicts")
+load("@stdlib//unittest", "unittest")
 
 
 def _add_test():
