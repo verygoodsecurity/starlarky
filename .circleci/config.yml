@@ -194,6 +194,7 @@ jobs:
             mvn clean dependency:go-offline package -pl larky -U -Dmaven.test.skip.exec -T 2.0C -B
             mvn deploy -DskipTests -pl larky -Pgithub
             mvn deploy -DskipTests -pl larky -Pbintray
+      - <<: *save-maven-cache
 
   build-dist-linux:
     <<: *job-defaults
@@ -304,12 +305,16 @@ workflows:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
             branches:
               ignore: /.*/
+            requires:
+              - build-dist-maven
       - build-dist-macos:
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
             branches:
               ignore: /.*/
+            requires:
+              - build-dist-maven
       - publish-to-gh:
           filters:
             tags:
@@ -317,7 +322,6 @@ workflows:
             branches:
               ignore: /.*/
           requires:
-            - build-dist-maven
             - build-dist-linux
             - build-dist-macos
       - publish-to-pypi:
@@ -327,6 +331,5 @@ workflows:
             branches:
               ignore: /.*/
           requires:
-            - build-dist-maven
             - build-dist-linux
             - build-dist-macos
