@@ -113,6 +113,17 @@ public class TextUtil {
   }
 
   /**
+   * Returns an input source that reads from a UTF-8-encoded byte array. The caller is free to
+   * subsequently mutate the array.
+   */
+  public static String fromASCII(byte[] bytes) {
+    CharBuffer cb = StandardCharsets.US_ASCII.decode(ByteBuffer.wrap(bytes));
+    char[] utf16 = new char[cb.length()];
+    cb.get(utf16);
+    return new String(utf16, 0, utf16.length);
+  }
+
+  /**
    * Get a copy of the bytes that is exactly the length of the data. See {@link #getBytes()} for
    * faster access to the underlying array.
    *

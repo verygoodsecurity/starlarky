@@ -31,9 +31,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.StandardCharsets;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -172,13 +170,6 @@ public final class LarkyByte extends AbstractList<StarlarkInt> implements LarkyO
     ));
   }
 
-  public String getString() {
-    try {
-      return TextUtil.decode(toBytes());
-    } catch (CharacterCodingException e) {
-      throw new RuntimeException(e.getMessage(), e.fillInStackTrace());
-    }
-  }
 
   /**
    * @return a byte array with one byte for each char in this object's underlying String. Each
@@ -200,6 +191,7 @@ public final class LarkyByte extends AbstractList<StarlarkInt> implements LarkyO
         .toArray();
   }
 
+
   @Override
   public StarlarkThread getCurrentThread() {
     return this.currentThread;
@@ -220,18 +212,13 @@ public final class LarkyByte extends AbstractList<StarlarkInt> implements LarkyO
   public ImmutableCollection<String> getFieldNames() {
     return ImmutableSet.copyOf(fields.keySet());
   }
-
-  /**
-   * Returns an input source that reads from a UTF-8-encoded byte array. The caller is free to
-   * subsequently mutate the array.
-   */
-  public static String fromASCII(byte[] bytes) {
-    CharBuffer cb = StandardCharsets.US_ASCII.decode(ByteBuffer.wrap(bytes));
-    char[] utf16 = new char[cb.length()];
-    cb.get(utf16);
-    return new String(utf16, 0, utf16.length);
+  public String getString() {
+    try {
+      return TextUtil.decode(toBytes());
+    } catch (CharacterCodingException e) {
+      throw new RuntimeException(e.getMessage(), e.fillInStackTrace());
+    }
   }
-
   @Override
   public void str(Printer printer) {
     /*
