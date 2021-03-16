@@ -39,7 +39,7 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
     try {
       PathMatchingResourcePatternResolver resolver =
               new PathMatchingResourcePatternResolver(VersionedLarkyEngineImpl.class.getClassLoader());
-      // Get jars with format `larky-\d{1,3}.\d{1,3}.\d{1,3}-fat.jar`
+      // Get jars with format `larky-\d{>=1}.\d{>=1}.\d{>=1}-fat.jar`
       Resource[] resources = resolver.getResources( // uses AntPathMatcher
               "classpath*:larky-{\\d+}.{\\d+}.{\\d+}-fat.jar"
       );
