@@ -54,7 +54,7 @@
         <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
         <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
         <protobuf.version>3.14.0</protobuf.version>
-        <junit.version>4.13.1</junit.version>
+        <junit.version>4.13.2</junit.version>
     </properties>
 
     <dependencies>
