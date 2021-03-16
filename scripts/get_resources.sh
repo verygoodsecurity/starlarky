@@ -54,15 +54,15 @@ API_RESOURCE_HOME=$LARKY_HOME/larky-api/src/main/resources
 LARKY_REGISTRY=https://maven.pkg.github.com/verygoodsecurity/starlarky/com/verygood/security/larky
 echo $package_json | jq -c '.packages[]'| while read i; do
     # get verion & jar name
-    version=$(echo $i | jq ".version")
-    jar=$(echo $i | jq ".jar")
+    version=$(jq ".version" <<< $i)
+    jar=$(jq ".jar" <<< $i)
 
     # remove double quotes
-    version=$(sed -e 's/^"//' -e 's/"$//' <<<$version)
-    jar=$(sed -e 's/^"//' -e 's/"$//' <<<$jar)
+    version=$(sed -e 's/^"//' -e 's/"$//' <<< $version)
+    jar=$(sed -e 's/^"//' -e 's/"$//' <<< $jar)
 
     # get full registry and output jar paths
-    LARKY_REGISTRY_JAR=$LARKY_REGISTRY/tmp/$version/$jar
+    LARKY_REGISTRY_JAR=$LARKY_REGISTRY/$version/$jar
     LARKY_API_JAR=$API_RESOURCE_HOME/larky-$version-fat.jar
 
     # get jar
