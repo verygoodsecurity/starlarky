@@ -3,6 +3,7 @@ package com.verygood.security.larky.modules;
 import static com.verygood.security.larky.modules.codecs.TextUtil.HEX_DIGITS;
 
 import com.verygood.security.larky.modules.types.LarkyByte;
+import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -72,7 +73,7 @@ public class BinasciiModule implements StarlarkValue {
           )
       },
       useStarlarkThread = true)
-  public LarkyByte a2b_base64(String s, StarlarkThread thread) throws EvalException {
+  public LarkyByteLike a2b_base64(String s, StarlarkThread thread) throws EvalException {
     return LarkyByte.builder(thread)
         .setSequence(b64decode(s.getBytes(StandardCharsets.US_ASCII)))
         .build();
@@ -94,7 +95,7 @@ public class BinasciiModule implements StarlarkValue {
           )
       },
       useStarlarkThread = true)
-  public LarkyByte a2b_hex(String hexstr, StarlarkThread thread) throws EvalException {
+  public LarkyByteLike a2b_hex(String hexstr, StarlarkThread thread) throws EvalException {
     int length = hexstr.length();
     if (length % 2 != 0) {
         throw new EvalException(ODD_LENGTH_STRING);
@@ -137,7 +138,7 @@ public class BinasciiModule implements StarlarkValue {
           )
       },
       useStarlarkThread = true)
-  public LarkyByte b2a_base64(LarkyByte data, Boolean newline, StarlarkThread thread) throws EvalException {
+  public LarkyByteLike b2a_base64(LarkyByte data, Boolean newline, StarlarkThread thread) throws EvalException {
     byte[] encoded;
     try {
         encoded = Base64.getEncoder().encode(data.getBytes());

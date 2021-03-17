@@ -14,9 +14,9 @@ import java.util.AbstractList;
 @StarlarkBuiltin(name = "bytes.elems")
 public class LarkyByteElems extends AbstractList<StarlarkInt> implements Sequence<StarlarkInt> {
 
-  final private LarkyByteLike<StarlarkInt> byteArray;
+  final private LarkyByteLike byteArray;
 
-  public LarkyByteElems(LarkyByteLike<StarlarkInt> byteArray) {
+  public LarkyByteElems(LarkyByteLike byteArray) {
     this.byteArray = byteArray;
   }
 
@@ -24,7 +24,7 @@ public class LarkyByteElems extends AbstractList<StarlarkInt> implements Sequenc
     return getLarkyByteArr().getBytes();
   }
 
-  public LarkyByteLike<StarlarkInt> getLarkyByteArr() {
+  public LarkyByteLike getLarkyByteArr() {
     return byteArray;
   }
 

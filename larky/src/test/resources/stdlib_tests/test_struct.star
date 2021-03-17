@@ -61,10 +61,8 @@ def _test_pack_into():
     # test bytearray
     result = larky.bytearray([0, 0])
     r = struct.pack_into('>H', result, 0, 0xABCD)
-    asserts.eq(r, larky.bytearray([171, 205]))
-    # TODO(mahmoudimus) uncomment this test when we have implemented a
-    # mutable bytearray
-    # asserts.eq(result, larky.bytearray([171, 205]))
+    asserts.eq(r, builtins.bytes([171, 205]))
+    asserts.eq(result, larky.bytearray([171, 205]))
 
 
 def _testsuite():

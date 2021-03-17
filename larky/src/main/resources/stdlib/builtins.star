@@ -38,7 +38,7 @@ def _bytes(s, encoding='utf-8', errors='strict'):
         return s.__bytes__()
 
     # utf-8 encoding by default
-    return larky.bytearray(s, encoding, errors)
+    return larky.bytes(s, encoding, errors)
     # if types.is_iterable(s):
     #     return larky.bytearray(list(s))
     # else:
