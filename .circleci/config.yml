@@ -255,7 +255,7 @@ jobs:
       - run:
           name: MacOS Setup for get-resources
           command: |
-            echo 'export LARKY_HOME=/Users/circleci/starlarky' >> $BASH_ENV
+            echo 'export LARKY_HOME=/Users/distiller/starlarky' >> $BASH_ENV
             source $BASH_ENV
       - <<: *get-resources
       - <<: *setup-maven-distributions
