@@ -3,7 +3,6 @@ package com.verygood.security.larky.modules.types;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
 
-import com.verygood.security.larky.modules.codecs.BytesUtil;
 import com.verygood.security.larky.modules.codecs.TextUtil;
 
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -95,7 +94,6 @@ public final class LarkyByteArray extends LarkyByteLike {
 
   @Override
   public void str(Printer printer) {
-    System.out.println("str(): " + BytesUtil.bytesRepr(getBytes(), getBytes().length));
     printer.append(TextUtil.starlarkStringTranscoding(getBytes()));
   }
 
@@ -103,7 +101,6 @@ public final class LarkyByteArray extends LarkyByteLike {
   public void repr(Printer printer) {
     String s = TextUtil.starlarkDecodeUtf8(getBytes());
     String s2 = String.format("b\"%s\"", s);
-    System.out.println("passing: " + s2);
     printer.append(s2);
   }
 

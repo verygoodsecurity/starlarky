@@ -123,7 +123,6 @@ public final class LarkyByte extends LarkyByteLike implements LarkyObject, HasBi
   public void repr(Printer printer) {
     String s = TextUtil.starlarkDecodeUtf8(getBytes());
     String s2 = String.format("b\"%s\"", s);
-    //System.out.println("passing: " + s2);
     printer.append(s2);
   }
 
