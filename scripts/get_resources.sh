@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 if [[ -z "${LARKY_HOME}" ]]; then
   echo "LARKY_HOME not found"
   exit 1
@@ -30,7 +29,7 @@ gql_query='query {
 # Get packages from github registry using GraphQL API
 # Parse and clean output into {"packages": [ {v1,jar1},{v2,jar2},...,{vN,jarN} ] }
 package_json=$(
-  curl -H 'Content-Type: application/json' \
+  curl  -H 'Content-Type: application/json' \
         -H "Authorization: bearer $GITHUB_API_TOKEN" \
         -X POST \
         -d "{\"query\": \"$(echo $gql_query)\"}" \
@@ -50,7 +49,7 @@ package_json=$(
 )
 
 # Download fat jar files from github registry
-API_RESOURCE_HOME=$LARKY_HOME/larky-api/src/main/resources
+API_RESOURCE_HOME=$LARKY_HOME/larky-api/src/main/resources/tmp
 LARKY_REGISTRY=https://maven.pkg.github.com/verygoodsecurity/starlarky/com/verygood/security/larky
 echo $package_json | jq -c '.packages[]'| while read i; do
     # get verion & jar name
@@ -66,7 +65,8 @@ echo $package_json | jq -c '.packages[]'| while read i; do
     LARKY_API_JAR=$API_RESOURCE_HOME/larky-$version-fat.jar
 
     # get jar
-    wget --user $GITHUB_USERNAME --password $GITHUB_API_TOKEN -O $LARKY_API_JAR $LARKY_REGISTRY_JAR
+    curl  -H "Authorization: token $GITHUB_API_TOKEN" \
+          -X POST \
+          -o $LARKY_API_JAR \
+          $LARKY_REGISTRY_JAR
 done
-
-

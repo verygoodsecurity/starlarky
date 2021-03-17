@@ -255,7 +255,6 @@ jobs:
       - run:
           name: MacOS Setup for get-resources
           command: |
-            brew install wget
             export LARKY_HOME=/Users/circleci/starlarky
       - <<: *get-resources
       - <<: *setup-maven-distributions
