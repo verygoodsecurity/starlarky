@@ -76,7 +76,7 @@ public class VersionedLarkyEngineImplTest {
   @Test
   public void testEngine_execScript_V0_2_1_ok() throws Exception {
     // Expect
-    String exp_result = "1243\\*\\&\\[\\]_dsfAd";
+    String expResult = "1243\\*\\&\\[\\]_dsfAd";
 
     // Setup
     String regxScript = String.join("\n",
@@ -92,7 +92,7 @@ public class VersionedLarkyEngineImplTest {
     Object output = engine.executeScript(regxScript, "output");
 
     // Assert
-    assertEquals(exp_result,output.toString());
+    assertEquals(expResult,output.toString());
   }
 
 
@@ -137,7 +137,7 @@ public class VersionedLarkyEngineImplTest {
   @Test
   public void testEngine_context_ok() throws Exception {
     // Expect
-    String exp_result = "context_keys: [\"value2\", \"value1\"] context_values: [\"key2\", \"key1\"]\n";
+    String expResult = "context_keys: [\"value2\", \"value1\"] context_values: [\"key2\", \"key1\"]\n";
 
     // Setup
     String ctxScript =
@@ -164,14 +164,14 @@ public class VersionedLarkyEngineImplTest {
     engine.executeScript(ctxScript, "output", context);
 
     // Assert
-    assertEquals(exp_result, sw.toString());
+    assertEquals(expResult, sw.toString());
   }
 
 
   @Test
   public void testEngine_readerBasic_ok() throws Exception {
     // Expect
-    String exp_result = "Hello World";
+    String expResult = "Hello World";
 
     // Setup
     String helloScript =
@@ -185,13 +185,13 @@ public class VersionedLarkyEngineImplTest {
     Object output = engine.executeScript(helloReader, "output");
 
     // Assert
-    assertEquals(exp_result, output.toString());
+    assertEquals(expResult, output.toString());
   }
 
   @Test
   public void testEngine_readerContext_ok() throws Exception {
     // Expect
-    String exp_result = "Hello World, I am Larky!";
+    String expResult = "Hello World, I am Larky!";
 
     // Setup
     String helloContextScript =
@@ -209,7 +209,7 @@ public class VersionedLarkyEngineImplTest {
     Object output = engine.executeScript(helloContextReader, "output", context);
 
     // Assert
-    assertEquals(exp_result, output.toString());
+    assertEquals(expResult, output.toString());
   }
 
   @Test

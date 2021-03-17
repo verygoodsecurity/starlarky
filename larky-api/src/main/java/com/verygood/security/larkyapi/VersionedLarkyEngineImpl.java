@@ -48,13 +48,13 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
               "classpath*:larky-{\\d+}.{\\d+}.{\\d+}-fat.jar"
       );
       for (Resource resource: resources){
-        String file_name = resource.getFilename();
-        URL file_url = resource.getURL();
+        String fileName = resource.getFilename();
+        URL fileURL = resource.getURL();
 
         Pattern pattern = Pattern.compile("\\d+.\\d+.\\d+");
-        Matcher matcher = pattern.matcher(file_name);
+        Matcher matcher = pattern.matcher(fileName);
         if (matcher.find()) {
-          larkyJarByVersion.put(matcher.group(),file_url);
+          larkyJarByVersion.put(matcher.group(),fileURL);
         }
       }
     } catch (Exception e) {
