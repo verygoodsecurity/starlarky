@@ -149,15 +149,15 @@ public class VersionedLarkyEngineImplTest {
                     "process(msg,my_ctx)";
 
 
-    String larky_msg = "context_keys";
-    ConcurrentMap<String, Object> larky_ctx = new ConcurrentHashMap<>();
-    larky_ctx.put("value1", "key1");
-    larky_ctx.put("value2", "key2");
+    String larkyMsg = "context_keys";
+    ConcurrentMap<String, Object> larkyCTX = new ConcurrentHashMap<>();
+    larkyCTX.put("value1", "key1");
+    larkyCTX.put("value2", "key2");
 
     // Execute
     SimpleScriptContext context = new SimpleScriptContext();
-    context.setAttribute("my_ctx", larky_ctx, ScriptContext.ENGINE_SCOPE);
-    context.setAttribute("msg", larky_msg, ScriptContext.ENGINE_SCOPE);
+    context.setAttribute("my_ctx", larkyCTX, ScriptContext.ENGINE_SCOPE);
+    context.setAttribute("msg", larkyMsg, ScriptContext.ENGINE_SCOPE);
     StringWriter sw = new StringWriter();
     context.setWriter(new PrintWriter(sw));
 
