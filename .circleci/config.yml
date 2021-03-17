@@ -255,7 +255,8 @@ jobs:
       - run:
           name: MacOS Setup for get-resources
           command: |
-            export LARKY_HOME=/Users/circleci/starlarky
+            echo 'export LARKY_HOME=/Users/circleci/starlarky"' >> $BASH_ENV
+            source $BASH_ENV
       - <<: *get-resources
       - <<: *setup-maven-distributions
       - <<: *build-quarkus-runnable
