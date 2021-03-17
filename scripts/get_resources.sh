@@ -16,6 +16,7 @@ gql_query='query {
             files(first:20) {
               nodes {
                 name
+                url
               }
             }
           }
@@ -37,11 +38,11 @@ package_json=$(
   | jq "{ packages: [
           .data.repository.packages.nodes[].versions.nodes[]
             | { version: .version,
-                jar:  ( .files.nodes[]
+                url:  ( .files.nodes[]
                         | select(.name
                             | test(\"^.*with-dependencies\\\.jar$\")
                           )
-                          | .name
+                        | .url
                       )
               }
           ]
@@ -54,19 +55,18 @@ LARKY_REGISTRY=https://maven.pkg.github.com/verygoodsecurity/starlarky/com/veryg
 echo $package_json | jq -c '.packages[]'| while read i; do
     # get verion & jar name
     version=$(jq ".version" <<< $i)
-    jar=$(jq ".jar" <<< $i)
+    url=$(jq ".url" <<< $i)
 
     # remove double quotes
     version=$(sed -e 's/^"//' -e 's/"$//' <<< $version)
-    jar=$(sed -e 's/^"//' -e 's/"$//' <<< $jar)
+    url=$(sed -e 's/^"//' -e 's/"$//' <<< $url)
 
     # get full registry and output jar paths
     LARKY_REGISTRY_JAR=$LARKY_REGISTRY/$version/$jar
     LARKY_API_JAR=$API_RESOURCE_HOME/larky-$version-fat.jar
 
     # get jar
-    curl  -H "Authorization: token $GITHUB_API_TOKEN" \
-          -X POST \
-          -o $LARKY_API_JAR \
-          $LARKY_REGISTRY_JAR
+    curl  -o $LARKY_API_JAR \
+          -L $url
+
 done
