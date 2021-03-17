@@ -49,7 +49,7 @@ package_json=$(
 )
 
 # Download fat jar files from github registry
-API_RESOURCE_HOME=$LARKY_HOME/larky-api/src/main/resources/tmp
+API_RESOURCE_HOME=$LARKY_HOME/larky-api/src/main/resources
 LARKY_REGISTRY=https://maven.pkg.github.com/verygoodsecurity/starlarky/com/verygood/security/larky
 echo $package_json | jq -c '.packages[]'| while read i; do
     # get verion & jar name
