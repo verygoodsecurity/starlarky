@@ -47,14 +47,14 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
       Resource[] resources = resolver.getResources( // uses AntPathMatcher
               "classpath*:larky-{\\d+}.{\\d+}.{\\d+}-fat.jar"
       );
-      for (Resource resource: resources){
+      for (Resource resource: resources) {
         String fileName = resource.getFilename();
         URL fileURL = resource.getURL();
 
         Pattern pattern = Pattern.compile("\\d+.\\d+.\\d+");
         Matcher matcher = pattern.matcher(fileName);
         if (matcher.find()) {
-          larkyJarByVersion.put(matcher.group(),fileURL);
+          larkyJarByVersion.put(matcher.group(), fileURL);
         }
       }
     } catch (Exception e) {
@@ -63,8 +63,7 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
   }
 
   public VersionedLarkyEngineImpl(String inputVersion)
-          throws IllegalArgumentException,URISyntaxException,MalformedURLException,
-          ClassNotFoundException,IllegalAccessException,InstantiationException {
+          throws IllegalArgumentException, ClassNotFoundException, IllegalAccessException, InstantiationException {
 
     if ( !getSupportedVersions().contains(inputVersion) ) {
       throw new IllegalArgumentException("Engine Version not Found");
@@ -78,17 +77,17 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
     );
 
     // equivalent to: import com.verygood.security.larky.jsr223.LarkyCompiledScript;
-    this.engineClass = Class.forName (
+    this.engineClass = Class.forName(
             "com.verygood.security.larky.jsr223.LarkyScriptEngine",
             true, childLoader);
 
     // equivalent to: import com.verygood.security.larky.jsr223.LarkyScriptEngine;
-    this.scriptClass = Class.forName (
+    this.scriptClass = Class.forName(
             "com.verygood.security.larky.jsr223.LarkyCompiledScript",
             true, childLoader);
 
     // equivalent to: import com.verygood.security.larky.parser.ParsedStarFile;
-    this.parseClass = Class.forName (
+    this.parseClass = Class.forName(
             "com.verygood.security.larky.parser.ParsedStarFile",
             true, childLoader);
 
@@ -97,48 +96,49 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
   }
 
   @Override
-  public Object executeScript(String script,String outputVar)
-          throws NoSuchMethodException,IllegalAccessException,InvocationTargetException, ScriptException, NullPointerException {
+  public Object executeScript(String script, String outputVar)
+          throws NoSuchMethodException, IllegalAccessException, InvocationTargetException,
+          ScriptException, NullPointerException {
 
-    Method compile = engineClass.getMethod("compile",String.class);
-    CompiledScript compiledScript = (CompiledScript) compile.invoke(engineInstanceObj, script);
-
-    Object starFile = compiledScript.eval();
-
-    Method getGlblVar = parseClass.getMethod (
-            "getGlobalEnvironmentVariable",
-            String.class,Class.class);
-    Object result = getGlblVar.invoke (starFile, outputVar, Object.class);
-
-    return result;
-  }
-
-  @Override
-  public Object executeScript(String script,String outputVar, ScriptContext context)
-          throws NoSuchMethodException,IllegalAccessException,InvocationTargetException,ScriptException {
-    setContext(context);
-    return executeScript(script, outputVar);
-  }
-
-  @Override
-  public Object executeScript(Reader script, String outputVar, ScriptContext context)
-          throws NoSuchMethodException,IllegalAccessException,InvocationTargetException,ScriptException  {
-    setContext(context);
-    return executeScript(script, outputVar);
-  }
-
-  @Override
-  public Object executeScript(Reader script, String outputVar)
-          throws NoSuchMethodException,IllegalAccessException,InvocationTargetException,ScriptException  {
-
-    Method compile = engineClass.getMethod("compile",Reader.class);
+    Method compile = engineClass.getMethod("compile", String.class);
     CompiledScript compiledScript = (CompiledScript) compile.invoke(engineInstanceObj, script);
 
     Object starFile = compiledScript.eval();
 
     Method getGlblVar = parseClass.getMethod(
             "getGlobalEnvironmentVariable",
-            String.class,Class.class);
+            String.class, Class.class);
+    Object result = getGlblVar.invoke(starFile, outputVar, Object.class);
+
+    return result;
+  }
+
+  @Override
+  public Object executeScript(String script, String outputVar, ScriptContext context)
+          throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, ScriptException {
+    setContext(context);
+    return executeScript(script, outputVar);
+  }
+
+  @Override
+  public Object executeScript(Reader script, String outputVar, ScriptContext context)
+          throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, ScriptException  {
+    setContext(context);
+    return executeScript(script, outputVar);
+  }
+
+  @Override
+  public Object executeScript(Reader script, String outputVar)
+          throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, ScriptException  {
+
+    Method compile = engineClass.getMethod("compile", Reader.class);
+    CompiledScript compiledScript = (CompiledScript) compile.invoke(engineInstanceObj, script);
+
+    Object starFile = compiledScript.eval();
+
+    Method getGlblVar = parseClass.getMethod(
+            "getGlobalEnvironmentVariable",
+            String.class, Class.class);
     Object result = getGlblVar.invoke(starFile, outputVar, Object.class);
 
     return result;
@@ -156,12 +156,12 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
   @Override
   public Object eval(String script, ScriptContext context) throws ScriptException {
-    return engineInstanceObj.eval(script,context);
+    return engineInstanceObj.eval(script, context);
   }
 
   @Override
   public Object eval(Reader reader, ScriptContext context) throws ScriptException {
-    return engineInstanceObj.eval(reader,context);
+    return engineInstanceObj.eval(reader, context);
   }
 
   @Override
@@ -176,17 +176,17 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
   @Override
   public Object eval(String script, Bindings n) throws ScriptException {
-    return engineInstanceObj.eval(script,n);
+    return engineInstanceObj.eval(script, n);
   }
 
   @Override
   public Object eval(Reader reader, Bindings n) throws ScriptException {
-    return engineInstanceObj.eval(reader,n);
+    return engineInstanceObj.eval(reader, n);
   }
 
   @Override
   public void put(String key, Object value) {
-    engineInstanceObj.put(key,value);
+    engineInstanceObj.put(key, value);
   }
 
   @Override
@@ -201,7 +201,7 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
   @Override
   public void setBindings(Bindings bindings, int scope) {
-    engineInstanceObj.setBindings(bindings,scope);
+    engineInstanceObj.setBindings(bindings, scope);
   }
 
   @Override
