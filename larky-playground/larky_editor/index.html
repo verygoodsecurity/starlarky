@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+	<link rel="stylesheet" data-name="vs/editor/editor.main"
+		href="./node_modules/monaco-editor/min/vs/editor/editor.main.css" />
+	<link type="text/css" rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+	<h2>Larky Playground</h2>
+	<div class="flex-container">
+		<div id="scriptContainer" class="flex-script" style="border: 1px solid grey"></div>
+		<div id="resultContainer" class="flex-result" style="border: 1px solid grey"></div>
+	</div>
+	<button id="run-btn">Run</button>
+
+	<script>
+		var require = { paths: { vs: './node_modules/monaco-editor/min/vs' } };
+	</script>
+	<script src="./node_modules/monaco-editor/min/vs/loader.js"></script>
+	<script src="./node_modules/monaco-editor/min/vs/editor/editor.main.nls.js"></script>
+	<script src="./node_modules/monaco-editor/min/vs/editor/editor.main.js"></script>
+
+	<script>
+		require(['vs/editor/editor.main'], function () {
+			monaco.languages.register({
+				id: 'larky'
+			});
+			monaco.languages.setMonarchTokensProvider('larky', {
+				defaultToken: '',
+				tokenPostfix: '.larky',
+
+				keywords: [
+					'load',
+					'fail',
+
+					'and',
+					'as',
+					'assert',
+					'break',
+					'class',
+					'continue',
+					'def',
+					'del',
+					'elif',
+					'else',
+					'except',
+					'exec',
+					'finally',
+					'for',
+					'from',
+					'global',
+					'if',
+					'in',
+					'is',
+					'lambda',
+					'None',
+					'not',
+					'or',
+					'pass',
+					'print',
+					'raise',
+					'return',
+					'self',
+					'try',
+					'while',
+					'with',
+					'yield',
+
+					'int',
+					'float',
+					'long',
+					'complex',
+					'hex',
+					'bytes',
+
+					'abs',
+					'all',
+					'any',
+					'apply',
+					'basestring',
+					'bin',
+					'bool',
+					'buffer',
+					'bytearray',
+					'callable',
+					'chr',
+					'classmethod',
+					'cmp',
+					'coerce',
+					'compile',
+					'complex',
+					'delattr',
+					'dict',
+					'dir',
+					'divmod',
+					'enumerate',
+					'eval',
+					'execfile',
+					'file',
+					'filter',
+					'format',
+					'frozenset',
+					'getattr',
+					'globals',
+					'hasattr',
+					'hash',
+					'help',
+					'id',
+					'input',
+					'intern',
+					'isinstance',
+					'issubclass',
+					'iter',
+					'len',
+					'locals',
+					'list',
+					'map',
+					'max',
+					'memoryview',
+					'min',
+					'next',
+					'object',
+					'oct',
+					'open',
+					'ord',
+					'pow',
+					'print',
+					'property',
+					'reversed',
+					'range',
+					'raw_input',
+					'reduce',
+					'reload',
+					'repr',
+					'reversed',
+					'round',
+					'set',
+					'setattr',
+					'slice',
+					'sorted',
+					'staticmethod',
+					'str',
+					'sum',
+					'super',
+					'tuple',
+					'type',
+					'unichr',
+					'unicode',
+					'vars',
+					'xrange',
+					'zip',
+
+					'True',
+					'False',
+
+					'__dict__',
+					'__methods__',
+					'__members__',
+					'__class__',
+					'__bases__',
+					'__name__',
+					'__mro__',
+					'__subclasses__',
+					'__init__',
+					'__import__'
+				],
+
+				brackets: [
+					{ open: '{', close: '}', token: 'delimiter.curly' },
+					{ open: '[', close: ']', token: 'delimiter.bracket' },
+					{ open: '(', close: ')', token: 'delimiter.parenthesis' }
+				],
+
+				tokenizer: {
+					root: [
+						{ include: '@whitespace' },
+						{ include: '@numbers' },
+						{ include: '@strings' },
+
+						[/[,:;]/, 'delimiter'],
+						[/[{}\[\]()]/, '@brackets'],
+
+						[/@[a-zA-Z]\w*/, 'tag'],
+						[/[a-zA-Z]\w*/, {
+							cases: {
+								'@keywords': 'keyword',
+								'@default': 'identifier'
+							}
+						}]
+					],
+
+					// Deal with white space, including single and multi-line comments
+					whitespace: [
+						[/\s+/, 'white'],
+						[/(^#.*$)/, 'comment'],
+						[/('''.*''')|(""".*""")/, 'string'],
+						[/'''.*$/, 'string', '@endDocString'],
+						[/""".*$/, 'string', '@endDblDocString']
+					],
+					endDocString: [
+						[/\\'/, 'string'],
+						[/.*'''/, 'string', '@popall'],
+						[/.*$/, 'string']
+					],
+					endDblDocString: [
+						[/\\"/, 'string'],
+						[/.*"""/, 'string', '@popall'],
+						[/.*$/, 'string']
+					],
+
+					// Recognize hex, negatives, decimals, imaginaries, longs, and scientific notation
+					numbers: [
+						[/-?0x([abcdef]|[ABCDEF]|\d)+[lL]?/, 'number.hex'],
+						[/-?(\d*\.)?\d+([eE][+\-]?\d+)?[jJ]?[lL]?/, 'number']
+					],
+
+					// Recognize strings, including those broken across lines with \ (but not without)
+					strings: [
+						[/'$/, 'string.escape', '@popall'],
+						[/'/, 'string.escape', '@stringBody'],
+						[/"$/, 'string.escape', '@popall'],
+						[/"/, 'string.escape', '@dblStringBody']
+					],
+					stringBody: [
+						[/[^\\']+$/, 'string', '@popall'],
+						[/[^\\']+/, 'string'],
+						[/\\./, 'string'],
+						[/'/, 'string.escape', '@popall'],
+						[/\\$/, 'string']
+					],
+					dblStringBody: [
+						[/[^\\"]+$/, 'string', '@popall'],
+						[/[^\\"]+/, 'string'],
+						[/\\./, 'string'],
+						[/"/, 'string.escape', '@popall'],
+						[/\\$/, 'string']
+					]
+				}
+			});
+		});
+		var editor = monaco.editor.create(document.getElementById('scriptContainer'), {
+			value: ['def process(input, ctx):',
+				'    return "Hello world!", None'].join('\n'),
+			language: 'larky'
+		});
+	</script>
+
+	<script>
+		const button = document.getElementById('run-btn');
+
+		button.addEventListener('click', async _ => {
+			try {
+				const response = await fetch('http://localhost:8080/run', {
+					method: 'post',
+					body: window.editor.getValue()
+				});
+				document.getElementById('resultContainer').innerHTML = await response.text();
+				console.log('Completed!');
+			} catch (err) {
+				console.error(`Error: ${err}`);
+			}
+		});
+	</script>
+</body>
+
+</html>
