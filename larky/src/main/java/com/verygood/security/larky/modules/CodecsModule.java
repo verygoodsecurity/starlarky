@@ -103,6 +103,6 @@ public class CodecsModule implements StarlarkValue {
       }
   )
   public String decode(LarkyByte bytesToDecode, String encoding, String errors) {
-      return TextUtil.starlarkDecodeUtf8(bytesToDecode.toBytes());
+      return TextUtil.starlarkDecodeUtf8(bytesToDecode.getBytes());
   }
 }

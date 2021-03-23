@@ -14,13 +14,17 @@ import java.util.AbstractList;
 @StarlarkBuiltin(name = "bytes.elems")
 public class LarkyByteElems extends AbstractList<StarlarkInt> implements Sequence<StarlarkInt> {
 
-  final private LarkyByte byteArray;
+  final private LarkyByteLike byteArray;
 
-  public LarkyByteElems(LarkyByte byteArray) {
+  public LarkyByteElems(LarkyByteLike byteArray) {
     this.byteArray = byteArray;
   }
 
-  public LarkyByte getLarkyByteArr() {
+  public byte[] getBytes() {
+    return getLarkyByteArr().getBytes();
+  }
+
+  public LarkyByteLike getLarkyByteArr() {
     return byteArray;
   }
 
@@ -29,8 +33,8 @@ public class LarkyByteElems extends AbstractList<StarlarkInt> implements Sequenc
     printer.append(
         String.format("b'\"%s\".elems()'",
             TextUtil.decodeUTF8(
-                this.byteArray.toBytes(),
-                this.byteArray.toBytes().length
+                this.byteArray.getBytes(),
+                this.byteArray.getBytes().length
             )));
   }
 

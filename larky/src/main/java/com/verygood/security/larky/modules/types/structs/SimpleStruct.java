@@ -18,17 +18,6 @@ public class SimpleStruct implements LarkyObject {
   final Map<String, Object> fields;
   final StarlarkThread currentThread;
 
-  //@SuppressWarnings("CdiInjectionPointsInspection")
-  SimpleStruct(Map<String, Object> fields, StarlarkThread currentThread) {
-    this.currentThread = currentThread;
-    this.fields = fields;
-  }
-
-  @Override
-  public StarlarkThread getCurrentThread() {
-    return currentThread;
-  }
-
   public static SimpleStruct create(Map<String, Object> kwargs) {
     return new SimpleStruct(kwargs, null);
   }
@@ -39,6 +28,17 @@ public class SimpleStruct implements LarkyObject {
 
   public static SimpleStruct mutable(Dict<String, Object> kwargs, StarlarkThread thread) {
     return new MutableStruct(kwargs, thread);
+  }
+
+  //@SuppressWarnings("CdiInjectionPointsInspection")
+  SimpleStruct(Map<String, Object> fields, StarlarkThread currentThread) {
+    this.currentThread = currentThread;
+    this.fields = fields;
+  }
+
+  @Override
+  public StarlarkThread getCurrentThread() {
+    return currentThread;
   }
 
   @Override
