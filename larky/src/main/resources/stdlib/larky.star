@@ -31,5 +31,6 @@ larky = _struct(
     mutablestruct=_mutablestruct,
     partial=_partial,
     property=_property,
-    bytearray=_as_bytearray
+    bytes=_as_bytes,
+    bytearray=_as_bytearray,
 )
