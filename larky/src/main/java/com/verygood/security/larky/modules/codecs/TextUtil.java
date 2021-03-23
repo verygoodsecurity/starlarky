@@ -113,6 +113,17 @@ public class TextUtil {
   }
 
   /**
+   * Returns an input source that reads from a UTF-8-encoded byte array. The caller is free to
+   * subsequently mutate the array.
+   */
+  public static String fromASCII(byte[] bytes) {
+    CharBuffer cb = StandardCharsets.US_ASCII.decode(ByteBuffer.wrap(bytes));
+    char[] utf16 = new char[cb.length()];
+    cb.get(utf16);
+    return new String(utf16, 0, utf16.length);
+  }
+
+  /**
    * Get a copy of the bytes that is exactly the length of the data. See {@link #getBytes()} for
    * faster access to the underlying array.
    *
@@ -1548,5 +1559,44 @@ public class TextUtil {
 
   public static String int2hex(int ch) {
     return CharSequenceTranslator.hex(ch).toLowerCase();
+  }
+
+  public static String starlarkStringTranscoding(byte[] bytearr) {
+    /*
+    The starlark spec says that UTF-8 gets encoded to UTF-K,
+    where K is the host language: Go, Rust is UTF-8 and Java is
+    UTF-16.
+     */
+    StringBuffer sb = new StringBuffer();
+    ByteBuffer buf = ByteBuffer.wrap(bytearr);
+    int lastpos = 0;
+    int l = bytearr.length;
+    while(buf.hasRemaining()) {
+      int r = 0;
+      try {
+        r = TextUtil.bytesToCodePoint(buf);
+        if(r == -1) {
+          break;
+        }
+        lastpos = buf.position();
+      }catch(java.nio.BufferUnderflowException e) {
+        buf.position(lastpos);
+        for(int i = lastpos; i < l; i++) {
+          sb.append("\\x");
+          sb.append(Integer.toHexString(Byte.toUnsignedInt(buf.get(i))));
+        }
+        break;
+      }
+      if(Character.isLowSurrogate((char) r) || Character.isHighSurrogate((char) r)) {
+        sb.append(TextUtil.REPLACEMENT_CHAR);
+      }
+      else {
+        sb.append(TextUtil.runeToString(r));
+      }
+
+      //System.out.println(Integer.toHexString(r));
+      //System.out.println("Chars: " + Arrays.toString(Character.toChars(r)));
+    }
+    return sb.toString();
   }
 }

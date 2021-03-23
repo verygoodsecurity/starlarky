@@ -1,8 +1,8 @@
 package com.verygood.security.larky.modules.globals;
 
 import com.verygood.security.larky.annot.Library;
-import com.verygood.security.larky.modules.types.LarkyByte;
 import com.verygood.security.larky.modules.types.LarkyObject;
+import com.verygood.security.larky.modules.types.LarkyByte;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -93,7 +93,7 @@ public final class PythonBuiltins {
       }
       else if(LarkyByte.class.isAssignableFrom(c.getClass())) {
         containerSize = ((LarkyByte) c).size();
-        bytes = ((LarkyByte) c).toBytes();
+        bytes = ((LarkyByte) c).getBytes();
       }
 
       if(containerSize != 1 || bytes == null) {

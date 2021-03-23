@@ -52,7 +52,7 @@ def _escaper__init__():
 
     def __bytes__():
         # decode bytes into string, encode string into bytes
-        return larky.bytearray(__str__(), 'utf-8')
+        return larky.bytes(__str__(), 'utf-8')
 
     self = larky.struct(
         literal=[],
