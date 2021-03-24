@@ -25,7 +25,7 @@
             <url>https://dl.bintray.com/vg/vgs-oss</url>
         </repository>
     </repositories>
-         
+
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
@@ -114,14 +114,6 @@
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink</artifactId>
             <version>${google.crypto.tink}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.conscrypt</groupId>
-            <artifactId>conscrypt-openjdk</artifactId>
-            <version>${org.conscrypt.version}</version>
-            <!--suppress UnresolvedMavenProperty -->
-            <classifier>${os.detected.name}-${os.detected.arch}</classifier>
         </dependency>
 
         <dependency>
