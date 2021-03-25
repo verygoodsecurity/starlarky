@@ -58,11 +58,11 @@ public class ResourceContentStarFile implements StarFile {
       String baseName = FilenameUtils.getBaseName(resourceName);
       String errorMsg = "Unable to find resource: " + resourceName;
       if(!baseName.equals("__init__")) {
-        String newRn = resourceName.replace(
+        resourceName = resourceName.replace(
             baseName + ".star",
             baseName + "/__init__.star");
-        resourceStream = ResourceContentStarFile.class.getClassLoader().getResourceAsStream(newRn);
-        errorMsg += " and additionally there was no module for " + newRn + " found";
+        resourceStream = ResourceContentStarFile.class.getClassLoader().getResourceAsStream(resourceName);
+        errorMsg += " and additionally there was no module for " + resourceName + " found";
       }
       // resourceStream still null? ok, let's throw the exception..
       if(resourceStream == null) {
