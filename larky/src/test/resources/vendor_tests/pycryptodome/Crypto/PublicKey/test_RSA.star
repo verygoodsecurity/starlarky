@@ -25,8 +25,12 @@
 """Self-test suite for Crypto.PublicKey.RSA"""
 
 load("@stdlib//binascii", a2b_hex="a2b_hex", b2a_hex="b2a_hex")
-load("@vendor//asserts","asserts")
 load("@stdlib//unittest","unittest")
+load("@vendor//asserts","asserts")
+load("@vendor//Crypto/Random", Random="Random")
+load("@vendor//Crypto/PublicKey", RSA="RSA")
+load("@vendor//Crypto/Math/Numbers", Integer="Integer")
+load("@vendor//Crypto/Util/number", inverse="inverse", bytes_to_long="bytes_to_long")
 
 # Test vectors from "RSA-OAEP and RSA-PSS test vectors (.zip file)"
 #   ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-1/pkcs-1v2-1-vec.zip
@@ -79,20 +83,16 @@ prime_factor = """
         ce 33 52 52 4d 04 16 a5 a4 41 e7 00 af 46 15 03
     """
 
-def setUp():
-    global RSA, Random, bytes_to_long
-    load("@vendor//Crypto/PublicKey", RSA="RSA")
-    load("@vendor//Crypto", Random="Random")
-    load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long", inverse="inverse")
-    n = bytes_to_long(a2b_hex(modulus))
-    p = bytes_to_long(a2b_hex(prime_factor))
+n = bytes_to_long(a2b_hex(modulus))
+p = bytes_to_long(a2b_hex(prime_factor))
 
-        # Compute q, d, and u from n, e, and p
-    q = n // p
-    d = inverse(e, (p-1)*(q-1))
-    u = inverse(p, q)    # u = e**-1 (mod q)
+# Compute q, d, and u from n, e, and p
+q = n // p
+d = inverse(e, (p - 1) * (q - 1))
+u = inverse(p, q)  # u = e**-1 (mod q)
 
-    rsa = RSA
+rsa = RSA
+
 
 def test_generate_1arg():
     """RSA (default implementation) generated key (1 argument)"""
@@ -103,6 +103,7 @@ def test_generate_1arg():
     _check_public_key(pub)
     _exercise_public_primitive(rsaObj)
 
+
 def test_generate_2arg():
     """RSA (default implementation) generated key (2 arguments)"""
     rsaObj = rsa.generate(1024, Random.new().read)
@@ -112,8 +113,9 @@ def test_generate_2arg():
     _check_public_key(pub)
     _exercise_public_primitive(rsaObj)
 
+
 def test_generate_3args():
-    rsaObj = rsa.generate(1024, Random.new().read,e=65537)
+    rsaObj = rsa.generate(1024, Random.new().read, e=65537)
     _check_private_key(rsaObj)
     _exercise_primitive(rsaObj)
     pub = rsaObj.public_key()
@@ -121,11 +123,13 @@ def test_generate_3args():
     _exercise_public_primitive(rsaObj)
     asserts.assert_that(65537).is_equal_to(rsaObj.e)
 
+
 def test_construct_2tuple():
     """RSA (default implementation) constructed key (2-tuple)"""
     pub = rsa.construct((n, e))
     _check_public_key(pub)
     _check_encryption(pub)
+
 
 def test_construct_3tuple():
     """RSA (default implementation) constructed key (3-tuple)"""
@@ -133,11 +137,13 @@ def test_construct_3tuple():
     _check_encryption(rsaObj)
     _check_decryption(rsaObj)
 
+
 def test_construct_4tuple():
     """RSA (default implementation) constructed key (4-tuple)"""
     rsaObj = rsa.construct((n, e, d, p))
     _check_encryption(rsaObj)
     _check_decryption(rsaObj)
+
 
 def test_construct_5tuple():
     """RSA (default implementation) constructed key (5-tuple)"""
@@ -146,6 +152,7 @@ def test_construct_5tuple():
     _check_encryption(rsaObj)
     _check_decryption(rsaObj)
 
+
 def test_construct_6tuple():
     """RSA (default implementation) constructed key (6-tuple)"""
     rsaObj = rsa.construct((n, e, d, p, q, u))
@@ -153,146 +160,165 @@ def test_construct_6tuple():
     _check_encryption(rsaObj)
     _check_decryption(rsaObj)
 
+
 def test_construct_bad_key2():
     tup = (n, 1)
-    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+    asserts.assert_fails(lambda: rsa.construct(tup), ".*?ValueError")
 
-        # An even modulus is wrong
-    tup = (n+1, e)
-    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+    # An even modulus is wrong
+    tup = (n + 1, e)
+    asserts.assert_fails(lambda: rsa.construct(tup), ".*?ValueError")
+
 
 def test_construct_bad_key3():
-    tup = (n, e, d+1)
-    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+    tup = (n, e, d + 1)
+    asserts.assert_fails(lambda: rsa.construct(tup), ".*?ValueError")
+
 
 def test_construct_bad_key5():
     tup = (n, e, d, p, p)
-    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+    asserts.assert_fails(lambda: rsa.construct(tup), ".*?ValueError")
 
-    tup = (p*p, e, p, p)
-    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+    tup = (p * p, e, p, p)
+    asserts.assert_fails(lambda: rsa.construct(tup), ".*?ValueError")
 
-    tup = (p*p, 3, p, q)
-    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+    tup = (p * p, 3, p, q)
+    asserts.assert_fails(lambda: rsa.construct(tup), ".*?ValueError")
+
 
 def test_construct_bad_key6():
     tup = (n, e, d, p, q, 10)
-    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+    asserts.assert_fails(lambda: rsa.construct(tup), ".*?ValueError")
 
-    load("@vendor//Crypto/Util/number", inverse="inverse")
     tup = (n, e, d, p, q, inverse(q, p))
-    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+    asserts.assert_fails(lambda: rsa.construct(tup), ".*?ValueError")
+
 
 def test_factoring():
     rsaObj = rsa.construct([n, e, d])
-    asserts.assert_that((rsaObj.p==p or rsaObj.p==q)).is_true()
-    asserts.assert_that((rsaObj.q==p or rsaObj.q==q)).is_true()
-    asserts.assert_that((rsaObj.q*rsaObj.p == n)).is_true()
+    asserts.assert_that((rsaObj.p == p or rsaObj.p == q)).is_true()
+    asserts.assert_that((rsaObj.q == p or rsaObj.q == q)).is_true()
+    asserts.assert_that((rsaObj.q * rsaObj.p == n)).is_true()
 
-    asserts.assert_fails(lambda : rsa.construct([n, e, n-1]), ".*?ValueError")
+    asserts.assert_fails(lambda: rsa.construct([n, e, n - 1]), ".*?ValueError")
+
 
 def test_repr():
     rsaObj = rsa.construct((n, e, d, p, q))
     repr(rsaObj)
 
-def test_serialization():
-    """RSA keys are unpickable"""
+# we do not support pickling.
+# def test_serialization():
+#     """RSA keys are unpickable"""
+#
+#     rsa_key = rsa.generate(1024)
+#     asserts.assert_fails(lambda: pickle.dumps(rsa_key), ".*?PicklingError")
 
-    rsa_key = rsa.generate(1024)
-    asserts.assert_fails(lambda : pickle.dumps(rsa_key), ".*?PicklingError")
 
 def test_raw_rsa_boundary():
-        # The argument of every RSA raw operation (encrypt/decrypt) must be
-        # non-negative and no larger than the modulus
+    # The argument of every RSA raw operation (encrypt/decrypt) must be
+    # non-negative and no larger than the modulus
     rsa_obj = rsa.generate(1024)
 
-    asserts.assert_fails(lambda : rsa_obj._decrypt(rsa_obj.n), ".*?ValueError")
-    asserts.assert_fails(lambda : rsa_obj._encrypt(rsa_obj.n), ".*?ValueError")
+    asserts.assert_fails(lambda: rsa_obj._decrypt(rsa_obj.n), ".*?ValueError")
+    asserts.assert_fails(lambda: rsa_obj._encrypt(rsa_obj.n), ".*?ValueError")
 
-    asserts.assert_fails(lambda : rsa_obj._decrypt(-1), ".*?ValueError")
-    asserts.assert_fails(lambda : rsa_obj._encrypt(-1), ".*?ValueError")
+    asserts.assert_fails(lambda: rsa_obj._decrypt(-1), ".*?ValueError")
+    asserts.assert_fails(lambda: rsa_obj._encrypt(-1), ".*?ValueError")
+
 
 def test_size():
     pub = rsa.construct((n, e))
     asserts.assert_that(pub.size_in_bits()).is_equal_to(1024)
     asserts.assert_that(pub.size_in_bytes()).is_equal_to(128)
 
-def _check_private_key(rsaObj):
-    load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 
-        # Check capabilities
+def _check_private_key(rsaObj):
+    # Check capabilities
     asserts.assert_that(1).is_equal_to(rsaObj.has_private())
 
-        # Sanity check key data
-    asserts.assert_that(rsaObj.n).is_equal_to(rsaObj.p * rsaObj.q)     # n = pq
-    lcm = int(Integer(rsaObj.p-1).lcm(rsaObj.q-1))
-    asserts.assert_that(1).is_equal_to(rsaObj.d * rsaObj.e % lcm) # ed = 1 (mod LCM(p-1, q-1))
-    asserts.assert_that(1).is_equal_to(rsaObj.p * rsaObj.u % rsaObj.q) # pu = 1 (mod q)
-    asserts.assert_that(1).is_equal_to((rsaObj.p > 1))   # p > 1
-    asserts.assert_that(1).is_equal_to((rsaObj.q > 1))   # q > 1
-    asserts.assert_that(1).is_equal_to((rsaObj.e > 1))   # e > 1
-    asserts.assert_that(1).is_equal_to((rsaObj.d > 1))   # d > 1
+    # Sanity check key data
+    asserts.assert_that(rsaObj.n).is_equal_to(rsaObj.p * rsaObj.q)  # n = pq
+    lcm = int(Integer(rsaObj.p - 1).lcm(rsaObj.q - 1))
+    asserts.assert_that(1).is_equal_to(
+        rsaObj.d * rsaObj.e % lcm)  # ed = 1 (mod LCM(p-1, q-1))
+    asserts.assert_that(1).is_equal_to(
+        rsaObj.p * rsaObj.u % rsaObj.q)  # pu = 1 (mod q)
+    asserts.assert_that(1).is_equal_to((rsaObj.p > 1))  # p > 1
+    asserts.assert_that(1).is_equal_to((rsaObj.q > 1))  # q > 1
+    asserts.assert_that(1).is_equal_to((rsaObj.e > 1))  # e > 1
+    asserts.assert_that(1).is_equal_to((rsaObj.d > 1))  # d > 1
+
 
 def _check_public_key(rsaObj):
     ciphertext = a2b_hex(ciphertext)
 
-        # Check capabilities
+    # Check capabilities
     asserts.assert_that(0).is_equal_to(rsaObj.has_private())
 
-        # Check rsaObj.[ne] -> rsaObj.[ne] mapping
+    # Check rsaObj.[ne] -> rsaObj.[ne] mapping
     asserts.assert_that(rsaObj.n).is_equal_to(rsaObj.n)
     asserts.assert_that(rsaObj.e).is_equal_to(rsaObj.e)
 
-        # Check that private parameters are all missing
+    # Check that private parameters are all missing
     asserts.assert_that(0).is_equal_to(hasattr(rsaObj, 'd'))
     asserts.assert_that(0).is_equal_to(hasattr(rsaObj, 'p'))
     asserts.assert_that(0).is_equal_to(hasattr(rsaObj, 'q'))
     asserts.assert_that(0).is_equal_to(hasattr(rsaObj, 'u'))
 
-        # Sanity check key data
-    asserts.assert_that(1).is_equal_to((rsaObj.e > 1))   # e > 1
+    # Sanity check key data
+    asserts.assert_that(1).is_equal_to((rsaObj.e > 1))  # e > 1
 
-        # Public keys should not be able to sign or decrypt
-    asserts.assert_fails(lambda : rsaObj._decrypt(bytes_to_long(ciphertext)), ".*?TypeError")
+    # Public keys should not be able to sign or decrypt
+    asserts.assert_fails(lambda: rsaObj._decrypt(bytes_to_long(ciphertext)),
+                         ".*?TypeError")
 
-        # Check __eq__ and __ne__
-    asserts.assert_that((rsaObj.public_key() == rsaObj.public_key())).is_equal_to(True) # assert_
-    asserts.assert_that((rsaObj.public_key() != rsaObj.public_key())).is_equal_to(False) # failIf
+    # Check __eq__ and __ne__
+    asserts.assert_that(
+        (rsaObj.public_key() == rsaObj.public_key())).is_equal_to(
+        True)  # assert_
+    asserts.assert_that(
+        (rsaObj.public_key() != rsaObj.public_key())).is_equal_to(
+        False)  # failIf
 
     asserts.assert_that(rsaObj.publickey()).is_equal_to(rsaObj.public_key())
 
+
 def _exercise_primitive(rsaObj):
-        # Since we're using a randomly-generated key, we can't check the test
-        # vector, but we can make sure encryption and decryption are inverse
-        # operations.
+    # Since we're using a randomly-generated key, we can't check the test
+    # vector, but we can make sure encryption and decryption are inverse
+    # operations.
     ciphertext = bytes_to_long(a2b_hex(ciphertext))
 
-        # Test decryption
+    # Test decryption
     plaintext = rsaObj._decrypt(ciphertext)
 
-        # Test encryption (2 arguments)
+    # Test encryption (2 arguments)
     new_ciphertext2 = rsaObj._encrypt(plaintext)
     asserts.assert_that(ciphertext).is_equal_to(new_ciphertext2)
+
 
 def _exercise_public_primitive(rsaObj):
     plaintext = a2b_hex(plaintext)
 
-        # Test encryption (2 arguments)
+    # Test encryption (2 arguments)
     new_ciphertext2 = rsaObj._encrypt(bytes_to_long(plaintext))
+
 
 def _check_encryption(rsaObj):
     plaintext = a2b_hex(plaintext)
     ciphertext = a2b_hex(ciphertext)
 
-        # Test encryption
+    # Test encryption
     new_ciphertext2 = rsaObj._encrypt(bytes_to_long(plaintext))
     asserts.assert_that(bytes_to_long(ciphertext)).is_equal_to(new_ciphertext2)
+
 
 def _check_decryption(rsaObj):
     plaintext = bytes_to_long(a2b_hex(plaintext))
     ciphertext = bytes_to_long(a2b_hex(ciphertext))
 
-        # Test plain decryption
+    # Test plain decryption
     new_plaintext = rsaObj._decrypt(ciphertext)
     asserts.assert_that(plaintext).is_equal_to(new_plaintext)
 
@@ -313,14 +339,10 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_construct_bad_key6))
     _suite.addTest(unittest.FunctionTestCase(test_factoring))
     _suite.addTest(unittest.FunctionTestCase(test_repr))
-    _suite.addTest(unittest.FunctionTestCase(test_serialization))
     _suite.addTest(unittest.FunctionTestCase(test_raw_rsa_boundary))
     _suite.addTest(unittest.FunctionTestCase(test_size))
     return _suite
 
+
 _runner = unittest.TextTestRunner()
 _runner.run(_testsuite())
-
-
-# vim:set ts=4 sw=4 sts=4 expandtab:
-

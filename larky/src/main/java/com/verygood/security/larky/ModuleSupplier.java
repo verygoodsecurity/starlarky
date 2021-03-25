@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableSet;
 import com.verygood.security.larky.modules.BinasciiModule;
 import com.verygood.security.larky.modules.C99MathModule;
 import com.verygood.security.larky.modules.CodecsModule;
+import com.verygood.security.larky.modules.CryptoModule;
 import com.verygood.security.larky.modules.HashModule;
 import com.verygood.security.larky.modules.JsonModule;
 import com.verygood.security.larky.modules.ProtoBufModule;
@@ -57,7 +58,8 @@ public class ModuleSupplier {
       RegexModule.INSTANCE,
       CodecsModule.INSTANCE,
       BinasciiModule.INSTANCE,
-      StructModule.INSTANCE
+      StructModule.INSTANCE,
+      CryptoModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
