@@ -18,10 +18,12 @@
 # SOFTWARE.
 # ===================================================================
 
+load("@stdlib//types", types="types")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence", DerInteger="DerInteger", DerBitString="DerBitString", DerObjectId="DerObjectId", DerNull="DerNull")
-load("./RSA", RSA="RSA")
+load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 
-def _expand_subject_public_key_info(encoded):
+
+def expand_subject_public_key_info(encoded):
     """Parse a SubjectPublicKeyInfo structure.
 
     It returns a triple with:
@@ -50,16 +52,15 @@ def _expand_subject_public_key_info(encoded):
     if len(algo) == 1:
         algo_params = None
     else:
-        try:
-            DerNull().decode(algo[1])
+        if DerNull().decode(algo[1]):
             algo_params = None
-        except:
+        else:
             algo_params = algo[1]
 
     return algo_oid.value, spk, algo_params
 
 
-def _create_subject_public_key_info(algo_oid, secret_key, params=None):
+def create_subject_public_key_info(algo_oid, secret_key, params=None):
 
     if params == None:
         params = DerNull()
@@ -73,7 +74,7 @@ def _create_subject_public_key_info(algo_oid, secret_key, params=None):
     return spki.encode()
 
 
-def _extract_subject_public_key_info(x509_certificate):
+def extract_subject_public_key_info(x509_certificate):
     """Extract subjectPublicKeyInfo from a DER X.509 certificate."""
 
     certificate = DerSequence().decode(x509_certificate, nr_elements=3)
@@ -81,15 +82,14 @@ def _extract_subject_public_key_info(x509_certificate):
                                            nr_elements=range(6, 11))
 
     index = 5
-    try:
+    if types.is_int(tbs_certificate[0]):
         tbs_certificate[0] + 1
         # Version not present
         version = 1
-    except TypeError:
+    else:
         version = DerInteger(explicit=0).decode(tbs_certificate[0]).value
         if version not in (2, 3):
             fail(" ValueError(\"Incorrect X.509 certificate version\")")
         index = 6
 
     return tbs_certificate[index]
-
