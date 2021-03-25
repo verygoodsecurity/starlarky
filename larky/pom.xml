@@ -116,9 +116,30 @@
             <version>${google.crypto.tink}</version>
         </dependency>
 
+        <!-- bouncy castle differences are:
+            jdk15on - multi-release jar.
+            jdk15to18 - single release jar.
+            bcprov = provider
+            pcprov-ext = obscure algorithms (not needed..)
+        -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-ext-jdk15to18</artifactId>
+            <artifactId>bcprov-jdk15to18</artifactId>
+            <version>${org.bouncycastle.version}</version>
+        </dependency>
+
+        <!--  bcpkix = pem algorithms -->
+
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk15to18</artifactId>
+            <version>${org.bouncycastle.version}</version>
+        </dependency>
+
+        <!--  bcpg = openpgp algorithms -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpg-jdk15to18</artifactId>
             <version>${org.bouncycastle.version}</version>
         </dependency>
 
