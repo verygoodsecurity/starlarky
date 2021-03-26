@@ -25,7 +25,7 @@
             <url>https://dl.bintray.com/vg/vgs-oss</url>
         </repository>
     </repositories>
-         
+
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
@@ -116,17 +116,30 @@
             <version>${google.crypto.tink}</version>
         </dependency>
 
+        <!-- bouncy castle differences are:
+            jdk15on - multi-release jar.
+            jdk15to18 - single release jar.
+            bcprov = provider
+            pcprov-ext = obscure algorithms (not needed..)
+        -->
         <dependency>
-            <groupId>org.conscrypt</groupId>
-            <artifactId>conscrypt-openjdk</artifactId>
-            <version>${org.conscrypt.version}</version>
-            <!--suppress UnresolvedMavenProperty -->
-            <classifier>${os.detected.name}-${os.detected.arch}</classifier>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15to18</artifactId>
+            <version>${org.bouncycastle.version}</version>
         </dependency>
+
+        <!--  bcpkix = pem algorithms -->
 
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-ext-jdk15to18</artifactId>
+            <artifactId>bcpkix-jdk15to18</artifactId>
+            <version>${org.bouncycastle.version}</version>
+        </dependency>
+
+        <!--  bcpg = openpgp algorithms -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpg-jdk15to18</artifactId>
             <version>${org.bouncycastle.version}</version>
         </dependency>
 
