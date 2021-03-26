@@ -13,10 +13,11 @@
 # limitations under the License.
 """Unit tests for types.bzl."""
 
-load("@stdlib//types", "types")
+load("@stdlib//builtins", "builtins")
 load("@stdlib//larky", "larky")
-load("@stdlib//unittest", "unittest")
 load("@stdlib//sets", "sets")
+load("@stdlib//types", "types")
+load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
 
 
@@ -162,6 +163,40 @@ def _is_set_test():
     assert_false(types.is_set(struct(_values="not really values")))
 
 
+def _is_bytes_test():
+    """Unit test for types.is_bytes."""
+    assert_true(type(builtins.bytes(r"", encoding="utf-8")) == 'bytes')
+    assert_true(str(larky.bytes) == '<built-in function bytes>')
+    assert_true(
+        types.is_instance(
+            builtins.bytes(r"", encoding="utf-8"),
+            larky.bytes
+        )
+    )
+    assert_true(types.is_bytes(builtins.bytes(r"", encoding="utf-8")))
+
+
+def _is_bytearray_test():
+    """Unit test for types.is_bytearray."""
+    assert_true(type(builtins.bytearray(r"", encoding="utf-8")) == 'bytearray')
+    assert_true(str(larky.bytearray) == '<built-in function bytearray>')
+    assert_true(
+        types.is_instance(
+            builtins.bytearray(r"", encoding="utf-8"),
+            larky.bytearray
+        )
+    )
+    assert_true(types.is_bytearray(builtins.bytearray(r"", encoding="utf-8")))
+
+
+def _is_iterable_test():
+    assert_false(types.is_iterable("123"))
+    assert_false(types.is_iterable(1,))
+    assert_true(types.is_iterable("".elems()))
+    assert_true(types.is_iterable([]))
+    assert_true(types.is_iterable((1,)))
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_is_string_test))
@@ -173,6 +208,9 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_is_dict_test))
     _suite.addTest(unittest.FunctionTestCase(_is_function_test))
     _suite.addTest(unittest.FunctionTestCase(_is_set_test))
+    _suite.addTest(unittest.FunctionTestCase(_is_bytes_test))
+    _suite.addTest(unittest.FunctionTestCase(_is_bytearray_test))
+    _suite.addTest(unittest.FunctionTestCase(_is_iterable_test))
     return _suite
 
 
