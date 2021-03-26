@@ -6,6 +6,7 @@ import com.google.re2j.Pattern;
 
 import net.starlark.java.eval.EvalException;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
@@ -53,7 +54,20 @@ public class ResourceContentStarFile implements StarFile {
     String resourceName = resolveResourceName(resourcePath);
     InputStream resourceStream = ResourceContentStarFile.class.getClassLoader().getResourceAsStream(resourceName);
     if(resourceStream == null) {
-      throw new EvalException("Unable to find resource: " + resourceName);
+      // If we cannot find our package, try to see if it's a module (i.e. Module/__init__.star)
+      String baseName = FilenameUtils.getBaseName(resourceName);
+      String errorMsg = "Unable to find resource: " + resourceName;
+      if(!baseName.equals("__init__")) {
+        resourceName = resourceName.replace(
+            baseName + ".star",
+            baseName + "/__init__.star");
+        resourceStream = ResourceContentStarFile.class.getClassLoader().getResourceAsStream(resourceName);
+        errorMsg += " and additionally there was no module for " + resourceName + " found";
+      }
+      // resourceStream still null? ok, let's throw the exception..
+      if(resourceStream == null) {
+        throw new EvalException(errorMsg);
+      }
     }
     try {
       return buildStarFile(resourceName, resourceStream);

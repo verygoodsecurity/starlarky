@@ -194,6 +194,15 @@ def _is_iterable(iterz):
     return _is_tuple(iterz) or _is_list(iterz)
 
 
+def _is_bytes(bobj):
+    return _is_instance(bobj, larky.bytes)
+
+
+def _is_bytearray(barrobj):
+    return _is_instance(barrobj, larky.bytearray)
+
+
+
 def _type_maker(name, *args, **kwargs):
     print(name)
     print(args)
@@ -432,6 +441,8 @@ types = larky.struct(
     is_set=_is_set,
     is_instance=_is_instance,
     is_iterable=_is_iterable,
+    is_bytes=_is_bytes,
+    is_bytearray=_is_bytearray,
     MethodType=_MethodType,
     new_class=new_class,
     resolve_bases=resolve_bases,
