@@ -7,14 +7,8 @@ This is modeled after assertpy (https://github.com/assertpy/assertpy)
 
 load("@vendor//asserts",  "asserts")
 
-
 print(asserts)
-
 v = asserts.assert_that(1)
-print(v)
-print(v.described_as('foo'), " and its type: ", type(v.described_as))
-print("is v.described_as() of type 'Partial'?",
-      type(v.described_as) == "Partial")
 
 asserts.assert_that('foo').is_length(3)
 asserts.assert_that(['a', 'b']).is_length(2)
