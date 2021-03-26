@@ -66,6 +66,8 @@ def _bytearray(source, encoding='utf-8', errors='strict'):
 
     Without an argument, an array of size 0 is created.
     """
+    if hasattr(source, '__bytes__'):
+        return larky.bytearray(source.__bytes__())
     return larky.bytearray(source, encoding, errors)
 
 
