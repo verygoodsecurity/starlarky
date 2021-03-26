@@ -76,7 +76,7 @@ def _remove_extension(func):
         _extensions.pop(_impl_function_name(func))
 
 
-def described_as(self, description):
+def _described_as(self, subject, description):
     """Describes the assertion.  On failure, the description is included in the error message.
     This is not an assertion itself.  But if the any of the following chained assertions fail,
     the description will be included in addition to the regular error message.
@@ -89,8 +89,7 @@ def described_as(self, description):
     Returns:
         AssertionBuilder: returns this instance to chain to the next assertion
     """
-    print(self)
-    self.description = str(description)
+    subject.description = str(description)
     return self
 
 
@@ -382,7 +381,6 @@ def _AssertionBuilder(val, description, kind, expected, logger):
     # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = larky.mutablestruct(
         error=fail,
-        described_as=larky.partial(described_as, self),
         is_length=larky.partial(is_length, self),
         is_not_equal_to=larky.partial(is_not_equal_to, self),
         is_equal_to=types.MethodType(is_equal_to, self),
@@ -393,6 +391,7 @@ def _AssertionBuilder(val, description, kind, expected, logger):
         is_not_none=larky.partial(is_not_none, self),
         is_less_than=larky.partial(is_less_than, self)
     )
+    klass.described_as=larky.partial(_described_as, klass, self)
     return klass
 
 
