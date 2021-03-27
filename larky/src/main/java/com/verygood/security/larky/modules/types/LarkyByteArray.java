@@ -34,34 +34,36 @@ public final class LarkyByteArray extends LarkyByteLike implements HasBinary {
     return new Builder(thread);
   }
 
+  // Returns {@code this op that}, if thisLeft, or {@code that op this} otherwise
   @Nullable
   @Override
   public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
     switch (op) {
+      case STAR:
+        if(that instanceof StarlarkInt) {
+          LarkyByteLike result = BinaryOperations.multiply(
+              this,
+              ((StarlarkInt) that).toIntUnchecked());
+          this.setSequenceStorage(result.getSequenceStorage());
+          return this;
+        }
       case PLUS:
-        // Returns {@code this op that}, if thisLeft, or {@code that op this} otherwise
-        StarlarkList<StarlarkInt> seq;
         if (that instanceof LarkyByteLike) {
           LarkyByteLike that_ = (LarkyByteLike) that;
           if (thisLeft) {
-            seq = StarlarkList.concat(
-                StarlarkList.immutableCopyOf(this.getSequenceStorage().getImmutableList()),
-                StarlarkList.immutableCopyOf(that_.getSequenceStorage().getImmutableList()),
-                this.currentThread.mutability());
+            this.setSequenceStorage(BinaryOperations.add(this, that_));
+            return this;
           } else {
-            seq = StarlarkList.concat(
-                StarlarkList.immutableCopyOf(that_.getSequenceStorage().getImmutableList()),
-                StarlarkList.immutableCopyOf(this.getSequenceStorage().getImmutableList()),
-                this.currentThread.mutability());
+            that_.setSequenceStorage(BinaryOperations.add(that_, this));
+            return that;
           }
-          this.setSequenceStorage(seq);
-          return this;
         }
         // fallthrough
       default:
         // unsupported binary operation!
-        throw Starlark.errorf(
-            "unsupported binary operation: %s %s %s", Starlark.type(this), op, Starlark.type(that));
+        return null;
+//        throw Starlark.errorf(
+//            "unsupported binary operation: %s %s %s", Starlark.type(this), op, Starlark.type(that));
     }
   }
 
