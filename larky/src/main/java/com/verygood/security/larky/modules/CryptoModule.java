@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules;
 
 import com.verygood.security.larky.modules.crypto.CryptoRandomModule;
+import com.verygood.security.larky.modules.crypto.CryptoUtilModule;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -51,5 +52,7 @@ public class CryptoModule implements StarlarkValue {
     return CryptoRandomModule.INSTANCE;
   }
 
+  @StarlarkMethod(name="Util", structField = true)
+  public CryptoUtilModule Util()  { return CryptoUtilModule.INSTANCE; }
 
 }

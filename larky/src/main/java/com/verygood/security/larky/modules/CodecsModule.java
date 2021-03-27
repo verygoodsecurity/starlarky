@@ -1,7 +1,5 @@
 package com.verygood.security.larky.modules;
 
-import com.google.common.primitives.Bytes;
-
 import com.verygood.security.larky.modules.codecs.TextUtil;
 import com.verygood.security.larky.modules.types.LarkyByte;
 
@@ -10,11 +8,15 @@ import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.StarlarkInt;
-import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
-import java.util.stream.Collectors;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
 
 
 @StarlarkBuiltin(
@@ -57,15 +59,20 @@ public class CodecsModule implements StarlarkValue {
               defaultValue = "'strict'",
               named = true
           )
-      }
+      },
+      useStarlarkThread = true
   )
-  public StarlarkList<StarlarkInt> encode(String strToEncode, String encoding, String errors) throws EvalException {
-    TextUtil textUtil = new TextUtil(TextUtil.unescapeJavaString(strToEncode));
-    return StarlarkList.immutableCopyOf(
-        Bytes.asList(textUtil.copyBytes()).stream()
-            .map(Byte::toUnsignedInt)
-            .map(StarlarkInt::of)
-            .collect(Collectors.toList()));
+  public LarkyByte encode(String strToEncode, String encoding, String errors, StarlarkThread thread) throws EvalException {
+    CharsetEncoder encoder = Charset.forName(encoding)
+        .newEncoder()
+        .onMalformedInput(TextUtil.CodecHelper.convertCodingErrorAction(errors))
+        .onUnmappableCharacter(TextUtil.CodecHelper.convertCodingErrorAction(errors));
+    try {
+      ByteBuffer encoded = encoder.encode(CharBuffer.wrap(TextUtil.unescapeJavaString(strToEncode)));
+      return (LarkyByte) LarkyByte.builder(thread).setSequence(encoded).build();
+    } catch (CharacterCodingException e) {
+      throw Starlark.errorf(e.getMessage());
+    }
   }
 
   @StarlarkMethod(

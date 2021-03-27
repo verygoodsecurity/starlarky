@@ -11,7 +11,9 @@ import com.google.common.primitives.UnsignedBytes;
 
 import com.verygood.security.larky.modules.codecs.TextUtil;
 
+import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.HasBinary;
 import net.starlark.java.eval.Printer;
@@ -25,6 +27,10 @@ import net.starlark.java.syntax.TokenKind;
 
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -202,4 +208,57 @@ public final class LarkyByte extends LarkyByteLike implements LarkyObject, HasBi
   public StarlarkThread getCurrentThread() {
     return this.currentThread;
   }
+
+
+  @StarlarkMethod(name = "hex")
+  public String hex() {
+    return hexlify(getBytes());
+  }
+
+  public static String hexlify(byte[] data) {
+     StringBuilder builder = new StringBuilder();
+     for (byte b : data) {
+       builder.append(String.format("%02x", b));
+     }
+     return builder.toString();
+   }
+
+  @StarlarkMethod(
+      name = "decode",
+      parameters = {
+          @Param(name = "encoding", defaultValue = "'utf-8'"),
+          @Param(name ="errors", defaultValue = "'strict'")
+      })
+  public String decode(String encoding, String errors) throws EvalException {
+    CharsetDecoder decoder = Charset.forName(encoding)
+        .newDecoder()
+        .onMalformedInput(TextUtil.CodecHelper.convertCodingErrorAction(errors))
+        .onUnmappableCharacter(TextUtil.CodecHelper.convertCodingErrorAction(errors));
+    try {
+      return new String(
+          decoder.decode(
+              ByteBuffer.wrap(getBytes())
+          ).array());
+    } catch (CharacterCodingException e) {
+      throw Starlark.errorf(e.getMessage());
+    }
+  }
+
+//
+//  @StarlarkMethod(
+//      name = "fromhex",
+//      parameters = {@Param(name = "hexstr")},
+//      useStarlarkThread = true)
+//  public static LarkyByte unhexlify(String hexstr, StarlarkThread thread) throws EvalException {
+//    int length = hexstr.length();
+//    byte[] result = new byte[length / 2];
+//    for (int i = 0; i < length; i += 2) {
+//      result[i / 2] = (byte) (
+//          (Character.digit(hexstr.charAt(i), 16) << 4)
+//          + Character.digit(hexstr.charAt(i + 1), 16)
+//      );
+//    }
+//    return (LarkyByte) builder(thread).setSequence(result).build();
+//  }
+
 }
