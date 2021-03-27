@@ -23,6 +23,7 @@ load("@stdlib//builtins","builtins")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//types",types="types")
+load("@stdlib//codecs", "codecs")
 
 load("@vendor//Crypto/Util/py3compat",
      byte_string="byte_string", b="b", bchr="bchr", bord="bord")
@@ -30,6 +31,7 @@ load("@vendor//Crypto/Util/py3compat",
 load("@vendor//Crypto/Util/number",
      long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
 
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
@@ -81,14 +83,14 @@ def BytesIO_EOF(initial_bytes):
 def DerObject(asn1Id=None,
               payload=builtins.bytes(r'', encoding='utf-8'),
               implicit=None,
-              constructed=False,
+              constructed=0,
               explicit=None):
     r"""Base class for defining a single DER object.
 
     This class should never be directly instantiated.
     """
 
-    def __init__(asn1Id, payload, implicit=None, constructed=False, explicit=None):
+    def __init__(asn1Id, payload, implicit, constructed, explicit):
         """
         Initialize the DER object according to a specific ASN.1 type.
 
@@ -117,6 +119,7 @@ def DerObject(asn1Id=None,
         __dict__ = {
             'payload': payload,
             '_tag_octet': None,
+            '__class__': 'DerObject',
         }
 
         if asn1Id == None:
@@ -178,24 +181,27 @@ def DerObject(asn1Id=None,
             return bchr(len(encoding) + 128) + encoding
         return bchr(length)
 
-    def encode():
+    def _encode(obj):
         """Return this DER element, fully encoded as a binary byte string."""
 
         # Concatenate identifier octets, length octets,
         # and contents octets
 
-        output_payload = payload
+        output_payload = obj.payload
 
         # In case of an EXTERNAL tag, first encode the inner
         # element.
-        if hasattr(self, "_inner_tag_octet"):
-            output_payload = (bchr(self._inner_tag_octet) +
-                              _definite_form(len(payload)) +
-                              payload)
+        if hasattr(obj, "_inner_tag_octet"):
+            output_payload = (builtins.bytearray([obj._inner_tag_octet]) +
+                              _definite_form(len(obj.payload)) +
+                              obj.payload)
 
-        return (bchr(self._tag_octet) +
+        return (builtins.bytearray([obj._tag_octet]) +
                 _definite_form(len(output_payload)) +
                 output_payload)
+
+    def encode():
+        return _encode(self)
 
     def _decodeLen(s):
         """Decode DER length octets from a file."""
@@ -262,6 +268,7 @@ def DerObject(asn1Id=None,
                 fail(" ValueError(\"Unexpected extra data after the DER structure\")")
 
     self = __init__(asn1Id, payload, implicit, constructed, explicit)
+    self._encode = _encode
     return self
 
 
@@ -306,7 +313,8 @@ def DerInteger(value=0, implicit=None, explicit=None):
         """
 
         self = DerObject(0x02, builtins.bytes(r'', encoding='utf-8'), implicit,
-                        False, explicit)
+                        0, explicit)
+        self.__class__ = 'DerInteger'
         self.value = value  # The integer value
         return self
 
@@ -314,18 +322,8 @@ def DerInteger(value=0, implicit=None, explicit=None):
         """Return the DER INTEGER, fully encoded as a
         binary string."""
 
-        number = value
-        payload = builtins.bytes(r'', encoding='utf-8')
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            if not True:
-                break
-            payload = bchr(int(number & 255)) + payload
-            if (128 <= number) and (number <= 255):
-                payload = bchr(0x00) + payload
-            if (-128 <= number) and (number <= 255):
-                break
-            number >>= 8
-        return DerObject.encode(self)
+        i = _JCrypto.Util.asn1.DerInteger(self.value)
+        return i.encode()
 
     def decode(der_encoded, strict=False):
         """Decode a complete DER INTEGER DER, and re-initializes this
@@ -337,32 +335,14 @@ def DerInteger(value=0, implicit=None, explicit=None):
         Raises:
           ValueError: in case of parsing errors.
         """
-
-        return DerObject.decode(self, der_encoded, strict=strict)
-
-    def _decodeFromStream(s, strict):
-        """Decode a complete DER INTEGER from a file."""
-
-        # Fill up self.payload
-        DerObject._decodeFromStream(self, s, strict)
-
-        if strict:
-            if len(self.payload) == 0:
-                fail(" ValueError(\"Invalid encoding for DER INTEGER: empty payload\")")
-            if len(self.payload) >= 2 and struct.unpack('>H', self.payload[:2])[0] < 0x80:
-                fail(" ValueError(\"Invalid encoding for DER INTEGER: leading zero\")")
-
-        # Derive self.value from self.payload
-        value = 0
-        bits = 1
-        for i in self.payload:
-            value *= 256
-            value += bord(i)
-            bits <<= 8
-        if self.payload and bord(self.payload[0]) & 0x80:
-            value -= bits
+        i = _JCrypto.Util.asn1.DerInteger(self.value)
+        decoded = i.decode(der_encoded, strict=strict)
+        self.value = decoded.as_int()
+        return self
 
     self = __init__(value, implicit, explicit)
+    self.decode = decode
+    self.encode = encode
     return self
 
 
@@ -383,10 +363,10 @@ def DerSequence(startSeq=None, implicit=None):
       >>> obj_der = unhexlify('070102')
       >>> seq_der = DerSequence([4])
       >>> seq_der.append(9)
-      >>> seq_der.append(obj_der.encode())
-      >>> print hexlify(seq_der.encode())
+      >>> seq_der.append(obj_der.decode("utf-8"))
+      >>> print(hexlify(seq_der.encode()))
 
-    which will show ``3009020104020109070102``, the DER encoding of the
+    which will show ``b'3009020104020109070102'``, the DER encoding of the
     sequence containing ``4``, ``9``, and the object with payload ``02``.
 
     For decoding:
@@ -422,7 +402,8 @@ def DerSequence(startSeq=None, implicit=None):
             It overrides the universal tag for SEQUENCE (16).
         """
 
-        self = DerObject(0x10, builtins.bytes(r'', encoding='utf-8'), implicit, True)
+        self = DerObject(0x10, builtins.bytes(r'', encoding='utf-8'), implicit, 1)
+        self.derobject = self
         if startSeq == None:
             self._seq = []
         else:
@@ -500,16 +481,16 @@ def DerSequence(startSeq=None, implicit=None):
           ValueError: if some elements in the sequence are neither integers
                       nor byte strings.
         """
-        fail("DO NOT USE WITHOUT BYTEARRAY!")
-        payload = builtins.bytes(r'', encoding='utf-8')
+        self.payload = builtins.bytearray(r'', encoding='utf-8')
         for item in self._seq:
+            print(item)
             if byte_string(item):
-                payload += item
+                self.payload += item
             elif _is_number(item):
-                payload += DerInteger(item).encode()
+                self.payload += DerInteger(item).encode()
             else:
-                payload += item.encode()
-        return DerObject.encode(self)
+                self.payload += codecs.encode(item)
+        return self.derobject._encode(self)
 
     def decode(der_encoded, strict=False, nr_elements=None, only_ints_expected=False):
         """Decode a complete DER SEQUENCE, and re-initializes this
@@ -580,6 +561,13 @@ def DerSequence(startSeq=None, implicit=None):
                  "           \" in the sequence\" ") % len(self._seq))
 
     self = __init__(startSeq, implicit)
+    self.append = append
+    self.decode = decode
+    self.encode = encode
+    self.hasInts = hasInts
+    self.hasOnlyInts = hasOnlyInts
+    self.pop = pop
+
     return self
 
 
@@ -625,7 +613,7 @@ def DerOctetString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None):
             The IMPLICIT tag to use for the encoded object.
             It overrides the universal tag for OCTET STRING (4).
         """
-        self = DerObject(0x04, value, implicit, False)
+        self = DerObject(0x04, value, implicit, 0)
         return self
 
     self = __init__(value, implicit)
@@ -638,7 +626,7 @@ def DerNull():
     def __init__():
         """Initialize the DER object as a NULL."""
 
-        self = DerObject(0x05, builtins.bytes(r'', encoding='utf-8'), None, False)
+        self = DerObject(0x05, builtins.bytes(r'', encoding='utf-8'), None, 0)
         return self
 
     self = __init__()
@@ -687,7 +675,7 @@ def DerObjectId(value='', implicit=None, explicit=None):
           explicit : integer
             The EXPLICIT tag to use for the encoded object.
         """
-        self = DerObject(0x06, builtins.bytes(r'', encoding='utf-8'), implicit, False, explicit)
+        self = DerObject(0x06, builtins.bytes(r'', encoding='utf-8'), implicit, 0, explicit)
         self.value = value
         return self
 
@@ -800,7 +788,7 @@ def DerBitString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None, exp
           explicit : integer
             The EXPLICIT tag to use for the encoded object.
         """
-        self = DerObject(0x03, builtins.bytes(r'', encoding='utf-8'), implicit, False, explicit)
+        self = DerObject(0x03, builtins.bytes(r'', encoding='utf-8'), implicit, 0, explicit)
 
         # The bitstring value (packed)
         if types.is_instance(value, DerObject):
@@ -887,7 +875,7 @@ def DerSetOf(startSet=None, implicit=None):
             The IMPLICIT tag to use for the encoded object.
             It overrides the universal tag for SET OF (17).
         """
-        self = DerObject(0x11, builtins.bytes(r'', encoding='utf-8'), implicit, True)
+        self = DerObject(0x11, builtins.bytes(r'', encoding='utf-8'), implicit, 1)
         self._seq = []
 
         # All elements must be of the same type (and therefore have the
