@@ -402,6 +402,9 @@ public final class PythonBuiltins {
      String classType = Starlark.classType(_obj.getClass());
      try {
        switch (classType) {
+         case "bytes":
+           _obj = ((LarkyByte) _obj).elems();
+           // fall through
          case "bytes.elems":
          case "list":
            Sequence<StarlarkInt> seq = Sequence.cast(_obj, StarlarkInt.class, classType);

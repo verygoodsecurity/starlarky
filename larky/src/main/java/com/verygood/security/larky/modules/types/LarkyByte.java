@@ -96,7 +96,7 @@ public final class LarkyByte extends LarkyByteLike implements LarkyObject, HasBi
         "elems", new StarlarkCallable() {
           @Override
           public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
-            return new LarkyByteElems(LarkyByte.this);
+            return elems();
           }
 
           @Override
@@ -105,6 +105,10 @@ public final class LarkyByte extends LarkyByteLike implements LarkyObject, HasBi
           }
         }
     ));
+  }
+
+  public LarkyByteElems elems() {
+    return new LarkyByteElems(this);
   }
 
   @Override
@@ -183,8 +187,9 @@ public final class LarkyByte extends LarkyByteLike implements LarkyObject, HasBi
         }
       default:
         // unsupported binary operation!
-        throw Starlark.errorf(
-                "unsupported binary operation: %s %s %s", Starlark.type(this), op, Starlark.type(that));
+        return null;
+//        throw Starlark.errorf(
+//                "unsupported binary operation: %s %s %s", Starlark.type(this), op, Starlark.type(that));
     }
   }
 

@@ -1,7 +1,9 @@
 package com.verygood.security.larky.modules.types;
 
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Range;
+import com.google.common.collect.Streams;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
 
@@ -21,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.Nonnull;
@@ -109,7 +112,6 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     }
   }
 
-
   public interface ByteLikeBuilder {
 
     default ByteLikeBuilder setSequence(byte[] buf) throws EvalException {
@@ -142,4 +144,37 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     LarkyByteLike build() throws EvalException;
   }
 
+  static class BinaryOperations {
+
+    /**
+     * Attempts to multiply a LarkyByteLike type by an integer. The caller is responsible for casting
+     * to the appropriate sub-type.
+     *
+     * @throws EvalException
+     */
+    static public LarkyByteLike multiply(LarkyByteLike target, Integer num) throws EvalException {
+      List<Sequence<StarlarkInt>> copies = Collections.nCopies(num, target.getSequenceStorage());
+      Iterable<StarlarkInt> joined = Iterables.concat(copies);
+      byte[] bytes = Bytes.toArray(
+          Streams.stream(joined)
+              .map(StarlarkInt::toNumber)
+              .collect(Collectors.toList())
+      );
+      return target.builder().setSequence(bytes).build();
+    }
+
+    /**
+     * Add right to left (i.e. [1] + [2] = [1, 2])
+     * @throws EvalException
+     * @return
+     */
+    static public StarlarkList<StarlarkInt> add(LarkyByteLike left, LarkyByteLike right) throws EvalException {
+      StarlarkList<StarlarkInt> seq;
+      seq = StarlarkList.concat(
+          StarlarkList.immutableCopyOf(left.getSequenceStorage().getImmutableList()),
+          StarlarkList.immutableCopyOf(right.getSequenceStorage().getImmutableList()),
+          null);
+      return seq;
+    }
+  }
 }
