@@ -23,10 +23,15 @@ _a_tuple_type = type(())
 _an_int_type = type(1)
 _a_struct_type = type(larky.struct())
 
+
 def _a_function():
     pass
 
+
 _a_function_type = type(_a_function)
+
+_a_lambda_type = type(lambda x: 1)
+
 
 def _is_list(v):
     """Returns True if v is an instance of a list.
@@ -39,6 +44,7 @@ def _is_list(v):
     """
     return type(v) == _a_list_type
 
+
 def _is_string(v):
     """Returns True if v is an instance of a string.
 
@@ -50,6 +56,7 @@ def _is_string(v):
     """
     return type(v) == _a_string_type
 
+
 def _is_bool(v):
     """Returns True if v is an instance of a bool.
 
@@ -60,6 +67,7 @@ def _is_bool(v):
       True if v is an instance of a bool, False otherwise.
     """
     return type(v) == _a_bool_type
+
 
 def _is_none(v):
     """Returns True if v has the type of None.
@@ -83,6 +91,7 @@ def _is_int(v):
     """
     return type(v) == _an_int_type
 
+
 def _is_tuple(v):
     """Returns True if v is an instance of a tuple.
 
@@ -93,6 +102,7 @@ def _is_tuple(v):
       True if v is an instance of a tuple, False otherwise.
     """
     return type(v) == _a_tuple_type
+
 
 def _is_dict(v):
     """Returns True if v is an instance of a dict.
@@ -105,6 +115,7 @@ def _is_dict(v):
     """
     return type(v) == _a_dict_type
 
+
 def _is_function(v):
     """Returns True if v is an instance of a function.
 
@@ -116,6 +127,31 @@ def _is_function(v):
     """
     return type(v) == _a_function_type
 
+
+def _is_lambda(v):
+    """Returns True if v is an instance of a lambda.
+
+    Args:
+      v: The value whose type should be checked.
+
+    Returns:
+      True if v is an instance of a lambda, False otherwise.
+    """
+    return type(v) == _a_lambda_type
+
+
+def _is_callable(v):
+    """Returns True if v is a callable: an instance of a function or a lambda
+
+    Args:
+      v: The value whose type should be checked.
+
+    Returns:
+      True if v is an instance of a callable, False otherwise.
+    """
+    return _is_function(v) or _is_lambda(v)
+
+
 def _is_set(v):
     """Returns True if v is a set created by sets.make().
 
@@ -125,7 +161,8 @@ def _is_set(v):
     Returns:
       True if v was created by sets.make(), False otherwise.
     """
-    return type(v) == _a_struct_type and hasattr(v, "_values") and _is_dict(v._values)
+    return type(v) == _a_struct_type and hasattr(v, "_values") and _is_dict(
+        v._values)
 
 
 def _MethodType(func, instance):
@@ -265,6 +302,7 @@ def _calculate_meta(meta, bases):
                         "must be a (non-strict) subclass "+
                         "of the metaclasses of all its bases")
     return winner
+
 
 # from collections import Callable
 # from functools import partial
@@ -408,18 +446,23 @@ def del_(instance, attr_name):
 
 
 types = larky.struct(
-    is_list = _is_list,
-    is_string = _is_string,
-    is_bool = _is_bool,
-    is_none = _is_none,
-    is_int = _is_int,
-    is_tuple = _is_tuple,
-    is_dict = _is_dict,
-    is_function = _is_function,
-    is_set = _is_set,
-    is_instance = _is_instance,
-    MethodType = _MethodType,
-    new_class = new_class,
-    resolve_bases = resolve_bases,
-    prepare_class = prepare_class,
+    is_list=_is_list,
+    is_string=_is_string,
+    is_bool=_is_bool,
+    is_none=_is_none,
+    is_int=_is_int,
+    is_tuple=_is_tuple,
+    is_dict=_is_dict,
+    is_function=_is_function,
+    is_lambda=_is_lambda,
+    is_callable=_is_callable,
+    is_set=_is_set,
+    is_instance=_is_instance,
+    is_iterable=_is_iterable,
+    is_bytes=_is_bytes,
+    is_bytearray=_is_bytearray,
+    MethodType=_MethodType,
+    new_class=new_class,
+    resolve_bases=resolve_bases,
+    prepare_class=prepare_class
 )

@@ -77,6 +77,7 @@ def create_subject_public_key_info(algo_oid, secret_key, params=None):
 def extract_subject_public_key_info(x509_certificate):
     """Extract subjectPublicKeyInfo from a DER X.509 certificate."""
 
+
     certificate = DerSequence().decode(x509_certificate, nr_elements=3)
     tbs_certificate = DerSequence().decode(certificate[0],
                                            nr_elements=range(6, 11))
