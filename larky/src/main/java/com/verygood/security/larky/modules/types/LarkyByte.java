@@ -220,14 +220,6 @@ public final class LarkyByte extends LarkyByteLike implements LarkyObject, HasBi
     return hexlify(getBytes());
   }
 
-  public static String hexlify(byte[] data) {
-     StringBuilder builder = new StringBuilder();
-     for (byte b : data) {
-       builder.append(String.format("%02x", b));
-     }
-     return builder.toString();
-   }
-
   @StarlarkMethod(
       name = "decode",
       parameters = {

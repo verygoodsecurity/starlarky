@@ -15,9 +15,12 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.Tuple;
 
 import java.math.BigInteger;
 import java.nio.charset.Charset;
@@ -165,6 +168,59 @@ public final class PythonBuiltins {
    public int hash(Object value) throws EvalException {
     return value.hashCode();
    }
+
+  @StarlarkMethod(
+       name = "abs",
+       doc = "Return the absolute value of a number. The argument may be an " +
+           "integer, a floating point number, or an object " +
+           "implementing __abs__(). If the argument is a complex number, " +
+           "its magnitude is returned.",
+       parameters = {
+           @Param(
+               name = "x",
+               doc = "Return the absolute value of x."
+           )
+       }
+   )
+   public StarlarkValue abs(Object x) throws EvalException {
+    String classType = Starlark.classType(x.getClass());
+     try {
+       switch (classType) {
+         case "int":
+           return StarlarkInt.of(((StarlarkInt)x).toBigInteger().abs());
+           // fall through
+         case "float":
+           // fallthrough
+           return StarlarkFloat.of(Math.abs(((StarlarkFloat)x).toDouble()));
+         default:
+           throw Starlark.errorf("bad operand type for abs(): '%s'", classType);
+       }
+     } catch (EvalException | ClassCastException ex) {
+       throw Starlark.errorf("%s", ex.getMessage());
+     }
+   }
+
+  @StarlarkMethod(
+      name = "divmod",
+      doc = "Take two (non complex) numbers as arguments and return a pair of numbers " +
+          "consisting of their quotient and remainder when using integer division. " +
+          "With mixed operand types, the rules for binary arithmetic operators apply. " +
+          "For integers, the result is the same as (a // b, a % b). " +
+          "For floating point numbers the result is (q, a % b), where q is usually " +
+          "math.floor(a / b) but may be 1 less than that. " +
+          "In any case q * b + a % b is very close to a, if a % b is non-zero " +
+          "it has the same sign as b, and 0 <= abs(a % b) < abs(b).",
+      parameters = {
+          @Param(name = "a"),
+          @Param(name = "b"),
+      }
+  )
+  public Tuple divmod(StarlarkInt a, StarlarkInt b) throws EvalException {
+    BigInteger bigA = a.toBigInteger();
+    BigInteger bigB = b.toBigInteger();
+    BigInteger[] dm = bigA.divideAndRemainder(bigB);
+    return Tuple.of(StarlarkInt.of(dm[0]), StarlarkInt.of(dm[1]));
+  }
 
   @StarlarkMethod(
       name = "bytes",

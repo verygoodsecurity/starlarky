@@ -24,7 +24,7 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//types",types="types")
 load("@stdlib//codecs", "codecs")
-
+load("@stdlib//binascii", hexlify="hexlify")
 load("@vendor//Crypto/Util/py3compat",
      byte_string="byte_string", b="b", bchr="bchr", bord="bord")
 
@@ -186,7 +186,6 @@ def DerObject(asn1Id=None,
 
         # Concatenate identifier octets, length octets,
         # and contents octets
-
         output_payload = obj.payload
 
         # In case of an EXTERNAL tag, first encode the inner
@@ -194,11 +193,11 @@ def DerObject(asn1Id=None,
         if hasattr(obj, "_inner_tag_octet"):
             output_payload = (builtins.bytearray([obj._inner_tag_octet]) +
                               _definite_form(len(obj.payload)) +
-                              obj.payload)
-
+                              builtins.bytearray(obj.payload))
+        print(hexlify(output_payload))
         return (builtins.bytearray([obj._tag_octet]) +
                 _definite_form(len(output_payload)) +
-                output_payload)
+                builtins.bytearray(output_payload))
 
     def encode():
         return _encode(self)
@@ -269,6 +268,8 @@ def DerObject(asn1Id=None,
 
     self = __init__(asn1Id, payload, implicit, constructed, explicit)
     self._encode = _encode
+    self.encode = encode
+    self.decode = decode
     return self
 
 
@@ -483,13 +484,19 @@ def DerSequence(startSeq=None, implicit=None):
         """
         self.payload = builtins.bytearray(r'', encoding='utf-8')
         for item in self._seq:
-            print(item)
-            if byte_string(item):
+            if byte_string(item) or types.is_bytearray(item):
                 self.payload += item
             elif _is_number(item):
-                self.payload += DerInteger(item).encode()
-            else:
+                self.payload += builtins.bytearray(
+                    DerInteger(item).encode().elems()
+                )
+            elif types.is_string(item):
                 self.payload += codecs.encode(item)
+            elif hasattr(item, 'encode'):
+                self.payload += builtins.bytearray(item.encode().elems())
+            else:
+                fail("do not know how to handle: " + type(item))
+
         return self.derobject._encode(self)
 
     def decode(der_encoded, strict=False, nr_elements=None, only_ints_expected=False):
