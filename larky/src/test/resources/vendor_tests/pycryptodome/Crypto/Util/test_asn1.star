@@ -22,7 +22,7 @@
 # SOFTWARE.
 # ===================================================================
 
-"""Self-test suite for Crypto.Util.asn1"""
+"""Self-test suite for Crypto.Util.ASN1"""
 
 load("@stdlib//binascii", hexlify="hexlify", unhexlify="unhexlify")
 load("@stdlib//builtins", "builtins")
@@ -31,7 +31,7 @@ load("@stdlib//unittest","unittest")
 load("@vendor//asserts","asserts")
 load("@stdlib//types", "types")
 load(
-    "@vendor//Crypto/Util/asn1",
+    "@vendor//Crypto/Util/ASN1",
     DerObject="DerObject",
     DerSetOf="DerSetOf",
     DerInteger="DerInteger",
@@ -72,7 +72,7 @@ def _test_DERInteger():
 #     seq_der.append(obj_der.decode("utf-8"))
 #     asserts.eq(hexlify(seq_der.encode()), "3009020104020109070102")
 #
-#     # seq_der = _JCrypto.Util.asn1.DerSequence([4])
+#     # seq_der = _JCrypto.Util.ASN1.DerSequence([4])
 #     # seq_der.append(9)
 #     # seq_der.append(obj_der.decode("utf-8"))
 #     # asserts.eq(hexlify(seq_der.encode()), "3009020104020109070102")
@@ -139,7 +139,7 @@ def testObjEncode5():
 def testInit1():
     der = _JCrypto.Util.asn1.DerSequence([
         # 1,
-        # _JCrypto.Util.asn1.DerInteger(2),
+        # _JCrypto.Util.ASN1.DerInteger(2),
         b(escapes.Escaper().raw("0").x("00"))
     ])
     #der.append(b(escapes.CEscape().r("0").x("00")))

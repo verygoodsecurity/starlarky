@@ -19,7 +19,7 @@
 # ===================================================================
 
 load("@stdlib//types", types="types")
-load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence", DerInteger="DerInteger", DerBitString="DerBitString", DerObjectId="DerObjectId", DerNull="DerNull")
+load("@vendor//Crypto/Util/ASN1", DerSequence="DerSequence", DerInteger="DerInteger", DerBitString="DerBitString", DerObjectId="DerObjectId", DerNull="DerNull")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 
 
