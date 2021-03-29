@@ -8,14 +8,20 @@ import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Sequence;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
+import org.bouncycastle.util.BigIntegers;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class CryptoRandomModule implements StarlarkValue {
 
@@ -51,48 +57,110 @@ public class CryptoRandomModule implements StarlarkValue {
       name = "randrange",
       doc = "randrange([start,] stop[, step]):\n" +
           "Return a randomly-selected element from range(start, stop, step).",
-      parameters = {@Param(name = "start"), @Param(name = "stop"), @Param(name = "step")}
+      parameters = {@Param(name = "start", defaultValue = "0"), @Param(name = "stop"), @Param(name = "step", defaultValue = "1")}
   )
-  public StarlarkInt randrange(StarlarkInt start, StarlarkInt stop, StarlarkInt step) {
+  public StarlarkInt randrange(StarlarkInt start_, StarlarkInt stop_, StarlarkInt step_) throws EvalException {
     SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
+    int start = Starlark.isNullOrNone(start_) ? 0 : start_.toIntUnchecked();
+    int stop = 0;
+    int step = Starlark.isNullOrNone(step_) ? 1 : step_.toIntUnchecked();
+    int width = stop - start;
+    if ((step == 1) && (width > 0)) {
+      return StarlarkInt.of(start + secureRandom.nextInt(width));
+    }
+
+    if (step == 1) {
+      throw Starlark.errorf("empty range for randrange()");
+    }
+
+    int n = 0;
+    if (step > 0) {
+      n = (width + step - 1);
+    }
+    else if (step < 0) {
+      n = (width + step + 1);
+    }
+    else {
+      throw Starlark.errorf("zero step for randrange()");
+    }
+
+    if (n <= 0) {
+      throw Starlark.errorf("empty range for randrange()");
+    }
+
+    return StarlarkInt.of(start + step * secureRandom.nextInt(n));
   }
 
   @StarlarkMethod(
       name = "randint",
       doc = "Return a random integer N such that a <= N <= b.",
-      parameters = {@Param(name = "b")}
+      parameters = {@Param(name = "min"), @Param(name = "max")}
   )
-  public StarlarkInt randint(StarlarkInt f) {
-
+  public StarlarkInt randint(StarlarkInt min, StarlarkInt max) {
+    SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
+    BigInteger rir = BigIntegers.createRandomInRange(
+        min.toBigInteger(),
+        max.toBigInteger(),
+        secureRandom);
+    return StarlarkInt.of(rir);
   }
 
   @StarlarkMethod(
       name = "choice",
       doc = "Return a random element from a (non-empty) sequence. " +
-          "If the seqence is empty, raises IndexError.",
+          "If the sequence is empty, raises IndexError.",
       parameters = {@Param(name = "seq")}
   )
-  public StarlarkInt choice(StarlarkInt seq) {
-
+  public Object choice(Sequence<?> seq) throws EvalException {
+    if(seq.size() == 0) {
+      throw Starlark.errorf("IndexError: sequence index is out of range");
+    }
+    SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
+    int ri = secureRandom.nextInt(seq.size());
+    return seq.get(ri);
   }
 
   @StarlarkMethod(
       name = "shuffle",
-      doc = "Shuffle the sequence in place.",
-      parameters = {@Param(name = "x")}
+      doc = "Shuffle the sequence (NOT IN PLACE) and will return a new shuffled list",
+      parameters = {@Param(name = "x")},
+      useStarlarkThread = true
   )
-  public Sequence<?> shuffle(Sequence<?> x) {
-
+  public Sequence<?> shuffle(Sequence<?> x, StarlarkThread thread) {
+    List<?> shufflable = new ArrayList<>(x.getImmutableList());
+    Collections.shuffle(shufflable);
+    return StarlarkList.copyOf(thread.mutability(), shufflable);
   }
 
   @StarlarkMethod(
       name = "sample",
       doc = "Return a k-length list of unique elements chosen from the population sequence.",
-      parameters = {@Param(name = "population"), @Param(name = "k")}
+      parameters = {@Param(name = "population"), @Param(name = "k")},
+      useStarlarkThread = true
   )
-  public Sequence<?> sample(Sequence<?> population, StarlarkInt k) {
-
+  public Sequence<?> sample(Sequence<?> population, StarlarkInt k, StarlarkThread thread) {
+    int n = k.toIntUnchecked();
+    List<?> shufflable = new ArrayList<>(population.getImmutableList());
+    List<?> objects = pickNRandomElements(shufflable, n);
+    return StarlarkList.copyOf(thread.mutability(), objects);
   }
 
+  // taken from: https://stackoverflow.com/a/35278327/133514
+  public static <E> List<E> pickNRandomElements(List<E> list, int n, SecureRandom r) {
+      int length = list.size();
+
+      if (length < n) return null;
+
+      //We don't need to shuffle the whole list
+      for (int i = length - 1; i >= length - n; --i)
+      {
+          Collections.swap(list, i , r.nextInt(i + 1));
+      }
+      return list.subList(length - n, length);
+  }
+
+  public static <E> List<E> pickNRandomElements(List<E> list, int n) {
+      return pickNRandomElements(list, n, CryptoServicesRegistrar.getSecureRandom());
+  }
 
 }
