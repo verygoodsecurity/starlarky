@@ -15,6 +15,7 @@
     * [Larky](#larky)
     * [Runlarky](#runlarky)
     * [Pylarky](#pylarky)
+* [Developer setup](#developer-setup)
 <!-- tocstop -->
 
 ## Description
@@ -90,4 +91,31 @@ docker-compose run local bash /src/build-and-test-python.sh
 
 ```bash
 mvn -Dtest='StdLibTest*' -Dlarky.stdlib_test=test_bytes.star org.apache.maven.plugins:maven-surefire-plugin:3.0.0-M5:test -pl larky
+```
+
+## Developer setup
+
+In addition to having Maven installed, it must be configured to retrieve artifacts from Github.
+1) Generate an access token using [Github's instructions](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).  The token needs `read:packages` scopes.
+2) Place the token in your `~/.m2/settings.xml` file.  For example (look for `github-username` and `github-api-key` to be replaced with your values):
+```
+<?xml version='1.0' encoding='us-ascii'?>
+<settings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0                           https://maven.apache.org/xsd/settings-1.0.0.xsd">
+      <localRepository />
+      <interactiveMode />
+      <usePluginRegistry />
+      <offline />
+      <pluginGroups />
+      <servers>
+          <server>
+              <id>github</id>
+              <username>github-username</username>
+              <password>github-api-key</password>
+          </server>
+      </servers>
+      <mirrors />
+      <proxies />
+      <profiles />
+      <activeProfiles />
+    </settings>
 ```
