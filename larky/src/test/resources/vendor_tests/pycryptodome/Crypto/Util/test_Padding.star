@@ -1,14 +1,11 @@
-
 load("@stdlib//binascii", uh="unhexlify")
 load("@stdlib//builtins", "builtins")
-#load("@vendor//Crypto/Util/py3compat", "")
+load("@stdlib//unittest", "unittest")
+load("@vendor//asserts", "asserts")
 load("@vendor//Crypto/Util/Padding", pad="pad", unpad="unpad")
-load("@vendor//asserts","asserts")
-load("@stdlib//unittest","unittest")
 
 
-def b(s):
-    return builtins.bytearray(s, encoding='utf-8')
+b = builtins.bytearray
 
 
 def PKCS7_Tests_test1():
@@ -20,25 +17,25 @@ def PKCS7_Tests_test1():
     asserts.assert_that((back == b(r""))).is_true()
 
 def PKCS7_Tests_test2():
-    padded = pad(uh(b(r"12345678")), 4)
+    padded = pad(b(uh(b(r"12345678"))), 4)
     asserts.assert_that((padded == uh(b(r"1234567804040404")))).is_true()
     back = unpad(padded, 4)
     asserts.assert_that((back == uh(b(r"12345678")))).is_true()
 
 def PKCS7_Tests_test3():
-    padded = pad(uh(b(r"123456")), 4)
+    padded = pad(b(uh(b(r"123456"))), 4)
     asserts.assert_that((padded == uh(b(r"12345601")))).is_true()
     back = unpad(padded, 4)
     asserts.assert_that((back == uh(b(r"123456")))).is_true()
 
 def PKCS7_Tests_test4():
-    padded = pad(uh(b(r"1234567890")), 4)
+    padded = pad(b(uh(b(r"1234567890"))), 4)
     asserts.assert_that((padded == uh(b(r"1234567890030303")))).is_true()
     back = unpad(padded, 4)
     asserts.assert_that((back == uh(b(r"1234567890")))).is_true()
 
 def PKCS7_Tests_testn1():
-    asserts.assert_fails(lambda : pad(uh(b(r"12")), 4, 'pkcs8'), ".*?ValueError")
+    asserts.assert_fails(lambda : pad(b(uh(b(r"12"))), 4, 'pkcs8'), ".*?ValueError")
 
 def PKCS7_Tests_testn2():
     asserts.assert_fails(lambda : unpad(b(r"\0\0\0"), 4), ".*?ValueError")
@@ -57,19 +54,19 @@ def X923_Tests_test1():
     asserts.assert_that((back == b(r""))).is_true()
 
 def X923_Tests_test2():
-    padded = pad(uh(b(r"12345678")), 4, 'x923')
+    padded = pad(b(uh(b(r"12345678"))), 4, 'x923')
     asserts.assert_that((padded == uh(b(r"1234567800000004")))).is_true()
     back = unpad(padded, 4, 'x923')
     asserts.assert_that((back == uh(b(r"12345678")))).is_true()
 
 def X923_Tests_test3():
-    padded = pad(uh(b(r"123456")), 4, 'x923')
+    padded = pad(b(uh(b(r"123456"))), 4, 'x923')
     asserts.assert_that((padded == uh(b(r"12345601")))).is_true()
     back = unpad(padded, 4, 'x923')
     asserts.assert_that((back == uh(b(r"123456")))).is_true()
 
 def X923_Tests_test4():
-    padded = pad(uh(b(r"1234567890")), 4, 'x923')
+    padded = pad(b(uh(b(r"1234567890"))), 4, 'x923')
     asserts.assert_that((padded == uh(b(r"1234567890000003")))).is_true()
     back = unpad(padded, 4, 'x923')
     asserts.assert_that((back == uh(b(r"1234567890")))).is_true()
@@ -88,20 +85,20 @@ def ISO7816_Tests_test1():
     asserts.assert_that((back == b(r""))).is_true()
 
 def ISO7816_Tests_test2():
-    padded = pad(uh(b(r"12345678")), 4, 'iso7816')
+    padded = pad(b(uh(b(r"12345678"))), 4, 'iso7816')
     asserts.assert_that((padded == uh(b(r"1234567880000000")))).is_true()
     back = unpad(padded, 4, 'iso7816')
     asserts.assert_that((back == uh(b(r"12345678")))).is_true()
 
 def ISO7816_Tests_test3():
-    padded = pad(uh(b(r"123456")), 4, 'iso7816')
+    padded = pad(b(uh(b(r"123456"))), 4, 'iso7816')
     asserts.assert_that((padded == uh(b(r"12345680")))).is_true()
         #import pdb; pdb.set_trace()
     back = unpad(padded, 4, 'iso7816')
     asserts.assert_that((back == uh(b(r"123456")))).is_true()
 
 def ISO7816_Tests_test4():
-    padded = pad(uh(b(r"1234567890")), 4, 'iso7816')
+    padded = pad(b(uh(b(r"1234567890"))), 4, 'iso7816')
     asserts.assert_that((padded == uh(b(r"1234567890800000")))).is_true()
     back = unpad(padded, 4, 'iso7816')
     asserts.assert_that((back == uh(b(r"1234567890")))).is_true()

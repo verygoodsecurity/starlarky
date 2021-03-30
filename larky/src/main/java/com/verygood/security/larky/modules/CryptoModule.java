@@ -1,6 +1,13 @@
 package com.verygood.security.larky.modules;
 
+import com.verygood.security.larky.modules.crypto.CryptoCipherModule;
+import com.verygood.security.larky.modules.crypto.CryptoHashModule;
+import com.verygood.security.larky.modules.crypto.CryptoIOModule;
+import com.verygood.security.larky.modules.crypto.CryptoMathModule;
+import com.verygood.security.larky.modules.crypto.CryptoProtocolModule;
+import com.verygood.security.larky.modules.crypto.CryptoPublicKeyModule;
 import com.verygood.security.larky.modules.crypto.CryptoRandomModule;
+import com.verygood.security.larky.modules.crypto.CryptoSignatureModule;
 import com.verygood.security.larky.modules.crypto.CryptoUtilModule;
 
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -47,10 +54,33 @@ public class CryptoModule implements StarlarkValue {
 
   public static final CryptoModule INSTANCE = new CryptoModule();
 
+  @StarlarkMethod(name="Cipher", structField = true)
+  public CryptoCipherModule Cipher() { return CryptoCipherModule.INSTANCE; }
+
+  @StarlarkMethod(name="Hash", structField = true)
+  public CryptoHashModule Hash()  {
+    return CryptoHashModule.INSTANCE;
+  }
+
+  @StarlarkMethod(name="IO", structField = true)
+  public CryptoIOModule IO()  { return CryptoIOModule.INSTANCE; }
+
+  @StarlarkMethod(name="Math", structField = true)
+  public CryptoMathModule Math() { return CryptoMathModule.INSTANCE; }
+
+  @StarlarkMethod(name="Protocol", structField = true)
+  public CryptoProtocolModule Protocol()  { return CryptoProtocolModule.INSTANCE; }
+
+  @StarlarkMethod(name="PublicKey", structField = true)
+  public CryptoPublicKeyModule PublicKey()  { return CryptoPublicKeyModule.INSTANCE; }
+
   @StarlarkMethod(name="Random", structField = true)
   public CryptoRandomModule Random()  {
     return CryptoRandomModule.INSTANCE;
   }
+
+  @StarlarkMethod(name="Signature", structField = true)
+  public CryptoSignatureModule Signature()  { return CryptoSignatureModule.INSTANCE; }
 
   @StarlarkMethod(name="Util", structField = true)
   public CryptoUtilModule Util()  { return CryptoUtilModule.INSTANCE; }

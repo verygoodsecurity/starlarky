@@ -28,8 +28,8 @@ load("@stdlib//binascii", hexlify="hexlify")
 load("@vendor//Crypto/Util/py3compat",
      byte_string="byte_string", b="b", bchr="bchr", bord="bord")
 
-# load("@vendor//Crypto/Util/number",
-#      long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
+load("@vendor//Crypto/Util/number",
+     long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
 
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 

@@ -25,6 +25,7 @@ load("@stdlib//jcrypto", _JCrypto="jcrypto")
 #: Function that returns a random byte string of the desired size.
 get_random_bytes = _JCrypto.Random.urandom
 
+
 def _UrandomRNG():
 
     def read(n):

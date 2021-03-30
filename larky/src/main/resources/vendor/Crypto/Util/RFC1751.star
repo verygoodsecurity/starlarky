@@ -28,7 +28,7 @@
 load("@stdlib//binascii", binascii="binascii")
 
 load("@vendor//Crypto/Util/py3compat", bord="bord", bchr="bchr")
-load("@stdlib//builtins","builtins")
+load("@stdlib//builtins", "builtins")
 
 binary = {0: '0000', 1: '0001', 2: '0010', 3: '0011', 4: '0100', 5: '0101',
           6: '0110', 7: '0111', 8: '1000', 9: '1001', 10: '1010', 11: '1011',
@@ -104,7 +104,7 @@ def english_to_key(s):
     """
 
     L = s.upper().split()
-    key = builtins.bytearray(r'', encoding='utf-8')
+    key = bytearray(r'', encoding='utf-8')
     for index in range(0, len(L), 6):
         sublist = L[index:index + 6].elems()
         char = 9 * [0]

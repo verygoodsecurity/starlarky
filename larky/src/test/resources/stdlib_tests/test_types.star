@@ -166,11 +166,11 @@ def _is_set_test():
 def _is_bytes_test():
     """Unit test for types.is_bytes."""
     assert_true(type(builtins.bytes(r"", encoding="utf-8")) == 'bytes')
-    assert_true(str(larky.bytes) == '<built-in function bytes>')
+    assert_true(str(bytes) == '<built-in function bytes>')
     assert_true(
         types.is_instance(
             builtins.bytes(r"", encoding="utf-8"),
-            larky.bytes
+            bytes
         )
     )
     assert_true(types.is_bytes(builtins.bytes(r"", encoding="utf-8")))
@@ -179,11 +179,11 @@ def _is_bytes_test():
 def _is_bytearray_test():
     """Unit test for types.is_bytearray."""
     assert_true(type(builtins.bytearray(r"", encoding="utf-8")) == 'bytearray')
-    assert_true(str(larky.bytearray) == '<built-in function bytearray>')
+    assert_true(str(bytearray) == '<built-in function bytearray>')
     assert_true(
         types.is_instance(
             builtins.bytearray(r"", encoding="utf-8"),
-            larky.bytearray
+            bytearray
         )
     )
     assert_true(types.is_bytearray(builtins.bytearray(r"", encoding="utf-8")))

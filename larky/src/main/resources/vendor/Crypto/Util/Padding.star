@@ -44,9 +44,9 @@ def pad(data_to_pad, block_size, style='pkcs7'):
     if style == 'pkcs7':
         padding = bchr(padding_len)*padding_len
     elif style == 'x923':
-        padding = bchr(0)*(padding_len-1) + bchr(padding_len)
+        padding = bytearray(bchr(0) * (padding_len-1)) + bchr(padding_len)
     elif style == 'iso7816':
-        padding = bchr(128) + bchr(0)*(padding_len-1)
+        padding = bytearray(bchr(128)) + bytearray(bchr(0) * (padding_len-1))
     else:
         fail("ValueError('Unknown padding style')")
     return data_to_pad + padding
@@ -79,16 +79,16 @@ def unpad(padded_data, block_size, style='pkcs7'):
         if padding_len<1 or padding_len>min(block_size, pdata_len):
             fail("ValueError('Padding is incorrect.')")
         if style == 'pkcs7':
-            if padded_data[-padding_len:]!=bchr(padding_len)*padding_len:
+            if padded_data[-padding_len:] != bchr(padding_len) * padding_len:
                 fail("ValueError('PKCS#7 padding is incorrect.')")
         else:
-            if padded_data[-padding_len:-1]!=bchr(0)*(padding_len-1):
+            if padded_data[-padding_len:-1] != bchr(0) * (padding_len-1):
                 fail("ValueError('ANSI X.923 padding is incorrect.')")
     elif style == 'iso7816':
         padding_len = pdata_len - padded_data.rfind(bchr(128))
         if padding_len<1 or padding_len>min(block_size, pdata_len):
             fail("ValueError('Padding is incorrect.')")
-        if padding_len>1 and padded_data[1-padding_len:]!=bchr(0)*(padding_len-1):
+        if padding_len>1 and padded_data[1-padding_len:] != bchr(0) * (padding_len-1):
             fail("ValueError('ISO 7816-4 padding is incorrect.')")
     else:
         fail("ValueError('Unknown padding style')")

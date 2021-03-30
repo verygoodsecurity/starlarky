@@ -21,11 +21,13 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 
-load("@stdlib//builtins", "builtins")
+
+_empty = bytes(r"", encoding='utf-8')
 
 
-def new(nbits, prefix=builtins.bytes(r"", encoding='utf-8'), suffix=builtins.bytes(r"", encoding='utf-8'), initial_value=1, little_endian=False, allow_wraparound=False):
+def new(nbits, prefix=_empty, suffix=_empty, initial_value=1, little_endian=False, allow_wraparound=False):
     """
     Create a stateful counter block function suitable for CTR encryption modes.
 
@@ -66,11 +68,10 @@ def new(nbits, prefix=builtins.bytes(r"", encoding='utf-8'), suffix=builtins.byt
     if (nbits % 8) != 0:
         raise ValueError("'nbits' must be a multiple of 8")
 
-    iv_bl = initial_value.bit_length()
+    iv_bl = _JCrypto.Math.bit_length(initial_value)
     if iv_bl > nbits:
-        raise ValueError("Initial value takes %d bits but it is longer than "
-                         "the counter (%d bits)" %
-                         (iv_bl, nbits))
+        fail("'ValueError('Initial value takes %d bits but it is longer than" +
+                          " the counter (%d bits)'" % (iv_bl, nbits))
 
     # Ignore wraparound
     return {"counter_len": nbits // 8,
