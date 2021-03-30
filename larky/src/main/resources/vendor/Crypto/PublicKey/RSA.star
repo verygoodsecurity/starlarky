@@ -34,13 +34,13 @@ load("@stdlib//larky", larky="larky")
 
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
-load("@vendor//Crypto/Util/ASN1", DerSequence="DerSequence")
+load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
 
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/Math/Primality", test_probable_prime="test_probable_prime", generate_probable_prime="generate_probable_prime", COMPOSITE="COMPOSITE")
 
 #load("@vendor//Crypto/PublicKey", _expand_subject_public_key_info="expand_subject_public_key_info", _create_subject_public_key_info="create_subject_public_key_info", _extract_subject_public_key_info="extract_subject_public_key_info")
-load("@stdlib//builtins","builtins")
+load("@stdlib//builtins", "builtins")
 
 
 RSA = larky.struct(

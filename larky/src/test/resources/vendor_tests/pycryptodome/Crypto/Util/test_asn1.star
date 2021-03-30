@@ -31,7 +31,7 @@ load("@stdlib//unittest","unittest")
 load("@vendor//asserts","asserts")
 load("@stdlib//types", "types")
 load(
-    "@vendor//Crypto/Util/ASN1",
+    "@vendor//Crypto/Util/asn1",
     DerObject="DerObject",
     DerSetOf="DerSetOf",
     DerInteger="DerInteger",
