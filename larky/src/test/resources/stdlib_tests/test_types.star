@@ -197,6 +197,72 @@ def _is_iterable_test():
     assert_true(types.is_iterable((1,)))
 
 
+## Test Objects
+
+
+def test_():
+    """
+    In [39]: c = object()
+
+    In [40]: c.foo = foo
+    ---------------------------------------------------------------------------
+    AttributeError                            Traceback (most recent call last)
+    <ipython-input-40-256c5ba4e153> in <module>
+    ----> 1 c.foo = foo
+
+    AttributeError: 'object' object has no attribute 'foo'
+    :return:
+    """
+    def b(one):
+        print("invoke")
+
+    s = larky.struct()
+    s.foo = b
+    # Error: ImmutableStruct value does not support field assignment
+    s.foo(1)
+
+
+def test_new_class_basics():
+    C = types.new_class("C")
+    asserts.assert_that(str(C)).is_equal_to("<type: C>")
+    o = C()
+    asserts.assert_that(str(o)).is_equal_to("<types.C object>")
+    asserts.assert_that(type(o)).is_equal_to("LarkyObject")
+
+
+
+def test_create_with_fields():
+    # ns updates schema with cls_dict
+    # stock.py
+    # Example of making a class manually from parts
+    # Methods
+    def __init__(self, name, shares, price):
+        self.name = name
+        self.shares = shares
+        self.price = price
+
+    def cost(self):
+        return self.shares * self.price
+
+    cls_dict = {
+        '__init__' : __init__,
+        'cost' : cost,
+    }
+
+    def ns(x):
+        print("here")
+        x.update(cls_dict)
+
+    Stock = types.new_class('Stock', (), {}, ns)
+    # this completes making a normal class that acts as you would expect
+    s = Stock(name='ACME', shares=50, price=91.1)
+    print(dir(s))
+    print(s)
+    print(type(s))
+    print(s.name)
+    print(s.cost())
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_is_string_test))
@@ -211,6 +277,9 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_is_bytes_test))
     _suite.addTest(unittest.FunctionTestCase(_is_bytearray_test))
     _suite.addTest(unittest.FunctionTestCase(_is_iterable_test))
+    # TODO: uncomment when enabling basic OO
+    # _suite.addTest(unittest.FunctionTestCase(test_new_class_basics))
+    # _suite.addTest(unittest.FunctionTestCase(test_create_with_fields))
     return _suite
 
 
