@@ -189,6 +189,19 @@ def _is_subclass(sub_class, parent_class):
     return parent_class in mro
 
 
+def _is_iterable(iterz):
+    return _is_tuple(iterz) or _is_list(iterz)
+
+
+def _is_bytes(bobj):
+    return _is_instance(bobj, larky.bytes)
+
+
+def _is_bytearray(barrobj):
+    return _is_instance(barrobj, larky.bytearray)
+
+
+
 def _type_maker(name, resolved_bases, ns, kwds):
     print("in type maker: ", name)
     print(resolved_bases)
@@ -242,9 +255,9 @@ def resolve_bases(bases):
         if not _is_instance(new_base, tuple):
             fail("__mro_entries__ must return a tuple")
         else:
-            _l = list(new_bases[:i+shift])
+            _l = list(new_bases[:i + shift])
             _l.extend(new_base)
-            _l.extend(new_bases[i+shift+1:])
+            _l.extend(new_bases[i + shift + 1:])
             new_bases = _l
             shift += len(new_base) - 1
     if not updated:
@@ -266,7 +279,7 @@ def prepare_class(name, bases=(), kwds=None):
     if kwds == None:
         kwds = {}
     else:
-        kwds = dict(kwds) # Don't alter the provided mapping
+        kwds = dict(kwds)  # Don't alter the provided mapping
     if 'metaclass' in kwds:
         meta = kwds.pop('metaclass')
     else:
@@ -297,10 +310,10 @@ def _calculate_meta(meta, bases):
             winner = base_meta
             continue
         # else:
-        fail("metaclass conflict: "+
-             "the metaclass of a derived class "+
-                        "must be a (non-strict) subclass "+
-                        "of the metaclasses of all its bases")
+        fail("metaclass conflict: " +
+             "the metaclass of a derived class " +
+             "must be a (non-strict) subclass " +
+             "of the metaclasses of all its bases")
     return winner
 
 
@@ -426,7 +439,7 @@ def get(instance, attr_name):
             return attr
 
     fail("'%s' instance has no attribute '%s'" %
-                         (cls['__name__'], attr_name))
+         (cls['__name__'], attr_name))
 
 
 def set_(instance, attr_name, val):

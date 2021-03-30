@@ -2,6 +2,7 @@ package com.verygood.security.larky.modules.crypto;
 
 import com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyASN1Sequence;
 import com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyDerInteger;
+import com.verygood.security.larky.modules.crypto.Util.Strxor;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
@@ -23,6 +24,11 @@ public class CryptoUtilModule implements StarlarkValue {
   @StarlarkMethod(name = "ASN1", structField = true)
   public CryptoUtilModule Util() {
     return INSTANCE;
+  }
+
+  @StarlarkMethod(name = "strxor", structField = true)
+  public Strxor strxor() {
+    return new Strxor();
   }
 
   @StarlarkMethod(name = "DerInteger", parameters = {
