@@ -30,7 +30,8 @@ def strxor(term1, term2, output=None):
 
     val = _JCrypto.Util.strxor.strxor(term1, term2)
     if output != None:
-        output.insert(0, val)
+        output += val
+        return None
     return val
 
 
@@ -64,6 +65,7 @@ def strxor_c(term, c, output=None):
 
     val = _JCrypto.Util.strxor.strxor_c(term, c)
     if output != None:
-        output.insert(0, val)
+        output += val
+        return None
     return val
 
