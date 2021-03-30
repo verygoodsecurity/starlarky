@@ -30,7 +30,10 @@ def strxor(term1, term2, output=None):
 
     val = _JCrypto.Util.strxor.strxor(term1, term2)
     if output != None:
-        output += val
+        if len(val) != len(output):
+            fail("val did not equal length of output")
+        output.clear()
+        output.insert(0, val)
         return None
     return val
 
@@ -65,7 +68,10 @@ def strxor_c(term, c, output=None):
 
     val = _JCrypto.Util.strxor.strxor_c(term, c)
     if output != None:
-        output += val
+        if len(val) != len(output):
+            fail("val did not equal length of output")
+        output.clear()
+        output.insert(0, val)
         return None
     return val
 

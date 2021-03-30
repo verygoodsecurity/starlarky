@@ -37,9 +37,6 @@ load("@stdlib//unittest", "unittest")
 load("@vendor//Crypto/Util/strxor", strxor="strxor", strxor_c="strxor_c")
 load("@vendor//asserts", "asserts")
 
-bytearray = builtins.bytearray
-bytes = builtins.bytes
-
 
 def StrxorTests_test1():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
@@ -64,7 +61,7 @@ def StrxorTests_test_wrong_length():
 
 def StrxorTests_test_bytearray():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
-    term1_ba = bytearray(term1)
+    term1_ba = bytearray(term1, encoding="utf-8")
     term2 = unhexlify(bytes("383d4ba020573314395b", encoding="utf-8"))
     result = unhexlify(bytes("c70ed123c59a7fcb6f12", encoding="utf-8"))
 
@@ -72,7 +69,7 @@ def StrxorTests_test_bytearray():
 
 def StrxorTests_test_memoryview():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
-    term1_mv = builtins.bytearray(term1)
+    term1_mv = bytearray(term1, encoding="utf-8")
     term2 = unhexlify(bytes("383d4ba020573314395b", encoding="utf-8"))
     result = unhexlify(bytes("c70ed123c59a7fcb6f12", encoding="utf-8"))
 
@@ -86,7 +83,7 @@ def StrxorTests_test_output_bytearray():
     original_term1 = term1[:]
     original_term2 = term2[:]
     expected_xor = unhexlify(bytes("c70ed123c59a7fcb6f12", encoding="utf-8"))
-    output = bytearray("f"*len(term1))
+    output = bytearray("f"*len(term1), encoding="utf-8")
 
     result = strxor(term1, term2, output=output)
 
@@ -103,7 +100,7 @@ def StrxorTests_test_output_memoryview():
     original_term1 = term1[:]
     original_term2 = term2[:]
     expected_xor = unhexlify(bytes("c70ed123c59a7fcb6f12", encoding="utf-8"))
-    output = builtins.bytearray(bytearray(len(term1)))
+    output = bytearray(r" ", encoding="utf-8") * len(term1)
 
     result = strxor(term1, term2, output=output)
 
@@ -161,7 +158,7 @@ def StrxorTests_test_output_incorrect_length():
 
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     term2 = unhexlify(bytes("383d4ba020573314395b", encoding="utf-8"))
-    output = bytearray(len(term1) - 1)
+    output = bytearray(r" ", encoding="utf-8") * (len(term1) - 1)
 
     asserts.assert_fails(lambda : strxor(term1, term2, output=output), ".*?ValueError")
 
@@ -169,7 +166,7 @@ def StrxorTests_test_output_incorrect_length():
 
 def Strxor_cTests_test1():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
-    result = bytes("be72dbc2a48c0d9e1708", encoding="utf-8")
+    result = unhexlify(bytes("be72dbc2a48c0d9e1708", encoding="utf-8"))
     asserts.assert_that(strxor_c(term1, 65)).is_equal_to(result)
 
 def Strxor_cTests_test2():
@@ -186,14 +183,14 @@ def Strxor_cTests_test_wrong_range():
 
 def Strxor_cTests_test_bytearray():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
-    term1_ba = bytearray(term1)
+    term1_ba = bytearray(term1, encoding="utf-8")
     result = unhexlify(bytes("be72dbc2a48c0d9e1708", encoding="utf-8"))
 
     asserts.assert_that(strxor_c(term1_ba, 65)).is_equal_to(result)
 
 def Strxor_cTests_test_memoryview():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
-    term1_mv = builtins.bytearray(term1)
+    term1_mv = builtins.bytearray(term1, encoding="utf-8")
     result = unhexlify(bytes("be72dbc2a48c0d9e1708", encoding="utf-8"))
 
     asserts.assert_that(strxor_c(term1_mv, 65)).is_equal_to(result)
@@ -202,7 +199,7 @@ def Strxor_cTests_test_output_bytearray():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     original_term1 = term1[:]
     expected_result = unhexlify(bytes("be72dbc2a48c0d9e1708", encoding="utf-8"))
-    output = bytearray(len(term1))
+    output = bytearray(r" ", encoding="utf-8") * len(term1)
 
     result = strxor_c(term1, 65, output=output)
 
@@ -214,7 +211,7 @@ def Strxor_cTests_test_output_memoryview():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     original_term1 = term1[:]
     expected_result = unhexlify(bytes("be72dbc2a48c0d9e1708", encoding="utf-8"))
-    output = builtins.bytearray(bytearray(len(term1)))
+    output = bytearray(r" ", encoding="utf-8") * len(term1)
 
     result = strxor_c(term1, 65, output=output)
 
@@ -247,7 +244,7 @@ def Strxor_cTests_test_output_overlapping_memoryview():
 def Strxor_cTests_test_output_ro_bytes():
     """Verify result cannot be stored in read-only memory"""
 
-    term1 = bytes(unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"), encoding="utf-8"))
+    term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
 
     asserts.assert_fails(lambda : strxor_c(term1, 65, output=term1), ".*?TypeError")
 
@@ -263,7 +260,7 @@ def Strxor_cTests_test_output_incorrect_length():
     """Verify result cannot be stored in memory of incorrect length"""
 
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
-    output = bytearray(len(term1) - 1)
+    output = bytearray(r" ", encoding="utf-8") * (len(term1) - 1)
 
     asserts.assert_fails(lambda : strxor_c(term1, 65, output=output), ".*?ValueError")
 

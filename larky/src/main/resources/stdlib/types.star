@@ -194,11 +194,11 @@ def _is_iterable(iterz):
 
 
 def _is_bytes(bobj):
-    return _is_instance(bobj, larky.bytes)
+    return _is_instance(bobj, bytes)
 
 
 def _is_bytearray(barrobj):
-    return _is_instance(barrobj, larky.bytearray)
+    return _is_instance(barrobj, bytearray)
 
 
 

@@ -31,7 +31,5 @@ larky = _struct(
     to_dict=_to_dict,
     partial=_partial,
     property=_property,
-    bytes=bytes,
-    bytearray=bytearray,
     WHILE_LOOP_EMULATION_ITERATION=WHILE_LOOP_EMULATION_ITERATION,
 )

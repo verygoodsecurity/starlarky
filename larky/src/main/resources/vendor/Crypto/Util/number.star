@@ -24,13 +24,12 @@
 # ===================================================================
 #
 
+load("@stdlib//builtins", "builtins")
+load("@stdlib//larky", "larky")
 load("@stdlib//math", math="math")
 load("@stdlib//struct", struct="struct")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/py3compat", iter_range="iter_range")
-load("@stdlib//builtins", "builtins")
-load("@stdlib//larky", "larky")
-load("@stdlib//math", "math")
 
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION

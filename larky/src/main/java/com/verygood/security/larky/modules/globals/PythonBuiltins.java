@@ -273,13 +273,17 @@ public final class PythonBuiltins {
           "bytes(string, encoding[, errors]) -> bytes",
       parameters = {
           @Param(name = "obj"),
-          @Param(name = "encoding", allowedTypes = {
-              @ParamType(type = NoneType.class),
-              @ParamType(type = String.class),
+          @Param(name = "encoding",
+              named = true,
+              allowedTypes = {
+                  @ParamType(type = NoneType.class),
+                  @ParamType(type = String.class),
           }, defaultValue = "None"),
-          @Param(name = "errors", allowedTypes = {
-              @ParamType(type = NoneType.class),
-              @ParamType(type = String.class),
+          @Param(name = "errors",
+              named = true,
+              allowedTypes = {
+                  @ParamType(type = NoneType.class),
+                  @ParamType(type = String.class),
           }, defaultValue = "None")
       },
       useStarlarkThread = true
@@ -398,11 +402,15 @@ public final class PythonBuiltins {
           "bytearray(string, encoding[, errors]) -> bytearray",
       parameters = {
           @Param(name = "obj"),
-          @Param(name = "encoding", allowedTypes = {
-              @ParamType(type = NoneType.class),
-              @ParamType(type = String.class),
+          @Param(name = "encoding",
+              named = true,
+              allowedTypes = {
+                  @ParamType(type = NoneType.class),
+                  @ParamType(type = String.class),
           }, defaultValue = "None"),
-          @Param(name = "errors", allowedTypes = {
+          @Param(name = "errors",
+              named = true,
+              allowedTypes = {
               @ParamType(type = NoneType.class),
               @ParamType(type = String.class),
           }, defaultValue = "None")
