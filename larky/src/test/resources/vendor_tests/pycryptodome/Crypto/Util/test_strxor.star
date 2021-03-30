@@ -40,29 +40,29 @@ load("@vendor//asserts", "asserts")
 bytearray = builtins.bytearray
 bytes = builtins.bytes
 
-#
-# def test1():
-#     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
-#     term2 = unhexlify(bytes("383d4ba020573314395b", encoding="utf-8"))
-#     result = unhexlify(bytes("c70ed123c59a7fcb6f12", encoding="utf-8"))
-#     asserts.assert_that(strxor(term1, term2)).is_equal_to(result)
-#     asserts.assert_that(strxor(term2, term1)).is_equal_to(result)
-#
-# def test2():
-#     es = builtins.bytes(r"", encoding='utf-8')
-#     asserts.assert_that(strxor(es, es)).is_equal_to(es)
-#
-# def test3():
-#     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
-#     all_zeros = builtins.bytes(r"\x00", encoding='utf-8') * len(term1)
-#     asserts.assert_that(strxor(term1, term1)).is_equal_to(all_zeros)
 
-def test_wrong_length():
+def StrxorTests_test1():
+    term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
+    term2 = unhexlify(bytes("383d4ba020573314395b", encoding="utf-8"))
+    result = unhexlify(bytes("c70ed123c59a7fcb6f12", encoding="utf-8"))
+    asserts.assert_that(strxor(term1, term2)).is_equal_to(result)
+    asserts.assert_that(strxor(term2, term1)).is_equal_to(result)
+
+def StrxorTests_test2():
+    es = builtins.bytes(r"", encoding='utf-8')
+    asserts.assert_that(strxor(es, es)).is_equal_to(es)
+
+def StrxorTests_test3():
+    term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
+    all_zeros = builtins.bytes(r"\x00", encoding='utf-8') * len(term1)
+    asserts.assert_that(strxor(term1, term1)).is_equal_to(all_zeros)
+
+def StrxorTests_test_wrong_length():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     term2 = unhexlify(bytes("ff339a83e5cd4cdf564990", encoding="utf-8"))
     asserts.assert_fails(lambda : strxor(term1, term2), ".*?ValueError")
 
-def test_bytearray():
+def StrxorTests_test_bytearray():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     term1_ba = bytearray(term1)
     term2 = unhexlify(bytes("383d4ba020573314395b", encoding="utf-8"))
@@ -70,7 +70,7 @@ def test_bytearray():
 
     asserts.assert_that(strxor(term1_ba, term2)).is_equal_to(result)
 
-def test_memoryview():
+def StrxorTests_test_memoryview():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     term1_mv = builtins.bytearray(term1)
     term2 = unhexlify(bytes("383d4ba020573314395b", encoding="utf-8"))
@@ -78,7 +78,7 @@ def test_memoryview():
 
     asserts.assert_that(strxor(term1_mv, term2)).is_equal_to(result)
 
-def test_output_bytearray():
+def StrxorTests_test_output_bytearray():
     """Verify result can be stored in pre-allocated memory"""
 
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
@@ -86,7 +86,7 @@ def test_output_bytearray():
     original_term1 = term1[:]
     original_term2 = term2[:]
     expected_xor = unhexlify(bytes("c70ed123c59a7fcb6f12", encoding="utf-8"))
-    output = bytearray(len(term1))
+    output = bytearray("f"*len(term1))
 
     result = strxor(term1, term2, output=output)
 
@@ -95,7 +95,7 @@ def test_output_bytearray():
     asserts.assert_that(term1).is_equal_to(original_term1)
     asserts.assert_that(term2).is_equal_to(original_term2)
 
-def test_output_memoryview():
+def StrxorTests_test_output_memoryview():
     """Verify result can be stored in pre-allocated memory"""
 
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
@@ -112,7 +112,7 @@ def test_output_memoryview():
     asserts.assert_that(term1).is_equal_to(original_term1)
     asserts.assert_that(term2).is_equal_to(original_term2)
 
-def test_output_overlapping_bytearray():
+def StrxorTests_test_output_overlapping_bytearray():
     """Verify result can be stored in overlapping memory"""
 
     term1 = bytearray(unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8")))
@@ -126,7 +126,7 @@ def test_output_overlapping_bytearray():
     asserts.assert_that(term1).is_equal_to(expected_xor)
     asserts.assert_that(term2).is_equal_to(original_term2)
 
-def test_output_overlapping_memoryview():
+def StrxorTests_test_output_overlapping_memoryview():
     """Verify result can be stored in overlapping memory"""
 
     term1 = builtins.bytearray(bytearray(unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))))
@@ -140,7 +140,7 @@ def test_output_overlapping_memoryview():
     asserts.assert_that(term1).is_equal_to(expected_xor)
     asserts.assert_that(term2).is_equal_to(original_term2)
 
-def test_output_ro_bytes():
+def StrxorTests_test_output_ro_bytes():
     """Verify result cannot be stored in read-only memory"""
 
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
@@ -148,15 +148,15 @@ def test_output_ro_bytes():
 
     asserts.assert_fails(lambda : strxor(term1, term2, output=term1), ".*?TypeError")
 
-def test_output_ro_memoryview():
+def StrxorTests_test_output_ro_memoryview():
     """Verify result cannot be stored in read-only memory"""
 
-    term1 = builtins.bytearray(unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8")))
+    term1 = builtins.bytes(unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8")))
     term2 = unhexlify(bytes("383d4ba020573314395b", encoding="utf-8"))
 
     asserts.assert_fails(lambda : strxor(term1, term2, output=term1), ".*?TypeError")
 
-def test_output_incorrect_length():
+def StrxorTests_test_output_incorrect_length():
     """Verify result cannot be stored in memory of incorrect length"""
 
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
@@ -166,39 +166,39 @@ def test_output_incorrect_length():
     asserts.assert_fails(lambda : strxor(term1, term2, output=output), ".*?ValueError")
 
 
-#
-# def test1():
-#     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
-#     result = unhexlify(bytes("be72dbc2a48c0d9e1708", encoding="utf-8"))
-#     asserts.assert_that(strxor_c(term1, 65)).is_equal_to(result)
-#
-# def test2():
-#     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
-#     asserts.assert_that(strxor_c(term1, 0)).is_equal_to(term1)
-#
-# def test3():
-#     asserts.assert_that(strxor_c(builtins.bytes(r"", encoding='utf-8'), 90)).is_equal_to(builtins.bytes(r"", encoding='utf-8'))
 
-def test_wrong_range():
+def Strxor_cTests_test1():
+    term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
+    result = bytes("be72dbc2a48c0d9e1708", encoding="utf-8")
+    asserts.assert_that(strxor_c(term1, 65)).is_equal_to(result)
+
+def Strxor_cTests_test2():
+    term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
+    asserts.assert_that(strxor_c(term1, 0)).is_equal_to(term1)
+
+def Strxor_cTests_test3():
+    asserts.assert_that(strxor_c(builtins.bytes(r"", encoding='utf-8'), 90)).is_equal_to(builtins.bytes(r"", encoding='utf-8'))
+
+def Strxor_cTests_test_wrong_range():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     asserts.assert_fails(lambda : strxor_c(term1, -1), ".*?ValueError")
     asserts.assert_fails(lambda : strxor_c(term1, 256), ".*?ValueError")
 
-def test_bytearray():
+def Strxor_cTests_test_bytearray():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     term1_ba = bytearray(term1)
     result = unhexlify(bytes("be72dbc2a48c0d9e1708", encoding="utf-8"))
 
     asserts.assert_that(strxor_c(term1_ba, 65)).is_equal_to(result)
 
-def test_memoryview():
+def Strxor_cTests_test_memoryview():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     term1_mv = builtins.bytearray(term1)
     result = unhexlify(bytes("be72dbc2a48c0d9e1708", encoding="utf-8"))
 
     asserts.assert_that(strxor_c(term1_mv, 65)).is_equal_to(result)
 
-def test_output_bytearray():
+def Strxor_cTests_test_output_bytearray():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     original_term1 = term1[:]
     expected_result = unhexlify(bytes("be72dbc2a48c0d9e1708", encoding="utf-8"))
@@ -210,7 +210,7 @@ def test_output_bytearray():
     asserts.assert_that(output).is_equal_to(expected_result)
     asserts.assert_that(term1).is_equal_to(original_term1)
 
-def test_output_memoryview():
+def Strxor_cTests_test_output_memoryview():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     original_term1 = term1[:]
     expected_result = unhexlify(bytes("be72dbc2a48c0d9e1708", encoding="utf-8"))
@@ -222,7 +222,7 @@ def test_output_memoryview():
     asserts.assert_that(output).is_equal_to(expected_result)
     asserts.assert_that(term1).is_equal_to(original_term1)
 
-def test_output_overlapping_bytearray():
+def Strxor_cTests_test_output_overlapping_bytearray():
     """Verify result can be stored in overlapping memory"""
 
     term1 = bytearray(unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8")))
@@ -233,7 +233,7 @@ def test_output_overlapping_bytearray():
     asserts.assert_that(result).is_equal_to(None)
     asserts.assert_that(term1).is_equal_to(expected_xor)
 
-def test_output_overlapping_memoryview():
+def Strxor_cTests_test_output_overlapping_memoryview():
     """Verify result can be stored in overlapping memory"""
 
     term1 = builtins.bytearray(bytearray(unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))))
@@ -244,14 +244,14 @@ def test_output_overlapping_memoryview():
     asserts.assert_that(result).is_equal_to(None)
     asserts.assert_that(term1).is_equal_to(expected_xor)
 
-def test_output_ro_bytes():
+def Strxor_cTests_test_output_ro_bytes():
     """Verify result cannot be stored in read-only memory"""
 
     term1 = bytes(unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"), encoding="utf-8"))
 
     asserts.assert_fails(lambda : strxor_c(term1, 65, output=term1), ".*?TypeError")
 
-def test_output_ro_memoryview():
+def Strxor_cTests_test_output_ro_memoryview():
     """Verify result cannot be stored in read-only memory"""
 
     term1 = builtins.bytes(unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8")))
@@ -259,7 +259,7 @@ def test_output_ro_memoryview():
 
     asserts.assert_fails(lambda : strxor_c(term1, 65, output=term1), ".*?TypeError")
 
-def test_output_incorrect_length():
+def Strxor_cTests_test_output_incorrect_length():
     """Verify result cannot be stored in memory of incorrect length"""
 
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
@@ -270,32 +270,32 @@ def test_output_incorrect_length():
 
 def _testsuite():
     _suite = unittest.TestSuite()
-    # _suite.addTest(unittest.FunctionTestCase(test1))
-    # _suite.addTest(unittest.FunctionTestCase(test2))
-    # _suite.addTest(unittest.FunctionTestCase(test3))
-    _suite.addTest(unittest.FunctionTestCase(test_wrong_length))
-    _suite.addTest(unittest.FunctionTestCase(test_bytearray))
-    _suite.addTest(unittest.FunctionTestCase(test_memoryview))
-    _suite.addTest(unittest.FunctionTestCase(test_output_bytearray))
-    _suite.addTest(unittest.FunctionTestCase(test_output_memoryview))
-    _suite.addTest(unittest.FunctionTestCase(test_output_overlapping_bytearray))
-    _suite.addTest(unittest.FunctionTestCase(test_output_overlapping_memoryview))
-    _suite.addTest(unittest.FunctionTestCase(test_output_ro_bytes))
-    _suite.addTest(unittest.FunctionTestCase(test_output_ro_memoryview))
-    _suite.addTest(unittest.FunctionTestCase(test_output_incorrect_length))
-    # _suite.addTest(unittest.FunctionTestCase(test1))
-    # _suite.addTest(unittest.FunctionTestCase(test2))
-    # _suite.addTest(unittest.FunctionTestCase(test3))
-    _suite.addTest(unittest.FunctionTestCase(test_wrong_range))
-    _suite.addTest(unittest.FunctionTestCase(test_bytearray))
-    _suite.addTest(unittest.FunctionTestCase(test_memoryview))
-    _suite.addTest(unittest.FunctionTestCase(test_output_bytearray))
-    _suite.addTest(unittest.FunctionTestCase(test_output_memoryview))
-    _suite.addTest(unittest.FunctionTestCase(test_output_overlapping_bytearray))
-    _suite.addTest(unittest.FunctionTestCase(test_output_overlapping_memoryview))
-    _suite.addTest(unittest.FunctionTestCase(test_output_ro_bytes))
-    _suite.addTest(unittest.FunctionTestCase(test_output_ro_memoryview))
-    _suite.addTest(unittest.FunctionTestCase(test_output_incorrect_length))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test1))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test2))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test3))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test_wrong_length))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test_bytearray))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test_memoryview))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test_output_bytearray))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test_output_memoryview))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test_output_overlapping_bytearray))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test_output_overlapping_memoryview))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test_output_ro_bytes))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test_output_ro_memoryview))
+    _suite.addTest(unittest.FunctionTestCase(StrxorTests_test_output_incorrect_length))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test1))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test2))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test3))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test_wrong_range))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test_bytearray))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test_memoryview))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test_output_bytearray))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test_output_memoryview))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test_output_overlapping_bytearray))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test_output_overlapping_memoryview))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test_output_ro_bytes))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test_output_ro_memoryview))
+    _suite.addTest(unittest.FunctionTestCase(Strxor_cTests_test_output_incorrect_length))
     return _suite
 
 _runner = unittest.TextTestRunner()

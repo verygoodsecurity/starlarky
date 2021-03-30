@@ -94,29 +94,32 @@ public class BinasciiModule implements StarlarkValue {
           "bytes.fromhex() class method.",
       parameters = {
           @Param(
-              name = "hexstr"
+              name = "hexstr",
+              allowedTypes = {
+                  @ParamType(type=LarkyByteLike.class),
+                  @ParamType(type=String.class)
+              }
           )
       },
       useStarlarkThread = true)
   public LarkyByteLike a2b_hex(Object hexed, StarlarkThread thread) throws EvalException {
-
+    String hexstr = "";
     if(hexed instanceof LarkyByteLike) {
       CharsetDecoder decoder = StandardCharsets.US_ASCII.newDecoder()
           .onMalformedInput(CodingErrorAction.REPORT)
           .onUnmappableCharacter(CodingErrorAction.REPORT);
-      ByteBuffer wrapped = ByteBuffer.wrap(((LarkyByteLike) hexed).getBytes());
       try {
-        decoder.decode(wrapped);
+        LarkyByteLike byteLike = (LarkyByteLike) hexed;
+        hexstr = decoder.decode(ByteBuffer.wrap(byteLike.getBytes())).toString();
       } catch (CharacterCodingException e) {
         // we accept only ascii-only unicode strings or strings
         throw Starlark.errorf(e.getMessage());
       }
-      return ((LarkyByteLike) hexed);
+    }
+    else if(hexed instanceof String) {
+      hexstr = (String) hexed;
     }
 
-    String hexstr = "";
-    assert hexed instanceof String;
-    hexstr = (String) hexed;
     int length = hexstr.length();
     if (length % 2 != 0) {
         throw new EvalException(ODD_LENGTH_STRING);

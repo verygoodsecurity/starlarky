@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.crypto.Util;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.UnsignedBytes;
 
 import com.verygood.security.larky.modules.types.LarkyByte;
@@ -8,13 +9,10 @@ import com.verygood.security.larky.modules.types.LarkyByteLike;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
-
-import org.bouncycastle.crypto.modes.gcm.GCMUtil;
-
-import java.util.Arrays;
 
 public class Strxor implements StarlarkValue {
 
@@ -37,10 +35,15 @@ public class Strxor implements StarlarkValue {
           @Param(name = "term2")
   }, useStarlarkThread = true)
   public LarkyByteLike strxor(LarkyByteLike term1, LarkyByteLike term2, StarlarkThread thread) throws EvalException {
-    byte[] xorResult = Arrays.copyOf(term1.getBytes(), term1.getBytes().length);
-    GCMUtil.xor(xorResult, term2.getBytes());
+    if(term1.size() != term2.size()) {
+      throw Starlark.errorf("term1.size() and term2.size() should be equal");
+    }
+    final int[] in1 = term1.getUnsignedBytes();
+    final int[] in2 = term2.getUnsignedBytes();
+    int[] out = new int[in1.length];
+    _strxor(in1, in2, out, in1.length);
     LarkyByteLike build = LarkyByte.builder(thread)
-        .setSequence(xorResult)
+        .setSequence(out)
         .build();
     return build;
 
@@ -67,13 +70,34 @@ public class Strxor implements StarlarkValue {
   },useStarlarkThread = true)
   public LarkyByteLike strxor_c(LarkyByteLike term, StarlarkInt c, StarlarkThread thread) throws EvalException {
     byte c_ = UnsignedBytes.checkedCast(c.toIntUnchecked());
-    byte[] strbytes = Arrays.copyOf(term.getBytes(), term.getBytes().length);
-    byte[] xorable = new byte[strbytes.length];
-    Arrays.fill(xorable, c_);
-    GCMUtil.xor(strbytes, xorable);
+    int[] in = term.getUnsignedBytes();
+    int[] out = new int[in.length];
+    _strxor_c(in, Byte.toUnsignedInt(c_), out, in.length);
     LarkyByteLike build = LarkyByte.builder(thread)
-            .setSequence(strbytes)
+            .setSequence(out)
             .build();
     return build;
+  }
+
+  @VisibleForTesting
+  public static void _strxor(final int[] in1, final int[] in2, int[] out, int len) {
+    /*
+       for (; len>0; len--)
+         *out++ = *in1++ ^ *in2++;
+     */
+    for(int i = 0; len > 0; i++, len--) {
+      out[i] = (in1[i] ^ in2[i]);
+    }
+  }
+
+  @VisibleForTesting
+  public static void _strxor_c(final int[] in, int c, int[] out, int len) {
+    /*
+          for (; len>0; len--)
+              *out++ = *in++ ^ c;
+     */
+    for(int i = 0; len > 0; i++, len--) {
+      out[i] = in[i] ^ c;
+    }
   }
 }
