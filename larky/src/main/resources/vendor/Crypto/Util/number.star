@@ -23,7 +23,7 @@
 # SOFTWARE.
 # ===================================================================
 #
-
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//builtins", "builtins")
 load("@stdlib//larky", "larky")
 load("@stdlib//math", math="math")
@@ -276,7 +276,24 @@ def long_to_bytes(n, blocksize=2):
         fail('raise ValueError("Values must be non-negative")')
 
     # after much testing, this algorithm was deemed to be the fastest
-    return _JCrypto.Math.int_to_bytes(n, blocksize, 'big', False)
+    result = bytearray(_JCrypto.Math.int_to_bytes(n, blocksize, 'big', False))
+    if n == 0:
+       if len(result) == 0:
+           result = bytearray([0])
+    else:
+        # The encoded number may exceed the block size
+        # counter = 0
+        # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        #     if n <= 0:
+        #         break
+        #     counter += 1
+        #     n = n >> 64
+        # print("long_to_byte counter ", counter)
+        # print("long_to_byte: ", len(result), hexlify(result))
+        result.lstrip(bytes([0]))
+        # print("long_to_byte: ", len(result), hexlify(result))
+        #result[0] = result[0].lstrip(bytes([0]))
+    return result
 
 
 

@@ -23,6 +23,7 @@ import net.starlark.java.syntax.TokenKind;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
 
@@ -44,7 +45,7 @@ public final class LarkyByteArray extends LarkyByteLike implements HasBinary {
   public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
     switch (op) {
       case STAR:
-        if(that instanceof StarlarkInt) {
+        if (that instanceof StarlarkInt) {
           LarkyByteLike result = BinaryOperations.multiply(
               this,
               ((StarlarkInt) that).toIntUnchecked());
@@ -170,7 +171,7 @@ public final class LarkyByteArray extends LarkyByteLike implements HasBinary {
   /**
    * Inserts an element at a given position to the list.
    *
-   * @param index the new element's index
+   * @param index   the new element's index
    * @param element the element to add
    */
   public void addElementAt(int index, LarkyByteLike element) throws EvalException {
@@ -192,7 +193,7 @@ public final class LarkyByteArray extends LarkyByteLike implements HasBinary {
    */
   public void addElements(Iterable<? extends StarlarkInt> elements) throws EvalException {
     StarlarkList<StarlarkInt> s = StarlarkList.copyOf(
-            this.currentThread.mutability(), this.getSequenceStorage());
+        this.currentThread.mutability(), this.getSequenceStorage());
     s.addElements(elements);
     this.setSequenceStorage(s);
   }
@@ -220,8 +221,8 @@ public final class LarkyByteArray extends LarkyByteLike implements HasBinary {
       name = "insert",
       doc = "Inserts an item at a given position.",
       parameters = {
-        @Param(name = "index", doc = "The index of the given position."),
-        @Param(name = "item", doc = "The item.")
+          @Param(name = "index", doc = "The index of the given position."),
+          @Param(name = "item", doc = "The item.")
       })
   public void insert(StarlarkInt index, LarkyByteLike item) throws EvalException {
     addElementAt(index.toIntUnchecked(), item);
@@ -233,45 +234,76 @@ public final class LarkyByteArray extends LarkyByteLike implements HasBinary {
   }
 
   @StarlarkMethod(
-        name = "pop",
-        doc =
-            "Removes the item at the given position in the list, and returns it. "
-                + "If no <code>index</code> is specified, "
-                + "it removes and returns the last item in the list.",
-        parameters = {
+      name = "pop",
+      doc =
+          "Removes the item at the given position in the list, and returns it. "
+              + "If no <code>index</code> is specified, "
+              + "it removes and returns the last item in the list.",
+      parameters = {
           @Param(
               name = "i",
               allowedTypes = {
-                @ParamType(type = StarlarkInt.class),
-                @ParamType(type = NoneType.class),
+                  @ParamType(type = StarlarkInt.class),
+                  @ParamType(type = NoneType.class),
               },
               defaultValue = "-1",
               doc = "The index of the item.")
-        })
-    public StarlarkInt pop(Object i) throws EvalException {
-      int arg = i == Starlark.NONE ? -1 : Starlark.toInt(i, "i");
-      int index = getSequenceIndex(arg, size());
-      StarlarkInt result = this.get(index);
-      StarlarkList<StarlarkInt> si = StarlarkList.copyOf(
-          currentThread.mutability(),
-          this.getSequenceStorage());
-      si.removeElementAt(index);
-      return result;
-    }
+      })
+  public StarlarkInt pop(Object i) throws EvalException {
+    int arg = i == Starlark.NONE ? -1 : Starlark.toInt(i, "i");
+    int index = getSequenceIndex(arg, size());
+    StarlarkInt result = this.get(index);
+    StarlarkList<StarlarkInt> si = StarlarkList.copyOf(
+        currentThread.mutability(),
+        this.getSequenceStorage());
+    si.removeElementAt(index);
+    return result;
+  }
 
   /**
-     * Resolves a positive or negative index to an index in the range [0, length), or throws
-     * EvalException if it is out of range. If the index is negative, it counts backward from length.
-     */
-    static int getSequenceIndex(int index, int length) throws EvalException {
-      int actualIndex = index;
-      if (actualIndex < 0) {
-        actualIndex += length;
-      }
-      if (actualIndex < 0 || actualIndex >= length) {
-        throw Starlark.errorf(
-            "index out of range (index is %d, but sequence has %d elements)", index, length);
-      }
-      return actualIndex;
+   * For consistency with Python we recognize the same whitespace characters as they do over the
+   * range 0x00-0xFF. See https://github.com/python/cpython/blob/master/Objects/unicodetype_db.h#L6208-L6243
+   * This list is a consequence of Unicode character information.
+   *
+   * <p>Note that this differs from Python 2.7, which uses ctype.h#isspace(), and from
+   * java.lang.Character#isWhitespace(), which does not recognize U+00A0.
+   */
+  private static final byte[] LATIN1_WHITESPACE =
+      ("\u0009" + "\n" + "\u000B" + "\u000C" + "\r" + "\u001C" + "\u001D" + "\u001E" + "\u001F"
+          + "\u0020" + "\u0085" + "\u00A0").getBytes(StandardCharsets.US_ASCII);
+
+  @StarlarkMethod(
+      name = "lstrip",
+      parameters = {
+          @Param(
+              name = "bytes",
+              allowedTypes = {
+                  @ParamType(type = LarkyByteLike.class),
+                  @ParamType(type = NoneType.class),
+              },
+              defaultValue = "None")
+      })
+  public LarkyByteArray lstrip(Object bytesOrNone) throws EvalException {
+    byte[] pattern = bytesOrNone != Starlark.NONE ? ((LarkyByteLike) bytesOrNone).getBytes() : LATIN1_WHITESPACE;
+    byte[] replaced = ByteArrayUtil.replace(this.getBytes(), pattern, new byte[]{});
+    //return stringLStrip(self, chars);
+    this.setSequenceStorage(this.builder().setSequence(replaced).build());
+    return this;
+  }
+
+  /**
+   * Resolves a positive or negative index to an index in the range [0, length), or throws
+   * EvalException if it is out of range. If the index is negative, it counts backward from length.
+   */
+  static int getSequenceIndex(int index, int length) throws EvalException {
+    int actualIndex = index;
+    if (actualIndex < 0) {
+      actualIndex += length;
     }
+    if (actualIndex < 0 || actualIndex >= length) {
+      throw Starlark.errorf(
+          "index out of range (index is %d, but sequence has %d elements)", index, length);
+    }
+    return actualIndex;
+  }
 }

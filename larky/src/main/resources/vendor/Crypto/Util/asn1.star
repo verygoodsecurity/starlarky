@@ -191,15 +191,16 @@ def DerObject(asn1Id=None,
         """
         if length > 127:
             encoding = long_to_bytes(length)
-            print(encoding)
-            return bchr(len(encoding) + 128) + bytearray(encoding)
+            return bchr(len(encoding) + 128) + encoding
         return bchr(length)
 
-    def encode(obj):
+    def encode(obj=None):
         """Return this DER element, fully encoded as a binary byte string."""
 
         # Concatenate identifier octets, length octets,
         # and contents octets
+        if obj == None:
+            obj = self
         output_payload = obj.payload
 
         # In case of an EXTERNAL tag, first encode the inner
@@ -209,11 +210,15 @@ def DerObject(asn1Id=None,
                               _definite_form(len(obj.payload)) +
                               bytearray(obj.payload))
 
-        c = (bytearray([obj._tag_octet]) +
-                _definite_form(len(output_payload)) +
-                bytearray(output_payload))
+        # print(
+        #     "tag_octet:", hexlify(bytearray([obj._tag_octet])),
+        #     "definite_form:",  hexlify(_definite_form(len(output_payload))),
+        #     "payload:", bytearray(output_payload))
 
-        print(hexlify(c))
+        c = (bytearray([obj._tag_octet]) +
+             _definite_form(len(output_payload)) +
+             bytearray(output_payload))
+        # print("joined: ", hexlify(c))
         return c
 
     def _decodeLen(s):

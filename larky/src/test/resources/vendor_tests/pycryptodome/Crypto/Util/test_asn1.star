@@ -108,11 +108,10 @@ def DerObjectTests_testObjEncode2():
 def DerObjectTests_testObjEncode3():
     # Long payload
     der = DerObject(b(r"\x10"))
-    der.payload = bytearray(r"0", encoding="utf-8") * 128
-    print(der.payload)
-    print(der.__class__)
-    print(hexlify(DerObject(b(r"\x10")).encode(der)))
-    #asserts.assert_that(der.encode(der)).is_equal_to(b(r"\x10\x81\x80" + r"0" * 128))
+    der.payload = bytearray([0]) * 128
+    expected = b([0x10, 0x81, 0x80] + ([0x00] * 128))
+    encoded = der.encode()
+    asserts.assert_that(encoded).is_equal_to(expected)
 
 
 def DerObjectTests_testObjEncode4():
