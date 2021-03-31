@@ -264,15 +264,13 @@ public final class PythonBuiltins {
           "\n" +
           "bytes() -> empty bytes object" +
           "\n" +
-          "bytes(int) -> bytes object of size given by the parameter initialized with null bytes" +
-          "\n" +
           "bytes(bytes_or_buffer) -> immutable copy of bytes_or_buffer" +
           "\n" +
           "bytes(iterable_of_ints) -> bytes" +
           "\n" +
           "bytes(string, encoding[, errors]) -> bytes",
       parameters = {
-          @Param(name = "obj"),
+          @Param(name = "obj", defaultValue = "None"),
           @Param(name = "encoding",
               named = true,
               allowedTypes = {
@@ -306,7 +304,7 @@ public final class PythonBuiltins {
       return StarlarkUtil.convertFromNoneable(
           _obj,
           LarkyByte.builder(thread)
-              .setSequence(Sequence.cast(_obj, StarlarkInt.class, "nope"))
+              .setSequence(new byte[]{})
               .build()
       );
     }
@@ -393,15 +391,13 @@ public final class PythonBuiltins {
           "\n" +
           "bytearray() -> empty bytearray object" +
           "\n" +
-          "bytearray(int) -> bytearray object of size given by the parameter initialized with null bytes" +
-          "\n" +
           "bytearray(bytes_or_buffer) -> mutable copy of bytes_or_buffer" +
           "\n" +
           "bytearray(iterable_of_ints) -> bytearray" +
           "\n" +
           "bytearray(string, encoding[, errors]) -> bytearray",
       parameters = {
-          @Param(name = "obj"),
+          @Param(name = "obj", defaultValue = "None"),
           @Param(name = "encoding",
               named = true,
               allowedTypes = {
@@ -435,7 +431,7 @@ public final class PythonBuiltins {
        return StarlarkUtil.convertFromNoneable(
            _obj,
            LarkyByteArray.builder(thread)
-               .setSequence(Sequence.cast(_obj, StarlarkInt.class, "nope"))
+               .setSequence(new byte[]{})
                .build()
        );
      }

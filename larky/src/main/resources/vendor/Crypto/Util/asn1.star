@@ -81,7 +81,7 @@ def BytesIO_EOF(initial_bytes):
 
 
 def DerObject(asn1Id=None,
-              payload=builtins.bytes(r'', encoding='utf-8'),
+              payload=bytes(),
               implicit=None,
               constructed=0,
               explicit=None):
