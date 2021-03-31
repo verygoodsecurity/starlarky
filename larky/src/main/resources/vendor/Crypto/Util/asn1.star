@@ -1,6 +1,6 @@
 # -*- coding: ascii -*-
 #
-#  Util/ASN1.py : Minimal support for ASN.1 DER binary encoding.
+#  Util/asn1.py : Minimal support for ASN.1 DER binary encoding.
 #
 # ===================================================================
 # The contents of this file are dedicated to the public domain.  To
@@ -52,32 +52,59 @@ def BytesIO_EOF(initial_bytes):
     """This class differs from BytesIO in that a ValueError exception is
     raised whenever EOF is reached."""
 
-    _buffer = initial_bytes
-    _index = 0
-    _bookmark  = None
+    def __init__(initial_bytes):
+        return larky.mutablestruct(
+            _buffer=initial_bytes,
+            _index=0,
+            _bookmark=None
+        )
 
     def set_bookmark():
-        _bookmark = _index
+        self._bookmark = self._index
 
     def data_since_bookmark():
-        if _bookmark == None:
+        if self._bookmark == None:
             fail("_bookmark cannot be None!")
-        return _buffer[_bookmark:_index]
+        return self._buffer[self._bookmark:self._index]
 
     def remaining_data():
-        return len(_buffer) - _index
+        return len(self._buffer) - self._index
 
     def read(length):
-        new_index = _index + length
-        if new_index > len(_buffer):
-            fail(" ValueError(\"Not enough data for DER decoding: expected %d bytes and found %d\" % (new_index, len(self._buffer)))")
-
-        result = _buffer[_index:new_index]
-        _index = new_index
+        new_index = self._index + length
+        if new_index > len(self._buffer):
+            fail(
+                'ValueError("Not enough data for DER decoding: ' +
+                'expected %d bytes and found %d"' %
+                (new_index, len(self._buffer))
+            )
+        result = self._buffer[self._index:new_index]
+        self._index = new_index
         return result
 
     def read_byte():
-        return bord(read(1)[0])
+        return bord(self.read(1)[0])
+
+    self = __init__(initial_bytes)
+    self.set_bookmark = set_bookmark
+    self.data_since_bookmark = data_since_bookmark
+    self.remaining_data = remaining_data
+    self.read = read
+    self.read_byte = read_byte
+    return self
+
+
+def _convertTag(tag):
+    """Check if *tag* is a real DER tag.
+    Convert it from a character to number if necessary.
+    """
+    if not _is_number(tag):
+        if len(tag) == 1:
+            tag = bord(tag[0])
+    # Ensure that tag is a low tag
+    if not (_is_number(tag) and (0 <= tag) and (tag < 0x1F)):
+        fail('ValueError("Wrong DER tag")')
+    return tag
 
 
 def DerObject(asn1Id=None,
@@ -143,8 +170,7 @@ def DerObject(asn1Id=None,
         # private      |   1      1
         #
         if None not in (explicit, implicit):
-            fail(" ValueError(\"Explicit and implicit tags are\"\n" +
-                 "                             \" mutually exclusive\")")
+            fail('ValueError("Explicit and implicit tags are mutually exclusive")')
 
         if implicit != None:
             __dict__['_tag_octet'] = 0x80 | 0x20 * constructed | _convertTag(implicit)
@@ -155,22 +181,9 @@ def DerObject(asn1Id=None,
             __dict__['_inner_tag_octet'] = 0x20 * constructed | asn1Id
             return larky.mutablestruct(**__dict__)
 
-
         __dict__['_tag_octet'] = 0x20 * constructed | asn1Id
 
         return larky.mutablestruct(**__dict__)
-
-    def _convertTag(tag):
-        """Check if *tag* is a real DER tag.
-        Convert it from a character to number if necessary.
-        """
-        if not _is_number(tag):
-            if len(tag) == 1:
-                tag = bord(tag[0])
-        # Ensure that tag is a low tag
-        if not (_is_number(tag) and (0 <= tag) and (tag < 0x1F)):
-            fail(" ValueError(\"Wrong DER tag\")")
-        return tag
 
     def _definite_form(length):
         """Build length octets according to BER/DER
@@ -178,10 +191,11 @@ def DerObject(asn1Id=None,
         """
         if length > 127:
             encoding = long_to_bytes(length)
-            return bchr(len(encoding) + 128) + encoding
+            print(encoding)
+            return bchr(len(encoding) + 128) + bytearray(encoding)
         return bchr(length)
 
-    def _encode(obj):
+    def encode(obj):
         """Return this DER element, fully encoded as a binary byte string."""
 
         # Concatenate identifier octets, length octets,
@@ -191,16 +205,16 @@ def DerObject(asn1Id=None,
         # In case of an EXTERNAL tag, first encode the inner
         # element.
         if hasattr(obj, "_inner_tag_octet"):
-            output_payload = (builtins.bytearray([obj._inner_tag_octet]) +
+            output_payload = (bytearray([obj._inner_tag_octet]) +
                               _definite_form(len(obj.payload)) +
-                              builtins.bytearray(obj.payload))
-        print(hexlify(output_payload))
-        return (builtins.bytearray([obj._tag_octet]) +
-                _definite_form(len(output_payload)) +
-                builtins.bytearray(output_payload))
+                              bytearray(obj.payload))
 
-    def encode():
-        return _encode(self)
+        c = (bytearray([obj._tag_octet]) +
+                _definite_form(len(output_payload)) +
+                bytearray(output_payload))
+
+        print(hexlify(c))
+        return c
 
     def _decodeLen(s):
         """Decode DER length octets from a file."""
@@ -246,7 +260,7 @@ def DerObject(asn1Id=None,
         idOctet = s.read_byte()
         if self._tag_octet != None:
             if idOctet != self._tag_octet:
-                fail(" ValueError(\"Unexpected DER tag\")")
+                fail('ValueError("Unexpected DER tag")')
         else:
             self._tag_octet = idOctet
         length = _decodeLen(s)
@@ -258,16 +272,15 @@ def DerObject(asn1Id=None,
             p = BytesIO_EOF(self.payload)
             inner_octet = p.read_byte()
             if inner_octet != self._inner_tag_octet:
-                fail(" ValueError(\"Unexpected internal DER tag\")")
+                fail(' ValueError("Unexpected internal DER tag")')
             length = _decodeLen(p)
             self.payload = p.read(length)
 
             # There shouldn't be other bytes left
             if p.remaining_data() > 0:
-                fail(" ValueError(\"Unexpected extra data after the DER structure\")")
+                fail('ValueError("Unexpected extra data after the DER structure")')
 
     self = __init__(asn1Id, payload, implicit, constructed, explicit)
-    self._encode = _encode
     self.encode = encode
     self.decode = decode
     return self
@@ -278,7 +291,7 @@ def DerInteger(value=0, implicit=None, explicit=None):
 
     An example of encoding is::
 
-      >>> from Crypto.Util.ASN1 import DerInteger
+      >>> from Crypto.Util.asn1 import DerInteger
       >>> from binascii import hexlify, unhexlify
       >>> int_der = DerInteger(9)
       >>> print hexlify(int_der.encode())
@@ -312,18 +325,18 @@ def DerInteger(value=0, implicit=None, explicit=None):
             The IMPLICIT tag to use for the encoded object.
             It overrides the universal tag for INTEGER (2).
         """
-
-        self = DerObject(0x02, builtins.bytes(r'', encoding='utf-8'), implicit,
-                        0, explicit)
-        self.__class__ = 'DerInteger'
-        self.value = value  # The integer value
-        return self
+        derobject = DerObject(0x02, bytes(), implicit, 0, explicit)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerInteger'
+        __dict__['value'] = value # The integer value
+        return larky.mutablestruct(**__dict__)
 
     def encode():
         """Return the DER INTEGER, fully encoded as a
         binary string."""
 
-        i = _JCrypto.Util.asn1.DerInteger(self.value)
+        i = _JCrypto.Util.ASN1.DerInteger(self.value)
         return i.encode()
 
     def decode(der_encoded, strict=False):
@@ -336,7 +349,7 @@ def DerInteger(value=0, implicit=None, explicit=None):
         Raises:
           ValueError: in case of parsing errors.
         """
-        i = _JCrypto.Util.asn1.DerInteger(self.value)
+        i = _JCrypto.Util.ASN1.DerInteger(self.value)
         decoded = i.decode(der_encoded, strict=strict)
         self.value = decoded.as_int()
         return self
@@ -359,7 +372,7 @@ def DerSequence(startSeq=None, implicit=None):
 
     An example of encoding is:
 
-      >>> from Crypto.Util.ASN1 import DerSequence, DerInteger
+      >>> from Crypto.Util.asn1 import DerSequence, DerInteger
       >>> from binascii import hexlify, unhexlify
       >>> obj_der = unhexlify('070102')
       >>> seq_der = DerSequence([4])
@@ -403,13 +416,16 @@ def DerSequence(startSeq=None, implicit=None):
             It overrides the universal tag for SEQUENCE (16).
         """
 
-        self = DerObject(0x10, builtins.bytes(r'', encoding='utf-8'), implicit, 1)
-        self.derobject = self
-        if startSeq == None:
-            self._seq = []
-        else:
-            self._seq = startSeq
-        return self
+        derobject = DerObject(0x10, bytes(), implicit, 1)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerSequence'
+        __dict__['_seq'] = startSeq if startSeq != None else []
+
+        return larky.mutablestruct(
+            **__dict__
+        )
+
 
     # A few methods to make it behave like a python sequence
 
@@ -482,22 +498,22 @@ def DerSequence(startSeq=None, implicit=None):
           ValueError: if some elements in the sequence are neither integers
                       nor byte strings.
         """
-        self.payload = builtins.bytearray(r'', encoding='utf-8')
+        self.payload = bytearray()
         for item in self._seq:
             if byte_string(item) or types.is_bytearray(item):
                 self.payload += item
             elif _is_number(item):
-                self.payload += builtins.bytearray(
-                    DerInteger(item).encode().elems()
-                )
+                self.payload += bytearray(DerInteger(item).encode().elems())
             elif types.is_string(item):
-                self.payload += codecs.encode(item)
+                self.payload += codecs.encode(item, encoding='utf-8')
             elif hasattr(item, 'encode'):
-                self.payload += builtins.bytearray(item.encode().elems())
+                encoded = item.encode()
+                if hasattr(encoded, 'elems'):
+                    self.payload += bytearray(encoded.elems())
             else:
                 fail("do not know how to handle: " + type(item))
 
-        return self.derobject._encode(self)
+        return self.derobject.encode(self)
 
     def decode(der_encoded, strict=False, nr_elements=None, only_ints_expected=False):
         """Decode a complete DER SEQUENCE, and re-initializes this
@@ -521,7 +537,7 @@ def DerSequence(startSeq=None, implicit=None):
         """
 
         _nr_elements = nr_elements
-        result = DerObject.decode(self, der_encoded, strict=strict)
+        result = self.derobject.decode(der_encoded, strict=strict)
 
         if only_ints_expected and not hasOnlyInts():
             fail(" ValueError(\"Some members are not INTEGERs\")")
@@ -534,7 +550,7 @@ def DerSequence(startSeq=None, implicit=None):
         self._seq = []
 
         # Fill up self.payload
-        DerObject._decodeFromStream(self, s, strict)
+        self.derobject._decodeFromStream(s, strict)
 
         # Add one item at a time to self.seq, by scanning self.payload
         p = BytesIO_EOF(self.payload)
@@ -551,7 +567,6 @@ def DerSequence(startSeq=None, implicit=None):
                 self._seq.append(p.data_since_bookmark())
             else:
                 derInt = DerInteger()
-                #import pdb; pdb.set_trace()
                 data = p.data_since_bookmark()
                 derInt.decode(data, strict=strict)
                 self._seq.append(derInt.value)
@@ -564,8 +579,8 @@ def DerSequence(startSeq=None, implicit=None):
                 ok = len(self._seq) == self._nr_elements
 
         if not ok:
-            fail(("ValueError(\"Unexpected number of members (%d)\"\n" +
-                 "           \" in the sequence\" ") % len(self._seq))
+            err = '"Unexpected number of members (%d) in the sequence"'
+            fail('ValueError(%s)' % (err % len(self._seq)))
 
     self = __init__(startSeq, implicit)
     self.append = append
@@ -583,7 +598,7 @@ def DerOctetString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None):
 
     An example of encoding is:
 
-    >>> from Crypto.Util.ASN1 import DerOctetString
+    >>> from Crypto.Util.asn1 import DerOctetString
     >>> from binascii import hexlify, unhexlify
     >>> os_der = DerOctetString(b'\\xaa')
     >>> os_der.payload += b'\\xbb'
@@ -645,7 +660,7 @@ def DerObjectId(value='', implicit=None, explicit=None):
 
     An example of encoding is:
 
-    >>> from Crypto.Util.ASN1 import DerObjectId
+    >>> from Crypto.Util.asn1 import DerObjectId
     >>> from binascii import hexlify, unhexlify
     >>> oid_der = DerObjectId("1.2")
     >>> oid_der.value += ".840.113549.1.1.1"
@@ -757,7 +772,7 @@ def DerBitString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None, exp
 
     An example of encoding is:
 
-    >>> from Crypto.Util.ASN1 import DerBitString
+    >>> from Crypto.Util.asn1 import DerBitString
     >>> from binascii import hexlify, unhexlify
     >>> bs_der = DerBitString(b'\\xaa')
     >>> bs_der.value += b'\\xbb'
@@ -850,7 +865,7 @@ def DerSetOf(startSet=None, implicit=None):
 
     An example of encoding is:
 
-    >>> from Crypto.Util.ASN1 import DerBitString
+    >>> from Crypto.Util.asn1 import DerBitString
     >>> from binascii import hexlify, unhexlify
     >>> so_der = DerSetOf([4,5])
     >>> so_der.add(6)

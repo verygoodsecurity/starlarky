@@ -17,7 +17,9 @@ import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1Integer;
+import org.bouncycastle.asn1.ASN1Object;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1OctetStringParser;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1String;
@@ -25,13 +27,12 @@ import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DERNull;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERSequence;
-import org.bouncycastle.asn1.DERSequenceGenerator;
 import org.bouncycastle.asn1.DERSet;
 import org.bouncycastle.asn1.DERUTF8String;
 import org.bouncycastle.asn1.util.ASN1Dump;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
@@ -43,13 +44,13 @@ public class ASN1 {
 
   public interface LarkyASN1Value extends ASN1Encodable, StarlarkValue {}
 
-  public static class LarkyASN1Encodable implements LarkyASN1Value {
+  public static class LarkyASN1Encodable extends ASN1Object implements LarkyASN1Value {
     private final ASN1Encodable encodable;
 
     LarkyASN1Encodable(ASN1Encodable encodable) {
-
       this.encodable = encodable;
     }
+
     @Override
     public ASN1Primitive toASN1Primitive() {
       return this.encodable.toASN1Primitive();
@@ -100,6 +101,26 @@ public class ASN1 {
     }
   }
 
+  public static class LarkyOctetString extends LarkyASN1Encodable implements ASN1OctetStringParser {
+
+    private DEROctetString string;
+
+    public LarkyOctetString(DEROctetString string) {
+      super(string);
+      this.string = string;
+    }
+
+    @Override
+    public InputStream getOctetStream() {
+      return this.string.getOctetStream();
+    }
+
+    @Override
+    public ASN1Primitive getLoadedObject() throws IOException {
+      return this.string.getLoadedObject();
+    }
+  }
+
   public static class LarkyDerBitString extends LarkyASN1Encodable implements ASN1String {
 
     private final DERBitString derBitString;
@@ -132,6 +153,26 @@ public class ASN1 {
     }
   }
 
+  public static class LarkyDerNull implements StarlarkValue {
+    static DERNull NULL;
+  }
+
+  public static class LarkySetOf extends DERSet implements StarlarkValue {
+
+  }
+
+  public static class LarkyDerObjectId extends ASN1ObjectIdentifier implements StarlarkValue {
+
+    /**
+     * Create an OID based on the passed in String.
+     *
+     * @param identifier a string representation of an OID.
+     */
+    public LarkyDerObjectId(String identifier) {
+      super(identifier);
+    }
+  }
+
   public static class LarkyASN1Sequence extends ForwardingList<LarkyASN1Encodable> implements LarkyASN1Value  {
 
     private final Supplier<List<LarkyASN1Encodable>> memoizedSupplier;
@@ -141,16 +182,6 @@ public class ASN1 {
               Arrays.stream(seq.toArray())
               .map(LarkyASN1Encodable.class::cast)
               .collect(Collectors.toList()));
-    }
-
-    public byte[] getEncoded(BigInteger[] sigs) throws IOException {
-      ByteArrayOutputStream bos = new ByteArrayOutputStream();
-      DERSequenceGenerator seq = new DERSequenceGenerator(bos);
-      for (BigInteger i : sigs) {
-        seq.addObject(new ASN1Integer(i));
-      }
-      seq.close();
-      return bos.toByteArray();
     }
 
     @Override
@@ -170,19 +201,21 @@ public class ASN1 {
     static public LarkyASN1Value asASN1Encodable(Object obj) throws EvalException {
       if(obj instanceof StarlarkInt) {
           StarlarkInt i = (StarlarkInt) obj;
-          return new LarkyOctetString(i.toBigInteger().toByteArray());
+          return new LarkyOctetString(
+              new DEROctetString(i.toBigInteger().toByteArray()));
           //return LarkyDerInteger.fromStarlarkInt((StarlarkInt)obj);
       }
       else if (obj instanceof LarkyDerInteger) {
         StarlarkInt i = ((LarkyDerInteger) obj).value();
-        return new LarkyOctetString(i.toBigInteger().toByteArray());
+        return new LarkyOctetString(
+            new DEROctetString(i.toBigInteger().toByteArray()));
 
         //return (LarkyDerInteger) obj;
       }
       // it's a binary string
       else if (obj instanceof LarkyByteLike){
         LarkyByteLike b = (LarkyByteLike) obj;
-        return new LarkyOctetString(b.getBytes());
+        return new LarkyOctetString(new DEROctetString(b.getBytes()));
 //        ASN1Encodable[] ae = new ASN1Encodable[b.size()];
 //        int ii = 0;
 //        for(int i = 0; i < b.size(); ++i) {
@@ -195,10 +228,9 @@ public class ASN1 {
 //        DERBitString dbs = (DERBitString) obj;
 //        return new LarkyDerBitString(dbs);
 //      }
-//      else if(obj instanceof DEROctetString) {
-//        DEROctetString dbs = (DEROctetString) obj;
-//        return new LarkyOctetString(dbs);
-//      }
+      else if(obj instanceof LarkyOctetString) {
+        return (LarkyOctetString) obj;
+      }
       else {
         throw Starlark.errorf("Unknown type %s to convert to asASN1Encodable", Starlark.type(obj));
       }
@@ -212,7 +244,7 @@ public class ASN1 {
     public void append(Object item) throws EvalException {
       if(item instanceof String) {
         String s = (String) item;
-        LarkyOctetString octetString = new LarkyOctetString(s.getBytes());
+        LarkyOctetString octetString = new LarkyOctetString(new DEROctetString(s.getBytes()));
         this.delegate().add(new LarkyASN1Encodable(asASN1Encodable(octetString)));
       }
       else {
@@ -264,31 +296,5 @@ baos.toByteArray();
     }
 
   }
-  static class LarkyOctetString extends DEROctetString implements LarkyASN1Value {
 
-    public LarkyOctetString(byte[] string) {
-      super(string);
-    }
-
-  }
-
-  public static class LarkyDerNull implements StarlarkValue {
-    static DERNull NULL;
-  }
-
-  public class LarkySetOf extends DERSet implements StarlarkValue {
-
-  }
-
-  public class LarkyDerObjectId extends ASN1ObjectIdentifier implements StarlarkValue {
-
-    /**
-     * Create an OID based on the passed in String.
-     *
-     * @param identifier a string representation of an OID.
-     */
-    public LarkyDerObjectId(String identifier) {
-      super(identifier);
-    }
-  }
 }
