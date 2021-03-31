@@ -80,7 +80,6 @@ def _is_none(v):
     """
     return type(v) == type(None)
 
-
 def _is_int(v):
     """Returns True if v is an instance of a signed integer.
 
@@ -195,23 +194,43 @@ def _is_iterable(iterz):
 
 
 def _is_bytes(bobj):
-    return _is_instance(bobj, larky.bytes)
+    return _is_instance(bobj, bytes)
 
 
 def _is_bytearray(barrobj):
-    return _is_instance(barrobj, larky.bytearray)
+    return _is_instance(barrobj, bytearray)
 
 
 
-def _type_maker(name, *args, **kwargs):
-    print(name)
-    print(args)
-    print(kwargs)
+def _type_maker(name, resolved_bases, ns, kwds):
+    print("in type maker: ", name)
+    print(resolved_bases)
+    print(ns)
+    print(kwds)
+    return type(name, resolved_bases, ns, **kwds)
 
 
 # Provide a PEP 3115 compliant mechanism for class creation
 def new_class(name, bases=(), kwds=None, exec_body=None):
-    """Create a class object dynamically using the appropriate metaclass."""
+    """Create a class object dynamically using the appropriate metaclass.
+    .. python::
+
+        class MyStaticClass(object, metaclass=MySimpleMeta):
+            pass
+
+    is an equivalent to:
+
+    .. python::
+
+        MyStaticClass = types.new_class(
+            "MyStaticClass",
+            (object,),
+            {"metaclass": MyMeta},
+            lambda ns: ns
+        )
+
+
+    """
     resolved_bases = resolve_bases(bases)
     meta, ns, kwds = prepare_class(name, resolved_bases, kwds)
     if exec_body != None:
@@ -267,7 +286,8 @@ def prepare_class(name, bases=(), kwds=None):
         if bases:
             meta = type(bases[0])
         else:
-            meta = larky.partial(_type_maker, name)
+            #meta = larky.partial(_type_maker, name)
+            meta = type
     if _is_instance(meta, type):
         # when meta is a type, we first determine the most-derived metaclass
         # instead of invoking the initial candidate directly
@@ -351,6 +371,17 @@ def merge_mro(seqs):
     #
     #     if not non_empty_seqs:
     #         return
+
+def make_type(name, bases=None, attrs=None):
+    """Own analog of type for instantiation.
+        Like the real one, it takes three arguments: class name,
+        a list of his parents and a set of his attributes.
+    """
+    return dict(
+        __my_name__=name,
+        __my_bases__=bases or [],
+        __my_dict__=attrs or {},
+    )
 
 
 def make_class(name, bases=tuple(), cls_dict=None):

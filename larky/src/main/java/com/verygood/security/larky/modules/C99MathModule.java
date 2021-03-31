@@ -6,8 +6,13 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkFloat;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 
 @StarlarkBuiltin(
@@ -89,6 +94,68 @@ public class C99MathModule implements StarlarkValue {
           base, exp));
     }
     return StarlarkFloat.of(Math.pow(base, exp));
+  }
+
+  @StarlarkMethod(
+       name = "fabs",
+       doc = "Return the absolute value of x",
+       parameters = {
+           @Param(
+               name = "x",
+               doc = "Return the absolute value of x."
+           )
+       }
+   )
+   public StarlarkFloat fabs(Object x) {
+     double base = Double.parseDouble(String.valueOf(x));
+     return StarlarkFloat.of(Math.abs(base));
+   }
+
+  @StarlarkMethod(
+       name = "ceil",
+       doc = "Return the ceiling of x, the smallest integer greater than or equal to x. " +
+           "If x is not a float, delegates to x.__ceil__(), which should return an Integral value.",
+       parameters = {
+           @Param(
+               name = "x"
+           )
+       }
+   )
+   public StarlarkInt ceil(Object x) {
+     double base = Double.parseDouble(String.valueOf(x));
+     return StarlarkInt.of((int) Math.ceil(base));
+   }
+
+  @StarlarkMethod(
+      name = "log",
+      doc = "Return the ceiling of x, the smallest integer greater than or equal to x. " +
+          "If x is not a float, delegates to x.__ceil__(), which should return an Integral value.",
+      parameters = {
+          @Param(
+              name = "x"
+          ),
+          @Param(
+              name = "base",
+              named = true,
+              defaultValue = "None"
+          )
+      }
+  )
+  public Object log(Object x, StarlarkValue base) throws EvalException {
+    BigDecimal decimal;
+    if(x instanceof StarlarkFloat) {
+      decimal = BigDecimal.valueOf(Math.log(
+          ((StarlarkFloat) x).toDouble()
+      ));
+    } else {
+      int nx = Starlark.toInt(x, "to int in Math.log()");
+      decimal = BigDecimal.valueOf(Math.log(nx));
+    }
+    if (base == Starlark.NONE) {
+      return StarlarkFloat.of(decimal.doubleValue());
+    }
+    BigDecimal b = BigDecimal.valueOf(Double.parseDouble(String.valueOf(base)));
+    return StarlarkFloat.of(decimal.divide(b, RoundingMode.HALF_EVEN).doubleValue());
   }
 
 }

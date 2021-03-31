@@ -20,10 +20,11 @@
 # SOFTWARE.
 # ===================================================================
 load("@stdlib//larky", "larky")
-load("@stdlib//jcrypto", _jcrypto="jcrypto")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 
 #: Function that returns a random byte string of the desired size.
-get_random_bytes = _jcrypto.Random.urandom
+get_random_bytes = _JCrypto.Random.urandom
+
 
 def _UrandomRNG():
 
@@ -59,14 +60,14 @@ def new(*args, **kwargs):
     return _UrandomRNG()
 
 
-Random = larky.struct(
-    new=new,
-)
-
-
 def atfork():
     pass
 
 
+Random = larky.struct(
+    new=new,
+    get_random_bytes=get_random_bytes,
+    atfork=atfork
+)
 
 
