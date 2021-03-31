@@ -165,15 +165,15 @@ def DerSequenceTests_testEncode2():
     # Indexing
     der = DerSequence()
     der.append(0)
-    der[0] = 1
-    asserts.assert_that(len(der)).is_equal_to(1)
-    asserts.assert_that(der[0]).is_equal_to(1)
-    asserts.assert_that(der[-1]).is_equal_to(1)
+    der.__setitem__(0, 1)
+    asserts.assert_that(der.__len__()).is_equal_to(1)
+    asserts.assert_that(der.__getitem__(0)).is_equal_to(1)
+    asserts.assert_that(der.__getitem__(-1)).is_equal_to(1)
     asserts.assert_that(der.encode()).is_equal_to(b(r"0\x03\x02\x01\x01"))
     #
-    der = [1]
-    asserts.assert_that(len(der)).is_equal_to(1)
-    asserts.assert_that(der[0]).is_equal_to(1)
+    der.__setslice__(0, der.__len__(), [1])
+    asserts.assert_that(der.__len__()).is_equal_to(1)
+    asserts.assert_that(der.__getitem__(0)).is_equal_to(1)
     asserts.assert_that(der.encode()).is_equal_to(b(r"0\x03\x02\x01\x01"))
 
 
@@ -181,42 +181,25 @@ def DerSequenceTests_testEncode3():
     # One multi-byte integer (non-zero)
     der = DerSequence()
     der.append(0x180)
-    asserts.assert_that(der.encode()).is_equal_to(b(r"0\x04\x02\x02\x01\x80"))
+    expected = bytearray([0x30, 0x04, 0x02, 0x02, 0x01, 0x80])
+    asserts.assert_that(der.encode()).is_equal_to(expected)
 
 
 def DerSequenceTests_testEncode4():
     # One very long integer
     der = DerSequence()
     der.append(pow(2, 2048))
-    asserts.assert_that(der.encode()).is_equal_to(
-        b(r"0\x82\x01\x05")
-        + b(r"\x02\x82\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-    )
+    expected = bytearray([0x30, 0x82, 0x01, 0x05, 0x02, 0x82, 0x01, 0x01, 0x01] +
+                ([0x00] * 256))
+    encoded = der.encode()
+    asserts.assert_that(encoded).is_equal_to(expected)
 
 
 def DerSequenceTests_testEncode5():
     der = DerSequence()
-    der += 1
-    der += b(r"\x30\x00")
-    asserts.assert_that(der.encode()).is_equal_to(b(r"\x30\x05\x02\x01\x01\x30\x00"))
+    der.__iadd__(1)
+    der.__iadd__(b([0x30, 0x00]))
+    asserts.assert_that(der.encode()).is_equal_to(b([0x30,0x05,0x02,0x01,0x01,0x30,0x00]))
 
 
 def DerSequenceTests_testEncode6():

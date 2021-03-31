@@ -447,7 +447,7 @@ def DerSequence(startSeq=None, implicit=None):
         for atom in sequence:
             if i >= j:
                 break
-            self._seq.remove(i)
+            self._seq.pop(i)
             self._seq.insert(i, atom)
             i += 1
 
@@ -594,7 +594,13 @@ def DerSequence(startSeq=None, implicit=None):
     self.hasInts = hasInts
     self.hasOnlyInts = hasOnlyInts
     self.pop = pop
-
+    self.__getitem__ = __getitem__
+    self.__setitem__ = __setitem__
+    self.__setslice__ = __setslice__
+    self.__delslice__ = __delslice__
+    self.__getslice__ = __getslice__
+    self.__len__ = __len__
+    self.__iadd__ = __iadd__
     return self
 
 
