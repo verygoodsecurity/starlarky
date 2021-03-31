@@ -60,10 +60,14 @@ def new(*args, **kwargs):
     return _UrandomRNG()
 
 
+def atfork():
+    pass
+
+
 Random = larky.struct(
     new=new,
+    get_random_bytes=get_random_bytes,
+    atfork=atfork
 )
 
 
-def atfork():
-    pass

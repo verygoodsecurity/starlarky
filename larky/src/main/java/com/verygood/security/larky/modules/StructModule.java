@@ -194,7 +194,7 @@ public class StructModule implements StarlarkValue {
 
       default:
         //do nothing
-        System.out.println("Invalid format specifier");
+        System.out.println("Invalid format specifier: " + fmt);
         bx = null;
         break;
 

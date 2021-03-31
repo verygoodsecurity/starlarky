@@ -141,8 +141,16 @@ public class C99MathModule implements StarlarkValue {
           )
       }
   )
-  public StarlarkFloat log(StarlarkFloat x, StarlarkValue base) {
-    BigDecimal decimal = BigDecimal.valueOf(Math.log(x.toDouble()));
+  public Object log(Object x, StarlarkValue base) throws EvalException {
+    BigDecimal decimal;
+    if(x instanceof StarlarkFloat) {
+      decimal = BigDecimal.valueOf(Math.log(
+          ((StarlarkFloat) x).toDouble()
+      ));
+    } else {
+      int nx = Starlark.toInt(x, "to int in Math.log()");
+      decimal = BigDecimal.valueOf(Math.log(nx));
+    }
     if (base == Starlark.NONE) {
       return StarlarkFloat.of(decimal.doubleValue());
     }

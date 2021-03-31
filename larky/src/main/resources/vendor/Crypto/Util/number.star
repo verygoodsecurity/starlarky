@@ -30,6 +30,7 @@ load("@stdlib//math", math="math")
 load("@stdlib//struct", struct="struct")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/py3compat", iter_range="iter_range")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
@@ -37,7 +38,6 @@ _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 # Backward compatibility
 _fastmath = None
-
 
 def ceil_div(n, d):
     """Return ceil(n/d), that is, the smallest integer r such that r*d >= n"""
@@ -54,16 +54,10 @@ def ceil_div(n, d):
 
 def size(N):
     """Returns the size of the number N in bits."""
-
     if N < 0:
-        fail(' ValueError("Size in bits only avialable for non-negative numbers")')
+        fail('ValueError("Size in bits only available for non-negative numbers")')
 
-    bits = 0
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-        if not N >> bits:
-            break
-        bits += 1
-    return bits
+    return _JCrypto.Math.bit_length(N)
 
 
 def getRandomInteger(N, randfunc=None):
@@ -229,146 +223,6 @@ def _rabinMillerTest(n, rounds, randfunc=None):
     return 1
 
 
-def getStrongPrime(N, e=0, false_positive_prob=1e-6, randfunc=None):
-    r"""
-    Return a random strong *N*-bit prime number.
-    In this context, *p* is a strong prime if *p-1* and *p+1* have at
-    least one large prime factor.
-
-    Args:
-        N (integer): the exact length of the strong prime.
-          It must be a multiple of 128 and > 512.
-        e (integer): if provided, the returned prime (minus 1)
-          will be coprime to *e* and thus suitable for RSA where
-          *e* is the public exponent.
-        false_positive_prob (float):
-          The statistical probability for the result not to be actually a
-          prime. It defaults to 10\ :sup:`-6`.
-          Note that the real probability of a false-positive is far less. This is
-          just the mathematically provable limit.
-        randfunc (callable):
-          A function that takes a parameter *N* and that returns
-          a random byte string of such length.
-          If omitted, :func:`Crypto.Random.get_random_bytes` is used.
-    Return:
-        The new strong prime.
-
-    .. deprecated:: 3.0
-        This function is for internal use only and may be renamed or removed in
-        the future.
-    """
-
-    # This function was implemented following the
-    # instructions found in the paper:
-    #   "FAST GENERATION OF RANDOM, STRONG RSA PRIMES"
-    #   by Robert D. Silverman
-    #   RSA Laboratories
-    #   May 17, 1997
-    # which by the time of writing could be freely downloaded here:
-    # http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.17.2713&rep=rep1&type=pdf
-
-    if randfunc == None:
-        randfunc = Random.get_random_bytes
-
-    # Use the accelerator if available
-    if _fastmath != None:
-        return _fastmath.getStrongPrime(int(N), int(e), false_positive_prob, randfunc)
-
-    if (N < 512) or ((N % 128) != 0):
-        fail(' ValueError ("bits must be multiple of 128 and > 512")')
-
-    rabin_miller_rounds = int(math.ceil(-math.log(false_positive_prob) / math.log(4)))
-
-    # calculate range for X
-    #   lower_bound = sqrt(2) * 2^{511 + 128*x}
-    #   upper_bound = 2^{512 + 128*x} - 1
-    x = (N - 512) >> 7
-    # We need to approximate the sqrt(2) in the lower_bound by an integer
-    # expression because floating point math overflows with these numbers
-    lower_bound = (
-        14142135623730950489 * (pow(2, (511 + 128 * x)))
-    ) // 10000000000000000000
-    upper_bound = (1 << (512 + 128 * x)) - 1
-    # Randomly choose X in calculated range
-    X = getRandomRange(lower_bound, upper_bound, randfunc)
-
-    # generate p1 and p2
-    p = [0, 0]
-    for i in (0, 1):
-        # randomly choose 101-bit y
-        y = getRandomNBitInteger(101, randfunc)
-        # initialize the field for sieving
-        field = [0] * 5 * len(sieve_base)
-        # sieve the field
-        for prime in sieve_base:
-            offset = y % prime
-            for j in iter_range((prime - offset) % prime, len(field), prime):
-                field[j] = 1
-
-        # look for suitable p[i] starting at y
-        result = 0
-        for j in range(len(field)):
-            composite = field[j]
-            # look for next canidate
-            if composite:
-                continue
-            tmp = y + j
-            result = _rabinMillerTest(tmp, rabin_miller_rounds)
-            if result > 0:
-                p[i] = tmp
-                break
-        if result == 0:
-            fail(
-                ' RuntimeError ("Couln\'t find prime in field. "\n                                "Developer: Increase field_size")'
-            )
-
-    # Calculate R
-    #     R = (p2^{-1} mod p1) * p2 - (p1^{-1} mod p2) * p1
-    tmp1 = inverse(p[1], p[0]) * p[1]  # (p2^-1 mod p1)*p2
-    tmp2 = inverse(p[0], p[1]) * p[0]  # (p1^-1 mod p2)*p1
-    R = tmp1 - tmp2  # (p2^-1 mod p1)*p2 - (p1^-1 mod p2)*p1
-
-    # search for final prime number starting by Y0
-    #    Y0 = X + (R - X mod p1p2)
-    increment = p[0] * p[1]
-    X = X + (R - (X % increment))
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-        if not 1:
-            break
-        is_possible_prime = 1
-        # first check candidate against sieve_base
-        for prime in sieve_base:
-            if (X % prime) == 0:
-                is_possible_prime = 0
-                break
-        # if e is given make sure that e and X-1 are coprime
-        # this is not necessarily a strong prime criterion but useful when
-        # creating them for RSA where the p-1 and q-1 should be coprime to
-        # the public exponent e
-        if e and is_possible_prime:
-            if e & 1:
-                if GCD(e, X - 1) != 1:
-                    is_possible_prime = 0
-            else:
-                if GCD(e, (X - 1) // 2) != 1:
-                    is_possible_prime = 0
-
-        # do some Rabin-Miller-Tests
-        if is_possible_prime:
-            result = _rabinMillerTest(X, rabin_miller_rounds)
-            if result > 0:
-                break
-        X += increment
-        # abort when X has more bits than requested
-        # TODO: maybe we shouldn't abort but rather start over.
-        if X >= 1 << N:
-            fail(
-                ' RuntimeError ("Couln\'t find prime in field. "\n' +
-                '                           "Developer: Increase field_size")'
-            )
-    return X
-
-
 def isPrime(N, false_positive_prob=1e-6, randfunc=None):
     r"""Test if a number *N* is a prime.
 
@@ -390,25 +244,15 @@ def isPrime(N, false_positive_prob=1e-6, randfunc=None):
     if randfunc == None:
         randfunc = Random.get_random_bytes
 
-    if _fastmath != None:
-        return _fastmath.isPrime(int(N), false_positive_prob, randfunc)
+    return _JCrypto.Math.is_prime(N, false_positive_prob, None)
 
-    if N < 3 or N & 1 == 0:
-        return N == 2
-    for p in sieve_base:
-        if N == p:
-            return 1
-        if N % p == 0:
-            return 0
 
-    rounds = int(math.ceil(-math.log(false_positive_prob) / math.log(4)))
-    return _rabinMillerTest(N, rounds, randfunc)
 
 
 # Improved conversion functions contributed by Barry Warsaw, after
 # careful benchmarking
 
-def long_to_bytes(n, blocksize=0):
+def long_to_bytes(n, blocksize=2):
     r"""Convert an integer to a byte string.
 
     In Python 3.2+, use the native method instead::
@@ -428,34 +272,12 @@ def long_to_bytes(n, blocksize=0):
     If :data:`blocksize` is zero or not provided, the byte string will
     be of minimal length.
     """
-    # after much testing, this algorithm was deemed to be the fastest
-    s = builtins.bytes(r"", encoding="utf-8")
-    n = int(n)
-    pack = struct.pack
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-        if n <= 0:
-            break
-        s = builtins.bytearray(pack(">I", n & 0xFFFFFFFF)) + builtins.bytearray(s)
-        n = n >> 32
-    # strip off leading zeros
-    didbreak = False
-    for i in range(len(s)):
-        if s[i] != builtins.bytes(r"\x00", encoding="utf-8")[0]:
-            didbreak = True
-            break
+    if n < 0 or blocksize < 0:
+        fail('raise ValueError("Values must be non-negative")')
 
-    if not didbreak:
-        # only happens when n == 0
-        s = builtins.bytes(r"\x00", encoding="utf-8")
-        i = 0
-    s = s[i:]
-    # add back some pad bytes.  this could be done more efficiently w.r.t. the
-    # de-padding being done above, but sigh...
-    if blocksize > 0 and len(s) % blocksize:
-        s = (blocksize - len(s) % blocksize) * builtins.bytearray(
-            r"\x00", encoding="utf-8"
-        ) + s
-    return s
+    # after much testing, this algorithm was deemed to be the fastest
+    return _JCrypto.Math.int_to_bytes(n, blocksize, 'big', False)
+
 
 
 def bytes_to_long(s):
@@ -472,18 +294,7 @@ def bytes_to_long(s):
 
     This is (essentially) the inverse of :func:`long_to_bytes`.
     """
-    acc = 0
-
-    unpack = struct.unpack
-
-    length = len(s)
-    if length % 4:
-        extra = 4 - length % 4
-        s = builtins.bytearray(r"\x00", encoding="utf-8") * extra + s
-        length = length + extra
-    for i in range(0, length, 4):
-        acc = (acc << 32) + unpack(">I", s[i : i + 4])[0]
-    return acc
+    return _JCrypto.Math.bytes_to_int(s, 'big')
 
 
 def long2str(n, blocksize=0):
@@ -495,6 +306,23 @@ def str2long(s):
     # warnings.warn("str2long() has been replaced by bytes_to_long()")
     return bytes_to_long(s)
 
+
+number = larky.struct(
+    ceil_div=ceil_div,
+    size=size,
+    getRandomInteger=getRandomInteger,
+    getRandomRange=getRandomRange,
+    getRandomNBitInteger=getRandomNBitInteger,
+    GCD=GCD,
+    inverse=inverse,
+    getPrime=getPrime,
+    #getStrongPrime=getStrongPrime,
+    isPrime=isPrime,
+    long_to_bytes=long_to_bytes,
+    bytes_to_long=bytes_to_long,
+    long2str=long2str,
+    str2long=str2long
+)
 
 # The first 10000 primes used for checking primality.
 # This should be enough to eliminate most of the odd
@@ -1501,3 +1329,4 @@ sieve_base = (
 104549, 104551, 104561, 104579, 104593, 104597, 104623, 104639, 104651, 104659,
 104677, 104681, 104683, 104693, 104701, 104707, 104711, 104717, 104723, 104729,
 )
+
