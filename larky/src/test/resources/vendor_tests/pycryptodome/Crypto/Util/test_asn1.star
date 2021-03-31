@@ -147,7 +147,7 @@ def DerSequenceTests_testInit1():
 
 def DerSequenceTests_testEncode1():
     # Empty sequence
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     asserts.assert_that(der.encode()).is_equal_to(b(r"0\x00"))
     asserts.assert_that(der.hasOnlyInts()).is_false()
     # One single-byte integer (zero)
@@ -163,7 +163,7 @@ def DerSequenceTests_testEncode1():
 
 def DerSequenceTests_testEncode2():
     # Indexing
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.append(0)
     der[0] = 1
     asserts.assert_that(len(der)).is_equal_to(1)
@@ -179,14 +179,14 @@ def DerSequenceTests_testEncode2():
 
 def DerSequenceTests_testEncode3():
     # One multi-byte integer (non-zero)
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.append(0x180)
     asserts.assert_that(der.encode()).is_equal_to(b(r"0\x04\x02\x02\x01\x80"))
 
 
 def DerSequenceTests_testEncode4():
     # One very long integer
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.append(pow(2, 2048))
     asserts.assert_that(der.encode()).is_equal_to(
         b(r"0\x82\x01\x05")
@@ -213,7 +213,7 @@ def DerSequenceTests_testEncode4():
 
 
 def DerSequenceTests_testEncode5():
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der += 1
     der += b(r"\x30\x00")
     asserts.assert_that(der.encode()).is_equal_to(b(r"\x30\x05\x02\x01\x01\x30\x00"))
@@ -221,7 +221,7 @@ def DerSequenceTests_testEncode5():
 
 def DerSequenceTests_testEncode6():
     # Two positive integers
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.append(0x180)
     der.append(0xFF)
     asserts.assert_that(der.encode()).is_equal_to(
@@ -230,7 +230,7 @@ def DerSequenceTests_testEncode6():
     asserts.assert_that(der.hasOnlyInts()).is_true()
     asserts.assert_that(der.hasOnlyInts(False)).is_true()
     # Two mixed integers
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.append(2)
     der.append(-2)
     asserts.assert_that(der.encode()).is_equal_to(b(r"0\x06\x02\x01\x02\x02\x01\xFE"))
@@ -251,7 +251,7 @@ def DerSequenceTests_testEncode6():
 
 def DerSequenceTests_testEncode7():
     # One integer and another type (already encoded)
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.append(0x180)
     der.append(b(r"0\x03\x02\x01\x05"))
     asserts.assert_that(der.encode()).is_equal_to(
@@ -262,9 +262,9 @@ def DerSequenceTests_testEncode7():
 
 def DerSequenceTests_testEncode8():
     # One integer and another type (yet to encode)
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.append(0x180)
-    der.append(_JCrypto.Util.asn1.DerSequence([5]))
+    der.append(DerSequence([5]))
     asserts.assert_that(der.encode()).is_equal_to(
         b(r"0\x09\x02\x02\x01\x800\x03\x02\x01\x05")
     )
@@ -275,7 +275,7 @@ def DerSequenceTests_testEncode8():
 
 def DerSequenceTests_testDecode1():
     # Empty sequence
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.decode(b(r"0\x00"))
     asserts.assert_that(len(der)).is_equal_to(0)
     # One single-byte integer (zero)
@@ -290,7 +290,7 @@ def DerSequenceTests_testDecode1():
 
 def DerSequenceTests_testDecode2():
     # One single-byte integer (non-zero)
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.decode(b(r"0\x03\x02\x01\x7f"))
     asserts.assert_that(len(der)).is_equal_to(1)
     asserts.assert_that(der[0]).is_equal_to(127)
@@ -298,7 +298,7 @@ def DerSequenceTests_testDecode2():
 
 def DerSequenceTests_testDecode4():
     # One very long integer
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.decode(
         b(r"0\x82\x01\x05")
         + b(r"\x02\x82\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00")
@@ -327,7 +327,7 @@ def DerSequenceTests_testDecode4():
 
 def DerSequenceTests_testDecode6():
     # Two integers
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.decode(b(r"0\x08\x02\x02\x01\x80\x02\x02\x00\xff"))
     asserts.assert_that(len(der)).is_equal_to(2)
     asserts.assert_that(der[0]).is_equal_to(0x180)
@@ -336,7 +336,7 @@ def DerSequenceTests_testDecode6():
 
 def DerSequenceTests_testDecode7():
     # One integer and 2 other types
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.decode(b(r"0\x0A\x02\x02\x01\x80\x24\x02\xb6\x63\x12\x00"))
     asserts.assert_that(len(der)).is_equal_to(3)
     asserts.assert_that(der[0]).is_equal_to(0x180)
@@ -346,7 +346,7 @@ def DerSequenceTests_testDecode7():
 
 def DerSequenceTests_testDecode8():
     # Only 2 other types
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     der.decode(b(r"0\x06\x24\x02\xb6\x63\x12\x00"))
     asserts.assert_that(len(der)).is_equal_to(2)
     asserts.assert_that(der[0]).is_equal_to(b(r"\x24\x02\xb6\x63"))
@@ -359,7 +359,7 @@ def DerSequenceTests_testDecode8():
 
 def DerSequenceTests_testDecode9():
     # Verify that decode returns itself
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     asserts.assert_that(der).is_equal_to(der.decode(b(r"0\x06\x24\x02\xb6\x63\x12\x00")))
 
     ###
@@ -367,21 +367,21 @@ def DerSequenceTests_testDecode9():
 
 def DerSequenceTests_testErrDecode1():
     # Not a sequence
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     asserts.assert_fails(lambda: der.decode(b(r"")), ".*?ValueError")
     asserts.assert_fails(lambda: der.decode(b(r"\x00")), ".*?ValueError")
     asserts.assert_fails(lambda: der.decode(b(r"\x30")), ".*?ValueError")
 
 
 def DerSequenceTests_testErrDecode2():
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     # Too much data
     asserts.assert_fails(lambda: der.decode(b(r"\x30\x00\x00")), ".*?ValueError")
 
 
 def DerSequenceTests_testErrDecode3():
     # Wrong length format
-    der = _JCrypto.Util.asn1.DerSequence()
+    der = DerSequence()
     # Missing length in sub-item
     asserts.assert_fails(
         lambda: der.decode(b(r"\x30\x04\x02\x01\x01\x00")), ".*?ValueError"
@@ -396,28 +396,28 @@ def DerSequenceTests_testErrDecode3():
 
 
 def DerSequenceTests_test_expected_nr_elements():
-    der_bin = _JCrypto.Util.asn1.DerSequence([1, 2, 3]).encode()
+    der_bin = DerSequence([1, 2, 3]).encode()
 
-    _JCrypto.Util.asn1.DerSequence().decode(der_bin, nr_elements=3)
-    _JCrypto.Util.asn1.DerSequence().decode(der_bin, nr_elements=(2, 3))
+    DerSequence().decode(der_bin, nr_elements=3)
+    DerSequence().decode(der_bin, nr_elements=(2, 3))
     asserts.assert_fails(
-        lambda: _JCrypto.Util.asn1.DerSequence().decode(der_bin, nr_elements=1), ".*?ValueError"
+        lambda: DerSequence().decode(der_bin, nr_elements=1), ".*?ValueError"
     )
     asserts.assert_fails(
-        lambda: _JCrypto.Util.asn1.DerSequence().decode(der_bin, nr_elements=(4, 5)), ".*?ValueError"
+        lambda: DerSequence().decode(der_bin, nr_elements=(4, 5)), ".*?ValueError"
     )
 
 
 def DerSequenceTests_test_expected_only_integers():
 
-    der_bin1 = _JCrypto.Util.asn1.DerSequence([1, 2, 3]).encode()
-    der_bin2 = _JCrypto.Util.asn1.DerSequence([1, 2, _JCrypto.Util.asn1.DerSequence([3, 4])]).encode()
+    der_bin1 = DerSequence([1, 2, 3]).encode()
+    der_bin2 = DerSequence([1, 2, DerSequence([3, 4])]).encode()
 
-    _JCrypto.Util.asn1.DerSequence().decode(der_bin1, only_ints_expected=True)
-    _JCrypto.Util.asn1.DerSequence().decode(der_bin1, only_ints_expected=False)
-    _JCrypto.Util.asn1.DerSequence().decode(der_bin2, only_ints_expected=False)
+    DerSequence().decode(der_bin1, only_ints_expected=True)
+    DerSequence().decode(der_bin1, only_ints_expected=False)
+    DerSequence().decode(der_bin2, only_ints_expected=False)
     asserts.assert_fails(
-        lambda: _JCrypto.Util.asn1.DerSequence().decode(der_bin2, only_ints_expected=True), ".*?ValueError"
+        lambda: DerSequence().decode(der_bin2, only_ints_expected=True), ".*?ValueError"
     )
 
 def _testsuite():
@@ -431,15 +431,15 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode3))
     _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode4))
     _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode5))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testInit1))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode3))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode4))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode5))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode6))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode7))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode8))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testInit1))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode1))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode2))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode3))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode4))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode5))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode6))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode7))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode8))
     # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode1))
     # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode2))
     # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode4))
