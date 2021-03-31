@@ -52,7 +52,7 @@ def _escaper__init__():
 
     def __bytes__():
         # decode bytes into string, encode string into bytes
-        return larky.bytes(__str__(), 'utf-8')
+        return bytes(__str__(), 'utf-8')
 
     self = larky.struct(
         literal=[],
@@ -60,6 +60,7 @@ def _escaper__init__():
         u=u,
         U=U,
         raw=raw,
+        r=raw,
         o=o,
         esc=esc,
         __class__='escaper',
@@ -71,6 +72,7 @@ def _escaper__init__():
 
 escapes = larky.struct(
     CEscape=_escaper__init__,
+    Escaper=_escaper__init__,  # for ease of use..
 )
 # https://github.com/tortoise/tortoise-orm/blob/ae5f0b113a6bf778e8975a2d32398e6fd55bb08a/tortoise/converters.py
 # language:python str escape x u

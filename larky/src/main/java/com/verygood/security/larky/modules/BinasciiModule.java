@@ -11,11 +11,15 @@ import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
@@ -91,11 +95,31 @@ public class BinasciiModule implements StarlarkValue {
       parameters = {
           @Param(
               name = "hexstr",
-              allowedTypes = {@ParamType(type = String.class)}
+              allowedTypes = {
+                  @ParamType(type=LarkyByteLike.class),
+                  @ParamType(type=String.class)
+              }
           )
       },
       useStarlarkThread = true)
-  public LarkyByteLike a2b_hex(String hexstr, StarlarkThread thread) throws EvalException {
+  public LarkyByteLike a2b_hex(Object hexed, StarlarkThread thread) throws EvalException {
+    String hexstr = "";
+    if(hexed instanceof LarkyByteLike) {
+      CharsetDecoder decoder = StandardCharsets.US_ASCII.newDecoder()
+          .onMalformedInput(CodingErrorAction.REPORT)
+          .onUnmappableCharacter(CodingErrorAction.REPORT);
+      try {
+        LarkyByteLike byteLike = (LarkyByteLike) hexed;
+        hexstr = decoder.decode(ByteBuffer.wrap(byteLike.getBytes())).toString();
+      } catch (CharacterCodingException e) {
+        // we accept only ascii-only unicode strings or strings
+        throw Starlark.errorf(e.getMessage());
+      }
+    }
+    else if(hexed instanceof String) {
+      hexstr = (String) hexed;
+    }
+
     int length = hexstr.length();
     if (length % 2 != 0) {
         throw new EvalException(ODD_LENGTH_STRING);
@@ -128,7 +152,7 @@ public class BinasciiModule implements StarlarkValue {
       parameters = {
           @Param(
               name = "data",
-              allowedTypes = {@ParamType(type = LarkyByte.class)}
+              allowedTypes = {@ParamType(type = LarkyByteLike.class)}
           ),
           @Param(
               name = "newline",
@@ -138,7 +162,7 @@ public class BinasciiModule implements StarlarkValue {
           )
       },
       useStarlarkThread = true)
-  public LarkyByteLike b2a_base64(LarkyByte data, Boolean newline, StarlarkThread thread) throws EvalException {
+  public LarkyByteLike b2a_base64(LarkyByteLike data, Boolean newline, StarlarkThread thread) throws EvalException {
     byte[] encoded;
     try {
         encoded = Base64.getEncoder().encode(data.getBytes());
@@ -174,14 +198,14 @@ public class BinasciiModule implements StarlarkValue {
       parameters = {
           @Param(
               name = "data",
-              allowedTypes = {@ParamType(type = LarkyByte.class)}
+              allowedTypes = {@ParamType(type = LarkyByteLike.class)}
           ),
           @Param(
               name = "sep",
               allowedTypes = {
                   @ParamType(type = NoneType.class),
                   @ParamType(type = String.class),
-                  @ParamType(type = LarkyByte.class)
+                  @ParamType(type = LarkyByteLike.class)
               },
               named = true,
               defaultValue = "None"
@@ -193,7 +217,7 @@ public class BinasciiModule implements StarlarkValue {
               defaultValue = "1"
           )
       })
-  public String b2a_hex(LarkyByte binstr, Object sep, StarlarkInt bytes_per_sep) {
+  public String b2a_hex(LarkyByteLike binstr, Object sep, StarlarkInt bytes_per_sep) {
     StringBuilder b = new StringBuilder(binstr.size() * 2);
     byte[] bytes = binstr.getBytes();
     for (int n : bytes) {
@@ -222,7 +246,7 @@ public class BinasciiModule implements StarlarkValue {
             allowedTypes = {@ParamType(type = StarlarkInt.class)})
     }
   )
-  public StarlarkInt crc32(LarkyByte data, StarlarkInt value) {
+  public StarlarkInt crc32(LarkyByteLike data, StarlarkInt value) {
     CRC32 crc32 = new CRC32();
     if(value.toIntUnchecked() != 0) {
       crc32.update(value.toIntUnchecked());

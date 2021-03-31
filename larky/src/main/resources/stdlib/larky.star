@@ -19,18 +19,17 @@ def _to_dict(s):
     return {key: getattr(s, key) for key in attributes}
 
 
-def _struct__init__(**kwargs):
-    if "to_dict" in kwargs:
-        kwargs.remove("to_dict")
 
-    return _struct(to_dict=_to_dict, **kwargs)
+# emulates while loop but will iterate *only* for 100
+# steps.
+WHILE_LOOP_EMULATION_ITERATION = 100
 
 
 larky = _struct(
-    struct=_struct__init__,
+    struct=_struct,
     mutablestruct=_mutablestruct,
+    to_dict=_to_dict,
     partial=_partial,
     property=_property,
-    bytes=bytes,
-    bytearray=bytearray,
+    WHILE_LOOP_EMULATION_ITERATION=WHILE_LOOP_EMULATION_ITERATION,
 )

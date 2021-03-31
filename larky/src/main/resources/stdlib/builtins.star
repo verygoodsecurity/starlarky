@@ -37,9 +37,9 @@ def _bytes(s, encoding='utf-8', errors='strict'):
         return s.__bytes__()
 
     # utf-8 encoding by default
-    return larky.bytes(s, encoding, errors)
+    return bytes(s, encoding, errors)
     # if types.is_iterable(s):
-    #     return larky.bytearray(list(s))
+    #     return bytearray(list(s))
     # else:
     #     fail("TypeError: cannot convert '%s' object to bytes" % type(s))
 
@@ -66,9 +66,12 @@ def _bytearray(source, encoding='utf-8', errors='strict'):
 
     Without an argument, an array of size 0 is created.
     """
-    return larky.bytearray(source, encoding, errors)
+    if hasattr(source, '__bytes__'):
+        return bytearray(source.__bytes__())
+    return bytearray(source, encoding, errors)
 
 
+# TODO: should we move this to starlark?
 builtins = larky.struct(
     bytes=_bytes,
     b=_bytes,

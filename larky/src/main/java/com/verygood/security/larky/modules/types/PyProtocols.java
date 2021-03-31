@@ -1,7 +1,7 @@
 package com.verygood.security.larky.modules.types;
 
 public final class PyProtocols {
-
+  //see: https://github.com/verygoodsecurity/starlarky/blob/cd0885efd3f99d1aecccf651d33cfb870f779961/larky/src/main/java/com/verygood/security/larky/py/PyProtocols.java
   public static final String __NAME__ = "__name__";
   public static final String __MAIN__ = "__main__";
   public static final String __MODULE__ = "__module__";
