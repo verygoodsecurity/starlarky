@@ -118,18 +118,22 @@ def DerObjectTests_testObjEncode4():
     # Implicit tags (constructed)
     der = DerObject(0x10, implicit=1, constructed=1)
     der.payload = b(r"ppll")
-    asserts.assert_that(der.encode(der)).is_equal_to(b(r"\xa1\x04ppll"))
+    expected = bytearray([0xa1, 0x04]) + b(r"ppll")
+    asserts.assert_that(der.encode()).is_equal_to(expected)
     # Implicit tags (primitive)
     der = DerObject(0x02, implicit=0x1E, constructed=0)
     der.payload = b(r"ppll")
-    asserts.assert_that(der.encode(der)).is_equal_to(b(r"\x9E\x04ppll"))
+    encoded = der.encode()
+    expected = bytearray([0x9E, 0x04]) + b(r"ppll")
+    asserts.assert_that(encoded).is_equal_to(expected)
 
 
 def DerObjectTests_testObjEncode5():
     # Encode type with explicit tag
     der = DerObject(0x10, explicit=5)
     der.payload = b(r"xxll")
-    asserts.assert_that(der.encode(der)).is_equal_to(b(r"\xa5\x06\x10\x04xxll"))
+    expected = bytearray([0xa5, 0x06, 0x10, 0x04]) + b(r"xxll")
+    asserts.assert_that(der.encode()).is_equal_to(expected)
 
 
 def DerSequenceTests_testInit1():
