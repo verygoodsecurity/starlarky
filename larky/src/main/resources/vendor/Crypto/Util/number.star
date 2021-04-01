@@ -311,7 +311,7 @@ def bytes_to_long(s):
 
     This is (essentially) the inverse of :func:`long_to_bytes`.
     """
-    return _JCrypto.Math.bytes_to_int(s, 'big')
+    return _JCrypto.Math.int_from_bytes(s, 'big')
 
 
 def long2str(n, blocksize=0):

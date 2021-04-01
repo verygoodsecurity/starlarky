@@ -223,20 +223,19 @@ def DerObject(asn1Id=None,
 
     def _decodeLen(s):
         """Decode DER length octets from a file."""
-
         length = s.read_byte()
 
         if length > 127:
             encoded_length = s.read(length & 0x7F)
             if bord(encoded_length[0]) == 0:
-                fail(" ValueError(\"Invalid DER: length has leading zero\")")
+                fail('ValueError("Invalid DER: length has leading zero")')
             length = bytes_to_long(encoded_length)
             if length <= 127:
-                fail(" ValueError(\"Invalid DER: length in long form but smaller than 128\")")
+                fail('ValueError("Invalid DER: length in long form but smaller than 128")')
 
         return length
 
-    def decode(der_encoded, strict=False):
+    def decode(obj, der_encoded, strict=False):
         """Decode a complete DER element, and re-initializes this
         object with it.
 
@@ -246,40 +245,44 @@ def DerObject(asn1Id=None,
         Raises:
           ValueError: in case of parsing errors.
         """
+        if obj == None:
+            obj = self
 
-        if not byte_string(der_encoded):
-            fail(" ValueError(\"Input is not a byte string\")")
+        if not byte_string(der_encoded) and not types.is_bytearray(der_encoded):
+            fail('ValueError("Input is not a byte string")')
 
         s = BytesIO_EOF(der_encoded)
-        _decodeFromStream(s, strict)
+        obj._decodeFromStream(obj, s, strict)
 
         # There shouldn't be other bytes left
         if s.remaining_data() > 0:
-            fail(" ValueError(\"Unexpected extra data after the DER structure\")")
+            fail('ValueError("Unexpected extra data after the DER structure")')
 
-        return self
+        return obj
 
-    def _decodeFromStream(s, strict):
+    def _decodeFromStream(obj, s, strict):
         """Decode a complete DER element from a file."""
+        if obj == None:
+            obj = self
 
         idOctet = s.read_byte()
-        if self._tag_octet != None:
-            if idOctet != self._tag_octet:
+        if obj._tag_octet != None:
+            if idOctet != obj._tag_octet:
                 fail('ValueError("Unexpected DER tag")')
         else:
-            self._tag_octet = idOctet
+            obj._tag_octet = idOctet
         length = _decodeLen(s)
-        self.payload = s.read(length)
+        obj.payload = s.read(length)
 
         # In case of an EXTERNAL tag, further decode the inner
         # element.
-        if hasattr(self, "_inner_tag_octet"):
-            p = BytesIO_EOF(self.payload)
+        if hasattr(obj, "_inner_tag_octet"):
+            p = BytesIO_EOF(obj.payload)
             inner_octet = p.read_byte()
-            if inner_octet != self._inner_tag_octet:
-                fail(' ValueError("Unexpected internal DER tag")')
-            length = _decodeLen(p)
-            self.payload = p.read(length)
+            if inner_octet != obj._inner_tag_octet:
+                fail('ValueError("Unexpected internal DER tag")')
+            length = obj._decodeLen(p)
+            obj.payload = p.read(length)
 
             # There shouldn't be other bytes left
             if p.remaining_data() > 0:
@@ -288,6 +291,7 @@ def DerObject(asn1Id=None,
     self = __init__(asn1Id, payload, implicit, constructed, explicit)
     self.encode = encode
     self.decode = decode
+    self._decodeFromStream = _decodeFromStream
     return self
 
 
@@ -431,7 +435,6 @@ def DerSequence(startSeq=None, implicit=None):
             **__dict__
         )
 
-
     # A few methods to make it behave like a python sequence
 
     def pop(n):
@@ -457,7 +460,7 @@ def DerSequence(startSeq=None, implicit=None):
             self._seq.remove(r)
 
     def __getslice__(i, j):
-        return self._seq[max(0, i):max(0, j)]
+        return self._seq[i:j]
 
     def __len__():
         return len(self._seq)
@@ -541,51 +544,53 @@ def DerSequence(startSeq=None, implicit=None):
         element is not decoded. Its validity is not checked.
         """
 
-        _nr_elements = nr_elements
-        result = self.derobject.decode(der_encoded, strict=strict)
+        self._nr_elements = nr_elements
+        result = self.derobject.decode(self, der_encoded, strict=strict)
 
         if only_ints_expected and not hasOnlyInts():
             fail(" ValueError(\"Some members are not INTEGERs\")")
 
         return result
 
-    def _decodeFromStream(s, strict):
+    def _decodeFromStream(obj, s, strict):
         """Decode a complete DER SEQUENCE from a file."""
+        if not obj:
+            obj = self
 
-        self._seq = []
+        obj._seq = []
 
         # Fill up self.payload
-        self.derobject._decodeFromStream(s, strict)
+        obj.derobject._decodeFromStream(obj, s, strict)
 
         # Add one item at a time to self.seq, by scanning self.payload
-        p = BytesIO_EOF(self.payload)
+        p = BytesIO_EOF(obj.payload)
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if p.remaining_data() <= 0:
                 break
             p.set_bookmark()
 
             der = DerObject()
-            der._decodeFromStream(p, strict)
+            der._decodeFromStream(der, p, strict)
 
             # Parse INTEGERs differently
             if der._tag_octet != 0x02:
-                self._seq.append(p.data_since_bookmark())
+                obj._seq.append(p.data_since_bookmark())
             else:
                 derInt = DerInteger()
                 data = p.data_since_bookmark()
                 derInt.decode(data, strict=strict)
-                self._seq.append(derInt.value)
+                obj._seq.append(derInt.value)
 
         ok = True
-        if self._nr_elements != None:
-            if types.is_iterable(self._nr_elements):
-                ok = len(self._seq) in self._nr_elements
+        if obj._nr_elements != None:
+            if types.is_iterable(obj._nr_elements):
+                ok = len(obj._seq) in obj._nr_elements
             else:
-                ok = len(self._seq) == self._nr_elements
+                ok = len(obj._seq) == obj._nr_elements
 
         if not ok:
             err = '"Unexpected number of members (%d) in the sequence"'
-            fail('ValueError(%s)' % (err % len(self._seq)))
+            fail('ValueError(%s)' % (err % len(obj._seq)))
 
     self = __init__(startSeq, implicit)
     self.append = append
@@ -594,6 +599,7 @@ def DerSequence(startSeq=None, implicit=None):
     self.hasInts = hasInts
     self.hasOnlyInts = hasOnlyInts
     self.pop = pop
+    self._decodeFromStream = _decodeFromStream
     self.__getitem__ = __getitem__
     self.__setitem__ = __setitem__
     self.__setslice__ = __setslice__

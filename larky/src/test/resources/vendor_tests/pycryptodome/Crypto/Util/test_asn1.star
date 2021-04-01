@@ -207,50 +207,44 @@ def DerSequenceTests_testEncode6():
     der = DerSequence()
     der.append(0x180)
     der.append(0xFF)
-    asserts.assert_that(der.encode()).is_equal_to(
-        b(r"0\x08\x02\x02\x01\x80\x02\x02\x00\xff")
-    )
+    asserts.assert_that(der.encode()).is_equal_to(bytes([0x30, 0x08, 0x02, 0x02, 0x01, 0x80, 0x02, 0x02, 0x00, 0xff]))
     asserts.assert_that(der.hasOnlyInts()).is_true()
     asserts.assert_that(der.hasOnlyInts(False)).is_true()
     # Two mixed integers
     der = DerSequence()
     der.append(2)
     der.append(-2)
-    asserts.assert_that(der.encode()).is_equal_to(b(r"0\x06\x02\x01\x02\x02\x01\xFE"))
+    asserts.assert_that(der.encode()).is_equal_to(bytes([0x30, 0x06, 0x02, 0x01, 0x02, 0x02, 0x01, 0xfe]))
     asserts.assert_that(der.hasInts()).is_equal_to(1)
     asserts.assert_that(der.hasInts(False)).is_equal_to(2)
     asserts.assert_that(der.hasOnlyInts()).is_false()
     asserts.assert_that(der.hasOnlyInts(False)).is_true()
     #
     der.append(0x01)
-    der = der[0] + [9, 8]
-    asserts.assert_that(len(der)).is_equal_to(3)
-    asserts.assert_that(der[1:]).is_equal_to([9, 8])
-    asserts.assert_that(der[1:-1]).is_equal_to([9])
-    asserts.assert_that(der.encode()).is_equal_to(
-        b(r"0\x09\x02\x01\x02\x02\x01\x09\x02\x01\x08")
-    )
+    der.__setslice__(1, der.__len__(), [9, 8])
+    asserts.assert_that(der.__len__()).is_equal_to(3)
+    asserts.assert_that(der.__getslice__(1, der.__len__())).is_equal_to([9, 8])
+    asserts.assert_that(der.__getslice__(1, -1)).is_equal_to([9])
+    asserts.assert_that(der.encode()).is_equal_to(bytes([0x30, 0x09, 0x02, 0x01, 0x02, 0x02, 0x01, 0x09, 0x02, 0x01, 0x08]))
+
 
 
 def DerSequenceTests_testEncode7():
     # One integer and another type (already encoded)
     der = DerSequence()
     der.append(0x180)
-    der.append(b(r"0\x03\x02\x01\x05"))
-    asserts.assert_that(der.encode()).is_equal_to(
-        b(r"0\x09\x02\x02\x01\x800\x03\x02\x01\x05")
-    )
+    der.append(bytes([0x30, 0x03, 0x02, 0x01, 0x05]))
+    asserts.assert_that(der.encode()).is_equal_to(bytes([0x30, 0x09, 0x02, 0x02, 0x01, 0x80, 0x30, 0x03, 0x02, 0x01, 0x05]))
     asserts.assert_that(der.hasOnlyInts()).is_false()
 
 
+# Test will not pass since we do not enable recursion in Larky
 def DerSequenceTests_testEncode8():
     # One integer and another type (yet to encode)
     der = DerSequence()
     der.append(0x180)
     der.append(DerSequence([5]))
-    asserts.assert_that(der.encode()).is_equal_to(
-        b(r"0\x09\x02\x02\x01\x800\x03\x02\x01\x05")
-    )
+    asserts.assert_that(der.encode()).is_equal_to(bytes([0x30, 0x09, 0x02, 0x02, 0x01, 0x80, 0x30, 0x03, 0x02, 0x01, 0x05]))
     asserts.assert_that(der.hasOnlyInts()).is_false()
 
     ####
@@ -259,81 +253,80 @@ def DerSequenceTests_testEncode8():
 def DerSequenceTests_testDecode1():
     # Empty sequence
     der = DerSequence()
-    der.decode(b(r"0\x00"))
-    asserts.assert_that(len(der)).is_equal_to(0)
+    der.decode(bytearray([0x30, 0x00]))
+    asserts.assert_that(der.__len__()).is_equal_to(0)
     # One single-byte integer (zero)
-    der.decode(b(r"0\x03\x02\x01\x00"))
-    asserts.assert_that(len(der)).is_equal_to(1)
-    asserts.assert_that(der[0]).is_equal_to(0)
+    der.decode(bytes([0x30, 0x03, 0x02, 0x01, 0x00]))
+    asserts.assert_that(der.__len__()).is_equal_to(1)
+    asserts.assert_that(der.__getitem__(0)).is_equal_to(0)
     # Invariant
-    der.decode(b(r"0\x03\x02\x01\x00"))
-    asserts.assert_that(len(der)).is_equal_to(1)
-    asserts.assert_that(der[0]).is_equal_to(0)
+    der.decode(bytes([0x30, 0x03, 0x02, 0x01, 0x00]))
+    asserts.assert_that(der.__len__()).is_equal_to(1)
+    asserts.assert_that(der.__getitem__(0)).is_equal_to(0)
 
 
 def DerSequenceTests_testDecode2():
     # One single-byte integer (non-zero)
     der = DerSequence()
-    der.decode(b(r"0\x03\x02\x01\x7f"))
-    asserts.assert_that(len(der)).is_equal_to(1)
-    asserts.assert_that(der[0]).is_equal_to(127)
+    der.decode(bytearray([0x30, 0x03, 0x02, 0x01, 0x7f]))
+    asserts.assert_that(der.__len__()).is_equal_to(1)
+    asserts.assert_that(der.__getitem__(0)).is_equal_to(127)
 
 
 def DerSequenceTests_testDecode4():
     # One very long integer
     der = DerSequence()
     der.decode(
-        b(r"0\x82\x01\x05")
-        + b(r"\x02\x82\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-        + b(r"\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-    )
-    asserts.assert_that(len(der)).is_equal_to(1)
-    asserts.assert_that(der[0]).is_equal_to(pow(2, 2048))
+        bytearray([0x30, 0x82, 0x01, 0x05])
+           + bytearray([0x02, 0x82, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+           + bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+    asserts.assert_that(der.__len__()).is_equal_to(1)
+    asserts.assert_that(der.__getitem__(0)).is_equal_to(pow(2, 2048))
 
 
 def DerSequenceTests_testDecode6():
     # Two integers
     der = DerSequence()
-    der.decode(b(r"0\x08\x02\x02\x01\x80\x02\x02\x00\xff"))
-    asserts.assert_that(len(der)).is_equal_to(2)
-    asserts.assert_that(der[0]).is_equal_to(0x180)
-    asserts.assert_that(der[1]).is_equal_to(0xFF)
+    der.decode(bytearray([0x30, 0x08, 0x02, 0x02, 0x01, 0x80, 0x02, 0x02, 0x00, 0xff]))
+    asserts.assert_that(der.__len__()).is_equal_to(2)
+    asserts.assert_that(der.__getitem__(0)).is_equal_to(0x180)
+    asserts.assert_that(der.__getitem__(1)).is_equal_to(0xFF)
 
 
 def DerSequenceTests_testDecode7():
     # One integer and 2 other types
     der = DerSequence()
-    der.decode(b(r"0\x0A\x02\x02\x01\x80\x24\x02\xb6\x63\x12\x00"))
-    asserts.assert_that(len(der)).is_equal_to(3)
-    asserts.assert_that(der[0]).is_equal_to(0x180)
-    asserts.assert_that(der[1]).is_equal_to(b(r"\x24\x02\xb6\x63"))
-    asserts.assert_that(der[2]).is_equal_to(b(r"\x12\x00"))
+    der.decode(bytearray([0x30, 0x0a, 0x02, 0x02, 0x01, 0x80, 0x24, 0x02, 0xb6, 0x63, 0x12, 0x00]))
+    asserts.assert_that(der.__len__()).is_equal_to(3)
+    asserts.assert_that(der.__getitem__(0)).is_equal_to(0x180)
+    asserts.assert_that(der.__getitem__(1)).is_equal_to(bytes([0x24, 0x02, 0xb6, 0x63]))
+    asserts.assert_that(der.__getitem__(2)).is_equal_to(bytes([0x12, 0x00]))
 
 
 def DerSequenceTests_testDecode8():
     # Only 2 other types
     der = DerSequence()
-    der.decode(b(r"0\x06\x24\x02\xb6\x63\x12\x00"))
-    asserts.assert_that(len(der)).is_equal_to(2)
-    asserts.assert_that(der[0]).is_equal_to(b(r"\x24\x02\xb6\x63"))
-    asserts.assert_that(der[1]).is_equal_to(b(r"\x12\x00"))
+    der.decode(bytearray([0x30, 0x06, 0x24, 0x02, 0xb6, 0x63, 0x12, 0x00]))
+    asserts.assert_that(der.__len__()).is_equal_to(2)
+    asserts.assert_that(der.__getitem__(0)).is_equal_to(bytes([0x24, 0x02, 0xb6, 0x63]))
+    asserts.assert_that(der.__getitem__(1)).is_equal_to(bytes([0x12, 0x00]))
     asserts.assert_that(der.hasInts()).is_equal_to(0)
     asserts.assert_that(der.hasInts(False)).is_equal_to(0)
     asserts.assert_that(der.hasOnlyInts()).is_false()
@@ -343,7 +336,7 @@ def DerSequenceTests_testDecode8():
 def DerSequenceTests_testDecode9():
     # Verify that decode returns itself
     der = DerSequence()
-    asserts.assert_that(der).is_equal_to(der.decode(b(r"0\x06\x24\x02\xb6\x63\x12\x00")))
+    asserts.assert_that(der).is_equal_to(der.decode(bytes([0x30, 0x06, 0x24, 0x02, 0xb6, 0x63, 0x12, 0x00])))
 
     ###
 
@@ -352,30 +345,24 @@ def DerSequenceTests_testErrDecode1():
     # Not a sequence
     der = DerSequence()
     asserts.assert_fails(lambda: der.decode(b(r"")), ".*?ValueError")
-    asserts.assert_fails(lambda: der.decode(b(r"\x00")), ".*?ValueError")
-    asserts.assert_fails(lambda: der.decode(b(r"\x30")), ".*?ValueError")
+    asserts.assert_fails(lambda: der.decode(bytes([0x00])), ".*?ValueError")
+    asserts.assert_fails(lambda: der.decode(bytes([0x30])), ".*?ValueError")
 
 
 def DerSequenceTests_testErrDecode2():
     der = DerSequence()
     # Too much data
-    asserts.assert_fails(lambda: der.decode(b(r"\x30\x00\x00")), ".*?ValueError")
+    asserts.assert_fails(lambda: der.decode(bytes([0x30, 0x00, 0x00])), ".*?ValueError")
 
 
 def DerSequenceTests_testErrDecode3():
     # Wrong length format
     der = DerSequence()
     # Missing length in sub-item
-    asserts.assert_fails(
-        lambda: der.decode(b(r"\x30\x04\x02\x01\x01\x00")), ".*?ValueError"
-    )
+    asserts.assert_fails(lambda : der.decode(bytes([0x30, 0x04, 0x02, 0x01, 0x01, 0x00])), ".*?ValueError")
     # Valid BER, but invalid DER length
-    asserts.assert_fails(
-        lambda: der.decode(b(r"\x30\x81\x03\x02\x01\x01")), ".*?ValueError"
-    )
-    asserts.assert_fails(
-        lambda: der.decode(b(r"\x30\x04\x02\x81\x01\x01")), ".*?ValueError"
-    )
+    asserts.assert_fails(lambda : der.decode(bytes([0x30, 0x81, 0x03, 0x02, 0x01, 0x01])), ".*?ValueError")
+    asserts.assert_fails(lambda : der.decode(bytes([0x30, 0x04, 0x02, 0x81, 0x01, 0x01])), ".*?ValueError")
 
 
 def DerSequenceTests_test_expected_nr_elements():
@@ -394,7 +381,8 @@ def DerSequenceTests_test_expected_nr_elements():
 def DerSequenceTests_test_expected_only_integers():
 
     der_bin1 = DerSequence([1, 2, 3]).encode()
-    der_bin2 = DerSequence([1, 2, DerSequence([3, 4])]).encode()
+    in_seq1 = DerSequence([3, 4]).encode()
+    der_bin2 = DerSequence([1, 2, in_seq1]).encode()
 
     DerSequence().decode(der_bin1, only_ints_expected=True)
     DerSequence().decode(der_bin1, only_ints_expected=False)
@@ -422,19 +410,23 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode5))
     _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode6))
     _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode7))
-    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode8))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode4))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode6))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode7))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode8))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode9))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode3))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_test_expected_nr_elements))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_test_expected_only_integers))
+    _suite.addTest(
+        # Larky does not allow recursion so this test will fail.
+        unittest.expectedFailure(
+            unittest.FunctionTestCase(DerSequenceTests_testEncode8)
+    ))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode1))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode2))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode4))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode6))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode7))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode8))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode9))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode1))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode2))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode3))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_test_expected_nr_elements))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_test_expected_only_integers))
     return _suite
 
 _runner = unittest.TextTestRunner()
