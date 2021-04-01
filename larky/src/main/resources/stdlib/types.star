@@ -201,7 +201,6 @@ def _is_bytearray(barrobj):
     return _is_instance(barrobj, bytearray)
 
 
-
 def _type_maker(name, resolved_bases, ns, kwds):
     print("in type maker: ", name)
     print(resolved_bases)
