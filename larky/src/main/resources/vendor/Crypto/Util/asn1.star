@@ -570,13 +570,23 @@ def DerSequence(startSeq=None, implicit=None):
 
         self._nr_elements = nr_elements
         i = _JCrypto.Util.ASN1.DerSequence(self._seq)
-        return i.decode()
+        self._seq = i.decode(der_encoded)
         # result = self.derobject.decode(self, der_encoded, strict=strict)
         #
-        # if only_ints_expected and not hasOnlyInts():
-        #     fail(" ValueError(\"Some members are not INTEGERs\")")
-        #
-        # return result
+        if only_ints_expected and not hasOnlyInts():
+            fail(" ValueError(\"Some members are not INTEGERs\")")
+
+        ok = True
+        if self._nr_elements != None:
+            if types.is_iterable(self._nr_elements):
+                ok = len(self._seq) in self._nr_elements
+            else:
+                ok = len(self._seq) == self._nr_elements
+
+        if not ok:
+            err = '"Unexpected number of members (%d) in the sequence"'
+            fail('ValueError(%s)' % (err % len(self._seq)))
+        return self
 
     def _decodeFromStream(obj, s, strict):
         """Decode a complete DER SEQUENCE from a file."""
