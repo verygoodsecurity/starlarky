@@ -53,7 +53,7 @@ def _test_DERInteger():
     int_der = DerInteger(9)
     encoded = int_der.encode()
     asserts.eq(hexlify(encoded), "020109")
-    asserts.assert_true(types.is_bytes(encoded))
+    asserts.assert_true(types.is_bytelike(encoded))
 
 
 # def _test_DERSequence():
@@ -689,7 +689,7 @@ def DerNullTests_testEncode1():
     ####
 
 def DerNullTests_testDecode1():
-        # Empty sequence
+    # Empty sequence
     der = DerNull()
     asserts.assert_that(der).is_equal_to(der.decode(bytes([0x05, 0x00])))
 
@@ -910,13 +910,13 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_test_expected_nr_elements))
     _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_test_expected_only_integers))
 
+    _suite.addTest(unittest.FunctionTestCase(DerNullTests_testEncode1))
+    _suite.addTest(unittest.FunctionTestCase(DerNullTests_testDecode1))
     # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testInit1))
     # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testEncode1))
     # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testDecode1))
     # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testDecode2))
     # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testErrDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerNullTests_testEncode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerNullTests_testDecode1))
     # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testInit1))
     # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testEncode1))
     # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode1))

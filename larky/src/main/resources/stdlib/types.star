@@ -201,6 +201,10 @@ def _is_bytearray(barrobj):
     return _is_instance(barrobj, bytearray)
 
 
+def _is_bytelike(b):
+    return _is_bytes(b) or _is_bytearray(b)
+
+
 def _type_maker(name, resolved_bases, ns, kwds):
     print("in type maker: ", name)
     print(resolved_bases)
@@ -473,6 +477,7 @@ types = larky.struct(
     is_iterable=_is_iterable,
     is_bytes=_is_bytes,
     is_bytearray=_is_bytearray,
+    is_bytelike=_is_bytelike,
     MethodType=_MethodType,
     new_class=new_class,
     resolve_bases=resolve_bases,

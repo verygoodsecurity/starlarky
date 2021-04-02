@@ -713,7 +713,15 @@ def DerNull():
            **__dict__
         )
 
+    def encode():
+        return self.derobject.encode(self)
+
+    def decode(der_encoded, strict=False):
+        return self.derobject.decode(self, der_encoded, strict=strict)
+
     self = __init__()
+    self.encode = encode
+    self.decode = decode
     return self
 
 
