@@ -688,8 +688,13 @@ def DerOctetString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None):
             The IMPLICIT tag to use for the encoded object.
             It overrides the universal tag for OCTET STRING (4).
         """
-        self = DerObject(0x04, value, implicit, 0)
-        return self
+        derobject = DerObject(0x04, value, implicit, 0)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerOctetString'
+        return larky.mutablestruct(
+           **__dict__
+        )
 
     self = __init__(value, implicit)
     return self
@@ -700,9 +705,13 @@ def DerNull():
 
     def __init__():
         """Initialize the DER object as a NULL."""
-
-        self = DerObject(0x05, builtins.bytes(r'', encoding='utf-8'), None, 0)
-        return self
+        derobject = DerObject(0x05, bytes(), None, 0)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerNull'
+        return larky.mutablestruct(
+           **__dict__
+        )
 
     self = __init__()
     return self
@@ -750,9 +759,15 @@ def DerObjectId(value='', implicit=None, explicit=None):
           explicit : integer
             The EXPLICIT tag to use for the encoded object.
         """
-        self = DerObject(0x06, builtins.bytes(r'', encoding='utf-8'), implicit, 0, explicit)
-        self.value = value
-        return self
+        derobject = DerObject(0x06, bytes(), implicit, 0, explicit)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerObjectId'
+        __dict__['value'] = value
+
+        return larky.mutablestruct(
+            **__dict__
+        )
 
     def encode():
         """Return the DER OBJECT ID, fully encoded as a
@@ -760,7 +775,7 @@ def DerObjectId(value='', implicit=None, explicit=None):
         fail("OH NOES")
         comps = [int(x) for x in self.value.split(".")]
         if len(comps) < 2:
-            fail(" ValueError(\"Not a valid Object Identifier string\")")
+            fail('ValueError("Not a valid Object Identifier string")')
         payload = bchr(40*comps[0]+comps[1])
         for v in comps[2:]:
             if v == 0:
@@ -820,7 +835,7 @@ def DerObjectId(value='', implicit=None, explicit=None):
     return self
 
 
-def DerBitString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None, explicit=None):
+def DerBitString(value=bytes(), implicit=None, explicit=None):
     r"""Class to model a DER BIT STRING.
 
     An example of encoding is:
@@ -863,20 +878,26 @@ def DerBitString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None, exp
           explicit : integer
             The EXPLICIT tag to use for the encoded object.
         """
-        self = DerObject(0x03, builtins.bytes(r'', encoding='utf-8'), implicit, 0, explicit)
-
+        derobject = DerObject(0x03, bytes(), implicit, 0, explicit)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerBitString'
         # The bitstring value (packed)
         if types.is_instance(value, DerObject):
             self.value = value.encode()
         else:
             self.value = value
+        __dict__['value'] = value
+        return larky.mutablestruct(
+            **__dict__
+        )
 
     def encode():
         """Return the DER BIT STRING, fully encoded as a
         binary string."""
 
         # Add padding count byte
-        payload = builtins.bytes(r'\x00', encoding='utf-8') + value
+        payload = bytearray(r'\x00', encoding='utf-8') + value
         return DerObject.encode(self)
 
     def decode(der_encoded, strict=False):
@@ -901,7 +922,7 @@ def DerBitString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None, exp
         DerObject._decodeFromStream(self, s, strict)
 
         if self.payload and bord(self.payload[0]) != 0:
-            fail(" ValueError(\"Not a valid BIT STRING\")")
+            fail('ValueError("Not a valid BIT STRING")')
 
         # Fill-up self.value
         value = builtins.bytes(r'', encoding='utf-8')
@@ -950,13 +971,16 @@ def DerSetOf(startSet=None, implicit=None):
             The IMPLICIT tag to use for the encoded object.
             It overrides the universal tag for SET OF (17).
         """
-        self = DerObject(0x11, builtins.bytes(r'', encoding='utf-8'), implicit, 1)
-        self._seq = []
+        derobject = DerObject(0x11, bytes(), implicit, 1)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerSetOf'
+        __dict__['_seq'] = []
 
         # All elements must be of the same type (and therefore have the
         # same leading octet)
-        self._elemOctet = None
-
+        __dict__['_elemOctet'] = None
+        self = larky.mutablestruct(**__dict__)
         if startSet:
             for e in startSet:
                 add(e)
@@ -990,7 +1014,7 @@ def DerSetOf(startSet=None, implicit=None):
 
         if self._elemOctet != eo:
             if self._elemOctet != None:
-                fail(" ValueError(\"New element does not belong to the set\")")
+                fail('ValueError("New element does not belong to the set")')
             self._elemOctet = eo
 
         if elem not in self._seq:
@@ -1014,7 +1038,7 @@ def DerSetOf(startSet=None, implicit=None):
 
         return DerObject.decode(self, der_encoded, strict)
 
-    def _decodeFromStream(s, strict):
+    def _decodeFromStream(obj, s, strict):
         """Decode a complete DER SET OF from a file."""
 
         self._seq = []
@@ -1038,7 +1062,8 @@ def DerSetOf(startSet=None, implicit=None):
                 setIdOctet = der._tag_octet
             else:
                 if setIdOctet != der._tag_octet:
-                    fail(" ValueError(\"Not all elements are of the same DER type\")")
+                    fail('ValueError("Not all elements are of the ' +
+                         'same DER type")')
 
             # Parse INTEGERs differently
             if setIdOctet != 0x02:
@@ -1065,7 +1090,7 @@ def DerSetOf(startSet=None, implicit=None):
                 bys = item
             ordered.append(bys)
         ordered.sort()
-        self.payload = builtins.bytes(r'', encoding='utf-8').join(ordered)
+        self.payload = bytearray().join(ordered)
         return DerObject.encode(self)
 
     self = __init__(startSet, implicit)

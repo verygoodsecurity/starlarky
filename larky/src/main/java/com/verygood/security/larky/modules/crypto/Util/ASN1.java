@@ -35,10 +35,10 @@ import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.DERSet;
 import org.bouncycastle.asn1.DERUTF8String;
-import org.bouncycastle.asn1.DLSequence;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -63,7 +63,7 @@ public class ASN1 {
 
     public Object toStarlarkPrimitive() throws EvalException {
       Object r = this.toStarlark();
-      if(r instanceof String || r instanceof StarlarkValue) {
+      if (r instanceof String || r instanceof StarlarkValue) {
         return r;
       }
       throw Starlark.errorf("Unable to convert %s to Starlark Primitive", r.getClass());
@@ -95,10 +95,10 @@ public class ASN1 {
       return new LarkyDerInteger(new ASN1Integer(n));
     }
 
-    @StarlarkMethod(name="encode", useStarlarkThread = true)
+    @StarlarkMethod(name = "encode", useStarlarkThread = true)
     public LarkyByte encode(StarlarkThread thread) throws EvalException {
       LarkyByte b;
-      try(ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+      try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
         ASN1OutputStream os = ASN1OutputStream.create(baos);
         os.writeObject(this.asn1int);
         os.flush();
@@ -109,19 +109,19 @@ public class ASN1 {
       return b;
     }
 
-    @StarlarkMethod(name="as_int")
+    @StarlarkMethod(name = "as_int")
     public StarlarkInt value() {
       return StarlarkInt.of(this.asn1int.getPositiveValue());
     }
 
-    @StarlarkMethod(name="decode", parameters = {
-        @Param(name="barr"),
-        @Param(name="strict", named = true, defaultValue = "False")
+    @StarlarkMethod(name = "decode", parameters = {
+        @Param(name = "barr"),
+        @Param(name = "strict", named = true, defaultValue = "False")
     })
     public LarkyDerInteger decode(LarkyByteLike barr, Boolean strict) throws EvalException {
       try {
-        if(strict)
-        asn1int = (ASN1Integer) ASN1Primitive.fromByteArray(barr.getBytes());
+        if (strict)
+          asn1int = (ASN1Integer) ASN1Primitive.fromByteArray(barr.getBytes());
       } catch (IOException e) {
         throw Starlark.errorf(e.getMessage());
       }
@@ -168,9 +168,11 @@ public class ASN1 {
       super(derBitString);
       this.derBitString = derBitString;
     }
+
     static public LarkyDerBitString fromStarlarkByteLike(LarkyByteLike b) {
       return new LarkyDerBitString(new DERBitString(b.getBytes()));
     }
+
     @Override
     public String getString() {
       return this.derBitString.getString();
@@ -223,8 +225,7 @@ public class ASN1 {
   }
 
   public static class LarkyASN1Sequence extends LarkyASN1Encodable
-      implements StarlarkIterable<LarkyASN1Encodable>, StarlarkIndexable
-  {
+      implements StarlarkIterable<LarkyASN1Encodable>, StarlarkIndexable {
 
     static public LarkyASN1Sequence fromList(StarlarkList<?> obj) throws EvalException {
       ASN1Encodable[] encodables = new ASN1Encodable[obj.size()];
@@ -240,24 +241,21 @@ public class ASN1 {
       // https://stackoverflow.com/questions/38920520/visitor-pattern-implementation-in-case-of-source-code-un-availability
       // https://stackoverflow.com/questions/51165280/best-design-pattern-to-avoid-instanceof-when-working-with-classes-that-cannot-be
       // https://stackoverflow.com/questions/3930808/how-to-avoid-large-if-statements-and-instanceof
-      if(obj instanceof StarlarkInt) {
-          StarlarkInt i = (StarlarkInt) obj;
-          return LarkyDerInteger.fromStarlarkInt(i);
-      }
-      else if (obj instanceof LarkyDerInteger) {
+      if (obj instanceof StarlarkInt) {
+        StarlarkInt i = (StarlarkInt) obj;
+        return LarkyDerInteger.fromStarlarkInt(i);
+      } else if (obj instanceof LarkyDerInteger) {
         return (LarkyDerInteger) obj;
       }
       // it's a binary string
-      else if (obj instanceof LarkyByteLike){
+      else if (obj instanceof LarkyByteLike) {
         LarkyByteLike b = (LarkyByteLike) obj;
         return new LarkyOctetString(new DEROctetString(b.getBytes()));
-      }
-      else if(obj instanceof LarkyOctetString) {
+      } else if (obj instanceof LarkyOctetString) {
         return (LarkyOctetString) obj;
-      }
-      else if(obj instanceof LarkyObject) {
+      } else if (obj instanceof LarkyObject) {
         LarkyObject lobj = ((LarkyObject) obj);
-        switch(lobj.type()) {
+        switch (lobj.type()) {
           case "DerInteger":
             long value2 = Long.parseLong(String.valueOf(lobj.getField("value")));
             ASN1Integer value1 = new ASN1Integer(value2);
@@ -270,15 +268,15 @@ public class ASN1 {
           default:
             throw Starlark.errorf("Unknown type %s to convert to asASN1Encodable", Starlark.type(obj));
         }
-      }
-      else if(obj instanceof ASN1Integer) {
+      } else if (obj instanceof ASN1Integer) {
         return new LarkyDerInteger((ASN1Integer) obj);
-      }
-      else if(obj instanceof DERBitString) {
+      } else if (obj instanceof DERBitString) {
         DERBitString dbs = (DERBitString) obj;
         return new LarkyDerBitString(dbs);
-      }
-      else {
+      } else if (obj instanceof DEROctetString) {
+        DEROctetString dbs = (DEROctetString) obj;
+        return new LarkyOctetString(dbs);
+      } else {
         throw Starlark.errorf("Unknown type %s to convert to asASN1Encodable", Starlark.type(obj));
       }
     }
@@ -307,38 +305,47 @@ public class ASN1 {
     @SuppressWarnings("unchecked")
     public void append(Object item) throws EvalException {
       ASN1Encodable atom;
-      if(item instanceof String) {
+      if (item instanceof String) {
         String s = (String) item;
         LarkyOctetString octetString = new LarkyOctetString(new DEROctetString(s.getBytes()));
         atom = asASN1Encodable(octetString);
-      }
-      else {
+      } else {
         atom = asASN1Encodable(item);
       }
-      this.seq = new DLSequence(
+      this.seq = new DERSequence(
           Stream.concat(
               Arrays.stream(this.seq.toArray()), Arrays.stream(new ASN1Encodable[]{atom}))
               .toArray(ASN1Encodable[]::new)
       );
     }
 
-    @StarlarkMethod(name="decode", parameters = {
-        @Param(name="barr"),
-        @Param(name="strict", named = true, defaultValue = "False"),
+    @StarlarkMethod(name = "decode", parameters = {
+        @Param(name = "barr"),
+        @Param(name = "strict", named = true, defaultValue = "False"),
     }, useStarlarkThread = true)
     public StarlarkList<?> decode(LarkyByteLike barr, Boolean strict, StarlarkThread thread) throws EvalException {
-      try {
-        this.seq = ((ASN1Sequence) DLSequence.fromByteArray(barr.getBytes()));
+      byte[] asbytes = barr.getBytes();
+      try(ByteArrayInputStream bais = new ByteArrayInputStream(asbytes)) {
+//        ASN1Utils.ensureDEREncoded(bais);
+//        ASN1InputStream is = new ASN1InputStream(asbytes);
+//        ASN1Sequence asnSeq = ((ASN1Sequence) is.readObject());
+//        this.seq = asnSeq;
+        this.seq = (ASN1Sequence) DERSequence.fromByteArray(asbytes);
       } catch (IOException e) {
         String message = e.getMessage();
-        if(message.contains("Extra data detected in stream")) {
+        if (message.contains("Extra data detected in stream")) {
           message = "ValueError: Extra data detected in stream";
-        }
-        else if(message.contains("end-of-contents marker")) {
+        } else if (message.contains("end-of-contents marker")) {
           message = "ValueError: end-of-contents marker";
+        } else if (message.contains("EOF found when length expected")) {
+          message = "ValueError: EOF found when length expected";
         }
         throw Starlark.errorf(message);
       }
+      if (this.seq == null) {
+        throw Starlark.errorf("ValueError: Not enough data for DER decoding");
+      }
+      //System.out.println(this.seq.size());
       //System.out.println(ASN1Dump.dumpAsString(this.seq, true));
       return asList(thread);
     }
@@ -360,7 +367,7 @@ public class ASN1 {
     public LarkyByteLike encode(StarlarkThread thread) throws EvalException, IOException {
       //System.out.println(ASN1Dump.dumpAsString(this.getSeq(), true));
       LarkyByteArray b;
-      try(ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+      try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
         ASN1OutputStream os = ASN1OutputStream.create(baos);
         os.writeObject(this.seq);
         os.flush();
@@ -384,7 +391,7 @@ public class ASN1 {
         @SneakyThrows
         @Override
         public LarkyASN1Encodable next() {
-            return LarkyASN1Sequence.asASN1Encodable(x.next());
+          return LarkyASN1Sequence.asASN1Encodable(x.next());
         }
       };
     }
@@ -393,7 +400,7 @@ public class ASN1 {
     public Object getIndex(StarlarkSemantics semantics, Object key) throws EvalException {
       try {
         return this.seq.getObjectAt((Integer) key);
-      } catch(ArrayIndexOutOfBoundsException e) {
+      } catch (ArrayIndexOutOfBoundsException e) {
         throw Starlark.errorf(e.getMessage());
       }
     }
