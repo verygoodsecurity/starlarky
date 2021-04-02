@@ -144,13 +144,13 @@ public final class LarkyByte extends LarkyByteLike implements LarkyObject, HasBi
 
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof LarkyByte)) {
+    if (!(obj instanceof LarkyByteLike)) {
         return false;
     }
     if (this == obj) {
         return true;
     }
-    return this.compareTo((LarkyByte) obj) == 0;
+    return this.compareTo((LarkyByteLike) obj) == 0;
   }
 
   @Override

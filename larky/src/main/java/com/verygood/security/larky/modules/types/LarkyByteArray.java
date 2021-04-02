@@ -4,6 +4,7 @@ import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
 
 import com.verygood.security.larky.modules.codecs.TextUtil;
+import com.verygood.security.larky.modules.utils.ByteArrayUtil;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;

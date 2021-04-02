@@ -281,7 +281,7 @@ def DerObject(asn1Id=None,
             inner_octet = p.read_byte()
             if inner_octet != obj._inner_tag_octet:
                 fail('ValueError("Unexpected internal DER tag")')
-            length = obj._decodeLen(p)
+            length = _decodeLen(p)
             obj.payload = p.read(length)
 
             # There shouldn't be other bytes left
@@ -344,7 +344,6 @@ def DerInteger(value=0, implicit=None, explicit=None):
     def encode():
         """Return the DER INTEGER, fully encoded as a
         binary string."""
-
         i = _JCrypto.Util.ASN1.DerInteger(self.value)
         return i.encode()
 
@@ -358,14 +357,37 @@ def DerInteger(value=0, implicit=None, explicit=None):
         Raises:
           ValueError: in case of parsing errors.
         """
-        i = _JCrypto.Util.ASN1.DerInteger(self.value)
-        decoded = i.decode(der_encoded, strict=strict)
-        self.value = decoded.as_int()
-        return self
+        # i = _JCrypto.Util.ASN1.DerInteger(self.value)
+        # decoded = i.decode(der_encoded, strict=strict)
+        # self.value = decoded.as_int()
+        # return self
+        return self.derobject.decode(self, der_encoded, strict)
+
+    def _decodeFromStream(self, s, strict):
+        """Decode a complete DER INTEGER from a file."""
+        # Fill up self.payload
+        self.derobject._decodeFromStream(self, s, strict)
+
+        if strict:
+             if len(self.payload) == 0:
+                 fail('ValueError("Invalid encoding for DER INTEGER: empty payload")')
+             if len(self.payload) >= 2 and struct.unpack('>H', self.payload[:2])[0] < 0x80:
+                 fail('ValueError("Invalid encoding for DER INTEGER: leading zero")')
+
+        # Derive self.value from self.payload
+        self.value = 0
+        bits = 1
+        for i in self.payload:
+            self.value *= 256
+            self.value += bord(i)
+            bits <<= 8
+        if self.payload and bord(self.payload[0]) & 0x80:
+            self.value -= bits
 
     self = __init__(value, implicit, explicit)
     self.decode = decode
     self.encode = encode
+    self._decodeFromStream = _decodeFromStream
     return self
 
 
@@ -506,22 +528,24 @@ def DerSequence(startSeq=None, implicit=None):
           ValueError: if some elements in the sequence are neither integers
                       nor byte strings.
         """
-        self.payload = bytearray()
-        for item in self._seq:
-            if byte_string(item) or types.is_bytearray(item):
-                self.payload += item
-            elif _is_number(item):
-                self.payload += bytearray(DerInteger(item).encode().elems())
-            elif types.is_string(item):
-                self.payload += codecs.encode(item, encoding='utf-8')
-            elif hasattr(item, 'encode'):
-                encoded = item.encode()
-                if hasattr(encoded, 'elems'):
-                    self.payload += bytearray(encoded.elems())
-            else:
-                fail("do not know how to handle: " + type(item))
-
-        return self.derobject.encode(self)
+        i = _JCrypto.Util.ASN1.DerSequence(self._seq)
+        return i.encode()
+        # self.payload = bytearray()
+        # for item in self._seq:
+        #     if byte_string(item) or types.is_bytearray(item):
+        #         self.payload += item
+        #     elif _is_number(item):
+        #         self.payload += bytearray(DerInteger(item).encode().elems())
+        #     elif types.is_string(item):
+        #         self.payload += codecs.encode(item, encoding='utf-8')
+        #     elif hasattr(item, 'encode'):
+        #         encoded = item.encode()
+        #         if hasattr(encoded, 'elems'):
+        #             self.payload += bytearray(encoded.elems())
+        #     else:
+        #         fail("do not know how to handle: " + type(item))
+        #
+        # return self.derobject.encode(self)
 
     def decode(der_encoded, strict=False, nr_elements=None, only_ints_expected=False):
         """Decode a complete DER SEQUENCE, and re-initializes this
@@ -545,12 +569,14 @@ def DerSequence(startSeq=None, implicit=None):
         """
 
         self._nr_elements = nr_elements
-        result = self.derobject.decode(self, der_encoded, strict=strict)
-
-        if only_ints_expected and not hasOnlyInts():
-            fail(" ValueError(\"Some members are not INTEGERs\")")
-
-        return result
+        i = _JCrypto.Util.ASN1.DerSequence(self._seq)
+        return i.decode()
+        # result = self.derobject.decode(self, der_encoded, strict=strict)
+        #
+        # if only_ints_expected and not hasOnlyInts():
+        #     fail(" ValueError(\"Some members are not INTEGERs\")")
+        #
+        # return result
 
     def _decodeFromStream(obj, s, strict):
         """Decode a complete DER SEQUENCE from a file."""

@@ -11,11 +11,6 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkValue;
 
-import org.bouncycastle.asn1.ASN1Encodable;
-import org.bouncycastle.asn1.DERSequence;
-
-import java.io.IOException;
-
 
 public class CryptoUtilModule implements StarlarkValue {
 
@@ -40,19 +35,8 @@ public class CryptoUtilModule implements StarlarkValue {
   }
 
   @StarlarkMethod(name = "DerSequence", parameters = {@Param(name = "obj")})
-  public LarkyASN1Sequence x(StarlarkList<StarlarkValue> obj) throws IOException, EvalException {
-    ASN1Encodable[] encodables = new ASN1Encodable[obj.size()];
-    for (int i = 0; i < obj.size(); ++i) {
-      encodables[i] = LarkyASN1Sequence.asASN1Encodable(obj.get(i));
-    }
-    DERSequence asn1Encodables = new DERSequence(encodables);
-    System.out.println(asn1Encodables);
-    return new LarkyASN1Sequence(asn1Encodables);
-    //return new LarkyASN1Sequence(new DERSequence(encodables));
-    //return (LarkyASN1Sequence) LarkyASN1Sequence.getInstance(DERSequence.fromByteArray(encoded));
-    // DERSequence seq = (DERSequence) DERSequence.fromByteArray(encoded);
-    //return (LarkyASN1Sequence) seq
-
+  public LarkyASN1Sequence DerSequence(StarlarkList<StarlarkValue> obj) throws EvalException {
+    return LarkyASN1Sequence.fromList(obj);
   }
 
 

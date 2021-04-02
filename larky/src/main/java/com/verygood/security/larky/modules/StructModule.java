@@ -83,6 +83,22 @@ public class StructModule implements StarlarkValue {
     return b;
   }
 
+  private byte[] packRaw_8b(byte val)  {
+    byte[] bx = new byte[1];
+    if(val >= 0) {
+      bx[0] = (byte) (val & 0xff);
+    } else {
+      int v2 = Byte.toUnsignedInt(val);
+      bx[0] = (byte) (v2 & 0xff);
+    }
+    return bx;
+  }
+
+  private byte[] packRaw_u8b(byte val)  {
+     byte[] bx = new byte[1];
+     bx[0] = (byte) (val & 0xff);
+     return bx;
+   }
 
   private byte[] packRaw_16b(short val) {
     byte[] bx = new byte[2];
@@ -169,10 +185,70 @@ public class StructModule implements StarlarkValue {
     return bx;
   }
 
+  private byte[] packRaw_64b(long val) {
+    byte[] bx = new byte[8];
+
+    if (val >= 0) {
+      bx[0] = (byte) (val & 0xff);
+      bx[1] = (byte) ((val >> 8) & 0xff);
+      bx[2] = (byte) ((val >> 16) & 0xff);
+      bx[3] = (byte) ((val >> 24) & 0xff);
+      bx[4] = (byte) ((val >> 32) & 0xff);
+      bx[5] = (byte) ((val >> 40) & 0xff);
+      bx[6] = (byte) ((val >> 48) & 0xff);
+      bx[7] = (byte) ((val >> 56) & 0xff);
+    }
+    else {
+      long v2 = Math.abs(val);
+      v2 = (v2 ^ Long.MAX_VALUE) + 1; // invert bits and add 1
+      v2 = v2 | (1L << 63); // add the 63rd bit as negative bit
+      bx[0] = (byte) (v2 & 0xff);
+      bx[1] = (byte) ((v2 >> 8) & 0xff);
+      bx[2] = (byte) ((v2 >> 16) & 0xff);
+      bx[3] = (byte) ((v2 >> 24) & 0xff);
+      bx[4] = (byte) ((v2 >> 32) & 0xff);
+      bx[5] = (byte) ((v2 >> 40) & 0xff);
+      bx[6] = (byte) ((v2 >> 48) & 0xff);
+      bx[7] = (byte) ((v2 >> 56) & 0xff);
+    }
+
+    if (byteOrder == BigEndian) {
+      bx = reverseBytes(bx);
+    }
+    return bx;
+  }
+
+  private byte[] packRaw_u64b(long val) {
+    byte[] bx = new byte[8];
+
+    if (val >= 0) {
+      bx[0] = (byte) (val & 0xff);
+      bx[1] = (byte) ((val >> 8) & 0xff);
+      bx[2] = (byte) ((val >> 16) & 0xff);
+      bx[3] = (byte) ((val >> 24) & 0xff);
+      bx[4] = (byte) ((val >> 32) & 0xff);
+      bx[5] = (byte) ((val >> 40) & 0xff);
+      bx[6] = (byte) ((val >> 48) & 0xff);
+      bx[7] = (byte) ((val >> 56) & 0xff);
+    }
+
+    if (byteOrder == BigEndian) {
+      bx = reverseBytes(bx);
+    }
+    return bx;
+  }
 
   public byte[] pack_single_data(char fmt, long val) {
     byte[] bx;
     switch (fmt) {
+      case 'b':
+        byte bv = (byte) (val & 0xff);
+        bx = packRaw_8b(bv);
+        break;
+      case 'B':
+        bx = packRaw_u8b((byte) val);
+        break;
+
       case 'h':
         short value = (short) (val & 0xffff);
         bx = packRaw_16b(value);
@@ -190,6 +266,14 @@ public class StructModule implements StarlarkValue {
 
       case 'I':
         bx = packRaw_u32b(val);
+        break;
+
+      case 'q':
+        bx = packRaw_64b(val);
+        break;
+
+      case 'Q':
+        bx = packRaw_u64b(val);
         break;
 
       default:
@@ -281,6 +365,13 @@ public class StructModule implements StarlarkValue {
     return bxx;
   }
 
+  private byte unpackRaw_8b(byte[] val) {
+    return (byte) (val[0] & 0xff);
+  }
+
+  private long unpackRaw_u8b(byte[] val) {
+    return (byte) (val[0] & 0xff);
+  }
 
   private long unpackRaw_16b(byte[] val) {
     if (byteOrder == LittleEndian)
@@ -326,15 +417,64 @@ public class StructModule implements StarlarkValue {
     return x;
   }
 
+  private long unpackRaw_64b(byte[] val) {
+    if (byteOrder == LittleEndian)
+      reverseBytes(val);
+
+    long x;
+    //@formatter:off
+    x =   ((long) val[0] << 56)
+        | ((long) val[1] << 48)
+        | ((long) val[2] << 40)
+        | ((long) val[3] << 32)
+        | ((long) val[4] << 24)
+        | ((long) val[5] << 16)
+        | ((long) val[6] << 8)
+        | ((long) val[7]);
+    //@formatter:on
+    if ((x >>> 63 & 1) == 1) {
+      x = ((x ^ Long.MAX_VALUE) & Long.MAX_VALUE) + 1; //2's complement 64 bit
+      x *= -1;
+    }
+    return x;
+  }
+
+  private long unpackRaw_u64b(byte[] val) {
+    if (byteOrder == LittleEndian)
+      reverseBytes(val);
+    //@formatter:off
+    long x;
+    x =   (((long) (val[0] & 0xff)) << 56)
+        | (((long) (val[1] & 0xff)) << 48)
+        | (((long) (val[2] & 0xff)) << 40)
+        | (((long) (val[3] & 0xff)) << 32)
+        | (((long) (val[4] & 0xff)) << 24)
+        | (((long) (val[5] & 0xff)) << 16)
+        | (((long) (val[6] & 0xff)) << 8)
+        | ((long) (val[7] & 0xff));
+    return x;
+    //@formatter:on
+  }
+
   public long unpack_single_data(char fmt, byte[] val) throws Exception {
     long var = 0;
     switch (fmt) {
+      case 'b':
+        if (val.length != 1)
+          throw new Exception("Byte length mismatch");
+        var = unpackRaw_8b(val);
+        break;
+      case 'B':
+        if (val.length != 1)
+          throw new Exception("Byte length mismatch");
+        var = unpackRaw_u8b(val);
+        break;
+
       case 'h':
         if (val.length != 2)
           throw new Exception("Byte length mismatch");
         var = unpackRaw_16b(val);
         break;
-
       case 'H':
         if (val.length != 2)
           throw new Exception("Byte length mismatch");
@@ -348,11 +488,22 @@ public class StructModule implements StarlarkValue {
 
         var = unpackRaw_32b(val);
         break;
-
       case 'I':
         if (val.length != 4)
           throw new Exception("Byte length mismatch");
         var = unpackRaw_u32b(val);
+        break;
+
+      case 'q':
+        if (val.length != 8)
+         throw new Exception("Byte length mismatch");
+        var = unpackRaw_64b(val);
+        break;
+
+      case 'Q':
+        if (val.length != 8)
+         throw new Exception("Byte length mismatch");
+        var = unpackRaw_u64b(val);
         break;
 
       default:
@@ -369,10 +520,24 @@ public class StructModule implements StarlarkValue {
     char x = '\0';
     for (int i = 0; i < fmt.length(); i++) {
       x = fmt.charAt(i);
-      if (x == 'i' || x == 'I')
-        counter += 4;
-      else if (x == 'h' || x == 'H')
-        counter += 2;
+      switch (x) {
+        case 'b':
+        case 'B':
+          counter += 1;
+          break;
+        case 'h':
+        case 'H':
+          counter += 2;
+          break;
+        case 'i':
+        case 'I':
+          counter += 4;
+          break;
+        case 'q':
+        case 'Q':
+          counter += 8;
+          break;
+      }
     }
     return counter;
   }

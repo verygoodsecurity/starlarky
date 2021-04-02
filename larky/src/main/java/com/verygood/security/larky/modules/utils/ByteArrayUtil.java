@@ -1,5 +1,8 @@
-package com.verygood.security.larky.modules.types;
+package com.verygood.security.larky.modules.utils;
 
+import com.google.common.primitives.Bytes;
+
+import org.bouncycastle.util.Pack;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigInteger;
@@ -475,22 +478,47 @@ public class ByteArrayUtil {
   }
 
   public static boolean matchesAt(
-              byte[] bytes1, int offset1,
-              byte[] bytes2){
-          if (offset1 < 0 || offset1 + bytes2.length > bytes1.length) {
-              return false;
-          }
-          if (bytes2.length == 1 && bytes1[offset1] == bytes2[0]){
-              return true;
-          }
-          for (int i=0; i < bytes2.length; i++){
-              if(bytes1[offset1+i]!=bytes2[i]){
-                  return false;
-              }
-          }
-          return true;
+      byte[] bytes1, int offset1,
+      byte[] bytes2) {
+    if (offset1 < 0 || offset1 + bytes2.length > bytes1.length) {
+      return false;
+    }
+    if (bytes2.length == 1 && bytes1[offset1] == bytes2[0]) {
+      return true;
+    }
+    for (int i = 0; i < bytes2.length; i++) {
+      if (bytes1[offset1 + i] != bytes2[i]) {
+        return false;
       }
+    }
+    return true;
+  }
 
+  // copied from pycryptodome/lib/Crypto/Util/number.py:424
+  // this function makes no sense.. we will never have such a large number?
+  // it sounds like it is trying to pack a large number in bigendian with 0 blocksize..
+  public static byte[] long_to_bytes(BigInteger length) {
+    long[] z = new long[9];
+    BigInteger bit64 = BigInteger.valueOf(0xFFFF_FFFF_FFFF_FFFFL);
+    // NOTE: Use a fixed number of loop iterations
+    int i;
+    for (i = 0; length.compareTo(BigInteger.ZERO) > 0; ++i) {
+      z[i] = length.and(bit64).longValue();
+      length = length.shiftRight(64);
+    }
+    byte[] bytes = Pack.longToBigEndian(Arrays.copyOf(z, i));
+    bytes = new String(bytes).replace("\0", "").getBytes();
+    return bytes;
+  }
+
+  // copied from pycryptodome/lib/Crypto/Util/asn1.py:163
+  public static byte[] definiteForm(int length) {
+    if (length > 127) {
+      byte[] encoding = long_to_bytes(BigInteger.valueOf(length));
+      return Bytes.concat(new byte[]{(byte) (encoding.length + 128)}, encoding);
+    }
+    return new byte[]{(byte) length};
+  }
 
   private ByteArrayUtil() {
   } //is not instantiable
