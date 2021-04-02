@@ -701,12 +701,11 @@ def DerObjectIdTests_testInit1():
 def DerObjectIdTests_testEncode1():
     der = DerObjectId('1.2.840.113549.1.1.1')
     asserts.assert_that(der.encode()).is_equal_to(bytes([0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01]))
-        #
+    #
     der = DerObjectId()
     der.value = '1.2.840.113549.1.1.1'
     asserts.assert_that(der.encode()).is_equal_to(bytes([0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01]))
 
-    ####
 
 def DerObjectIdTests_testDecode1():
         # Empty sequence
@@ -912,16 +911,20 @@ def _testsuite():
 
     _suite.addTest(unittest.FunctionTestCase(DerNullTests_testEncode1))
     _suite.addTest(unittest.FunctionTestCase(DerNullTests_testDecode1))
+
+    _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testInit1))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testEncode1))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode1))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode2))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode3))
+
+    ###
+
     # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testInit1))
     # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testEncode1))
     # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testDecode1))
     # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testDecode2))
     # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testErrDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testInit1))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testEncode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode3))
     # _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testInit1))
     # _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testInit2))
     # _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testEncode1))

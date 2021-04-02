@@ -21,6 +21,7 @@
 # ===================================================================
 load("@stdlib//builtins","builtins")
 load("@stdlib//larky", larky="larky")
+load("@stdlib//math", math="math")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//types",types="types")
 load("@stdlib//codecs", "codecs")
@@ -780,24 +781,11 @@ def DerObjectId(value='', implicit=None, explicit=None):
     def encode():
         """Return the DER OBJECT ID, fully encoded as a
         binary string."""
-        fail("OH NOES")
         comps = [int(x) for x in self.value.split(".")]
         if len(comps) < 2:
             fail('ValueError("Not a valid Object Identifier string")')
-        payload = bchr(40*comps[0]+comps[1])
-        for v in comps[2:]:
-            if v == 0:
-                enc = [0]
-            else:
-                enc = []
-                for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-                    if not v:
-                        break
-                    enc.insert(0, (v & 0x7F) | 0x80)
-                    v >>= 7
-                enc[-1] &= 0x7F
-            payload += builtins.bytes(r'', encoding='utf-8').join([bchr(x) for x in enc])
-        return DerObject.encode(self)
+        objectid = _JCrypto.Util.ASN1.DerObjectId(self.value)
+        return objectid.encode()
 
     def decode(der_encoded, strict=False):
         """Decode a complete DER OBJECT ID, and re-initializes this
@@ -813,19 +801,17 @@ def DerObjectId(value='', implicit=None, explicit=None):
             ValueError: in case of parsing errors.
         """
 
-        return DerObject.decode(self, der_encoded, strict)
+        return self.derobject.decode(self, der_encoded, strict)
 
-    def _decodeFromStream(s, strict):
+    def _decodeFromStream(obj, s, strict):
         """Decode a complete DER OBJECT ID from a file."""
+        if obj == None:
+            obj = self
+        # Fill up obj.payload
+        obj.derobject._decodeFromStream(obj, s, strict)
 
-        # Fill up self.payload
-        DerObject._decodeFromStream(self, s, strict)
-
-        # Derive self.value from self.payload
-        p = BytesIO_EOF(self.payload)
-
-        def divmod(x, y):
-            fail("add divmod!")
+        # Derive obj.value from obj.payload
+        p = BytesIO_EOF(obj.payload)
 
         comps = [str(x) for x in divmod(p.read_byte(), 40)]
         v = 0
@@ -837,9 +823,13 @@ def DerObjectId(value='', implicit=None, explicit=None):
             if not (c & 0x80):
                 comps.append(str(v))
                 v = 0
-        value = '.'.join(comps)
+        obj.value = '.'.join(comps)
+        return value
 
     self = __init__(value, implicit, explicit)
+    self.encode = encode
+    self.decode = decode
+    self._decodeFromStream = _decodeFromStream
     return self
 
 

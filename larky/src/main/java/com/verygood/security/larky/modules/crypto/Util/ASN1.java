@@ -111,20 +111,6 @@ public class ASN1 {
     public static LarkyDerInteger fromBigInteger(BigInteger n) {
       return new LarkyDerInteger(new ASN1Integer(n));
     }
-//
-//    @StarlarkMethod(name = "encode", useStarlarkThread = true)
-//    public LarkyByte encode(StarlarkThread thread) throws EvalException {
-//      LarkyByte b;
-//      try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-//        ASN1OutputStream os = ASN1OutputStream.create(baos);
-//        os.writeObject(this.asn1int);
-//        os.flush();
-//        b = (LarkyByte) LarkyByte.builder(thread).setSequence(baos.toByteArray()).build();
-//      } catch (IOException e) {
-//        throw Starlark.errorf(e.getMessage());
-//      }
-//      return b;
-//    }
 
     @StarlarkMethod(name = "as_int")
     public StarlarkInt value() {
@@ -381,23 +367,6 @@ public class ASN1 {
       }).collect(Collectors.toList());
       return StarlarkList.copyOf(thread.mutability(), x);
     }
-//
-//    @StarlarkMethod(
-//        name = "encode",
-//        useStarlarkThread = true)
-//    public LarkyByteLike encode(StarlarkThread thread) throws EvalException, IOException {
-//      //System.out.println(ASN1Dump.dumpAsString(this.getSeq(), true));
-//      LarkyByteArray b;
-//      try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-//        ASN1OutputStream os = ASN1OutputStream.create(baos);
-//        os.writeObject(this.seq);
-//        os.flush();
-//        b = (LarkyByteArray) LarkyByteArray.builder(thread).setSequence(baos.toByteArray()).build();
-//      } catch (IOException e) {
-//        throw Starlark.errorf(e.getMessage());
-//      }
-//      return b;
-//    }
 
     @NotNull
     @Override

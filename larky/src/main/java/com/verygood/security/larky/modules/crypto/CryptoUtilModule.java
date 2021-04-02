@@ -1,5 +1,7 @@
 package com.verygood.security.larky.modules.crypto;
 
+import static com.verygood.security.larky.modules.crypto.Util.ASN1.*;
+
 import com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyASN1Sequence;
 import com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyDerInteger;
 import com.verygood.security.larky.modules.crypto.Util.Strxor;
@@ -10,6 +12,8 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkValue;
+
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 
 
 public class CryptoUtilModule implements StarlarkValue {
@@ -32,6 +36,13 @@ public class CryptoUtilModule implements StarlarkValue {
   public LarkyDerInteger DerInteger(StarlarkInt n) {
     LarkyDerInteger i = LarkyDerInteger.fromStarlarkInt(n);
     return i;
+  }
+
+  @StarlarkMethod(name = "DerObjectId", parameters = {
+      @Param(name = "n")
+  })
+  public LarkyDerObjectId DerObjectId(String objectstr) {
+    return new LarkyDerObjectId(new ASN1ObjectIdentifier(objectstr));
   }
 
   @StarlarkMethod(name = "DerSequence", parameters = {@Param(name = "obj")})
