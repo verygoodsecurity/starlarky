@@ -298,48 +298,52 @@ def long_to_bytes(n, blocksize=0):
     if n < 0 or blocksize < 0:
         fail('raise ValueError("Values must be non-negative")')
 
-    result = []
-    # if blocksize > 0:
-    #     # after much testing, this algorithm was deemed to be the fastest
-    #     result = bytearray(_JCrypto.Math.int_to_bytes(n, blocksize, 'big', False))
-    #     return result
-
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-        if blocksize < 8:
-            break
-        result.insert(0, pack('>Q', n & 0xFFFFFFFFFFFFFFFF))
-        n = n >> 64
-        blocksize -= 8
-
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-        if blocksize < 4:
-            break
-        result.insert(0, pack('>I', n & 0xFFFFFFFF))
-        n = n >> 32
-        blocksize -= 4
-
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-        if blocksize <= 0:
-            break
-        result.insert(0, pack('>B', n & 0xFF))
-        n = n >> 8
-        blocksize -= 1
-
+    result = bytearray(_JCrypto.Math.int_to_bytes(n, blocksize, 'big', False))
     if n == 0:
-       if len(result) == 0:
-           result = [bytearray([0])]
-    else:
-        # The encoded number may exceed the block size
+        if len(result) == 0:
+            result = bytearray([0])
+    return result
 
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            if n <= 0:
-                break
-            result.insert(0, pack('>Q', n & 0xFFFFFFFFFFFFFFFF))
-            n = n >> 64
-
-        result[0] = result[0].lstrip(bytes([0x00]))
-
-    return bytearray(r'', encoding='utf-8').join(result)
+    # Uncomment the below for the bug-for-bug compatibility version with
+    # pycryptodome. See https://github.com/Legrandin/pycryptodome/issues/519
+    # for more details.
+    #
+    # result = []
+    #
+    # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    #     if blocksize < 8:
+    #         break
+    #     result.insert(0, pack('>Q', n & 0xFFFFFFFFFFFFFFFF))
+    #     n = n >> 64
+    #     blocksize -= 8
+    #
+    # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    #     if blocksize < 4:
+    #         break
+    #     result.insert(0, pack('>I', n & 0xFFFFFFFF))
+    #     n = n >> 32
+    #     blocksize -= 4
+    #
+    # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    #     if blocksize <= 0:
+    #         break
+    #     result.insert(0, pack('>B', n & 0xFF))
+    #     n = n >> 8
+    #     blocksize -= 1
+    #
+    # if n == 0:
+    #    if len(result) == 0:
+    #        result = bytearray([0])
+    #  else:
+    #     # The encoded number may exceed the block size
+    #     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    #         if n <= 0:
+    #             break
+    #         result.insert(0, pack('>Q', n & 0xFFFFFFFFFFFFFFFF))
+    #         n = n >> 64
+    #
+    #     result[0] = result[0].lstrip(bytes([0x00]))
+    # return bytearray(r'', encoding='utf-8').join(result)
 
 
 

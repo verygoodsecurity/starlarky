@@ -33,7 +33,7 @@ load("@stdlib/types", "types")
 load("@stdlib/re2j", _re2j="re2j")
 
 
-_WHILE_LOOP_EMULATION_ITERATION = 50
+_WHILE_LOOP_EMULATION_ITERATION = 1000
 
 
 def _enumify_iterable(iterable, enum_dict, numerator=None):

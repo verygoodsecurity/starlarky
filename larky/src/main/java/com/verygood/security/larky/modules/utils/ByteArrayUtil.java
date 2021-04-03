@@ -3,6 +3,7 @@ package com.verygood.security.larky.modules.utils;
 import com.google.common.primitives.Bytes;
 
 import org.bouncycastle.util.Pack;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigInteger;
@@ -43,6 +44,30 @@ public class ByteArrayUtil {
     }
     return new String(hex);
   }
+
+  /**
+     * Fills the given array with array.length new instances of the given class.
+     * @return the array
+     */
+    public static <T> T[] fill(T[] array, Class<T> c) throws ReflectiveOperationException {
+      for (int i = 0; i < array.length; i++) {
+        array[i] = c.getDeclaredConstructor().newInstance();
+      }
+      return array;
+    }
+
+    public static String toHexString(@NotNull byte[] bytes, int digitGrouping, String groupDelimiter) {
+      if (bytes == null || bytes.length == 0)
+        return "";
+      char[] hexChars = toHexString(bytes).toCharArray();
+      StringBuilder buf = new StringBuilder(bytes.length*3);
+      for (int i = 0; i < hexChars.length; i++) {
+        buf.append(hexChars[i]);
+        if (i < hexChars.length-1 && i % digitGrouping == (digitGrouping-1))
+          buf.append(groupDelimiter);
+      }
+      return buf.toString();
+    }
 
   @Nullable
   public static String loggable(@Nullable byte[] bytes) {

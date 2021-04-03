@@ -23,9 +23,11 @@
 # ===================================================================
 
 """Self-test suite for Crypto.PublicKey.RSA"""
-load("@stdlib//unittest", "unittest")
-load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify", a2b_hex="a2b_hex")
-load("@vendor//asserts","asserts")
+load("@stdlib//unittest", unittest="unittest")
+load("@stdlib//binascii", binascii="binascii")
+load("@stdlib//types", types="types")
+load("@stdlib//re", re="re")
+load("@vendor//asserts", asserts="asserts")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long", inverse="inverse")
@@ -82,10 +84,28 @@ prime_factor = """
         ce 33 52 52 4d 04 16 a5 a4 41 e7 00 af 46 15 03
     """
 
+
+def strip_whitespace(s):
+    """Remove whitespace from a text or byte string"""
+    if types.is_string(s):
+        return bytes(re.sub(r'(\s|\x0B|\r?\n)+', '', s), encoding='utf-8')
+    else:
+        b = bytes('', encoding='utf-8')
+        return b.join(s.split())
+
+
+def a2b_hex(s):
+    return binascii.a2b_hex(strip_whitespace(s))
+
+
+def b2a_hex(s):
+    return binascii.b2a_hex(s)
+
+
 n = bytes_to_long(a2b_hex(modulus))
 p = bytes_to_long(a2b_hex(prime_factor))
 
-    # Compute q, d, and u from n, e, and p
+# Compute q, d, and u from n, e, and p
 q = n // p
 d = inverse(e, (p-1)*(q-1))
 u = inverse(p, q)    # u = e**-1 (mod q)

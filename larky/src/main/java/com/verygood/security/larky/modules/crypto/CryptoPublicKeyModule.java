@@ -1,5 +1,7 @@
 package com.verygood.security.larky.modules.crypto;
 
+import com.google.common.flogger.FluentLogger;
+
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
@@ -16,9 +18,12 @@ import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
 import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
+import org.bouncycastle.openssl.PEMDecryptorProvider;
+import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
 import org.bouncycastle.util.encoders.DecoderException;
 
 import java.io.IOException;
@@ -30,7 +35,7 @@ import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
 
 public class CryptoPublicKeyModule implements StarlarkValue {
-
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
   public static final CryptoPublicKeyModule INSTANCE = new CryptoPublicKeyModule();
 
   @StarlarkMethod(name="RSA", structField = true)
@@ -72,7 +77,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
         .put("d", StarlarkInt.of(privateKey.getExponent()))
         .put("p", StarlarkInt.of(privateKey.getP()))
         .put("q", StarlarkInt.of(privateKey.getQ()))
-        .put("u", StarlarkInt.of((privateKey.getQInv())))
+        .put("u", StarlarkInt.of((privateKey.getP().modInverse(privateKey.getQ()))))
         .build(thread.mutability());
   }
   public void RSA_construct(BigInteger n, BigInteger e, BigInteger d, BigInteger p, BigInteger q, BigInteger qInv) {
@@ -89,18 +94,27 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   public RSAPrivateKey RSA_import_key(String externKey, String passPhrase) throws SignatureException {
     StringReader stringReader = new StringReader(externKey);
     try(PEMParser pemParser = new PEMParser(stringReader)) {
-        JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
-        Object pemKeyPairObject = pemParser.readObject();
-        if (pemKeyPairObject instanceof SubjectPublicKeyInfo) {
-            throw new SignatureException("Input is an RSA Public Key, but private key is expected");
-        }
-        PEMKeyPair pemKeyPair = (PEMKeyPair) pemKeyPairObject;
-        KeyPair keyPair = converter.getKeyPair(pemKeyPair);
-        return (RSAPrivateKey) keyPair.getPrivate();
+      JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
+      Object pemKeyPairObject = pemParser.readObject();
+      KeyPair keyPair = extractKeyPair(pemKeyPairObject, converter, passPhrase);
+      return (RSAPrivateKey) keyPair.getPrivate();
     } catch (IOException e) {
         throw new SignatureException("Unable to parse RSA private key", e);
     } catch (IllegalArgumentException | NullPointerException | DecoderException e) {
         throw new SignatureException("Unable to parse RSA private key. Input is malformed", e);
     }
+  }
+
+  private KeyPair extractKeyPair(Object pemKeyPairObject, JcaPEMKeyConverter converter,  String passPhrase) throws IOException, SignatureException {
+    if (pemKeyPairObject instanceof SubjectPublicKeyInfo) {
+        throw new SignatureException("Input is an RSA Public Key, but private key is expected");
+    }
+    if (pemKeyPairObject instanceof PEMEncryptedKeyPair) {
+      logger.atInfo().log("Encrypted key - using a provided password");
+      PEMDecryptorProvider decProv = new JcePEMDecryptorProviderBuilder().build(passPhrase.toCharArray());
+      return converter.getKeyPair(((PEMEncryptedKeyPair) pemKeyPairObject).decryptKeyPair(decProv));
+    }
+    logger.atInfo().log("Unencrypted key - no password needed");
+    return converter.getKeyPair((PEMKeyPair) pemKeyPairObject);
   }
 }

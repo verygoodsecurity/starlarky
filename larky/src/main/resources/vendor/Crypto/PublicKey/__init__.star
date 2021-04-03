@@ -89,7 +89,7 @@ def extract_subject_public_key_info(x509_certificate):
     else:
         version = DerInteger(explicit=0).decode(tbs_certificate[0]).value
         if version not in (2, 3):
-            fail(" ValueError(\"Incorrect X.509 certificate version\")")
+            fail(' ValueError("Incorrect X.509 certificate version")')
         index = 6
 
     return tbs_certificate[index]
