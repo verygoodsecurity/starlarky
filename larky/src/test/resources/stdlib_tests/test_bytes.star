@@ -119,7 +119,7 @@ def _test_str_does_transcoding():
     asserts.assert_that(str(empty)).is_equal_to("")
     #asserts.assert_that(str(nonprinting)).is_equal_to("\t\n\x7f\u200d")
     f = builtins.bytes([237, 176, 128])
-    print(repr(f))
+    # print(repr(f))
     asserts.assert_that(
         str(f)
         # UTF-8 encoding of unpaired surrogate => U+FFFD (for Java).
@@ -234,6 +234,17 @@ def _test_bytes_are_immutable():
     asserts.assert_fails(f, "can only assign an .*, not in a 'bytes'")
 
 
+def _test_bytes_join():
+    # from the bytes.join docstring
+    # Example: b'.'.join([b'ab', b'pq', b'rs']) -> b'ab.pq.rs'.
+    expected = bytes('ab.pq.rs', encoding='utf-8')
+    sut = bytes('.', encoding='utf-8').join([b('ab'), b('pq'), b('rs')])
+    asserts.assert_that(sut).is_equal_to(expected)
+    expected = bytearray('ab.pq.rs', encoding='utf-8')
+    sut = bytearray([0x2e]).join([bytes([0x61,0x62]), bytes([0x70,0x71]), bytes([0x72,0x73])])
+    asserts.assert_that(sut).is_equal_to(expected)
+
+
 # TODO(adonovan): the specification is not finalized in many areas:
 # - chr, ord functions
 # - encoding/decoding bytes to string. (NOTE mahmoudimus - I added this).
@@ -284,6 +295,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_indexing))
     _suite.addTest(unittest.FunctionTestCase(_test_slicing))
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_are_immutable))
+    _suite.addTest(unittest.FunctionTestCase(_test_bytes_join))
 
     return _suite
 

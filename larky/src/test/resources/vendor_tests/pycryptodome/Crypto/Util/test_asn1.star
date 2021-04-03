@@ -799,8 +799,8 @@ def DerSetOfTests_testEncode4():
     der = DerSetOf()
     der.add(bytes([0x01, 0x00]))
     der.add(bytes([0x01, 0x01, 0x01]))
-    print(der._seq)
-    print(hexlify(der.encode()))
+    # print(der._seq)             #
+    # print(hexlify(der.encode()))
     # pycryptodome is wrong... this is an untagged encoding (not valid?)
     # asserts.assert_that(der.encode()).is_equal_to(bytes([0x31, 0x05, 0x01, 0x00, 0x01, 0x01, 0x01]))
     asserts.assert_that(der.encode()).is_equal_to((bytes([0x31, 0x09, 0x04, 0x02, 0x01, 0x00, 0x04, 0x03, 0x01, 0x01, 0x01])))

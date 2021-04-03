@@ -133,8 +133,8 @@ def test_size():
 
 
 def test1():
-    asserts.assert_that(long_to_bytes(0x0)).is_equal_to(bytes([0x00]))
-    asserts.assert_that(long_to_bytes(0x1)).is_equal_to(bytes([0x01]))
+    asserts.assert_that(long_to_bytes(0)).is_equal_to(bytes([0x00]))
+    asserts.assert_that(long_to_bytes(1)).is_equal_to(bytes([0x01]))
     asserts.assert_that(long_to_bytes(0x100)).is_equal_to(bytes([0x01, 0x00]))
     asserts.assert_that(long_to_bytes(0xFF00000000)).is_equal_to(bytes([0xff, 0x00, 0x00, 0x00, 0x00]))
     asserts.assert_that(long_to_bytes(0x1122334455667788)).is_equal_to(bytes([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]))
@@ -150,7 +150,6 @@ def test2():
     asserts.assert_that(long_to_bytes(0xFF00000001, 8)).is_equal_to(bytes([0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x01]))
     asserts.assert_that(long_to_bytes(0xFF00000001, 10)).is_equal_to(bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x01]))
     asserts.assert_that(long_to_bytes(0xFF00000001, 11)).is_equal_to(bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x01]))
-
 
 
 def test_err1():

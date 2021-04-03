@@ -231,6 +231,16 @@ public class ByteArrayUtilTest {
   }
 
   @Test
+  public void testLStrip() {
+    byte[] sequence = new byte[] {0x00, 0x00, 0x00, 0x30, 0x00};
+    assertArrayEquals(ByteArrayUtil.lstrip(sequence, new byte[]{(byte) 0x00}), new byte[] {0x30, 0x00});
+    sequence = new byte[] {0x00, 0x01, 0x02, 0x30, 0x00};
+    assertArrayEquals(ByteArrayUtil.lstrip(sequence, new byte[]{(byte) 0x00, 0x01, 0x02}), new byte[] {0x30, 0x00});
+    sequence = new byte[] {0x00, 0x01, 0x00, 0x01, 0x30, 0x00};
+    assertArrayEquals(ByteArrayUtil.lstrip(sequence, new byte[]{(byte) 0x00, 0x01}), new byte[] {0x30, 0x00});
+  }
+
+  @Test
   public void testReplaceStartingBytes() {
     final byte[] sequence = "abcdefghijklmnopqrstuvwxyz".getBytes();
     final byte[] replacedSequence = "abc".getBytes();

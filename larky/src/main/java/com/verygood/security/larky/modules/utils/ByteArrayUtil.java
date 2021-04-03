@@ -423,13 +423,38 @@ public class ByteArrayUtil {
    * @param target byte to exclude from copy.
    * @return returns a copy of {@code input} excluding occurrences of {@code target} at the end.
    */
-  static byte[] rstrip(byte[] input, byte target) {
+  static public byte[] rstrip(byte[] input, byte target) {
     int i = input.length - 1;
     for (; i >= 0; i--) {
       if (input[i] != target)
         break;
     }
     return Arrays.copyOfRange(input, 0, i + 1);
+  }
+
+  private static final int stripLeft(byte[] s, byte[] stripChars, int right) {
+    for (int left = 0; left < right; left++) {
+      if (Bytes.indexOf(stripChars,s[left]) < 0) {
+        return left;
+      }
+    }
+    return right;
+  }
+
+  /**
+   * Get a copy of an array, with first matching leading bytes contained in {@code target} stripped.
+   *
+   * @param input  array to copy. Must not be null.
+   * @param target any of the bytes to exclude from copy.
+   * @return returns a copy of {@code input} excluding first leading matching bytes in {@code target}.
+   */
+   static public byte[] lstrip(byte[] input, byte[] target) {
+     if(!startsWith(input, target)) {
+       return Arrays.copyOf(input, input.length);
+     }
+     // Leftmost non-whitespace character: cannot exceed length
+     int left = stripLeft(input, target, input.length);
+     return Arrays.copyOfRange(input, left, input.length);
   }
 
   /**

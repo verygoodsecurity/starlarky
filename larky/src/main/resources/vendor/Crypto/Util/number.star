@@ -26,6 +26,7 @@
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//builtins", "builtins")
 load("@stdlib//larky", "larky")
+load("@stdlib//types", "types")
 load("@stdlib//math", math="math")
 load("@stdlib//struct", struct="struct")
 load("@vendor//Crypto/Random", Random="Random")
@@ -35,6 +36,7 @@ load("@stdlib//jcrypto", _JCrypto="jcrypto")
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
+pack = struct.pack
 
 # Backward compatibility
 _fastmath = None
@@ -248,11 +250,32 @@ def isPrime(N, false_positive_prob=1e-6, randfunc=None):
 
 
 
+def BigNumber(val, neg=None, bitlen=None):
+    _jmath = _JCrypto.Math
+
+    def __init__(val, neg, bitlen):
+        return larky.mutablestruct(
+            val=val,
+            neg=neg,
+            bitlen=bitlen
+        )
+
+    def int_to_big_endian(value):
+        return _jmath.int_to_bytes((_jmath.bit_length(value) + 7) // 8 or 1, "big")
+
+    def big_endian_to_int(value):
+        return _jmath.int_from_bytes(value, "big")
+
+    self = __init__(val, neg, bitlen)
+    self.int_to_big_endian = int_to_big_endian
+    self.big_endian_to_int = big_endian_to_int
+    return self
+
 
 # Improved conversion functions contributed by Barry Warsaw, after
 # careful benchmarking
 
-def long_to_bytes(n, blocksize=2):
+def long_to_bytes(n, blocksize=0):
     r"""Convert an integer to a byte string.
 
     In Python 3.2+, use the native method instead::
@@ -275,25 +298,48 @@ def long_to_bytes(n, blocksize=2):
     if n < 0 or blocksize < 0:
         fail('raise ValueError("Values must be non-negative")')
 
-    # after much testing, this algorithm was deemed to be the fastest
-    result = bytearray(_JCrypto.Math.int_to_bytes(n, blocksize, 'big', False))
+    result = []
+    # if blocksize > 0:
+    #     # after much testing, this algorithm was deemed to be the fastest
+    #     result = bytearray(_JCrypto.Math.int_to_bytes(n, blocksize, 'big', False))
+    #     return result
+
+    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if blocksize < 8:
+            break
+        result.insert(0, pack('>Q', n & 0xFFFFFFFFFFFFFFFF))
+        n = n >> 64
+        blocksize -= 8
+
+    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if blocksize < 4:
+            break
+        result.insert(0, pack('>I', n & 0xFFFFFFFF))
+        n = n >> 32
+        blocksize -= 4
+
+    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if blocksize <= 0:
+            break
+        result.insert(0, pack('>B', n & 0xFF))
+        n = n >> 8
+        blocksize -= 1
+
     if n == 0:
        if len(result) == 0:
-           result = bytearray([0])
+           result = [bytearray([0])]
     else:
         # The encoded number may exceed the block size
-        # counter = 0
-        # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-        #     if n <= 0:
-        #         break
-        #     counter += 1
-        #     n = n >> 64
-        # print("long_to_byte counter ", counter)
-        # print("long_to_byte: ", len(result), hexlify(result))
-        result.lstrip(bytes([0]))
-        # print("long_to_byte: ", len(result), hexlify(result))
-        #result[0] = result[0].lstrip(bytes([0]))
-    return result
+
+        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if n <= 0:
+                break
+            result.insert(0, pack('>Q', n & 0xFFFFFFFFFFFFFFFF))
+            n = n >> 64
+
+        result[0] = result[0].lstrip(bytes([0x00]))
+
+    return bytearray(r'', encoding='utf-8').join(result)
 
 
 
