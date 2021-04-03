@@ -889,7 +889,10 @@ def DerBitString(value=bytes(), implicit=None, explicit=None):
         __dict__['derobject'] = derobject
         __dict__['__class__'] = 'DerBitString'
         # The bitstring value (packed)
-        if types.is_instance(value, DerObject):
+        # NOTE: interesting way to check for isinstance is to check to see if
+        # the object has the underlying composed object.
+        # NOTE: with larky, we prefer composition over inheritance.
+        if hasattr(value, 'derobject'):
             __dict__['value'] = value.encode()
         else:
             __dict__['value'] = value
@@ -903,7 +906,7 @@ def DerBitString(value=bytes(), implicit=None, explicit=None):
         binary string."""
 
         # Add padding count byte
-        self.payload = bytearray([0x00]) + value
+        self.payload = bytearray([0x00]) + self.value
         return self.derobject.encode(self)
 
     def decode(der_encoded, strict=False):
