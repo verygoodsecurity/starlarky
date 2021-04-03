@@ -118,6 +118,7 @@ public class BinasciiModule implements StarlarkValue {
     }
     else if(hexed instanceof String) {
       hexstr = (String) hexed;
+      hexstr = hexstr.trim().replaceAll("\\W+", "");
     }
 
     int length = hexstr.length();
