@@ -1,5 +1,10 @@
 package com.verygood.security.larky.modules.crypto;
 
+import net.starlark.java.annot.Param;
+import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -26,16 +31,23 @@ public class CryptoPublicKeyModule implements StarlarkValue {
 
   public static final CryptoPublicKeyModule INSTANCE = new CryptoPublicKeyModule();
 
-  public void RSA_generate(int bits, BigInteger e) {
-    e = (e == null) ? BigInteger.valueOf(65537) : e;
-    if(bits != 1024 || bits != 2048 || bits != 3072 || bits != 4096) {
-      // do some shit
+  @StarlarkMethod(name="RSA", structField = true)
+  public CryptoPublicKeyModule RSA()  { return CryptoPublicKeyModule.INSTANCE; }
+
+
+  @StarlarkMethod(name="generate", parameters = {@Param(name = "bits"), @Param(name="e")})
+  public StarlarkInt RSA_generate(StarlarkInt bits_, StarlarkInt e_) throws EvalException {
+    BigInteger e = Starlark.isNullOrNone(e_) ? BigInteger.valueOf(65537) : e_.toBigInteger();
+    int bits = bits_.toIntUnchecked();
+    if(bits != 1024 && bits != 2048 && bits != 3072 && bits != 4096) {
+      throw Starlark.errorf("Odd bit size: expected 1024, 2048, 3072, or 4096. Received %d", bits);
     }
     SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
     RSAKeyPairGenerator rsaKeyPairGenerator = new RSAKeyPairGenerator();
     RSAKeyGenerationParameters rsaKeyGenerationParameters = new RSAKeyGenerationParameters(e, secureRandom, bits, 100);
     rsaKeyPairGenerator.init(rsaKeyGenerationParameters);
     AsymmetricCipherKeyPair asymmetricCipherKeyPair = rsaKeyPairGenerator.generateKeyPair();
+    return null;
   }
   public void RSA_construct(BigInteger n, BigInteger e, BigInteger d, BigInteger p, BigInteger q, BigInteger qInv) {
     BigInteger pSub1 = p.subtract(BigInteger.ONE);

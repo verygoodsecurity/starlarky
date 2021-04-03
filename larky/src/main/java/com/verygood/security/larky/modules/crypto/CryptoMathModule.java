@@ -146,6 +146,7 @@ public class CryptoMathModule implements StarlarkValue {
     }
   }
 
+  // this is just like using the struct lib..
   @StarlarkMethod(name = "int_from_bytes",
       doc = "Return the integer represented by the given array of bytes.\n" +
           "\n" +
