@@ -2,9 +2,11 @@ package com.verygood.security.larky.modules.crypto;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -35,8 +37,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   public CryptoPublicKeyModule RSA()  { return CryptoPublicKeyModule.INSTANCE; }
 
 
-  @StarlarkMethod(name="generate", parameters = {@Param(name = "bits"), @Param(name="e")})
-  public StarlarkInt RSA_generate(StarlarkInt bits_, StarlarkInt e_) throws EvalException {
+  @StarlarkMethod(name="generate", parameters = {@Param(name = "bits"), @Param(name="e")}, useStarlarkThread = true)
+  public Dict<String, StarlarkInt> RSA_generate(StarlarkInt bits_, StarlarkInt e_, StarlarkThread thread) throws EvalException {
     BigInteger e = Starlark.isNullOrNone(e_) ? BigInteger.valueOf(65537) : e_.toBigInteger();
     int bits = bits_.toIntUnchecked();
     if(bits != 1024 && bits != 2048 && bits != 3072 && bits != 4096) {
@@ -46,8 +48,32 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     RSAKeyPairGenerator rsaKeyPairGenerator = new RSAKeyPairGenerator();
     RSAKeyGenerationParameters rsaKeyGenerationParameters = new RSAKeyGenerationParameters(e, secureRandom, bits, 100);
     rsaKeyPairGenerator.init(rsaKeyGenerationParameters);
-    AsymmetricCipherKeyPair asymmetricCipherKeyPair = rsaKeyPairGenerator.generateKeyPair();
-    return null;
+    AsymmetricCipherKeyPair asymKeyPair = rsaKeyPairGenerator.generateKeyPair();
+    /*
+       n : integer
+            The modulus.
+          e : integer
+            The public exponent.
+          d : integer
+            The private exponent. Only required for private keys.
+          p : integer
+            The first factor of the modulus. Only required for private keys.
+          q : integer
+            The second factor of the modulus. Only required for private keys.
+          u : integer
+            The CRT coefficient (inverse of p modulo q). Only required for
+            private keys.
+     */
+    RSAKeyParameters pubKey = ((RSAKeyParameters) asymKeyPair.getPublic());
+    RSAPrivateCrtKeyParameters privateKey = ((RSAPrivateCrtKeyParameters) asymKeyPair.getPrivate());
+    return Dict.<String, StarlarkInt>builder()
+        .put("n", StarlarkInt.of(pubKey.getModulus()))
+        .put("e", StarlarkInt.of(pubKey.getExponent()))
+        .put("d", StarlarkInt.of(privateKey.getExponent()))
+        .put("p", StarlarkInt.of(privateKey.getP()))
+        .put("q", StarlarkInt.of(privateKey.getQ()))
+        .put("u", StarlarkInt.of((privateKey.getQInv())))
+        .build(thread.mutability());
   }
   public void RSA_construct(BigInteger n, BigInteger e, BigInteger d, BigInteger p, BigInteger q, BigInteger qInv) {
     BigInteger pSub1 = p.subtract(BigInteger.ONE);
