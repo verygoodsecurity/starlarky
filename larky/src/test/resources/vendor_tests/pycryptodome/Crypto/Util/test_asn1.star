@@ -826,12 +826,12 @@ def DerSetOfTests_testDecode2():
     asserts.assert_that((0xFF in l)).is_true()
 
 def DerSetOfTests_testDecode3():
-        # One integer and 2 other types
+    # One integer and 2 other types
     der = DerSetOf()
     asserts.assert_fails(lambda : der.decode(bytes([0x30, 0x0a, 0x02, 0x02, 0x01, 0x80, 0x24, 0x02, 0xb6, 0x63, 0x12, 0x00])), ".*?ValueError")
 
 def DerSetOfTests_testDecode4():
-        # Verify that decode returns the object
+    # Verify that decode returns the object
     der = DerSetOf()
     asserts.assert_that(der).is_equal_to(
             der.decode(bytes([0x31, 0x08, 0x02, 0x02, 0x01, 0x80, 0x02, 0x02, 0x00, 0xff])))
@@ -839,100 +839,100 @@ def DerSetOfTests_testDecode4():
     ###
 
 def DerSetOfTests_testErrDecode1():
-        # No leftovers allowed
+    # No leftovers allowed
     der = DerSetOf()
     asserts.assert_fails(lambda : der.decode(bytes([0x31, 0x08, 0x02, 0x02, 0x01, 0x80, 0x02, 0x02, 0x00, 0xff, 0xaa])), ".*?ValueError")
 
 
 def _testsuite():
     _suite = unittest.TestSuite()
-    #
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjInit1))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode3))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode4))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode5))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode3))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode4))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode5))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode6))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode7))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode8))
-    #
-    # _suite.addTest(unittest.FunctionTestCase(_test_DERInteger))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testInit1))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testEncode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testEncode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testEncode3))
-    # # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testEncode4))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode3))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode5))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode6))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode7))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testStrict1))
-    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testErrDecode1))
-    #
-    #
-    # # _suite.addTest(unittest.FunctionTestCase(_test_DERSequence))
-    # # _suite.addTest(unittest.FunctionTestCase(test_JDERSequence))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testInit1))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode3))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode4))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode5))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode6))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode7))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode8))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode4))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode6))
-    # _suite.addTest(
-    #     # Error in decode: DEF length 99 object truncated by 99
-    #     # Pyasn + pycryptodome ...
-    #     unittest.expectedFailure(
-    #         unittest.FunctionTestCase(DerSequenceTests_testDecode7)))
-    # _suite.addTest(
-    #     # On pyasn, this test fails with: SubstrateUnderrunError: 99-octet short
-    #     # On bouncycastle, this test fails with: DEF length 99 object truncated by 99
-    #     # I think it's a bug in pycryptodome
-    #     unittest.expectedFailure(unittest.FunctionTestCase(DerSequenceTests_testDecode8))
-    # )
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode9))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode3))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_test_expected_nr_elements))
-    # _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_test_expected_only_integers))
-    #
-    # _suite.addTest(unittest.FunctionTestCase(DerNullTests_testEncode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerNullTests_testDecode1))
-    #
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testInit1))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testEncode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode3))
-    #
-    # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testInit1))
-    # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testEncode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testDecode2))
-    # _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testErrDecode1))
 
-    # _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testInit1))
-    # _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testInit2))
-    # _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testEncode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testDecode1))
-    # _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testDecode2))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjInit1))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode1))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode2))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode3))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode4))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjEncode5))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode1))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode2))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode3))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode4))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode5))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode6))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode7))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectTests_testObjDecode8))
 
-    ###
+    _suite.addTest(unittest.FunctionTestCase(_test_DERInteger))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testInit1))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testEncode1))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testEncode2))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testEncode3))
+    # _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testEncode4))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode1))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode2))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode3))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode5))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode6))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testDecode7))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testStrict1))
+    _suite.addTest(unittest.FunctionTestCase(DerIntegerTests_testErrDecode1))
+
+
+    # _suite.addTest(unittest.FunctionTestCase(_test_DERSequence))
+    # _suite.addTest(unittest.FunctionTestCase(test_JDERSequence))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testInit1))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode1))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode2))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode3))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode4))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode5))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode6))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode7))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testEncode8))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode1))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode2))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode4))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode6))
+    _suite.addTest(
+        # Error in decode: DEF length 99 object truncated by 99
+        # Pyasn + pycryptodome ...
+        unittest.expectedFailure(
+            unittest.FunctionTestCase(DerSequenceTests_testDecode7)))
+    _suite.addTest(
+        # On pyasn, this test fails with: SubstrateUnderrunError: 99-octet short
+        # On bouncycastle, this test fails with: DEF length 99 object truncated by 99
+        # I think it's a bug in pycryptodome
+        unittest.expectedFailure(unittest.FunctionTestCase(DerSequenceTests_testDecode8))
+    )
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testDecode9))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode1))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode2))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_testErrDecode3))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_test_expected_nr_elements))
+    _suite.addTest(unittest.FunctionTestCase(DerSequenceTests_test_expected_only_integers))
+
+    _suite.addTest(unittest.FunctionTestCase(DerNullTests_testEncode1))
+    _suite.addTest(unittest.FunctionTestCase(DerNullTests_testDecode1))
+
+    _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testInit1))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testEncode1))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode1))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode2))
+    _suite.addTest(unittest.FunctionTestCase(DerObjectIdTests_testDecode3))
+
+    _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testInit1))
+    _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testEncode1))
+    _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testDecode1))
+    _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testDecode2))
+    _suite.addTest(unittest.FunctionTestCase(DerOctetStringTests_testErrDecode1))
+
+    _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testInit1))
+    _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testInit2))
+    _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testEncode1))
+    _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testDecode1))
+    _suite.addTest(unittest.FunctionTestCase(DerBitStringTests_testDecode2))
+
+    ##
 
     _suite.addTest(unittest.FunctionTestCase(DerSetOfTests_testInit1))
     _suite.addTest(unittest.FunctionTestCase(DerSetOfTests_testEncode1))

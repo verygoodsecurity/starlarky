@@ -1044,45 +1044,9 @@ def DerSetOf(startSet=None, implicit=None):
         Raises:
             ValueError: in case of parsing errors.
         """
-
-        return self.derobject.decode(self, der_encoded, strict)
-
-    def _decodeFromStream(obj, s, strict):
-        """Decode a complete DER SET OF from a file."""
-        if obj == None:
-            obj = self
-        obj._seq = []
-
-        # Fill up obj.payload
-        self.derobject._decodeFromStream(obj, s, strict)
-
-        # Add one item at a time to obj.seq, by scanning obj.payload
-        p = BytesIO_EOF(obj.payload)
-        setIdOctet = -1
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            if p.remaining_data() <= 0:
-                break
-            p.set_bookmark()
-
-            der = DerObject()
-            der._decodeFromStream(der, p, strict)
-
-            # Verify that all members are of the same type
-            if setIdOctet < 0:
-                setIdOctet = der._tag_octet
-            else:
-                if setIdOctet != der._tag_octet:
-                    fail('ValueError("Not all elements are of the ' +
-                         'same DER type")')
-
-            # Parse INTEGERs differently
-            if setIdOctet != 0x02:
-                obj._seq.append(p.data_since_bookmark())
-            else:
-                derInt = DerInteger()
-                derInt.decode(p.data_since_bookmark(), strict)
-                obj._seq.append(derInt.value)
-        # end
+        i = _JCrypto.Util.ASN1.DerSetOf(self._seq)
+        self._seq = i.decode(der_encoded, strict)
+        return self
 
     def encode():
         """Return this SET OF DER element, fully encoded as a
@@ -1092,18 +1056,6 @@ def DerSetOf(startSet=None, implicit=None):
         # Elements in the set must be ordered in lexicographic order
         dersetof = _JCrypto.Util.ASN1.DerSetOf(self._seq)
         return dersetof.encode()
-        # ordered = []
-        # for item in self._seq:
-        #     if _is_number(item):
-        #         bys = DerInteger(item).encode()
-        #     elif hasattr(item, 'derobject'):
-        #         bys = item.encode()
-        #     else:
-        #         bys = item
-        #     ordered.append(bys)
-        # ordered = list(sorted(ordered))
-        # self.payload = ordered
-        # return self.derobject.encode(self)
 
     self = __init__(startSet, implicit)
     if startSet:
@@ -1112,7 +1064,6 @@ def DerSetOf(startSet=None, implicit=None):
     self.encode = encode
     self.decode = decode
     self.add = add
-    self._decodeFromStream = _decodeFromStream
     self.__getitem__ = __getitem__
     self.__len__ = __len__
     self.__iter__ = __iter__
