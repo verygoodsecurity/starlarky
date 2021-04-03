@@ -20,7 +20,6 @@ import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
-import net.starlark.java.eval.Tuple;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1Integer;
@@ -76,7 +75,7 @@ public class ASN1 {
         name = "encode",
         useStarlarkThread = true)
     public LarkyByteLike encode(StarlarkThread thread) throws EvalException, IOException {
-      //System.out.println(ASN1Dump.dumpAsString(this.encodable, true));
+      System.out.println(ASN1Dump.dumpAsString(this.encodable, true));
       LarkyByteArray b;
       try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
         ASN1OutputStream os = ASN1OutputStream.create(baos);
@@ -219,7 +218,7 @@ public class ASN1 {
 
     @Override
     Object toStarlark()  {
-      return Tuple.of(((DERSet)this.encodable).iterator());
+      return this;
     }
 
     @NotNull
@@ -240,6 +239,15 @@ public class ASN1 {
       };
     }
 
+    static public LarkySetOf fromList(StarlarkList<?> obj) throws EvalException {
+       ASN1Encodable[] encodables = new ASN1Encodable[obj.size()];
+       for (int i = 0; i < obj.size(); ++i) {
+         encodables[i] = ASN1EncodableFactory.asASN1Encodable(obj.get(i));
+       }
+       DERSet asn1Encodables = new DERSet(encodables);
+       return new LarkySetOf(asn1Encodables);
+     }
+
     @Override
     public Object getIndex(StarlarkSemantics semantics, Object key) throws EvalException {
       try {
@@ -253,6 +261,67 @@ public class ASN1 {
     public boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
       return Iterators.tryFind(((DERSet)this.encodable).iterator(), (i) -> i.equals(key)).isPresent();
     }
+
+@StarlarkMethod(
+        name = "append",
+        doc = "Adds an item to the end of the list.",
+        parameters = {@Param(name = "item", doc = "Item to add at the end.")})
+    @SuppressWarnings("unchecked")
+    public void append(Object item) throws EvalException {
+      ASN1Encodable atom;
+      if (item instanceof String) {
+        String s = (String) item;
+        LarkyOctetString octetString = new LarkyOctetString(new DEROctetString(s.getBytes()));
+        atom = ASN1EncodableFactory.asASN1Encodable(octetString);
+      } else {
+        atom = ASN1EncodableFactory.asASN1Encodable(item);
+      }
+      this.encodable = new DERSet(
+          Stream.concat(
+              Arrays.stream(((ASN1Sequence)this.encodable).toArray()),
+              Arrays.stream(new ASN1Encodable[]{atom})
+          ).toArray(ASN1Encodable[]::new)
+      );
+    }
+
+    @StarlarkMethod(name = "decode", parameters = {
+        @Param(name = "barr"),
+        @Param(name = "strict", named = true, defaultValue = "False"),
+    }, useStarlarkThread = true)
+    public StarlarkList<?> decode(LarkyByteLike barr, Boolean strict, StarlarkThread thread) throws EvalException {
+      byte[] asbytes = barr.getBytes();
+      try(ByteArrayInputStream bais = new ByteArrayInputStream(asbytes)) {
+        this.encodable = DERSet.fromByteArray(asbytes);
+      } catch (IOException e) {
+        String message = e.getMessage();
+        if (message.contains("Extra data detected in stream")) {
+          message = "ValueError: Extra data detected in stream";
+        } else if (message.contains("end-of-contents marker")) {
+          message = "ValueError: end-of-contents marker";
+        } else if (message.contains("EOF found when length expected")) {
+          message = "ValueError: EOF found when length expected";
+        }
+        throw Starlark.errorf(message);
+      }
+      if (this.encodable == null) {
+        throw Starlark.errorf("ValueError: Not enough data for DER decoding");
+      }
+      //System.out.println(this.seq.size());
+      //System.out.println(ASN1Dump.dumpAsString(this.seq, true));
+      return asList(thread);
+    }
+
+    private StarlarkList<?> asList(StarlarkThread thread) {
+      List<?> x = Streams.stream(iterator()).map(larkyASN1Encodable -> {
+        try {
+          return larkyASN1Encodable.toStarlark();
+        } catch (EvalException e) {
+          throw new RuntimeException(e);
+        }
+      }).collect(Collectors.toList());
+      return StarlarkList.copyOf(thread.mutability(), x);
+    }
+
   }
 
   public static class LarkyDerObjectId extends LarkyASN1Encodable {

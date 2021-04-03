@@ -929,7 +929,7 @@ def DerBitString(value=bytes(), implicit=None, explicit=None):
         if obj == None:
             obj = self
         # Fill-up obj.payload
-        obj.derobject._decodeFromStream(self, s, strict)
+        obj.derobject._decodeFromStream(obj, s, strict)
 
         if obj.payload and bord(obj.payload[0]) != 0:
             fail('ValueError("Not a valid BIT STRING")')
@@ -994,17 +994,13 @@ def DerSetOf(startSet=None, implicit=None):
         # same leading octet)
         __dict__['_elemOctet'] = None
         self = larky.mutablestruct(**__dict__)
-        if startSet:
-            for e in startSet:
-                add(e)
         return self
 
     def __getitem__(n):
         return self._seq[n]
 
     def __iter__():
-        fail("Not supported")
-        # return iter(self._seq)
+        return self._seq
 
     def __len__():
         return len(self._seq)
@@ -1020,7 +1016,7 @@ def DerSetOf(startSet=None, implicit=None):
 
         if _is_number(elem):
             eo = 0x02
-        elif types.is_instance(elem, DerObject):
+        elif hasattr(elem, 'derobject'):
             eo = self._tag_octet
         else:
             eo = bord(elem[0])
@@ -1049,18 +1045,19 @@ def DerSetOf(startSet=None, implicit=None):
             ValueError: in case of parsing errors.
         """
 
-        return DerObject.decode(self, der_encoded, strict)
+        return self.derobject.decode(self, der_encoded, strict)
 
     def _decodeFromStream(obj, s, strict):
         """Decode a complete DER SET OF from a file."""
+        if obj == None:
+            obj = self
+        obj._seq = []
 
-        self._seq = []
+        # Fill up obj.payload
+        self.derobject._decodeFromStream(obj, s, strict)
 
-        # Fill up self.payload
-        DerObject._decodeFromStream(self, s, strict)
-
-        # Add one item at a time to self.seq, by scanning self.payload
-        p = BytesIO_EOF(self.payload)
+        # Add one item at a time to obj.seq, by scanning obj.payload
+        p = BytesIO_EOF(obj.payload)
         setIdOctet = -1
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if p.remaining_data() <= 0:
@@ -1068,7 +1065,7 @@ def DerSetOf(startSet=None, implicit=None):
             p.set_bookmark()
 
             der = DerObject()
-            der._decodeFromStream(p, strict)
+            der._decodeFromStream(der, p, strict)
 
             # Verify that all members are of the same type
             if setIdOctet < 0:
@@ -1080,11 +1077,11 @@ def DerSetOf(startSet=None, implicit=None):
 
             # Parse INTEGERs differently
             if setIdOctet != 0x02:
-                self._seq.append(p.data_since_bookmark())
+                obj._seq.append(p.data_since_bookmark())
             else:
                 derInt = DerInteger()
                 derInt.decode(p.data_since_bookmark(), strict)
-                self._seq.append(derInt.value)
+                obj._seq.append(derInt.value)
         # end
 
     def encode():
@@ -1093,18 +1090,30 @@ def DerSetOf(startSet=None, implicit=None):
         """
 
         # Elements in the set must be ordered in lexicographic order
-        ordered = []
-        for item in self._seq:
-            if _is_number(item):
-                bys = DerInteger(item).encode()
-            elif types.is_instance(item, DerObject):
-                bys = item.encode()
-            else:
-                bys = item
-            ordered.append(bys)
-        ordered.sort()
-        self.payload = bytearray().join(ordered)
-        return DerObject.encode(self)
+        dersetof = _JCrypto.Util.ASN1.DerSetOf(self._seq)
+        return dersetof.encode()
+        # ordered = []
+        # for item in self._seq:
+        #     if _is_number(item):
+        #         bys = DerInteger(item).encode()
+        #     elif hasattr(item, 'derobject'):
+        #         bys = item.encode()
+        #     else:
+        #         bys = item
+        #     ordered.append(bys)
+        # ordered = list(sorted(ordered))
+        # self.payload = ordered
+        # return self.derobject.encode(self)
 
     self = __init__(startSet, implicit)
+    if startSet:
+        for e in startSet:
+            add(e)
+    self.encode = encode
+    self.decode = decode
+    self.add = add
+    self._decodeFromStream = _decodeFromStream
+    self.__getitem__ = __getitem__
+    self.__len__ = __len__
+    self.__iter__ = __iter__
     return self

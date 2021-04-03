@@ -64,8 +64,7 @@ public class CryptoUtilModule implements StarlarkValue {
 
   @StarlarkMethod(name = "DerSetOf", parameters = {@Param(name = "obj")})
   public LarkySetOf DerSetOf(StarlarkList<?> obj) throws EvalException {
-    return null;
-    //return new LarkySetOf()
+    return LarkySetOf.fromList(obj);
   }
 
   @StarlarkMethod(name = "DerSequence", parameters = {@Param(name = "obj")})
