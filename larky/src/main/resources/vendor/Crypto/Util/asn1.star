@@ -697,7 +697,15 @@ def DerOctetString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None):
            **__dict__
         )
 
+    def encode():
+        return self.derobject.encode(self)
+
+    def decode(der_encoded, strict=False):
+        return self.derobject.decode(self, der_encoded, strict=strict)
+
     self = __init__(value, implicit)
+    self.encode = encode
+    self.decode = decode
     return self
 
 
@@ -882,10 +890,10 @@ def DerBitString(value=bytes(), implicit=None, explicit=None):
         __dict__['__class__'] = 'DerBitString'
         # The bitstring value (packed)
         if types.is_instance(value, DerObject):
-            self.value = value.encode()
+            __dict__['value'] = value.encode()
         else:
-            self.value = value
-        __dict__['value'] = value
+            __dict__['value'] = value
+
         return larky.mutablestruct(
             **__dict__
         )
@@ -895,8 +903,8 @@ def DerBitString(value=bytes(), implicit=None, explicit=None):
         binary string."""
 
         # Add padding count byte
-        payload = bytearray(r'\x00', encoding='utf-8') + value
-        return DerObject.encode(self)
+        self.payload = bytearray([0x00]) + value
+        return self.derobject.encode(self)
 
     def decode(der_encoded, strict=False):
         """Decode a complete DER BIT STRING, and re-initializes this
@@ -911,24 +919,28 @@ def DerBitString(value=bytes(), implicit=None, explicit=None):
             ValueError: in case of parsing errors.
         """
 
-        return DerObject.decode(self, der_encoded, strict)
+        return self.derobject.decode(self, der_encoded, strict)
 
-    def _decodeFromStream(s, strict):
+    def _decodeFromStream(obj, s, strict):
         """Decode a complete DER BIT STRING DER from a file."""
+        if obj == None:
+            obj = self
+        # Fill-up obj.payload
+        obj.derobject._decodeFromStream(self, s, strict)
 
-        # Fill-up self.payload
-        DerObject._decodeFromStream(self, s, strict)
-
-        if self.payload and bord(self.payload[0]) != 0:
+        if obj.payload and bord(obj.payload[0]) != 0:
             fail('ValueError("Not a valid BIT STRING")')
 
-        # Fill-up self.value
-        value = builtins.bytes(r'', encoding='utf-8')
+        # Fill-up obj.value
+        self.value = bytearray(r'', encoding='utf-8')
         # Remove padding count byte
-        if self.payload:
-            value = self.payload[1:]
+        if obj.payload:
+            self.value = obj.payload[1:]
 
     self = __init__(value, implicit, explicit)
+    self.encode = encode
+    self.decode = decode
+    self._decodeFromStream = _decodeFromStream
     return self
 
 

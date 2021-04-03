@@ -5,6 +5,7 @@ import static com.verygood.security.larky.modules.crypto.Util.ASN1.*;
 import com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyASN1Sequence;
 import com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyDerInteger;
 import com.verygood.security.larky.modules.crypto.Util.Strxor;
+import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
@@ -14,6 +15,8 @@ import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.DERBitString;
+import org.bouncycastle.asn1.DEROctetString;
 
 
 public class CryptoUtilModule implements StarlarkValue {
@@ -39,14 +42,34 @@ public class CryptoUtilModule implements StarlarkValue {
   }
 
   @StarlarkMethod(name = "DerObjectId", parameters = {
-      @Param(name = "n")
+      @Param(name = "objectstr")
   })
   public LarkyDerObjectId DerObjectId(String objectstr) {
     return new LarkyDerObjectId(new ASN1ObjectIdentifier(objectstr));
   }
 
+  @StarlarkMethod(name = "DerOctetString", parameters = {
+      @Param(name = "bytearr")
+  })
+  public LarkyOctetString DerOctetString(LarkyByteLike bytearr) {
+    return new LarkyOctetString(new DEROctetString(bytearr.getBytes()));
+  }
+
+  @StarlarkMethod(name = "DerBitString", parameters = {
+      @Param(name = "bytearr")
+  })
+  public LarkyDerBitString DerBitString(LarkyByteLike bytearr) {
+    return new LarkyDerBitString(new DERBitString(bytearr.getBytes()));
+  }
+
+  @StarlarkMethod(name = "DerSetOf", parameters = {@Param(name = "obj")})
+  public LarkySetOf DerSetOf(StarlarkList<?> obj) throws EvalException {
+    return null;
+    //return new LarkySetOf()
+  }
+
   @StarlarkMethod(name = "DerSequence", parameters = {@Param(name = "obj")})
-  public LarkyASN1Sequence DerSequence(StarlarkList<StarlarkValue> obj) throws EvalException {
+  public LarkyASN1Sequence DerSequence(StarlarkList<?> obj) throws EvalException {
     return LarkyASN1Sequence.fromList(obj);
   }
 
