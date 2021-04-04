@@ -290,6 +290,72 @@ def RSATest_test_construct_6tuple():
     _check_decryption(rsaObj)
 
 
+def RSATest_test_construct_bad_key2():
+    tup = (n, 1)
+    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+
+        # An even modulus is wrong
+    tup = (n+1, e)
+    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+
+
+def RSATest_test_construct_bad_key3():
+    tup = (n, e, d+1)
+    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+
+
+def RSATest_test_construct_bad_key5():
+    tup = (n, e, d, p, p)
+    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+
+    tup = (p*p, e, p, p)
+    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+
+    tup = (p*p, 3, p, q)
+    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+
+
+def RSATest_test_construct_bad_key6():
+    tup = (n, e, d, p, q, 10)
+    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+
+    tup = (n, e, d, p, q, inverse(q, p))
+    asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
+
+
+def RSATest_test_factoring():
+    rsaObj = rsa.construct([n, e, d])
+    asserts.assert_that((rsaObj.p==p or rsaObj.p==q)).is_true()
+    asserts.assert_that((rsaObj.q==p or rsaObj.q==q)).is_true()
+    asserts.assert_that((rsaObj.q*rsaObj.p == n)).is_true()
+
+    asserts.assert_fails(lambda : rsa.construct([n, e, n-1]), ".*?ValueError")
+
+
+def RSATest_test_repr():
+    rsaObj = rsa.construct((n, e, d, p, q))
+    asserts.assert_that(repr(rsaObj)).is_instance(str)
+
+
+def RSATest_test_raw_rsa_boundary():
+    # The argument of every RSA raw operation (encrypt/decrypt) must be
+    # non-negative and no larger than the modulus
+    rsa_obj = rsa.generate(1024)
+
+    asserts.assert_fails(lambda : rsa_obj._decrypt(rsa_obj.n), ".*?ValueError")
+    asserts.assert_fails(lambda : rsa_obj._encrypt(rsa_obj.n), ".*?ValueError")
+
+    asserts.assert_fails(lambda : rsa_obj._decrypt(-1), ".*?ValueError")
+    asserts.assert_fails(lambda : rsa_obj._encrypt(-1), ".*?ValueError")
+
+
+def RSATest_test_size():
+    pub = rsa.construct((n, e))
+    asserts.assert_that(pub.size_in_bits()).is_equal_to(1024)
+    asserts.assert_that(pub.size_in_bytes()).is_equal_to(128)
+
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(RSATest_test_generate_1arg))
@@ -307,119 +373,3 @@ def _testsuite():
 
 _runner = unittest.TextTestRunner()
 _runner.run(_testsuite())
-
-
-#
-# def RSATest_test_generate_2arg():
-#     """RSA (default implementation) generated key (2 arguments)"""
-#     rsaObj = rsa.generate(1024, Random.new().read)
-#     _check_private_key(rsaObj)
-#     _exercise_primitive(rsaObj)
-#     pub = rsaObj.public_key()
-#     _check_public_key(pub)
-#     _exercise_public_primitive(rsaObj)
-#
-# def RSATest_test_generate_3args():
-#     rsaObj = rsa.generate(1024, Random.new().read,e=65537)
-#     _check_private_key(rsaObj)
-#     _exercise_primitive(rsaObj)
-#     pub = rsaObj.public_key()
-#     _check_public_key(pub)
-#     _exercise_public_primitive(rsaObj)
-#     asserts.assert_that(65537).is_equal_to(rsaObj.e)
-#
-# def RSATest_test_construct_2tuple():
-#     """RSA (default implementation) constructed key (2-tuple)"""
-#     pub = rsa.construct((n, e))
-#     _check_public_key(pub)
-#     _check_encryption(pub)
-#
-# def RSATest_test_construct_3tuple():
-#     """RSA (default implementation) constructed key (3-tuple)"""
-#     rsaObj = rsa.construct((n, e, d))
-#     _check_encryption(rsaObj)
-#     _check_decryption(rsaObj)
-#
-# def RSATest_test_construct_4tuple():
-#     """RSA (default implementation) constructed key (4-tuple)"""
-#     rsaObj = rsa.construct((n, e, d, p))
-#     _check_encryption(rsaObj)
-#     _check_decryption(rsaObj)
-#
-# def RSATest_test_construct_5tuple():
-#     """RSA (default implementation) constructed key (5-tuple)"""
-#     rsaObj = rsa.construct((n, e, d, p, q))
-#     _check_private_key(rsaObj)
-#     _check_encryption(rsaObj)
-#     _check_decryption(rsaObj)
-#
-# def RSATest_test_construct_6tuple():
-#     """RSA (default implementation) constructed key (6-tuple)"""
-#     rsaObj = rsa.construct((n, e, d, p, q, u))
-#     _check_private_key(rsaObj)
-#     _check_encryption(rsaObj)
-#     _check_decryption(rsaObj)
-#
-# def RSATest_test_construct_bad_key2():
-#     tup = (n, 1)
-#     asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
-#
-#         # An even modulus is wrong
-#     tup = (n+1, e)
-#     asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
-#
-# def RSATest_test_construct_bad_key3():
-#     tup = (n, e, d+1)
-#     asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
-#
-# def RSATest_test_construct_bad_key5():
-#     tup = (n, e, d, p, p)
-#     asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
-#
-#     tup = (p*p, e, p, p)
-#     asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
-#
-#     tup = (p*p, 3, p, q)
-#     asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
-#
-# def RSATest_test_construct_bad_key6():
-#     tup = (n, e, d, p, q, 10)
-#     asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
-#
-#     load("@vendor//Crypto/Util/number", inverse="inverse")
-#     tup = (n, e, d, p, q, inverse(q, p))
-#     asserts.assert_fails(lambda : rsa.construct(tup), ".*?ValueError")
-#
-# def RSATest_test_factoring():
-#     rsaObj = rsa.construct([n, e, d])
-#     asserts.assert_that((rsaObj.p==p or rsaObj.p==q)).is_true()
-#     asserts.assert_that((rsaObj.q==p or rsaObj.q==q)).is_true()
-#     asserts.assert_that((rsaObj.q*rsaObj.p == n)).is_true()
-#
-#     asserts.assert_fails(lambda : rsa.construct([n, e, n-1]), ".*?ValueError")
-#
-# def RSATest_test_repr():
-#     rsaObj = rsa.construct((n, e, d, p, q))
-#     repr(rsaObj)
-#
-# def RSATest_test_serialization():
-#     """RSA keys are unpickable"""
-#
-#     rsa_key = rsa.generate(1024)
-#     asserts.assert_fails(lambda : pickle.dumps(rsa_key), ".*?PicklingError")
-#
-# def RSATest_test_raw_rsa_boundary():
-#         # The argument of every RSA raw operation (encrypt/decrypt) must be
-#         # non-negative and no larger than the modulus
-#     rsa_obj = rsa.generate(1024)
-#
-#     asserts.assert_fails(lambda : rsa_obj._decrypt(rsa_obj.n), ".*?ValueError")
-#     asserts.assert_fails(lambda : rsa_obj._encrypt(rsa_obj.n), ".*?ValueError")
-#
-#     asserts.assert_fails(lambda : rsa_obj._decrypt(-1), ".*?ValueError")
-#     asserts.assert_fails(lambda : rsa_obj._encrypt(-1), ".*?ValueError")
-#
-# def RSATest_test_size():
-#     pub = rsa.construct((n, e))
-#     asserts.assert_that(pub.size_in_bits()).is_equal_to(1024)
-#     asserts.assert_that(pub.size_in_bytes()).is_equal_to(128)

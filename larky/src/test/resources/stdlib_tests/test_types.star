@@ -197,6 +197,11 @@ def _is_iterable_test():
     assert_true(types.is_iterable((1,)))
 
 
+def _is_instance_test():
+    assert_true(types.is_instance("", str))
+    assert_true(types.is_instance(1, int))
+
+
 ## Test Objects
 
 
@@ -277,6 +282,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_is_bytes_test))
     _suite.addTest(unittest.FunctionTestCase(_is_bytearray_test))
     _suite.addTest(unittest.FunctionTestCase(_is_iterable_test))
+    _suite.addTest(unittest.FunctionTestCase(_is_instance_test))
     # TODO: uncomment when enabling basic OO
     # _suite.addTest(unittest.FunctionTestCase(test_new_class_basics))
     # _suite.addTest(unittest.FunctionTestCase(test_create_with_fields))
