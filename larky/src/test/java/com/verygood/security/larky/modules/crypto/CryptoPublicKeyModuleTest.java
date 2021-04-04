@@ -1,11 +1,14 @@
 package com.verygood.security.larky.modules.crypto;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.truth.Truth;
+
+import com.verygood.security.larky.modules.utils.NumOpsUtils;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -20,6 +23,8 @@ import net.starlark.java.syntax.FileOptions;
 import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.SyntaxError;
 
+import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.util.encoders.Hex;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -91,16 +96,8 @@ public class CryptoPublicKeyModuleTest {
     StarlarkList<String> list = StarlarkList.newList(mutability);
   }
 
-  public static BigInteger lcm(BigInteger a, BigInteger b) {
-    if (a.equals(BigInteger.ZERO) || b.equals(BigInteger.ZERO)) {
-      return BigInteger.ZERO;
-    }
-    BigInteger gcd = a.gcd(b);
-    return a.divide(gcd).multiply(b).abs();
-  }
-
   @Test
-  public void RSA_generate() {
+  public void RSA_generate() throws EvalException, InvalidCipherTextException {
     Dict<String, StarlarkInt> rsaObj = null, finalRsaObj;
     try (Mutability mu = Mutability.create("test")) {
       StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
@@ -131,14 +128,41 @@ public class CryptoPublicKeyModuleTest {
     assertEquals(d.compareTo(BigInteger.ONE), 1);
 //    lcm = int(Integer(rsaObj.p-1).lcm(rsaObj.q-1))
 //    self.assertEqual(1, rsaObj.d * rsaObj.e % lcm) # ed = 1 (mod LCM(p-1, q-1))
-    BigInteger lcm = lcm(p.subtract(BigInteger.ONE), q.subtract(BigInteger.ONE));
+    BigInteger lcm = NumOpsUtils.lcm(p.subtract(BigInteger.ONE), q.subtract(BigInteger.ONE));
     assertEquals(d.multiply(e).mod(lcm), BigInteger.ONE);
 //    self.assertEqual(1, rsaObj.p * rsaObj.u % rsaObj.q) # pu = 1 (mod q)
     assertEquals(p.multiply(u).mod(q), BigInteger.ONE);
 //    self._exercise_primitive(rsaObj)
+/*
+        # Since we're using a randomly-generated key, we can't check the test
+        # vector, but we can make sure encryption and decryption are inverse
+        # operations.
+        ciphertext = bytes_to_long(a2b_hex(self.ciphertext))
+ */
+    byte[] cipherInt = Hex.decode(ciphertext.replaceAll("\\s+", ""));
+    //byte[] cipherInt = NumOpsUtils.bytes2bigint(s, true, false).toByteArray();
+    /*
+      Test decryption
+            plaintext = rsaObj._decrypt(ciphertext)
+     */
+    byte[] plainTextInt = CryptoPublicKeyModule.INSTANCE.RSA_decrypt(finalRsaObj, cipherInt);
+/*
+        # Test encryption (2 arguments)
+        new_ciphertext2 = rsaObj._encrypt(plaintext)
+ */
+    byte[] cipherInt2 = CryptoPublicKeyModule.INSTANCE.RSA_encrypt(finalRsaObj, plainTextInt);
+    assertArrayEquals(cipherInt, cipherInt2);
+
 //    pub = rsaObj.public_key()
+    BigInteger pubKey = finalRsaObj.get("e").toBigInteger();
 //    self._check_public_key(pub)
+    Dict<String, StarlarkInt> pubRsaObj = Dict.<String, StarlarkInt>builder()
+        .put("e", StarlarkInt.of(pubKey))
+        .put("n", StarlarkInt.of(n))
+        .buildImmutable();
+    cipherInt2 = CryptoPublicKeyModule.INSTANCE.RSA_encrypt(pubRsaObj, plainTextInt);
 //    self._exercise_public_primitive(rsaObj)
+    assertArrayEquals(cipherInt, cipherInt2);
   }
 
 

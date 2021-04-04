@@ -21,6 +21,7 @@ _a_list_type = type([])
 _a_string_type = type("")
 _a_tuple_type = type(())
 _an_int_type = type(1)
+_a_float_type = type(5.0)
 _a_struct_type = type(larky.struct())
 
 
@@ -90,6 +91,18 @@ def _is_int(v):
       True if v is an instance of a signed integer, False otherwise.
     """
     return type(v) == _an_int_type
+
+
+def _is_float(v):
+    """Returns True if v is an instance of a floating point number.
+
+    Args:
+      v: The value whose type should be checked.
+
+    Returns:
+      True if v is an instance of a floating point number, False otherwise.
+    """
+    return type(v) == _a_float_type
 
 
 def _is_tuple(v):
@@ -467,6 +480,7 @@ types = larky.struct(
     is_bool=_is_bool,
     is_none=_is_none,
     is_int=_is_int,
+    is_float=_is_float,
     is_tuple=_is_tuple,
     is_dict=_is_dict,
     is_function=_is_function,

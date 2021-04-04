@@ -2,10 +2,11 @@ package com.verygood.security.larky.modules.crypto;
 
 import com.verygood.security.larky.modules.types.LarkyByte;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
-import com.verygood.security.larky.modules.utils.BitwiseUtils;
+import com.verygood.security.larky.modules.utils.NumOpsUtils;
 import com.verygood.security.larky.modules.utils.ByteArrayUtil;
 
 import net.starlark.java.annot.Param;
+import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
@@ -24,6 +25,16 @@ public class CryptoMathModule implements StarlarkValue {
 
   public static final CryptoMathModule INSTANCE = new CryptoMathModule();
   private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
+
+  @StarlarkMethod(name = "lcm",
+      doc = "least common multiple",
+      parameters = {
+          @Param(name = "a", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+          @Param(name = "b", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+      })
+  public StarlarkInt lcm(StarlarkInt a, StarlarkInt b) {
+    return StarlarkInt.of(NumOpsUtils.lcm(a.toBigInteger(), b.toBigInteger()));
+  }
 
   @StarlarkMethod(name = "bit_length",
       doc = "If x is nonzero, then x.bit_length() is the unique positive " +
@@ -84,17 +95,17 @@ public class CryptoMathModule implements StarlarkValue {
     boolean minimizeLeadingZeroPads = false;
     if (nbytes == 0) {
       minimizeLeadingZeroPads = true;
-      nbytes = BitwiseUtils.bytesToPackValueToPrimitive(value);
+      nbytes = NumOpsUtils.bytesToPackValueToPrimitive(value);
     }
     try {
       if (MAX_LONG.compareTo(value) > 0) {
-        bytes = BitwiseUtils.longlong2byte(
+        bytes = NumOpsUtils.longlong2byte(
             value.longValueExact(),
             nbytes,
             isBigEndian(byteorder),
             signed);
       } else {
-        bytes = BitwiseUtils.bigint2byte(
+        bytes = NumOpsUtils.bigint2byte(
             value,
             nbytes,
             isBigEndian(byteorder),
@@ -134,32 +145,13 @@ public class CryptoMathModule implements StarlarkValue {
           @Param(name = "bytes"),
           @Param(name = "byteorder"),
           @Param(name = "signed", defaultValue = "False"),
-      }, useStarlarkThread = true)
+      })
   public StarlarkInt fromBytes(LarkyByteLike bytesObj,
                                String byteorder,
-                               boolean signed,
-                               StarlarkThread thread) throws EvalException {
+                               boolean signed) throws EvalException {
 
     byte[] bytes = bytesObj.getBytes();
-    if (bytes.length == 0) {
-      // in case of empty byte array
-      return StarlarkInt.of(BigInteger.ZERO);
-    }
-    BigInteger result;
-    if (isBigEndian(byteorder)) {
-      result = signed
-          ? new BigInteger(bytes)
-          : new BigInteger(1, bytes);
-    } else {
-      byte[] converted = new byte[bytes.length];
-      for (int i = 0; i < bytes.length; i++) {
-        converted[bytes.length - i - 1] = bytes[i];
-      }
-      result = signed
-          ? new BigInteger(converted)
-          : new BigInteger(1, converted);
-    }
-    return StarlarkInt.of(result);
+    return StarlarkInt.of(NumOpsUtils.bytes2bigint(bytes, isBigEndian(byteorder), signed));
   }
 
   //mpz_probab_prime_p

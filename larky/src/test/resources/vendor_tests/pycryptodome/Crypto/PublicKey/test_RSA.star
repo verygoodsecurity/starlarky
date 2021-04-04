@@ -30,6 +30,7 @@ load("@stdlib//re", re="re")
 load("@vendor//asserts", asserts="asserts")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
+load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long", inverse="inverse")
 
 
@@ -112,14 +113,108 @@ u = inverse(p, q)    # u = e**-1 (mod q)
 
 rsa = RSA
 
-# def RSATest_test_generate_1arg():
-#     """RSA (default implementation) generated key (1 argument)"""
-#     rsaObj = rsa.generate(1024)
-#     _check_private_key(rsaObj)
-#     _exercise_primitive(rsaObj)
-#     pub = rsaObj.public_key()
-#     _check_public_key(pub)
-#     _exercise_public_primitive(rsaObj)
+
+def _check_private_key(rsaObj):
+    # Check capabilities
+    asserts.assert_that(True).is_equal_to(rsaObj.has_private())
+    # Sanity check key data
+    asserts.assert_that(rsaObj.n).is_equal_to(rsaObj.p * rsaObj.q)     # n = pq
+    asserts.assert_that(True).is_equal_to((rsaObj.p > 1))   # p > 1
+    asserts.assert_that(True).is_equal_to((rsaObj.q > 1))   # q > 1
+    asserts.assert_that(True).is_equal_to((rsaObj.e > 1))   # e > 1
+    asserts.assert_that(True).is_equal_to((rsaObj.d > 1))   # d > 1
+    asserts.assert_that(1).is_equal_to(rsaObj.p * rsaObj.u % rsaObj.q) # pu = 1 (mod q)
+    lcm = Integer(rsaObj.p-1).lcm(rsaObj.q-1).__int__()
+    asserts.assert_that(1).is_equal_to(rsaObj.d * rsaObj.e % lcm) # ed = 1 (mod LCM(p-1, q-1))
+
+
+def _check_public_key(rsaObj):
+    _ciphertext = a2b_hex(ciphertext)
+
+    # Check capabilities
+    asserts.assert_that(False).is_equal_to(rsaObj.has_private())
+
+    # Check rsaObj.[ne] -> rsaObj.[ne] mapping
+    asserts.assert_that(rsaObj.n).is_equal_to(rsaObj.n)
+    asserts.assert_that(rsaObj.e).is_equal_to(rsaObj.e)
+
+    # Check that private parameters are all missing
+    asserts.assert_that(False).is_equal_to(hasattr(rsaObj, '_d'))
+    asserts.assert_that(False).is_equal_to(hasattr(rsaObj, '_p'))
+    asserts.assert_that(False).is_equal_to(hasattr(rsaObj, '_q'))
+    asserts.assert_that(False).is_equal_to(hasattr(rsaObj, '_u'))
+
+    # Sanity check key data
+    asserts.assert_that(True).is_equal_to((rsaObj.e > 1))   # e > 1
+
+    # Public keys should not be able to sign or decrypt
+    asserts.assert_fails(lambda : rsaObj._decrypt(bytes_to_long(_ciphertext)), ".*?TypeError")
+
+    # Check __eq__ and __ne__
+    asserts.assert_that(rsaObj.public_key().__eq__(rsaObj.public_key())).is_equal_to(True) # assert_
+    asserts.assert_that(rsaObj.public_key().__ne__(rsaObj.public_key())).is_equal_to(False) # failIf
+
+    asserts.assert_true(rsaObj.publickey().__eq__(rsaObj.public_key()))
+
+
+def _exercise_primitive(rsaObj):
+    # Since we're using a randomly-generated key, we can't check the test
+    # vector, but we can make sure encryption and decryption are inverse
+    # operations.
+    _ciphertext = bytes_to_long(a2b_hex(ciphertext))
+
+    # Test decryption
+    plaintext = rsaObj._decrypt(_ciphertext)
+
+    # Test encryption (2 arguments)
+    new_ciphertext2 = rsaObj._encrypt(plaintext)
+    asserts.assert_that(_ciphertext).is_equal_to(new_ciphertext2)
+
+
+def _exercise_public_primitive(rsaObj):
+    _plaintext = a2b_hex(plaintext)
+
+    # Test encryption (2 arguments)
+    new_ciphertext2 = rsaObj._encrypt(bytes_to_long(_plaintext))
+
+
+def _check_encryption(rsaObj):
+    _plaintext = a2b_hex(plaintext)
+    _ciphertext = a2b_hex(ciphertext)
+
+    # Test encryption
+    new_ciphertext2 = rsaObj._encrypt(bytes_to_long(_plaintext))
+    asserts.assert_that(bytes_to_long(_ciphertext)).is_equal_to(new_ciphertext2)
+
+
+def RSATest__check_decryption(rsaObj):
+    _plaintext = bytes_to_long(a2b_hex(plaintext))
+    _ciphertext = bytes_to_long(a2b_hex(ciphertext))
+
+    # Test plain decryption
+    new_plaintext = rsaObj._decrypt(_ciphertext)
+    asserts.assert_that(_plaintext).is_equal_to(new_plaintext)
+
+
+def RSATest_test_generate_1arg():
+    """RSA (default implementation) generated key (1 argument)"""
+    rsaObj = rsa.generate(1024)
+    _check_private_key(rsaObj)
+    _exercise_primitive(rsaObj)
+    pub = rsaObj.public_key()
+    _check_public_key(pub)
+    _exercise_public_primitive(rsaObj)
+
+
+def _testsuite():
+    _suite = unittest.TestSuite()
+    _suite.addTest(unittest.FunctionTestCase(RSATest_test_generate_1arg))
+    return _suite
+
+
+_runner = unittest.TextTestRunner()
+_runner.run(_testsuite())
+
 #
 # def RSATest_test_generate_2arg():
 #     """RSA (default implementation) generated key (2 arguments)"""
@@ -234,82 +329,3 @@ rsa = RSA
 #     pub = rsa.construct((n, e))
 #     asserts.assert_that(pub.size_in_bits()).is_equal_to(1024)
 #     asserts.assert_that(pub.size_in_bytes()).is_equal_to(128)
-#
-# def RSATest__check_private_key(rsaObj):
-#     load("@vendor//Crypto/Math/Numbers", Integer="Integer")
-#
-#         # Check capabilities
-#     asserts.assert_that(1).is_equal_to(rsaObj.has_private())
-#
-#         # Sanity check key data
-#     asserts.assert_that(rsaObj.n).is_equal_to(rsaObj.p * rsaObj.q)     # n = pq
-#     lcm = int(Integer(rsaObj.p-1).lcm(rsaObj.q-1))
-#     asserts.assert_that(1).is_equal_to(rsaObj.d * rsaObj.e % lcm) # ed = 1 (mod LCM(p-1, q-1))
-#     asserts.assert_that(1).is_equal_to(rsaObj.p * rsaObj.u % rsaObj.q) # pu = 1 (mod q)
-#     asserts.assert_that(1).is_equal_to((rsaObj.p > 1))   # p > 1
-#     asserts.assert_that(1).is_equal_to((rsaObj.q > 1))   # q > 1
-#     asserts.assert_that(1).is_equal_to((rsaObj.e > 1))   # e > 1
-#     asserts.assert_that(1).is_equal_to((rsaObj.d > 1))   # d > 1
-#
-# def RSATest__check_public_key(rsaObj):
-#     ciphertext = a2b_hex(ciphertext)
-#
-#         # Check capabilities
-#     asserts.assert_that(0).is_equal_to(rsaObj.has_private())
-#
-#         # Check rsaObj.[ne] -> rsaObj.[ne] mapping
-#     asserts.assert_that(rsaObj.n).is_equal_to(rsaObj.n)
-#     asserts.assert_that(rsaObj.e).is_equal_to(rsaObj.e)
-#
-#         # Check that private parameters are all missing
-#     asserts.assert_that(0).is_equal_to(hasattr(rsaObj, 'd'))
-#     asserts.assert_that(0).is_equal_to(hasattr(rsaObj, 'p'))
-#     asserts.assert_that(0).is_equal_to(hasattr(rsaObj, 'q'))
-#     asserts.assert_that(0).is_equal_to(hasattr(rsaObj, 'u'))
-#
-#         # Sanity check key data
-#     asserts.assert_that(1).is_equal_to((rsaObj.e > 1))   # e > 1
-#
-#         # Public keys should not be able to sign or decrypt
-#     asserts.assert_fails(lambda : rsaObj._decrypt(bytes_to_long(ciphertext)), ".*?TypeError")
-#
-#         # Check __eq__ and __ne__
-#     asserts.assert_that((rsaObj.public_key() == rsaObj.public_key())).is_equal_to(True) # assert_
-#     asserts.assert_that((rsaObj.public_key() != rsaObj.public_key())).is_equal_to(False) # failIf
-#
-#     asserts.assert_that(rsaObj.publickey()).is_equal_to(rsaObj.public_key())
-#
-# def RSATest__exercise_primitive(rsaObj):
-#         # Since we're using a randomly-generated key, we can't check the test
-#         # vector, but we can make sure encryption and decryption are inverse
-#         # operations.
-#     ciphertext = bytes_to_long(a2b_hex(ciphertext))
-#
-#         # Test decryption
-#     plaintext = rsaObj._decrypt(ciphertext)
-#
-#         # Test encryption (2 arguments)
-#     new_ciphertext2 = rsaObj._encrypt(plaintext)
-#     asserts.assert_that(ciphertext).is_equal_to(new_ciphertext2)
-#
-# def RSATest__exercise_public_primitive(rsaObj):
-#     plaintext = a2b_hex(plaintext)
-#
-#         # Test encryption (2 arguments)
-#     new_ciphertext2 = rsaObj._encrypt(bytes_to_long(plaintext))
-#
-# def RSATest__check_encryption(rsaObj):
-#     plaintext = a2b_hex(plaintext)
-#     ciphertext = a2b_hex(ciphertext)
-#
-#         # Test encryption
-#     new_ciphertext2 = rsaObj._encrypt(bytes_to_long(plaintext))
-#     asserts.assert_that(bytes_to_long(ciphertext)).is_equal_to(new_ciphertext2)
-#
-# def RSATest__check_decryption(rsaObj):
-#     plaintext = bytes_to_long(a2b_hex(plaintext))
-#     ciphertext = bytes_to_long(a2b_hex(ciphertext))
-#
-#         # Test plain decryption
-#     new_plaintext = rsaObj._decrypt(ciphertext)
-#     asserts.assert_that(plaintext).is_equal_to(new_plaintext)

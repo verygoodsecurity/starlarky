@@ -1,9 +1,9 @@
 package com.verygood.security.larky.modules.utils;
 
-import static com.verygood.security.larky.modules.utils.BitwiseUtils.packUnsignedByte;
-import static com.verygood.security.larky.modules.utils.BitwiseUtils.packUnsignedInt;
-import static com.verygood.security.larky.modules.utils.BitwiseUtils.unsignedByte;
-import static com.verygood.security.larky.modules.utils.BitwiseUtils.unsignedInt;
+import static com.verygood.security.larky.modules.utils.NumOpsUtils.packUnsignedByte;
+import static com.verygood.security.larky.modules.utils.NumOpsUtils.packUnsignedInt;
+import static com.verygood.security.larky.modules.utils.NumOpsUtils.unsignedByte;
+import static com.verygood.security.larky.modules.utils.NumOpsUtils.unsignedInt;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -18,7 +18,7 @@ import java.nio.ByteBuffer;
 import java.util.Random;
 import java.util.UUID;
 
-public class BitwiseUtilsTest {
+public class NumOpsUtilsTest {
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @Test
@@ -46,7 +46,7 @@ public class BitwiseUtilsTest {
         System.arraycopy(bigIntBytes, 0, bigIntBytesPadded, 16 - bigIntBytes.length, bigIntBytes.length);
         bigIntBytes = bigIntBytesPadded;
       }
-      byte[] ourBytes = BitwiseUtils.int128ToByteArray(msb, lsb);
+      byte[] ourBytes = NumOpsUtils.int128ToByteArray(msb, lsb);
       System.out.println("ourBytes = " + ByteArrayUtil.toHexString(ourBytes, 1, ""));
       assertArrayEquals(bigIntBytes, ourBytes);
     }
@@ -162,92 +162,92 @@ public class BitwiseUtilsTest {
   public void testPackInt()
       throws IOException {
     ReadWriteDataBuffer dio = new ReadWriteDataBuffer();
-    BitwiseUtils.packInt(dio.reset(), 42);
-    assertEquals(BitwiseUtils.unpackInt(dio.reset(dio.toByteArray())), 42);
+    NumOpsUtils.packInt(dio.reset(), 42);
+    assertEquals(NumOpsUtils.unpackInt(dio.reset(dio.toByteArray())), 42);
   }
 
   @Test
   public void testPackIntZero()
       throws IOException {
     ReadWriteDataBuffer dio = new ReadWriteDataBuffer();
-    BitwiseUtils.packInt(dio.reset(), 0);
-    assertEquals(BitwiseUtils.unpackInt(dio.reset(dio.toByteArray())), 0);
+    NumOpsUtils.packInt(dio.reset(), 0);
+    assertEquals(NumOpsUtils.unpackInt(dio.reset(dio.toByteArray())), 0);
   }
 
   @Test
   public void testPackIntMax()
       throws IOException {
     ReadWriteDataBuffer dio = new ReadWriteDataBuffer();
-    BitwiseUtils.packInt(dio.reset(), Integer.MAX_VALUE);
-    assertEquals(BitwiseUtils.unpackInt(dio.reset(dio.toByteArray())), Integer.MAX_VALUE);
+    NumOpsUtils.packInt(dio.reset(), Integer.MAX_VALUE);
+    assertEquals(NumOpsUtils.unpackInt(dio.reset(dio.toByteArray())), Integer.MAX_VALUE);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testPackIntNeg()
       throws IOException {
     ReadWriteDataBuffer dio = new ReadWriteDataBuffer();
-    BitwiseUtils.packInt(dio.reset(), -42);
+    NumOpsUtils.packInt(dio.reset(), -42);
   }
 
   @Test
   public void testPackLong()
       throws IOException {
     ReadWriteDataBuffer dio = new ReadWriteDataBuffer();
-    BitwiseUtils.packLong(dio.reset(), 42l);
-    assertEquals(BitwiseUtils.unpackLong(dio.reset(dio.toByteArray())), 42);
+    NumOpsUtils.packLong(dio.reset(), 42l);
+    assertEquals(NumOpsUtils.unpackLong(dio.reset(dio.toByteArray())), 42);
   }
 
   @Test
   public void testPackLongZero()
       throws IOException {
     ReadWriteDataBuffer dio = new ReadWriteDataBuffer();
-    BitwiseUtils.packLong(dio.reset(), 0l);
-    assertEquals(BitwiseUtils.unpackLong(dio.reset(dio.toByteArray())), 0l);
+    NumOpsUtils.packLong(dio.reset(), 0l);
+    assertEquals(NumOpsUtils.unpackLong(dio.reset(dio.toByteArray())), 0l);
   }
 
   @Test
   public void testPackLongBytes()
       throws IOException {
     byte[] buf = new byte[15];
-    BitwiseUtils.packLong(buf, 42l);
-    assertEquals(BitwiseUtils.unpackLong(buf), 42l);
+    NumOpsUtils.packLong(buf, 42l);
+    assertEquals(NumOpsUtils.unpackLong(buf), 42l);
   }
 
   @Test
   public void testPackLongMax()
       throws IOException {
     ReadWriteDataBuffer dio = new ReadWriteDataBuffer();
-    BitwiseUtils.packLong(dio.reset(), Long.MAX_VALUE);
-    assertEquals(BitwiseUtils.unpackLong(dio.reset(dio.toByteArray())), Long.MAX_VALUE);
+    NumOpsUtils.packLong(dio.reset(), Long.MAX_VALUE);
+    assertEquals(NumOpsUtils.unpackLong(dio.reset(dio.toByteArray())), Long.MAX_VALUE);
   }
 
   @Test
   public void testPackLongBytesMax()
       throws IOException {
     byte[] buf = new byte[15];
-    BitwiseUtils.packLong(buf, Long.MAX_VALUE);
-    assertEquals(BitwiseUtils.unpackLong(buf), Long.MAX_VALUE);
+    NumOpsUtils.packLong(buf, Long.MAX_VALUE);
+    assertEquals(NumOpsUtils.unpackLong(buf), Long.MAX_VALUE);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testPackLongNeg()
       throws IOException {
     ReadWriteDataBuffer dio = new ReadWriteDataBuffer();
-    BitwiseUtils.packLong(dio.reset(), -42l);
+    NumOpsUtils.packLong(dio.reset(), -42l);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testPackLongBytesNeg()
       throws IOException {
-    BitwiseUtils.packLong(new byte[15], -42l);
+    NumOpsUtils.packLong(new byte[15], -42l);
   }
 
   @Test
   public void test()
       throws IOException {
     ReadWriteDataBuffer dio = new ReadWriteDataBuffer();
-    BitwiseUtils.packInt(dio.reset(), 5);
+    NumOpsUtils.packInt(dio.reset(), 5);
     ByteBuffer bb = ByteBuffer.wrap(dio.getBuf());
-    assertEquals(BitwiseUtils.unpackInt(bb), 5);
+    assertEquals(NumOpsUtils.unpackInt(bb), 5);
   }
 }

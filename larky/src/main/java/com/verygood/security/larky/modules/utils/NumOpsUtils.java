@@ -6,12 +6,128 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 
-public final class BitwiseUtils {
+public final class NumOpsUtils {
 
   // Default constructor
-  private BitwiseUtils() {
+  private NumOpsUtils() {
   }
 
+  static long  UINT8_MAX = 0xFF;
+  static long UINT16_MAX = 0xFFFF;
+  static long UINT24_MAX = 0XFFFFFF;
+  static long UINT32_MAX = 0xFFFF_FFFFL;
+  static long UINT40_MAX = 0xFFFF_FF00_0000_0000L;
+  static long UINT48_MAX = 0xFFFF_0000_0000_0000L;
+  static long UINT56_MAX = 0x00FF_FFFF_FFFF_FFFFL;
+  static long UINT64_MAX = 0xFFFF_FFFF_FFFF_FFFFL;
+  static BigInteger BI_UINT32_MAX = toUnsignedBigInteger(UINT32_MAX);
+  static BigInteger BI_UINT64_MAX = toUnsignedBigInteger(UINT64_MAX);
+
+  /**
+  * Return a BigInteger equal to the unsigned value of the
+  * argument.
+  */
+  public static BigInteger toUnsignedBigInteger(long i) {
+     if (i >= 0L)
+         return BigInteger.valueOf(i);
+     else {
+         int upper = (int) (i >>> 32);
+         int lower = (int) i;
+
+         // return (upper << 32) + lower
+         return (
+             BigInteger.valueOf(Integer.toUnsignedLong(upper))).shiftLeft(32).
+             add(BigInteger.valueOf(Integer.toUnsignedLong(lower)));
+     }
+  }
+
+  /**
+   * Computes Jacobi(p,n).
+   * Assumes n positive, odd, n>=3.
+   */
+  public static int jacobiSymbol(int p, BigInteger n) {
+      if (p == 0)
+          return 0;
+
+      // Algorithm and comments adapted from Colin Plumb's C library.
+      int j = 1;
+      int u = n.bitCount();//n.mag[n.mag.length-1];
+
+      // Make p positive
+      if (p < 0) {
+          p = -p;
+          int n8 = u & 7;
+          if ((n8 == 3) || (n8 == 7))
+              j = -j; // 3 (011) or 7 (111) mod 8
+      }
+
+      // Get rid of factors of 2 in p
+      while ((p & 3) == 0)
+          p >>= 2;
+      if ((p & 1) == 0) {
+          p >>= 1;
+          if (((u ^ (u>>1)) & 2) != 0)
+              j = -j; // 3 (011) or 5 (101) mod 8
+      }
+      if (p == 1)
+          return j;
+      // Then, apply quadratic reciprocity
+      if ((p & u & 2) != 0)   // p = u = 3 (mod 4)?
+          j = -j;
+      // And reduce u mod p
+      u = n.mod(BigInteger.valueOf(p)).intValue();
+
+      // Now compute Jacobi(u,p), u < p
+      while (u != 0) {
+          while ((u & 3) == 0)
+              u >>= 2;
+          if ((u & 1) == 0) {
+              u >>= 1;
+              if (((p ^ (p>>1)) & 2) != 0)
+                  j = -j;     // 3 (011) or 5 (101) mod 8
+          }
+          if (u == 1)
+              return j;
+          // Now both u and p are odd, so use quadratic reciprocity
+          assert (u < p);
+          int t = u; u = p; p = t;
+          if ((u & p & 2) != 0) // u = p = 3 (mod 4)?
+              j = -j;
+          // Now u >= p, so it can be reduced
+          u %= p;
+      }
+      return 0;
+  }
+
+  public static BigInteger lcm(BigInteger a, BigInteger b) {
+    if (a.equals(BigInteger.ZERO) || b.equals(BigInteger.ZERO)) {
+      return BigInteger.ZERO;
+    }
+    BigInteger gcd = a.gcd(b);
+    return a.divide(gcd).multiply(b).abs();
+  }
+
+  public static BigInteger bytes2bigint(byte[] bytes, boolean bigEndian, boolean signed) {
+    if (bytes.length == 0) {
+        // in case of empty byte array
+        return BigInteger.ZERO;
+      }
+      BigInteger result;
+      if (bigEndian) {
+        result = signed
+            ? new BigInteger(bytes)
+            : new BigInteger(1, bytes);
+      } else {
+        byte[] converted = new byte[bytes.length];
+        for (int i = 0; i < bytes.length; i++) {
+          converted[bytes.length - i - 1] = bytes[i];
+        }
+        result = signed
+            ? new BigInteger(converted)
+            : new BigInteger(1, converted);
+      }
+      return result;
+  }
   public static byte[] bigint2byte(BigInteger value, int byteCount, boolean bigEndian, boolean signed) {
     if (byteCount < 0) {
       throw new IllegalArgumentException("length argument must be non-negative");
@@ -353,35 +469,6 @@ public final class BitwiseUtils {
     }
     throw new Error("Malformed integer.");
   }
-
-  /**
-  * Return a BigInteger equal to the unsigned value of the
-  * argument.
-  */
-  public static BigInteger toUnsignedBigInteger(long i) {
-     if (i >= 0L)
-         return BigInteger.valueOf(i);
-     else {
-         int upper = (int) (i >>> 32);
-         int lower = (int) i;
-
-         // return (upper << 32) + lower
-         return (
-             BigInteger.valueOf(Integer.toUnsignedLong(upper))).shiftLeft(32).
-             add(BigInteger.valueOf(Integer.toUnsignedLong(lower)));
-     }
-  }
-
-  static long UINT8_MAX = 0xFF;
-  static long UINT16_MAX = 0xFFFF;
-  static long UINT24_MAX = 0XFFFFFF;
-  static long UINT32_MAX = 0xFFFF_FFFFL;
-  static long UINT40_MAX = 0xFFFF_FF00_0000_0000L;
-  static long UINT48_MAX = 0xFFFF_0000_0000_0000L;
-  static long UINT56_MAX = 0x00FF_FFFF_FFFF_FFFFL;
-  static long UINT64_MAX = 0xFFFF_FFFF_FFFF_FFFFL;
-  static BigInteger BI_UINT32_MAX = toUnsignedBigInteger(UINT32_MAX);
-  static BigInteger BI_UINT64_MAX = toUnsignedBigInteger(UINT64_MAX);
 
   /**
    * Returns primitive type size to pack the value

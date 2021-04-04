@@ -570,6 +570,58 @@ public class ByteArrayUtil {
     return new byte[]{(byte) length};
   }
 
+  /**
+   * Returns a copy of the input array stripped of any leading zero bytes.
+   */
+  private static int[] stripLeadingZeroInts(int val[]) {
+      int vlen = val.length;
+      int keep;
+
+      // Find first nonzero byte
+      for (keep = 0; keep < vlen && val[keep] == 0; keep++)
+          ;
+      return java.util.Arrays.copyOfRange(val, keep, vlen);
+  }
+
+  /**
+   * Returns the input array stripped of any leading zero bytes.
+   * Since the source is trusted the copying may be skipped.
+   */
+  private static int[] trustedStripLeadingZeroInts(int val[]) {
+      int vlen = val.length;
+      int keep;
+
+      // Find first nonzero byte
+      for (keep = 0; keep < vlen && val[keep] == 0; keep++)
+          ;
+      return keep == 0 ? val : java.util.Arrays.copyOfRange(val, keep, vlen);
+  }
+
+  /**
+   * Returns a copy of the input array stripped of any leading zero bytes.
+   */
+  private static int[] stripLeadingZeroBytes(byte a[], int off, int len) {
+      int indexBound = off + len;
+      int keep;
+
+      // Find first nonzero byte
+      for (keep = off; keep < indexBound && a[keep] == 0; keep++)
+          ;
+
+      // Allocate new array and copy relevant part of input array
+      int intLength = ((indexBound - keep) + 3) >>> 2;
+      int[] result = new int[intLength];
+      int b = indexBound - 1;
+      for (int i = intLength-1; i >= 0; i--) {
+          result[i] = a[b--] & 0xff;
+          int bytesRemaining = b - keep + 1;
+          int bytesToTransfer = Math.min(3, bytesRemaining);
+          for (int j=8; j <= (bytesToTransfer << 3); j += 8)
+              result[i] |= ((a[b--] & 0xff) << j);
+      }
+      return result;
+  }
+
   private ByteArrayUtil() {
   } //is not instantiable
 }

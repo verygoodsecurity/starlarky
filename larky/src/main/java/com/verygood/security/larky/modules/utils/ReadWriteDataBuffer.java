@@ -155,10 +155,10 @@ public final class ReadWriteDataBuffer implements DataInput, DataOutput, ObjectI
   @Override
   public String readUTF()
       throws IOException {
-    int len = BitwiseUtils.unpackInt(this);
+    int len = NumOpsUtils.unpackInt(this);
     char[] b = new char[len];
     for (int i = 0; i < len; i++) {
-      b[i] = (char) BitwiseUtils.unpackInt(this);
+      b[i] = (char) NumOpsUtils.unpackInt(this);
     }
 
     return new String(b);
@@ -277,10 +277,10 @@ public final class ReadWriteDataBuffer implements DataInput, DataOutput, ObjectI
   public void writeUTF(String s)
       throws IOException {
     final int len = s.length();
-    BitwiseUtils.packInt(this, len);
+    NumOpsUtils.packInt(this, len);
     for (int i = 0; i < len; i++) {
       int c = (int) s.charAt(i); //TODO investigate if c could be negative here
-      BitwiseUtils.packInt(this, c);
+      NumOpsUtils.packInt(this, c);
     }
   }
 
