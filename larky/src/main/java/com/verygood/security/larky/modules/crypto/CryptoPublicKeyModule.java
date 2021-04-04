@@ -32,6 +32,7 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
 import org.bouncycastle.util.encoders.DecoderException;
+import org.jetbrains.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -133,7 +134,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   }
 
   @StarlarkMethod(
-      name="decrypt",
+      name = "decrypt",
       parameters = {
           @Param(name = "rsaObj", allowedTypes = {@ParamType(type = Dict.class)}),
           @Param(name = "ciphertext")
@@ -151,39 +152,41 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     return LarkyByte.builder(thread).setSequence(bytes).build();
   }
 
-  public byte[] RSA_decrypt(Dict<String, StarlarkInt> finalRsaObj, byte[] cipherText) throws InvalidCipherTextException {
+  @VisibleForTesting
+  byte[] RSA_decrypt(Dict<String, StarlarkInt> finalRsaObj, byte[] cipherText) throws InvalidCipherTextException {
     RSAKeyParameters privParams = new RSAKeyParameters(
-         true,
-         finalRsaObj.get("n").toBigInteger(),
-         finalRsaObj.get("d").toBigInteger());
+        true,
+        finalRsaObj.get("n").toBigInteger(),
+        finalRsaObj.get("d").toBigInteger());
 
-     AsymmetricBlockCipher rsaEngine = new RSABlindedEngine();
-     rsaEngine.init(false, privParams);
-     byte[] bytes;
+    AsymmetricBlockCipher rsaEngine = new RSABlindedEngine();
+    rsaEngine.init(false, privParams);
+    byte[] bytes;
     bytes = rsaEngine.processBlock(cipherText, 0, cipherText.length);
     return bytes;
   }
 
   @StarlarkMethod(
-        name="encrypt",
-        parameters = {
-            @Param(name = "rsaObj", allowedTypes = {@ParamType(type = Dict.class)}),
-            @Param(name = "plaintext")
-        },
-        useStarlarkThread = true
-    )
-    public LarkyByteLike RSAEncrypt(Dict<String, StarlarkInt> finalRsaObj, LarkyByteLike pT, StarlarkThread thread) throws EvalException {
-      byte[] plainText = pT.getBytes();
-      byte[] bytes;
-      try {
-        bytes = RSA_encrypt(finalRsaObj, plainText);
-      } catch (InvalidCipherTextException e) {
-        throw new EvalException(e);
-      }
-      return LarkyByte.builder(thread).setSequence(bytes).build();
+      name = "encrypt",
+      parameters = {
+          @Param(name = "rsaObj", allowedTypes = {@ParamType(type = Dict.class)}),
+          @Param(name = "plaintext")
+      },
+      useStarlarkThread = true
+  )
+  public LarkyByteLike RSAEncrypt(Dict<String, StarlarkInt> finalRsaObj, LarkyByteLike pT, StarlarkThread thread) throws EvalException {
+    byte[] plainText = pT.getBytes();
+    byte[] bytes;
+    try {
+      bytes = RSA_encrypt(finalRsaObj, plainText);
+    } catch (InvalidCipherTextException e) {
+      throw new EvalException(e);
     }
+    return LarkyByte.builder(thread).setSequence(bytes).build();
+  }
 
-  public byte[] RSA_encrypt(Dict<String, StarlarkInt> finalRsaObj, byte[] plainText) throws InvalidCipherTextException {
+  @VisibleForTesting
+  byte[] RSA_encrypt(Dict<String, StarlarkInt> finalRsaObj, byte[] plainText) throws InvalidCipherTextException {
     RSAKeyParameters pubParams = new RSAKeyParameters(
         false,
         finalRsaObj.get("n").toBigInteger(),

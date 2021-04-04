@@ -456,10 +456,11 @@ def _generate(bits, randfunc=None, e=65537):
              'odd integer larger than 2.')
 
     if randfunc == None:
+        # TODO(Larky-Difference): We don't care about passing in a different
+        # Random.
         randfunc = Random.get_random_bytes
 
     rsaObj = _JCrypto.PublicKey.RSA.generate(bits, e)
-    # print("====>", rsaObj.keys())
     return _RsaKey(**rsaObj)
 
 

@@ -31,8 +31,8 @@ load("@vendor//asserts", asserts="asserts")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
-load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long", inverse="inverse")
-
+load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long",
+     inverse="inverse")
 
 # Test vectors from "RSA-OAEP and RSA-PSS test vectors (.zip file)"
 #   ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-1/pkcs-1v2-1-vec.zip
@@ -76,7 +76,7 @@ modulus = """
         e2 53 72 98 ca 2a 8f 59 46 f8 e5 fd 09 1d bd cb
     """
 
-e = 0x11    # public exponent
+e = 0x11  # public exponent
 
 prime_factor = """
         c9 7f b1 f0 27 f4 53 f6 34 12 33 ea aa d1 d9 35
@@ -108,8 +108,8 @@ p = bytes_to_long(a2b_hex(prime_factor))
 
 # Compute q, d, and u from n, e, and p
 q = n // p
-d = inverse(e, (p-1)*(q-1))
-u = inverse(p, q)    # u = e**-1 (mod q)
+d = inverse(e, (p - 1) * (q - 1))
+u = inverse(p, q)  # u = e**-1 (mod q)
 
 rsa = RSA
 
@@ -118,14 +118,16 @@ def _check_private_key(rsaObj):
     # Check capabilities
     asserts.assert_that(True).is_equal_to(rsaObj.has_private())
     # Sanity check key data
-    asserts.assert_that(rsaObj.n).is_equal_to(rsaObj.p * rsaObj.q)     # n = pq
-    asserts.assert_that(True).is_equal_to((rsaObj.p > 1))   # p > 1
-    asserts.assert_that(True).is_equal_to((rsaObj.q > 1))   # q > 1
-    asserts.assert_that(True).is_equal_to((rsaObj.e > 1))   # e > 1
-    asserts.assert_that(True).is_equal_to((rsaObj.d > 1))   # d > 1
-    asserts.assert_that(1).is_equal_to(rsaObj.p * rsaObj.u % rsaObj.q) # pu = 1 (mod q)
-    lcm = Integer(rsaObj.p-1).lcm(rsaObj.q-1).__int__()
-    asserts.assert_that(1).is_equal_to(rsaObj.d * rsaObj.e % lcm) # ed = 1 (mod LCM(p-1, q-1))
+    asserts.assert_that(rsaObj.n).is_equal_to(rsaObj.p * rsaObj.q)  # n = pq
+    asserts.assert_that(True).is_equal_to((rsaObj.p > 1))  # p > 1
+    asserts.assert_that(True).is_equal_to((rsaObj.q > 1))  # q > 1
+    asserts.assert_that(True).is_equal_to((rsaObj.e > 1))  # e > 1
+    asserts.assert_that(True).is_equal_to((rsaObj.d > 1))  # d > 1
+    asserts.assert_that(1).is_equal_to(
+        rsaObj.p * rsaObj.u % rsaObj.q)  # pu = 1 (mod q)
+    lcm = Integer(rsaObj.p - 1).lcm(rsaObj.q - 1).__int__()
+    asserts.assert_that(1).is_equal_to(
+        rsaObj.d * rsaObj.e % lcm)  # ed = 1 (mod LCM(p-1, q-1))
 
 
 def _check_public_key(rsaObj):
@@ -145,14 +147,19 @@ def _check_public_key(rsaObj):
     asserts.assert_that(False).is_equal_to(hasattr(rsaObj, '_u'))
 
     # Sanity check key data
-    asserts.assert_that(True).is_equal_to((rsaObj.e > 1))   # e > 1
+    asserts.assert_that(True).is_equal_to((rsaObj.e > 1))  # e > 1
 
     # Public keys should not be able to sign or decrypt
-    asserts.assert_fails(lambda : rsaObj._decrypt(bytes_to_long(_ciphertext)), ".*?TypeError")
+    asserts.assert_fails(lambda: rsaObj._decrypt(bytes_to_long(_ciphertext)),
+                         ".*?TypeError")
 
     # Check __eq__ and __ne__
-    asserts.assert_that(rsaObj.public_key().__eq__(rsaObj.public_key())).is_equal_to(True) # assert_
-    asserts.assert_that(rsaObj.public_key().__ne__(rsaObj.public_key())).is_equal_to(False) # failIf
+    asserts.assert_that(
+        rsaObj.public_key().__eq__(rsaObj.public_key())).is_equal_to(
+        True)  # assert_
+    asserts.assert_that(
+        rsaObj.public_key().__ne__(rsaObj.public_key())).is_equal_to(
+        False)  # failIf
 
     asserts.assert_true(rsaObj.publickey().__eq__(rsaObj.public_key()))
 
@@ -187,7 +194,7 @@ def _check_encryption(rsaObj):
     asserts.assert_that(bytes_to_long(_ciphertext)).is_equal_to(new_ciphertext2)
 
 
-def RSATest__check_decryption(rsaObj):
+def _check_decryption(rsaObj):
     _plaintext = bytes_to_long(a2b_hex(plaintext))
     _ciphertext = bytes_to_long(a2b_hex(ciphertext))
 
@@ -206,14 +213,101 @@ def RSATest_test_generate_1arg():
     _exercise_public_primitive(rsaObj)
 
 
+def RSATest_test_generate_2arg():
+    """RSA (default implementation) generated key (2 arguments)"""
+    rsaObj = rsa.generate(1024, Random.new().read)
+    _check_private_key(rsaObj)
+    _exercise_primitive(rsaObj)
+    pub = rsaObj.public_key()
+    _check_public_key(pub)
+    _exercise_public_primitive(rsaObj)
+
+
+def RSATest_test_generate_3args():
+    rsaObj = rsa.generate(1024, Random.new().read, e=65537)
+    _check_private_key(rsaObj)
+    _exercise_primitive(rsaObj)
+    pub = rsaObj.public_key()
+    _check_public_key(pub)
+    _exercise_public_primitive(rsaObj)
+    asserts.assert_that(65537).is_equal_to(rsaObj.e)
+
+
+def RSATest_test_generate_2arg():
+    """RSA (default implementation) generated key (2 arguments)"""
+    rsaObj = rsa.generate(1024, Random.new().read)
+    _check_private_key(rsaObj)
+    _exercise_primitive(rsaObj)
+    pub = rsaObj.public_key()
+    _check_public_key(pub)
+    _exercise_public_primitive(rsaObj)
+
+
+def RSATest_test_generate_3args():
+    rsaObj = rsa.generate(1024, Random.new().read, e=65537)
+    _check_private_key(rsaObj)
+    _exercise_primitive(rsaObj)
+    pub = rsaObj.public_key()
+    _check_public_key(pub)
+    _exercise_public_primitive(rsaObj)
+    asserts.assert_that(65537).is_equal_to(rsaObj.e)
+
+
+def RSATest_test_construct_2tuple():
+    """RSA (default implementation) constructed key (2-tuple)"""
+    pub = rsa.construct((n, e))
+    _check_public_key(pub)
+    _check_encryption(pub)
+
+
+def RSATest_test_construct_3tuple():
+    """RSA (default implementation) constructed key (3-tuple)"""
+    rsaObj = rsa.construct((n, e, d))
+    _check_encryption(rsaObj)
+    _check_decryption(rsaObj)
+
+
+def RSATest_test_construct_4tuple():
+    """RSA (default implementation) constructed key (4-tuple)"""
+    rsaObj = rsa.construct((n, e, d, p))
+    _check_encryption(rsaObj)
+    _check_decryption(rsaObj)
+
+
+def RSATest_test_construct_5tuple():
+    """RSA (default implementation) constructed key (5-tuple)"""
+    rsaObj = rsa.construct((n, e, d, p, q))
+    _check_private_key(rsaObj)
+    _check_encryption(rsaObj)
+    _check_decryption(rsaObj)
+
+
+def RSATest_test_construct_6tuple():
+    """RSA (default implementation) constructed key (6-tuple)"""
+    rsaObj = rsa.construct((n, e, d, p, q, u))
+    _check_private_key(rsaObj)
+    _check_encryption(rsaObj)
+    _check_decryption(rsaObj)
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(RSATest_test_generate_1arg))
+    _suite.addTest(unittest.FunctionTestCase(RSATest_test_generate_2arg))
+    _suite.addTest(unittest.FunctionTestCase(RSATest_test_generate_3args))
+    _suite.addTest(unittest.FunctionTestCase(RSATest_test_generate_2arg))
+    _suite.addTest(unittest.FunctionTestCase(RSATest_test_generate_3args))
+    # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_2tuple))
+    # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_3tuple))
+    # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_4tuple))
+    # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_5tuple))
+    # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_6tuple))
+    _suite.addTest(unittest.FunctionTestCase(_testsuite))
     return _suite
-
 
 _runner = unittest.TextTestRunner()
 _runner.run(_testsuite())
+
 
 #
 # def RSATest_test_generate_2arg():

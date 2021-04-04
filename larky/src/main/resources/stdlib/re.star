@@ -146,7 +146,10 @@ def _pattern__init__(patternobj):
         _matcher = matcher(string)
         res = []
         cnt_rpl = 0
-
+        # TODO: this can sometimes limit results
+        # based only number of matches less than or equal
+        # to _WHILE_LOOP_EMULATION_ITERATION which might
+        # yield incomplete results.
         for _i in range(_WHILE_LOOP_EMULATION_ITERATION):
             if not _matcher.find():
                 break
