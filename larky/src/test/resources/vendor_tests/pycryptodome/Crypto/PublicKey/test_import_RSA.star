@@ -21,29 +21,32 @@
 # ===================================================================
 
 load("@stdlib//re", re="re")
-load("@stdlib//builtins","builtins")
-load("@stdlib//unittest","unittest")
+load("@stdlib//builtins", "builtins")
+load("@stdlib//unittest", "unittest")
 load("@stdlib//binascii", binascii="binascii")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/st_common", a2b_hex="a2b_hex")
-load("@vendor//Crypto/Util/py3compat", b="b", tostr="tostr", FileNotFoundError="FileNotFoundError")
+load(
+    "@vendor//Crypto/Util/py3compat",
+    b="b",
+    tostr="tostr",
+    FileNotFoundError="FileNotFoundError",
+)
 load("@vendor//Crypto/Util/number", inverse="inverse")
 load("@vendor//Crypto/Util/asn1", asn1="asn1")
-load("@vendor//asserts","asserts")
+load("@vendor//asserts", "asserts")
 
 
-
-def der2pem(der, text='PUBLIC'):
-
-    chunks = [binascii.b2a_base64(der[i:i+48]) for i in range(0, len(der), 48)]
-    pem = b('-----BEGIN %s KEY-----\n' % text)
-    pem += b('').join(chunks)
-    pem += b('-----END %s KEY-----' % text)
+def der2pem(der, text="PUBLIC"):
+    chunks = [binascii.b2a_base64(der[i : i + 48]) for i in range(0, len(der), 48)]
+    pem = b("-----BEGIN %s KEY-----\n" % text)
+    pem += b("").join(chunks)
+    pem += b("-----END %s KEY-----" % text)
     return pem
 
 
 # 512-bit RSA key generated with openssl
-rsaKeyPEM = '''-----BEGIN RSA PRIVATE KEY-----
+rsaKeyPEM = """-----BEGIN RSA PRIVATE KEY-----
 MIIBOwIBAAJBAL8eJ5AKoIsjURpcEoGubZMxLD7+kT+TLr7UkvEtFrRhDDKMtuII
 q19FrL4pUIMymPMSLBn3hJLe30Dw48GQM4UCAwEAAQJACUSDEp8RTe32ftq8IwG8
 Wojl5mAd1wFiIOrZ/Uv8b963WJOJiuQcVN29vxU5+My9GPZ7RA3hrDBEAoHUDPrI
@@ -51,10 +54,10 @@ OQIhAPIPLz4dphiD9imAkivY31Rc5AfHJiQRA7XixTcjEkojAiEAyh/pJHks/Mlr
 +rdPNEpotBjfV4M4BkgGAA/ipcmaAjcCIQCHvhwwKVBLzzTscT2HeUdEeBMoiXXK
 JACAr3sJQJGxIQIgarRp+m1WSKV1MciwMaTOnbU7wxFs9DP1pva76lYBzgUCIQC9
 n0CnZCJ6IZYqSt0H5N7+Q+2Ro64nuwV/OSQfM6sBwQ==
------END RSA PRIVATE KEY-----'''
+-----END RSA PRIVATE KEY-----"""
 
-    # As above, but this is actually an unencrypted PKCS#8 key
-rsaKeyPEM8 = '''-----BEGIN PRIVATE KEY-----
+# As above, but this is actually an unencrypted PKCS#8 key
+rsaKeyPEM8 = """-----BEGIN PRIVATE KEY-----
 MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAvx4nkAqgiyNRGlwS
 ga5tkzEsPv6RP5MuvtSS8S0WtGEMMoy24girX0WsvilQgzKY8xIsGfeEkt7fQPDj
 wZAzhQIDAQABAkAJRIMSnxFN7fZ+2rwjAbxaiOXmYB3XAWIg6tn9S/xv3rdYk4mK
@@ -63,13 +66,15 @@ B8cmJBEDteLFNyMSSiMCIQDKH+kkeSz8yWv6t080Smi0GN9XgzgGSAYAD+KlyZoC
 NwIhAIe+HDApUEvPNOxxPYd5R0R4EyiJdcokAICvewlAkbEhAiBqtGn6bVZIpXUx
 yLAxpM6dtTvDEWz0M/Wm9rvqVgHOBQIhAL2fQKdkInohlipK3Qfk3v5D7ZGjrie7
 BX85JB8zqwHB
------END PRIVATE KEY-----'''
+-----END PRIVATE KEY-----"""
 
-    # The same RSA private key as in rsaKeyPEM, but now encrypted
+# The same RSA private key as in rsaKeyPEM, but now encrypted
 rsaKeyEncryptedPEM = (
-        # PEM encryption
-        # With DES and passphrase 'test'
-    ('test', '''-----BEGIN RSA PRIVATE KEY-----
+    # PEM encryption
+    # With DES and passphrase 'test'
+    (
+        "test",
+        """-----BEGIN RSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
 DEK-Info: DES-CBC,AF8F9A40BD2FA2FC
 
@@ -80,10 +85,12 @@ BCNRMdcexozWtAFNNqSzfW58MJL2OdMi21ED184EFytIc1BlB+FZiGZduwKGuaKy
 9bMbdb/1PSvsSzPsqW7KSSrTw6MgJAFJg6lzIYvR5F4poTVBxwBX3+EyEmShiaNY
 IRX3TgQI0IjrVuLmvlZKbGWP18FXj7I7k9tSsNOOzllTTdq3ny5vgM3A+ynfAaxp
 dysKznQ6P+IoqML1WxAID4aGRMWka+uArOJ148Rbj9s=
------END RSA PRIVATE KEY-----'''),
-
-        # PKCS8 encryption
-    ('winter', '''-----BEGIN ENCRYPTED PRIVATE KEY-----
+-----END RSA PRIVATE KEY-----""",
+    ),
+    # PKCS8 encryption
+    (
+        "winter",
+        """-----BEGIN ENCRYPTED PRIVATE KEY-----
 MIIBpjBABgkqhkiG9w0BBQ0wMzAbBgkqhkiG9w0BBQwwDgQIeZIsbW3O+JcCAggA
 MBQGCCqGSIb3DQMHBAgSM2p0D8FilgSCAWBhFyP2tiGKVpGj3mO8qIBzinU60ApR
 3unvP+N6j7LVgnV2lFGaXbJ6a1PbQXe+2D6DUyBLo8EMXrKKVLqOMGkFMHc0UaV6
@@ -93,66 +100,98 @@ NjJ7f8ULtp7xvR9O3Al/yJ4Wv3i4VxF1f3MCXzhlUD4I0ONlr0kJWgeQ80q/cWhw
 ntvgJwnCn2XR1h6LA8Wp+0ghDTsL2NhJpWd78zClGhyU4r3hqu1XDjoXa7YCXCix
 jCV15+ViDJzlNCwg+W6lRg18sSLkCT7alviIE0U5tHc6UPbbHwT5QqAxAABaP+nZ
 CGqJGyiwBzrKebjgSm/KRd4C91XqcsysyH2kKPfT51MLAoD4xelOURBP
------END ENCRYPTED PRIVATE KEY-----'''
+-----END ENCRYPTED PRIVATE KEY-----""",
     ),
 )
 
-rsaPublicKeyPEM = '''-----BEGIN PUBLIC KEY-----
+rsaPublicKeyPEM = """-----BEGIN PUBLIC KEY-----
 MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAL8eJ5AKoIsjURpcEoGubZMxLD7+kT+T
 Lr7UkvEtFrRhDDKMtuIIq19FrL4pUIMymPMSLBn3hJLe30Dw48GQM4UCAwEAAQ==
------END PUBLIC KEY-----'''
+-----END PUBLIC KEY-----"""
 
-    # Obtained using 'ssh-keygen -i -m PKCS8 -f rsaPublicKeyPEM'
-rsaPublicKeyOpenSSH = b('''ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAQQC/HieQCqCLI1EaXBKBrm2TMSw+/pE/ky6+1JLxLRa0YQwyjLbiCKtfRay+KVCDMpjzEiwZ94SS3t9A8OPBkDOF comment\n''')
+# Obtained using 'ssh-keygen -i -m PKCS8 -f rsaPublicKeyPEM'
+rsaPublicKeyOpenSSH = b(
+    """ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAQQC/HieQCqCLI1EaXBKBrm2TMSw+/pE/ky6+1JLxLRa0YQwyjLbiCKtfRay+KVCDMpjzEiwZ94SS3t9A8OPBkDOF comment\n"""
+)
 
-    # The private key, in PKCS#1 format encoded with DER
+# The private key, in PKCS#1 format encoded with DER
 rsaKeyDER = a2b_hex(
-'''3082013b020100024100bf1e27900aa08b23511a5c1281ae6d93312c3efe
-    913f932ebed492f12d16b4610c328cb6e208ab5f45acbe2950833298f312
-    2c19f78492dedf40f0e3c190338502030100010240094483129f114dedf6
-    7edabc2301bc5a88e5e6601dd7016220ead9fd4bfc6fdeb75893898ae41c
-    54ddbdbf1539f8ccbd18f67b440de1ac30440281d40cfac839022100f20f
-    2f3e1da61883f62980922bd8df545ce407c726241103b5e2c53723124a23
-    022100ca1fe924792cfcc96bfab74f344a68b418df578338064806000fe2
-    a5c99a023702210087be1c3029504bcf34ec713d877947447813288975ca
-    240080af7b094091b12102206ab469fa6d5648a57531c8b031a4ce9db53b
-    c3116cf433f5a6f6bbea5601ce05022100bd9f40a764227a21962a4add07
-    e4defe43ed91a3ae27bb057f39241f33ab01c1
-    '''.replace(" ",""))
+    """3082013b020100024100bf1e27900aa08b23511a5c1281ae6d93312c3efe
+        913f932ebed492f12d16b4610c328cb6e208ab5f45acbe2950833298f312
+        2c19f78492dedf40f0e3c190338502030100010240094483129f114dedf6
+        7edabc2301bc5a88e5e6601dd7016220ead9fd4bfc6fdeb75893898ae41c
+        54ddbdbf1539f8ccbd18f67b440de1ac30440281d40cfac839022100f20f
+        2f3e1da61883f62980922bd8df545ce407c726241103b5e2c53723124a23
+        022100ca1fe924792cfcc96bfab74f344a68b418df578338064806000fe2
+        a5c99a023702210087be1c3029504bcf34ec713d877947447813288975ca
+        240080af7b094091b12102206ab469fa6d5648a57531c8b031a4ce9db53b
+        c3116cf433f5a6f6bbea5601ce05022100bd9f40a764227a21962a4add07
+        e4defe43ed91a3ae27bb057f39241f33ab01c1
+        """.replace(
+        " ", ""
+    )
+)
 
-    # The private key, in unencrypted PKCS#8 format encoded with DER
+# The private key, in unencrypted PKCS#8 format encoded with DER
 rsaKeyDER8 = a2b_hex(
-'''30820155020100300d06092a864886f70d01010105000482013f3082013
-    b020100024100bf1e27900aa08b23511a5c1281ae6d93312c3efe913f932
-    ebed492f12d16b4610c328cb6e208ab5f45acbe2950833298f3122c19f78
-    492dedf40f0e3c190338502030100010240094483129f114dedf67edabc2
-    301bc5a88e5e6601dd7016220ead9fd4bfc6fdeb75893898ae41c54ddbdb
-    f1539f8ccbd18f67b440de1ac30440281d40cfac839022100f20f2f3e1da
-    61883f62980922bd8df545ce407c726241103b5e2c53723124a23022100c
-    a1fe924792cfcc96bfab74f344a68b418df578338064806000fe2a5c99a0
-    23702210087be1c3029504bcf34ec713d877947447813288975ca240080a
-    f7b094091b12102206ab469fa6d5648a57531c8b031a4ce9db53bc3116cf
-    433f5a6f6bbea5601ce05022100bd9f40a764227a21962a4add07e4defe4
-    3ed91a3ae27bb057f39241f33ab01c1
-    '''.replace(" ",""))
+    """30820155020100300d06092a864886f70d01010105000482013f3082013
+        b020100024100bf1e27900aa08b23511a5c1281ae6d93312c3efe913f932
+        ebed492f12d16b4610c328cb6e208ab5f45acbe2950833298f3122c19f78
+        492dedf40f0e3c190338502030100010240094483129f114dedf67edabc2
+        301bc5a88e5e6601dd7016220ead9fd4bfc6fdeb75893898ae41c54ddbdb
+        f1539f8ccbd18f67b440de1ac30440281d40cfac839022100f20f2f3e1da
+        61883f62980922bd8df545ce407c726241103b5e2c53723124a23022100c
+        a1fe924792cfcc96bfab74f344a68b418df578338064806000fe2a5c99a0
+        23702210087be1c3029504bcf34ec713d877947447813288975ca240080a
+        f7b094091b12102206ab469fa6d5648a57531c8b031a4ce9db53bc3116cf
+        433f5a6f6bbea5601ce05022100bd9f40a764227a21962a4add07e4defe4
+        3ed91a3ae27bb057f39241f33ab01c1
+        """.replace(
+        " ", ""
+    )
+)
 
 rsaPublicKeyDER = a2b_hex(
-'''305c300d06092a864886f70d0101010500034b003048024100bf1e27900a
-    a08b23511a5c1281ae6d93312c3efe913f932ebed492f12d16b4610c328c
-    b6e208ab5f45acbe2950833298f3122c19f78492dedf40f0e3c190338502
-    03010001
-    '''.replace(" ",""))
+    """305c300d06092a864886f70d0101010500034b003048024100bf1e27900a
+        a08b23511a5c1281ae6d93312c3efe913f932ebed492f12d16b4610c328c
+        b6e208ab5f45acbe2950833298f3122c19f78492dedf40f0e3c190338502
+        03010001
+        """.replace(
+        " ", ""
+    )
+)
 
-n = int('BF 1E 27 90 0A A0 8B 23 51 1A 5C 12 81 AE 6D 93 31 2C 3E FE 91 3F 93 2E BE D4 92 F1 2D 16 B4 61 0C 32 8C B6 E2 08 AB 5F 45 AC BE 29 50 83 32 98 F3 12 2C 19 F7 84 92 DE DF 40 F0 E3 C1 90 33 85'.replace(" ",""),16)
+n = int(
+    "BF 1E 27 90 0A A0 8B 23 51 1A 5C 12 81 AE 6D 93 31 2C 3E FE 91 3F 93 2E BE D4 92 F1 2D 16 B4 61 0C 32 8C B6 E2 08 AB 5F 45 AC BE 29 50 83 32 98 F3 12 2C 19 F7 84 92 DE DF 40 F0 E3 C1 90 33 85".replace(
+        " ", ""
+    ),
+    16,
+)
 e = 65537
-d = int('09 44 83 12 9F 11 4D ED F6 7E DA BC 23 01 BC 5A 88 E5 E6 60 1D D7 01 62 20 EA D9 FD 4B FC 6F DE B7 58 93 89 8A E4 1C 54 DD BD BF 15 39 F8 CC BD 18 F6 7B 44 0D E1 AC 30 44 02 81 D4 0C FA C8 39'.replace(" ",""),16)
-p = int('00 F2 0F 2F 3E 1D A6 18 83 F6 29 80 92 2B D8 DF 54 5C E4 07 C7 26 24 11 03 B5 E2 C5 37 23 12 4A 23'.replace(" ",""),16)
-q = int('00 CA 1F E9 24 79 2C FC C9 6B FA B7 4F 34 4A 68 B4 18 DF 57 83 38 06 48 06 00 0F E2 A5 C9 9A 02 37'.replace(" ",""),16)
+d = int(
+    "09 44 83 12 9F 11 4D ED F6 7E DA BC 23 01 BC 5A 88 E5 E6 60 1D D7 01 62 20 EA D9 FD 4B FC 6F DE B7 58 93 89 8A E4 1C 54 DD BD BF 15 39 F8 CC BD 18 F6 7B 44 0D E1 AC 30 44 02 81 D4 0C FA C8 39".replace(
+        " ", ""
+    ),
+    16,
+)
+p = int(
+    "00 F2 0F 2F 3E 1D A6 18 83 F6 29 80 92 2B D8 DF 54 5C E4 07 C7 26 24 11 03 B5 E2 C5 37 23 12 4A 23".replace(
+        " ", ""
+    ),
+    16,
+)
+q = int(
+    "00 CA 1F E9 24 79 2C FC C9 6B FA B7 4F 34 4A 68 B4 18 DF 57 83 38 06 48 06 00 0F E2 A5 C9 9A 02 37".replace(
+        " ", ""
+    ),
+    16,
+)
 
     # This is q^{-1} mod p). fastmath and slowmath use pInv (p^{-1}
     # mod q) instead!
 qInv = int('00 BD 9F 40 A7 64 22 7A 21 96 2A 4A DD 07 E4 DE FE 43 ED 91 A3 AE 27 BB 05 7F 39 24 1F 33 AB 01 C1'.replace(" ",""),16)
 pInv = inverse(p,q)
+
 
 def ImportKeyTests_testImportKey1():
     """Verify import of RSAPrivateKey DER SEQUENCE"""
@@ -164,6 +203,7 @@ def ImportKeyTests_testImportKey1():
     asserts.assert_that(key.p).is_equal_to(p)
     asserts.assert_that(key.q).is_equal_to(q)
 
+
 def ImportKeyTests_testImportKey2():
     """Verify import of SubjectPublicKeyInfo DER SEQUENCE"""
     key = RSA.importKey(rsaPublicKeyDER)
@@ -171,39 +211,44 @@ def ImportKeyTests_testImportKey2():
     asserts.assert_that(key.n).is_equal_to(n)
     asserts.assert_that(key.e).is_equal_to(e)
 
+
 def ImportKeyTests_testImportKey3unicode():
     """Verify import of RSAPrivateKey DER SEQUENCE, encoded with PEM as unicode"""
     key = RSA.importKey(rsaKeyPEM)
-    asserts.assert_that(key.has_private()).is_equal_to(True) # assert_
+    asserts.assert_that(key.has_private()).is_equal_to(True)  # assert_
     asserts.assert_that(key.n).is_equal_to(n)
     asserts.assert_that(key.e).is_equal_to(e)
     asserts.assert_that(key.d).is_equal_to(d)
     asserts.assert_that(key.p).is_equal_to(p)
     asserts.assert_that(key.q).is_equal_to(q)
+
 
 def ImportKeyTests_testImportKey3bytes():
     """Verify import of RSAPrivateKey DER SEQUENCE, encoded with PEM as byte string"""
     key = RSA.importKey(b(rsaKeyPEM))
-    asserts.assert_that(key.has_private()).is_equal_to(True) # assert_
+    asserts.assert_that(key.has_private()).is_equal_to(True)  # assert_
     asserts.assert_that(key.n).is_equal_to(n)
     asserts.assert_that(key.e).is_equal_to(e)
     asserts.assert_that(key.d).is_equal_to(d)
     asserts.assert_that(key.p).is_equal_to(p)
     asserts.assert_that(key.q).is_equal_to(q)
 
+
 def ImportKeyTests_testImportKey4unicode():
     """Verify import of RSAPrivateKey DER SEQUENCE, encoded with PEM as unicode"""
     key = RSA.importKey(rsaPublicKeyPEM)
-    asserts.assert_that(key.has_private()).is_equal_to(False) # failIf
+    asserts.assert_that(key.has_private()).is_equal_to(False)  # failIf
     asserts.assert_that(key.n).is_equal_to(n)
     asserts.assert_that(key.e).is_equal_to(e)
+
 
 def ImportKeyTests_testImportKey4bytes():
     """Verify import of SubjectPublicKeyInfo DER SEQUENCE, encoded with PEM as byte string"""
     key = RSA.importKey(b(rsaPublicKeyPEM))
-    asserts.assert_that(key.has_private()).is_equal_to(False) # failIf
+    asserts.assert_that(key.has_private()).is_equal_to(False)  # failIf
     asserts.assert_that(key.n).is_equal_to(n)
     asserts.assert_that(key.e).is_equal_to(e)
+
 
 def ImportKeyTests_testImportKey5():
     """Verifies that the imported key is still a valid RSA pair"""
@@ -211,17 +256,20 @@ def ImportKeyTests_testImportKey5():
     idem = key._encrypt(key._decrypt(89))
     asserts.assert_that(idem).is_equal_to(89)
 
+
 def ImportKeyTests_testImportKey6():
     """Verifies that the imported key is still a valid RSA pair"""
     key = RSA.importKey(rsaKeyDER)
     idem = key._encrypt(key._decrypt(65))
     asserts.assert_that(idem).is_equal_to(65)
 
+
 def ImportKeyTests_testImportKey7():
     """Verify import of OpenSSH public key"""
     key = RSA.importKey(rsaPublicKeyOpenSSH)
     asserts.assert_that(key.n).is_equal_to(n)
     asserts.assert_that(key.e).is_equal_to(e)
+
 
 def ImportKeyTests_testImportKey8():
     """Verify import of encrypted PrivateKeyInfo DER SEQUENCE"""
@@ -234,6 +282,7 @@ def ImportKeyTests_testImportKey8():
         asserts.assert_that(key.p).is_equal_to(p)
         asserts.assert_that(key.q).is_equal_to(q)
 
+
 def ImportKeyTests_testImportKey9():
     """Verify import of unencrypted PrivateKeyInfo DER SEQUENCE"""
     key = RSA.importKey(rsaKeyDER8)
@@ -243,6 +292,7 @@ def ImportKeyTests_testImportKey9():
     asserts.assert_that(key.d).is_equal_to(d)
     asserts.assert_that(key.p).is_equal_to(p)
     asserts.assert_that(key.q).is_equal_to(q)
+
 
 def ImportKeyTests_testImportKey10():
     """Verify import of unencrypted PrivateKeyInfo DER SEQUENCE, encoded with PEM"""
@@ -254,12 +304,14 @@ def ImportKeyTests_testImportKey10():
     asserts.assert_that(key.p).is_equal_to(p)
     asserts.assert_that(key.q).is_equal_to(q)
 
+
 def ImportKeyTests_testImportKey11():
     """Verify import of RSAPublicKey DER SEQUENCE"""
     der = asn1.DerSequence([17, 3]).encode()
     key = RSA.importKey(der)
     asserts.assert_that(key.n).is_equal_to(17)
     asserts.assert_that(key.e).is_equal_to(3)
+
 
 def ImportKeyTests_testImportKey12():
     """Verify import of RSAPublicKey DER SEQUENCE, encoded with PEM"""
@@ -268,6 +320,7 @@ def ImportKeyTests_testImportKey12():
     key = RSA.importKey(pem)
     asserts.assert_that(key.n).is_equal_to(17)
     asserts.assert_that(key.e).is_equal_to(3)
+
 
 def ImportKeyTests_test_import_key_windows_cr_lf():
     pem_cr_lf = "\r\n".join(rsaKeyPEM.splitlines())
@@ -278,29 +331,38 @@ def ImportKeyTests_test_import_key_windows_cr_lf():
     asserts.assert_that(key.p).is_equal_to(p)
     asserts.assert_that(key.q).is_equal_to(q)
 
+
 def ImportKeyTests_test_import_empty():
-    asserts.assert_fails(lambda : RSA.import_key(bytes(r"", encoding='utf-8')), ".*?ValueError")
+    asserts.assert_fails(
+        lambda: RSA.import_key(bytes(r"", encoding="utf-8")), ".*?ValueError"
+    )
 
     ###
+
+
 def ImportKeyTests_testExportKey1():
     key = RSA.construct([n, e, d, p, q, pInv])
     derKey = key.export_key("DER")
     asserts.assert_that(derKey).is_equal_to(rsaKeyDER)
+
 
 def ImportKeyTests_testExportKey2():
     key = RSA.construct([n, e])
     derKey = key.export_key("DER")
     asserts.assert_that(derKey).is_equal_to(rsaPublicKeyDER)
 
+
 def ImportKeyTests_testExportKey3():
     key = RSA.construct([n, e, d, p, q, pInv])
     pemKey = key.export_key("PEM")
     asserts.assert_that(pemKey).is_equal_to(b(rsaKeyPEM))
 
+
 def ImportKeyTests_testExportKey4():
     key = RSA.construct([n, e])
     pemKey = key.export_key("PEM")
     asserts.assert_that(pemKey).is_equal_to(b(rsaPublicKeyPEM))
+
 
 def ImportKeyTests_testExportKey5():
     key = RSA.construct([n, e])
@@ -309,84 +371,97 @@ def ImportKeyTests_testExportKey5():
     asserts.assert_that(openssh_1[0]).is_equal_to(openssh_2[0])
     asserts.assert_that(openssh_1[1]).is_equal_to(openssh_2[1])
 
+
 def ImportKeyTests_testExportKey7():
     key = RSA.construct([n, e, d, p, q, pInv])
     derKey = key.export_key("DER", pkcs=8)
     asserts.assert_that(derKey).is_equal_to(rsaKeyDER8)
+
 
 def ImportKeyTests_testExportKey8():
     key = RSA.construct([n, e, d, p, q, pInv])
     pemKey = key.export_key("PEM", pkcs=8)
     asserts.assert_that(pemKey).is_equal_to(b(rsaKeyPEM8))
 
+
 def ImportKeyTests_testExportKey9():
     key = RSA.construct([n, e, d, p, q, pInv])
-    asserts.assert_fails(lambda : key.export_key("invalid-format"), ".*?ValueError")
+    asserts.assert_fails(lambda: key.export_key("invalid-format"), ".*?ValueError")
+
 
 def ImportKeyTests_testExportKey10():
-        # Export and re-import the encrypted key. It must match.
-        # PEM envelope, PKCS#1, old PEM encryption
+    # Export and re-import the encrypted key. It must match.
+    # PEM envelope, PKCS#1, old PEM encryption
     key = RSA.construct([n, e, d, p, q, pInv])
-    outkey = key.export_key('PEM', 'test')
-    asserts.assert_that((tostr(outkey).find('4,ENCRYPTED')!=-1)).is_true()
-    asserts.assert_that((tostr(outkey).find('BEGIN RSA PRIVATE KEY')!=-1)).is_true()
-    inkey = RSA.importKey(outkey, 'test')
+    outkey = key.export_key("PEM", "test")
+    asserts.assert_that((tostr(outkey).find("4,ENCRYPTED") != -1)).is_true()
+    asserts.assert_that((tostr(outkey).find("BEGIN RSA PRIVATE KEY") != -1)).is_true()
+    inkey = RSA.importKey(outkey, "test")
     asserts.assert_that(key.n).is_equal_to(inkey.n)
     asserts.assert_that(key.e).is_equal_to(inkey.e)
     asserts.assert_that(key.d).is_equal_to(inkey.d)
+
 
 def ImportKeyTests_testExportKey11():
-        # Export and re-import the encrypted key. It must match.
-        # PEM envelope, PKCS#1, old PEM encryption
+    # Export and re-import the encrypted key. It must match.
+    # PEM envelope, PKCS#1, old PEM encryption
     key = RSA.construct([n, e, d, p, q, pInv])
-    outkey = key.export_key('PEM', 'test', pkcs=1)
-    asserts.assert_that((tostr(outkey).find('4,ENCRYPTED')!=-1)).is_true()
-    asserts.assert_that((tostr(outkey).find('BEGIN RSA PRIVATE KEY')!=-1)).is_true()
-    inkey = RSA.importKey(outkey, 'test')
+    outkey = key.export_key("PEM", "test", pkcs=1)
+    asserts.assert_that((tostr(outkey).find("4,ENCRYPTED") != -1)).is_true()
+    asserts.assert_that((tostr(outkey).find("BEGIN RSA PRIVATE KEY") != -1)).is_true()
+    inkey = RSA.importKey(outkey, "test")
     asserts.assert_that(key.n).is_equal_to(inkey.n)
     asserts.assert_that(key.e).is_equal_to(inkey.e)
     asserts.assert_that(key.d).is_equal_to(inkey.d)
+
 
 def ImportKeyTests_testExportKey12():
-        # Export and re-import the encrypted key. It must match.
-        # PEM envelope, PKCS#8, old PEM encryption
+    # Export and re-import the encrypted key. It must match.
+    # PEM envelope, PKCS#8, old PEM encryption
     key = RSA.construct([n, e, d, p, q, pInv])
-    outkey = key.export_key('PEM', 'test', pkcs=8)
-    asserts.assert_that((tostr(outkey).find('4,ENCRYPTED')!=-1)).is_true()
-    asserts.assert_that((tostr(outkey).find('BEGIN PRIVATE KEY')!=-1)).is_true()
-    inkey = RSA.importKey(outkey, 'test')
+    outkey = key.export_key("PEM", "test", pkcs=8)
+    asserts.assert_that((tostr(outkey).find("4,ENCRYPTED") != -1)).is_true()
+    asserts.assert_that((tostr(outkey).find("BEGIN PRIVATE KEY") != -1)).is_true()
+    inkey = RSA.importKey(outkey, "test")
     asserts.assert_that(key.n).is_equal_to(inkey.n)
     asserts.assert_that(key.e).is_equal_to(inkey.e)
     asserts.assert_that(key.d).is_equal_to(inkey.d)
+
 
 def ImportKeyTests_testExportKey13():
-        # Export and re-import the encrypted key. It must match.
-        # PEM envelope, PKCS#8, PKCS#8 encryption
+    # Export and re-import the encrypted key. It must match.
+    # PEM envelope, PKCS#8, PKCS#8 encryption
     key = RSA.construct([n, e, d, p, q, pInv])
-    outkey = key.export_key('PEM', 'test', pkcs=8,
-            protection='PBKDF2WithHMAC-SHA1AndDES-EDE3-CBC')
-    asserts.assert_that((tostr(outkey).find('4,ENCRYPTED')==-1)).is_true()
-    asserts.assert_that((tostr(outkey).find('BEGIN ENCRYPTED PRIVATE KEY')!=-1)).is_true()
-    inkey = RSA.importKey(outkey, 'test')
+    outkey = key.export_key(
+        "PEM", "test", pkcs=8, protection="PBKDF2WithHMAC-SHA1AndDES-EDE3-CBC"
+    )
+    asserts.assert_that((tostr(outkey).find("4,ENCRYPTED") == -1)).is_true()
+    asserts.assert_that(
+        (tostr(outkey).find("BEGIN ENCRYPTED PRIVATE KEY") != -1)
+    ).is_true()
+    inkey = RSA.importKey(outkey, "test")
     asserts.assert_that(key.n).is_equal_to(inkey.n)
     asserts.assert_that(key.e).is_equal_to(inkey.e)
     asserts.assert_that(key.d).is_equal_to(inkey.d)
+
 
 def ImportKeyTests_testExportKey14():
-        # Export and re-import the encrypted key. It must match.
-        # DER envelope, PKCS#8, PKCS#8 encryption
+    # Export and re-import the encrypted key. It must match.
+    # DER envelope, PKCS#8, PKCS#8 encryption
     key = RSA.construct([n, e, d, p, q, pInv])
-    outkey = key.export_key('DER', 'test', pkcs=8)
-    inkey = RSA.importKey(outkey, 'test')
+    outkey = key.export_key("DER", "test", pkcs=8)
+    inkey = RSA.importKey(outkey, "test")
     asserts.assert_that(key.n).is_equal_to(inkey.n)
     asserts.assert_that(key.e).is_equal_to(inkey.e)
     asserts.assert_that(key.d).is_equal_to(inkey.d)
 
+
 def ImportKeyTests_testExportKey15():
-        # Verify that that error an condition is detected when trying to
-        # use a password with DER encoding and PKCS#1.
+    # Verify that that error an condition is detected when trying to
+    # use a password with DER encoding and PKCS#1.
     key = RSA.construct([n, e, d, p, q, pInv])
-    asserts.assert_fails(lambda : key.export_key('DER', 'test', 1), ".*?ValueError")
+    asserts.assert_fails(lambda: key.export_key("DER", "test", 1), ".*?ValueError")
+
 
 def ImportKeyTests_test_import_key():
     """Verify that import_key is an alias to importKey"""
@@ -395,15 +470,14 @@ def ImportKeyTests_test_import_key():
     asserts.assert_that(key.n).is_equal_to(n)
     asserts.assert_that(key.e).is_equal_to(e)
 
+
 def ImportKeyTests_test_exportKey():
     key = RSA.construct([n, e, d, p, q, pInv])
     asserts.assert_that(key.export_key()).is_equal_to(key.exportKey())
 
 
-
 def ImportKeyFromX509Cert_test_x509v1():
-
-        # Sample V1 certificate with a 1024 bit RSA key
+    # Sample V1 certificate with a 1024 bit RSA key
     x509_v1_cert = """
 -----BEGIN CERTIFICATE-----
 MIICOjCCAaMCAQEwDQYJKoZIhvcNAQEEBQAwfjENMAsGA1UEChMEQWNtZTELMAkG
@@ -421,7 +495,7 @@ KYNpQJP+JyVTsPpO8RLZsAQDzRueMI3S7fbbwTzAflN0z19wvblvu93xkaBytVok
 -----END CERTIFICATE-----
         """.strip()
 
-        # RSA public key as dumped by openssl
+    # RSA public key as dumped by openssl
     exponent = 65537
     modulus_str = """
 00:c8:6f:a4:ca:d7:51:8f:74:c5:6d:19:87:0d:8a:
@@ -434,16 +508,16 @@ d5:13:1e:4d:2f:98:a4:23:ec:1b:51:e0:95:e4:a6:
 a3:18:d0:da:95:9f:05:d6:99:37:db:e0:81:b3:c8:
 75:c4:dc:79:0f:2c:6e:10:75
         """
-    modulus = int(re.sub("[^0-9a-f]","", modulus_str), 16)
+    modulus = int(re.sub("[^0-9a-f]", "", modulus_str), 16)
 
     key = RSA.importKey(x509_v1_cert)
     asserts.assert_that(key.e).is_equal_to(exponent)
     asserts.assert_that(key.n).is_equal_to(modulus)
     asserts.assert_that(key.has_private()).is_false()
 
-def ImportKeyFromX509Cert_test_x509v3():
 
-        # Sample V3 certificate with a 1024 bit RSA key
+def ImportKeyFromX509Cert_test_x509v3():
+    # Sample V3 certificate with a 1024 bit RSA key
     x509_v3_cert = """
 -----BEGIN CERTIFICATE-----
 MIIEcjCCAlqgAwIBAgIBATANBgkqhkiG9w0BAQsFADBhMQswCQYDVQQGEwJVUzEL
@@ -473,7 +547,7 @@ THDi1F+GG5PsymMDj5cWK42f+QzjVw5PrVmFqqrrEoMlx8DWh5Y=
 -----END CERTIFICATE-----
 """.strip()
 
-        # RSA public key as dumped by openssl
+    # RSA public key as dumped by openssl
     exponent = 65537
     modulus_str = """
 00:fd:2e:c6:25:5d:8e:70:57:72:34:c4:38:2b:be:
@@ -486,7 +560,7 @@ b7:ed:79:4c:c5:28:74:a1:2e:06:79:31:95:50:22:
 eb:3d:0f:fb:78:07:5d:cc:a5:2b:cf:06:9c:55:b9:
 d6:fa:d8:36:42:d4:97:29:17
         """
-    modulus = int(re.sub("[^0-9a-f]","", modulus_str), 16)
+    modulus = int(re.sub("[^0-9a-f]", "", modulus_str), 16)
 
     key = RSA.importKey(x509_v3_cert)
     asserts.assert_that(key.e).is_equal_to(exponent)
@@ -503,7 +577,7 @@ def TestImport_2048_test_import_openssh_public():
     key_file_ref = load_file("rsa2048_private.pem")
     key_file = load_file("rsa2048_public_openssh.txt")
 
-        # Skip test if test vectors are not installed
+    # Skip test if test vectors are not installed
     if None in (key_file_ref, key_file):
         return
 
@@ -511,11 +585,12 @@ def TestImport_2048_test_import_openssh_public():
     key = RSA.import_key(key_file)
     asserts.assert_that(key_ref).is_equal_to(key)
 
+
 def TestImport_2048_test_import_openssh_private_clear():
     key_file = load_file("rsa2048_private_openssh.pem")
     key_file_old = load_file("rsa2048_private_openssh_old.pem")
 
-        # Skip test if test vectors are not installed
+    # Skip test if test vectors are not installed
     if None in (key_file_old, key_file):
         return
 
@@ -524,17 +599,70 @@ def TestImport_2048_test_import_openssh_private_clear():
 
     asserts.assert_that(key).is_equal_to(key_old)
 
+
 def TestImport_2048_test_import_openssh_private_password():
     key_file = load_file("rsa2048_private_openssh_pwd.pem")
     key_file_old = load_file("rsa2048_private_openssh_pwd_old.pem")
 
-        # Skip test if test vectors are not installed
+    # Skip test if test vectors are not installed
     if None in (key_file_old, key_file):
         return
 
-    key = RSA.import_key(key_file, bytes([0x70, 0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64]))
+    key = RSA.import_key(
+        key_file, bytes([0x70, 0x61, 0x73, 0x73, 0x77, 0x6F, 0x72, 0x64])
+    )
     key_old = RSA.import_key(key_file_old)
     asserts.assert_that(key).is_equal_to(key_old)
 
-# vim:set ts=4 sw=4 sts=4 expandtab:
 
+def _testsuite():
+    _suite = unittest.TestSuite()
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey1))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey2))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey3unicode))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey3bytes))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey4unicode))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey4bytes))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey5))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey6))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey7))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey8))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey9))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey10))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey11))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey12))
+    _suite.addTest(
+        unittest.FunctionTestCase(ImportKeyTests_test_import_key_windows_cr_lf)
+    )
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_empty))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey1))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey2))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey3))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey4))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey5))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey7))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey8))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey9))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey10))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey11))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey12))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey13))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey14))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey15))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_key))
+    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_exportKey))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v1))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v3))
+    _suite.addTest(unittest.FunctionTestCase(TestImport_2048_test_import_openssh_public)
+    )
+    _suite.addTest(
+        unittest.FunctionTestCase(TestImport_2048_test_import_openssh_private_clear)
+    )
+    _suite.addTest(
+        unittest.FunctionTestCase(TestImport_2048_test_import_openssh_private_password)
+    )
+    return _suite
+
+
+_runner = unittest.TextTestRunner()
+_runner.run(_testsuite())
