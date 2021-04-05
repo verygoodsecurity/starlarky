@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.types;
+package com.verygood.security.larky.modules.utils;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -228,6 +228,16 @@ public class ByteArrayUtilTest {
       else
         assertArrayEquals(new byte[]{}, p);
     }
+  }
+
+  @Test
+  public void testLStrip() {
+    byte[] sequence = new byte[] {0x00, 0x00, 0x00, 0x30, 0x00};
+    assertArrayEquals(ByteArrayUtil.lstrip(sequence, new byte[]{(byte) 0x00}), new byte[] {0x30, 0x00});
+    sequence = new byte[] {0x00, 0x01, 0x02, 0x30, 0x00};
+    assertArrayEquals(ByteArrayUtil.lstrip(sequence, new byte[]{(byte) 0x00, 0x01, 0x02}), new byte[] {0x30, 0x00});
+    sequence = new byte[] {0x00, 0x01, 0x00, 0x01, 0x30, 0x00};
+    assertArrayEquals(ByteArrayUtil.lstrip(sequence, new byte[]{(byte) 0x00, 0x01}), new byte[] {0x30, 0x00});
   }
 
   @Test

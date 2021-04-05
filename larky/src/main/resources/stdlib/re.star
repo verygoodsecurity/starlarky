@@ -33,7 +33,7 @@ load("@stdlib/types", "types")
 load("@stdlib/re2j", _re2j="re2j")
 
 
-_WHILE_LOOP_EMULATION_ITERATION = 50
+_WHILE_LOOP_EMULATION_ITERATION = 1000
 
 
 def _enumify_iterable(iterable, enum_dict, numerator=None):
@@ -146,7 +146,10 @@ def _pattern__init__(patternobj):
         _matcher = matcher(string)
         res = []
         cnt_rpl = 0
-
+        # TODO: this can sometimes limit results
+        # based only number of matches less than or equal
+        # to _WHILE_LOOP_EMULATION_ITERATION which might
+        # yield incomplete results.
         for _i in range(_WHILE_LOOP_EMULATION_ITERATION):
             if not _matcher.find():
                 break

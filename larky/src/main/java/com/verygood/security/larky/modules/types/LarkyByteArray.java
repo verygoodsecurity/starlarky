@@ -23,7 +23,6 @@ import net.starlark.java.syntax.TokenKind;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 
 
@@ -258,37 +257,6 @@ public final class LarkyByteArray extends LarkyByteLike implements HasBinary {
         this.getSequenceStorage());
     si.removeElementAt(index);
     return result;
-  }
-
-  /**
-   * For consistency with Python we recognize the same whitespace characters as they do over the
-   * range 0x00-0xFF. See https://github.com/python/cpython/blob/master/Objects/unicodetype_db.h#L6208-L6243
-   * This list is a consequence of Unicode character information.
-   *
-   * <p>Note that this differs from Python 2.7, which uses ctype.h#isspace(), and from
-   * java.lang.Character#isWhitespace(), which does not recognize U+00A0.
-   */
-  private static final byte[] LATIN1_WHITESPACE =
-      ("\u0009" + "\n" + "\u000B" + "\u000C" + "\r" + "\u001C" + "\u001D" + "\u001E" + "\u001F"
-          + "\u0020" + "\u0085" + "\u00A0").getBytes(StandardCharsets.US_ASCII);
-
-  @StarlarkMethod(
-      name = "lstrip",
-      parameters = {
-          @Param(
-              name = "bytes",
-              allowedTypes = {
-                  @ParamType(type = LarkyByteLike.class),
-                  @ParamType(type = NoneType.class),
-              },
-              defaultValue = "None")
-      })
-  public LarkyByteArray lstrip(Object bytesOrNone) throws EvalException {
-    byte[] pattern = bytesOrNone != Starlark.NONE ? ((LarkyByteLike) bytesOrNone).getBytes() : LATIN1_WHITESPACE;
-    byte[] replaced = ByteArrayUtil.replace(this.getBytes(), pattern, new byte[]{});
-    //return stringLStrip(self, chars);
-    this.setSequenceStorage(this.builder().setSequence(replaced).build());
-    return this;
   }
 
   /**

@@ -80,3 +80,23 @@ def rlecode_hqx(data):
 def rledecode_hqx(data):
     'Decode hexbin RLE-coded string.'
     fail("not implemented")
+
+
+binascii = larky.struct(
+    a2b_base64=a2b_base64,
+    a2b_hex=a2b_hex,
+    unhexlify=unhexlify,
+    b2a_base64=b2a_base64,
+    b2a_hex=b2a_hex,
+    hexlify=hexlify,
+    crc32=crc32,
+    a2b_hqx=a2b_hqx,
+    a2b_qp=a2b_qp,
+    a2b_uu=a2b_uu,
+    b2a_hqx=b2a_hqx,
+    b2a_qp=b2a_qp,
+    b2a_uu=b2a_uu,
+    crc_hqx=crc_hqx,
+    rlecode_hqx=rlecode_hqx,
+    rledecode_hqx=rledecode_hqx,
+)

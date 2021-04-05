@@ -21,6 +21,7 @@ _a_list_type = type([])
 _a_string_type = type("")
 _a_tuple_type = type(())
 _an_int_type = type(1)
+_a_float_type = type(5.0)
 _a_struct_type = type(larky.struct())
 
 
@@ -90,6 +91,18 @@ def _is_int(v):
       True if v is an instance of a signed integer, False otherwise.
     """
     return type(v) == _an_int_type
+
+
+def _is_float(v):
+    """Returns True if v is an instance of a floating point number.
+
+    Args:
+      v: The value whose type should be checked.
+
+    Returns:
+      True if v is an instance of a floating point number, False otherwise.
+    """
+    return type(v) == _a_float_type
 
 
 def _is_tuple(v):
@@ -176,8 +189,14 @@ def _MethodType(func, instance):
 def _is_instance(instance, some_class):
     t = type(instance)
     cls_type = str(some_class)
-    if 'built-in' in cls_type:
+    if 'built-in' in cls_type or '<function ' in cls_type:
         cls_type = cls_type.split(" ")[-1].rpartition(">")[0]
+    # TODO(Larky::Difference) this hack here is specialization for comparing
+    #  str to string when we do str(str) in larky, we get
+    #  <built-in function str>, but in python, this is <class 'str'>.
+    #  This could actually be a starlark inconsistency, but unclear.
+    if t == 'string' and cls_type == 'str':
+        return True
     return t == cls_type
 
 
@@ -200,6 +219,9 @@ def _is_bytes(bobj):
 def _is_bytearray(barrobj):
     return _is_instance(barrobj, bytearray)
 
+
+def _is_bytelike(b):
+    return _is_bytes(b) or _is_bytearray(b)
 
 
 def _type_maker(name, resolved_bases, ns, kwds):
@@ -464,6 +486,7 @@ types = larky.struct(
     is_bool=_is_bool,
     is_none=_is_none,
     is_int=_is_int,
+    is_float=_is_float,
     is_tuple=_is_tuple,
     is_dict=_is_dict,
     is_function=_is_function,
@@ -474,6 +497,7 @@ types = larky.struct(
     is_iterable=_is_iterable,
     is_bytes=_is_bytes,
     is_bytearray=_is_bytearray,
+    is_bytelike=_is_bytelike,
     MethodType=_MethodType,
     new_class=new_class,
     resolve_bases=resolve_bases,

@@ -1,5 +1,9 @@
-package com.verygood.security.larky.modules.types;
+package com.verygood.security.larky.modules.utils;
 
+import com.google.common.primitives.Bytes;
+
+import org.bouncycastle.util.Pack;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigInteger;
@@ -40,6 +44,30 @@ public class ByteArrayUtil {
     }
     return new String(hex);
   }
+
+  /**
+     * Fills the given array with array.length new instances of the given class.
+     * @return the array
+     */
+    public static <T> T[] fill(T[] array, Class<T> c) throws ReflectiveOperationException {
+      for (int i = 0; i < array.length; i++) {
+        array[i] = c.getDeclaredConstructor().newInstance();
+      }
+      return array;
+    }
+
+    public static String toHexString(@NotNull byte[] bytes, int digitGrouping, String groupDelimiter) {
+      if (bytes == null || bytes.length == 0)
+        return "";
+      char[] hexChars = toHexString(bytes).toCharArray();
+      StringBuilder buf = new StringBuilder(bytes.length*3);
+      for (int i = 0; i < hexChars.length; i++) {
+        buf.append(hexChars[i]);
+        if (i < hexChars.length-1 && i % digitGrouping == (digitGrouping-1))
+          buf.append(groupDelimiter);
+      }
+      return buf.toString();
+    }
 
   @Nullable
   public static String loggable(@Nullable byte[] bytes) {
@@ -420,13 +448,38 @@ public class ByteArrayUtil {
    * @param target byte to exclude from copy.
    * @return returns a copy of {@code input} excluding occurrences of {@code target} at the end.
    */
-  static byte[] rstrip(byte[] input, byte target) {
+  static public byte[] rstrip(byte[] input, byte target) {
     int i = input.length - 1;
     for (; i >= 0; i--) {
       if (input[i] != target)
         break;
     }
     return Arrays.copyOfRange(input, 0, i + 1);
+  }
+
+  private static final int stripLeft(byte[] s, byte[] stripChars, int right) {
+    for (int left = 0; left < right; left++) {
+      if (Bytes.indexOf(stripChars,s[left]) < 0) {
+        return left;
+      }
+    }
+    return right;
+  }
+
+  /**
+   * Get a copy of an array, with first matching leading bytes contained in {@code target} stripped.
+   *
+   * @param input  array to copy. Must not be null.
+   * @param target any of the bytes to exclude from copy.
+   * @return returns a copy of {@code input} excluding first leading matching bytes in {@code target}.
+   */
+   static public byte[] lstrip(byte[] input, byte[] target) {
+     if(!startsWith(input, target)) {
+       return Arrays.copyOf(input, input.length);
+     }
+     // Leftmost non-whitespace character: cannot exceed length
+     int left = stripLeft(input, target, input.length);
+     return Arrays.copyOfRange(input, left, input.length);
   }
 
   /**
@@ -475,22 +528,99 @@ public class ByteArrayUtil {
   }
 
   public static boolean matchesAt(
-              byte[] bytes1, int offset1,
-              byte[] bytes2){
-          if (offset1 < 0 || offset1 + bytes2.length > bytes1.length) {
-              return false;
-          }
-          if (bytes2.length == 1 && bytes1[offset1] == bytes2[0]){
-              return true;
-          }
-          for (int i=0; i < bytes2.length; i++){
-              if(bytes1[offset1+i]!=bytes2[i]){
-                  return false;
-              }
-          }
-          return true;
+      byte[] bytes1, int offset1,
+      byte[] bytes2) {
+    if (offset1 < 0 || offset1 + bytes2.length > bytes1.length) {
+      return false;
+    }
+    if (bytes2.length == 1 && bytes1[offset1] == bytes2[0]) {
+      return true;
+    }
+    for (int i = 0; i < bytes2.length; i++) {
+      if (bytes1[offset1 + i] != bytes2[i]) {
+        return false;
       }
+    }
+    return true;
+  }
 
+  // copied from pycryptodome/lib/Crypto/Util/number.py:424
+  // this function makes no sense.. we will never have such a large number?
+  // it sounds like it is trying to pack a large number in bigendian with 0 blocksize..
+  public static byte[] long_to_bytes(BigInteger length) {
+    long[] z = new long[9];
+    BigInteger bit64 = BigInteger.valueOf(0xFFFF_FFFF_FFFF_FFFFL);
+    // NOTE: Use a fixed number of loop iterations
+    int i;
+    for (i = 0; length.compareTo(BigInteger.ZERO) > 0; ++i) {
+      z[i] = length.and(bit64).longValue();
+      length = length.shiftRight(64);
+    }
+    byte[] bytes = Pack.longToBigEndian(Arrays.copyOf(z, i));
+    bytes = new String(bytes).replace("\0", "").getBytes();
+    return bytes;
+  }
+
+  // copied from pycryptodome/lib/Crypto/Util/asn1.py:163
+  public static byte[] definiteForm(int length) {
+    if (length > 127) {
+      byte[] encoding = long_to_bytes(BigInteger.valueOf(length));
+      return Bytes.concat(new byte[]{(byte) (encoding.length + 128)}, encoding);
+    }
+    return new byte[]{(byte) length};
+  }
+
+  /**
+   * Returns a copy of the input array stripped of any leading zero bytes.
+   */
+  private static int[] stripLeadingZeroInts(int val[]) {
+      int vlen = val.length;
+      int keep;
+
+      // Find first nonzero byte
+      for (keep = 0; keep < vlen && val[keep] == 0; keep++)
+          ;
+      return java.util.Arrays.copyOfRange(val, keep, vlen);
+  }
+
+  /**
+   * Returns the input array stripped of any leading zero bytes.
+   * Since the source is trusted the copying may be skipped.
+   */
+  private static int[] trustedStripLeadingZeroInts(int val[]) {
+      int vlen = val.length;
+      int keep;
+
+      // Find first nonzero byte
+      for (keep = 0; keep < vlen && val[keep] == 0; keep++)
+          ;
+      return keep == 0 ? val : java.util.Arrays.copyOfRange(val, keep, vlen);
+  }
+
+  /**
+   * Returns a copy of the input array stripped of any leading zero bytes.
+   */
+  private static int[] stripLeadingZeroBytes(byte a[], int off, int len) {
+      int indexBound = off + len;
+      int keep;
+
+      // Find first nonzero byte
+      for (keep = off; keep < indexBound && a[keep] == 0; keep++)
+          ;
+
+      // Allocate new array and copy relevant part of input array
+      int intLength = ((indexBound - keep) + 3) >>> 2;
+      int[] result = new int[intLength];
+      int b = indexBound - 1;
+      for (int i = intLength-1; i >= 0; i--) {
+          result[i] = a[b--] & 0xff;
+          int bytesRemaining = b - keep + 1;
+          int bytesToTransfer = Math.min(3, bytesRemaining);
+          for (int j=8; j <= (bytesToTransfer << 3); j += 8)
+              result[i] |= ((a[b--] & 0xff) << j);
+      }
+      return result;
+  }
 
   private ByteArrayUtil() {
   } //is not instantiable
