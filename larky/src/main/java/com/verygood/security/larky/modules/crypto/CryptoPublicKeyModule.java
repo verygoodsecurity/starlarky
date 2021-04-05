@@ -116,7 +116,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
         n.toBigInteger(),
         e.toBigInteger(),
         d.toBigInteger());
-    return Tuple.of(pq.getKey(), pq.getValue());
+    return Tuple.of(StarlarkInt.of(pq.getKey()), StarlarkInt.of(pq.getValue()));
   }
 
   /**

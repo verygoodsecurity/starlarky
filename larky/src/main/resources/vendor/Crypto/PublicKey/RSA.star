@@ -207,7 +207,7 @@ def _RsaKey(**kwargs):
     def _encrypt(plaintext):
         if not (0 <= plaintext) and (plaintext < self.n):
             fail('ValueError: Plaintext too large')
-        b = _JCrypto.PublicKey.RSA.encrypt(larky.to_dict(self), long_to_bytes(plaintext))
+        b = _JCrypto.PublicKey.RSA.encrypt(dict(n=self.n, e=self.e), long_to_bytes(plaintext))
         return bytes_to_long(b)
         #return int(pow(Integer(plaintext), self._e, self._n))
     self._encrypt = _encrypt
@@ -218,7 +218,7 @@ def _RsaKey(**kwargs):
         if not self.has_private():
             fail('TypeError: This is not a private key')
 
-        b = _JCrypto.PublicKey.RSA.decrypt(larky.to_dict(self), long_to_bytes(ciphertext))
+        b = _JCrypto.PublicKey.RSA.decrypt(dict(n=self.n, d=self.d), long_to_bytes(ciphertext))
         result = bytes_to_long(b)
         # Verify no faults occurred
         if ciphertext != pow(result, self.e, self.n):
@@ -499,8 +499,10 @@ def _construct(rsa_components, consistency_check=True):
             q = input_comps.q
         else:
             p, q = _JCrypto.PublicKey.RSA.compute_factors(n._value, e._value, d._value)
-            input_comps.p = Integer(p)
-            input_comps.q = Integer(q)
+            p = Integer(p)
+            input_comps.p = p
+            q = Integer(q)
+            input_comps.q = q
 
         if hasattr(input_comps, 'u'):
             u = input_comps.u
