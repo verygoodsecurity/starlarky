@@ -21,6 +21,7 @@
 # ===================================================================
 load("@stdlib//builtins","builtins")
 load("@stdlib//larky", larky="larky")
+load("@stdlib//math", math="math")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//types",types="types")
 load("@stdlib//codecs", "codecs")
@@ -223,20 +224,19 @@ def DerObject(asn1Id=None,
 
     def _decodeLen(s):
         """Decode DER length octets from a file."""
-
         length = s.read_byte()
 
         if length > 127:
             encoded_length = s.read(length & 0x7F)
             if bord(encoded_length[0]) == 0:
-                fail(" ValueError(\"Invalid DER: length has leading zero\")")
+                fail('ValueError("Invalid DER: length has leading zero")')
             length = bytes_to_long(encoded_length)
             if length <= 127:
-                fail(" ValueError(\"Invalid DER: length in long form but smaller than 128\")")
+                fail('ValueError("Invalid DER: length in long form but smaller than 128")')
 
         return length
 
-    def decode(der_encoded, strict=False):
+    def decode(obj, der_encoded, strict=False):
         """Decode a complete DER element, and re-initializes this
         object with it.
 
@@ -246,40 +246,44 @@ def DerObject(asn1Id=None,
         Raises:
           ValueError: in case of parsing errors.
         """
+        if obj == None:
+            obj = self
 
-        if not byte_string(der_encoded):
-            fail(" ValueError(\"Input is not a byte string\")")
+        if not byte_string(der_encoded) and not types.is_bytearray(der_encoded):
+            fail('ValueError("Input is not a byte string")')
 
         s = BytesIO_EOF(der_encoded)
-        _decodeFromStream(s, strict)
+        obj._decodeFromStream(obj, s, strict)
 
         # There shouldn't be other bytes left
         if s.remaining_data() > 0:
-            fail(" ValueError(\"Unexpected extra data after the DER structure\")")
+            fail('ValueError("Unexpected extra data after the DER structure")')
 
-        return self
+        return obj
 
-    def _decodeFromStream(s, strict):
+    def _decodeFromStream(obj, s, strict):
         """Decode a complete DER element from a file."""
+        if obj == None:
+            obj = self
 
         idOctet = s.read_byte()
-        if self._tag_octet != None:
-            if idOctet != self._tag_octet:
+        if obj._tag_octet != None:
+            if idOctet != obj._tag_octet:
                 fail('ValueError("Unexpected DER tag")')
         else:
-            self._tag_octet = idOctet
+            obj._tag_octet = idOctet
         length = _decodeLen(s)
-        self.payload = s.read(length)
+        obj.payload = s.read(length)
 
         # In case of an EXTERNAL tag, further decode the inner
         # element.
-        if hasattr(self, "_inner_tag_octet"):
-            p = BytesIO_EOF(self.payload)
+        if hasattr(obj, "_inner_tag_octet"):
+            p = BytesIO_EOF(obj.payload)
             inner_octet = p.read_byte()
-            if inner_octet != self._inner_tag_octet:
-                fail(' ValueError("Unexpected internal DER tag")')
+            if inner_octet != obj._inner_tag_octet:
+                fail('ValueError("Unexpected internal DER tag")')
             length = _decodeLen(p)
-            self.payload = p.read(length)
+            obj.payload = p.read(length)
 
             # There shouldn't be other bytes left
             if p.remaining_data() > 0:
@@ -288,6 +292,7 @@ def DerObject(asn1Id=None,
     self = __init__(asn1Id, payload, implicit, constructed, explicit)
     self.encode = encode
     self.decode = decode
+    self._decodeFromStream = _decodeFromStream
     return self
 
 
@@ -340,7 +345,6 @@ def DerInteger(value=0, implicit=None, explicit=None):
     def encode():
         """Return the DER INTEGER, fully encoded as a
         binary string."""
-
         i = _JCrypto.Util.ASN1.DerInteger(self.value)
         return i.encode()
 
@@ -354,14 +358,37 @@ def DerInteger(value=0, implicit=None, explicit=None):
         Raises:
           ValueError: in case of parsing errors.
         """
-        i = _JCrypto.Util.ASN1.DerInteger(self.value)
-        decoded = i.decode(der_encoded, strict=strict)
-        self.value = decoded.as_int()
-        return self
+        # i = _JCrypto.Util.ASN1.DerInteger(self.value)
+        # decoded = i.decode(der_encoded, strict=strict)
+        # self.value = decoded.as_int()
+        # return self
+        return self.derobject.decode(self, der_encoded, strict)
+
+    def _decodeFromStream(self, s, strict):
+        """Decode a complete DER INTEGER from a file."""
+        # Fill up self.payload
+        self.derobject._decodeFromStream(self, s, strict)
+
+        if strict:
+             if len(self.payload) == 0:
+                 fail('ValueError("Invalid encoding for DER INTEGER: empty payload")')
+             if len(self.payload) >= 2 and struct.unpack('>H', self.payload[:2])[0] < 0x80:
+                 fail('ValueError("Invalid encoding for DER INTEGER: leading zero")')
+
+        # Derive self.value from self.payload
+        self.value = 0
+        bits = 1
+        for i in self.payload:
+            self.value *= 256
+            self.value += bord(i)
+            bits <<= 8
+        if self.payload and bord(self.payload[0]) & 0x80:
+            self.value -= bits
 
     self = __init__(value, implicit, explicit)
     self.decode = decode
     self.encode = encode
+    self._decodeFromStream = _decodeFromStream
     return self
 
 
@@ -431,7 +458,6 @@ def DerSequence(startSeq=None, implicit=None):
             **__dict__
         )
 
-
     # A few methods to make it behave like a python sequence
 
     def pop(n):
@@ -447,7 +473,7 @@ def DerSequence(startSeq=None, implicit=None):
         for atom in sequence:
             if i >= j:
                 break
-            self._seq.remove(i)
+            self._seq.pop(i)
             self._seq.insert(i, atom)
             i += 1
 
@@ -457,7 +483,7 @@ def DerSequence(startSeq=None, implicit=None):
             self._seq.remove(r)
 
     def __getslice__(i, j):
-        return self._seq[max(0, i):max(0, j)]
+        return self._seq[i:j]
 
     def __len__():
         return len(self._seq)
@@ -503,22 +529,24 @@ def DerSequence(startSeq=None, implicit=None):
           ValueError: if some elements in the sequence are neither integers
                       nor byte strings.
         """
-        self.payload = bytearray()
-        for item in self._seq:
-            if byte_string(item) or types.is_bytearray(item):
-                self.payload += item
-            elif _is_number(item):
-                self.payload += bytearray(DerInteger(item).encode().elems())
-            elif types.is_string(item):
-                self.payload += codecs.encode(item, encoding='utf-8')
-            elif hasattr(item, 'encode'):
-                encoded = item.encode()
-                if hasattr(encoded, 'elems'):
-                    self.payload += bytearray(encoded.elems())
-            else:
-                fail("do not know how to handle: " + type(item))
-
-        return self.derobject.encode(self)
+        i = _JCrypto.Util.ASN1.DerSequence(self._seq)
+        return i.encode()
+        # self.payload = bytearray()
+        # for item in self._seq:
+        #     if byte_string(item) or types.is_bytearray(item):
+        #         self.payload += item
+        #     elif _is_number(item):
+        #         self.payload += bytearray(DerInteger(item).encode().elems())
+        #     elif types.is_string(item):
+        #         self.payload += codecs.encode(item, encoding='utf-8')
+        #     elif hasattr(item, 'encode'):
+        #         encoded = item.encode()
+        #         if hasattr(encoded, 'elems'):
+        #             self.payload += bytearray(encoded.elems())
+        #     else:
+        #         fail("do not know how to handle: " + type(item))
+        #
+        # return self.derobject.encode(self)
 
     def decode(der_encoded, strict=False, nr_elements=None, only_ints_expected=False):
         """Decode a complete DER SEQUENCE, and re-initializes this
@@ -541,40 +569,13 @@ def DerSequence(startSeq=None, implicit=None):
         element is not decoded. Its validity is not checked.
         """
 
-        _nr_elements = nr_elements
-        result = self.derobject.decode(der_encoded, strict=strict)
-
+        self._nr_elements = nr_elements
+        i = _JCrypto.Util.ASN1.DerSequence(self._seq)
+        self._seq = i.decode(der_encoded)
+        # result = self.derobject.decode(self, der_encoded, strict=strict)
+        #
         if only_ints_expected and not hasOnlyInts():
             fail(" ValueError(\"Some members are not INTEGERs\")")
-
-        return result
-
-    def _decodeFromStream(s, strict):
-        """Decode a complete DER SEQUENCE from a file."""
-
-        self._seq = []
-
-        # Fill up self.payload
-        self.derobject._decodeFromStream(s, strict)
-
-        # Add one item at a time to self.seq, by scanning self.payload
-        p = BytesIO_EOF(self.payload)
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            if p.remaining_data() <= 0:
-                break
-            p.set_bookmark()
-
-            der = DerObject()
-            der._decodeFromStream(p, strict)
-
-            # Parse INTEGERs differently
-            if der._tag_octet != 0x02:
-                self._seq.append(p.data_since_bookmark())
-            else:
-                derInt = DerInteger()
-                data = p.data_since_bookmark()
-                derInt.decode(data, strict=strict)
-                self._seq.append(derInt.value)
 
         ok = True
         if self._nr_elements != None:
@@ -586,6 +587,47 @@ def DerSequence(startSeq=None, implicit=None):
         if not ok:
             err = '"Unexpected number of members (%d) in the sequence"'
             fail('ValueError(%s)' % (err % len(self._seq)))
+        return self
+
+    def _decodeFromStream(obj, s, strict):
+        """Decode a complete DER SEQUENCE from a file."""
+        if not obj:
+            obj = self
+
+        obj._seq = []
+
+        # Fill up self.payload
+        obj.derobject._decodeFromStream(obj, s, strict)
+
+        # Add one item at a time to self.seq, by scanning self.payload
+        p = BytesIO_EOF(obj.payload)
+        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if p.remaining_data() <= 0:
+                break
+            p.set_bookmark()
+
+            der = DerObject()
+            der._decodeFromStream(der, p, strict)
+
+            # Parse INTEGERs differently
+            if der._tag_octet != 0x02:
+                obj._seq.append(p.data_since_bookmark())
+            else:
+                derInt = DerInteger()
+                data = p.data_since_bookmark()
+                derInt.decode(data, strict=strict)
+                obj._seq.append(derInt.value)
+
+        ok = True
+        if obj._nr_elements != None:
+            if types.is_iterable(obj._nr_elements):
+                ok = len(obj._seq) in obj._nr_elements
+            else:
+                ok = len(obj._seq) == obj._nr_elements
+
+        if not ok:
+            err = '"Unexpected number of members (%d) in the sequence"'
+            fail('ValueError(%s)' % (err % len(obj._seq)))
 
     self = __init__(startSeq, implicit)
     self.append = append
@@ -594,7 +636,14 @@ def DerSequence(startSeq=None, implicit=None):
     self.hasInts = hasInts
     self.hasOnlyInts = hasOnlyInts
     self.pop = pop
-
+    self._decodeFromStream = _decodeFromStream
+    self.__getitem__ = __getitem__
+    self.__setitem__ = __setitem__
+    self.__setslice__ = __setslice__
+    self.__delslice__ = __delslice__
+    self.__getslice__ = __getslice__
+    self.__len__ = __len__
+    self.__iadd__ = __iadd__
     return self
 
 
@@ -640,10 +689,23 @@ def DerOctetString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None):
             The IMPLICIT tag to use for the encoded object.
             It overrides the universal tag for OCTET STRING (4).
         """
-        self = DerObject(0x04, value, implicit, 0)
-        return self
+        derobject = DerObject(0x04, value, implicit, 0)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerOctetString'
+        return larky.mutablestruct(
+           **__dict__
+        )
+
+    def encode():
+        return self.derobject.encode(self)
+
+    def decode(der_encoded, strict=False):
+        return self.derobject.decode(self, der_encoded, strict=strict)
 
     self = __init__(value, implicit)
+    self.encode = encode
+    self.decode = decode
     return self
 
 
@@ -652,11 +714,23 @@ def DerNull():
 
     def __init__():
         """Initialize the DER object as a NULL."""
+        derobject = DerObject(0x05, bytes(), None, 0)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerNull'
+        return larky.mutablestruct(
+           **__dict__
+        )
 
-        self = DerObject(0x05, builtins.bytes(r'', encoding='utf-8'), None, 0)
-        return self
+    def encode():
+        return self.derobject.encode(self)
+
+    def decode(der_encoded, strict=False):
+        return self.derobject.decode(self, der_encoded, strict=strict)
 
     self = __init__()
+    self.encode = encode
+    self.decode = decode
     return self
 
 
@@ -702,31 +776,24 @@ def DerObjectId(value='', implicit=None, explicit=None):
           explicit : integer
             The EXPLICIT tag to use for the encoded object.
         """
-        self = DerObject(0x06, builtins.bytes(r'', encoding='utf-8'), implicit, 0, explicit)
-        self.value = value
-        return self
+        derobject = DerObject(0x06, bytes(), implicit, 0, explicit)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerObjectId'
+        __dict__['value'] = value
+
+        return larky.mutablestruct(
+            **__dict__
+        )
 
     def encode():
         """Return the DER OBJECT ID, fully encoded as a
         binary string."""
-        fail("OH NOES")
         comps = [int(x) for x in self.value.split(".")]
         if len(comps) < 2:
-            fail(" ValueError(\"Not a valid Object Identifier string\")")
-        payload = bchr(40*comps[0]+comps[1])
-        for v in comps[2:]:
-            if v == 0:
-                enc = [0]
-            else:
-                enc = []
-                for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-                    if not v:
-                        break
-                    enc.insert(0, (v & 0x7F) | 0x80)
-                    v >>= 7
-                enc[-1] &= 0x7F
-            payload += builtins.bytes(r'', encoding='utf-8').join([bchr(x) for x in enc])
-        return DerObject.encode(self)
+            fail('ValueError("Not a valid Object Identifier string")')
+        objectid = _JCrypto.Util.ASN1.DerObjectId(self.value)
+        return objectid.encode()
 
     def decode(der_encoded, strict=False):
         """Decode a complete DER OBJECT ID, and re-initializes this
@@ -742,19 +809,17 @@ def DerObjectId(value='', implicit=None, explicit=None):
             ValueError: in case of parsing errors.
         """
 
-        return DerObject.decode(self, der_encoded, strict)
+        return self.derobject.decode(self, der_encoded, strict)
 
-    def _decodeFromStream(s, strict):
+    def _decodeFromStream(obj, s, strict):
         """Decode a complete DER OBJECT ID from a file."""
+        if obj == None:
+            obj = self
+        # Fill up obj.payload
+        obj.derobject._decodeFromStream(obj, s, strict)
 
-        # Fill up self.payload
-        DerObject._decodeFromStream(self, s, strict)
-
-        # Derive self.value from self.payload
-        p = BytesIO_EOF(self.payload)
-
-        def divmod(x, y):
-            fail("add divmod!")
+        # Derive obj.value from obj.payload
+        p = BytesIO_EOF(obj.payload)
 
         comps = [str(x) for x in divmod(p.read_byte(), 40)]
         v = 0
@@ -766,13 +831,17 @@ def DerObjectId(value='', implicit=None, explicit=None):
             if not (c & 0x80):
                 comps.append(str(v))
                 v = 0
-        value = '.'.join(comps)
+        obj.value = '.'.join(comps)
+        return value
 
     self = __init__(value, implicit, explicit)
+    self.encode = encode
+    self.decode = decode
+    self._decodeFromStream = _decodeFromStream
     return self
 
 
-def DerBitString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None, explicit=None):
+def DerBitString(value=bytes(), implicit=None, explicit=None):
     r"""Class to model a DER BIT STRING.
 
     An example of encoding is:
@@ -815,21 +884,30 @@ def DerBitString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None, exp
           explicit : integer
             The EXPLICIT tag to use for the encoded object.
         """
-        self = DerObject(0x03, builtins.bytes(r'', encoding='utf-8'), implicit, 0, explicit)
-
+        derobject = DerObject(0x03, bytes(), implicit, 0, explicit)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerBitString'
         # The bitstring value (packed)
-        if types.is_instance(value, DerObject):
-            self.value = value.encode()
+        # NOTE: interesting way to check for isinstance is to check to see if
+        # the object has the underlying composed object.
+        # NOTE: with larky, we prefer composition over inheritance.
+        if hasattr(value, 'derobject'):
+            __dict__['value'] = value.encode()
         else:
-            self.value = value
+            __dict__['value'] = value
+
+        return larky.mutablestruct(
+            **__dict__
+        )
 
     def encode():
         """Return the DER BIT STRING, fully encoded as a
         binary string."""
 
         # Add padding count byte
-        payload = builtins.bytes(r'\x00', encoding='utf-8') + value
-        return DerObject.encode(self)
+        self.payload = bytearray([0x00]) + self.value
+        return self.derobject.encode(self)
 
     def decode(der_encoded, strict=False):
         """Decode a complete DER BIT STRING, and re-initializes this
@@ -844,24 +922,28 @@ def DerBitString(value=builtins.bytes(r'', encoding='utf-8'), implicit=None, exp
             ValueError: in case of parsing errors.
         """
 
-        return DerObject.decode(self, der_encoded, strict)
+        return self.derobject.decode(self, der_encoded, strict)
 
-    def _decodeFromStream(s, strict):
+    def _decodeFromStream(obj, s, strict):
         """Decode a complete DER BIT STRING DER from a file."""
+        if obj == None:
+            obj = self
+        # Fill-up obj.payload
+        obj.derobject._decodeFromStream(obj, s, strict)
 
-        # Fill-up self.payload
-        DerObject._decodeFromStream(self, s, strict)
+        if obj.payload and bord(obj.payload[0]) != 0:
+            fail('ValueError("Not a valid BIT STRING")')
 
-        if self.payload and bord(self.payload[0]) != 0:
-            fail(" ValueError(\"Not a valid BIT STRING\")")
-
-        # Fill-up self.value
-        value = builtins.bytes(r'', encoding='utf-8')
+        # Fill-up obj.value
+        self.value = bytearray(r'', encoding='utf-8')
         # Remove padding count byte
-        if self.payload:
-            value = self.payload[1:]
+        if obj.payload:
+            self.value = obj.payload[1:]
 
     self = __init__(value, implicit, explicit)
+    self.encode = encode
+    self.decode = decode
+    self._decodeFromStream = _decodeFromStream
     return self
 
 
@@ -902,24 +984,23 @@ def DerSetOf(startSet=None, implicit=None):
             The IMPLICIT tag to use for the encoded object.
             It overrides the universal tag for SET OF (17).
         """
-        self = DerObject(0x11, builtins.bytes(r'', encoding='utf-8'), implicit, 1)
-        self._seq = []
+        derobject = DerObject(0x11, bytes(), implicit, 1)
+        __dict__ = larky.to_dict(derobject)
+        __dict__['derobject'] = derobject
+        __dict__['__class__'] = 'DerSetOf'
+        __dict__['_seq'] = []
 
         # All elements must be of the same type (and therefore have the
         # same leading octet)
-        self._elemOctet = None
-
-        if startSet:
-            for e in startSet:
-                add(e)
+        __dict__['_elemOctet'] = None
+        self = larky.mutablestruct(**__dict__)
         return self
 
     def __getitem__(n):
         return self._seq[n]
 
     def __iter__():
-        fail("Not supported")
-        # return iter(self._seq)
+        return self._seq
 
     def __len__():
         return len(self._seq)
@@ -935,14 +1016,14 @@ def DerSetOf(startSet=None, implicit=None):
 
         if _is_number(elem):
             eo = 0x02
-        elif types.is_instance(elem, DerObject):
+        elif hasattr(elem, 'derobject'):
             eo = self._tag_octet
         else:
             eo = bord(elem[0])
 
         if self._elemOctet != eo:
             if self._elemOctet != None:
-                fail(" ValueError(\"New element does not belong to the set\")")
+                fail('ValueError("New element does not belong to the set")')
             self._elemOctet = eo
 
         if elem not in self._seq:
@@ -963,43 +1044,9 @@ def DerSetOf(startSet=None, implicit=None):
         Raises:
             ValueError: in case of parsing errors.
         """
-
-        return DerObject.decode(self, der_encoded, strict)
-
-    def _decodeFromStream(s, strict):
-        """Decode a complete DER SET OF from a file."""
-
-        self._seq = []
-
-        # Fill up self.payload
-        DerObject._decodeFromStream(self, s, strict)
-
-        # Add one item at a time to self.seq, by scanning self.payload
-        p = BytesIO_EOF(self.payload)
-        setIdOctet = -1
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            if p.remaining_data() <= 0:
-                break
-            p.set_bookmark()
-
-            der = DerObject()
-            der._decodeFromStream(p, strict)
-
-            # Verify that all members are of the same type
-            if setIdOctet < 0:
-                setIdOctet = der._tag_octet
-            else:
-                if setIdOctet != der._tag_octet:
-                    fail(" ValueError(\"Not all elements are of the same DER type\")")
-
-            # Parse INTEGERs differently
-            if setIdOctet != 0x02:
-                self._seq.append(p.data_since_bookmark())
-            else:
-                derInt = DerInteger()
-                derInt.decode(p.data_since_bookmark(), strict)
-                self._seq.append(derInt.value)
-        # end
+        i = _JCrypto.Util.ASN1.DerSetOf(self._seq)
+        self._seq = i.decode(der_encoded, strict)
+        return self
 
     def encode():
         """Return this SET OF DER element, fully encoded as a
@@ -1007,18 +1054,29 @@ def DerSetOf(startSet=None, implicit=None):
         """
 
         # Elements in the set must be ordered in lexicographic order
-        ordered = []
-        for item in self._seq:
-            if _is_number(item):
-                bys = DerInteger(item).encode()
-            elif types.is_instance(item, DerObject):
-                bys = item.encode()
-            else:
-                bys = item
-            ordered.append(bys)
-        ordered.sort()
-        self.payload = builtins.bytes(r'', encoding='utf-8').join(ordered)
-        return DerObject.encode(self)
+        dersetof = _JCrypto.Util.ASN1.DerSetOf(self._seq)
+        return dersetof.encode()
 
     self = __init__(startSet, implicit)
+    if startSet:
+        for e in startSet:
+            add(e)
+    self.encode = encode
+    self.decode = decode
+    self.add = add
+    self.__getitem__ = __getitem__
+    self.__len__ = __len__
+    self.__iter__ = __iter__
     return self
+
+
+asn1 = larky.mutablestruct(
+    DerObject=DerObject,
+    DerSetOf=DerSetOf,
+    DerInteger=DerInteger,
+    DerBitString=DerBitString,
+    DerObjectId=DerObjectId,
+    DerNull=DerNull,
+    DerOctetString=DerOctetString,
+    DerSequence=DerSequence
+)

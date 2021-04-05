@@ -63,7 +63,7 @@ public final class PythonBuiltins {
               doc = "",
               named = true,
               allowedTypes = {
-                  @ParamType(type = String.class),
+                  @ParamType(type = StarlarkInt.class),
                   @ParamType(type = NoneType.class),
               },
               defaultValue = "None"

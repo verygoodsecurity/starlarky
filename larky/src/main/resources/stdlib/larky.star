@@ -19,10 +19,8 @@ def _to_dict(s):
     return {key: getattr(s, key) for key in attributes}
 
 
-
-# emulates while loop but will iterate *only* for 100
-# steps.
-WHILE_LOOP_EMULATION_ITERATION = 100
+# emulates while loop but will iterate *only* for 100 steps.
+WHILE_LOOP_EMULATION_ITERATION = 4096
 
 
 larky = _struct(

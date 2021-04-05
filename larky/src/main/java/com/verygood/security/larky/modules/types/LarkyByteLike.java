@@ -7,6 +7,7 @@ import com.google.common.collect.Streams;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
 
+import com.verygood.security.larky.modules.utils.ByteArrayUtil;
 import com.verygood.security.larky.modules.utils.FnvHash;
 
 import net.starlark.java.annot.Param;
@@ -24,6 +25,7 @@ import net.starlark.java.eval.StarlarkSemantics;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,15 +48,15 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     delegate = StarlarkList.immutableCopyOf(store.getImmutableList());
   }
 
-   public abstract byte[] getBytes();
+  public abstract byte[] getBytes();
 
-   public int[] getUnsignedBytes() {
-     return Bytes.asList(getBytes())
-         .stream()
-         .map(Byte::toUnsignedInt)
-         .mapToInt(i->i)
-         .toArray();
-   }
+  public int[] getUnsignedBytes() {
+    return Bytes.asList(getBytes())
+        .stream()
+        .map(Byte::toUnsignedInt)
+        .mapToInt(i -> i)
+        .toArray();
+  }
 
   @Override
   public int hashCode() {
@@ -63,14 +65,13 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
 
   @Override
   public boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
-    if(key instanceof LarkyByteLike) {
+    if (key instanceof LarkyByteLike) {
       // https://stackoverflow.com/a/32865087/133514
       //noinspection unchecked
-      return -1 != Collections.indexOfSubList(getSequenceStorage(), (LarkyByteLike) key) ;
-    }
-    else if(key instanceof StarlarkInt) {
+      return -1 != Collections.indexOfSubList(getSequenceStorage(), (LarkyByteLike) key);
+    } else if (key instanceof StarlarkInt) {
       StarlarkInt _key = ((StarlarkInt) key);
-      if(!Range
+      if (!Range
           .closed(0, 255)
           .contains(_key.toIntUnchecked())) {
         throw Starlark.errorf("int in bytes: %s out of range", _key);
@@ -84,19 +85,19 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
   }
 
   public static String hexlify(byte[] data) {
-     StringBuilder builder = new StringBuilder();
-     for (byte b : data) {
-       builder.append(String.format("%02x", b));
-     }
-     return builder.toString();
-   }
+    StringBuilder builder = new StringBuilder();
+    for (byte b : data) {
+      builder.append(String.format("%02x", b));
+    }
+    return builder.toString();
+  }
 
   public static byte[] unhexlify(String data) {
     int length = data.length();
     byte[] result = new byte[length / 2];
     for (int i = 0; i < length; i += 2) {
       result[i / 2] = (byte) ((Character.digit(data.charAt(i), 16) << 4)
-                              + Character.digit(data.charAt(i + 1), 16));
+          + Character.digit(data.charAt(i + 1), 16));
     }
     return result;
   }
@@ -127,7 +128,7 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
               .map(StarlarkInt::toIntUnchecked)
               .map(Integer::byteValue)
               .map(Byte::toUnsignedInt)
-              .mapToInt(i->i)
+              .mapToInt(i -> i)
               .toArray()
           ).build();
     } catch (EvalException e) {
@@ -135,17 +136,76 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     }
   }
 
+  /**
+   * For consistency with Python we recognize the same whitespace characters as they do over the
+   * range 0x00-0xFF. See https://github.com/python/cpython/blob/master/Objects/unicodetype_db.h#L6208-L6243
+   * This list is a consequence of Unicode character information.
+   *
+   * <p>Note that this differs from Python 2.7, which uses ctype.h#isspace(), and from
+   * java.lang.Character#isWhitespace(), which does not recognize U+00A0.
+   */
+  private static final byte[] LATIN1_WHITESPACE =
+      ("\u0009" + "\n" + "\u000B" + "\u000C" + "\r" + "\u001C" + "\u001D" + "\u001E" + "\u001F"
+          + "\u0020" + "\u0085" + "\u00A0").getBytes(StandardCharsets.US_ASCII);
+
   @StarlarkMethod(
-        name = "rfind",
-        doc =
-            "Return the highest index in the sequence where the subsequence sub is found, " +
-                "such that sub is contained within s[start:end]. " +
-                "Optional arguments start and end are interpreted as in slice notation. " +
-                "Return -1 on failure.\n" +
-                "\n" +
-                "The subsequence to search for may be any bytes-like object or an integer in " +
-                "the range 0 to 255.",
-        parameters = {
+      name = "lstrip",
+      parameters = {
+          @Param(
+              name = "bytes",
+              allowedTypes = {
+                  @ParamType(type = LarkyByteLike.class),
+                  @ParamType(type = NoneType.class),
+              },
+              defaultValue = "None")
+      })
+  public LarkyByteLike lstrip(Object bytesOrNone) throws EvalException {
+    byte[] pattern = bytesOrNone != Starlark.NONE ? ((LarkyByteLike) bytesOrNone).getBytes() : LATIN1_WHITESPACE;
+    byte[] replaced = ByteArrayUtil.lstrip(this.getBytes(), pattern);
+    //return stringLStrip(self, chars);
+    return this.builder().setSequence(replaced).build();
+  }
+
+  @StarlarkMethod(
+      name = "join",
+      doc = "Concatenate any number of bytes objects.\n" +
+          "\n" +
+          "The bytes whose method is called is inserted in between each pair.\n" +
+          "\n" +
+          "The result is returned as a new bytes object.\n" +
+          "\n" +
+          "Example: b'.'.join([b'ab', b'pq', b'rs']) -> b'ab.pq.rs'.\n",
+      parameters = {
+          @Param(name = "iterable_of_bytes", doc = "The bytes to join,")
+      })
+  public LarkyByteLike join(Object elements) throws EvalException {
+    Iterable<?> items = Starlark.toIterable(elements);
+    int i = 0;
+    List<byte[]> parts = new ArrayList<>();
+    for (Object item : items) {
+      if (!(item instanceof LarkyByteLike)) {
+        throw Starlark.errorf(
+            "expected bytes for sequence element %d, got '%s'", i, Starlark.type(item));
+      }
+      parts.add(((LarkyByteLike) item).getBytes());
+      i++;
+    }
+    byte[] joined = ByteArrayUtil.join(getBytes(), parts);
+    return builder().setSequence(joined).build();
+  }
+
+
+  @StarlarkMethod(
+      name = "rfind",
+      doc =
+          "Return the highest index in the sequence where the subsequence sub is found, " +
+              "such that sub is contained within s[start:end]. " +
+              "Optional arguments start and end are interpreted as in slice notation. " +
+              "Return -1 on failure.\n" +
+              "\n" +
+              "The subsequence to search for may be any bytes-like object or an integer in " +
+              "the range 0 to 255.",
+      parameters = {
           @Param(name = "sub", allowedTypes = {
               @ParamType(type = StarlarkInt.class),
               @ParamType(type = LarkyByteLike.class),
@@ -153,107 +213,111 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
           @Param(
               name = "start",
               allowedTypes = {
-                @ParamType(type = StarlarkInt.class),
-                @ParamType(type = NoneType.class),
+                  @ParamType(type = StarlarkInt.class),
+                  @ParamType(type = NoneType.class),
               },
               defaultValue = "0",
               doc = "Restrict to search from this position."),
           @Param(
               name = "end",
               allowedTypes = {
-                @ParamType(type = StarlarkInt.class),
-                @ParamType(type = NoneType.class),
+                  @ParamType(type = StarlarkInt.class),
+                  @ParamType(type = NoneType.class),
               },
               defaultValue = "None",
               doc = "optional position before which to restrict to search.")
-        })
-    public int rfind(Object sub, Object start, Object end) throws EvalException {
-    if(sub instanceof StarlarkInt) {
+      })
+  public int rfind(Object sub, Object start, Object end) throws EvalException {
+    if (sub instanceof StarlarkInt) {
       byte b = UnsignedBytes.checkedCast(((StarlarkInt) sub).toIntUnchecked());
       return byteSequenceFind(false, getBytes(), new byte[]{b}, start, end);
     }
     LarkyByteLike b = (LarkyByteLike) sub;
     return byteSequenceFind(false, this.getBytes(), b.getBytes(), start, end);
-    }
+  }
 
   public static int lastIndexOf(byte[] self, byte[] b, int start, int end) {
     outer:
-      for (int i = end - 1; i >= start; i--) {
-          for (int j = 0; j < b.length; j++) {
-              if (self[i + j] != b[j]) {
-                  continue outer; // this literally..uses a goto..wtf
-              }
-          }
-          return i;
+    for (int i = end - 1; i >= start; i--) {
+      for (int j = 0; j < b.length; j++) {
+        if (self[i + j] != b[j]) {
+          continue outer; // this literally..uses a goto..wtf
+        }
       }
-      return -1;
+      return i;
+    }
+    return -1;
   }
+
   /**
-     * Common implementation for find, rfind, index, rindex.
-     *
-     * @param forward true if we want to return the last matching index.
-     */
-    private static int byteSequenceFind(boolean forward, byte[] self, byte[] sub, Object start, Object end)
-        throws EvalException {
-      long indices = subsequenceIndices(self, start, end);
-      // Unfortunately Java forces us to allocate here, even though
-      // String has a private indexOf method that accepts indices.
-      // Fortunately the common case is self[0:n].
-      byte[] subRange = Arrays.copyOfRange(self, lo(indices), hi(indices));
-      int subpos = forward ? Bytes.indexOf(subRange, sub) : lastIndexOf(subRange, sub, lo(indices), hi(indices));
-      return subpos < 0
-          ? subpos //
-          : subpos + lo(indices);
-    }
+   * Common implementation for find, rfind, index, rindex.
+   *
+   * @param forward true if we want to return the last matching index.
+   */
+  private static int byteSequenceFind(boolean forward, byte[] self, byte[] sub, Object start, Object end)
+      throws EvalException {
+    long indices = subsequenceIndices(self, start, end);
+    // Unfortunately Java forces us to allocate here, even though
+    // String has a private indexOf method that accepts indices.
+    // Fortunately the common case is self[0:n].
+    byte[] subRange = Arrays.copyOfRange(self, lo(indices), hi(indices));
+    int subpos = forward ? Bytes.indexOf(subRange, sub) : lastIndexOf(subRange, sub, lo(indices), hi(indices));
+    return subpos < 0
+        ? subpos //
+        : subpos + lo(indices);
+  }
+
   // Returns the byte array denoted by byte[start:end], which is never out of bounds.
-    // For speed, we don't return byte.range(start, end), to stop allocating a copy.
-    // Instead we return the (start, end) indices, packed into the lo/hi arms of a long. @_@
-    private static long subsequenceIndices(byte[] bytearr, Object start, Object end) throws EvalException {
-      // This function duplicates the logic of Starlark.slice for bytes.
-      int n = bytearr.length;
-      int istart = 0;
-      if (start != Starlark.NONE) {
-        istart = toIndex(Starlark.toInt(start, "start"), n);
-      }
-      int iend = n;
-      if (end != Starlark.NONE) {
-        iend = toIndex(Starlark.toInt(end, "end"), n);
-      }
-      if (iend < istart) {
-        iend = istart; // => empty result
-      }
-      return pack(istart, iend); // = str.substring(start, end)
+  // For speed, we don't return byte.range(start, end), to stop allocating a copy.
+  // Instead we return the (start, end) indices, packed into the lo/hi arms of a long. @_@
+  private static long subsequenceIndices(byte[] bytearr, Object start, Object end) throws EvalException {
+    // This function duplicates the logic of Starlark.slice for bytes.
+    int n = bytearr.length;
+    int istart = 0;
+    if (start != Starlark.NONE) {
+      istart = toIndex(Starlark.toInt(start, "start"), n);
     }
+    int iend = n;
+    if (end != Starlark.NONE) {
+      iend = toIndex(Starlark.toInt(end, "end"), n);
+    }
+    if (iend < istart) {
+      iend = istart; // => empty result
+    }
+    return pack(istart, iend); // = str.substring(start, end)
+  }
+
   /**
-     * Returns the effective index denoted by a user-supplied integer. First, if the integer is
-     * negative, the length of the sequence is added to it, so an index of -1 represents the last
-     * element of the sequence. Then, the integer is "clamped" into the inclusive interval [0,
-     * length].
-     */
-    static int toIndex(int index, int length) {
-      if (index < 0) {
-        index += length;
-      }
-
-      if (index < 0) {
-        return 0;
-      } else if (index > length) {
-        return length;
-      } else {
-        return index;
-      }
-    }
-    private static long pack(int lo, int hi) {
-      return (((long) hi) << 32) | (lo & 0xffffffffL);
+   * Returns the effective index denoted by a user-supplied integer. First, if the integer is
+   * negative, the length of the sequence is added to it, so an index of -1 represents the last
+   * element of the sequence. Then, the integer is "clamped" into the inclusive interval [0,
+   * length].
+   */
+  static int toIndex(int index, int length) {
+    if (index < 0) {
+      index += length;
     }
 
-    private static int lo(long x) {
-      return (int) x;
+    if (index < 0) {
+      return 0;
+    } else if (index > length) {
+      return length;
+    } else {
+      return index;
     }
+  }
 
-    private static int hi(long x) {
-      return (int) (x >>> 32);
-    }
+  private static long pack(int lo, int hi) {
+    return (((long) hi) << 32) | (lo & 0xffffffffL);
+  }
+
+  private static int lo(long x) {
+    return (int) x;
+  }
+
+  private static int hi(long x) {
+    return (int) (x >>> 32);
+  }
 
 
   public interface ByteLikeBuilder {
@@ -261,16 +325,19 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     default ByteLikeBuilder setSequence(byte[] buf) throws EvalException {
       return setSequence(ByteBuffer.wrap(buf));
     }
+
     default ByteLikeBuilder setSequence(byte[] buf, int off, int ending) throws EvalException {
       return setSequence(ByteBuffer.wrap(buf, off, ending));
     }
+
     default ByteLikeBuilder setSequence(@Nonnull CharSequence string) throws EvalException {
       return setSequence(string.chars().toArray());
     }
+
     default ByteLikeBuilder setSequence(ByteBuffer buf) throws EvalException {
       int[] arr = new int[buf.remaining()];
-      for(int i = 0; i < arr.length; i++){
-          arr[i] = Byte.toUnsignedInt(buf.get(i));
+      for (int i = 0; i < arr.length; i++) {
+        arr[i] = Byte.toUnsignedInt(buf.get(i));
       }
       return setSequence(arr);
     }
@@ -278,23 +345,22 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     default ByteLikeBuilder setSequence(int[] iterable_of_ints) throws EvalException {
       StarlarkList<StarlarkInt> collect = StarlarkList.immutableCopyOf(
           IntStream.of(iterable_of_ints)
-          .mapToObj(StarlarkInt::of)
-          .collect(Collectors.toList()));
+              .mapToObj(StarlarkInt::of)
+              .collect(Collectors.toList()));
       setSequence(collect);
       return this;
     }
 
     ByteLikeBuilder setSequence(@Nonnull Sequence<?> seq) throws EvalException;
+
     LarkyByteLike build() throws EvalException;
   }
 
   static class BinaryOperations {
 
     /**
-     * Attempts to multiply a LarkyByteLike type by an integer. The caller is responsible for casting
-     * to the appropriate sub-type.
-     *
-     * @throws EvalException
+     * Attempts to multiply a LarkyByteLike type by an integer. The caller is responsible for
+     * casting to the appropriate sub-type.
      */
     static public LarkyByteLike multiply(LarkyByteLike target, Integer num) throws EvalException {
       List<Sequence<StarlarkInt>> copies = Collections.nCopies(num, target.getSequenceStorage());
@@ -309,8 +375,6 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
 
     /**
      * Add right to left (i.e. [1] + [2] = [1, 2])
-     * @throws EvalException
-     * @return
      */
     static public StarlarkList<StarlarkInt> add(LarkyByteLike left, LarkyByteLike right) throws EvalException {
       StarlarkList<StarlarkInt> seq;

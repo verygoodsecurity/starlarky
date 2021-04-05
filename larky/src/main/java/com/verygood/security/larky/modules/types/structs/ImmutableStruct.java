@@ -8,4 +8,9 @@ class ImmutableStruct extends SimpleStruct {
   ImmutableStruct(ImmutableMap<String, Object> fields, StarlarkThread currentThread) {
     super(fields, currentThread);
   }
+
+  @Override
+  public boolean isImmutable() {
+    return true;
+  }
 }

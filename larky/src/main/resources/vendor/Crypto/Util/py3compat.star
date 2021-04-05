@@ -65,11 +65,13 @@ tobytes(s)
 
 load("@stdlib//types", types="types")
 load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//codecs", codecs="codecs")
 
 
 def b(s):
+    # latin-1 is ISO-8859-1
     # utf-8 would cause some side-effects we don't want
-    return s.encode("latin-1")
+    return codecs.encode(s, "ISO-8859-1")
 
 
 def bchr(s):
@@ -78,7 +80,7 @@ def bchr(s):
 
 def bstr(s):
     if types.is_instance(s,str):
-        return builtins.bytes(s, "latin-1")
+        return builtins.bytes(s, "ISO-8859-1")
     else:
         return builtins.bytes(s)
 
@@ -87,7 +89,7 @@ def bord(s):
     return s
 
 
-def tobytes(s, encoding="latin-1"):
+def tobytes(s, encoding="ISO-8859-1"):
     if types.is_instance(s, builtins.bytes):
         return s
     elif types.is_instance(s, builtins.bytearray):
@@ -99,7 +101,7 @@ def tobytes(s, encoding="latin-1"):
 
 
 def tostr(bs):
-    return bs.decode("latin-1")
+    return bs.decode("ISO-8859-1")
 
 
 def byte_string(s):

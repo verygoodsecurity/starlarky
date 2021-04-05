@@ -2,8 +2,11 @@ package com.verygood.security.larky.modules.crypto;
 
 import com.verygood.security.larky.modules.types.LarkyByte;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
+import com.verygood.security.larky.modules.utils.NumOpsUtils;
+import com.verygood.security.larky.modules.utils.ByteArrayUtil;
 
 import net.starlark.java.annot.Param;
+import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
@@ -14,6 +17,7 @@ import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.math.Primes;
+import org.bouncycastle.pqc.math.linearalgebra.IntegerFunctions;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
@@ -21,6 +25,37 @@ import java.security.SecureRandom;
 public class CryptoMathModule implements StarlarkValue {
 
   public static final CryptoMathModule INSTANCE = new CryptoMathModule();
+  private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
+
+  @StarlarkMethod(name = "jacobi_number",
+       doc = "jacobi number",
+       parameters = {
+           @Param(name = "a", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+           @Param(name = "n", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+       })
+   public StarlarkInt jacobiNumber(StarlarkInt a, StarlarkInt n) {
+    return StarlarkInt.of(IntegerFunctions.jacobi(a.toBigInteger(), n.toBigInteger()));
+   }
+
+  @StarlarkMethod(name = "gcd",
+      doc = "greatest common divisor",
+      parameters = {
+          @Param(name = "a", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+          @Param(name = "b", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+      })
+  public StarlarkInt gcd(StarlarkInt a, StarlarkInt b) {
+    return StarlarkInt.of(a.toBigInteger().gcd(b.toBigInteger()));
+  }
+
+  @StarlarkMethod(name = "lcm",
+      doc = "least common multiple",
+      parameters = {
+          @Param(name = "a", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+          @Param(name = "b", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+      })
+  public StarlarkInt lcm(StarlarkInt a, StarlarkInt b) {
+    return StarlarkInt.of(NumOpsUtils.lcm(a.toBigInteger(), b.toBigInteger()));
+  }
 
   @StarlarkMethod(name = "bit_length",
       doc = "If x is nonzero, then x.bit_length() is the unique positive " +
@@ -35,16 +70,6 @@ public class CryptoMathModule implements StarlarkValue {
       })
   public StarlarkInt bitLength(StarlarkInt n) {
     return StarlarkInt.of(n.toBigInteger().bitLength());
-  }
-
-  private byte getSignByte(BigInteger value, boolean signed) throws EvalException {
-    if (value.compareTo(BigInteger.ZERO) < 0) {
-      if (!signed) {
-        throw Starlark.errorf("OverflowError: can't convert negative int to unsigned");
-      }
-      return -1;
-    }
-    return 0;
   }
 
   private boolean isBigEndian(String order) throws EvalException {
@@ -84,68 +109,43 @@ public class CryptoMathModule implements StarlarkValue {
                                String byteorder,
                                boolean signed,
                                StarlarkThread thread) throws EvalException {
-    int nByteCount = byteCount.toIntUnchecked();
-    if (nByteCount < 0) {
-      throw Starlark.errorf("ValueError: length argument must be non-negative");
-    }
-
+    // if we're trying to pack a very big integer..
     BigInteger value = integer.toBigInteger();
-    byte signByte = getSignByte(value, signed);
-    byte[] bytes = value.toByteArray();
-    if (bytes.length > nByteCount) {
-      // Check, whether we need to cut unneeded sign bytes.
-      int len = bytes.length;
-      int startIndex = 0;
-      if (!signed) {
-        for (startIndex = 0; startIndex < bytes.length; startIndex++) {
-          if (bytes[startIndex] != 0) {
-            break;
-          }
-        }
-        len = Math.max(bytes.length - startIndex, nByteCount);
+    byte[] bytes;
+    int nbytes = byteCount.toInt("toBytes()");
+    boolean minimizeLeadingZeroPads = false;
+    if (nbytes == 0) {
+      minimizeLeadingZeroPads = true;
+      nbytes = NumOpsUtils.bytesToPackValueToPrimitive(value);
+    }
+    try {
+      if (MAX_LONG.compareTo(value) > 0) {
+        bytes = NumOpsUtils.longlong2byte(
+            value.longValueExact(),
+            nbytes,
+            isBigEndian(byteorder),
+            signed);
+      } else {
+        bytes = NumOpsUtils.bigint2byte(
+            value,
+            nbytes,
+            isBigEndian(byteorder),
+            signed);
       }
-      if (len > nByteCount) {
-        // the corrected len is still bigger then we need.
-        throw Starlark.errorf("int too big to convert");
-      }
-      // the array starts with sign bytes and has to be truncated to the requested
-      // size
-      byte[] tmp = bytes;
-      bytes = new byte[len];
-      System.arraycopy(tmp, startIndex, bytes, 0, len);
+    } catch (IllegalArgumentException ex) {
+      throw new EvalException(
+          String.format("ValueError or OverflowError: %s", ex.getMessage()),
+          ex.fillInStackTrace());
     }
 
-    if (isBigEndian(byteorder)) {
-      if (nByteCount > bytes.length) {
-        // requested array is bigger then we obtained from BigInteger
-        byte[] resultBytes = new byte[nByteCount];
-        System.arraycopy(bytes, 0, resultBytes, resultBytes.length - bytes.length, bytes.length);
-        if (signByte == -1) {
-          // add sign bytes
-          for (int i = 0; i < resultBytes.length - bytes.length; i++) {
-            resultBytes[i] = signByte;
-          }
-        }
-        return LarkyByte.builder(thread).setSequence(resultBytes).build();
-      } else {
-        return LarkyByte.builder(thread).setSequence(bytes).build();
-      }
-    } else {
-      // little endian -> need to switch bytes
-      byte[] resultBytes = new byte[nByteCount];
-      for (int i = 0; i < bytes.length; i++) {
-        resultBytes[i] = bytes[bytes.length - 1 - i];
-      }
-      if (nByteCount > bytes.length && signByte == -1) {
-        // add sign negative bytes
-        for (int i = bytes.length; i < resultBytes.length; i++) {
-          resultBytes[i] = signByte;
-        }
-      }
-      return LarkyByte.builder(thread).setSequence(resultBytes).build();
+    //System.out.printf("bytes.length: %d, nbytes: %s, array: %s %n", bytes.length, nbytes, Arrays.toString(bytes));
+    if (minimizeLeadingZeroPads) {
+      bytes = ByteArrayUtil.lstrip(bytes, new byte[]{0x00});
     }
+    return LarkyByte.builder(thread).setSequence(bytes).build();
   }
 
+  // this is just like using the struct lib..
   @StarlarkMethod(name = "int_from_bytes",
       doc = "Return the integer represented by the given array of bytes.\n" +
           "\n" +
@@ -166,32 +166,13 @@ public class CryptoMathModule implements StarlarkValue {
           @Param(name = "bytes"),
           @Param(name = "byteorder"),
           @Param(name = "signed", defaultValue = "False"),
-      }, useStarlarkThread = true)
+      })
   public StarlarkInt fromBytes(LarkyByteLike bytesObj,
                                String byteorder,
-                               boolean signed,
-                               StarlarkThread thread) throws EvalException {
+                               boolean signed) throws EvalException {
 
     byte[] bytes = bytesObj.getBytes();
-    if (bytes.length == 0) {
-      // in case of empty byte array
-      return StarlarkInt.of(BigInteger.ZERO);
-    }
-    BigInteger result;
-    if (isBigEndian(byteorder)) {
-      result = signed
-          ? new BigInteger(bytes)
-          : new BigInteger(1, bytes);
-    } else {
-      byte[] converted = new byte[bytes.length];
-      for (int i = 0; i < bytes.length; i++) {
-        converted[bytes.length - i - 1] = bytes[i];
-      }
-      result = signed
-          ? new BigInteger(converted)
-          : new BigInteger(1, converted);
-    }
-    return StarlarkInt.of(result);
+    return StarlarkInt.of(NumOpsUtils.bytes2bigint(bytes, isBigEndian(byteorder), signed));
   }
 
   //mpz_probab_prime_p
