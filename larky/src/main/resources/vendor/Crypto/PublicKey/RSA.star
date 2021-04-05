@@ -40,7 +40,7 @@ load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="to
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
-# load("@vendor//Crypto/Math/Primality", test_probable_prime="test_probable_prime", generate_probable_prime="generate_probable_prime", COMPOSITE="COMPOSITE")
+load("@vendor//Crypto/Math/Primality", test_probable_prime="test_probable_prime", generate_probable_prime="generate_probable_prime", COMPOSITE="COMPOSITE")
 # load("@vendor//Crypto/PublicKey", _expand_subject_public_key_info="_expand_subject_public_key_info", _create_subject_public_key_info="_create_subject_public_key_info", _extract_subject_public_key_info="_extract_subject_public_key_info")
 
 
@@ -100,46 +100,45 @@ def _RsaKey(**kwargs):
             fail('ValueError: Some RSA components are missing')
         __dict__ = {}
         for component, value in kwargs.items():
-            __dict__["_" + component] = value
+            __dict__["_" + component] = Integer(value)
         if sets.is_equal(input_set, private_set):
-            __dict__['_dp'] = __dict__['_d'] % (__dict__['_p'] - 1)  # = (e⁻¹) mod (p-1)
-            __dict__['_dq'] = __dict__['_d'] % (__dict__['_q'] - 1)  # = (e⁻¹) mod (q-1)
+            __dict__['_dp'] = __dict__['_d'].__int__() % (__dict__['_p'].__int__() - 1)  # = (e⁻¹) mod (p-1)
+            __dict__['_dq'] = __dict__['_d'].__int__() % (__dict__['_q'].__int__() - 1)  # = (e⁻¹) mod (q-1)
 
         return larky.mutablestruct(**__dict__)
 
     self = __init__(**kwargs)
 
     def n():
-        return int(self._n)
-
+        return self._n.__int__()
     self.n = larky.property(n)
 
     def e():
-        return int(self._e)
+        return self._e.__int__()
     self.e = larky.property(e)
 
     def d():
         if not self.has_private():
             fail('AttributeError("No private exponent available for public keys")')
-        return int(self._d)
+        return self._d.__int__()
     self.d = larky.property(d)
 
     def p():
         if not self.has_private():
             fail('AttributeError: No CRT component "p" available for public keys')
-        return int(self._p)
+        return self._p.__int__()
     self.p = larky.property(p)
 
     def q():
         if not self.has_private():
             fail('AttributeError: No CRT component "q" available for public keys')
-        return int(self._q)
+        return self._q.__int__()
     self.q = larky.property(q)
 
     def u():
         if not self.has_private():
             fail('AttributeError: No CRT component "u" available for public keys')
-        return int(self._u)
+        return self._u.__int__()
     self.u = larky.property(u)
 
     def size_in_bits():
@@ -206,7 +205,7 @@ def _RsaKey(**kwargs):
     self.__str__ = __str__
 
     def _encrypt(plaintext):
-        if not (0 <= plaintext) and (plaintext < self._n):
+        if not (0 <= plaintext) and (plaintext < self.n):
             fail('ValueError: Plaintext too large')
         b = _JCrypto.PublicKey.RSA.encrypt(larky.to_dict(self), long_to_bytes(plaintext))
         return bytes_to_long(b)
@@ -214,40 +213,19 @@ def _RsaKey(**kwargs):
     self._encrypt = _encrypt
 
     def _decrypt(ciphertext):
-        if not (0 <= ciphertext) and (ciphertext < self._n):
+        if not (0 <= ciphertext) and (ciphertext < self.n):
             fail('ValueError: Ciphertext too large')
-        if not has_private():
+        if not self.has_private():
             fail('TypeError: This is not a private key')
 
         b = _JCrypto.PublicKey.RSA.decrypt(larky.to_dict(self), long_to_bytes(ciphertext))
-        return bytes_to_long(b)
+        result = bytes_to_long(b)
+        # Verify no faults occurred
+        if ciphertext != pow(result, self.e, self.n):
+            fail('ValueError: Fault detected in RSA decryption')
+        return result
 
     self._decrypt = _decrypt
-#
-#     def _decrypt(ciphertext):
-#         if not (0 <= ciphertext) and (ciphertext < _n):
-#             fail(" ValueError(\"Ciphertext too large\")")
-#         if not has_private():
-#             fail(" TypeError(\"This is not a private key\")")
-#
-#         # Blinded RSA decryption (to prevent timing attacks):
-#         # Step 1: Generate random secret blinding factor r,
-#         # such that 0 < r < n-1
-#         r = Integer.random_range(min_inclusive=1, max_exclusive=_n)
-#         # Step 2: Compute c' = c * r**e mod n
-#         cp = Integer(ciphertext) * pow(r, _e, _n) % _n
-#         # Step 3: Compute m' = c'**d mod n       (normal RSA decryption)
-#         m1 = pow(cp, _dp, _p)
-#         m2 = pow(cp, _dq, _q)
-#         h = ((m2 - m1) * _u) % _q
-#         mp = h * _p + m1
-#         # Step 4: Compute m = m**(r-1) mod n
-#         result = (r.inverse(_n) * mp) % _n
-#         # Verify no faults occurred
-#         if ciphertext != pow(result, _e, _n):
-#             fail(" ValueError(\"Fault detected in RSA decryption\")")
-#         return result
-
 #     def export_key(format='PEM', passphrase=None, pkcs=1,
 #                    protection=None, randfunc=None):
 #         """Export this RSA key.
@@ -464,197 +442,114 @@ def _generate(bits, randfunc=None, e=65537):
     return _RsaKey(**rsaObj)
 
 
-# #     d = n = Integer(1)
-# #     e = Integer(e)
-# #     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-# #         if not n.size_in_bits() != bits and d < (1 << (bits // 2)):
-# #             break
-# #         # Generate the prime factors of n: p and q.
-# #         # By construciton, their product is always
-# #         # 2^{bits-1} < p*q < 2^bits.
-# #         size_q = bits // 2
-# #         size_p = bits - size_q
-# #
-# #         min_p = min_q = (Integer(1) << (2 * size_q - 1)).sqrt()
-# #         if size_q != size_p:
-# #             min_p = (Integer(1) << (2 * size_p - 1)).sqrt()
-# #
-# #         def filter_p(candidate):
-# #             return candidate > min_p and (candidate - 1).gcd(e) == 1
-# #
-# #         p = generate_probable_prime(exact_bits=size_p,
-# #                                     randfunc=randfunc,
-# #                                     prime_filter=filter_p)
-# #
-# #         min_distance = Integer(1) << (bits // 2 - 100)
-# #
-# #         def filter_q(candidate):
-# #             return (candidate > min_q and
-# #                     (candidate - 1).gcd(e) == 1 and
-# #                     abs(candidate - p) > min_distance)
-# #
-# #         q = generate_probable_prime(exact_bits=size_q,
-# #                                     randfunc=randfunc,
-# #                                     prime_filter=filter_q)
-# #
-# #         n = p * q
-# #         lcm = (p - 1).lcm(q - 1)
-# #         d = e.inverse(lcm)
-# #
-# #     if p > q:
-# #         p, q = q, p
-# #
-# #     u = p.inverse(q)
-# #
-# #     return RsaKey(n=n, e=e, d=d, p=p, q=q, u=u)
-# #
-# #
-# # def construct(rsa_components, consistency_check=True):
-# #     r"""Construct an RSA key from a tuple of valid RSA components.
-# #
-# #     The modulus **n** must be the product of two primes.
-# #     The public exponent **e** must be odd and larger than 1.
-# #
-# #     In case of a private key, the following equations must apply:
-# #
-# #     .. math::
-# #
-# #         \begin{align}
-# #         p*q &= n \\
-# #         e*d &\equiv 1 ( \text{mod lcm} [(p-1)(q-1)]) \\
-# #         p*u &\equiv 1 ( \text{mod } q)
-# #         \end{align}
-# #
-# #     Args:
-# #         rsa_components (tuple):
-# #             A tuple of integers, with at least 2 and no
-# #             more than 6 items. The items come in the following order:
-# #
-# #             1. RSA modulus *n*.
-# #             2. Public exponent *e*.
-# #             3. Private exponent *d*.
-# #                Only required if the key is private.
-# #             4. First factor of *n* (*p*).
-# #                Optional, but the other factor *q* must also be present.
-# #             5. Second factor of *n* (*q*). Optional.
-# #             6. CRT coefficient *q*, that is :math:`p^{-1} \text{mod }q`. Optional.
-# #
-# #         consistency_check (boolean):
-# #             If ``True``, the library will verify that the provided components
-# #             fulfil the main RSA properties.
-# #
-# #     Raises:
-# #         ValueError: when the key being imported fails the most basic RSA validity checks.
-# #
-# #     Returns: An RSA key object (:class:`RsaKey`).
-# #     """
-# #     def InputComps():
-# #         pass
-# #
-# #     input_comps = InputComps()
-# #     for (comp, value) in zip(('n', 'e', 'd', 'p', 'q', 'u'), rsa_components):
-# #         setattr(input_comps, comp, Integer(value))
-# #
-# #     n = input_comps.n
-# #     e = input_comps.e
-# #     if not hasattr(input_comps, 'd'):
-# #         key = RsaKey(n=n, e=e)
-# #     else:
-# #         d = input_comps.d
-# #         if hasattr(input_comps, 'q'):
-# #             p = input_comps.p
-# #             q = input_comps.q
-# #         else:
-# #             # Compute factors p and q from the private exponent d.
-# #             # We assume that n has no more than two factors.
-# #             # See 8.2.2(i) in Handbook of Applied Cryptography.
-# #             ktot = d * e - 1
-# #             # The quantity d*e-1 is a multiple of phi(n), even,
-# #             # and can be represented as t*2^s.
-# #             t = ktot
-# #             for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-# #                 if t % 2 != 0:
-# #                     break
-# #                 t //= 2
-# #             # Cycle through all multiplicative inverses in Zn.
-# #             # The algorithm is non-deterministic, but there is a 50% chance
-# #             # any candidate a leads to successful factoring.
-# #             # See "Digitalized Signatures and Public Key Functions as Intractable
-# #             # as Factorization", M. Rabin, 1979
-# #             spotted = False
-# #             a = Integer(2)
-# #             for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-# #                 if not not spotted and a < 100:
-# #                     break
-# #                 k = Integer(t)
-# #                 for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-# #                     if k >= ktot:
-# #                         break
-# #                     cand = pow(a, k, n)
-# #                     # Check if a^k is a non-trivial root of unity (mod n)
-# #                     if cand != 1 and cand != (n - 1) and pow(cand, 2, n) == 1:
-# #                         # We have found a number such that (cand-1)(cand+1)=0 (mod n).
-# #                         # Either of the terms divides n.
-# #                         p = Integer(n).gcd(cand + 1)
-# #                         spotted = True
-# #                         break
-# #                     k *= 2
-# #                 # This value was not any good... let's try another!
-# #                 a += 2
-# #             if not spotted:
-# #                 fail(" ValueError(\"Unable to compute factors p and q from exponent d.\")")
-# #             # Found !
-# #             assert ((n % p) == 0)
-# #             q = n // p
-# #
-# #         if hasattr(input_comps, 'u'):
-# #             u = input_comps.u
-# #         else:
-# #             u = p.inverse(q)
-# #
-# #         # Build key object
-# #         key = RsaKey(n=n, e=e, d=d, p=p, q=q, u=u)
-# #
-# #     # Verify consistency of the key
-# #     if consistency_check:
-# #
-# #         # Modulus and public exponent must be coprime
-# #         if e <= 1 or e >= n:
-# #             fail(" ValueError(\"Invalid RSA public exponent\")")
-# #         if Integer(n).gcd(e) != 1:
-# #             fail(" ValueError(\"RSA public exponent is not coprime to modulus\")")
-# #
-# #         # For RSA, modulus must be odd
-# #         if not n & 1:
-# #             fail(" ValueError(\"RSA modulus is not odd\")")
-# #
-# #         if key.has_private():
-# #             # Modulus and private exponent must be coprime
-# #             if d <= 1 or d >= n:
-# #                 fail(" ValueError(\"Invalid RSA private exponent\")")
-# #             if Integer(n).gcd(d) != 1:
-# #                 fail(" ValueError(\"RSA private exponent is not coprime to modulus\")")
-# #             # Modulus must be product of 2 primes
-# #             if p * q != n:
-# #                 fail(" ValueError(\"RSA factors do not match modulus\")")
-# #             if test_probable_prime(p) == COMPOSITE:
-# #                 fail(" ValueError(\"RSA factor p is composite\")")
-# #             if test_probable_prime(q) == COMPOSITE:
-# #                 fail(" ValueError(\"RSA factor q is composite\")")
-# #             # See Carmichael theorem
-# #             phi = (p - 1) * (q - 1)
-# #             lcm = phi // (p - 1).gcd(q - 1)
-# #             if (e * d % int(lcm)) != 1:
-# #                 fail(" ValueError(\"Invalid RSA condition\")")
-# #             if hasattr(key, 'u'):
-# #                 # CRT coefficient
-# #                 if u <= 1 or u >= q:
-# #                     fail(" ValueError(\"Invalid RSA component u\")")
-# #                 if (p * u % q) != 1:
-# #                     fail(" ValueError(\"Invalid RSA component u with p\")")
-# #
-# #     return key
-# #
+def _construct(rsa_components, consistency_check=True):
+    r"""Construct an RSA key from a tuple of valid RSA components.
+
+    The modulus **n** must be the product of two primes.
+    The public exponent **e** must be odd and larger than 1.
+
+    In case of a private key, the following equations must apply:
+
+    .. math::
+
+        \begin{align}
+        p*q &= n \\
+        e*d &\equiv 1 ( \text{mod lcm} [(p-1)(q-1)]) \\
+        p*u &\equiv 1 ( \text{mod } q)
+        \end{align}
+
+    Args:
+        rsa_components (tuple):
+            A tuple of integers, with at least 2 and no
+            more than 6 items. The items come in the following order:
+
+            1. RSA modulus *n*.
+            2. Public exponent *e*.
+            3. Private exponent *d*.
+               Only required if the key is private.
+            4. First factor of *n* (*p*).
+               Optional, but the other factor *q* must also be present.
+            5. Second factor of *n* (*q*). Optional.
+            6. CRT coefficient *q*, that is :math:`p^{-1} \text{mod }q`. Optional.
+
+        consistency_check (boolean):
+            If ``True``, the library will verify that the provided components
+            fulfil the main RSA properties.
+
+    Raises:
+        ValueError: when the key being imported fails the most basic RSA validity checks.
+
+    Returns: An RSA key object (:class:`RsaKey`).
+    """
+    input_comps = {}
+    for (comp, value) in zip(('n', 'e', 'd', 'p', 'q', 'u'), rsa_components):
+        input_comps[comp] = Integer(value)
+
+    input_comps = larky.mutablestruct(**input_comps)
+
+    n = input_comps.n
+    e = input_comps.e
+
+    if not hasattr(input_comps, 'd'):
+        key = _RsaKey(n=n, e=e)
+    else:
+        d = input_comps.d
+        if hasattr(input_comps, 'q'):
+            p = input_comps.p
+            q = input_comps.q
+        else:
+            p, q = _JCrypto.PublicKey.RSA.compute_factors(n._value, e._value, d._value)
+            input_comps.p = Integer(p)
+            input_comps.q = Integer(q)
+
+        if hasattr(input_comps, 'u'):
+            u = input_comps.u
+        else:
+            u = p.inverse(q)
+
+        # Build key object
+        key = _RsaKey(n=n, e=e, d=d, p=p, q=q, u=u)
+
+    # Verify consistency of the key
+    if consistency_check:
+
+        # Modulus and public exponent must be coprime
+        if e._value <= 1 or e._value >= n._value:
+            fail('ValueError: Invalid RSA public exponent')
+        if _JCrypto.Math.gcd(n._value, e._value) != 1:
+            fail('ValueError: RSA public exponent is not coprime to modulus')
+
+        # For RSA, modulus must be odd
+        if not n._value & 1:
+            fail('ValueError: RSA modulus is not odd')
+
+        if key.has_private():
+            # Modulus and private exponent must be coprime
+            if d._value <= 1 or d._value >= n._value:
+                fail('ValueError: Invalid RSA private exponent')
+            if _JCrypto.Math.gcd(n._value, d._value) != 1:
+                fail('ValueError: RSA private exponent is not coprime to modulus')
+            # Modulus must be product of 2 primes
+            if p._value * q._value != n._value:
+                fail('ValueError: RSA factors do not match modulus')
+            if test_probable_prime(p._value) == False:
+                fail('ValueError: RSA factor p is composite')
+            if test_probable_prime(q._value) == False:
+                fail('ValueError: RSA factor q is composite')
+            # See Carmichael theorem
+            phi = (p._value - 1) * (q._value - 1)
+            lcm = phi // Integer(p._value - 1).gcd(q._value - 1).__int__()
+            if (e._value * d._value % lcm) != 1:
+                fail('ValueError: Invalid RSA condition')
+            if hasattr(key, 'u'):
+                # CRT coefficient
+                if u._value <= 1 or u._value >= q._value:
+                    fail('ValueError: Invalid RSA component u')
+                if (p._value * u._value % q._value) != 1:
+                    fail('ValueError: Invalid RSA component u with p')
+
+    return key
+
 # #
 # # def _import_pkcs1_private(encoded, *kwargs):
 # #     # RSAPrivateKey ::= SEQUENCE {
@@ -838,5 +733,6 @@ _oid = "1.2.840.113549.1.1.1"
 RSA = larky.struct(
     RsaKey=_RsaKey,
     oid=_oid,
-    generate=_generate
+    generate=_generate,
+    construct=_construct,
 )

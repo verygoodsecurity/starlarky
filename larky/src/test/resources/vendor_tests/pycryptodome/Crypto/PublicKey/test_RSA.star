@@ -334,7 +334,7 @@ def RSATest_test_factoring():
 
 def RSATest_test_repr():
     rsaObj = rsa.construct((n, e, d, p, q))
-    asserts.assert_that(repr(rsaObj)).is_instance(str)
+    asserts.assert_that(repr(rsaObj)).is_instance_of(str)
 
 
 def RSATest_test_raw_rsa_boundary():
@@ -355,7 +355,6 @@ def RSATest_test_size():
     asserts.assert_that(pub.size_in_bytes()).is_equal_to(128)
 
 
-
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(RSATest_test_generate_1arg))
@@ -363,13 +362,21 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(RSATest_test_generate_3args))
     _suite.addTest(unittest.FunctionTestCase(RSATest_test_generate_2arg))
     _suite.addTest(unittest.FunctionTestCase(RSATest_test_generate_3args))
-    # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_2tuple))
-    # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_3tuple))
-    # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_4tuple))
-    # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_5tuple))
-    # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_6tuple))
-    _suite.addTest(unittest.FunctionTestCase(_testsuite))
+    # # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_2tuple))
+    # # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_3tuple))
+    # # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_4tuple))
+    # # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_5tuple))
+    # # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_6tuple))
+    # # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_bad_key2))
+    # # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_bad_key3))
+    # # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_bad_key5))
+    # # _suite.addTest(unittest.FunctionTestCase(RSATest_test_construct_bad_key6))
+    # # _suite.addTest(unittest.FunctionTestCase(RSATest_test_factoring))
+    _suite.addTest(unittest.FunctionTestCase(RSATest_test_repr))
+    _suite.addTest(unittest.FunctionTestCase(RSATest_test_raw_rsa_boundary))
+    _suite.addTest(unittest.FunctionTestCase(RSATest_test_size))
     return _suite
+
 
 _runner = unittest.TextTestRunner()
 _runner.run(_testsuite())

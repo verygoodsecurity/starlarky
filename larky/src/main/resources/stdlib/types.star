@@ -189,7 +189,7 @@ def _MethodType(func, instance):
 def _is_instance(instance, some_class):
     t = type(instance)
     cls_type = str(some_class)
-    if 'built-in' in cls_type:
+    if 'built-in' in cls_type or '<function ' in cls_type:
         cls_type = cls_type.split(" ")[-1].rpartition(">")[0]
     # TODO(Larky::Difference) this hack here is specialization for comparing
     #  str to string when we do str(str) in larky, we get

@@ -41,9 +41,16 @@ public final class NumOpsUtils {
      }
   }
 
+
   /**
    * Computes Jacobi(p,n).
    * Assumes n positive, odd, n>=3.
+   * Compute the jacobi symbol <code>(a/n)</code>, as described in:
+   * <a href="http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf">Digital signature standard (DSS). FIPS PUB 186-4, National Institute of Standards and
+   * Technology (NIST), 2013.</a>, pp. 76-77
+   * @param p the starting value of p
+   * @param n the value of n
+   * @return the computed jacobi symbol
    */
   public static int jacobiSymbol(int p, BigInteger n) {
       if (p == 0)
@@ -502,4 +509,5 @@ public final class NumOpsUtils {
     }
     return nbytes;
   }
+  
 }

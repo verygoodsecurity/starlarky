@@ -30,7 +30,6 @@ public class SimpleStruct implements LarkyObject {
     return new MutableStruct(kwargs, thread);
   }
 
-  //@SuppressWarnings("CdiInjectionPointsInspection")
   SimpleStruct(Map<String, Object> fields, StarlarkThread currentThread) {
     this.currentThread = currentThread;
     this.fields = fields;

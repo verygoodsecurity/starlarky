@@ -26,6 +26,16 @@ public class CryptoMathModule implements StarlarkValue {
   public static final CryptoMathModule INSTANCE = new CryptoMathModule();
   private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
 
+  @StarlarkMethod(name = "gcd",
+      doc = "greatest common divisor",
+      parameters = {
+          @Param(name = "a", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+          @Param(name = "b", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+      })
+  public StarlarkInt gcd(StarlarkInt a, StarlarkInt b) {
+    return StarlarkInt.of(a.toBigInteger().gcd(b.toBigInteger()));
+  }
+
   @StarlarkMethod(name = "lcm",
       doc = "least common multiple",
       parameters = {

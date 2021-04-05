@@ -1,3 +1,4 @@
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 
 COMPOSITE = 1
 
@@ -69,6 +70,8 @@ def test_probable_prime(candidate, randfunc=None):
           For efficiency reasons, ``COMPOSITE`` is also returned for small primes.
 
     """
+    return _JCrypto.Math.is_prime(candidate, 1e-30)
+
 def generate_probable_prime(**kwargs):
     r"""
     Generate a random probable prime.

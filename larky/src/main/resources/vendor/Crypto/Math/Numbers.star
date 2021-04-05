@@ -58,7 +58,7 @@ def Integer(value):
     self.__int__ = __int__
 
     def __str__():
-        return str(int(self))
+        return str(__int__())
 
     self.__str__ = __str__
 
@@ -91,7 +91,8 @@ def Integer(value):
     def __eq__(term):
         if term == None:
             return False
-        return self._value == int(term)
+        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        return self._value == term
 
     self.__eq__ = __eq__
 
@@ -101,7 +102,8 @@ def Integer(value):
     self.__ne__  = __ne__
 
     def __lt__(term):
-        return self._value < int(term)
+        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        return self._value < term
 
     self.__lt__  = __lt__
 
@@ -137,7 +139,7 @@ def Integer(value):
             fail('ValueError("Exponent must not be negative")')
 
         if modulus != None:
-            mod_value = int(modulus)
+            mod_value = modulus.__int__()
             if mod_value < 0:
                 fail('ValueError("Modulus must be positive")')
             if mod_value == 0:
@@ -180,36 +182,47 @@ def Integer(value):
     self.sqrt = sqrt
 
     def __iadd__(term):
-        self._value += int(term)
+        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        self._value += term
         return self
     self.__iadd__ = __iadd__
 
     def __isub__(term):
-        self._value -= int(term)
+        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        self._value -= term
         return self
+    self.__isub__ = __isub__
 
     def __imul__(term):
-        self._value *= int(term)
+        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        self._value *= term
         return self
+    self.__imul__ = __imul__
 
     def __imod__(term):
-        modulus = int(term)
+        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        modulus = term
         if modulus == 0:
             fail('ZeroDivisionError("Division by zero")')
         if modulus < 0:
             fail('ValueError("Modulus must be positive")')
         self._value %= modulus
         return self
+    self.__imod__ = __imod__
 
     # Boolean/bit operations
     def __and__(term):
-        return Integer(self._value & int(term))
+        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        return Integer(self._value & term)
+    self.__and__ = __and__
 
     def __or__(term):
-        return Integer(self._value | int(term))
+        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        return Integer(self._value | term)
+    self.__or__ = __or__
 
     def __rshift__(pos):
-        result = self._value >> int(pos)
+        result = self._value >> pos.__int__()
         return Integer(result)
         # try:
         #     return __class__()
@@ -244,10 +257,10 @@ def Integer(value):
 
     def get_bit(n):
         if self._value < 0:
-            fail('ValueError("no bit representation for negative values")')
+            fail('ValueError: no bit representation for negative values')
         result = (self._value >> n._value) & 1
         if n._value < 0:
-            fail('ValueError("negative bit count")')
+            fail('ValueError: negative bit count')
 
         # result = (_value >> n) & 1
         # if n < 0:
@@ -268,20 +281,21 @@ def Integer(value):
 
     def size_in_bits():
         if self._value < 0:
-            fail('ValueError("Conversion only valid for non-negative numbers")')
+            fail('ValueError: Conversion only valid for non-negative numbers')
 
         if self._value == 0:
             return 1
 
-        bit_size = 0
-        tmp = self._value
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            if not tmp:
-                break
-            tmp >>= 1
-            bit_size += 1
-
-        return bit_size
+        return _JCrypto.Math.bit_length(self._value)
+        # bit_size = 0
+        # tmp = self._value
+        # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        #     if not tmp:
+        #         break
+        #     tmp >>= 1
+        #     bit_size += 1
+        #
+        # return bit_size
     self.size_in_bits = size_in_bits
 
     def size_in_bytes():
@@ -306,25 +320,31 @@ def Integer(value):
     self.is_perfect_square = is_perfect_square
 
     def fail_if_divisible_by(small_prime):
-        if (self._value % int(small_prime)) == 0:
+        small_prime = (small_prime.__int__()
+                       if types.is_instance(small_prime, Integer)
+                       else int(small_prime))
+
+        if (self._value % small_prime) == 0:
             fail(' ValueError("Value is composite")')
     self.fail_if_divisible_by = fail_if_divisible_by
 
     def multiply_accumulate(a, b):
-        _value += int(a) * int(b)
+        self._value += a.__int__() * b.__int__()
         return self
     self.multiply_accumulate = multiply_accumulate
 
     def set(source):
-        _value = int(source)
+        _value = source.__int__()
     self.set = set
 
     def inplace_inverse(modulus):
-        modulus = int(modulus)
+        modulus = (modulus.__int__()
+                if types.is_instance(modulus, Integer)
+                else int(modulus))
         if modulus == 0:
-            fail('ZeroDivisionError("Modulus cannot be zero")')
+            fail('ZeroDivisionError: Modulus cannot be zero')
         if modulus < 0:
-            fail('ValueError("Modulus cannot be negative")')
+            fail('ValueError: Modulus cannot be negative')
         r_p, r_n = self._value, modulus
         s_p, s_n = 1, 0
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
@@ -350,7 +370,10 @@ def Integer(value):
     self.inverse = inverse
 
     def gcd(term):
-        r_p, r_n = abs(self._value), abs(int(term))
+        term = (term.__int__()
+                if types.is_instance(term, Integer)
+                else int(term))
+        r_p, r_n = abs(self._value), abs(term)
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if r_n <= 0:
                 break
@@ -360,7 +383,9 @@ def Integer(value):
     self.gcd = gcd
 
     def lcm(term):
-        term = int(term)
+        term = (term.__int__()
+                if types.is_instance(term, Integer)
+                else int(term))
         if self._value == 0 or term == 0:
             return Integer(0)
         return Integer(_JCrypto.Math.lcm(self._value, term))
@@ -368,6 +393,7 @@ def Integer(value):
     self.lcm = lcm
 
     def jacobi_symbol(a, n):
+        fail("do it in java")
         a = int(a)
         n = int(n)
 
