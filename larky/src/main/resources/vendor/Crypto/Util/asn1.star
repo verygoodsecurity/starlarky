@@ -1068,3 +1068,15 @@ def DerSetOf(startSet=None, implicit=None):
     self.__len__ = __len__
     self.__iter__ = __iter__
     return self
+
+
+asn1 = larky.mutablestruct(
+    DerObject=DerObject,
+    DerSetOf=DerSetOf,
+    DerInteger=DerInteger,
+    DerBitString=DerBitString,
+    DerObjectId=DerObjectId,
+    DerNull=DerNull,
+    DerOctetString=DerOctetString,
+    DerSequence=DerSequence
+)

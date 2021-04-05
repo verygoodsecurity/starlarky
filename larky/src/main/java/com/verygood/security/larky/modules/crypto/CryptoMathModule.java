@@ -17,6 +17,7 @@ import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.math.Primes;
+import org.bouncycastle.pqc.math.linearalgebra.IntegerFunctions;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
@@ -25,6 +26,16 @@ public class CryptoMathModule implements StarlarkValue {
 
   public static final CryptoMathModule INSTANCE = new CryptoMathModule();
   private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
+
+  @StarlarkMethod(name = "jacobi_number",
+       doc = "jacobi number",
+       parameters = {
+           @Param(name = "a", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+           @Param(name = "n", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+       })
+   public StarlarkInt jacobiNumber(StarlarkInt a, StarlarkInt n) {
+    return StarlarkInt.of(IntegerFunctions.jacobi(a.toBigInteger(), n.toBigInteger()));
+   }
 
   @StarlarkMethod(name = "gcd",
       doc = "greatest common divisor",

@@ -393,46 +393,46 @@ def Integer(value):
     self.lcm = lcm
 
     def jacobi_symbol(a, n):
-        fail("do it in java")
-        a = int(a)
-        n = int(n)
+        a = a.__int__() if types.is_instance(a, Integer) else int(a)
+        n = n.__int__() if types.is_instance(n, Integer) else int(n)
 
         if n <= 0:
-            fail('ValueError("n must be a positive integer")')
+            fail('ValueError: n must be a positive integer')
 
         if (n & 1) == 0:
-            fail('ValueError("n must be even for the Jacobi symbol")')
-
-        # Step 1
-        a = a % n
-        # Step 2
-        if a == 1 or n == 1:
-            return 1
-        # Step 3
-        if a == 0:
-            return 0
-        # Step 4
-        e = 0
-        a1 = a
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            if (a1 & 1) != 0:
-                break
-            a1 >>= 1
-            e += 1
-        # Step 5
-        if (e & 1) == 0:
-            s = 1
-        elif n % 8 in (1, 7):
-            s = 1
-        else:
-            s = -1
-        # Step 6
-        if n % 4 == 3 and a1 % 4 == 3:
-            s = -s
-        # Step 7
-        n1 = n % a1
-        # Step 8
-        return s * self.jacobi_symbol(n1, a1)
+            fail('ValueError: n must be even for the Jacobi symbol')
+        return _JCrypto.Math.jacobi_number(a, n)
+        #
+        # # Step 1
+        # a = a % n
+        # # Step 2
+        # if a == 1 or n == 1:
+        #     return 1
+        # # Step 3
+        # if a == 0:
+        #     return 0
+        # # Step 4
+        # e = 0
+        # a1 = a
+        # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        #     if (a1 & 1) != 0:
+        #         break
+        #     a1 >>= 1
+        #     e += 1
+        # # Step 5
+        # if (e & 1) == 0:
+        #     s = 1
+        # elif n % 8 in (1, 7):
+        #     s = 1
+        # else:
+        #     s = -1
+        # # Step 6
+        # if n % 4 == 3 and a1 % 4 == 3:
+        #     s = -s
+        # # Step 7
+        # n1 = n % a1
+        # # Step 8
+        # return s * self.jacobi_symbol(n1, a1)
     self.jacobi_symbol = jacobi_symbol
 
     return self
