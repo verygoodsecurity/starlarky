@@ -90,12 +90,12 @@ def bord(s):
 
 
 def tobytes(s, encoding="ISO-8859-1"):
-    if types.is_instance(s, builtins.bytes):
+    if types.is_bytes(s):
         return s
-    elif types.is_instance(s, builtins.bytearray):
-        return builtins.bytearray(s)
-    elif types.is_instance(s, str):
-        return s.encode(encoding)
+    elif types.is_bytearray(s):
+        return s
+    elif types.is_string(s):
+        return codecs.encode(encoding)
     else:
         return builtins.bytes([s])
 

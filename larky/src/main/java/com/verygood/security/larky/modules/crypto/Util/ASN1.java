@@ -45,6 +45,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -375,7 +376,12 @@ public class ASN1 {
 
     @Override
     Object toStarlark() throws EvalException {
-      return this;
+      List<Object> o = new ArrayList<>();
+      for (LarkyASN1Encodable larkyASN1Encodable : this) {
+        Object next = larkyASN1Encodable.toStarlark();
+        o.add(next);
+      }
+      return StarlarkList.immutableCopyOf(o);
     }
 
     @StarlarkMethod(

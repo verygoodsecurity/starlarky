@@ -9,6 +9,9 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 
 import org.bouncycastle.asn1.ASN1Integer;
+import org.bouncycastle.asn1.ASN1Null;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DEROctetString;
 
@@ -157,9 +160,19 @@ public class ASN1Utils {
           default:
             throw Starlark.errorf("Unknown type %s to convert to asASN1Encodable", Starlark.type(obj));
         }
-      } else if (obj instanceof ASN1Integer) {
+      }
+      else if (obj instanceof ASN1Null) {
+        return new ASN1.LarkyDerNull();
+      }
+      else if (obj instanceof ASN1Integer) {
         return new ASN1.LarkyDerInteger((ASN1Integer) obj);
-      } else if (obj instanceof DERBitString) {
+      } else if (obj instanceof ASN1Sequence) {
+        return new ASN1.LarkyASN1Sequence((ASN1Sequence) obj);
+      }
+      else if (obj instanceof ASN1ObjectIdentifier) {
+        return new ASN1.LarkyDerObjectId((ASN1ObjectIdentifier) obj);
+      }
+      else if (obj instanceof DERBitString) {
         DERBitString dbs = (DERBitString) obj;
         return new ASN1.LarkyDerBitString(dbs);
       } else if (obj instanceof DEROctetString) {

@@ -548,7 +548,7 @@ def DerSequence(startSeq=None, implicit=None):
         #
         # return self.derobject.encode(self)
 
-    def decode(der_encoded, strict=False, nr_elements=None, only_ints_expected=False):
+    def decode(der_encoded, strict=False, nr_elements=None, only_ints_expected=False, failOnOnlyInts=True):
         """Decode a complete DER SEQUENCE, and re-initializes this
         object with it.
 
@@ -575,7 +575,9 @@ def DerSequence(startSeq=None, implicit=None):
         # result = self.derobject.decode(self, der_encoded, strict=strict)
         #
         if only_ints_expected and not hasOnlyInts():
-            fail(" ValueError(\"Some members are not INTEGERs\")")
+            if failOnOnlyInts:
+                fail('ValueError: Some members are not INTEGERs')
+            return
 
         ok = True
         if self._nr_elements != None:
