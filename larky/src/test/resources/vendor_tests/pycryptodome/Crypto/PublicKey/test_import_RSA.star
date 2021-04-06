@@ -619,7 +619,7 @@ def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey1))
     _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey2))
-    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey3unicode))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey3unicode))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey3bytes))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey4unicode))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey4bytes))
