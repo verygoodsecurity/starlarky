@@ -360,10 +360,11 @@ def _RsaKey(**kwargs):
                     passphrase = None
         else:
             key_type = "PUBLIC KEY"
-            binary_key = _create_subject_public_key_info(_oid,
-                                                         DerSequence([n,
-                                                                      e])
-                                                         )
+            print("IN EXPORT:", _oid, n, e)
+            binary_key = _create_subject_public_key_info(
+                _oid, DerSequence([self.n, self.e])
+            )
+
 
         if format == 'DER':
             return binary_key
@@ -721,7 +722,7 @@ def _import_key(extern_key, passphrase=None):
         # (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
         enc_flag = (passphrase != None)
         result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
-        print(result)
+        # print(result)
         return _construct((result["n"], result["e"], result["d"], result["p"], result["q"], result["u"]))
         # print(binascii.hexlify(der))
         # if enc_flag:

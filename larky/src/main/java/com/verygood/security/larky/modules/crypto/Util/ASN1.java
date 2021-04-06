@@ -218,8 +218,14 @@ public class ASN1 {
     }
 
     @Override
-    Object toStarlark()  {
-      return this;
+    Object toStarlark() throws EvalException {
+      // TODO: implement using hashset or ensure unique list
+      List<Object> o = new ArrayList<>();
+      for (LarkyASN1Encodable larkyASN1Encodable : this) {
+        Object next = larkyASN1Encodable.toStarlark();
+        o.add(next);
+      }
+      return StarlarkList.immutableCopyOf(o);
     }
 
     @NotNull
