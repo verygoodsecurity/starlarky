@@ -43,6 +43,8 @@ def expand_subject_public_key_info(encoded):
     # }
     #
 
+    # TODO(mahmoudimus): should we rewrite our Larky asn1 implementation to
+    #  match pycrypto's?
     spki = DerSequence().decode(encoded, nr_elements=2)
     algo = spki.__getitem__(0)
     algo_oid = algo[0]

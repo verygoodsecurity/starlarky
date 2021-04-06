@@ -95,7 +95,7 @@ def tobytes(s, encoding="ISO-8859-1"):
     elif types.is_bytearray(s):
         return s
     elif types.is_string(s):
-        return codecs.encode(encoding)
+        return codecs.encode(s, encoding=encoding)
     else:
         return builtins.bytes([s])
 
