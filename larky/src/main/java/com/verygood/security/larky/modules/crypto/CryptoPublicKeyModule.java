@@ -473,7 +473,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       returnVal.put("algo", keyPair.getPublic().getAlgorithm().getBytes(StandardCharsets.UTF_8));
       // TODO what happens if keyPair algorithm is not RSA?
       if(keyPair.getPublic().getAlgorithm().equals("RSA")) {
-        RSAPublicKey rsaPublicKey = (RSAPublicKey) converter.getPublicKey(obj_.getPublicKeyInfo());
+        BCRSAPublicKey rsaPublicKey = convertPublicKey(obj_.getPublicKeyInfo());
         BCRSAPrivateCrtKey bcKey = (BCRSAPrivateCrtKey) converter.getPrivateKey(obj_.getPrivateKeyInfo());
         buildPublicParameters(rsaPublicKey, returnVal);
         buildPrivateKeyParameters(bcKey, returnVal);
@@ -501,7 +501,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     returnVal.put("d", bcKey.getPrivateExponent().toByteArray());
   }
 
-  private void buildPublicParameters(RSAPublicKey rsaPublicKey, Map<String, byte[]> returnVal) throws PEMException {
+  private void buildPublicParameters(BCRSAPublicKey rsaPublicKey, Map<String, byte[]> returnVal) throws PEMException {
     returnVal.put("n",rsaPublicKey.getModulus().toByteArray());
     returnVal.put("e",rsaPublicKey.getPublicExponent().toByteArray());
 
