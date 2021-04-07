@@ -443,7 +443,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     } catch (IOException | CryptoException e) {
       throw new EvalException(e.getMessage(), e);
     }
-    /* We are going to return the actual imported key to shortcircuit a lot of the pycrypto
+    /* We are going to return the actual imported key to short circuit a lot of the pycrypto
     * work */
     Dict.Builder<String, Object> rval = Dict.<String, Object>builder()
         .put("n", StarlarkInt.of(new BigInteger(keyParts.get("n"))))
@@ -493,6 +493,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       returnVal.put("algo", "RSA".getBytes(StandardCharsets.UTF_8));
       return returnVal;
     }
+
     // if we are here we are probably looking at a private key
     BCRSAPrivateCrtKey pk = (BCRSAPrivateCrtKey) loadPrivateKey(obj, passChars);
     buildPrivateKeyParameters(pk, returnVal);

@@ -21,12 +21,12 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -137,17 +137,61 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     }
   }
 
-  /**
-   * For consistency with Python we recognize the same whitespace characters as they do over the
-   * range 0x00-0xFF. See https://github.com/python/cpython/blob/master/Objects/unicodetype_db.h#L6208-L6243
-   * This list is a consequence of Unicode character information.
-   *
-   * <p>Note that this differs from Python 2.7, which uses ctype.h#isspace(), and from
-   * java.lang.Character#isWhitespace(), which does not recognize U+00A0.
-   */
-  private static final byte[] LATIN1_WHITESPACE =
-      ("\u0009" + "\n" + "\u000B" + "\u000C" + "\r" + "\u001C" + "\u001D" + "\u001E" + "\u001F"
-          + "\u0020" + "\u0085" + "\u00A0").getBytes(StandardCharsets.US_ASCII);
+  @StarlarkMethod(
+      name = "split",
+      doc = "" +
+          "Return a list of the sections in the bytes, using sep as the delimiter.\n" +
+          "\n" +
+          "sep\n" +
+          "  The delimiter according which to split the bytes.\n" +
+          "  None (the default value) means split on ASCII whitespace characters\n" +
+          "  (space, tab, return, newline, formfeed, vertical tab).\n" +
+          "maxsplit\n" +
+          "  Maximum number of splits to do.\n" +
+          "  -1 (the default value) means no limit.",
+      parameters = {
+          @Param(name = "bytes", doc = "The bytes to split on."),
+          @Param(
+            name = "maxsplit",
+            allowedTypes = {
+              @ParamType(type = StarlarkInt.class),
+              @ParamType(type = NoneType.class),
+            },
+            defaultValue = "None",
+            doc = "The maximum number of splits.")
+      },
+      useStarlarkThread = true)
+   public StarlarkList<LarkyByteLike> split(Object bytesO, Object maxSplitO, StarlarkThread thread) throws EvalException {
+    int maxSplit = Integer.MAX_VALUE;
+    if (maxSplitO != Starlark.NONE) {
+      maxSplit = Starlark.toInt(maxSplitO, "maxsplit");
+    }
+    List<byte[]> split;
+    if(Starlark.isNullOrNone(bytesO)) {
+      split = ByteArrayUtil.splitOnWhitespace(this.getBytes(), ByteArrayUtil.LATIN1_WHITESPACE);
+    } else {
+      split = ByteArrayUtil.split(this.getBytes(), 0, this.size(), ((LarkyByteLike) bytesO).getBytes());
+    }
+
+    StarlarkList<LarkyByteLike> res = StarlarkList.newList(thread.mutability());
+
+    if(maxSplit < split.size()) {
+      for (int i = 0; i < maxSplit; i++) {
+        res.addElement(this.builder().setSequence(split.get(i)).build());
+      }
+//      bytes = ByteArrayUtil.join(null, split.subList(0, maxSplit));
+    }
+
+    else {
+      for (byte[] i : split) {
+        res.addElement(this.builder().setSequence(i).build());
+      }
+      //bytes = ByteArrayUtil.join(null, split);
+    }
+    //return this.builder().setSequence(bytes).build();
+    return res;
+  }
+
 
   @StarlarkMethod(
       name = "lstrip",
@@ -161,7 +205,7 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
               defaultValue = "None")
       })
   public LarkyByteLike lstrip(Object bytesOrNone) throws EvalException {
-    byte[] pattern = bytesOrNone != Starlark.NONE ? ((LarkyByteLike) bytesOrNone).getBytes() : LATIN1_WHITESPACE;
+    byte[] pattern = bytesOrNone != Starlark.NONE ? ((LarkyByteLike) bytesOrNone).getBytes() : ByteArrayUtil.LATIN1_WHITESPACE;
     byte[] replaced = ByteArrayUtil.lstrip(this.getBytes(), pattern);
     //return stringLStrip(self, chars);
     return this.builder().setSequence(replaced).build();

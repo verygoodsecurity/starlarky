@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -29,6 +30,19 @@ public class ByteArrayUtil {
 
   private static final char[] HEX_CHARS =
       {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+
+  /**
+   * For consistency with Python we recognize the same whitespace characters as they do over the
+   * range 0x00-0xFF. See https://github.com/python/cpython/blob/master/Objects/unicodetype_db.h#L6208-L6243
+   * This list is a consequence of Unicode character information.
+   *
+   * <p>Note that this differs from Python 2.7, which uses ctype.h#isspace(), and from
+   * java.lang.Character#isWhitespace(), which does not recognize U+00A0.
+   */
+  public static final byte[] LATIN1_WHITESPACE =
+      ("\u0009" + "\n" + "\u000B" + "\u000C" + "\r" + "\u001C" + "\u001D" + "\u001E" + "\u001F"
+          + "\u0020" + "\u0085" + "\u00A0").getBytes(StandardCharsets.US_ASCII);
+
 
   @Nullable
   public static String toHexString(@Nullable byte[] bytes) {
@@ -70,7 +84,7 @@ public class ByteArrayUtil {
     }
 
   @Nullable
-  public static String loggable(@Nullable byte[] bytes) {
+  public static String loggable(byte[] bytes) {
     if (bytes == null) {
       return null;
     } else {
@@ -92,7 +106,6 @@ public class ByteArrayUtil {
     }
   }
 
-  @Nullable
   public static byte[] unprint(@Nullable String loggedBytes) {
     if (loggedBytes == null) {
       return null;
@@ -211,7 +224,7 @@ public class ByteArrayUtil {
    *                null} {@code src} at position {@code 0}.
    * @return {@code true} if {@code pattern} is found in {@code src} at {@code start}.
    */
-  static boolean regionEquals(byte[] src, int start, byte[] pattern) {
+  public static boolean regionEquals(byte[] src, int start, byte[] pattern) {
     if (src == null) {
       if (start == 0) {
         return pattern == null;
@@ -278,6 +291,60 @@ public class ByteArrayUtil {
   }
 
   /**
+   * Splits a byte array at any identified items in the delimiterset. This is particularly helpful
+   * when splitting on a set of whitespace.
+   *
+   * @param src             the array to split
+   * @param delimiterset    the byte array set that contains items to split on
+   * @return a list of byte arrays from {@code src} now not containing any of the items
+   * in {@code delimiterset}
+   */
+  public static List<byte[]> splitOnWhitespace(byte[] src, byte[] delimiterset) {
+    int src_length = src.length;
+    byte[] _delimiters = new byte[delimiterset.length];
+    // first go through to see if we identified any of the delimiterset in the array
+    int delimiter_length = 0;
+    for (byte b : delimiterset) {
+      if (findNext(src, b, 0, src_length) != -1) {
+        _delimiters[delimiter_length] = b;
+        delimiter_length++; // keep a pointer to the length of found delimiters
+      }
+    }
+    byte[] delimiters = new byte[delimiter_length];
+    System.arraycopy(_delimiters, 0, delimiters, 0, delimiter_length);
+
+    if(delimiter_length == 1) {
+      return split(src, delimiters);
+    }
+
+    // there are many delimiters to split on, so we need to split on multiple spaces
+    List<byte[]> parts = new LinkedList<>();
+    int idx = 0;
+    int lastSplitEnd = 0;
+    while (idx < src_length) {
+      for(byte b : delimiters) {
+        byte sb = src[idx];
+        if (sb == b) {
+          // copy the last region of bytes into "parts", copyOfRange is happy with zero-sized ranges
+          byte[] bytes = Arrays.copyOfRange(src, lastSplitEnd, idx);
+          if(bytes.length != 0) { // ignore empty copies
+            parts.add(bytes);
+          }
+          lastSplitEnd = idx + 1;
+          break;
+        }
+      }
+      idx++;
+    }
+    if (lastSplitEnd == idx)
+      // if the last replacement ended at the end of src, we need a tailing empty entry
+      parts.add(new byte[0]);
+    else {
+      parts.add(Arrays.copyOfRange(src, lastSplitEnd, src_length));
+    }
+    return parts;
+  }
+  /**
    * Splits a byte array at each occurrence of a pattern. If the pattern is found at the beginning
    * or end of the array the result will have a leading or trailing zero-length array. The delimiter
    * is not included in the output array. Does not mutate the contents the source array.
@@ -302,7 +369,7 @@ public class ByteArrayUtil {
    * @return a list of byte arrays from {@code src} now not containing {@code delimiter}
    */
   public static List<byte[]> split(byte[] src, int offset, int length, byte[] delimiter) {
-    List<byte[]> parts = new LinkedList<byte[]>();
+    List<byte[]> parts = new LinkedList<>();
     int idx = offset;
     int lastSplitEnd = offset;
     while (idx <= (offset + length) - delimiter.length) {
@@ -324,7 +391,7 @@ public class ByteArrayUtil {
     return parts;
   }
 
-  static int bisectLeft(BigInteger[] arr, BigInteger i) {
+  public static int bisectLeft(BigInteger[] arr, BigInteger i) {
     int n = Arrays.binarySearch(arr, i);
     if (n >= 0)
       return n;
@@ -438,7 +505,7 @@ public class ByteArrayUtil {
    * @param end   the index one past the last entry at which to search
    * @return return the location of the first instance of {@code value}, or {@code -1} if not found.
    */
-  static int findNext(byte[] src, byte what, int start, int end) {
+  public static int findNext(byte[] src, byte what, int start, int end) {
     for (int i = start; i < end; i++) {
       if (src[i] == what)
         return i;
@@ -455,7 +522,7 @@ public class ByteArrayUtil {
    * @param start the index at which to start the scan
    * @return the index after the next occurrence of [nm]
    */
-  static int findTerminator(byte[] v, byte n, byte m, int start) {
+  public static int findTerminator(byte[] v, byte n, byte m, int start) {
     return findTerminator(v, n, m, start, v.length);
   }
 
@@ -469,7 +536,7 @@ public class ByteArrayUtil {
    * @param end   the index at which to stop the search (exclusive)
    * @return the index after the next occurrence of [nm]
    */
-  static int findTerminator(byte[] v, byte n, byte m, int start, int end) {
+  public static int findTerminator(byte[] v, byte n, byte m, int start, int end) {
     int pos = start;
     while (true) {
       pos = findNext(v, n, pos, end);
@@ -506,7 +573,7 @@ public class ByteArrayUtil {
    * @param target byte to exclude from copy.
    * @return returns a copy of {@code input} excluding occurrences of {@code target} at the end.
    */
-  static public byte[] rstrip(byte[] input, byte target) {
+  public static byte[] rstrip(byte[] input, byte target) {
     int i = input.length - 1;
     for (; i >= 0; i--) {
       if (input[i] != target)
@@ -515,7 +582,7 @@ public class ByteArrayUtil {
     return Arrays.copyOfRange(input, 0, i + 1);
   }
 
-  private static final int stripLeft(byte[] s, byte[] stripChars, int right) {
+  public static int stripLeft(byte[] s, byte[] stripChars, int right) {
     for (int left = 0; left < right; left++) {
       if (Bytes.indexOf(stripChars,s[left]) < 0) {
         return left;
@@ -531,7 +598,7 @@ public class ByteArrayUtil {
    * @param target any of the bytes to exclude from copy.
    * @return returns a copy of {@code input} excluding first leading matching bytes in {@code target}.
    */
-   static public byte[] lstrip(byte[] input, byte[] target) {
+  public static byte[] lstrip(byte[] input, byte[] target) {
      if(!startsWith(input, target)) {
        return Arrays.copyOf(input, input.length);
      }
@@ -631,7 +698,7 @@ public class ByteArrayUtil {
   /**
    * Returns a copy of the input array stripped of any leading zero bytes.
    */
-  private static int[] stripLeadingZeroInts(int val[]) {
+  public static int[] stripLeadingZeroInts(int val[]) {
       int vlen = val.length;
       int keep;
 
@@ -645,7 +712,7 @@ public class ByteArrayUtil {
    * Returns the input array stripped of any leading zero bytes.
    * Since the source is trusted the copying may be skipped.
    */
-  private static int[] trustedStripLeadingZeroInts(int val[]) {
+  public static int[] trustedStripLeadingZeroInts(int val[]) {
       int vlen = val.length;
       int keep;
 
@@ -658,7 +725,7 @@ public class ByteArrayUtil {
   /**
    * Returns a copy of the input array stripped of any leading zero bytes.
    */
-  private static int[] stripLeadingZeroBytes(byte a[], int off, int len) {
+  public static int[] stripLeadingZeroBytes(byte a[], int off, int len) {
       int indexBound = off + len;
       int keep;
 
