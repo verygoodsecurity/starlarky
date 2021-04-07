@@ -341,7 +341,7 @@ def _RsaKey(**kwargs):
                                       self.q,
                                       self.d % (self.p-1),
                                       self.d % (self.q-1),
-                                      Integer(q).inverse(p)
+                                      Integer(self.q).inverse(self.p).__int__(),
                                       ]).encode()
             if pkcs == 1:
                 key_type = 'RSA PRIVATE KEY'

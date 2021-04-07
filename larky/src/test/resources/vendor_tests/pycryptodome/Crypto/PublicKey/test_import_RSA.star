@@ -635,7 +635,7 @@ def _testsuite():
     #     unittest.FunctionTestCase(ImportKeyTests_test_import_key_windows_cr_lf)
     # )
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_empty))
-    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey1))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey1))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey2))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey3))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey4))
