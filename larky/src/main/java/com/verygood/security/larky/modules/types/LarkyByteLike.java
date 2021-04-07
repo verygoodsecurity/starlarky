@@ -179,16 +179,13 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
       for (int i = 0; i < maxSplit; i++) {
         res.addElement(this.builder().setSequence(split.get(i)).build());
       }
-//      bytes = ByteArrayUtil.join(null, split.subList(0, maxSplit));
     }
 
     else {
       for (byte[] i : split) {
         res.addElement(this.builder().setSequence(i).build());
       }
-      //bytes = ByteArrayUtil.join(null, split);
     }
-    //return this.builder().setSequence(bytes).build();
     return res;
   }
 

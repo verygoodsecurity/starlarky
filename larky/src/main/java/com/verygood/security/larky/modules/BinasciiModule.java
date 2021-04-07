@@ -72,14 +72,23 @@ public class BinasciiModule implements StarlarkValue {
           "than one line may be passed at a time.",
       parameters = {
           @Param(
-              name = "s",
-              allowedTypes = {@ParamType(type = String.class)}
+              name = "data",
+              allowedTypes = {
+                  @ParamType(type=LarkyByteLike.class),
+                  @ParamType(type=String.class)}
           )
       },
       useStarlarkThread = true)
-  public LarkyByteLike a2b_base64(String s, StarlarkThread thread) throws EvalException {
+  public LarkyByteLike a2b_base64(Object dataO, StarlarkThread thread) throws EvalException {
+    byte[] bytes;
+    if(dataO instanceof String) {
+      bytes = ((String) dataO).getBytes(StandardCharsets.US_ASCII);
+    }
+    else {
+      bytes = ((LarkyByteLike) dataO).getBytes();
+    }
     return LarkyByte.builder(thread)
-        .setSequence(b64decode(s.getBytes(StandardCharsets.US_ASCII)))
+        .setSequence(b64decode(bytes))
         .build();
   }
 

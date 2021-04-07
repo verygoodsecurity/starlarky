@@ -744,9 +744,9 @@ def _import_key(extern_key, passphrase=None):
             length = struct.unpack(">I", keystring[:4])[0]
             keyparts.append(keystring[4:4 + length])
             keystring = keystring[4 + length:]
-        e = Integer.from_bytes(keyparts[1])
-        n = Integer.from_bytes(keyparts[2])
-        return([n, e])
+        e = Integer(0).from_bytes(keyparts[1])
+        n = Integer(0).from_bytes(keyparts[2])
+        return _construct([n, e])
 
     if len(extern_key) > 0 and bord(extern_key[0]) == 0x30:
         # This is probably a DER encoded key
