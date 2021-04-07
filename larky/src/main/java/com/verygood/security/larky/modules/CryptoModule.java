@@ -16,7 +16,6 @@ import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-import java.security.Provider;
 import java.security.Security;
 
 
@@ -45,11 +44,7 @@ public class CryptoModule implements StarlarkValue {
      */
     Security.addProvider(new BouncyCastleProvider());
     /* uncomment the below line for a post-quantum provider */
-    // Security.addProvider(new BouncyCastlePQCProvider());
-    Provider[] providers = Security.getProviders();
-    for (int i = 0; i != providers.length; i++) {
-      System.out.println("Name: " + providers[i].getName() + " Version: " + providers[i].getVersion());
-    }
+    //    Security.addProvider(new BouncyCastlePQCProvider());
   }
 
   public static final CryptoModule INSTANCE = new CryptoModule();

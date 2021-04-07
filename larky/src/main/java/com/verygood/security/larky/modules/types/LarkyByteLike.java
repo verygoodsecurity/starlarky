@@ -21,6 +21,7 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.eval.Tuple;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -194,6 +195,113 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     return builder().setSequence(joined).build();
   }
 
+
+  @StarlarkMethod(
+      name = "endswith",
+      doc = "B.endswith(suffix[, start[, end]]) -> bool\n" +
+          "\n" +
+          "Return True if B ends with the specified suffix, False otherwise.\n" +
+          "With optional start, test B beginning at that position.\n" +
+          "With optional end, stop comparing B at that position.\n" +
+          "suffix can also be a tuple of bytes to try.\n.",
+      parameters = {
+          @Param(
+              name = "suffix",
+              allowedTypes = {
+                  @ParamType(type = LarkyByteLike.class),
+                  @ParamType(type = Tuple.class, generic1 = LarkyByteLike.class),
+              },
+              doc = "The suffix (or tuple of alternative suffixes) to match."),
+          @Param(
+              name = "start",
+              allowedTypes = {
+                  @ParamType(type = StarlarkInt.class),
+                  @ParamType(type = NoneType.class),
+              },
+              defaultValue = "0",
+              doc = "Test beginning at this position."),
+          @Param(
+              name = "end",
+              allowedTypes = {
+                  @ParamType(type = StarlarkInt.class),
+                  @ParamType(type = NoneType.class),
+              },
+              defaultValue = "None",
+              doc = "optional position at which to stop comparing.")
+      })
+  public boolean endsWith(Object suffix, Object start, Object end) throws EvalException {
+    long indices = subsequenceIndices(this.getBytes(), start, end);
+    if (suffix instanceof LarkyByteLike) {
+      return byteArrayEndsWith(lo(indices), hi(indices), ((LarkyByteLike) suffix).getBytes());
+    }
+    for (LarkyByteLike s : Sequence.cast(suffix, LarkyByteLike.class, "sub")) {
+      if (byteArrayEndsWith(lo(indices), hi(indices), s.getBytes())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Computes bytes.substring(start, end).endsWith(suffix) without allocation.
+  private boolean byteArrayEndsWith(int start, int end, byte[] suffix) {
+    int n = suffix.length;
+    return start + n <= end && ByteArrayUtil.endsWith(
+        this.getBytes(), end - n, suffix, 0, n
+    );
+  }
+
+  @StarlarkMethod(
+      name = "startswith",
+      doc = "B.startswith(prefix[, start[, end]]) -> bool\n" +
+          "\n" +
+          "Return True if B starts with the specified prefix, False otherwise.\n" +
+          "With optional start, test B beginning at that position.\n" +
+          "With optional end, stop comparing B at that position.\n" +
+          "prefix can also be a tuple of bytes to try.\n",
+      parameters = {
+          @Param(
+              name = "prefix",
+              allowedTypes = {
+                  @ParamType(type = LarkyByteLike.class),
+                  @ParamType(type = Tuple.class, generic1 = LarkyByteLike.class),
+              },
+              doc = "The prefix (or tuple of alternative prefixes) to match."),
+          @Param(
+              name = "start",
+              allowedTypes = {
+                  @ParamType(type = StarlarkInt.class),
+                  @ParamType(type = NoneType.class),
+              },
+              defaultValue = "0",
+              doc = "Test beginning at this position."),
+          @Param(
+              name = "end",
+              allowedTypes = {
+                  @ParamType(type = StarlarkInt.class),
+                  @ParamType(type = NoneType.class),
+              },
+              defaultValue = "None",
+              doc = "Stop comparing at this position.")
+      })
+  public boolean startsWith(Object sub, Object start, Object end)
+      throws EvalException {
+
+    long indices = subsequenceIndices(this.getBytes(), start, end);
+    if (sub instanceof LarkyByteLike) {
+      return byteArrayStartsWith(lo(indices), hi(indices), ((LarkyByteLike) sub).getBytes());
+    }
+    for (LarkyByteLike s : Sequence.cast(sub, LarkyByteLike.class, "sub")) {
+      if (byteArrayStartsWith(lo(indices), hi(indices), s.getBytes())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Computes bytes.range(start, end).startsWith(prefix) without allocation.
+  private boolean byteArrayStartsWith(int start, int end, byte[] prefix) {
+    return start + prefix.length <= end && ByteArrayUtil.startsWith(getBytes(), start, prefix);
+  }
 
   @StarlarkMethod(
       name = "rfind",

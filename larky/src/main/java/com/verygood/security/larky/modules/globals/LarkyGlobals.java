@@ -11,10 +11,12 @@ import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 
 
@@ -55,6 +57,32 @@ public final class LarkyGlobals {
   @StarlarkConstructor
   public SimpleStruct mutablestruct(Dict<String, Object> kwargs, StarlarkThread thread) {
     return SimpleStruct.mutable(kwargs, thread);
+  }
+
+
+  static class Sentinel implements StarlarkValue {
+    private static Sentinel SINGLETON = null;
+//    public static final Set<Integer> SINGLETON = Collections.singleton(1);
+
+    public static synchronized Sentinel getInstance() {
+      if (SINGLETON == null) {
+        SINGLETON = new Sentinel();
+      }
+      return SINGLETON;
+    }
+
+    @Override
+    public void repr(Printer printer) {
+      printer.append("<sentinel>");
+    }
+  }
+
+  @StarlarkMethod(
+      name="_sentinel",
+      doc="creates a sentinel object"
+  )
+  public StarlarkValue sentinel() {
+    return Sentinel.getInstance();
   }
 
   @StarlarkMethod(

@@ -2,6 +2,7 @@ package com.verygood.security.larky.modules;
 
 import com.verygood.security.larky.modules.codecs.TextUtil;
 import com.verygood.security.larky.modules.types.LarkyByte;
+import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -16,7 +17,9 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
+import java.nio.charset.StandardCharsets;
 
 
 @StarlarkBuiltin(
@@ -26,6 +29,7 @@ import java.nio.charset.CharsetEncoder;
 public class CodecsModule implements StarlarkValue {
 
   public static final CodecsModule INSTANCE = new CodecsModule();
+  private static final String UTF8 = StandardCharsets.UTF_8.toString().toLowerCase();
 
   @StarlarkMethod(
       name = "encode",
@@ -88,7 +92,7 @@ public class CodecsModule implements StarlarkValue {
           @Param(
               name = "obj",
               allowedTypes = {
-                  @ParamType(type = LarkyByte.class),
+                  @ParamType(type = LarkyByteLike.class),
               }
           ),
           @Param(
@@ -109,7 +113,20 @@ public class CodecsModule implements StarlarkValue {
           )
       }
   )
-  public String decode(LarkyByte bytesToDecode, String encoding, String errors) {
+  public String decode(LarkyByteLike bytesToDecode, String encoding, String errors) throws EvalException {
+    if(CodecsModule.UTF8.equals(encoding.toLowerCase())) {
       return TextUtil.starlarkDecodeUtf8(bytesToDecode.getBytes());
+    }
+    CharsetDecoder decoder = Charset.forName(encoding)
+        .newDecoder()
+        .onMalformedInput(TextUtil.CodecHelper.convertCodingErrorAction(errors))
+        .onUnmappableCharacter(TextUtil.CodecHelper.convertCodingErrorAction(errors));
+    CharBuffer decoded;
+    try {
+      decoded = decoder.decode(ByteBuffer.wrap(bytesToDecode.getBytes()));
+    } catch (CharacterCodingException e) {
+      throw Starlark.errorf(e.getMessage());
+    }
+    return decoded.toString();
   }
 }

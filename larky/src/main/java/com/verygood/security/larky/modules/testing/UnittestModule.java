@@ -22,6 +22,7 @@ import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
+import java.util.Enumeration;
 import java.util.Iterator;
 import lombok.Getter;
 import lombok.Setter;
@@ -109,6 +110,9 @@ public class UnittestModule implements StarlarkValue {
   }
 
   public static class LarkyTestRunner extends TestRunner implements StarlarkValue {
+
+    private String FINAL_TEST_RESULT = "Total number of tests: %d, started: %d, success: %d, error: %d, skipped: %d";
+
     public LarkyTestRunner() {
       //super(System.out);
       super(new NullPrintStream());
@@ -121,23 +125,35 @@ public class UnittestModule implements StarlarkValue {
         }
     )
     public void runSuiteTest(Object suiteTest) throws EvalException {
-      LarkyTestSuite suite = (LarkyTestSuite) suiteTest;
-      TestResult result = doRun(suite);
-      if(!result.wasSuccessful()) {
+      final Enumeration<Test> tests = ((LarkyTestSuite) suiteTest).tests();
+      int allTests = ((LarkyTestSuite) suiteTest).testCount();
+      int testCount = 0;
+      StringBuilder testSuiteOutput = new StringBuilder(String.format("Running test suite (%d tests to run):\n", allTests));
+      while (tests.hasMoreElements()) {
+        final LarkyFunctionTestCase testCase = (LarkyFunctionTestCase) tests.nextElement();
+        final String name = testCase.getFunction().getName();
+        testCount++;
+        final TestResult testResult = testCase.run();
         Iterator<TestFailure> it = Iterators.concat(
-            Iterators.forEnumeration(result.errors()),
-            Iterators.forEnumeration(result.failures())
+            Iterators.forEnumeration(testResult.errors()),
+            Iterators.forEnumeration(testResult.failures())
         );
-        //noinspection LoopStatementThatDoesntLoop
-        while (it.hasNext()) {
+        if (it.hasNext()) {
           TestFailure f = it.next();
-          //final String testFailureWithTrace = f.trace();
+          testSuiteOutput.append(String.format("Testing %s >>> ERROR!", name)).append("\n")
+              .append("Trace:").append("\n")
+              .append(f.trace()).append("\n")
+              .append(String.format(FINAL_TEST_RESULT, allTests, testCount, testCount - 1, 1, allTests - testCount));
+          System.out.println(testSuiteOutput.toString());
           throw Starlark.errorf("%s", f.trace());
+        } else {
+          testSuiteOutput.append(String.format("Testing %s >>> SUCCESS", name)).append("\n");
         }
       }
+      testSuiteOutput.append(String.format(FINAL_TEST_RESULT, allTests, allTests, 0, 0, 0));
+      System.out.println(testSuiteOutput.toString());
     }
-
-  }
+    }
 
 
   @StarlarkMethod(

@@ -249,29 +249,6 @@ def isPrime(N, false_positive_prob=1e-6, randfunc=None):
     return _JCrypto.Math.is_prime(N, false_positive_prob, None)
 
 
-
-def BigNumber(val, neg=None, bitlen=None):
-    _jmath = _JCrypto.Math
-
-    def __init__(val, neg, bitlen):
-        return larky.mutablestruct(
-            val=val,
-            neg=neg,
-            bitlen=bitlen
-        )
-
-    def int_to_big_endian(value):
-        return _jmath.int_to_bytes((_jmath.bit_length(value) + 7) // 8 or 1, "big")
-
-    def big_endian_to_int(value):
-        return _jmath.int_from_bytes(value, "big")
-
-    self = __init__(val, neg, bitlen)
-    self.int_to_big_endian = int_to_big_endian
-    self.big_endian_to_int = big_endian_to_int
-    return self
-
-
 # Improved conversion functions contributed by Barry Warsaw, after
 # careful benchmarking
 

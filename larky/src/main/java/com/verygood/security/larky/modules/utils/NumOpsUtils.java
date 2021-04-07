@@ -42,70 +42,6 @@ public final class NumOpsUtils {
   }
 
 
-  /**
-   * Computes Jacobi(p,n).
-   * Assumes n positive, odd, n>=3.
-   * Compute the jacobi symbol <code>(a/n)</code>, as described in:
-   * <a href="http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf">Digital signature standard (DSS). FIPS PUB 186-4, National Institute of Standards and
-   * Technology (NIST), 2013.</a>, pp. 76-77
-   * @param p the starting value of p
-   * @param n the value of n
-   * @return the computed jacobi symbol
-   */
-  public static int jacobiSymbol(int p, BigInteger n) {
-      if (p == 0)
-          return 0;
-
-      // Algorithm and comments adapted from Colin Plumb's C library.
-      int j = 1;
-      int u = n.bitCount();//n.mag[n.mag.length-1];
-
-      // Make p positive
-      if (p < 0) {
-          p = -p;
-          int n8 = u & 7;
-          if ((n8 == 3) || (n8 == 7))
-              j = -j; // 3 (011) or 7 (111) mod 8
-      }
-
-      // Get rid of factors of 2 in p
-      while ((p & 3) == 0)
-          p >>= 2;
-      if ((p & 1) == 0) {
-          p >>= 1;
-          if (((u ^ (u>>1)) & 2) != 0)
-              j = -j; // 3 (011) or 5 (101) mod 8
-      }
-      if (p == 1)
-          return j;
-      // Then, apply quadratic reciprocity
-      if ((p & u & 2) != 0)   // p = u = 3 (mod 4)?
-          j = -j;
-      // And reduce u mod p
-      u = n.mod(BigInteger.valueOf(p)).intValue();
-
-      // Now compute Jacobi(u,p), u < p
-      while (u != 0) {
-          while ((u & 3) == 0)
-              u >>= 2;
-          if ((u & 1) == 0) {
-              u >>= 1;
-              if (((p ^ (p>>1)) & 2) != 0)
-                  j = -j;     // 3 (011) or 5 (101) mod 8
-          }
-          if (u == 1)
-              return j;
-          // Now both u and p are odd, so use quadratic reciprocity
-          assert (u < p);
-          int t = u; u = p; p = t;
-          if ((u & p & 2) != 0) // u = p = 3 (mod 4)?
-              j = -j;
-          // Now u >= p, so it can be reduced
-          u %= p;
-      }
-      return 0;
-  }
-
   public static BigInteger lcm(BigInteger a, BigInteger b) {
     if (a.equals(BigInteger.ZERO) || b.equals(BigInteger.ZERO)) {
       return BigInteger.ZERO;
@@ -509,5 +445,5 @@ public final class NumOpsUtils {
     }
     return nbytes;
   }
-  
+
 }

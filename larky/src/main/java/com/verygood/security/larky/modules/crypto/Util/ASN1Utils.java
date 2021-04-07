@@ -9,8 +9,12 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 
 import org.bouncycastle.asn1.ASN1Integer;
+import org.bouncycastle.asn1.ASN1Null;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DEROctetString;
+import org.bouncycastle.asn1.DERUTF8String;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -154,12 +158,47 @@ public class ASN1Utils {
             StarlarkList<?> seq = (StarlarkList<?>) lobj.getField("_seq");
             Objects.requireNonNull(seq);
             return ASN1.LarkyASN1Sequence.fromList(seq);
+          case "DerObjectId":
+            String derObjectId = String.valueOf(lobj.getField("value"));
+            return new ASN1.LarkyDerObjectId(new ASN1ObjectIdentifier(derObjectId));
+          case "DerNull":
+            return new ASN1.LarkyDerNull();
+          case "DerBitString":
+            LarkyByteLike bitstr = (LarkyByteLike) lobj.getField("value");
+            Objects.requireNonNull(bitstr);
+            return new ASN1.LarkyDerBitString(new DERBitString(bitstr.getBytes()));
+          case "DerOctetString":
+            LarkyByteLike value3 = (LarkyByteLike) lobj.getField("value");
+            Objects.requireNonNull(value3);
+            return new ASN1.LarkyOctetString(new DEROctetString(value3.getBytes()));
+            // fall through
+          case "DerUTF8String":
+            String value4 = (String) lobj.getField("value");
+            Objects.requireNonNull(value4);
+            return new ASN1.LarkyDerUTF8String(new DERUTF8String(value4));
+          case "DerSetOf":
+            StarlarkList<?> setz = (StarlarkList<?>) lobj.getField("_seq");
+            Objects.requireNonNull(setz);
+            return ASN1.LarkySetOf.fromList(setz);
           default:
-            throw Starlark.errorf("Unknown type %s to convert to asASN1Encodable", Starlark.type(obj));
+            throw Starlark.errorf("Unknown starlark type (%s) __class__ (%s) to convert to asASN1Encodable",
+                Starlark.type(obj),
+                lobj.type()
+            );
         }
-      } else if (obj instanceof ASN1Integer) {
+      }
+      else if (obj instanceof ASN1Null) {
+        return new ASN1.LarkyDerNull();
+      }
+      else if (obj instanceof ASN1Integer) {
         return new ASN1.LarkyDerInteger((ASN1Integer) obj);
-      } else if (obj instanceof DERBitString) {
+      } else if (obj instanceof ASN1Sequence) {
+        return new ASN1.LarkyASN1Sequence((ASN1Sequence) obj);
+      }
+      else if (obj instanceof ASN1ObjectIdentifier) {
+        return new ASN1.LarkyDerObjectId((ASN1ObjectIdentifier) obj);
+      }
+      else if (obj instanceof DERBitString) {
         DERBitString dbs = (DERBitString) obj;
         return new ASN1.LarkyDerBitString(dbs);
       } else if (obj instanceof DEROctetString) {

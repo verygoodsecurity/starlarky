@@ -14,8 +14,9 @@ def _test_namespace_exposes_larky_builtins():
     :return: None
     """
     items = sorted(dir(larky))
-    asserts.assert_that(items).is_length(6)
+    asserts.assert_that(items).is_length(7)
     asserts.assert_that(items).is_equal_to(sorted([
+        "SENTINEL",
         "mutablestruct",
         "partial",
         "property",
