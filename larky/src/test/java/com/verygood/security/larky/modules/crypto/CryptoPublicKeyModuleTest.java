@@ -23,13 +23,20 @@ import net.starlark.java.syntax.FileOptions;
 import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.SyntaxError;
 
+import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.ASN1Encoding;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.encoders.Hex;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.math.BigInteger;
+import java.security.Security;
 
 public class CryptoPublicKeyModuleTest {
 
@@ -70,6 +77,10 @@ public class CryptoPublicKeyModuleTest {
       "3f 6c 42 d0 88 66 b1 d0 5a 0f 20 35 02 8b 9d 86\n" +
       "98 40 b4 16 66 b4 2e 92 ea 0d a3 b4 32 04 b5 cf\n" +
       "ce 33 52 52 4d 04 16 a5 a4 41 e7 00 af 46 15 03";
+
+  static {
+    Security.addProvider(new BouncyCastleProvider());
+  }
 
   @Before
   public void setUp() throws Exception {
@@ -166,8 +177,54 @@ public class CryptoPublicKeyModuleTest {
   }
 
 
+  public static byte[] toPKCS8Format(byte[] encoded) throws IOException {
+    final PrivateKeyInfo privateKeyInfo = PrivateKeyInfo.getInstance(encoded);
+    final ASN1Encodable asn1Encodable = privateKeyInfo.parsePrivateKey();
+    final ASN1Primitive asn1Primitive = asn1Encodable.toASN1Primitive();
+    final byte[] privateKeyPKCS8Formatted = asn1Primitive.getEncoded(ASN1Encoding.DER);
+    return privateKeyPKCS8Formatted;
+  }
+
+//  @Test
+//  public void testSubjectPublicKeyInfo() throws IOException {
+//
+//    String rsaKeyDER =
+//      "3082013b020100024100bf1e27900aa08b23511a5c1281ae6d93312c3efe" +
+//      "913f932ebed492f12d16b4610c328cb6e208ab5f45acbe2950833298f312" +
+//      "2c19f78492dedf40f0e3c190338502030100010240094483129f114dedf6" +
+//      "7edabc2301bc5a88e5e6601dd7016220ead9fd4bfc6fdeb75893898ae41c" +
+//      "54ddbdbf1539f8ccbd18f67b440de1ac30440281d40cfac839022100f20f" +
+//      "2f3e1da61883f62980922bd8df545ce407c726241103b5e2c53723124a23" +
+//      "022100ca1fe924792cfcc96bfab74f344a68b418df578338064806000fe2" +
+//      "a5c99a023702210087be1c3029504bcf34ec713d877947447813288975ca" +
+//      "240080af7b094091b12102206ab469fa6d5648a57531c8b031a4ce9db53b" +
+//      "c3116cf433f5a6f6bbea5601ce05022100bd9f40a764227a21962a4add07" +
+//      "e4defe43ed91a3ae27bb057f39241f33ab01c1"
+//          .replace(" ", "");
+//    System.out.println(Arrays.toString(toPKCS8Format(rsaKeyDER.getBytes(StandardCharsets.UTF_8))));
+//  }
+
   @Test
-  public void RSA_construct() {
+  public void testImportTest2() throws IOException {
+
+    String rsaKeyPEM = "-----BEGIN RSA PRIVATE KEY-----\n" +
+        "MIIBOwIBAAJBAL8eJ5AKoIsjURpcEoGubZMxLD7+kT+TLr7UkvEtFrRhDDKMtuII\n" +
+        "q19FrL4pUIMymPMSLBn3hJLe30Dw48GQM4UCAwEAAQJACUSDEp8RTe32ftq8IwG8\n" +
+        "Wojl5mAd1wFiIOrZ/Uv8b963WJOJiuQcVN29vxU5+My9GPZ7RA3hrDBEAoHUDPrI\n" +
+        "OQIhAPIPLz4dphiD9imAkivY31Rc5AfHJiQRA7XixTcjEkojAiEAyh/pJHks/Mlr\n" +
+        "+rdPNEpotBjfV4M4BkgGAA/ipcmaAjcCIQCHvhwwKVBLzzTscT2HeUdEeBMoiXXK\n" +
+        "JACAr3sJQJGxIQIgarRp+m1WSKV1MciwMaTOnbU7wxFs9DP1pva76lYBzgUCIQC9\n" +
+        "n0CnZCJ6IZYqSt0H5N7+Q+2Ro64nuwV/OSQfM6sBwQ==\n" +
+        "-----END RSA PRIVATE KEY-----";
+    Dict<String, Object> rsaObj = null;
+    try (Mutability mu = Mutability.create("test")) {
+          StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+      rsaObj= CryptoPublicKeyModule.INSTANCE.PEM_decode(rsaKeyPEM, null, thread);
+    } catch (EvalException e) {
+      fail(e.getMessageWithStack());
+    }
+
+    assertNotNull(rsaObj);
   }
 
   @Test

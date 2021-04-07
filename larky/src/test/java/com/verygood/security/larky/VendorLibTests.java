@@ -23,8 +23,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.Collator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -68,7 +70,7 @@ public class VendorLibTests {
 
             return fileName.startsWith("test_") && fileName.endsWith(".star");
           })
-          .sorted()
+          .sorted((o1, o2) -> Collator.getInstance(Locale.ENGLISH).compare(o1.toString(), o2.toString()))
           .collect(Collectors.toList());
     } catch (IOException e) {
       throw new RuntimeException(e.getMessage());

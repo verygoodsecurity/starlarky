@@ -22,6 +22,7 @@ def _to_dict(s):
 # emulates while loop but will iterate *only* for 100 steps.
 WHILE_LOOP_EMULATION_ITERATION = 4096
 
+_SENTINEL = _sentinel()
 
 larky = _struct(
     struct=_struct,
@@ -30,4 +31,5 @@ larky = _struct(
     partial=_partial,
     property=_property,
     WHILE_LOOP_EMULATION_ITERATION=WHILE_LOOP_EMULATION_ITERATION,
+    SENTINEL=_SENTINEL
 )

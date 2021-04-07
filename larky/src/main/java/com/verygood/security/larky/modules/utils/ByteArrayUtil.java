@@ -359,16 +359,74 @@ public class ByteArrayUtil {
    * @return {@code true} if {@code array} starts with {@code prefix}
    */
   public static boolean startsWith(byte[] array, byte[] prefix) {
-    if (array.length < prefix.length) {
-      return false;
-    }
-    for (int i = 0; i < prefix.length; ++i) {
-      if (prefix[i] != array[i]) {
-        return false;
-      }
-    }
-    return true;
+    return startsWith(array, 0, prefix);
+
   }
+
+  /**
+     * Does this byte array begin with match array content?
+     *
+     * @param array Byte array to examine
+     * @param offset An offset into the <code>source</code> array
+     * @param prefix  Byte array to locate in <code>source</code>
+     * @return true If the starting bytes are equal
+     */
+    public static boolean startsWith(byte[] array, int offset, byte[] prefix) {
+
+        if (prefix.length > (array.length - offset)) {
+            return false;
+        }
+
+        for (int i = 0; i < prefix.length; i++) {
+            if (array[offset + i] != prefix[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    /**
+     * Tests if the bytes ends with the specified suffix.
+     *
+     * @param bytes
+     * @param suffix
+     * @return
+     */
+    public static boolean endsWith(byte[] bytes, byte[] suffix) {
+        if (null == suffix || null == bytes || bytes.length < suffix.length) return false;
+        int length = bytes.length - suffix.length;
+        for (int i = suffix.length - 1; i >= 0; i--) {
+            if (bytes[length + i] != suffix[i]) return false;
+        }
+        return true;
+    }
+
+  /**
+       * Does this byte array end with suffix array content?
+       *
+       * @param tv Byte array to examine
+       * @param toffset An offset into the <code>tv</code> array
+       * @param ov  Byte array to locate in <code>tv</code>
+       * @param ooffset An offset into the <code>ov</code> array
+       * @param len the number of bytes to compare.
+       * @return true If the starting bytes are equal
+       */
+        public static boolean endsWith(byte[] tv, int toffset, byte[] ov, int ooffset, int len) {
+           // Note: toffset, ooffset, or len might be near -1>>>1.
+           if ((ooffset < 0) || (toffset < 0) ||
+                (toffset > (long)tv.length - len) ||
+                (ooffset > (long)ov.length - len)) {
+               return false;
+           }
+             while (len-- > 0) {
+                 if (tv[toffset++] != ov[ooffset++]) {
+                     return false;
+                 }
+             }
+
+            return true;
+      }
 
   /**
    * Scan through an array of bytes to find the first occurrence of a specific value.
@@ -621,6 +679,7 @@ public class ByteArrayUtil {
       }
       return result;
   }
+
 
   private ByteArrayUtil() {
   } //is not instantiable

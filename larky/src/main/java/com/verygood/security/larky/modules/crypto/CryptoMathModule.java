@@ -28,7 +28,11 @@ public class CryptoMathModule implements StarlarkValue {
   private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
 
   @StarlarkMethod(name = "jacobi_number",
-       doc = "jacobi number",
+       doc = "Computes Jacobi(p,n).\n" +
+           " Assumes n positive, odd, n>=3.\n" +
+           " Compute the jacobi symbol <code>(a/n)</code>, as described in:\n" +
+           " <a href=\"http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf\">Digital signature standard (DSS). FIPS PUB 186-4, National Institute of Standards and\n" +
+           " Technology (NIST), 2013.</a>, pp. 76-77",
        parameters = {
            @Param(name = "a", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
            @Param(name = "n", allowedTypes = {@ParamType(type = StarlarkInt.class)}),

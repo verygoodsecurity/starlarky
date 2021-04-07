@@ -35,13 +35,18 @@ load("@stdlib//struct", struct="struct")
 load("@stdlib//sets", "sets")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Random", Random="Random")
-# load("@vendor//Crypto/IO", PKCS8="PKCS8", PEM="PEM")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
 load("@vendor//Crypto/Math/Primality", test_probable_prime="test_probable_prime", generate_probable_prime="generate_probable_prime", COMPOSITE="COMPOSITE")
-# load("@vendor//Crypto/PublicKey", _expand_subject_public_key_info="_expand_subject_public_key_info", _create_subject_public_key_info="_create_subject_public_key_info", _extract_subject_public_key_info="_extract_subject_public_key_info")
+load("@vendor//Crypto/PublicKey",
+     _expand_subject_public_key_info="expand_subject_public_key_info",
+     _create_subject_public_key_info="create_subject_public_key_info",
+     _extract_subject_public_key_info="extract_subject_public_key_info")
+
+
+_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 
 __all__ = ['generate', 'construct', 'import_key',
@@ -226,142 +231,151 @@ def _RsaKey(**kwargs):
         return result
 
     self._decrypt = _decrypt
-#     def export_key(format='PEM', passphrase=None, pkcs=1,
-#                    protection=None, randfunc=None):
-#         """Export this RSA key.
-#
-#         Args:
-#           format (string):
-#             The format to use for wrapping the key:
-#
-#             - *'PEM'*. (*Default*) Text encoding, done according to `RFC1421`_/`RFC1423`_.
-#             - *'DER'*. Binary encoding.
-#             - *'OpenSSH'*. Textual encoding, done according to OpenSSH specification.
-#               Only suitable for public keys (not private keys).
-#
-#           passphrase (string):
-#             (*For private keys only*) The pass phrase used for protecting the output.
-#
-#           pkcs (integer):
-#             (*For private keys only*) The ASN.1 structure to use for
-#             serializing the key. Note that even in case of PEM
-#             encoding, there is an inner ASN.1 DER structure.
-#
-#             With ``pkcs=1`` (*default*), the private key is encoded in a
-#             simple `PKCS#1`_ structure (``RSAPrivateKey``).
-#
-#             With ``pkcs=8``, the private key is encoded in a `PKCS#8`_ structure
-#             (``PrivateKeyInfo``).
-#
-#             .. note::
-#                 This parameter is ignored for a public key.
-#                 For DER and PEM, an ASN.1 DER ``SubjectPublicKeyInfo``
-#                 structure is always used.
-#
-#           protection (string):
-#             (*For private keys only*)
-#             The encryption scheme to use for protecting the private key.
-#
-#             If ``None`` (default), the behavior depends on :attr:`format`:
-#
-#             - For *'DER'*, the *PBKDF2WithHMAC-SHA1AndDES-EDE3-CBC*
-#               scheme is used. The following operations are performed:
-#
-#                 1. A 16 byte Triple DES key is derived from the passphrase
-#                    using :func:`Crypto.Protocol.KDF.PBKDF2` with 8 bytes salt,
-#                    and 1 000 iterations of :mod:`Crypto.Hash.HMAC`.
-#                 2. The private key is encrypted using CBC.
-#                 3. The encrypted key is encoded according to PKCS#8.
-#
-#             - For *'PEM'*, the obsolete PEM encryption scheme is used.
-#               It is based on MD5 for key derivation, and Triple DES for encryption.
-#
-#             Specifying a value for :attr:`protection` is only meaningful for PKCS#8
-#             (that is, ``pkcs=8``) and only if a pass phrase is present too.
-#
-#             The supported schemes for PKCS#8 are listed in the
-#             :mod:`Crypto.IO.PKCS8` module (see :attr:`wrap_algo` parameter).
-#
-#           randfunc (callable):
-#             A function that provides random bytes. Only used for PEM encoding.
-#             The default is :func:`Crypto.Random.get_random_bytes`.
-#
-#         Returns:
-#           byte string: the encoded key
-#
-#         Raises:
-#           ValueError:when the format is unknown or when you try to encrypt a private
-#             key with *DER* format and PKCS#1.
-#
-#         .. warning::
-#             If you don't provide a pass phrase, the private key will be
-#             exported in the clear!
-#
-#         .. _RFC1421:    http://www.ietf.org/rfc/rfc1421.txt
-#         .. _RFC1423:    http://www.ietf.org/rfc/rfc1423.txt
-#         .. _`PKCS#1`:   http://www.ietf.org/rfc/rfc3447.txt
-#         .. _`PKCS#8`:   http://www.ietf.org/rfc/rfc5208.txt
-#         """
-#
-#         if passphrase != None:
-#             passphrase = tobytes(passphrase)
-#
-#         if randfunc == None:
-#             randfunc = Random.get_random_bytes
-#
-#         if format == 'OpenSSH':
-#             e_bytes, n_bytes = [x.to_bytes() for x in (_e, _n)]
-#             if bord(e_bytes[0]) & 0x80:
-#                 e_bytes = bytes([0x00]) + e_bytes
-#             if bord(n_bytes[0]) & 0x80:
-#                 n_bytes = bytes([0x00]) + n_bytes
-#             keyparts = [bytes([0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61]), e_bytes, n_bytes]
-#             keystring = bytes(r'', encoding='utf-8').join([struct.pack(">I", len(kp)) + kp for kp in keyparts])
-#             return bytearray([0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61, 0x20]) + binascii.b2a_base64(keystring)[:-1]
-#
-#         # DER format is always used, even in case of PEM, which simply
-#         # encodes it into BASE64.
-#         if has_private():
-#             binary_key = DerSequence([0,
-#                                       n,
-#                                       e,
-#                                       d,
-#                                       p,
-#                                       q,
-#                                       d % (p-1),
-#                                       d % (q-1),
-#                                       Integer(q).inverse(p)
-#                                       ]).encode()
-#             if pkcs == 1:
-#                 key_type = 'RSA PRIVATE KEY'
-#                 if format == 'DER' and passphrase:
-#                     fail('ValueError("PKCS#1 private key cannot be encrypted")')
-#             else:  # PKCS#8
-#                 if format == 'PEM' and protection == None:
-#                     key_type = 'PRIVATE KEY'
-#                     binary_key = PKCS8.wrap(binary_key, oid, None)
-#                 else:
-#                     key_type = 'ENCRYPTED PRIVATE KEY'
-#                     if not protection:
-#                         protection = 'PBKDF2WithHMAC-SHA1AndDES-EDE3-CBC'
-#                     binary_key = PKCS8.wrap(binary_key, oid,
-#                                             passphrase, protection)
-#                     passphrase = None
-#         else:
-#             key_type = "PUBLIC KEY"
-#             binary_key = _create_subject_public_key_info(oid,
-#                                                          DerSequence([n,
-#                                                                       e])
-#                                                          )
-#
-#         if format == 'DER':
-#             return binary_key
-#         if format == 'PEM':
-#             pem_str = PEM.encode(binary_key, key_type, passphrase, randfunc)
-#             return tobytes(pem_str)
-#
-#         fail(" ValueError(\"Unknown key format '%s'. Cannot export the RSA key.\" % format)")
-#
+
+    def export_key(format='PEM', passphrase=None, pkcs=1,
+                   protection=None, randfunc=None):
+        """Export this RSA key.
+
+        Args:
+          format (string):
+            The format to use for wrapping the key:
+
+            - *'PEM'*. (*Default*) Text encoding, done according to `RFC1421`_/`RFC1423`_.
+            - *'DER'*. Binary encoding.
+            - *'OpenSSH'*. Textual encoding, done according to OpenSSH specification.
+              Only suitable for public keys (not private keys).
+
+          passphrase (string):
+            (*For private keys only*) The pass phrase used for protecting the output.
+
+          pkcs (integer):
+            (*For private keys only*) The ASN.1 structure to use for
+            serializing the key. Note that even in case of PEM
+            encoding, there is an inner ASN.1 DER structure.
+
+            With ``pkcs=1`` (*default*), the private key is encoded in a
+            simple `PKCS#1`_ structure (``RSAPrivateKey``).
+
+            With ``pkcs=8``, the private key is encoded in a `PKCS#8`_ structure
+            (``PrivateKeyInfo``).
+
+            .. note::
+                This parameter is ignored for a public key.
+                For DER and PEM, an ASN.1 DER ``SubjectPublicKeyInfo``
+                structure is always used.
+
+          protection (string):
+            (*For private keys only*)
+            The encryption scheme to use for protecting the private key.
+
+            If ``None`` (default), the behavior depends on :attr:`format`:
+
+            - For *'DER'*, the *PBKDF2WithHMAC-SHA1AndDES-EDE3-CBC*
+              scheme is used. The following operations are performed:
+
+                1. A 16 byte Triple DES key is derived from the passphrase
+                   using :func:`Crypto.Protocol.KDF.PBKDF2` with 8 bytes salt,
+                   and 1 000 iterations of :mod:`Crypto.Hash.HMAC`.
+                2. The private key is encrypted using CBC.
+                3. The encrypted key is encoded according to PKCS#8.
+
+            - For *'PEM'*, the obsolete PEM encryption scheme is used.
+              It is based on MD5 for key derivation, and Triple DES for encryption.
+
+            Specifying a value for :attr:`protection` is only meaningful for PKCS#8
+            (that is, ``pkcs=8``) and only if a pass phrase is present too.
+
+            The supported schemes for PKCS#8 are listed in the
+            :mod:`Crypto.IO.PKCS8` module (see :attr:`wrap_algo` parameter).
+
+          randfunc (callable):
+            A function that provides random bytes. Only used for PEM encoding.
+            The default is :func:`Crypto.Random.get_random_bytes`.
+
+        Returns:
+          byte string: the encoded key
+
+        Raises:
+          ValueError:when the format is unknown or when you try to encrypt a private
+            key with *DER* format and PKCS#1.
+
+        .. warning::
+            If you don't provide a pass phrase, the private key will be
+            exported in the clear!
+
+        .. _RFC1421:    http://www.ietf.org/rfc/rfc1421.txt
+        .. _RFC1423:    http://www.ietf.org/rfc/rfc1423.txt
+        .. _`PKCS#1`:   http://www.ietf.org/rfc/rfc3447.txt
+        .. _`PKCS#8`:   http://www.ietf.org/rfc/rfc5208.txt
+        """
+
+        if passphrase != None:
+            passphrase = tobytes(passphrase)
+
+        if randfunc == None:
+            randfunc = Random.get_random_bytes
+
+        if format == 'OpenSSH':
+            e_bytes, n_bytes = [x.to_bytes() for x in (self._e, self._n)]
+            if bord(e_bytes[0]) & 0x80:
+                e_bytes = bytearray([0x00]) + e_bytes
+            if bord(n_bytes[0]) & 0x80:
+                n_bytes = bytearray([0x00]) + n_bytes
+            keyparts = [bytearray([0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61]), e_bytes, n_bytes]
+            keystring = bytearray(r'', encoding='utf-8').join(
+                [struct.pack(">I", len(kp)) + kp for kp in keyparts]
+            )
+            return (
+                bytearray([0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61, 0x20])
+                + binascii.b2a_base64(keystring)[:-1]
+            )
+
+        # DER format is always used, even in case of PEM, which simply
+        # encodes it into BASE64.
+        if has_private():
+            binary_key = DerSequence([0,
+                                      self.n,
+                                      self.e,
+                                      self.d,
+                                      self.p,
+                                      self.q,
+                                      self.d % (self.p-1),
+                                      self.d % (self.q-1),
+                                      Integer(self.q).inverse(self.p).__int__(),
+                                      ]).encode()
+            if pkcs == 1:
+                key_type = 'RSA PRIVATE KEY'
+                if format == 'DER' and passphrase:
+                    fail('ValueError: PKCS#1 private key cannot be encrypted')
+            else:  # PKCS#8
+                if format == 'PEM' and protection == None:
+                    key_type = 'PRIVATE KEY'
+                    binary_key = _JCrypto.PublicKey.PKCS8_wrap(binary_key, _oid, None)
+                else:
+                    key_type = 'ENCRYPTED PRIVATE KEY'
+                    if not protection:
+                        protection = 'PBKDF2WithHMACSHA1AndDES-EDE3-CBC'
+                    binary_key = _JCrypto.PublicKey.PKCS8_wrap(binary_key, _oid,
+                                            passphrase, protection)
+                    passphrase = None
+        else:
+            key_type = "PUBLIC KEY"
+            #print("IN EXPORT:", _oid, self.n, self.e)
+            binary_key = _create_subject_public_key_info(
+                _oid, DerSequence([self.n, self.e])
+            )
+
+
+        if format == 'DER':
+            return binary_key
+        if format == 'PEM':
+            pem_str = _JCrypto.PublicKey.PEM_encode(binary_key, key_type, passphrase, randfunc)
+            return tobytes(pem_str.strip())
+
+        fail('ValueError: Unknown key format "%s". ' +
+             'Cannot export the RSA key.' % format)
+
+    self.export_key = export_key
     # Backward compatibility
     # self.exportKey = export_key
     self.publickey = public_key
@@ -489,7 +503,6 @@ def _construct(rsa_components, consistency_check=True):
 
     n = input_comps.n
     e = input_comps.e
-
     if not hasattr(input_comps, 'd'):
         key = _RsaKey(n=n, e=e)
     else:
@@ -552,177 +565,199 @@ def _construct(rsa_components, consistency_check=True):
 
     return key
 
-# #
-# # def _import_pkcs1_private(encoded, *kwargs):
-# #     # RSAPrivateKey ::= SEQUENCE {
-# #     #           version Version,
-# #     #           modulus INTEGER, -- n
-# #     #           publicExponent INTEGER, -- e
-# #     #           privateExponent INTEGER, -- d
-# #     #           prime1 INTEGER, -- p
-# #     #           prime2 INTEGER, -- q
-# #     #           exponent1 INTEGER, -- d mod (p-1)
-# #     #           exponent2 INTEGER, -- d mod (q-1)
-# #     #           coefficient INTEGER -- (inverse of q) mod p
-# #     # }
-# #     #
-# #     # Version ::= INTEGER
-# #     der = DerSequence().decode(encoded, nr_elements=9, only_ints_expected=True)
-# #     if der[0] != 0:
-# #         fail('ValueError("No PKCS#1 encoding of an RSA private key")')
-# #     return construct(der[1:6] + [Integer(der[4]).inverse(der[5])])
-# #
-# #
-# # def _import_pkcs1_public(encoded, *kwargs):
-# #     # RSAPublicKey ::= SEQUENCE {
-# #     #           modulus INTEGER, -- n
-# #     #           publicExponent INTEGER -- e
-# #     # }
-# #     der = DerSequence().decode(encoded, nr_elements=2, only_ints_expected=True)
-# #     return construct(der)
-# #
-# #
-# # def _import_subjectPublicKeyInfo(encoded, *kwargs):
-# #
-# #     algoid, encoded_key, params = _expand_subject_public_key_info(encoded)
-# #     if algoid != oid or params != None:
-# #         fail(" ValueError(\"No RSA subjectPublicKeyInfo\")")
-# #     return _import_pkcs1_public(encoded_key)
-# #
-# #
-# # def _import_x509_cert(encoded, *kwargs):
-# #     sp_info = _extract_subject_public_key_info(encoded)
-# #     return _import_subjectPublicKeyInfo(sp_info)
-# #
-# #
-# # def _import_pkcs8(encoded, passphrase):
-# #     k = PKCS8.unwrap(encoded, passphrase)
-# #     if k[0] != oid:
-# #         fail('ValueError("No PKCS#8 encoded RSA key")')
-# #     return _import_keyDER(k[1], passphrase)
-# #
-# #
-# # def _import_keyDER(extern_key, passphrase):
-# #     """Import an RSA key (public or private half), encoded in DER form."""
-# #
-# #     decodings = (_import_pkcs1_private,
-# #                  _import_pkcs1_public,
-# #                  _import_subjectPublicKeyInfo,
-# #                  _import_x509_cert,
-# #                  _import_pkcs8)
-# #
-# #     for decoding in decodings:
-# #         return decoding(extern_key, passphrase)
-# #
-# #     fail('ValueError("RSA key format is not supported")')
-# #
-# #
-# # def _import_openssh_private_rsa(data, password):
-# #
-# #     load("@vendor//_openssh", import_openssh_private_generic="import_openssh_private_generic", read_bytes="read_bytes", read_string="read_string", check_padding="check_padding")
-# #
-# #     ssh_name, decrypted = import_openssh_private_generic(data, password)
-# #
-# #     if ssh_name != "ssh-rsa":
-# #         fail(" ValueError(\"This SSH key is not RSA\")")
-# #
-# #     n, decrypted = read_bytes(decrypted)
-# #     e, decrypted = read_bytes(decrypted)
-# #     d, decrypted = read_bytes(decrypted)
-# #     iqmp, decrypted = read_bytes(decrypted)
-# #     p, decrypted = read_bytes(decrypted)
-# #     q, decrypted = read_bytes(decrypted)
-# #
-# #     _, padded = read_string(decrypted)  # Comment
-# #     check_padding(padded)
-# #
-# #     build = [Integer.from_bytes(x) for x in (n, e, d, q, p, iqmp)]
-# #     return construct(build)
-# #
-# #
-# # def import_key(extern_key, passphrase=None):
-# #     """Import an RSA key (public or private).
-# #
-# #     Args:
-# #       extern_key (string or byte string):
-# #         The RSA key to import.
-# #
-# #         The following formats are supported for an RSA **public key**:
-# #
-# #         - X.509 certificate (binary or PEM format)
-# #         - X.509 ``subjectPublicKeyInfo`` DER SEQUENCE (binary or PEM
-# #           encoding)
-# #         - `PKCS#1`_ ``RSAPublicKey`` DER SEQUENCE (binary or PEM encoding)
-# #         - An OpenSSH line (e.g. the content of ``~/.ssh/id_ecdsa``, ASCII)
-# #
-# #         The following formats are supported for an RSA **private key**:
-# #
-# #         - PKCS#1 ``RSAPrivateKey`` DER SEQUENCE (binary or PEM encoding)
-# #         - `PKCS#8`_ ``PrivateKeyInfo`` or ``EncryptedPrivateKeyInfo``
-# #           DER SEQUENCE (binary or PEM encoding)
-# #         - OpenSSH (text format, introduced in `OpenSSH 6.5`_)
-# #
-# #         For details about the PEM encoding, see `RFC1421`_/`RFC1423`_.
-# #
-# #       passphrase (string or byte string):
-# #         For private keys only, the pass phrase that encrypts the key.
-# #
-# #     Returns: An RSA key object (:class:`RsaKey`).
-# #
-# #     Raises:
-# #       ValueError/IndexError/TypeError:
-# #         When the given key cannot be parsed (possibly because the pass
-# #         phrase is wrong).
-# #
-# #     .. _RFC1421: http://www.ietf.org/rfc/rfc1421.txt
-# #     .. _RFC1423: http://www.ietf.org/rfc/rfc1423.txt
-# #     .. _`PKCS#1`: http://www.ietf.org/rfc/rfc3447.txt
-# #     .. _`PKCS#8`: http://www.ietf.org/rfc/rfc5208.txt
-# #     .. _`OpenSSH 6.5`: https://flak.tedunangst.com/post/new-openssh-key-format-and-bcrypt-pbkdf
-# #     """
-# #
-# #     load("@vendor//Crypto/IO", PEM="PEM")
-# #
-# #     extern_key = tobytes(extern_key)
-# #     if passphrase != None:
-# #         passphrase = tobytes(passphrase)
-# #
-# #     if extern_key.startswith(bytes([0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x4f, 0x50, 0x45, 0x4e, 0x53, 0x53, 0x48, 0x20, 0x50, 0x52, 0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59])):
-# #         text_encoded = tostr(extern_key)
-# #         openssh_encoded, marker, enc_flag = PEM.decode(text_encoded, passphrase)
-# #         result = _import_openssh_private_rsa(openssh_encoded, passphrase)
-# #         return result
-# #
-# #     if extern_key.startswith(bytes([0x2d, 0x2d, 0x2d, 0x2d, 0x2d])):
-# #         # This is probably a PEM encoded key.
-# #         (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
-# #         if enc_flag:
-# #             passphrase = None
-# #         return _import_keyDER(der, passphrase)
-# #
-# #     if extern_key.startswith(bytes([0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61, 0x20])):
-# #         # This is probably an OpenSSH key
-# #         keystring = binascii.a2b_base64(extern_key.split(bytes([0x20]))[1])
-# #         keyparts = []
-# #         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-# #             if len(keystring) <= 4:
-# #                 break
-# #             length = struct.unpack(">I", keystring[:4])[0]
-# #             keyparts.append(keystring[4:4 + length])
-# #             keystring = keystring[4 + length:]
-# #         e = Integer.from_bytes(keyparts[1])
-# #         n = Integer.from_bytes(keyparts[2])
-# #         return construct([n, e])
-# #
-# #     if len(extern_key) > 0 and bord(extern_key[0]) == 0x30:
-# #         # This is probably a DER encoded key
-# #         return _import_keyDER(extern_key, passphrase)
-# #
-# #     fail(" ValueError(\"RSA key format is not supported\")")
-# #
-#
-# # Backward compatibility
-# importKey = import_key
+
+def _import_pkcs1_private(encoded, *kwargs):
+    # RSAPrivateKey ::= SEQUENCE {
+    #           version Version,
+    #           modulus INTEGER, -- n
+    #           publicExponent INTEGER, -- e
+    #           privateExponent INTEGER, -- d
+    #           prime1 INTEGER, -- p
+    #           prime2 INTEGER, -- q
+    #           exponent1 INTEGER, -- d mod (p-1)
+    #           exponent2 INTEGER, -- d mod (q-1)
+    #           coefficient INTEGER -- (inverse of q) mod p
+    # }
+    #
+    # Version ::= INTEGER
+    der = DerSequence().decode(encoded, nr_elements=9, only_ints_expected=True, failOnOnlyInts=False)
+    # TODO(Hack)...until I introduce safetywrap
+    if not der:
+        return "failedonints", None
+    if der.__getitem__(0) != 0:
+        return 'ValueError: No PKCS#1 encoding of an RSA private key', None
+    return None, _construct(der.__getslice__(1,6) + [
+            Integer(der.__getitem__(4)).inverse(der.__getitem__(5))
+        ])
+
+
+def _import_pkcs1_public(encoded, *kwargs):
+    # RSAPublicKey ::= SEQUENCE {
+    #           modulus INTEGER, -- n
+    #           publicExponent INTEGER -- e
+    # }
+    der = DerSequence().decode(encoded, nr_elements=2, only_ints_expected=True, failOnOnlyInts=False)
+    # TODO(Hack)...until I introduce safetywrap
+    if not der:
+        return "failedonints", None
+    return None, _construct(der._seq)
+
+
+def _import_subjectPublicKeyInfo(encoded, *kwargs):
+
+    algoid, encoded_key, params = _expand_subject_public_key_info(encoded)
+    if algoid != _oid or params != None:
+        return 'ValueError: No RSA subjectPublicKeyInfo', None
+    return _import_pkcs1_public(encoded_key)
+
+
+def _import_x509_cert(encoded, *kwargs):
+    sp_info = _extract_subject_public_key_info(encoded)
+    return _import_subjectPublicKeyInfo(sp_info)
+
+
+def _import_pkcs8(encoded, passphrase):
+    k = _JCrypto.PublicKey.PKCS8_unwrap(encoded, passphrase)
+    if k[0] != _oid:
+        return 'ValueError("No PKCS#8 encoded RSA key")', None
+    return _import_keyDER(k[1], passphrase)
+
+
+def _import_keyDER(extern_key, passphrase):
+    """Import an RSA key (public or private half), encoded in DER form."""
+
+    decodings = (_import_pkcs1_private,
+                 _import_pkcs1_public,
+                 _import_subjectPublicKeyInfo,
+                 _import_x509_cert,
+                 _import_pkcs8)
+    # print("key: " , binascii.hexlify(extern_key))
+    for decoding in decodings:
+        error, result = decoding(extern_key, passphrase)
+        if error != None:
+            print(error)
+        if result:
+            return None, result
+    #_JCrypto.PublicKey.import_DER_key(extern_key, passphrase)
+
+    fail('ValueError("RSA key format is not supported")')
+
+
+def _import_openssh_private_rsa(data, password):
+    return data
+    # load("@vendor//_openssh", import_openssh_private_generic="import_openssh_private_generic", read_bytes="read_bytes", read_string="read_string", check_padding="check_padding")
+
+    # ssh_name, decrypted = import_openssh_private_generic(data, password)
+    #ssh_name = tostr(data)
+#    decrypted = (password != None)
+ #   if ssh_name != "ssh-rsa":
+#        fail(" ValueError(\"This SSH key is not RSA\")")
+
+    # n, decrypted = read_bytes(decrypted)
+    # e, decrypted = read_bytes(decrypted)
+    # d, decrypted = read_bytes(decrypted)
+    # iqmp, decrypted = read_bytes(decrypted)
+    # p, decrypted = read_bytes(decrypted)
+    # q, decrypted = read_bytes(decrypted)
+    #
+    # _, padded = read_string(decrypted)  # Comment
+    # check_padding(padded)
+
+    #build = [Integer.from_bytes(x) for x in (n, e, d, q, p, iqmp)]
+    #return(build)
+
+
+def _import_key(extern_key, passphrase=None):
+    """Import an RSA key (public or private).
+
+    Args:
+      extern_key (string or byte string):
+        The RSA key to import.
+
+        The following formats are supported for an RSA **public key**:
+
+        - X.509 certificate (binary or PEM format)
+        - X.509 ``subjectPublicKeyInfo`` DER SEQUENCE (binary or PEM
+          encoding)
+        - `PKCS#1`_ ``RSAPublicKey`` DER SEQUENCE (binary or PEM encoding)
+        - An OpenSSH line (e.g. the content of ``~/.ssh/id_ecdsa``, ASCII)
+
+        The following formats are supported for an RSA **private key**:
+
+        - PKCS#1 ``RSAPrivateKey`` DER SEQUENCE (binary or PEM encoding)
+        - `PKCS#8`_ ``PrivateKeyInfo`` or ``EncryptedPrivateKeyInfo``
+          DER SEQUENCE (binary or PEM encoding)
+        - OpenSSH (text format, introduced in `OpenSSH 6.5`_)
+
+        For details about the PEM encoding, see `RFC1421`_/`RFC1423`_.
+
+      passphrase (string or byte string):
+        For private keys only, the pass phrase that encrypts the key.
+
+    Returns: An RSA key object (:class:`RsaKey`).
+
+    Raises:
+      ValueError/IndexError/TypeError:
+        When the given key cannot be parsed (possibly because the pass
+        phrase is wrong).
+
+    .. _RFC1421: http://www.ietf.org/rfc/rfc1421.txt
+    .. _RFC1423: http://www.ietf.org/rfc/rfc1423.txt
+    .. _`PKCS#1`: http://www.ietf.org/rfc/rfc3447.txt
+    .. _`PKCS#8`: http://www.ietf.org/rfc/rfc5208.txt
+    .. _`OpenSSH 6.5`: https://flak.tedunangst.com/post/new-openssh-key-format-and-bcrypt-pbkdf
+    """
+    extern_key = tobytes(extern_key)
+    if passphrase != None:
+        passphrase = tobytes(passphrase)
+
+    if extern_key.startswith(bytes([0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x4f, 0x50, 0x45, 0x4e, 0x53, 0x53, 0x48, 0x20, 0x50, 0x52, 0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59])):
+        text_encoded = tostr(extern_key)
+        # openssh_encoded, marker, enc_flag = PEM.decode(text_encoded, passphrase)
+        openssh_encoded = _JCrypto.PublicKey.PEM_decode(text_encoded, passphrase)
+        result = _import_openssh_private_rsa(openssh_encoded, passphrase)
+        return result
+
+    if extern_key.startswith(bytes([0x2d, 0x2d, 0x2d, 0x2d, 0x2d])):
+        # This is probably a PEM encoded key.
+        # (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
+        enc_flag = (passphrase != None)
+        result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
+        # print(result)
+        if "d" not in result:
+            return _construct((result["n"], result["e"]))
+        else:
+            return _construct((result["n"], result["e"], result["d"], result["p"], result["q"], result["u"]))
+        # print(binascii.hexlify(der))
+        # if enc_flag:
+        #     passphrase = None
+        # err, res = _import_keyDER(der, passphrase)
+        # return res
+
+    if extern_key.startswith(bytes([0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61, 0x20])):
+        # This is probably an OpenSSH key
+        keystring = binascii.a2b_base64(extern_key.split(bytes([0x20]))[1])
+        keyparts = []
+        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if len(keystring) <= 4:
+                break
+            length = struct.unpack(">I", keystring[:4])[0]
+            keyparts.append(keystring[4:4 + length])
+            keystring = keystring[4 + length:]
+        e = Integer.from_bytes(keyparts[1])
+        n = Integer.from_bytes(keyparts[2])
+        return([n, e])
+
+    if len(extern_key) > 0 and bord(extern_key[0]) == 0x30:
+        # This is probably a DER encoded key
+        err, res = _import_keyDER(extern_key, passphrase)
+        return res
+
+    fail('ValueError: RSA key format is not supported')
+
+
+# Backward compatibility
+importKey = _import_key
 
 #: `Object ID`_ for the RSA encryption algorithm. This OID often indicates
 #: a generic RSA key, even when such key will be actually used for digital
@@ -737,4 +772,6 @@ RSA = larky.struct(
     oid=_oid,
     generate=_generate,
     construct=_construct,
+    importKey=_import_key,
+    import_key=_import_key,
 )
