@@ -190,7 +190,7 @@ q = int(
     # This is q^{-1} mod p). fastmath and slowmath use pInv (p^{-1}
     # mod q) instead!
 qInv = int('00 BD 9F 40 A7 64 22 7A 21 96 2A 4A DD 07 E4 DE FE 43 ED 91 A3 AE 27 BB 05 7F 39 24 1F 33 AB 01 C1'.replace(" ",""),16)
-pInv = inverse(p,q)
+pInv = inverse(p, q)
 
 
 def ImportKeyTests_testImportKey1():
