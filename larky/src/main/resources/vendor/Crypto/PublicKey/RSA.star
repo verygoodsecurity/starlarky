@@ -724,7 +724,10 @@ def _import_key(extern_key, passphrase=None):
         enc_flag = (passphrase != None)
         result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
         # print(result)
-        return _construct((result["n"], result["e"], result["d"], result["p"], result["q"], result["u"]))
+        if "d" not in result:
+            return _construct((result["n"], result["e"]))
+        else:
+            return _construct((result["n"], result["e"], result["d"], result["p"], result["q"], result["u"]))
         # print(binascii.hexlify(der))
         # if enc_flag:
         #     passphrase = None

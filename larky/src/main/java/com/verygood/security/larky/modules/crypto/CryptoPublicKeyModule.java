@@ -35,6 +35,7 @@ import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.BCRSAPrivateCrtKey;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.BCRSAPublicKey;
+import org.bouncycastle.jcajce.provider.asymmetric.rsa.KeyFactorySpi;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.RSAUtil;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMDecryptorProvider;
@@ -76,7 +77,6 @@ import java.security.SecureRandom;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.AbstractMap;
 import java.util.HashMap;
@@ -441,8 +441,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     * work */
     Dict.Builder<String, Object> rval = Dict.<String, Object>builder()
         .put("n", StarlarkInt.of(new BigInteger(keyParts.get("n"))))
-        .put("e", StarlarkInt.of(new BigInteger(keyParts.get("e"))))
-        .put("algo", new String(keyParts.get("algo")));
+        .put("e", StarlarkInt.of(new BigInteger(keyParts.get("e"))));
 
     if(keyParts.containsKey("d")) {
       rval.put("d", StarlarkInt.of(new BigInteger(keyParts.get("d"))))
@@ -482,7 +481,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       }
       throw Starlark.errorf("Unknown conversion algorithm for algo: %s", keyPair.getPublic().getAlgorithm());
     } else if(obj instanceof SubjectPublicKeyInfo) {
-      RSAPublicKey rsaPublicKey = (RSAPublicKey) convertPublicKey((SubjectPublicKeyInfo) obj);
+      BCRSAPublicKey rsaPublicKey = convertPublicKey((SubjectPublicKeyInfo) obj);
       returnVal.put("n",rsaPublicKey.getModulus().toByteArray());
       returnVal.put("e",rsaPublicKey.getPublicExponent().toByteArray());
       returnVal.put("algo", "RSA".getBytes(StandardCharsets.UTF_8));
@@ -508,16 +507,16 @@ public class CryptoPublicKeyModule implements StarlarkValue {
 
   }
 
-  private PublicKey convertPublicKey(SubjectPublicKeyInfo pk) throws CryptoException, IOException {
+  private BCRSAPublicKey convertPublicKey(SubjectPublicKeyInfo pk) throws CryptoException, IOException {
     ASN1ObjectIdentifier algOid = pk.getAlgorithm().getAlgorithm();
     try {
       KeyFactory kf = KeyFactory.getInstance(algOid.getId());
 
       if(RSAUtil.isRsaOid(algOid)) {
         RSAPublicKey rsa = RSAPublicKey.getInstance(pk.parsePublicKey());
-        RSAPublicKeySpec pubSpec = new RSAPublicKeySpec(rsa.getModulus(), rsa.getPublicExponent());
-        PublicKey publicKey = kf.generatePublic(pubSpec);
-        BCRSAPublicKey bcrsaPublicKey = new BCRSAPublicKey(pubSpec);
+        //RSAPublicKeySpec pubSpec = new RSAPublicKeySpec(rsa.getModulus(), rsa.getPublicExponent());
+        BCRSAPublicKey publicKey = (BCRSAPublicKey) new KeyFactorySpi().generatePublic(pk);
+        return publicKey;
       }
     } catch (GeneralSecurityException gse) {
       throw new CryptoException(gse.getMessage(), gse);
