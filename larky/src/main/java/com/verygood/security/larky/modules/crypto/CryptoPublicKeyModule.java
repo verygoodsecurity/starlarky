@@ -17,6 +17,7 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 
+import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
@@ -32,17 +33,16 @@ import org.bouncycastle.jcajce.provider.asymmetric.rsa.BCRSAPrivateCrtKey;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMDecryptorProvider;
 import org.bouncycastle.openssl.PEMEncryptedKeyPair;
+import org.bouncycastle.openssl.PEMEncryptor;
 import org.bouncycastle.openssl.PEMException;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.PKCS8Generator;
+import org.bouncycastle.openssl.jcajce.JcaMiscPEMGenerator;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
-import org.bouncycastle.openssl.jcajce.JcaPKCS8Generator;
-import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8EncryptorBuilder;
 import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
-import org.bouncycastle.operator.OperatorCreationException;
-import org.bouncycastle.operator.OutputEncryptor;
+import org.bouncycastle.openssl.jcajce.JcePEMEncryptorBuilder;
 import org.bouncycastle.util.BigIntegers;
 import org.bouncycastle.util.encoders.DecoderException;
 import org.bouncycastle.util.io.pem.PemObject;
@@ -55,11 +55,16 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
 import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.Map;
@@ -341,54 +346,34 @@ public class CryptoPublicKeyModule implements StarlarkValue {
      * - only supports 3DES for PEM encoding encryption (DES-EDE3-CBC)
      * - Encrypt with PKCS#7 padding
      */
+
     SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
 
+    X509EncodedKeySpec spec = new X509EncodedKeySpec(exportable.getBytes());
+    ASN1InputStream bIn = new ASN1InputStream(new ByteArrayInputStream(spec.getEncoded()));
+    KeyFactory kf;
+    PublicKey publicKey;
+    try {
+      SubjectPublicKeyInfo pki = SubjectPublicKeyInfo.getInstance(bIn.readObject());
+      String algOid = pki.getAlgorithm().getAlgorithm().getId();
+      kf = KeyFactory.getInstance(algOid);
+      publicKey = kf.generatePublic(spec);
+    } catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
+      throw new EvalException(e.getMessage(), e);
+    }
+
     StringWriter sWrt = new StringWriter();
-    Map<String, byte[]> keyParts;
     try (JcaPEMWriter pemWriter = new JcaPEMWriter(sWrt)) {
-      OutputEncryptor encryptor = Starlark.isNullOrNone(passphrase)
-          ? null
-          : new JceOpenSSLPKCS8EncryptorBuilder(PKCS8Generator.PBE_SHA1_3DES)
-          .setRandom(secureRandom)
-          .setPasssword(((String)passphrase).toCharArray())
-          .build();
-      Object pemObj = extractPEMObject(exportable.getBytes());
-      keyParts = PEM_parse(pemObj, passphrase);
-      AsymmetricCipherKeyPair keyPair = keyPairFromKeyParts(keyParts);
-      RSAPrivateCrtKeyParameters privkey = (RSAPrivateCrtKeyParameters) keyPair.getPrivate();
-      JcaPKCS8Generator gen = new JcaPKCS8Generator(new RSAPrivateKey() {
-        @Override
-        public BigInteger getPrivateExponent() {
-          return privkey.getExponent();
-        }
-
-        @Override
-        public String getAlgorithm() {
-          return ((PEMKeyPair) pemObj).getPublicKeyInfo().getAlgorithm().toString();
-        }
-
-        @Override
-        public String getFormat() {
-          return "";
-        }
-
-        @Override
-        public byte[] getEncoded() {
-          try {
-            return ((PEMKeyPair) pemObj).getPublicKeyInfo().getEncoded();
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        }
-
-        @Override
-        public BigInteger getModulus() {
-          return privkey.getModulus();
-        }
-      }, encryptor);
+      PEMEncryptor encryptor = Starlark.isNullOrNone(passphrase)
+        ? null
+        : new JcePEMEncryptorBuilder(PKCS8Generator.PBE_SHA1_3DES.toString())
+                  .setSecureRandom(secureRandom)
+                  .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+                  .build(((String)passphrase).toCharArray());
+      JcaMiscPEMGenerator gen = new JcaMiscPEMGenerator(publicKey, encryptor);
       PemObject pemObject = gen.generate();
       pemWriter.writeObject(pemObject);
-    } catch (IOException | OperatorCreationException e) {
+    } catch (IOException e) {
       throw new EvalException(e.getMessage(), e);
     }
     return sWrt.toString();

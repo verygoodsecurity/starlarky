@@ -8,7 +8,8 @@ private_key = '''-----BEGIN RSA PRIVATE KEY-----\nMIIJKQIBAAKCAgEAz81ppOgl4AMb1C
 def test_public_key():
     rsa_key = RSA.import_key(private_key)
     public_key = rsa_key.publickey()
-    print(public_key.export_key())
+    exported = public_key.export_key()
+    print("\n", exported)
 
 
 def _testsuite():

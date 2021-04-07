@@ -64,7 +64,7 @@ def expand_subject_public_key_info(encoded):
 
 
 def create_subject_public_key_info(algo_oid, secret_key, params=None):
-    print("IN create_subject_public_key_info:", algo_oid, secret_key, params)
+    # print("IN create_subject_public_key_info:", algo_oid, secret_key, params)
     if params == None:
         params = DerNull()
 

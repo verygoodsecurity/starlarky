@@ -360,7 +360,7 @@ def _RsaKey(**kwargs):
                     passphrase = None
         else:
             key_type = "PUBLIC KEY"
-            print("IN EXPORT:", _oid, n, e)
+            #print("IN EXPORT:", _oid, self.n, self.e)
             binary_key = _create_subject_public_key_info(
                 _oid, DerSequence([self.n, self.e])
             )
@@ -626,18 +626,19 @@ def _import_pkcs8(encoded, passphrase):
 def _import_keyDER(extern_key, passphrase):
     """Import an RSA key (public or private half), encoded in DER form."""
 
-    decodings = (_import_pkcs1_private,
-                 _import_pkcs1_public,
-                 _import_subjectPublicKeyInfo,
-                 _import_x509_cert,
-                 _import_pkcs8)
-    print("key: " , binascii.hexlify(extern_key))
-    for decoding in decodings:
-        error, result = decoding(extern_key, passphrase)
-        if error != None:
-            print(error)
-        if result:
-            return None, result
+    # decodings = (_import_pkcs1_private,
+    #              _import_pkcs1_public,
+    #              _import_subjectPublicKeyInfo,
+    #              _import_x509_cert,
+    #              _import_pkcs8)
+    # # print("key: " , binascii.hexlify(extern_key))
+    # for decoding in decodings:
+    #     error, result = decoding(extern_key, passphrase)
+    #     if error != None:
+    #         print(error)
+    #     if result:
+    #         return None, result
+    _JCrypto.PublicKey.import_DER_key(extern_key, passphrase)
 
     fail('ValueError("RSA key format is not supported")')
 
