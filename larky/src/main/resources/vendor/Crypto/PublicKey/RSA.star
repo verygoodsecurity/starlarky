@@ -370,7 +370,7 @@ def _RsaKey(**kwargs):
             return binary_key
         if format == 'PEM':
             pem_str = _JCrypto.PublicKey.PEM_encode(binary_key, key_type, passphrase, randfunc)
-            return tobytes(pem_str)
+            return tobytes(pem_str.strip())
 
         fail('ValueError: Unknown key format "%s". ' +
              'Cannot export the RSA key.' % format)

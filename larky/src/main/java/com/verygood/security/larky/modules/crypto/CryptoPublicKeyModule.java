@@ -297,10 +297,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       name = "PKCS8_wrap", parameters = {
       @Param(name = "binary_key", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
       @Param(name = "oid", allowedTypes = {@ParamType(type = String.class)}),
-      @Param(name = "passphrase", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "passphrase", allowedTypes = {
+          @ParamType(type = LarkyByteLike.class),
+          @ParamType(type = NoneType.class)
+      }),
       @Param(name = "protection", allowedTypes = {@ParamType(type = String.class)})
   }, useStarlarkThread = true)
-  public LarkyByteLike PKCS8_wrap(LarkyByteLike binaryKey, String oid, LarkyByteLike passphrase, String protection, StarlarkThread thread) throws EvalException {
+  public LarkyByteLike PKCS8_wrap(LarkyByteLike binaryKey, String oid, Object passphrase, String protection, StarlarkThread thread) throws EvalException {
     byte[] hello_world = new byte[]{
         (byte) 0x68, (byte) 0x65, (byte) 0x6c, (byte) 0x6c, (byte) 0x6f, //hello
         (byte) 0x20,
@@ -313,10 +316,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       name = "PKCS8_unwrap", parameters = {
       @Param(name = "binary_key", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
       @Param(name = "oid", allowedTypes = {@ParamType(type = String.class)}),
-      @Param(name = "passphrase", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "passphrase", allowedTypes = {
+          @ParamType(type = LarkyByteLike.class),
+          @ParamType(type = NoneType.class)
+      }),
       @Param(name = "protection", allowedTypes = {@ParamType(type = String.class)})
   }, useStarlarkThread = true)
-  public LarkyByteLike PKCS8_unwrap(LarkyByteLike binaryKey, String oid, LarkyByteLike passphrase, String protection, StarlarkThread thread) throws EvalException {
+  public LarkyByteLike PKCS8_unwrap(LarkyByteLike binaryKey, String oid, Object passphrase, String protection, StarlarkThread thread) throws EvalException {
     byte[] hello_world = new byte[]{
         (byte) 0x68, (byte) 0x65, (byte) 0x6c, (byte) 0x6c, (byte) 0x6f, //hello
         (byte) 0x20,

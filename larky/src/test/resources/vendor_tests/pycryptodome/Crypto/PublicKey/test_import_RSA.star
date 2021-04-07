@@ -39,9 +39,9 @@ load("@vendor//asserts", "asserts")
 
 def der2pem(der, text="PUBLIC"):
     chunks = [binascii.b2a_base64(der[i : i + 48]) for i in range(0, len(der), 48)]
-    pem = b("-----BEGIN %s KEY-----\n" % text)
-    pem += b("").join(chunks)
-    pem += b("-----END %s KEY-----" % text)
+    pem = bytearray("-----BEGIN %s KEY-----\n" % text, encoding='utf-8')
+    pem += bytearray("", encoding='utf-8').join(chunks)
+    pem += bytearray("-----END %s KEY-----" % text, encoding='utf-8')
     return pem
 
 
@@ -631,14 +631,14 @@ def _testsuite():
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey10))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey11))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey12))
-    # _suite.addTest(
-    #     unittest.FunctionTestCase(ImportKeyTests_test_import_key_windows_cr_lf)
-    # )
-    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_empty))
+    _suite.addTest(
+        unittest.FunctionTestCase(ImportKeyTests_test_import_key_windows_cr_lf)
+    )
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_empty))
     _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey1))
-    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey2))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey2))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey3))
-    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey4))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey4))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey5))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey7))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey8))
@@ -648,8 +648,8 @@ def _testsuite():
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey12))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey13))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey14))
-    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey15))
-    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_key))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey15))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_key))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_exportKey))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v1))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v3))
