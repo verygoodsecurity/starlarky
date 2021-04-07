@@ -101,7 +101,7 @@ def tobytes(s, encoding="ISO-8859-1"):
 
 
 def tostr(bs):
-    return bs.decode("ISO-8859-1")
+    return codecs.decode(bs, encoding="ISO-8859-1")
 
 
 def byte_string(s):
