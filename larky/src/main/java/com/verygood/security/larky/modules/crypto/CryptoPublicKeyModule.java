@@ -2,6 +2,7 @@ package com.verygood.security.larky.modules.crypto;
 
 import com.google.common.flogger.FluentLogger;
 
+import com.verygood.security.larky.modules.crypto.Util.CryptoUtils;
 import com.verygood.security.larky.modules.types.LarkyByte;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
 
@@ -13,13 +14,13 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.pkcs.RSAPublicKey;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
@@ -48,13 +49,8 @@ import org.bouncycastle.openssl.PKCS8Generator;
 import org.bouncycastle.openssl.jcajce.JcaMiscPEMGenerator;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
-import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder;
 import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
 import org.bouncycastle.openssl.jcajce.JcePEMEncryptorBuilder;
-import org.bouncycastle.operator.InputDecryptorProvider;
-import org.bouncycastle.operator.OperatorCreationException;
-import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
-import org.bouncycastle.pkcs.PKCSException;
 import org.bouncycastle.util.BigIntegers;
 import org.bouncycastle.util.encoders.DecoderException;
 import org.bouncycastle.util.io.pem.PemObject;
@@ -62,7 +58,6 @@ import org.jetbrains.annotations.VisibleForTesting;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigInteger;
@@ -71,14 +66,12 @@ import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -148,96 +141,11 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   }
   )
   public Tuple computePrimeFactors(StarlarkInt n, StarlarkInt e, StarlarkInt d) throws EvalException {
-    Map.Entry<BigInteger, BigInteger> pq = probabilisticPrimeFactorization(
+    Map.Entry<BigInteger, BigInteger> pq = CryptoUtils.probabilisticPrimeFactorization(
         n.toBigInteger(),
         e.toBigInteger(),
         d.toBigInteger());
     return Tuple.of(StarlarkInt.of(pq.getKey()), StarlarkInt.of(pq.getValue()));
-  }
-
-  /**
-   * C.1 Probabilistic Prime-Factor Recovery The following algorithm recovers the prime factors of a
-   * modulus, given the public and private exponents. The algorithm is based on Fact 1 in [Boneh
-   * 1999]
-   *
-   * https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-56Br2.pdf
-   */
-  public Map.Entry<BigInteger, BigInteger> probabilisticPrimeFactorization(BigInteger n, BigInteger e, BigInteger d) throws EvalException {
-    BigInteger p, q;
-    // Step 1: Let k = de – 1. If k is odd, then go to Step 4
-    BigInteger k = d.multiply(e).subtract(BigIntegers.ONE);
-    boolean isEven = !k.testBit(0);
-    if (isEven) {
-      // Step 2 (express k as (2^t)r, where r is the largest odd integer
-      // dividing k and t >= 1)
-      BigInteger r = k;
-      BigInteger t = BigIntegers.ZERO;
-
-      do {
-        r = r.divide(BigIntegers.TWO);
-        t = t.add(BigIntegers.ONE);
-      } while (!r.testBit(0));
-
-      // Step 3
-      SecureRandom random = CryptoServicesRegistrar.getSecureRandom();
-      boolean success = false;
-      BigInteger y = null;
-
-      step3loop:
-      for (int i = 1; i <= 100; i++) {
-
-        // 3a
-        BigInteger g = BigIntegers.createRandomBigInteger(n.bitLength(), random);
-
-        // 3b
-        y = g.modPow(r, n);
-
-        // 3c
-        if (y.equals(BigIntegers.ONE) || y.equals(n.subtract(BigIntegers.ONE))) {
-          // 3g
-          continue;
-        }
-
-        // 3d
-        for (BigInteger j = BigIntegers.ONE; j.compareTo(t) <= 0; j = j.add(BigIntegers.ONE)) {
-          // 3d1
-          BigInteger x = y.modPow(BigIntegers.TWO, n);
-
-          // 3d2
-          if (x.equals(BigIntegers.ONE)) {
-            success = true;
-            break step3loop;
-          }
-
-          // 3d3
-          if (x.equals(n.subtract(BigIntegers.ONE))) {
-            // 3g
-            continue step3loop;
-          }
-          // 3d4
-          y = x;
-        }
-
-        // 3e
-        BigInteger x = y.modPow(BigIntegers.TWO, n);
-        if (x.equals(BigIntegers.ONE)) {
-          success = true;
-          break;
-        }
-
-        // 3g
-        // (loop again)
-      }
-
-      if (success) {
-        // Step 5
-        p = y.subtract(BigIntegers.ONE).gcd(n);
-        q = n.divide(p);
-        return new AbstractMap.SimpleEntry<>(p, q);
-      }
-    }
-    // Step 4
-    throw Starlark.errorf("ValueError: Unable to compute factors p and q from exponent d.");
   }
 
   @StarlarkMethod(
@@ -430,11 +338,11 @@ public class CryptoPublicKeyModule implements StarlarkValue {
           @Param(name = "passphrase", allowedTypes = {
               @ParamType(type = LarkyByteLike.class), @ParamType(type = NoneType.class)}),
       }, useStarlarkThread = true)
-  public Dict<String, Object> PEM_decode(String decodable, Object passphrase, StarlarkThread thread) throws EvalException {
+  public StarlarkList<?> PEM_decode(String decodable, Object passphrase, StarlarkThread thread) throws EvalException {
 
     Map<String, byte[]> keyParts;
     try {
-      Object pemObj = extractPEMObject(decodable.getBytes(StandardCharsets.UTF_8));
+      Object pemObj = CryptoUtils.extractPEMObject(decodable.getBytes(StandardCharsets.UTF_8));
       if(pemObj == null) throw Starlark.errorf("Could not extract PEM encoded object!");
       char[] passChars = Starlark.isNullOrNone(passphrase)
           ? "".toCharArray()
@@ -443,8 +351,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     } catch (IOException | CryptoException e) {
       throw new EvalException(e.getMessage(), e);
     }
-    /* We are going to return the actual imported key to short circuit a lot of the pycrypto
-    * work */
+
     Dict.Builder<String, Object> rval = Dict.<String, Object>builder()
         .put("n", StarlarkInt.of(new BigInteger(keyParts.get("n"))))
         .put("e", StarlarkInt.of(new BigInteger(keyParts.get("e"))));
@@ -455,18 +362,9 @@ public class CryptoPublicKeyModule implements StarlarkValue {
           .put("q", StarlarkInt.of(new BigInteger(keyParts.get("q"))))
           .put("u", StarlarkInt.of(new BigInteger(keyParts.get("u"))));
     }
-    return rval.build(thread.mutability());
-  }
-
-  private Object extractPEMObject(byte[] decodable) throws EvalException {
-    InputStreamReader sr = new InputStreamReader(new ByteArrayInputStream(decodable));
-    try (PEMParser parser = new PEMParser(sr)) {
-      Object obj = parser.readObject();
-      return obj;
-
-    } catch (IOException e) {
-      throw new EvalException(e.getMessage(), e);
-    }
+    return StarlarkList.copyOf(
+        thread.mutability(),
+        rval.build(thread.mutability()).values());
   }
 
   private Map<String, byte[]> PEM_parse(Object obj, char[] passChars) throws EvalException, IOException, CryptoException {
@@ -488,14 +386,12 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       throw Starlark.errorf("Unknown conversion algorithm for algo: %s", keyPair.getPublic().getAlgorithm());
     } else if(obj instanceof SubjectPublicKeyInfo) {
       BCRSAPublicKey rsaPublicKey = convertPublicKey((SubjectPublicKeyInfo) obj);
-      returnVal.put("n",rsaPublicKey.getModulus().toByteArray());
-      returnVal.put("e",rsaPublicKey.getPublicExponent().toByteArray());
-      returnVal.put("algo", "RSA".getBytes(StandardCharsets.UTF_8));
+      buildPublicParameters(rsaPublicKey, returnVal);
       return returnVal;
     }
 
     // if we are here we are probably looking at a private key
-    BCRSAPrivateCrtKey pk = (BCRSAPrivateCrtKey) loadPrivateKey(obj, passChars);
+    BCRSAPrivateCrtKey pk = (BCRSAPrivateCrtKey) CryptoUtils.loadPrivateKey(obj, passChars);
     buildPrivateKeyParameters(pk, returnVal);
     return returnVal;
   }
@@ -530,31 +426,6 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     }
     throw new CryptoException(
         String.format("Unknown algorithm id: %s, supporting only RSA here", algOid.getId()));
-  }
-
-  public static PrivateKey loadPrivateKey(Object pemObject, char[] passChars) throws IOException {
-
-    final JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider(BouncyCastleProvider.PROVIDER_NAME);
-
-    if (pemObject instanceof PEMEncryptedKeyPair) { // PKCS#1 -----BEGIN RSA/DSA/EC PRIVATE KEY----- Proc-Type: 4,ENCRYPTED
-      final PEMEncryptedKeyPair ckp = (PEMEncryptedKeyPair) pemObject;
-      final PEMDecryptorProvider decProv = new JcePEMDecryptorProviderBuilder().build(passChars);
-      return converter.getKeyPair(ckp.decryptKeyPair(decProv)).getPrivate();
-    } else if (pemObject instanceof PKCS8EncryptedPrivateKeyInfo) { // PKCS#8 -----BEGIN ENCRYPTED PRIVATE KEY-----
-      try {
-        final PKCS8EncryptedPrivateKeyInfo encryptedInfo = (PKCS8EncryptedPrivateKeyInfo) pemObject;
-        final InputDecryptorProvider provider = new JceOpenSSLPKCS8DecryptorProviderBuilder().build(passChars);
-        final PrivateKeyInfo privateKeyInfo = encryptedInfo.decryptPrivateKeyInfo(provider);
-        return converter.getPrivateKey(privateKeyInfo);
-      } catch (PKCSException | OperatorCreationException e) {
-        throw new IOException("Unable to decrypt private key.", e);
-      }
-    } else if (pemObject instanceof PrivateKeyInfo) { // PKCS#8 -----BEGIN PRIVATE KEY-----
-      return converter.getPrivateKey((PrivateKeyInfo) pemObject);
-    } else if (pemObject instanceof PEMKeyPair) { // PKCS#1 -----BEGIN RSA/DSA/EC PRIVATE KEY-----
-      return converter.getKeyPair((PEMKeyPair) pemObject).getPrivate();
-    }
-    throw new IOException("Unrecognized private key format.");
   }
 
   @StarlarkMethod(

@@ -647,7 +647,7 @@ def _import_openssh_private_rsa(data, password):
     return data
     # load("@vendor//_openssh", import_openssh_private_generic="import_openssh_private_generic", read_bytes="read_bytes", read_string="read_string", check_padding="check_padding")
 
-    # ssh_name, decrypted = import_openssh_private_generic(data, password)
+    ssh_name, decrypted = import_openssh_private_generic(data, password)
     #ssh_name = tostr(data)
 #    decrypted = (password != None)
  #   if ssh_name != "ssh-rsa":
@@ -723,12 +723,8 @@ def _import_key(extern_key, passphrase=None):
         # (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
         enc_flag = (passphrase != None)
         result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
-        # print(result)
-        if "d" not in result:
-            return _construct((result["n"], result["e"]))
-        else:
-            return _construct((result["n"], result["e"], result["d"], result["p"], result["q"], result["u"]))
-        # print(binascii.hexlify(der))
+        print(result)
+        return _construct(result)
         # if enc_flag:
         #     passphrase = None
         # err, res = _import_keyDER(der, passphrase)
