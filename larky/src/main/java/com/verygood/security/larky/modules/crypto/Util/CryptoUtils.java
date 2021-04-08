@@ -6,6 +6,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.flogger.FluentLogger;
 import com.google.common.hash.HashCode;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.ByteSource;
@@ -64,6 +65,7 @@ import java.security.spec.RSAPrivateCrtKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.AbstractMap;
 import java.util.Map;
+import java.util.logging.Level;
 
 
 /**
@@ -74,6 +76,7 @@ import java.util.Map;
  *      />
  */
 public final class CryptoUtils {
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   private CryptoUtils() {
   }
@@ -451,10 +454,12 @@ public final class CryptoUtils {
     try (PEMParser parser = new PEMParser(sr)) {
       Object obj = parser.readObject();
       return obj;
-
     } catch (IOException e) {
       throw new RuntimeException(e);
+    } catch (IllegalArgumentException e) {
+      logger.at(Level.FINE).log(e.getMessage());
     }
+    return null;
   }
 
   public static PrivateKey loadPrivateKey(Object pemObject, char[] passChars) throws IOException {

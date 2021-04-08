@@ -59,50 +59,60 @@ public class ByteArrayUtil {
     return new String(hex);
 
   }
-  /**
-       * Check whether some part or whole of two byte arrays is equal, for <code>length</code> bytes starting at some
-       * offset.
-       *
-       * @param a1
-       * @param a1Offset
-       * @param a2
-       * @param a2Offset
-       * @param length
-       *
-       * @return <code>true</code> or <code>false</code>
-       */
-      public static boolean equals(byte[] a1, int a1Offset, byte[] a2, int a2Offset, int length) {
-          if (a1.length < a1Offset + length || a2.length < a2Offset + length)
-              return false;
-          while (length-- > 0)
-              if (a1[a1Offset++] != a2[a2Offset++])
-                  return false;
-          return true;
-      }
 
   /**
-     * Fills the given array with array.length new instances of the given class.
-     * @return the array
-     */
-    public static <T> T[] fill(T[] array, Class<T> c) throws ReflectiveOperationException {
-      for (int i = 0; i < array.length; i++) {
-        array[i] = c.getDeclaredConstructor().newInstance();
-      }
-      return array;
-    }
+   * Check whether some part or whole of two byte arrays is equal, for <code>length</code> bytes
+   * starting at some offset.
+   *
+   * @return <code>true</code> or <code>false</code>
+   */
+  public static boolean equals(byte[] a1, int a1Offset, byte[] a2, int a2Offset, int length) {
+    if (a1.length < a1Offset + length || a2.length < a2Offset + length)
+      return false;
+    while (length-- > 0)
+      if (a1[a1Offset++] != a2[a2Offset++])
+        return false;
+    return true;
+  }
 
-    public static String toHexString(@NotNull byte[] bytes, int digitGrouping, String groupDelimiter) {
-      if (bytes == null || bytes.length == 0)
-        return "";
-      char[] hexChars = toHexString(bytes).toCharArray();
-      StringBuilder buf = new StringBuilder(bytes.length*3);
-      for (int i = 0; i < hexChars.length; i++) {
-        buf.append(hexChars[i]);
-        if (i < hexChars.length-1 && i % digitGrouping == (digitGrouping-1))
-          buf.append(groupDelimiter);
-      }
-      return buf.toString();
+  /**
+   * Fills the given array with array.length new instances of the given class.
+   *
+   * @return the array
+   */
+  public static <T> T[] fill(T[] array, Class<T> c) throws ReflectiveOperationException {
+    for (int i = 0; i < array.length; i++) {
+      array[i] = c.getDeclaredConstructor().newInstance();
     }
+    return array;
+  }
+
+  /**
+   * Approximation of libsodium's <code>sodium_memzero</code>. For us in Javaland it looks like
+   * <code>fill(array, (byte) 0)</code>
+   *
+   * @param array to zero out.
+   * @see <a href="https://download.libsodium.org/doc/helpers/memory_management.html#zeroing-memory">Libsodium
+   * Zeroing Memory</a>
+   */
+  public static void java_memzero(byte[] array) {
+    for (int i = 0, len = array.length; i < len; i++)
+      array[i] = (byte) 0;
+  }
+
+
+  public static String toHexString(@NotNull byte[] bytes, int digitGrouping, String groupDelimiter) {
+    if (bytes == null || bytes.length == 0)
+      return "";
+    char[] hexChars = toHexString(bytes).toCharArray();
+    StringBuilder buf = new StringBuilder(bytes.length * 3);
+    for (int i = 0; i < hexChars.length; i++) {
+      buf.append(hexChars[i]);
+      if (i < hexChars.length - 1 && i % digitGrouping == (digitGrouping - 1))
+        buf.append(groupDelimiter);
+    }
+    return buf.toString();
+  }
 
   @Nullable
   public static String loggable(byte[] bytes) {
@@ -315,10 +325,10 @@ public class ByteArrayUtil {
    * Splits a byte array at any identified items in the delimiterset. This is particularly helpful
    * when splitting on a set of whitespace.
    *
-   * @param src             the array to split
-   * @param delimiterset    the byte array set that contains items to split on
-   * @return a list of byte arrays from {@code src} now not containing any of the items
-   * in {@code delimiterset}
+   * @param src          the array to split
+   * @param delimiterset the byte array set that contains items to split on
+   * @return a list of byte arrays from {@code src} now not containing any of the items in {@code
+   * delimiterset}
    */
   public static List<byte[]> splitOnWhitespace(byte[] src, byte[] delimiterset) {
     int src_length = src.length;
@@ -334,7 +344,7 @@ public class ByteArrayUtil {
     byte[] delimiters = new byte[delimiter_length];
     System.arraycopy(_delimiters, 0, delimiters, 0, delimiter_length);
 
-    if(delimiter_length == 1) {
+    if (delimiter_length == 1) {
       return split(src, delimiters);
     }
 
@@ -343,12 +353,12 @@ public class ByteArrayUtil {
     int idx = 0;
     int lastSplitEnd = 0;
     while (idx < src_length) {
-      for(byte b : delimiters) {
+      for (byte b : delimiters) {
         byte sb = src[idx];
         if (sb == b) {
           // copy the last region of bytes into "parts", copyOfRange is happy with zero-sized ranges
           byte[] bytes = Arrays.copyOfRange(src, lastSplitEnd, idx);
-          if(bytes.length != 0) { // ignore empty copies
+          if (bytes.length != 0) { // ignore empty copies
             parts.add(bytes);
           }
           lastSplitEnd = idx + 1;
@@ -365,6 +375,7 @@ public class ByteArrayUtil {
     }
     return parts;
   }
+
   /**
    * Splits a byte array at each occurrence of a pattern. If the pattern is found at the beginning
    * or end of the array the result will have a leading or trailing zero-length array. The delimiter
@@ -452,69 +463,65 @@ public class ByteArrayUtil {
   }
 
   /**
-     * Does this byte array begin with match array content?
-     *
-     * @param array Byte array to examine
-     * @param offset An offset into the <code>source</code> array
-     * @param prefix  Byte array to locate in <code>source</code>
-     * @return true If the starting bytes are equal
-     */
-    public static boolean startsWith(byte[] array, int offset, byte[] prefix) {
+   * Does this byte array begin with match array content?
+   *
+   * @param array  Byte array to examine
+   * @param offset An offset into the <code>source</code> array
+   * @param prefix Byte array to locate in <code>source</code>
+   * @return true If the starting bytes are equal
+   */
+  public static boolean startsWith(byte[] array, int offset, byte[] prefix) {
 
-        if (prefix.length > (array.length - offset)) {
-            return false;
-        }
-
-        for (int i = 0; i < prefix.length; i++) {
-            if (array[offset + i] != prefix[i]) {
-                return false;
-            }
-        }
-        return true;
+    if (prefix.length > (array.length - offset)) {
+      return false;
     }
 
-
-    /**
-     * Tests if the bytes ends with the specified suffix.
-     *
-     * @param bytes
-     * @param suffix
-     * @return
-     */
-    public static boolean endsWith(byte[] bytes, byte[] suffix) {
-        if (null == suffix || null == bytes || bytes.length < suffix.length) return false;
-        int length = bytes.length - suffix.length;
-        for (int i = suffix.length - 1; i >= 0; i--) {
-            if (bytes[length + i] != suffix[i]) return false;
-        }
-        return true;
+    for (int i = 0; i < prefix.length; i++) {
+      if (array[offset + i] != prefix[i]) {
+        return false;
+      }
     }
+    return true;
+  }
+
 
   /**
-       * Does this byte array end with suffix array content?
-       *
-       * @param tv Byte array to examine
-       * @param toffset An offset into the <code>tv</code> array
-       * @param ov  Byte array to locate in <code>tv</code>
-       * @param ooffset An offset into the <code>ov</code> array
-       * @param len the number of bytes to compare.
-       * @return true If the starting bytes are equal
-       */
-        public static boolean endsWith(byte[] tv, int toffset, byte[] ov, int ooffset, int len) {
-           // Note: toffset, ooffset, or len might be near -1>>>1.
-           if ((ooffset < 0) || (toffset < 0) ||
-                (toffset > (long)tv.length - len) ||
-                (ooffset > (long)ov.length - len)) {
-               return false;
-           }
-             while (len-- > 0) {
-                 if (tv[toffset++] != ov[ooffset++]) {
-                     return false;
-                 }
-             }
+   * Tests if the bytes ends with the specified suffix.
+   */
+  public static boolean endsWith(byte[] bytes, byte[] suffix) {
+    if (null == suffix || null == bytes || bytes.length < suffix.length) return false;
+    int length = bytes.length - suffix.length;
+    for (int i = suffix.length - 1; i >= 0; i--) {
+      if (bytes[length + i] != suffix[i]) return false;
+    }
+    return true;
+  }
 
-            return true;
+  /**
+   * Does this byte array end with suffix array content?
+   *
+   * @param tv      Byte array to examine
+   * @param toffset An offset into the <code>tv</code> array
+   * @param ov      Byte array to locate in <code>tv</code>
+   * @param ooffset An offset into the <code>ov</code> array
+   * @param len     the number of bytes to compare.
+   * @return true If the starting bytes are equal
+   */
+  public static boolean endsWith(byte[] tv, int toffset, byte[] ov, int ooffset, int len) {
+    // Note: toffset, ooffset, or len might be near -1>>>1.
+    if ((ooffset < 0) || (toffset < 0) ||
+        (toffset > (long) tv.length - len) ||
+        (ooffset > (long) ov.length - len)) {
+      return false;
+    }
+    while (len-- > 0) {
+      if (tv[toffset++] != ov[ooffset++]) {
+        return false;
       }
+    }
+
+    return true;
+  }
 
   /**
    * Scan through an array of bytes to find the first occurrence of a specific value.
@@ -605,7 +612,7 @@ public class ByteArrayUtil {
 
   public static int stripLeft(byte[] s, byte[] stripChars, int right) {
     for (int left = 0; left < right; left++) {
-      if (Bytes.indexOf(stripChars,s[left]) < 0) {
+      if (Bytes.indexOf(stripChars, s[left]) < 0) {
         return left;
       }
     }
@@ -613,19 +620,21 @@ public class ByteArrayUtil {
   }
 
   /**
-   * Get a copy of an array, with first matching leading bytes contained in {@code target} stripped.
+   * Get a copy of an array, with first matching leading bytes contained in {@code target}
+   * stripped.
    *
    * @param input  array to copy. Must not be null.
    * @param target any of the bytes to exclude from copy.
-   * @return returns a copy of {@code input} excluding first leading matching bytes in {@code target}.
+   * @return returns a copy of {@code input} excluding first leading matching bytes in {@code
+   * target}.
    */
   public static byte[] lstrip(byte[] input, byte[] target) {
-     if(!startsWith(input, target)) {
-       return Arrays.copyOf(input, input.length);
-     }
-     // Leftmost non-whitespace character: cannot exceed length
-     int left = stripLeft(input, target, input.length);
-     return Arrays.copyOfRange(input, left, input.length);
+    if (!startsWith(input, target)) {
+      return Arrays.copyOf(input, input.length);
+    }
+    // Leftmost non-whitespace character: cannot exceed length
+    int left = stripLeft(input, target, input.length);
+    return Arrays.copyOfRange(input, left, input.length);
   }
 
   /**
@@ -720,52 +729,52 @@ public class ByteArrayUtil {
    * Returns a copy of the input array stripped of any leading zero bytes.
    */
   public static int[] stripLeadingZeroInts(int val[]) {
-      int vlen = val.length;
-      int keep;
+    int vlen = val.length;
+    int keep;
 
-      // Find first nonzero byte
-      for (keep = 0; keep < vlen && val[keep] == 0; keep++)
-          ;
-      return java.util.Arrays.copyOfRange(val, keep, vlen);
+    // Find first nonzero byte
+    for (keep = 0; keep < vlen && val[keep] == 0; keep++)
+      ;
+    return java.util.Arrays.copyOfRange(val, keep, vlen);
   }
 
   /**
-   * Returns the input array stripped of any leading zero bytes.
-   * Since the source is trusted the copying may be skipped.
+   * Returns the input array stripped of any leading zero bytes. Since the source is trusted the
+   * copying may be skipped.
    */
   public static int[] trustedStripLeadingZeroInts(int val[]) {
-      int vlen = val.length;
-      int keep;
+    int vlen = val.length;
+    int keep;
 
-      // Find first nonzero byte
-      for (keep = 0; keep < vlen && val[keep] == 0; keep++)
-          ;
-      return keep == 0 ? val : java.util.Arrays.copyOfRange(val, keep, vlen);
+    // Find first nonzero byte
+    for (keep = 0; keep < vlen && val[keep] == 0; keep++)
+      ;
+    return keep == 0 ? val : java.util.Arrays.copyOfRange(val, keep, vlen);
   }
 
   /**
    * Returns a copy of the input array stripped of any leading zero bytes.
    */
   public static int[] stripLeadingZeroBytes(byte a[], int off, int len) {
-      int indexBound = off + len;
-      int keep;
+    int indexBound = off + len;
+    int keep;
 
-      // Find first nonzero byte
-      for (keep = off; keep < indexBound && a[keep] == 0; keep++)
-          ;
+    // Find first nonzero byte
+    for (keep = off; keep < indexBound && a[keep] == 0; keep++)
+      ;
 
-      // Allocate new array and copy relevant part of input array
-      int intLength = ((indexBound - keep) + 3) >>> 2;
-      int[] result = new int[intLength];
-      int b = indexBound - 1;
-      for (int i = intLength-1; i >= 0; i--) {
-          result[i] = a[b--] & 0xff;
-          int bytesRemaining = b - keep + 1;
-          int bytesToTransfer = Math.min(3, bytesRemaining);
-          for (int j=8; j <= (bytesToTransfer << 3); j += 8)
-              result[i] |= ((a[b--] & 0xff) << j);
-      }
-      return result;
+    // Allocate new array and copy relevant part of input array
+    int intLength = ((indexBound - keep) + 3) >>> 2;
+    int[] result = new int[intLength];
+    int b = indexBound - 1;
+    for (int i = intLength - 1; i >= 0; i--) {
+      result[i] = a[b--] & 0xff;
+      int bytesRemaining = b - keep + 1;
+      int bytesToTransfer = Math.min(3, bytesRemaining);
+      for (int j = 8; j <= (bytesToTransfer << 3); j += 8)
+        result[i] |= ((a[b--] & 0xff) << j);
+    }
+    return result;
   }
 
 
