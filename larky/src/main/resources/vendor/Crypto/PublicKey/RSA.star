@@ -604,7 +604,9 @@ def _import_pkcs1_public(encoded, *kwargs):
 
 
 def _import_subjectPublicKeyInfo(encoded, *kwargs):
-
+    result = _JCrypto.PublicKey.import_DER(encoded, kwargs[0])
+    return None, _construct(result)
+    print(binascii.hexlify(encoded))
     algoid, encoded_key, params = _expand_subject_public_key_info(encoded)
     if algoid != _oid or params != None:
         return 'ValueError: No RSA subjectPublicKeyInfo', None
@@ -612,6 +614,8 @@ def _import_subjectPublicKeyInfo(encoded, *kwargs):
 
 
 def _import_x509_cert(encoded, *kwargs):
+    result = _JCrypto.PublicKey.import_DER(encoded, kwargs[0])
+    return None, _construct(result)
     sp_info = _extract_subject_public_key_info(encoded)
     return _import_subjectPublicKeyInfo(sp_info)
 
