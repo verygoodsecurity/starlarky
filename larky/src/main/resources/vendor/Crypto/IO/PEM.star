@@ -101,8 +101,7 @@ def decode(pem_data, passphrase=None):
 
     # Removes spaces and slit on lines
     lines = pem_data.replace(" ", '')
-    lines = re.split(r'(\s|\x0B|\r?\n)+', lines)
-
+    lines = re.split(r'(?:\s|\x0B|\r?\n)+', lines)
     # Decrypts, if necessary
     if lines[1].startswith('Proc-Type:4,ENCRYPTED'):
         if not passphrase:
@@ -137,12 +136,17 @@ def decode(pem_data, passphrase=None):
         # else:
         #     raise ValueError("Unsupport PEM encryption algorithm (%s)." % algo)
         lines = lines[2:]
+        # TODO(mahmoudimus) remove me (👇) when algos implemented
+        objdec = None
+        enc_flag = True
     else:
         objdec = None
+        enc_flag = False
 
     # Decode body
     data = a2b_base64(''.join(lines[1:-1]))
-    enc_flag = False
+    # TODO(mahmoudimus): remove comment (👇) when algos implemented
+    #enc_flag = False
     if objdec:
         if padding:
             data = unpad(objdec.decrypt(data), objdec.block_size)

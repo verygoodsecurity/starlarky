@@ -37,6 +37,7 @@ load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
+load("@vendor//Crypto/IO/PEM", PEM="PEM")
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
 load("@vendor//Crypto/Math/Primality", test_probable_prime="test_probable_prime", generate_probable_prime="generate_probable_prime", COMPOSITE="COMPOSITE")
@@ -580,10 +581,10 @@ def _import_pkcs1_private(encoded, *kwargs):
     # }
     #
     # Version ::= INTEGER
-    der = DerSequence().decode(encoded, nr_elements=9, only_ints_expected=True, failOnOnlyInts=False)
+    der = DerSequence().decode(encoded, nr_elements=9, only_ints_expected=True, errors=False)
     # TODO(Hack)...until I introduce safetywrap
     if not der:
-        return "failedonints", None
+        return "failed", None
     if der.__getitem__(0) != 0:
         return 'ValueError: No PKCS#1 encoding of an RSA private key', None
     return None, _construct(der.__getslice__(1,6) + [
@@ -596,15 +597,15 @@ def _import_pkcs1_public(encoded, *kwargs):
     #           modulus INTEGER, -- n
     #           publicExponent INTEGER -- e
     # }
-    der = DerSequence().decode(encoded, nr_elements=2, only_ints_expected=True, failOnOnlyInts=False)
+    der = DerSequence().decode(encoded, nr_elements=2, only_ints_expected=True, errors=False)
     # TODO(Hack)...until I introduce safetywrap
     if not der:
-        return "failedonints", None
+        return "failed", None
     return None, _construct(der._seq)
 
 
 def _import_subjectPublicKeyInfo(encoded, *kwargs):
-    result = _JCrypto.PublicKey.import_DER(encoded, kwargs[0])
+    result = _JCrypto.PublicKey.import_keyDER(encoded, kwargs[0])
     return None, _construct(result)
     print(binascii.hexlify(encoded))
     algoid, encoded_key, params = _expand_subject_public_key_info(encoded)
@@ -614,7 +615,7 @@ def _import_subjectPublicKeyInfo(encoded, *kwargs):
 
 
 def _import_x509_cert(encoded, *kwargs):
-    result = _JCrypto.PublicKey.import_DER(encoded, kwargs[0])
+    result = _JCrypto.PublicKey.import_keyDER(encoded, kwargs[0])
     return None, _construct(result)
     sp_info = _extract_subject_public_key_info(encoded)
     return _import_subjectPublicKeyInfo(sp_info)
@@ -724,9 +725,22 @@ def _import_key(extern_key, passphrase=None):
 
     if extern_key.startswith(bytes([0x2d, 0x2d, 0x2d, 0x2d, 0x2d])):
         # This is probably a PEM encoded key.
-        # (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
-        result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
-        return _construct(result)
+        # result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
+        # return _construct(result)
+        # [10009650922319323069803079573274165970579185090127568126860948226706532161412468049945146845321486910355660772093076859316010597108858810676816273210356613, 65537, 485384906711183128855977339271942558470797415451201786886248889397948627629708179660048199702198930888752799597253915886594933821519461147610835828000825, 109486538119839518563492128520614562694068174030916365997574385489384951663139, 91423576763046116639172268615227635722663558665590792917584550933135061811767, 19805061107571007563044705551475187361598754225024722988988921457394745450021]
+
+        (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
+        # print("xxxx: ", der, marker, enc_flag)
+        #if enc_flag or "PRIVATE" in marker:
+        if enc_flag:
+            result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
+            #result = _JCrypto.PublicKey.import_keyDER(der, passphrase)
+            return _construct(result)
+            # err, result = _import_keyDER(extern_key, passphrase)
+            # return result
+        else:
+            result = _JCrypto.PublicKey.import_keyDER(der, passphrase)
+            return _construct(result)
 
     if extern_key.startswith(bytes([0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61, 0x20])):
         # This is probably an OpenSSH key
