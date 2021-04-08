@@ -57,7 +57,28 @@ public class ByteArrayUtil {
       hex[j * 2 + 1] = HEX_CHARS[v & 0x0F];
     }
     return new String(hex);
+
   }
+  /**
+       * Check whether some part or whole of two byte arrays is equal, for <code>length</code> bytes starting at some
+       * offset.
+       *
+       * @param a1
+       * @param a1Offset
+       * @param a2
+       * @param a2Offset
+       * @param length
+       *
+       * @return <code>true</code> or <code>false</code>
+       */
+      public static boolean equals(byte[] a1, int a1Offset, byte[] a2, int a2Offset, int length) {
+          if (a1.length < a1Offset + length || a2.length < a2Offset + length)
+              return false;
+          while (length-- > 0)
+              if (a1[a1Offset++] != a2[a2Offset++])
+                  return false;
+          return true;
+      }
 
   /**
      * Fills the given array with array.length new instances of the given class.

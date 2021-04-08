@@ -40,7 +40,7 @@ load("@stdlib//builtins","builtins")
 
 def read_int4(data):
     if len(data) < 4:
-        fail(" ValueError(\"Insufficient data\")")
+        fail("ValueError: Insufficient data")
     value = struct.unpack(">I", data[:4])[0]
     return value, data[4:]
 
@@ -48,7 +48,7 @@ def read_int4(data):
 def read_bytes(data):
     size, data = read_int4(data)
     if len(data) < size:
-        fail(" ValueError(\"Insufficient data (V)\")")
+        fail('ValueError: Insufficient data (V)')
     return data[:size], data[size:]
 
 
@@ -60,7 +60,7 @@ def read_string(data):
 def check_padding(pad):
     for v, x in enumerate(pad):
         if bord(x) != ((v + 1) & 0xFF):
-            fail(" ValueError(\"Incorrect padding\")")
+            fail("ValueError: Incorrect padding")
 
 
 def import_openssh_private_generic(data, password):
@@ -80,7 +80,7 @@ def import_openssh_private_generic(data, password):
     number_of_keys, data = read_int4(data)
 
     if number_of_keys != 1:
-        fail(" ValueError(\"We only handle 1 key at a time\")")
+        fail('ValueError: We only handle 1 key at a time')
 
     _, data = read_string(data)             # Public key
     encrypted, data = read_bytes(data)
@@ -95,15 +95,15 @@ def import_openssh_private_generic(data, password):
         decrypted = encrypted
     else:
         if (ciphername, kdfname) != ('aes256-ctr', 'bcrypt'):
-            fail(" ValueError(\"Unsupported encryption scheme %s/%s\" % (ciphername, kdfname))")
+            fail("ValueError: Unsupported encryption scheme %s/%s" % (ciphername, kdfname))
 
         salt, kdfoptions = read_bytes(kdfoptions)
         iterations, kdfoptions = read_int4(kdfoptions)
 
         if len(salt) != 16:
-            fail(" ValueError(\"Incorrect salt length\")")
+            fail("ValueError: Incorrect salt length")
         if kdfoptions:
-            fail(" ValueError(\"Too much data in kdfoptions\")")
+            fail("ValueError: Too much data in kdfoptions")
 
         pwd_sha512 = SHA512.new(password).digest()
         # We need 32+16 = 48 bytes, therefore 2 bcrypt outputs are sufficient
@@ -120,7 +120,7 @@ def import_openssh_private_generic(data, password):
                 strxor(acc, out, output=acc)
             stripes.append(acc[:24])
 
-        result = bytes(r"", encoding='utf-8').join([bchr(a)+bchr(b) for (a, b) in zip(*stripes)])
+        result = bytearray(r"", encoding='utf-8').join([bchr(a)+bchr(b) for (a, b) in zip(*stripes)])
 
         cipher = AES.new(result[:32],
                          AES.MODE_CTR,
@@ -131,7 +131,7 @@ def import_openssh_private_generic(data, password):
     checkint1, decrypted = read_int4(decrypted)
     checkint2, decrypted = read_int4(decrypted)
     if checkint1 != checkint2:
-        fail(" ValueError(\"Incorrect checksum\")")
+        fail('ValueError: Incorrect checksum')
     ssh_name, decrypted = read_string(decrypted)
 
     return ssh_name, decrypted

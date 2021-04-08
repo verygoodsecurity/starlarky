@@ -626,7 +626,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey5))
     _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey6))
     _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey7))
-    # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey8))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey8))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey9))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey10))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey11))

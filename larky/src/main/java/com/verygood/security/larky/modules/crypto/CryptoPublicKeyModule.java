@@ -4,6 +4,7 @@ import com.google.common.flogger.FluentLogger;
 
 import com.verygood.security.larky.modules.crypto.Util.CryptoUtils;
 import com.verygood.security.larky.modules.types.LarkyByte;
+import com.verygood.security.larky.modules.types.LarkyByteArray;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
@@ -21,7 +22,6 @@ import net.starlark.java.eval.Tuple;
 
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
-import org.bouncycastle.asn1.pkcs.RSAPublicKey;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
@@ -34,6 +34,7 @@ import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
 import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
+import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.BCRSAPrivateCrtKey;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.BCRSAPublicKey;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.KeyFactorySpi;
@@ -70,7 +71,9 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.HashMap;
 import java.util.Map;
@@ -346,7 +349,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       if(pemObj == null) throw Starlark.errorf("Could not extract PEM encoded object!");
       char[] passChars = Starlark.isNullOrNone(passphrase)
           ? "".toCharArray()
-          : ((String) passphrase).toCharArray();
+          : new String(((LarkyByteLike) passphrase).getBytes()).toCharArray();
       keyParts = PEM_parse(pemObj, passChars);
     } catch (IOException | CryptoException e) {
       throw new EvalException(e.getMessage(), e);
@@ -377,7 +380,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       returnVal.put("algo", keyPair.getPublic().getAlgorithm().getBytes(StandardCharsets.UTF_8));
       // TODO what happens if keyPair algorithm is not RSA?
       if(keyPair.getPublic().getAlgorithm().equals("RSA")) {
-        BCRSAPublicKey rsaPublicKey = convertPublicKey(obj_.getPublicKeyInfo());
+        RSAPublicKey rsaPublicKey = convertPublicKey(obj_.getPublicKeyInfo());
         BCRSAPrivateCrtKey bcKey = (BCRSAPrivateCrtKey) converter.getPrivateKey(obj_.getPrivateKeyInfo());
         buildPublicParameters(rsaPublicKey, returnVal);
         buildPrivateKeyParameters(bcKey, returnVal);
@@ -385,13 +388,21 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       }
       throw Starlark.errorf("Unknown conversion algorithm for algo: %s", keyPair.getPublic().getAlgorithm());
     } else if(obj instanceof SubjectPublicKeyInfo) {
-      BCRSAPublicKey rsaPublicKey = convertPublicKey((SubjectPublicKeyInfo) obj);
+      RSAPublicKey rsaPublicKey = convertPublicKey((SubjectPublicKeyInfo) obj);
       buildPublicParameters(rsaPublicKey, returnVal);
       return returnVal;
     }
 
     // if we are here we are probably looking at a private key
     BCRSAPrivateCrtKey pk = (BCRSAPrivateCrtKey) CryptoUtils.loadPrivateKey(obj, passChars);
+    RSAPublicKey publicKey;
+    try {
+      publicKey = (RSAPublicKey) KeyFactory.getInstance("RSA").generatePublic(
+                     new RSAPublicKeySpec(pk.getModulus(), pk.getPublicExponent()));
+    } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+     throw new EvalException(e.getMessage(), e);
+    }
+    buildPublicParameters(publicKey, returnVal);
     buildPrivateKeyParameters(pk, returnVal);
     return returnVal;
   }
@@ -404,19 +415,19 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     returnVal.put("d", bcKey.getPrivateExponent().toByteArray());
   }
 
-  private void buildPublicParameters(BCRSAPublicKey rsaPublicKey, Map<String, byte[]> returnVal) throws PEMException {
-    returnVal.put("n",rsaPublicKey.getModulus().toByteArray());
-    returnVal.put("e",rsaPublicKey.getPublicExponent().toByteArray());
+  private void buildPublicParameters(RSAPublicKey rsaPublicKey, Map<String, byte[]> returnVal) throws PEMException {
+    returnVal.put("n", rsaPublicKey.getModulus().toByteArray());
+    returnVal.put("e", rsaPublicKey.getPublicExponent().toByteArray());
 
   }
 
-  private BCRSAPublicKey convertPublicKey(SubjectPublicKeyInfo pk) throws CryptoException, IOException {
+  private RSAPublicKey convertPublicKey(SubjectPublicKeyInfo pk) throws CryptoException, IOException {
     ASN1ObjectIdentifier algOid = pk.getAlgorithm().getAlgorithm();
     try {
       KeyFactory kf = KeyFactory.getInstance(algOid.getId());
 
       if(RSAUtil.isRsaOid(algOid)) {
-        RSAPublicKey rsa = RSAPublicKey.getInstance(pk.parsePublicKey());
+        org.bouncycastle.asn1.pkcs.RSAPublicKey rsa = org.bouncycastle.asn1.pkcs.RSAPublicKey.getInstance(pk.parsePublicKey());
         //RSAPublicKeySpec pubSpec = new RSAPublicKeySpec(rsa.getModulus(), rsa.getPublicExponent());
         BCRSAPublicKey publicKey = (BCRSAPublicKey) new KeyFactorySpi().generatePublic(pk);
         return publicKey;
@@ -586,5 +597,17 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     byte[] bytes;
     bytes = rsaEngine.processBlock(plainText, 0, plainText.length);
     return bytes;
+  }
+
+  @StarlarkMethod(
+      name = "OpenSSH_import", parameters = {
+      @Param(name = "data", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "password", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+  }, useStarlarkThread = true)
+  public LarkyByteLike openssh_import(LarkyByteLike data, LarkyByteLike password, StarlarkThread thread) throws EvalException {
+
+    byte[] bytes = null;
+    OpenSSHPublicKeyUtil.parsePublicKey(data.getBytes());
+    return LarkyByteArray.builder(thread).setSequence(bytes).build();
   }
 }

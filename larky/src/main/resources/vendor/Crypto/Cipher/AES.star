@@ -38,73 +38,32 @@ Module's constants for the modes of operation supported with AES:
 load("@stdlib//sys", sys="sys")
 
 load("@vendor//Crypto/Cipher", _create_cipher="_create_cipher")
-load("@vendor//Crypto/Util/_raw_api", load_pycryptodome_raw_lib="load_pycryptodome_raw_lib", VoidPointer="VoidPointer", SmartPointer="SmartPointer", c_size_t="c_size_t", c_uint8_ptr="c_uint8_ptr")
-
-load("@vendor//Crypto/Util", _cpu_features="_cpu_features")
 load("@vendor//Crypto/Random", get_random_bytes="get_random_bytes")
 
-
-_cproto = """
-        int AES_start_operation(const uint8_t key[],
-                                size_t key_len,
-                                void **pResult);
-        int AES_encrypt(const void *state,
-                        const uint8_t *in,
-                        uint8_t *out,
-                        size_t data_len);
-        int AES_decrypt(const void *state,
-                        const uint8_t *in,
-                        uint8_t *out,
-                        size_t data_len);
-        int AES_stop_operation(void *state);
-        """
-
-
-# Load portable AES
-_raw_aes_lib = load_pycryptodome_raw_lib("Crypto.Cipher._raw_aes",
-                                         _cproto)
-
-# Try to load AES with AES NI instructions
-try:
-    _raw_aesni_lib = None
-    if _cpu_features.have_aes_ni():
-        _raw_aesni_lib = load_pycryptodome_raw_lib("Crypto.Cipher._raw_aesni",
-                                                   _cproto.replace("AES",
-                                                                   "AESNI"))
-# _raw_aesni may not have been compiled in
-except OSError:
-    pass
 
 
 def _create_base_cipher(dict_parameters):
     """This method instantiates and returns a handle to a low-level
     base cipher. It will absorb named parameters in the process."""
 
-    use_aesni = dict_parameters.pop("use_aesni", True)
-
     try:
         key = dict_parameters.pop("key")
     except KeyError:
-        fail(" TypeError(\"Missing 'key' parameter\")")
+        fail("TypeError: Missing 'key' parameter")
 
     if len(key) not in key_size:
-        fail(" ValueError(\"Incorrect AES key length (%d bytes)\" % len(key))")
+        fail("ValueError: Incorrect AES key length (%d bytes)" % len(key))
 
-    if use_aesni and _raw_aesni_lib:
-        start_operation = _raw_aesni_lib.AESNI_start_operation
-        stop_operation = _raw_aesni_lib.AESNI_stop_operation
-    else:
-        start_operation = _raw_aes_lib.AES_start_operation
-        stop_operation = _raw_aes_lib.AES_stop_operation
+    start_operation = _raw_aes_lib.AES_start_operation
+    stop_operation = _raw_aes_lib.AES_stop_operation
 
     cipher = VoidPointer()
     result = start_operation(c_uint8_ptr(key),
                              c_size_t(len(key)),
                              cipher.address_of())
     if result:
-        fail(" ValueError(\"Error %X while instantiating the AES cipher\"\n                         % result)")
+        fail("ValueError: Error %X while instantiating the AES cipher" % result)
     return SmartPointer(cipher.get(), stop_operation)
-self._create_base_cipher = _create_base_cipher
 
 
 def _derive_Poly1305_key_pair(key, nonce):
@@ -114,16 +73,15 @@ def _derive_Poly1305_key_pair(key, nonce):
     """
 
     if len(key) != 32:
-        fail(" ValueError(\"Poly1305 with AES requires a 32-byte key\")")
+        fail("ValueError: Poly1305 with AES requires a 32-byte key")
 
     if nonce == None:
         nonce = get_random_bytes(16)
     elif len(nonce) != 16:
-        fail(" ValueError(\"Poly1305 with AES requires a 16-byte nonce\")")
+        fail("ValueError: Poly1305 with AES requires a 16-byte nonce")
 
     s = new(key[:16], MODE_ECB).encrypt(nonce)
     return key[16:], s, nonce
-self._derive_Poly1305_key_pair = _derive_Poly1305_key_pair
 
 
 def new(key, mode, *args, **kwargs):

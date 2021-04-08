@@ -20,28 +20,7 @@
 
 load("@vendor//Crypto/Util/py3compat", bord="bord")
 
-load("@vendor//Crypto/Util/_raw_api", load_pycryptodome_raw_lib="load_pycryptodome_raw_lib", VoidPointer="VoidPointer", SmartPointer="SmartPointer", create_string_buffer="create_string_buffer", get_raw_buffer="get_raw_buffer", c_size_t="c_size_t", c_uint8_ptr="c_uint8_ptr")
 
-_raw_sha512_lib = load_pycryptodome_raw_lib("Crypto.Hash._SHA512",
-                        """
-                        int SHA512_init(void **shaState,
-                                        size_t digest_size);
-                        int SHA512_destroy(void *shaState);
-                        int SHA512_update(void *hs,
-                                          const uint8_t *buf,
-                                          size_t len);
-                        int SHA512_digest(const void *shaState,
-                                          uint8_t *digest,
-                                          size_t digest_size);
-                        int SHA512_copy(const void *src, void *dst);
-
-                        int SHA512_pbkdf2_hmac_assist(const void *inner,
-                                            const void *outer,
-                                            const uint8_t *first_digest,
-                                            uint8_t *final_digest,
-                                            size_t iterations,
-                                            size_t digest_size);
-                        """)
 def SHA512Hash(data, truncate):
     """A SHA-512 hash object (possibly in its truncated version SHA-512/224 or
     SHA-512/256.
