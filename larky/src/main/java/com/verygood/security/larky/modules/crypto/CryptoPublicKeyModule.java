@@ -28,6 +28,7 @@ import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.pkcs.RSAPrivateKey;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.CryptoException;
@@ -99,6 +100,7 @@ import java.util.stream.Collectors;
 //import com.verygood.security.larky.modules.crypto.Util.PEMExportUtils;
 
 public class CryptoPublicKeyModule implements StarlarkValue {
+
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
   public static final CryptoPublicKeyModule INSTANCE = new CryptoPublicKeyModule();
 
@@ -663,6 +665,10 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       throw Starlark.errorf("Unknown conversion algorithm for algo: %s", keyPair.getPublic().getAlgorithm());
     } else if (obj instanceof SubjectPublicKeyInfo) {
       RSAPublicKey rsaPublicKey = convertPublicKey((SubjectPublicKeyInfo) obj);
+      buildPublicParameters(rsaPublicKey, returnVal);
+      return returnVal;
+    } else if (obj instanceof X509CertificateHolder) {
+      RSAPublicKey rsaPublicKey = convertPublicKey(((X509CertificateHolder)obj).getSubjectPublicKeyInfo());
       buildPublicParameters(rsaPublicKey, returnVal);
       return returnVal;
     }

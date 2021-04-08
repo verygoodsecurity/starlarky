@@ -654,8 +654,8 @@ def _testsuite():
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey15))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_key))
         # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_exportKey))
-        # _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v1))
-        # _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v3))
+        _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v1))
+        _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v3))
         # _suite.addTest(unittest.FunctionTestCase(TestImport_2048_test_import_openssh_public)
         # )
         # _suite.addTest(
@@ -664,6 +664,7 @@ def _testsuite():
         # _suite.addTest(
         #     unittest.FunctionTestCase(TestImport_2048_test_import_openssh_private_password)
         # )
+
     return _suite
 
 
