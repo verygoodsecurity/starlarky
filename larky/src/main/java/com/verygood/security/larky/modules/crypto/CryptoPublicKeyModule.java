@@ -24,6 +24,7 @@ import net.starlark.java.eval.Tuple;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.CryptoException;
@@ -88,6 +89,7 @@ import java.util.stream.Collectors;
 //import com.verygood.security.larky.modules.crypto.Util.PEMExportUtils;
 
 public class CryptoPublicKeyModule implements StarlarkValue {
+
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
   public static final CryptoPublicKeyModule INSTANCE = new CryptoPublicKeyModule();
 
@@ -191,7 +193,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     KeyFactory kf = KeyFactory.getInstance("RSA");
     List<BigInteger> r = new ArrayList<>();
     try {
-      privParams  = (RSAPrivateCrtKeyParameters) PrivateKeyFactory.createKey(externKey);
+      privParams = (RSAPrivateCrtKeyParameters) PrivateKeyFactory.createKey(externKey);
       r.addAll(ImmutableList.of(
           privParams.getModulus(),
           privParams.getPublicExponent(),
@@ -246,21 +248,22 @@ public class CryptoPublicKeyModule implements StarlarkValue {
 
   /**
    * parse private key from pkcs8 format
-   * @param pkcs8PrivateKey   encoded base64 pkcs8 fromat private key
+   *
+   * @param pkcs8PrivateKey encoded base64 pkcs8 fromat private key
    * @return RSAPrivateKey
    */
   public static KeyPair fromPkcs8(String pkcs8PrivateKey) {
-      byte[] bytes = Base64.getDecoder().decode(pkcs8PrivateKey);
-      try {
-        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-        PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(bytes);
-        return new KeyPair(
-            keyFactory.generatePublic(pkcs8EncodedKeySpec),
-            keyFactory.generatePrivate(pkcs8EncodedKeySpec)
-        );
-      } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-          throw new SecurityException(e);
-      }
+    byte[] bytes = Base64.getDecoder().decode(pkcs8PrivateKey);
+    try {
+      KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+      PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(bytes);
+      return new KeyPair(
+          keyFactory.generatePublic(pkcs8EncodedKeySpec),
+          keyFactory.generatePrivate(pkcs8EncodedKeySpec)
+      );
+    } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+      throw new SecurityException(e);
+    }
   }
 
   private KeyPair extractKeyPair(Object pemKeyPairObject, JcaPEMKeyConverter converter, String passPhrase) throws IOException, SignatureException {
@@ -376,11 +379,11 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     StringWriter sWrt = new StringWriter();
     try (JcaPEMWriter pemWriter = new JcaPEMWriter(sWrt)) {
       PEMEncryptor encryptor = Starlark.isNullOrNone(passphrase)
-        ? null
-        : new JcePEMEncryptorBuilder(PKCS8Generator.PBE_SHA1_3DES.toString())
-                  .setSecureRandom(secureRandom)
-                  .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-                  .build(((String)passphrase).toCharArray());
+          ? null
+          : new JcePEMEncryptorBuilder(PKCS8Generator.PBE_SHA1_3DES.toString())
+          .setSecureRandom(secureRandom)
+          .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+          .build(((String) passphrase).toCharArray());
       JcaMiscPEMGenerator gen = new JcaMiscPEMGenerator(publicKey, encryptor);
       PemObject pemObject = gen.generate();
       pemWriter.writeObject(pemObject);
@@ -427,7 +430,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     Map<String, byte[]> keyParts;
     try {
       Object pemObj = CryptoUtils.extractPEMObject(decodable.getBytes(StandardCharsets.UTF_8));
-      if(pemObj == null) throw Starlark.errorf("Could not extract PEM encoded object!");
+      if (pemObj == null) throw Starlark.errorf("Could not extract PEM encoded object!");
       char[] passChars = Starlark.isNullOrNone(passphrase)
           ? "".toCharArray()
           : new String(((LarkyByteLike) passphrase).getBytes()).toCharArray();
@@ -440,7 +443,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
         .put("n", StarlarkInt.of(new BigInteger(keyParts.get("n"))))
         .put("e", StarlarkInt.of(new BigInteger(keyParts.get("e"))));
 
-    if(keyParts.containsKey("d")) {
+    if (keyParts.containsKey("d")) {
       rval.put("d", StarlarkInt.of(new BigInteger(keyParts.get("d"))))
           .put("p", StarlarkInt.of(new BigInteger(keyParts.get("p"))))
           .put("q", StarlarkInt.of(new BigInteger(keyParts.get("q"))))
@@ -460,7 +463,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       KeyPair keyPair = converter.getKeyPair(obj_);
       returnVal.put("algo", keyPair.getPublic().getAlgorithm().getBytes(StandardCharsets.UTF_8));
       // TODO what happens if keyPair algorithm is not RSA?
-      if(keyPair.getPublic().getAlgorithm().equals("RSA")) {
+      if (keyPair.getPublic().getAlgorithm().equals("RSA")) {
         RSAPublicKey rsaPublicKey = convertPublicKey(obj_.getPublicKeyInfo());
         BCRSAPrivateCrtKey bcKey = (BCRSAPrivateCrtKey) converter.getPrivateKey(obj_.getPrivateKeyInfo());
         buildPublicParameters(rsaPublicKey, returnVal);
@@ -468,8 +471,12 @@ public class CryptoPublicKeyModule implements StarlarkValue {
         return returnVal;
       }
       throw Starlark.errorf("Unknown conversion algorithm for algo: %s", keyPair.getPublic().getAlgorithm());
-    } else if(obj instanceof SubjectPublicKeyInfo) {
+    } else if (obj instanceof SubjectPublicKeyInfo) {
       RSAPublicKey rsaPublicKey = convertPublicKey((SubjectPublicKeyInfo) obj);
+      buildPublicParameters(rsaPublicKey, returnVal);
+      return returnVal;
+    } else if (obj instanceof X509CertificateHolder) {
+      RSAPublicKey rsaPublicKey = convertPublicKey(((X509CertificateHolder)obj).getSubjectPublicKeyInfo());
       buildPublicParameters(rsaPublicKey, returnVal);
       return returnVal;
     }
@@ -479,9 +486,9 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     RSAPublicKey publicKey;
     try {
       publicKey = (RSAPublicKey) KeyFactory.getInstance("RSA").generatePublic(
-                     new RSAPublicKeySpec(pk.getModulus(), pk.getPublicExponent()));
+          new RSAPublicKeySpec(pk.getModulus(), pk.getPublicExponent()));
     } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-     throw new EvalException(e.getMessage(), e);
+      throw new EvalException(e.getMessage(), e);
     }
     buildPublicParameters(publicKey, returnVal);
     buildPrivateKeyParameters(pk, returnVal);
@@ -507,7 +514,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     try {
       KeyFactory kf = KeyFactory.getInstance(algOid.getId());
 
-      if(RSAUtil.isRsaOid(algOid)) {
+      if (RSAUtil.isRsaOid(algOid)) {
         org.bouncycastle.asn1.pkcs.RSAPublicKey rsa = org.bouncycastle.asn1.pkcs.RSAPublicKey.getInstance(pk.parsePublicKey());
         //RSAPublicKeySpec pubSpec = new RSAPublicKeySpec(rsa.getModulus(), rsa.getPublicExponent());
         BCRSAPublicKey publicKey = (BCRSAPublicKey) new KeyFactorySpi().generatePublic(pk);

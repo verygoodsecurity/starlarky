@@ -631,9 +631,7 @@ def _testsuite():
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey10))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey11))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey12))
-    _suite.addTest(
-        unittest.FunctionTestCase(ImportKeyTests_test_import_key_windows_cr_lf)
-    )
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_key_windows_cr_lf))
     _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_empty))
     _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey1))
     _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey2))
@@ -651,8 +649,8 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey15))
     _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_key))
     # _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_exportKey))
-    # _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v1))
-    # _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v3))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v1))
+    _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v3))
     # _suite.addTest(unittest.FunctionTestCase(TestImport_2048_test_import_openssh_public)
     # )
     # _suite.addTest(
