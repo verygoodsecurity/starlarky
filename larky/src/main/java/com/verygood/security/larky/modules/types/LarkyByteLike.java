@@ -150,7 +150,10 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
           "  Maximum number of splits to do.\n" +
           "  -1 (the default value) means no limit.",
       parameters = {
-          @Param(name = "bytes", doc = "The bytes to split on."),
+          @Param(name = "bytes", doc = "The bytes to split on.", allowedTypes = {
+              @ParamType(type=LarkyByteLike.class),
+              @ParamType(type=NoneType.class)
+          }, defaultValue="None"),
           @Param(
             name = "maxsplit",
             allowedTypes = {

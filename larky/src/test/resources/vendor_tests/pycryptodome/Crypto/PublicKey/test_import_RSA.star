@@ -642,8 +642,8 @@ def _testsuite():
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey2))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey3))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey4))
-    if True:
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey5))
+    if True:
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey7))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey8))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey9))
