@@ -46,28 +46,6 @@ def _EVP_BytesToKey(data, salt, key_len):
 
 
 def decode(pem_data, passphrase=None):
-    """
-    Decode a PEM block into binary.
-
-        Args:
-          pem_data (string):
-            The PEM block.
-          passphrase (byte string):
-            If given and the PEM block is encrypted,
-            the key will be derived from the passphrase.
-
-        Returns:
-          A tuple with the binary data, the marker string, and a boolean to
-          indicate if decryption was performed.
-
-        Raises:
-          ValueError: if decoding fails, if the PEM file is encrypted and no passphrase has
-                      been provided or if the passphrase is incorrect.
-
-    """
-
-
-def decode(pem_data, passphrase=None):
     """Decode a PEM block into binary.
 
     Args:
