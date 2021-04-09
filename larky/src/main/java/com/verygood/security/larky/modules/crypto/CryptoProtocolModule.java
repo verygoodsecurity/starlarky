@@ -2,7 +2,7 @@ package com.verygood.security.larky.modules.crypto;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import com.verygood.security.larky.modules.types.LarkyByte;
+import com.verygood.security.larky.modules.types.LarkyByteArray;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
@@ -40,7 +40,7 @@ public class CryptoProtocolModule implements StarlarkValue {
         dkLen.toIntUnchecked(),
         count.toIntUnchecked(),
         hashAlgo);
-    return LarkyByte.builder(thread).setSequence(results).build();
+    return LarkyByteArray.builder(thread).setSequence(results).build();
   }
 
 

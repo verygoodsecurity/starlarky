@@ -378,7 +378,7 @@ def _RsaKey(**kwargs):
 
     self.export_key = export_key
     # Backward compatibility
-    # self.exportKey = export_key
+    self.exportKey = export_key
     self.publickey = public_key
 
     # Methods defined in PyCrypto that we don't support anymore
@@ -730,8 +730,8 @@ def _import_key(extern_key, passphrase=None):
         # [10009650922319323069803079573274165970579185090127568126860948226706532161412468049945146845321486910355660772093076859316010597108858810676816273210356613, 65537, 485384906711183128855977339271942558470797415451201786886248889397948627629708179660048199702198930888752799597253915886594933821519461147610835828000825, 109486538119839518563492128520614562694068174030916365997574385489384951663139, 91423576763046116639172268615227635722663558665590792917584550933135061811767, 19805061107571007563044705551475187361598754225024722988988921457394745450021]
 
         (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
-        # print("xxxx: ", der, marker, enc_flag)
-        #if enc_flag or "PRIVATE" in marker:
+        print("xxxx: ", der, marker, enc_flag)
+#        if enc_flag or "PRIVATE" in marker:
         if enc_flag:
             result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
             #result = _JCrypto.PublicKey.import_keyDER(der, passphrase)
