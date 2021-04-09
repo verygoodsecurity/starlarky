@@ -87,7 +87,7 @@ import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.RSAPrivateKeySpec;
+import java.security.spec.RSAPrivateCrtKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -194,6 +194,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       components = decodeDERKey(externKey.getBytes(), passphrase);
     } catch (SignatureException | NoSuchAlgorithmException | IOException e) {
       throw new EvalException("ValueError: " + e.getMessage(), e);
+    }
+    // TODO(mahmoudimus): hack until I get this module to return key pairs
+    //  basically, pycrypto needs p mod (q^-1) and discards the crt co-efficient
+    //  but we need to be able to re-construct a PEM encoded key, so we will
+    //  have to just lop this thing off if it's a private key. ew.
+    if(components.size() > 2) {
+      components.remove(components.size()-1); // remove the last item..
     }
     return StarlarkList.copyOf(
         thread.mutability(),
@@ -320,7 +327,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
           privParams.getPrivateExponent(),
           privParams.getPrimeP(),
           privParams.getPrimeQ(),
-          privParams.getPrimeP().modInverse(privParams.getPrimeQ())));
+          privParams.getPrimeP().modInverse(privParams.getPrimeQ()),
+          privParams.getCrtCoefficient()));
     } catch (IOException e) {
      failures.add(e);
     }
@@ -340,7 +348,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
          crtPrivParams.getExponent(),
          crtPrivParams.getP(),
          crtPrivParams.getQ(),
-         crtPrivParams.getP().modInverse(crtPrivParams.getQ())));
+         crtPrivParams.getP().modInverse(crtPrivParams.getQ()),
+         crtPrivParams.getQInv()));
     } catch (IllegalArgumentException e) {
       failures.add(e);
     }
@@ -464,7 +473,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
         privParams.getPrivateExponent(),
         privParams.getPrime1(),
         privParams.getPrime2(),
-        privParams.getPrime1().modInverse(privParams.getPrime2())));
+        privParams.getPrime1().modInverse(privParams.getPrime2()),
+        privParams.getCoefficient()));
     return r;
   }
 
@@ -589,9 +599,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       passphrase = Arrays.copyOf(decoded.array(), decoded.limit());
     }
     SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
-    List<Throwable> failures = new ArrayList<>();
-    PublicKey publicKey = null;
-    PrivateKey privateKey = null;
+    PublicKey publicKey;
+    PrivateKey privateKey;
     List<BigInteger> r;
     PEMEncryptor encryptor = Starlark.isNullOrNone(passphrase)
         ? null
@@ -621,9 +630,15 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       try {
         privateKey = KeyFactory
             .getInstance("RSA")
-            .generatePrivate(
-                new RSAPrivateKeySpec(
-                    r.get(0), r.get(2)));
+            .generatePrivate(new RSAPrivateCrtKeySpec(
+                r.get(0), // n
+                r.get(1), // e
+                r.get(2), // d
+                r.get(3), // p
+                r.get(4), // q
+                r.get(2).remainder(r.get(3).subtract(BigInteger.ONE)), // d % (p-1)
+                r.get(2).remainder(r.get(4).subtract(BigInteger.ONE)), // d % (q-1)
+                r.get(6))); // crt coefficient (note we skip 5th which is u)
        gen = new JcaMiscPEMGenerator(privateKey, encryptor);
       } catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
         throw new EvalException(e.getMessage(), e);
