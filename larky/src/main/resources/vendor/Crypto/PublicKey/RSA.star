@@ -370,7 +370,8 @@ def _RsaKey(**kwargs):
         if format == 'DER':
             return binary_key
         if format == 'PEM':
-            pem_str = _JCrypto.IO.PEM.encode(binary_key, key_type, passphrase, randfunc)
+            # pem_str = _JCrypto.IO.PEM.encode(binary_key, key_type, passphrase, randfunc)
+            pem_str = PEM.encode(binary_key, key_type, passphrase, randfunc)
             return tobytes(pem_str.strip())
 
         fail(('ValueError: Unknown key format "{}". ' +
@@ -718,8 +719,8 @@ def _import_key(extern_key, passphrase=None):
 
     if extern_key.startswith(bytes([0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x4f, 0x50, 0x45, 0x4e, 0x53, 0x53, 0x48, 0x20, 0x50, 0x52, 0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59])):
         text_encoded = tostr(extern_key)
-        # openssh_encoded, marker, enc_flag = PEM.decode(text_encoded, passphrase)
-        openssh_encoded = _JCrypto.PublicKey.PEM_decode(text_encoded, passphrase)
+        openssh_encoded, marker, enc_flag = PEM.decode(text_encoded, passphrase)
+        # openssh_encoded = _JCrypto.PublicKey.PEM_decode(text_encoded, passphrase)
         result = _import_openssh_private_rsa(openssh_encoded, passphrase)
         return result
 

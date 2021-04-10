@@ -27,6 +27,9 @@ import net.starlark.java.eval.Tuple;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,6 +60,19 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
         .map(Byte::toUnsignedInt)
         .mapToInt(i -> i)
         .toArray();
+  }
+
+  public char[] toCharArray(Charset cs) {
+    CharBuffer charBuffer = cs.decode(ByteBuffer.wrap(getBytes()));
+    return Arrays.copyOf(charBuffer.array(), charBuffer.limit());
+  }
+
+  public char[] toCharArray() {
+    // this is the right default charset for char arrays
+    // specially in a password context
+    // see: https://stackoverflow.com/questions/8881291/why-is-char-preferred-over-string-for-passwords
+    // as well as: https://stackoverflow.com/a/9670279/133514
+    return toCharArray(StandardCharsets.ISO_8859_1);
   }
 
   @Override

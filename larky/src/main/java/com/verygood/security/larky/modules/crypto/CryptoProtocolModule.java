@@ -27,15 +27,16 @@ public class CryptoProtocolModule implements StarlarkValue {
 
   @StarlarkMethod(
       name = "PBKDF1", parameters = {
-      @Param(name = "password", allowedTypes = { @ParamType(type = String.class)}),
+      @Param(name = "password", allowedTypes = { @ParamType(type = LarkyByteLike.class)}),
       @Param(name = "salt", allowedTypes = { @ParamType(type = LarkyByteLike.class)}),
       @Param(name = "dkLen", allowedTypes = { @ParamType(type = StarlarkInt.class)}),
       @Param(name = "count", allowedTypes = { @ParamType(type = StarlarkInt.class)}, defaultValue = "1000"),
-      @Param(name = "hashAlgo", allowedTypes = { @ParamType(type = String.class)}, defaultValue = "SHA1"),
+      @Param(name = "hashAlgo", allowedTypes = { @ParamType(type = String.class)}, defaultValue = "'SHA1'"),
   }, useStarlarkThread = true)
-  public LarkyByteLike PBKDF1(String password, LarkyByteLike salt, StarlarkInt dkLen, StarlarkInt count, String hashAlgo, StarlarkThread thread) throws EvalException {
+  public LarkyByteLike PBKDF1(LarkyByteLike password, LarkyByteLike salt, StarlarkInt dkLen, StarlarkInt count, String hashAlgo, StarlarkThread thread) throws EvalException {
+
     byte[] results = PBKDF1(
-        password,
+        password.toCharArray(),
         salt.getBytes(),
         dkLen.toIntUnchecked(),
         count.toIntUnchecked(),
@@ -45,14 +46,16 @@ public class CryptoProtocolModule implements StarlarkValue {
 
 
   @VisibleForTesting
-  byte[] PBKDF1(String password, byte[] salt, int dkLen_, int count, String hashAlgo) throws EvalException {
+  byte[] PBKDF1(char[] password, byte[] salt, int dkLen_, int count, String hashAlgo) throws EvalException {
     int dkLen = dkLen_ * BITS_IN_BYTES;
     GeneralDigest digest;
     switch(hashAlgo.toUpperCase()) {
       case "MD5":
         digest = new MD5Digest();
+        break;
       case "SHA256":
         digest = new SHA256Digest();
+        break;
       case "SHA1":
       case "SHA":
         // fallthrough
@@ -60,7 +63,7 @@ public class CryptoProtocolModule implements StarlarkValue {
         digest = new SHA1Digest();
     }
     PKCS5S1ParametersGenerator keygen = new PKCS5S1ParametersGenerator(digest);
-    keygen.init(PKCS5S1ParametersGenerator.PKCS5PasswordToBytes(password.toCharArray()), salt, count);
+    keygen.init(PKCS5S1ParametersGenerator.PKCS5PasswordToBytes(password), salt, count);
     KeyParameter cipherParams = (KeyParameter) keygen.generateDerivedParameters(dkLen);
     return cipherParams.getKey();
   }

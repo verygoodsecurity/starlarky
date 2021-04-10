@@ -18,12 +18,17 @@ import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.pkcs.RSAPrivateKey;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
 import org.bouncycastle.crypto.util.AlgorithmIdentifierFactory;
 import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.crypto.util.PrivateKeyInfoFactory;
+import org.bouncycastle.crypto.util.PublicKeyFactory;
+import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMEncryptor;
 import org.bouncycastle.openssl.PKCS8Generator;
 import org.bouncycastle.openssl.jcajce.JcaMiscPEMGenerator;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
@@ -32,6 +37,7 @@ import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8EncryptorBuilder;
 import org.bouncycastle.openssl.jcajce.JcePEMEncryptorBuilder;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.OutputEncryptor;
+import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.bouncycastle.util.io.pem.PemObjectGenerator;
 
 import java.io.IOException;
@@ -313,23 +319,61 @@ public class CryptoIOModule implements StarlarkValue {
             @Param(name = "randfunc"),
         }, useStarlarkThread = true)
     public String encode(LarkyByteLike exportable, String marker, Object passPhraseO, Object randfunc, StarlarkThread thread) throws EvalException {
-
-      /**
-       * Note this PyCrypto comment:
-       * - only supports 3DES for PEM encoding encryption (DES-EDE3-CBC)
-       * - Encrypt with PKCS#7 padding
-       */
       char[] passphrase = null;
-      if (!Starlark.isNullOrNone(passPhraseO)) {
-        byte[] bytes = ((LarkyByteLike) passPhraseO).getBytes();
-        CharBuffer decoded = StandardCharsets.ISO_8859_1.decode(ByteBuffer.wrap(bytes));
-        passphrase = Arrays.copyOf(decoded.array(), decoded.limit());
+       if (!Starlark.isNullOrNone(passPhraseO)) {
+         byte[] bytes = ((LarkyByteLike) passPhraseO).getBytes();
+         CharBuffer decoded = StandardCharsets.ISO_8859_1.decode(ByteBuffer.wrap(bytes));
+         passphrase = Arrays.copyOf(decoded.array(), decoded.limit());
+       }
+      try {
+        return doEncode(exportable.getBytes(), marker, passphrase);
+      } catch (IOException e) {
+        throw new EvalException(e.getMessage(), e);
       }
+      finally {
+        if(passphrase != null) {
+          Arrays.fill(passphrase, (char) 0);
+        }
+      }
+    }
+
+    private String doEncode(byte[] exportable, String marker, char[] passphrase) throws EvalException, IOException {
+      /**
+         * Note this PyCrypto comment:
+         * - only supports 3DES for PEM encoding encryption (DES-EDE3-CBC)
+         * - Encrypt with PKCS#7 padding
+         */
+
       SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
-      OutputEncryptor encryptor = null;
+      OutputEncryptor pkcs8encryptor = null;
+      PEMEncryptor pemEncryptor = null;
+      PrivateKey privateKey = null;
+      PemObjectGenerator gen = null;
+      PrivateKeyInfo privateKeyInfo = null;
+      AsymmetricKeyParameter key = null;
+/*
+  encryptor = (passphrase == null)
+                ? null
+                : new JceOpenSSLPKCS8EncryptorBuilder(PKCSObjectIdentifiers.des_EDE3_CBC)
+                                .setRandom(secureRandom)
+                                .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+                                .setPasssword(passphrase)
+                                .build() ; // TODO(fixme): possible char[] (16) vs (8)
+try {
+        privateKey = KeyFactory.getInstance("RSA")
+            .generatePrivate(new PKCS8EncodedKeySpec(exportable));
+      } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+        throw new EvalException(e.getMessage(), e);
+      }
+
+ */
       if (passphrase != null) {
+        pemEncryptor = new JcePEMEncryptorBuilder("DES-EDE3-CBC")
+              .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+              .setSecureRandom(secureRandom)
+              .build(passphrase);
         try {
-          encryptor = new JceOpenSSLPKCS8EncryptorBuilder(PKCSObjectIdentifiers.des_EDE3_CBC)
+          pkcs8encryptor = new JceOpenSSLPKCS8EncryptorBuilder(PKCSObjectIdentifiers.des_EDE3_CBC)
               .setRandom(secureRandom)
               .setProvider(BouncyCastleProvider.PROVIDER_NAME)
               .setPasssword(passphrase)
@@ -338,28 +382,101 @@ public class CryptoIOModule implements StarlarkValue {
           throw new EvalException(e.getMessage(), e);
         }
       }
+      switch (marker) {
+        case "PUBLIC KEY":
+          SubjectPublicKeyInfo pkinfo = SubjectPublicKeyInfoFactory
+              .createSubjectPublicKeyInfo(
+                  PublicKeyFactory.createKey(exportable));
+          gen = new JcaMiscPEMGenerator(pkinfo, pemEncryptor);
+          break;
+        case "RSA PRIVATE KEY":
+          if(passphrase != null) {
+            RSAPrivateKey rsa = RSAPrivateKey.getInstance(exportable);
+            gen = new JcaMiscPEMGenerator(
+                PrivateKeyInfoFactory.createPrivateKeyInfo(
+                    new RSAPrivateCrtKeyParameters(
+                        rsa.getModulus(),
+                        rsa.getPublicExponent(),
+                        rsa.getPrivateExponent(),
+                        rsa.getPrime1(),
+                        rsa.getPrime2(),
+                        rsa.getExponent1(),
+                        rsa.getExponent2(),
+                        rsa.getCoefficient()
+                    )
+                ),
+                pemEncryptor);
+            break;
+          }
+          // PrivateKeyInfo && PKCSObjectIdentifiers.rsaEncryption
+          key = PrivateKeyFactory.createKey(exportable);
+          privateKeyInfo = PrivateKeyInfoFactory.createPrivateKeyInfo(key);
+          /*
+            PrivateKeyInfo info = (PrivateKeyInfo)o;
+            ASN1ObjectIdentifier algOID = info.getPrivateKeyAlgorithm().getAlgorithm();
+           */
+          gen = new JcaMiscPEMGenerator(privateKeyInfo, pemEncryptor);
+          break;
+        case "PRIVATE KEY":
+          PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(exportable);
+          key = PrivateKeyFactory.createKey(exportable);
+          privateKeyInfo = PrivateKeyInfoFactory.createPrivateKeyInfo(key);
+//          RSAPrivateCrtKeyParameters priv = (RSAPrivateCrtKeyParameters) PrivateKeyFactory.createKey(exportable);
+//          AlgorithmIdentifier algID = AlgorithmIdentifierFactory.generateEncryptionAlgID(
+//              PKCSObjectIdentifiers.des_EDE3_CBC,
+//              -1,
+//              secureRandom);
+//          privateKeyInfo = new PrivateKeyInfo(algID, new RSAPrivateKey(
+//              priv.getModulus(), priv.getPublicExponent(),
+//              priv.getExponent(),
+//              priv.getP(),
+//              priv.getQ(),
+//              priv.getDP(),
+//              priv.getDQ(),
+//              priv.getQInv()),
+//              null);
+          gen = new PKCS8Generator(privateKeyInfo, pkcs8encryptor);
+          //new MiscPEMGenerator(KeyFactory.getInstance("RSA").generatePrivate(spec)).generate();
+          //new JcaMiscPEMGenerator(PrivateKeyFactory.createKey(pkinfo)).generate();
+          //gen = new JcaMiscPEMGenerator(privateKeyInfo, pemEncryptor);
+          // // PrivateKeyInfo && No algorithm
+          break;
+        case "ENCRYPTED PRIVATE KEY":
+//          PKCS8EncryptedPrivateKeyInfoBuilder pkcs8EncryptedPrivateKeyInfoBuilder =
+//                              new JcaPKCS8EncryptedPrivateKeyInfoBuilder(privateKey);
+//          PKCS8EncryptedPrivateKeyInfo pkcs8EncryptedPrivateKeyInfo = pkcs8EncryptedPrivateKeyInfoBuilder
+//                  .build(new JcePKCSPBEOutputEncryptorBuilder(PKCSObjectIdentifiers.pbeWithSHA1AndDES_CBC)
+//                          .setProvider(new BouncyCastleProvider())
+//                          .build(passphrase);
+          PKCS8EncryptedPrivateKeyInfo pkcs8EncryptedPrivateKeyInfo = new PKCS8EncryptedPrivateKeyInfo(exportable);
+          gen = new JcaMiscPEMGenerator(pkcs8EncryptedPrivateKeyInfo, pemEncryptor);
+          break;
 
-      PrivateKey privateKey;
+
+      }
+
+
+      //PrivateKey privateKey;
       StringWriter outputStream = new StringWriter();
-      PemObjectGenerator gen;
-      try(JcaPEMWriter pemWriter = new JcaPEMWriter(outputStream))  {
-        try {
-          AsymmetricKeyParameter key = PrivateKeyFactory.createKey(exportable.getBytes());
-          PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.createPrivateKeyInfo(key);
-          gen = new PKCS8Generator(privateKeyInfo, encryptor);
-        } catch(IllegalArgumentException e ) {
-          privateKey = KeyFactory.getInstance("RSA")
-              .generatePrivate(new PKCS8EncodedKeySpec(exportable.getBytes()));
-
-          gen = new JcaMiscPEMGenerator(
-              privateKey,
-              new JcePEMEncryptorBuilder("DES-EDE3-CBC")
-                  .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-                  .setSecureRandom(secureRandom)
-                  .build(passphrase));
-        }
+      //PemObjectGenerator gen;
+      try (JcaPEMWriter pemWriter = new JcaPEMWriter(outputStream)) {
+//        try {
+//          AsymmetricKeyParameter key = PrivateKeyFactory.createKey(exportable.getBytes());
+//          PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.createPrivateKeyInfo(key);
+//          gen = new PKCS8Generator(privateKeyInfo, encryptor);
+//        } catch(IllegalArgumentException e ) {
+//          privateKey = KeyFactory.getInstance("RSA")
+//              .generatePrivate(new PKCS8EncodedKeySpec(exportable.getBytes()));
+//
+//          gen = new JcaMiscPEMGenerator(
+//              privateKey,
+//              new JcePEMEncryptorBuilder("DES-EDE3-CBC")
+//                  .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+//                  .setSecureRandom(secureRandom)
+//                  .build(passphrase));
+//        }
         pemWriter.writeObject(gen.generate());
-      } catch (IOException | InvalidKeySpecException | NoSuchAlgorithmException e) {
+      } catch (IOException e) {
         throw new EvalException(e.getMessage(), e);
       }
       return outputStream.toString();

@@ -2,6 +2,10 @@ package com.verygood.security.larky.modules.crypto;
 
 import static org.junit.Assert.assertArrayEquals;
 
+import com.google.common.primitives.Bytes;
+
+import com.verygood.security.larky.modules.utils.ByteArrayUtil;
+
 import net.starlark.java.eval.EvalException;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -59,11 +63,31 @@ public class CryptoProtocolModuleTest {
      *         self.assertEqual(res, t2b(v[4]))
      */
     byte[] bytes = CryptoProtocolModule.INSTANCE.PBKDF1(
-        "password",
+        "password".toCharArray(),
         t2b("78578E5A5D63CB06"),
         16,
         1000,
         "SHA");
     assertArrayEquals(bytes, t2b("DC19847E05C64D2FAF10EBFB4A3D2A20"));
+    byte[] key = CryptoProtocolModule.INSTANCE.PBKDF1(
+        "test".toCharArray(),
+        t2b("7876D1B9A17F7A0F"),
+        16,
+        1,
+        "MD5"
+    );
+    assertArrayEquals(key, t2b("ef0e5f0b7de47c31cc54db84a329784c".toUpperCase()));
+    byte[] joined = Bytes.concat(key, "test".getBytes(StandardCharsets.ISO_8859_1));
+    assertArrayEquals(joined, t2b("ef0e5f0b7de47c31cc54db84a329784c74657374"));
+    bytes = CryptoProtocolModule.INSTANCE.PBKDF1(
+        ByteArrayUtil.bytesToChars(joined, StandardCharsets.ISO_8859_1),
+        t2b("7876D1B9A17F7A0F"),
+        8,
+        1,
+        "MD5"
+    );
+    assertArrayEquals(bytes, t2b("785bbf1440a606b6".toUpperCase()));
+    key = Bytes.concat(key, bytes);
+    assertArrayEquals(key, t2b("ef0e5f0b7de47c31cc54db84a329784c785bbf1440a606b6".toUpperCase()));
   }
 }

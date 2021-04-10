@@ -421,6 +421,7 @@ def ImportKeyTests_testExportKey12():
     # PEM envelope, PKCS#8, old PEM encryption
     key = RSA.construct([n, e, d, p, q, pInv])
     outkey = key.export_key("PEM", "test", pkcs=8)
+    print(outkey)
     asserts.assert_that((tostr(outkey).find("4,ENCRYPTED") != -1)).is_true()
     asserts.assert_that((tostr(outkey).find("BEGIN PRIVATE KEY") != -1)).is_true()
     inkey = RSA.importKey(outkey, "test")

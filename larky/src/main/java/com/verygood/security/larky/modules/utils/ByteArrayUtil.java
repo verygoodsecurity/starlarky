@@ -9,6 +9,8 @@ import org.jetbrains.annotations.Nullable;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -100,6 +102,33 @@ public class ByteArrayUtil {
       array[i] = (byte) 0;
   }
 
+  public static byte[] charsToBytes(char[] chars) {
+    /*
+      byte[] toBytes(char[] chars) {
+        CharBuffer charBuffer = CharBuffer.wrap(chars);
+        ByteBuffer byteBuffer = StandardCharsets.UTF_8.encode(charBuffer);
+        byte[] bytes = Arrays.copyOfRange(byteBuffer.array(),
+                  byteBuffer.position(), byteBuffer.limit());
+        Arrays.fill(byteBuffer.array(), (byte) 0); // clear sensitive data
+        return bytes;
+      }
+     */
+    return charsToBytes(chars, StandardCharsets.UTF_8);
+  }
+
+  public static byte[] charsToBytes(char[] chars, Charset charset) {
+    final ByteBuffer byteBuffer = charset.encode(CharBuffer.wrap(chars));
+    return Arrays.copyOf(byteBuffer.array(), byteBuffer.limit());
+  }
+
+  public static char[] bytesToChars(byte[] bytes) {
+    return bytesToChars(bytes, StandardCharsets.UTF_8);
+  }
+
+  public static char[] bytesToChars(byte[] bytes, Charset charset) {
+    final CharBuffer charBuffer = charset.decode(ByteBuffer.wrap(bytes));
+    return Arrays.copyOf(charBuffer.array(), charBuffer.limit());
+  }
 
   public static String toHexString(@NotNull byte[] bytes, int digitGrouping, String groupDelimiter) {
     if (bytes == null || bytes.length == 0)

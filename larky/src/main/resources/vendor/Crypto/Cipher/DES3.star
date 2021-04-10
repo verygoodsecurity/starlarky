@@ -30,30 +30,31 @@ Module's constants for the modes of operation supported with Triple DES:
 :var MODE_OPENPGP:  :ref:`OpenPGP Mode <openpgp_mode>`
 :var MODE_EAX: :ref:`EAX Mode <eax_mode>`
 """
-
-load("@stdlib//sys", sys="sys")
-
-load("@vendor//Crypto/Cipher", _create_cipher="_create_cipher")
+load("@stdlib//larky", larky="larky")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@vendor//Crypto/Cipher", Cipher="Cipher")
 load("@vendor//Crypto/Util/py3compat", byte_string="byte_string", bchr="bchr", bord="bord", bstr="bstr")
-load("@vendor//Crypto/Util/_raw_api", load_pycryptodome_raw_lib="load_pycryptodome_raw_lib", VoidPointer="VoidPointer", SmartPointer="SmartPointer", c_size_t="c_size_t")
-load("@stdlib//builtins","builtins")
 
-_raw_des3_lib = load_pycryptodome_raw_lib(
-                    "Crypto.Cipher._raw_des3",
-                    """
-                    int DES3_start_operation(const uint8_t key[],
-                                             size_t key_len,
-                                             void **pResult);
-                    int DES3_encrypt(const void *state,
-                                     const uint8_t *in,
-                                     uint8_t *out,
-                                     size_t data_len);
-                    int DES3_decrypt(const void *state,
-                                     const uint8_t *in,
-                                     uint8_t *out,
-                                     size_t data_len);
-                    int DES3_stop_operation(void *state);
-                    """)
+
+MODE_ECB = 1
+MODE_CBC = 2
+MODE_CFB = 3
+MODE_OFB = 5
+MODE_CTR = 6
+MODE_OPENPGP = 7
+MODE_EAX = 9
+
+# Size of a data block (in bytes)
+block_size = 8
+# Size of a key (in bytes)
+key_size = (16, 24)
+
+
+def _parity_byte(key_byte):
+    parity = 1
+    for i in range(1, 8):
+        parity ^= (key_byte >> i) & 1
+    return (key_byte & 0xFE) | parity
 
 
 def adjust_key_parity(key_in):
@@ -68,20 +69,16 @@ def adjust_key_parity(key_in):
     :raises ValueError: if the TDES key is not 16 or 24 bytes long
     :raises ValueError: if the TDES key degenerates into Single DES
     """
-
-    def parity_byte(key_byte):
-        parity = 1
-        for i in range(1, 8):
-            parity ^= (key_byte >> i) & 1
-        return (key_byte & 0xFE) | parity
-
+    print("xxxxxx: ", key_in, len(key_in))
     if len(key_in) not in key_size:
-        fail(" ValueError(\"Not a valid TDES key\")")
+        fail("ValueError: Not a valid TDES key")
 
-    key_out = bytes(r"", encoding='utf-8').join([ bchr(parity_byte(bord(x))) for x in key_in ])
+    key_out = bytes(r"", encoding='utf-8').join(
+        [ bchr(_parity_byte(bord(x))) for x in key_in ]
+    )
 
     if key_out[:8] == key_out[8:16] or key_out[-16:-8] == key_out[-8:]:
-        fail(" ValueError(\"Triple DES key degenerates to single DES\")")
+        fail("ValueError: Triple DES key degenerates to single DES")
 
     return key_out
 
@@ -90,23 +87,24 @@ def _create_base_cipher(dict_parameters):
     """This method instantiates and returns a handle to a low-level base cipher.
     It will absorb named parameters in the process."""
 
-    try:
-        key_in = dict_parameters.pop("key")
-    except KeyError:
-        fail(" TypeError(\"Missing 'key' parameter\")")
+    if "key" not in dict_parameters:
+        fail("TypeError: Missing 'key' parameter")
 
+    key_in = dict_parameters.pop("key")
     key = adjust_key_parity(bstr(key_in))
 
-    start_operation = _raw_des3_lib.DES3_start_operation
-    stop_operation = _raw_des3_lib.DES3_stop_operation
-
-    cipher = VoidPointer()
-    result = start_operation(key,
-                             c_size_t(len(key)),
-                             cipher.address_of())
-    if result:
-        fail(" ValueError(\"Error %X while instantiating the TDES cipher\"\n                         % result)")
-    return SmartPointer(cipher.get(), stop_operation)
+    des3engine = _JCrypto.Cipher.DES3(key)
+    return des3engine
+    # start_operation = _JCrypto.Cipher.DES3.start_operation
+    # stop_operation = _raw_des3_lib.DES3_stop_operation
+    #
+    # cipher = VoidPointer()
+    # result = start_operation(key,
+    #                          c_size_t(len(key)),
+    #                          cipher.address_of())
+    # if result:
+    #     fail("ValueError: Error %X while instantiating the TDES cipher " % result)
+    # return SmartPointer(cipher.get(), stop_operation)
 
 
 def new(key, mode, *args, **kwargs):
@@ -169,18 +167,20 @@ def new(key, mode, *args, **kwargs):
     :Return: a Triple DES object, of the applicable mode.
     """
 
-    return _create_cipher(sys.modules[__name__], key, mode, *args, **kwargs)
+    return Cipher._create_cipher(DES3, key, mode, *args, **kwargs)
 
-MODE_ECB = 1
-MODE_CBC = 2
-MODE_CFB = 3
-MODE_OFB = 5
-MODE_CTR = 6
-MODE_OPENPGP = 7
-MODE_EAX = 9
 
-# Size of a data block (in bytes)
-block_size = 8
-# Size of a key (in bytes)
-key_size = (16, 24)
-
+DES3 = larky.struct(
+    adjust_key_parity=adjust_key_parity,
+    _create_base_cipher=_create_base_cipher,
+    MODE_ECB=MODE_ECB,
+    MODE_CBC=MODE_CBC,
+    MODE_CFB=MODE_CFB,
+    MODE_OFB=MODE_OFB,
+    MODE_CTR=MODE_CTR,
+    MODE_OPENPGP=MODE_OPENPGP,
+    MODE_EAX=MODE_EAX,
+    block_size=block_size,
+    key_size=key_size,
+    new=new
+)

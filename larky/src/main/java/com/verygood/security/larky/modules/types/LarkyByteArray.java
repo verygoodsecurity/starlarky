@@ -112,6 +112,9 @@ public final class LarkyByteArray extends LarkyByteLike implements HasBinary {
     setSequenceStorage(builder.sequence);
   }
 
+  public LarkyByte toLarkyByte() throws EvalException {
+    return LarkyByte.builder(this.currentThread).setSequence(this.getSequenceStorage()).build();
+  }
 
   @Override
   protected ByteLikeBuilder builder() {

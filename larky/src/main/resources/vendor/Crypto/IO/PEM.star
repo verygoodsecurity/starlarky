@@ -3,8 +3,11 @@ load("@stdlib//binascii",
      b2a_base64="b2a_base64",
      unhexlify="unhexlify",
      hexlify="hexlify")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//re", re="re")
+load("@vendor//Crypto/Random", get_random_bytes="get_random_bytes")
+load("@vendor//Crypto/Cipher/DES3", DES3="DES3")
 load("@vendor//Crypto/Hash/MD5", MD5="MD5")
 load("@vendor//Crypto/Util/Padding", pad="pad", unpad="unpad")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
@@ -35,6 +38,32 @@ def encode(data, marker, passphrase=None, randfunc=None):
         .. _OpenSSL: https://github.com/openssl/openssl/blob/master/include/openssl/pem.h
 
     """
+
+    if randfunc == None:
+        randfunc = get_random_bytes
+
+    out = "-----BEGIN %s-----\n" % marker
+    if passphrase:
+        # We only support 3DES for encryption
+        salt = randfunc(8)
+        key = _JCrypto.Protocol.PBKDF1(passphrase, salt, 16, 1, 'MD5')
+        key += _JCrypto.Protocol.PBKDF1(key + passphrase, salt, 8, 1, 'MD5')
+        objenc = DES3.new(key, DES3.MODE_CBC, salt)
+        out += "Proc-Type: 4,ENCRYPTED\nDEK-Info: DES-EDE3-CBC,%s\n\n" %\
+            tostr(hexlify(salt).upper())
+        # Encrypt with PKCS#7 padding
+        data = objenc.encrypt(pad(data, objenc.block_size))
+    elif passphrase != None:
+        fail("ValueError: Empty password")
+
+    # Each BASE64 line can take up to 64 characters (=48 bytes of data)
+    # b2a_base64 adds a new line character!
+    chunks = [tostr(b2a_base64(data[i:i + 48]))
+              for i in range(0, len(data), 48)]
+    out += "".join(chunks)
+    out += "-----END %s-----" % marker
+    return out
+
 
 def _EVP_BytesToKey(data, salt, key_len):
     d = [bytearray('', encoding='utf-8')]
