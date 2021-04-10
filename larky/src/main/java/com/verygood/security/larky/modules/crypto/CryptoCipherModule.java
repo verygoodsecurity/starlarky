@@ -176,7 +176,7 @@ public class CryptoCipherModule implements StarlarkValue {
    * @return
    */
   @StarlarkMethod(name = "DES3", parameters = {
-      @Param(name = "key", allowedTypes = {@ParamType(type = StarlarkInt.class)})
+      @Param(name = "key", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
   })
   public Engine DES3(LarkyByteLike key) throws EvalException {
     DESedeEngine deSede = new DESedeEngine();
