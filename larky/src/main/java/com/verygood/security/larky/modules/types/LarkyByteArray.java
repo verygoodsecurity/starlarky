@@ -48,18 +48,16 @@ public final class LarkyByteArray extends LarkyByteLike implements HasBinary {
           LarkyByteLike result = BinaryOperations.multiply(
               this,
               ((StarlarkInt) that).toIntUnchecked());
-          this.setSequenceStorage(result.getSequenceStorage());
-          return this;
+          return result;
         }
       case PLUS:
-        if (that instanceof LarkyByteLike) {
-          LarkyByteLike that_ = (LarkyByteLike) that;
+        if (that instanceof LarkyByteLike
+            || that instanceof StarlarkList)
+        {
           if (thisLeft) {
-            this.setSequenceStorage(BinaryOperations.add(this, that_));
-            return this;
+            return BinaryOperations.add(this, that);
           } else {
-            that_.setSequenceStorage(BinaryOperations.add(that_, this));
-            return that;
+            return BinaryOperations.add(that, this);
           }
         }
         // fallthrough
@@ -84,7 +82,7 @@ public final class LarkyByteArray extends LarkyByteLike implements HasBinary {
     public ByteLikeBuilder setSequence(@NotNull Sequence<?> seq) throws EvalException {
       try {
         sequence = StarlarkList.copyOf(
-            currentThread.mutability(),
+            currentThread != null ? currentThread.mutability() : null,
             Sequence.cast(seq, StarlarkInt.class, "could not cast!")
                 .stream()
                 .mapToInt(StarlarkInt::toIntUnchecked)

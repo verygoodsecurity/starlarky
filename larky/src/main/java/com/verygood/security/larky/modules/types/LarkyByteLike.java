@@ -543,14 +543,29 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
 
     /**
      * Add right to left (i.e. [1] + [2] = [1, 2])
+     * @return
      */
-    static public StarlarkList<StarlarkInt> add(LarkyByteLike left, LarkyByteLike right) throws EvalException {
+    static public LarkyByteLike add(Object left, Object right) throws EvalException {
+      LarkyByteLike left_ = toLarkyByteLike(left);
+      LarkyByteLike right_ = toLarkyByteLike(right);
+
       StarlarkList<StarlarkInt> seq;
       seq = StarlarkList.concat(
-          StarlarkList.immutableCopyOf(left.getSequenceStorage().getImmutableList()),
-          StarlarkList.immutableCopyOf(right.getSequenceStorage().getImmutableList()),
+          StarlarkList.immutableCopyOf(left_.getSequenceStorage().getImmutableList()),
+          StarlarkList.immutableCopyOf(right_.getSequenceStorage().getImmutableList()),
           null);
-      return seq;
+      return left_.builder().setSequence(seq).build();
+    }
+
+    private static LarkyByteLike toLarkyByteLike(Object item) throws EvalException {
+      if(item instanceof StarlarkList) {
+        Sequence<StarlarkInt> cast = Sequence.cast(
+            item,
+            StarlarkInt.class,
+            "Attempted to add list of non-Integer type to a bytearray");
+        return LarkyByteArray.builder(null).setSequence(cast).build();
+      }
+      return (LarkyByteLike) item;
     }
   }
 }
