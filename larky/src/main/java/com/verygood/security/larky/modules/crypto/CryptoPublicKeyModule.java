@@ -512,31 +512,6 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   }
 
   @StarlarkMethod(
-      name = "PKCS8_wrap", parameters = {
-      @Param(name = "binary_key", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
-      @Param(name = "oid", allowedTypes = {@ParamType(type = String.class)}),
-      @Param(name = "passphrase", allowedTypes = {
-          @ParamType(type = LarkyByteLike.class),
-          @ParamType(type = NoneType.class)
-      }),
-      @Param(name = "protection", allowedTypes = {@ParamType(type = String.class)})
-  }, useStarlarkThread = true)
-  public LarkyByteLike PKCS8_wrap(LarkyByteLike binaryKey, String oid, Object passphrase, String protection, StarlarkThread thread) throws EvalException {
-   /*
-      oid = 1.2.840.113549.1.1.1
-      oid = 1.2.840.113549.1.1.1
-      PBKDF2WithHMACSHA1AndDES-EDE3-CBC
-      MIIBOwIBAAJBAL8eJ5AKoIsjURpcEoGubZMxLD7+kT+TLr7UkvEtFrRhDDKMtuIIq19FrL4pUIMymPMSLBn3hJLe30Dw48GQM4UCAwEAAQJACUSDEp8RTe32ftq8IwG8Wojl5mAd1wFiIOrZ/Uv8b963WJOJiuQcVN29vxU5+My9GPZ7RA3hrDBEAoHUDPrIOQIhAPIPLz4dphiD9imAkivY31Rc5AfHJiQRA7XixTcjEkojAiEAyh/pJHks/Mlr+rdPNEpotBjfV4M4BkgGAA/ipcmaAjcCIQCHvhwwKVBLzzTscT2HeUdEeBMoiXXKJACAr3sJQJGxIQIgarRp+m1WSKV1MciwMaTOnbU7wxFs9DP1pva76lYBzgUCIQC9n0CnZCJ6IZYqSt0H5N7+Q+2Ro64nuwV/OSQfM6sBwQ==
-    */
-    byte[] hello_world = new byte[]{
-        (byte) 0x68, (byte) 0x65, (byte) 0x6c, (byte) 0x6c, (byte) 0x6f, //hello
-        (byte) 0x20,
-        (byte) 0x77, (byte) 0x6f, (byte) 0x72, (byte) 0x6c, (byte) 0x64 //world
-    };
-    return LarkyByte.builder(thread).setSequence(hello_world).build();
-  }
-
-  @StarlarkMethod(
       name = "PKCS8_unwrap", parameters = {
       @Param(name = "binary_key", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
       @Param(name = "oid", allowedTypes = {@ParamType(type = String.class)}),

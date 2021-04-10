@@ -351,12 +351,12 @@ def _RsaKey(**kwargs):
             else:  # PKCS#8
                 if format == 'PEM' and protection == None:
                     key_type = 'PRIVATE KEY'
-                    binary_key = _JCrypto.PublicKey.PKCS8_wrap(binary_key, _oid, None)
+                    binary_key = _JCrypto.IO.PKCS8.wrap(binary_key, _oid, None)
                 else:
                     key_type = 'ENCRYPTED PRIVATE KEY'
                     if not protection:
                         protection = 'PBKDF2WithHMACSHA1AndDES-EDE3-CBC'
-                    binary_key = _JCrypto.PublicKey.PKCS8_wrap(binary_key, _oid,
+                    binary_key = _JCrypto.IO.PKCS8.wrap(binary_key, _oid,
                                             passphrase, protection)
                     passphrase = None
         else:
@@ -370,11 +370,11 @@ def _RsaKey(**kwargs):
         if format == 'DER':
             return binary_key
         if format == 'PEM':
-            pem_str = _JCrypto.PublicKey.PEM_encode(binary_key, key_type, passphrase, randfunc)
+            pem_str = _JCrypto.IO.PEM.encode(binary_key, key_type, passphrase, randfunc)
             return tobytes(pem_str.strip())
 
-        fail('ValueError: Unknown key format "%s". ' +
-             'Cannot export the RSA key.' % format)
+        fail(('ValueError: Unknown key format "{}". ' +
+              'Cannot export the RSA key.').format(format))
 
     self.export_key = export_key
     # Backward compatibility
