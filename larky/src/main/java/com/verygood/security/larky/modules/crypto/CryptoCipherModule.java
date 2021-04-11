@@ -23,16 +23,8 @@ import org.bouncycastle.crypto.params.DESedeParameters;
 import org.bouncycastle.crypto.params.KeyParameter;
 import org.bouncycastle.crypto.params.ParametersWithIV;
 
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import lombok.Getter;
 
 public class CryptoCipherModule implements StarlarkValue {
@@ -51,7 +43,7 @@ public class CryptoCipherModule implements StarlarkValue {
     public LarkyBlockCipher(CBCBlockCipher blockCipher, Engine algo, byte[] initializationVector) {
       this.cbcBlockCipher = blockCipher;
       this.algo = algo;
-      this.params = new ParametersWithIV(algo.getParams(), initializationVector);
+      this.params = new ParametersWithIV(algo.getKeyParams(), initializationVector);
     }
 
     @StarlarkMethod(
@@ -74,7 +66,7 @@ public class CryptoCipherModule implements StarlarkValue {
     }
 
     private void operate(int mode, LarkyByteLike toprocess, BufferedBlockCipher cipher, byte[] out) throws EvalException {
-      cipher.init(mode == Cipher.ENCRYPT_MODE, this.algo.params);
+      cipher.init(mode == Cipher.ENCRYPT_MODE, this.params);
       byte[] bytes = toprocess.getBytes();
       int outputLen = cipher.processBytes(bytes, 0, bytes.length, out, 0);
       try {
@@ -94,33 +86,8 @@ public class CryptoCipherModule implements StarlarkValue {
     )
     public StarlarkInt decrypt(LarkyByteLike cipherText, LarkyByteArray output, StarlarkThread thread) throws EvalException {
       byte[] plainText = new byte[cipherText.size()];
-
-      if(!this.algo.getEngine().getAlgorithmName().equals("DES")) {
-        BufferedBlockCipher cipher = new BufferedBlockCipher(this.cbcBlockCipher);
-        operate(Cipher.DECRYPT_MODE, cipherText, cipher, plainText);
-      }
-      else {
-        Cipher cipher;
-        try {
-          cipher = Cipher.getInstance("DES/CBC/NoPadding");
-          int mks = Cipher.getMaxAllowedKeyLength("DES/CBC/NoPadding");
-          if (mks < 64) {
-            throw new IllegalArgumentException("Maximum key size for DES is " + mks + ". cryptography export restrictions?");
-          }
-        } catch (NoSuchPaddingException | NoSuchAlgorithmException e) {
-          throw new EvalException(e.getMessage(), e);
-        }
-
-        SecretKeySpec keyspec = new SecretKeySpec(this.algo.getParams().getKey(), "DES"); // !MAGIC
-
-        try {
-          cipher.init(Cipher.DECRYPT_MODE, keyspec, new IvParameterSpec(this.params.getIV()));
-          plainText = cipher.doFinal(cipherText.getBytes());
-
-        } catch (InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
-          throw new EvalException(e.getMessage(), e);
-        }
-      }
+      BufferedBlockCipher cipher = new BufferedBlockCipher(this.cbcBlockCipher);
+      operate(Cipher.DECRYPT_MODE, cipherText, cipher, plainText);
       output.setSequenceStorage(LarkyByte.builder(thread).setSequence(plainText).build());
       Arrays.fill(plainText, (byte) 0);
       return SUCCESS;
@@ -134,11 +101,11 @@ public class CryptoCipherModule implements StarlarkValue {
     @Getter
     private final BlockCipher engine;
     @Getter
-    private final KeyParameter params;
+    private final KeyParameter keyParams;
 
-    public Engine(BlockCipher deSede, KeyParameter params) {
+    public Engine(BlockCipher deSede, KeyParameter keyParams) {
       this.engine = deSede;
-      this.params = params;
+      this.keyParams = keyParams;;
     }
   }
 
@@ -150,24 +117,7 @@ public class CryptoCipherModule implements StarlarkValue {
 
     return new LarkyBlockCipher(new CBCBlockCipher(engine.getEngine()), engine, iv.getBytes());
   }
-  /**
-   *     try
-   *     {
-   *         javax.crypto.Cipher c = helper.createCipher(transformation);
-   *         int    mode = encrypt ? javax.crypto.Cipher.ENCRYPT_MODE : javax.crypto.Cipher.DECRYPT_MODE;
-   *
-   *         if (paramSpec == null) // ECB block mode
-   *         {
-   *             c.init(mode, sKey);
-   *         }
-   *         else
-   *         {
-   *             c.init(mode, sKey, paramSpec);
-   *         }
-   *         return c.doFinal(bytes);
-   *     }
-   * @return
-   */
+
   @StarlarkMethod(name = "DES3", parameters = {
       @Param(name = "key", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
   })

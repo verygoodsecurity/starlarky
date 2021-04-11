@@ -728,12 +728,6 @@ def _import_key(extern_key, passphrase=None):
         # This is probably a PEM encoded key.
         (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
         print("xxxx: ", binascii.hexlify(der), marker, enc_flag)
-        # if enc_flag and marker == "RSA PRIVATE KEY":
-        #     result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
-        #     return _construct(result)
-        #     # HACK until I figure out this DES thing
-        #     # result = _JCrypto.PublicKey.import_keyDER(extern_key, passphrase)
-        #     # return _construct(result)
         if enc_flag:
             passphrase = None
         result = _JCrypto.PublicKey.import_keyDER(der, passphrase)
