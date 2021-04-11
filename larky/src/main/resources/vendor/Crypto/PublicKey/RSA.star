@@ -727,7 +727,6 @@ def _import_key(extern_key, passphrase=None):
     if extern_key.startswith(bytes('-----', encoding='utf-8')):
         # This is probably a PEM encoded key.
         (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
-        print("xxxx: ", binascii.hexlify(der), marker, enc_flag)
         if enc_flag:
             passphrase = None
         result = _JCrypto.PublicKey.import_keyDER(der, passphrase)

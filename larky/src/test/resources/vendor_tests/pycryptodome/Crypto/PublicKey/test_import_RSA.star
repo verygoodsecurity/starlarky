@@ -569,14 +569,160 @@ d6:fa:d8:36:42:d4:97:29:17
     asserts.assert_that(key.has_private()).is_false()
 
 
-def load_file(arg):
-    print("loading file: ", arg)
-    return "xxxx"
+rsa2048_priv_pem = """-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEAzf6A6XjM4skBCd6SBt6g8GkO6Zg6sfC+7jvrmEyERWdm2iVP
+SDyWONzKprIT8tRaDHbtkhsJnff5F0Pq/gO6lMPKcgADn/DUAW0C8C6y8ns7tkKY
+fGbSdJQo/JIA7IEecEV5Jb/1p5GHwUQQIxa5QLqBNXBNsnX27vlVNT2RZ8cos82Y
+nKl9YhvjJzdC/G9eYlwe+DrYtVyw5yh6fjJvU1fx5EFbYbLAaSZ9lY7byqIxVFCG
+Hmqasx2MVtTdOwVSlA3mxXiMpN2lWPSICbVxiooGxQifBuEnQXYJfWQdGIxjWuqK
+J4L4Pn4C16quEVjrwO7psE+DBTZS7m8RWDdfLwIDAQABAoIBAQCwoKLkjgIQCw3q
+6n8HiOkyesKgpTjeznDIUXSneCSKZikYr5kVdW3Rf+/7kwHr2w0DVw5Jkwlh+/gH
+bOMXvxbC7EawDTcOcy81scUtML2bkPMYSm35bSjTcR7bwk0sfWIeHlPMfJYkgnKG
+0teLXralu8WCjrLwbJm5Ou1G423ELsTrCFTvM8n0x2Wgpvevfyuh3un1CO6Hpi7/
+o5ZFUt4Vu6MCmQprD7OrsdG4wxIJJpnVDtTa/CE3tiSKG+yrF5FlxKgnAZK90UTJ
+AsZsdkVzXwhcbTuVwFghyZa8t90rDKMGPU4XrW8GxN3TTYN9vvPwAPtsXBSE0QYi
++yPPN63BAoGBAOkVFdg+i2y3wL3zJuR9v4IgN+eHW+HysK55nLUN+qXuKZ3xNnrh
+Lf1xKp8XOG+qfHolwuqELAbu9q8VoY2qOlZkI2CWJnHESL2oY5Ws2FSFaqUvrgsZ
+vj6dYqHR5/vRqvbZWp7kRHtcO97/c91U8qc0u7scgY3V+5nyYsXK5/m/AoGBAOI/
+lMFO6EtI8OfiV5AvjS17FaX9C00rVtWL5vLH9q4aq4qBuaB+pnX/zb3FrzxRTxg1
+pdghMkj/6ms3cwEahvnnPC4P3FVkjLFpl1rDb3yXCak8sZTekVaRbR8Y1fxvjeQk
+es5+bJHNa9ugsWLPwksTeu+cuguqxYBgRoo+w5aRAoGAOvd+o0qPc125gVS2ji/R
+91W3TvfLowoG8N0LbDKxKrFqDe8sXUICpI+wvLbfLEDxZOWQvkvZ55clCX5rdK+Q
+OrLy0EisSTPjQzgKmZ80y41FQa0iVuSYYLbocQ/tpKOSoQi0CGavfJYE/5GY+nG3
+Qd3xcJDxpbRxBq1vl6KRtXkCgYBCVZ/4uXj0MdOoOT2xIbAD6LWlMDbzDkTsYZN6
+FVTnIRywhG53dwq5SCH7hQ1m4vQMxhX082655obFnsFSToPKm5iSbMYOJ2f00F+3
+FdwHLIWBoDD00/jK5+KVnoOG+vIgNO3owzpz2UXJZCj+LqnptzFxNYN6zjwP8qpb
++CECcQKBgC1i8ptWWx6LVrBTvxdrAI9JeJz/wEvzX2+Ca2lpAlaxW4wM4M9CinGs
+MJuv//vv/bO6BcTLnkP3D3K7TmfYF05ECyDIaUEvlcAhO85su6WfJLLJY+bIWC2o
+2g0PpIlRhksVTeNfR1eoNUeALvpxZE3VjmU7CVZk0NaI9CZUfCu9
+-----END RSA PRIVATE KEY-----"""
+
+rsa2048_pub_openssh = (  "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDN/oDpeMziyQ" +
+"EJ3pIG3qDwaQ7pmDqx8L7uO+uYTIRFZ2baJU9IPJY43MqmshPy1FoMdu2SGwmd9/kXQ+r+A7qUw" +
+"8pyAAOf8NQBbQLwLrLyezu2Qph8ZtJ0lCj8kgDsgR5wRXklv/WnkYfBRBAjFrlAuoE1cE2ydfbu" +
+"+VU1PZFnxyizzZicqX1iG+MnN0L8b15iXB74Oti1XLDnKHp+Mm9TV/HkQVthssBpJn2VjtvKojF" +
+"UUIYeapqzHYxW1N07BVKUDebFeIyk3aVY9IgJtXGKigbFCJ8G4SdBdgl9ZB0YjGNa6oongvg+fg" +
+"LXqq4RWOvA7umwT4MFNlLubxFYN18v")
+
+rsa2048_private_openssh = """-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdzc2gtcn
+NhAAAAAwEAAQAAAQEA1G7CSXDPFI6GVaKcD3XsVtmVAXYp7EXzDtNfenpL8gV7ujWzQ2R7
+VRM+Owmw8Q4AZX8Ow6pK3j2LfeqrOfN6Ym7QGCnWdzlAFcCLBTvQknxTteMS8rHGlOy+yC
+IW21TmKYHO4c8+e/nHzS4iCF9DflmqB3c3HfCIvX5fZ104eQAfwsV3ub8sfFqsskR7EYPk
+5mX0XCsxGv35kqpgk52DJUkjMdy097YS8MZVf2Tg7PbbILmNEZPVHmIDl3kzo0ju5Ov+hZ
+6lUJ8u/3a23jNmZg5DglItYad99xoqgek2nOsbvsmWTZeZZ7i/sTBEqkeiQk/zznEKixBA
+ayoWEItJrwAAA9hiJ0QNYidEDQAAAAdzc2gtcnNhAAABAQDUbsJJcM8UjoZVopwPdexW2Z
+UBdinsRfMO0196ekvyBXu6NbNDZHtVEz47CbDxDgBlfw7DqkrePYt96qs583pibtAYKdZ3
+OUAVwIsFO9CSfFO14xLyscaU7L7IIhbbVOYpgc7hzz57+cfNLiIIX0N+WaoHdzcd8Ii9fl
+9nXTh5AB/CxXe5vyx8WqyyRHsRg+TmZfRcKzEa/fmSqmCTnYMlSSMx3LT3thLwxlV/ZODs
+9tsguY0Rk9UeYgOXeTOjSO7k6/6FnqVQny7/drbeM2ZmDkOCUi1hp333GiqB6Tac6xu+yZ
+ZNl5lnuL+xMESqR6JCT/POcQqLEEBrKhYQi0mvAAAAAwEAAQAAAQA+oXESqfnDu8mLUefk
+/wVxDbFKvwXZLT5d7p/FwmzFrCwwWEjD48og6Q195nuOdmxTgERgF8L/BvIra5aT/V7lyn
+n7xcn/WJe2UhAquNnjdlhP1eTuPM+pdKtC4hoPDFbXgff2x11Ku/fWXHWYNk314IWqsdFE
+OHh4Ndv245sUwRSkyWeTerf9CUyeFBcu+VULreGHeh2xNdS7dB5LqhUN+HmzDRRlp3xRfL
+0+RvezxyaPWwU9W8sUk1MzKxgv49KIjAtzmc29eDtIRpyg89Dx8ZDWKZgCZL3HfsCLIaSs
+jqaZL1R4Ef/yIyMxN4g17UpRaKHnwTdgjSYgAS38emwBAAAAgQCNSfKv4oveyNahxR7886
+lM5VCY/mYDGZBYXCIRcV/6i8C2dpZ0THZlJE+ojqWMW8cMx1sEU4Y977bGJffZ3+wGCxig
+Y+dWOWInYYp9RvSyaNjEb62C7k1c8nVXuf/8NHzdIp7S3YBgSE8O5a4ZOr38kp0KFjrAbE
+j3apiKgMzxQgAAAIEA/P7l6EbzX2dBD06w9NdJMTO6loOCwXCi3kSdBuCllC+UZrw/7OlY
+Vj+Uc7arBiAfCCHkt/iarMl2+sqKGpAn5Dud3xvoJbkFbWDzBCLfcZB5Uoq8/b/weO8tqO
+6eY9v4/GeNAAutxf2slPln7vf9HpkXh221CgpduyRQU+SEeq8AAACBANb0jM0mtzFGlPFD
+qbaSnusQ4pKxQntVaJ8d64PwtFpvqElN2st29NtxnIclfmSODqvTAj4a8mvRZtZeJAYJMS
+xqT6IUqcm3sL8zfT9CChSb42RzRWW9ywzRfUQMQSdpv7UVtRRKknXz9O/OuHGAFVsA3Tmu
+dyvAQoDc3d2nveEBAAAAHGV0dG9yZUBsb2NhbGhvc3QubG9jYWxkb21haW4BAgMEBQY=
+-----END OPENSSH PRIVATE KEY-----"""
+
+rsa2048_private_openssh_old = """-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDUbsJJcM8UjoZV
+opwPdexW2ZUBdinsRfMO0196ekvyBXu6NbNDZHtVEz47CbDxDgBlfw7DqkrePYt9
+6qs583pibtAYKdZ3OUAVwIsFO9CSfFO14xLyscaU7L7IIhbbVOYpgc7hzz57+cfN
+LiIIX0N+WaoHdzcd8Ii9fl9nXTh5AB/CxXe5vyx8WqyyRHsRg+TmZfRcKzEa/fmS
+qmCTnYMlSSMx3LT3thLwxlV/ZODs9tsguY0Rk9UeYgOXeTOjSO7k6/6FnqVQny7/
+drbeM2ZmDkOCUi1hp333GiqB6Tac6xu+yZZNl5lnuL+xMESqR6JCT/POcQqLEEBr
+KhYQi0mvAgMBAAECggEAPqFxEqn5w7vJi1Hn5P8FcQ2xSr8F2S0+Xe6fxcJsxaws
+MFhIw+PKIOkNfeZ7jnZsU4BEYBfC/wbyK2uWk/1e5cp5+8XJ/1iXtlIQKrjZ43ZY
+T9Xk7jzPqXSrQuIaDwxW14H39sddSrv31lx1mDZN9eCFqrHRRDh4eDXb9uObFMEU
+pMlnk3q3/QlMnhQXLvlVC63hh3odsTXUu3QeS6oVDfh5sw0UZad8UXy9Pkb3s8cm
+j1sFPVvLFJNTMysYL+PSiIwLc5nNvXg7SEacoPPQ8fGQ1imYAmS9x37AiyGkrI6m
+mS9UeBH/8iMjMTeINe1KUWih58E3YI0mIAEt/HpsAQKBgQD8/uXoRvNfZ0EPTrD0
+10kxM7qWg4LBcKLeRJ0G4KWUL5RmvD/s6VhWP5RztqsGIB8IIeS3+JqsyXb6yooa
+kCfkO53fG+gluQVtYPMEIt9xkHlSirz9v/B47y2o7p5j2/j8Z40AC63F/ayU+Wfu
+9/0emReHbbUKCl27JFBT5IR6rwKBgQDW9IzNJrcxRpTxQ6m2kp7rEOKSsUJ7VWif
+HeuD8LRab6hJTdrLdvTbcZyHJX5kjg6r0wI+GvJr0WbWXiQGCTEsak+iFKnJt7C/
+M30/QgoUm+Nkc0VlvcsM0X1EDEEnab+1FbUUSpJ18/TvzrhxgBVbAN05rncrwEKA
+3N3dp73hAQKBgQDjbrX5aIbydd0byK71e++1Rn5vPkw2X25ah63t99eB7n/nF0YU
+UPTzm/Z1S3pVaFzdL7Lv25IY0IegDqG2HW9vElTqs6iu+LQzTttIFZ1u9uTJ2iTp
+rDmeTc1rNw+2T5J2PRSZPOZ7vX7+8XKIdfDbJ97qBSqhmw4F5TA9KooZywKBgDDE
+Aj14jw7qyFeD1jjJQqxphD1rYX3Bfp66lvez3/a0ZiVbOEv4jMxMFgrDAs2lPMbW
+dCfKzTyQoRf4+4szAqjk5XQL5AkTV1HJSJzVSpwqUYg0boYKbMpXrGeHsDBU2V0n
+s5EK6fdAhUzyRP3a5P1kUMwJPJf8YhoCAYOLzpQBAoGBAI1J8q/ii97I1qHFHvzz
+qUzlUJj+ZgMZkFhcIhFxX/qLwLZ2lnRMdmUkT6iOpYxbxwzHWwRThj3vtsYl99nf
+7AYLGKBj51Y5Yidhin1G9LJo2MRvrYLuTVzydVe5//w0fN0intLdgGBITw7lrhk6
+vfySnQoWOsBsSPdqmIqAzPFC
+-----END PRIVATE KEY-----"""
+
+rsa2048_private_openssh_pwd = """-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABAiSHFwF1
+yQWybj5A23iTV1AAAAEAAAAAEAAAEXAAAAB3NzaC1yc2EAAAADAQABAAABAQDcFk6O6XGu
+NTUmIGWFW/pzXsola0bpaydiIOlTtl34dvZUPRZpQfD+EHTKjkS1FSFklAsKXulcT5gaS3
+5eyqxBq7jvs91fELmyt6iXQ60CLD9rY6Ub5GjaqizMdgsvSTW7M4hv4EDChmiB6xn1CSND
+ctsaxzSKwJCzqZo+hDJWaUJh7oINkV1X2oMHCCosQbWIjPRqxzL1gdLq2Maamo1W76Mwl9
+bCRMbt9nd7zWzM9ytPmY6/6mYdAcjQnRHHfab/YwVCuyWvLhsfROp/gYDJZ7ZjwWa3flWR
+ac3Ih1ZN/ce8ljdHb6Q8jY9X1hAJ4MzbDXZ1sOCF1CpwlDfOTdC9AAAD4AE+jGg7O1vQHS
+bFkD9h2xNXDzP3AQx5y4O+6h6WwlvAvd2wxtv9uVswxigWnoGFfJ7tDOVuVFUqDolq4Z/E
+Xu5jBfHG/JJLy0IN+xWU6WijhZk9mKc/NPETNm961TQp+gF37MAWb8Cut2kerrD25+MZg5
+e6tF0QY0IRR3s/vbVDe3MoObkJXg/zaWjO+JYG+v9X6zlVXQ8/LbYW/3JFF2Ot5Y7MlgU3
+EFbK981/zwrIP4gbgroouv3wJsdma+6Kbftu6T1rr1iyl+5iM3QV3LVrykcnQ4+zb9rFW+
+NizMy6dbtAo/0QCJ0/kfwC17Huthgl6gz4XAHXGLRLXy6dvhZGBFmqNv+xBb+t/25z63Yl
+qvnkFXVtnKsPsWWvMkaWMSK/7VRA95vVdUe8kLQvNaAq6NvhDuYILZYLSXBNA4r+W7O54N
+jaV5sWSaYuALpdQr9bPa5Aah1XOUhI/flD1wI1h15fCyUgTOI9kp+C/gyrK/axsH79/IIN
+MmeMhXD5jf+Erv+swCqepJP6sXqZVdXszHv/Gf85v82niAqhGzEnss48gvAyW0z2CgX+1z
+aR6a4PVoIJXa+m6J0R3eMvYRTImaSvHmbc0JXec1PNDePauT/+rSWXF8ocdKNyJdVf93pV
+MkYhCGwFMv7V+7ZA53UhXc1N2Y60lSItNATOkFr/W+CP+YxBTqnt3jcr2O3E8zT+EXUMQp
+RX62xR9Q1VDsXSvHac0yU22dkHugD/h3sdnOmAk4drGlMha8DZtrRltDTj1PCmJ9DZ8pT+
+W+fyzM5Lcgk6mravZjSTcEHZbETr6nMWA4lO6zDAboYg6jS2ujWSLwQCe33pjgCvL2E15M
+9dxGQN7tF6VP5LPvdQoNqGr7aPpho+2NH6bWrip7M8Ska+lSCX/zQYte/xWiCiHu08cSFk
+6VGOOdBotnTTDPoqj9KBMvq0HO5vtlkB3qKfC1i2Kks1i/QgfWL3zETEjakOoSPtXBrc5q
+OjrPaRMFIia43ApFNb5yOIDDbRi9Wuq6scPe4zzwzzvD3oFEY9CetsxP9xl9/9/ySJ5gYL
+3c2KALQOEGN8k8PHinGe++x72adzi8OMISYMFyYF28gJ+uUDbPhqD5V9ClvxvWnkvhtWZO
+c3pvYipgdgmsN5vi7JO9XRzPviZfdmIaxXm9xRSL+HawWU9bkStN+tCh4hNJMGnKAqN0uV
+tlAaLHGCx0HqO4bzS0ZvMMcABulLSctWN/erHU/OK3ulyZxTTmlqsQAIHJPQ00ta6H/dnR
+r7IU3dRtY9GCbp+IlQJidrib8f7wDCaySNcYygJru6roFgzFQd
+-----END OPENSSH PRIVATE KEY-----"""
+
+rsa2048_private_openssh_pwd_old = """-----BEGIN PRIVATE KEY-----
+MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDcFk6O6XGuNTUm
+IGWFW/pzXsola0bpaydiIOlTtl34dvZUPRZpQfD+EHTKjkS1FSFklAsKXulcT5ga
+S35eyqxBq7jvs91fELmyt6iXQ60CLD9rY6Ub5GjaqizMdgsvSTW7M4hv4EDChmiB
+6xn1CSNDctsaxzSKwJCzqZo+hDJWaUJh7oINkV1X2oMHCCosQbWIjPRqxzL1gdLq
+2Maamo1W76Mwl9bCRMbt9nd7zWzM9ytPmY6/6mYdAcjQnRHHfab/YwVCuyWvLhsf
+ROp/gYDJZ7ZjwWa3flWRac3Ih1ZN/ce8ljdHb6Q8jY9X1hAJ4MzbDXZ1sOCF1Cpw
+lDfOTdC9AgMBAAECggEAEMY2eJf8TR3LDjvb4P0wqohn+dAiWHoNR2JgxjuZD+3p
+OmRph945wvN4I1QSkoaow+SwrrqrKJj8a8yjNhBWbq7q6oIX9j3tGVz8IYNL9WVv
+8/xlQin3f+sGfRLmKVV4HeuAk55Q8UKTRounr9BhequPXYwfShABN2BO3ELxHzrE
+U36p7SPth+xev0ruo9t8BCztE9VFR1q9Amiqh1aipDKcFatvd2u4TYJ413Fj5j4p
+Rs7UjZ5mzKmKvsSsktInZmuW9wm5pBUzjfZhJ03pXiwIAdxWqnXAKE8seocuodg+
+AmHUQzlyewIW+0wBFuG1BrsHEAksLQEp8dJO6gMJdQKBgQD6XK/Ci1FYLPUa1DNZ
+XVhGote7q+Kcl3deYNM+Lblxh1oacP8hfFbP1HlhdNyByQY1ZM468dINzfP9AcMp
+N9DEP8bj44DNo4EoHKnWrzBERCOh9JNWct7KRVHRk3q0K569Nj0yF0PyOZVyfi6D
+DgU7Mu/buIZ8xkVuWkrp9bPagwKBgQDhCxaYxduixdVu+yM7x8gTOeqp67hM8YqD
+chqZsl4ciXWkNGw3DHej6DJK3xtjRQb41w6aDCmlfWs0zlE0LsXvr4R72XpficMB
+gYHbGEVPyWjeeOZjJtMserchlazjRfIw4UaWiLJL2DJIjDbuknG9ZyBU1Ddypz8/
+IyMvy+TDvwKBgQDdJEGbdbPETvGxYP56URlIS06DVrAz4RZvJtdwdLL4tLXB5U12
+Jn4H1YXhr3eWrBnvz7raFf+Ucfax5HyeS877idoEMU/0VBghdjAOkW/w3L8crwv1
+sEFaKSC8HaikvGLafq5PMH2z12lKWGp9GEVGpRd43OTuEbQCZX8GaSEUQQKBgQCP
+shvYqyYmlnpFZjjGODgKBsZPf8Nr5iOS8S4JC/rJ7//dPNgIgn52e5J5emKrjWz5
+QaECPlftYtssmb0CPAeJl6JZzrE0Bewtrvsy4hmH68x5metKToUy9pyu5jrB2Gzg
+R0hiYKCwizj4WAfPaFUWIp5jbCqHnEFnWFFkeKX3UwKBgQCXPlGQFSJ1YcDiVLSy
+oEMmNOsb29xfr6BR830QB1+w55QTcquhSo575to504vrQcEles3Q5xJodkSStn+b
+LT/WAVIYbVy2GNKG1zmDLyoEBM2YNwpiR/nWU79cqgaQpUfwmErvNl1f1aeF5dyS
+Ph2nM0Aup3dWPEah4fzW5jOMZQ==
+-----END PRIVATE KEY-----"""
 
 
 def TestImport_2048_test_import_openssh_public():
-    key_file_ref = load_file("rsa2048_private.pem")
-    key_file = load_file("rsa2048_public_openssh.txt")
+    key_file_ref = rsa2048_priv_pem
+    key_file = rsa2048_pub_openssh
 
     # Skip test if test vectors are not installed
     if None in (key_file_ref, key_file):
@@ -588,8 +734,8 @@ def TestImport_2048_test_import_openssh_public():
 
 
 def TestImport_2048_test_import_openssh_private_clear():
-    key_file = load_file("rsa2048_private_openssh.pem")
-    key_file_old = load_file("rsa2048_private_openssh_old.pem")
+    key_file = rsa2048_private_openssh
+    key_file_old = rsa2048_private_openssh_old
 
     # Skip test if test vectors are not installed
     if None in (key_file_old, key_file):
@@ -602,69 +748,67 @@ def TestImport_2048_test_import_openssh_private_clear():
 
 
 def TestImport_2048_test_import_openssh_private_password():
-    key_file = load_file("rsa2048_private_openssh_pwd.pem")
-    key_file_old = load_file("rsa2048_private_openssh_pwd_old.pem")
+    key_file = rsa2048_private_openssh_pwd
+    key_file_old = rsa2048_private_openssh_pwd_old
 
     # Skip test if test vectors are not installed
     if None in (key_file_old, key_file):
         return
 
-    key = RSA.import_key(
-        key_file, bytes([0x70, 0x61, 0x73, 0x73, 0x77, 0x6F, 0x72, 0x64])
-    )
+    key = RSA.import_key(key_file, bytes("password", encoding="utf-8"))
     key_old = RSA.import_key(key_file_old)
     asserts.assert_that(key).is_equal_to(key_old)
 
 
+# noinspection DuplicatedCode
 def _testsuite():
     _suite = unittest.TestSuite()
-    failingsuite = False
+    _case = unittest.FunctionTestCase
+    failingsuite = True
+
     if not failingsuite:
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey1))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey2))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey3unicode))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey3bytes))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey4unicode))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey4bytes))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey5))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey6))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey7))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey8))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey9))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey10))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey11))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey12))
+        _suite.addTest(_case(ImportKeyTests_testImportKey1))
+        _suite.addTest(_case(ImportKeyTests_testImportKey2))
+        _suite.addTest(_case(ImportKeyTests_testImportKey3unicode))
+        _suite.addTest(_case(ImportKeyTests_testImportKey3bytes))
+        _suite.addTest(_case(ImportKeyTests_testImportKey4unicode))
+        _suite.addTest(_case(ImportKeyTests_testImportKey4bytes))
+        _suite.addTest(_case(ImportKeyTests_testImportKey5))
+        _suite.addTest(_case(ImportKeyTests_testImportKey6))
+        _suite.addTest(_case(ImportKeyTests_testImportKey7))
+        _suite.addTest(_case(ImportKeyTests_testImportKey8))
+        _suite.addTest(_case(ImportKeyTests_testImportKey9))
+        _suite.addTest(_case(ImportKeyTests_testImportKey10))
+        _suite.addTest(_case(ImportKeyTests_testImportKey11))
+        _suite.addTest(_case(ImportKeyTests_testImportKey12))
         _suite.addTest(
-            unittest.FunctionTestCase(ImportKeyTests_test_import_key_windows_cr_lf)
+            _case(ImportKeyTests_test_import_key_windows_cr_lf)
         )
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_empty))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey1))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey2))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey3))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey4))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey5))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey7))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey8))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey9))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey10))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey11))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey12))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey13))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey14))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey15))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_key))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_exportKey))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v1))
-        _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v3))
+        _suite.addTest(_case(ImportKeyTests_test_import_empty))
+        _suite.addTest(_case(ImportKeyTests_testExportKey1))
+        _suite.addTest(_case(ImportKeyTests_testExportKey2))
+        _suite.addTest(_case(ImportKeyTests_testExportKey3))
+        _suite.addTest(_case(ImportKeyTests_testExportKey4))
+        _suite.addTest(_case(ImportKeyTests_testExportKey5))
+        _suite.addTest(_case(ImportKeyTests_testExportKey7))
+        _suite.addTest(_case(ImportKeyTests_testExportKey8))
+        _suite.addTest(_case(ImportKeyTests_testExportKey9))
+        _suite.addTest(_case(ImportKeyTests_testExportKey10))
+        _suite.addTest(_case(ImportKeyTests_testExportKey11))
+        _suite.addTest(_case(ImportKeyTests_testExportKey12))
+        _suite.addTest(_case(ImportKeyTests_testExportKey13))
+        _suite.addTest(_case(ImportKeyTests_testExportKey14))
+        _suite.addTest(_case(ImportKeyTests_testExportKey15))
+        _suite.addTest(_case(ImportKeyTests_test_import_key))
+        _suite.addTest(_case(ImportKeyTests_test_exportKey))
+        _suite.addTest(_case(ImportKeyFromX509Cert_test_x509v1))
+        _suite.addTest(_case(ImportKeyFromX509Cert_test_x509v3))
     if failingsuite:
-        _suite.addTest(unittest.FunctionTestCase(TestImport_2048_test_import_openssh_public)
-        )
-        _suite.addTest(
-            unittest.FunctionTestCase(TestImport_2048_test_import_openssh_private_clear)
-        )
-        _suite.addTest(
-            unittest.FunctionTestCase(TestImport_2048_test_import_openssh_private_password)
-        )
+       #  File "vendor/Crypto/PublicKey/RSA.star", line 753, column 9, in _import_key
+       # Error in fail: ValueError: RSA key format is not supported
+        _suite.addTest(_case(TestImport_2048_test_import_openssh_public))
+        _suite.addTest(_case(TestImport_2048_test_import_openssh_private_clear))
+        _suite.addTest(_case(TestImport_2048_test_import_openssh_private_password))
 
     return _suite
 
