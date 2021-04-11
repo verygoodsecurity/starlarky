@@ -7,6 +7,8 @@ load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//re", re="re")
 load("@vendor//Crypto/Random", get_random_bytes="get_random_bytes")
+load("@vendor//Crypto/Cipher/AES", AES="AES")
+load("@vendor//Crypto/Cipher/DES", DES="DES")
 load("@vendor//Crypto/Cipher/DES3", DES3="DES3")
 load("@vendor//Crypto/Hash/MD5", MD5="MD5")
 load("@vendor//Crypto/Util/Padding", pad="pad", unpad="unpad")
@@ -70,7 +72,9 @@ def _EVP_BytesToKey(data, salt, key_len):
     m = (key_len + 15 ) // 16
     for _ in range(m):
         nd = MD5.new(d[-1] + data + salt).digest()
-        d.append(nd)
+        # NOTE(Larky-Difference): in larky, bytes are immutable.
+        #  so we must use bytearrays instead of bytes.
+        d.append(bytearray(nd))
     return bytearray('', encoding='utf-8').join(d)[:key_len]
 
 
@@ -120,40 +124,37 @@ def decode(pem_data, passphrase=None):
         salt = unhexlify(tobytes(salt))
 
         padding = True
-        # TODO(mahmoudimus): IMPLEMENT ME
-        # if algo == "DES-CBC":
-        #     key = _EVP_BytesToKey(passphrase, salt, 8)
-        #     objdec = DES.new(key, DES.MODE_CBC, salt)
-        # elif algo == "DES-EDE3-CBC":
-        #     key = _EVP_BytesToKey(passphrase, salt, 24)
-        #     objdec = DES3.new(key, DES3.MODE_CBC, salt)
-        # elif algo == "AES-128-CBC":
-        #     key = _EVP_BytesToKey(passphrase, salt[:8], 16)
-        #     objdec = AES.new(key, AES.MODE_CBC, salt)
-        # elif algo == "AES-192-CBC":
-        #     key = _EVP_BytesToKey(passphrase, salt[:8], 24)
-        #     objdec = AES.new(key, AES.MODE_CBC, salt)
-        # elif algo == "AES-256-CBC":
-        #     key = _EVP_BytesToKey(passphrase, salt[:8], 32)
-        #     objdec = AES.new(key, AES.MODE_CBC, salt)
-        # elif algo.lower() == "id-aes256-gcm":
-        #     key = _EVP_BytesToKey(passphrase, salt[:8], 32)
-        #     objdec = AES.new(key, AES.MODE_GCM, nonce=salt)
-        #     padding = False
-        # else:
-        #     raise ValueError("Unsupport PEM encryption algorithm (%s)." % algo)
+        if algo == "DES-CBC":
+            key = _EVP_BytesToKey(passphrase, salt, 8)
+            objdec = DES.new(key, DES.MODE_CBC, salt)
+        elif algo == "DES-EDE3-CBC":
+            key = _EVP_BytesToKey(passphrase, salt, 24)
+            objdec = DES3.new(key, DES3.MODE_CBC, salt)
+        elif algo == "AES-128-CBC":
+            key = _EVP_BytesToKey(passphrase, salt[:8], 16)
+            objdec = AES.new(key, AES.MODE_CBC, salt)
+        elif algo == "AES-192-CBC":
+            key = _EVP_BytesToKey(passphrase, salt[:8], 24)
+            objdec = AES.new(key, AES.MODE_CBC, salt)
+        elif algo == "AES-256-CBC":
+            key = _EVP_BytesToKey(passphrase, salt[:8], 32)
+            objdec = AES.new(key, AES.MODE_CBC, salt)
+        elif algo.lower() == "id-aes256-gcm":
+            fail("IMPLEMENT ME! " + algo.lower())
+            #key = _EVP_BytesToKey(passphrase, salt[:8], 32)
+            #objdec = AES.new(key, AES.MODE_GCM, nonce=salt)
+            #padding = False
+        else:
+            fail("Unsupport PEM encryption algorithm (%s)." % algo)
+
         lines = lines[2:]
-        # TODO(mahmoudimus) remove me (👇) when algos implemented
-        objdec = None
-        enc_flag = True
     else:
         objdec = None
         enc_flag = False
 
     # Decode body
     data = a2b_base64(''.join(lines[1:-1]))
-    # TODO(mahmoudimus): remove comment (👇) when algos implemented
-    #enc_flag = False
+    enc_flag = False
     if objdec:
         if padding:
             data = unpad(objdec.decrypt(data), objdec.block_size)

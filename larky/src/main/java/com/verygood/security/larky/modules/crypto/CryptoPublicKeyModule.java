@@ -185,9 +185,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     List<BigInteger> components;
     char[] passphrase = null;
     if(!Starlark.isNullOrNone(passPhraseO)) {
-      byte[] bytes = ((LarkyByteLike) passPhraseO).getBytes();
-      CharBuffer decoded = StandardCharsets.ISO_8859_1.decode(ByteBuffer.wrap(bytes));
-      passphrase = Arrays.copyOf(decoded.array(), decoded.limit());
+      passphrase = ((LarkyByteLike) passPhraseO).toCharArray(StandardCharsets.ISO_8859_1);
     }
 
     try {
@@ -401,7 +399,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     //ASN1InputStream bIn = new ASN1InputStream(new ByteArrayInputStream(spec.getEncoded()));
     try {
       instance = Certificate.getInstance(new ASN1InputStream(externKey).readObject());
-    } catch (IllegalArgumentException e) {
+    } catch (IOException | IllegalArgumentException e) {
       failures.add(e);
       return r;
     }

@@ -8,74 +8,41 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
+import org.bouncycastle.crypto.BlockCipher;
 import org.bouncycastle.crypto.BufferedBlockCipher;
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.crypto.engines.AESEngine;
+import org.bouncycastle.crypto.engines.DESEngine;
 import org.bouncycastle.crypto.engines.DESedeEngine;
 import org.bouncycastle.crypto.modes.CBCBlockCipher;
 import org.bouncycastle.crypto.params.DESedeParameters;
+import org.bouncycastle.crypto.params.KeyParameter;
 import org.bouncycastle.crypto.params.ParametersWithIV;
 
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.Getter;
 
 public class CryptoCipherModule implements StarlarkValue {
 
   public static final CryptoCipherModule INSTANCE = new CryptoCipherModule();
 
-  public enum SymCipherAlg implements StarlarkValue {
-    AES, DES, TRIPLEDES;
-    /**
-     * SymCipherAlg <==> String enum representation
-     *
-     * @param algoName String
-     * @return SymCipherAlg enum
-     */
-    public static SymCipherAlg fromName(String algoName) throws EvalException {
-      switch(algoName.toUpperCase().trim()) {
-        case "AES":
-          return SymCipherAlg.AES;
-        case "DES":
-          return SymCipherAlg.DES;
-        case "TRIPLEDES":
-        case "TDES":
-        case "DESede":
-          return SymCipherAlg.TRIPLEDES;
-      }
-      throw Starlark.errorf("Unknown algorithm: %s", algoName);
-    }
-
-    public static String valueOf(SymCipherAlg algo) throws EvalException {
-      switch(algo) {
-        case AES:
-          return "AES";
-        case DES:
-          return "DES";
-        case TRIPLEDES:
-          return "TRIPLEDES";
-      }
-      throw Starlark.errorf("Unknown algorithm: %s", algo);
-
-    }
-
-    /*
-    PKCSObjectIdentifiers
-     */
-
-
-  }
-
   static class LarkyBlockCipher implements StarlarkValue {
 
     private final ParametersWithIV params;
 
-    enum MODE {
-      ENCRYPT, DECRYPT
-    }
     private static final StarlarkInt SUCCESS = StarlarkInt.of(0);
 
     private final CBCBlockCipher cbcBlockCipher;
@@ -100,17 +67,18 @@ public class CryptoCipherModule implements StarlarkValue {
       // directly. DO NOT CALL DIRECTLY.
       BufferedBlockCipher cipher = new BufferedBlockCipher(this.cbcBlockCipher);
       byte[] cipherText = new byte[cipher.getOutputSize(plaintext.size())];
-      operate(MODE.ENCRYPT, plaintext, cipher, cipherText);
+      operate(Cipher.ENCRYPT_MODE, plaintext, cipher, cipherText);
       output.setSequenceStorage(LarkyByte.builder(thread).setSequence(cipherText).build());
       Arrays.fill(cipherText, (byte) 0);
       return SUCCESS;
     }
 
-    private void operate(MODE encrypt, LarkyByteLike toprocess, BufferedBlockCipher cipher, byte[] cipherText) throws EvalException {
-      cipher.init(encrypt == MODE.ENCRYPT, this.algo.params);
-      int outputLen = cipher.processBytes(toprocess.getBytes(), 0, toprocess.size(), cipherText, 0);
+    private void operate(int mode, LarkyByteLike toprocess, BufferedBlockCipher cipher, byte[] out) throws EvalException {
+      cipher.init(mode == Cipher.ENCRYPT_MODE, this.algo.params);
+      byte[] bytes = toprocess.getBytes();
+      int outputLen = cipher.processBytes(bytes, 0, bytes.length, out, 0);
       try {
-        cipher.doFinal(cipherText, outputLen);
+        cipher.doFinal(out, outputLen);
       } catch (InvalidCipherTextException e) {
         throw new EvalException(e.getMessage(), e);
       }
@@ -125,9 +93,34 @@ public class CryptoCipherModule implements StarlarkValue {
         useStarlarkThread = true
     )
     public StarlarkInt decrypt(LarkyByteLike cipherText, LarkyByteArray output, StarlarkThread thread) throws EvalException {
-      BufferedBlockCipher cipher = new BufferedBlockCipher(this.cbcBlockCipher);
-      byte[] plainText = new byte[cipher.getOutputSize(cipherText.size())];
-      operate(MODE.DECRYPT, cipherText, cipher, plainText);
+      byte[] plainText = new byte[cipherText.size()];
+
+      if(!this.algo.getEngine().getAlgorithmName().equals("DES")) {
+        BufferedBlockCipher cipher = new BufferedBlockCipher(this.cbcBlockCipher);
+        operate(Cipher.DECRYPT_MODE, cipherText, cipher, plainText);
+      }
+      else {
+        Cipher cipher;
+        try {
+          cipher = Cipher.getInstance("DES/CBC/NoPadding");
+          int mks = Cipher.getMaxAllowedKeyLength("DES/CBC/NoPadding");
+          if (mks < 64) {
+            throw new IllegalArgumentException("Maximum key size for DES is " + mks + ". cryptography export restrictions?");
+          }
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException e) {
+          throw new EvalException(e.getMessage(), e);
+        }
+
+        SecretKeySpec keyspec = new SecretKeySpec(this.algo.getParams().getKey(), "DES"); // !MAGIC
+
+        try {
+          cipher.init(Cipher.DECRYPT_MODE, keyspec, new IvParameterSpec(this.params.getIV()));
+          plainText = cipher.doFinal(cipherText.getBytes());
+
+        } catch (InvalidKeyException | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+          throw new EvalException(e.getMessage(), e);
+        }
+      }
       output.setSequenceStorage(LarkyByte.builder(thread).setSequence(plainText).build());
       Arrays.fill(plainText, (byte) 0);
       return SUCCESS;
@@ -139,11 +132,11 @@ public class CryptoCipherModule implements StarlarkValue {
   public static class Engine implements StarlarkValue {
 
     @Getter
-    private final DESedeEngine engine;
+    private final BlockCipher engine;
     @Getter
-    private final DESedeParameters params;
+    private final KeyParameter params;
 
-    public Engine(DESedeEngine deSede, DESedeParameters params) {
+    public Engine(BlockCipher deSede, KeyParameter params) {
       this.engine = deSede;
       this.params = params;
     }
@@ -153,7 +146,7 @@ public class CryptoCipherModule implements StarlarkValue {
       @Param(name = "engine", allowedTypes = {@ParamType(type = Engine.class)}),
       @Param(name = "iv", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
   })
-  public LarkyBlockCipher CBCMode(Engine engine, LarkyByteLike iv) throws EvalException {
+  public LarkyBlockCipher CBCMode(Engine engine, LarkyByteLike iv) {
 
     return new LarkyBlockCipher(new CBCBlockCipher(engine.getEngine()), engine, iv.getBytes());
   }
@@ -183,6 +176,33 @@ public class CryptoCipherModule implements StarlarkValue {
     try {
       DESedeParameters params = new DESedeParameters(key.getBytes());
       return new Engine(deSede, params);
+    } catch(IllegalArgumentException e) {
+      throw new EvalException(e.getMessage(), e);
+    }
+  }
+
+  @StarlarkMethod(name = "DES", parameters = {
+      @Param(name = "key", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
+    })
+    public Engine DES(LarkyByteLike key) throws EvalException {
+    DESEngine desEngine = new DESEngine();
+      try {
+        KeyParameter params = new KeyParameter(key.getBytes());
+        //DESParameters params = new DESParameters(key.getBytes());
+        return new Engine(desEngine, params);
+      } catch(IllegalArgumentException e) {
+        throw new EvalException(e.getMessage(), e);
+      }
+    }
+
+  @StarlarkMethod(name = "AES", parameters = {
+      @Param(name = "key", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
+  })
+  public Engine AES(LarkyByteLike key) throws EvalException {
+    AESEngine aesEngine = new AESEngine();
+    try {
+      KeyParameter params = new KeyParameter(key.getBytes());
+      return new Engine(aesEngine, params);
     } catch(IllegalArgumentException e) {
       throw new EvalException(e.getMessage(), e);
     }

@@ -355,7 +355,7 @@ def _RsaKey(**kwargs):
                 else:
                     key_type = 'ENCRYPTED PRIVATE KEY'
                     if not protection:
-                        protection = 'PBKDF2WithHMACSHA1AndDES-EDE3-CBC'
+                        protection = 'PBKDF2WithHMAC-SHA1AndDES-EDE3-CBC'
                     binary_key = _JCrypto.IO.PKCS8.wrap(binary_key, _oid,
                                             passphrase, protection)
                     passphrase = None
@@ -717,33 +717,28 @@ def _import_key(extern_key, passphrase=None):
     if passphrase != None:
         passphrase = tobytes(passphrase)
 
-    if extern_key.startswith(bytes([0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x4f, 0x50, 0x45, 0x4e, 0x53, 0x53, 0x48, 0x20, 0x50, 0x52, 0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59])):
+    if extern_key.startswith(bytes('-----BEGIN OPENSSH PRIVATE KEY', encoding='utf-8')):
         text_encoded = tostr(extern_key)
         openssh_encoded, marker, enc_flag = PEM.decode(text_encoded, passphrase)
         # openssh_encoded = _JCrypto.PublicKey.PEM_decode(text_encoded, passphrase)
         result = _import_openssh_private_rsa(openssh_encoded, passphrase)
         return result
 
-    if extern_key.startswith(bytes([0x2d, 0x2d, 0x2d, 0x2d, 0x2d])):
+    if extern_key.startswith(bytes('-----', encoding='utf-8')):
         # This is probably a PEM encoded key.
-        # result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
-        # return _construct(result)
-        # [10009650922319323069803079573274165970579185090127568126860948226706532161412468049945146845321486910355660772093076859316010597108858810676816273210356613, 65537, 485384906711183128855977339271942558470797415451201786886248889397948627629708179660048199702198930888752799597253915886594933821519461147610835828000825, 109486538119839518563492128520614562694068174030916365997574385489384951663139, 91423576763046116639172268615227635722663558665590792917584550933135061811767, 19805061107571007563044705551475187361598754225024722988988921457394745450021]
-
         (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
-#        print("xxxx: ", der, marker, enc_flag)
-#        if enc_flag or "PRIVATE" in marker:
+        print("xxxx: ", binascii.hexlify(der), marker, enc_flag)
+        # if enc_flag and marker == "RSA PRIVATE KEY":
+        #     result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
+        #     return _construct(result)
+        #     # HACK until I figure out this DES thing
+        #     # result = _JCrypto.PublicKey.import_keyDER(extern_key, passphrase)
+        #     # return _construct(result)
         if enc_flag:
-            result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
-            #result = _JCrypto.PublicKey.import_keyDER(der, passphrase)
-            return _construct(result)
-            # err, result = _import_keyDER(extern_key, passphrase)
-            # return result
-        else:
-            result = _JCrypto.PublicKey.import_keyDER(der, passphrase)
-            return _construct(result)
-
-    if extern_key.startswith(bytes([0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61, 0x20])):
+            passphrase = None
+        result = _JCrypto.PublicKey.import_keyDER(der, passphrase)
+        return _construct(result)
+    if extern_key.startswith(bytes('ssh-rsa ', encoding='utf-8')):
         # This is probably an OpenSSH key
         keystring = binascii.a2b_base64(extern_key.split(bytes([0x20]))[1])
         keyparts = []

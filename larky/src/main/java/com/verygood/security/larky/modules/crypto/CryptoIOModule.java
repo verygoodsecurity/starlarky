@@ -152,7 +152,7 @@ public class CryptoIOModule implements StarlarkValue {
       SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
 
       wtf algoId = null;
-      String passphrase = Starlark.isNullOrNone(passphraseO) ? null : (String) passphraseO;
+      char[] passphrase = Starlark.isNullOrNone(passphraseO) ? null : ((LarkyByteLike) passphraseO).toCharArray();
       String protection = Starlark.isNullOrNone(protectionO) ? null : (String) protectionO;
       final KeyFactory keyFactory;
       final PrivateKey privateKey;
@@ -175,7 +175,7 @@ public class CryptoIOModule implements StarlarkValue {
           encryptor = new JceOpenSSLPKCS8EncryptorBuilder(PKCSObjectIdentifiers.des_EDE3_CBC)
               .setRandom(secureRandom)
               .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-              .setPasssword(passphrase.toCharArray())
+              .setPasssword(passphrase)
               .build(); // TODO(fixme): possible char[] (16) vs (8)
         } catch (OperatorCreationException e) {
           throw new EvalException(e.getMessage(), e);

@@ -421,7 +421,6 @@ def ImportKeyTests_testExportKey12():
     # PEM envelope, PKCS#8, old PEM encryption
     key = RSA.construct([n, e, d, p, q, pInv])
     outkey = key.export_key("PEM", "test", pkcs=8)
-    print(outkey)
     asserts.assert_that((tostr(outkey).find("4,ENCRYPTED") != -1)).is_true()
     asserts.assert_that((tostr(outkey).find("BEGIN PRIVATE KEY") != -1)).is_true()
     inkey = RSA.importKey(outkey, "test")
@@ -635,8 +634,6 @@ def _testsuite():
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey10))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey11))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testImportKey12))
-
-    if not failingsuite:
         _suite.addTest(
             unittest.FunctionTestCase(ImportKeyTests_test_import_key_windows_cr_lf)
         )
@@ -649,14 +646,12 @@ def _testsuite():
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey7))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey8))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey9))
-    if failingsuite:
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey10))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey11))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey12))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey13))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey14))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_testExportKey15))
-    if not failingsuite:
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_import_key))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyTests_test_exportKey))
         _suite.addTest(unittest.FunctionTestCase(ImportKeyFromX509Cert_test_x509v1))
