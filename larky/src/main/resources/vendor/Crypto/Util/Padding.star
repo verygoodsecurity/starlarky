@@ -39,10 +39,12 @@ def pad(data_to_pad, block_size, style='pkcs7'):
     Return:
       byte string : the original data with the appropriate padding added at the end.
     """
-
-    padding_len = block_size-len(data_to_pad)%block_size
+    # NOTE(Larky-Difference): in larky, bytes are immutable.
+    #  so we must use bytearrays instead of bytes.
+    data_to_pad = bytearray(data_to_pad)
+    padding_len = block_size - len(data_to_pad) % block_size
     if style == 'pkcs7':
-        padding = bchr(padding_len)*padding_len
+        padding = bchr(padding_len) * padding_len
     elif style == 'x923':
         padding = bytearray(bchr(0) * (padding_len-1)) + bchr(padding_len)
     elif style == 'iso7816':

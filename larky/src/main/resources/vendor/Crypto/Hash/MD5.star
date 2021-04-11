@@ -22,6 +22,13 @@ load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 
 
+# The size of the resulting hash in bytes.
+digest_size = 16
+
+# The internal block size of the hash algorithm in bytes.
+block_size = 64
+
+
 def MD5Hash(data=None):
     """A MD5 hash object.
     Do not instantiate directly.
@@ -72,7 +79,7 @@ def MD5Hash(data=None):
         :rtype: byte string
         """
 
-        self._state.digest()
+        return self._state.digest()
     self.digest = digest
 
     def hexdigest():
@@ -110,8 +117,6 @@ def MD5Hash(data=None):
     self.new = new
     return self
 
-# export this symbol
-MD5 = MD5Hash
 
 def new(data=None):
     """Create a new hash object.
@@ -124,13 +129,6 @@ def new(data=None):
     :Return: A :class:`MD5Hash` hash object
     """
     return MD5Hash().new(data)
-
-
-# The size of the resulting hash in bytes.
-digest_size = 16
-
-# The internal block size of the hash algorithm in bytes.
-block_size = 64
 
 
 def _pbkdf2_hmac_assist(inner, outer, first_digest, iterations):
@@ -150,3 +148,11 @@ def _pbkdf2_hmac_assist(inner, outer, first_digest, iterations):
     # if result:
     result = "IMPLEMENT ME"
     fail("ValueError: Error %s with PBKDF2-HMAC assis for MD5" % result)
+
+
+MD5 = larky.struct(
+    digest_size=digest_size,
+    block_size=block_size,
+    new=new,
+    _pbkdf2_hmac_assist=_pbkdf2_hmac_assist,
+)

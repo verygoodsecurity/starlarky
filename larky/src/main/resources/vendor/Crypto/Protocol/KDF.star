@@ -1,3 +1,8 @@
+load("@stdlib//larky", larky="larky")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@stdlib//types", types="types")
+
+
 def PBKDF1(password, salt, dkLen, count=1000, hashAlgo=None):
     """
     Derive one key from a password (or passphrase).
@@ -19,15 +24,34 @@ def PBKDF1(password, salt, dkLen, count=1000, hashAlgo=None):
          count (integer):
             The number of iterations to carry out. The recommendation is 1000 or
             more.
-         hashAlgo (module):
+         hashAlgo (~module~): TODO(Larky-Difference):: this is a string
+            pycryptodome incompatibility => this is a STRING representing the HashAlgo
             The hash algorithm to use, as a module or an object from the :mod:`Crypto.Hash` package.
             The digest length must be no shorter than ``dkLen``.
             The default algorithm is :mod:`Crypto.Hash.SHA1`.
 
         Return:
             A byte string of length ``dkLen`` that can be used as key.
-    
+
     """
+    if not hashAlgo:
+        hashAlgo = 'SHA1'
+    else:
+        if not types.is_string(hashAlgo):
+            fail("hashAlgo must be a string (i.e. 'MD5'), received: {}".format(
+                type(hashAlgo)
+            ))
+
+    rval = _JCrypto.Protocol.PBKDF1(password, salt, dkLen, count, hashAlgo)
+
+    if not (types.is_bytearray(rval) or types.is_bytes(rval)):
+        fail("expected byte-like from PBKDF1, but received type: {}".format(
+            type(rval)
+        ))
+
+    return rval
+
+
 def PBKDF2(password, salt, dkLen=16, count=1000, prf=None, hmac_hash_module=None):
     """
     Derive one or more keys from a password (or passphrase).
@@ -69,7 +93,7 @@ def PBKDF2(password, salt, dkLen=16, count=1000, prf=None, hmac_hash_module=None
         Return:
             A byte string of length ``dkLen`` that can be used as key material.
             If you want multiple keys, just break up this string into segments of the desired length.
-    
+
     """
         def link(s):
             """
@@ -83,7 +107,7 @@ def _S2V(object):
         based on CMAC that takes as input a vector of strings.
 
         .. _RFC5297: http://tools.ietf.org/html/rfc5297
-    
+
     """
     def __init__(self, key, ciphermod, cipher_params=None):
         """
@@ -97,7 +121,7 @@ def _S2V(object):
                     A block cipher module from `Crypto.Cipher`.
                   cipher_params : dictionary
                     A set of extra parameters to use to create a cipher instance.
-        
+
         """
     def new(key, ciphermod):
         """
@@ -109,7 +133,7 @@ def _S2V(object):
                     based on ciphers from ``ciphermod``.
                   ciphermod : module
                     A block cipher module from `Crypto.Cipher`.
-        
+
         """
     def _double(self, bs):
         """
@@ -122,14 +146,14 @@ def _S2V(object):
                   item : byte string
                     The next component of the vector.
                 :Raise TypeError: when the limit on the number of components has been reached.
-        
+
         """
     def derive(self):
         """
         Derive a secret from the vector of components.
 
                 :Return: a byte string, as long as the block length of the cipher.
-        
+
         """
 def HKDF(master, key_len, salt, hashmod, num_keys=1, context=None):
     """
@@ -162,7 +186,7 @@ def HKDF(master, key_len, salt, hashmod, num_keys=1, context=None):
             A byte string or a tuple of byte strings.
 
         .. _RFC5869: http://tools.ietf.org/html/rfc5869
-    
+
     """
 def scrypt(password, salt, key_len, N, r, p, num_keys=1):
     """
@@ -202,7 +226,7 @@ def scrypt(password, salt, key_len, N, r, p, num_keys=1):
             A byte string or a tuple of byte strings.
 
         .. __: http://www.tarsnap.com/scrypt/scrypt-slides.pdf
-    
+
     """
 def _bcrypt_encode(data):
     """
@@ -241,7 +265,7 @@ def bcrypt(password, cost, salt=None):
         Raises:
             ValueError: if password is longer than 72 bytes or if it contains the zero byte
 
-   
+
     """
 def bcrypt_check(password, bcrypt_hash):
     """
@@ -258,5 +282,5 @@ def bcrypt_check(password, bcrypt_hash):
 
         Raises:
             ValueError: if the password does not match
-    
+
     """

@@ -115,10 +115,6 @@ def _CbcMode(block_cipher, iv):
                      "input (%d bytes)" % len(plaintext))
 
         result = self._state.encrypt(plaintext, ciphertext)
-        # result = raw_cbc_lib.CBC_encrypt(self._state.get(),
-        #                                  c_uint8_ptr(plaintext),
-        #                                  c_uint8_ptr(ciphertext),
-        #                                  c_size_t(len(plaintext)))
         if result:
             if result == 3:
                 fail("ValueError: Data must be padded to %d byte boundary " +
@@ -216,24 +212,6 @@ def _CbcMode(block_cipher, iv):
             Reusing the *IV* for encryptions performed with the same key
             compromises confidentiality.
         """
-
-        # self._state = VoidPointer()
-        # result = raw_cbc_lib.CBC_start_operation(block_cipher.get(),
-        #                                          c_uint8_ptr(iv),
-        #                                          c_size_t(len(iv)),
-        #                                          self._state.address_of())
-        # if result:
-        #     fail("ValueError: Error %d while instantiating the CBC mode" % result)
-
-        # Ensure that object disposal of this Python object will (eventually)
-        # free the memory allocated by the raw library for the cipher mode
-        # self._state = SmartPointer(self._state.get(),
-        #                            raw_cbc_lib.CBC_stop_operation)
-
-        # Memory allocated for the underlying block cipher is now owed
-        # by the cipher mode
-        # block_cipher.release()
-
         self._state = _JCrypto.Cipher.CBCMode(block_cipher, iv)
 
         self.block_size = len(iv)

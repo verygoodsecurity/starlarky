@@ -34,36 +34,43 @@ Module's constants for the modes of operation supported with AES:
 :var MODE_SIV: :ref:`Syntethic Initialization Vector (SIV) <siv_mode>`
 :var MODE_OCB: :ref:`Offset Code Book (OCB) <ocb_mode>`
 """
-
-load("@stdlib//sys", sys="sys")
-
-load("@vendor//Crypto/Cipher", _create_cipher="_create_cipher")
+load("@stdlib//larky", larky="larky")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@vendor//Crypto/Cipher", Cipher="Cipher")
 load("@vendor//Crypto/Random", get_random_bytes="get_random_bytes")
 
+
+MODE_ECB = 1
+MODE_CBC = 2
+MODE_CFB = 3
+MODE_OFB = 5
+MODE_CTR = 6
+MODE_OPENPGP = 7
+MODE_CCM = 8
+MODE_EAX = 9
+MODE_SIV = 10
+MODE_GCM = 11
+MODE_OCB = 12
+
+# Size of a data block (in bytes)
+block_size = 16
+# Size of a key (in bytes)
+key_size = (16, 24, 32)
 
 
 def _create_base_cipher(dict_parameters):
     """This method instantiates and returns a handle to a low-level
     base cipher. It will absorb named parameters in the process."""
 
-    try:
-        key = dict_parameters.pop("key")
-    except KeyError:
+    if "key" not in dict_parameters:
         fail("TypeError: Missing 'key' parameter")
 
+    key = dict_parameters.pop("key")
     if len(key) not in key_size:
         fail("ValueError: Incorrect AES key length (%d bytes)" % len(key))
 
-    start_operation = _raw_aes_lib.AES_start_operation
-    stop_operation = _raw_aes_lib.AES_stop_operation
-
-    cipher = VoidPointer()
-    result = start_operation(c_uint8_ptr(key),
-                             c_size_t(len(key)),
-                             cipher.address_of())
-    if result:
-        fail("ValueError: Error %X while instantiating the AES cipher" % result)
-    return SmartPointer(cipher.get(), stop_operation)
+    aes_engine = _JCrypto.Cipher.AES(key)
+    return aes_engine
 
 
 def _derive_Poly1305_key_pair(key, nonce):
@@ -186,24 +193,24 @@ def new(key, mode, *args, **kwargs):
     """
 
     kwargs["add_aes_modes"] = True
-    return _create_cipher(sys.modules[__name__], key, mode, *args, **kwargs)
-self.new = new
+    return Cipher._create_cipher(AES, key, mode, *args, **kwargs)
 
 
-MODE_ECB = 1
-MODE_CBC = 2
-MODE_CFB = 3
-MODE_OFB = 5
-MODE_CTR = 6
-MODE_OPENPGP = 7
-MODE_CCM = 8
-MODE_EAX = 9
-MODE_SIV = 10
-MODE_GCM = 11
-MODE_OCB = 12
-
-# Size of a data block (in bytes)
-block_size = 16
-# Size of a key (in bytes)
-key_size = (16, 24, 32)
-
+AES = larky.struct(
+    _derive_Poly1305_key_pair=_derive_Poly1305_key_pair,
+    _create_base_cipher=_create_base_cipher,
+    MODE_ECB=MODE_ECB,
+    MODE_CBC=MODE_CBC,
+    MODE_CFB=MODE_CFB,
+    MODE_OFB=MODE_OFB,
+    MODE_CTR=MODE_CTR,
+    MODE_OPENPGP=MODE_OPENPGP,
+    MODE_CCM = MODE_CCM,
+    MODE_EAX=MODE_EAX,
+    MODE_SIV=MODE_SIV,
+    MODE_GCM=MODE_GCM,
+    MODE_OCB=MODE_OCB,
+    block_size=block_size,
+    key_size=key_size,
+    new=new
+)

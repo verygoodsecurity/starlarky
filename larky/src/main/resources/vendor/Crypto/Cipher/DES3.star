@@ -69,7 +69,6 @@ def adjust_key_parity(key_in):
     :raises ValueError: if the TDES key is not 16 or 24 bytes long
     :raises ValueError: if the TDES key degenerates into Single DES
     """
-    print("xxxxxx: ", key_in, len(key_in))
     if len(key_in) not in key_size:
         fail("ValueError: Not a valid TDES key")
 
@@ -93,18 +92,8 @@ def _create_base_cipher(dict_parameters):
     key_in = dict_parameters.pop("key")
     key = adjust_key_parity(bstr(key_in))
 
-    des3engine = _JCrypto.Cipher.DES3(key)
-    return des3engine
-    # start_operation = _JCrypto.Cipher.DES3.start_operation
-    # stop_operation = _raw_des3_lib.DES3_stop_operation
-    #
-    # cipher = VoidPointer()
-    # result = start_operation(key,
-    #                          c_size_t(len(key)),
-    #                          cipher.address_of())
-    # if result:
-    #     fail("ValueError: Error %X while instantiating the TDES cipher " % result)
-    # return SmartPointer(cipher.get(), stop_operation)
+    des3_engine = _JCrypto.Cipher.DES3(key)
+    return des3_engine
 
 
 def new(key, mode, *args, **kwargs):

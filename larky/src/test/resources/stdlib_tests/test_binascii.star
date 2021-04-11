@@ -13,7 +13,7 @@ hex_data = hexlify(data)
 print("Hex Data: ", hex_data)
 # Verify data
 asserts.assert_(
-    hex_data == str(builtins.bytes("43697263756974507974686f6e20697320417765736f6d6521")),
+    hex_data == builtins.bytes("43697263756974507974686f6e20697320417765736f6d6521"),
     "hexlified data does not match expected data.")
 # Get the binary data represented by hex_data
 bin_data = unhexlify(hex_data)

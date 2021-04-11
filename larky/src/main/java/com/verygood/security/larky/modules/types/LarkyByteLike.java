@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules.types;
 
 
+import com.google.common.base.Ascii;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Range;
 import com.google.common.collect.Streams;
@@ -119,6 +120,13 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     return result;
   }
 
+  protected LarkyByteLike copy(byte[] bytes) throws EvalException {
+    if(bytes == null) {
+      bytes = getBytes();
+    }
+    return this.builder().setSequence(bytes).build();
+  }
+
   @Override
   public int size() {
     return getSequenceStorage().size();
@@ -151,6 +159,34 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     } catch (EvalException e) {
       throw new RuntimeException(e.getMessage(), e.fillInStackTrace());
     }
+  }
+
+  @StarlarkMethod(
+      name = "lower",
+      doc = "B.lower() -> copy of B\n" +
+          "\n" +
+          "Return a copy of B with all ASCII characters converted to lowercase.")
+  public LarkyByteLike lower() throws EvalException {
+    byte[] bytes = getBytes();
+    for (int i = 0; i < bytes.length; i++) {
+      byte b = (byte) Ascii.toLowerCase((char) bytes[i]);
+      bytes[i] = b;
+    }
+    return copy(bytes);
+  }
+
+  @StarlarkMethod(
+      name = "upper",
+      doc = "B.upper() -> copy of B\n" +
+          "\n" +
+          "Return a copy of B with all ASCII characters converted to uppercase.")
+  public LarkyByteLike upper() throws EvalException {
+    byte[] bytes = getBytes();
+    for (int i = 0; i < bytes.length; i++) {
+      byte b = (byte) Ascii.toUpperCase((char) bytes[i]);
+      bytes[i] = b;
+    }
+    return copy(bytes);
   }
 
   @StarlarkMethod(

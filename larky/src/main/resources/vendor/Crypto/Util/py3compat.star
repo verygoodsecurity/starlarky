@@ -101,8 +101,6 @@ def tobytes(s, encoding="ISO-8859-1"):
 
 
 def tostr(bs):
-    if types.is_string(bs):
-        return bs
     return codecs.decode(bs, encoding="ISO-8859-1")
 
 
