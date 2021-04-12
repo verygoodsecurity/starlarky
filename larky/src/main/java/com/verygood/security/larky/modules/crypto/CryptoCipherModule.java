@@ -138,7 +138,6 @@ public class CryptoCipherModule implements StarlarkValue {
     DESEngine desEngine = new DESEngine();
       try {
         KeyParameter params = new KeyParameter(key.getBytes());
-        //DESParameters params = new DESParameters(key.getBytes());
         return new Engine(desEngine, params);
       } catch(IllegalArgumentException e) {
         throw new EvalException(e.getMessage(), e);

@@ -374,7 +374,6 @@ def _RsaKey(**kwargs):
         if format == 'DER':
             return binary_key
         if format == 'PEM':
-            # pem_str = _JCrypto.IO.PEM.encode(binary_key, key_type, passphrase, randfunc)
             pem_str = PEM.encode(binary_key, key_type, passphrase, randfunc)
             return tobytes(pem_str.strip())
 
