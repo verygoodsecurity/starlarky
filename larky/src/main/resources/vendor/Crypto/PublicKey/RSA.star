@@ -37,6 +37,7 @@ load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
+load("@vendor//Crypto/IO/PEM", PEM="PEM")
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
 load("@vendor//Crypto/Math/Primality", test_probable_prime="test_probable_prime", generate_probable_prime="generate_probable_prime", COMPOSITE="COMPOSITE")
@@ -44,7 +45,11 @@ load("@vendor//Crypto/PublicKey",
      _expand_subject_public_key_info="expand_subject_public_key_info",
      _create_subject_public_key_info="create_subject_public_key_info",
      _extract_subject_public_key_info="extract_subject_public_key_info")
-
+load("@vendor//Crypto/PublicKey/_openssh",
+     import_openssh_private_generic="import_openssh_private_generic",
+     read_bytes="read_bytes",
+     read_string="read_string",
+     check_padding="check_padding")
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
@@ -350,12 +355,12 @@ def _RsaKey(**kwargs):
             else:  # PKCS#8
                 if format == 'PEM' and protection == None:
                     key_type = 'PRIVATE KEY'
-                    binary_key = _JCrypto.PublicKey.PKCS8_wrap(binary_key, _oid, None)
+                    binary_key = _JCrypto.IO.PKCS8.wrap(binary_key, _oid, None)
                 else:
                     key_type = 'ENCRYPTED PRIVATE KEY'
                     if not protection:
-                        protection = 'PBKDF2WithHMACSHA1AndDES-EDE3-CBC'
-                    binary_key = _JCrypto.PublicKey.PKCS8_wrap(binary_key, _oid,
+                        protection = 'PBKDF2WithHMAC-SHA1AndDES-EDE3-CBC'
+                    binary_key = _JCrypto.IO.PKCS8.wrap(binary_key, _oid,
                                             passphrase, protection)
                     passphrase = None
         else:
@@ -369,15 +374,15 @@ def _RsaKey(**kwargs):
         if format == 'DER':
             return binary_key
         if format == 'PEM':
-            pem_str = _JCrypto.PublicKey.PEM_encode(binary_key, key_type, passphrase, randfunc)
+            pem_str = PEM.encode(binary_key, key_type, passphrase, randfunc)
             return tobytes(pem_str.strip())
 
-        fail('ValueError: Unknown key format "%s". ' +
-             'Cannot export the RSA key.' % format)
+        fail(('ValueError: Unknown key format "{}". ' +
+              'Cannot export the RSA key.').format(format))
 
     self.export_key = export_key
     # Backward compatibility
-    # self.exportKey = export_key
+    self.exportKey = export_key
     self.publickey = public_key
 
     # Methods defined in PyCrypto that we don't support anymore
@@ -580,10 +585,10 @@ def _import_pkcs1_private(encoded, *kwargs):
     # }
     #
     # Version ::= INTEGER
-    der = DerSequence().decode(encoded, nr_elements=9, only_ints_expected=True, failOnOnlyInts=False)
+    der = DerSequence().decode(encoded, nr_elements=9, only_ints_expected=True, errors=False)
     # TODO(Hack)...until I introduce safetywrap
     if not der:
-        return "failedonints", None
+        return "failed", None
     if der.__getitem__(0) != 0:
         return 'ValueError: No PKCS#1 encoding of an RSA private key', None
     return None, _construct(der.__getslice__(1,6) + [
@@ -596,15 +601,17 @@ def _import_pkcs1_public(encoded, *kwargs):
     #           modulus INTEGER, -- n
     #           publicExponent INTEGER -- e
     # }
-    der = DerSequence().decode(encoded, nr_elements=2, only_ints_expected=True, failOnOnlyInts=False)
+    der = DerSequence().decode(encoded, nr_elements=2, only_ints_expected=True, errors=False)
     # TODO(Hack)...until I introduce safetywrap
     if not der:
-        return "failedonints", None
+        return "failed", None
     return None, _construct(der._seq)
 
 
 def _import_subjectPublicKeyInfo(encoded, *kwargs):
-
+    result = _JCrypto.PublicKey.import_keyDER(encoded, kwargs[0])
+    return None, _construct(result)
+    print(binascii.hexlify(encoded))
     algoid, encoded_key, params = _expand_subject_public_key_info(encoded)
     if algoid != _oid or params != None:
         return 'ValueError: No RSA subjectPublicKeyInfo', None
@@ -612,6 +619,8 @@ def _import_subjectPublicKeyInfo(encoded, *kwargs):
 
 
 def _import_x509_cert(encoded, *kwargs):
+    result = _JCrypto.PublicKey.import_keyDER(encoded, kwargs[0])
+    return None, _construct(result)
     sp_info = _extract_subject_public_key_info(encoded)
     return _import_subjectPublicKeyInfo(sp_info)
 
@@ -631,40 +640,32 @@ def _import_keyDER(extern_key, passphrase):
                  _import_subjectPublicKeyInfo,
                  _import_x509_cert,
                  _import_pkcs8)
-    # print("key: " , binascii.hexlify(extern_key))
     for decoding in decodings:
         error, result = decoding(extern_key, passphrase)
         if error != None:
             print(error)
         if result:
             return None, result
-    #_JCrypto.PublicKey.import_DER_key(extern_key, passphrase)
-
     fail('ValueError("RSA key format is not supported")')
 
 
 def _import_openssh_private_rsa(data, password):
-    return data
-    # load("@vendor//_openssh", import_openssh_private_generic="import_openssh_private_generic", read_bytes="read_bytes", read_string="read_string", check_padding="check_padding")
+    ssh_name, decrypted = import_openssh_private_generic(data, password)
+    if ssh_name != "ssh-rsa":
+        fail('ValueError: This SSH key is not RSA')
 
-    # ssh_name, decrypted = import_openssh_private_generic(data, password)
-    #ssh_name = tostr(data)
-#    decrypted = (password != None)
- #   if ssh_name != "ssh-rsa":
-#        fail(" ValueError(\"This SSH key is not RSA\")")
+    n, decrypted = read_bytes(decrypted)
+    e, decrypted = read_bytes(decrypted)
+    d, decrypted = read_bytes(decrypted)
+    iqmp, decrypted = read_bytes(decrypted)
+    p, decrypted = read_bytes(decrypted)
+    q, decrypted = read_bytes(decrypted)
 
-    # n, decrypted = read_bytes(decrypted)
-    # e, decrypted = read_bytes(decrypted)
-    # d, decrypted = read_bytes(decrypted)
-    # iqmp, decrypted = read_bytes(decrypted)
-    # p, decrypted = read_bytes(decrypted)
-    # q, decrypted = read_bytes(decrypted)
-    #
-    # _, padded = read_string(decrypted)  # Comment
-    # check_padding(padded)
+    _, padded = read_string(decrypted)  # Comment
+    check_padding(padded)
 
-    #build = [Integer.from_bytes(x) for x in (n, e, d, q, p, iqmp)]
-    #return(build)
+    build = [Integer(0).from_bytes(x) for x in (n, e, d, q, p, iqmp)]
+    return _construct(build)
 
 
 def _import_key(extern_key, passphrase=None):
@@ -711,30 +712,20 @@ def _import_key(extern_key, passphrase=None):
     if passphrase != None:
         passphrase = tobytes(passphrase)
 
-    if extern_key.startswith(bytes([0x2d, 0x2d, 0x2d, 0x2d, 0x2d, 0x42, 0x45, 0x47, 0x49, 0x4e, 0x20, 0x4f, 0x50, 0x45, 0x4e, 0x53, 0x53, 0x48, 0x20, 0x50, 0x52, 0x49, 0x56, 0x41, 0x54, 0x45, 0x20, 0x4b, 0x45, 0x59])):
+    if extern_key.startswith(bytes('-----BEGIN OPENSSH PRIVATE KEY', encoding='utf-8')):
         text_encoded = tostr(extern_key)
-        # openssh_encoded, marker, enc_flag = PEM.decode(text_encoded, passphrase)
-        openssh_encoded = _JCrypto.PublicKey.PEM_decode(text_encoded, passphrase)
+        openssh_encoded, marker, enc_flag = PEM.decode(text_encoded, passphrase)
         result = _import_openssh_private_rsa(openssh_encoded, passphrase)
         return result
 
-    if extern_key.startswith(bytes([0x2d, 0x2d, 0x2d, 0x2d, 0x2d])):
+    if extern_key.startswith(bytes('-----', encoding='utf-8')):
         # This is probably a PEM encoded key.
-        # (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
-        enc_flag = (passphrase != None)
-        result = _JCrypto.PublicKey.PEM_decode(tostr(extern_key), passphrase)
-        # print(result)
-        if "d" not in result:
-            return _construct((result["n"], result["e"]))
-        else:
-            return _construct((result["n"], result["e"], result["d"], result["p"], result["q"], result["u"]))
-        # print(binascii.hexlify(der))
-        # if enc_flag:
-        #     passphrase = None
-        # err, res = _import_keyDER(der, passphrase)
-        # return res
-
-    if extern_key.startswith(bytes([0x73, 0x73, 0x68, 0x2d, 0x72, 0x73, 0x61, 0x20])):
+        (der, marker, enc_flag) = PEM.decode(tostr(extern_key), passphrase)
+        if enc_flag:
+            passphrase = None
+        result = _JCrypto.PublicKey.import_keyDER(der, passphrase)
+        return _construct(result)
+    if extern_key.startswith(bytes('ssh-rsa ', encoding='utf-8')):
         # This is probably an OpenSSH key
         keystring = binascii.a2b_base64(extern_key.split(bytes([0x20]))[1])
         keyparts = []
@@ -744,9 +735,9 @@ def _import_key(extern_key, passphrase=None):
             length = struct.unpack(">I", keystring[:4])[0]
             keyparts.append(keystring[4:4 + length])
             keystring = keystring[4 + length:]
-        e = Integer.from_bytes(keyparts[1])
-        n = Integer.from_bytes(keyparts[2])
-        return([n, e])
+        e = Integer(0).from_bytes(keyparts[1])
+        n = Integer(0).from_bytes(keyparts[2])
+        return _construct([n, e])
 
     if len(extern_key) > 0 and bord(extern_key[0]) == 0x30:
         # This is probably a DER encoded key

@@ -367,6 +367,8 @@ public final class PythonBuiltins {
     String classType = Starlark.classType(_obj.getClass());
     try {
       switch (classType) {
+        case "bytearray":
+          _obj = ((LarkyByteArray) _obj).toLarkyByte().elems(); // "type safety" :D
         case "bytes.elems":
         case "list":
           Sequence<StarlarkInt> seq = Sequence.cast(_obj, StarlarkInt.class, classType);
@@ -376,7 +378,7 @@ public final class PythonBuiltins {
         default:
           throw Starlark.errorf("unable to convert '%s' to bytes", classType);
       }
-    } catch (EvalException | ClassCastException ex) {
+    } catch (ClassCastException ex) {
       throw Starlark.errorf("%s", ex.getMessage());
     }
   }
@@ -506,7 +508,7 @@ public final class PythonBuiltins {
          default:
            throw Starlark.errorf("unable to convert '%s' to bytes", classType);
        }
-     } catch (EvalException | ClassCastException ex) {
+     } catch (ClassCastException ex) {
        throw Starlark.errorf("%s", ex.getMessage());
      }
    }

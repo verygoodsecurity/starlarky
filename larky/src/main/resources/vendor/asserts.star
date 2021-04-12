@@ -197,13 +197,28 @@ def is_equal_to(self, other, **kwargs):
     See Also:
         :meth:`~assertpy.string.StringMixin.is_equal_to_ignoring_case` - for case-insensitive string equality
     """
+    _diff = False
     if types.is_set(self.val) or types.is_set(other):
         _diff = _compare_sets(self.val, other)
         if _diff:
             fail(_diff['message'])
-    elif self.val != other:
-        fail('Expected <{}> to be equal to <{}>, but was not.'.format(self.val,
-                                                                      other))
+    elif types.is_structlike(self.val) or types.is_structlike(other):
+        # if either are struct-like, check to see if
+        # there is an __eq__
+        # TODO: move the below to LarkyObject so that == works
+        #       check for __ne__ too.
+        if hasattr(self.val, '__eq__'):
+            _diff = not self.val.__eq__(other)
+        elif hasattr(other, '__eq__'):
+            _diff = not other.__eq__(self.val)
+        # fall through to checking equality
+    else:
+        _diff = (self.val != other)
+
+    if _diff:
+        fail('Expected <{}> to be equal to <{}>, but was not.'
+             .format(self.val, other))
+
     return self
 
 

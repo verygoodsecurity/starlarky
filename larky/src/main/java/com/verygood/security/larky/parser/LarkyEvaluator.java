@@ -282,7 +282,7 @@ public final class LarkyEvaluator {
     Map<String, Object> env = Maps.newHashMap();
 
     for (Class<?> module : globalModules) {
-      logger.atInfo().log("Creating variable for %s", module.getName());
+      logger.atFine().log("Creating variable for %s", module.getName());
       // Create the module object and associate it with the functions
       ImmutableMap.Builder<String, Object> envBuilder = ImmutableMap.builder();
       try {

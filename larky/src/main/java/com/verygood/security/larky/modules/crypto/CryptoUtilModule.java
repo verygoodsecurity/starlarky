@@ -37,8 +37,7 @@ public class CryptoUtilModule implements StarlarkValue {
       @Param(name = "n")
   })
   public LarkyDerInteger DerInteger(StarlarkInt n) {
-    LarkyDerInteger i = LarkyDerInteger.fromStarlarkInt(n);
-    return i;
+    return LarkyDerInteger.fromStarlarkInt(n);
   }
 
   @StarlarkMethod(name = "DerObjectId", parameters = {

@@ -123,14 +123,11 @@ def FileNotFoundError(*args, **kwargs):
     fail("FileNotFoundError(%s, %s)" % (args, kwargs))
 
 
-def _copy_bytes(start, end, seq):
+def copy_bytes(start, end, seq):
     """Return an immutable copy of a sequence (byte string, byte array, memoryview)
     in a certain interval [start:seq]"""
 
-    fail("_copy_bytes")
-    if types.is_instance(seq, 'memoryview'):
-        return seq[start:end].tobytes()
-    elif types.is_instance(seq, builtins.bytearray):
+    if types.is_bytearray(seq):
         return builtins.bytearray(seq[start:end])
     else:
         return seq[start:end]

@@ -216,7 +216,7 @@ public class CryptoPublicKeyModuleTest {
         "JACAr3sJQJGxIQIgarRp+m1WSKV1MciwMaTOnbU7wxFs9DP1pva76lYBzgUCIQC9\n" +
         "n0CnZCJ6IZYqSt0H5N7+Q+2Ro64nuwV/OSQfM6sBwQ==\n" +
         "-----END RSA PRIVATE KEY-----";
-    Dict<String, Object> rsaObj = null;
+    StarlarkList<?> rsaObj = null;
     try (Mutability mu = Mutability.create("test")) {
           StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
       rsaObj= CryptoPublicKeyModule.INSTANCE.PEM_decode(rsaKeyPEM, null, thread);
