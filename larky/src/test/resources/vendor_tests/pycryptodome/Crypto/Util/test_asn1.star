@@ -52,7 +52,8 @@ def b(s):
 def _test_DERInteger():
     int_der = DerInteger(9)
     encoded = int_der.encode()
-    asserts.eq(hexlify(encoded), "020109")
+    asserts.eq(str(hexlify(encoded)), "020109")
+    asserts.eq(hexlify(encoded), bytes("020109", encoding="utf-8"))
     asserts.assert_true(types.is_bytelike(encoded))
 
 

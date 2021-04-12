@@ -114,7 +114,7 @@ public class CodecsModule implements StarlarkValue {
       }
   )
   public String decode(LarkyByteLike bytesToDecode, String encoding, String errors) throws EvalException {
-    if(CodecsModule.UTF8.equals(encoding.toLowerCase())) {
+    if(CodecsModule.UTF8.equals(encoding.toLowerCase())) { // TODO: fix this to be a normal decoder
       return TextUtil.starlarkDecodeUtf8(bytesToDecode.getBytes());
     }
     CharsetDecoder decoder = Charset.forName(encoding)

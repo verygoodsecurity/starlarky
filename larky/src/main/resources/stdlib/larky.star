@@ -11,6 +11,10 @@ def _to_dict(s):
       transformation is only applied to the struct's fields and not to any
       nested values.
     """
+    # NOTE: This will evaluate properties on getattr(), so it is *IMPORTANT*
+    # that if you use this function, to not expect properties to fail()
+    #
+    # You might be better of using repr() instead!
     attributes = dir(s)
     if "to_json" in attributes:
         attributes.remove("to_json")

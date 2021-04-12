@@ -72,14 +72,23 @@ public class BinasciiModule implements StarlarkValue {
           "than one line may be passed at a time.",
       parameters = {
           @Param(
-              name = "s",
-              allowedTypes = {@ParamType(type = String.class)}
+              name = "data",
+              allowedTypes = {
+                  @ParamType(type=LarkyByteLike.class),
+                  @ParamType(type=String.class)}
           )
       },
       useStarlarkThread = true)
-  public LarkyByteLike a2b_base64(String s, StarlarkThread thread) throws EvalException {
+  public LarkyByteLike a2b_base64(Object dataO, StarlarkThread thread) throws EvalException {
+    byte[] bytes;
+    if(dataO instanceof String) {
+      bytes = ((String) dataO).getBytes(StandardCharsets.US_ASCII);
+    }
+    else {
+      bytes = ((LarkyByteLike) dataO).getBytes();
+    }
     return LarkyByte.builder(thread)
-        .setSequence(b64decode(s.getBytes(StandardCharsets.US_ASCII)))
+        .setSequence(b64decode(bytes))
         .build();
   }
 
@@ -216,15 +225,18 @@ public class BinasciiModule implements StarlarkValue {
               named = true,
               defaultValue = "1"
           )
-      })
-  public String b2a_hex(LarkyByteLike binstr, Object sep, StarlarkInt bytes_per_sep) {
+      }, useStarlarkThread = true)
+  public LarkyByteLike b2a_hex(LarkyByteLike binstr, Object sep, StarlarkInt bytes_per_sep, StarlarkThread thread) throws EvalException {
     StringBuilder b = new StringBuilder(binstr.size() * 2);
     byte[] bytes = binstr.getBytes();
     for (int n : bytes) {
       b.append(HEX_DIGITS[(n >> 4) & 0xF]);
       b.append(HEX_DIGITS[n & 0xF]);
     }
-    return b.toString().toLowerCase();
+    byte[] encoded = b.toString().toLowerCase().getBytes(StandardCharsets.UTF_8);
+    return LarkyByte.builder(thread)
+            .setSequence(encoded)
+            .build();
   }
 
   //@Builtin(name = "crc32", minNumOfPositionalArgs = 1, parameterNames = {"data", "crc"})

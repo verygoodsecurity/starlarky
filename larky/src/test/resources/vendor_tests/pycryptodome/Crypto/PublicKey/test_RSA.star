@@ -233,26 +233,6 @@ def RSATest_test_generate_3args():
     asserts.assert_that(65537).is_equal_to(rsaObj.e)
 
 
-def RSATest_test_generate_2arg():
-    """RSA (default implementation) generated key (2 arguments)"""
-    rsaObj = rsa.generate(1024, Random.new().read)
-    _check_private_key(rsaObj)
-    _exercise_primitive(rsaObj)
-    pub = rsaObj.public_key()
-    _check_public_key(pub)
-    _exercise_public_primitive(rsaObj)
-
-
-def RSATest_test_generate_3args():
-    rsaObj = rsa.generate(1024, Random.new().read, e=65537)
-    _check_private_key(rsaObj)
-    _exercise_primitive(rsaObj)
-    pub = rsaObj.public_key()
-    _check_public_key(pub)
-    _exercise_public_primitive(rsaObj)
-    asserts.assert_that(65537).is_equal_to(rsaObj.e)
-
-
 def RSATest_test_construct_2tuple():
     """RSA (default implementation) constructed key (2-tuple)"""
     pub = rsa.construct((n, e))

@@ -125,7 +125,7 @@
         -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15to18</artifactId>
+            <artifactId>bcprov-debug-jdk15to18</artifactId>
             <version>${org.bouncycastle.version}</version>
         </dependency>
 

@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules.types;
 
 
+import com.google.common.base.Ascii;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Range;
 import com.google.common.collect.Streams;
@@ -21,11 +22,14 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -57,6 +61,19 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
         .map(Byte::toUnsignedInt)
         .mapToInt(i -> i)
         .toArray();
+  }
+
+  public char[] toCharArray(Charset cs) {
+    CharBuffer charBuffer = cs.decode(ByteBuffer.wrap(getBytes()));
+    return Arrays.copyOf(charBuffer.array(), charBuffer.limit());
+  }
+
+  public char[] toCharArray() {
+    // this is the right default charset for char arrays
+    // specially in a password context
+    // see: https://stackoverflow.com/questions/8881291/why-is-char-preferred-over-string-for-passwords
+    // as well as: https://stackoverflow.com/a/9670279/133514
+    return toCharArray(StandardCharsets.ISO_8859_1);
   }
 
   @Override
@@ -103,6 +120,13 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     return result;
   }
 
+  protected LarkyByteLike copy(byte[] bytes) throws EvalException {
+    if(bytes == null) {
+      bytes = getBytes();
+    }
+    return this.builder().setSequence(bytes).build();
+  }
+
   @Override
   public int size() {
     return getSequenceStorage().size();
@@ -137,17 +161,89 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
     }
   }
 
-  /**
-   * For consistency with Python we recognize the same whitespace characters as they do over the
-   * range 0x00-0xFF. See https://github.com/python/cpython/blob/master/Objects/unicodetype_db.h#L6208-L6243
-   * This list is a consequence of Unicode character information.
-   *
-   * <p>Note that this differs from Python 2.7, which uses ctype.h#isspace(), and from
-   * java.lang.Character#isWhitespace(), which does not recognize U+00A0.
-   */
-  private static final byte[] LATIN1_WHITESPACE =
-      ("\u0009" + "\n" + "\u000B" + "\u000C" + "\r" + "\u001C" + "\u001D" + "\u001E" + "\u001F"
-          + "\u0020" + "\u0085" + "\u00A0").getBytes(StandardCharsets.US_ASCII);
+  @StarlarkMethod(
+      name = "lower",
+      doc = "B.lower() -> copy of B\n" +
+          "\n" +
+          "Return a copy of B with all ASCII characters converted to lowercase.")
+  public LarkyByteLike lower() throws EvalException {
+    byte[] bytes = getBytes();
+    for (int i = 0; i < bytes.length; i++) {
+      byte b = (byte) Ascii.toLowerCase((char) bytes[i]);
+      bytes[i] = b;
+    }
+    return copy(bytes);
+  }
+
+  @StarlarkMethod(
+      name = "upper",
+      doc = "B.upper() -> copy of B\n" +
+          "\n" +
+          "Return a copy of B with all ASCII characters converted to uppercase.")
+  public LarkyByteLike upper() throws EvalException {
+    byte[] bytes = getBytes();
+    for (int i = 0; i < bytes.length; i++) {
+      byte b = (byte) Ascii.toUpperCase((char) bytes[i]);
+      bytes[i] = b;
+    }
+    return copy(bytes);
+  }
+
+  @StarlarkMethod(
+      name = "split",
+      doc = "" +
+          "Return a list of the sections in the bytes, using sep as the delimiter.\n" +
+          "\n" +
+          "sep\n" +
+          "  The delimiter according which to split the bytes.\n" +
+          "  None (the default value) means split on ASCII whitespace characters\n" +
+          "  (space, tab, return, newline, formfeed, vertical tab).\n" +
+          "maxsplit\n" +
+          "  Maximum number of splits to do.\n" +
+          "  -1 (the default value) means no limit.",
+      parameters = {
+          @Param(name = "bytes", doc = "The bytes to split on.", allowedTypes = {
+              @ParamType(type=LarkyByteLike.class),
+              @ParamType(type=NoneType.class)
+          }, defaultValue="None"),
+          @Param(
+            name = "maxsplit",
+            allowedTypes = {
+              @ParamType(type = StarlarkInt.class),
+              @ParamType(type = NoneType.class),
+            },
+            defaultValue = "None",
+            doc = "The maximum number of splits.")
+      },
+      useStarlarkThread = true)
+   public StarlarkList<LarkyByteLike> split(Object bytesO, Object maxSplitO, StarlarkThread thread) throws EvalException {
+    int maxSplit = Integer.MAX_VALUE;
+    if (maxSplitO != Starlark.NONE) {
+      maxSplit = Starlark.toInt(maxSplitO, "maxsplit");
+    }
+    List<byte[]> split;
+    if(Starlark.isNullOrNone(bytesO)) {
+      split = ByteArrayUtil.splitOnWhitespace(this.getBytes(), ByteArrayUtil.LATIN1_WHITESPACE);
+    } else {
+      split = ByteArrayUtil.split(this.getBytes(), 0, this.size(), ((LarkyByteLike) bytesO).getBytes());
+    }
+
+    StarlarkList<LarkyByteLike> res = StarlarkList.newList(thread.mutability());
+
+    if(maxSplit < split.size()) {
+      for (int i = 0; i < maxSplit; i++) {
+        res.addElement(this.builder().setSequence(split.get(i)).build());
+      }
+    }
+
+    else {
+      for (byte[] i : split) {
+        res.addElement(this.builder().setSequence(i).build());
+      }
+    }
+    return res;
+  }
+
 
   @StarlarkMethod(
       name = "lstrip",
@@ -161,7 +257,7 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
               defaultValue = "None")
       })
   public LarkyByteLike lstrip(Object bytesOrNone) throws EvalException {
-    byte[] pattern = bytesOrNone != Starlark.NONE ? ((LarkyByteLike) bytesOrNone).getBytes() : LATIN1_WHITESPACE;
+    byte[] pattern = bytesOrNone != Starlark.NONE ? ((LarkyByteLike) bytesOrNone).getBytes() : ByteArrayUtil.LATIN1_WHITESPACE;
     byte[] replaced = ByteArrayUtil.lstrip(this.getBytes(), pattern);
     //return stringLStrip(self, chars);
     return this.builder().setSequence(replaced).build();
@@ -483,14 +579,29 @@ public abstract class LarkyByteLike extends AbstractList<StarlarkInt> implements
 
     /**
      * Add right to left (i.e. [1] + [2] = [1, 2])
+     * @return
      */
-    static public StarlarkList<StarlarkInt> add(LarkyByteLike left, LarkyByteLike right) throws EvalException {
+    static public LarkyByteLike add(Object left, Object right) throws EvalException {
+      LarkyByteLike left_ = toLarkyByteLike(left);
+      LarkyByteLike right_ = toLarkyByteLike(right);
+
       StarlarkList<StarlarkInt> seq;
       seq = StarlarkList.concat(
-          StarlarkList.immutableCopyOf(left.getSequenceStorage().getImmutableList()),
-          StarlarkList.immutableCopyOf(right.getSequenceStorage().getImmutableList()),
+          StarlarkList.immutableCopyOf(left_.getSequenceStorage().getImmutableList()),
+          StarlarkList.immutableCopyOf(right_.getSequenceStorage().getImmutableList()),
           null);
-      return seq;
+      return left_.builder().setSequence(seq).build();
+    }
+
+    private static LarkyByteLike toLarkyByteLike(Object item) throws EvalException {
+      if(item instanceof StarlarkList) {
+        Sequence<StarlarkInt> cast = Sequence.cast(
+            item,
+            StarlarkInt.class,
+            "Attempted to add list of non-Integer type to a bytearray");
+        return LarkyByteArray.builder(null).setSequence(cast).build();
+      }
+      return (LarkyByteLike) item;
     }
   }
 }

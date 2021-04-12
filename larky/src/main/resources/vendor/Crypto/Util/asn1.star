@@ -548,7 +548,9 @@ def DerSequence(startSeq=None, implicit=None):
         #
         # return self.derobject.encode(self)
 
-    def decode(der_encoded, strict=False, nr_elements=None, only_ints_expected=False, failOnOnlyInts=True):
+    def decode(der_encoded, strict=False, nr_elements=None, only_ints_expected=False,
+               # TODO(Hack)...until I introduce safetywrap
+               errors=True):
         """Decode a complete DER SEQUENCE, and re-initializes this
         object with it.
 
@@ -575,7 +577,8 @@ def DerSequence(startSeq=None, implicit=None):
         # result = self.derobject.decode(self, der_encoded, strict=strict)
         #
         if only_ints_expected and not hasOnlyInts():
-            if failOnOnlyInts:
+            # TODO(Hack)...until I introduce safetywrap
+            if errors:
                 fail('ValueError: Some members are not INTEGERs')
             return
 
@@ -587,8 +590,11 @@ def DerSequence(startSeq=None, implicit=None):
                 ok = len(self._seq) == self._nr_elements
 
         if not ok:
-            err = '"Unexpected number of members (%d) in the sequence"'
-            fail('ValueError(%s)' % (err % len(self._seq)))
+            # TODO(Hack)...until I introduce safetywrap
+            if errors:
+                err = '"Unexpected number of members (%d) in the sequence"'
+                fail('ValueError(%s)' % (err % len(self._seq)))
+            return
         return self
 
     def _decodeFromStream(obj, s, strict):
