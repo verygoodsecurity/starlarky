@@ -724,10 +724,6 @@ def TestImport_2048_test_import_openssh_public():
     key_file_ref = rsa2048_priv_pem
     key_file = rsa2048_pub_openssh
 
-    # Skip test if test vectors are not installed
-    if None in (key_file_ref, key_file):
-        return
-
     key_ref = RSA.import_key(key_file_ref).public_key()
     key = RSA.import_key(key_file)
     asserts.assert_that(key_ref).is_equal_to(key)
@@ -736,10 +732,6 @@ def TestImport_2048_test_import_openssh_public():
 def TestImport_2048_test_import_openssh_private_clear():
     key_file = rsa2048_private_openssh
     key_file_old = rsa2048_private_openssh_old
-
-    # Skip test if test vectors are not installed
-    if None in (key_file_old, key_file):
-        return
 
     key = RSA.import_key(key_file)
     key_old = RSA.import_key(key_file_old)
@@ -751,10 +743,6 @@ def TestImport_2048_test_import_openssh_private_password():
     key_file = rsa2048_private_openssh_pwd
     key_file_old = rsa2048_private_openssh_pwd_old
 
-    # Skip test if test vectors are not installed
-    if None in (key_file_old, key_file):
-        return
-
     key = RSA.import_key(key_file, bytes("password", encoding="utf-8"))
     key_old = RSA.import_key(key_file_old)
     asserts.assert_that(key).is_equal_to(key_old)
@@ -764,51 +752,45 @@ def TestImport_2048_test_import_openssh_private_password():
 def _testsuite():
     _suite = unittest.TestSuite()
     _case = unittest.FunctionTestCase
-    failingsuite = True
-
-    if not failingsuite:
-        _suite.addTest(_case(ImportKeyTests_testImportKey1))
-        _suite.addTest(_case(ImportKeyTests_testImportKey2))
-        _suite.addTest(_case(ImportKeyTests_testImportKey3unicode))
-        _suite.addTest(_case(ImportKeyTests_testImportKey3bytes))
-        _suite.addTest(_case(ImportKeyTests_testImportKey4unicode))
-        _suite.addTest(_case(ImportKeyTests_testImportKey4bytes))
-        _suite.addTest(_case(ImportKeyTests_testImportKey5))
-        _suite.addTest(_case(ImportKeyTests_testImportKey6))
-        _suite.addTest(_case(ImportKeyTests_testImportKey7))
-        _suite.addTest(_case(ImportKeyTests_testImportKey8))
-        _suite.addTest(_case(ImportKeyTests_testImportKey9))
-        _suite.addTest(_case(ImportKeyTests_testImportKey10))
-        _suite.addTest(_case(ImportKeyTests_testImportKey11))
-        _suite.addTest(_case(ImportKeyTests_testImportKey12))
-        _suite.addTest(
-            _case(ImportKeyTests_test_import_key_windows_cr_lf)
-        )
-        _suite.addTest(_case(ImportKeyTests_test_import_empty))
-        _suite.addTest(_case(ImportKeyTests_testExportKey1))
-        _suite.addTest(_case(ImportKeyTests_testExportKey2))
-        _suite.addTest(_case(ImportKeyTests_testExportKey3))
-        _suite.addTest(_case(ImportKeyTests_testExportKey4))
-        _suite.addTest(_case(ImportKeyTests_testExportKey5))
-        _suite.addTest(_case(ImportKeyTests_testExportKey7))
-        _suite.addTest(_case(ImportKeyTests_testExportKey8))
-        _suite.addTest(_case(ImportKeyTests_testExportKey9))
-        _suite.addTest(_case(ImportKeyTests_testExportKey10))
-        _suite.addTest(_case(ImportKeyTests_testExportKey11))
-        _suite.addTest(_case(ImportKeyTests_testExportKey12))
-        _suite.addTest(_case(ImportKeyTests_testExportKey13))
-        _suite.addTest(_case(ImportKeyTests_testExportKey14))
-        _suite.addTest(_case(ImportKeyTests_testExportKey15))
-        _suite.addTest(_case(ImportKeyTests_test_import_key))
-        _suite.addTest(_case(ImportKeyTests_test_exportKey))
-        _suite.addTest(_case(ImportKeyFromX509Cert_test_x509v1))
-        _suite.addTest(_case(ImportKeyFromX509Cert_test_x509v3))
-    if failingsuite:
-       #  File "vendor/Crypto/PublicKey/RSA.star", line 753, column 9, in _import_key
-       # Error in fail: ValueError: RSA key format is not supported
-        _suite.addTest(_case(TestImport_2048_test_import_openssh_public))
-        _suite.addTest(_case(TestImport_2048_test_import_openssh_private_clear))
-        _suite.addTest(_case(TestImport_2048_test_import_openssh_private_password))
+    _suite.addTest(_case(ImportKeyTests_testImportKey1))
+    _suite.addTest(_case(ImportKeyTests_testImportKey2))
+    _suite.addTest(_case(ImportKeyTests_testImportKey3unicode))
+    _suite.addTest(_case(ImportKeyTests_testImportKey3bytes))
+    _suite.addTest(_case(ImportKeyTests_testImportKey4unicode))
+    _suite.addTest(_case(ImportKeyTests_testImportKey4bytes))
+    _suite.addTest(_case(ImportKeyTests_testImportKey5))
+    _suite.addTest(_case(ImportKeyTests_testImportKey6))
+    _suite.addTest(_case(ImportKeyTests_testImportKey7))
+    _suite.addTest(_case(ImportKeyTests_testImportKey8))
+    _suite.addTest(_case(ImportKeyTests_testImportKey9))
+    _suite.addTest(_case(ImportKeyTests_testImportKey10))
+    _suite.addTest(_case(ImportKeyTests_testImportKey11))
+    _suite.addTest(_case(ImportKeyTests_testImportKey12))
+    _suite.addTest(
+        _case(ImportKeyTests_test_import_key_windows_cr_lf)
+    )
+    _suite.addTest(_case(ImportKeyTests_test_import_empty))
+    _suite.addTest(_case(ImportKeyTests_testExportKey1))
+    _suite.addTest(_case(ImportKeyTests_testExportKey2))
+    _suite.addTest(_case(ImportKeyTests_testExportKey3))
+    _suite.addTest(_case(ImportKeyTests_testExportKey4))
+    _suite.addTest(_case(ImportKeyTests_testExportKey5))
+    _suite.addTest(_case(ImportKeyTests_testExportKey7))
+    _suite.addTest(_case(ImportKeyTests_testExportKey8))
+    _suite.addTest(_case(ImportKeyTests_testExportKey9))
+    _suite.addTest(_case(ImportKeyTests_testExportKey10))
+    _suite.addTest(_case(ImportKeyTests_testExportKey11))
+    _suite.addTest(_case(ImportKeyTests_testExportKey12))
+    _suite.addTest(_case(ImportKeyTests_testExportKey13))
+    _suite.addTest(_case(ImportKeyTests_testExportKey14))
+    _suite.addTest(_case(ImportKeyTests_testExportKey15))
+    _suite.addTest(_case(ImportKeyTests_test_import_key))
+    _suite.addTest(_case(ImportKeyTests_test_exportKey))
+    _suite.addTest(_case(ImportKeyFromX509Cert_test_x509v1))
+    _suite.addTest(_case(ImportKeyFromX509Cert_test_x509v3))
+    _suite.addTest(_case(TestImport_2048_test_import_openssh_public))
+    _suite.addTest(_case(TestImport_2048_test_import_openssh_private_clear))
+    _suite.addTest(_case(TestImport_2048_test_import_openssh_private_password))
 
     return _suite
 

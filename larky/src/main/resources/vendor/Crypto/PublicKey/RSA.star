@@ -45,7 +45,11 @@ load("@vendor//Crypto/PublicKey",
      _expand_subject_public_key_info="expand_subject_public_key_info",
      _create_subject_public_key_info="create_subject_public_key_info",
      _extract_subject_public_key_info="extract_subject_public_key_info")
-
+load("@vendor//Crypto/PublicKey/_openssh",
+     import_openssh_private_generic="import_openssh_private_generic",
+     read_bytes="read_bytes",
+     read_string="read_string",
+     check_padding="check_padding")
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
@@ -637,40 +641,32 @@ def _import_keyDER(extern_key, passphrase):
                  _import_subjectPublicKeyInfo,
                  _import_x509_cert,
                  _import_pkcs8)
-    # print("key: " , binascii.hexlify(extern_key))
     for decoding in decodings:
         error, result = decoding(extern_key, passphrase)
         if error != None:
             print(error)
         if result:
             return None, result
-    #_JCrypto.PublicKey.import_DER_key(extern_key, passphrase)
-
     fail('ValueError("RSA key format is not supported")')
 
 
 def _import_openssh_private_rsa(data, password):
-    return _JCrypto.PublicKey.OpenSSH_import(data, password)
-    # load("@vendor//_openssh", import_openssh_private_generic="import_openssh_private_generic", read_bytes="read_bytes", read_string="read_string", check_padding="check_padding")
+    ssh_name, decrypted = import_openssh_private_generic(data, password)
+    if ssh_name != "ssh-rsa":
+        fail('ValueError: This SSH key is not RSA')
 
-    # ssh_name, decrypted = import_openssh_private_generic(data, password)
-    #ssh_name = tostr(data)
-#    decrypted = (password != None)
- #   if ssh_name != "ssh-rsa":
-#        fail(" ValueError(\"This SSH key is not RSA\")")
+    n, decrypted = read_bytes(decrypted)
+    e, decrypted = read_bytes(decrypted)
+    d, decrypted = read_bytes(decrypted)
+    iqmp, decrypted = read_bytes(decrypted)
+    p, decrypted = read_bytes(decrypted)
+    q, decrypted = read_bytes(decrypted)
 
-    # n, decrypted = read_bytes(decrypted)
-    # e, decrypted = read_bytes(decrypted)
-    # d, decrypted = read_bytes(decrypted)
-    # iqmp, decrypted = read_bytes(decrypted)
-    # p, decrypted = read_bytes(decrypted)
-    # q, decrypted = read_bytes(decrypted)
-    #
-    # _, padded = read_string(decrypted)  # Comment
-    # check_padding(padded)
+    _, padded = read_string(decrypted)  # Comment
+    check_padding(padded)
 
-    #build = [Integer.from_bytes(x) for x in (n, e, d, q, p, iqmp)]
-    #return(build)
+    build = [Integer(0).from_bytes(x) for x in (n, e, d, q, p, iqmp)]
+    return _construct(build)
 
 
 def _import_key(extern_key, passphrase=None):
@@ -720,7 +716,6 @@ def _import_key(extern_key, passphrase=None):
     if extern_key.startswith(bytes('-----BEGIN OPENSSH PRIVATE KEY', encoding='utf-8')):
         text_encoded = tostr(extern_key)
         openssh_encoded, marker, enc_flag = PEM.decode(text_encoded, passphrase)
-        # openssh_encoded = _JCrypto.PublicKey.PEM_decode(text_encoded, passphrase)
         result = _import_openssh_private_rsa(openssh_encoded, passphrase)
         return result
 

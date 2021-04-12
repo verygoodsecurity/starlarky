@@ -23,6 +23,7 @@ _a_tuple_type = type(())
 _an_int_type = type(1)
 _a_float_type = type(5.0)
 _a_struct_type = type(larky.struct())
+_a_mutablestruct_type = type(larky.mutablestruct())
 
 
 def _a_function():
@@ -222,6 +223,22 @@ def _is_bytearray(barrobj):
 
 def _is_bytelike(b):
     return _is_bytes(b) or _is_bytearray(b)
+
+
+def _is_mutablestruct(v):
+    """Returns True if v is a mutablestruct created by larky.mutablestruct()
+
+    Args:
+      v: The value whose type should be checked.
+
+    Returns:
+      True if v was created by larky.mutablestruct(), False otherwise.
+    """
+    return type(v) == _a_mutablestruct_type
+
+
+def _is_structlike(v):
+    return _is_mutablestruct(v) or type(v) == _a_struct_type
 
 
 def _type_maker(name, resolved_bases, ns, kwds):
@@ -498,6 +515,8 @@ types = larky.struct(
     is_bytes=_is_bytes,
     is_bytearray=_is_bytearray,
     is_bytelike=_is_bytelike,
+    is_mutablestruct=_is_mutablestruct,
+    is_structlike=_is_structlike,
     MethodType=_MethodType,
     new_class=new_class,
     resolve_bases=resolve_bases,

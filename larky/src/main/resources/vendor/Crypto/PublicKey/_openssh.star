@@ -28,11 +28,9 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
 
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//struct", struct="struct")
-
-load("@vendor//Crypto/Cipher", AES="AES")
-load("@vendor//Crypto/Hash", SHA512="SHA512")
-load("@vendor//Crypto/Protocol/KDF", _bcrypt_hash="_bcrypt_hash")
 load("@vendor//Crypto/Util/strxor", strxor="strxor")
 load("@vendor//Crypto/Util/py3compat", tostr="tostr", bchr="bchr", bord="bord")
 load("@stdlib//builtins","builtins")
@@ -70,7 +68,7 @@ def import_openssh_private_generic(data, password):
     # https://coolaj86.com/articles/the-ssh-public-key-format/
 
     # b'openssh-key-v1\x00'
-    if not data.startswith(bytes([0x6f, 0x70, 0x65, 0x6e, 0x73, 0x73, 0x68, 0x2d, 0x6b, 0x65, 0x79, 0x2d, 0x76, 0x31, 0x00])):
+    if not data.startswith(bytes("openssh-key-v1\0", encoding="utf-8")):
         fail('ValueError: Incorrect magic value')
     data = data[15:]
 
@@ -87,7 +85,7 @@ def import_openssh_private_generic(data, password):
     if data:
         fail(" ValueError(\"Too much data\")")
 
-    if len(encrypted) % 8 != 0:
+    if (len(encrypted) % 8) != 0:
         fail(" ValueError(\"Incorrect payload length\")")
 
     # Decrypt if necessary
@@ -105,33 +103,15 @@ def import_openssh_private_generic(data, password):
         if kdfoptions:
             fail("ValueError: Too much data in kdfoptions")
 
-        pwd_sha512 = SHA512.new(password).digest()
-        # We need 32+16 = 48 bytes, therefore 2 bcrypt outputs are sufficient
-        stripes = []
-        constant = bytes([0x4f, 0x78, 0x79, 0x63, 0x68, 0x72, 0x6f, 0x6d, 0x61, 0x74, 0x69, 0x63, 0x42, 0x6c, 0x6f, 0x77, 0x66, 0x69, 0x73, 0x68, 0x53, 0x77, 0x61, 0x74, 0x44, 0x79, 0x6e, 0x61, 0x6d, 0x69, 0x74, 0x65])
-        for count in range(1, 3):
-            salt_sha512 = SHA512.new(salt + struct.pack(">I", count)).digest()
-            out_le = _bcrypt_hash(pwd_sha512, 6, salt_sha512, constant, False)
-            out = struct.pack("<IIIIIIII", *struct.unpack(">IIIIIIII", out_le))
-            acc = bytearray(out)
-            for _ in range(1, iterations):
-                out_le = _bcrypt_hash(pwd_sha512, 6, SHA512.new(out).digest(), constant, False)
-                out = struct.pack("<IIIIIIII", *struct.unpack(">IIIIIIII", out_le))
-                strxor(acc, out, output=acc)
-            stripes.append(acc[:24])
-
-        result = bytearray(r"", encoding='utf-8').join([bchr(a)+bchr(b) for (a, b) in zip(*stripes)])
-
-        cipher = AES.new(result[:32],
-                         AES.MODE_CTR,
-                         nonce=bytes(r"", encoding='utf-8'),
-                         initial_value=result[32:32+16])
-        decrypted = cipher.decrypt(encrypted)
+        decrypted = _JCrypto.PublicKey.decrypt_openssh_key(
+            encrypted,
+            password,
+            salt
+        )
 
     checkint1, decrypted = read_int4(decrypted)
     checkint2, decrypted = read_int4(decrypted)
     if checkint1 != checkint2:
         fail('ValueError: Incorrect checksum')
     ssh_name, decrypted = read_string(decrypted)
-
     return ssh_name, decrypted

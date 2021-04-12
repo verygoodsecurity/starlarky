@@ -24,6 +24,10 @@ import javax.annotation.Nonnull;
  * non-text keys and values.
  */
 public class ByteArrayUtil {
+  // TODO(mahmoudimus): _EVERY_ comparsion in this utility class should be modified to ensure
+  //  *constant-time* checks.
+  //  see this for reference: https://github.com/LoupVaillant/Monocypher/blob/master/src/monocypher.c#L138-L154
+
   private static final byte EQUALS_CHARACTER = (byte) '=';
   private static final byte DOUBLE_QUOTE_CHARACTER = (byte) '"';
   private static final byte BACKSLASH_CHARACTER = (byte) '\\';
@@ -302,11 +306,12 @@ public class ByteArrayUtil {
     if (src.length < start + pattern.length)
       return false;
 
-    for (int i = 0; i < pattern.length; i++)
-      if (pattern[i] != src[start + i])
-        return false;
-
-    return true;
+    int result = 0;
+    // time-constant comparison
+    for (int i = 0; i < pattern.length; i++) {
+      result |= pattern[i] ^ src[start + i];
+    }
+    return result == 0;
   }
 
   /**

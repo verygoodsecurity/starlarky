@@ -3,9 +3,9 @@ package com.verygood.security.larky.modules.crypto;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.FluentLogger;
 
+import com.verygood.security.larky.modules.crypto.KDF.BCryptKDF;
 import com.verygood.security.larky.modules.crypto.Util.CryptoUtils;
 import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteArray;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
@@ -32,16 +32,21 @@ import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.BufferedBlockCipher;
+import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.CryptoException;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.crypto.DataLengthException;
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.engines.RSABlindedEngine;
 import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
+import org.bouncycastle.crypto.modes.SICBlockCipher;
+import org.bouncycastle.crypto.params.KeyParameter;
+import org.bouncycastle.crypto.params.ParametersWithIV;
 import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
-import org.bouncycastle.crypto.util.OpenSSHPublicKeyUtil;
 import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.BCRSAPrivateCrtKey;
@@ -184,7 +189,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   public StarlarkList<StarlarkInt> importKeyDER(LarkyByteLike externKey, Object passPhraseO, StarlarkThread thread) throws EvalException {
     List<BigInteger> components;
     char[] passphrase = null;
-    if(!Starlark.isNullOrNone(passPhraseO)) {
+    if (!Starlark.isNullOrNone(passPhraseO)) {
       passphrase = ((LarkyByteLike) passPhraseO).toCharArray(StandardCharsets.ISO_8859_1);
     }
 
@@ -197,8 +202,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     //  basically, pycrypto needs p mod (q^-1) and discards the crt co-efficient
     //  but we need to be able to re-construct a PEM encoded key, so we will
     //  have to just lop this thing off if it's a private key. ew.
-    if(components.size() > 2) {
-      components.remove(components.size()-1); // remove the last item..
+    if (components.size() > 2) {
+      components.remove(components.size() - 1); // remove the last item..
     }
     return StarlarkList.copyOf(
         thread.mutability(),
@@ -209,7 +214,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     List<Throwable> failures = new ArrayList<>();
     List<BigInteger> r;
 
-    if(passPhrase != null) {
+    if (passPhrase != null) {
       r = _import_pkcs8_encrypted(externKey, passPhrase, failures);
       if (!r.isEmpty()) return r;
     }
@@ -328,7 +333,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
           privParams.getPrimeP().modInverse(privParams.getPrimeQ()),
           privParams.getCrtCoefficient()));
     } catch (IOException e) {
-     failures.add(e);
+      failures.add(e);
     }
     return r;
   }
@@ -338,16 +343,16 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     List<BigInteger> r = new ArrayList<>();
     RSAPrivateCrtKeyParameters crtPrivParams;
     try {
-     // is this a possible PKCS#8-encoded key?
-     crtPrivParams = (RSAPrivateCrtKeyParameters) PrivateKeyFactory.createKey(externKey);
-     r.addAll(ImmutableList.of(
-         crtPrivParams.getModulus(),
-         crtPrivParams.getPublicExponent(),
-         crtPrivParams.getExponent(),
-         crtPrivParams.getP(),
-         crtPrivParams.getQ(),
-         crtPrivParams.getP().modInverse(crtPrivParams.getQ()),
-         crtPrivParams.getQInv()));
+      // is this a possible PKCS#8-encoded key?
+      crtPrivParams = (RSAPrivateCrtKeyParameters) PrivateKeyFactory.createKey(externKey);
+      r.addAll(ImmutableList.of(
+          crtPrivParams.getModulus(),
+          crtPrivParams.getPublicExponent(),
+          crtPrivParams.getExponent(),
+          crtPrivParams.getP(),
+          crtPrivParams.getQ(),
+          crtPrivParams.getP().modInverse(crtPrivParams.getQ()),
+          crtPrivParams.getQInv()));
     } catch (IllegalArgumentException e) {
       failures.add(e);
     }
@@ -406,7 +411,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     SubjectPublicKeyInfo pki = instance.getSubjectPublicKeyInfo();
     //SubjectPublicKeyInfo pki = SubjectPublicKeyInfo.getInstance(bIn.readObject());
     ASN1ObjectIdentifier algOid = pki.getAlgorithm().getAlgorithm();
-    if(!RSAUtil.isRsaOid(algOid)) {
+    if (!RSAUtil.isRsaOid(algOid)) {
       failures.add(new EvalException(String.format(
           "Unknown algorithm id: %s, supporting only RSA here", algOid.getId())));
     }
@@ -459,7 +464,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     // ok this is a private key
     // ok, RFC says next thing should _NOT_ be a sequence if it is a PKCS#1 encoded
     // key, so let's check
-    if(rator.nextElement() instanceof ASN1Sequence) {
+    if (rator.nextElement() instanceof ASN1Sequence) {
       // it is! abort.
       //AlgorithmIdentifier.getInstance(rator.nextElement());
       return r;
@@ -572,7 +577,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
      * - Encrypt with PKCS#7 padding
      */
     char[] passphrase = null;
-    if(!Starlark.isNullOrNone(passPhraseO)) {
+    if (!Starlark.isNullOrNone(passPhraseO)) {
       byte[] bytes = ((LarkyByteLike) passPhraseO).getBytes();
       CharBuffer decoded = StandardCharsets.ISO_8859_1.decode(ByteBuffer.wrap(bytes));
       passphrase = Arrays.copyOf(decoded.array(), decoded.limit());
@@ -591,21 +596,20 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     try {
       r = decodeDERKey(exportable.getBytes(), passphrase);
     } catch (SignatureException | NoSuchAlgorithmException | IOException e) {
-     throw new EvalException(e.getMessage(), e);
+      throw new EvalException(e.getMessage(), e);
     }
     // public
-    if(r.size() == 2) {
+    if (r.size() == 2) {
       try {
         publicKey = KeyFactory
             .getInstance("RSA")
             .generatePublic(
                 new RSAPublicKeySpec(r.get(0), r.get(1)));
-       gen = new JcaMiscPEMGenerator(publicKey, encryptor);
+        gen = new JcaMiscPEMGenerator(publicKey, encryptor);
       } catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
         throw new EvalException(e.getMessage(), e);
       }
-    }
-    else {
+    } else {
       try {
         privateKey = KeyFactory
             .getInstance("RSA")
@@ -618,7 +622,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
                 r.get(2).remainder(r.get(3).subtract(BigInteger.ONE)), // d % (p-1)
                 r.get(2).remainder(r.get(4).subtract(BigInteger.ONE)), // d % (q-1)
                 r.get(6))); // crt coefficient (note we skip 5th which is u)
-       gen = new JcaMiscPEMGenerator(privateKey, encryptor);
+        gen = new JcaMiscPEMGenerator(privateKey, encryptor);
       } catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
         throw new EvalException(e.getMessage(), e);
       }
@@ -752,7 +756,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       buildPublicParameters(rsaPublicKey, returnVal);
       return returnVal;
     } else if (obj instanceof X509CertificateHolder) {
-      RSAPublicKey rsaPublicKey = convertPublicKey(((X509CertificateHolder)obj).getSubjectPublicKeyInfo());
+      RSAPublicKey rsaPublicKey = convertPublicKey(((X509CertificateHolder) obj).getSubjectPublicKeyInfo());
       buildPublicParameters(rsaPublicKey, returnVal);
       return returnVal;
     }
@@ -963,15 +967,45 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     return bytes;
   }
 
-  @StarlarkMethod(
-      name = "OpenSSH_import", parameters = {
-      @Param(name = "data", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
-      @Param(name = "password", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
-  }, useStarlarkThread = true)
-  public LarkyByteLike openssh_import(LarkyByteLike data, LarkyByteLike password, StarlarkThread thread) throws EvalException {
 
-    byte[] bytes = null;
-    OpenSSHPublicKeyUtil.parsePublicKey(data.getBytes());
-    return LarkyByteArray.builder(thread).setSequence(bytes).build();
+  @StarlarkMethod(
+      name = "decrypt_openssh_key", parameters = {
+      @Param(name = "encrypted", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "password", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "salt", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+  }, useStarlarkThread = true)
+  public LarkyByteLike decryptOpenSSHKey(
+      LarkyByteLike encrypted, LarkyByteLike password, LarkyByteLike salt, StarlarkThread thread) throws EvalException {
+    if (password.size() == 0) {
+      throw Starlark.errorf("Password cannot have size 0 when decrypting an SSH key!");
+    }
+    byte[] passInBytes = password.getBytes();
+    // We need 32+16 = 48 bytes, therefore 2 bcrypt outputs are sufficient
+    byte[] key;
+    try {
+      // 16 rounds
+      key = BCryptKDF.bcrypt_pbkdf(passInBytes, salt.getBytes(), 48, 16);
+    } catch (NoSuchAlgorithmException e) {
+      throw new EvalException(e.getMessage(), e);
+    }
+    if (key.length != 48) {
+      throw Starlark.errorf("Unexpected key size - was expecting 48, but got: %d", key.length);
+    }
+    CipherParameters keyIv = new ParametersWithIV(new KeyParameter(key, 0, 32), key, 32, 48 - 32);
+    //AES256 CTR is SICBlockCipher
+    BufferedBlockCipher cipher = new BufferedBlockCipher(
+        new SICBlockCipher(
+            new AESEngine()));
+    cipher.init(false, keyIv);
+
+    byte[] result = new byte[cipher.getOutputSize(encrypted.size())];
+    int length = cipher.processBytes(
+        encrypted.getBytes(), 0, result.length, result, 0);
+    try {
+      length += cipher.doFinal(result, length);
+    } catch (InvalidCipherTextException e) {
+      throw new EvalException(e.getMessage(), e);
+    }
+    return LarkyByte.builder(thread).setSequence(result).build();
   }
 }
