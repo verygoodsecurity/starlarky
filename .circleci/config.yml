@@ -289,7 +289,7 @@ jobs:
           name: Create GH release
           command: |
             mv ${DIST_PATH}/larky-linux ${DIST_PATH}/larky-${CIRCLE_TAG}-linux
-            mv ${DIST_PATH}/larky-macos ${DIST_PATH}/larky-${CIRCLE_TAG}-macos
+            # mv ${DIST_PATH}/larky-macos ${DIST_PATH}/larky-${CIRCLE_TAG}-macos
             ghr -draft -t ${GITHUB_API_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -n ${CIRCLE_TAG} ${CIRCLE_TAG} ${DIST_PATH}
 
   publish-to-pypi:
@@ -350,7 +350,6 @@ workflows:
               ignore: /.*/
           requires:
             - build-dist-linux
-            - build-dist-macos
       - publish-to-pypi:
           filters:
             tags:
@@ -359,5 +358,4 @@ workflows:
               ignore: /.*/
           requires:
             - build-dist-linux
-            - build-dist-macos
             
