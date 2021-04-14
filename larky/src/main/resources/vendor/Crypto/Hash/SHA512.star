@@ -17,8 +17,15 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
-
+load("@stdlib//larky", larky="larky")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", bord="bord")
+
+# The size of the full SHA-512 hash in bytes.
+digest_size = 64
+
+# The internal block size of the hash algorithm in bytes.
+block_size = 128
 
 
 def SHA512Hash(data, truncate):
@@ -37,34 +44,32 @@ def SHA512Hash(data, truncate):
     :vartype digest_size: integer
     """
 
-    # The internal block size of the hash algorithm in bytes.
-    block_size = 128
-
     def __init__(data, truncate):
-        self._truncate = truncate
+        self_ = {}
+        self_['_truncate'] = truncate
 
         if truncate == None:
-            self.oid = "2.16.840.1.101.3.4.2.3"
-            self.digest_size = 64
+            self_['oid'] = "2.16.840.1.101.3.4.2.3"
+            self_['digest_size'] = 64
         elif truncate == "224":
-            self.oid = "2.16.840.1.101.3.4.2.5"
-            self.digest_size = 28
+            self_['oid'] = "2.16.840.1.101.3.4.2.5"
+            self_['digest_size'] = 28
         elif truncate == "256":
-            self.oid = "2.16.840.1.101.3.4.2.6"
-            self.digest_size = 32
+            self_['oid'] = "2.16.840.1.101.3.4.2.6"
+            self_['digest_size'] = 32
         else:
-            fail(" ValueError(\"Incorrect truncation length. It must be '224' or '256'.\")")
-
-        state = VoidPointer()
-        result = _raw_sha512_lib.SHA512_init(state.address_of(),
-                                             c_size_t(self.digest_size))
-        if result:
-            fail(" ValueError(\"Error %d while instantiating SHA-512\"\n                             % result)")
-        self._state = SmartPointer(state.get(),
-                                   _raw_sha512_lib.SHA512_destroy)
+            fail('ValueError: Incorrect truncation length. It must be "224"' +
+                 ' or "256".')
+        _state = _JCrypto.Hash.SHA512()
         if data:
-            self.update(data)
+            _state.update(data)
+        self_['_state'] = _state
+        return larky.mutablestruct(__class__="SHA512Hash", **self_)
+
     self = __init__(data, truncate)
+
+    # The internal block size of the hash algorithm in bytes.
+    self.block_size = 128
 
     def update(data):
         """Continue hashing of a message by consuming the next chunk of data.
@@ -73,11 +78,9 @@ def SHA512Hash(data, truncate):
             data (byte string/byte array/memoryview): The next chunk of the message being hashed.
         """
 
-        result = _raw_sha512_lib.SHA512_update(self._state.get(),
-                                               c_uint8_ptr(data),
-                                               c_size_t(len(data)))
-        if result:
-            fail(" ValueError(\"Error %d while hashing data with SHA512\"\n                             % result)")
+        if not data:
+            fail("TypeError: object supporting the buffer API required")
+        self._state.update(data)
     self.update = update
 
     def digest():
@@ -88,14 +91,7 @@ def SHA512Hash(data, truncate):
         :rtype: byte string
         """
 
-        bfr = create_string_buffer(self.digest_size)
-        result = _raw_sha512_lib.SHA512_digest(self._state.get(),
-                                               bfr,
-                                               c_size_t(self.digest_size))
-        if result:
-            fail(" ValueError(\"Error %d while making SHA512 digest\"\n                             % result)")
-
-        return get_raw_buffer(bfr)
+        return self._state.digest()
     self.digest = digest
 
     def hexdigest():
@@ -120,12 +116,9 @@ def SHA512Hash(data, truncate):
         :return: A hash object of the same type
         """
 
-        clone = SHA512Hash(None, self._truncate)
-        result = _raw_sha512_lib.SHA512_copy(self._state.get(),
-                                             clone._state.get())
-        if result:
-            fail(" ValueError(\"Error %d while copying SHA512\" % result)")
-        return clone
+        h = SHA512Hash(None, self._truncate)
+        h._state = self._state.copy()
+        return h
     self.copy = copy
 
     def new(data=None):
@@ -156,30 +149,30 @@ def new(data=None, truncate=None):
 self.new = new
 
 
-# The size of the full SHA-512 hash in bytes.
-digest_size = 64
-
-# The internal block size of the hash algorithm in bytes.
-block_size = 128
-
 
 def _pbkdf2_hmac_assist(inner, outer, first_digest, iterations):
     """Compute the expensive inner loop in PBKDF-HMAC."""
 
-    assert iterations > 0
+    # assert iterations > 0
+    #
+    # bfr = create_string_buffer(len(first_digest));
+    # result = _raw_sha512_lib.SHA512_pbkdf2_hmac_assist(
+    #                 inner._state.get(),
+    #                 outer._state.get(),
+    #                 first_digest,
+    #                 bfr,
+    #                 c_size_t(iterations),
+    #                 c_size_t(len(first_digest)))
+    #
+    # if result:
+    #     fail(" ValueError(\"Error %d with PBKDF2-HMAC assist for SHA512\" % result)")
+    result = "IMPLEMENT ME"
+    fail("ValueError: Error %s with PBKDF2-HMAC assis for SHA512" % result)
 
-    bfr = create_string_buffer(len(first_digest));
-    result = _raw_sha512_lib.SHA512_pbkdf2_hmac_assist(
-                    inner._state.get(),
-                    outer._state.get(),
-                    first_digest,
-                    bfr,
-                    c_size_t(iterations),
-                    c_size_t(len(first_digest)))
 
-    if result:
-        fail(" ValueError(\"Error %d with PBKDF2-HMAC assist for SHA512\" % result)")
-
-    return get_raw_buffer(bfr)
-self._pbkdf2_hmac_assist = _pbkdf2_hmac_assist
-
+SHA512 = larky.struct(
+    digest_size=digest_size,
+    block_size=block_size,
+    new=new,
+    _pbkdf2_hmac_assist=_pbkdf2_hmac_assist,
+)

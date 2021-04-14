@@ -32,126 +32,77 @@
 Galois/Counter Mode (GCM).
 """
 
+load("@stdlib//binascii", unhexlify="unhexlify")
+load("@stdlib//builtins","builtins")
+load("@stdlib//larky", larky="larky")
+load("@stdlib//types", types="types")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
+# load("@vendor//Crypto/Hash", BLAKE2s="BLAKE2s")
+load("@vendor//Crypto/Random", get_random_bytes="get_random_bytes")
+load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
+load("@vendor//Crypto/Util/py3compat", bord="bord", _copy_bytes="copy_bytes")
+
+
 __all__ = ['GcmMode']
 
-load("@stdlib//binascii", unhexlify="unhexlify")
 
-load("@vendor//Crypto/Util/py3compat", bord="bord", _copy_bytes="_copy_bytes")
-
-load("@vendor//Crypto/Util/_raw_api", is_buffer="is_buffer")
-
-load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
-load("@vendor//Crypto/Hash", BLAKE2s="BLAKE2s")
-load("@vendor//Crypto/Random", get_random_bytes="get_random_bytes")
-
-load("@vendor//Crypto/Util/_raw_api", load_pycryptodome_raw_lib="load_pycryptodome_raw_lib", VoidPointer="VoidPointer", create_string_buffer="create_string_buffer", get_raw_buffer="get_raw_buffer", SmartPointer="SmartPointer", c_size_t="c_size_t", c_uint8_ptr="c_uint8_ptr")
-
-load("@vendor//Crypto/Util", _cpu_features="_cpu_features")
-load("@stdlib//builtins","builtins")
-
-
-# C API by module implementing GHASH
-_ghash_api_template = """
-    int ghash_%imp%(uint8_t y_out[16],
-                    const uint8_t block_data[],
-                    size_t len,
-                    const uint8_t y_in[16],
-                    const void *exp_key);
-    int ghash_expand_%imp%(const uint8_t h[16],
-                           void **ghash_tables);
-    int ghash_destroy_%imp%(void *ghash_tables);
-"""
-
-def _build_impl(lib, postfix):
-    load("@stdlib//collections", namedtuple="namedtuple")
-
-    funcs = ( "ghash", "ghash_expand", "ghash_destroy" )
-    GHASH_Imp = namedtuple('_GHash_Imp', funcs)
-    try:
-        imp_funcs = [ getattr(lib, x + "_" + postfix) for x in funcs ]
-    except AttributeError:      # Make sphinx stop complaining with its mocklib
-        imp_funcs = [ None ] * 3
-    params = dict(zip(funcs, imp_funcs))
-    return GHASH_Imp(**params)
-
-
-def _get_ghash_portable():
-    api = _ghash_api_template.replace("%imp%", "portable")
-    lib = load_pycryptodome_raw_lib("Crypto.Hash._ghash_portable", api)
-    result = _build_impl(lib, "portable")
-    return result
-_ghash_portable = _get_ghash_portable()
-
-
-def _get_ghash_clmul():
-    """Return None if CLMUL implementation is not available"""
-
-    if not _cpu_features.have_clmul():
-        return None
-    try:
-        api = _ghash_api_template.replace("%imp%", "clmul")
-        lib = load_pycryptodome_raw_lib("Crypto.Hash._ghash_clmul", api)
-        result = _build_impl(lib, "clmul")
-    except OSError:
-        result = None
-    return result
-_ghash_clmul = _get_ghash_clmul()
-def _GHASH(subkey, ghash_c):
-    """GHASH function defined in NIST SP 800-38D, Algorithm 2.
-
-    If X_1, X_2, .. X_m are the blocks of input data, the function
-    computes:
-
-       X_1*H^{m} + X_2*H^{m-1} + ... + X_m*H
-
-    in the Galois field GF(2^256) using the reducing polynomial
-    (x^128 + x^7 + x^2 + x + 1).
-    """
-
-    def __init__(subkey, ghash_c):
-        assert len(subkey) == 16
-
-        self.ghash_c = ghash_c
-
-        self._exp_key = VoidPointer()
-        result = ghash_c.ghash_expand(c_uint8_ptr(subkey),
-                                      self._exp_key.address_of())
-        if result:
-            fail(" ValueError(\"Error %d while expanding the GHASH key\" % result)")
-
-        self._exp_key = SmartPointer(self._exp_key.get(),
-                                     ghash_c.ghash_destroy)
-
-        # create_string_buffer always returns a string of zeroes
-        self._last_y = create_string_buffer(16)
-    self = __init__(subkey, ghash_c)
-
-    def update(block_data):
-        assert len(block_data) % 16 == 0
-
-        result = self.ghash_c.ghash(self._last_y,
-                                    c_uint8_ptr(block_data),
-                                    c_size_t(len(block_data)),
-                                    self._last_y,
-                                    self._exp_key.get())
-        if result:
-            fail(" ValueError(\"Error %d while updating GHASH\" % result)")
-
-        return self
-    self.update = update
-
-    def digest():
-        return get_raw_buffer(self._last_y)
-    self.digest = digest
-    return self
+# def _GHASH(subkey, ghash_c):
+#     """GHASH function defined in NIST SP 800-38D, Algorithm 2.
+#
+#     If X_1, X_2, .. X_m are the blocks of input data, the function
+#     computes:
+#
+#        X_1*H^{m} + X_2*H^{m-1} + ... + X_m*H
+#
+#     in the Galois field GF(2^256) using the reducing polynomial
+#     (x^128 + x^7 + x^2 + x + 1).
+#     """
+#
+#     def __init__(subkey, ghash_c):
+#         assert len(subkey) == 16
+#
+#         self.ghash_c = ghash_c
+#
+#         self._exp_key = VoidPointer()
+#         result = ghash_c.ghash_expand(c_uint8_ptr(subkey),
+#                                       self._exp_key.address_of())
+#         if result:
+#             fail("ValueError: Error %d while expanding the GHASH key" % result)
+#
+#         self._exp_key = SmartPointer(self._exp_key.get(),
+#                                      ghash_c.ghash_destroy)
+#
+#         # create_string_buffer always returns a string of zeroes
+#         self._last_y = create_string_buffer(16)
+#     self = __init__(subkey, ghash_c)
+#
+#     def update(block_data):
+#         assert len(block_data) % 16 == 0
+#
+#         result = self.ghash_c.ghash(self._last_y,
+#                                     c_uint8_ptr(block_data),
+#                                     c_size_t(len(block_data)),
+#                                     self._last_y,
+#                                     self._exp_key.get())
+#         if result:
+#             fail("ValueError: Error %d while updating GHASH" % result)
+#
+#         return self
+#     self.update = update
+#
+#     def digest():
+#         return get_raw_buffer(self._last_y)
+#     self.digest = digest
+#     return self
 
 
 def enum(**enums):
-    return type('Enum', (), enums)
+    return larky.struct(**enums)
 
 
 MacStatus = enum(PROCESSING_AUTH_DATA=1, PROCESSING_CIPHERTEXT=2)
-def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
+#def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
+def GcmMode(factory, key, nonce, mac_len, cipher_params):
     """Galois Counter Mode (GCM).
 
     This is an Authenticated Encryption with Associated Data (`AEAD`_) mode.
@@ -176,87 +127,88 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
     :undocumented: __init__
     """
 
-    def __init__(factory, key, nonce, mac_len, cipher_params, ghash_c):
-
-        self.block_size = factory.block_size
-        if self.block_size != 16:
-            fail(" ValueError(\"GCM mode is only available for ciphers\"\n                             \" that operate on 128 bits blocks\")")
+    # def __init__(factory, key, nonce, mac_len, cipher_params, ghash_c):
+    def __init__(factory, key, nonce, mac_len, cipher_params):
+        self_ = {}
+        self_["block_size"] = factory.block_size
+        if self_["block_size"] != 16:
+            fail("ValueError: GCM mode is only available for ciphers that operate on 128 bits blocks")
 
         if len(nonce) == 0:
-            fail(" ValueError(\"Nonce cannot be empty\")")
+            fail("ValueError: Nonce cannot be empty")
 
-        if not is_buffer(nonce):
-            fail(" TypeError(\"Nonce must be bytes, bytearray or memoryview\")")
+        if not types.is_bytelike(nonce):
+            fail("TypeError: Nonce must be bytes, bytearray or memoryview")
 
         # See NIST SP 800 38D, 5.2.1.1
-        if len(nonce) > 2**64 - 1:
-            fail(" ValueError(\"Nonce exceeds maximum length\")")
+        if len(nonce) > (pow(2, 64) - 1):
+            fail("ValueError: Nonce exceeds maximum length")
 
-
-        self.nonce = _copy_bytes(None, None, nonce)
+        self_["nonce"] = _copy_bytes(None, None, nonce)
         """Nonce"""
 
-        self._factory = factory
-        self._key = _copy_bytes(None, None, key)
-        self._tag = None  # Cache for MAC tag
+        self_["_factory"] = factory
+        self_["_key"] = _copy_bytes(None, None, key)
+        self_["_tag"] = None  # Cache for MAC tag
 
-        self._mac_len = mac_len
+        self_["_mac_len"] = mac_len
         if not (4 <= mac_len) and (mac_len <= 16):
-            fail(" ValueError(\"Parameter 'mac_len' must be in the range 4..16\")")
+            fail('ValueError: Parameter "mac_len" must be in the range 4..16')
 
         # Allowed transitions after initialization
-        self._next = [self.update, self.encrypt, self.decrypt,
+        self_["_next"] = [self.update, self.encrypt, self.decrypt,
                       self.digest, self.verify]
 
-        self._no_more_assoc_data = False
+        self_["_no_more_assoc_data"] = False
 
         # Length of associated data
-        self._auth_len = 0
+        self_["_auth_len"] = 0
 
         # Length of the ciphertext or plaintext
-        self._msg_len = 0
+        self_["_msg_len"] = 0
 
-        # Step 1 in SP800-38D, Algorithm 4 (encryption) - Compute H
-        # See also Algorithm 5 (decryption)
-        hash_subkey = factory.new(key,
-                                  self._factory.MODE_ECB,
-                                  **cipher_params
-                                  ).encrypt(bytes([0x00]) * 16)
-
-        # Step 2 - Compute J0
-        if len(self.nonce) == 12:
-            j0 = self.nonce + bytes([0x00, 0x00, 0x00, 0x01])
-        else:
-            fill = (16 - (len(nonce) % 16)) % 16 + 8
-            ghash_in = (self.nonce +
-                        bytes([0x00]) * fill +
-                        long_to_bytes(8 * len(nonce), 8))
-            j0 = _GHASH(hash_subkey, ghash_c).update(ghash_in).digest()
-
-        # Step 3 - Prepare GCTR cipher for encryption/decryption
-        nonce_ctr = j0[:12]
-        iv_ctr = (bytes_to_long(j0) + 1) & 0xFFFFFFFF
-        self._cipher = factory.new(key,
-                                   self._factory.MODE_CTR,
-                                   initial_value=iv_ctr,
-                                   nonce=nonce_ctr,
-                                   **cipher_params)
-
-        # Step 5 - Bootstrat GHASH
-        self._signer = _GHASH(hash_subkey, ghash_c)
-
-        # Step 6 - Prepare GCTR cipher for GMAC
-        self._tag_cipher = factory.new(key,
-                                       self._factory.MODE_CTR,
-                                       initial_value=j0,
-                                       nonce=bytes(r"", encoding='utf-8'),
-                                       **cipher_params)
+        # # Step 1 in SP800-38D, Algorithm 4 (encryption) - Compute H
+        # # See also Algorithm 5 (decryption)
+        # hash_subkey = factory.new(key,
+        #                           self._factory.MODE_ECB,
+        #                           **cipher_params
+        #                           ).encrypt(bytes([0x00]) * 16)
+        #
+        # # Step 2 - Compute J0
+        # if len(self.nonce) == 12:
+        #     j0 = self.nonce + bytes([0x00, 0x00, 0x00, 0x01])
+        # else:
+        #     fill = (16 - (len(nonce) % 16)) % 16 + 8
+        #     ghash_in = (self.nonce +
+        #                 bytes([0x00]) * fill +
+        #                 long_to_bytes(8 * len(nonce), 8))
+        #     j0 = _GHASH(hash_subkey, ghash_c).update(ghash_in).digest()
+        #
+        # # Step 3 - Prepare GCTR cipher for encryption/decryption
+        # nonce_ctr = j0[:12]
+        # iv_ctr = (bytes_to_long(j0) + 1) & 0xFFFFFFFF
+        # self._cipher = factory.new(key,
+        #                            self._factory.MODE_CTR,
+        #                            initial_value=iv_ctr,
+        #                            nonce=nonce_ctr,
+        #                            **cipher_params)
+        #
+        # # Step 5 - Bootstrat GHASH
+        # self._signer = _GHASH(hash_subkey, ghash_c)
+        #
+        # # Step 6 - Prepare GCTR cipher for GMAC
+        # self._tag_cipher = factory.new(key,
+        #                                self._factory.MODE_CTR,
+        #                                initial_value=j0,
+        #                                nonce=bytes(r"", encoding='utf-8'),
+        #                                **cipher_params)
 
         # Cache for data to authenticate
-        self._cache = bytes(r"", encoding='utf-8')
+        self_["_cache"] = bytes(r"", encoding='utf-8')
 
-        self._status = MacStatus.PROCESSING_AUTH_DATA
-    self = __init__(factory, key, nonce, mac_len, cipher_params, ghash_c)
+        self_["_status"] = MacStatus.PROCESSING_AUTH_DATA
+        self_["_state"] = 1
+    self = __init__(factory, key, nonce, mac_len, cipher_params)
 
     def update(assoc_data):
         """Protect associated data
@@ -282,7 +234,7 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
         """
 
         if self.update not in self._next:
-            fail(" TypeError(\"update() can only be called\"\n                            \" immediately after initialization\")")
+            fail("TypeError: update() can only be called immediately after initialization")
 
         self._next = [self.update, self.encrypt, self.decrypt,
                       self.digest, self.verify]
@@ -291,14 +243,15 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
         self._auth_len += len(assoc_data)
 
         # See NIST SP 800 38D, 5.2.1.1
-        if self._auth_len > 2**64 - 1:
-            fail(" ValueError(\"Additional Authenticated Data exceeds maximum length\")")
+        if self._auth_len > (pow(2, 64) - 1):
+            fail("ValueError: Additional Authenticated Data exceeds maximum length")
 
         return self
     self.update = update
 
     def _update(data):
-        assert(len(self._cache) < 16)
+        if len(self._cache) >= 16:
+            fail("self._cache has more than 16 entries!")
 
         if len(self._cache) > 0:
             filler = min(16 - len(self._cache), len(data))
@@ -319,7 +272,8 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
     self._update = _update
 
     def _pad_cache_and_update():
-        assert(len(self._cache) < 16)
+        if len(self._cache) >= 16:
+            fail("self._cache has more than 16 entries!")
 
         # The authenticated data A is concatenated to the minimum
         # number of zero bytes (possibly none) such that the
@@ -366,7 +320,7 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
         """
 
         if self.encrypt not in self._next:
-            fail(" TypeError(\"encrypt() can only be called after\"\n                            \" initialization or an update()\")")
+            fail("TypeError: encrypt() can only be called after initialization or an update()")
         self._next = [self.encrypt, self.digest]
 
         ciphertext = self._cipher.encrypt(plaintext, output=output)
@@ -379,8 +333,8 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
         self._msg_len += len(plaintext)
 
         # See NIST SP 800 38D, 5.2.1.1
-        if self._msg_len > 2**39 - 256:
-            fail(" ValueError(\"Plaintext exceeds maximum length\")")
+        if self._msg_len > (pow(2,39) - 256):
+            fail("ValueError: Plaintext exceeds maximum length")
 
         return ciphertext
     self.encrypt = encrypt
@@ -419,7 +373,7 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
         """
 
         if self.decrypt not in self._next:
-            fail(" TypeError(\"decrypt() can only be called\"\n                            \" after initialization or an update()\")")
+            fail("TypeError: decrypt() can only be called after initialization or an update()")
         self._next = [self.decrypt, self.verify]
 
         if self._status == MacStatus.PROCESSING_AUTH_DATA:
@@ -444,7 +398,7 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
         """
 
         if self.digest not in self._next:
-            fail(" TypeError(\"digest() cannot be called when decrypting\"\n                            \" or validating a message\")")
+            fail("TypeError: digest() cannot be called when decrypting or validating a message")
         self._next = [self.digest]
 
         return self._compute_mac()
@@ -496,18 +450,16 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
         """
 
         if self.verify not in self._next:
-            fail(" TypeError(\"verify() cannot be called\"\n                            \" when encrypting a message\")")
+            fail("TypeError: verify() cannot be called when encrypting a message")
         self._next = [self.verify]
 
         secret = get_random_bytes(16)
 
-        mac1 = BLAKE2s.new(digest_bits=160, key=secret,
-                           data=self._compute_mac())
-        mac2 = BLAKE2s.new(digest_bits=160, key=secret,
-                           data=received_mac_tag)
-
-        if mac1.digest() != mac2.digest():
-            fail(" ValueError(\"MAC check failed\")")
+        # mac1 = BLAKE2s.new(digest_bits=160, key=secret, data=self._compute_mac())
+        # mac2 = BLAKE2s.new(digest_bits=160, key=secret, data=received_mac_tag)
+        #
+        # if mac1.digest() != mac2.digest():
+        #     fail("ValueError: MAC check failed")
     self.verify = verify
 
     def hexverify(hex_mac_tag):
@@ -606,23 +558,25 @@ def _create_gcm_cipher(factory, **kwargs):
         Length of the MAC, in bytes.
         It must be no larger than 16 bytes (which is the default).
     """
-
-    try:
-        key = kwargs.pop("key")
-    except KeyError as e:
-        fail(" TypeError(\"Missing parameter:\" + str(e))")
-
+    if "key" not in kwargs:
+        fail("TypeError: Missing parameter: key")
+    key = kwargs.pop("key", None)
     nonce = kwargs.pop("nonce", None)
     if nonce == None:
         nonce = get_random_bytes(16)
     mac_len = kwargs.pop("mac_len", 16)
 
-    # Not documented - only used for testing
-    use_clmul = kwargs.pop("use_clmul", True)
-    if use_clmul and _ghash_clmul:
-        ghash_c = _ghash_clmul
-    else:
-        ghash_c = _ghash_portable
+    # # Not documented - only used for testing
+    # use_clmul = kwargs.pop("use_clmul", True)
+    # if use_clmul and _ghash_clmul:
+    #     ghash_c = _ghash_clmul
+    # else:
+    #     ghash_c = _ghash_portable
 
-    return GcmMode(factory, key, nonce, mac_len, kwargs, ghash_c)
+    # return GcmMode(factory, key, nonce, mac_len, kwargs, ghash_c)
+    return GcmMode(factory, key, nonce, mac_len, kwargs)
 
+
+GcmMode = larky.struct(
+    _create_gcm_cipher=_create_gcm_cipher,
+)
