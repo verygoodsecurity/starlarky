@@ -246,7 +246,9 @@ jobs:
       - checkout
       - run:
           name: Install dev
-          command: brew install maven
+          command: |
+            brew install openjdk@11
+            brew install maven
       - run:
           name: Install GRAALVM
           command: |
