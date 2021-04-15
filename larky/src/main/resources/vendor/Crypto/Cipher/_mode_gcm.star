@@ -102,7 +102,7 @@ def enum(**enums):
 
 MacStatus = enum(PROCESSING_AUTH_DATA=1, PROCESSING_CIPHERTEXT=2)
 #def GcmMode(factory, key, nonce, mac_len, cipher_params, ghash_c):
-def GcmMode(factory, key, nonce, mac_len, cipher_params):
+def _GcmMode(factory, key, nonce, mac_len, cipher_params):
     """Galois Counter Mode (GCM).
 
     This is an Authenticated Encryption with Associated Data (`AEAD`_) mode.
@@ -129,6 +129,7 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params):
 
     # def __init__(factory, key, nonce, mac_len, cipher_params, ghash_c):
     def __init__(factory, key, nonce, mac_len, cipher_params):
+        print("XXXX:", factory, len(key), len(nonce), mac_len, cipher_params)
         self_ = {}
         self_["block_size"] = factory.block_size
         if self_["block_size"] != 16:
@@ -154,10 +155,6 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params):
         self_["_mac_len"] = mac_len
         if not (4 <= mac_len) and (mac_len <= 16):
             fail('ValueError: Parameter "mac_len" must be in the range 4..16')
-
-        # Allowed transitions after initialization
-        self_["_next"] = [self.update, self.encrypt, self.decrypt,
-                      self.digest, self.verify]
 
         self_["_no_more_assoc_data"] = False
 
@@ -205,71 +202,15 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params):
 
         # Cache for data to authenticate
         self_["_cache"] = bytes(r"", encoding='utf-8')
-
         self_["_status"] = MacStatus.PROCESSING_AUTH_DATA
-        self_["_state"] = 1
+        self_["_state"] = _JCrypto.Cipher.GCMMode(
+            factory._create_base_cipher(dict(key=self_["_key"])),
+            self_["_mac_len"],
+            self_["nonce"],
+            self_["_cache"]
+        )
+        return larky.mutablestruct(**self_)
     self = __init__(factory, key, nonce, mac_len, cipher_params)
-
-    def update(assoc_data):
-        """Protect associated data
-
-        If there is any associated data, the caller has to invoke
-        this function one or more times, before using
-        ``decrypt`` or ``encrypt``.
-
-        By *associated data* it is meant any data (e.g. packet headers) that
-        will not be encrypted and will be transmitted in the clear.
-        However, the receiver is still able to detect any modification to it.
-        In GCM, the *associated data* is also called
-        *additional authenticated data* (AAD).
-
-        If there is no associated data, this method must not be called.
-
-        The caller may split associated data in segments of any size, and
-        invoke this method multiple times, each time with the next segment.
-
-        :Parameters:
-          assoc_data : bytes/bytearray/memoryview
-            A piece of associated data. There are no restrictions on its size.
-        """
-
-        if self.update not in self._next:
-            fail("TypeError: update() can only be called immediately after initialization")
-
-        self._next = [self.update, self.encrypt, self.decrypt,
-                      self.digest, self.verify]
-
-        self._update(assoc_data)
-        self._auth_len += len(assoc_data)
-
-        # See NIST SP 800 38D, 5.2.1.1
-        if self._auth_len > (pow(2, 64) - 1):
-            fail("ValueError: Additional Authenticated Data exceeds maximum length")
-
-        return self
-    self.update = update
-
-    def _update(data):
-        if len(self._cache) >= 16:
-            fail("self._cache has more than 16 entries!")
-
-        if len(self._cache) > 0:
-            filler = min(16 - len(self._cache), len(data))
-            self._cache += _copy_bytes(None, filler, data)
-            data = data[filler:]
-
-            if len(self._cache) < 16:
-                return
-
-            # The cache is exactly one block
-            self._signer.update(self._cache)
-            self._cache = bytes(r"", encoding='utf-8')
-
-        update_len = len(data) // 16 * 16
-        self._cache = _copy_bytes(update_len, None, data)
-        if update_len > 0:
-            self._signer.update(data[:update_len])
-    self._update = _update
 
     def _pad_cache_and_update():
         if len(self._cache) >= 16:
@@ -323,13 +264,14 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params):
             fail("TypeError: encrypt() can only be called after initialization or an update()")
         self._next = [self.encrypt, self.digest]
 
-        ciphertext = self._cipher.encrypt(plaintext, output=output)
+        #ciphertext = self._cipher.encrypt(plaintext, output=output)
+        ciphertext, tail, mac = self._state.encrypt(plaintext, output=output)
 
         if self._status == MacStatus.PROCESSING_AUTH_DATA:
             self._pad_cache_and_update()
             self._status = MacStatus.PROCESSING_CIPHERTEXT
 
-        self._update(ciphertext if output == None else output)
+        # self._update(ciphertext if output == None else output)
         self._msg_len += len(plaintext)
 
         # See NIST SP 800 38D, 5.2.1.1
@@ -377,14 +319,76 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params):
         self._next = [self.decrypt, self.verify]
 
         if self._status == MacStatus.PROCESSING_AUTH_DATA:
-            self._pad_cache_and_update()
+            # self._pad_cache_and_update()
             self._status = MacStatus.PROCESSING_CIPHERTEXT
 
-        self._update(ciphertext)
-        self._msg_len += len(ciphertext)
+        # self._update(ciphertext)
+        # self._msg_len += len(ciphertext)
 
-        return self._cipher.decrypt(ciphertext, output=output)
+        plaintext, _, mac = self._state.decrypt(ciphertext, output=output)
+        return plaintext
     self.decrypt = decrypt
+
+    def update(assoc_data):
+        """Protect associated data
+
+        If there is any associated data, the caller has to invoke
+        this function one or more times, before using
+        ``decrypt`` or ``encrypt``.
+
+        By *associated data* it is meant any data (e.g. packet headers) that
+        will not be encrypted and will be transmitted in the clear.
+        However, the receiver is still able to detect any modification to it.
+        In GCM, the *associated data* is also called
+        *additional authenticated data* (AAD).
+
+        If there is no associated data, this method must not be called.
+
+        The caller may split associated data in segments of any size, and
+        invoke this method multiple times, each time with the next segment.
+
+        :Parameters:
+          assoc_data : bytes/bytearray/memoryview
+            A piece of associated data. There are no restrictions on its size.
+        """
+
+        if self.update not in self._next:
+            fail("TypeError: update() can only be called immediately after initialization")
+
+        self._next = [self.update, self.encrypt, self.decrypt,
+                      self.digest, self.verify]
+
+        self._update(assoc_data)
+        self._auth_len += len(assoc_data)
+
+        # See NIST SP 800 38D, 5.2.1.1
+        if self._auth_len > (pow(2, 64) - 1):
+            fail("ValueError: Additional Authenticated Data exceeds maximum length")
+
+        return self
+    self.update = update
+
+    def _update(data):
+        if len(self._cache) >= 16:
+            fail("self._cache has more than 16 entries!")
+
+        if len(self._cache) > 0:
+            filler = min(16 - len(self._cache), len(data))
+            self._cache += _copy_bytes(None, filler, data)
+            data = data[filler:]
+
+            if len(self._cache) < 16:
+                return
+
+            # The cache is exactly one block
+            # self._signer.update(self._cache)
+            self._cache = bytes(r"", encoding='utf-8')
+
+        update_len = len(data) // 16 * 16
+        self._cache = _copy_bytes(update_len, None, data)
+        if update_len > 0:
+            self._signer.update(data[:update_len])
+    self._update = _update
 
     def digest():
         """Compute the *binary* MAC tag in an AEAD mode.
@@ -524,6 +528,10 @@ def GcmMode(factory, key, nonce, mac_len, cipher_params):
         self.verify(received_mac_tag)
         return plaintext
     self.decrypt_and_verify = decrypt_and_verify
+
+    # Allowed transitions after initialization
+    self._next = [self.update, self.encrypt, self.decrypt,
+                  self.digest, self.verify]
     return self
 
 
@@ -574,7 +582,7 @@ def _create_gcm_cipher(factory, **kwargs):
     #     ghash_c = _ghash_portable
 
     # return GcmMode(factory, key, nonce, mac_len, kwargs, ghash_c)
-    return GcmMode(factory, key, nonce, mac_len, kwargs)
+    return _GcmMode(factory, key, nonce, mac_len, kwargs)
 
 
 GcmMode = larky.struct(

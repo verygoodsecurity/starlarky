@@ -22,7 +22,7 @@
 #
 # where mode_state is a a pointer to base_cipher_state plus mode-specific data.
 load("@stdlib//larky", larky="larky")
-# load("@vendor//Crypto/Cipher/_mode_ecb", _create_ecb_cipher="_create_ecb_cipher")
+#load("@vendor//Crypto/Cipher/_mode_ecb", _create_ecb_cipher="_create_ecb_cipher")
 load("@vendor//Crypto/Cipher/_mode_cbc", CbcMode="CbcMode")
 # load("@vendor//Crypto/Cipher/_mode_cfb", _create_cfb_cipher="_create_cfb_cipher")
 # load("@vendor//Crypto/Cipher/_mode_ofb", _create_ofb_cipher="_create_ofb_cipher")
