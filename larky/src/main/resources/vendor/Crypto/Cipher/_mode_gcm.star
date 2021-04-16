@@ -32,12 +32,13 @@
 Galois/Counter Mode (GCM).
 """
 
-load("@stdlib//binascii", unhexlify="unhexlify")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//builtins","builtins")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
-# load("@vendor//Crypto/Hash", BLAKE2s="BLAKE2s")
+load("@vendor//Crypto/Hash/BLAKE2s", BLAKE2s="BLAKE2s")
+load("@vendor//Crypto/Cipher/_mode_ecb", EcbMode="EcbMode")
 load("@vendor//Crypto/Random", get_random_bytes="get_random_bytes")
 load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
 load("@vendor//Crypto/Util/py3compat", bord="bord", _copy_bytes="copy_bytes")
@@ -129,7 +130,7 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
 
     # def __init__(factory, key, nonce, mac_len, cipher_params, ghash_c):
     def __init__(factory, key, nonce, mac_len, cipher_params):
-        print("XXXX:", factory, len(key), len(nonce), mac_len, cipher_params)
+        #print("XXXX:", factory, len(key), len(nonce), mac_len, cipher_params)
         self_ = {}
         self_["block_size"] = factory.block_size
         if self_["block_size"] != 16:
@@ -153,7 +154,7 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
         self_["_tag"] = None  # Cache for MAC tag
 
         self_["_mac_len"] = mac_len
-        if not (4 <= mac_len) and (mac_len <= 16):
+        if not ((4 <= mac_len) and (mac_len <= 16)):
             fail('ValueError: Parameter "mac_len" must be in the range 4..16')
 
         self_["_no_more_assoc_data"] = False
@@ -164,10 +165,12 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
         # Length of the ciphertext or plaintext
         self_["_msg_len"] = 0
 
-        # # Step 1 in SP800-38D, Algorithm 4 (encryption) - Compute H
-        # # See also Algorithm 5 (decryption)
-        # hash_subkey = factory.new(key,
-        #                           self._factory.MODE_ECB,
+        # Step 1 in SP800-38D, Algorithm 4 (encryption) - Compute H
+        # See also Algorithm 5 (decryption)
+
+        EcbMode._create_ecb_cipher(factory, key=key, **cipher_params).encrypt(bytes([0x00] * 16))
+        # hash_subkey = factory._create_ecb_cipher(key,
+        #                           factory.MODE_ECB,
         #                           **cipher_params
         #                           ).encrypt(bytes([0x00]) * 16)
         #
@@ -259,13 +262,15 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
           If ``output`` is ``None``, the ciphertext as ``bytes``.
           Otherwise, ``None``.
         """
-
+        if not types.is_bytelike(plaintext):
+            fail('TypeError: plaintext is not byte-like')
         if self.encrypt not in self._next:
             fail("TypeError: encrypt() can only be called after initialization or an update()")
         self._next = [self.encrypt, self.digest]
 
         #ciphertext = self._cipher.encrypt(plaintext, output=output)
         ciphertext, tail, mac = self._state.encrypt(plaintext, output=output)
+        self._tag = mac
 
         if self._status == MacStatus.PROCESSING_AUTH_DATA:
             self._pad_cache_and_update()
@@ -313,6 +318,8 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
           If ``output`` is ``None``, the plaintext as ``bytes``.
           Otherwise, ``None``.
         """
+        if not types.is_bytelike(ciphertext):
+            fail('TypeError: ciphertext is not byte-like')
 
         if self.decrypt not in self._next:
             fail("TypeError: decrypt() can only be called after initialization or an update()")
@@ -326,6 +333,7 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
         # self._msg_len += len(ciphertext)
 
         plaintext, _, mac = self._state.decrypt(ciphertext, output=output)
+        self._tag = mac
         return plaintext
     self.decrypt = decrypt
 
@@ -351,6 +359,8 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
           assoc_data : bytes/bytearray/memoryview
             A piece of associated data. There are no restrictions on its size.
         """
+        if not types.is_bytelike(assoc_data):
+            fail('TypeError: assoc_data is not byte-like')
 
         if self.update not in self._next:
             fail("TypeError: update() can only be called immediately after initialization")
@@ -358,7 +368,8 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
         self._next = [self.update, self.encrypt, self.decrypt,
                       self.digest, self.verify]
 
-        self._update(assoc_data)
+        #self._update(assoc_data)
+        self._state.update(assoc_data)
         self._auth_len += len(assoc_data)
 
         # See NIST SP 800 38D, 5.2.1.1
@@ -414,16 +425,17 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
         if self._tag:
             return self._tag
 
-        # Step 5 in NIST SP 800-38D, Algorithm 4 - Compute S
-        self._pad_cache_and_update()
-        self._update(long_to_bytes(8 * self._auth_len, 8))
-        self._update(long_to_bytes(8 * self._msg_len, 8))
-        s_tag = self._signer.digest()
-
-        # Step 6 - Compute T
-        self._tag = self._tag_cipher.encrypt(s_tag)[:self._mac_len]
-
-        return self._tag
+        return self._state.get_mac()
+        # # Step 5 in NIST SP 800-38D, Algorithm 4 - Compute S
+        # self._pad_cache_and_update()
+        # self._update(long_to_bytes(8 * self._auth_len, 8))
+        # self._update(long_to_bytes(8 * self._msg_len, 8))
+        # s_tag = self._signer.digest()
+        #
+        # # Step 6 - Compute T
+        # self._tag = self._tag_cipher.encrypt(s_tag)[:self._mac_len]
+        #
+        # return self._tag
     self._compute_mac = _compute_mac
 
     def hexdigest():
@@ -433,7 +445,7 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
 
         :Return: the MAC, as a hexadecimal string.
         """
-        return "".join(["%02x" % bord(x) for x in self.digest()])
+        return hexlify(self.digest())
     self.hexdigest = hexdigest
 
     def verify(received_mac_tag):
@@ -459,11 +471,11 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
 
         secret = get_random_bytes(16)
 
-        # mac1 = BLAKE2s.new(digest_bits=160, key=secret, data=self._compute_mac())
-        # mac2 = BLAKE2s.new(digest_bits=160, key=secret, data=received_mac_tag)
-        #
-        # if mac1.digest() != mac2.digest():
-        #     fail("ValueError: MAC check failed")
+        mac1 = BLAKE2s.new(digest_bits=160, key=secret, data=self._compute_mac())
+        mac2 = BLAKE2s.new(digest_bits=160, key=secret, data=received_mac_tag)
+
+        if mac1.digest() != mac2.digest():
+            fail("ValueError: MAC check failed")
     self.verify = verify
 
     def hexverify(hex_mac_tag):
@@ -501,7 +513,8 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
             The first item becomes ``None`` when the ``output`` parameter
             specified a location for the result.
         """
-
+        if not types.is_bytelike(plaintext):
+            fail('TypeError: plaintext is not byte-like')
         return self.encrypt(plaintext, output=output), self.digest()
     self.encrypt_and_digest = encrypt_and_digest
 
@@ -523,6 +536,10 @@ def _GcmMode(factory, key, nonce, mac_len, cipher_params):
             if the MAC does not match. The message has been tampered with
             or the key is incorrect.
         """
+        if not types.is_bytelike(ciphertext):
+            fail('TypeError: ciphertext is not byte-like')
+        if not types.is_bytelike(received_mac_tag):
+            fail('TypeError: received_mac_tag is not byte-like')
 
         plaintext = self.decrypt(ciphertext, output=output)
         self.verify(received_mac_tag)

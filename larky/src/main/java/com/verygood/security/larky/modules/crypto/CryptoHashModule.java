@@ -9,12 +9,15 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.ExtendedDigest;
 import org.bouncycastle.crypto.Xof;
+import org.bouncycastle.crypto.digests.Blake2sDigest;
 import org.bouncycastle.crypto.digests.GeneralDigest;
 import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.bouncycastle.crypto.digests.LongDigest;
@@ -216,10 +219,39 @@ public class CryptoHashModule implements StarlarkValue {
   }
 
   @StarlarkMethod(name = "SHAKE128", parameters = {
-      @Param(name = "bit_length", allowedTypes = {@ParamType(type = StarlarkInt.class)}, defaultValue = "128"),
+      @Param(name = "bit_length", allowedTypes = {@ParamType(type = StarlarkInt.class)},
+          defaultValue = "128"),
   })
   public LarkyXofDigest<?> SHAKE128(StarlarkInt bitLength) {
     SHAKEDigest digest = new SHAKEDigest(bitLength.toIntUnchecked());
     return new LarkyXofDigest<>(digest);
+  }
+
+  @StarlarkMethod(name = "BLAKE2S", parameters = {
+      @Param(name = "digest_bytes",
+          allowedTypes = {@ParamType(type = StarlarkInt.class)},
+          defaultValue = "32"),
+      @Param(name = "key",
+          allowedTypes = {@ParamType(type = LarkyByteLike.class), @ParamType(type = NoneType.class)},
+          defaultValue = "None"),
+  })
+  public LarkyDigest BLAKE2S(StarlarkInt digestBytes, Object keyO) {
+    byte[] key = Starlark.isNullOrNone(keyO)
+        ? null
+        : ((LarkyByteLike) keyO).getBytes();
+    Blake2sDigest digest;
+    if(key != null) {
+      digest = new Blake2sDigest(key, digestBytes.toIntUnchecked(), null, null);
+    }
+    else {
+      digest = new Blake2sDigest(digestBytes.toIntUnchecked() * Byte.SIZE);
+    }
+
+    return new LarkyDigest() {
+      @Override
+      public ExtendedDigest getDigest() {
+        return digest;
+      }
+    };
   }
 }

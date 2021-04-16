@@ -23,37 +23,19 @@
 """
 Counter (CTR) mode.
 """
-
-__all__ = ['CtrMode']
-
+load("@stdlib//larky", larky="larky")
 load("@stdlib//struct", struct="struct")
-
-load("@vendor//Crypto/Util/_raw_api", load_pycryptodome_raw_lib="load_pycryptodome_raw_lib", VoidPointer="VoidPointer", create_string_buffer="create_string_buffer", get_raw_buffer="get_raw_buffer", SmartPointer="SmartPointer", c_size_t="c_size_t", c_uint8_ptr="c_uint8_ptr", is_writeable_buffer="is_writeable_buffer")
-
 load("@vendor//Crypto/Random", get_random_bytes="get_random_bytes")
 load("@vendor//Crypto/Util/py3compat", _copy_bytes="_copy_bytes", is_native_int="is_native_int")
 load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes")
 load("@stdlib//builtins","builtins")
 
-raw_ctr_lib = load_pycryptodome_raw_lib("Crypto.Cipher._raw_ctr", """
-                    int CTR_start_operation(void *cipher,
-                                            uint8_t   initialCounterBlock[],
-                                            size_t    initialCounterBlock_len,
-                                            size_t    prefix_len,
-                                            unsigned  counter_len,
-                                            unsigned  littleEndian,
-                                            void **pResult);
-                    int CTR_encrypt(void *ctrState,
-                                    const uint8_t *in,
-                                    uint8_t *out,
-                                    size_t data_len);
-                    int CTR_decrypt(void *ctrState,
-                                    const uint8_t *in,
-                                    uint8_t *out,
-                                    size_t data_len);
-                    int CTR_stop_operation(void *ctrState);"""
-                                        )
-def CtrMode(block_cipher, initial_counter_block,
+__all__ = ['CtrMode']
+
+_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
+
+
+def _CtrMode(block_cipher, initial_counter_block,
              prefix_len, counter_len, little_endian):
     """*CounTeR (CTR)* mode.
 
@@ -316,20 +298,20 @@ def _create_ctr_cipher(factory, **kwargs):
     nonce = kwargs.pop("nonce", None)
     initial_value = kwargs.pop("initial_value", None)
     if kwargs:
-        fail(" TypeError(\"Invalid parameters for CTR mode: %s\" % str(kwargs))")
+        fail('TypeError: Invalid parameters for CTR mode: %s' % str(kwargs))
 
     if counter != None and (nonce, initial_value) != (None, None):
-        fail(" TypeError(\"'counter' and 'nonce'/'initial_value'\"\n                        \" are mutually exclusive\")")
+        fail('TypeError: "counter" and ("nonce", "initial_value") are mutually exclusive')
 
     if counter == None:
         # Crypto.Util.Counter is not used
         if nonce == None:
             if factory.block_size < 16:
-                fail(" TypeError(\"Impossible to create a safe nonce for short\"\n                                \" block sizes\")")
+                fail('TypeError: Impossible to create a safe nonce for short block sizes')
             nonce = get_random_bytes(factory.block_size // 2)
         else:
             if len(nonce) >= factory.block_size:
-                fail(" ValueError(\"Nonce is too long\")")
+                fail("ValueError: Nonce is too long")
 
         # What is not nonce is counter
         counter_len = factory.block_size - len(nonce)
@@ -338,15 +320,17 @@ def _create_ctr_cipher(factory, **kwargs):
             initial_value = 0
 
         if is_native_int(initial_value):
-            if (1 << (counter_len * 8)) - 1 < initial_value:
-                fail(" ValueError(\"Initial counter value is too large\")")
+            if ((1 << (counter_len * 8)) - 1) < initial_value:
+                fail("ValueError: Initial counter value is too large")
             initial_counter_block = nonce + long_to_bytes(initial_value, counter_len)
         else:
             if len(initial_value) != counter_len:
-                fail(" ValueError(\"Incorrect length for counter byte string (%d bytes, expected %d)\" %\n                                 (len(initial_value), counter_len))")
+                fail(("ValueError: Incorrect length for counter byte " +
+                     "string (%d bytes, expected %d)") %
+                     (len(initial_value), counter_len))
             initial_counter_block = nonce + initial_value
 
-        return CtrMode(cipher_state,
+        return _CtrMode(cipher_state,
                        initial_counter_block,
                        len(nonce),                     # prefix
                        counter_len,
@@ -364,7 +348,7 @@ def _create_ctr_cipher(factory, **kwargs):
         initial_value = _counter.pop("initial_value")
         little_endian = _counter.pop("little_endian")
     except KeyError:
-        fail(" TypeError(\"Incorrect counter object\"\n                        \" (use Crypto.Util.Counter.new)\")")
+        fail("TypeError: Incorrect counter object (use Crypto.Util.Counter.new)")
 
     # Compute initial counter block
     words = []
@@ -376,11 +360,20 @@ def _create_ctr_cipher(factory, **kwargs):
     words += [bytes([0x00])] * max(0, counter_len - len(words))
     if not little_endian:
         words.reverse()
-    initial_counter_block = prefix + bytes(r"", encoding='utf-8').join(words) + suffix
+    initial_counter_block = prefix + bytearray(r"", encoding='utf-8').join(words) + suffix
 
     if len(initial_counter_block) != factory.block_size:
         fail(" ValueError(\"Size of the counter block (%d bytes) must match\"\n                         \" block size (%d)\" % (len(initial_counter_block),\n                                               factory.block_size))")
 
-    return CtrMode(cipher_state, initial_counter_block,
-                   len(prefix), counter_len, little_endian)
+    return _CtrMode(
+        cipher_state,
+        initial_counter_block,
+        len(prefix),
+        counter_len,
+        little_endian
+    )
 
+
+CtrMode = larky.struct(
+    _create_ctr_cipher=_create_ctr_cipher,
+)

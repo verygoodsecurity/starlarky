@@ -40,7 +40,7 @@ public class CryptoCipherModule implements StarlarkValue {
 
   static class LarkyBlockCipher implements StarlarkValue {
 
-    private final ParametersWithIV params;
+    private final ParametersWithIV parametersWithIV;
 
     private static final StarlarkInt SUCCESS = StarlarkInt.of(0);
 
@@ -50,7 +50,9 @@ public class CryptoCipherModule implements StarlarkValue {
     public LarkyBlockCipher(BlockCipher blockCipher, Engine algo, byte[] initializationVector) {
       this.blockCipher = blockCipher;
       this.algo = algo;
-      this.params = new ParametersWithIV(algo.getKeyParams(), initializationVector);
+      this.parametersWithIV = initializationVector != null
+          ? new ParametersWithIV(algo.getKeyParams(), initializationVector)
+          : null;
     }
 
     @StarlarkMethod(
@@ -73,7 +75,12 @@ public class CryptoCipherModule implements StarlarkValue {
     }
 
     private void operate(int mode, LarkyByteLike toprocess, BufferedBlockCipher cipher, byte[] out) throws EvalException {
-      cipher.init(mode == Cipher.ENCRYPT_MODE, this.params);
+      if(this.parametersWithIV != null) {
+        cipher.init(mode == Cipher.ENCRYPT_MODE, this.parametersWithIV);
+      }
+      else {
+        cipher.init(mode == Cipher.ENCRYPT_MODE, this.algo.getKeyParams());
+      }
       byte[] bytes = toprocess.getBytes();
       int outputLen = cipher.processBytes(bytes, 0, bytes.length, out, 0);
       try {
@@ -104,30 +111,56 @@ public class CryptoCipherModule implements StarlarkValue {
 
   @Builder(builderClassName = "Builder")
   static class LarkyAEADCipher implements StarlarkValue {
-    private AEADCipher encipher;
-    private AEADCipher decipher;
+    private AEADCipher cipher;
     private AEADParameters params;
     private byte[] currentMac;
+    private boolean isInitialized;
     //private Engine engine;
+
+    // I want to initialize the engine so I have to actually create a custom builder
+    // factory to override the builder...
+    public static LarkyAEADCipher.Builder builder() {
+      return new CustomBuilder();
+    }
+
+    // let's initialize the cipher
+    private static class CustomBuilder extends LarkyAEADCipher.Builder {
+      @Override
+      public LarkyAEADCipher build() {
+        LarkyAEADCipher build = super.build();
+        build.cipher.init(true, build.params);
+        build.isInitialized = true;
+        return build;
+      }
+    }
+
+    @StarlarkMethod(name = "get_mac", useStarlarkThread = true)
+    public LarkyByteLike getMac(StarlarkThread thread) throws EvalException {
+      return LarkyByte.builder(thread).setSequence(cipher.getMac()).build();
+    }
 
     @StarlarkMethod(
       name = "encrypt",
       parameters = {
           @Param(name = "plaintext", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
-          @Param(name = "output", named = true, allowedTypes = {@ParamType(type = LarkyByteArray.class), @ParamType(type=NoneType.class)})
+          @Param(name = "output", named = true, allowedTypes = {
+              @ParamType(type = LarkyByteArray.class), @ParamType(type=NoneType.class)
+          })
       },
       useStarlarkThread = true
     )
     public Tuple encrypt(LarkyByteLike plaintext, Object outputO, StarlarkThread thread) throws EvalException {
       // let's use CipherOutputStream?
-      byte[] cipherText = new byte[encipher.getOutputSize(plaintext.size())];
-      int len = encipher.processBytes(plaintext.getBytes(), 0, plaintext.size(), cipherText, 0);
+      byte[] cipherText = new byte[cipher.getOutputSize(plaintext.size())];
+      int len = cipher.processBytes(plaintext.getBytes(), 0, plaintext.size(), cipherText, 0);
       try {
-        len += encipher.doFinal(cipherText, len);
+        len += cipher.doFinal(cipherText, len);
+        currentMac = cipher.getMac();
+        cipher.reset();
+
       } catch (InvalidCipherTextException e) {
         throw new EvalException(e.getMessage(), e);
       }
-      currentMac = encipher.getMac();
       //int macLength = currentMac.length;
       byte[] data = new byte[plaintext.size()];
       System.arraycopy(cipherText, 0, data, 0, data.length);
@@ -162,7 +195,8 @@ public class CryptoCipherModule implements StarlarkValue {
           useStarlarkThread = true
       )
       public Tuple decrypt(LarkyByteLike cipherText, Object outputO, StarlarkThread thread) throws EvalException {
-        byte[] plainText = new byte[decipher.getOutputSize(cipherText.size())];
+        cipher.init(false, this.params);
+        byte[] plainText = new byte[cipher.getOutputSize(cipherText.size())];
 //        byte[] ct;
 //        try (ByteArrayOutputStream baos = new ByteArrayOutputStream(truelength)) {
 //          baos.write(cipherText.getBytes());
@@ -173,46 +207,34 @@ public class CryptoCipherModule implements StarlarkValue {
 //        }
 
 //        int len = decipher.processBytes(ct, 0, ct.length, plainText, 0);
-        int len = decipher.processBytes(cipherText.getBytes(), 0,cipherText.size(),plainText,0);
+        int len = cipher.processBytes(cipherText.getBytes(), 0, cipherText.size(), plainText,0);
         //encipher.processAADBytes(currentMac, currentMac.length, SA.length - split);
-        try {
-         len += decipher.doFinal(plainText, len);
-        } catch (InvalidCipherTextException e) {
-         throw new EvalException(e.getMessage(), e);
+        LarkyByteLike mac = null;
+        if(len != 0) {
+          try {
+            len += cipher.doFinal(plainText, len);
+            currentMac = cipher.getMac();
+            cipher.reset();
+          } catch (InvalidCipherTextException e) {
+            throw new EvalException(e.getMessage(), e);
+          }
+          mac = LarkyByteArray.builder(thread)
+                                      .setSequence(currentMac)
+                                      .build();
         }
-        currentMac = decipher.getMac();
         //int macLength = currentMac.length;
         LarkyByteLike pt = LarkyByteArray.builder(thread)
            .setSequence(plainText)
            .build();
-        LarkyByteLike mac = LarkyByteArray.builder(thread)
-                             .setSequence(currentMac)
-                             .build();
+
         if(Starlark.isNullOrNone(outputO)) {
-          return Tuple.of(pt, Starlark.NONE, mac);
+          return Tuple.of(pt, Starlark.NONE, mac != null ? mac : Starlark.NONE);
         }
 
         LarkyByteArray output = ((LarkyByteArray)outputO);
         output.setSequenceStorage(pt);
-        return Tuple.of(output, Starlark.NONE, mac);
+        return Tuple.of(output, Starlark.NONE, mac != null ? mac : Starlark.NONE);
       }
-
-    @StarlarkMethod(
-       name = "digest",
-       doc = "Return the digest of the bytes passed to the update() method\n" +
-           "so far as a bytes object.",
-       useStarlarkThread = true
-    )
-    public LarkyByteLike digest(StarlarkThread thread) throws EvalException {
-//      try {
-//             len += encipher.doFinal(cipherText, len);
-//           } catch (InvalidCipherTextException e) {
-//             throw new EvalException(e.getMessage(), e);
-//           }
-//           byte[] mac = encipher.getMac();
-//           int macLength = mac.length;
-      return null;
-    }
 
     @StarlarkMethod(
       name = "update",
@@ -222,32 +244,8 @@ public class CryptoCipherModule implements StarlarkValue {
       useStarlarkThread = true
     )
     public void update(LarkyByteLike associatedData, StarlarkThread thread) throws EvalException {
-      this.encipher.processAADBytes(associatedData.getBytes(),0,associatedData.size());
+      this.cipher.processAADBytes(associatedData.getBytes(),0, associatedData.size());
     }
-//    public doit() {
-
-      /**
-       *  byte[] enc = new byte[encCipher.getOutputSize(P.length)];
-       *         if (SA != null)
-       *         {
-       *             encCipher.processAADBytes(SA, 0, SA.length);
-       *         }
-       *         int len = encCipher.processBytes(P, 0, P.length, enc, 0);
-       *         len += encCipher.doFinal(enc, len);
-       *
-       *         if (enc.length != len)
-       *         {
-       * //            System.out.println("" + enc.length + "/" + len);
-       *             fail("encryption reported incorrect length: " + testName);
-       *         }
-       *
-       *         byte[] mac = encCipher.getMac();
-       * //         System.err.println(Hex.toHexString(enc));
-       *         byte[] data = new byte[P.length];
-       *         System.arraycopy(enc, 0, data, 0, data.length);
-       *         byte[] tail = new byte[enc.length - P.length];
-       *         System.arraycopy(enc, P.length, tail, 0, tail.length);
-       */
       // key
       // macSize
       // nonce
@@ -260,13 +258,7 @@ public class CryptoCipherModule implements StarlarkValue {
 //          iv, A);
 //      GCMBlockCipher encCipher = initCipher(encM, true, parameters);
 //      GCMBlockCipher decCipher = initCipher(decM, false, parameters);
-//    }
-//    private GCMBlockCipher initCipher(GCMMultiplier m, boolean forEncryption, AEADParameters parameters)
-//       {
-//           GCMBlockCipher c = new GCMBlockCipher(createAESEngine(), m);
-//           c.init(forEncryption, parameters);
-//           return c;
-//       }
+
   }
 
   public static class Engine implements StarlarkValue {
@@ -276,9 +268,14 @@ public class CryptoCipherModule implements StarlarkValue {
     @Getter
     private final KeyParameter keyParams;
 
-    public Engine(BlockCipher deSede, KeyParameter keyParams) {
-      this.engine = deSede;
-      this.keyParams = keyParams;;
+    public Engine(BlockCipher engine, KeyParameter keyParams) {
+      this.engine = engine;
+      this.keyParams = keyParams;
+    }
+
+    @StarlarkMethod(name="block_size", structField = true)
+    public StarlarkInt block_size() {
+      return StarlarkInt.of(this.engine.getBlockSize());
     }
 
   }
@@ -301,30 +298,34 @@ public class CryptoCipherModule implements StarlarkValue {
   })
   public LarkyAEADCipher GCMMode(Engine engine, StarlarkInt macSize, Object nonceO, Object atO, Object multiplier) {
     GCMBlockCipher encipher = new GCMBlockCipher(engine.getEngine());
-    GCMBlockCipher decipher = new GCMBlockCipher(engine.getEngine());
+    //GCMBlockCipher decipher = new GCMBlockCipher(engine.getEngine());
     AEADParameters aeadParameters = new AEADParameters(
         engine.getKeyParams(),
         macSize.toIntUnchecked() * 8,
         /* nonce */Starlark.isNullOrNone(nonceO) ? null : ((LarkyByteLike) nonceO).getBytes(),
         /* associatedText */ Starlark.isNullOrNone(atO) ? null : ((LarkyByteLike) atO).getBytes());
-    encipher.init(true, aeadParameters);
-    decipher.init(false, aeadParameters);
-    return new LarkyAEADCipher.Builder()
-        .encipher(encipher)
-        .decipher(decipher)
+    //decipher.init(false, aeadParameters);
+    return new LarkyAEADCipher.CustomBuilder()
+        .cipher(encipher)
+        //.decipher(decipher)
         .params(aeadParameters)
         //.engine(engine)
         .build();
   }
-
 
   @StarlarkMethod(name = "CBCMode", parameters = {
       @Param(name = "engine", allowedTypes = {@ParamType(type = Engine.class)}),
       @Param(name = "iv", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
   })
   public LarkyBlockCipher CBCMode(Engine engine, LarkyByteLike iv) {
-
     return new LarkyBlockCipher(new CBCBlockCipher(engine.getEngine()), engine, iv.getBytes());
+  }
+
+  @StarlarkMethod(name = "ECBMode", parameters = {
+      @Param(name = "engine", allowedTypes = {@ParamType(type = Engine.class)})
+  })
+  public LarkyBlockCipher ECBMode(Engine engine) {
+    return new LarkyBlockCipher(engine.getEngine(), engine, null);
   }
 
   @StarlarkMethod(name = "DES3", parameters = {

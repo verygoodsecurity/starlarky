@@ -27,10 +27,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
-
-
-load("@stdlib//binascii", unhexlify="unhexlify")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bchr="bchr")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@vendor//Crypto/Cipher/AES", AES="AES")
 load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
 load("@vendor//Crypto/Hash/SHAKE128", SHAKE128="SHAKE128")
@@ -101,170 +99,177 @@ def GcmTests_test_nonce_attribute():
     asserts.assert_that(nonce1).is_not_equal_to(nonce2)
 
 
-# def GcmTests_test_unknown_parameters():
-#     asserts.assert_fails(lambda : AES.new(key_128, AES.MODE_GCM,
-#                       nonce_96, 7), ".*?TypeError")
-#     asserts.assert_fails(lambda : AES.new(key_128, AES.MODE_GCM,
-#                       nonce=nonce_96, unknown=7), ".*?TypeError")
-#
-#     # But some are only known by the base cipher
-#     # (e.g. use_aesni consumed by the AES module)
-#     AES.new(key_128, AES.MODE_GCM, nonce=nonce_96,
-#             use_aesni=False)
-#
-#
-# def GcmTests_test_null_encryption_decryption():
-#     for func in "encrypt", "decrypt":
-#         cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#         result = getattr(cipher, func)(bytes(r"", encoding='utf-8'))
-#         asserts.assert_that(result).is_equal_to(bytes(r"", encoding='utf-8'))
-#
-#
-# def GcmTests_test_either_encrypt_or_decrypt():
-#     cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#     cipher.encrypt(bytes(r"", encoding='utf-8'))
-#     asserts.assert_fails(lambda : cipher.decrypt(bytes(r"", encoding='utf-8')), ".*?TypeError")
-#
-#     cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#     cipher.decrypt(bytes(r"", encoding='utf-8'))
-#     asserts.assert_fails(lambda : cipher.encrypt(bytes(r"", encoding='utf-8')), ".*?TypeError")
-#
-#
-# def GcmTests_test_data_must_be_bytes():
-#     cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#     asserts.assert_fails(lambda : cipher.encrypt(u'test1234567890-*'), ".*?TypeError")
-#
-#     cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#     asserts.assert_fails(lambda : cipher.decrypt(u'test1234567890-*'), ".*?TypeError")
-#
-#
-# def GcmTests_test_mac_len():
-#         # Invalid MAC length
-#     asserts.assert_fails(lambda : AES.new(key_128, AES.MODE_GCM,
-#                       nonce=nonce_96, mac_len=3), ".*?ValueError")
-#     asserts.assert_fails(lambda : AES.new(key_128, AES.MODE_GCM,
-#                       nonce=nonce_96, mac_len=16+1), ".*?ValueError")
-#
-#         # Valid MAC length
-#     for mac_len in range(5, 16 + 1):
-#         cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96,
-#                          mac_len=mac_len)
-#         _, mac = cipher.encrypt_and_digest(data_128)
-#         asserts.assert_that(len(mac)).is_equal_to(mac_len)
-#
-#         # Default MAC length
-#     cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#     _, mac = cipher.encrypt_and_digest(data_128)
-#     asserts.assert_that(len(mac)).is_equal_to(16)
-#
-#
-# def GcmTests_test_invalid_mac():
-#     cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#     ct, mac = cipher.encrypt_and_digest(data_128)
-#
-#     invalid_mac = strxor_c(mac, 0x01)
-#
-#     cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#     asserts.assert_fails(lambda : cipher.decrypt_and_verify(ct,
-#                       invalid_mac), ".*?ValueError")
-#
-# def GcmTests_test_hex_mac():
-#     cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#     mac_hex = cipher.hexdigest()
-#     asserts.assert_that(cipher.digest()).is_equal_to(unhexlify(mac_hex))
-#
-#     cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#     cipher.hexverify(mac_hex)
-#
-# def GcmTests_test_message_chunks():
-#         # Validate that both associated data and plaintext/ciphertext
-#         # can be broken up in chunks of arbitrary length
-#
-#     auth_data = get_tag_random("authenticated data", 127)
-#     plaintext = get_tag_random("plaintext", 127)
-#
-#     cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#     cipher.update(auth_data)
-#     ciphertext, ref_mac = cipher.encrypt_and_digest(plaintext)
-#
-#     def break_up(data, chunk_length):
-#         return [data[i:i+chunk_length] for i in range(0, len(data),
-#                 chunk_length)]
-#
-#         # Encryption
-#     for chunk_length in 1, 2, 3, 7, 10, 13, 16, 40, 80, 128:
-#
-#         cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#
-#         for chunk in break_up(auth_data, chunk_length):
-#             cipher.update(chunk)
-#         pt2 = bytes(r"", encoding='utf-8')
-#         for chunk in break_up(ciphertext, chunk_length):
-#             pt2 += cipher.decrypt(chunk)
-#         asserts.assert_that(plaintext).is_equal_to(pt2)
-#         cipher.verify(ref_mac)
-#
-#         # Decryption
-#     for chunk_length in 1, 2, 3, 7, 10, 13, 16, 40, 80, 128:
-#
-#         cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
-#
-#         for chunk in break_up(auth_data, chunk_length):
-#             cipher.update(chunk)
-#         ct2 = bytes(r"", encoding='utf-8')
-#         for chunk in break_up(plaintext, chunk_length):
-#             ct2 += cipher.encrypt(chunk)
-#         asserts.assert_that(ciphertext).is_equal_to(ct2)
-#         asserts.assert_that(cipher.digest()).is_equal_to(ref_mac)
-#
-#
-# def GcmTests_test_bytearray():
-#
-#         # Encrypt
-#     key_ba = bytearray(key_128)
-#     nonce_ba = bytearray(nonce_96)
-#     header_ba = bytearray(data_128)
-#     data_ba = bytearray(data_128)
-#
-#     cipher1 = AES.new(key_128,
-#                       AES.MODE_GCM,
-#                       nonce=nonce_96)
-#     cipher1.update(data_128)
-#     ct = cipher1.encrypt(data_128)
-#     tag = cipher1.digest()
-#
-#     cipher2 = AES.new(key_ba,
-#                       AES.MODE_GCM,
-#                       nonce=nonce_ba)
-#     key_ba[:3] = bytes([0xff, 0xff, 0xff])
-#     nonce_ba[:3] = bytes([0xff, 0xff, 0xff])
-#     cipher2.update(header_ba)
-#     header_ba[:3] = bytes([0xff, 0xff, 0xff])
-#     ct_test = cipher2.encrypt(data_ba)
-#     data_ba[:3] = bytes([0xff, 0xff, 0xff])
-#     tag_test = cipher2.digest()
-#
-#     asserts.assert_that(ct).is_equal_to(ct_test)
-#     asserts.assert_that(tag).is_equal_to(tag_test)
-#     asserts.assert_that(cipher1.nonce).is_equal_to(cipher2.nonce)
-#
-#         # Decrypt
-#     key_ba = bytearray(key_128)
-#     nonce_ba = bytearray(nonce_96)
-#     header_ba = bytearray(data_128)
-#     del data_ba
-#
-#     cipher4 = AES.new(key_ba,
-#                       AES.MODE_GCM,
-#                       nonce=nonce_ba)
-#     key_ba[:3] = bytes([0xff, 0xff, 0xff])
-#     nonce_ba[:3] = bytes([0xff, 0xff, 0xff])
-#     cipher4.update(header_ba)
-#     header_ba[:3] = bytes([0xff, 0xff, 0xff])
-#     pt_test = cipher4.decrypt_and_verify(bytearray(ct_test), bytearray(tag_test))
-#
-#     asserts.assert_that(data_128).is_equal_to(pt_test)
-#
+def GcmTests_test_unknown_parameters():
+    asserts.assert_fails(lambda : AES.new(key_128, AES.MODE_GCM,
+                      nonce_96, 7), ".*?TypeError")
+    asserts.assert_fails(lambda : AES.new(key_128, AES.MODE_GCM,
+                      nonce=nonce_96, unknown=7), ".*?TypeError")
+
+    # TODO(Larky-Difference): This test is not needed.
+    # But some are only known by the base cipher
+    # (e.g. use_aesni consumed by the AES module)
+    # AES.new(key_128, AES.MODE_GCM, nonce=nonce_96,
+    #         use_aesni=False)
+
+
+def GcmTests_test_null_encryption_decryption():
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    result = cipher.encrypt(bytes("", encoding='utf-8'))
+    asserts.assert_that(result[:-len(cipher.digest())]).is_equal_to(bytes("", encoding='utf-8'))
+
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    result = cipher.decrypt(bytes("", encoding='utf-8'))
+    asserts.assert_that(result).is_equal_to(bytes("", encoding='utf-8'))
+
+
+def GcmTests_test_either_encrypt_or_decrypt():
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    cipher.encrypt(bytes(r"", encoding='utf-8'))
+    asserts.assert_fails(lambda : cipher.decrypt(bytes(r"", encoding='utf-8')), ".*?TypeError")
+
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    cipher.decrypt(bytes(r"", encoding='utf-8'))
+    asserts.assert_fails(lambda : cipher.encrypt(bytes(r"", encoding='utf-8')), ".*?TypeError")
+
+
+def GcmTests_test_data_must_be_bytes():
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    asserts.assert_fails(lambda : cipher.encrypt('test1234567890-*'), ".*?TypeError")
+
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    asserts.assert_fails(lambda : cipher.decrypt('test1234567890-*'), ".*?TypeError")
+
+
+def GcmTests_test_mac_len():
+    # Invalid MAC length
+    asserts.assert_fails(lambda : AES.new(key_128, AES.MODE_GCM,
+                      nonce=nonce_96, mac_len=3), ".*?ValueError")
+    asserts.assert_fails(lambda : AES.new(key_128, AES.MODE_GCM,
+                      nonce=nonce_96, mac_len=16+1), ".*?ValueError")
+
+    # Valid MAC length
+    for mac_len in range(5, 16 + 1):
+        cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96,
+                         mac_len=mac_len)
+        _, mac = cipher.encrypt_and_digest(data_128)
+        asserts.assert_that(len(mac)).is_equal_to(mac_len)
+
+    # Default MAC length
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    _, mac = cipher.encrypt_and_digest(data_128)
+    asserts.assert_that(len(mac)).is_equal_to(16)
+
+
+def GcmTests_test_invalid_mac():
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    ct, mac = cipher.encrypt_and_digest(data_128)
+
+    invalid_mac = strxor_c(mac, 0x01)
+
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    asserts.assert_fails(lambda : cipher.decrypt_and_verify(ct,
+                      invalid_mac), ".*?ValueError")
+
+
+def GcmTests_test_hex_mac():
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    mac_hex = cipher.hexdigest()
+    asserts.assert_that(cipher.digest()).is_equal_to(unhexlify(mac_hex))
+
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    cipher.hexverify(mac_hex)
+
+
+def GcmTests_test_message_chunks():
+    # Validate that both associated data and plaintext/ciphertext
+    # can be broken up in chunks of arbitrary length
+    auth_data = get_tag_random("authenticated data", 127)
+    plaintext = get_tag_random("plaintext", 127)
+
+    cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+    cipher.update(auth_data)
+    ciphertext, ref_mac = cipher.encrypt_and_digest(plaintext)
+    print("ciphertext: ", hexlify(ciphertext), "ref_mac:", hexlify(ref_mac))
+
+    def break_up(data, chunk_length):
+        return [
+            data[i:i+chunk_length] for i in range(0, len(data), chunk_length)
+        ]
+
+    # Encryption
+    for chunk_length in 1, 2, 3, 7, 10, 13, 16, 40, 80, 128:
+
+        cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+        for chunk in break_up(auth_data, chunk_length):
+            cipher.update(chunk)
+        pt2 = bytearray(r"", encoding="utf-8")
+        for chunk in break_up(ciphertext, chunk_length):
+            print("chunk:", hexlify(chunk), " pt2:", hexlify(pt2))
+            pt2 += cipher.decrypt(chunk)
+        print("pt2: ", hexlify(pt2))
+        asserts.assert_that(plaintext).is_equal_to(pt2)
+        cipher.verify(ref_mac)
+    print("----- got here -----")
+    # Decryption
+    for chunk_length in 1, 2, 3, 7, 10, 13, 16, 40, 80, 128:
+
+        cipher = AES.new(key_128, AES.MODE_GCM, nonce=nonce_96)
+
+        for chunk in break_up(auth_data, chunk_length):
+            cipher.update(chunk)
+        ct2 = bytes(r"", encoding='utf-8')
+        for chunk in break_up(plaintext, chunk_length):
+            ct2 += cipher.encrypt(chunk)
+        asserts.assert_that(ciphertext).is_equal_to(ct2)
+        asserts.assert_that(cipher.digest()).is_equal_to(ref_mac)
+
+
+def GcmTests_test_bytearray():
+
+        # Encrypt
+    key_ba = bytearray(key_128)
+    nonce_ba = bytearray(nonce_96)
+    header_ba = bytearray(data_128)
+    data_ba = bytearray(data_128)
+
+    cipher1 = AES.new(key_128,
+                      AES.MODE_GCM,
+                      nonce=nonce_96)
+    cipher1.update(data_128)
+    ct = cipher1.encrypt(data_128)
+    tag = cipher1.digest()
+
+    cipher2 = AES.new(key_ba,
+                      AES.MODE_GCM,
+                      nonce=nonce_ba)
+    key_ba = bytearray(key_ba[:3]) + bytearray([0xff, 0xff, 0xff])
+    nonce_ba = bytearray(nonce_ba[:3]) + bytes([0xff, 0xff, 0xff])
+    cipher2.update(header_ba)
+    header_ba = bytearray(header_ba[:3]) + bytearray([0xff, 0xff, 0xff])
+    ct_test = cipher2.encrypt(data_ba)
+    data_ba = bytearray(data_ba[:3]) + bytes([0xff, 0xff, 0xff])
+    tag_test = cipher2.digest()
+
+    asserts.assert_that(ct).is_equal_to(ct_test)
+    asserts.assert_that(tag).is_equal_to(tag_test)
+    asserts.assert_that(cipher1.nonce).is_equal_to(cipher2.nonce)
+
+    # Decrypt
+    key_ba = bytearray(key_128)
+    nonce_ba = bytearray(nonce_96)
+    header_ba = bytearray(data_128)
+
+    cipher4 = AES.new(key_ba,
+                      AES.MODE_GCM,
+                      nonce=nonce_ba)
+    key_ba = bytearray(key_ba[:3]) + bytearray([0xff, 0xff, 0xff])
+    nonce_ba = bytearray(nonce_ba[:3]) + bytes([0xff, 0xff, 0xff])
+    cipher4.update(header_ba)
+    header_ba = bytearray(header_ba[:3]) + bytearray([0xff, 0xff, 0xff])
+    pt_test = cipher4.decrypt_and_verify(bytearray(ct_test), bytearray(tag_test))
+
+    asserts.assert_that(data_128).is_equal_to(pt_test)
+
 # def GcmTests_test_memoryview():
 #
 #         # Encrypt
@@ -785,12 +790,12 @@ def GcmTests_test_nonce_attribute():
 
 def _testsuite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(GcmTests_test_loopback_128))
-    _suite.addTest(unittest.FunctionTestCase(GcmTests_test_nonce))
-    _suite.addTest(unittest.FunctionTestCase(GcmTests_test_nonce_must_be_bytes))
-    _suite.addTest(unittest.FunctionTestCase(GcmTests_test_nonce_length))
-    _suite.addTest(unittest.FunctionTestCase(GcmTests_test_block_size_128))
-    _suite.addTest(unittest.FunctionTestCase(GcmTests_test_nonce_attribute))
+    # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_loopback_128))
+    # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_nonce))
+    # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_nonce_must_be_bytes))
+    # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_nonce_length))
+    # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_block_size_128))
+    # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_nonce_attribute))
     # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_unknown_parameters))
     # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_null_encryption_decryption))
     # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_either_encrypt_or_decrypt))
@@ -798,7 +803,7 @@ def _testsuite():
     # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_mac_len))
     # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_invalid_mac))
     # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_hex_mac))
-    # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_message_chunks))
+    _suite.addTest(unittest.FunctionTestCase(GcmTests_test_message_chunks))
     # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_bytearray))
     # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_memoryview))
     # _suite.addTest(unittest.FunctionTestCase(GcmTests_test_output_param))
