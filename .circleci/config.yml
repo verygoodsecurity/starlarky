@@ -129,7 +129,8 @@ get-resouces: &get-resources
   run:
     name: Get Additional Resources
     command: |
-      ./scripts/get_resources.sh
+      export LARKY_LIB_HOME=/tmp/larky/lib
+      ./larky-api/scripts/get_resources.sh
 
 
 # === JOBS ===

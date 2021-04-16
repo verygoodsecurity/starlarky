@@ -1,8 +1,5 @@
 package com.verygood.security.larkyapi;
 
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-
 import javax.annotation.Nonnull;
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
@@ -10,18 +7,21 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 import javax.script.Bindings;
 import javax.script.ScriptEngineFactory;
+import java.io.IOException;
 import java.io.Reader;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
@@ -30,6 +30,8 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
   final private Class parseClass;
   final private ScriptEngine engineInstanceObj;
   final private String version;
+
+  private static IOException setupException = null;
 
 
   // Instantiating the static map
@@ -41,29 +43,44 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
   private static void detectVersions() {
     larkyJarByVersion = new HashMap<>();
     try {
-      PathMatchingResourcePatternResolver resolver =
-              new PathMatchingResourcePatternResolver(VersionedLarkyEngineImpl.class.getClassLoader());
-      // Get jars with format `larky-\d{>=1}.\d{>=1}.\d{>=1}-fat.jar`
-      Resource[] resources = resolver.getResources( // uses AntPathMatcher
-              "classpath*:larky-{\\d+}.{\\d+}.{\\d+}-fat.jar"
-      );
-      for (Resource resource: resources) {
-        String fileName = resource.getFilename();
-        URL fileURL = resource.getURL();
+      String larky_lib = "/larky/lib"; // default dir
 
-        Pattern pattern = Pattern.compile("\\d+.\\d+.\\d+");
-        Matcher matcher = pattern.matcher(fileName);
-        if (matcher.find()) {
-          larkyJarByVersion.put(matcher.group(), fileURL);
-        }
+      String larky_alt_lib = System.getenv("LARKY_LIB_HOME");
+      if ( larky_alt_lib != null ) {
+        larky_lib = larky_alt_lib;
       }
-    } catch (Exception e) {
+
+      Stream<Path> paths = Files.walk(Paths.get(larky_lib));
+      paths
+              // Get jars with format `larky-\d{>=1}.\d{>=1}.\d{>=1}-fat.jar`
+              .filter(filePath -> filePath.toString().matches("^.*larky-\\d+.\\d+.\\d+-fat.jar$"))
+              .forEach(filePath -> {
+                try {
+                  String fileName = filePath.toString();
+                  URL fileURL = filePath.toUri().toURL();
+
+                  Pattern pattern = Pattern.compile("\\d+.\\d+.\\d+");
+                  Matcher matcher = pattern.matcher(fileName);
+                  if (matcher.find()) {
+                    larkyJarByVersion.put(matcher.group(), fileURL);
+                  }
+                } catch (Exception e) {
+                  e.printStackTrace();
+                }
+              });
+    } catch (IOException e) {
+      setupException = e;
       e.printStackTrace();
     }
   }
 
   public VersionedLarkyEngineImpl(String inputVersion)
-          throws IllegalArgumentException, ClassNotFoundException, IllegalAccessException, InstantiationException {
+          throws IllegalArgumentException, ClassNotFoundException, IllegalAccessException, InstantiationException,
+          IOException {
+
+    if (setupException != null) {
+      throw setupException;
+    }
 
     if ( !getSupportedVersions().contains(inputVersion) ) {
       throw new IllegalArgumentException("Engine Version not Found");
@@ -72,8 +89,7 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
     this.version = inputVersion;
     URL larkyJarPath = larkyJarByVersion.get(version);
     URLClassLoader childLoader = new URLClassLoader(
-            new URL[] {larkyJarPath},
-            VersionedLarkyEngineImpl.class.getClassLoader()
+            new URL[] {larkyJarPath}
     );
 
     // equivalent to: import com.verygood.security.larky.jsr223.LarkyCompiledScript;
