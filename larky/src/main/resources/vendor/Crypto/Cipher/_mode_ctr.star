@@ -23,12 +23,15 @@
 """
 Counter (CTR) mode.
 """
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
+load("@stdlib//builtins","builtins")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//struct", struct="struct")
+load("@stdlib//types", types="types")
 load("@vendor//Crypto/Random", get_random_bytes="get_random_bytes")
-load("@vendor//Crypto/Util/py3compat", _copy_bytes="_copy_bytes", is_native_int="is_native_int")
+load("@vendor//Crypto/Util/py3compat", _copy_bytes="copy_bytes", is_native_int="is_native_int")
 load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes")
-load("@stdlib//builtins","builtins")
 
 __all__ = ['CtrMode']
 
@@ -64,6 +67,138 @@ def _CtrMode(block_cipher, initial_counter_block,
 
     :undocumented: __init__
     """
+    self = larky.mutablestruct(__class__='CtrMode')
+
+    def encrypt(plaintext, output=None):
+        """Encrypt data with the key and the parameters set at initialization.
+
+        A cipher object is stateful: once you have encrypted a message
+        you cannot encrypt (or decrypt) another message using the same
+        object.
+
+        The data to encrypt can be broken up in two or
+        more pieces and `encrypt` can be called multiple times.
+
+        That is, the statement:
+
+            >>> c.encrypt(a) + c.encrypt(b)
+
+        is equivalent to:
+
+             >>> c.encrypt(a+b)
+
+        This function does not add any padding to the plaintext.
+
+        :Parameters:
+          plaintext : bytes/bytearray/memoryview
+            The piece of data to encrypt.
+            It can be of any length.
+        :Keywords:
+          output : bytearray/memoryview
+            The location where the ciphertext must be written to.
+            If ``None``, the ciphertext is returned.
+        :Return:
+          If ``output`` is ``None``, the ciphertext is returned as ``bytes``.
+          Otherwise, ``None``.
+        """
+
+        if self.encrypt not in self._next:
+            fail("TypeError: encrypt() cannot be called after decrypt()")
+        self._next = [ self.encrypt ]
+
+        if output == None:
+            ciphertext = bytearray()
+        else:
+            ciphertext = output
+
+            if not types.is_bytearray(output):
+                fail("TypeError: output must be a bytearray or " +
+                # we do not have memoryview in larky so this is just for
+                # compat reasons
+                     "a writeable memoryview")
+
+            # noinspection PyTypeChecker
+            if len(plaintext) != len(output):
+                fail("ValueError: output must have the same length as the " +
+                     "input (%d bytes)" % len(plaintext))
+
+        result = self._state.encrypt(plaintext, ciphertext)
+        if result:
+            if result == 0x60002:
+                fail('OverflowError: The counter has wrapped around in CTR mode')
+            fail('ValueError: Error %X while decrypting in CTR mode' % result)
+
+        if output != None:
+            return
+
+        return ciphertext
+    self.encrypt = encrypt
+
+    def decrypt(ciphertext, output=None):
+        """Decrypt data with the key and the parameters set at initialization.
+
+        A cipher object is stateful: once you have decrypted a message
+        you cannot decrypt (or encrypt) another message with the same
+        object.
+
+        The data to decrypt can be broken up in two or
+        more pieces and `decrypt` can be called multiple times.
+
+        That is, the statement:
+
+            >>> c.decrypt(a) + c.decrypt(b)
+
+        is equivalent to:
+
+             >>> c.decrypt(a+b)
+
+        This function does not remove any padding from the plaintext.
+
+        :Parameters:
+          ciphertext : bytes/bytearray/memoryview
+            The piece of data to decrypt.
+            It can be of any length.
+        :Keywords:
+          output : bytearray/memoryview
+            The location where the plaintext must be written to.
+            If ``None``, the plaintext is returned.
+        :Return:
+          If ``output`` is ``None``, the plaintext is returned as ``bytes``.
+          Otherwise, ``None``.
+        """
+
+        if self.decrypt not in self._next:
+            fail("TypeError: decrypt() cannot be called after encrypt()")
+        self._next = [ self.decrypt ]
+
+        if output == None:
+            plaintext = bytearray()
+        else:
+            plaintext = output
+
+            if not types.is_bytearray(output):
+                fail("TypeError: output must be a bytearray or " +
+                # we do not have memoryview in larky so this is just for
+                # compat reasons
+                     "a writeable memoryview")
+
+            # noinspection PyTypeChecker
+            if len(ciphertext) != len(output):
+                fail("ValueError: output must have the same length as the " +
+                     "input (%d bytes)" % len(ciphertext))
+
+        result = self._state.decrypt(ciphertext, plaintext)
+
+        if result:
+            if result == 0x60002:
+                fail('OverflowError: The counter has wrapped around in CTR mode')
+            fail('ValueError: Error %X while decrypting in CTR mode' % result)
+
+        if output != None:
+            return
+
+        return plaintext
+    self.decrypt = decrypt
 
     def __init__(block_cipher, initial_counter_block,
                  prefix_len, counter_len, little_endian):
@@ -101,157 +236,14 @@ def _CtrMode(block_cipher, initial_counter_block,
             self.nonce = _copy_bytes(None, prefix_len, initial_counter_block)
             """Nonce; not available if there is a fixed suffix"""
 
-        self._state = VoidPointer()
-        result = raw_ctr_lib.CTR_start_operation(block_cipher.get(),
-                                                 c_uint8_ptr(initial_counter_block),
-                                                 c_size_t(len(initial_counter_block)),
-                                                 c_size_t(prefix_len),
-                                                 counter_len,
-                                                 little_endian,
-                                                 self._state.address_of())
-        if result:
-            fail(" ValueError(\"Error %X while instantiating the CTR mode\"\n                             % result)")
-
-        # Ensure that object disposal of this Python object will (eventually)
-        # free the memory allocated by the raw library for the cipher mode
-        self._state = SmartPointer(self._state.get(),
-                                   raw_ctr_lib.CTR_stop_operation)
-
-        # Memory allocated for the underlying block cipher is now owed
-        # by the cipher mode
-        block_cipher.release()
+        self._state = _JCrypto.Cipher.CTRMode(block_cipher, initial_counter_block)
 
         self.block_size = len(initial_counter_block)
         """The block size of the underlying cipher, in bytes."""
 
         self._next = [self.encrypt, self.decrypt]
+        return self
     self = __init__(block_cipher, initial_counter_block, prefix_len, counter_len, little_endian)
-
-    def encrypt(plaintext, output=None):
-        """Encrypt data with the key and the parameters set at initialization.
-
-        A cipher object is stateful: once you have encrypted a message
-        you cannot encrypt (or decrypt) another message using the same
-        object.
-
-        The data to encrypt can be broken up in two or
-        more pieces and `encrypt` can be called multiple times.
-
-        That is, the statement:
-
-            >>> c.encrypt(a) + c.encrypt(b)
-
-        is equivalent to:
-
-             >>> c.encrypt(a+b)
-
-        This function does not add any padding to the plaintext.
-
-        :Parameters:
-          plaintext : bytes/bytearray/memoryview
-            The piece of data to encrypt.
-            It can be of any length.
-        :Keywords:
-          output : bytearray/memoryview
-            The location where the ciphertext must be written to.
-            If ``None``, the ciphertext is returned.
-        :Return:
-          If ``output`` is ``None``, the ciphertext is returned as ``bytes``.
-          Otherwise, ``None``.
-        """
-
-        if self.encrypt not in self._next:
-            fail(" TypeError(\"encrypt() cannot be called after decrypt()\")")
-        self._next = [self.encrypt]
-
-        if output == None:
-            ciphertext = create_string_buffer(len(plaintext))
-        else:
-            ciphertext = output
-
-            if not is_writeable_buffer(output):
-                fail(" TypeError(\"output must be a bytearray or a writeable memoryview\")")
-
-            if len(plaintext) != len(output):
-                fail(" ValueError(\"output must have the same length as the input\"\n                                 \"  (%d bytes)\" % len(plaintext))")
-
-        result = raw_ctr_lib.CTR_encrypt(self._state.get(),
-                                         c_uint8_ptr(plaintext),
-                                         c_uint8_ptr(ciphertext),
-                                         c_size_t(len(plaintext)))
-        if result:
-            if result == 0x60002:
-                fail(" OverflowError(\"The counter has wrapped around in\"\n                                    \" CTR mode\")")
-            fail(" ValueError(\"Error %X while encrypting in CTR mode\" % result)")
-
-        if output == None:
-            return get_raw_buffer(ciphertext)
-        else:
-            return None
-    self.encrypt = encrypt
-
-    def decrypt(ciphertext, output=None):
-        """Decrypt data with the key and the parameters set at initialization.
-
-        A cipher object is stateful: once you have decrypted a message
-        you cannot decrypt (or encrypt) another message with the same
-        object.
-
-        The data to decrypt can be broken up in two or
-        more pieces and `decrypt` can be called multiple times.
-
-        That is, the statement:
-
-            >>> c.decrypt(a) + c.decrypt(b)
-
-        is equivalent to:
-
-             >>> c.decrypt(a+b)
-
-        This function does not remove any padding from the plaintext.
-
-        :Parameters:
-          ciphertext : bytes/bytearray/memoryview
-            The piece of data to decrypt.
-            It can be of any length.
-        :Keywords:
-          output : bytearray/memoryview
-            The location where the plaintext must be written to.
-            If ``None``, the plaintext is returned.
-        :Return:
-          If ``output`` is ``None``, the plaintext is returned as ``bytes``.
-          Otherwise, ``None``.
-        """
-
-        if self.decrypt not in self._next:
-            fail(" TypeError(\"decrypt() cannot be called after encrypt()\")")
-        self._next = [self.decrypt]
-
-        if output == None:
-            plaintext = create_string_buffer(len(ciphertext))
-        else:
-            plaintext = output
-
-            if not is_writeable_buffer(output):
-                fail(" TypeError(\"output must be a bytearray or a writeable memoryview\")")
-
-            if len(ciphertext) != len(output):
-                fail(" ValueError(\"output must have the same length as the input\"\n                                 \"  (%d bytes)\" % len(plaintext))")
-
-        result = raw_ctr_lib.CTR_decrypt(self._state.get(),
-                                         c_uint8_ptr(ciphertext),
-                                         c_uint8_ptr(plaintext),
-                                         c_size_t(len(ciphertext)))
-        if result:
-            if result == 0x60002:
-                fail(" OverflowError(\"The counter has wrapped around in\"\n                                    \" CTR mode\")")
-            fail(" ValueError(\"Error %X while decrypting in CTR mode\" % result)")
-
-        if output == None:
-            return get_raw_buffer(plaintext)
-        else:
-            return None
-    self.decrypt = decrypt
     return self
 
 
@@ -322,13 +314,13 @@ def _create_ctr_cipher(factory, **kwargs):
         if is_native_int(initial_value):
             if ((1 << (counter_len * 8)) - 1) < initial_value:
                 fail("ValueError: Initial counter value is too large")
-            initial_counter_block = nonce + long_to_bytes(initial_value, counter_len)
+            initial_counter_block = bytearray(nonce) + bytearray(long_to_bytes(initial_value, counter_len))
         else:
             if len(initial_value) != counter_len:
                 fail(("ValueError: Incorrect length for counter byte " +
                      "string (%d bytes, expected %d)") %
                      (len(initial_value), counter_len))
-            initial_counter_block = nonce + initial_value
+            initial_counter_block = bytearray(nonce) + bytearray(initial_value)
 
         return _CtrMode(cipher_state,
                        initial_counter_block,
@@ -341,14 +333,12 @@ def _create_ctr_cipher(factory, **kwargs):
     # 'counter' used to be a callable object, but now it is
     # just a dictionary for backward compatibility.
     _counter = dict(counter)
-    try:
-        counter_len = _counter.pop("counter_len")
-        prefix = _counter.pop("prefix")
-        suffix = _counter.pop("suffix")
-        initial_value = _counter.pop("initial_value")
-        little_endian = _counter.pop("little_endian")
-    except KeyError:
-        fail("TypeError: Incorrect counter object (use Crypto.Util.Counter.new)")
+    counter_len = _counter.pop("counter_len")
+    prefix = _counter.pop("prefix")
+    suffix = _counter.pop("suffix")
+    initial_value = _counter.pop("initial_value")
+    little_endian = _counter.pop("little_endian")
+    # fail("TypeError: Incorrect counter object (use Crypto.Util.Counter.new)")
 
     # Compute initial counter block
     words = []
@@ -363,7 +353,9 @@ def _create_ctr_cipher(factory, **kwargs):
     initial_counter_block = prefix + bytearray(r"", encoding='utf-8').join(words) + suffix
 
     if len(initial_counter_block) != factory.block_size:
-        fail(" ValueError(\"Size of the counter block (%d bytes) must match\"\n                         \" block size (%d)\" % (len(initial_counter_block),\n                                               factory.block_size))")
+        fail(("ValueError: 'Size of the counter block (%d bytes) must match" +
+              "block size (%d)") % (len(initial_counter_block),
+                                   factory.block_size))
 
     return _CtrMode(
         cipher_state,

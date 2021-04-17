@@ -17,6 +17,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+load("@stdlib//binascii", hexlify="hexlify")
+load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", bord="bord")
@@ -65,7 +67,7 @@ def SHA256Hash(data=None):
         Args:
             data (byte string/byte array/memoryview): The next chunk of the message being hashed.
         """
-        if not data:
+        if data == None:
             fail("TypeError: object supporting the buffer API required")
         self._state.update(data)
     self.update = update
@@ -88,8 +90,7 @@ def SHA256Hash(data=None):
                  Hexadecimal encoded.
         :rtype: string
         """
-
-        return "".join(["%02x" % bord(x) for x in self.digest()])
+        return codecs.decode(hexlify(self.digest()), encoding='utf-8')
     self.hexdigest = hexdigest
 
     def copy():

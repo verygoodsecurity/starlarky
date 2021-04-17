@@ -189,7 +189,6 @@ def _CbcMode(block_cipher, iv):
                      "in CBC mode" % self.block_size)
             fail("ValueError: Error %d while decrypting in CBC mode" % result)
 
-
         if output != None:
             return
 
