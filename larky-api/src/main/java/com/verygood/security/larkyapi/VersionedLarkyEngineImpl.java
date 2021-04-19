@@ -52,6 +52,7 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
             larkyLib = altLarkyLib;
         }
 
+        Pattern pattern = Pattern.compile("\\d+.\\d+.\\d+");
         try {
             Stream<Path> paths = Files.walk(Paths.get(larkyLib));
             paths
@@ -62,7 +63,6 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
                             String fileName = filePath.toString();
                             URL fileURL = filePath.toUri().toURL();
 
-                            Pattern pattern = Pattern.compile("\\d+.\\d+.\\d+");
                             Matcher matcher = pattern.matcher(fileName);
                             if (matcher.find()) {
                                 larkyJarByVersion.put(matcher.group(), fileURL);
