@@ -45,12 +45,11 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
     private static void detectVersions() {
         larkyJarByVersion = new HashMap<>();
-        String larkyLib = System.getProperty("user.home") + "/.larky/lib"; // default dir
 
-        String altLarkyLib = System.getenv("LARKY_LIB_HOME");
-        if (altLarkyLib != null) {
-            larkyLib = altLarkyLib;
-        }
+        String larkyLibEnv = System.getenv("LARKY_LIB_HOME");
+        String larkyLib = larkyLibEnv != null ?
+                larkyLibEnv :
+                String.format("%s/.larky/lib", System.getProperty("user.home"));
 
         Pattern pattern = Pattern.compile("\\d+.\\d+.\\d+");
         try {
