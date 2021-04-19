@@ -12,7 +12,7 @@ job-defaults: &job-defaults
     - GRAALVM_HOME: /home/circleci/starlarky/.graalvm
     - HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
     - LARKY_HOME: /home/circleci/starlarky
-    - LARKY_LIB_HOME: /opt/larky/lib
+    - LARKY_LIB_HOME: ~/.larky/lib
 
 install-java: &install-java
   run:

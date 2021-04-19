@@ -34,7 +34,7 @@ done
 
 
 # Get larky lib home path
-LARKY_LIB_HOME=${LARKY_LIB_HOME:-/larky/lib}
+LARKY_LIB_HOME=${LARKY_LIB_HOME:-~/.larky/lib}
 mkdir -p $LARKY_LIB_HOME
 if [ $? -ne 0 ] ; then
     .log 3 "could not create directory $LARKY_LIB_HOME"
