@@ -27,220 +27,220 @@ import java.util.stream.Stream;
 @Slf4j
 public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
-  final private Class engineClass;
-  final private Class scriptClass;
-  final private Class parseClass;
-  final private ScriptEngine engineInstanceObj;
-  final private String version;
+    final private Class engineClass;
+    final private Class scriptClass;
+    final private Class parseClass;
+    final private ScriptEngine engineInstanceObj;
+    final private String version;
 
-  private static IOException setupException = null;
+    private static IOException setupException = null;
 
 
-  // Instantiating the static map
-  private static Map<String, URL> larkyJarByVersion;
-  static {
-    detectVersions();
-  }
+    // Instantiating the static map
+    private static Map<String, URL> larkyJarByVersion;
 
-  private static void detectVersions() {
-    larkyJarByVersion = new HashMap<>();
-    String larky_lib = System.getProperty("user.home") + "/.larky/lib"; // default dir
-
-    String larky_alt_lib = System.getenv("LARKY_LIB_HOME");
-    if ( larky_alt_lib != null ) {
-      larky_lib = larky_alt_lib;
+    static {
+        detectVersions();
     }
 
-    try {
-      Stream<Path> paths = Files.walk(Paths.get(larky_lib));
-      paths
-              // Get jars with format `larky-\d{>=1}.\d{>=1}.\d{>=1}-fat.jar`
-              .filter(filePath -> filePath.toString().matches("^.*larky-\\d+.\\d+.\\d+-fat.jar$"))
-              .forEach(filePath -> {
-                try {
-                  String fileName = filePath.toString();
-                  URL fileURL = filePath.toUri().toURL();
+    private static void detectVersions() {
+        larkyJarByVersion = new HashMap<>();
+        String larky_lib = System.getProperty("user.home") + "/.larky/lib"; // default dir
 
-                  Pattern pattern = Pattern.compile("\\d+.\\d+.\\d+");
-                  Matcher matcher = pattern.matcher(fileName);
-                  if (matcher.find()) {
-                    larkyJarByVersion.put(matcher.group(), fileURL);
-                  }
-                } catch (Exception e) {
-                  log.error("Failed to extract jar file from URL, due to {}",e.getMessage());
-                  e.printStackTrace();
-                }
-              });
-    } catch (IOException e) {
-      setupException = e;
-      log.error("Unable to resolve jar files in path {}, due to {}",larky_lib,e.getMessage());
-    }
-  }
+        String larky_alt_lib = System.getenv("LARKY_LIB_HOME");
+        if (larky_alt_lib != null) {
+            larky_lib = larky_alt_lib;
+        }
 
-  public VersionedLarkyEngineImpl(String inputVersion)
-          throws IllegalArgumentException, ClassNotFoundException, IllegalAccessException, InstantiationException,
-          IOException {
+        try {
+            Stream<Path> paths = Files.walk(Paths.get(larky_lib));
+            paths
+                    // Get jars with format `larky-\d{>=1}.\d{>=1}.\d{>=1}-fat.jar`
+                    .filter(filePath -> filePath.toString().matches("^.*larky-\\d+.\\d+.\\d+-fat.jar$"))
+                    .forEach(filePath -> {
+                        try {
+                            String fileName = filePath.toString();
+                            URL fileURL = filePath.toUri().toURL();
 
-    if (setupException != null) {
-      throw setupException;
-    }
-
-    if ( !getSupportedVersions().contains(inputVersion) ) {
-      throw new IllegalArgumentException("Engine Version not Found");
+                            Pattern pattern = Pattern.compile("\\d+.\\d+.\\d+");
+                            Matcher matcher = pattern.matcher(fileName);
+                            if (matcher.find()) {
+                                larkyJarByVersion.put(matcher.group(), fileURL);
+                            }
+                        } catch (Exception e) {
+                            log.error("Failed to extract jar file from URL, due to {}", e.getMessage());
+                        }
+                    });
+        } catch (IOException e) {
+            setupException = e;
+            log.error("Unable to resolve jar files in path {}, due to {}", larky_lib, e.getMessage());
+        }
     }
 
-    this.version = inputVersion;
-    URL larkyJarPath = larkyJarByVersion.get(version);
-    URLClassLoader childLoader = new URLClassLoader(
-            new URL[] {larkyJarPath}
-    );
+    public VersionedLarkyEngineImpl(String inputVersion)
+            throws IllegalArgumentException, ClassNotFoundException, IllegalAccessException, InstantiationException,
+            IOException {
 
-    // equivalent to: import com.verygood.security.larky.jsr223.LarkyCompiledScript;
-    this.engineClass = Class.forName(
-            "com.verygood.security.larky.jsr223.LarkyScriptEngine",
-            true, childLoader);
+        if (setupException != null) {
+            throw setupException;
+        }
 
-    // equivalent to: import com.verygood.security.larky.jsr223.LarkyScriptEngine;
-    this.scriptClass = Class.forName(
-            "com.verygood.security.larky.jsr223.LarkyCompiledScript",
-            true, childLoader);
+        if (!getSupportedVersions().contains(inputVersion)) {
+            throw new IllegalArgumentException("Engine Version not Found");
+        }
 
-    // equivalent to: import com.verygood.security.larky.parser.ParsedStarFile;
-    this.parseClass = Class.forName(
-            "com.verygood.security.larky.parser.ParsedStarFile",
-            true, childLoader);
+        this.version = inputVersion;
+        URL larkyJarPath = larkyJarByVersion.get(version);
+        URLClassLoader childLoader = new URLClassLoader(
+                new URL[]{larkyJarPath}
+        );
 
-    // create engine object
-    this.engineInstanceObj = (ScriptEngine) engineClass.newInstance();
-  }
+        // equivalent to: import com.verygood.security.larky.jsr223.LarkyCompiledScript;
+        this.engineClass = Class.forName(
+                "com.verygood.security.larky.jsr223.LarkyScriptEngine",
+                true, childLoader);
 
-  @Override
-  public Object executeScript(String script, String outputVar)
-          throws NoSuchMethodException, IllegalAccessException, InvocationTargetException,
-          ScriptException, NullPointerException {
+        // equivalent to: import com.verygood.security.larky.jsr223.LarkyScriptEngine;
+        this.scriptClass = Class.forName(
+                "com.verygood.security.larky.jsr223.LarkyCompiledScript",
+                true, childLoader);
 
-    Method compile = engineClass.getMethod("compile", String.class);
-    CompiledScript compiledScript = (CompiledScript) compile.invoke(engineInstanceObj, script);
+        // equivalent to: import com.verygood.security.larky.parser.ParsedStarFile;
+        this.parseClass = Class.forName(
+                "com.verygood.security.larky.parser.ParsedStarFile",
+                true, childLoader);
 
-    Object starFile = compiledScript.eval();
+        // create engine object
+        this.engineInstanceObj = (ScriptEngine) engineClass.newInstance();
+    }
 
-    Method getGlblVar = parseClass.getMethod(
-            "getGlobalEnvironmentVariable",
-            String.class, Class.class);
-    Object result = getGlblVar.invoke(starFile, outputVar, Object.class);
+    @Override
+    public Object executeScript(String script, String outputVar)
+            throws NoSuchMethodException, IllegalAccessException, InvocationTargetException,
+            ScriptException, NullPointerException {
 
-    return result;
-  }
+        Method compile = engineClass.getMethod("compile", String.class);
+        CompiledScript compiledScript = (CompiledScript) compile.invoke(engineInstanceObj, script);
 
-  @Override
-  public Object executeScript(String script, String outputVar, ScriptContext context)
-          throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, ScriptException {
-    setContext(context);
-    return executeScript(script, outputVar);
-  }
+        Object starFile = compiledScript.eval();
 
-  @Override
-  public Object executeScript(Reader script, String outputVar, ScriptContext context)
-          throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, ScriptException  {
-    setContext(context);
-    return executeScript(script, outputVar);
-  }
+        Method getGlblVar = parseClass.getMethod(
+                "getGlobalEnvironmentVariable",
+                String.class, Class.class);
+        Object result = getGlblVar.invoke(starFile, outputVar, Object.class);
 
-  @Override
-  public Object executeScript(Reader script, String outputVar)
-          throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, ScriptException  {
+        return result;
+    }
 
-    Method compile = engineClass.getMethod("compile", Reader.class);
-    CompiledScript compiledScript = (CompiledScript) compile.invoke(engineInstanceObj, script);
+    @Override
+    public Object executeScript(String script, String outputVar, ScriptContext context)
+            throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, ScriptException {
+        setContext(context);
+        return executeScript(script, outputVar);
+    }
 
-    Object starFile = compiledScript.eval();
+    @Override
+    public Object executeScript(Reader script, String outputVar, ScriptContext context)
+            throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, ScriptException {
+        setContext(context);
+        return executeScript(script, outputVar);
+    }
 
-    Method getGlblVar = parseClass.getMethod(
-            "getGlobalEnvironmentVariable",
-            String.class, Class.class);
-    Object result = getGlblVar.invoke(starFile, outputVar, Object.class);
+    @Override
+    public Object executeScript(Reader script, String outputVar)
+            throws NoSuchMethodException, IllegalAccessException, InvocationTargetException, ScriptException {
 
-    return result;
-  }
+        Method compile = engineClass.getMethod("compile", Reader.class);
+        CompiledScript compiledScript = (CompiledScript) compile.invoke(engineInstanceObj, script);
 
-  public static Set<String> getSupportedVersions() {
-    return larkyJarByVersion.keySet();
-  }
+        Object starFile = compiledScript.eval();
 
-  @Override
-  public String getVersion() {
-    return version;
-  }
+        Method getGlblVar = parseClass.getMethod(
+                "getGlobalEnvironmentVariable",
+                String.class, Class.class);
+        Object result = getGlblVar.invoke(starFile, outputVar, Object.class);
+
+        return result;
+    }
+
+    public static Set<String> getSupportedVersions() {
+        return larkyJarByVersion.keySet();
+    }
+
+    @Override
+    public String getVersion() {
+        return version;
+    }
 
 
-  @Override
-  public Object eval(String script, ScriptContext context) throws ScriptException {
-    return engineInstanceObj.eval(script, context);
-  }
+    @Override
+    public Object eval(String script, ScriptContext context) throws ScriptException {
+        return engineInstanceObj.eval(script, context);
+    }
 
-  @Override
-  public Object eval(Reader reader, ScriptContext context) throws ScriptException {
-    return engineInstanceObj.eval(reader, context);
-  }
+    @Override
+    public Object eval(Reader reader, ScriptContext context) throws ScriptException {
+        return engineInstanceObj.eval(reader, context);
+    }
 
-  @Override
-  public Object eval(String script) throws ScriptException {
-    return engineInstanceObj.eval(script);
-  }
+    @Override
+    public Object eval(String script) throws ScriptException {
+        return engineInstanceObj.eval(script);
+    }
 
-  @Override
-  public Object eval(Reader reader) throws ScriptException {
-    return engineInstanceObj.eval(reader);
-  }
+    @Override
+    public Object eval(Reader reader) throws ScriptException {
+        return engineInstanceObj.eval(reader);
+    }
 
-  @Override
-  public Object eval(String script, Bindings n) throws ScriptException {
-    return engineInstanceObj.eval(script, n);
-  }
+    @Override
+    public Object eval(String script, Bindings n) throws ScriptException {
+        return engineInstanceObj.eval(script, n);
+    }
 
-  @Override
-  public Object eval(Reader reader, Bindings n) throws ScriptException {
-    return engineInstanceObj.eval(reader, n);
-  }
+    @Override
+    public Object eval(Reader reader, Bindings n) throws ScriptException {
+        return engineInstanceObj.eval(reader, n);
+    }
 
-  @Override
-  public void put(String key, Object value) {
-    engineInstanceObj.put(key, value);
-  }
+    @Override
+    public void put(String key, Object value) {
+        engineInstanceObj.put(key, value);
+    }
 
-  @Override
-  public Object get(String key) {
-    return engineInstanceObj.get(key);
-  }
+    @Override
+    public Object get(String key) {
+        return engineInstanceObj.get(key);
+    }
 
-  @Override
-  public Bindings getBindings(int scope) {
-    return engineInstanceObj.getBindings(scope);
-  }
+    @Override
+    public Bindings getBindings(int scope) {
+        return engineInstanceObj.getBindings(scope);
+    }
 
-  @Override
-  public void setBindings(Bindings bindings, int scope) {
-    engineInstanceObj.setBindings(bindings, scope);
-  }
+    @Override
+    public void setBindings(Bindings bindings, int scope) {
+        engineInstanceObj.setBindings(bindings, scope);
+    }
 
-  @Override
-  public Bindings createBindings() {
-    return engineInstanceObj.createBindings();
-  }
+    @Override
+    public Bindings createBindings() {
+        return engineInstanceObj.createBindings();
+    }
 
-  @Override
-  public ScriptContext getContext() {
-    return engineInstanceObj.getContext();
-  }
+    @Override
+    public ScriptContext getContext() {
+        return engineInstanceObj.getContext();
+    }
 
-  @Override
-  public void setContext(ScriptContext context) {
-    engineInstanceObj.setContext(context);
-  }
+    @Override
+    public void setContext(ScriptContext context) {
+        engineInstanceObj.setContext(context);
+    }
 
-  @Override
-  public ScriptEngineFactory getFactory() {
-    return null;
-  }
+    @Override
+    public ScriptEngineFactory getFactory() {
+        return null;
+    }
 
 }
