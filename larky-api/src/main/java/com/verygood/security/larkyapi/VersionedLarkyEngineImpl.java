@@ -45,15 +45,15 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
     private static void detectVersions() {
         larkyJarByVersion = new HashMap<>();
-        String larky_lib = System.getProperty("user.home") + "/.larky/lib"; // default dir
+        String larkyLib = System.getProperty("user.home") + "/.larky/lib"; // default dir
 
-        String larky_alt_lib = System.getenv("LARKY_LIB_HOME");
-        if (larky_alt_lib != null) {
-            larky_lib = larky_alt_lib;
+        String altLarkyLib = System.getenv("LARKY_LIB_HOME");
+        if (altLarkyLib != null) {
+            larkyLib = altLarkyLib;
         }
 
         try {
-            Stream<Path> paths = Files.walk(Paths.get(larky_lib));
+            Stream<Path> paths = Files.walk(Paths.get(larkyLib));
             paths
                     // Get jars with format `larky-\d{>=1}.\d{>=1}.\d{>=1}-fat.jar`
                     .filter(filePath -> filePath.toString().matches("^.*larky-\\d+.\\d+.\\d+-fat.jar$"))
@@ -73,7 +73,7 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
                     });
         } catch (IOException e) {
             setupException = e;
-            log.error("Unable to resolve jar files in path {}, due to {}", larky_lib, e.getMessage());
+            log.error("Unable to resolve jar files in path {}, due to {}", larkyLib, e.getMessage());
         }
     }
 
