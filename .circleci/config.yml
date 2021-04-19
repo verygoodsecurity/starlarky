@@ -315,9 +315,6 @@ workflows:
       - build-dist-linux:
           requires:
             - build-and-test
-      - build-dist-macos:
-          requires:
-            - build-and-test
 
   release:
     jobs:
@@ -328,14 +325,6 @@ workflows:
             branches:
               ignore: /.*/
       - build-dist-linux:
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-            branches:
-              ignore: /.*/
-          requires:
-            - build-dist-maven
-      - build-dist-macos:
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
