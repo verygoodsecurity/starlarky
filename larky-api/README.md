@@ -22,10 +22,10 @@ From the [github package registry](https://github.com/verygoodsecurity/starlarky
 download the Larky fat-jar files with the format `larky-*.*.*-jar-with-dependencies.jar` for the versions you want to include in your 
 API, 
 rename them to `larky-*.*.*-fat.jar`,
-and place them in `/opt/larky/lib`.
+and place them in `~/.larky/lib`.
 
 #### - Changing Larky fat-jar directory:
-By default, the API will detect versions in `/opt/larky/lib/larky-*.*.*-fat.jar`.
+By default, the API will detect versions in `~/.larky/lib/larky-*.*.*-fat.jar`.
 To change the root directory, set the `LARKY_LIB_HOME` environment variable and the API will then detect versions from
 `$LARKY_LIB_HOME/larky-*.*.*-fat.jar`
 
