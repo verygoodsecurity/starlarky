@@ -42,7 +42,7 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
   private static void detectVersions() {
     larkyJarByVersion = new HashMap<>();
     try {
-      String larky_lib = "/larky/lib"; // default dir
+      String larky_lib = "/opt/larky/lib"; // default dir
 
       String larky_alt_lib = System.getenv("LARKY_LIB_HOME");
       if ( larky_alt_lib != null ) {
