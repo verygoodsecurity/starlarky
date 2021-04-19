@@ -12,6 +12,7 @@ job-defaults: &job-defaults
     - GRAALVM_HOME: /home/circleci/starlarky/.graalvm
     - HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
     - LARKY_HOME: /home/circleci/starlarky
+    - LARKY_LIB_HOME: /home/circleci/.larky/lib
 
 install-java: &install-java
   run:
@@ -129,7 +130,7 @@ get-resouces: &get-resources
   run:
     name: Get Additional Resources
     command: |
-      ./scripts/get_resources.sh
+      ./larky-api/scripts/get_resources.sh
 
 
 # === JOBS ===
