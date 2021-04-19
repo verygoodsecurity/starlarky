@@ -42,6 +42,22 @@
             <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
     </dependencies>
 
 
@@ -152,6 +168,8 @@
         <maven.compiler.plugin.version>3.6.2</maven.compiler.plugin.version>
         <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
         <google.errorprone.version>2.5.1</google.errorprone.version>
+        <lombok.version>1.18.20</lombok.version>
+        <slf4j.version>1.7.30</slf4j.version>
     </properties>
 
     <profiles>

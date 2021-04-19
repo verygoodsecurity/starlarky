@@ -1,5 +1,7 @@
 package com.verygood.security.larkyapi;
 
+import lombok.extern.slf4j.Slf4j;
+
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
@@ -22,6 +24,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+@Slf4j
 public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
   final private Class engineClass;
@@ -41,14 +44,14 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
 
   private static void detectVersions() {
     larkyJarByVersion = new HashMap<>();
+    String larky_lib = System.getProperty("user.home") + "/.larky/lib"; // default dir
+
+    String larky_alt_lib = System.getenv("LARKY_LIB_HOME");
+    if ( larky_alt_lib != null ) {
+      larky_lib = larky_alt_lib;
+    }
+
     try {
-      String larky_lib = System.getProperty("user.home") + "/.larky/lib"; // default dir
-
-      String larky_alt_lib = System.getenv("LARKY_LIB_HOME");
-      if ( larky_alt_lib != null ) {
-        larky_lib = larky_alt_lib;
-      }
-
       Stream<Path> paths = Files.walk(Paths.get(larky_lib));
       paths
               // Get jars with format `larky-\d{>=1}.\d{>=1}.\d{>=1}-fat.jar`
@@ -64,12 +67,13 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
                     larkyJarByVersion.put(matcher.group(), fileURL);
                   }
                 } catch (Exception e) {
+                  log.error("Failed to extract jar file from URL, due to {}",e.getMessage());
                   e.printStackTrace();
                 }
               });
     } catch (IOException e) {
       setupException = e;
-      e.printStackTrace();
+      log.error("Unable to resolve jar files in path {}, due to {}",larky_lib,e.getMessage());
     }
   }
 
