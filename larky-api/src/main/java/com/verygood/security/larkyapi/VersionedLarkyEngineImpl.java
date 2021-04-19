@@ -1,6 +1,5 @@
 package com.verygood.security.larkyapi;
 
-import javax.annotation.Nonnull;
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
@@ -231,7 +230,7 @@ public class VersionedLarkyEngineImpl implements VersionedLarkyEngine {
   }
 
   @Override
-  public void setContext(@Nonnull ScriptContext context) {
+  public void setContext(ScriptContext context) {
     engineInstanceObj.setContext(context);
   }
 
