@@ -23,26 +23,13 @@
 """
 Electronic Code Book (ECB) mode.
 """
+load("@stdlib//larky", larky="larky")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@stdlib//types", types="types")
 
 __all__ = [ 'EcbMode' ]
 
-load("@vendor//Crypto/Util/_raw_api", load_pycryptodome_raw_lib="load_pycryptodome_raw_lib", VoidPointer="VoidPointer", create_string_buffer="create_string_buffer", get_raw_buffer="get_raw_buffer", SmartPointer="SmartPointer", c_size_t="c_size_t", c_uint8_ptr="c_uint8_ptr", is_writeable_buffer="is_writeable_buffer")
-
-raw_ecb_lib = load_pycryptodome_raw_lib("Crypto.Cipher._raw_ecb", """
-                    int ECB_start_operation(void *cipher,
-                                            void **pResult);
-                    int ECB_encrypt(void *ecbState,
-                                    const uint8_t *in,
-                                    uint8_t *out,
-                                    size_t data_len);
-                    int ECB_decrypt(void *ecbState,
-                                    const uint8_t *in,
-                                    uint8_t *out,
-                                    size_t data_len);
-                    int ECB_stop_operation(void *state);
-                    """
-                                        )
-def EcbMode(block_cipher):
+def _EcbMode(block_cipher):
     """*Electronic Code Book (ECB)*.
 
     This is the simplest encryption mode. Each of the plaintext blocks
@@ -66,23 +53,11 @@ def EcbMode(block_cipher):
           block_cipher : C pointer
             A smart pointer to the low-level block cipher instance.
         """
-        self.block_size = block_cipher.block_size
+        block_size = block_cipher.block_size
 
-        self._state = VoidPointer()
-        result = raw_ecb_lib.ECB_start_operation(block_cipher.get(),
-                                                 self._state.address_of())
-        if result:
-            fail(" ValueError(\"Error %d while instantiating the ECB mode\"\n                             % result)")
+        _state = _JCrypto.Cipher.ECBMode(block_cipher)
+        return larky.mutablestruct(block_size=block_size, _state=_state)
 
-        # Ensure that object disposal of this Python object will (eventually)
-        # free the memory allocated by the raw library for the cipher
-        # mode
-        self._state = SmartPointer(self._state.get(),
-                                   raw_ecb_lib.ECB_stop_operation)
-
-        # Memory allocated for the underlying block cipher is now owned
-        # by the cipher mode
-        block_cipher.release()
     self = __init__(block_cipher)
 
     def encrypt(plaintext, output=None):
@@ -113,31 +88,32 @@ def EcbMode(block_cipher):
           If ``output`` is ``None``, the ciphertext is returned as ``bytes``.
           Otherwise, ``None``.
         """
-
         if output == None:
-            ciphertext = create_string_buffer(len(plaintext))
+            ciphertext = bytearray()
         else:
             ciphertext = output
 
-            if not is_writeable_buffer(output):
-                fail(" TypeError(\"output must be a bytearray or a writeable memoryview\")")
+            if not types.is_bytearray(output):
+                fail("TypeError: output must be a bytearray or " +
+                # we do not have memoryview in larky so this is just for
+                # compat reasons
+                     "a writeable memoryview")
 
+            # noinspection PyTypeChecker
             if len(plaintext) != len(output):
-                fail(" ValueError(\"output must have the same length as the input\"\n                                 \"  (%d bytes)\" % len(plaintext))")
+                fail("ValueError: output must have the same length as the " +
+                     "input (%d bytes)" % len(plaintext))
 
-        result = raw_ecb_lib.ECB_encrypt(self._state.get(),
-                                         c_uint8_ptr(plaintext),
-                                         c_uint8_ptr(ciphertext),
-                                         c_size_t(len(plaintext)))
+        result = self._state.encrypt(plaintext, ciphertext)
         if result:
             if result == 3:
-                fail(" ValueError(\"Data must be aligned to block boundary in ECB mode\")")
-            fail(" ValueError(\"Error %d while encrypting in ECB mode\" % result)")
+                fail("ValueError: Data must be aligned to block boundary in ECB mode")
+            fail("ValueError: Error %d while encrypting in EBC mode" % result)
 
-        if output == None:
-            return get_raw_buffer(ciphertext)
-        else:
-            return None
+        if output != None:
+            return
+
+        return ciphertext
     self.encrypt = encrypt
 
     def decrypt(ciphertext, output=None):
@@ -170,29 +146,32 @@ def EcbMode(block_cipher):
         """
 
         if output == None:
-            plaintext = create_string_buffer(len(ciphertext))
+            plaintext = bytearray()
         else:
             plaintext = output
 
-            if not is_writeable_buffer(output):
-                fail(" TypeError(\"output must be a bytearray or a writeable memoryview\")")
+            if not types.is_bytearray(output):
+                fail("TypeError: output must be a bytearray or " +
+                # we do not have memoryview in larky so this is just for
+                # compat reasons
+                     "a writeable memoryview")
 
+            # noinspection PyTypeChecker
             if len(ciphertext) != len(output):
-                fail(" ValueError(\"output must have the same length as the input\"\n                                 \"  (%d bytes)\" % len(plaintext))")
+                fail("ValueError: output must have the same length as the " +
+                     "input (%d bytes)" % len(ciphertext))
 
-        result = raw_ecb_lib.ECB_decrypt(self._state.get(),
-                                         c_uint8_ptr(ciphertext),
-                                         c_uint8_ptr(plaintext),
-                                         c_size_t(len(ciphertext)))
+        result = self._state.decrypt(ciphertext, plaintext)
+
         if result:
             if result == 3:
-                fail(" ValueError(\"Data must be aligned to block boundary in ECB mode\")")
-            fail(" ValueError(\"Error %d while decrypting in ECB mode\" % result)")
+                fail("Data must be aligned to block boundary in ECB mode")
+            fail("ValueError: Error %d while decrypting in ECB mode" % result)
 
-        if output == None:
-            return get_raw_buffer(plaintext)
-        else:
-            return None
+        if output != None:
+            return
+
+        return plaintext
     self.decrypt = decrypt
     return self
 
@@ -206,11 +185,16 @@ def _create_ecb_cipher(factory, **kwargs):
 
     All keywords are passed to the underlying block cipher.
     See the relevant documentation for details (at least ``key`` will need
-    to be present"""
-
+    to be present
+    """
     cipher_state = factory._create_base_cipher(kwargs)
-    cipher_state.block_size = factory.block_size
+    if cipher_state.block_size != factory.block_size:
+        cipher_state.block_size = factory.block_size
     if kwargs:
-        fail(" TypeError(\"Unknown parameters for ECB: %s\" % str(kwargs))")
-    return EcbMode(cipher_state)
+        fail("TypeError: Unknown parameters for ECB: %s" % str(kwargs))
+    return _EcbMode(cipher_state)
 
+
+EcbMode = larky.struct(
+    _create_ecb_cipher=_create_ecb_cipher,
+)

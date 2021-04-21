@@ -127,6 +127,7 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-debug-jdk15to18</artifactId>
             <version>${org.bouncycastle.version}</version>
+
         </dependency>
 
         <!--  bcpkix = pem algorithms -->
@@ -135,6 +136,12 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk15to18</artifactId>
             <version>${org.bouncycastle.version}</version>
+            <exclusions>
+                    <exclusion>
+                        <groupId>org.bouncycastle</groupId>
+                        <artifactId>bcprov-jdk15on</artifactId>
+                    </exclusion>
+                </exclusions>
         </dependency>
 
         <!--  bcpg = openpgp algorithms -->
@@ -142,6 +149,12 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpg-jdk15to18</artifactId>
             <version>${org.bouncycastle.version}</version>
+            <exclusions>
+                    <exclusion>
+                        <groupId>org.bouncycastle</groupId>
+                        <artifactId>bcprov-jdk15on</artifactId>
+                    </exclusion>
+                </exclusions>
         </dependency>
 
         <!--Tests-->
