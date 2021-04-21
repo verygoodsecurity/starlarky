@@ -1,83 +1,100 @@
 package com.verygood.security.larky.modules.crypto;
 
-import com.verygood.security.larky.modules.types.LarkyByte;
+import com.verygood.security.larky.modules.crypto.Hash.LarkyDigest;
+import com.verygood.security.larky.modules.crypto.Hash.LarkyGeneralDigest;
+import com.verygood.security.larky.modules.crypto.Hash.LarkyLongDigest;
+import com.verygood.security.larky.modules.crypto.Hash.LarkyXofDigest;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
-import org.bouncycastle.crypto.digests.MD5Digest;
+import org.bouncycastle.crypto.ExtendedDigest;
+import org.bouncycastle.crypto.digests.Blake2sDigest;
+import org.bouncycastle.crypto.digests.GeneralDigest;
+import org.bouncycastle.crypto.digests.LongDigest;
+import org.bouncycastle.crypto.digests.SHAKEDigest;
 import org.bouncycastle.crypto.util.DigestFactory;
-import org.bouncycastle.util.encoders.Hex;
 
 public class CryptoHashModule implements StarlarkValue {
 
   public static final CryptoHashModule INSTANCE = new CryptoHashModule();
 
-  class Digest implements StarlarkValue {
-
-    private MD5Digest digest;
-
-    public Digest(MD5Digest digest) {
-      this.digest = digest;
-    }
-
-    @StarlarkMethod(
-        name = "update",
-        doc = "Update the hash object with the bytes in data. Repeated calls\n" +
-            "are equivalent to a single call with the concatenation of all\n" +
-            "the arguments.",
-        parameters = {@Param(name = "data", allowedTypes = {
-            @ParamType(type = LarkyByteLike.class)
-        })}
-    )
-    public void update(LarkyByteLike data) {
-      byte[] input = data.getBytes();
-      this.digest.update(input, 0, input.length);
-    }
-
-    @StarlarkMethod(
-        name = "digest",
-        doc = "Return the digest of the bytes passed to the update() method\n" +
-            "so far as a bytes object.",
-        useStarlarkThread = true
-    )
-    public LarkyByteLike digest(StarlarkThread thread) throws EvalException {
-      byte[] resBuf = new byte[this.digest.getDigestSize()];
-      this.digest.doFinal(resBuf, 0);
-      return LarkyByte.builder(thread).setSequence(resBuf).build();
-    }
-
-    @StarlarkMethod(
-        name = "hexdigest",
-        doc = "Like digest() except the digest is returned as a string\n" +
-            "of double length, containing only hexadecimal digits."
-    )
-    public String hexdigest() {
-      byte[] resBuf = new byte[this.digest.getDigestSize()];
-      this.digest.doFinal(resBuf, 0);
-      return Hex.toHexString(resBuf);
-    }
-
-    @StarlarkMethod(
-        name = "copy",
-        doc = "Update the hash object with the bytes in data. Repeated calls\n" +
-            "are equivalent to a single call with the concatenation of all\n" +
-            "the arguments."
-    )
-    public Digest copy() {
-      return (Digest) this.digest.copy();
-    }
-  }
-
   @StarlarkMethod(name = "MD5")
-  public Digest MD5() {
-    MD5Digest digest = (MD5Digest) DigestFactory.createMD5();
-    return new Digest(digest);
+  public LarkyGeneralDigest MD5() {
+    GeneralDigest digest = (GeneralDigest) DigestFactory.createMD5();
+    return new LarkyGeneralDigest(digest);
   }
 
+  @StarlarkMethod(name = "SHA1")
+  public LarkyGeneralDigest SHA1() {
+    GeneralDigest digest = (GeneralDigest) DigestFactory.createSHA1();
+    return new LarkyGeneralDigest(digest);
+  }
+
+  @StarlarkMethod(name = "SHA224")
+  public LarkyGeneralDigest SHA224() {
+    GeneralDigest digest = (GeneralDigest) DigestFactory.createSHA224();
+    return new LarkyGeneralDigest(digest);
+  }
+
+  @StarlarkMethod(name = "SHA256")
+  public LarkyGeneralDigest SHA256() {
+    GeneralDigest digest = (GeneralDigest) DigestFactory.createSHA256();
+    return new LarkyGeneralDigest(digest);
+  }
+
+  @StarlarkMethod(name = "SHA384")
+  public LarkyGeneralDigest SHA384() {
+    GeneralDigest digest = (GeneralDigest) DigestFactory.createSHA384();
+    return new LarkyGeneralDigest(digest);
+  }
+
+  @StarlarkMethod(name = "SHA512")
+  public LarkyLongDigest SHA512() {
+    LongDigest digest = (LongDigest) DigestFactory.createSHA512();
+    return new LarkyLongDigest(digest);
+  }
+
+  @StarlarkMethod(name = "SHAKE128", parameters = {
+      @Param(name = "bit_length", allowedTypes = {@ParamType(type = StarlarkInt.class)},
+          defaultValue = "128"),
+  })
+  public LarkyXofDigest<?> SHAKE128(StarlarkInt bitLength) {
+    SHAKEDigest digest = new SHAKEDigest(bitLength.toIntUnchecked());
+    return new LarkyXofDigest<>(digest);
+  }
+
+  @StarlarkMethod(name = "BLAKE2S", parameters = {
+      @Param(name = "digest_bytes",
+          allowedTypes = {@ParamType(type = StarlarkInt.class)},
+          defaultValue = "32"),
+      @Param(name = "key",
+          allowedTypes = {@ParamType(type = LarkyByteLike.class), @ParamType(type = NoneType.class)},
+          defaultValue = "None"),
+  })
+  public LarkyDigest BLAKE2S(StarlarkInt digestBytes, Object keyO) {
+    byte[] key = Starlark.isNullOrNone(keyO)
+        ? null
+        : ((LarkyByteLike) keyO).getBytes();
+    Blake2sDigest digest;
+    if(key != null) {
+      digest = new Blake2sDigest(key, digestBytes.toIntUnchecked(), null, null);
+    }
+    else {
+      digest = new Blake2sDigest(digestBytes.toIntUnchecked() * Byte.SIZE);
+    }
+
+    return new LarkyDigest() {
+      @Override
+      public ExtendedDigest getDigest() {
+        return digest;
+      }
+    };
+  }
 }

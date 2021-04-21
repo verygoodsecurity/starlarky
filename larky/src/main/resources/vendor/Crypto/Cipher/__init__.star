@@ -22,7 +22,7 @@
 #
 # where mode_state is a a pointer to base_cipher_state plus mode-specific data.
 load("@stdlib//larky", larky="larky")
-# load("@vendor//Crypto/Cipher/_mode_ecb", _create_ecb_cipher="_create_ecb_cipher")
+load("@vendor//Crypto/Cipher/_mode_ecb", EcbMode="EcbMode")
 load("@vendor//Crypto/Cipher/_mode_cbc", CbcMode="CbcMode")
 # load("@vendor//Crypto/Cipher/_mode_cfb", _create_cfb_cipher="_create_cfb_cipher")
 # load("@vendor//Crypto/Cipher/_mode_ofb", _create_ofb_cipher="_create_ofb_cipher")
@@ -31,10 +31,10 @@ load("@vendor//Crypto/Cipher/_mode_cbc", CbcMode="CbcMode")
 # load("@vendor//Crypto/Cipher/_mode_ccm", _create_ccm_cipher="_create_ccm_cipher")
 # load("@vendor//Crypto/Cipher/_mode_eax", _create_eax_cipher="_create_eax_cipher")
 # load("@vendor//Crypto/Cipher/_mode_siv", _create_siv_cipher="_create_siv_cipher")
-# load("@vendor//Crypto/Cipher/_mode_gcm", _create_gcm_cipher="_create_gcm_cipher")
+load("@vendor//Crypto/Cipher/_mode_gcm", GcmMode="GcmMode")
 # load("@vendor//Crypto/Cipher/_mode_ocb", _create_ocb_cipher="_create_ocb_cipher")
 
-_modes = { #1:_create_ecb_cipher,
+_modes = { 1: EcbMode._create_ecb_cipher,
            2: CbcMode._create_cbc_cipher,
            # 3:_create_cfb_cipher,
            # 5:_create_ofb_cipher,
@@ -46,7 +46,7 @@ _modes = { #1:_create_ecb_cipher,
 _extra_modes = {
     # 8:_create_ccm_cipher,
     # 10:_create_siv_cipher,
-    # 11:_create_gcm_cipher,
+    11: GcmMode._create_gcm_cipher,
     # 12:_create_ocb_cipher
 }
 
