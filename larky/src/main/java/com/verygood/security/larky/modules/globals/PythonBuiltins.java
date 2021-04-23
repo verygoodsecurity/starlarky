@@ -21,7 +21,10 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.Structure;
 import net.starlark.java.eval.Tuple;
+
+import org.apache.commons.text.translate.CharSequenceTranslator;
 
 import java.math.BigInteger;
 import java.nio.charset.Charset;
@@ -200,6 +203,50 @@ public final class PythonBuiltins {
   public int hash(Object value) throws EvalException {
     return value.hashCode();
   }
+
+  @StarlarkMethod(
+        name = "hex",
+        doc = "Return the hexadecimal representation of an integer." +
+            "\n" +
+            ">>> hex(12648430)" +
+            "\n" +
+            "'0xc0ffee'",
+        parameters = {
+            @Param(
+                name = "number",
+                allowedTypes = {
+                    @ParamType(type = StarlarkInt.class),
+                }),
+        })
+    public String hex(StarlarkInt value) throws EvalException {
+      return CharSequenceTranslator.hex(value.toIntUnchecked()).toLowerCase();
+    }
+
+
+  @StarlarkMethod(
+       name = "setattr",
+       doc =
+           "Sets the named attribute on the given object to the specified value.\n" +
+           "\n" +
+           "setattr(x, 'y', v) is equivalent to ``x.y = v''" +
+           "\n" +
+           "If not, it either returns " +
+           "<code>default</code> (if specified) or raises an error. ",
+       parameters = {
+         @Param(name = "x", doc = "The struct whose attribute is accessed."),
+         @Param(name = "name", doc = "The name of the struct attribute."),
+         @Param(name = "value", doc = "the value to update the named field with  the Starlark statement")
+       },
+       useStarlarkThread = true)
+   public void setattr(Object obj, String name, Object value, StarlarkThread thread)
+       throws EvalException {
+    if(!Structure.class.isAssignableFrom(obj.getClass())) {
+      throw Starlark.errorf(
+          "type(%s) does not support setattr. Must inherit from " +
+          "Structure. See LarkyObject.", Starlark.type(obj));
+    }
+    ((Structure) obj).setField(name, value);
+   }
 
   @StarlarkMethod(
       name = "abs",
