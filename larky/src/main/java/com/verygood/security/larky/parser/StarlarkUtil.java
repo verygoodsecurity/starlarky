@@ -162,7 +162,8 @@ public final class StarlarkUtil {
         Map<?, ?> map = (Map<?,?>) x;
         if (!map.isEmpty() && map.values().iterator().next() instanceof List) {
           // Recursively convert subelements.
-          Dict<Object, Object> dict = Dict.of(null);
+          Mutability mu = Mutability.IMMUTABLE;
+          Dict<Object, Object> dict = Dict.of(mu);
           for (Map.Entry<?, ?> e : map.entrySet()) {
             try {
               dict.putEntry(
