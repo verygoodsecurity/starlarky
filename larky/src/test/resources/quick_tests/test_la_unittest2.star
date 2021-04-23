@@ -70,10 +70,10 @@ def TestRSA_test_create_x509_pyopenssl():
     cert.get_subject().C = "US"
     cert.get_subject().ST = "VIRGINIA"
     cert.get_subject().L = "RICHMOND"
-    cert.get_subject().O = "MISSION LANE"
-    cert.get_subject().OU = "MISSION LANE"
-    cert.get_subject().CN = "www.missionlane.com"
-    cert.get_subject().emailAddress = "PAYMENTS@MISSIONLANE.COM"
+    cert.get_subject().O = "VERY GOOD SECURITY"
+    cert.get_subject().OU = "VERY GOOD SECURITY"
+    cert.get_subject().CN = "www.verygoodsecurity.com"
+    cert.get_subject().emailAddress = "donotspam@example.com"
 
     cert.gmtime_adj_notBefore(0)
     cert.gmtime_adj_notAfter(2*365*24*60*60)
