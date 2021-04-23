@@ -41,6 +41,7 @@
         <google.re2j.version>1.6</google.re2j.version>
         <google.flogger.version>0.5.1</google.flogger.version>
         <org.bouncycastle.version>1.68</org.bouncycastle.version>
+        <jpos.version>2.1.3</jpos.version>
         <org.junit.version>4.13.1</org.junit.version>
         <google.errorprone.version>2.5.1</google.errorprone.version>
         <google.crypto.tink>1.5.0</google.crypto.tink>
@@ -128,6 +129,12 @@
             <artifactId>bcprov-debug-jdk15to18</artifactId>
             <version>${org.bouncycastle.version}</version>
 
+        </dependency>
+
+        <dependency>
+            <groupId>org.jpos</groupId>
+            <artifactId>jpos</artifactId>
+            <version>${jpos.version}</version>
         </dependency>
 
         <!--  bcpkix = pem algorithms -->
