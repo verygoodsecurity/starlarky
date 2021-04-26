@@ -1,6 +1,6 @@
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
-load("@vendor//decoder", Decoder="Decoder")
+load("@vendor//ISO8583Decoder", Decoder="Decoder")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 
 
