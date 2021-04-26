@@ -6,9 +6,11 @@ load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 
 def MyTestCase_test_decode():
     payload = unhexlify(bytes(hex_string_payload, encoding='utf-8'))
-    decoded = Decoder.decode(payload, test_payload_spec)
+    decoded, encoded = Decoder.decode(payload, test_payload_spec)
     print(decoded)
-    asserts.assert_that('0100').is_equal_to(decoded['0'])
+    # asserts.assert_that('0100').is_equal_to(decoded)
+    asserts.assert_that('0100').is_equal_to(decoded['t'])
+    asserts.assert_that('FEFA448108E0E48A' == decoded['p'])
     asserts.assert_that('100194868740300').is_equal_to(decoded['2'])
 
 
