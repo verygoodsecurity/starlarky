@@ -35,8 +35,8 @@ public class ISO8583ParseModule implements StarlarkValue {
     isoMsg.unpack(bytes.getBytes());
     // remove it
     isoMsg.dump(System.out, "parse:");
-    Mutability mu = Mutability.create("");
-    Dict<String, String> result = Dict.of(mu);
+
+    Dict<String, String> result = Dict.of(thrd.mutability());
     for (int i = 0; i < isoMsg.getMaxField(); i++) {
       result.putEntry(String.valueOf(i), isoMsg.getString(i));
     }
