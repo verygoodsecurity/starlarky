@@ -1,5 +1,6 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//builtins","builtins")
+load("@stdlib//sets", "sets")
 
 
 def _decode(bytes, packager):
@@ -116,7 +117,7 @@ def decode(
 
     doc_dec= {}
     doc_enc= {}
-    fields = set{}
+    fields = sets.make()
     idx = 0
 
     idx = _decode_header(s, doc_dec, doc_enc, idx, spec)
@@ -299,7 +300,8 @@ def _decode_bitmaps(
         bm = bytes.fromhex(doc_dec["p"])
 
 
-    fields.update(
+    fields = sets.union(
+        fields,
         [
             byte_idx * 8 + bit
             for bit in range(1, 9)
@@ -334,7 +336,8 @@ def _decode_bitmaps(
         doc_dec["1"] = s[idx : idx + f_len].decode(spec["1"]["data_enc"])
         bm = bytes.fromhex(doc_dec["1"])
 
-    fields.update(
+    fields = sets.union(
+        fields,
         [
             64 + byte_idx * 8 + bit
             for bit in range(1, 9)
