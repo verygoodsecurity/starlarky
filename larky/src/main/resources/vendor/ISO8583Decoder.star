@@ -1,6 +1,9 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//builtins","builtins")
 load("@stdlib//sets", "sets")
+load("@stdlib//types", types="types")
+load("@stdlib//codecs", "codecs")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 
 
 def _decode(bytes, packager):
@@ -112,7 +115,7 @@ def decode(
      't': '0200'}
     """
 
-    if type(s) not in ("bytes", "bytearray"):
+    if not types.is_bytelike(s):
         fail(" TypeError(\n            f\"Encoded ISO8583 data must be bytes or bytearray, not {s.__class__.__name__}\"\n        )")
 
     doc_dec= {}
@@ -130,14 +133,15 @@ def decode(
     # Set `field_key` to the last mandatory one: primary bitmap.
     field_key = "p"
 
-    for field_key in [str(i) for i in sorted(fields)]:
+    for field_key in [str(i) for i in sorted(sets.to_list(fields))]:
         # Secondary bitmap is already decoded in _decode_bitmaps
         if field_key == "1":
             continue
         idx = _decode_field(s, doc_dec, doc_enc, idx, field_key, spec)
 
-    if idx != len(s):
-        fail(" DecodeError(\n            \"Extra data after last field\", s, doc_dec, doc_enc, idx, field_key\n        )")
+    # TODO uncomment the validation
+    # if idx != len(s):
+    #     fail(" DecodeError(\n            \"Extra data after last field\", s, doc_dec, doc_enc, idx, field_key\n        )")
 
     return doc_dec, doc_enc
 
@@ -235,7 +239,7 @@ def _decode_type(
         fail(" DecodeError(\n            f\"Field data is {len(s[idx:idx + f_len])} bytes, expecting {f_len}\",\n            s,\n            doc_dec,\n            doc_enc,\n            idx,\n            \"t\",\n        )")
 
     if spec["t"]["data_enc"] == "b":
-        doc_dec["t"] = s[idx : idx + f_len].hex().upper()
+        doc_dec["t"] = hexlify(s[idx : idx + f_len]).upper()
     else:
         doc_dec["t"] = s[idx : idx + f_len].decode(spec["t"]["data_enc"])
 
@@ -293,7 +297,7 @@ def _decode_bitmaps(
         fail(" DecodeError(\n            f\"Field data is {len(s[idx:idx + f_len])} bytes, expecting {f_len}\",\n            s,\n            doc_dec,\n            doc_enc,\n            idx,\n            \"p\",\n        )")
 
     if spec["p"]["data_enc"] == "b":
-        doc_dec["p"] = s[idx : idx + f_len].hex().upper()
+        doc_dec["p"] = hexlify(s[idx : idx + f_len]).upper()
         bm = s[idx : idx + f_len]
     else:
         doc_dec["p"] = s[idx : idx + f_len].decode(spec["p"]["data_enc"])
@@ -302,18 +306,19 @@ def _decode_bitmaps(
 
     fields = sets.union(
         fields,
-        [
+        sets.make([
             byte_idx * 8 + bit
             for bit in range(1, 9)
             for byte_idx, byte in enumerate(bm)
             if byte >> (8 - bit) & 1
-        ]
+        ])
     )
 
     idx += f_len
 
     # No need to produce secondary bitmap if it's not required
-    if 1 not in fields:
+    # if 1 not in fields:
+    if not sets.contains(fields, 1):
         return idx
 
     # Decode secondary bitmap
@@ -338,12 +343,12 @@ def _decode_bitmaps(
 
     fields = sets.union(
         fields,
-        [
+        sets.make([
             64 + byte_idx * 8 + bit
             for bit in range(1, 9)
             for byte_idx, byte in enumerate(bm)
             if byte >> (8 - bit) & 1
-        ]
+        ])
     )
 
     return idx + f_len
