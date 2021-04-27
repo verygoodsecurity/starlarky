@@ -125,7 +125,7 @@ def decode(
 
     idx = _decode_header(s, doc_dec, doc_enc, idx, spec)
     idx = _decode_type(s, doc_dec, doc_enc, idx, spec)
-    idx = _decode_bitmaps(s, doc_dec, doc_enc, idx, spec, fields)
+    idx, fields = _decode_bitmaps(s, doc_dec, doc_enc, idx, spec, fields)
 
     # `field_key` can be used to throw an exception after the loop.
     # So, create it here in case the `fields` set is empty
@@ -139,9 +139,8 @@ def decode(
             continue
         idx = _decode_field(s, doc_dec, doc_enc, idx, field_key, spec)
 
-    # TODO uncomment the validation
-    # if idx != len(s):
-    #     fail(" DecodeError(\n            \"Extra data after last field\", s, doc_dec, doc_enc, idx, field_key\n        )")
+    if idx != len(s):
+        fail(" DecodeError(\n            \"Extra data after last field\", s, doc_dec, doc_enc, idx, field_key\n        )")
 
     return doc_dec, doc_enc
 
@@ -271,12 +270,18 @@ def _decode_bitmaps(
         A Python dict defining ISO8583 specification.
         See :mod:`iso8583.specs` module for examples.
     fields: set
-        Will be populated with enabled field numbers
+        Will not be mutated, but will be returned in a tuple
+        populated with enabled field numbers
 
     Returns
     -------
+    Tuple containing the following:
+
     int
         Index in ISO8583 byte array where parsing of bitmaps ended
+
+    fields: set
+        Will be populated with enabled field numbers
 
     Raises
     ------
@@ -351,7 +356,7 @@ def _decode_bitmaps(
         ])
     )
 
-    return idx + f_len
+    return idx + f_len, fields
 
 
 def _decode_field(
