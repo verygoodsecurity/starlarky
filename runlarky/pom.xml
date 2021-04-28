@@ -32,7 +32,7 @@
         <maven.surefire.plugin.version>2.22.1</maven.surefire.plugin.version>
         <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
         <starlarky.version>1.0-SNAPSHOT</starlarky.version>
-        <org.projectlombok.version>1.18.12</org.projectlombok.version>
+        <org.projectlombok.version>1.18.20</org.projectlombok.version>
         <quarkus-plugin.version>1.8.3.Final</quarkus-plugin.version>
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
