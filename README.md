@@ -16,6 +16,7 @@
     * [Runlarky](#runlarky)
     * [Pylarky](#pylarky)
 * [Developer setup](#developer-setup)
+* [Depoyment process](#deployment-process)
 <!-- tocstop -->
 
 ## Description
@@ -119,3 +120,12 @@ In addition to having Maven installed, it must be configured to retrieve artifac
       <activeProfiles />
     </settings>
 ```
+
+## Deployment process
+
+To rollout a new verion of libstarlark/larky/larky-api create a new tag
+```
+git tag x.x.x
+git push origin x.x.x
+```
+Than, after CircleCI build, publish the draft release
