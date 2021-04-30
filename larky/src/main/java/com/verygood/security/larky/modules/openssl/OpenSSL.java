@@ -1,5 +1,6 @@
-package com.verygood.security.larky.modules.crypto;
+package com.verygood.security.larky.modules.openssl;
 
+import com.verygood.security.larky.modules.OpenSSLModule;
 import com.verygood.security.larky.modules.crypto.Util.SSLUtils;
 import com.verygood.security.larky.modules.types.LarkyByte;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
@@ -56,8 +57,8 @@ import java.util.Date;
 import lombok.Builder;
 import lombok.Data;
 
-public class OpenSSLModule implements StarlarkValue {
-  public static final OpenSSLModule INSTANCE = new OpenSSLModule();
+public class OpenSSL implements StarlarkValue {
+  public static final OpenSSL INSTANCE = new OpenSSL();
 
   public static class Loaded implements StarlarkValue {
 
