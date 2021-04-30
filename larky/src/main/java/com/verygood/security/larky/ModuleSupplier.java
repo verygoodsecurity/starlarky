@@ -26,6 +26,7 @@ import com.verygood.security.larky.modules.CodecsModule;
 import com.verygood.security.larky.modules.CryptoModule;
 import com.verygood.security.larky.modules.HashModule;
 import com.verygood.security.larky.modules.JsonModule;
+import com.verygood.security.larky.modules.OpenSSLModule;
 import com.verygood.security.larky.modules.ProtoBufModule;
 import com.verygood.security.larky.modules.RegexModule;
 import com.verygood.security.larky.modules.StructModule;
@@ -59,7 +60,8 @@ public class ModuleSupplier {
       CodecsModule.INSTANCE,
       BinasciiModule.INSTANCE,
       StructModule.INSTANCE,
-      CryptoModule.INSTANCE
+      CryptoModule.INSTANCE,
+      OpenSSLModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
