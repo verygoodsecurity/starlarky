@@ -76,7 +76,7 @@ public class VGSLibTests {
   }
 
   @TestFactory
-  public Iterator<DynamicTest> testStdLib() {
+  public Iterator<DynamicTest> testVGSLib() {
     return vgsTestFiles.stream().map(f -> DynamicTest.dynamicTest(
         String.format("%s=%s", PROPERTY_NAME, f.getFileName()),
         () -> evaluateTest(interpreter, moduleSet, f)
