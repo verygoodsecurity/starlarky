@@ -29,6 +29,7 @@ import com.verygood.security.larky.modules.JsonModule;
 import com.verygood.security.larky.modules.ProtoBufModule;
 import com.verygood.security.larky.modules.RegexModule;
 import com.verygood.security.larky.modules.StructModule;
+import com.verygood.security.larky.modules.VaultModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
@@ -59,7 +60,8 @@ public class ModuleSupplier {
       CodecsModule.INSTANCE,
       BinasciiModule.INSTANCE,
       StructModule.INSTANCE,
-      CryptoModule.INSTANCE
+      CryptoModule.INSTANCE,
+      VaultModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(

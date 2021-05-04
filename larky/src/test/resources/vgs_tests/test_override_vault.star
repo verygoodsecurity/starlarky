@@ -6,11 +6,14 @@ load("@vgs//vault", "vault")
 
 def _test_put():
     account_number = "4111111111111111"
-    asserts.assert_fails(lambda : vault.put(account_number), "vault.put operation must be overridden")
+    redacted_account_number = vault.put(account_number)
+    asserts.assert_that(redacted_account_number).is_equal_to('tok_123')
 
 def _test_get():
     account_number = "4111111111111111"
-    asserts.assert_fails(lambda : vault.get(account_number), "vault.get operation must be overridden")
+    redacted_account_number = vault.put(account_number)
+    revealed_account_number = vault.get(redacted_account_number)
+    asserts.assert_that(revealed_account_number).is_equal_to(account_number)
 
 def _suite():
     _suite = unittest.TestSuite()
