@@ -9,7 +9,7 @@ import net.starlark.java.eval.Starlark;
 @StarlarkBuiltin(
         name = "vault",
         category = "BUILTIN",
-        doc = "")
+        doc = "Overridable Vault API in Larky")
 public class VaultModule implements LarkyVault {
 
     public static final VaultModule INSTANCE = new VaultModule();

@@ -1,4 +1,4 @@
-"""Unit tests for re.star"""
+"""Unit tests with vault override for VaultModule.java"""
 
 load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
