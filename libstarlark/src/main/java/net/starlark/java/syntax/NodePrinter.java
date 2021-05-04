@@ -422,6 +422,7 @@ final class NodePrinter {
           break;
         }
 
+      case BYTE_LITERAL:
       case STRING_LITERAL:
         {
           StringLiteral literal = (StringLiteral) expr;

@@ -20,6 +20,7 @@ import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -396,6 +397,23 @@ public class LexerTest {
         "+ r'\\'", // r'\'
         "PLUS STRING(\\') NEWLINE EOF",
         "  ^ unclosed string literal");
+  }
+
+  /*
+  		// bytes literals (where they differ from text strings)
+		{`b"AЀ世😿"`, `b"AЀ世😿`},                                       // 1-4 byte encodings, literal
+		{`b"\x41\u0400\u4e16\U0001F63F"`, `b"AЀ世😿"`},                // same, as escapes
+		{`b"\377\378\x80\xff\xFf"`, `b"\xff\x1f8\x80\xff\xff" EOF`}, // hex/oct escapes allow non-ASCII
+		{`b"\400"`, `foo.star:1:2: invalid escape sequence \400`},
+		{`b"\udc00"`, `foo.star:1:2: invalid Unicode code point U+DC00`}, // (same as string)
+
+   */
+  @Test
+  public void testBytePrefix() throws Exception {
+    check("b'abcd'", "BYTE(abcd) NEWLINE EOF");
+    check("b\'AЀ世\uD83D\uDE3F\'", "BYTE(AЀ世\uD83D\uDE3F) NEWLINE EOF");
+    check("b\'\\x41\\u0400\\u4e16\\U0001F63F\'", "BYTE(AЀ世\uD83D\uDE3F) NEWLINE EOF");
+
   }
 
   @Test

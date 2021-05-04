@@ -1,5 +1,12 @@
 package com.verygood.security.larky.modules.globals;
 
+import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
+
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.modules.codecs.TextUtil;
 import com.verygood.security.larky.modules.types.LarkyByte;
@@ -25,13 +32,6 @@ import net.starlark.java.eval.Structure;
 import net.starlark.java.eval.Tuple;
 
 import org.apache.commons.text.translate.CharSequenceTranslator;
-
-import java.math.BigInteger;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
-import java.nio.charset.UnsupportedCharsetException;
 
 
 /**
@@ -115,6 +115,17 @@ public final class PythonBuiltins {
 
     if (containerSize != 1 || bytes == null) {
       //"ord() expected a character, but string of length %d found", c.length()
+      /*
+      function ord(char){
+          if(char.length == 1){
+              return char.charCodeAt(0)
+          }
+          var code = 0x10000
+          code += (char.charCodeAt(0) & 0x03FF) << 10
+          code += (char.charCodeAt(1) & 0x03FF)
+          return code
+      }
+       */
       throw new EvalException(
           String.format("ord: %s has length %d, want 1", Starlark.type(c), containerSize)
       );
