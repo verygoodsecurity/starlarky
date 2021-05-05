@@ -6,6 +6,7 @@ import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.modules.VaultModule;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
+import com.verygood.security.larky.modules.vgs.vault.NoopVault;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.PathBasedStarFile;
 import com.verygood.security.larky.vgs.vault.TestLarkyVault;
@@ -109,7 +110,7 @@ public class VGSLibTests {
     if (overrides) {
       vaultModule.addOverride(new TestLarkyVault());
     } else {
-      vaultModule.addOverride(null);
+      vaultModule.addOverride(new NoopVault());
     }
   }
 

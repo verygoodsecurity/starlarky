@@ -1,6 +1,8 @@
 package com.verygood.security.larky.modules;
 
+import com.verygood.security.larky.modules.vgs.LarkyVGSOverridable;
 import com.verygood.security.larky.modules.vgs.vault.LarkyVault;
+import com.verygood.security.larky.modules.vgs.vault.NoopVault;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
@@ -10,32 +12,31 @@ import net.starlark.java.eval.Starlark;
         name = "vault",
         category = "BUILTIN",
         doc = "Overridable Vault API in Larky")
-public class VaultModule implements LarkyVault {
+public class VaultModule implements LarkyVault, LarkyVGSOverridable {
 
     public static final VaultModule INSTANCE = new VaultModule();
 
-    private LarkyVault _vault = null;
+    private LarkyVault vault = new NoopVault();
 
     @Override
     public Object put(Object value, Object storage, Object format) throws EvalException {
-        if ( _vault == null ) {
-            throw Starlark.errorf("vault.put operation must be overridden");
-        }
-
-        return _vault.put(value,storage,format);
+        return vault.put(value, storage, format);
     }
 
     @Override
     public Object get(Object value, Object storage) throws EvalException {
-        if ( _vault == null ) {
-            throw Starlark.errorf("vault.get operation must be overridden");
-        }
-
-        return _vault.get(value,storage);
+        return vault.get(value, storage);
     }
 
-    public void addOverride(LarkyVault vault) {
-        _vault = vault;
+    @Override
+    public void addOverride(Object vault) throws IllegalArgumentException {
+        if ( !(vault instanceof LarkyVault) ) {
+            throw new IllegalArgumentException(
+                    "VaultModule override must be of type LarkyVault, found "
+                            + vault.getClass()
+            );
+        }
+        this.vault = (LarkyVault) vault;
     }
 
 }

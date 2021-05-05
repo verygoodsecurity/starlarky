@@ -2,6 +2,7 @@ package com.verygood.security.larky;
 
 import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
 
+import com.google.common.collect.ImmutableSet;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
@@ -13,6 +14,7 @@ import net.starlark.java.syntax.ParserInput;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -133,4 +135,14 @@ public class LarkyTest {
     ParsedStarFile config;
     config = interpreter.evaluate(starFile, new ModuleSupplier().modulesToVariableMap(true), new TestingConsole());
   }
+
+  @Test
+  public void testSupportedOverridesFound() {
+    ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier().modulesToVariableMap(true);
+    ImmutableSet<String> expectedOverridables = ImmutableSet.of(
+            "vault"
+    );
+    Assertions.assertEquals(moduleSet.getOverridables(),expectedOverridables);
+  }
+
 }

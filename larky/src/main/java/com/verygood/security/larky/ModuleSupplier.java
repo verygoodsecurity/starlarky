@@ -35,6 +35,7 @@ import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
 
+import com.verygood.security.larky.modules.vgs.LarkyVGSOverridable;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkValue;
 
@@ -60,7 +61,10 @@ public class ModuleSupplier {
       CodecsModule.INSTANCE,
       BinasciiModule.INSTANCE,
       StructModule.INSTANCE,
-      CryptoModule.INSTANCE,
+      CryptoModule.INSTANCE
+  );
+
+  public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
       VaultModule.INSTANCE
   );
 
@@ -91,9 +95,13 @@ public class ModuleSupplier {
   }
 
   public ImmutableSet<StarlarkValue> getModules(boolean withTest) {
-    return withTest ? ImmutableSet.<StarlarkValue>builder()
-        .addAll(STD_MODULES)
-        .addAll(getTestModules()).build() : STD_MODULES;
+    ImmutableSet.Builder<StarlarkValue> modules = ImmutableSet.<StarlarkValue>builder()
+            .addAll(STD_MODULES)
+            .addAll(VGS_MODULES);
+
+    return withTest
+            ? modules.addAll(getTestModules()).build()
+            : modules.build();
   }
 
   public ImmutableSet<StarlarkValue> getTestModules() {
@@ -145,9 +153,26 @@ public class ModuleSupplier {
   public static class ModuleSet {
 
     private final ImmutableMap<String, Object> modules;
+    private final ImmutableSet<String> overridableModules;
 
     ModuleSet(ImmutableMap<String, Object> modules) {
       this.modules = Preconditions.checkNotNull(modules);
+      this.overridableModules = this.modules.values().stream()
+              .filter(module -> module instanceof LarkyVGSOverridable)
+              .map(this::findClosestStarlarkBuiltinName)
+              .collect(ImmutableSet.toImmutableSet());
+    }
+
+    private String findClosestStarlarkBuiltinName(Object o) {
+      Class<?> cls = o.getClass();
+      while (cls != null && cls != Object.class) {
+        StarlarkBuiltin annotation = cls.getAnnotation(StarlarkBuiltin.class);
+        if (annotation != null) {
+          return annotation.name();
+        }
+        cls = cls.getSuperclass();
+      }
+      throw new IllegalStateException("Cannot find @StarlarkBuiltin for " + o.getClass());
     }
 
     /**
@@ -155,6 +180,10 @@ public class ModuleSupplier {
      */
     public ImmutableMap<String, Object> getModules() {
       return modules;
+    }
+
+    public ImmutableSet<String> getOverridables() {
+      return overridableModules;
     }
 
   }
