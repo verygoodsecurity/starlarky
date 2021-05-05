@@ -369,7 +369,7 @@ public class LexerTest {
     checkErrors(
         "\"ab\\ucd\"", //
         "STRING(abcd) NEWLINE EOF",
-        "    ^ invalid escape sequence: \\u");
+        "    ^ string literal too short for \\u escape");
   }
 
   @Test
@@ -399,21 +399,19 @@ public class LexerTest {
         "  ^ unclosed string literal");
   }
 
-  /*
-  		// bytes literals (where they differ from text strings)
-		{`b"AЀ世😿"`, `b"AЀ世😿`},                                       // 1-4 byte encodings, literal
-		{`b"\x41\u0400\u4e16\U0001F63F"`, `b"AЀ世😿"`},                // same, as escapes
-		{`b"\377\378\x80\xff\xFf"`, `b"\xff\x1f8\x80\xff\xff" EOF`}, // hex/oct escapes allow non-ASCII
-		{`b"\400"`, `foo.star:1:2: invalid escape sequence \400`},
-		{`b"\udc00"`, `foo.star:1:2: invalid Unicode code point U+DC00`}, // (same as string)
-
-   */
   @Test
   public void testBytePrefix() throws Exception {
     check("b'abcd'", "BYTE(abcd) NEWLINE EOF");
     check("b\'AЀ世\uD83D\uDE3F\'", "BYTE(AЀ世\uD83D\uDE3F) NEWLINE EOF");
     check("b\'\\x41\\u0400\\u4e16\\U0001F63F\'", "BYTE(AЀ世\uD83D\uDE3F) NEWLINE EOF");
-
+    check("b\'\\377\\378\\x80\\xff\\xFf\'", "BYTE(ÿ\u001F8\u0080ÿÿ) NEWLINE EOF");
+    checkErrors("b\'\\400\'",
+      "BYTE(\u0000) NEWLINE EOF",
+      "     ^ octal escape sequence out of range (maximum is \\377)");
+    checkErrors(
+      "b\'\\udc00\'",
+      "BYTE(dc00) NEWLINE EOF",
+      "   ^ invalid Unicode code point U+DC00");
   }
 
   @Test

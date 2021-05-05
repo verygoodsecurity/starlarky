@@ -17,14 +17,10 @@ package net.starlark.java.syntax;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
-
-import net.starlark.java.eval.StarlarkByte;
 
 /** A scanner for Starlark. */
 final class Lexer {
@@ -241,7 +237,7 @@ final class Lexer {
   }
 
   /**
-   * Scans a string literal delimited by 'quot', containing escape sequences.
+   * Scans a string or byte literal delimited by 'quot', containing escape sequences.
    *
    * <p>ON ENTRY: 'pos' is 1 + the index of the first delimiter
    * ON EXIT: 'pos' is 1 + the index of the last delimiter.
@@ -250,40 +246,40 @@ final class Lexer {
     int literalStartPos = isRaw ? pos - 2 : pos - 1;
     boolean inTriplequote = skipTripleQuote(quot);
     // more expensive second choice that expands escaped into a buffer
-    ByteBuffer literal = ByteBuffer.allocate(256); // just a random number to avoid expansion
+    StringBuilder literal = new StringBuilder(); // just a random number to avoid expansion
     while (pos < buffer.length) {
       char c = buffer[pos];
       pos++;
       switch (c) {
         case '\n':
           if (inTriplequote) {
-            literal.put((byte) c);
+            literal.append(c);
             break;
           } else {
             error(String.format("unclosed %s", tokenKind.toString()), literalStartPos);
             setToken(tokenKind, literalStartPos, pos);
-            setValue(tokenKind.equals(TokenKind.STRING) ? literal.toString() : literal.toString().getBytes(StandardCharsets.UTF_8));
+            setValue(literal.toString());
             return;
           }
         case '\\':
           if (pos == buffer.length) {
             error(String.format("unclosed %s", tokenKind.toString()), literalStartPos);
             setToken(tokenKind, literalStartPos, pos);
-            setValue(tokenKind.equals(TokenKind.STRING) ? literal.toString() : literal.toString().getBytes(StandardCharsets.UTF_8));
+            setValue(literal.toString());
             return;
           }
           if (isRaw) {
             // Insert \ and the following character.
             // As in Python, it means that a raw string can never end with a single \.
-            literal.put((byte)'\\');
+            literal.append('\\');
             if (peek(0) == '\r' && peek(1) == '\n') {
-              literal.put((byte)'\n');
+              literal.append('\n');
               pos += 2;
             } else if (buffer[pos] == '\r' || buffer[pos] == '\n') {
-              literal.put((byte)'\n');
+              literal.append('\n');
               pos += 1;
             } else {
-              literal.put((byte)buffer[pos]);
+              literal.append(buffer[pos]);
               pos += 1;
             }
             break;
@@ -302,22 +298,22 @@ final class Lexer {
               // ignore end of line character
               break;
             case 'n':
-              literal.put((byte)'\n');
+              literal.append('\n');
               break;
             case 'r':
-              literal.put((byte)'\r');
+              literal.append('\r');
               break;
             case 't':
-              literal.put((byte)'\t');
+              literal.append('\t');
               break;
             case '\\':
-              literal.put((byte)'\\');
+              literal.append('\\');
               break;
             case '\'':
-              literal.put((byte)'\'');
+              literal.append('\'');
               break;
             case '"':
-              literal.put((byte)'"');
+              literal.append('"');
               break;
             case '0':
             case '1':
@@ -346,17 +342,93 @@ final class Lexer {
                 if (octal > 0xff) {
                   error("octal escape sequence out of range (maximum is \\377)", pos - 1);
                 }
-                literal.put((byte) (octal & 0xff));
+                literal.append((char)(octal & 0xff));
                 break;
               }
             case 'a':
+              literal.append('\u0007');
+              break;
             case 'b':
+              literal.append('\b');
+              break;
             case 'f':
-            case 'N':
-            case 'u':
-            case 'U':
+              literal.append('\f');
+              break;
             case 'v':
+              literal.append('\u000B');
+              break;
             case 'x':
+              if (pos+2 >= buffer.length) {
+                error(String.format("%s too short for \\x escape", tokenKind.toString()), pos-1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              try {
+                literal.append(
+                  Character.toChars(Integer.parseInt(bufferSlice(pos, pos+2),/*radix*/16)));
+                pos+=2;
+              } catch (NumberFormatException nfe) {
+                error("invalid hex value for \\x escape", pos-1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              break;
+            case 'u':
+              if (pos+4 >= buffer.length) {
+                error(String.format("%s too short for \\u escape", tokenKind.toString()), pos-1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              int n;
+              try {
+                n = Integer.parseInt(bufferSlice(pos, pos+4),/*radix*/16);
+              } catch (NumberFormatException nfe) {
+                error("invalid hex value for \\u escape", pos-1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              // surrogates are disallowed.
+              if(Character.MIN_HIGH_SURROGATE <= n && n < Character.MAX_LOW_SURROGATE) {
+                error(String.format("invalid Unicode code point U+%04X", n), pos-1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              literal.append(Character.toChars(n));
+              pos+=4;
+              break;
+            case 'U':
+              if (pos+8 >= buffer.length) {
+                 error(String.format("%s too short for \\U escape", tokenKind.toString()), pos-1);
+                 setToken(tokenKind, literalStartPos, pos);
+                 setValue(literal.toString());
+                 break;
+               }
+              int nn;
+              try {
+                nn = Integer.parseInt(bufferSlice(pos, pos+8),/*radix*/16);
+              } catch (NumberFormatException nfe) {
+                 error("invalid hex value for \\U escape", literalStartPos);
+                 setToken(tokenKind, literalStartPos, pos);
+                 setValue(literal.toString());
+                 break;
+               }
+              if(nn > Character.MAX_CODE_POINT) {
+                error(
+                  String.format("code point out of range: %s (max \\U%08x)",
+                    String.copyValueOf(buffer),
+                    nn), pos-1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+              }
+              literal.append(Character.toChars(nn));
+              pos+=8;
+              break;
+            case 'N':
               // exists in Python but not implemented in Blaze => error
               error("invalid escape sequence: \\" + c, pos - 1);
               break;
@@ -370,8 +442,8 @@ final class Lexer {
                         + " --incompatible_restrict_string_escapes=false",
                     pos - 1);
               }
-              literal.put((byte)'\\');
-              literal.put((byte)c);
+              literal.append('\\');
+              literal.append(c);
               break;
           }
           break;
@@ -379,25 +451,22 @@ final class Lexer {
         case '"':
           if (c != quot || (inTriplequote && !skipTripleQuote(quot))) {
             // Non-matching quote, treat it like a regular char.
-            literal.put((byte)c);
+            literal.append(c);
           } else {
             // Matching close-delimiter, all done.
             setToken(tokenKind, literalStartPos, pos);
-            setValue(tokenKind.equals(TokenKind.STRING)
-                       ? literal.toString()
-                       : StarlarkByte.repr(literal.array()));
-                       //: StarlarkByte.repr(StandardCharsets.UTF_8.encode(literal.toString()).array()));
+            setValue(literal.toString());
             return;
           }
           break;
         default:
-          literal.put((byte)c);
+          literal.append(c);
           break;
       }
     }
     error(String.format("unclosed %s", tokenKind.toString()), literalStartPos);
     setToken(tokenKind, literalStartPos, pos);
-    setValue(tokenKind.equals(TokenKind.STRING) ? literal.toString() : literal.toString().getBytes(StandardCharsets.UTF_8));
+    setValue(literal.toString());
   }
 
   /**
