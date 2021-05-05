@@ -102,9 +102,10 @@ def encode(doc_dec, spec):
     fields = sets.make()
     s += _encode_header(doc_dec, doc_enc, spec)
     s += _encode_type(doc_dec, doc_enc, spec)
-    s += _encode_bitmaps(doc_dec, doc_enc, spec, fields)
+    results, fields = _encode_bitmaps(doc_dec, doc_enc, spec, fields)
+    s += results
 
-    for field_key in [str(i) for i in sorted(fields)]:
+    for field_key in [str(i) for i in sorted(sets.to_list(fields))]:
         # Secondary bitmap is already encoded in _encode_bitmaps
         if field_key == "1":
             continue
@@ -239,7 +240,7 @@ def _encode_bitmaps(
     # fields.update([int(k) for k in doc_dec.keys() if k.isnumeric()])
     fields = sets.union(
         fields,
-        sets.make([int(k) for k in doc_dec.keys() if types.is_int(k)]))
+        sets.make([int(k) for k in doc_dec.keys() if k.isdigit()]))
     # except AttributeError:
     #     raise EncodeError(
     #         f"Dictionary contains invalid fields {[k for k in doc_dec.keys() if not isinstance(k, str)]}",
@@ -254,18 +255,15 @@ def _encode_bitmaps(
 
     # Add secondary bitmap if any 65-128 fields are present
     # if not fields.isdisjoint(range(65, 129)):
-    if not sets.is_subset(fields, range(65, 129)):
-        fields.add(1)
+    if not sets.is_subset(fields, sets.make(range(65, 129))):
+        sets.union(fields, sets.union(sets.make([1])))
 
     # Turn on bitmap bits of associated fields.
     # There is no need to sort this set because the code below will
     # figure out appropriate byte/bit for each field.
-    # s = bytearray(bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
-    # s = bytearray([0x00]) * 16
-    # s = bytearray()
-    s = bytearray([0x2e]).join([bytes([0x61,0x62]), bytes([0x70,0x71]), bytes([0x72,0x73])])
-    print(str(s))
-    for f in fields:
+    s = bytearray(bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+    # s = bytearray([0x00]).join([bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00])])
+    for f in sets.to_list(fields):
         # Fields start at 1. Make them zero-bound for easier conversion.
         f -= 1
 
@@ -276,10 +274,13 @@ def _encode_bitmaps(
         # Determine bit to enable. ISO8583 bitmaps are left-aligned.
         # E.g. fields 1, 9, 17, etc. enable bit 7 in bytes 0, 1, 2, etc.
         bit = 7 - (f - byte * 8)
-        s[byte] |= 1 << bit
+        # TODO bitmap
+        # print(byte)
+        # s[byte] = (1 << bit)
+        # s[byte] = s[byte] + 1 << bit
 
     # Encode primary bitmap
-    doc_dec["p"] = s[0:8].hex().upper()
+    doc_dec["p"] = hexlify(s[0:8]).upper()
     doc_enc["p"] = {"len": bytes(r"", encoding='utf-8'), "data": bytes(r"", encoding='utf-8')}
 
     # try:
@@ -291,8 +292,8 @@ def _encode_bitmaps(
     #     raise EncodeError(f"Failed to encode ({e})", doc_dec, doc_enc, "p") from None
 
     # No need to produce secondary bitmap if it's not required
-    if 1 not in fields:
-        return doc_enc["p"]["data"]
+    if not sets.contains(fields, 1):
+        return doc_enc["p"]["data"], fields
 
     # Encode secondary bitmap
     doc_dec["1"] = s[8:16].hex().upper()
@@ -306,7 +307,7 @@ def _encode_bitmaps(
     # except Exception as e:
     #     raise EncodeError(f"Failed to encode ({e})", doc_dec, doc_enc, "1") from None
 
-    return doc_enc["p"]["data"] + doc_enc["1"]["data"]
+    return doc_enc["p"]["data"] + doc_enc["1"]["data"], fields
 
 
 def _encode_field(doc_dec, doc_enc, field_key, spec):
@@ -345,11 +346,11 @@ def _encode_field(doc_dec, doc_enc, field_key, spec):
         # Binary data: either hex or BCD
     if spec[field_key]["data_enc"] == "b":
         if len_count == "nibbles" and len(doc_dec[field_key]) & 1:
-            doc_enc[field_key]["data"] = bytes.fromhex(
+            doc_enc[field_key]["data"] = codecs.encode(
                 _add_pad_field(doc_dec, field_key, spec)
             )
         else:
-            doc_enc[field_key]["data"] = bytes.fromhex(doc_dec[field_key])
+            doc_enc[field_key]["data"] = codecs.encode(doc_dec[field_key])
 
         # Encoded field length can be in bytes or half bytes (nibbles)
         if len_count == "nibbles":
@@ -358,7 +359,7 @@ def _encode_field(doc_dec, doc_enc, field_key, spec):
             enc_field_len = len(doc_enc[field_key]["data"])
     # Text data
     else:
-        doc_enc[field_key]["data"] = doc_dec[field_key].encode(spec[field_key]["data_enc"])
+        doc_enc[field_key]["data"] = codecs.encode(doc_dec[field_key], encoding = spec[field_key]["data_enc"])
 
 
         # Encoded field length can be in bytes or half bytes (nibbles)
@@ -374,17 +375,23 @@ def _encode_field(doc_dec, doc_enc, field_key, spec):
     len_type = spec[field_key]["len_type"]
 
     # Handle fixed length field. No need to calculate length.
-    if len_type == 0:
-        if enc_field_len != spec[field_key]["max_len"]:
-            fail(" EncodeError(\n                f\"Field data is {enc_field_len} {len_count}, expecting {spec[field_key]['max_len']}\",\n                doc_dec,\n                doc_enc,\n                field_key,\n            )")
-
-        doc_enc[field_key]["len"] = bytes(r"", encoding='utf-8')
-        return doc_enc[field_key]["data"]
+    # TODO uncomment the check
+    # if len_type == 0:
+    #     if enc_field_len != spec[field_key]["max_len"]:
+    #         expecting = spec[field_key]["max_len"]
+    #         fail(
+    #             "EncodeError(Field data is {enc_field_len} {len_count} for field key {field_key}, expecting {expecting})"
+    #             .format(enc_field_len=enc_field_len, len_count=len_count,
+    #                     expecting=expecting, field_key=field_key))
+    #
+    #     doc_enc[field_key]["len"] = bytes(r"", encoding='utf-8')
+    #     return doc_enc[field_key]["data"]
 
     # Continue with variable length field.
 
-    if enc_field_len > spec[field_key]["max_len"]:
-        fail(" EncodeError(\n            f\"Field data is {enc_field_len} {len_count}, larger than maximum {spec[field_key]['max_len']}\",\n            doc_dec,\n            doc_enc,\n            field_key,\n        )")
+    # TODO uncomment the check
+    # if enc_field_len > spec[field_key]["max_len"]:
+    #     fail(" EncodeError(\n            f\"Field data is {enc_field_len} {len_count}, larger than maximum {spec[field_key]['max_len']}\",\n            doc_dec,\n            doc_enc,\n            field_key,\n        )")
 
     # Encode field length
     # try:
@@ -399,8 +406,10 @@ def _encode_field(doc_dec, doc_enc, field_key, spec):
             "{:0{len_type}d}".format(enc_field_len, len_type=len_type * 2)
         )
     else:
+        # TODO make the format working
         doc_enc[field_key]["len"] = bytes(
-            "{:0{len_type}d}".format(enc_field_len, len_type=len_type),
+            # "{:0{len_type}d}".format(enc_field_len, len_type=len_type),
+            "{len_type}".format(len_type=len_type),
             spec[field_key]["len_enc"],
         )
     # except Exception as e:
@@ -408,7 +417,7 @@ def _encode_field(doc_dec, doc_enc, field_key, spec):
     #         f"Failed to encode length ({e})", doc_dec, doc_enc, field_key
     #     ) from None
 
-    return doc_enc[field_key]["len"] + doc_enc[field_key]["data"]
+    return bytearray(doc_enc[field_key]["len"]) + bytearray(doc_enc[field_key]["data"])
 
 
 def _add_pad_field(doc_dec, field_key, spec):
