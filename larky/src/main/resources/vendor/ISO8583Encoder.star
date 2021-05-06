@@ -256,12 +256,12 @@ def _encode_bitmaps(
     # Add secondary bitmap if any 65-128 fields are present
     # if not fields.isdisjoint(range(65, 129)):
     if not sets.is_subset(fields, sets.make(range(65, 129))):
-        sets.union(fields, sets.union(sets.make([1])))
+        fields = sets.union(fields, sets.union(sets.make([1])))
 
     # Turn on bitmap bits of associated fields.
     # There is no need to sort this set because the code below will
     # figure out appropriate byte/bit for each field.
-    s = bytearray(bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
+    s = bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
     # s = bytearray([0x00]).join([bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00])])
     for f in sets.to_list(fields):
         # Fields start at 1. Make them zero-bound for easier conversion.
@@ -274,10 +274,9 @@ def _encode_bitmaps(
         # Determine bit to enable. ISO8583 bitmaps are left-aligned.
         # E.g. fields 1, 9, 17, etc. enable bit 7 in bytes 0, 1, 2, etc.
         bit = 7 - (f - byte * 8)
-        # TODO bitmap
-        # print(byte)
-        # s[byte] = (1 << bit)
-        # s[byte] = s[byte] + 1 << bit
+        # s[byte] |= 1 << bit
+        new = s[byte] | (1 << bit)
+        s = s[0:byte] + bytes([new]) + s[(byte+1):]
 
     # Encode primary bitmap
     doc_dec["p"] = hexlify(s[0:8]).upper()
@@ -296,7 +295,7 @@ def _encode_bitmaps(
         return doc_enc["p"]["data"], fields
 
     # Encode secondary bitmap
-    doc_dec["1"] = s[8:16].hex().upper()
+    doc_dec["1"] = hexlify(s[8:16]).upper()
     doc_enc["1"] = {"len": bytes(r"", encoding='utf-8'), "data": bytes(r"", encoding='utf-8')}
 
     # try:
@@ -307,7 +306,7 @@ def _encode_bitmaps(
     # except Exception as e:
     #     raise EncodeError(f"Failed to encode ({e})", doc_dec, doc_enc, "1") from None
 
-    return doc_enc["p"]["data"] + doc_enc["1"]["data"], fields
+    return doc_enc["p"]["data"].join([doc_enc["1"]["data"]]), fields
 
 
 def _encode_field(doc_dec, doc_enc, field_key, spec):

@@ -9,7 +9,8 @@ load("@stdlib//builtins", "builtins")
 
 def MyTestCase_test_decode():
     payload = unhexlify(bytes(hex_string_payload, encoding='utf-8'))
-    decoded, encoded = Decoder.decode(payload, test_payload_spec)
+    decoded, encoded1 = Decoder.decode(payload, test_payload_spec)
+    print("encoded1:"+str(encoded1))
     print(decoded)
     # token = vault.put(encoded)
     # decoded['2'] = token
@@ -18,13 +19,15 @@ def MyTestCase_test_decode():
     asserts.assert_that('FEFA448108E0E48A' == decoded['p'])
     asserts.assert_that('100194868740300').is_equal_to(decoded['2'])
 
-    encoded_raw, encoded = Encoder.encode(decoded, test_payload_spec)
-    asserts.assert_that('100194868740300' == encoded['2']['data'])
-    asserts.assert_that(decoded['2'] == encoded['2']['data'])
+    encoded_raw, encoded2 = Encoder.encode(decoded, test_payload_spec)
+    asserts.assert_that('100194868740300' == encoded2['2']['data'])
+    asserts.assert_that(decoded['2'] == encoded2['2']['data'])
     for field_key in decoded:
-        print(field_key+':'+str(decoded[field_key]) + ' | ' + str(encoded[field_key]['data']))
-        asserts.assert_that(decoded[field_key] == encoded[field_key]['data'])
-    print("encoded:"+str(encoded))
+        print(field_key+':'+str(decoded[field_key]) + ' | ' + str(encoded2[field_key]['data']))
+        asserts.assert_that(decoded[field_key] == encoded2[field_key]['data'])
+
+    print("encoded1:"+str(encoded1))
+    print("encoded2:"+str(encoded2))
     print("encoded_raw:"+str(encoded_raw))
 
     new_payload = hexlify(encoded_raw)
@@ -450,8 +453,8 @@ test_payload_spec = {
         "desc": "Reserved ISO",
     },
     "57": {
-        # "data_enc": "ascii",
-        "data_enc": "b",
+        "data_enc": "ascii",
+        # "data_enc": "b",
         "len_enc": "ascii",
         # "len_type": 3,
         "len_type": 0,
