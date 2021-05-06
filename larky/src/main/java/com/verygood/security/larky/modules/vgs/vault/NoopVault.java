@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.vgs.vault;
 
+import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 

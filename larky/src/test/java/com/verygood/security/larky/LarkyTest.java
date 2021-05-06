@@ -136,13 +136,4 @@ public class LarkyTest {
     config = interpreter.evaluate(starFile, new ModuleSupplier().modulesToVariableMap(true), new TestingConsole());
   }
 
-  @Test
-  public void testSupportedOverridesFound() {
-    ModuleSupplier.ModuleSet moduleSet = new ModuleSupplier().modulesToVariableMap(true);
-    ImmutableSet<String> expectedOverridables = ImmutableSet.of(
-            "vault"
-    );
-    Assertions.assertEquals(moduleSet.getOverridables(),expectedOverridables);
-  }
-
 }
