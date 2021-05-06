@@ -366,10 +366,33 @@ public class LexerTest {
         "  ^ invalid escape sequence: \\$. You can enable unknown escape sequences by passing the"
             + " flag --incompatible_restrict_string_escapes=false");
     check("'a\\\nb'", "STRING(ab) NEWLINE EOF"); // escape end of line
-    checkErrors(
-        "\"ab\\ucd\"", //
-        "STRING(abcd) NEWLINE EOF",
-        "    ^ string literal too short for \\u escape");
+    checkErrors("\"ab\\ucd\"", "STRING(abcd) NEWLINE EOF", "    ^ truncated escape sequence \\ucd");
+
+    // hex escapes
+    check("'\\x00\\x20\\x09\\x41\\x7e\\x7f'", "STRING(\u0000 \tA~\u007F) NEWLINE EOF"); // DEL is non-printable
+    checkErrors("'\\x80'", "STRING(80) NEWLINE EOF", "  ^ non-ASCII hex escape \\x80 (use \\u0080 for the UTF-8 encoding of U+0080)");
+    checkErrors("'\\xff'", "STRING(ff) NEWLINE EOF", "  ^ non-ASCII hex escape \\xff (use \\u00FF for the UTF-8 encoding of U+00FF)");
+    checkErrors("'\\xFf'", "STRING(Ff) NEWLINE EOF", "  ^ non-ASCII hex escape \\xFf (use \\u00FF for the UTF-8 encoding of U+00FF)");
+    checkErrors("'\\xF'", "STRING(F) NEWLINE EOF", "  ^ truncated escape sequence \\xF");
+    checkErrors("'\\x'", "STRING() NEWLINE EOF", "  ^ truncated escape sequence \\x");
+    checkErrors("'\\xfg'", "STRING(fg) NEWLINE EOF", "  ^ invalid escape sequence \\xfg");
+    // Unicode escapes
+    // \\uXXXX
+    check("'\\u0400'", "STRING(Ѐ) NEWLINE EOF");
+    checkErrors("'\\u100'", "STRING(100) NEWLINE EOF", "  ^ truncated escape sequence \\u100");
+    check("'\\u04000'", "STRING(Ѐ0) NEWLINE EOF"); // = U+0400 + '0'
+    checkErrors("'\\u100g'", "STRING(100g) NEWLINE EOF", "  ^ invalid escape sequence \\u100g");
+    check("'\\u4E16'", "STRING(世) NEWLINE EOF");
+    checkErrors("'\\udc00'", "STRING(dc00) NEWLINE EOF", "  ^ invalid Unicode code point U+DC00"); // surrogate
+    // \\UXXXXXXXX
+    check("'\\U00000400'", "STRING(Ѐ) NEWLINE EOF");
+    checkErrors("'\\U0000400'", "STRING(0000400) NEWLINE EOF", "  ^ truncated escape sequence \\U0000400");
+    check("'\\U000004000'", "STRING(Ѐ0) NEWLINE EOF"); // = U+0400 + '0'
+    checkErrors("'\\U1000000g'", "STRING(1000000g) NEWLINE EOF", "  ^ invalid escape sequence \\U1000000g");
+    check("'\\U0010FFFF'", "STRING(\uDBFF\uDFFF) NEWLINE EOF");
+    checkErrors("'\\U00110000'", "STRING(00110000) NEWLINE EOF", "  ^ code point out of range: \\U00110000 (max \\U00110000)");
+    check("'\\U0001F63F'", "STRING(\uD83D\uDE3F) NEWLINE EOF");
+    checkErrors("'\\U0000dc00'", "STRING(0000dc00) NEWLINE EOF", "  ^ invalid Unicode code point U+DC00"); // surrogate
   }
 
   @Test
@@ -405,13 +428,8 @@ public class LexerTest {
     check("b\'AЀ世\uD83D\uDE3F\'", "BYTE(AЀ世\uD83D\uDE3F) NEWLINE EOF");
     check("b\'\\x41\\u0400\\u4e16\\U0001F63F\'", "BYTE(AЀ世\uD83D\uDE3F) NEWLINE EOF");
     check("b\'\\377\\378\\x80\\xff\\xFf\'", "BYTE(ÿ\u001F8\u0080ÿÿ) NEWLINE EOF");
-    checkErrors("b\'\\400\'",
-      "BYTE(\u0000) NEWLINE EOF",
-      "     ^ octal escape sequence out of range (maximum is \\377)");
-    checkErrors(
-      "b\'\\udc00\'",
-      "BYTE(dc00) NEWLINE EOF",
-      "   ^ invalid Unicode code point U+DC00");
+    checkErrors("b\'\\400\'", "BYTE() NEWLINE EOF", "     ^ octal escape sequence out of range (maximum is \\377)");
+    checkErrors("b\'\\udc00\'", "BYTE(dc00) NEWLINE EOF", "   ^ invalid Unicode code point U+DC00");
   }
 
   @Test
@@ -431,20 +449,32 @@ public class LexerTest {
 
   @Test
   public void testOctalEscapes() throws Exception {
-    // Regression test for a bug.
-    check(
-        "'\\0 \\1 \\11 \\77 \\111 \\1111 \\377'",
-        "STRING(\0 \1 \t \u003f I I1 \u00ff) NEWLINE EOF");
     // Test boundaries (non-octal char, EOF).
     check("'\\1b \\1'", "STRING(\1b \1) NEWLINE EOF");
+    check("'\\037'", "STRING(\u001F) NEWLINE EOF");
+    check("'\\378'", "STRING(\u001F8) NEWLINE EOF");  // = '\37' + '8'
   }
 
   @Test
   public void testOctalEscapeOutOfRange() throws Exception {
+    // Regression test for a bug.
+    checkErrors(
+        "'\\0 \\1 \\11 \\77 \\111 \\1111 \\377'",
+        "STRING(\0 \1 \t \u003f I I1 ) NEWLINE EOF",
+      "                             ^ non-ASCII octal " +
+        "escape \\377 (use \\u00FF for the UTF-8 encoding of U+00FF)");
     checkErrors(
         "'\\777'",
-        "STRING(\u00ff) NEWLINE EOF",
-        "    ^ octal escape sequence out of range (maximum is \\377)");
+        "STRING() NEWLINE EOF",
+        "    ^ non-ASCII octal escape \\777 (use \\u01FF for the UTF-8 encoding of U+01FF)");
+    checkErrors(
+      "'\\377'",
+      "STRING() NEWLINE EOF",
+      "    ^ non-ASCII octal escape \\377 (use \\u00FF for the UTF-8 encoding of U+00FF)");
+    checkErrors(
+      "'\\400'",
+      "STRING() NEWLINE EOF",
+      "    ^ non-ASCII octal escape \\400 (use \\u0100 for the UTF-8 encoding of U+0100)");
   }
 
   @Test
