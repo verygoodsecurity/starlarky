@@ -56,8 +56,8 @@ public class VaultModule implements LarkyVault {
                             name = "value",
                             doc = "value to tokenize",
                             allowedTypes = {
-                                    @ParamType(type=String.class),
-                                    @ParamType(type= List.class, generic1 = String.class)
+                                    @ParamType(type = String.class),
+                                    @ParamType(type = List.class, generic1 = String.class)
                             }),
                     @Param(
                             name = "storage",
@@ -65,8 +65,8 @@ public class VaultModule implements LarkyVault {
                             named = true,
                             defaultValue = "None",
                             allowedTypes = {
-                                    @ParamType(type= NoneType.class),
-                                    @ParamType(type=String.class),
+                                    @ParamType(type = NoneType.class),
+                                    @ParamType(type = String.class),
                             }),
                     @Param(
                             name = "format",
@@ -74,8 +74,8 @@ public class VaultModule implements LarkyVault {
                             named = true,
                             defaultValue = "None",
                             allowedTypes = {
-                                    @ParamType(type= NoneType.class),
-                                    @ParamType(type=String.class),
+                                    @ParamType(type = NoneType.class),
+                                    @ParamType(type = String.class),
                             }),
                     @Param(
                             name = "tags",
@@ -83,7 +83,7 @@ public class VaultModule implements LarkyVault {
                             named = true,
                             defaultValue = "[]",
                             allowedTypes = {
-                                    @ParamType(type=List.class)
+                                    @ParamType(type = List.class)
                             }),
             })
     @Override

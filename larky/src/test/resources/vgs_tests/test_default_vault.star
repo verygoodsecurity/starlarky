@@ -4,12 +4,12 @@ load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
 load("@vgs//vault", "vault")
 
-def _test_put():
+def _test_redact():
     account_number = "4111111111111111"
     redacted_account_number = vault.redact(account_number)
     asserts.assert_that(redacted_account_number).is_equal_to('tok_1537796765')
 
-def _test_get():
+def _test_reveal():
     account_number = "4111111111111111"
     redacted_account_number = vault.redact(account_number)
     revealed_account_number = vault.reveal(redacted_account_number)
@@ -17,8 +17,8 @@ def _test_get():
 
 def _suite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(_test_put))
-    _suite.addTest(unittest.FunctionTestCase(_test_get))
+    _suite.addTest(unittest.FunctionTestCase(_test_redact))
+    _suite.addTest(unittest.FunctionTestCase(_test_reveal))
     return _suite
 
 

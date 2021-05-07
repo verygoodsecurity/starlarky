@@ -3,6 +3,7 @@ package com.verygood.security.larky.modules.vgs.vault;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.modules.VaultModule;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -45,24 +46,24 @@ public class VaultModuleTest {
     }
 
     @Test
-    public void testNoopModule_put_exception() throws Exception {
+    public void testNoopModule_redact_exception() throws Exception {
         vault = new VaultModule();
 
         Assertions.assertThrows(EvalException.class,
                 () -> {
-                    vault.redact("fail", null, null, null);
+                    vault.redact("fail", Starlark.NONE, Starlark.NONE, null);
                 },
                 "vault.redact operation must be overridden"
         );
     }
 
     @Test
-    public void testNoopModule_get_exception() throws Exception {
+    public void testNoopModule_reveal_exception() throws Exception {
         vault = new VaultModule();
 
         Assertions.assertThrows(EvalException.class,
                 () -> {
-                    vault.reveal("fail", null);
+                    vault.reveal("fail", Starlark.NONE);
                 },
                 "vault.reveal operation must be overridden"
         );
@@ -73,12 +74,22 @@ public class VaultModuleTest {
         System.setProperty(VaultModule.PROPERTY_NAME,"true");
         vault = new VaultModule();
 
-        String secret = "passing";
-        String token = (String) vault.redact(secret, null, null, null);
-        String result = (String) vault.reveal(token, null);
+        String secret = "4111111111111111";
+        String token = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
+        String result = (String) vault.reveal(token, Starlark.NONE);
 
-        Assertions.assertEquals(result, secret);
+        Assertions.assertEquals("tok_1537796765", token);
+        Assertions.assertEquals(secret, result);
+    }
 
+    @Test
+    public void testDefaultModule_reveal_ok() throws Exception {
+        System.setProperty(VaultModule.PROPERTY_NAME,"true");
+        vault = new VaultModule();
+
+        String result = (String) vault.reveal("not found", Starlark.NONE);
+
+        Assertions.assertEquals("token", result);
     }
 
     @Test
@@ -87,11 +98,11 @@ public class VaultModuleTest {
         vault = new VaultModule();
 
         String secret = "4111111111111111";
-        String token = (String) vault.redact(secret, null, null, null);
-        String result = (String) vault.reveal(token, null);
+        String token = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
+        String result = (String) vault.reveal(token, Starlark.NONE);
 
-        Assertions.assertEquals(token, "tok_1537796765");
-        Assertions.assertEquals(result, secret);
+        Assertions.assertEquals("tok_1537796765", token);
+        Assertions.assertEquals(secret, result);
     }
 
     @Test
