@@ -21,6 +21,7 @@ def MyTestCase_test_decode():
 
     encoded_raw, encoded2 = Encoder.encode(decoded, test_payload_spec)
     asserts.assert_that('100194868740300' == encoded2['2']['data'])
+    asserts.assert_that(decoded['2'] == encoded2['p'])
     asserts.assert_that(decoded['2'] == encoded2['2']['data'])
     for field_key in decoded:
         print(field_key+':'+str(decoded[field_key]) + ' | ' + str(encoded2[field_key]['data']))
