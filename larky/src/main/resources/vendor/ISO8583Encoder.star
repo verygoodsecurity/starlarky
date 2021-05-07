@@ -261,7 +261,7 @@ def _encode_bitmaps(
     # Turn on bitmap bits of associated fields.
     # There is no need to sort this set because the code below will
     # figure out appropriate byte/bit for each field.
-    s = bytearray([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+    s = bytearray(bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
     # s = bytearray([0x00]).join([bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00])])
     for f in sets.to_list(fields):
         # Fields start at 1. Make them zero-bound for easier conversion.
@@ -284,7 +284,7 @@ def _encode_bitmaps(
 
     # try:
     if spec["p"]["data_enc"] == "b":
-        doc_enc["p"]["data"] = bytes(s[0:8])
+        doc_enc["p"]["data"] = s[0:8]
     else:
         doc_enc["p"]["data"] = doc_dec["p"].encode(spec["p"]["data_enc"])
     # except Exception as e:
@@ -300,13 +300,13 @@ def _encode_bitmaps(
 
     # try:
     if spec["1"]["data_enc"] == "b":
-        doc_enc["1"]["data"] = bytes(s[8:16])
+        doc_enc["1"]["data"] = s[8:16]
     else:
         doc_enc["1"]["data"] = doc_dec["1"].encode(spec["1"]["data_enc"])
     # except Exception as e:
     #     raise EncodeError(f"Failed to encode ({e})", doc_dec, doc_enc, "1") from None
 
-    return doc_enc["p"]["data"].join([doc_enc["1"]["data"]]), fields
+    return doc_enc["p"]["data"] + doc_enc["1"]["data"], fields
 
 
 def _encode_field(doc_dec, doc_enc, field_key, spec):
@@ -374,23 +374,21 @@ def _encode_field(doc_dec, doc_enc, field_key, spec):
     len_type = spec[field_key]["len_type"]
 
     # Handle fixed length field. No need to calculate length.
-    # TODO uncomment the check
-    # if len_type == 0:
-    #     if enc_field_len != spec[field_key]["max_len"]:
-    #         expecting = spec[field_key]["max_len"]
-    #         fail(
-    #             "EncodeError(Field data is {enc_field_len} {len_count} for field key {field_key}, expecting {expecting})"
-    #             .format(enc_field_len=enc_field_len, len_count=len_count,
-    #                     expecting=expecting, field_key=field_key))
-    #
-    #     doc_enc[field_key]["len"] = bytes(r"", encoding='utf-8')
-    #     return doc_enc[field_key]["data"]
+    if len_type == 0:
+        if enc_field_len != spec[field_key]["max_len"]:
+            expecting = spec[field_key]["max_len"]
+            fail(
+                "EncodeError(Field data is {enc_field_len} {len_count} for field key {field_key}, expecting {expecting})"
+                .format(enc_field_len=enc_field_len, len_count=len_count,
+                        expecting=expecting, field_key=field_key))
+
+        doc_enc[field_key]["len"] = bytes(r"", encoding='utf-8')
+        return doc_enc[field_key]["data"]
 
     # Continue with variable length field.
 
-    # TODO uncomment the check
-    # if enc_field_len > spec[field_key]["max_len"]:
-    #     fail(" EncodeError(\n            f\"Field data is {enc_field_len} {len_count}, larger than maximum {spec[field_key]['max_len']}\",\n            doc_dec,\n            doc_enc,\n            field_key,\n        )")
+    if enc_field_len > spec[field_key]["max_len"]:
+        fail(" EncodeError(\n            f\"Field data is {enc_field_len} {len_count}, larger than maximum {spec[field_key]['max_len']}\",\n            doc_dec,\n            doc_enc,\n            field_key,\n        )")
 
     # Encode field length
     # try:
@@ -402,13 +400,13 @@ def _encode_field(doc_dec, doc_enc, field_key, spec):
         # BCD LLLVAR length \x09\x99 must be string "0999"
         # BCD LLLLVAR length \x99\x99 must be string "9999"
         doc_enc[field_key]["len"] = bytes.fromhex(
-            "{:0{len_type}d}".format(enc_field_len, len_type=len_type * 2)
+            # "{:0{len_type}d}".format(enc_field_len, len_type=len_type * 2)
+            "{enc_field_len}".format(enc_field_len=enc_field_len)
         )
     else:
-        # TODO make the format working
         doc_enc[field_key]["len"] = bytes(
             # "{:0{len_type}d}".format(enc_field_len, len_type=len_type),
-            "{len_type}".format(len_type=len_type),
+            "{enc_field_len}".format(enc_field_len=enc_field_len),
             spec[field_key]["len_enc"],
         )
     # except Exception as e:
