@@ -4,6 +4,7 @@ import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import net.starlark.java.eval.EvalException;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class DefaultVault implements LarkyVault {
@@ -15,14 +16,14 @@ public class DefaultVault implements LarkyVault {
     }
 
     @Override
-    public Object put(Object value, Object storage, Object format) throws EvalException {
+    public Object redact(Object value, Object storage, Object format, List<Object> tags) throws EvalException {
         Object token = redact(value);
         vault_map.put(token, value);
         return token;
     }
 
     @Override
-    public Object get(Object value, Object storage) throws EvalException {
+    public Object reveal(Object value, Object storage) throws EvalException {
         return vault_map.get(value);
     }
 

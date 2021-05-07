@@ -48,18 +48,24 @@ public class VaultModuleTest {
     public void testNoopModule_put_exception() throws Exception {
         vault = new VaultModule();
 
-        Assertions.assertThrows(EvalException.class, () -> {
-            vault.put("fail", null, null);
-        });
+        Assertions.assertThrows(EvalException.class,
+                () -> {
+                    vault.redact("fail", null, null, null);
+                },
+                "vault.redact operation must be overridden"
+        );
     }
 
     @Test
     public void testNoopModule_get_exception() throws Exception {
         vault = new VaultModule();
 
-        Assertions.assertThrows(EvalException.class, () -> {
-            vault.get("fail", null);
-        });
+        Assertions.assertThrows(EvalException.class,
+                () -> {
+                    vault.reveal("fail", null);
+                },
+                "vault.reveal operation must be overridden"
+        );
     }
 
     @Test
@@ -68,8 +74,8 @@ public class VaultModuleTest {
         vault = new VaultModule();
 
         String secret = "passing";
-        String token = (String) vault.put(secret, null, null);
-        String result = (String) vault.get(token, null);
+        String token = (String) vault.redact(secret, null, null, null);
+        String result = (String) vault.reveal(token, null);
 
         Assertions.assertEquals(result, secret);
 
@@ -81,8 +87,8 @@ public class VaultModuleTest {
         vault = new VaultModule();
 
         String secret = "4111111111111111";
-        String token = (String) vault.put(secret, null, null);
-        String result = (String) vault.get(token, null);
+        String token = (String) vault.redact(secret, null, null, null);
+        String result = (String) vault.reveal(token, null);
 
         Assertions.assertEquals(token, "tok_1537796765");
         Assertions.assertEquals(result, secret);
@@ -93,9 +99,12 @@ public class VaultModuleTest {
         setVaultImpl("com.verygood.security.larky.modules.vgs.vault.DefaultVault\n"
                 + "com.verygood.security.larky.modules.vgs.vault.NoopVault\n");
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            vault = new VaultModule();
-        });
+        Assertions.assertThrows(IllegalArgumentException.class,
+                () -> {
+                    vault = new VaultModule();
+                },
+                "VaultModule expecting only 1 vault provider of type LarkyVault, found 2"
+        );
     }
 
     private static void setVaultImpl(String implementationURI) throws Exception {

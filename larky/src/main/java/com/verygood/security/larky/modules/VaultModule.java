@@ -40,7 +40,7 @@ public class VaultModule implements LarkyVault {
             vault = vaultIterator.next();
             if (vaultIterator.hasNext()) {
                 throw new IllegalArgumentException(
-                        "Expecting only 1 service provider of type LarkyVault, found "
+                        "VaultModule expecting only 1 vault provider of type LarkyVault, found "
                                 + (1 + Iterators.size(vaultIterator))
                 );
             }
@@ -49,7 +49,7 @@ public class VaultModule implements LarkyVault {
     }
 
     @StarlarkMethod(
-            name = "put",
+            name = "redact",
             doc = "tokenizes value",
             parameters = {
                     @Param(
@@ -76,15 +76,23 @@ public class VaultModule implements LarkyVault {
                             allowedTypes = {
                                     @ParamType(type= NoneType.class),
                                     @ParamType(type=String.class),
-                            })
+                            }),
+                    @Param(
+                            name = "tags",
+                            doc = "list of tags to classify data",
+                            named = true,
+                            defaultValue = "[]",
+                            allowedTypes = {
+                                    @ParamType(type=List.class)
+                            }),
             })
     @Override
-    public Object put(Object value, Object storage, Object format) throws EvalException {
-        return vault.put(value, storage, format);
+    public Object redact(Object value, Object storage, Object format, List<Object> tags) throws EvalException {
+        return vault.redact(value, storage, format, tags);
     }
 
     @StarlarkMethod(
-            name = "get",
+            name = "reveal",
             doc = "reveals tokenized value",
             parameters = {
                     @Param(
@@ -105,8 +113,8 @@ public class VaultModule implements LarkyVault {
                             })
             })
     @Override
-    public Object get(Object value, Object storage) throws EvalException {
-        return vault.get(value, storage);
+    public Object reveal(Object value, Object storage) throws EvalException {
+        return vault.reveal(value, storage);
     }
 
 }
