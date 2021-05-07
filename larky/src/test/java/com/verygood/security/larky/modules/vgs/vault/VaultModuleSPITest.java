@@ -15,7 +15,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public class VaultModuleTest {
+// Tests that VaultModule SPI functionality works as expected
+public class VaultModuleSPITest {
 
     // This is the path to VaultModule ServiceLoader config in the test classpath
     // Do not reference src/test/resources/META-INF/services because it is not put in the classpath at runtime,
@@ -27,8 +28,6 @@ public class VaultModuleTest {
     private static String VAULT_SAVED_CONFIG;
     private VaultModule vault;
 
-    private static final TestingConsole console = new TestingConsole();
-
     @BeforeAll
     public static void setUp() throws Exception {
         VAULT_SAVED_CONFIG = getVaultImpl();
@@ -39,28 +38,20 @@ public class VaultModuleTest {
         setVaultImpl(VAULT_SAVED_CONFIG);
     }
 
-    @BeforeEach
-    public void setUpEach() throws Exception {
+    @Test
+    public void testNoopModule_exception() throws Exception {
+        // Setup Noop Vault
         setVaultImpl("");
         System.setProperty(VaultModule.PROPERTY_NAME,"false");
-    }
-
-    @Test
-    public void testNoopModule_redact_exception() throws Exception {
         vault = new VaultModule();
 
+        // Assert Exceptions
         Assertions.assertThrows(EvalException.class,
                 () -> {
                     vault.redact("fail", Starlark.NONE, Starlark.NONE, null);
                 },
                 "vault.redact operation must be overridden"
         );
-    }
-
-    @Test
-    public void testNoopModule_reveal_exception() throws Exception {
-        vault = new VaultModule();
-
         Assertions.assertThrows(EvalException.class,
                 () -> {
                     vault.reveal("fail", Starlark.NONE);
@@ -71,45 +62,48 @@ public class VaultModuleTest {
 
     @Test
     public void testDefaultModule_ok() throws Exception {
+
+        // Setup Default Vault through system config
+        setVaultImpl("");
         System.setProperty(VaultModule.PROPERTY_NAME,"true");
         vault = new VaultModule();
 
+        // Invoke Vault
         String secret = "4111111111111111";
         String token = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
         String result = (String) vault.reveal(token, Starlark.NONE);
 
+        // Assert OK
         Assertions.assertEquals("tok_1537796765", token);
         Assertions.assertEquals(secret, result);
     }
 
     @Test
-    public void testDefaultModule_reveal_ok() throws Exception {
-        System.setProperty(VaultModule.PROPERTY_NAME,"true");
-        vault = new VaultModule();
-
-        String result = (String) vault.reveal("not found", Starlark.NONE);
-
-        Assertions.assertEquals("token", result);
-    }
-
-    @Test
     public void testSPIModule_single_ok() throws Exception {
+        // Setup Default Vault through SPI config
         setVaultImpl("com.verygood.security.larky.modules.vgs.vault.DefaultVault");
+        System.setProperty(VaultModule.PROPERTY_NAME,"false");
         vault = new VaultModule();
 
+        // Invoke Vault
         String secret = "4111111111111111";
         String token = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
         String result = (String) vault.reveal(token, Starlark.NONE);
 
+        // Assert OK
         Assertions.assertEquals("tok_1537796765", token);
         Assertions.assertEquals(secret, result);
     }
 
     @Test
     public void testSPIModule_multiple_exception() throws Exception {
+
+        // Setup multiple vault SPI configs
         setVaultImpl("com.verygood.security.larky.modules.vgs.vault.DefaultVault\n"
                 + "com.verygood.security.larky.modules.vgs.vault.NoopVault\n");
+        System.setProperty(VaultModule.PROPERTY_NAME,"false");
 
+        // Assert Exception
         Assertions.assertThrows(IllegalArgumentException.class,
                 () -> {
                     vault = new VaultModule();

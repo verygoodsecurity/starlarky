@@ -1,4 +1,4 @@
-"""Unit tests without vault override for VaultModule.java"""
+"""Unit tests for VaultModule.java using NoopVault API"""
 
 load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")

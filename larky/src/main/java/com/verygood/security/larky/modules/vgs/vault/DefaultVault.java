@@ -11,13 +11,13 @@ import java.util.Map;
 
 public class DefaultVault implements LarkyVault {
 
+    private final Map<String,Object> persistentVaultStorage = new HashMap<>();
+    private final Map<String,Object> volatileVaultStorage = new HashMap<>();
+
     private final Map<String,Map<String,Object>> config = new HashMap<String,Map<String,Object>>() {{
         put("persistent", persistentVaultStorage);
         put("volatile", volatileVaultStorage);
     }};
-
-    private Map<String,Object> persistentVaultStorage = new HashMap<>();
-    private Map<String,Object> volatileVaultStorage = new HashMap<>();
 
     private String tokenize(Object value) {
         return "tok_" + value.hashCode();
@@ -41,10 +41,10 @@ public class DefaultVault implements LarkyVault {
         if (storage instanceof NoneType) { // Use 'persistent` storage by default
             return persistentVaultStorage;
         } else if (storage instanceof String) {
-            if (!config.keySet().contains(storage)) {
+            if (!config.containsKey(storage)) {
                 throw Starlark.errorf(
                         String.format(
-                                "Cannot find storage type %s. Only 'persistent' and 'volatile'.", storage
+                                "'%s' not found in available storage list [persistent, volatile]", storage
                         )
                 );
             }
