@@ -404,9 +404,12 @@ def _encode_field(doc_dec, doc_enc, field_key, spec):
             "{enc_field_len}".format(enc_field_len=enc_field_len)
         )
     else:
+        # "{:0{len_type}d}".format(enc_field_len, len_type=len_type),
+        enc_field_len_str = "{enc_field_len}".format(enc_field_len=enc_field_len)
+        if len_type > len(str(enc_field_len)):
+            format = "0{enc_field_len}".format(enc_field_len=enc_field_len_str)
         doc_enc[field_key]["len"] = bytes(
-            # "{:0{len_type}d}".format(enc_field_len, len_type=len_type),
-            "{enc_field_len}".format(enc_field_len=enc_field_len),
+            enc_field_len_str,
             spec[field_key]["len_enc"],
         )
     # except Exception as e:
