@@ -7,7 +7,7 @@ load("@stdlib//builtins", "builtins")
 
 
 
-def MyTestCase_test_decode():
+def MyTestCase_test_decode_encode():
     payload = unhexlify(bytes(hex_string_payload, encoding='utf-8'))
     decoded, encoded1 = Decoder.decode(payload, test_payload_spec)
     print('encoded1:' + str(encoded1))
@@ -977,7 +977,7 @@ test_payload_spec = {
 
 def _testsuite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(MyTestCase_test_decode))
+    _suite.addTest(unittest.FunctionTestCase(MyTestCase_test_decode_encode))
     return _suite
 
 
