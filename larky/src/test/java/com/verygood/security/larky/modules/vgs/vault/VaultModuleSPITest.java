@@ -74,7 +74,7 @@ public class VaultModuleSPITest {
         String result = (String) vault.reveal(token, Starlark.NONE);
 
         // Assert OK
-        Assertions.assertEquals("tok_1537796765", token);
+        Assertions.assertTrue(token.contains("tok_"));
         Assertions.assertEquals(secret, result);
     }
 
@@ -91,7 +91,7 @@ public class VaultModuleSPITest {
         String result = (String) vault.reveal(token, Starlark.NONE);
 
         // Assert OK
-        Assertions.assertEquals("tok_1537796765", token);
+        Assertions.assertTrue(token.contains("tok_"));
         Assertions.assertEquals(secret, result);
     }
 
