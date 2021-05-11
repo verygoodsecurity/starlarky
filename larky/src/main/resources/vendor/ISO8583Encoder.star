@@ -255,7 +255,7 @@ def _encode_bitmaps(
 
     # Add secondary bitmap if any 65-128 fields are present
     # if not fields.isdisjoint(range(65, 129)):
-    if not sets.is_subset(fields, sets.make(range(65, 129))):
+    if not sets.is_subset(sets.make(range(65, 129)), fields):
         fields = sets.union(fields, sets.union(sets.make([1])))
 
     # Turn on bitmap bits of associated fields.
@@ -286,8 +286,10 @@ def _encode_bitmaps(
     if spec["p"]["data_enc"] == "b":
         doc_enc["p"]["data"] = s[0:8]
     else:
-        doc_enc["p"]["data"] = doc_dec["p"].encode(spec["p"]["data_enc"])
-    # except Exception as e:
+        # doc_enc["p"]["data"] = doc_dec["p"].encode(spec["p"]["data_enc"])
+        # doc_enc["p"]["data"] = codecs.encode(doc_dec["p"], spec["p"]["data_enc"])
+        doc_enc["p"]["data"] = bytes(doc_dec["p"], encoding=(spec["p"]["data_enc"]))
+# except Exception as e:
     #     raise EncodeError(f"Failed to encode ({e})", doc_dec, doc_enc, "p") from None
 
     # No need to produce secondary bitmap if it's not required
@@ -302,11 +304,12 @@ def _encode_bitmaps(
     if spec["1"]["data_enc"] == "b":
         doc_enc["1"]["data"] = s[8:16]
     else:
-        doc_enc["1"]["data"] = doc_dec["1"].encode(spec["1"]["data_enc"])
+        # doc_enc["1"]["data"] = doc_dec["1"].encode(spec["1"]["data_enc"])
+        doc_enc["1"]["data"] = bytes(doc_dec["1"], encoding=(spec["1"]["data_enc"]))
     # except Exception as e:
     #     raise EncodeError(f"Failed to encode ({e})", doc_dec, doc_enc, "1") from None
 
-    return doc_enc["p"]["data"] + doc_enc["1"]["data"], fields
+    return bytearray(doc_enc["p"]["data"]) + bytearray(doc_enc["1"]["data"]), fields
 
 
 def _encode_field(doc_dec, doc_enc, field_key, spec):
