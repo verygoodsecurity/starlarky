@@ -19,6 +19,8 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.FormatMethod;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -554,8 +556,18 @@ final class Parser {
   // expr = STRING
   private StringLiteral parseStringLiteral() {
     Preconditions.checkState(token.kind == TokenKind.STRING);
-    StringLiteral literal =
+    StringLiteral literal;
+    if(byte[].class.isAssignableFrom(token.value.getClass())) {
+      literal =
+        new StringLiteral(
+          locs,
+          token.start,
+          intern(StandardCharsets.UTF_8.decode(ByteBuffer.wrap((byte[]) token.value)).toString()),
+          token.end);
+    } else {
+      literal =
         new StringLiteral(locs, token.start, intern((String) token.value), token.end);
+    }
     nextToken();
     if (token.kind == TokenKind.STRING) {
       reportError(token.start, "Implicit string concatenation is forbidden, use the + operator");
@@ -567,8 +579,19 @@ final class Parser {
   // expr = BYTE
   private ByteLiteral parseBytesLiteral() {
     Preconditions.checkState(token.kind == TokenKind.BYTE);
-    ByteLiteral literal =
-            new ByteLiteral(locs, token.start, intern((String) token.value), token.end);
+    ByteLiteral literal;
+    if(byte[].class.isAssignableFrom(token.value.getClass())) {
+      literal =
+        new ByteLiteral(locs, token.start, (byte[]) token.value, token.end);
+    } else {
+      literal =
+        new ByteLiteral(
+          locs,
+          token.start,
+          ((String)token.value).getBytes(StandardCharsets.UTF_16LE),
+          //intern((String) token.value).getBytes(StandardCharsets.UTF_8),
+          token.end);
+    }
     nextToken();
     if (token.kind == TokenKind.BYTE) {
       reportError(token.start, "Implicit byte concatenation is forbidden");

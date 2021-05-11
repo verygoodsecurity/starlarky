@@ -20,10 +20,10 @@ hello = bytes("hello, 世界")
 goodbye = bytes("goodbye")
 empty = bytes("")
 nonprinting = bytes("\t\n\x7F\u200D")  # TAB, NEWLINE, DEL, ZERO_WIDTH_JOINER
-# # in Starlark, [:-1] will cut off the last UTF-K code unit
-# # (e.g. byte in Go, char in Java), yielding an invalid string
-# # ("hello, 世" plus one half of the encoding of 😿). This test ensures that
-# # each invalid byte in a text string is replaced by U+FFFD.
+# in Starlark, [:-1] will cut off the last UTF-K code unit
+# (e.g. byte in Go, char in Java), yielding an invalid string
+# ("hello, 世" plus one half of the encoding of 😿). This test ensures that
+# each invalid byte in a text string is replaced by U+FFFD.
 # assert_eq(bytes("hello, 世😿"[:-1]), b"hello, 世�")
 # assert_eq(bytes("hello 😃"[:-1]), b"hello \uFFFD")
 #
@@ -38,15 +38,15 @@ nonprinting = bytes("\t\n\x7F\u200D")  # TAB, NEWLINE, DEL, ZERO_WIDTH_JOINER
 #              "at index 0 .* got element of type bytes, want int")
 # assert_fails(lambda: bytes(1), "want string, bytes, or iterable of ints")
 #
-# # literals
+# literals
 # assert_eq(b"hello, 世界", hello)
 # assert_eq(b"goodbye", goodbye)
 # assert_eq(b"", empty)
 # assert_eq(b"\t\n\x7F\u200D", nonprinting)
 # assert_ne("abc", b"abc")
-# assert_eq(b"\012\xff\u0400\U0001F63F", b"\n\xffЀ😿") # see scanner tests for more
-# #assert_eq(rb"\r\n\t", b"\\r\\n\\t") # raw
-#
+assert_eq(b"\012\xff\u0400\U0001F63F", b"\n\xffЀ😿") # see scanner tests for more
+#assert_eq(rb"\r\n\t", b"\\r\\n\\t") # raw
+
 # # type
 # assert_eq(type(hello), "bytes")
 #
@@ -64,22 +64,22 @@ nonprinting = bytes("\t\n\x7F\u200D")  # TAB, NEWLINE, DEL, ZERO_WIDTH_JOINER
 # assert_true(goodbye)
 # assert_true(not empty)
 #
-# # str(bytes) does UTF-8 to UTF-k transcoding.
-# # TODO(adonovan): specify.
+# str(bytes) does UTF-8 to UTF-k transcoding.
+# TODO(adonovan): specify.
 # assert_eq(str(hello), "hello, 世界")
 # assert_eq(str(hello[:-1]), "hello, 世�")  # incomplete UTF-8 encoding => U+FFFD
 # assert_eq(str(goodbye), "goodbye")
 # assert_eq(str(empty), "")
 # assert_eq(str(nonprinting), "\t\n\x7f\u200d")
-assert_eq(str(b"\xED\xB0\x80"), "���") # UTF-8 encoding of unpaired surrogate => U+FFFD x 3
-
+# assert_eq(str(b"\xED\xB0\x80"), "���") # UTF-8 encoding of unpaired surrogate => U+FFFD x 3
+#
 # # repr
 # assert_eq(repr(hello), r'b"hello, 世界"')
 # assert_eq(repr(hello[:-1]), r'b"hello, 世\xe7\x95"')  # (incomplete UTF-8 encoding )
 # assert_eq(repr(goodbye), 'b"goodbye"')
 # assert_eq(repr(empty), 'b""')
 # assert_eq(repr(nonprinting), 'b"\\t\\n\\x7f\\u200d"')
-#
+
 # # equality
 # assert_eq(hello, hello)
 # assert_ne(hello, goodbye)

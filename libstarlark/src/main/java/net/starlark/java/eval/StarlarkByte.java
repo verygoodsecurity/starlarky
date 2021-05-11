@@ -11,6 +11,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -272,8 +273,8 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   @Override
   public void str(Printer printer) {
     //printer.append(starlarkStringTranscoding(getBytes()));
-    //String s = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(getBytes())).toString();
-    String s = UTF8toUTF16(getBytes(), 0, getBytes().length);
+    String s = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(getBytes())).toString();
+    //String s = UTF8toUTF16(getBytes(), 0, getBytes().length);
     printer.append(s);
   }
 
@@ -287,7 +288,8 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
 
   public static String repr(byte[] bytes) {
     //    String s = decodeUTF8(bytes, bytes.length);
-    String s = UTF8toUTF16(bytes, 0, bytes.length);
+    String s = UTF8toUTF16(bytes, 0, bytes.length, true);
+    //String s = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(bytes)).toString();
     StringBuilder b = new StringBuilder();
     for (int i = 0; i < s.length(); i++) {
       quote(b, s.codePointAt(i));
@@ -342,7 +344,8 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
           UTF8toUTF16(
             this.bytes.getBytes(),
             0,
-            this.bytes.getBytes().length
+            this.bytes.getBytes().length,
+            true
           )));
     }
 
@@ -882,7 +885,7 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
     * In the event of a bad encoding, the UTF-8 replacement character (code point U+FFFD) is inserted
     * for the bad byte(s), and decoding resumes from the next byte.
    */
-  static public String UTF8toUTF16(byte[] data, int offset, int byteCount) {
+  static public String UTF8toUTF16(byte[] data, int offset, int byteCount, boolean bool) {
     if ((offset | byteCount) < 0 || byteCount > data.length - offset) {
       throw new RuntimeException("index out of bound: " + data.length + " " + offset + " " + byteCount);
     }
@@ -900,9 +903,9 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
     int utf8BytesNeeded = 0;
     int lowerBound = 0x80;
     int upperBound = 0xbf;
-
+    int b = 0;
     while (idx < last) {
-      int b = d[idx++] & 0xff;
+      b = d[idx++] & 0xff;
       if (utf8BytesNeeded == 0) {
         if ((b & 0x80) == 0) { // ASCII char. 0xxxxxxx
           v[s++] = (char) b;
@@ -935,6 +938,13 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
           lowerBound = 0x90;
         } else if (b == 0xf4) {
           upperBound = 0x8f;
+        } else if(bool && (idx + utf8BytesNeeded >= last)) {
+          /*
+             If we're not going to be able to have all the correct bytes,
+             then, we will keep the character in the payload.
+           */
+          v[s] = v[s];
+          //v[s++] = (char) b;
         }
       } else {
         if (b < lowerBound || b > upperBound) {
@@ -980,7 +990,7 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
 
     // The bytes seen are ill-formed. Substitute them by U+FFFD
     if (utf8BytesNeeded != 0) {
-      v[s++] = REPLACEMENT_CHAR;
+      v[s++] = bool ? (char) b : REPLACEMENT_CHAR;
     }
 
     if (s == byteCount) {

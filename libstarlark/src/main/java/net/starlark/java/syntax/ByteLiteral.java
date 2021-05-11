@@ -13,32 +13,23 @@
 // limitations under the License.
 package net.starlark.java.syntax;
 
-import net.starlark.java.eval.StarlarkByte;
-
 /** Syntax node for a bytes literal. */
 public final class ByteLiteral extends Expression {
 
   private final int startOffset;
   private final byte[] value;
   private final int endOffset;
-  private final String raw;
 
-  ByteLiteral(FileLocations locs, int startOffset, String value, int endOffset) {
+  ByteLiteral(FileLocations locs, int startOffset, byte[] value, int endOffset) {
     super(locs);
     this.startOffset = startOffset;
-    this.raw = value;
-    this.value = StarlarkByte.UTF16toUTF8(value.toCharArray());
+    this.value = value;
     this.endOffset = endOffset;
   }
 
   /** Returns the value denoted by the byte literal */
   public byte[] getValue() {
     return value;
-  }
-
-  /** Returns the raw source text of the literal. */
-  public String getRaw() {
-    return this.raw;
   }
 
   public Location getLocation() {
@@ -78,7 +69,7 @@ public final class ByteLiteral extends Expression {
 
   /** Constructs a ByteLiteral from its serialized components. */
   public static ByteLiteral fromSerialization(
-      Object fileLocations, int startOffset, String value, int endOffset) {
+      Object fileLocations, int startOffset, byte[] value, int endOffset) {
     return new ByteLiteral((FileLocations) fileLocations, startOffset, value, endOffset);
   }
 }
