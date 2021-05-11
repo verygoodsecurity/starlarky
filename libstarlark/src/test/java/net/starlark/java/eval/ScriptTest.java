@@ -178,8 +178,11 @@ public final class ScriptTest {
     if (!root.exists()) {
       root = new File("."); // bazel
     }
-    File testdata = new File(root, "src/test/java/net/starlark/java/eval/testdata");
+    File testdata = new File(root, "libstarlark/src/test/java/net/starlark/java/eval/testdata");
     for (String name : testdata.list()) {
+      if(!name.equals("bytes.star")) {
+        continue;
+      }
       File file = new File(testdata, name);
       String content = Files.asCharSource(file, UTF_8).read();
       int linenum = 1;

@@ -517,7 +517,7 @@ final class Eval {
       case STRING_LITERAL:
         return ((StringLiteral) expr).getValue();
       case BYTE_LITERAL:
-        return StarlarkByte.builder(fr.thread).setSequence(((ByteLiteral)expr).getValue()).build();
+        return evalByteLiteral(fr, (ByteLiteral) expr);
       case UNARY_OPERATOR:
         return evalUnaryOperator(fr, (UnaryOperatorExpression) expr);
     }
@@ -736,6 +736,11 @@ final class Eval {
       array[i] = eval(fr, expr.getElements().get(i));
     }
     return expr.isTuple() ? Tuple.wrap(array) : StarlarkList.wrap(fr.thread.mutability(), array);
+  }
+
+  private static Object evalByteLiteral(StarlarkThread.Frame fr, ByteLiteral expr)
+      throws EvalException, InterruptedException {
+    return StarlarkByte.wrap(fr.thread.mutability(), expr.getValue());
   }
 
   private static Object evalSlice(StarlarkThread.Frame fr, SliceExpression slice)

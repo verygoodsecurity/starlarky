@@ -13,7 +13,7 @@
 // limitations under the License.
 package net.starlark.java.syntax;
 
-import java.nio.charset.StandardCharsets;
+import net.starlark.java.eval.StarlarkByte;
 
 /** Syntax node for a bytes literal. */
 public final class ByteLiteral extends Expression {
@@ -21,22 +21,24 @@ public final class ByteLiteral extends Expression {
   private final int startOffset;
   private final byte[] value;
   private final int endOffset;
+  private final String raw;
 
   ByteLiteral(FileLocations locs, int startOffset, String value, int endOffset) {
     super(locs);
     this.startOffset = startOffset;
-    // The Starlark spec defines text strings as sequences of UTF-k
-    // codes that encode Unicode code points. In this Java implementation,
-    // k=16, whereas in a Go implementation, k=8s. For portability,
-    // operations on strings should aim to avoid assumptions about
-    // the value of k.
-    this.value = value.getBytes(StandardCharsets.UTF_8);
+    this.raw = value;
+    this.value = StarlarkByte.UTF16toUTF8(value.toCharArray());
     this.endOffset = endOffset;
   }
 
   /** Returns the value denoted by the byte literal */
   public byte[] getValue() {
     return value;
+  }
+
+  /** Returns the raw source text of the literal. */
+  public String getRaw() {
+    return this.raw;
   }
 
   public Location getLocation() {

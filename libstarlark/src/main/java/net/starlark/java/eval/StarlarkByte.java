@@ -1,29 +1,20 @@
 package net.starlark.java.eval;
 
 import com.google.common.base.Ascii;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Range;
-import com.google.common.collect.Streams;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -31,139 +22,212 @@ import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.syntax.TokenKind;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import javax.annotation.Nonnull;
-
-public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparable<StarlarkByte>, Sequence<StarlarkInt>, HasBinary {
-
-  /**
-   * The Unicode replacement character inserted in place of decoding errors.
-   */
-  private static final char REPLACEMENT_CHAR = '\uFFFD';
-  private StarlarkList<StarlarkInt> delegate;
-  private final StarlarkThread currentThread;
-  private final Map<String, Object> fields = new HashMap<>();
+import javax.annotation.Nullable;
 
 
-  private StarlarkByte(Builder builder) throws EvalException {
-    currentThread = builder.currentThread;
-    setSequenceStorage(builder.sequence);
-    initFields();
-  }
+public class StarlarkByte extends AbstractList<StarlarkByte>
+  implements Sequence<StarlarkByte>, Comparable<StarlarkByte>, HasBinary, StarlarkValue {
 
-  private void initFields() {
-    fields.putAll(ImmutableMap.of(
-        "elems", new StarlarkCallable() {
-          @Override
-          public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
-            return elems();
-          }
+  // It's always possible to overeat in small bites but we'll
+  // try to stop someone swallowing the world in one gulp.
+  static final int MAX_ALLOC = 1 << 30;
+  private byte[] delegate;
 
-          @Override
-          public String getName() {
-            return "bytes.elems";
-          }
-        }
-    ));
-  }
+  private final Mutability mutability;
 
-  public StarlarkByteElems elems() {
-    return new StarlarkByteElems(this);
-  }
+  private static final byte[] EMPTY_ARRAY = new byte[]{};
 
+  static int HIGH_BYTE_SHIFT;
+  static int LOW_BYTE_SHIFT;
 
-  Sequence<StarlarkInt> getSequenceStorage() {
-    return this.delegate;
-  }
-
-  void setSequenceStorage(Sequence<StarlarkInt> store) {
-    delegate = StarlarkList.immutableCopyOf(store.getImmutableList());
-  }
-
-  public byte[] getBytes() {
-    return Bytes.toArray(this.getSequenceStorage().stream()
-            .map(StarlarkInt::toNumber)
-            .map(Number::byteValue)
-            .collect(Collectors.toList()));
-  }
-
-  @StarlarkMethod(name = "hex")
-  public String hex() {
-    return hexlify(getBytes());
-  }
-
-  @StarlarkMethod(
-      name = "decode",
-      parameters = {
-          @Param(name = "encoding", defaultValue = "'utf-8'"),
-          @Param(name ="errors", defaultValue = "'strict'")
-      })
-  public String decode(String encoding, String errors) throws EvalException {
-    CharsetDecoder decoder = Charset.forName(encoding)
-        .newDecoder()
-        .onMalformedInput(CodecHelper.convertCodingErrorAction(errors))
-        .onUnmappableCharacter(CodecHelper.convertCodingErrorAction(errors));
-    try {
-      return new String(
-          decoder.decode(
-              ByteBuffer.wrap(getBytes())
-          ).array());
-    } catch (CharacterCodingException e) {
-      throw Starlark.errorf(e.getMessage());
+  static {
+    if (ByteOrder.LITTLE_ENDIAN.equals(ByteOrder.nativeOrder())) {
+      HIGH_BYTE_SHIFT = 0;
+      LOW_BYTE_SHIFT = 8;
+    } else {
+      HIGH_BYTE_SHIFT = 8;
+      LOW_BYTE_SHIFT = 0;
     }
   }
 
-  public int[] getUnsignedBytes() {
-    return Bytes.asList(getBytes())
-        .stream()
-        .map(Byte::toUnsignedInt)
-        .mapToInt(i -> i)
-        .toArray();
+  private StarlarkByte(@Nullable Mutability mutability, byte[] elems) {
+    this.mutability = mutability == null ? Mutability.IMMUTABLE : mutability;
+    this.delegate = elems;
   }
 
-  public char[] toCharArray(Charset cs) {
-    CharBuffer charBuffer = cs.decode(ByteBuffer.wrap(getBytes()));
-    return Arrays.copyOf(charBuffer.array(), charBuffer.limit());
-  }
-
-  public char[] toCharArray() {
-    // this is the right default charset for char arrays
-    // specially in a password context
-    // see: https://stackoverflow.com/questions/8881291/why-is-char-preferred-over-string-for-passwords
-    // as well as: https://stackoverflow.com/a/9670279/133514
-    return toCharArray(StandardCharsets.ISO_8859_1);
+  /**
+   * Takes ownership of the supplied byte array and returns a new StarlarkByte instance that
+   * initially wraps the array. The caller must not subsequently modify the array, but the
+   * StarlarkByte instance may do so.
+   */
+  static StarlarkByte wrap(@Nullable Mutability mutability, byte[] elems) {
+    return new StarlarkByte(mutability, elems);
   }
 
   @Override
-  public StarlarkInt get(int index) {
-    return this.getSequenceStorage().get(index);
+  public boolean isImmutable() {
+    return true; // Starlark spec says that Byte is immutable
+  }
+
+  /**
+   * A shared instance for the empty immutable byte array.
+   */
+  private static final StarlarkByte EMPTY = wrap(Mutability.IMMUTABLE, EMPTY_ARRAY);
+
+  /**
+   * Returns an immutable instance backed by an empty byte array.
+   */
+  public static StarlarkByte empty() {
+    return EMPTY;
+  }
+
+  /**
+   * Returns a {@code StarlarkByte} whose items are given by an iterable of StarlarkInt and which
+   * has the given {@link Mutability}.
+   */
+  public static StarlarkByte copyOf(
+    @Nullable Mutability mutability, Iterable<StarlarkInt> elems) throws EvalException {
+    StarlarkInt[] arr = Iterables.toArray(elems, StarlarkInt.class);
+    byte[] array = new byte[arr.length];
+    for (int i = 0; i < arr.length; i++) {
+      if (arr[i].toIntUnchecked() >> Byte.SIZE != 0) {
+        throw Starlark.errorf("at index %d, %s out of range .want value" +
+                                " in unsigned 8-bit range", i, arr[i]);
+      }
+      array[i] = (byte) arr[i].toIntUnchecked();
+    }
+    return wrap(mutability, array);
+  }
+
+  private static void checkElemsValid(StarlarkInt[] elems) {
+    for (StarlarkInt elem : elems) {
+      UnsignedBytes.checkedCast(elem.toIntUnchecked());
+    }
+  }
+
+  /**
+   * Returns an immutable byte array with the given elements. Equivalent to {@code copyOf(null,
+   * elems)}.
+   */
+  public static StarlarkByte immutableCopyOf(Iterable<StarlarkInt> elems) throws EvalException {
+    return copyOf(null, elems);
+  }
+
+  /**
+   * Returns a {@code StarlarkByte} with the given items and the {@link Mutability}.
+   */
+  public static StarlarkByte of(@Nullable Mutability mutability, byte... elems) {
+    if (elems.length == 0) {
+      return wrap(mutability, EMPTY_ARRAY);
+    }
+
+    return wrap(mutability, elems);
+  }
+
+  /**
+   * Returns a {@code StarlarkByte} with the given items and the {@link Mutability}.
+   */
+  public static StarlarkByte of(@Nullable Mutability mutability, StarlarkInt... elems) {
+    if (elems.length == 0) {
+      return wrap(mutability, EMPTY_ARRAY);
+    }
+
+    checkElemsValid(elems);
+    byte[] arr = new byte[elems.length];
+    for (int i = 0; i < elems.length; i++) {
+      arr[i] = UnsignedBytes.checkedCast(elems[i].toIntUnchecked());
+    }
+    return wrap(mutability, arr);
+  }
+
+  /**
+   * Returns an immutable {@code StarlarkList} with the given items.
+   */
+  public static StarlarkByte immutableOf(StarlarkInt... elems) {
+    checkElemsValid(elems);
+    byte[] arr = new byte[elems.length];
+    for (int i = 0; i < elems.length; i++) {
+      arr[i] = UnsignedBytes.checkedCast(elems[i].toIntUnchecked());
+    }
+    return wrap(null, arr);
+  }
+
+  /**
+   * Returns a {@code StarlarkByte} with the given items and the {@link Mutability}.
+   */
+  public static StarlarkByte immutableOf(byte... elems) {
+    return wrap(null, elems);
+  }
+
+  /**
+   * Returns a {@code StarlarkByte} with the given items and the {@link Mutability}.
+   */
+  public static StarlarkByte immutableOf(char... elems) {
+    byte[] barr = UTF16toUTF8(elems);
+    return wrap(null, barr);
+  }
+
+  public byte[] getBytes() {
+    return delegate;
+  }
+
+  public int[] getUnsignedBytes() {
+    int[] arr = new int[delegate.length];
+    for (int i = 0; i < delegate.length; i++) {
+      arr[i] = Byte.toUnsignedInt(delegate[i]);
+    }
+    return arr;
+  }
+
+  @Override
+  public StarlarkByte get(int index) {
+    return StarlarkByte.of(mutability, this.delegate[index]); // can throw OutOfBounds
   }
 
   @Override
   public int hashCode() {
-    return FnvHash32.hash(this.getBytes());
+    // Fnv32 hash
+    byte[] input = this.getBytes();
+    if (input == null) {
+      return 0;
+    }
+
+    int hash = -2128831035;
+    for (byte b : input) {
+      hash ^= b;
+      hash *= (long) 16777619;
+    }
+    return hash;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof StarlarkByte)) {
+      return false;
+    }
+    if (this == o) {
+      return true;
+    }
+    return this.compareTo((StarlarkByte) o) == 0;
   }
 
   @Override
   public boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
     if (key instanceof StarlarkByte) {
-      // https://stackoverflow.com/a/32865087/133514
-      //noinspection unchecked
-      return -1 != Collections.indexOfSubList(getSequenceStorage(), (StarlarkByte) key);
+      return -1 != Bytes.indexOf(this.delegate, ((StarlarkByte) key).getBytes());
     } else if (key instanceof StarlarkInt) {
       StarlarkInt _key = ((StarlarkInt) key);
       if (!Range
-          .closed(0, 255)
-          .contains(_key.toIntUnchecked())) {
+             .closed(0, 255)
+             .contains(_key.toIntUnchecked())) {
         throw Starlark.errorf("int in bytes: %s out of range", _key);
       }
-      return contains(_key);
+      return -1 != Bytes.indexOf(this.delegate, (byte) ((StarlarkInt) key).toIntUnchecked());
     }
     //"requires bytes or int as left operand, not string"
     throw new EvalException(
-        String.format("requires bytes or int as left operand, not %s", Starlark.type(key))
+      String.format("requires bytes or int as left operand, not %s", Starlark.type(key))
     );
   }
 
@@ -180,39 +244,37 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
     byte[] result = new byte[length / 2];
     for (int i = 0; i < length; i += 2) {
       result[i / 2] = (byte) ((Character.digit(data.charAt(i), 16) << 4)
-          + Character.digit(data.charAt(i + 1), 16));
+                                + Character.digit(data.charAt(i + 1), 16));
     }
     return result;
   }
 
   protected StarlarkByte copy(byte[] bytes) throws EvalException {
-    if(bytes == null) {
+    if (bytes == null) {
       bytes = getBytes();
     }
-    return this.builder().setSequence(bytes).build();
+    return wrap(mutability, Arrays.copyOf(bytes, bytes.length));
   }
 
   @Override
   public int size() {
-    return getSequenceStorage().size();
+    return this.delegate.length;
   }
 
   @Override
-  public int compareTo(@NotNull StarlarkByte o) {
+  public int compareTo(@Nonnull StarlarkByte o) {
     return UnsignedBytes
-        .lexicographicalComparator()
-        .compare(getBytes(), o.getBytes());
+             .lexicographicalComparator()
+             .compare(getBytes(), o.getBytes());
   }
 
-
-  @Override
-  public boolean isImmutable() {
-    return true;
-  }
 
   @Override
   public void str(Printer printer) {
-    printer.append(StandardCharsets.UTF_8.decode(ByteBuffer.wrap(getBytes())));
+    //printer.append(starlarkStringTranscoding(getBytes()));
+    //String s = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(getBytes())).toString();
+    String s = UTF8toUTF16(getBytes(), 0, getBytes().length);
+    printer.append(s);
   }
 
   @Override
@@ -220,35 +282,127 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
 //    String s = decodeUTF8(getBytes(), getBytes().length);
 //    String s2 = String.format("b\"%s\"", s);
     printer.append(repr(getBytes()));
+
   }
 
   public static String repr(byte[] bytes) {
-    String s = decodeUTF8(bytes, bytes.length);
-    return String.format("b\"%s\"", s);
+    //    String s = decodeUTF8(bytes, bytes.length);
+    String s = UTF8toUTF16(bytes, 0, bytes.length);
+    StringBuilder b = new StringBuilder();
+    for (int i = 0; i < s.length(); i++) {
+      quote(b, s.codePointAt(i));
+    }
+    return String.format("b\"%s\"", b.toString());
   }
 
   @Override
-  public Sequence<StarlarkInt> getSlice(Mutability mu, int start, int stop, int step) {
-    StarlarkList<StarlarkInt> c = StarlarkList.copyOf(mu, new ArrayList<>(this.getSequenceStorage()));
+  public StarlarkByte getSlice(Mutability mu, int start, int stop, int step) {
+    RangeList indices = new RangeList(start, stop, step);
+    int n = indices.size();
+    byte[] res = new byte[n];
+    if (step == 1) { // common case
+      System.arraycopy(this.delegate, indices.at(0), res, 0, n);
+    } else {
+      for (int i = 0; i < n; ++i) {
+        res[i] = this.delegate[indices.at(i)];
+      }
+    }
+    return wrap(mu, res);
+  }
+
+  @StarlarkMethod(
+    name = "elems",
+    doc =
+      "Returns an iterable value containing successive 1-element byte of the underlying bytearray "
+        + "Equivalent to <code>[b[i] for i in range(len(b))]</code>, except that the "
+        + "returned value might not be a list.")
+  public StarlarkByteElems elems() {
+    return new StarlarkByteElems(this);
+  }
+
+  @StarlarkBuiltin(name = "bytes.elems")
+  public class StarlarkByteElems extends AbstractList<StarlarkInt>
+    implements Sequence<StarlarkInt> {
+
+    final private StarlarkByte bytes;
+
+    public StarlarkByteElems(StarlarkByte bytes) {
+      this.bytes = bytes;
+    }
+
+    // TODO(mahmoud): is this needed?
+    public byte[] getBytes() {
+      return bytes.getBytes();
+    }
+
+    @Override
+    public void repr(Printer printer) {
+      printer.append(
+        String.format("b\"%s\".elems()",
+          UTF8toUTF16(
+            this.bytes.getBytes(),
+            0,
+            this.bytes.getBytes().length
+          )));
+    }
+
+    @Override
+    public StarlarkInt get(int index) {
+      int[] bytes = this.bytes.get(index).getUnsignedBytes();
+      // guaranteed to be one entry per slice.
+      // an index on a byte array will return 1 byte
+      return StarlarkInt.of(bytes[0]); // so this is safe.
+    }
+
+    @Override
+    public int size() {
+      return this.bytes.size();
+    }
+
+    @Override
+    public Sequence<StarlarkInt> getSlice(Mutability mu, int start, int stop, int step) {
+      int[] unsignedBytes = this.bytes.getSlice(mu, start, stop, step).getUnsignedBytes();
+      StarlarkList<StarlarkInt> list = StarlarkList.newList(mutability);
+      for (int i : unsignedBytes) {
+        list.add(StarlarkInt.of(i));
+      }
+      return list;
+    }
+
+  }
+
+
+  @StarlarkMethod(name = "hex")
+  public String hex() {
+    return hexlify(getBytes());
+  }
+
+  @StarlarkMethod(
+    name = "decode",
+    parameters = {
+      @Param(name = "encoding", defaultValue = "'utf-8'"),
+      @Param(name = "errors", defaultValue = "'strict'")
+    })
+  public String decode(String encoding, String errors) throws EvalException {
+    CharsetDecoder decoder = Charset.forName(encoding)
+                               .newDecoder()
+                               .onMalformedInput(CodecHelper.convertCodingErrorAction(errors))
+                               .onUnmappableCharacter(CodecHelper.convertCodingErrorAction(errors));
     try {
-      return this.builder()
-          .setSequence(c.getSlice(mu, start, stop, step).stream()
-              .map(StarlarkInt::toIntUnchecked)
-              .map(Integer::byteValue)
-              .map(Byte::toUnsignedInt)
-              .mapToInt(i -> i)
-              .toArray()
-          ).build();
-    } catch (EvalException e) {
-      throw new RuntimeException(e.getMessage(), e.fillInStackTrace());
+      return new String(
+        decoder.decode(
+          ByteBuffer.wrap(getBytes())
+        ).array());
+    } catch (CharacterCodingException e) {
+      throw Starlark.errorf(e.getMessage());
     }
   }
 
   @StarlarkMethod(
-      name = "lower",
-      doc = "B.lower() -> copy of B\n" +
-          "\n" +
-          "Return a copy of B with all ASCII characters converted to lowercase.")
+    name = "lower",
+    doc = "B.lower() -> copy of B\n" +
+            "\n" +
+            "Return a copy of B with all ASCII characters converted to lowercase.")
   public StarlarkByte lower() throws EvalException {
     byte[] bytes = getBytes();
     for (int i = 0; i < bytes.length; i++) {
@@ -259,10 +413,10 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
   }
 
   @StarlarkMethod(
-      name = "upper",
-      doc = "B.upper() -> copy of B\n" +
-          "\n" +
-          "Return a copy of B with all ASCII characters converted to uppercase.")
+    name = "upper",
+    doc = "B.upper() -> copy of B\n" +
+            "\n" +
+            "Return a copy of B with all ASCII characters converted to uppercase.")
   public StarlarkByte upper() throws EvalException {
     byte[] bytes = getBytes();
     for (int i = 0; i < bytes.length; i++) {
@@ -273,39 +427,39 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
   }
 
   @StarlarkMethod(
-      name = "split",
-      doc = "" +
-          "Return a list of the sections in the bytes, using sep as the delimiter.\n" +
-          "\n" +
-          "sep\n" +
-          "  The delimiter according which to split the bytes.\n" +
-          "  None (the default value) means split on ASCII whitespace characters\n" +
-          "  (space, tab, return, newline, formfeed, vertical tab).\n" +
-          "maxsplit\n" +
-          "  Maximum number of splits to do.\n" +
-          "  -1 (the default value) means no limit.",
-      parameters = {
-          @Param(name = "bytes", doc = "The bytes to split on.", allowedTypes = {
-              @ParamType(type=StarlarkByte.class),
-              @ParamType(type=NoneType.class)
-          }, defaultValue="None"),
-          @Param(
-            name = "maxsplit",
-            allowedTypes = {
-              @ParamType(type = StarlarkInt.class),
-              @ParamType(type = NoneType.class),
-            },
-            defaultValue = "None",
-            doc = "The maximum number of splits.")
-      },
-      useStarlarkThread = true)
-   public StarlarkList<StarlarkByte> split(Object bytesO, Object maxSplitO, StarlarkThread thread) throws EvalException {
+    name = "split",
+    doc = "" +
+            "Return a list of the sections in the bytes, using sep as the delimiter.\n" +
+            "\n" +
+            "sep\n" +
+            "  The delimiter according which to split the bytes.\n" +
+            "  None (the default value) means split on ASCII whitespace characters\n" +
+            "  (space, tab, return, newline, formfeed, vertical tab).\n" +
+            "maxsplit\n" +
+            "  Maximum number of splits to do.\n" +
+            "  -1 (the default value) means no limit.",
+    parameters = {
+      @Param(name = "bytes", doc = "The bytes to split on.", allowedTypes = {
+        @ParamType(type = StarlarkByte.class),
+        @ParamType(type = NoneType.class)
+      }, defaultValue = "None"),
+      @Param(
+        name = "maxsplit",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = NoneType.class),
+        },
+        defaultValue = "None",
+        doc = "The maximum number of splits.")
+    },
+    useStarlarkThread = true)
+  public StarlarkList<StarlarkByte> split(Object bytesO, Object maxSplitO, StarlarkThread thread) throws EvalException {
     int maxSplit = Integer.MAX_VALUE;
     if (maxSplitO != Starlark.NONE) {
       maxSplit = Starlark.toInt(maxSplitO, "maxsplit");
     }
     List<byte[]> split;
-    if(Starlark.isNullOrNone(bytesO)) {
+    if (Starlark.isNullOrNone(bytesO)) {
       split = StarlarkByteUtils.splitOnWhitespace(this.getBytes(), StarlarkByteUtils.LATIN1_WHITESPACE);
     } else {
       split = StarlarkByteUtils.split(this.getBytes(), 0, this.size(), ((StarlarkByte) bytesO).getBytes());
@@ -313,15 +467,13 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
 
     StarlarkList<StarlarkByte> res = StarlarkList.newList(thread.mutability());
 
-    if(maxSplit < split.size()) {
+    if (maxSplit < split.size()) {
       for (int i = 0; i < maxSplit; i++) {
-        res.addElement(this.builder().setSequence(split.get(i)).build());
+        res.addElement(wrap(thread.mutability(), split.get(i)));
       }
-    }
-
-    else {
+    } else {
       for (byte[] i : split) {
-        res.addElement(this.builder().setSequence(i).build());
+        res.addElement(wrap(thread.mutability(), i));
       }
     }
     return res;
@@ -329,35 +481,35 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
 
 
   @StarlarkMethod(
-      name = "lstrip",
-      parameters = {
-          @Param(
-              name = "bytes",
-              allowedTypes = {
-                  @ParamType(type = StarlarkByte.class),
-                  @ParamType(type = NoneType.class),
-              },
-              defaultValue = "None")
-      })
+    name = "lstrip",
+    parameters = {
+      @Param(
+        name = "bytes",
+        allowedTypes = {
+          @ParamType(type = StarlarkByte.class),
+          @ParamType(type = NoneType.class),
+        },
+        defaultValue = "None")
+    })
   public StarlarkByte lstrip(Object bytesOrNone) throws EvalException {
     byte[] pattern = bytesOrNone != Starlark.NONE ? ((StarlarkByte) bytesOrNone).getBytes() : StarlarkByteUtils.LATIN1_WHITESPACE;
     byte[] replaced = StarlarkByteUtils.lstrip(this.getBytes(), pattern);
     //return stringLStrip(self, chars);
-    return this.builder().setSequence(replaced).build();
+    return wrap(null, replaced);
   }
 
   @StarlarkMethod(
-      name = "join",
-      doc = "Concatenate any number of bytes objects.\n" +
-          "\n" +
-          "The bytes whose method is called is inserted in between each pair.\n" +
-          "\n" +
-          "The result is returned as a new bytes object.\n" +
-          "\n" +
-          "Example: b'.'.join([b'ab', b'pq', b'rs']) -> b'ab.pq.rs'.\n",
-      parameters = {
-          @Param(name = "iterable_of_bytes", doc = "The bytes to join,")
-      })
+    name = "join",
+    doc = "Concatenate any number of bytes objects.\n" +
+            "\n" +
+            "The bytes whose method is called is inserted in between each pair.\n" +
+            "\n" +
+            "The result is returned as a new bytes object.\n" +
+            "\n" +
+            "Example: b'.'.join([b'ab', b'pq', b'rs']) -> b'ab.pq.rs'.\n",
+    parameters = {
+      @Param(name = "iterable_of_bytes", doc = "The bytes to join,")
+    })
   public StarlarkByte join(Object elements) throws EvalException {
     Iterable<?> items = Starlark.toIterable(elements);
     int i = 0;
@@ -365,49 +517,49 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
     for (Object item : items) {
       if (!(item instanceof StarlarkByte)) {
         throw Starlark.errorf(
-            "expected bytes for sequence element %d, got '%s'", i, Starlark.type(item));
+          "expected bytes for sequence element %d, got '%s'", i, Starlark.type(item));
       }
       parts.add(((StarlarkByte) item).getBytes());
       i++;
     }
     byte[] joined = StarlarkByteUtils.join(getBytes(), parts);
-    return builder().setSequence(joined).build();
+    return wrap(null, joined);
   }
 
 
   @StarlarkMethod(
-      name = "endswith",
-      doc = "B.endswith(suffix[, start[, end]]) -> bool\n" +
-          "\n" +
-          "Return True if B ends with the specified suffix, False otherwise.\n" +
-          "With optional start, test B beginning at that position.\n" +
-          "With optional end, stop comparing B at that position.\n" +
-          "suffix can also be a tuple of bytes to try.\n.",
-      parameters = {
-          @Param(
-              name = "suffix",
-              allowedTypes = {
-                  @ParamType(type = StarlarkByte.class),
-                  @ParamType(type = Tuple.class, generic1 = StarlarkByte.class),
-              },
-              doc = "The suffix (or tuple of alternative suffixes) to match."),
-          @Param(
-              name = "start",
-              allowedTypes = {
-                  @ParamType(type = StarlarkInt.class),
-                  @ParamType(type = NoneType.class),
-              },
-              defaultValue = "0",
-              doc = "Test beginning at this position."),
-          @Param(
-              name = "end",
-              allowedTypes = {
-                  @ParamType(type = StarlarkInt.class),
-                  @ParamType(type = NoneType.class),
-              },
-              defaultValue = "None",
-              doc = "optional position at which to stop comparing.")
-      })
+    name = "endswith",
+    doc = "B.endswith(suffix[, start[, end]]) -> bool\n" +
+            "\n" +
+            "Return True if B ends with the specified suffix, False otherwise.\n" +
+            "With optional start, test B beginning at that position.\n" +
+            "With optional end, stop comparing B at that position.\n" +
+            "suffix can also be a tuple of bytes to try.\n.",
+    parameters = {
+      @Param(
+        name = "suffix",
+        allowedTypes = {
+          @ParamType(type = StarlarkByte.class),
+          @ParamType(type = Tuple.class, generic1 = StarlarkByte.class),
+        },
+        doc = "The suffix (or tuple of alternative suffixes) to match."),
+      @Param(
+        name = "start",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = NoneType.class),
+        },
+        defaultValue = "0",
+        doc = "Test beginning at this position."),
+      @Param(
+        name = "end",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = NoneType.class),
+        },
+        defaultValue = "None",
+        doc = "optional position at which to stop comparing.")
+    })
   public boolean endsWith(Object suffix, Object start, Object end) throws EvalException {
     long indices = subsequenceIndices(this.getBytes(), start, end);
     if (suffix instanceof StarlarkByte) {
@@ -425,45 +577,45 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
   private boolean byteArrayEndsWith(int start, int end, byte[] suffix) {
     int n = suffix.length;
     return start + n <= end && StarlarkByteUtils.endsWith(
-        this.getBytes(), end - n, suffix, 0, n
+      this.getBytes(), end - n, suffix, 0, n
     );
   }
 
   @StarlarkMethod(
-      name = "startswith",
-      doc = "B.startswith(prefix[, start[, end]]) -> bool\n" +
-          "\n" +
-          "Return True if B starts with the specified prefix, False otherwise.\n" +
-          "With optional start, test B beginning at that position.\n" +
-          "With optional end, stop comparing B at that position.\n" +
-          "prefix can also be a tuple of bytes to try.\n",
-      parameters = {
-          @Param(
-              name = "prefix",
-              allowedTypes = {
-                  @ParamType(type = StarlarkByte.class),
-                  @ParamType(type = Tuple.class, generic1 = StarlarkByte.class),
-              },
-              doc = "The prefix (or tuple of alternative prefixes) to match."),
-          @Param(
-              name = "start",
-              allowedTypes = {
-                  @ParamType(type = StarlarkInt.class),
-                  @ParamType(type = NoneType.class),
-              },
-              defaultValue = "0",
-              doc = "Test beginning at this position."),
-          @Param(
-              name = "end",
-              allowedTypes = {
-                  @ParamType(type = StarlarkInt.class),
-                  @ParamType(type = NoneType.class),
-              },
-              defaultValue = "None",
-              doc = "Stop comparing at this position.")
-      })
+    name = "startswith",
+    doc = "B.startswith(prefix[, start[, end]]) -> bool\n" +
+            "\n" +
+            "Return True if B starts with the specified prefix, False otherwise.\n" +
+            "With optional start, test B beginning at that position.\n" +
+            "With optional end, stop comparing B at that position.\n" +
+            "prefix can also be a tuple of bytes to try.\n",
+    parameters = {
+      @Param(
+        name = "prefix",
+        allowedTypes = {
+          @ParamType(type = StarlarkByte.class),
+          @ParamType(type = Tuple.class, generic1 = StarlarkByte.class),
+        },
+        doc = "The prefix (or tuple of alternative prefixes) to match."),
+      @Param(
+        name = "start",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = NoneType.class),
+        },
+        defaultValue = "0",
+        doc = "Test beginning at this position."),
+      @Param(
+        name = "end",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = NoneType.class),
+        },
+        defaultValue = "None",
+        doc = "Stop comparing at this position.")
+    })
   public boolean startsWith(Object sub, Object start, Object end)
-      throws EvalException {
+    throws EvalException {
 
     long indices = subsequenceIndices(this.getBytes(), start, end);
     if (sub instanceof StarlarkByte) {
@@ -483,37 +635,37 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
   }
 
   @StarlarkMethod(
-      name = "rfind",
-      doc =
-          "Return the highest index in the sequence where the subsequence sub is found, " +
-              "such that sub is contained within s[start:end]. " +
-              "Optional arguments start and end are interpreted as in slice notation. " +
-              "Return -1 on failure.\n" +
-              "\n" +
-              "The subsequence to search for may be any bytes-like object or an integer in " +
-              "the range 0 to 255.",
-      parameters = {
-          @Param(name = "sub", allowedTypes = {
-              @ParamType(type = StarlarkInt.class),
-              @ParamType(type = StarlarkByte.class),
-          }),
-          @Param(
-              name = "start",
-              allowedTypes = {
-                  @ParamType(type = StarlarkInt.class),
-                  @ParamType(type = NoneType.class),
-              },
-              defaultValue = "0",
-              doc = "Restrict to search from this position."),
-          @Param(
-              name = "end",
-              allowedTypes = {
-                  @ParamType(type = StarlarkInt.class),
-                  @ParamType(type = NoneType.class),
-              },
-              defaultValue = "None",
-              doc = "optional position before which to restrict to search.")
-      })
+    name = "rfind",
+    doc =
+      "Return the highest index in the sequence where the subsequence sub is found, " +
+        "such that sub is contained within s[start:end]. " +
+        "Optional arguments start and end are interpreted as in slice notation. " +
+        "Return -1 on failure.\n" +
+        "\n" +
+        "The subsequence to search for may be any bytes-like object or an integer in " +
+        "the range 0 to 255.",
+    parameters = {
+      @Param(name = "sub", allowedTypes = {
+        @ParamType(type = StarlarkInt.class),
+        @ParamType(type = StarlarkByte.class),
+      }),
+      @Param(
+        name = "start",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = NoneType.class),
+        },
+        defaultValue = "0",
+        doc = "Restrict to search from this position."),
+      @Param(
+        name = "end",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = NoneType.class),
+        },
+        defaultValue = "None",
+        doc = "optional position before which to restrict to search.")
+    })
   public int rfind(Object sub, Object start, Object end) throws EvalException {
     if (sub instanceof StarlarkInt) {
       byte b = UnsignedBytes.checkedCast(((StarlarkInt) sub).toIntUnchecked());
@@ -537,12 +689,32 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
   }
 
   /**
+   * Returns a new StarlarkByte containing n consecutive repeats of this byte array.
+   */
+  public StarlarkByte repeat(StarlarkInt n, Mutability mutability) throws EvalException {
+    if (n.signum() <= 0) {
+      return wrap(mutability, EMPTY_ARRAY);
+    }
+
+    int ni = n.toInt("repeat");
+    long sz = (long) ni * delegate.length;
+    if (sz > MAX_ALLOC) {
+      throw Starlark.errorf("excessive repeat (%d * %d elements)", delegate.length, ni);
+    }
+    byte[] res = new byte[(int) sz];
+    for (int i = 0; i < ni; i++) {
+      System.arraycopy(delegate, 0, res, i * delegate.length, delegate.length);
+    }
+    return wrap(mutability, res);
+  }
+
+  /**
    * Common implementation for find, rfind, index, rindex.
    *
    * @param forward true if we want to return the last matching index.
    */
   private static int byteSequenceFind(boolean forward, byte[] self, byte[] sub, Object start, Object end)
-      throws EvalException {
+    throws EvalException {
     long indices = subsequenceIndices(self, start, end);
     // Unfortunately Java forces us to allocate here, even though
     // String has a private indexOf method that accepts indices.
@@ -550,8 +722,8 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
     byte[] subRange = Arrays.copyOfRange(self, lo(indices), hi(indices));
     int subpos = forward ? Bytes.indexOf(subRange, sub) : lastIndexOf(subRange, sub, lo(indices), hi(indices));
     return subpos < 0
-        ? subpos //
-        : subpos + lo(indices);
+             ? subpos //
+             : subpos + lo(indices);
   }
 
   // Returns the byte array denoted by byte[start:end], which is never out of bounds.
@@ -609,441 +781,331 @@ public class StarlarkByte extends AbstractList<StarlarkInt> implements Comparabl
   @Nullable
   @Override
   public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
-    return null;
+    switch (op) {
+      case STAR:
+        if (that instanceof StarlarkInt) {
+          return repeat((StarlarkInt) that, this.mutability);
+        }
+      default:
+        // unsupported binary operation!
+        return null;
+    }
   }
 
-
-  public interface ByteLikeBuilder {
-
-    default ByteLikeBuilder setSequence(byte[] buf) throws EvalException {
-      return setSequence(ByteBuffer.wrap(buf));
-    }
-
-    default ByteLikeBuilder setSequence(byte[] buf, int off, int ending) throws EvalException {
-      return setSequence(ByteBuffer.wrap(buf, off, ending));
-    }
-
-    default ByteLikeBuilder setSequence(@Nonnull CharSequence string) throws EvalException {
-      return setSequence(string.chars().toArray());
-    }
-
-    default ByteLikeBuilder setSequence(ByteBuffer buf) throws EvalException {
-      int[] arr = new int[buf.remaining()];
-      for (int i = 0; i < arr.length; i++) {
-        arr[i] = Byte.toUnsignedInt(buf.get(i));
-      }
-      return setSequence(arr);
-    }
-
-    default ByteLikeBuilder setSequence(int[] iterable_of_ints) throws EvalException {
-      StarlarkList<StarlarkInt> collect = StarlarkList.immutableCopyOf(
-          IntStream.of(iterable_of_ints)
-              .mapToObj(StarlarkInt::of)
-              .collect(Collectors.toList()));
-      setSequence(collect);
-      return this;
-    }
-
-    ByteLikeBuilder setSequence(@Nonnull Sequence<?> seq) throws EvalException;
-
-    StarlarkByte build() throws EvalException;
-  }
-
-
-  public static class Builder implements ByteLikeBuilder {
-     // required parameters
-     private final StarlarkThread currentThread;
-     private Sequence<StarlarkInt> sequence;
-
-     private Builder(StarlarkThread currentThread) {
-          this.currentThread = currentThread;
-      }
-
-     public Builder setSequence(@Nonnull Sequence<?> seq) throws EvalException {
-       try {
-         sequence = StarlarkList.immutableCopyOf(
-             Sequence.cast(seq, StarlarkInt.class, "could not cast!")
-             .stream()
-             .mapToInt(StarlarkInt::toIntUnchecked)
-             .map(UnsignedBytes::checkedCast)
-             .mapToObj(Number.class::cast)
-             .map(Number::byteValue)
-             .map(Byte::toUnsignedInt)
-             .map(StarlarkInt::of)
-             .collect(Collectors.toList()));
-       }catch(IllegalArgumentException e) {
-         throw Starlark.errorf("%s, want value in unsigned 8-bit range", e.getMessage());
-       }
-        return this;
-    }
-
-    @Override
-    public StarlarkByte build() throws EvalException {
-         return new StarlarkByte(this);
-     }
-
-   }
-
-  protected ByteLikeBuilder builder() {
-    return builder(this.currentThread);
-  }
-
-  protected static ByteLikeBuilder builder(StarlarkThread thread) {
-    return new Builder(thread);
-  }
 
   static class BinaryOperations {
 
     /**
-     * Attempts to multiply a StarlarkByte type by an integer. The caller is responsible for
-     * casting to the appropriate sub-type.
+     * Attempts to multiply a StarlarkByte type by an integer. The caller is responsible for casting
+     * to the appropriate sub-type.
      */
-    static public StarlarkByte multiply(StarlarkByte target, Integer num) throws EvalException {
-      List<Sequence<StarlarkInt>> copies = Collections.nCopies(num, target.getSequenceStorage());
-      Iterable<StarlarkInt> joined = Iterables.concat(copies);
-      byte[] bytes = Bytes.toArray(
-          Streams.stream(joined)
-              .map(StarlarkInt::toNumber)
-              .collect(Collectors.toList())
-      );
-      return target.builder().setSequence(bytes).build();
+    static public StarlarkByte multiply(StarlarkByte target, Integer n) throws EvalException {
+      return target.repeat(StarlarkInt.of(n.intValue()), null);
     }
 
     /**
      * Add right to left (i.e. [1] + [2] = [1, 2])
-     * @return
      */
     static public StarlarkByte add(Object left, Object right) throws EvalException {
       StarlarkByte left_ = toStarlarkByte(left);
       StarlarkByte right_ = toStarlarkByte(right);
 
-      StarlarkList<StarlarkInt> seq;
-      seq = StarlarkList.concat(
-          StarlarkList.immutableCopyOf(left_.getSequenceStorage().getImmutableList()),
-          StarlarkList.immutableCopyOf(right_.getSequenceStorage().getImmutableList()),
-          null);
-      return left_.builder().setSequence(seq).build();
+      byte[] seq = Bytes.concat(left_.getBytes(), right_.getBytes());
+      return wrap(null, seq);
     }
 
     private static StarlarkByte toStarlarkByte(Object item) throws EvalException {
-      if(item instanceof StarlarkList) {
+      if (item instanceof StarlarkList) {
         Sequence<StarlarkInt> cast = Sequence.cast(
-            item,
-            StarlarkInt.class,
-            "Attempted to add list of non-Integer type to a bytearray");
-        return builder(null).setSequence(cast).build();
+          item,
+          StarlarkInt.class,
+          "Attempted to add list of non-Integer type to a bytearray");
+        return StarlarkByte.copyOf(null, cast);
       }
       return (StarlarkByte) item;
     }
   }
 
-  private static class FnvHash32 {
-    private FnvHash32() {}
-
-       /**
-        * Length of the hash is 32-bits (4-bytes), {@value}.
-        */
-       private static final int LENGTH = 4;
-
-       /**
-        * Default FNV-1 seed, {@value} == (signed) 2166136261
-        */
-       private static final int DEFAULT_SEED_INT = -2128831035;
-
-       /**
-        * Byte representation of DEFAULT_SEED_INT
-        */
-       protected static final byte[] DEFAULT_SEED = (BigInteger
-           .valueOf(DEFAULT_SEED_INT)
-           .toByteArray());
-
-       /**
-        * Default FNV-1 prime, {@value}.
-        */
-       public static final long DEFAULT_PRIME = 16777619;
-
-       /**
-        * FNV-1a 32-bit hash function
-        *
-        * @param input Input to hash
-        * @return 32-bit FNV-1a hash
-        */
-       public static int hash(byte[] input) {
-         return hash(input, DEFAULT_SEED_INT);
-       }
-
-       /**
-        * FNV-1a 32-bit hash function
-        *
-        * @param input Input to hash
-        * @param seed  Seed to use as the offset
-        * @return 32-bit FNV-1a hash
-        */
-       public static int hash(byte[] input, int seed) {
-         if (input == null) {
-           return 0;
-         }
-
-         int hash = seed;
-         for (byte b : input) {
-           hash ^= b;
-           hash *= DEFAULT_PRIME;
-         }
-         return hash;
-       }
-  }
-
   private static class CodecHelper {
-      public static final String STRICT = "strict";
-      public static final String IGNORE = "ignore";
-      public static final String REPLACE = "replace";
-      public static final String BACKSLASHREPLACE = "backslashreplace";
-      public static final String NAMEREPLACE = "namereplace";
-      public static final String XMLCHARREFREPLACE = "xmlcharrefreplace";
-      public static final String SURROGATEESCAPE = "surrogateescape";
-      public static final String SURROGATEPASS = "surrogatepass";
+    public static final String STRICT = "strict";
+    public static final String IGNORE = "ignore";
+    public static final String REPLACE = "replace";
+    public static final String BACKSLASHREPLACE = "backslashreplace";
+    public static final String NAMEREPLACE = "namereplace";
+    public static final String XMLCHARREFREPLACE = "xmlcharrefreplace";
+    public static final String SURROGATEESCAPE = "surrogateescape";
+    public static final String SURROGATEPASS = "surrogatepass";
 
-      public static CodingErrorAction convertCodingErrorAction(String errors) {
-        CodingErrorAction errorAction;
-        switch (errors) {
-          case IGNORE:
-            errorAction = CodingErrorAction.IGNORE;
-            break;
-          case REPLACE:
-          case NAMEREPLACE:
-            errorAction = CodingErrorAction.REPLACE;
-            break;
-          case STRICT:
-          case BACKSLASHREPLACE:
-          case SURROGATEPASS:
-          case SURROGATEESCAPE:
-          case XMLCHARREFREPLACE:
-          default:
-            errorAction = CodingErrorAction.REPORT;
-            break;
-        }
-        return errorAction;
+    public static CodingErrorAction convertCodingErrorAction(String errors) {
+      CodingErrorAction errorAction;
+      switch (errors) {
+        case IGNORE:
+          errorAction = CodingErrorAction.IGNORE;
+          break;
+        case REPLACE:
+        case NAMEREPLACE:
+          errorAction = CodingErrorAction.REPLACE;
+          break;
+        case STRICT:
+        case BACKSLASHREPLACE:
+        case SURROGATEPASS:
+        case SURROGATEESCAPE:
+        case XMLCHARREFREPLACE:
+        default:
+          errorAction = CodingErrorAction.REPORT;
+          break;
       }
-
+      return errorAction;
     }
 
-  @StarlarkBuiltin(name = "bytes.elems")
-  public class StarlarkByteElems extends AbstractList<StarlarkInt> implements Sequence<StarlarkInt> {
-
-    final private StarlarkByte byteArray;
-
-    public StarlarkByteElems(StarlarkByte byteArray) {
-      this.byteArray = byteArray;
-    }
-
-    public byte[] getBytes() {
-      return getLarkyByteArr().getBytes();
-    }
-
-    public StarlarkByte getLarkyByteArr() {
-      return byteArray;
-    }
-
-    @Override
-    public void repr(Printer printer) {
-      printer.append(
-          String.format("b'\"%s\".elems()'",
-              decodeUTF8(
-                  this.byteArray.getBytes(),
-                  this.byteArray.getBytes().length
-              )));
-    }
-
-    @Override
-    public StarlarkInt get(int index) {
-      return this.byteArray.get(index);
-    }
-
-    @Override
-    public int size() {
-      return this.byteArray.size();
-    }
-
-    @Override
-    public Sequence<StarlarkInt> getSlice(Mutability mu, int start, int stop, int step) {
-      return this.byteArray.getSlice(mu, start, stop, step);
-    }
   }
 
   /**
-     * Returns a String for the UTF-8 encoded byte sequence in <code>bytes[0..len-1]</code>. The
-     * length of the resulting String will be the exact number of characters encoded by these bytes.
-     * Since UTF-8 is a variable-length encoding, the resulting String may have a length anywhere from
-     * len/3 to len, depending on the contents of the input array.<p>
-     *
-     * In the event of a bad encoding, the UTF-8 replacement character (code point U+FFFD) is inserted
-     * for the bad byte(s), and decoding resumes from the next byte.
-     */
-    /*test*/
-    public static String decodeUTF8(byte[] bytes, int len) {
-      char[] res = new char[len];
-      int cIx = 0;
-      for (int bIx = 0; bIx < len; cIx++) {
-        byte b1 = bytes[bIx];
-        if ((b1 & 0x80) == 0) {
-          // 1-byte sequence (U+0000 - U+007F)
-          res[cIx] = (char) b1;
-          bIx++;
-        } else if ((b1 & 0xE0) == 0xC0) {
-          // 2-byte sequence (U+0080 - U+07FF)
-          byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
-          if ((b2 & 0xC0) == 0x80) {
-            res[cIx] = (char) (((b1 & 0x1F) << 6) | (b2 & 0x3F));
-            bIx += 2;
-          } else {
-            // illegal 2nd byte
-            res[cIx] = REPLACEMENT_CHAR;
-            bIx++; // skip 1st byte
-          }
-        } else if ((b1 & 0xF0) == 0xE0) {
-          // 3-byte sequence (U+0800 - U+FFFF)
-          byte b2 = (bIx + 1 < len) ? bytes[bIx + 1] : 0; // early end of array
-          if ((b2 & 0xC0) == 0x80) {
-            byte b3 = (bIx + 2 < len) ? bytes[bIx + 2] : 0; // early end of array
-            if ((b3 & 0xC0) == 0x80) {
-              res[cIx] = (char) (((b1 & 0x0F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F));
-              bIx += 3;
-            } else {
-              // illegal 3rd byte
-              res[cIx] = REPLACEMENT_CHAR;
-              bIx += 2; // skip 1st TWO bytes
-            }
-          } else {
-            // illegal 2nd byte
-            res[cIx] = REPLACEMENT_CHAR;
-            bIx++; // skip 1st byte
-          }
-        } else {
-          // illegal 1st byte
-          res[cIx] = REPLACEMENT_CHAR;
-          bIx++; // skip 1st byte
-        }
-      }
-      return new String(res, 0, cIx);
-    }
+   * The Unicode replacement character inserted in place of decoding errors.
+   */
+  private static final char REPLACEMENT_CHAR = '\uFFFD';
+
+  static final int[] TABLE_UTF8_NEEDED = new int[]{
+    //      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+    0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 0xc0 - 0xcf
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 0xd0 - 0xdf
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, // 0xe0 - 0xef
+    3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xf0 - 0xff
+  };
 
   /**
-     * Magic numbers for UTF-8. These are the number of bytes that <em>follow</em> a given lead byte.
-     * Trailing bytes have the value -1. The values 4 and 5 are presented in this table, even though
-     * valid UTF-8 cannot include the five and six byte sequences.
-     */
-    static final int[] bytesFromUTF8 =
-        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0,
-            // trail bytes
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3,
-            3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5};
+    * Returns a String for the UTF-8 encoded byte sequence in <code>bytes[0..len-1]</code>. The
+    * length of the resulting String will be the exact number of characters encoded by these bytes.
+    * Since UTF-8 is a variable-length encoding, the resulting String may have a length anywhere from
+    * len/3 to len, depending on the contents of the input array.<p>
+    *
+    * In the event of a bad encoding, the UTF-8 replacement character (code point U+FFFD) is inserted
+    * for the bad byte(s), and decoding resumes from the next byte.
+   */
+  static public String UTF8toUTF16(byte[] data, int offset, int byteCount) {
+    if ((offset | byteCount) < 0 || byteCount > data.length - offset) {
+      throw new RuntimeException("index out of bound: " + data.length + " " + offset + " " + byteCount);
+    }
+    char[] value;
+    int length;
+    byte[] d = data;
+    char[] v = new char[byteCount];
 
-    static final int[] offsetsFromUTF8 =
-        {0x00000000, 0x00003080, 0x000E2080, 0x03C82080, 0xFA082080, 0x82082080};
+    int idx = offset;
+    int last = offset + byteCount;
+    int s = 0;
 
-    /**
-     * Returns the next code point at the current position in the buffer. The buffer's position will
-     * be incremented. Any mark set on this buffer will be changed by this method!
-     *
-     * @param bytes the incoming bytes
-     * @return the corresponding unicode codepoint
-     */
-    static public int bytesToCodePoint(ByteBuffer bytes) {
-      bytes.mark();
-      byte b = bytes.get();
-      bytes.reset();
-      int extraBytesToRead = bytesFromUTF8[(b & 0xFF)];
-      if (extraBytesToRead < 0) {
-        return -1; // trailing byte!
+    int codePoint = 0;
+    int utf8BytesSeen = 0;
+    int utf8BytesNeeded = 0;
+    int lowerBound = 0x80;
+    int upperBound = 0xbf;
+
+    while (idx < last) {
+      int b = d[idx++] & 0xff;
+      if (utf8BytesNeeded == 0) {
+        if ((b & 0x80) == 0) { // ASCII char. 0xxxxxxx
+          v[s++] = (char) b;
+          continue;
+        }
+
+        if ((b & 0x40) == 0) { // 10xxxxxx is illegal as first byte
+          v[s++] = REPLACEMENT_CHAR;
+          continue;
+        }
+
+        // 11xxxxxx
+        int tableLookupIndex = b & 0x3f;
+        utf8BytesNeeded = TABLE_UTF8_NEEDED[tableLookupIndex];
+        if (utf8BytesNeeded == 0) {
+          v[s++] = REPLACEMENT_CHAR;
+          continue;
+        }
+
+        // utf8BytesNeeded
+        // 1: b & 0x1f
+        // 2: b & 0x0f
+        // 3: b & 0x07
+        codePoint = b & (0x3f >> utf8BytesNeeded);
+        if (b == 0xe0) {
+          lowerBound = 0xa0;
+        } else if (b == 0xed) {
+          upperBound = 0x9f;
+        } else if (b == 0xf0) {
+          lowerBound = 0x90;
+        } else if (b == 0xf4) {
+          upperBound = 0x8f;
+        }
+      } else {
+        if (b < lowerBound || b > upperBound) {
+          // The bytes seen are ill-formed. Substitute them with U+FFFD
+          v[s++] = REPLACEMENT_CHAR;
+          codePoint = 0;
+          utf8BytesNeeded = 0;
+          utf8BytesSeen = 0;
+          lowerBound = 0x80;
+          upperBound = 0xbf;
+          /*
+           * According to the Unicode Standard,
+           * "a UTF-8 conversion process is required to never consume well-formed
+           * subsequences as part of its error handling for ill-formed subsequences"
+           * The current byte could be part of well-formed subsequences. Reduce the
+           * index by 1 to parse it in next loop.
+           */
+          idx--;
+          continue;
+        }
+
+        lowerBound = 0x80;
+        upperBound = 0xbf;
+        codePoint = (codePoint << 6) | (b & 0x3f);
+        utf8BytesSeen++;
+        if (utf8BytesNeeded != utf8BytesSeen) {
+          continue;
+        }
+
+        // Encode chars from U+10000 up as surrogate pairs
+        if (codePoint < 0x10000) {
+          v[s++] = (char) codePoint;
+        } else {
+          v[s++] = (char) ((codePoint >> 10) + 0xd7c0);
+          v[s++] = (char) ((codePoint & 0x3ff) + 0xdc00);
+        }
+
+        utf8BytesSeen = 0;
+        utf8BytesNeeded = 0;
+        codePoint = 0;
       }
-      int ch = 0;
-
-      switch (extraBytesToRead) {
-        case 5:
-          ch += (bytes.get() & 0xFF);
-          ch <<= 6; /* remember, illegal UTF-8 */
-          // fall through
-        case 4:
-          ch += (bytes.get() & 0xFF);
-          ch <<= 6; /* remember, illegal UTF-8 */
-          // fall through
-        case 3:
-          ch += (bytes.get() & 0xFF);
-          ch <<= 6;
-          // fall through
-        case 2:
-          ch += (bytes.get() & 0xFF);
-          ch <<= 6;
-          // fall through
-        case 1:
-          ch += (bytes.get() & 0xFF);
-          ch <<= 6;
-          // fall through
-        case 0:
-          ch += (bytes.get() & 0xFF);
-          break;
-        default: // do nothing
-      }
-      ch -= offsetsFromUTF8[extraBytesToRead];
-
-      return ch;
     }
 
-  // Returns the Java UTF-16 string containing the single rune |r|.
-    public static String runeToString(int r) {
-      char c = (char) r;
-      return r == c ? String.valueOf(c) : new String(Character.toChars(c));
+    // The bytes seen are ill-formed. Substitute them by U+FFFD
+    if (utf8BytesNeeded != 0) {
+      v[s++] = REPLACEMENT_CHAR;
     }
 
-  public static String starlarkStringTranscoding(byte[] bytearr) {
-      /*
-      The starlark spec says that UTF-8 gets encoded to UTF-K,
-      where K is the host language: Go, Rust is UTF-8 and Java is
-      UTF-16.
-       */
-      StringBuffer sb = new StringBuffer();
-      ByteBuffer buf = ByteBuffer.wrap(bytearr);
-      int lastpos = 0;
-      int l = bytearr.length;
-      while(buf.hasRemaining()) {
-        int r = 0;
-        try {
-          r = bytesToCodePoint(buf);
-          if(r == -1) {
+    if (s == byteCount) {
+      // We guessed right, so we can use our temporary array as-is.
+      value = v;
+      length = s;
+    } else {
+      // Our temporary array was too big, so reallocate and copy.
+      value = new char[s];
+      length = s;
+      System.arraycopy(v, 0, value, 0, s);
+    }
+    return String.copyValueOf(value, 0, length);
+  }
+
+  /**
+    * The Starlark spec defines text strings as sequences of UTF-k
+    * codes that encode Unicode code points. In this Java implementation,
+    * k=16, whereas in a Go implementation, k=8s. For portability,
+    * operations on strings should aim to avoid assumptions about
+    * the value of k.
+   */
+  static public byte[] UTF16toUTF8(char[] val) {
+    int dp = 0;
+    int sp = 0;
+    int sl = val.length;
+    byte[] dst = new byte[sl * 3];
+    char c;
+    while (sp < sl && (c = val[sp]) < 0x80) {
+       // ascii fast loop;
+       dst[dp++] = (byte)c;
+       sp++;
+    }
+    while (sp < sl) {
+       c = val[sp++];
+       if (c < 0x80) {
+           dst[dp++] = (byte)c;
+       } else if (c < 0x800) {
+           dst[dp++] = (byte)(0xc0 | (c >> 6));
+           dst[dp++] = (byte)(0x80 | (c & 0x3f));
+       } else if (Character.isSurrogate(c)) {
+           int uc = -1;
+           char c2;
+           if (Character.isHighSurrogate(c) && sp < sl &&
+                   Character.isLowSurrogate(c2 = val[sp])) {
+               uc = Character.toCodePoint(c, c2);
+           }
+           if (uc < 0) {
+               dst[dp++] = (byte) 0xEF;
+               dst[dp++] = (byte) 0xBF;
+               dst[dp++] = (byte) 0xBD;
+           } else {
+               dst[dp++] = (byte)(0xf0 | ((uc >> 18)));
+               dst[dp++] = (byte)(0x80 | ((uc >> 12) & 0x3f));
+               dst[dp++] = (byte)(0x80 | ((uc >>  6) & 0x3f));
+               dst[dp++] = (byte)(0x80 | (uc & 0x3f));
+               sp++;  // 2 chars
+           }
+       } else {
+           // 3 bytes, 16 bits
+           dst[dp++] = (byte)(0xe0 | ((c >> 12)));
+           dst[dp++] = (byte)(0x80 | ((c >>  6) & 0x3f));
+           dst[dp++] = (byte)(0x80 | (c & 0x3f));
+       }
+    }
+    if (dp == dst.length) {
+       return dst;
+    }
+    return Arrays.copyOf(dst, dp);
+   }
+
+  public static void quote(StringBuilder sb, int codePoint) {
+    if (Character.isLowSurrogate((char) codePoint) || Character.isHighSurrogate((char) codePoint)) {
+      sb.append(REPLACEMENT_CHAR);
+    } else {
+      Character.UnicodeBlock of = Character.UnicodeBlock.of(codePoint);
+      if (!Character.isISOControl(codePoint)
+            && of != null
+            && of.equals(Character.UnicodeBlock.BASIC_LATIN)) {
+        sb.append((char) codePoint);
+      } else if (Character.isWhitespace(codePoint) || codePoint <= 0xff) {
+        switch ((char) codePoint) {
+          case '\b':
+            sb.append("\\b");
             break;
+          case '\t':
+            sb.append("\\t");
+            break;
+          case '\n':
+            sb.append("\\n");
+            break;
+          case '\f':
+            sb.append("\\f");
+            break;
+          case '\r':
+            sb.append("\\r");
+            break;
+          default: {
+            String s = Integer.toHexString(codePoint);
+            if (codePoint < 0x100) {
+              sb.append("\\x");
+              if (s.length() == 1) {
+                sb.append('0');
+              }
+              sb.append(s);
+            } else {
+              sb.append("\\x").append(s);
+            }
+            //sb.append(String.format("\\x%02x", codePoint));
           }
-          lastpos = buf.position();
-        }catch(java.nio.BufferUnderflowException e) {
-          buf.position(lastpos);
-          for(int i = lastpos; i < l; i++) {
-            sb.append("\\x");
-            sb.append(Integer.toHexString(Byte.toUnsignedInt(buf.get(i))));
-          }
-          break;
         }
-        if(Character.isLowSurrogate((char) r) || Character.isHighSurrogate((char) r)) {
-          sb.append(REPLACEMENT_CHAR);
+      } else {
+        switch (Character.getType(codePoint)) {
+          case Character.CONTROL:     // Cc
+          case Character.FORMAT:      // Cf
+          case Character.PRIVATE_USE: // Co
+          case Character.SURROGATE:   // Cs
+          case Character.UNASSIGNED:  // Cn
+            sb.append(String.format("\\u%04x", codePoint));
+            break;
+          default:
+            sb.append(Character.toChars(codePoint));
+            break;
         }
-        else {
-          sb.append(runeToString(r));
-        }
-
-        //System.out.println(Integer.toHexString(r));
-        //System.out.println("Chars: " + Arrays.toString(Character.toChars(r)));
       }
-      return sb.toString();
     }
-
-
+  }
 }

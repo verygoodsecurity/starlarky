@@ -246,7 +246,7 @@ final class Lexer {
     int literalStartPos = isRaw ? pos - 2 : pos - 1;
     boolean inTriplequote = skipTripleQuote(quot);
     // more expensive second choice that expands escaped into a buffer
-    StringBuilder literal = new StringBuilder(); // just a random number to avoid expansion
+    StringBuilder literal = new StringBuilder();
     while (pos < buffer.length) {
       char c = buffer[pos];
       pos++;
@@ -343,13 +343,17 @@ final class Lexer {
                   error(String.format(
                     "non-ASCII octal escape \\%o " +
                       "(use \\u%04X for the UTF-8 encoding of U+%04X)",
-                    octal, octal, octal), pos-1);
+                    octal, octal, octal),
+                    pos-1);
                   setToken(tokenKind, literalStartPos, pos);
                   setValue(literal.toString());
                   break;
                 }
                 if (octal > 0xff) {
-                  error("octal escape sequence out of range (maximum is \\377)", pos - 1);
+                  error(
+                    "octal escape sequence out of range"
+                      + " (maximum is \\377)",
+                    pos - 1);
                   setToken(tokenKind, literalStartPos, pos);
                   setValue(literal.toString());
                   break;
@@ -369,95 +373,85 @@ final class Lexer {
             case 'v':
               literal.append('\u000B');
               break;
-            case 'x':
-              if (pos+2 >= buffer.length) {
-                error(String.format("truncated escape sequence \\x%s", bufferSlice(pos, buffer.length-1)), pos-1);
+            case 'x': {
+              if (pos + 2 >= buffer.length) {
+                error(String.format(
+                  "truncated escape sequence \\x%s",
+                  bufferSlice(pos, buffer.length - 1)),
+                  pos - 1);
                 setToken(tokenKind, literalStartPos, pos);
                 setValue(literal.toString());
                 break;
               }
-              int nh;
+              int n;
               try {
-                nh = Integer.parseInt(bufferSlice(pos, pos+2),/*radix*/16);
+                n = Integer.parseInt(bufferSlice(pos, pos + 2),/*radix*/16);
               } catch (NumberFormatException nfe) {
-                error(String.format("invalid escape sequence \\x%s", bufferSlice(pos, buffer.length-1)), pos-1);
+                error(String.format(
+                  "invalid escape sequence \\x%s",
+                  bufferSlice(pos, buffer.length - 1)),
+                  pos - 1);
                 setToken(tokenKind, literalStartPos, pos);
                 setValue(literal.toString());
                 break;
               }
-              if(tokenKind.equals(TokenKind.STRING) && nh > Byte.MAX_VALUE) {
+              if (tokenKind.equals(TokenKind.STRING) && n > Byte.MAX_VALUE) {
                 error(
                   String.format("non-ASCII hex escape \\x%s (use \\u%04X for" +
                                   " the UTF-8 encoding of U+%04X)",
-                  bufferSlice(pos, pos+2), nh, nh), pos-1);
+                    bufferSlice(pos, pos + 2), n, n), pos - 1);
                 setToken(tokenKind, literalStartPos, pos);
                 setValue(literal.toString());
                 break;
               }
-              literal.append(Character.toChars(nh));
-              pos+=2;
+              literal.append(Character.toChars(n));
+              pos += 2;
               break;
+            }
             case 'u':
-              if (pos+4 >= buffer.length) {
-                error(String.format("truncated escape sequence \\u%s", bufferSlice(pos, buffer.length-1)), pos-1);
+            case 'U': {
+              int sz = c == 'u' ? 4 : 8;
+              if (pos + sz >= buffer.length) {
+                error(String.format(
+                  "truncated escape sequence \\%c%s",
+                  c, bufferSlice(pos, buffer.length - 1)),
+                  pos - 1);
                 setToken(tokenKind, literalStartPos, pos);
                 setValue(literal.toString());
                 break;
               }
-              int nu;
+              int n;
               try {
-                nu = Integer.parseInt(bufferSlice(pos, pos+4),/*radix*/16);
+                n = Integer.parseInt(bufferSlice(pos, pos + sz),/*radix*/16);
               } catch (NumberFormatException nfe) {
-                error(String.format("invalid escape sequence \\u%s", bufferSlice(pos, buffer.length-1)), pos-1);
+                error(String.format(
+                  "invalid escape sequence \\%c%s",
+                  c, bufferSlice(pos, buffer.length - 1)),
+                  pos - 1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              if (n > Character.MAX_CODE_POINT) {
+                error(String.format(
+                  "code point out of range: \\U%s (max \\U%08x)",
+                  bufferSlice(pos, buffer.length - 1), n),
+                  pos - 1);
                 setToken(tokenKind, literalStartPos, pos);
                 setValue(literal.toString());
                 break;
               }
               // surrogates are disallowed.
-              if(Character.MIN_HIGH_SURROGATE <= nu && nu < Character.MAX_LOW_SURROGATE) {
-                error(String.format("invalid Unicode code point U+%04X", nu), pos-1);
+              if (Character.MIN_HIGH_SURROGATE <= n && n < Character.MAX_LOW_SURROGATE) {
+                error(String.format("invalid Unicode code point U+%04X", n), pos - 1);
                 setToken(tokenKind, literalStartPos, pos);
                 setValue(literal.toString());
                 break;
               }
-              literal.append(Character.toChars(nu));
-              pos+=4;
+              literal.append(Character.toChars(n));
+              pos += sz;
               break;
-            case 'U':
-              if (pos+8 >= buffer.length) {
-                error(String.format("truncated escape sequence \\U%s", bufferSlice(pos, buffer.length-1)), pos-1);
-                setToken(tokenKind, literalStartPos, pos);
-                setValue(literal.toString());
-                break;
-              }
-              int nU;
-              try {
-                nU = Integer.parseInt(bufferSlice(pos, pos+8),/*radix*/16);
-              } catch (NumberFormatException nfe) {
-                error(String.format("invalid escape sequence \\U%s", bufferSlice(pos, buffer.length-1)), pos-1);
-                setToken(tokenKind, literalStartPos, pos);
-                setValue(literal.toString());
-                break;
-              }
-              if(nU > Character.MAX_CODE_POINT) {
-                error(
-                  String.format("code point out of range: \\U%s (max \\U%08x)",
-                    bufferSlice(pos, buffer.length-1),
-                    nU), pos-1);
-                setToken(tokenKind, literalStartPos, pos);
-                setValue(literal.toString());
-                break;
-              }
-              // surrogates are disallowed.
-              if(Character.MIN_HIGH_SURROGATE <= nU && nU < Character.MAX_LOW_SURROGATE) {
-                error(String.format("invalid Unicode code point U+%04X", nU), pos-1);
-                setToken(tokenKind, literalStartPos, pos);
-                setValue(literal.toString());
-                break;
-              }
-              literal.append(Character.toChars(nU));
-              pos+=8;
-              break;
+            }
             case 'N':
               // exists in Python but not implemented in Blaze => error
               error("invalid escape sequence: \\" + c, pos - 1);

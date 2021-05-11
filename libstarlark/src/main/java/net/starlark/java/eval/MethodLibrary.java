@@ -17,12 +17,14 @@ package net.starlark.java.eval;
 import com.google.common.base.Ascii;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Ordering;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -291,6 +293,75 @@ class MethodLibrary {
   }
 
   @StarlarkMethod(
+      name = "bytes",
+      doc =
+          "Converts any object to string. This is useful for debugging."
+              + "<pre class=\"language-python\">str(\"ab\") == \"ab\"\n"
+              + "str(8) == \"8\"</pre>",
+      parameters = {@Param(name = "x", doc = "The object to convert.")})
+  public StarlarkByte bytes(Object x) throws EvalException {
+    switch(Starlark.type(x)) {
+      case "bytes":
+        return (StarlarkByte) x;
+      case "string":
+        return StarlarkByte.immutableOf(((String) x).toCharArray());
+      default:
+        // nothing
+    }
+    if(x instanceof Sequence) {
+      //noinspection unchecked
+      Sequence<StarlarkInt> cast = Sequence.cast(
+        x,
+        StarlarkInt.class,
+        Starlark.str(x));
+      return StarlarkByte.immutableCopyOf(cast);
+    }
+    throw Starlark.errorf("bytes: got %s, want string, bytes, or iterable of ints", Starlark.type(x));
+  }
+
+
+  @StarlarkMethod(
+       name = "ord",
+       doc = "Given a string representing one Unicode character, return an integer representing" +
+           " the Unicode code point of that character. For example, ord('a') returns the " +
+           "integer 97 and ord('€') (Euro sign) returns 8364. This is the inverse of chr().",
+       parameters = {
+           @Param(
+               name = "c",
+               allowedTypes = {
+                   @ParamType(type = String.class),
+                   @ParamType(type = StarlarkByte.class),
+               }
+           )
+       }
+   )
+   public StarlarkInt ordinal(Object c) throws EvalException {
+     int containerSize = 0;
+     byte[] bytes = null;
+     if (String.class.isAssignableFrom(c.getClass())) {
+       containerSize = ((String) c).length();
+       bytes = ((String) c).getBytes(StandardCharsets.UTF_8);
+     } else if (StarlarkByte.class.isAssignableFrom(c.getClass())) {
+       containerSize = ((StarlarkByte) c).size();
+       bytes = ((StarlarkByte) c).getBytes();
+     }
+
+     if (containerSize != 1 || bytes == null) {
+       throw Starlark.errorf(
+           "ord: %s has length %d, want 1", Starlark.type(c), containerSize);
+     }
+
+    if(bytes.length == 1) {
+      return StarlarkInt.of(Byte.toUnsignedInt(bytes[0]));
+    }
+    int code = 0x10000;
+    code += (bytes[0] & 0x03FF) << 10;
+    code += (bytes[1] & 0x03FF);
+    return StarlarkInt.of(code);
+    //return StarlarkInt.of(new BigInteger(bytes).intValueExact());
+   }
+
+  @StarlarkMethod(
       name = "repr",
       doc =
           "Converts any object to a string representation. This is useful for debugging.<br>"
@@ -536,7 +607,7 @@ class MethodLibrary {
       // promise a specific algorithm. This is in contrast to Java (Object.hashCode()) and
       // Python, which promise stable hashing only within a given execution of the program.
       parameters = {@Param(name = "value", doc = "String value to hash.")})
-  public int hash(String value) throws EvalException {
+  public int hash(Object value) throws EvalException {
     return value.hashCode();
   }
 
