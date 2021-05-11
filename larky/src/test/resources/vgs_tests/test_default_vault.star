@@ -82,6 +82,59 @@ def _test_unknown_format():
         "Format 'unknown' not found"
     )
 
+def _test_valid_format_pfpt():
+    account_number = "4444333322221111"
+    redacted_account_number = vault.redact(account_number, format="pfpt")
+
+    asserts.assert_that(len(redacted_account_number)).is_equal_to(19)
+    asserts.assert_that(redacted_account_number[:5]).is_equal_to('99144')
+    asserts.assert_that(redacted_account_number[-4:]).is_equal_to('1111')
+    asserts.assert_that(_luhn_mod10(redacted_account_number)).is_equal_to(0)
+
+def _test_invalid_format_pfpt():
+    account_number = "4111111111111118"
+    redacted_account_number = vault.redact(account_number, format="pfpt")
+
+    asserts.assert_that(len(redacted_account_number)).is_not_equal_to(19)
+    asserts.assert_that(redacted_account_number).is_not_equal_to(account_number)
+    asserts.assert_that(redacted_account_number[:3]).is_not_equal_to('991')
+
+def _test_valid_format_preserving():
+    account_number = "12345678"
+    redacted_account_number = vault.redact(account_number, format="num_preserving")
+
+    asserts.assert_that(len(redacted_account_number)).is_equal_to(len(account_number))
+    asserts.assert_that(redacted_account_number).is_not_equal_to(account_number)
+    asserts.assert_true(int(account_number))
+
+def _test_invalid_format_preserving():
+    input_1 = "12"
+    input_2 = "1x2"
+    input_3 = "abc"
+
+    redacted_1 = vault.redact(input_1, format="num_preserving")
+    redacted_2 = vault.redact(input_2, format="num_preserving")
+    redacted_3 = vault.redact(input_3, format="num_preserving")
+
+    asserts.assert_that(len(redacted_1)).is_not_equal_to(len(input_1))
+    asserts.assert_that(len(redacted_2)).is_not_equal_to(len(input_2))
+    asserts.assert_that(len(redacted_3)).is_not_equal_to(len(input_3))
+
+def _luhn_mod10(digits):
+    LUHN_DIGITS = [0, 2, 4, 6, 8, 1, 3, 5, 7, 9]
+
+    sum = 0
+    len_d = len(digits)
+    for i in range(len_d):
+        r_i = len_d-i-1
+        d = int(digits[r_i])
+        if r_i % 2:
+            sum += LUHN_DIGITS[d]
+        else:
+            sum += d
+
+    return sum%10
+
 
 def _suite():
     _suite = unittest.TestSuite()
@@ -103,6 +156,10 @@ def _suite():
 
     # Format Tests
     _suite.addTest(unittest.FunctionTestCase(_test_unknown_format))
+    _suite.addTest(unittest.FunctionTestCase(_test_valid_format_pfpt))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_format_pfpt))
+    _suite.addTest(unittest.FunctionTestCase(_test_valid_format_preserving))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_format_preserving))
 
     return _suite
 

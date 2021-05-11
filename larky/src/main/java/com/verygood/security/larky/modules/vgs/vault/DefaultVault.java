@@ -1,5 +1,8 @@
 package com.verygood.security.larky.modules.vgs.vault;
 
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.validator.routines.checkdigit.LuhnCheckDigit;
+
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
@@ -10,6 +13,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 
 public class DefaultVault implements LarkyVault {
 
@@ -23,6 +29,10 @@ public class DefaultVault implements LarkyVault {
 
     private final Map<String, AliasGenerator> formatTokenizer = new HashMap<String,AliasGenerator>() {{
         put("default", new UUIDAliasGenerator());
+        put("raw", new RawAliasGenerator());
+        put("uuid", new UUIDAliasGenerator());
+        put("num_preserving", new NumberLengthPreserving());
+        put("pfpt", new LuhnValidCardNumberPFPT());
     }};
 
     @Override
@@ -91,24 +101,82 @@ public class DefaultVault implements LarkyVault {
         ));
     }
 
-    private abstract class ValidatingAliasGenerator implements AliasGenerator {
+    private class LuhnValidCardNumberPFPT extends ValidatingAliasGenerator {
 
-        private String validFormat;
-        private AliasGenerator fallbackAliasGenerator;
+        private final Pattern resultPattern = Pattern.compile("(\\d{2})(\\d)(\\d{2})(\\d)(\\d{9})(\\d{4})");
+        private final Pattern cardPattern = Pattern.compile("(\\d{2})(\\d{7,13})(\\d{4})");
+        private final String prefix = "991";
 
-        public boolean isValid(String value) {
-            return value.matches(validFormat);
+        @Override
+        protected String internalTokenize(String value) {
+            Matcher matcher = cardPattern.matcher(value);
+            matcher.find();
+            String cardType = matcher.group(1);
+            String initialLuhnCheckSum = "0";
+            String randomSequence = RandomStringUtils.randomNumeric(9);
+            String last4digits = matcher.group(3);
+
+            Matcher resultMatcher =
+                    resultPattern.matcher(String.join("",
+                            prefix, cardType, initialLuhnCheckSum, randomSequence, last4digits));
+
+            int checkSum = 0;
+            String number;
+            do {
+                if (checkSum > 9) {
+                    throw new RuntimeException("Could not calculate Luhn check sum");
+                }
+                number = resultMatcher.replaceFirst(String.format("$1$2$3%s$5$6", checkSum++));
+            } while (!LuhnCheckDigit.LUHN_CHECK_DIGIT.isValid(number));
+
+            return number;
         }
+
+        @Override
+        protected boolean isValid(String value) {
+            return cardPattern.matcher(value).find() && LuhnCheckDigit.LUHN_CHECK_DIGIT.isValid(value);
+        }
+
+        @Override
+        protected AliasGenerator fallbackAliasGenerator() {
+            return new RawAliasGenerator();
+        }
+    }
+
+    private class NumberLengthPreserving extends ValidatingAliasGenerator {
+
+        private final Pattern cardPattern = Pattern.compile("\\d{3,16}");
+
+        @Override
+        protected String internalTokenize(String value) {
+            return RandomStringUtils.randomNumeric(value.length());
+        }
+
+        @Override
+        protected boolean isValid(String value) {
+            return cardPattern.matcher(value).find();
+        }
+
+        @Override
+        protected AliasGenerator fallbackAliasGenerator() {
+            return new RawAliasGenerator();
+        }
+    }
+
+    private abstract class ValidatingAliasGenerator implements AliasGenerator {
 
         @Override
         public String tokenize(String value) {
             if(!isValid(value)) {
-                return fallbackAliasGenerator.tokenize(value);
+                return fallbackAliasGenerator().tokenize(value);
             }
             return internalTokenize(value);
         }
 
-        abstract String internalTokenize(String Value);
+        protected abstract boolean isValid(String value);
+        protected abstract String internalTokenize(String Value);
+        protected abstract AliasGenerator fallbackAliasGenerator();
+
     }
 
     private class UUIDAliasGenerator extends RawAliasGenerator {
