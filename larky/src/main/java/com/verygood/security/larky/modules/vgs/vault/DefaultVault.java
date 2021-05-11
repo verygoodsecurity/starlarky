@@ -28,11 +28,21 @@ public class DefaultVault implements LarkyVault {
     }};
 
     private final Map<String, AliasGenerator> formatTokenizer = new HashMap<String,AliasGenerator>() {{
-        put("default", new UUIDAliasGenerator());
-        put("raw", new RawAliasGenerator());
-        put("uuid", new UUIDAliasGenerator());
-        put("num_preserving", new NumberLengthPreserving());
-        put("pfpt", new LuhnValidCardNumberPFPT());
+        put("RAW_UUID", new RawAliasGenerator());
+        put("UUID", new UUIDAliasGenerator());
+        put("NUM_LENGTH_PRESERVING", new NumberLengthPreserving());
+        put("PFPT", new LuhnValidCardNumberPFPT());
+
+        // Placeholders for unsupported formats found in
+        // https://www.verygoodsecurity.com/docs/terminology/nomenclature#alias-formats
+        put("FPE_SIX_T_FOUR", new NoopAliasGenerator("FPE_SIX_T_FOUR"));
+        put("FPE_T_FOUR", new NoopAliasGenerator("FPE_T_FOUR"));
+        put("NON_LUHN_FPE_ALPHANUMERIC", new NoopAliasGenerator("NON_LUHN_FPE_ALPHANUMERIC"));
+        put("FPE_SSN_T_FOUR", new NoopAliasGenerator("FPE_SSN_T_FOUR"));
+        put("FPE_ACC_NUM_T_FOUR", new NoopAliasGenerator("FPE_ACC_NUM_T_FOUR"));
+        put("FPE_ALPHANUMERIC_ACC_NUM_T_FOUR", new NoopAliasGenerator("FPE_ALPHANUMERIC_ACC_NUM_T_FOUR"));
+        put("GENERIC_T_FOUR", new NoopAliasGenerator("GENERIC_T_FOUR"));
+        put("ALPHANUMERIC_SIX_T_FOUR", new NoopAliasGenerator("ALPHANUMERIC_SIX_T_FOUR"));
     }};
 
     @Override
@@ -84,7 +94,7 @@ public class DefaultVault implements LarkyVault {
     private AliasGenerator getTokenizer(Object format) throws EvalException {
 
         if (format instanceof NoneType) {
-            return formatTokenizer.get("default");
+            return formatTokenizer.get("UUID"); // default tokenizer
         } else if (format instanceof String) {
             if (formatTokenizer.containsKey(format)) {
                 return formatTokenizer.get(format);
@@ -110,7 +120,7 @@ public class DefaultVault implements LarkyVault {
         @Override
         protected String internalTokenize(String value) {
             Matcher matcher = cardPattern.matcher(value);
-            matcher.find();
+            matcher.find(); // already validated by isValid
             String cardType = matcher.group(1);
             String initialLuhnCheckSum = "0";
             String randomSequence = RandomStringUtils.randomNumeric(9);
@@ -166,7 +176,7 @@ public class DefaultVault implements LarkyVault {
     private abstract class ValidatingAliasGenerator implements AliasGenerator {
 
         @Override
-        public String tokenize(String value) {
+        public String tokenize(String value) throws EvalException {
             if(!isValid(value)) {
                 return fallbackAliasGenerator().tokenize(value);
             }
@@ -181,20 +191,36 @@ public class DefaultVault implements LarkyVault {
 
     private class UUIDAliasGenerator extends RawAliasGenerator {
         @Override
-        public String tokenize(String value) {
+        public String tokenize(String value) throws EvalException {
             return String.format("tok_%s", super.tokenize(value)).substring(0,30);
         }
     }
 
     private class RawAliasGenerator implements AliasGenerator {
         @Override
-        public String tokenize(String value) {
+        public String tokenize(String value) throws EvalException {
             return new String(Base64.getEncoder().encode(UUID.randomUUID().toString().getBytes()));
         }
     }
 
+    private class NoopAliasGenerator implements AliasGenerator {
+
+        private String aliasFormatName;
+
+        public NoopAliasGenerator(String name) {
+            this.aliasFormatName = name;
+        }
+
+        @Override
+        public String tokenize(String value) throws EvalException {
+            throw Starlark.errorf(String.format(
+                    "Format '%s' is not supported yet", aliasFormatName
+            ));
+        }
+    }
+
     private interface AliasGenerator {
-        String tokenize(String value);
+        String tokenize(String value) throws EvalException ;
     }
 
 }

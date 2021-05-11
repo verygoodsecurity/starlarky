@@ -15,7 +15,7 @@ def _test_params_redact():
     redacted_card_number = vault.redact(
         card_number,
         storage="volatile",
-        format="default",
+        format="UUID",
         tags=['tag1','tag2']
     )
 
@@ -82,9 +82,15 @@ def _test_unknown_format():
         "Format 'unknown' not found"
     )
 
+def _test_unsupported_format():
+    card_number = "4111111111111117"
+    asserts.assert_fails(lambda : vault.redact(card_number, format="ALPHANUMERIC_SIX_T_FOUR"),
+        "Format 'ALPHANUMERIC_SIX_T_FOUR' is not supported yet"
+    )
+
 def _test_valid_format_pfpt():
     card_number = "4444333322221111"
-    redacted_card_number = vault.redact(card_number, format="pfpt")
+    redacted_card_number = vault.redact(card_number, format="PFPT")
 
     asserts.assert_that(len(redacted_card_number)).is_equal_to(19)
     asserts.assert_that(redacted_card_number[:5]).is_equal_to('99144')
@@ -93,7 +99,7 @@ def _test_valid_format_pfpt():
 
 def _test_invalid_format_pfpt():
     card_number = "4111111111111118"
-    redacted_card_number = vault.redact(card_number, format="pfpt")
+    redacted_card_number = vault.redact(card_number, format="PFPT")
 
     asserts.assert_that(len(redacted_card_number)).is_not_equal_to(19)
     asserts.assert_that(redacted_card_number).is_not_equal_to(card_number)
@@ -101,7 +107,7 @@ def _test_invalid_format_pfpt():
 
 def _test_valid_format_preserving():
     card_number = "12345678"
-    redacted_card_number = vault.redact(card_number, format="num_preserving")
+    redacted_card_number = vault.redact(card_number, format="NUM_LENGTH_PRESERVING")
 
     asserts.assert_that(len(redacted_card_number)).is_equal_to(len(card_number))
     asserts.assert_that(redacted_card_number).is_not_equal_to(card_number)
@@ -112,9 +118,9 @@ def _test_invalid_format_preserving():
     input_2 = "1x2"
     input_3 = "abc"
 
-    redacted_1 = vault.redact(input_1, format="num_preserving")
-    redacted_2 = vault.redact(input_2, format="num_preserving")
-    redacted_3 = vault.redact(input_3, format="num_preserving")
+    redacted_1 = vault.redact(input_1, format="NUM_LENGTH_PRESERVING")
+    redacted_2 = vault.redact(input_2, format="NUM_LENGTH_PRESERVING")
+    redacted_3 = vault.redact(input_3, format="NUM_LENGTH_PRESERVING")
 
     asserts.assert_that(len(redacted_1)).is_not_equal_to(len(input_1))
     asserts.assert_that(len(redacted_2)).is_not_equal_to(len(input_2))
@@ -156,6 +162,7 @@ def _suite():
 
     # Format Tests
     _suite.addTest(unittest.FunctionTestCase(_test_unknown_format))
+    _suite.addTest(unittest.FunctionTestCase(_test_unsupported_format))
     _suite.addTest(unittest.FunctionTestCase(_test_valid_format_pfpt))
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_format_pfpt))
     _suite.addTest(unittest.FunctionTestCase(_test_valid_format_preserving))
