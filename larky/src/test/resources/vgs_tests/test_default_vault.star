@@ -88,23 +88,6 @@ def _test_unsupported_format():
         "Format 'ALPHANUMERIC_SIX_T_FOUR' is not supported yet"
     )
 
-def _test_valid_format_pfpt():
-    card_number = "4444333322221111"
-    redacted_card_number = vault.redact(card_number, format="PFPT")
-
-    asserts.assert_that(len(redacted_card_number)).is_equal_to(19)
-    asserts.assert_that(redacted_card_number[:5]).is_equal_to('99144')
-    asserts.assert_that(redacted_card_number[-4:]).is_equal_to('1111')
-    asserts.assert_that(_luhn_mod10(redacted_card_number)).is_equal_to(0)
-
-def _test_invalid_format_pfpt():
-    card_number = "4111111111111118"
-    redacted_card_number = vault.redact(card_number, format="PFPT")
-
-    asserts.assert_that(len(redacted_card_number)).is_not_equal_to(19)
-    asserts.assert_that(redacted_card_number).is_not_equal_to(card_number)
-    asserts.assert_that(redacted_card_number[:3]).is_not_equal_to('991')
-
 def _test_valid_format_preserving():
     card_number = "12345678"
     redacted_card_number = vault.redact(card_number, format="NUM_LENGTH_PRESERVING")
@@ -163,8 +146,6 @@ def _suite():
     # Format Tests
     _suite.addTest(unittest.FunctionTestCase(_test_unknown_format))
     _suite.addTest(unittest.FunctionTestCase(_test_unsupported_format))
-    _suite.addTest(unittest.FunctionTestCase(_test_valid_format_pfpt))
-    _suite.addTest(unittest.FunctionTestCase(_test_invalid_format_pfpt))
     _suite.addTest(unittest.FunctionTestCase(_test_valid_format_preserving))
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_format_preserving))
 

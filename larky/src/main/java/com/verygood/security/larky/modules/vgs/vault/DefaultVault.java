@@ -1,7 +1,6 @@
 package com.verygood.security.larky.modules.vgs.vault;
 
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.validator.routines.checkdigit.LuhnCheckDigit;
 
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import net.starlark.java.eval.EvalException;
@@ -13,7 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
@@ -31,10 +29,10 @@ public class DefaultVault implements LarkyVault {
         put("RAW_UUID", new RawAliasGenerator());
         put("UUID", new UUIDAliasGenerator());
         put("NUM_LENGTH_PRESERVING", new NumberLengthPreserving());
-        put("PFPT", new LuhnValidCardNumberPFPT());
 
         // Placeholders for unsupported formats found in
         // https://www.verygoodsecurity.com/docs/terminology/nomenclature#alias-formats
+        put("PFPT", new NoopAliasGenerator("PFPT"));
         put("FPE_SIX_T_FOUR", new NoopAliasGenerator("FPE_SIX_T_FOUR"));
         put("FPE_T_FOUR", new NoopAliasGenerator("FPE_T_FOUR"));
         put("NON_LUHN_FPE_ALPHANUMERIC", new NoopAliasGenerator("NON_LUHN_FPE_ALPHANUMERIC"));
@@ -109,48 +107,6 @@ public class DefaultVault implements LarkyVault {
                 "Format of type %s is not supported in DefaultVault, expecting String",
                 format.getClass().getName()
         ));
-    }
-
-    private class LuhnValidCardNumberPFPT extends ValidatingAliasGenerator {
-
-        private final Pattern resultPattern = Pattern.compile("(\\d{2})(\\d)(\\d{2})(\\d)(\\d{9})(\\d{4})");
-        private final Pattern cardPattern = Pattern.compile("(\\d{2})(\\d{7,13})(\\d{4})");
-        private final String prefix = "991";
-
-        @Override
-        protected String internalTokenize(String value) {
-            Matcher matcher = cardPattern.matcher(value);
-            matcher.find(); // already validated by isValid
-            String cardType = matcher.group(1);
-            String initialLuhnCheckSum = "0";
-            String randomSequence = RandomStringUtils.randomNumeric(9);
-            String last4digits = matcher.group(3);
-
-            Matcher resultMatcher =
-                    resultPattern.matcher(String.join("",
-                            prefix, cardType, initialLuhnCheckSum, randomSequence, last4digits));
-
-            int checkSum = 0;
-            String number;
-            do {
-                if (checkSum > 9) {
-                    throw new RuntimeException("Could not calculate Luhn check sum");
-                }
-                number = resultMatcher.replaceFirst(String.format("$1$2$3%s$5$6", checkSum++));
-            } while (!LuhnCheckDigit.LUHN_CHECK_DIGIT.isValid(number));
-
-            return number;
-        }
-
-        @Override
-        protected boolean isValid(String value) {
-            return cardPattern.matcher(value).find() && LuhnCheckDigit.LUHN_CHECK_DIGIT.isValid(value);
-        }
-
-        @Override
-        protected AliasGenerator fallbackAliasGenerator() {
-            return new RawAliasGenerator();
-        }
     }
 
     private class NumberLengthPreserving extends ValidatingAliasGenerator {
