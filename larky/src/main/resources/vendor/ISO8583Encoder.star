@@ -234,6 +234,13 @@ def _encode_bitmaps(
     # Primary and secondary bitmaps will be created from the keys
     # try:
     # fields.update([int(k) for k in doc_dec.keys() if k.isnumeric()])
+    invalid_fields = []
+    for k in doc_dec.keys():
+        if not types.is_string(k):
+            invalid_fields.append(k)
+    if len(invalid_fields) != 0:
+        fail("Dictionary contains invalid fields {k}: field p".format(k=str(invalid_fields)))
+
     fields = sets.union(
         fields,
         sets.make([int(k) for k in doc_dec.keys() if k.isdigit()]))
@@ -283,7 +290,7 @@ def _encode_bitmaps(
     else:
         # doc_enc["p"]["data"] = doc_dec["p"].encode(spec["p"]["data_enc"])
         doc_enc["p"]["data"] = bytes(doc_dec["p"], encoding=(spec["p"]["data_enc"]))
-# except Exception as e:
+    # except Exception as e:
     #     raise EncodeError(f"Failed to encode ({e})", doc_dec, doc_enc, "p") from None
 
     # No need to produce secondary bitmap if it's not required

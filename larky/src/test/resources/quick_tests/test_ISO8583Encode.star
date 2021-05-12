@@ -44,7 +44,7 @@ def test_EncodeError_exception():
     doc_dec = {"t": ""}
     asserts.assert_fails(lambda: Encoder.encode(doc_dec, spec), ".*?Field data is required according to specifications: field h")
 
-
+# TODO pickle is not supported
 # def test_EncodeError_exception_pickle():
 #     """
 #     Validate EncodeError class with pickle
@@ -70,62 +70,67 @@ def test_EncodeError_exception():
 #         asserts.assert_that(e.msg == e_unpickled.msg
 #         asserts.assert_that(e.field == e_unpickled.field
 #         asserts.assert_that(e.args[0] == e_unpickled.args[0]
-#
-#
-# def test_non_string_field_keys():
-#     """
-#     Input dictionary contains non
-#     """
-#     spec["h"]["data_enc"] = "ascii"
-#     spec["h"]["len_type"] = 0
-#     spec["h"]["max_len"] = 6
-#     spec["t"]["data_enc"] = "ascii"
-#     spec["p"]["data_enc"] = "b"
-#     spec["2"]["len_type"] = 2
-#     spec["2"]["max_len"] = 10
-#     spec["2"]["data_enc"] = "ascii"
-#     spec["2"]["len_enc"] = "ascii"
-#     spec["3"]["len_type"] = 2
-#     spec["3"]["max_len"] = 10
-#     spec["3"]["data_enc"] = "ascii"
-#     spec["3"]["len_enc"] = "ascii"
-#
-#     doc_dec = {"h": "header", "t": "0210", 2: "1122"}
-#     with pytest.raises(
-#         iso8583.EncodeError,
-#         match="Dictionary contains invalid fields .2.: field p",
-#     ):
-#         iso8583.encode(doc_dec, spec=spec)
-#
-#     doc_dec = {"h": "header", "t": "0210", 2: "1122", 3: "3344"}
-#     with pytest.raises(
-#         iso8583.EncodeError,
-#         match="Dictionary contains invalid fields .2, 3.: field p",
-#     ):
-#         iso8583.encode(doc_dec, spec=spec)
-#
-#     doc_dec = {"h": "header", "t": "0210", 2.5: "1122", 3.5: "3344"}
-#     with pytest.raises(
-#         iso8583.EncodeError,
-#         match="Dictionary contains invalid fields .2.5, 3.5.: field p",
-#     ):
-#         iso8583.encode(doc_dec, spec=spec)
-#
-#     doc_dec = {"h": "header", "t": "0210", 2.5: "1122", 3.5: "3344"}
-#     with pytest.raises(
-#         iso8583.EncodeError,
-#         match="Dictionary contains invalid fields .2.5, 3.5.: field p",
-#     ):
-#         iso8583.encode(doc_dec, spec=spec)
-#
-#     doc_dec = {"h": "header", "t": "0210", (1, 2): "1122", (3, 4): "3344"}
-#     with pytest.raises(
-#         iso8583.EncodeError,
-#         match="Dictionary contains invalid fields ..1, 2., .3, 4..: field p",
-#     ):
-#         iso8583.encode(doc_dec, spec=spec)
-#
-#
+
+
+def test_non_string_field_keys():
+    """
+    Input dictionary contains non
+    """
+    # spec["h"]["data_enc"] = "ascii"
+    # spec["h"]["len_type"] = 0
+    # spec["h"]["max_len"] = 6
+    # spec["t"]["data_enc"] = "ascii"
+    # spec["p"]["data_enc"] = "b"
+    # spec["2"]["len_type"] = 2
+    # spec["2"]["max_len"] = 10
+    # spec["2"]["data_enc"] = "ascii"
+    # spec["2"]["len_enc"] = "ascii"
+    # spec["3"]["len_type"] = 2
+    # spec["3"]["max_len"] = 10
+    # spec["3"]["data_enc"] = "ascii"
+    # spec["3"]["len_enc"] = "ascii"
+    spec = {
+        "h": {
+            "data_enc": "ascii",
+            "len_type": 0,
+            "max_len": 6,
+        },
+        "t": {
+            "data_enc": "ascii",
+        },
+        "p": {
+            "data_enc": "b",
+        },
+        "2": {
+            "len_type": 2,
+            "max_len": 10,
+            "data_enc": "ascii",
+            "len_enc": "ascii"
+        },
+        "3": {
+            "len_type": 2,
+            "max_len": 10,
+            "data_enc": "ascii",
+            "len_enc": "ascii"
+        }
+    }
+
+    doc_dec = {"h": "header", "t": "0210", 2: "1122"}
+    asserts.assert_fails(lambda: Encoder.encode(doc_dec, spec), ".*?Dictionary contains invalid fields .2.: field p")
+
+    doc_dec = {"h": "header", "t": "0210", 2: "1122", 3: "3344"}
+    asserts.assert_fails(lambda: Encoder.encode(doc_dec, spec), ".*?Dictionary contains invalid fields .2, 3.: field p")
+
+    doc_dec = {"h": "header", "t": "0210", 2.5: "1122", 3.5: "3344"}
+    asserts.assert_fails(lambda: Encoder.encode(doc_dec, spec), ".*?Dictionary contains invalid fields .2.5, 3.5.: field p")
+
+    doc_dec = {"h": "header", "t": "0210", 2.5: "1122", 3.5: "3344"}
+    asserts.assert_fails(lambda: Encoder.encode(doc_dec, spec), ".*?Dictionary contains invalid fields .2.5, 3.5.: field p")
+
+    doc_dec = {"h": "header", "t": "0210", (1, 2): "1122", (3, 4): "3344"}
+    asserts.assert_fails(lambda: Encoder.encode(doc_dec, spec), ".*?Dictionary contains invalid fields ..1, 2., .3, 4..: field p")
+
+
 # def test_input_type():
 #     """
 #     Encode accepts only dict.
@@ -2619,6 +2624,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_bitmaps_ebcidic))
     _suite.addTest(unittest.FunctionTestCase(test_bitmaps_bcd))
     _suite.addTest(unittest.FunctionTestCase(test_EncodeError_exception))
+    _suite.addTest(unittest.FunctionTestCase(test_non_string_field_keys))
 
     return _suite
 
