@@ -1192,6 +1192,15 @@ final class Lexer {
               stringLiteral((char) c0, c == 'r', c == 'r' ? TokenKind.STRING : TokenKind.BYTE);
               break;
             }
+            else if (c == 'r' && c0 == 'b' && (buffer.length > 2)) {
+              int c1 = peek(1);
+              // rb"..."
+              if(c1 == '"' || c1 == '\'') {
+                pos+=2;
+                stringLiteral((char) c1, true, TokenKind.BYTE);
+                break;
+              }
+            }
           }
 
           // int or float literal, or dot

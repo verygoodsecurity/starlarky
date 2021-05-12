@@ -45,7 +45,7 @@ assert_eq(b"", empty)
 assert_eq(b"\t\n\x7F\u200D", nonprinting)
 assert_ne("abc", b"abc")
 assert_eq(b"\012\xff\u0400\U0001F63F", b"\n\xffЀ😿") # see scanner tests for more
-#assert_eq(rb"\r\n\t", b"\\r\\n\\t") # raw
+assert_eq(rb"\r\n\t", b"\\r\\n\\t") # raw
 
 # type
 assert_eq(type(hello), "bytes")
