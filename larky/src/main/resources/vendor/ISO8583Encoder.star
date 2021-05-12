@@ -12,16 +12,12 @@ b = builtins.b
 
 def _encode(bytes, packager):
     result = encode(bytes, packager)
-    # print(result)
     return result
 
 Encoder = larky.struct(
     encode=_encode,
 )
 
-# DecodedDict = MutableMapping[str, str]
-# EncodedDict = Dict[str, Dict[str, bytes]]
-# SpecDict = Mapping[str, Mapping[str, Any]]
 # def EncodeError(msg: str, doc_dec: DecodedDict, doc_enc: EncodedDict, field: str
 # ):
 #     r"""Subclass of ValueError that describes ISO8583 encoding error.
@@ -262,7 +258,6 @@ def _encode_bitmaps(
     # There is no need to sort this set because the code below will
     # figure out appropriate byte/bit for each field.
     s = bytearray(bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]))
-    # s = bytearray([0x00]).join([bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00]), bytes([0x00,0x00])])
     for f in sets.to_list(fields):
         # Fields start at 1. Make them zero-bound for easier conversion.
         f -= 1
@@ -287,7 +282,6 @@ def _encode_bitmaps(
         doc_enc["p"]["data"] = s[0:8]
     else:
         # doc_enc["p"]["data"] = doc_dec["p"].encode(spec["p"]["data_enc"])
-        # doc_enc["p"]["data"] = codecs.encode(doc_dec["p"], spec["p"]["data_enc"])
         doc_enc["p"]["data"] = bytes(doc_dec["p"], encoding=(spec["p"]["data_enc"]))
 # except Exception as e:
     #     raise EncodeError(f"Failed to encode ({e})", doc_dec, doc_enc, "p") from None
