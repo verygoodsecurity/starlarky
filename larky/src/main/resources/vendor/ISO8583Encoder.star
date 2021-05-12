@@ -188,7 +188,7 @@ def _encode_type(doc_dec, doc_enc, spec):
 
     # try:
     if spec["t"]["data_enc"] == "b":
-        doc_enc["t"]["data"] = bytes.fromhex(doc_dec["t"])
+        doc_enc["t"]["data"] = unhexlify(doc_dec["е"])
     else:
         # doc_enc["t"]["data"] = doc_dec["t"].encode(encoding=spec["t"]["data_enc"])
         doc_enc["t"]["data"] = codecs.encode(doc_dec["t"], spec["t"]["data_enc"])
@@ -396,6 +396,7 @@ def _encode_field(doc_dec, doc_enc, field_key, spec):
         # BCD LLVAR length \x99 must be string "99"
         # BCD LLLVAR length \x09\x99 must be string "0999"
         # BCD LLLLVAR length \x99\x99 must be string "9999"
+        # TODO use unhexlify
         doc_enc[field_key]["len"] = bytes.fromhex(
             # "{:0{len_type}d}".format(enc_field_len, len_type=len_type * 2)
             "{enc_field_len}".format(enc_field_len=enc_field_len)

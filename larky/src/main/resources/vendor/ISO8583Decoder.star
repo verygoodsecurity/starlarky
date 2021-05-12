@@ -306,7 +306,7 @@ def _decode_bitmaps(
         bm = s[idx : idx + f_len]
     else:
         doc_dec["p"] = s[idx : idx + f_len].decode(spec["p"]["data_enc"])
-        bm = bytes.fromhex(doc_dec["p"])
+        bm = unhexlify(doc_dec["p"])
 
 
     fields = sets.union(
@@ -344,7 +344,7 @@ def _decode_bitmaps(
         bm = s[idx : idx + f_len]
     else:
         doc_dec["1"] = s[idx : idx + f_len].decode(spec["1"]["data_enc"])
-        bm = bytes.fromhex(doc_dec["1"])
+        bm = unhexlify(doc_dec["1"])
 
     fields = sets.union(
         fields,
