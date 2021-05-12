@@ -145,7 +145,7 @@ def _encode_header(doc_dec, doc_enc, spec):
 
     # Header data is a required field.
     if "h" not in doc_dec:
-        fail(" EncodeError(\n            \"Field data is required according to specifications\", doc_dec, doc_enc, \"h\"\n        )")
+        fail("EncodeError('Field data is required according to specifications: field h')")
 
     return _encode_field(doc_dec, doc_enc, "h", spec)
 

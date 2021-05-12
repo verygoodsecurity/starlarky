@@ -11,32 +11,40 @@ load("@stdlib//sets", "sets")
 spec = default
 
 
-# def test_EncodeError_exception():
-#     """
-#     Validate EncodeError class
-#     """
-#     spec["h"]["data_enc"] = "ascii"
-#     spec["h"]["len_type"] = 0
-#     spec["h"]["max_len"] = 6
-#     spec["t"]["data_enc"] = "ascii"
-#     spec["p"]["data_enc"] = "ascii"
-#     spec["1"]["len_type"] = 0
-#     spec["1"]["max_len"] = 0
-#
-#     doc_dec = {"t": ""}
-#
-#     try:
-#         iso8583.encode(doc_dec, spec=spec)
-#     except iso8583.EncodeError as e:
-#         asserts.assert_that(e.doc_dec == doc_dec
-#         asserts.assert_that(e.doc_enc == ({})
-#         asserts.assert_that(e.msg == "Field data is required according to specifications"
-#         asserts.assert_that(e.field == "h"
-#         asserts.assert_that((
-#             e.args[0] == "Field data is required according to specifications: field h"
-#         )
-#
-#
+def test_EncodeError_exception():
+    """
+    Validate EncodeError class
+    """
+    # spec["h"]["data_enc"] = "ascii"
+    # spec["h"]["len_type"] = 0
+    # spec["h"]["max_len"] = 6
+    # spec["t"]["data_enc"] = "ascii"
+    # spec["p"]["data_enc"] = "ascii"
+    # spec["1"]["len_type"] = 0
+    # spec["1"]["max_len"] = 0
+
+    spec = {
+        "h": {
+            "data_enc": "ascii",
+            "len_type": 0,
+            "max_len": 6,
+        },
+        "t": {
+            "data_enc": "ascii",
+        },
+        "p": {
+            "data_enc": "ascii",
+        },
+        "1": {
+            "len_type": 0,
+            "max_len": 0
+        }
+    }
+
+    doc_dec = {"t": ""}
+    asserts.assert_fails(lambda: Encoder.encode(doc_dec, spec), ".*?Field data is required according to specifications: field h")
+
+
 # def test_EncodeError_exception_pickle():
 #     """
 #     Validate EncodeError class with pickle
@@ -2604,11 +2612,13 @@ def test_bitmaps_bcd():
 #     ):
 #         iso8583.encode(doc_dec, spec=spec)
 
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(test_bitmaps_ascii))
     _suite.addTest(unittest.FunctionTestCase(test_bitmaps_ebcidic))
     _suite.addTest(unittest.FunctionTestCase(test_bitmaps_bcd))
+    _suite.addTest(unittest.FunctionTestCase(test_EncodeError_exception))
 
     return _suite
 
