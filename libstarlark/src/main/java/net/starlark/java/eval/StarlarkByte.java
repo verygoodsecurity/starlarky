@@ -938,13 +938,6 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
           lowerBound = 0x90;
         } else if (b == 0xf4) {
           upperBound = 0x8f;
-        } else if(bool && (idx + utf8BytesNeeded >= last)) {
-          /*
-             If we're not going to be able to have all the correct bytes,
-             then, we will keep the character in the payload.
-           */
-          v[s] = v[s];
-          //v[s++] = (char) b;
         }
       } else {
         if (b < lowerBound || b > upperBound) {
@@ -990,7 +983,17 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
 
     // The bytes seen are ill-formed. Substitute them by U+FFFD
     if (utf8BytesNeeded != 0) {
-      v[s++] = bool ? (char) b : REPLACEMENT_CHAR;
+      // the total number of utf8BytesNeeded should be replaced by the
+      // actual escaped characters themselves if bool is true.
+      // -- we have to back track utf8BytesNeeded and insert the characters
+      if(bool) {
+        for (int i = 0; i < utf8BytesNeeded; i++) {
+          v[s++] = (char) (d[idx - utf8BytesNeeded + i] & 0xff);
+        }
+      }
+      else {
+        v[s++] = REPLACEMENT_CHAR;
+      }
     }
 
     if (s == byteCount) {

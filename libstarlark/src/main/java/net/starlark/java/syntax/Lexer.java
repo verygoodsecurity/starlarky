@@ -280,7 +280,10 @@ final class Lexer {
               if ((buffer[pos] <= 0xFF)) {
                 literal.put((byte) (buffer[pos] & 0xFF));
               } else {
-                literal.putChar(buffer[pos]);
+                // TODO(mahmoudimus): check?
+                literal.put((byte)(buffer[pos] >> 8));
+                literal.put((byte)(buffer[pos] >> 0));
+                //literal.putChar(buffer[pos]);
               }
               pos += 1;
             }
@@ -521,8 +524,37 @@ final class Lexer {
         default:
           if (c <= 0xFF) {
             literal.put((byte) (c & 0xFF));
-          } else {
-            literal.putChar(c);
+          }
+          else if (c < 0x800) {
+            literal.put((byte)(c >> 6 & 0x1F | 0xC0));
+            literal.put((byte)(c & 0x3F | 0x80));
+          }
+          else if(Character.isSurrogate(c)) {
+            if((pos + 1) < buffer.length // if we can peek
+                 && Character.isLowSurrogate((char) peek(0))
+                 && Character.isHighSurrogate(c)) {
+              int lowSurrogate = peek(0);
+              //C = (H - 0xD800) * 0x400 + L - 0xDC00 + 0x10000
+              // Character.toCodePoint(c, c2);
+              int codepoint = ((int) c - 0xd800 << 10) + lowSurrogate - 0xdc00 + 0x10000;
+              literal.put((byte)(codepoint >> 18 & 0x7  | 0xF0));
+              literal.put((byte)(codepoint >> 12 & 0x3F | 0x80));
+              literal.put((byte)(codepoint >>  6 & 0x3F | 0x80));
+              //noinspection PointlessBitwiseExpression
+              literal.put((byte)(codepoint >>  0 & 0x3F | 0x80));
+              pos++;
+              break;
+            }
+            // // unpaired high/low surrogate => 0xFFFD
+            literal.put((byte) 0xEF);
+            literal.put((byte) 0xBF);
+            literal.put((byte) 0xBD);
+          }
+          else {
+            literal.put((byte)(c >> 12 & 0xF  | 0xE0));
+            literal.put((byte)(c >>  6 & 0x3F | 0x80));
+            //noinspection PointlessBitwiseExpression
+            literal.put((byte)(c >>  0 & 0x3F | 0x80));
           }
           break;
       }
