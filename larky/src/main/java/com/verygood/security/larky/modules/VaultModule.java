@@ -108,8 +108,8 @@ public class VaultModule implements LarkyVault {
                             named = true,
                             defaultValue = "None",
                             allowedTypes = {
-                                    @ParamType(type= NoneType.class),
-                                    @ParamType(type=String.class),
+                                    @ParamType(type = NoneType.class),
+                                    @ParamType(type = String.class),
                             })
             })
     @Override

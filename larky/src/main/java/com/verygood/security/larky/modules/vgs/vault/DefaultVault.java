@@ -19,15 +19,15 @@ import java.util.regex.Pattern;
 
 public class DefaultVault implements LarkyVault {
 
-    private final Map<String,Object> persistentVaultStorage = new HashMap<>();
-    private final Map<String,Object> volatileVaultStorage = new HashMap<>();
+    private final Map<String, Object> persistentVaultStorage = new HashMap<>();
+    private final Map<String, Object> volatileVaultStorage = new HashMap<>();
 
-    private final Map<String,Map<String,Object>> storageConfig = new HashMap<String,Map<String,Object>>() {{
+    private final Map<String, Map<String, Object>> storageConfig = new HashMap<String, Map<String, Object>>() {{
         put("persistent", persistentVaultStorage);
         put("volatile", volatileVaultStorage);
     }};
 
-    private final Map<String, AliasGenerator> formatTokenizer = new HashMap<String,AliasGenerator>() {{
+    private final Map<String, AliasGenerator> formatTokenizer = new HashMap<String, AliasGenerator>() {{
         put("RAW_UUID", new RawAliasGenerator());
         put("UUID", new UUIDAliasGenerator());
         put("NUM_LENGTH_PRESERVING", new NumberLengthPreserving());
@@ -62,7 +62,7 @@ public class DefaultVault implements LarkyVault {
     }
 
     private String getValue(Object value) throws EvalException {
-        if ( !(value instanceof String) ) {
+        if (!(value instanceof String)) {
             throw Starlark.errorf(String.format(
                     "Value of type %s is not supported in DefaultVault, expecting String", value.getClass().getName()
             ));
@@ -71,14 +71,14 @@ public class DefaultVault implements LarkyVault {
         return value.toString();
     }
 
-    private Map<String,Object> getStorage(Object storage) throws EvalException {
+    private Map<String, Object> getStorage(Object storage) throws EvalException {
 
         if (storage instanceof NoneType) { // Use 'persistent` storage by default
             return persistentVaultStorage;
         } else if (storage instanceof String) {
             if (!storageConfig.containsKey(storage)) {
                 throw Starlark.errorf(String.format(
-                                "Storage '%s' not found in available storage list [persistent, volatile]", storage
+                        "Storage '%s' not found in available storage list [persistent, volatile]", storage
                 ));
             }
 
@@ -177,14 +177,16 @@ public class DefaultVault implements LarkyVault {
 
         @Override
         public String tokenize(String value) throws EvalException {
-            if(!isValid(value)) {
+            if (!isValid(value)) {
                 return fallbackAliasGenerator().tokenize(value);
             }
             return internalTokenize(value);
         }
 
         protected abstract boolean isValid(String value);
+
         protected abstract String internalTokenize(String Value);
+
         protected abstract AliasGenerator fallbackAliasGenerator();
 
     }
@@ -192,7 +194,7 @@ public class DefaultVault implements LarkyVault {
     private class UUIDAliasGenerator extends RawAliasGenerator {
         @Override
         public String tokenize(String value) throws EvalException {
-            return String.format("tok_%s", super.tokenize(value)).substring(0,30);
+            return String.format("tok_%s", super.tokenize(value)).substring(0, 30);
         }
     }
 
@@ -220,7 +222,7 @@ public class DefaultVault implements LarkyVault {
     }
 
     private interface AliasGenerator {
-        String tokenize(String value) throws EvalException ;
+        String tokenize(String value) throws EvalException;
     }
 
 }

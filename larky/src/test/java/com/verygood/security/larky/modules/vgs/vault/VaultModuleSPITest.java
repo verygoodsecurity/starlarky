@@ -22,7 +22,7 @@ public class VaultModuleSPITest {
     // Do not reference src/test/resources/META-INF/services because it is not put in the classpath at runtime,
     // and thus not reference by ServiceLoader
     private static final Path VAULT_CONFIG_PATH = Paths.get(
-            "target","test-classes", "META-INF", "services",
+            "target", "test-classes", "META-INF", "services",
             "com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault"
     );
     private static String VAULT_SAVED_CONFIG;
@@ -42,7 +42,7 @@ public class VaultModuleSPITest {
     public void testNoopModule_exception() throws Exception {
         // Setup Noop Vault
         setVaultImpl("");
-        System.setProperty(VaultModule.PROPERTY_NAME,"false");
+        System.setProperty(VaultModule.PROPERTY_NAME, "false");
         vault = new VaultModule();
 
         // Assert Exceptions
@@ -65,7 +65,7 @@ public class VaultModuleSPITest {
 
         // Setup Default Vault through system config
         setVaultImpl("");
-        System.setProperty(VaultModule.PROPERTY_NAME,"true");
+        System.setProperty(VaultModule.PROPERTY_NAME, "true");
         vault = new VaultModule();
 
         // Invoke Vault
@@ -82,7 +82,7 @@ public class VaultModuleSPITest {
     public void testSPIModule_single_ok() throws Exception {
         // Setup Default Vault through SPI config
         setVaultImpl("com.verygood.security.larky.modules.vgs.vault.DefaultVault");
-        System.setProperty(VaultModule.PROPERTY_NAME,"false");
+        System.setProperty(VaultModule.PROPERTY_NAME, "false");
         vault = new VaultModule();
 
         // Invoke Vault
@@ -101,7 +101,7 @@ public class VaultModuleSPITest {
         // Setup multiple vault SPI configs
         setVaultImpl("com.verygood.security.larky.modules.vgs.vault.DefaultVault\n"
                 + "com.verygood.security.larky.modules.vgs.vault.NoopVault\n");
-        System.setProperty(VaultModule.PROPERTY_NAME,"false");
+        System.setProperty(VaultModule.PROPERTY_NAME, "false");
 
         // Assert Exception
         Assertions.assertThrows(IllegalArgumentException.class,
