@@ -60,8 +60,7 @@ public class ModuleSupplier {
       CodecsModule.INSTANCE,
       BinasciiModule.INSTANCE,
       StructModule.INSTANCE,
-      CryptoModule.INSTANCE,
-      ISO8583Module.INSTANCE
+      CryptoModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
