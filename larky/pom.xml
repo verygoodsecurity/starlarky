@@ -121,7 +121,6 @@
                     <artifactId>commons-beanutils</artifactId>
                 </exclusion>
             </exclusions>
-            <scope>provided</scope>
         </dependency>
 
         <!-- cryptography -->
