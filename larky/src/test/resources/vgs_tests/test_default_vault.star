@@ -87,7 +87,7 @@ def _test_unknown_format():
 def _test_unsupported_format():
     card_number = "4111111111111117"
     asserts.assert_fails(lambda : vault.redact(card_number, format="ALPHANUMERIC_SIX_T_FOUR"),
-        "Format 'ALPHANUMERIC_SIX_T_FOUR' is not supported yet"
+        "Format 'ALPHANUMERIC_SIX_T_FOUR' is not supported"
     )
 
 def _test_valid_format_preserving():
