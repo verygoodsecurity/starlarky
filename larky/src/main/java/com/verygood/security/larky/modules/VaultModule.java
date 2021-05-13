@@ -10,8 +10,10 @@ import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Starlark;
 
 import java.util.List;
+import java.util.Map;
 import java.util.ServiceLoader;
 
 
@@ -25,6 +27,26 @@ public class VaultModule implements LarkyVault {
     public static final String ENABLE_INMEMORY_PROPERTY = "larky.modules.vgs.vault.enableInMemoryVault";
 
     private LarkyVault vault;
+
+    private final ImmutableList<String> supportedStorage = ImmutableList.of(
+            "persistent",
+            "volatile"
+    );
+
+    private final ImmutableList<String> supportedFormat = ImmutableList.of(
+            "RAW_UUID",
+            "UUID",
+            "NUM_LENGTH_PRESERVING",
+            "PFPT",
+            "FPE_SIX_T_FOUR",
+            "FPE_T_FOUR",
+            "NON_LUHN_FPE_ALPHANUMERIC",
+            "FPE_SSN_T_FOUR",
+            "FPE_ACC_NUM_T_FOUR",
+            "FPE_ALPHANUMERIC_ACC_NUM_T_FOUR",
+            "GENERIC_T_FOUR",
+            "ALPHANUMERIC_SIX_T_FOUR"
+    );
 
     public VaultModule() {
 
@@ -88,6 +110,9 @@ public class VaultModule implements LarkyVault {
             })
     @Override
     public Object redact(Object value, Object storage, Object format, List<Object> tags) throws EvalException {
+        validateStorage(storage);
+        validateFormat(format);
+
         return vault.redact(value, storage, format, tags);
     }
 
@@ -114,7 +139,39 @@ public class VaultModule implements LarkyVault {
             })
     @Override
     public Object reveal(Object value, Object storage) throws EvalException {
+        validateStorage(storage);
+
         return vault.reveal(value, storage);
+    }
+
+    private void validateStorage(Object storage) throws EvalException {
+        if (!(storage instanceof NoneType) && !(storage instanceof String)) {
+            throw Starlark.errorf(String.format(
+                    "Storage of type %s is not supported in VAULT, expecting String",
+                    storage.getClass().getName()
+            ));
+        } else if ((storage instanceof String) && !supportedStorage.contains(storage.toString())) {
+            throw Starlark.errorf(String.format(
+                    "Storage '%s' not found in supported storage types: %s",
+                    storage,
+                    supportedStorage.toString()
+            ));
+        }
+    }
+
+    private void validateFormat(Object format) throws EvalException {
+        if (!(format instanceof NoneType) && !(format instanceof String)) {
+            throw Starlark.errorf(String.format(
+                    "Format of type %s is not supported in VAULT, expecting String",
+                    format.getClass().getName()
+            ));
+        } else if ((format instanceof String) && !supportedFormat.contains(format.toString())) {
+            throw Starlark.errorf(String.format(
+                    "Format '%s' not found in supported format types: %s",
+                    format,
+                    supportedFormat.toString()
+            ));
+        }
     }
 
 }

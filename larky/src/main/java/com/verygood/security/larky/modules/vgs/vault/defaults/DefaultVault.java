@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.vgs.vault.defaults;
 
+import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 
 import net.starlark.java.eval.EvalException;
@@ -16,32 +17,30 @@ public class DefaultVault implements LarkyVault {
     private final Map<String, Object> persistentVaultStorage = new HashMap<>();
     private final Map<String, Object> volatileVaultStorage = new HashMap<>();
 
-    private final Map<String, Map<String, Object>> storageConfig = new HashMap<String, Map<String, Object>>() {{
-        put("persistent", persistentVaultStorage);
-        put("volatile", volatileVaultStorage);
-    }};
+    private final ImmutableMap<String, Map<String, Object>> storageConfig = ImmutableMap.of(
+            "persistent", persistentVaultStorage,
+            "volatile", volatileVaultStorage
+    );
 
-    private final Map<String, AliasGenerator> formatTokenizer = new HashMap<String, AliasGenerator>() {{
-        put("RAW_UUID", new RawAliasGenerator());
-        put("UUID", new UUIDAliasGenerator());
-        put("NUM_LENGTH_PRESERVING", new NumberLengthPreserving());
-
-        // Placeholders for unsupported formats found in
-        // https://www.verygoodsecurity.com/docs/terminology/nomenclature#alias-formats
-        put("PFPT", new NoopAliasGenerator("PFPT"));
-        put("FPE_SIX_T_FOUR", new NoopAliasGenerator("FPE_SIX_T_FOUR"));
-        put("FPE_T_FOUR", new NoopAliasGenerator("FPE_T_FOUR"));
-        put("NON_LUHN_FPE_ALPHANUMERIC", new NoopAliasGenerator("NON_LUHN_FPE_ALPHANUMERIC"));
-        put("FPE_SSN_T_FOUR", new NoopAliasGenerator("FPE_SSN_T_FOUR"));
-        put("FPE_ACC_NUM_T_FOUR", new NoopAliasGenerator("FPE_ACC_NUM_T_FOUR"));
-        put("FPE_ALPHANUMERIC_ACC_NUM_T_FOUR", new NoopAliasGenerator("FPE_ALPHANUMERIC_ACC_NUM_T_FOUR"));
-        put("GENERIC_T_FOUR", new NoopAliasGenerator("GENERIC_T_FOUR"));
-        put("ALPHANUMERIC_SIX_T_FOUR", new NoopAliasGenerator("ALPHANUMERIC_SIX_T_FOUR"));
-    }};
+    private final ImmutableMap<String, AliasGenerator> formatTokenizer = ImmutableMap.<String, AliasGenerator>builder()
+            .put("RAW_UUID", new RawAliasGenerator())
+            .put("UUID", new UUIDAliasGenerator())
+            .put("NUM_LENGTH_PRESERVING", new NumberLengthPreserving())
+            // Placeholders for unsupported formats found in
+            // https://www.verygoodsecurity.com/docs/terminology/nomenclature#alias-format
+            .put("PFPT", new NoopAliasGenerator("PFPT"))
+            .put("FPE_SIX_T_FOUR", new NoopAliasGenerator("FPE_SIX_T_FOUR"))
+            .put("FPE_T_FOUR", new NoopAliasGenerator("FPE_T_FOUR"))
+            .put("NON_LUHN_FPE_ALPHANUMERIC", new NoopAliasGenerator("NON_LUHN_FPE_ALPHANUMERIC"))
+            .put("FPE_SSN_T_FOUR", new NoopAliasGenerator("FPE_SSN_T_FOUR"))
+            .put("FPE_ACC_NUM_T_FOUR", new NoopAliasGenerator("FPE_ACC_NUM_T_FOUR"))
+            .put("FPE_ALPHANUMERIC_ACC_NUM_T_FOUR", new NoopAliasGenerator("FPE_ALPHANUMERIC_ACC_NUM_T_FOUR"))
+            .put("GENERIC_T_FOUR", new NoopAliasGenerator("GENERIC_T_FOUR"))
+            .put("ALPHANUMERIC_SIX_T_FOUR", new NoopAliasGenerator("ALPHANUMERIC_SIX_T_FOUR"))
+            .build();
 
     @Override
     public Object redact(Object value, Object storage, Object format, List<Object> tags) throws EvalException {
-
         String sValue = getValue(value);
         String token = getTokenizer(format).tokenize(sValue);
         getStorage(storage).put(token, value);
@@ -72,7 +71,9 @@ public class DefaultVault implements LarkyVault {
         } else if (storage instanceof String) {
             if (!storageConfig.containsKey(storage)) {
                 throw Starlark.errorf(String.format(
-                        "Storage '%s' not found in available storage list [persistent, volatile]", storage
+                        "Storage '%s' not found in supported storage types: %s",
+                        storage,
+                        storageConfig.keySet().toString()
                 ));
             }
 
@@ -94,7 +95,9 @@ public class DefaultVault implements LarkyVault {
                 return formatTokenizer.get(format);
             } else {
                 throw Starlark.errorf(String.format(
-                        "Format '%s' not found", format
+                        "Format '%s' not found in supported format types: %s",
+                        format,
+                        formatTokenizer.keySet().toString()
                 ));
             }
         }

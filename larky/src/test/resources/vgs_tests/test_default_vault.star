@@ -73,13 +73,15 @@ def _test_volatile_storage():
 def _test_unknown_storage():
     card_number = "4111111111111116"
     asserts.assert_fails(lambda : vault.redact(card_number, storage="unknown"),
-            "Storage 'unknown' not found in available storage list \\[persistent, volatile\\]"
+            "Storage 'unknown' not found in supported storage types: \\[persistent, volatile\\]"
     )
 
 def _test_unknown_format():
     card_number = "4111111111111117"
     asserts.assert_fails(lambda : vault.redact(card_number, format="unknown"),
-        "Format 'unknown' not found"
+        "Format 'unknown' not found in supported format types: " +
+        "\\[RAW_UUID, UUID, NUM_LENGTH_PRESERVING, PFPT, FPE_SIX_T_FOUR, FPE_T_FOUR, NON_LUHN_FPE_ALPHANUMERIC, " +
+        "FPE_SSN_T_FOUR, FPE_ACC_NUM_T_FOUR, FPE_ALPHANUMERIC_ACC_NUM_T_FOUR, GENERIC_T_FOUR, ALPHANUMERIC_SIX_T_FOUR\\]"
     )
 
 def _test_unsupported_format():
