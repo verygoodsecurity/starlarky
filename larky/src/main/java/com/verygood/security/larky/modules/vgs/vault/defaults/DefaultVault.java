@@ -1,18 +1,14 @@
-package com.verygood.security.larky.modules.vgs.vault;
-
-import org.apache.commons.lang3.RandomStringUtils;
+package com.verygood.security.larky.modules.vgs.vault.defaults;
 
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
+
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.regex.Pattern;
 
 
 public class DefaultVault implements LarkyVault {
@@ -107,78 +103,6 @@ public class DefaultVault implements LarkyVault {
                 "Format of type %s is not supported in DefaultVault, expecting String",
                 format.getClass().getName()
         ));
-    }
-
-    private class NumberLengthPreserving extends ValidatingAliasGenerator {
-
-        private final Pattern cardPattern = Pattern.compile("\\d{3,16}");
-
-        @Override
-        protected String internalTokenize(String value) {
-            return RandomStringUtils.randomNumeric(value.length());
-        }
-
-        @Override
-        protected boolean isValid(String value) {
-            return cardPattern.matcher(value).find();
-        }
-
-        @Override
-        protected AliasGenerator fallbackAliasGenerator() {
-            return new RawAliasGenerator();
-        }
-    }
-
-    private abstract class ValidatingAliasGenerator implements AliasGenerator {
-
-        @Override
-        public String tokenize(String value) throws EvalException {
-            if (!isValid(value)) {
-                return fallbackAliasGenerator().tokenize(value);
-            }
-            return internalTokenize(value);
-        }
-
-        protected abstract boolean isValid(String value);
-
-        protected abstract String internalTokenize(String Value);
-
-        protected abstract AliasGenerator fallbackAliasGenerator();
-
-    }
-
-    private class UUIDAliasGenerator extends RawAliasGenerator {
-        @Override
-        public String tokenize(String value) throws EvalException {
-            return String.format("tok_%s", super.tokenize(value)).substring(0, 30);
-        }
-    }
-
-    private class RawAliasGenerator implements AliasGenerator {
-        @Override
-        public String tokenize(String value) throws EvalException {
-            return new String(Base64.getEncoder().encode(UUID.randomUUID().toString().getBytes()));
-        }
-    }
-
-    private class NoopAliasGenerator implements AliasGenerator {
-
-        private String aliasFormatName;
-
-        public NoopAliasGenerator(String name) {
-            this.aliasFormatName = name;
-        }
-
-        @Override
-        public String tokenize(String value) throws EvalException {
-            throw Starlark.errorf(String.format(
-                    "Format '%s' is not supported yet", aliasFormatName
-            ));
-        }
-    }
-
-    private interface AliasGenerator {
-        String tokenize(String value) throws EvalException;
     }
 
 }

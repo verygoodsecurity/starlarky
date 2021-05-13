@@ -79,7 +79,7 @@ public class VaultModuleSPITest {
     @Test
     public void testSPIModule_single_ok() throws Exception {
         // Setup Default Vault through SPI config
-        setVaultImpl("com.verygood.security.larky.modules.vgs.vault.DefaultVault");
+        setVaultImpl("com.verygood.security.larky.modules.vgs.vault.defaults.DefaultVault");
         System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "false");
         vault = new VaultModule();
 
@@ -97,7 +97,7 @@ public class VaultModuleSPITest {
     public void testSPIModule_multiple_exception() throws Exception {
 
         // Setup multiple vault SPI configs
-        setVaultImpl("com.verygood.security.larky.modules.vgs.vault.DefaultVault\n"
+        setVaultImpl("com.verygood.security.larky.modules.vgs.vault.defaults.DefaultVault\n"
                 + "com.verygood.security.larky.modules.vgs.vault.NoopVault\n");
         System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "false");
 

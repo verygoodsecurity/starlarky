@@ -1,7 +1,7 @@
 package com.verygood.security.larky.modules;
 
 import com.google.common.collect.ImmutableList;
-import com.verygood.security.larky.modules.vgs.vault.DefaultVault;
+import com.verygood.security.larky.modules.vgs.vault.defaults.DefaultVault;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import com.verygood.security.larky.modules.vgs.vault.NoopVault;
 import net.starlark.java.annot.Param;
