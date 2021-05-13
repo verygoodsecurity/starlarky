@@ -1,6 +1,6 @@
 package com.verygood.security.larky.modules;
 
-import com.google.common.collect.Iterators;
+import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.vgs.vault.DefaultVault;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import com.verygood.security.larky.modules.vgs.vault.NoopVault;
@@ -11,7 +11,6 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
 
@@ -23,27 +22,28 @@ import java.util.ServiceLoader;
 public class VaultModule implements LarkyVault {
 
     public static final VaultModule INSTANCE = new VaultModule();
-    public static final String PROPERTY_NAME = "larky.modules.vgs.vault.enableInMemoryVault";
+    public static final String ENABLE_INMEMORY_PROPERTY = "larky.modules.vgs.vault.enableInMemoryVault";
 
     private LarkyVault vault;
 
     public VaultModule() {
 
         ServiceLoader<LarkyVault> loader = ServiceLoader.load(LarkyVault.class);
-        Iterator<LarkyVault> vaultIterator = loader.iterator();
+        List<LarkyVault> vaultProviders = ImmutableList.copyOf(loader.iterator());
 
-        if (Boolean.getBoolean(PROPERTY_NAME)) {
+        if (Boolean.getBoolean(ENABLE_INMEMORY_PROPERTY)) {
             vault = new DefaultVault();
-        } else if (!vaultIterator.hasNext()) {
+        } else if (vaultProviders.isEmpty()) {
             vault = new NoopVault();
         } else {
-            vault = vaultIterator.next();
-            if (vaultIterator.hasNext()) {
-                throw new IllegalArgumentException(
-                        "VaultModule expecting only 1 vault provider of type LarkyVault, found "
-                                + (1 + Iterators.size(vaultIterator))
-                );
+            if (vaultProviders.size() != 1) {
+                throw new IllegalArgumentException(String.format(
+                        "VaultModule expecting only 1 vault provider of type LarkyVault, found %d",
+                        vaultProviders.size()
+                ));
             }
+
+            vault = vaultProviders.get(0);
         }
 
     }

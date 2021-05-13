@@ -1,13 +1,11 @@
 package com.verygood.security.larky.modules.vgs.vault;
 
-import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.modules.VaultModule;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -42,7 +40,7 @@ public class VaultModuleSPITest {
     public void testNoopModule_exception() throws Exception {
         // Setup Noop Vault
         setVaultImpl("");
-        System.setProperty(VaultModule.PROPERTY_NAME, "false");
+        System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "false");
         vault = new VaultModule();
 
         // Assert Exceptions
@@ -65,7 +63,7 @@ public class VaultModuleSPITest {
 
         // Setup Default Vault through system config
         setVaultImpl("");
-        System.setProperty(VaultModule.PROPERTY_NAME, "true");
+        System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "true");
         vault = new VaultModule();
 
         // Invoke Vault
@@ -82,7 +80,7 @@ public class VaultModuleSPITest {
     public void testSPIModule_single_ok() throws Exception {
         // Setup Default Vault through SPI config
         setVaultImpl("com.verygood.security.larky.modules.vgs.vault.DefaultVault");
-        System.setProperty(VaultModule.PROPERTY_NAME, "false");
+        System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "false");
         vault = new VaultModule();
 
         // Invoke Vault
@@ -101,7 +99,7 @@ public class VaultModuleSPITest {
         // Setup multiple vault SPI configs
         setVaultImpl("com.verygood.security.larky.modules.vgs.vault.DefaultVault\n"
                 + "com.verygood.security.larky.modules.vgs.vault.NoopVault\n");
-        System.setProperty(VaultModule.PROPERTY_NAME, "false");
+        System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "false");
 
         // Assert Exception
         Assertions.assertThrows(IllegalArgumentException.class,
