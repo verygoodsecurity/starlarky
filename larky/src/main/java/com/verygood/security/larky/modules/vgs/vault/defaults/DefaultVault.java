@@ -22,7 +22,7 @@ public class DefaultVault implements LarkyVault {
             "volatile", volatileVaultStorage
     );
 
-    private final ImmutableMap<String, AliasGenerator> formatTokenizer = ImmutableMap.<String, AliasGenerator>builder()
+    private final ImmutableMap<String, AliasGenerator> formatToAliasGenerator = ImmutableMap.<String, AliasGenerator>builder()
             .put("RAW_UUID", new RawAliasGenerator())
             .put("UUID", new UUIDAliasGenerator())
             .put("NUM_LENGTH_PRESERVING", new NumberLengthPreserving())
@@ -42,16 +42,16 @@ public class DefaultVault implements LarkyVault {
     @Override
     public Object redact(Object value, Object storage, Object format, List<Object> tags) throws EvalException {
         String sValue = getValue(value);
-        String token = getTokenizer(format).tokenize(sValue);
-        getStorage(storage).put(token, value);
-        return token;
+        String alias = getAliasGenerator(format).generate(sValue);
+        getStorage(storage).put(alias, value);
+        return alias;
     }
 
     @Override
     public Object reveal(Object value, Object storage) throws EvalException {
         String sValue = getValue(value);
         Object secret = getStorage(storage).get(sValue);
-        return secret == null ? "token" : secret; // return 'token' if entry not found
+        return secret == null ? sValue : secret; // return value of alias if secret not found
     }
 
     private String getValue(Object value) throws EvalException {
@@ -86,18 +86,18 @@ public class DefaultVault implements LarkyVault {
         ));
     }
 
-    private AliasGenerator getTokenizer(Object format) throws EvalException {
+    private AliasGenerator getAliasGenerator(Object format) throws EvalException {
 
         if (format instanceof NoneType) {
-            return formatTokenizer.get("UUID"); // default tokenizer
+            return formatToAliasGenerator.get("UUID"); // default generator
         } else if (format instanceof String) {
-            if (formatTokenizer.containsKey(format)) {
-                return formatTokenizer.get(format);
+            if (formatToAliasGenerator.containsKey(format)) {
+                return formatToAliasGenerator.get(format);
             } else {
                 throw Starlark.errorf(String.format(
                         "Format '%s' not found in supported format types: %s",
                         format,
-                        formatTokenizer.keySet().toString()
+                        formatToAliasGenerator.keySet().toString()
                 ));
             }
         }
