@@ -222,6 +222,9 @@
             </resource>
             <resource>
                 <directory>src/test/resources</directory>
+                <excludes>
+                    <exclude>META-INF/services/*</exclude>
+                </excludes>
             </resource>
         </resources>
         <plugins>

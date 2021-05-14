@@ -29,6 +29,7 @@ import com.verygood.security.larky.modules.JsonModule;
 import com.verygood.security.larky.modules.ProtoBufModule;
 import com.verygood.security.larky.modules.RegexModule;
 import com.verygood.security.larky.modules.StructModule;
+import com.verygood.security.larky.modules.VaultModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
@@ -62,6 +63,10 @@ public class ModuleSupplier {
       CryptoModule.INSTANCE
   );
 
+  public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
+          VaultModule.INSTANCE
+  );
+
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
       UnittestModule.INSTANCE,
       AssertionsModule.INSTANCE
@@ -89,9 +94,13 @@ public class ModuleSupplier {
   }
 
   public ImmutableSet<StarlarkValue> getModules(boolean withTest) {
-    return withTest ? ImmutableSet.<StarlarkValue>builder()
-        .addAll(STD_MODULES)
-        .addAll(getTestModules()).build() : STD_MODULES;
+    ImmutableSet.Builder<StarlarkValue> modules = ImmutableSet.<StarlarkValue>builder()
+            .addAll(STD_MODULES)
+            .addAll(VGS_MODULES);
+
+    return withTest
+            ? modules.addAll(getTestModules()).build()
+            : modules.build();
   }
 
   public ImmutableSet<StarlarkValue> getTestModules() {
