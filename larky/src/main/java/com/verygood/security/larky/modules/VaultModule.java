@@ -13,7 +13,6 @@ import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 
 import java.util.List;
-import java.util.Map;
 import java.util.ServiceLoader;
 
 
@@ -72,11 +71,11 @@ public class VaultModule implements LarkyVault {
 
     @StarlarkMethod(
             name = "redact",
-            doc = "tokenizes value",
+            doc = "generates an alias for value",
             parameters = {
                     @Param(
                             name = "value",
-                            doc = "value to tokenize",
+                            doc = "value to alias",
                             allowedTypes = {
                                     @ParamType(type = String.class),
                                     @ParamType(type = List.class, generic1 = String.class)
@@ -118,11 +117,11 @@ public class VaultModule implements LarkyVault {
 
     @StarlarkMethod(
             name = "reveal",
-            doc = "reveals tokenized value",
+            doc = "reveals aliased value",
             parameters = {
                     @Param(
                             name = "value",
-                            doc = "token to reveal",
+                            doc = "alias to reveal",
                             allowedTypes = {
                                     @ParamType(type = String.class),
                                     @ParamType(type = List.class, generic1 = String.class)

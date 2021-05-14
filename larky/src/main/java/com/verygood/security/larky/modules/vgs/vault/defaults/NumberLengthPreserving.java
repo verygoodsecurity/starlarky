@@ -9,7 +9,7 @@ class NumberLengthPreserving extends ValidatingAliasGenerator {
     private final Pattern cardPattern = Pattern.compile("\\d{3,16}");
 
     @Override
-    protected String internalTokenize(String value) {
+    protected String internalGenerator(String value) {
         return RandomStringUtils.randomNumeric(value.length());
     }
 
