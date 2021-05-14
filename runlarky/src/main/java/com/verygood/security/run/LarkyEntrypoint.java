@@ -17,6 +17,7 @@ import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.syntax.FileOptions;
 import net.starlark.java.syntax.ParserInput;
+import net.starlark.java.syntax.Program;
 import net.starlark.java.syntax.SyntaxError;
 
 import org.apache.commons.cli.CommandLine;
@@ -33,11 +34,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;
 import lombok.SneakyThrows;
 
+import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 @QuarkusMain
@@ -50,12 +54,19 @@ public class LarkyEntrypoint implements QuarkusApplication {
   private static final BufferedReader reader =
       new BufferedReader(new InputStreamReader(System.in, UTF_8));
   private static final StarlarkThread thread;
-  private static final Module module = Module.create();
+
+  private static ModuleSupplier.ModuleSet moduleSet;
 
   static {
+    Module module = Module.create();
+    moduleSet =
+        new ModuleSupplier().modulesToVariableMap(false);
+    moduleSet.getModules()
+        .forEach(module::setGlobal);
     Mutability mu = Mutability.create("interpreter");
     thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
     thread.setPrintHandler((th, msg) -> System.out.println(msg));
+    thread.setLoader((name) -> module);
   }
   //REPL end
 
@@ -120,7 +131,7 @@ public class LarkyEntrypoint implements QuarkusApplication {
     while ((line = prompt()) != null) {
       ParserInput input = ParserInput.fromString(line, "<stdin>");
       try {
-        Object result = Starlark.execFile(input, OPTIONS, module, thread);
+        Object result = Starlark.execFile(input, OPTIONS, moduleSet.getModules(), thread);
         if (result != Starlark.NONE) {
           System.out.println(Starlark.repr(result));
         }
