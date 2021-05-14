@@ -133,4 +133,5 @@ public class LarkyTest {
     ParsedStarFile config;
     config = interpreter.evaluate(starFile, new ModuleSupplier().modulesToVariableMap(true), new TestingConsole());
   }
+
 }

@@ -56,6 +56,14 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.verygood.security.larky.modules.VaultModule",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.verygood.security.larky.modules.types.structs.MutableStruct",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,

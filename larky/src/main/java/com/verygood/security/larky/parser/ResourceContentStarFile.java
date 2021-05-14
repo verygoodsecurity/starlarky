@@ -35,6 +35,7 @@ public class ResourceContentStarFile implements StarFile {
    */
   private static final String STDLIB = "@stdlib";
   private static final String VENDOR = "@vendor//";
+  private static final String VGS = "@vgs//";
   private static final Pattern NAMESPACE_PREFIX = Pattern.compile("@(\\w+)/?/(.+)");
 
   private String resourcePath;
@@ -77,7 +78,7 @@ public class ResourceContentStarFile implements StarFile {
   }
 
   public static boolean startsWithPrefix(String moduleToLoad) {
-    return moduleToLoad.startsWith(STDLIB) || moduleToLoad.startsWith(VENDOR);
+    return moduleToLoad.startsWith(STDLIB) || moduleToLoad.startsWith(VENDOR) || moduleToLoad.startsWith(VGS);
   }
 
   public static String getModulePath(String moduleToLoad) {
