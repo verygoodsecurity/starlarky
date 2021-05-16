@@ -876,15 +876,15 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   };
 
   /**
-    * Returns a String for the UTF-8 encoded byte sequence in <code>bytes[0..len-1]</code>. The
-    * length of the resulting String will be the exact number of characters encoded by these bytes.
-    * Since UTF-8 is a variable-length encoding, the resulting String may have a length anywhere from
-    * len/3 to len, depending on the contents of the input array.<p>
-    *
-    * In the event of a bad encoding, the UTF-8 replacement character (code point U+FFFD) is inserted
-    * for the bad byte(s), and decoding resumes from the next byte.
+   * Returns a String for the UTF-8 encoded byte sequence in <code>bytes[0..len-1]</code>. The
+   * length of the resulting String will be the exact number of characters encoded by these bytes.
+   * Since UTF-8 is a variable-length encoding, the resulting String may have a length anywhere from
+   * len/3 to len, depending on the contents of the input array.<p>
+   *
+   * In the event of a bad encoding, the UTF-8 replacement character (code point U+FFFD) is inserted
+   * for the bad byte(s), and decoding resumes from the next byte.
    */
-  static public String UTF8toUTF16(byte[] data, int offset, int byteCount, boolean bool) {
+  static public String UTF8toUTF16(byte[] data, int offset, int byteCount, boolean allowMalformed) {
     if ((offset | byteCount) < 0 || byteCount > data.length - offset) {
       throw new RuntimeException("index out of bound: " + data.length + " " + offset + " " + byteCount);
     }
@@ -980,15 +980,16 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
       }
     }
 
-    // The bytes seen are ill-formed. Substitute them by U+FFFD
+    // The bytes seen are ill-formed.
     if (utf8BytesNeeded != 0) {
-      // the total number of utf8BytesNeeded should be replaced by the
-      // actual escaped characters themselves if bool is true.
-      // -- we have to back track utf8BytesNeeded and insert the characters
       for (int i = 0; i < utf8BytesNeeded; i++) {
-        if(bool) {
+        // the total number of utf8BytesNeeded should be replaced by the
+        // actual escaped characters themselves if allowMalformed is true.
+        if (allowMalformed) {
+          // we have to back track utf8BytesNeeded and insert the characters
           v[s++] = (char) (d[idx - utf8BytesNeeded + i] & 0xff);
         } else {
+          // Substitute them by U+FFFD
           v[s++] = REPLACEMENT_CHAR;
         }
       }
@@ -1008,11 +1009,9 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   }
 
   /**
-    * The Starlark spec defines text strings as sequences of UTF-k
-    * codes that encode Unicode code points. In this Java implementation,
-    * k=16, whereas in a Go implementation, k=8s. For portability,
-    * operations on strings should aim to avoid assumptions about
-    * the value of k.
+   * The Starlark spec defines text strings as sequences of UTF-k codes that encode Unicode code
+   * points. In this Java implementation, k=16, whereas in a Go implementation, k=8s. For
+   * portability, operations on strings should aim to avoid assumptions about the value of k.
    */
   static public byte[] UTF16toUTF8(char[] val) {
     int dp = 0;
@@ -1021,101 +1020,96 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
     byte[] dst = new byte[sl * 3];
     char c;
     while (sp < sl && (c = val[sp]) < 0x80) {
-       // ascii fast loop;
-       dst[dp++] = (byte)c;
-       sp++;
+      // ascii fast loop;
+      dst[dp++] = (byte) c;
+      sp++;
     }
     while (sp < sl) {
-       c = val[sp++];
-       if (c < 0x80) {
-           dst[dp++] = (byte)c;
-       } else if (c < 0x800) {
-           dst[dp++] = (byte)(0xc0 | (c >> 6));
-           dst[dp++] = (byte)(0x80 | (c & 0x3f));
-       } else if (Character.isSurrogate(c)) {
-           int uc = -1;
-           char c2;
-           if (Character.isHighSurrogate(c) && sp < sl &&
-                   Character.isLowSurrogate(c2 = val[sp])) {
-               uc = Character.toCodePoint(c, c2);
-           }
-           if (uc < 0) {
-               dst[dp++] = (byte) 0xEF;
-               dst[dp++] = (byte) 0xBF;
-               dst[dp++] = (byte) 0xBD;
-           } else {
-               dst[dp++] = (byte)(0xf0 | ((uc >> 18)));
-               dst[dp++] = (byte)(0x80 | ((uc >> 12) & 0x3f));
-               dst[dp++] = (byte)(0x80 | ((uc >>  6) & 0x3f));
-               dst[dp++] = (byte)(0x80 | (uc & 0x3f));
-               sp++;  // 2 chars
-           }
-       } else {
-           // 3 bytes, 16 bits
-           dst[dp++] = (byte)(0xe0 | ((c >> 12)));
-           dst[dp++] = (byte)(0x80 | ((c >>  6) & 0x3f));
-           dst[dp++] = (byte)(0x80 | (c & 0x3f));
-       }
-    }
-    if (dp == dst.length) {
-       return dst;
-    }
-    return Arrays.copyOf(dst, dp);
-   }
-
-  public static void quote(StringBuilder sb, int codePoint) {
-    if (Character.isLowSurrogate((char) codePoint) || Character.isHighSurrogate((char) codePoint)) {
-      sb.append(REPLACEMENT_CHAR);
-    } else {
-      Character.UnicodeBlock of = Character.UnicodeBlock.of(codePoint);
-      if (!Character.isISOControl(codePoint)
-            && of != null
-            && of.equals(Character.UnicodeBlock.BASIC_LATIN)) {
-        sb.append((char) codePoint);
-      } else if (Character.isWhitespace(codePoint) || codePoint <= 0xff) {
-        switch ((char) codePoint) {
-          case '\b':
-            sb.append("\\b");
-            break;
-          case '\t':
-            sb.append("\\t");
-            break;
-          case '\n':
-            sb.append("\\n");
-            break;
-          case '\f':
-            sb.append("\\f");
-            break;
-          case '\r':
-            sb.append("\\r");
-            break;
-          default: {
-            String s = Integer.toHexString(codePoint);
-            if (codePoint < 0x100) {
-              sb.append("\\x");
-              if (s.length() == 1) {
-                sb.append('0');
-              }
-              sb.append(s);
-            } else {
-              sb.append("\\x").append(s);
-            }
-            //sb.append(String.format("\\x%02x", codePoint));
-          }
+      c = val[sp++];
+      if (c < 0x80) {
+        dst[dp++] = (byte) c;
+      } else if (c < 0x800) {
+        dst[dp++] = (byte) (0xc0 | (c >> 6));
+        dst[dp++] = (byte) (0x80 | (c & 0x3f));
+      } else if (Character.isSurrogate(c)) {
+        int uc = -1;
+        char c2;
+        if (Character.isHighSurrogate(c) && sp < sl &&
+              Character.isLowSurrogate(c2 = val[sp])) {
+          uc = Character.toCodePoint(c, c2);
+        }
+        if (uc < 0) {
+          dst[dp++] = (byte) 0xEF;
+          dst[dp++] = (byte) 0xBF;
+          dst[dp++] = (byte) 0xBD;
+        } else {
+          dst[dp++] = (byte) (0xf0 | ((uc >> 18)));
+          dst[dp++] = (byte) (0x80 | ((uc >> 12) & 0x3f));
+          dst[dp++] = (byte) (0x80 | ((uc >> 6) & 0x3f));
+          dst[dp++] = (byte) (0x80 | (uc & 0x3f));
+          sp++;  // 2 chars
         }
       } else {
-        switch (Character.getType(codePoint)) {
-          case Character.CONTROL:     // Cc
-          case Character.FORMAT:      // Cf
-          case Character.PRIVATE_USE: // Co
-          case Character.SURROGATE:   // Cs
-          case Character.UNASSIGNED:  // Cn
-            sb.append(String.format("\\u%04x", codePoint));
-            break;
-          default:
-            sb.append(Character.toChars(codePoint));
-            break;
+        // 3 bytes, 16 bits
+        dst[dp++] = (byte) (0xe0 | ((c >> 12)));
+        dst[dp++] = (byte) (0x80 | ((c >> 6) & 0x3f));
+        dst[dp++] = (byte) (0x80 | (c & 0x3f));
+      }
+    }
+    if (dp == dst.length) {
+      return dst;
+    }
+    return Arrays.copyOf(dst, dp);
+  }
+
+  public static void quote(StringBuilder sb, int codePoint) {
+    Character.UnicodeBlock of = Character.UnicodeBlock.of(codePoint);
+    if (!Character.isISOControl(codePoint)
+          && of != null
+          && of.equals(Character.UnicodeBlock.BASIC_LATIN)) {
+      sb.append((char) codePoint);
+    } else if (Character.isWhitespace(codePoint) || codePoint <= 0xff) {
+      switch ((char) codePoint) {
+        case '\b':
+          sb.append("\\b");
+          break;
+        case '\t':
+          sb.append("\\t");
+          break;
+        case '\n':
+          sb.append("\\n");
+          break;
+        case '\f':
+          sb.append("\\f");
+          break;
+        case '\r':
+          sb.append("\\r");
+          break;
+        default: {
+          String s = Integer.toHexString(codePoint);
+          if (codePoint < 0x100) {
+            sb.append("\\x");
+            if (s.length() == 1) {
+              sb.append('0');
+            }
+            sb.append(s);
+          } else {
+            sb.append("\\x").append(s);
+          }
         }
+      }
+    } else {
+      switch (Character.getType(codePoint)) {
+        case Character.CONTROL:     // Cc
+        case Character.FORMAT:      // Cf
+        case Character.PRIVATE_USE: // Co
+        case Character.SURROGATE:   // Cs
+        case Character.UNASSIGNED:  // Cn
+          sb.append(String.format("\\u%04x", codePoint));
+          break;
+        default:
+          sb.append(Character.toChars(codePoint));
+          break;
       }
     }
   }
