@@ -11,7 +11,6 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -273,8 +272,8 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   @Override
   public void str(Printer printer) {
     //printer.append(starlarkStringTranscoding(getBytes()));
-    String s = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(getBytes())).toString();
-    //String s = UTF8toUTF16(getBytes(), 0, getBytes().length);
+    //String s = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(getBytes())).toString();
+    String s = UTF8toUTF16(getBytes(), 0, getBytes().length, false);
     printer.append(s);
   }
 
@@ -986,13 +985,12 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
       // the total number of utf8BytesNeeded should be replaced by the
       // actual escaped characters themselves if bool is true.
       // -- we have to back track utf8BytesNeeded and insert the characters
-      if(bool) {
-        for (int i = 0; i < utf8BytesNeeded; i++) {
+      for (int i = 0; i < utf8BytesNeeded; i++) {
+        if(bool) {
           v[s++] = (char) (d[idx - utf8BytesNeeded + i] & 0xff);
+        } else {
+          v[s++] = REPLACEMENT_CHAR;
         }
-      }
-      else {
-        v[s++] = REPLACEMENT_CHAR;
       }
     }
 

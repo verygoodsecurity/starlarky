@@ -67,11 +67,11 @@ assert_true(not empty)
 # str(bytes) does UTF-8 to UTF-k transcoding.
 # TODO(adonovan): specify.
 assert_eq(str(hello), "hello, 世界")
-assert_eq(str(hello[:-1]), "hello, 世�")  # incomplete UTF-8 encoding => U+FFFD
+assert_eq(str(hello[:-1]), "hello, 世��")  # incomplete UTF-8 encoding => U+FFFD
 assert_eq(str(goodbye), "goodbye")
 assert_eq(str(empty), "")
 assert_eq(str(nonprinting), "\t\n\x7f\u200d")
-assert_eq(str(b"\xED\xB0\x80"), "�") # UTF-16 encoding of unpaired surrogate => U+FFFD
+assert_eq(str(b"\xED\xB0\x80"), "���") # UTF-16 encoding of unpaired surrogate => U+FFFD * 3
 
 # repr
 assert_eq(repr(hello), r'b"hello, 世界"')
