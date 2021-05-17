@@ -12,9 +12,9 @@ import net.starlark.java.eval.StarlarkValue;
     doc = "")
 public class OpenSSLModule implements StarlarkValue {
 
-  public static final OpenSSL INSTANCE = OpenSSL.INSTANCE;
+  public static final OpenSSLModule INSTANCE =  new OpenSSLModule();
 
   @StarlarkMethod(name = "OpenSSL", doc = "openssl module", structField = true)
-  public static OpenSSL openSSL() { return INSTANCE; }
+  public static OpenSSL openSSL() { return OpenSSL.INSTANCE; }
 
 }
