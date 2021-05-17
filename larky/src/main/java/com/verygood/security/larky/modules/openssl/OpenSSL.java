@@ -1,6 +1,22 @@
-package com.verygood.security.larky.modules.crypto;
+package com.verygood.security.larky.modules.openssl;
 
-import com.verygood.security.larky.modules.crypto.Util.SSLUtils;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.security.interfaces.DSAKey;
+import java.security.interfaces.ECKey;
+import java.security.interfaces.RSAKey;
+import java.time.Instant;
+import java.util.Date;
+
 import com.verygood.security.larky.modules.types.LarkyByte;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
 import com.verygood.security.larky.parser.StarlarkUtil;
@@ -37,27 +53,11 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
 
-import java.io.IOException;
-import java.io.StringWriter;
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.security.KeyPair;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.SecureRandom;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.security.interfaces.DSAKey;
-import java.security.interfaces.ECKey;
-import java.security.interfaces.RSAKey;
-import java.time.Instant;
-import java.util.Date;
 import lombok.Builder;
 import lombok.Data;
 
-public class OpenSSLModule implements StarlarkValue {
-  public static final OpenSSLModule INSTANCE = new OpenSSLModule();
+public class OpenSSL implements StarlarkValue {
+  public static final OpenSSL INSTANCE = new OpenSSL();
 
   public static class Loaded implements StarlarkValue {
 

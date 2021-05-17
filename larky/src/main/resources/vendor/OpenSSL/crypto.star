@@ -6,6 +6,7 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@stdlib//jopenssl", _JOpenSSL="jopenssl")
 load("@stdlib//json", "json")
 
 
@@ -1158,7 +1159,7 @@ def X509():
 
         if digest == None:
             fail('ValueError: No such digest method')
-        self._signed = _JCrypto.OpenSSL.X509_sign(
+        self._signed = _JOpenSSL.OpenSSL.X509_sign(
             pkey._pkey,
             json.dumps({
                 "gmtime_adj_notAfter": self._x509["gmtime_adj_notAfter"],
@@ -1985,7 +1986,7 @@ def dump_certificate(type, cert):
         fail('ValueError: type argument must be FILETYPE_PEM, ' +
              'FILETYPE_ASN1, or FILETYPE_TEXT')
 
-    return _JCrypto.OpenSSL.dump_certificate(cert._signed, fileformat)
+    return _JOpenSSL.OpenSSL.dump_certificate(cert._signed, fileformat)
 
 
 # def dump_publickey(type, pkey):
@@ -2872,7 +2873,7 @@ def load_privatekey(type, buffer, passphrase=None):
         buffer = codecs.encode(buffer, encoding='ascii')
 
     if type == FILETYPE_PEM:
-        evp_pkey = _JCrypto.OpenSSL.load_privatekey(buffer, passphrase)
+        evp_pkey = _JOpenSSL.OpenSSL.load_privatekey(buffer, passphrase)
     elif type == FILETYPE_ASN1:
         fail("Not supported")
     else:

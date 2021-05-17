@@ -19,6 +19,8 @@ package com.verygood.security.larky;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.Map;
+import java.util.function.Function;
 
 import com.verygood.security.larky.modules.BinasciiModule;
 import com.verygood.security.larky.modules.C99MathModule;
@@ -26,6 +28,7 @@ import com.verygood.security.larky.modules.CodecsModule;
 import com.verygood.security.larky.modules.CryptoModule;
 import com.verygood.security.larky.modules.HashModule;
 import com.verygood.security.larky.modules.JsonModule;
+import com.verygood.security.larky.modules.OpenSSLModule;
 import com.verygood.security.larky.modules.ProtoBufModule;
 import com.verygood.security.larky.modules.RegexModule;
 import com.verygood.security.larky.modules.StructModule;
@@ -37,9 +40,6 @@ import com.verygood.security.larky.modules.testing.UnittestModule;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkValue;
-
-import java.util.Map;
-import java.util.function.Function;
 
 /**
  * A supplier of modules for Larky
@@ -60,7 +60,8 @@ public class ModuleSupplier {
       CodecsModule.INSTANCE,
       BinasciiModule.INSTANCE,
       StructModule.INSTANCE,
-      CryptoModule.INSTANCE
+      CryptoModule.INSTANCE,
+      OpenSSLModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(

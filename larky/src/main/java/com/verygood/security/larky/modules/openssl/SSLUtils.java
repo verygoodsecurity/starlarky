@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.crypto.Util;
+package com.verygood.security.larky.modules.openssl;
 
 import com.google.common.flogger.FluentLogger;
 import com.google.re2j.Matcher;
@@ -50,14 +50,14 @@ public final class SSLUtils {
     private static final Pattern PRIVKEY_PROCTYPE = Pattern.compile("^Proc-Type:\\s+4,ENCRYPTED\n");
     private static final Pattern PRIVKEY_DEKINFO = Pattern.compile("^DEK-Info:\\s+([^,]+),(\\S+)\n");
 
-    private enum KeyType {
+    enum KeyType {
         UNKNOWN,
         RSA,
         DSA,
         EC
     }
 
-    private enum KeyAlgo {
+    enum KeyAlgo {
         UNKNOWN,
         AES_128_CBC,
         AES_192_CBC,
