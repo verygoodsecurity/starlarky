@@ -1,11 +1,11 @@
-load("@stdlib//unittest", "unittest")
-load("@vendor//asserts", "asserts")
-load("@vendor//ISO8583Decoder", Decoder="Decoder")
-load("@vendor//ISO8583Encoder", Encoder="Encoder")
-load("@vendor//ISO8583Specs", "default")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//builtins", "builtins")
 load("@stdlib//sets", "sets")
+load("@stdlib//unittest", "unittest")
+load("@vendor//asserts", "asserts")
+load("@vendor//iso8583/decoder", Decoder="decoder")
+load("@vendor//iso8583/encoder", Encoder="encoder")
+load("@vendor//iso8583/specs", "default")
 
 
 spec = default
