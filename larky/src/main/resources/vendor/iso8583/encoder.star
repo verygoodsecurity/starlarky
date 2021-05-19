@@ -14,10 +14,6 @@ def _encode(bytes, packager):
     result = encode(bytes, packager)
     return result
 
-Encoder = larky.struct(
-    encode=_encode,
-)
-
 # def EncodeError(msg: str, doc_dec: DecodedDict, doc_enc: EncodedDict, field: str
 # ):
 #     r"""Subclass of ValueError that describes ISO8583 encoding error.
@@ -453,3 +449,7 @@ def _add_pad_field(doc_dec, field_key, spec):
 
     return doc_dec[field_key]
 
+
+encoder = larky.struct(
+    encode=_encode,
+)

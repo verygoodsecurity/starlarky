@@ -11,10 +11,6 @@ def _decode(bytes, packager):
     # print(result)
     return result
 
-Decoder = larky.struct(
-    decode=_decode,
-)
-
 
 # DecodedDict = Dict[str, str]
 # EncodedDict = Dict[str, Dict[str, bytes]]
@@ -513,3 +509,7 @@ def _remove_pad_field(
 
     fail(" DecodeError(\n        f\"Field data is {len(doc_dec[field_key])} nibbles, expecting {enc_field_len}\",\n        s,\n        doc_dec,\n        doc_enc,\n        idx,\n        field_key,\n    )")
 
+
+decoder = larky.struct(
+    decode=_decode,
+)
