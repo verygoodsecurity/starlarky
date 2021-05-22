@@ -31,7 +31,10 @@ def le(a, b):
 
 def eq(a, b):
     "Same as a == b."
-    return a == b
+    _m = getattr(a, '__eq__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        return a == b
+    return _m(b)
 
 def ne(a, b):
     "Same as a != b."

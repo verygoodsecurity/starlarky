@@ -28,7 +28,7 @@ WHILE_LOOP_EMULATION_ITERATION = 4096
 
 _SENTINEL = _sentinel()
 
-
+# TODO: maybe move to a testutils?
 def _parametrize(testaddr, testcase, param, args):
     """
     Emulates the pytest.parametrize() but with some larky differences.
@@ -46,14 +46,16 @@ def _parametrize(testaddr, testcase, param, args):
         >>> load("@stdlib//larky", "larky")
         >>> load("@stdlib//unittest", "unittest")
         >>> load("@vendor//asserts", "asserts")
+        >>>
         >>> def _test(val):
-                asserts.assert_eq(val).is_equal_to(val)
+        ...    asserts.assert_eq(val).is_equal_to(val)
+        >>>
         >>> _suite = unittest.TestSuite()
         >>> larky.parametrize(
-               _suite.addTest,
-               unittest.FunctionTestCase,
-               'val',
-               [0, None, {}, [], False])(_test)
+        ...    _suite.addTest,
+        ...    unittest.FunctionTestCase,
+        ...    'val',
+        ...    [0, None, {}, [], False])(_test)
     """
     split_on = ',' if ',' in param else None
     # cannot import types in larky module, so this test allows

@@ -3,8 +3,6 @@ load("@stdlib//larky", "larky")
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
 load("@vendor//option/result", Result="Result")
-load("@stdlib//operator", "operator")
-
 
 def _test_api():
     f = Result.Ok(1)
