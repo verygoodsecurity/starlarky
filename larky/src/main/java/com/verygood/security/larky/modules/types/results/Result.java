@@ -8,87 +8,111 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 
-public class Result implements StarlarkValue {
 
-  private Object value;
-  private EvalException error;
+public abstract class Result implements StarlarkValue {
 
-  Result(Object value, EvalException error) {
-    this.value = value;
-    this.error = error;
-  }
-
-  @StarlarkMethod(name = "failure", parameters = {@Param(name = "error")})
-  public static Result failure(Object error) {
+  @StarlarkMethod(name = "Error", parameters = {@Param(name = "error")})
+  public static Result error(Object error) {
     Objects.requireNonNull(error);
     if (EvalException.class.isAssignableFrom(error.getClass())) {
-      return new Result(null, (EvalException) error);
+      return new Error((EvalException) error);
     }
-    return new Result(null, new EvalException(String.valueOf(error)));
+    return new Error(new EvalException(String.valueOf(error)));
   }
 
-  @StarlarkMethod(name = "success", parameters = {@Param(name = "value")})
-  public static Result success(Object value) {
+  @StarlarkMethod(name = "Ok", parameters = {@Param(name = "value")})
+  public static Result ok(Object value) {
     Objects.requireNonNull(value);
-    return new Result(value, null);
+    return new Ok(value);
   }
 
   @StarlarkMethod(name = "of", parameters = {@Param(name = "o")})
   public static Result of(Object o) {
     if (o instanceof Exception) {
-      return failure(o);
+      return error(o);
     }
-    return success(o);
-  }
-
-  @StarlarkMethod(name = "either")
-  public Object getEither() {
-    return value != null ? value : error;
+    return ok(o);
   }
 
   @StarlarkMethod(name = "value")
-  public Object getValue() {
-    return value;
-  }
+  abstract Object getValue();
 
   @StarlarkMethod(name = "error")
-  public EvalException getError() {
-    return error;
-  }
+  abstract EvalException getError();
+
+  @StarlarkMethod(name = "is_ok", structField = true)
+  abstract boolean isOk();
+
+  @StarlarkMethod(name = "is_err", structField = true)
+  abstract boolean isError();
 
   // copy https://github.com/MaT1g3R/option/blob/master/option/result.py
   // decided against: https://github.com/dbrgn/result/blob/master/result/result.py
   @StarlarkMethod(name = "map", parameters = {
     @Param(name = "func")
   }, useStarlarkThread = true)
-  public <T> Result map(StarlarkFunction func, StarlarkThread thread) {
-    return of(
+  public <T> Result map(StarlarkCallable func, StarlarkThread thread) {
+    return
       Optional.ofNullable(getValue())
         .map((o) -> {
           try {
-            return Starlark.call(thread, func, Tuple.of(o), Dict.empty());
+            return of(Starlark.call(thread, func, Tuple.of(o), Dict.empty()));
           } catch (EvalException | InterruptedException e) {
             throw new RuntimeException(e);
           }
         })
-        .orElse(error));
+        .orElse(this);
   }
 
-  @StarlarkMethod(name = "is_ok", structField = true)
-  public boolean isOk() {
-    return this.value != null && this.error == null;
+  @StarlarkMethod(name = "map_err", parameters = {
+    @Param(name = "func")
+  }, useStarlarkThread = true)
+  public <T> Result mapError(StarlarkCallable func, StarlarkThread thread) {
+    if(this.isOk()) {
+      return this;
+    }
+    try {
+      return error(Starlark.call(thread, func, Tuple.of(getError()), Dict.empty()));
+    } catch (EvalException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
+  }
+  /**
+   * Express the expectation that this object is an Ok value. If it's an Error value instead, throw
+   * a EvalException with the given message.
+   *
+   * @param s the message to pass to a potential EvalException
+   * @throws EvalException if unwrap() is called on an Error value
+   */
+  @StarlarkMethod(name = "expect",
+    doc = "Express the expectation that this object is an Ok value. If it's an Error value " +
+            "instead, throw a EvalException with the given message.",
+    parameters = {
+      @Param(name = "s")
+    }
+  )
+  public Object expect(String s) throws EvalException {
+    if (isOk()) {
+      return getValue();
+    }
+    throw new EvalException(s);
   }
 
-  @StarlarkMethod(name = "is_err", structField = true)
-  public boolean isErr() {
-    return this.value == null && this.error != null;
+  @StarlarkMethod(name = "expect_err", parameters = {
+    @Param(name = "msg")
+  })
+  public Object expectErr(String msg) throws EvalException {
+    if (isOk()) {
+      throw new EvalException(msg);
+    }
+    return this.getValue();
   }
 
   @StarlarkMethod(name = "unwrap")
@@ -100,73 +124,25 @@ public class Result implements StarlarkValue {
     @Param(name = "func")
   }, useStarlarkThread = true)
   public Object unwrapOrElse(StarlarkFunction func, StarlarkThread thread) throws EvalException {
-    return
-      Optional.ofNullable(value)
-        .orElseGet(() -> {
-          try {
-            return Starlark.call(thread, func, Tuple.of(), Dict.empty());
-          } catch (EvalException | InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-        });
-  }
-
-  @StarlarkMethod(name = "expect", parameters = {
-    @Param(name = "s")
-  })
-  public Object expect(String s) throws EvalException {
-    if (isOk()) {
+    Object value = getValue();
+    if(value != null) {
       return value;
     }
-    throw new EvalException(s);
+    try {
+      return Starlark.call(thread, func, Tuple.of(), Dict.empty());
+    } catch (InterruptedException e) {
+      throw new EvalException(e.getMessage(), e);
+    }
   }
 
   @StarlarkMethod(name = "unwrap_err")
   public Object unwrapErr() throws EvalException {
-    if (isOk()) {
-      throw new EvalException(String.valueOf(this.value));
-    }
-    return this.value;
+    return expectErr(String.valueOf(getValue()));
   }
 
-  @StarlarkMethod(name = "expect_err", parameters = {
-    @Param(name = "msg")
-  })
-  public Object expectErr(String msg) throws EvalException {
-    if (isOk()) {
-      throw new EvalException(msg);
-    }
-    return this.value;
+  <E2 extends EvalException> Object orElseRaiseAs(Function<EvalException, E2> emapper) throws E2 {
+    return Optional.ofNullable(getValue())
+             .orElseThrow(() -> emapper.apply(getError()));
   }
 
-  public <E2 extends EvalException> Object orElseRaiseAs(Function<EvalException, E2> emapper) throws E2 {
-    return Optional.ofNullable(value).orElseThrow(() -> emapper.apply(error));
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    Result result = (Result) o;
-    return Objects.equals(value, result.value) && Objects.equals(error, result.error);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(value, error);
-  }
-
-  @Override
-  public String toString() {
-    return "Result{" + "value=" + value + ", error=" + error + '}';
-  }
-
-  @Override
-  public void str(Printer printer) {
-    printer.append(this.toString());
-  }
 }

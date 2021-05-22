@@ -2,9 +2,9 @@ package com.verygood.security.larky.modules;
 
 import com.verygood.security.larky.modules.types.results.Result;
 
+import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkValue;
 
 
@@ -26,8 +26,21 @@ public class ResultModule implements StarlarkValue {
 
   public static final ResultModule INSTANCE = new ResultModule();
 
-  @StarlarkMethod(name = "Result", doc = "result", structField = true)
-  public Result result() {
-    return Result.of(Starlark.NONE);
+//  @StarlarkMethod(name = "_Result", doc = "result", structField = true)
+//  public Result result() {
+//    return Result.of(Starlark.NONE);
+//  }
+
+  @StarlarkMethod(name = "Error", parameters = {@Param(name = "error")})
+  public static Result error(Object error) {
+    return Result.error(error);
+  }
+  @StarlarkMethod(name = "Ok", parameters = {@Param(name = "value")})
+  public static Result ok(Object value) {
+    return Result.ok(value);
+  }
+  @StarlarkMethod(name = "of", parameters = {@Param(name = "o")})
+  public static Result of(Object o) {
+    return Result.of(o);
   }
 }
