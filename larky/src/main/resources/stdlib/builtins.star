@@ -1,3 +1,5 @@
+# try to mimic: https://docs.python.org/3/library/builtins.html
+
 load("@stdlib/larky", "larky")
 load("@stdlib/types", "types")
 load("@stdlib/codecs", "codecs")
@@ -71,9 +73,50 @@ def _bytearray(source, encoding='utf-8', errors='strict'):
     return bytearray(source, encoding, errors)
 
 
+def iter(o, sentinel=None):
+    """
+    Return an iterator object.
+
+    The first argument is interpreted very differently depending on the
+    presence of the second argument. Without a second argument, object
+    must be a collection object which supports the iteration
+    protocol (the __iter__() method), or it must support the sequence
+    protocol (the __getitem__() method with integer arguments starting at 0).
+    If it does not support either of those protocols, TypeError is raised.
+
+    If the second argument, sentinel, is given, then object must be a
+    callable object. The iterator created in this case will call object
+    with no arguments for each call to its __next__() method; if the value
+    returned is equal to sentinel, StopIteration will be raised, otherwise
+    the value will be returned.
+
+    :param o:
+    :param sentinel:
+    :return:
+    """
+    if not any([
+        hasattr(o, '__iter__'),
+        types.is_iterable(o),
+        types.is_string(o),
+    ]):
+        msg = "TypeError: type '%s' is not iterable"
+        msg %= (type(o))
+        fail(msg)
+    iterable = o
+    if types.is_string(o):
+        iterable = o.elems()
+    elif hasattr(o, '__iter__'):
+        iterable = o.__iter__()
+    return iterable
+
+
 # TODO: should we move this to starlark?
+# list of functions from: https://docs.python.org/3/library/functions.html
 builtins = larky.struct(
     bytes=_bytes,
     b=_bytes,
     bytearray=_bytearray,
+    abs=abs,
+    pow=pow,
+    iter=iter,
 )

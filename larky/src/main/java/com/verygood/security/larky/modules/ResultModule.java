@@ -26,11 +26,6 @@ public class ResultModule implements StarlarkValue {
 
   public static final ResultModule INSTANCE = new ResultModule();
 
-//  @StarlarkMethod(name = "_Result", doc = "result", structField = true)
-//  public Result result() {
-//    return Result.of(Starlark.NONE);
-//  }
-
   @StarlarkMethod(name = "Error", parameters = {@Param(name = "error")})
   public static Result error(Object error) {
     return Result.error(error);

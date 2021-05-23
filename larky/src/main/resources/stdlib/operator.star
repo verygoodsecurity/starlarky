@@ -14,9 +14,11 @@ Taken from: https://github.com/python/cpython/blob/main/Lib/operator.py
 """
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
+load("@stdlib//builtins", builtins="builtins")
 
-#_abs = abs
-#_pow = pow
+
+_abs = builtins.abs
+_pow = builtins.pow
 
 
 # Comparison Operations *******************************************************#
@@ -38,7 +40,10 @@ def eq(a, b):
 
 def ne(a, b):
     "Same as a != b."
-    return a != b
+    _m = getattr(a, '__ne__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        return a != b
+    return _m(b)
 
 def ge(a, b):
     "Same as a >= b."
@@ -68,9 +73,9 @@ def is_not(a, b):
 
 # Mathematical/Bitwise Operations *********************************************#
 
-def abs_(a):
+def abs(a):
     "Same as abs(a)."
-    return abs(a)
+    return _abs(a)
 
 def add(a, b):
     "Same as a + b."
@@ -121,9 +126,9 @@ def pos(a):
     "Same as +a."
     return +a
 
-def pow_(a, b):
+def pow(a, b):
     "Same as a ** b."
-    return pow_(a, b)
+    return _pow(a, b)
 
 def rshift(a, b):
     "Same as a >> b."
@@ -145,9 +150,17 @@ def xor(a, b):
 
 def concat(a, b):
     "Same as a + b, for a and b sequences."
-    if not hasattr(a, '__getitem__'):
-        msg = "'%s' object can't be concatenated" % type(a)
-        fail("TypeError: " + msg)
+    if not any((
+        types.is_iterable(a),
+        types.is_string(a),
+        hasattr(a, '__add__'),
+        hasattr(a, '__getitem__'),
+    )):
+        msg = "TypeError: '%s' object can't be concatenated with '%s'"
+        msg %= (type(a), type(b))
+        fail(msg)
+    if hasattr(a, '__add__'):
+        return a.__add__(b)
     return a + b
 
 def contains(a, b):
@@ -156,23 +169,61 @@ def contains(a, b):
 
 def countOf(a, b):
     "Return the number of times b occurs in a."
+
+    # ... hasattr(), iterable(), is_string() ... should probably be moved
+    # to types.star
+    if not any([
+        hasattr(a, '__iter__'),
+        types.is_iterable(a),
+        types.is_string(a),
+    ]):
+        msg = "TypeError: type '%s' is not iterable"
+        msg %= (type(a))
+        fail(msg)
     count = 0
-    for i in a:
+    iterable = a
+    if types.is_string(a):
+        iterable = a.elems()
+    elif hasattr(a, '__iter__'):
+        iterable = a.__iter__()
+
+    for i in iterable:
         if i == b:
             count += 1
     return count
 
+
 def delitem(a, b):
     "Same as del a[b]."
-    a.__delitem__(b)   # no del in starlark!
+    if not any((
+        hasattr(a, '__delitem__'),
+        types.is_list(a),
+    )):
+        fail("TypeError: 'a' does not support delitem")
+
+    if not any((
+        types.is_int(b),
+        #types.is_slice(b)  # todo(mahmoudimus): not supported yet..
+    )):
+        fail("TypeError: list indices must be integers or slices, not %s"
+             % type(b))
+    if types.is_list(a):
+        a.pop(b)
+        return
+    else:
+        a.__delitem__(b)   # no del in starlark!
+        return
+    fail("Unsure if delitem is supported for type: %s" % type(a))
+
 
 def getitem(a, b):
     "Same as a[b]."
     return a.__getitem__(b) if hasattr(a, '__getitem__') else a[b]
 
+
 def indexOf(a, b):
     "Return the first index of b in a."
-    for i, j in enumerate(a):
+    for i, j in enumerate(builtins.iter(a)):
         if j == b:
             return i
     fail("ValueError: " + 'sequence.index(x): x not in sequence')
@@ -352,7 +403,7 @@ operator = larky.struct(
     truth=truth,
     is_=is_,
     is_not=is_not,
-    abs_=abs_,
+    abs=abs,
     add=add,
     and_=and_,
     floordiv=floordiv,
@@ -366,7 +417,7 @@ operator = larky.struct(
     neg=neg,
     or_=or_,
     pos=pos,
-    pow_=pow_,
+    pow=pow,
     rshift=rshift,
     sub=sub,
     truediv=truediv,

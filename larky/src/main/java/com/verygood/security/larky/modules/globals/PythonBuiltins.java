@@ -1,5 +1,12 @@
 package com.verygood.security.larky.modules.globals;
 
+import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
+
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.modules.codecs.TextUtil;
 import com.verygood.security.larky.modules.types.LarkyByte;
@@ -25,13 +32,6 @@ import net.starlark.java.eval.Structure;
 import net.starlark.java.eval.Tuple;
 
 import org.apache.commons.text.translate.CharSequenceTranslator;
-
-import java.math.BigInteger;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
-import java.nio.charset.UnsupportedCharsetException;
 
 
 /**
@@ -272,7 +272,7 @@ public final class PythonBuiltins {
           // fallthrough
           return StarlarkFloat.of(Math.abs(((StarlarkFloat) x).toDouble()));
         default:
-          throw Starlark.errorf("bad operand type for abs(): '%s'", classType);
+          throw Starlark.errorf("TypeError: bad operand type for abs(): '%s'", classType);
       }
     } catch (EvalException | ClassCastException ex) {
       throw Starlark.errorf("%s", ex.getMessage());
