@@ -245,28 +245,28 @@ def OperatorTestCase_test_indexOf():
 
 def OperatorTestCase_test_invert():
     operator = module
-    asserts.assert_fails(lambda : operator.invert(), "missing 1 required positional arguments")
-    asserts.assert_fails(lambda : operator.invert(None), ".*?TypeError")
+    asserts.assert_fails(lambda : operator.invert(), "missing 1 required positional argument")
+    asserts.assert_fails(lambda : operator.invert(None), "unsupported unary operation\\: \\~")
     asserts.assert_that(operator.inv(4)).is_equal_to(-5)
 
 def OperatorTestCase_test_lshift():
     operator = module
     asserts.assert_fails(lambda : operator.lshift(), "missing 2 required positional arguments")
-    asserts.assert_fails(lambda : operator.lshift(None, 42), ".*?TypeError")
+    asserts.assert_fails(lambda : operator.lshift(None, 42), "unsupported binary operation: \\w+ << \\w+")
     asserts.assert_that(operator.lshift(5, 1)).is_equal_to(10)
     asserts.assert_that(operator.lshift(5, 0)).is_equal_to(5)
-    asserts.assert_fails(lambda : operator.lshift(2, -1), ".*?ValueError")
+    asserts.assert_fails(lambda : operator.lshift(2, -1), "negative shift count: -1")
 
 def OperatorTestCase_test_mod():
     operator = module
     asserts.assert_fails(lambda : operator.mod(), "missing 2 required positional arguments")
-    asserts.assert_fails(lambda : operator.mod(None, 42), ".*?TypeError")
+    asserts.assert_fails(lambda : operator.mod(None, 42), "unsupported binary operation: \\w+ % \\w+")
     asserts.assert_that(operator.mod(5, 2)).is_equal_to(1)
 
 def OperatorTestCase_test_mul():
     operator = module
     asserts.assert_fails(lambda : operator.mul(), "missing 2 required positional arguments")
-    asserts.assert_fails(lambda : operator.mul(None, None), ".*?TypeError")
+    asserts.assert_fails(lambda : operator.mul(None, None), "unsupported binary operation: \\w+ \\* \\w+")
     asserts.assert_that(operator.mul(5, 2)).is_equal_to(10)
 
 
@@ -311,9 +311,6 @@ def _testsuite():
     # _suite.addTest(unittest.FunctionTestCase(OperatorTestCase_test_methodcaller))
     # _suite.addTest(unittest.FunctionTestCase(OperatorTestCase_test_inplace))
     # _suite.addTest(unittest.FunctionTestCase(OperatorTestCase_test_dunder_is_original))
-    # _suite.addTest(unittest.FunctionTestCase(OperatorPickleTestCase_test_attrgetter))
-    # _suite.addTest(unittest.FunctionTestCase(OperatorPickleTestCase_test_itemgetter))
-    # _suite.addTest(unittest.FunctionTestCase(OperatorPickleTestCase_test_methodcaller))
     return _suite
 
 _runner = unittest.TextTestRunner()
