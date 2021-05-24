@@ -334,9 +334,7 @@ def iconcat(a, b):
         fail(msg)
     if hasattr(a, '__iadd__'):
         return a.__iadd__(b)
-    # if not hasattr(a, '__getitem__'):
-    #     msg = "'%s' object can't be concatenated" % type(a).__name__
-    #     fail("TypeError: " + msg)
+
     _m = getattr(a, '__iconcat__', larky.SENTINEL)
     if _m == larky.SENTINEL:
         a += b
