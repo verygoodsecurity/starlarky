@@ -110,6 +110,10 @@ def iter(o, sentinel=None):
     return iterable
 
 
+def map(func, iterable):
+    return [func(x) for x in iterable]
+
+
 # TODO: should we move this to starlark?
 # list of functions from: https://docs.python.org/3/library/functions.html
 builtins = larky.struct(
@@ -119,4 +123,5 @@ builtins = larky.struct(
     abs=abs,
     pow=pow,
     iter=iter,
+    map=map,
 )
