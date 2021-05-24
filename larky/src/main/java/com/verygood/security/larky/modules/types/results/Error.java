@@ -7,14 +7,6 @@ import net.starlark.java.eval.Printer;
 
 public class Error extends Result {
 
-//  private Object value;
-//   private EvalException error;
-//
-//   Result(Object value, EvalException error) {
-//     this.value = value;
-//     this.error = error;
-//   }
-
   private EvalException error;
 
   Error(EvalException error) {

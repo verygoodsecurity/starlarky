@@ -15,8 +15,25 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 
+import org.jetbrains.annotations.Nullable;
+
 
 public abstract class Result implements StarlarkValue {
+
+  static class StarlarkException extends EvalException implements StarlarkValue {
+
+    public StarlarkException(String message) {
+      super(message);
+    }
+
+    public StarlarkException(String message, @Nullable Throwable cause) {
+      super(message, cause);
+    }
+
+    public StarlarkException(Throwable cause) {
+      super(cause);
+    }
+  }
 
   @StarlarkMethod(name = "Error", parameters = {@Param(name = "error")})
   public static Result error(Object error) {
@@ -24,7 +41,7 @@ public abstract class Result implements StarlarkValue {
     if (EvalException.class.isAssignableFrom(error.getClass())) {
       return new Error((EvalException) error);
     }
-    return new Error(new EvalException(String.valueOf(error)));
+    return new Error(new EvalException(Starlark.str(error)));
   }
 
   @StarlarkMethod(name = "Ok", parameters = {@Param(name = "value")})

@@ -21,7 +21,8 @@ public class Partial implements StarlarkCallable {
 
   // hide lombok's builder method
   // this allows us to cache the method name
-  private static class PartialBuilder{}
+  private static class PartialBuilder {
+  }
 
   public static Partial create(StarlarkFunction func,
                                Tuple args,
@@ -31,7 +32,7 @@ public class Partial implements StarlarkCallable {
              .methodName(generateMethodName(func, args, kwargs))
              .func_args(args)
              .func_kwargs(kwargs)
-           .build();
+             .build();
   }
 
   private static String generateMethodName(StarlarkFunction func, Tuple args, Dict<String, Object> kwargs) {
@@ -40,7 +41,7 @@ public class Partial implements StarlarkCallable {
     int arg_size = args.size();
     int kwarg_size = kwargs.values().size();
     // this helps us avoid a trailing _ on the partial method name if there are no args.
-    if(arg_size == 0 && kwarg_size == 0) {
+    if (arg_size == 0 && kwarg_size == 0) {
       return func.getName();
     }
     int i = 0;
@@ -48,11 +49,23 @@ public class Partial implements StarlarkCallable {
     StringBuilder sb = new StringBuilder((arg_size + kwarg_size) * 2 + 2);
     sb.append(func.getName()).append("_");
     for (i = 0; i < arg_size; i++) {
-      sb.append(args.get(i)).append('_');
+      String str = Starlark.str(args.get(i));
+      if (str.contains("built-in function")) {
+        str = str
+                .replace("<built-in function ", "")
+                .replace(">", "");
+      }
+      sb.append(str).append('_');
     }
     i = 0;
-    for(Object a : kwargs.values()) {
-      sb.append(a);
+    for (Object a : kwargs.values()) {
+      String str = Starlark.str(a);
+      if (str.contains("built-in function")) {
+        str = str
+                .replace("<built-in function ", "")
+                .replace(">", "");
+      }
+      sb.append(str);
       if (++i < kwarg_size) { // ++i to avoid a trailing _ added to the method name
         sb.append('_');
       }
@@ -81,16 +94,16 @@ public class Partial implements StarlarkCallable {
   @Override
   public void repr(Printer printer) {
     printer
-        .append("partial(<function ")
-        .append(getName());
-    if(this.func_args.size() > 0) {
+      .append("partial(<function ")
+      .append(getName());
+    if (this.func_args.size() > 0) {
       printer.append(", args=").append(String.valueOf(this.func_args));
     }
-    if(this.func_kwargs.size() > 0) {
+    if (this.func_kwargs.size() > 0) {
       printer.append(", kwargs=").append(String.valueOf(this.func_kwargs));
     }
     printer
-        .append(">)");
+      .append(">)");
   }
 
   @Override
