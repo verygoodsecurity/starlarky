@@ -61,7 +61,10 @@ def not_(a):
 
 def truth(a):
     "Return True if a is true, False otherwise."
-    return True if a else False
+    _m = getattr(a, '__bool__', getattr(a, '__nonzero__', larky.SENTINEL))
+    if _m == larky.SENTINEL:
+        return True if a else False
+    return _m()
 
 def is_(a, b):
     "Same as a is b."
@@ -165,7 +168,7 @@ def concat(a, b):
 
 def contains(a, b):
     "Same as b in a (note reversed operands)."
-    return b in a
+    return countOf(a, b) != 0
 
 def countOf(a, b):
     "Return the number of times b occurs in a."
@@ -246,24 +249,52 @@ def length_hint(obj, default=0):
     fail("not implemented")
 
 def itemgetter(*args):
+    if len(args) == 0:
+        fail("TypeError: itemgetter expected 1 argument, got %s" % len(args))
+
     def _itemgetter(obj):
-        return obj[args[0]]
+        return getitem(obj, args[0])
     def _itemsgetter(obj):
-        return tuple([obj[i] for i in args])
+        return tuple([getitem(obj, i) for i in args])
     if len(args) == 1:
         return _itemgetter
     return _itemsgetter
 
 
-def attrgetter(attr):
-    if "." in attr:
-        fail('"." in %s' % attr)
+def attrgetter(*attr):
+    if len(attr) == 0:
+        fail("TypeError: attrgetter expected 1 argument, got %s" % len(attr))
+
+    if len(attr) == 1 and not types.is_iterable(attr[0]):
+        attr = [attr[0]]
+
+    for pos, a in enumerate(list(attr)):
+        if not types.is_string(a):
+            fail("TypeError: attribute name must be a string")
+        if "." in a:
+            fail(('nested attributes / recursive gets ("%s") are ' +
+                 'not supported') % a)
+
     def _attrgetter(obj):
-        return getattr(obj, attr)
+        r = []
+
+        for a in attr:
+            # if not types.is_string(a):
+            #     fail("TypeError: attribute name must be a string")
+            # if "." in a:
+            #     fail('"." in %s' % a)
+            r.append(getattr(obj, a))
+
+        # r = [getattr(obj, a) for a in attr]
+        if len(r) == 1:
+            return r[0]
+        return tuple(r)
     return _attrgetter
 
 
 def methodcaller(name, *args, **kwargs):
+    if not types.is_string(name):
+        fail("TypeError: method name must be a string")
     def _methodcaller(obj):
         return getattr(obj, name)(*args, **kwargs)
     return _methodcaller
@@ -273,76 +304,144 @@ def methodcaller(name, *args, **kwargs):
 
 def iadd(a, b):
     "Same as a += b."
-    a += b
-    return a
+    _m = getattr(a, '__iadd__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a += b
+        return a
+    else:
+        return _m(b)
+
 
 def iand(a, b):
     "Same as a &= b."
-    a &= b
-    return a
+    _m = getattr(a, '__iand__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a &= b
+        return a
+    else:
+        return _m(b)
 
 def iconcat(a, b):
     "Same as a += b, for a and b sequences."
-    if not hasattr(a, '__getitem__'):
-        msg = "'%s' object can't be concatenated" % type(a).__name__
-        fail("TypeError: " + msg)
-    a += b
-    return a
+    if not any((
+        types.is_iterable(a),
+        types.is_string(a),
+        hasattr(a, '__add__'),
+        hasattr(a, '__getitem__'),
+    )):
+        msg = "TypeError: '%s' object can't be concatenated with '%s'"
+        msg %= (type(a), type(b))
+        fail(msg)
+    if hasattr(a, '__iadd__'):
+        return a.__iadd__(b)
+    # if not hasattr(a, '__getitem__'):
+    #     msg = "'%s' object can't be concatenated" % type(a).__name__
+    #     fail("TypeError: " + msg)
+    _m = getattr(a, '__iconcat__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a += b
+        return a
+    else:
+        return _m(b)
 
 def ifloordiv(a, b):
     "Same as a //= b."
-    a //= b
-    return a
+    _m = getattr(a, '__ifloordiv__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a //= b
+        return a
+    else:
+        return _m(b)
 
 def ilshift(a, b):
     "Same as a <<= b."
-    a <<= b
-    return a
+    _m = getattr(a, '__ilshift__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a <<= b
+        return a
+    else:
+        return _m(b)
 
 def imod(a, b):
     "Same as a %= b."
-    a %= b
-    return a
+    _m = getattr(a, '__imod__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a %= b
+        return a
+    else:
+        return _m(b)
 
 def imul(a, b):
     "Same as a *= b."
-    a *= b
-    return a
+    _m = getattr(a, '__imul__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a *= b
+        return a
+    else:
+        return _m(b)
 
 def imatmul(a, b):
     "Same as a @= b."
-    a = matmul(a, b)
-    return a
+    _m = getattr(a, '__imatmul__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a = matmul(a, b)
+        return a
+    else:
+        return _m(b)
 
 def ior(a, b):
     "Same as a |= b."
-    a |= b
-    return a
+    _m = getattr(a, '__ior__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a |= b
+        return a
+    else:
+        return _m(b)
 
 def ipow(a, b):
     "Same as a **= b."
-    a = pow(a, b)
-    return a
+    _m = getattr(a, '__ipow__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a = pow(a, b)
+        return a
+    else:
+        return _m(b)
 
 def irshift(a, b):
     "Same as a >>= b."
-    a >>= b
-    return a
+    _m = getattr(a, '__irshift__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a >>= b
+        return a
+    else:
+        return _m(b)
 
 def isub(a, b):
     "Same as a -= b."
-    a -= b
-    return a
+    _m = getattr(a, '__isub__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a -= b
+        return a
+    else:
+        return _m(b)
 
 def itruediv(a, b):
     "Same as a /= b."
-    a /= b
-    return a
+    _m = getattr(a, '__itruediv__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a /= b
+        return a
+    else:
+        return _m(b)
 
 def ixor(a, b):
     "Same as a ^= b."
-    a ^= b
-    return a
+    _m = getattr(a, '__ixor__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        a ^= b
+        return a
+    else:
+        return _m(b)
 
 # All of these "__func__ = func" assignments have to happen after importing
 # from _operator to make sure they're set to the right function

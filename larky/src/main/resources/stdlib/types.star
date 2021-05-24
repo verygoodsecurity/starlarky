@@ -24,6 +24,7 @@ _an_int_type = type(1)
 _a_float_type = type(5.0)
 _a_struct_type = type(larky.struct())
 _a_mutablestruct_type = type(larky.mutablestruct())
+_a_range_type = type(range(1))
 
 
 def _a_function():
@@ -209,8 +210,12 @@ def _is_subclass(sub_class, parent_class):
     return parent_class in mro
 
 
+def _is_range(iterz):
+    return type(iterz) == _a_range_type
+
+
 def _is_iterable(iterz):
-    return _is_tuple(iterz) or _is_list(iterz)
+    return _is_tuple(iterz) or _is_list(iterz) or _is_range(iterz)
 
 
 def _is_bytes(bobj):
@@ -510,6 +515,7 @@ types = larky.struct(
     is_lambda=_is_lambda,
     is_callable=_is_callable,
     is_set=_is_set,
+    is_range=_is_range,
     is_instance=_is_instance,
     is_iterable=_is_iterable,
     is_bytes=_is_bytes,
