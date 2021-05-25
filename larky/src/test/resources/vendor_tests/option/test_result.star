@@ -4,6 +4,7 @@ Port of: https://github.com/MaT1g3R/option/blob/master/tests/test_result.py
 """
 load("@stdlib//larky", "larky")
 load("@stdlib//re", "re")
+load("@stdlib//types", types="types")
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
 load("@vendor//option/result",
@@ -26,26 +27,8 @@ def _test_safe_success():
 def _test_safe_failure():
     """Ensures that safe decorator works correctly for Failure case."""
     failed = safe(_function)(0)
-    asserts.assert_fails(lambda: failed.unwrap(), ".*ZeroDivisionError")
-
-    # from returns.result import Success, safe
-    #
-    #
-    # @safe
-    # def _function(number: int) -> float:
-    #     return number / number
-    #
-    #
-    # def test_safe_success():
-    #     """Ensures that safe decorator works correctly for Success case."""
-    #     assert _function(1) == Success(1.0)
-    #
-    #
-    # def test_safe_failure():
-    #     """Ensures that safe decorator works correctly for Failure case."""
-    #     failed = _function(0)
-    #     assert isinstance(failed.failure(), ZeroDivisionError)
-    pass
+    asserts.assert_fails(lambda: failed.unwrap(), ".*division by zero")
+    asserts.assert_true(failed.is_err)
 
 
 def _test_api():
@@ -280,8 +263,6 @@ def _testsuite():
             (Error(1), Error(1))
         ],
     )(test_le_ge)
-
-    # _suite.addTest(unittest.FunctionTestCase(_test_factory_err))
     return _suite
 
 

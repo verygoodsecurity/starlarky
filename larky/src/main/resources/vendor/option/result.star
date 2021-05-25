@@ -440,26 +440,26 @@ def safe(function):
     This decorator only works with sync functions. Example:
 
     .. code:: python
-        >>> load("@stdlib//larky", "larky")
-        >>> load("@vendor//result", Result="Result", safe="safe")
-        >>> load("@vendor//asserts", "asserts")
-      >>> def might_raise(arg: int) -> float:
+
+      >>> load("@stdlib//larky", "larky")
+      >>> load("@vendor//result", Result="Result", safe="safe")
+      >>> load("@vendor//asserts", "asserts")
+      >>> def might_raise(arg):
       ...     return 1 / arg
       >>> asserts.assert_that(safe(might_raise)(1)).is_equal_to(Ok(1.0))
-      >>> asserts.assert_true(types.is_instance(safe(might_raise)(0), Error))
+      >>> failed = safe(might_raise)(0)
+      >>> asserts.assert_fails(lambda: failed.unwrap(), ".*division by zero")
+      >>> asserts.assert_true(failed.is_err)
 
     """
     def decorator(*args, **kwargs):
-        return _JResult.safe(function(*args, **kwargs))
-        # try:
-        #     return Success(function(*args, **kwargs))
-        # except Exception as exc:
-        #     return Failure(exc)
+        return _JResult.safe(function, *args, **kwargs)
     return decorator
 
 
 def of(o):
     return _JResult.of(o)
+
 
 Result = larky.struct(
     Ok=Ok,

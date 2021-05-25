@@ -5,7 +5,13 @@ import com.verygood.security.larky.modules.types.results.Result;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.Tuple;
 
 
 @StarlarkBuiltin(
@@ -41,5 +47,22 @@ public class ResultModule implements StarlarkValue {
     return Result.of(o);
   }
 
-  
+  @StarlarkMethod(name = "safe",
+    parameters = {@Param(name = "func")},
+    extraPositionals = @Param(name = "args"),
+    extraKeywords = @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
+    useStarlarkThread = true
+  )
+  public static Result safe(StarlarkCallable func, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread) {
+    // we know we are an error instance here since getValue() is null here.
+    try {
+      return Result.ok(Starlark.call(thread, func, args, kwargs));
+    } catch (InterruptedException e) {
+      return Result.error(new EvalException(e.getMessage(), e));
+    } catch (EvalException e) {
+      return Result.error(e);
+    }
+  }
+
+
 }
