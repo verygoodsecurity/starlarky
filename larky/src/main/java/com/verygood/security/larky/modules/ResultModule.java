@@ -50,11 +50,10 @@ public class ResultModule implements StarlarkValue {
   @StarlarkMethod(name = "safe",
     parameters = {@Param(name = "func")},
     extraPositionals = @Param(name = "args"),
-    extraKeywords = @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments."),
+    extraKeywords = @Param(name = "kwargs", defaultValue = "{}"),
     useStarlarkThread = true
   )
   public static Result safe(StarlarkCallable func, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread) {
-    // we know we are an error instance here since getValue() is null here.
     try {
       return Result.ok(Starlark.call(thread, func, args, kwargs));
     } catch (InterruptedException e) {
