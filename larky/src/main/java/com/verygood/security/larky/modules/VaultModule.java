@@ -8,6 +8,7 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
@@ -107,13 +108,22 @@ public class VaultModule implements LarkyVault {
                             allowedTypes = {
                                     @ParamType(type = List.class)
                             }),
+                    @Param(
+                            name = "context",
+                            doc = "request context",
+                            named = true,
+                            defaultValue = "{}",
+                            allowedTypes = {
+                                    @ParamType(type = Dict.class),
+                                    @ParamType(type = NoneType.class),
+                            })
             })
     @Override
-    public Object redact(Object value, Object storage, Object format, List<Object> tags) throws EvalException {
+    public Object redact(Object value, Object storage, Object format, List<Object> tags, Dict<String, Object> context) throws EvalException {
         validateStorage(storage);
         validateFormat(format);
 
-        return vault.redact(value, storage, format, tags);
+        return vault.redact(value, storage, format, tags, context);
     }
 
     @StarlarkMethod(
@@ -135,13 +145,22 @@ public class VaultModule implements LarkyVault {
                             allowedTypes = {
                                     @ParamType(type = NoneType.class),
                                     @ParamType(type = String.class),
+                            }),
+                    @Param(
+                            name = "context",
+                            doc = "request context",
+                            named = true,
+                            defaultValue = "{}",
+                            allowedTypes = {
+                                    @ParamType(type = Dict.class),
+                                    @ParamType(type = NoneType.class),
                             })
             })
     @Override
-    public Object reveal(Object value, Object storage) throws EvalException {
+    public Object reveal(Object value, Object storage, Dict<String, Object> context) throws EvalException {
         validateStorage(storage);
 
-        return vault.reveal(value, storage);
+        return vault.reveal(value, storage, context);
     }
 
     private void validateStorage(Object storage) throws EvalException {

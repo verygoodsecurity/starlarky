@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules.vgs.vault;
 
 import com.verygood.security.larky.modules.VaultModule;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import org.junit.jupiter.api.AfterAll;
@@ -46,13 +47,13 @@ public class VaultModuleSPITest {
         // Assert Exceptions
         Assertions.assertThrows(EvalException.class,
                 () -> {
-                    vault.redact("fail", Starlark.NONE, Starlark.NONE, null);
+                    vault.redact("fail", Starlark.NONE, Starlark.NONE, null, Dict.empty());
                 },
                 "vault.redact operation must be overridden"
         );
         Assertions.assertThrows(EvalException.class,
                 () -> {
-                    vault.reveal("fail", Starlark.NONE);
+                    vault.reveal("fail", Starlark.NONE, Dict.empty());
                 },
                 "vault.reveal operation must be overridden"
         );
@@ -68,8 +69,8 @@ public class VaultModuleSPITest {
 
         // Invoke Vault
         String secret = "4111111111111111";
-        String token = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
-        String result = (String) vault.reveal(token, Starlark.NONE);
+        String token = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null, Dict.empty());
+        String result = (String) vault.reveal(token, Starlark.NONE, Dict.empty());
 
         // Assert OK
         Assertions.assertTrue(token.contains("tok_"));
@@ -85,8 +86,8 @@ public class VaultModuleSPITest {
 
         // Invoke Vault
         String secret = "4111111111111111";
-        String token = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
-        String result = (String) vault.reveal(token, Starlark.NONE);
+        String token = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null, Dict.empty());
+        String result = (String) vault.reveal(token, Starlark.NONE, Dict.empty());
 
         // Assert OK
         Assertions.assertTrue(token.contains("tok_"));

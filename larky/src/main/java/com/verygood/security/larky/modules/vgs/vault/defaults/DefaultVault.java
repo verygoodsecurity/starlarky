@@ -3,6 +3,7 @@ package com.verygood.security.larky.modules.vgs.vault.defaults;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
@@ -40,7 +41,7 @@ public class DefaultVault implements LarkyVault {
             .build();
 
     @Override
-    public Object redact(Object value, Object storage, Object format, List<Object> tags) throws EvalException {
+    public Object redact(Object value, Object storage, Object format, List<Object> tags, Dict<String, Object> context) throws EvalException {
         String sValue = getValue(value);
         String token = getTokenizer(format).tokenize(sValue);
         getStorage(storage).put(token, value);
@@ -48,7 +49,7 @@ public class DefaultVault implements LarkyVault {
     }
 
     @Override
-    public Object reveal(Object value, Object storage) throws EvalException {
+    public Object reveal(Object value, Object storage, Dict<String, Object> context) throws EvalException {
         String sValue = getValue(value);
         Object secret = getStorage(storage).get(sValue);
         return secret == null ? "token" : secret; // return 'token' if entry not found
