@@ -127,8 +127,8 @@ def urlsafe_b64encode(s):
     returned.  The alphabet uses '-' instead of '+' and '_' instead of
     '/'.
     """
-#    return b64encode(s).translate(_urlsafe_encode_translation)
-    fail(" NotImplementedError()")
+    return b64encode(builtins.translate(s, bytes('+/', encoding='utf-8'), bytes('-_', encoding='utf-8')))
+
 
 def urlsafe_b64decode(s):
     """Decode a byte string encoded with the standard Base64 alphabet.
@@ -140,10 +140,9 @@ def urlsafe_b64decode(s):
 
     The alphabet uses '-' instead of '+' and '_' instead of '/'.
     """
-#    s = _bytes_from_decode_data(s)
-#    s = s.translate(_urlsafe_decode_translation)
-#    return b64decode(s)
-    fail(" NotImplementedError()")
+    s = _bytes_from_decode_data(s)
+    s = builtins.translate(s, bytes('-_', encoding='utf-8'), bytes('+/', encoding='utf-8'))
+    return b64decode(s)
 
 
 
