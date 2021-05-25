@@ -5,9 +5,9 @@ import java.util.Objects;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 
-public class Ok extends Result {
+public class Ok implements Result {
 
-  private Object value;
+  private final Object value;
 
   Ok(Object value) {
     this.value = value;
@@ -27,7 +27,7 @@ public class Ok extends Result {
 
   @Override
   public int hashCode() {
-    return Objects.hash(value);
+    return Objects.hash(this.getClass(), this.isOk(), value);
   }
 
   @Override

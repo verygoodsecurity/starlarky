@@ -70,6 +70,11 @@ public class Partial implements StarlarkCallable {
         sb.append('_');
       }
     }
+    // remove any trailing _
+    sb.trimToSize();
+    if(sb.subSequence(sb.length()-1,sb.length()).equals("_")) {
+      sb.deleteCharAt(sb.length()-1);
+    }
     return sb.toString();
   }
 

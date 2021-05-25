@@ -30,12 +30,16 @@ public class ResultModule implements StarlarkValue {
   public static Result error(Object error) {
     return Result.error(error);
   }
+
   @StarlarkMethod(name = "Ok", parameters = {@Param(name = "value")})
   public static Result ok(Object value) {
     return Result.ok(value);
   }
+
   @StarlarkMethod(name = "of", parameters = {@Param(name = "o")})
   public static Result of(Object o) {
     return Result.of(o);
   }
+
+  
 }

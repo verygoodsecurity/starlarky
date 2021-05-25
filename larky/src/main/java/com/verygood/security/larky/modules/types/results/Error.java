@@ -4,13 +4,28 @@ import java.util.Objects;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
+import net.starlark.java.eval.Starlark;
 
-public class Error extends Result {
 
-  private EvalException error;
+public class Error implements Result {
+
+  private final Object errValue;
+  private final EvalException exc;
+
+  Error(Object error) {
+    if(EvalException.class.isAssignableFrom(error.getClass())) {
+      this.errValue = ((EvalException) error).getMessage();
+      this.exc = ((EvalException) error);
+    }
+    else {
+      this.errValue = error;
+      this.exc = new EvalException(Starlark.str(error));
+    }
+  }
 
   Error(EvalException error) {
-    this.error = error;
+    this.errValue = error.getMessage();
+    this.exc = error;
   }
 
   @Override
@@ -22,17 +37,19 @@ public class Error extends Result {
       return false;
     }
     Error result = (Error) o;
-    return Objects.equals(error.getMessage(), result.error.getMessage());
+    return Objects.equals(errValue, result.errValue);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(error);
+    // return hash((self._type, self._is_ok, self._val))
+    return Objects.hash(this.getClass(), this.isOk(), errValue);
+    //return Objects.hash(errValue);
   }
 
   @Override
   public String toString() {
-    return "Error{" + error + '}';
+    return "Error{" + errValue + '}';
   }
 
   @Override
@@ -47,7 +64,7 @@ public class Error extends Result {
 
   @Override
   public EvalException getError() {
-    return this.error;
+    return this.exc;
   }
 
   @Override
