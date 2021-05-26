@@ -27,14 +27,17 @@ public class CryptoJWEModule implements StarlarkValue {
 
   @SneakyThrows
   @StarlarkMethod(name = "encrypt", parameters = {
-      @Param(name = "payload", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "plaintext", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
       @Param(name = "key", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "encryption", allowedTypes = {@ParamType(type = String.class)}),
+      @Param(name = "algorithm", allowedTypes = {@ParamType(type = String.class)}),
   }, useStarlarkThread = true)
-  public LarkyByteLike encrypt(LarkyByteLike payload, LarkyByteLike key, StarlarkThread thread) throws EvalException {
-    JWEHeader header = new JWEHeader(JWEAlgorithm.A256GCMKW, EncryptionMethod.A256GCM);
+  public LarkyByteLike encrypt(LarkyByteLike plaintext, LarkyByteLike key,
+                               String encryption, String algorithm, StarlarkThread thread) throws EvalException {
+    JWEHeader header = new JWEHeader(JWEAlgorithm.parse(algorithm), EncryptionMethod.parse(encryption));
 
     AESEncrypter aesEncrypter = new AESEncrypter(key.getBytes());
-    Payload payloadObj = new Payload(payload.getBytes());
+    Payload payloadObj = new Payload(plaintext.getBytes());
     JWEObject jweObject = new JWEObject(header, payloadObj);
     jweObject.encrypt(aesEncrypter);
 

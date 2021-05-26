@@ -56,7 +56,8 @@ public class LarkyQuickTests {
   private List<Path> enumerateTests() {
     // Did we pass in a specific filename?
     // -Dlarky.quick_test=test_base64.star
-    String singleTestDesired = System.getProperty(PROPERTY_NAME);
+//    String singleTestDesired = System.getProperty(PROPERTY_NAME);
+    String singleTestDesired = "test_jwe.star";
     try (Stream<Path> testFiles = Files.walk(QUICK_TEST_DIR)) {
       scratchTestFiles = testFiles
           .filter(Files::isRegularFile)
