@@ -81,6 +81,20 @@ public interface Result extends StarlarkValue, Comparable<Result> {
         .orElse(this);
   }
 
+  @StarlarkMethod(name = "flatmap", parameters = {
+    @Param(name = "func")
+  }, allowReturnNones = true, useStarlarkThread = true)
+  default <T> Result flatMap(StarlarkCallable func, StarlarkThread thread) {
+    if(this.isOk()) {
+      try {
+        return ok(Starlark.call(thread, func, Tuple.of(getValue()), Dict.empty()));
+      } catch (EvalException | InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    return this;
+  }
+
   @StarlarkMethod(name = "map_err", parameters = {
     @Param(name = "func")
   }, allowReturnNones = true, useStarlarkThread = true)
