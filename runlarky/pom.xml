@@ -7,7 +7,7 @@
 
     <groupId>com.verygood.security</groupId>
     <artifactId>runlarky</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>urlparse01</version>
 
     <repositories>
         <repository>
