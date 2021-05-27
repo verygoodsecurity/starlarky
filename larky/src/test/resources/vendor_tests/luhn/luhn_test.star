@@ -1,6 +1,6 @@
-load("@vendor//luhn", luhn="luhn")
 load("@stdlib//unittest","unittest")
 load("@vendor//asserts","asserts")
+load("@vendor//luhn", luhn="luhn")
 
 def test_valid():
     asserts.assert_that(luhn.verify('356938035643809')).is_equal_to(True)
