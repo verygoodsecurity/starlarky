@@ -71,9 +71,29 @@ def _bytearray(source, encoding='utf-8', errors='strict'):
     return bytearray(source, encoding, errors)
 
 
+def _sum(nums,*args,**kwargs):
+    if(kwargs and args):
+      msg = "TypeError: sum() expects at most 2 arguments (" + str(len(args)+len(kwargs)+1) + " given)"
+      fail(msg)
+    elif len(args) > 1:
+      msg = "TypeError: sum() expects at most 2 arguments (" + str(len(args)+1) + " given)"
+      fail(msg)
+    else:
+      if 'start' in kwargs:
+        s = kwargs['start']
+      elif args: 
+        s = args[0]
+      else: 
+        s = 0
+      for num in nums:
+        s += num
+      return s
+
+
 # TODO: should we move this to starlark?
 builtins = larky.struct(
     bytes=_bytes,
     b=_bytes,
     bytearray=_bytearray,
+    sum=_sum
 )

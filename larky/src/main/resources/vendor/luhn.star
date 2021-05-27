@@ -1,10 +1,5 @@
 load("@stdlib//larky", "larky")
-
-def _sum(nums):
-    s = 0
-    for i in nums:
-      s += i
-    return s
+load("@stdlib//builtins", "builtins")
    
 def _mod_digits(d):
     if d < 10:
@@ -20,7 +15,7 @@ def _luhn_summation(nums,index):
         doubledArr.append(_mod_digits(int(nums[i]) * 2))
       else:
         doubledArr.append(int(nums[i]))
-    luhn_sum = _sum(doubledArr)
+    luhn_sum = builtins.sum(doubledArr)
     return str(luhn_sum)
 
 def verify(num):
