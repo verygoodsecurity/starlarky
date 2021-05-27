@@ -22,10 +22,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
 import net.starlark.java.spelling.SpellChecker;
 import net.starlark.java.syntax.Argument;
 import net.starlark.java.syntax.AssignmentStatement;
 import net.starlark.java.syntax.BinaryOperatorExpression;
+import net.starlark.java.syntax.ByteLiteral;
 import net.starlark.java.syntax.CallExpression;
 import net.starlark.java.syntax.Comprehension;
 import net.starlark.java.syntax.ConditionalExpression;
@@ -514,6 +516,8 @@ final class Eval {
         return evalSlice(fr, (SliceExpression) expr);
       case STRING_LITERAL:
         return ((StringLiteral) expr).getValue();
+      case BYTE_LITERAL:
+        return evalByteLiteral(fr, (ByteLiteral) expr);
       case UNARY_OPERATOR:
         return evalUnaryOperator(fr, (UnaryOperatorExpression) expr);
     }
@@ -732,6 +736,11 @@ final class Eval {
       array[i] = eval(fr, expr.getElements().get(i));
     }
     return expr.isTuple() ? Tuple.wrap(array) : StarlarkList.wrap(fr.thread.mutability(), array);
+  }
+
+  private static Object evalByteLiteral(StarlarkThread.Frame fr, ByteLiteral expr)
+      throws EvalException, InterruptedException {
+    return StarlarkByte.wrap(fr.thread.mutability(), expr.getValue());
   }
 
   private static Object evalSlice(StarlarkThread.Frame fr, SliceExpression slice)
