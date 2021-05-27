@@ -24,6 +24,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import javax.annotation.Nullable;
 
 /** Parser is a recursive-descent parser for Starlark. */
@@ -562,9 +563,24 @@ final class Parser {
     return literal;
   }
 
+
+  // expr = BYTE
+  private ByteLiteral parseBytesLiteral() {
+    Preconditions.checkState(token.kind == TokenKind.BYTE);
+    ByteLiteral literal =
+            new ByteLiteral(locs, token.start, intern((String) token.value), token.end);
+    nextToken();
+    if (token.kind == TokenKind.BYTE) {
+      reportError(token.start, "Implicit byte concatenation is forbidden");
+    }
+    return literal;
+  }
+
+
   //  primary = INT
   //          | FLOAT
   //          | STRING
+  //          | BYTE
   //          | IDENTIFIER
   //          | list_expression
   //          | '(' ')'                    // a tuple with zero elements
@@ -590,6 +606,9 @@ final class Parser {
 
       case STRING:
         return parseStringLiteral();
+
+      case BYTE:
+        return parseBytesLiteral();
 
       case IDENTIFIER:
         return parseIdent();
