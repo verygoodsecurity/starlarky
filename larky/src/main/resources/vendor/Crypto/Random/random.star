@@ -136,7 +136,8 @@ _r = larky.struct(
     randint=_JCrypto.Random.randint,
     choice=_JCrypto.Random.choice,
     shuffle=_JCrypto.Random.shuffle,
-    sample=_JCrypto.Random.sample
+    sample=_JCrypto.Random.sample,
+    urandom=_JCrypto.Random.urandom
 )
 
 
@@ -147,6 +148,7 @@ randint = _r.randint
 choice = _r.choice
 shuffle = _r.shuffle
 sample = _r.sample
+urandom = _r.urandom
 
 # These are at the bottom to avoid problems with recursive imports
 # load("@vendor//Crypto/Util/number", ceil_div="ceil_div", bytes_to_long="bytes_to_long", long_to_bytes="long_to_bytes", size="size")
