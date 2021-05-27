@@ -1,11 +1,19 @@
 package com.verygood.security.larky.modules.globals;
 
+import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
+
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.modules.codecs.TextUtil;
 import com.verygood.security.larky.modules.types.LarkyByte;
 import com.verygood.security.larky.modules.types.LarkyByteArray;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
 import com.verygood.security.larky.modules.types.LarkyObject;
+import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
@@ -25,13 +33,6 @@ import net.starlark.java.eval.Structure;
 import net.starlark.java.eval.Tuple;
 
 import org.apache.commons.text.translate.CharSequenceTranslator;
-
-import java.math.BigInteger;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
-import java.nio.charset.UnsupportedCharsetException;
 
 
 /**
@@ -121,6 +122,45 @@ public final class PythonBuiltins {
     }
     return StarlarkInt.of(new BigInteger(bytes).intValueExact());
   }
+
+  //override built-in getattr
+
+  @StarlarkMethod(
+       name = "getattr",
+       doc =
+           "Returns the struct's field of the given name if it exists. If not, it either returns "
+               + "<code>default</code> (if specified) or raises an error. "
+               + "<code>getattr(x, \"foobar\")</code> is equivalent to <code>x.foobar</code>."
+               + "<pre class=\"language-python\">getattr(ctx.attr, \"myattr\")\n"
+               + "getattr(ctx.attr, \"myattr\", \"mydefault\")</pre>",
+       parameters = {
+         @Param(name = "x", doc = "The struct whose attribute is accessed."),
+         @Param(name = "name", doc = "The name of the struct attribute."),
+         @Param(
+             name = "default",
+             defaultValue = "unbound",
+             doc =
+                 "The default value to return in case the struct "
+                     + "doesn't have an attribute of the given name.")
+       },
+       useStarlarkThread = true)
+   public Object getattr(Object obj, String name, Object defaultValue, StarlarkThread thread)
+       throws EvalException, InterruptedException {
+    if (LarkyObject.class.isAssignableFrom(obj.getClass())) {
+      // if there's an object with a __getattr__, it will be invoked..
+      Object getAttrMethod = ((LarkyObject) obj).getField(PyProtocols.__GETATTR__);
+      if (getAttrMethod != null) {
+        Object res = Starlark.call(thread, getAttrMethod, Tuple.of(name), Dict.empty());
+        return (res != null) ? res : defaultValue;
+      }
+    }
+     return Starlark.getattr(
+         thread.mutability(),
+         thread.getSemantics(),
+         obj,
+         name,
+         defaultValue == Starlark.UNBOUND ? null : defaultValue);
+   }
 
   //override built-in type
   @StarlarkMethod(
@@ -272,7 +312,7 @@ public final class PythonBuiltins {
           // fallthrough
           return StarlarkFloat.of(Math.abs(((StarlarkFloat) x).toDouble()));
         default:
-          throw Starlark.errorf("bad operand type for abs(): '%s'", classType);
+          throw Starlark.errorf("TypeError: bad operand type for abs(): '%s'", classType);
       }
     } catch (EvalException | ClassCastException ex) {
       throw Starlark.errorf("%s", ex.getMessage());
