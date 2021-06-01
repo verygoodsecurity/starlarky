@@ -5,7 +5,6 @@
 #
 
 load("@stdlib/larky", "larky")
-load("@stdlib//dicts", "dicts")
 load("@stdlib//builtins","builtins")
 load("@stdlib//types", "types")
 load("@stdlib//codecs", "codecs")
@@ -15,7 +14,9 @@ load("@stdlib//binascii", "unhexlify")
 # Unsafe bytes to be removed per WHATWG spec
 _UNSAFE_URL_BYTES_TO_REMOVE = ['\t', '\r', '\n']
 
-MAX_CACHE_SIZE = 20
+# A classification of schemes.
+# The empty string classifies URLs with no scheme specified,
+# being the default value returned by “urlsplit” and “urlparse”.
 
 uses_netloc = ['', 'ftp', 'http', 'gopher', 'nntp', 'telnet',
                'imap', 'wais', 'file', 'mms', 'https', 'shttp',
@@ -30,10 +31,9 @@ uses_params = ['', 'ftp', 'hdl', 'prospero', 'http', 'imap',
 _implicit_encoding = 'ascii'
 _implicit_errors = 'strict'
 
-MAX_CACHE_SIZE = 20
-_parse_cache = {}
-
-_safe_quoters = {}
+# MAX_CACHE_SIZE = 20
+# _parse_cache = {}
+# _safe_quoters = {}
 
 # Characters valid in scheme names
 scheme_chars = ('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-.')
@@ -55,10 +55,10 @@ def _decode_args(args, encoding=_implicit_encoding,
 def _noop(obj):
     return obj
 
-def clear_cache():
-    """Clear the parse cache and the quoters cache."""
-    _parse_cache.clear()
-    _safe_quoters.clear()
+# def clear_cache():
+#     """Clear the parse cache and the quoters cache."""
+#     _parse_cache.clear()
+#     _safe_quoters.clear()
 
 def _coerce_args(*args):
     # Invokes decode if necessary to create str args
@@ -83,6 +83,9 @@ def _SplitResult(**kwargs):
     return larky.mutablestruct(__class__="SplitResult", **kwargs)
 
 def _urlparse(url, scheme='', allow_fragments=True):
+    """Parse a URL into 6 components:
+        <scheme>://<netloc>/<path>;<params>?<query>#<fragment>
+    """
     url, scheme, _coerce_result = _coerce_args(url, scheme)
     splitresult = _urlsplit(url, scheme, allow_fragments)
     scheme, netloc, url, query, fragment = splitresult.scheme, splitresult.netloc, splitresult.path, splitresult.query, splitresult.fragment
@@ -141,17 +144,20 @@ def _checknetloc(netloc):
     #         fail('ValueError("netloc contains invalid characters under NFKC normalization")')
 
 def _urlsplit(url, scheme='', allow_fragments=True):
+    """Parse a URL into 5 components:
+    <scheme>://<netloc>/<path>?<query>#<fragment>
+    """
     url, scheme, _coerce_result = _coerce_args(url, scheme)
     for b in _UNSAFE_URL_BYTES_TO_REMOVE:
         url = url.replace(b, "")
         scheme = scheme.replace(b, "")
     allow_fragments = bool(allow_fragments)
-    key = url, scheme, allow_fragments, type(url), type(scheme)
-    cached = _parse_cache.get(key, None)
-    if cached:
-        return _coerce_result(cached)
-    if len(_parse_cache) >= MAX_CACHE_SIZE:
-        clear_cache()
+    # key = url, scheme, allow_fragments, type(url), type(scheme)
+    # cached = _parse_cache.get(key, None)
+    # if cached:
+    #     return _coerce_result(cached)
+    # if len(_parse_cache) >= MAX_CACHE_SIZE:
+    #     clear_cache()
     netloc = ''
     query = ''
     fragment = ''
@@ -199,6 +205,26 @@ def _urlunsplit(components):
 
 def _parse_qs(qs, keep_blank_values=False, strict_parsing=False,
              encoding='utf-8', errors='replace', max_num_fields=None, separator='&'):
+    """Parse a query given as a string argument.
+        Arguments:
+        qs: percent-encoded query string to be parsed
+        keep_blank_values: flag indicating whether blank values in
+            percent-encoded queries should be treated as blank strings.
+            A true value indicates that blanks should be retained as
+            blank strings.  The default false value indicates that
+            blank values are to be ignored and treated as if they were
+            not included.
+        strict_parsing: flag indicating what to do with parsing errors.
+            If false (the default), errors are silently ignored.
+            If true, errors raise a ValueError exception.
+        encoding and errors: specify how to decode percent-encoded sequences
+            into Unicode characters, as accepted by the bytes.decode() method.
+        max_num_fields: int. If set, then throws a ValueError if there
+            are more than n fields read by parse_qsl().
+        separator: str. The symbol to use for separating the query arguments.
+            Defaults to &.
+        Returns a dictionary.
+    """
     parsed_result = {}
     pairs = _parse_qsl(qs, keep_blank_values, strict_parsing,
                       encoding=encoding, errors=errors,
@@ -212,6 +238,25 @@ def _parse_qs(qs, keep_blank_values=False, strict_parsing=False,
 
 def _parse_qsl(qs, keep_blank_values=False, strict_parsing=False,
               encoding='utf-8', errors='replace', max_num_fields=None, separator='&'):
+    """Parse a query given as a string argument.
+        Arguments:
+        qs: percent-encoded query string to be parsed
+        keep_blank_values: flag indicating whether blank values in
+            percent-encoded queries should be treated as blank strings.
+            A true value indicates that blanks should be retained as blank
+            strings.  The default false value indicates that blank values
+            are to be ignored and treated as if they were  not included.
+        strict_parsing: flag indicating what to do with parsing errors. If
+            false (the default), errors are silently ignored. If true,
+            errors raise a ValueError exception.
+        encoding and errors: specify how to decode percent-encoded sequences
+            into Unicode characters, as accepted by the bytes.decode() method.
+        max_num_fields: int. If set, then throws a ValueError
+            if there are more than n fields read by parse_qsl().
+        separator: str. The symbol to use for separating the query arguments.
+            Defaults to &.
+        Returns a list, as G-d intended.
+    """
     qs, _coerce_result = _coerce_args(qs)
     separator, _ = _coerce_args(separator)
 
