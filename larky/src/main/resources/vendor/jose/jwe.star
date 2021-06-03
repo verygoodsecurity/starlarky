@@ -319,6 +319,30 @@ def _jwe_compact_deserialize(jwe_bytes):
     # Parameter name also MUST NOT occur in distinct JSON object
     # values that together comprise the JOSE Header.
 
+
+
+
+
+# public HttpResponseMessage CreateCustomer(string name, string billingInfo)
+   # {
+   #     Result<BillingInfo> billingInfoResult = BillingInfo.Create(billingInfo);
+   #     Result<CustomerName> customerNameResult = CustomerName.Create(name);
+   #
+   #     return Result.Combine(billingInfoResult, customerNameResult)
+   #         .OnSuccess(() => _paymentGateway.ChargeCommission(billingInfoResult.Value))
+   #         .OnSuccess(() => new Customer(customerNameResult.Value))
+   #         .OnSuccess(
+   #             customer => _repository.Save(customer)
+   #                 .OnFailure(() => _paymentGateway.RollbackLastTransaction())
+   #         )
+   #         .OnSuccess(() => _emailSender.SendGreetings(customerNameResult.Value))
+   #         .OnBoth(result => Log(result))
+   #         .OnBoth(result => CreateResponseMessage(result));
+   # }
+
+    s = safe(lambda: json.loads(six.ensure_str(header_data)))
+    header = s().expect("JWEParseError('Invalid header string: %s' % e)")
+
     try:
         header = json.loads(six.ensure_str(header_data))
     except ValueError as e:

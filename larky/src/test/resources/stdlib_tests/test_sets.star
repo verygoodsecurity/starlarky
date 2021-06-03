@@ -199,8 +199,15 @@ def _repr_str_test():
     asserts.eq("[1, 2]", sets.str(sets.make([1, 2])))
 
 
+def _test_set_mutable():
+    s = sets.Set([1, 2, 3])
+    asserts.eq(s.remove(3)._data, [1, 2])
+    asserts.eq(s.to_list(), [1, 2])
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
+    _suite.addTest(unittest.FunctionTestCase(_test_set_mutable))
     _suite.addTest(unittest.FunctionTestCase(_is_equal_test))
     _suite.addTest(unittest.FunctionTestCase(_is_subset_test))
     _suite.addTest(unittest.FunctionTestCase(_disjoint_test))

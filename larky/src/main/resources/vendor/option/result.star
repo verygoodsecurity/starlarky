@@ -1,5 +1,8 @@
+import operator
+
 load("@stdlib//larky", "larky")
 load("@stdlib//types", types="types")
+load("@stdlib//re", re="re")
 load("@stdlib//jresult", _JResult="jresult")
 #
 # def _Result(val, is_ok):
@@ -433,6 +436,11 @@ def Error(val):
     return _JResult.Error(val)
 
 
+Err = Error
+
+
+## larky extensions below:
+
 def safe(function):
     """
     Decorator to convert exception-throwing function to ``Result`` container.
@@ -457,13 +465,135 @@ def safe(function):
     return decorator
 
 
+def _error_is(regex, error_obj):
+    """
+    In python ::
+
+     - re.search("division.*by zero", rval.unwrap_err().args[0])
+
+     OR *larky compatible* ::
+
+     - re.search("division.*by zero", ("%s" % rval._val))
+    :param regex: a ``re`` string to pass to re.search
+    :param error_obj: the ``Result.Err`` object
+    :return: match obj if the regex matches stringified Err object is matched
+             else None
+    """
+    # TODO: assert error_obj.is_err?
+    return re.search(regex, ("%s" % rval._val))
+
+
 def of(o):
     return _JResult.of(o)
 
 
+def try_(func):
+    """
+    try_(foo_s_try)\
+       .except_(foo_s_Exception)\
+       .else_(foo_s_else)\
+       .finally_(foo_s_finally)\
+       .build()
+    """
+
+    _TRY = 0
+    _EXCEPT = 1
+    _ELSE = 2
+    _FINALLY = 3
+    _BUILD = 4
+
+    _state = {
+        # try => except, else, finally
+        _TRY: [_EXCEPT, _ELSE, _FINALLY],
+        # except => else, finally, build
+        _EXCEPT: [_EXCEPT, _ELSE, _FINALLY, _BUILD],
+        # else => finally, build
+        _ELSE: [_FINALLY, _BUILD],
+        # finally => build
+        _FINALLY: [_BUILD],
+        # build => // END
+        _BUILD: []
+    }
+
+    self = larky.mutablestruct(
+        _attempt = func,
+        _exc = [],
+        _else = None,
+        _finally = None,
+        _current_state=_TRY,
+    )
+
+    def _assert_valid_transition(state):
+        if state not in _state[self._current_state]:
+            fail("invalid state transition: %s => %s" %
+                 (self._current_state, state))
+
+    def except_(except_handler):
+        _assert_valid_transition(_EXCEPT)
+        self._current_state = _EXCEPT
+        self._exc.append(except_handler)
+        return self
+    self.except_ = except_
+
+    def else_(else_handler):
+        _assert_valid_transition(_ELSE)
+        self._current_state = _ELSE
+        self._else = else_handler
+        return self
+    self.else_ = else_
+
+    def finally_(finally_handler):
+        _assert_valid_transition(_FINALLY)
+        self._current_state = _FINALLY
+        self._finally = finally_handler
+        return self
+    self.finally_ = finally_
+
+    def build():
+        _assert_valid_transition(_BUILD)
+        self._current_state = _BUILD
+        rval = safe(self._attempt)()
+        if rval.is_err and self._exc:
+            for e in self._exc:
+                rval = rval.map_err(e)
+        if self._else:
+            rval = rval.map(self._else)
+        if self._finally:
+            rval = rval.map(self._finally)
+        return rval
+
+    self.build = build
+    return self
+
+
+def with_(ctxmgrs, callback):
+
+    __dict__ = dict(
+        error = None,
+        result = None
+    )
+
+    for i in ctxmgr:
+        i.__enter__()
+
+    result = (
+        try_(callback)
+        .except_(lambda e: operator.setitem(__dict__, 'error', e))
+        .build()
+    )
+
+    for i in reversed(ctxmgr):
+        i.__exit__(error)
+
+    return result
+
+# assert_eq(builder().append(1).append(" + ").append(2).build(), "1 + 2")
+
 Result = larky.struct(
     Ok=Ok,
     Error=Error,
+    Err=Err,  # alias to Error
     safe=safe,
     of=of,
+    error_is=_error_is
 )

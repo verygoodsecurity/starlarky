@@ -211,7 +211,6 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     }
   }
 
-
   @StarlarkMethod(name = "unwrap_err", allowReturnNones = true)
   default Object unwrapErr() throws EvalException {
     return expectErr(String.valueOf(getValue()));
