@@ -28,6 +28,9 @@ public interface Result extends StarlarkValue, Comparable<Result> {
   @StarlarkMethod(name = "Error", parameters = {@Param(name = "error")})
   static Result error(Object error) {
     Objects.requireNonNull(error);
+    if(error instanceof Result) {
+      return (Result) error;
+    }
     if (EvalException.class.isAssignableFrom(error.getClass())) {
       return new Error((EvalException) error);
     }
@@ -37,12 +40,18 @@ public interface Result extends StarlarkValue, Comparable<Result> {
   @StarlarkMethod(name = "Ok", parameters = {@Param(name = "value")})
   static Result ok(Object value) {
     Objects.requireNonNull(value);
+    if(value instanceof Result) {
+      return (Result) value;
+    }
     return new Ok(value);
   }
 
   @StarlarkMethod(name = "of", parameters = {@Param(name = "o")})
   static Result of(Object o) {
-    if (o instanceof Exception) {
+    if(o instanceof Result) {
+      return (Result) o;
+    }
+    else if (o instanceof Exception) {
       return error(o);
     }
     return ok(o);

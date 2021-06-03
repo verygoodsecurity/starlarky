@@ -1,9 +1,10 @@
-import operator
-
 load("@stdlib//larky", "larky")
+load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
 load("@stdlib//re", re="re")
 load("@stdlib//jresult", _JResult="jresult")
+load("@stdlib//enum", "enum")
+
 #
 # def _Result(val, is_ok):
 #     """
@@ -480,7 +481,7 @@ def _error_is(regex, error_obj):
              else None
     """
     # TODO: assert error_obj.is_err?
-    return re.search(regex, ("%s" % rval._val))
+    return re.search(regex, ("%s" % error_obj._val))
 
 
 def of(o):
@@ -496,23 +497,25 @@ def try_(func):
        .build()
     """
 
-    _TRY = 0
-    _EXCEPT = 1
-    _ELSE = 2
-    _FINALLY = 3
-    _BUILD = 4
+    _enum = enum.Enum('ExceptionFlowState', [
+        'TRY',
+        'EXCEPT',
+        'ELSE',
+        'FINALLY',
+        'BUILD'
+    ])
 
     _state = {
-        # try => except, else, finally
-        _TRY: [_EXCEPT, _ELSE, _FINALLY],
-        # except => else, finally, build
-        _EXCEPT: [_EXCEPT, _ELSE, _FINALLY, _BUILD],
+        # try => except, finally
+        _enum.TRY: [_enum.EXCEPT, _enum.FINALLY],
+        # except => except, else, finally, build
+        _enum.EXCEPT: [_enum.EXCEPT, _enum.ELSE, _enum.FINALLY, _enum.BUILD],
         # else => finally, build
-        _ELSE: [_FINALLY, _BUILD],
+        _enum.ELSE: [_enum.FINALLY, _enum.BUILD],
         # finally => build
-        _FINALLY: [_BUILD],
+        _enum.FINALLY: [_enum.BUILD],
         # build => // END
-        _BUILD: []
+        _enum.BUILD: []
     }
 
     self = larky.mutablestruct(
@@ -520,46 +523,64 @@ def try_(func):
         _exc = [],
         _else = None,
         _finally = None,
-        _current_state=_TRY,
+        _current_state=_enum.TRY,
     )
 
-    def _assert_valid_transition(state):
-        if state not in _state[self._current_state]:
-            fail("invalid state transition: %s => %s" %
-                 (self._current_state, state))
+    def _assert_valid_transition(next_state):
+        if next_state in _state[self._current_state]:
+            return
+        # at this point, we have an invalid state transition
+        # (wrong try/except/else/finally order!)
+        _current_state = _enum.reverse_mapping[self._current_state]
+        _valid_transitions = ", ".join([
+            "%s => %s" % (_current_state, _enum.reverse_mapping[i])
+            for i in _state[self._current_state]
+        ])
+        fail(("Invalid state transition: %s => %s. " +
+              "The try builder was constructed in the wrong order. " +
+              "The next valid state transitions allowed are: %s")% (
+            _current_state,
+            _enum.reverse_mapping[next_state],
+            _valid_transitions,
+        ))
 
     def except_(except_handler):
-        _assert_valid_transition(_EXCEPT)
-        self._current_state = _EXCEPT
+        _assert_valid_transition(_enum.EXCEPT)
+        self._current_state = _enum.EXCEPT
         self._exc.append(except_handler)
         return self
     self.except_ = except_
 
     def else_(else_handler):
-        _assert_valid_transition(_ELSE)
-        self._current_state = _ELSE
+        _assert_valid_transition(_enum.ELSE)
+        self._current_state = _enum.ELSE
         self._else = else_handler
         return self
     self.else_ = else_
 
     def finally_(finally_handler):
-        _assert_valid_transition(_FINALLY)
-        self._current_state = _FINALLY
+        _assert_valid_transition(_enum.FINALLY)
+        self._current_state = _enum.FINALLY
         self._finally = finally_handler
         return self
     self.finally_ = finally_
 
     def build():
-        _assert_valid_transition(_BUILD)
-        self._current_state = _BUILD
+        _assert_valid_transition(_enum.BUILD)
+        self._current_state = _enum.BUILD
         rval = safe(self._attempt)()
         if rval.is_err and self._exc:
             for e in self._exc:
+                #print("how many times???", e, rval)
                 rval = rval.map_err(e)
-        if self._else:
+        if rval.is_ok and self._else:
             rval = rval.map(self._else)
         if self._finally:
-            rval = rval.map(self._finally)
+            _finally_returnval = self._finally(rval)
+            # if finally does not return None, set it to rval
+            # TODO: is this right?
+            if _finally_returnval:
+               rval = _finally_returnval
         return rval
 
     self.build = build
@@ -573,7 +594,7 @@ def with_(ctxmgrs, callback):
         result = None
     )
 
-    for i in ctxmgr:
+    for i in ctxmgrs:
         i.__enter__()
 
     result = (
@@ -582,18 +603,20 @@ def with_(ctxmgrs, callback):
         .build()
     )
 
-    for i in reversed(ctxmgr):
-        i.__exit__(error)
+    for i in reversed(ctxmgrs):
+        i.__exit__(__dict__['error'])
 
     return result
 
-# assert_eq(builder().append(1).append(" + ").append(2).build(), "1 + 2")
 
 Result = larky.struct(
     Ok=Ok,
     Error=Error,
     Err=Err,  # alias to Error
+    # below are non-Result extensions.
     safe=safe,
     of=of,
-    error_is=_error_is
+    error_is=_error_is,
+    try_=try_,
+    with_=with_
 )
