@@ -490,6 +490,7 @@ def of(o):
 
 def try_(func):
     """
+    An attempt at
     try_(foo_s_try)\
        .except_(foo_s_Exception)\
        .else_(foo_s_else)\
@@ -571,7 +572,6 @@ def try_(func):
         rval = safe(self._attempt)()
         if rval.is_err and self._exc:
             for e in self._exc:
-                #print("how many times???", e, rval)
                 rval = rval.map_err(e)
         if rval.is_ok and self._else:
             rval = rval.map(self._else)
@@ -587,12 +587,83 @@ def try_(func):
     return self
 
 
+
+# def _GeneratorContextManager(func, args, kwds):
+#     "A base class or mixin that enables context managers to work as decorators."
+#     self = larky.mutablestruct(__class__='ContextDecorator')
+#
+#     def __init__(func, args, kwds):
+#         self.gen = func
+#         self.func, self.args, self.kwds = func, args, kwds
+#         return self
+#     self = __init__(func, args, kwds)
+#
+#     def _recreate_cm():
+#         """Return a recreated instance of self.
+#         Allows an otherwise one-shot context manager like
+#         _GeneratorContextManager to support use as
+#         a decorator via implicit recreation.
+#         This is a private interface just for _GeneratorContextManager.
+#         See issue #11647 for details.
+#         """
+#         return _GeneratorContextManager(self.func, self.args, self.kwds)
+#     self._recreate_cm = _recreate_cm
+#
+#     def __call__(func):
+#         def inner(*args, **kwds):
+#             rval = Result.with_(self._recreate_cm, func)
+#             return rval.unwrap()
+#         return inner
+#     self.__call__ = __call__
+#
+#     def __enter__():
+#         return self.gen(*self.args, **self.kwds)
+#     self.__enter__ = __enter__
+#
+#     def __exit__(type, value, traceback):
+#         if type is None:
+#            return
+#
+#         return Result.Error(str(type) + ': ' + value)
+#     self.__exit__ = __exit__
+#     return self
+#
+#
+# def contextmanager(func):
+#     """@contextmanager decorator.
+#     Typical usage:
+#         @contextmanager
+#         def some_generator(<arguments>):
+#             <setup>
+#             try:
+#                 yield <value>
+#             finally:
+#                 <cleanup>
+#     This makes this:
+#         with some_generator(<arguments>) as <variable>:
+#             <body>
+#     equivalent to this:
+#         <setup>
+#         try:
+#             <variable> = <value>
+#             <body>
+#         finally:
+#             <cleanup>
+#     """
+#     def helper(*args, **kwds):
+#         return _GeneratorContextManager(func, args, kwds)
+#     return helper
+
+# https://github.com/python/cpython/blob/v3.5.10/Lib/test/test_contextlib.py#L17
 def with_(ctxmgrs, callback):
 
     __dict__ = dict(
         error = None,
         result = None
     )
+
+    if not types.is_iterable(ctxmgrs):
+        ctxmgrs = [ctxmgrs]
 
     for i in ctxmgrs:
         i.__enter__()
