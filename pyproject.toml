@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pylarky"
-version = "0.0.0"
+version = "0.0.1"
 description = "Python wrapper for starlarky runner"
 authors = ["Very Good Security"]
 license = "Apache License v2.0"
