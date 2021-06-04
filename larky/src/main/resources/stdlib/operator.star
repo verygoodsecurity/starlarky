@@ -189,7 +189,7 @@ def countOf(a, b):
         iterable = a.elems()
     elif hasattr(a, '__iter__'):
         iterable = a.__iter__()
-
+    # TODO: __getitem__
     for i in iterable:
         if i == b:
             count += 1

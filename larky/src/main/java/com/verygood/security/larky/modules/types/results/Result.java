@@ -163,7 +163,7 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     if (isOk()) {
       throw new EvalException(msg);
     }
-    return this.getValue();
+    return this.getError();
   }
 
   @StarlarkMethod(name = "unwrap", allowReturnNones = true)
