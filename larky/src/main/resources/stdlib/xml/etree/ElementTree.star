@@ -69,8 +69,6 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
 # OF THIS SOFTWARE.
 # --------------------------------------------------------------------
-import operator
-
 load("@stdlib//io/StringIO", StringIO="StringIO")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//larky", larky="larky")
@@ -78,7 +76,6 @@ load("@stdlib//re", re="re")
 load("@stdlib//sets", sets="sets")
 load("@stdlib//types", types="types")
 load("@stdlib//xml/etree", ElementPath="ElementPath")
-load("@stdlib//xml/parsers", expat="expat")
 load("@vendor//option/result", safe="safe", try_="try_", Error="Error")
 
 __all__ = [
@@ -111,7 +108,7 @@ VERSION = "1.3.0"
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 
-def ParseError(code, position):
+def ParseError(code, position, msg=""):
     """An error when parsing an XML document.
 
     In addition to its exception value, a ParseError contains
@@ -120,7 +117,9 @@ def ParseError(code, position):
         'position' - the line and column of the error
 
     """
-    return Error("ParseError: (code: %s) (position: %s)" % (code, position))
+    if msg:
+        msg = (" %s " % msg)
+    return Error("ParseError:%s(code: %s) (position: %s)" % (msg, code, position))
 
 
 # --------------------------------------------------------------------
@@ -366,7 +365,8 @@ def Element(tag, attrib={}, **extra):
         """
         self.attrib.clear()
         self._children = []
-        self.text = self.tail = None
+        self.text = None
+        self.tail = None
     self.clear = clear
 
     def get(key, default=None):
@@ -1124,7 +1124,7 @@ def _escape_cdata(text):
 
 def _escape_attrib(text):
     # escape attribute value
-    def _escape_attrib():
+    def _escape_attrib_try():
         if "&" in text:
             text = text.replace("&", "&amp;")
         if "<" in text:
@@ -1136,7 +1136,8 @@ def _escape_attrib(text):
         if "\n" in text:
             text = text.replace("\n", "&#10;")
         return text
-    return try_(_escape_attrib)\
+
+    return try_(_escape_attrib_try)\
             .except_(lambda x: _raise_serialization_error(text))\
             .build()\
             .unwrap()
@@ -1145,7 +1146,7 @@ def _escape_attrib(text):
 
 def _escape_attrib_html(text):
     # escape attribute value
-    try:
+    def _escape_attrib_html_try():
         if "&" in text:
             text = text.replace("&", "&amp;")
         if ">" in text:
@@ -1153,9 +1154,11 @@ def _escape_attrib_html(text):
         if '"' in text:
             text = text.replace('"', "&quot;")
         return text
-    except (TypeError, AttributeError):
-        _raise_serialization_error(text)
 
+    return try_(_escape_attrib_html_try)\
+            .except_(lambda x: _raise_serialization_error(text))\
+            .build()\
+            .unwrap()
 
 # --------------------------------------------------------------------
 
@@ -1173,7 +1176,8 @@ def tostring(element, encoding=None, method=None, *, short_empty_elements=True):
     Returns an (optionally) encoded string containing the XML data.
 
     """
-    stream = io.StringIO() if encoding == "unicode" else io.BytesIO()
+    # stream = io.StringIO() if encoding == "unicode" else io.BytesIO()
+    stream = StringIO()
     ElementTree(element).write(
         stream,
         encoding,
@@ -1278,12 +1282,10 @@ def iterparse(source, events=None, parser=None):
     if not hasattr(source, "read"):
         source = open(source, "rb")
         close_source = True
-    try:
-        return _IterParseIterator(source, events, parser, close_source)
-    except:
-        if close_source:
-            source.close()
-        return
+    rval = safe(_IterParseIterator)(source, events, parser, close_source)
+    if close_source:
+        source.close()
+    return rval.unwrap()
 
 
 def XMLPullParser(events=None, *, _parser=None):
@@ -1295,6 +1297,12 @@ def XMLPullParser(events=None, *, _parser=None):
 
         # _elementtree.c expects a list, not a deque
         self._events_queue = []
+        self._index = 0
+        self._parser = _parser or XMLParser(target=TreeBuilder())
+        # wire up the parser for event reporting
+        if events is None:
+            events = ("end",)
+        self._parser._setevents(self._events_queue, events)
         return self
     self = __init__(events)
 
@@ -1302,11 +1310,11 @@ def XMLPullParser(events=None, *, _parser=None):
         """Feed encoded data to parser."""
         if self._parser == None:
             return Error("ValueError: feed() called after end of stream")
-        if data:
-            try:
-                self._parser.feed(data)
-            except SyntaxError as exc:
-                self._events_queue.append(exc)
+        if not data:
+            return
+        rval = safe(self._parser.feed)(data)
+        if rval.is_err:
+            self._events_queue.append(rval)
     self.feed = feed
 
     def _close_and_return_root():
@@ -1333,15 +1341,14 @@ def XMLPullParser(events=None, *, _parser=None):
         """
         events = self._events_queue
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            if not True:
+            if len(events) == 0:
                 break
             index = self._index
-            try:
-                event = events[self._index]
-                # Avoid retaining references to past events
-                events[self._index] = None
-            except IndexError:
+            if self._index not in events:
                 break
+            event = events[self._index]
+            # Avoid retaining references to past events
+            events[self._index] = None
             index += 1
             # Compact the list in a O(1) amortized fashion
             # As noted above, _elementree.c needs a list, not a deque
@@ -1350,11 +1357,9 @@ def XMLPullParser(events=None, *, _parser=None):
                 self._index = 0
             else:
                 self._index = index
-            if types.is_instance(event, Exception):
-                # PY2LARKY: pay attention to this!
-                return event
-            else:
-                return event
+            if hasattr(event, 'unwrap'):
+                return event.unwrap()
+            return event
     self.read_events = read_events
     return self
 
@@ -1365,33 +1370,32 @@ def _IterParseIterator(source, events, parser, close_source=False):
         # Use the internal, undocumented _parser argument for now; When the
         # parser argument of iterparse is removed, this can be killed.
         self._parser = XMLPullParser(events=events, _parser=parser)
+        self._file = source
+        self._close_file = close_source
+        self.root = self._root = None
         return self
     self = __init__(source, events, parser, close_source)
 
     def __next__():
-        try:
-            for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-                if not 1:
-                    break
-                for event in self._parser.read_events():
-                    return event
-                if self._parser._parser == None:
-                    break
-                # load event buffer
-                data = self._file.read(16 * 1024)
-                if data:
-                    self._parser.feed(data)
-                else:
-                    self._root = self._parser._close_and_return_root()
-            self.root = self._root
-        except:
-            if self._close_file:
-                self._file.close()
-            return
+        events = []
+        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if not 1:
+                break
+            for event in self._parser.read_events():
+                events.append(event)
+            if self._parser._parser == None:
+                break
+            # load event buffer
+            data = self._file.read(16 * 1024)   # <- TODO: PY2LARKY how big??
+            if data:
+                self._parser.feed(data)
+            else:
+                self._root = self._parser._close_and_return_root()
+        self.root = self._root
+
         if self._close_file:
             self._file.close()
-        # PY2LARKY: pay attention to this!
-        return StopIteration
+
     self.__next__ = __next__
 
     def __iter__():
@@ -1457,6 +1461,8 @@ def fromstringlist(sequence, parser=None):
     for text in sequence:
         parser.feed(text)
     return parser.close()
+
+
 def TreeBuilder(element_factory=None):
     """Generic element structure builder.
 
@@ -1474,27 +1480,42 @@ def TreeBuilder(element_factory=None):
 
     def __init__(element_factory):
         self._data = []  # data collector
+        self._elem = []  # element stack
+        self._last = None  # last element
+        self._tail = None  # true if we're after an end tag
+        if element_factory is None:
+            element_factory = Element
+        self._factory = element_factory
         return self
     self = __init__(element_factory)
 
     def close():
         """Flush builder buffers and return toplevel document Element."""
-        assert len(self._elem) == 0, "missing end tags"
-        assert self._last != None, "missing toplevel element"
+        if not (len(self._elem) == 0):
+            return Error("missing end tags")
+        if not (self._last != None):
+            return Error("missing toplevel element")
         return self._last
     self.close = close
 
     def _flush():
-        if self._data:
-            if self._last != None:
-                text = "".join(self._data)
-                if self._tail:
-                    assert self._last.tail == None, "internal error (tail)"
-                    self._last.tail = text
-                else:
-                    assert self._last.text == None, "internal error (text)"
-                    self._last.text = text
+        if not self._data:
+            return
+
+        if self._last == None:
             self._data = []
+            return
+
+        text = "".join(self._data)
+        if self._tail:
+            if not (self._last.tail == None):
+                return Error("internal error (tail)")
+            self._last.tail = text
+        else:
+            if not (self._last.text == None):
+                return Error("internal error (text)")
+            self._last.text = text
+        self._data = []
     self._flush = _flush
 
     def data(data):
@@ -1548,14 +1569,34 @@ def XMLParser(html=0, target=None, encoding=None):
     self = larky.mutablestruct(__class__='XMLParser')
 
     def __init__(html, target, encoding):
-        try:
-            load("@stdlib//xml/parsers", expat="expat")
-        except ImportError:
-            try:
-                load("@stdlib//pyexpat", expat="expat")
-            except ImportError:
-                return Error("ImportError: No module named expat; use SimpleXMLTreeBuilder instead"
-                )
+        parser = lambda : (encoding, "}")
+        if target is None:
+            target = TreeBuilder()
+        # underscored names are provided for compatibility only
+        self.parser = self._parser = parser
+        self.target = self._target = target
+        self._error = expat.error
+        self._names = {}  # name memo cache
+        # main callbacks
+        parser.DefaultHandlerExpand = self._default
+        if hasattr(target, "start"):
+            parser.StartElementHandler = self._start
+        if hasattr(target, "end"):
+            parser.EndElementHandler = self._end
+        if hasattr(target, "data"):
+            parser.CharacterDataHandler = target.data
+        # miscellaneous callbacks
+        if hasattr(target, "comment"):
+            parser.CommentHandler = target.comment
+        if hasattr(target, "pi"):
+            parser.ProcessingInstructionHandler = target.pi
+        # Configure pyexpat: buffering, new-style attribute handling.
+        parser.buffer_text = 1
+        parser.ordered_attributes = 1
+        parser.specified_attributes = 1
+        self._doctype = None
+        self.entity = {}
+        self.version = "LARKY!"
         return self
     self = __init__(html, target, encoding)
 
@@ -1617,13 +1658,13 @@ def XMLParser(html=0, target=None, encoding=None):
 
     def _fixname(key):
         # expand qname, and convert name string to ascii, if possible
-        try:
-            name = self._names[key]
-        except KeyError:
-            name = key
-            if "}" in name:
-                name = "{" + name
-            self._names[key] = name
+        if key in self._names:
+            return self._names[key]
+
+        name = key
+        if "}" in name:
+            name = "{" + name
+        self._names[key]= name
         return name
     self._fixname = _fixname
 
@@ -1648,28 +1689,23 @@ def XMLParser(html=0, target=None, encoding=None):
         prefix = text[:1]
         if prefix == "&":
             # deal with undefined entities
-            try:
-                data_handler = self.target.data
-            except AttributeError:
+            if not hasattr(self.target, "data"):
                 return
-            try:
-                data_handler(self.entity[text[1:-1]])
-            except KeyError:
-                load("@stdlib//xml/parsers", expat="expat")
 
-                err = expat.error(
-                    "undefined entity %s: line %d, column %d"
-                    % (
+            data_handler = self.target.data
+            if text[1:-1] not in self.entity:
+                return ParseError(
+                    code=11,  # XML_ERROR_UNDEFINED_ENTITY
+                    position=(
+                        self.parser.ErrorLineNumber,
+                        self.parser.ErrorColumnNumber
+                    ),
+                    msg="undefined entity %s: line %d, column %d" % (
                         text,
                         self.parser.ErrorLineNumber,
                         self.parser.ErrorColumnNumber,
-                    )
-                )
-                err.code = 11  # XML_ERROR_UNDEFINED_ENTITY
-                err.lineno = self.parser.ErrorLineNumber
-                err.offset = self.parser.ErrorColumnNumber
-                # PY2LARKY: pay attention to this!
-                return err
+                ))
+            data_handler(self.entity[text[1:-1]])
         elif prefix == "<" and text[:9] == "<!DOCTYPE":
             self._doctype = []  # inside a doctype declaration
         elif self._doctype != None:
@@ -1745,3 +1781,43 @@ def XMLParser(html=0, target=None, encoding=None):
 
     self.close = close
     return self
+
+
+ElementTree = larky.struct(
+    Comment=Comment,
+    Element=Element,
+    ElementTree=ElementTree,
+    HTML_EMPTY=HTML_EMPTY,
+    PI=PI,
+    ParseError=ParseError,
+    ProcessingInstruction=ProcessingInstruction,
+    QName=QName,
+    SubElement=SubElement,
+    TreeBuilder=TreeBuilder,
+    XML=XML,
+    XMLID=XMLID,
+    XMLParser=XMLParser,
+    XMLPullParser=XMLPullParser,
+    _IterParseIterator=_IterParseIterator,
+    _ListDataStream=_ListDataStream,
+    _escape_attrib=_escape_attrib,
+    _escape_attrib_html=_escape_attrib_html,
+    _escape_cdata=_escape_cdata,
+    _get_writer=_get_writer,
+    _namespace_map=_namespace_map,
+    _namespaces=_namespaces,
+    _raise_serialization_error=_raise_serialization_error,
+    _serialize=_serialize,
+    _serialize_html=_serialize_html,
+    _serialize_text=_serialize_text,
+    _serialize_xml=_serialize_xml,
+    dump=dump,
+    fromstring=fromstring,
+    fromstringlist=fromstringlist,
+    iselement=iselement,
+    iterparse=iterparse,
+    parse=parse,
+    register_namespace=register_namespace,
+    tostring=tostring,
+    tostringlist=tostringlist,
+)
