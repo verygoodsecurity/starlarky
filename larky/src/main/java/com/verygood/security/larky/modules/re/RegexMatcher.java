@@ -2,20 +2,23 @@ package com.verygood.security.larky.modules.re;
 
 import com.google.common.base.Joiner;
 import com.google.re2j.Matcher;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Stream;
 
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
-
-import java.util.Arrays;
 
 public class RegexMatcher implements StarlarkValue {
   private final Matcher matcher;
@@ -60,6 +63,34 @@ public class RegexMatcher implements StarlarkValue {
       matcher.reset(String.valueOf(input));
     }
     return this;
+  }
+
+  @StarlarkMethod(
+      name = "groupdict",
+      doc = "Return a dictionary containing all the named subgroups of the match, keyed by " +
+              "the subgroup name. The default argument is used for groups that did not " +
+              "participate in the match; it defaults to None.",
+      parameters = {
+          @Param(
+              name = "default",
+              allowedTypes = {
+                @ParamType(type = NoneType.class),
+                @ParamType(type = String.class),
+              },
+              defaultValue = "None"
+          )
+      }, useStarlarkThread = true
+  )
+  public Dict<String, Object> groupdict(Object defaulto, StarlarkThread thread) {
+    Dict.Builder<String, Object> d = new Dict.Builder<>();
+    Stream<Map.Entry<String, Integer>> sorted = ( // must be sorted to match python behavior
+      pattern
+      .namedGroups()
+      .entrySet()
+      .stream()
+      .sorted(Map.Entry.comparingByValue()));
+    sorted.forEach(entry -> d.put(entry.getKey(), group(entry.getValue())));
+    return d.build(thread.mutability());
   }
 
   @StarlarkMethod(
@@ -124,6 +155,8 @@ public class RegexMatcher implements StarlarkValue {
     String g;
     if (Starlark.isNullOrNone(group)) {
       g = matcher.group();
+    } else if (Integer.class.isAssignableFrom(group.getClass())) {
+      g = matcher.group(((Integer) group));
     } else if (StarlarkInt.class.isAssignableFrom(group.getClass())) {
       g = matcher.group(((StarlarkInt) group).toIntUnchecked());
     }

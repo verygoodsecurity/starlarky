@@ -69,6 +69,16 @@ def _matcher__init__(matchobj):
             m.append(matchobj.group(i + 1))
         return tuple(m)
 
+    def span(group=0):
+        if group == 0:
+            return matchobj.start(group), matchobj.end(group)
+
+        for idx, items in enumerate(matchobj.groupdict().items(), start=1):
+            groupname, groupvalue = items
+            if groupname == group:
+                return matchobj.start(idx), matchobj.end(idx)
+
+
     return larky.struct(
         group=group,
         groups=groups,
@@ -76,7 +86,9 @@ def _matcher__init__(matchobj):
         pattern=matchobj.pattern,
         start=matchobj.start,
         end=matchobj.end,
+        span=span,
         group_count=matchobj.group_count,
+        groupdict=matchobj.groupdict,
         matches=matchobj.matches,
         looking_at=matchobj.looking_at,
         replace_first=matchobj.replace_first,
@@ -256,7 +268,8 @@ def _pattern__init__(patternobj):
         finditer=finditer,
         matcher=matcher,
         split=patternobj.split,
-        patternobj=patternobj
+        patternobj=patternobj,
+        pattern=str(patternobj)
     )
 # --------------------------------------------------------------------
 # public interface
