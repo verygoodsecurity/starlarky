@@ -2,15 +2,16 @@ package com.verygood.security.larky.modules.types.structs;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.util.Map;
 
 import com.verygood.security.larky.modules.types.LarkyObject;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
-
-import java.util.Map;
+import net.starlark.java.spelling.SpellChecker;
 
 // A trivial struct-like class with Starlark fields defined by a map.
 public class SimpleStruct implements LarkyObject {
@@ -58,7 +59,20 @@ public class SimpleStruct implements LarkyObject {
 
   @Override
   public String getErrorMessageForUnknownField(String name) {
-    return null;
+    String starlarkType = Starlark.type(this);
+    String larkyType = LarkyObject.super.type();
+    if(!larkyType.equals(starlarkType)) {
+      starlarkType += String.format(" of class '%s'",larkyType);
+    }
+
+    return String.format(
+      "%s has no field or method '%s'%s",
+      starlarkType,
+      name,
+      SpellChecker.didYouMean(name,
+        Starlark.dir(
+          getCurrentThread().mutability(),
+          getCurrentThread().getSemantics(), name)));
   }
 
   @Override
