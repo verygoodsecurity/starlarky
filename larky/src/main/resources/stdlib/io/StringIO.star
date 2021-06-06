@@ -28,10 +28,8 @@ Notes:
   bytes that occupy space in the buffer.
 - There's a simple test set (see end of this file).
 """
-
-load("@stdlib//sys", sys="sys")
 load("@stdlib//types", types="types")
-load("@vendor//larky", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@vendor//option/result", Error="Error")
 
 EINVAL = 22
@@ -61,6 +59,12 @@ def StringIO(buf = ''):
         # Force self.buf to be a string or unicode
         if not types.is_string(buf):
             buf = str(buf)
+        self.buf = buf
+        self.len = len(buf)
+        self.buflist = []
+        self.pos = 0
+        self.closed = False
+        self.softspace = 0
         return self
     self = __init__(buf)
 
@@ -235,7 +239,8 @@ def StringIO(buf = ''):
         slen = self.len
         if spos == slen:
             self.buflist.append(s)
-            self.len = self.pos = spos + len(s)
+            self.len = spos + len(s)
+            self.pos = self.len
             return
         if spos > slen:
             self.buflist.append('\0'*(spos - slen))
