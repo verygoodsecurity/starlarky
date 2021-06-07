@@ -6,6 +6,7 @@ import java.util.Map;
 
 import com.verygood.security.larky.modules.types.LarkyObject;
 
+import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
@@ -77,6 +78,16 @@ public class SimpleStruct implements LarkyObject {
 
   @Override
   public void repr(Printer p) {
+    p.append("<class '").append(type()).append("'>");
+  }
+
+  @StarlarkMethod(
+    name="_pretty_print",
+    doc = "allows to pretty print the class",
+                   documented = false
+  )
+  public String prettyPrint() {
+    Printer p = new Printer();
     // This repr function prints only the fields.
     // Any methods are still accessible through dir/getattr/hasattr.
     p.append(type());
@@ -87,6 +98,7 @@ public class SimpleStruct implements LarkyObject {
       sep = ", ";
     }
     p.append(")");
+    return p.toString();
   }
 
 }
