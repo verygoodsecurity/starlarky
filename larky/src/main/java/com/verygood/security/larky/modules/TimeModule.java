@@ -19,12 +19,12 @@ import org.joda.time.DateTimeZone;
 @StarlarkBuiltin(
     name = "jtime",
     category = "BUILTIN",
-    doc = "Return the time in seconds since the epoch as a floating point number. ")
+    doc = "This module provides various time-related functions.")
 public class TimeModule implements StarlarkValue {
 
   public static final TimeModule INSTANCE = new TimeModule();
 
-  @StarlarkMethod(name = "time", doc = "")
+  @StarlarkMethod(name = "time", doc = "Return the time in seconds since the epoch as a floating point number. ")
   public StarlarkFloat time() {
     return StarlarkFloat.of(System.currentTimeMillis()/1000.0);
   }
