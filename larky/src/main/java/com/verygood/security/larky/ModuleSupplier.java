@@ -22,18 +22,7 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Map;
 import java.util.function.Function;
 
-import com.verygood.security.larky.modules.BinasciiModule;
-import com.verygood.security.larky.modules.C99MathModule;
-import com.verygood.security.larky.modules.CodecsModule;
-import com.verygood.security.larky.modules.CryptoModule;
-import com.verygood.security.larky.modules.HashModule;
-import com.verygood.security.larky.modules.JsonModule;
-import com.verygood.security.larky.modules.OpenSSLModule;
-import com.verygood.security.larky.modules.ProtoBufModule;
-import com.verygood.security.larky.modules.RegexModule;
-import com.verygood.security.larky.modules.ResultModule;
-import com.verygood.security.larky.modules.StructModule;
-import com.verygood.security.larky.modules.VaultModule;
+import com.verygood.security.larky.modules.*;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
@@ -63,7 +52,8 @@ public class ModuleSupplier {
       StructModule.INSTANCE,
       CryptoModule.INSTANCE,
       OpenSSLModule.INSTANCE,
-      ResultModule.INSTANCE
+      ResultModule.INSTANCE,
+      TimeModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
