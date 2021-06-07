@@ -1,6 +1,4 @@
 load("@stdlib/larky", "larky")
-load("@stdlib//builtins","builtins")
-load("@stdlib//types", "types")
 load("@stdlib/jtime", _time = "jtime")
 
 def _struct_time(**kwargs):

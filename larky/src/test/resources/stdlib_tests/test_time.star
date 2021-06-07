@@ -37,13 +37,13 @@ def _strftime_test():
     utc_string1 = time.strftime("%a, %d %b %Y %H:%M:%S +0000")
     print('Current utc time string for given format 1:', utc_string1)
     m = re.search(r"\w{3}, \d{2} \w{3} \d{4} \d{2}:\d{2}:\d{2} \+0000", utc_string1)
-    asserts.assert_that(m.group(0)).is_equal_to(utc_string1)
+    eq(m.group(0), utc_string1)
 
     # 20210604
     utc_string2 = time.strftime("%Y%m%d")
     print('Current utc time string for given format 2:', utc_string2)
     m = re.search(r"\d{8}", utc_string2)
-    asserts.assert_that(m.group(0)).is_equal_to(utc_string2)
+    eq(m.group(0), utc_string2)
 
 
 def _suite():
