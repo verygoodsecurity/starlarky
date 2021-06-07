@@ -78,6 +78,12 @@ def _matcher__init__(matchobj):
             if groupname == group:
                 return matchobj.start(idx), matchobj.end(idx)
 
+    def __str__():
+        if matchobj == None:
+            return None
+        return '<re.Match object; span=%s, match=%r; groups=%r>' % (
+            span(), group(), groups()
+        )
 
     return larky.struct(
         group=group,
@@ -95,7 +101,8 @@ def _matcher__init__(matchobj):
         replace_all=matchobj.replace_all,
         append_tail=matchobj.append_tail,
         append_replacement=matchobj.append_replacement,
-        quote_replacement=matchobj.quote_replacement
+        quote_replacement=matchobj.quote_replacement,
+        __str__=__str__,
     )
 
 
@@ -108,6 +115,8 @@ def _pattern__init__(patternobj):
         m = matcher(string)
         if not m.looking_at():
             return None
+        if pos > 0 and not m.find(pos):
+            return None
         return m
 
     def fullmatch(string, pos=0, endpos=-1):
@@ -118,7 +127,7 @@ def _pattern__init__(patternobj):
 
     def search(string, pos=0, endpos=-1):
         m = matcher(string)
-        if not m.find():
+        if not m.find(pos):
             return None
         return m
 
