@@ -45,6 +45,9 @@ _idmap = str('').join(builtins.map(chr, range(256)))
 
 # Construct a translation string
 _idmapL = list(_idmap.elems())
+# NOTE: this function has been removed from python since 3.2
+# see: https://github.com/python/cpython/commit/5a6deb4caecca67a08ee0bf79a2df02f8c26b5f9
+# TODO: it should probably be moved to a compatibility layer.
 def maketrans(fromstr, tostr):
     """maketrans(frm, to) -> string
 
