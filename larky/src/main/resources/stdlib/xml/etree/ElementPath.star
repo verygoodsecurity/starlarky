@@ -64,18 +64,18 @@ load("@vendor//option/result", Error="Error")
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 
-xpath_tokenizer_re = re.compile(
-    r"("
-    r"'[^']*'|\"[^\"]*\"|"
-    r"::|"
-    r"//?|"
-    r"\.\.|"
-    r"\(\)|"
-    r"!=|"
-    r"[/.*:\[\]\(\)@=])|"
-    r"((?:\{[^}]+\})?[^/\[\]\(\)@!=\s]+)|"
-    r"\s+"
-    )
+xpath_tokenizer_re = re.compile(r"".join([
+    r"(",
+    r"'[^']*'|\"[^\"]*\"|",
+    r"::|",
+    r"//?|",
+    r"\.\.|",
+    r"\(\)|",
+    r"!=|",
+    r"[/.*:\[\]\(\)@=])|",
+    r"((?:\{[^}]+\})?[^/\[\]\(\)@!=\s]+)|",
+    r"\s+",
+]))
 
 
 StopIterating = Error("StopIteration")
@@ -128,7 +128,8 @@ def xpath_tokenizer(pattern, namespaces=None):
 def get_parent_map(context):
     parent_map = context.parent_map
     if parent_map == None:
-        context.parent_map = parent_map = {}
+        context.parent_map = {}
+        parent_map = context.parent_map
         for p in context.root.iter():
             for e in p:
                 parent_map[e] = p
@@ -163,24 +164,24 @@ def _prepare_tag(tag):
     elif tag[:3] == '{*}':
         # The tag in any (or no) namespace.
         suffix = tag[2:]  # '}name'
-        no_ns = slice(-len(suffix), None)
+        # no_ns = slice(-len(suffix), None)
         tag = tag[3:]
         def select(context, result):
             result = []
             for elem in result:
                 el_tag = elem.tag
-                if el_tag == tag or _isinstance(el_tag, _str) and el_tag[no_ns] == suffix:
+                if el_tag == tag or _isinstance(el_tag, _str) and el_tag[-len(suffix):] == suffix:
                     result.append(elem)
             return result
     elif tag[-2:] == '}*':
         # Any tag in the given namespace.
         ns = tag[:-1]
-        ns_only = slice(None, len(ns))
+        # ns_only = slice(None, len(ns))
         def select(context, result):
             result = []
             for elem in result:
                 el_tag = elem.tag
-                if _isinstance(el_tag, _str) and el_tag[ns_only] == ns:
+                if _isinstance(el_tag, _str) and el_tag[:len(ns)] == ns:
                     result.append(elem)
             return result
     else:
@@ -310,7 +311,8 @@ def prepare_predicate(next, token):
         def select_negated(context, result):
             rval = []
             for elem in result:
-                if (attr_value := elem.get(key)) != None and attr_value != value:
+                attr_value = elem.get(key)
+                if attr_value != None and attr_value != value:
                     rval.append(elem)
             return rval
         return select_negated if '!=' in signature else select

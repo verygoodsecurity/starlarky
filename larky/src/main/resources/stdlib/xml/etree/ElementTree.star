@@ -75,9 +75,12 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//re", re="re")
 load("@stdlib//sets", sets="sets")
 load("@stdlib//types", types="types")
-load("@stdlib//xml/etree", ElementPath="ElementPath")
+load("@stdlib//xml/etree/ElementPath", ElementPath="ElementPath")
+load("@stdlib//xmllib", xmllib="xmllib")
+load("@stdlib//string", string="string")
 load("@vendor//option/result", safe="safe", try_="try_", Error="Error")
-
+load("@stdlib//debugging", debugging="debugging")
+debug=debugging.debug
 __all__ = [
     # public symbols
     "Comment",
@@ -150,14 +153,15 @@ def Element(tag, attrib={}, **extra):
         <tag attrib>text<child/>...</tag>tail
 
     """
+    self = larky.mutablestruct(__class__='Element')
 
-    tag = None
+    self.tag = tag
     """The element's name."""
 
-    attrib = None
+    self.attrib = attrib
     """Dictionary of the element's attributes."""
 
-    text = None
+    self.text = None
     """
     Text before first subelement. This is either a string or the value None.
     Note that if there is no text, this attribute may be either
@@ -165,7 +169,7 @@ def Element(tag, attrib={}, **extra):
 
     """
 
-    tail = None
+    self.tail = None
     """
     Text after this element's end tag, but before the next sibling element's
     start tag.  This is either a string or the value None.  Note that if there
@@ -174,12 +178,10 @@ def Element(tag, attrib={}, **extra):
 
     """
 
-    self = larky.mutablestruct(__class__='Element')
-
     def __init__(tag, attrib, extra):
         if not types.is_dict(attrib):
             return Error("TypeError: attrib must be dict, not %s" % type(attrib))
-        attrib = attrib.copy()
+        attrib = dict(**attrib)
         attrib.update(extra)
         self.tag = tag
         self.attrib = attrib
@@ -251,6 +253,8 @@ def Element(tag, attrib={}, **extra):
         but before the end tag for this element.
 
         """
+        debug("append(): ", subelement._pretty_print())
+        # debugging.stacktrace()
         self._assert_is_element(subelement)
         self._children.append(subelement)
     self.append = append
@@ -275,9 +279,8 @@ def Element(tag, attrib={}, **extra):
     def _assert_is_element(e):
         # Need to refer to the actual Python implementation, not the
         # shadowing C implementation.
-        # if not types.is_instance(e, _Element_Py):
-        #     return Error("TypeError: expected an Element, not %s" % type(e).__name__)
-        print("did i get here?")
+        if not types.is_instance(e, Element):
+            return Error("TypeError: expected an Element, not %s" % type(e).__name__)
     self._assert_is_element = _assert_is_element
 
     def remove(subelement):
@@ -594,7 +597,7 @@ def QName(text_or_uri, tag=None):
     return self
 
 
-def ElementTree(element=None, file=None):
+def _ElementTree(element=None, file=None):
     """An XML element hierarchy.
 
     This class also provides support for serialization to and from
@@ -607,11 +610,63 @@ def ElementTree(element=None, file=None):
     """
     self = larky.mutablestruct(__class__='ElementTree')
 
+    def parse(source, parser=None):
+        """Load external XML document into element tree.
+
+        *source* is a file name or file object, *parser* is an optional parser
+        instance that defaults to XMLParser.
+
+        ParseError is raised if the parser fails to parse the document.
+
+        Returns the root element of the given source document.
+
+        """
+        """Load external XML document into element tree.
+
+        *source* is a file name or file object, *parser* is an optional parser
+        instance that defaults to XMLParser.
+
+        ParseError is raised if the parser fails to parse the document.
+
+        Returns the root element of the given source document.
+
+        """
+        close_source = False
+        if not hasattr(source, "read"):
+            fail('source = open(source, "rb")')
+            close_source = True
+
+        def _parse_safe(parser):
+            if parser == None:
+                # If no parser was specified, create a default XMLParser
+                parser = XMLParser()
+                if hasattr(parser, "_parse_whole"):
+                    # The default XMLParser, when it comes from an accelerator,
+                    # can define an internal _parse_whole API for efficiency.
+                    # It can be used to parse the whole source without feeding
+                    # it with chunks.
+                    self._root = parser._parse_whole(source)
+                    return self._root
+            for _i in range(_WHILE_LOOP_EMULATION_ITERATION):
+                data = source.read(65536)
+                if not data:
+                    break
+                parser.feed(data)
+            self._root = parser.close()
+            return self._root
+
+        rval = safe(_parse_safe)(parser)
+        if close_source:
+            source.close()
+        return rval.unwrap()
+
+    self.parse = parse
+
     def __init__(element, file):
         # assert element is None or iselement(element)
         self._root = element  # first node
         if file:
-            fail("Larky does not support reading from file!")
+            self.parse(file)
         return self
     self = __init__(element, file)
 
@@ -631,19 +686,6 @@ def ElementTree(element=None, file=None):
         self._root = element
     self._setroot = _setroot
 
-    def parse(source, parser=None):
-        """Load external XML document into element tree.
-
-        *source* is a file name or file object, *parser* is an optional parser
-        instance that defaults to XMLParser.
-
-        ParseError is raised if the parser fails to parse the document.
-
-        Returns the root element of the given source document.
-
-        """
-        fail("Not implemented")
-    self.parse = parse
 
     def iter(tag=None):
         """Create and return tree iterator for the root element.
@@ -833,12 +875,12 @@ def _get_writer(file_or_filename, encoding):
         # )
 
 
-    def _get_writer_else():
+    def _get_writer_else(rval):
         # file_or_filename is a file-like object
         # encoding determines if it is a text or binary writer
         if encoding == "unicode":
             # use a text writer as is
-            return write
+            return rval
         file = StringIO()
         return file.write
 
@@ -1060,26 +1102,6 @@ _serialize = {
 }
 
 
-def register_namespace(prefix, uri):
-    """Register a namespace prefix.
-
-    The registry is global, and any existing mapping for either the
-    given prefix or the namespace URI will be removed.
-
-    *prefix* is the namespace prefix, *uri* is a namespace uri. Tags and
-    attributes in this namespace will be serialized with prefix if possible.
-
-    ValueError is raised if prefix is reserved or is invalid.
-
-    """
-    if re.match("ns\d+$", prefix):
-        return Error("ValueError: Prefix format reserved for internal use")
-    for k, v in list(_namespace_map.items()):
-        if k == uri or v == prefix:
-            operator.delitem(_namespace_map, k)
-    _namespace_map[uri] = prefix
-
-
 _namespace_map = {
     # "well-known" namespace prefixes
     "http://www.w3.org/XML/1998/namespace": "xml",
@@ -1092,9 +1114,25 @@ _namespace_map = {
     # dublin core
     "http://purl.org/dc/elements/1.1/": "dc",
 }
-# For tests and troubleshooting
-register_namespace._namespace_map = _namespace_map
 
+def register_namespace(prefix, uri):
+    """Register a namespace prefix.
+
+    The registry is global, and any existing mapping for either the
+    given prefix or the namespace URI will be removed.
+
+    *prefix* is the namespace prefix, *uri* is a namespace uri. Tags and
+    attributes in this namespace will be serialized with prefix if possible.
+
+    ValueError is raised if prefix is reserved or is invalid.
+
+    """
+    if re.match(r"ns\d+$", prefix):
+        return Error("ValueError: Prefix format reserved for internal use")
+    for k, v in list(_namespace_map.items()):
+        if k == uri or v == prefix:
+            operator.delitem(_namespace_map, k)
+    _namespace_map[uri] = prefix
 
 def _raise_serialization_error(text):
     return Error(
@@ -1178,13 +1216,15 @@ def tostring(element, encoding=None, method=None, *, short_empty_elements=True):
     """
     # stream = io.StringIO() if encoding == "unicode" else io.BytesIO()
     stream = StringIO()
-    ElementTree(element).write(
+    _ElementTree(element).write(
         stream,
         encoding,
         method=method,
         short_empty_elements=short_empty_elements,
     )
     return stream.getvalue()
+
+
 def _ListDataStream(lst):
     """An auxiliary stream accumulating into a list reference."""
     self = larky.mutablestruct(__class__='_ListDataStream')
@@ -1217,7 +1257,7 @@ def tostringlist(
 ):
     lst = []
     stream = _ListDataStream(lst)
-    ElementTree(element).write(
+    _ElementTree(element).write(
         stream,
         encoding,
         method=method,
@@ -1237,12 +1277,14 @@ def dump(elem):
 
     """
     # debugging
-    if not types.is_instance(elem, ElementTree):
-        elem = ElementTree(elem)
-    elem.write(sys.stdout, encoding="unicode")
+    if not types.is_instance(elem, _ElementTree):
+        elem = _ElementTree(elem)
+    f = StringIO()
+    elem.write(f, encoding="unicode")
+    print(f)
     tail = elem.getroot().tail
     if not tail or tail[-1] != "\n":
-        sys.stdout.write("\n")
+        print("\n")
 
 
 # --------------------------------------------------------------------
@@ -1258,7 +1300,7 @@ def parse(source, parser=None):
     Return an ElementTree instance.
 
     """
-    tree = ElementTree()
+    tree = _ElementTree()
     tree.parse(source, parser)
     return tree
 
@@ -1280,7 +1322,8 @@ def iterparse(source, events=None, parser=None):
     """
     close_source = False
     if not hasattr(source, "read"):
-        source = open(source, "rb")
+        fail("GOT HERE?")
+        # source = open(source, "rb")
         close_source = True
     rval = safe(_IterParseIterator)(source, events, parser, close_source)
     if close_source:
@@ -1288,9 +1331,9 @@ def iterparse(source, events=None, parser=None):
     return rval.unwrap()
 
 
-def XMLPullParser(events=None, *, _parser=None):
+def XMLPullParser(events=None, _parser=None):
     self = larky.mutablestruct(__class__='XMLPullParser')
-    def __init__(events, ):
+    def __init__(events, _parser):
         # The _parser argument is for internal use only and must not be relied
         # upon in user code. It will be removed in a future release.
         # See http://bugs.python.org/issue17741 for more details.
@@ -1300,11 +1343,11 @@ def XMLPullParser(events=None, *, _parser=None):
         self._index = 0
         self._parser = _parser or XMLParser(target=TreeBuilder())
         # wire up the parser for event reporting
-        if events is None:
-            events = ("end",)
+        if events == None:
+            events = tuple(("end",))
         self._parser._setevents(self._events_queue, events)
         return self
-    self = __init__(events)
+    self = __init__(events, _parser)
 
     def feed(data):
         """Feed encoded data to parser."""
@@ -1353,7 +1396,8 @@ def XMLPullParser(events=None, *, _parser=None):
             # Compact the list in a O(1) amortized fashion
             # As noted above, _elementree.c needs a list, not a deque
             if index * 2 >= len(events):
-                events[:index] = []
+                for i in range(index):
+                    events.pop(0)
                 self._index = 0
             else:
                 self._index = index
@@ -1372,7 +1416,8 @@ def _IterParseIterator(source, events, parser, close_source=False):
         self._parser = XMLPullParser(events=events, _parser=parser)
         self._file = source
         self._close_file = close_source
-        self.root = self._root = None
+        self.root = None
+        self._root = None
         return self
     self = __init__(source, events, parser, close_source)
 
@@ -1483,7 +1528,7 @@ def TreeBuilder(element_factory=None):
         self._elem = []  # element stack
         self._last = None  # last element
         self._tail = None  # true if we're after an end tag
-        if element_factory is None:
+        if element_factory == None:
             element_factory = Element
         self._factory = element_factory
         return self
@@ -1531,8 +1576,10 @@ def TreeBuilder(element_factory=None):
 
         """
         self._flush()
-        self._last = elem = self._factory(tag, attrs)
+        self._last = self._factory(tag, attrs)
+        elem = self._last
         if self._elem:
+            debug("DID I GET HERE?", tag, self._elem[-1].__dict__, type(self._elem))
             self._elem[-1].append(elem)
         self._elem.append(elem)
         self._tail = 0
@@ -1547,13 +1594,74 @@ def TreeBuilder(element_factory=None):
         """
         self._flush()
         self._last = self._elem.pop()
-        assert (
-            self._last.tag == tag
-        ), "end tag mismatch (expected %s, got %s)" % (self._last.tag, tag)
+        if self._last.tag != tag:
+            fail("end tag mismatch (expected %s, got %s)" % (self._last.tag, tag))
         self._tail = 1
         return self._last
     self.end = end
     return self
+
+
+# def fixname(name, split=None):
+#     # xmllib in 2.0 and later provides limited (and slightly broken)
+#     # support for XML namespaces.
+#     if " " not in name:
+#         return name
+#     if not split:
+#         split = name.split
+#     return "{%s}%s" % tuple(split(" ", 1))
+#
+#
+# ##
+# # ElementTree builder for XML source data.
+# #
+# # @see elementtree.ElementTree
+#
+# def TreeBuilder(element_factory=None):
+#
+#     def __init__(element_factory):
+#         self = xmllib.XMLParser()
+#         self.__class__ = 'SimpleXMLTreeBuilder.TreeBuilder'
+#         self.__builder = _TreeBuilder(element_factory)
+#         return self
+#     self = __init__(element_factory)
+#
+#     ##
+#     # Feeds data to the parser.
+#     #
+#     # @param data Encoded data.
+#     XMLParser_feed = self.feed
+#     def feed(data):
+#         XMLParser_feed(data)
+#     self.feed = feed
+#
+#     ##
+#     # Finishes feeding data to the parser.
+#     #
+#     # @return An element structure.
+#     # @defreturn Element
+#     XMLParser_close = self.close
+#     def close():
+#         XMLParser_close()
+#         return self.__builder.close()
+#     self.close = close
+#
+#     def handle_data(data):
+#         self.__builder.data(data)
+#     self.handle_data = handle_data
+#     self.handle_cdata = handle_data
+#
+#     def unknown_starttag(self, tag, attrs):
+#         attrib = {}
+#         for key, value in attrs.items():
+#             attrib[fixname(key)] = value
+#         self.__builder.start(fixname(tag), attrib)
+#     self.unknown_starttag = unknown_starttag
+#
+#     def unknown_endtag(self, tag):
+#         self.__builder.end(fixname(tag))
+#     self.unknown_endtag = unknown_endtag
+#     return self
 
 
 def XMLParser(html=0, target=None, encoding=None):
@@ -1567,38 +1675,6 @@ def XMLParser(html=0, target=None, encoding=None):
 
     """
     self = larky.mutablestruct(__class__='XMLParser')
-
-    def __init__(html, target, encoding):
-        parser = lambda : (encoding, "}")
-        if target is None:
-            target = TreeBuilder()
-        # underscored names are provided for compatibility only
-        self.parser = self._parser = parser
-        self.target = self._target = target
-        self._error = expat.error
-        self._names = {}  # name memo cache
-        # main callbacks
-        parser.DefaultHandlerExpand = self._default
-        if hasattr(target, "start"):
-            parser.StartElementHandler = self._start
-        if hasattr(target, "end"):
-            parser.EndElementHandler = self._end
-        if hasattr(target, "data"):
-            parser.CharacterDataHandler = target.data
-        # miscellaneous callbacks
-        if hasattr(target, "comment"):
-            parser.CommentHandler = target.comment
-        if hasattr(target, "pi"):
-            parser.ProcessingInstructionHandler = target.pi
-        # Configure pyexpat: buffering, new-style attribute handling.
-        parser.buffer_text = 1
-        parser.ordered_attributes = 1
-        parser.specified_attributes = 1
-        self._doctype = None
-        self.entity = {}
-        self.version = "LARKY!"
-        return self
-    self = __init__(html, target, encoding)
 
     def _setevents(events_queue, events_to_report):
         # Internal API for XMLPullParser
@@ -1777,16 +1853,48 @@ def XMLParser(html=0, target=None, encoding=None):
         .build()
 
         return rval.unwrap()
-
-
     self.close = close
+
+    def __init__(html, target, encoding):
+        parser = larky.mutablestruct(__class__='XMLParser.parser', encoding=encoding, end="}")
+        if target == None:
+            target = TreeBuilder()
+        # underscored names are provided for compatibility only
+        self.parser = parser
+        self._parser = parser
+        self.target = target
+        self._target = target
+        # self._error = expat.error
+        self._names = {}  # name memo cache
+        # main callbacks
+        parser.DefaultHandlerExpand = self._default
+        if hasattr(target, "start"):
+            parser.StartElementHandler = self._start
+        if hasattr(target, "end"):
+            parser.EndElementHandler = self._end
+        if hasattr(target, "data"):
+            parser.CharacterDataHandler = target.data
+        # miscellaneous callbacks
+        if hasattr(target, "comment"):
+            parser.CommentHandler = target.comment
+        if hasattr(target, "pi"):
+            parser.ProcessingInstructionHandler = target.pi
+        # Configure pyexpat: buffering, new-style attribute handling.
+        parser.buffer_text = 1
+        parser.ordered_attributes = 1
+        parser.specified_attributes = 1
+        self._doctype = None
+        self.entity = {}
+        self.version = "LARKY!"
+        return self
+    self = __init__(html, target, encoding)
     return self
 
 
 ElementTree = larky.struct(
     Comment=Comment,
     Element=Element,
-    ElementTree=ElementTree,
+    ElementTree=_ElementTree,
     HTML_EMPTY=HTML_EMPTY,
     PI=PI,
     ParseError=ParseError,
