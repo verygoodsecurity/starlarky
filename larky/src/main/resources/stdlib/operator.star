@@ -240,13 +240,30 @@ def setitem(a, b, c):
 
 def length_hint(obj, default=0):
     """
+    As defined in PEP 424.
     Return an estimate of the number of items in obj.
     This is useful for presizing containers when building from an iterable.
-    If the object supports len(), the result will be exact. Otherwise, it may
-    over- or under-estimate by an arbitrary amount. The result will be an
-    integer >= 0.
+
+    If the object supports `len()`, the result will be exact.
+
+    Otherwise, it may over- or under-estimate by an arbitrary amount. The
+    result will be an integer >= 0.
     """
-    fail("not implemented")
+    if types.is_iterable(obj):
+        return len(obj)
+    if hasattr(obj, '__len__'):
+        return obj.__len__()
+    if hasattr(obj, '__length_hint__'):
+        hint = obj.__length_hint__()
+        if not types.is_int(hint):
+            fail("TypeError: Length hint must be an integer, not %r" %
+                                        type(hint))
+        if hint < 0:
+            fail("ValueError: __length_hint__() should return >= 0")
+        return hint
+
+    return default
+
 
 def itemgetter(*args):
     if len(args) == 0:
