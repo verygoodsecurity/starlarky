@@ -19,7 +19,7 @@ class MutableStruct extends SimpleStruct {
     super(fields, currentThread);
   }
 
-  @StarlarkMethod(name = PyProtocols.__DICT__, useStarlarkThread = true)
+  @StarlarkMethod(name = PyProtocols.__DICT__, useStarlarkThread = true, structField = true)
   public Dict<String, Object> dunderDict(StarlarkThread thread) throws EvalException {
     StarlarkList<String> keys = Starlark.dir(thread.mutability(), thread.getSemantics(), this);
     Dict.Builder<String, Object> builder = Dict.builder();
