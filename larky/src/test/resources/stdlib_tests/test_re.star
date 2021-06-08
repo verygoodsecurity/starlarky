@@ -33,6 +33,30 @@ def _test_match():
     asserts.assert_that(m.group(0)).is_equal_to("aaaa")
 
 
+def _test_match_with_args():
+    s = 'abcdefg'
+    endtagopen = re.compile('</')
+    rawdata = '<doc><one>One</one><two>Two</two>hm<three>Three</three></doc>'
+    asserts.assert_true(endtagopen.match(rawdata, 13))
+    c = re.compile('^b')
+    asserts.assert_false(c.match(s, 1))
+    asserts.assert_that(c.match(s[1:])).is_not_none()
+    c = re.compile('.*f$')
+    asserts.assert_that(c.match(s[:-1])).is_not_none()
+    mo = c.match(s,1,6)
+    asserts.assert_that(mo).is_not_none()
+    asserts.assert_that(mo.span()).is_equal_to((1, 6))
+
+    pattern = re.compile("o")
+    asserts.assert_that(pattern.match("dog")).is_none()
+    mo = pattern.match("dog", 1)
+    asserts.assert_that(mo).is_not_none()
+    asserts.assert_that(mo.span()).is_equal_to((1, 2))
+    pat = re.compile(r'(ab)')
+    mo = pat.match(string='abracadabra', pos=7, endpos=10)
+    asserts.assert_that(mo.span()).is_equal_to((7, 9))
+
+
 def _test_groups():
     m = re.match(r"(\d+)\.(\d+)", "24.1632")
     asserts.assert_that(m.groups()).is_equal_to(('24', '1632'))
@@ -195,6 +219,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_escape))
     _suite.addTest(unittest.FunctionTestCase(_test_search))
     _suite.addTest(unittest.FunctionTestCase(_test_match))
+    _suite.addTest(unittest.FunctionTestCase(_test_match_with_args))
     _suite.addTest(unittest.FunctionTestCase(_test_groups))
     _suite.addTest(unittest.FunctionTestCase(_test_sub))
     _suite.addTest(unittest.FunctionTestCase(_test_subn))

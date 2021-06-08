@@ -113,9 +113,7 @@ def _pattern__init__(patternobj):
 
     def match(string, pos=0, endpos=-1):
         m = matcher(string)
-        if not m.looking_at():
-            return None
-        if pos > 0 and not m.find(pos):
+        if not m.looking_at(pos, endpos):
             return None
         return m
 

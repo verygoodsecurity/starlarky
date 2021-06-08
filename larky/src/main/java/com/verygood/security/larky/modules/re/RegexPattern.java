@@ -130,7 +130,7 @@ public class RegexPattern implements StarlarkValue {
               })
       })
   public RegexMatcher matcher(String input) {
-    return new RegexMatcher(pattern.matcher(input), this);
+    return new RegexMatcher(this, pattern.matcher(input), input);
   }
 
   @StarlarkMethod(
