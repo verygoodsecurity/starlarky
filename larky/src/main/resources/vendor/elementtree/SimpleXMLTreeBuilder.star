@@ -60,8 +60,6 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//xmllib", xmllib="xmllib")
 load("@stdlib//string", string="string")
 load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
-load("@stdlib//debugging", "debugging")
-debug = debugging.debug
 
 
 def fixname(name, split=None):
@@ -108,13 +106,11 @@ def TreeBuilder(element_factory=None):
     self.close = close
 
     def handle_data(data):
-        debug("handle_data: GOT CALLED?", data, "\n")
         self.__builder.data(data)
     self.handle_data = handle_data
     self.handle_cdata = handle_data
 
     def unknown_starttag(tag, attrs):
-        #print("unknown_starttag: GOT CALLED?", tag, attrs, "\n")
         attrib = {}
         for key, value in attrs.items():
             attrib[fixname(key)] = value
@@ -122,7 +118,6 @@ def TreeBuilder(element_factory=None):
     self.unknown_starttag = unknown_starttag
 
     def unknown_endtag(tag):
-        #print("unknown_endtag: GOT CALLED?", tag,  "\n")
         self.__builder.end(fixname(tag))
     self.unknown_endtag = unknown_endtag
     return self

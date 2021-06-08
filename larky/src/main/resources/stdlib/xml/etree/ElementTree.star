@@ -79,8 +79,7 @@ load("@stdlib//xml/etree/ElementPath", ElementPath="ElementPath")
 load("@stdlib//xmllib", xmllib="xmllib")
 load("@stdlib//string", string="string")
 load("@vendor//option/result", safe="safe", try_="try_", Error="Error")
-load("@stdlib//debugging", debugging="debugging")
-debug=debugging.debug
+
 __all__ = [
     # public symbols
     "Comment",
@@ -253,11 +252,8 @@ def Element(tag, attrib={}, **extra):
         but before the end tag for this element.
 
         """
-        debug("append(): ", subelement.tag, "parent: ", self.tag)
-        #debugging.stacktrace()
         self._assert_is_element(subelement)
         self._children.append(subelement)
-        debug("children: ", self._children)
 
     self.append = append
 
@@ -1579,13 +1575,10 @@ def TreeBuilder(element_factory=None):
         """
         self._flush()
         self._last = self._factory(tag, attrs)
-        debug("TreeBuilder.start", tag, self.__class__, len(self._elem), type(self._elem))
         elem = self._last
         if self._elem:
-            debug(self._elem[-1].tag)
             self._elem[-1].append(elem)
         self._elem.append(elem)
-        debug(self._elem)
         self._tail = 0
         return elem
     self.start = start

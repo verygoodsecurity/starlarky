@@ -6,8 +6,6 @@ load("@stdlib//re", re="re")
 load("@stdlib//string", string="string")
 load("@stdlib//types", types="types")
 load("@vendor//option/result", safe="safe", try_="try_", Error="Error")
-load("@stdlib//debugging", debugging="debugging")
-debug=debugging.debug
 
 version = '0.3'
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
@@ -260,7 +258,6 @@ def XMLParser(**kw):
     # true, force handling all data as if followed by EOF marker.
     def goahead(end):
         rawdata = self.rawdata
-        debug(rawdata)
         i = 0
         n = len(rawdata)
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
@@ -275,7 +272,6 @@ def XMLParser(**kw):
                 i = n
                 break
             res = interesting.search(rawdata, i)
-            debug(res)
             if res:
                 j = res.start(0)
             else:
@@ -302,7 +298,6 @@ def XMLParser(**kw):
                         i = i+1
                         continue
                     k = self.parse_starttag(i)
-                    debug("i: %s, j: %s, k: %s" % (i, j, k))
                     if k < 0: break
                     self.__seen_starttag = 1
                     self.lineno = self.lineno + rawdata[i:k].count('\n')
@@ -427,7 +422,6 @@ def XMLParser(**kw):
             # nothing else
             break
         # end while
-        debug("rawdata == self.rawdata?", (rawdata == self.rawdata), end, i < n)
         if i > 0:
             self.__at_start = 0
         if end and i < n:
@@ -651,7 +645,6 @@ def XMLParser(**kw):
         if self.__seen_starttag and not self.stack:
             self.syntax_error('multiple elements on top level')
         k, j = tag.span('attrs')
-        debug("attrs: ", k, j)
         attrdict, nsdict, k = self.parse_attributes(tagname, k, j)
         self.stack.append((tagname, nsdict, nstag))
         if self.__use_namespaces:
@@ -709,7 +702,6 @@ def XMLParser(**kw):
                 if val != None and not key in attrdict:
                     attrdict[key] = val
         method = self.elements.get(nstag, (None, None))[0]
-        debug("parser_starttag()", self.__builder._elem, method, nstag, attrdict)
         self.finish_starttag(nstag, attrdict, method)
         if tag.group('slash') == '/':
             self.finish_endtag(tagname)
