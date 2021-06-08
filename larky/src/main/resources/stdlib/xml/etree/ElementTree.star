@@ -253,10 +253,12 @@ def Element(tag, attrib={}, **extra):
         but before the end tag for this element.
 
         """
-        debug("append(): ", subelement._pretty_print())
-        # debugging.stacktrace()
+        debug("append(): ", subelement.tag, "parent: ", self.tag)
+        #debugging.stacktrace()
         self._assert_is_element(subelement)
         self._children.append(subelement)
+        debug("children: ", self._children)
+
     self.append = append
 
     def extend(elements):
@@ -1521,9 +1523,9 @@ def TreeBuilder(element_factory=None):
     to create new Element instances, as necessary.
 
     """
-    self = larky.mutablestruct(__class__='TreeBuilder')
 
     def __init__(element_factory):
+        self = larky.mutablestruct(__class__='TreeBuilder')
         self._data = []  # data collector
         self._elem = []  # element stack
         self._last = None  # last element
@@ -1577,11 +1579,13 @@ def TreeBuilder(element_factory=None):
         """
         self._flush()
         self._last = self._factory(tag, attrs)
+        debug("TreeBuilder.start", tag, self.__class__, len(self._elem), type(self._elem))
         elem = self._last
         if self._elem:
-            debug("DID I GET HERE?", tag, self._elem[-1].__dict__, type(self._elem))
+            debug(self._elem[-1].tag)
             self._elem[-1].append(elem)
         self._elem.append(elem)
+        debug(self._elem)
         self._tail = 0
         return elem
     self.start = start

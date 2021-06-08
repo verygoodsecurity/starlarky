@@ -79,9 +79,9 @@ def fixname(name, split=None):
 # @see elementtree.ElementTree
 
 def TreeBuilder(element_factory=None):
-    self = xmllib.XMLParser()
 
     def __init__(element_factory):
+        self = xmllib.XMLParser()
         self.__class__ = 'SimpleXMLTreeBuilder.TreeBuilder'
         self.__builder = ElementTree.TreeBuilder(element_factory)
         return self
