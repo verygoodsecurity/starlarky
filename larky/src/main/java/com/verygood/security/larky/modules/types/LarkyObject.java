@@ -1,14 +1,15 @@
 package com.verygood.security.larky.modules.types;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Structure;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import javax.annotation.Nullable;
 
 public interface LarkyObject extends Structure {
