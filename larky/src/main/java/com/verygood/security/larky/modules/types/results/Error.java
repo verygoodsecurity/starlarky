@@ -7,25 +7,37 @@ import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 
 
-public class Error implements Result {
+public class Error extends EvalException implements Result {
 
   private final Object errValue;
   private final EvalException exc;
 
-  Error(Object error) {
-    if(EvalException.class.isAssignableFrom(error.getClass())) {
-      this.errValue = ((EvalException) error).getMessage();
-      this.exc = ((EvalException) error);
-    }
-    else {
-      this.errValue = error;
-      this.exc = new EvalException(Starlark.str(error));
-    }
-  }
-
-  Error(EvalException error) {
+  private Error(EvalException error) {
+    super(error.getMessage(), error.getCause());
     this.errValue = error.getMessage();
     this.exc = error;
+  }
+
+  private Error(Error errorObj) {
+    super(errorObj.exc.getMessage(), errorObj.exc.getCause());
+    this.errValue = errorObj.exc.getMessage();
+    this.exc = errorObj.exc;
+  }
+
+  private Error(Object errorObj) {
+    super(Starlark.str(errorObj));
+    this.errValue = errorObj;
+    this.exc = new EvalException(Starlark.str(errorObj));
+  }
+
+  public static Error of(Object e) {
+    if(Error.class.isAssignableFrom(e.getClass())) {
+      return new Error(e);
+    }
+    else if(EvalException.class.isAssignableFrom(e.getClass())) {
+      return new Error((EvalException) e);
+    }
+    return new Error(e);
   }
 
   @Override
@@ -53,18 +65,23 @@ public class Error implements Result {
   }
 
   @Override
-  public void str(Printer printer) {
+  public void repr(Printer printer) {
     printer.append(this.toString());
   }
 
   @Override
-  public Object getValue() {
-    return null;
+  public void str(Printer printer) {
+    printer.append(String.valueOf(errValue));
   }
 
   @Override
-  public EvalException getError() {
-    return this.exc;
+  public Object getValue() {
+    return this.errValue;
+  }
+
+  @Override
+  public Error getError() {
+    return this;
   }
 
   @Override

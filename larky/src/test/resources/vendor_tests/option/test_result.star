@@ -33,7 +33,8 @@ def _test_safe_failure():
 
 def _test_api():
     f = Result.Ok(1)
-    asserts.assert_that(str(f)).is_equal_to("Ok{1}")
+    asserts.assert_that(str(f)).is_equal_to("1")
+    asserts.assert_that(repr(f)).is_equal_to("Ok{1}")
     asserts.assert_that(f.map(lambda x: x + x).unwrap()).is_equal_to(2)
     asserts.assert_true(f.is_ok)
     asserts.assert_false(f.is_err)
@@ -41,7 +42,8 @@ def _test_api():
     ##
 
     d = Result.Error("oh no!")
-    asserts.assert_that(str(d)).is_equal_to("Error{oh no!}")
+    asserts.assert_that(str(d)).is_equal_to("oh no!")
+    asserts.assert_that(repr(d)).is_equal_to("Error{oh no!}")
     asserts.assert_false(d.is_ok)
     asserts.assert_true(d.is_err)
 
@@ -328,7 +330,10 @@ def _testsuite():
         _suite.addTest,
         unittest.FunctionTestCase,
         "obj,call,exp",
-        [(Result.Ok(1), str, Result.Ok(1)), (Result.Error(1), str, Result.Error("1"))],
+        [
+            (Result.Ok(1), str, Result.Ok(1)),
+            (Result.Error(1), str, Result.Error("1"))
+        ],
     )(_test_map_err)
 
     larky.parametrize(

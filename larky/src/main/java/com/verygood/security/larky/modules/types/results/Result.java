@@ -1,7 +1,6 @@
 package com.verygood.security.larky.modules.types.results;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Function;
 
 import com.verygood.security.larky.modules.types.PyProtocols;
@@ -31,10 +30,7 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     if(error instanceof Result) {
       return (Result) error;
     }
-    if (EvalException.class.isAssignableFrom(error.getClass())) {
-      return new Error((EvalException) error);
-    }
-    return new Error(Starlark.str(error));
+    return Error.of(error);
   }
 
   @StarlarkMethod(name = "Ok", parameters = {@Param(name = "value")})
@@ -59,11 +55,11 @@ public interface Result extends StarlarkValue, Comparable<Result> {
 
   Object getValue();
 
-  EvalException getError();
+  Error getError();
 
   @StarlarkMethod(name = "_val", structField = true, allowReturnNones = true)
   default Object Val() {
-    return (isOk()) ? getValue() : getError().getMessage();
+    return (isOk()) ? getValue() : getError().getValue();
   }
 
   @StarlarkMethod(name = "is_ok", structField = true)
@@ -78,16 +74,15 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     @Param(name = "func")
   }, allowReturnNones = true, useStarlarkThread = true)
   default <T> Result map(StarlarkCallable func, StarlarkThread thread) {
-    return
-      Optional.ofNullable(getValue())
-        .map((o) -> {
-          try {
-            return of(Starlark.call(thread, func, Tuple.of(o), Dict.empty()));
-          } catch (EvalException | InterruptedException e) {
-            throw new RuntimeException(e);
-          }
-        })
-        .orElse(this);
+    if(!isOk()) {
+      return this;
+    }
+
+    try {
+      return of(Starlark.call(thread, func, Tuple.of(getValue()), Dict.empty()));
+    } catch (EvalException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @StarlarkMethod(name = "flatmap", parameters = {
@@ -112,7 +107,7 @@ public interface Result extends StarlarkValue, Comparable<Result> {
       return this;
     }
     try {
-      return error(Starlark.call(thread, func, Tuple.of(getError()), Dict.empty()));
+      return error(Starlark.call(thread, func, Tuple.of(getError().getValue()), Dict.empty()));
     } catch (EvalException | InterruptedException e) {
       throw new RuntimeException(e);
     }
@@ -163,7 +158,7 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     if (isOk()) {
       throw new EvalException(msg);
     }
-    return this.getError();
+    return this.getError().getValue();
   }
 
   @StarlarkMethod(name = "unwrap", allowReturnNones = true)
@@ -205,16 +200,12 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     @Param(name = "func")
   }, useStarlarkThread = true, allowReturnNones = true)
   default Object unwrapOrElse(StarlarkCallable func, StarlarkThread thread) throws EvalException {
-    Object value = getValue();
-    if(value != null) {
-      return value;
+    if(isOk()) {
+      return getValue();
     }
-    // we know we are an error instance here since getValue() is null here.
+    // we know we are an error instance here
     try {
-      // TODO(mahmoudimus): getError().getMessage() <- we should probably make this a value
-      //  instead of extracting the message itself from the error. This *could* be a
-      //  potential bug.
-      return Starlark.call(thread, func, Tuple.of(getError().getMessage()), Dict.empty());
+      return Starlark.call(thread, func, Tuple.of(getError().getValue()), Dict.empty());
     } catch (InterruptedException e) {
       throw new EvalException(e.getMessage(), e);
     }
@@ -226,8 +217,10 @@ public interface Result extends StarlarkValue, Comparable<Result> {
   }
 
   default <E2 extends EvalException> Object orElseRaiseAs(Function<EvalException, E2> emapper) throws E2 {
-    return Optional.ofNullable(getValue())
-             .orElseThrow(() -> emapper.apply(getError()));
+    if(isOk()) {
+      return getValue();
+    }
+    throw emapper.apply(getError());
   }
 
   @Override
