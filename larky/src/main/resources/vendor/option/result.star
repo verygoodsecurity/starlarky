@@ -255,7 +255,7 @@ load("@stdlib//enum", "enum")
 #         Examples:
 #             >>> Ok(1).expect('no')
 #             1
-#             >>> try:
+#             >;>> try:
 #             ...     Err(1).expect('no')
 #             ... except ValueError as e:
 #             ...     print(e)

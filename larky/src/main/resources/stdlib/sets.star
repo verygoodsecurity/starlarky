@@ -296,8 +296,9 @@ def Set(iterable=None):
     self.intersection = intersection
 
     def union(*args):
-        args = [self].extend(args)
-        self._values = dicts.add(*[s._values for s in args])
+        _unioned = [self]
+        _unioned.extend(args)
+        self._values = dicts.add(*[s._values for s in _unioned])
         return self
     self.union = union
 

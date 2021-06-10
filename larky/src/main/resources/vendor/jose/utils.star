@@ -1,39 +1,26 @@
-
 load("@stdlib//base64", base64="base64")
+load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//struct", struct="struct")
-load("@stdlib//sys", sys="sys")
-
-load("@vendor//six", six="six")
-load("@stdlib//builtins","builtins")
-
-if sys.version_info > (3,):
-    # Deal with integer compatibilities between Python 2 and 3.
-    # Using `from builtins import int` is not supported on AppEngine.
-    long = int
-
+load("@stdlib//types", types="types")
 
 # Piggyback of the backends implementation of the function that converts a long
 # to a bytes stream. Some plumbing is necessary to have the signatures match.
-try:
-    load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes")
-except ImportError:
-    try:
-        load("@vendor//cryptography/utils", _long_to_bytes="_long_to_bytes")
+load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes")
 
-        def long_to_bytes(n, blocksize=0):
-            return _long_to_bytes(n, blocksize or None)
+# Deal with integer compatibilities between Python 2 and 3.
+# Using `from builtins import int` is not supported on AppEngine.
+long = int
 
-    except ImportError:
-        load("@vendor//ecdsa/ecdsa", _long_to_bytes="_long_to_bytes")
 
-        def long_to_bytes(n, blocksize=0):
-            ret = _long_to_bytes(n)
-            if blocksize == 0:
-                return ret
-            else:
-                assert len(ret) <= blocksize
-                padding = blocksize - len(ret)
-                return bytes([0x00]) * padding + ret
+def _ecdsa_long_to_bytes(n, blocksize=0):
+    ret = _long_to_bytes(n)
+    if blocksize == 0:
+        return ret
+    else:
+        assert len(ret) <= blocksize
+        padding = blocksize - len(ret)
+        return bytes([0x00]) * padding + ret
 
 
 def long_to_base64(data, size=0):
@@ -45,8 +32,8 @@ def int_arr_to_long(arr):
 
 
 def base64_to_long(data):
-    if types.is_instance(data, six.text_type):
-        data = data.encode("ascii")
+    if types.is_string(data) :
+        data = codecs.encode(data, encoding="ascii")
 
     # urlsafe_b64decode will happily convert b64encoded data
     _d = base64.urlsafe_b64decode(bytes(data) + bytes([0x3d, 0x3d]))
@@ -69,11 +56,11 @@ def calculate_at_hash(access_token, hash_alg):
         hash_alg (callable): A callable returning a hash object, e.g. hashlib.sha256
 
     """
-    hash_digest = hash_alg(access_token.encode('utf-8')).digest()
+    hash_digest = hash_alg(codecs.encode(access_token, encoding='utf-8')).digest()
     cut_at = int(len(hash_digest) / 2)
     truncated = hash_digest[:cut_at]
     at_hash = base64url_encode(truncated)
-    return at_hash.decode('utf-8')
+    return codecs.decode(at_hash, encoding='utf-8')
 
 
 def base64url_decode(input):

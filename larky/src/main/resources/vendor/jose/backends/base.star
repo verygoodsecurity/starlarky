@@ -1,6 +1,8 @@
+load("@vendor//jose/utils", base64url_encode="base64url_encode")
+load("@vendor//option/result", Error="Error")
 load("@vendor//six", six="six")
 
-load("@vendor//utils", base64url_encode="base64url_encode")
+
 def Key(key, algorithm):
     """
     A simple interface for implementing JWK keys.
@@ -12,23 +14,23 @@ def Key(key, algorithm):
     self = __init__(key, algorithm)
 
     def sign(msg):
-        fail(" NotImplementedError()")
+        return Error()
     self.sign = sign
 
     def verify(msg, sig):
-        fail(" NotImplementedError()")
+        return Error()
     self.verify = verify
 
     def public_key():
-        fail(" NotImplementedError()")
+        return Error()
     self.public_key = public_key
 
     def to_pem():
-        fail(" NotImplementedError()")
+        return Error()
     self.to_pem = to_pem
 
     def to_dict():
-        fail(" NotImplementedError()")
+        return Error()
     self.to_dict = to_dict
 
     def encrypt(plain_text, aad=None):
@@ -42,7 +44,7 @@ def Key(key, algorithm):
         Returns:
             (bytes, bytes, bytes): IV, cipher text, and auth tag
         """
-        fail(" NotImplementedError()")
+        return Error()
     self.encrypt = encrypt
 
     def decrypt(cipher_text, iv=None, aad=None, tag=None):
@@ -57,7 +59,7 @@ def Key(key, algorithm):
         Returns:
             bytes: Decrypted value
         """
-        fail(" NotImplementedError()")
+        return Error()
     self.decrypt = decrypt
 
     def wrap_key(key_data):
@@ -70,7 +72,7 @@ def Key(key, algorithm):
         Returns:
             bytes: Wrapped key
         """
-        fail(" NotImplementedError()")
+        return Error()
     self.wrap_key = wrap_key
 
     def unwrap_key(wrapped_key):
@@ -83,13 +85,17 @@ def Key(key, algorithm):
         Returns:
             bytes: Unwrapped key
         """
-        fail(" NotImplementedError()")
+        return Error()
     self.unwrap_key = unwrap_key
     return self
+
+
 def DIRKey(key_data, algorithm):
+
     self = larky.mutablestruct(__class__='DIRKey')
     def __init__(key_data, algorithm):
         self._key = six.ensure_binary(key_data)
+        self._alg = algorithm
         return self
     self = __init__(key_data, algorithm)
 
