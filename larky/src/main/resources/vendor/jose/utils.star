@@ -14,11 +14,12 @@ long = int
 
 
 def _ecdsa_long_to_bytes(n, blocksize=0):
-    ret = _long_to_bytes(n)
+    ret = long_to_bytes(n)
     if blocksize == 0:
         return ret
     else:
-        assert len(ret) <= blocksize
+        if len(ret) > blocksize:
+            fail("len(ret)(%d) > blocksize(%d)!", len(ret), blocksize)
         padding = blocksize - len(ret)
         return bytes([0x00]) * padding + ret
 

@@ -1,4 +1,4 @@
-load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error", safe="safe")
+load("@vendor//option/result", Result="Result")
 
 def JOSEError():
     return Result.Err("JOSError")

@@ -1,18 +1,14 @@
+load("@stdlib//builtins", "builtins")
+load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//hashlib", hashlib="hashlib")
-load("@stdlib//hmac", hmac="hmac")
-load("@stdlib//os", os="os")
-
-load("@vendor//six", six="six")
-
+load("@vendor//Crypto/Hash/HMAC", HMAC="HMAC")
 load("@vendor//jose/backends/base", Key="Key")
 load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS")
 load("@vendor//jose/exceptions", JWKError="JWKError")
-load("@vendor//jose/utils", base64url_decode="base64url_decode", base64url_encode="base64url_encode")
-load("@stdlib//builtins","builtins")
-
-
-def get_random_bytes(num_bytes):
-    return bytes(os.urandom(num_bytes))
+load("@vendor//jose/utils",
+     base64url_decode="base64url_decode",
+     base64url_encode="base64url_encode")
+load("@vendor//six", six="six")
 
 
 def HMACKey(key, algorithm):
@@ -38,7 +34,7 @@ def HMACKey(key, algorithm):
             fail(" JWKError(\"Incorrect key type. Expected: 'oct', Received: %s\" % jwk_dict.get('kty'))")
 
         k = jwk_dict.get('k')
-        k = k.encode('utf-8')
+        k = codecs.encode(k, encoding='utf-8')
         k = bytes(k)
         k = base64url_decode(k)
 
@@ -57,7 +53,10 @@ def HMACKey(key, algorithm):
         return {
             'alg': self._algorithm,
             'kty': 'oct',
-            'k': base64url_encode(self.prepared_key).decode('ASCII'),
+            'k': codecs.decode(
+                base64url_encode(self.prepared_key),
+                encoding='ASCII'
+            ),
         }
     self.to_dict = to_dict
     return self

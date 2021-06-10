@@ -146,7 +146,6 @@ def new(data=None, truncate=None):
     """
 
     return SHA512Hash(data, truncate)
-self.new = new
 
 
 
