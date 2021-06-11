@@ -10,7 +10,11 @@ import com.verygood.security.larky.modules.types.LarkyByteLike;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.*;
+import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.EvalException;
 
 import org.bouncycastle.crypto.ExtendedDigest;
 import org.bouncycastle.crypto.digests.Blake2sDigest;
