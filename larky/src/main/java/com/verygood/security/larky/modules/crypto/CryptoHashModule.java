@@ -10,10 +10,7 @@ import com.verygood.security.larky.modules.types.LarkyByteLike;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.NoneType;
-import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkInt;
-import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.*;
 
 import org.bouncycastle.crypto.ExtendedDigest;
 import org.bouncycastle.crypto.digests.Blake2sDigest;
@@ -61,14 +58,20 @@ public class CryptoHashModule implements StarlarkValue {
           @Param(name = "truncate", allowedTypes = {@ParamType(type = String.class)},
                   defaultValue = "512"),
   })
-  public LarkyLongDigest SHA512(String truncate) {
+  public LarkyLongDigest SHA512(String truncate) throws EvalException {
     LongDigest digest;
-    if(truncate.equals("512")) {
-      digest = (LongDigest) DigestFactory.createSHA512();
-    }else if(truncate.equals("256")){
-      digest = (LongDigest) DigestFactory.createSHA512_256();
-    } else {
-      digest = (LongDigest) DigestFactory.createSHA512_224();
+    switch (truncate) {
+      case "512":
+        digest = (LongDigest) DigestFactory.createSHA512();
+        break;
+      case "224":
+        digest = (LongDigest) DigestFactory.createSHA512_224();
+        break;
+      case "256":
+        digest = (LongDigest) DigestFactory.createSHA512_256();
+        break;
+      default:
+        throw Starlark.errorf("Incorrect truncation length. It must be 224, 256 or 512.");
     }
     return new LarkyLongDigest(digest);
   }
