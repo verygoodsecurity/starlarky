@@ -1,6 +1,10 @@
 package com.verygood.security.larky.modules.crypto;
 
-import com.verygood.security.larky.modules.crypto.Hash.*;
+import com.verygood.security.larky.modules.crypto.Hash.LarkyDigest;
+import com.verygood.security.larky.modules.crypto.Hash.LarkyGeneralDigest;
+import com.verygood.security.larky.modules.crypto.Hash.LarkyLongDigest;
+import com.verygood.security.larky.modules.crypto.Hash.LarkyXofDigest;
+import com.verygood.security.larky.modules.crypto.Hash.LarkyKeccakDigest;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
@@ -11,9 +15,12 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
-import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.ExtendedDigest;
-import org.bouncycastle.crypto.digests.*;
+import org.bouncycastle.crypto.digests.Blake2sDigest;
+import org.bouncycastle.crypto.digests.GeneralDigest;
+import org.bouncycastle.crypto.digests.LongDigest;
+import org.bouncycastle.crypto.digests.SHAKEDigest;
+import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.bouncycastle.crypto.util.DigestFactory;
 
 public class CryptoHashModule implements StarlarkValue {
