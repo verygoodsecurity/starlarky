@@ -3,6 +3,7 @@ load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
 load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
+load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 
 
 def b(s):
@@ -16,6 +17,8 @@ def HMAC_test_hex_digest():
     eq(HMAC.new(b("Swordfish"), b("hello")).hexdigest(), '81a0430b04a8095d5482ec03706f3faa')
     # print("hmac-sha256", HMAC.new(b("Swordfish"), b("hello"), digestmod=SHA256).hexdigest())
     eq(HMAC.new(b("Swordfish"), b("hello"), digestmod=SHA256).hexdigest(), '4711f1ab6eec04c80df9a24f01d2e4bd33564af6b128a0ffaf967b06547e268a')
+
+    eq(HMAC.new(b("Swordfish"), b("hello"), digestmod=SHA512).hexdigest(), 'dfe0743e40286d8575573bd776e33df4d47e4157b65ed858d5a543fbd670e1705ea940851175b2ffe422f9e5d41f98f5bb199c6d2f1c0dbe36dddb980f16b469')
 
 
 def HMAC_test_hexverify():

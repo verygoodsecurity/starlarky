@@ -1,9 +1,6 @@
 package com.verygood.security.larky.modules.crypto;
 
-import com.verygood.security.larky.modules.crypto.Hash.LarkyDigest;
-import com.verygood.security.larky.modules.crypto.Hash.LarkyGeneralDigest;
-import com.verygood.security.larky.modules.crypto.Hash.LarkyLongDigest;
-import com.verygood.security.larky.modules.crypto.Hash.LarkyXofDigest;
+import com.verygood.security.larky.modules.crypto.Hash.*;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
@@ -14,11 +11,9 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
+import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.ExtendedDigest;
-import org.bouncycastle.crypto.digests.Blake2sDigest;
-import org.bouncycastle.crypto.digests.GeneralDigest;
-import org.bouncycastle.crypto.digests.LongDigest;
-import org.bouncycastle.crypto.digests.SHAKEDigest;
+import org.bouncycastle.crypto.digests.*;
 import org.bouncycastle.crypto.util.DigestFactory;
 
 public class CryptoHashModule implements StarlarkValue {
@@ -55,10 +50,26 @@ public class CryptoHashModule implements StarlarkValue {
     return new LarkyGeneralDigest(digest);
   }
 
-  @StarlarkMethod(name = "SHA512")
-  public LarkyLongDigest SHA512() {
-    LongDigest digest = (LongDigest) DigestFactory.createSHA512();
+  @StarlarkMethod(name = "SHA512", parameters = {
+          @Param(name = "truncate", allowedTypes = {@ParamType(type = String.class)},
+                  defaultValue = "512"),
+  })
+  public LarkyLongDigest SHA512(String truncate) {
+    LongDigest digest;
+    if(truncate.equals("512")) {
+      digest = (LongDigest) DigestFactory.createSHA512();
+    }else if(truncate.equals("256")){
+      digest = (LongDigest) DigestFactory.createSHA512_256();
+    } else {
+      digest = (LongDigest) DigestFactory.createSHA512_224();
+    }
     return new LarkyLongDigest(digest);
+  }
+
+  @StarlarkMethod(name = "SHA3_256")
+  public LarkyKeccakDigest SHA3_256() {
+    KeccakDigest digest = (KeccakDigest) DigestFactory.createSHA3_256();
+    return new LarkyKeccakDigest(digest);
   }
 
   @StarlarkMethod(name = "SHAKE128", parameters = {
