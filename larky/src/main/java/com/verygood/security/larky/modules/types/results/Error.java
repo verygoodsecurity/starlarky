@@ -93,4 +93,8 @@ public class Error extends EvalException implements Result {
   public boolean isError() {
     return true;
   }
+
+  public EvalException toEvalException() {
+    return this.exc;
+  }
 }

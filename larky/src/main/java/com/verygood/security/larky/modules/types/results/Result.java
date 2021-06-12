@@ -163,8 +163,10 @@ public interface Result extends StarlarkValue, Comparable<Result> {
 
   @StarlarkMethod(name = "unwrap", allowReturnNones = true)
   default Object unwrap() throws EvalException {
-    Object o = orElseRaiseAs(e -> e);
-    return o;
+    if(isOk()) {
+      return getValue();
+    }
+    throw getError().toEvalException();
   }
 
   @StarlarkMethod(name = "unwrap_or",
