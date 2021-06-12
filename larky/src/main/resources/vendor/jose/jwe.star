@@ -287,6 +287,9 @@ def _jwe_compact_deserialize(jwe_bytes):
     # JWE AAD, following the restriction that no line breaks,
     # whitespace, or other additional characters have been used.
     jwe_bytes = six.ensure_binary(jwe_bytes)
+    # TODO(mahmoudimus):
+    #  LARKY-DIFFERENCE: for some reason, split(,4) in python is different
+    #     in larky. I had to change this to be split(...,5) to get 5 items..
     rval = safe(jwe_bytes.split)(bytes('.', encoding='utf-8'), 5)
     if rval.is_err:
         if Result.error_is(".*in call to split()", rval):
@@ -294,8 +297,13 @@ def _jwe_compact_deserialize(jwe_bytes):
         elif Result.error_is("ValueError", rval):
             return Error("JWEParseError: Not enough segments")
         return Error("JWEParseError: Invalid header")
-    header_segment, encrypted_key_segment, iv_segment, \
-                cipher_text_segment, auth_tag_segment = rval.unwrap()
+    (
+        header_segment,
+        encrypted_key_segment,
+        iv_segment,
+        cipher_text_segment,
+        auth_tag_segment
+    ) = rval.unwrap()
     header_data = safe(base64url_decode)(header_segment).unwrap()
 
     # Verify that the octet sequence resulting from decoding the
@@ -399,7 +407,7 @@ def _encrypt_and_auth(key, alg, enc, zip, plaintext, aad):
         encryption_key = jwk.construct(cek_bytes, enc)
         iv, ciphertext, auth_tag = encryption_key.encrypt(plaintext, aad)
     else:
-        return Error("enc {} is not implemented!".format(enc))
+        return Error("enc {} is not implemented!".format(enc)).unwrap()
 
     return kw_cek, iv, ciphertext, auth_tag
 
