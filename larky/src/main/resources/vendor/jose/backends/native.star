@@ -1,7 +1,9 @@
 load("@stdlib//builtins", "builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//hashlib", hashlib="hashlib")
-load("@vendor//Crypto/Hash/HMAC", HMAC="HMAC")
+load("@stdlib//operator", operator="operator")
+load("@stdlib//larky", larky="larky")
+load("@vendor//Crypto/Hash/HMAC", hmac="HMAC")
 load("@vendor//jose/backends/base", Key="Key")
 load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS")
 load("@vendor//jose/exceptions", JWKError="JWKError")
@@ -16,15 +18,16 @@ def HMACKey(key, algorithm):
     Performs signing and verification operations using HMAC
     and the specified hash function.
     """
-    HASHES = {
-        ALGORITHMS.HS256: hashlib.sha256,
-        ALGORITHMS.HS384: hashlib.sha384,
-        ALGORITHMS.HS512: hashlib.sha512
-    }
-    self = larky.mutablestruct(__class__='HMACKey')
+    self = larky.mutablestruct(
+        __class__='HMACKey',
+        HASHES = {
+            ALGORITHMS.HS256: hashlib.sha256,
+            ALGORITHMS.HS384: hashlib.sha384,
+            ALGORITHMS.HS512: hashlib.sha512
+    })
 
     def __init__(key, algorithm):
-        if algorithm not in ALGORITHMS.HMAC:
+        if not operator.contains(ALGORITHMS.HMAC, algorithm):
             fail(" JWKError('hash_alg: %s is not a valid hash algorithm' % algorithm)")
         return self
     self = __init__(key, algorithm)
@@ -35,7 +38,7 @@ def HMACKey(key, algorithm):
 
         k = jwk_dict.get('k')
         k = codecs.encode(k, encoding='utf-8')
-        k = bytes(k)
+        k = bytes(k, encoding='utf-8')
         k = base64url_decode(k)
 
         return k
