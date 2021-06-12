@@ -168,6 +168,8 @@ def concat(a, b):
 
 def contains(a, b):
     "Same as b in a (note reversed operands)."
+    if hasattr(a, '__contains__'):
+        return a.__contains__(b)
     return countOf(a, b) != 0
 
 def countOf(a, b):
