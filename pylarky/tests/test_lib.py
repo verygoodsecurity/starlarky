@@ -22,7 +22,7 @@ ctx = {"body": "thisisabody", "headers": {"accept": "xml", "content": "still-xml
 
 def test_request_evaluation():
     starlark_script = """load('@stdlib/json', 'json')
-load("@stdlib/hashlib", "hashlib")
+load("@stdlib//hashlib", "hashlib")
 
 def process(input_message):
     print("start script")
@@ -30,7 +30,7 @@ def process(input_message):
     
     key=input_message.get_header("Key")
     input_message.remove_header("Key")
-    signature = hashlib.sha512(key)
+    signature = hashlib.sha512(bytes(key, encoding='utf-8')).hexdigest()
     print("changing payload")
     decoded_payload["signature"] = signature
     input_message.data = json.encode(decoded_payload)
