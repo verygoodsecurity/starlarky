@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 load("@stdlib//larky", "larky")
+load("@stdlib//itertools",
+     it="itertools",
+     chain="chain",
+     from_iterable="from_iterable")
 load("@stdlib//dicts", "dicts")
 
 
@@ -227,6 +231,7 @@ def _repr(s):
 
 # https://svn.python.org/projects/python/trunk/Lib/sets.py
 def Set(iterable=None):
+    # TODO (mahmoudimus): figure out how to use __iter__?
     """ Mutable set class."""
     self = larky.mutablestruct(__class__='Set', __slots__ = ('_data',))
     def __init__(iterable):
@@ -262,7 +267,7 @@ def Set(iterable=None):
     def contains(e):
         return e in self._values
     self.contains = contains
-    self.__in__ = contains  # alias
+    self.__contains__ = contains  # alias
 
     def is_equal(b):
         return self._values == b._values
@@ -296,11 +301,18 @@ def Set(iterable=None):
     self.intersection = intersection
 
     def union(*args):
+        return Set(chain(
+            self._values.keys(),
+            *[a._values.keys() for a in args]
+        ))
+    self.union = union
+
+    def update(*args):
         _unioned = [self]
         _unioned.extend(args)
         self._values = dicts.add(*[s._values for s in _unioned])
         return self
-    self.union = union
+    self.update = update
 
     def difference(b):
         return Set([e for e in self._values.keys() if e not in b._values])
@@ -315,7 +327,6 @@ def Set(iterable=None):
         return _repr(self)
     self.__repr__ = __repr__
     self.__str__ = __repr__  # alias
-
     return self
 
 
