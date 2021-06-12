@@ -20,6 +20,7 @@
 
 
 load("@stdlib//larky", larky="larky")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 load("@vendor//option/result", Error="Error")
@@ -94,8 +95,7 @@ def SHA1Hash(data=None):
                  Hexadecimal encoded.
         :rtype: string
         """
-
-        return "".join(["%02x" % bord(x) for x in self.digest()])
+        return tostr(hexlify(self.digest()))
     self.hexdigest = hexdigest
 
     def copy():

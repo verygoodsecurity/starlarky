@@ -36,13 +36,13 @@ load("@stdlib//builtins","builtins")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@vendor//Crypto/Hash/MD5", MD5="MD5")
 load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
-# load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
+load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Util/strxor", strxor="strxor")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 load("@vendor//Crypto/Random", get_random_bytes="get_random_bytes")
 load("@vendor//Crypto/Hash/BLAKE2s", BLAKE2s="BLAKE2s")
 
-    
+
 def _HMAC(key, msg, digestmod):
     """
     An HMAC hash object.
@@ -50,9 +50,9 @@ def _HMAC(key, msg, digestmod):
 
         :ivar digest_size: the size in bytes of the resulting MAC tag
         :vartype digest_size: integer
-    
+
     """
-    self = larky.mutablestruct()
+    self = larky.mutablestruct(__name__='HMAC', __class__=_HMAC)
 
     def update(msg):
         """
@@ -60,7 +60,7 @@ def _HMAC(key, msg, digestmod):
 
                 Args:
                     data (byte string/byte array/memoryview): The next chunk of data
-        
+
         """
         self._inner.update(msg)
         return self
@@ -90,7 +90,7 @@ def _HMAC(key, msg, digestmod):
                 strings that share a common initial substring.
 
                 :return: An :class:`HMAC`
-        
+
         """
         new_hmac = _HMAC(tobytes("fake key"), digestmod=self._digestmod)
 
@@ -108,7 +108,7 @@ def _HMAC(key, msg, digestmod):
                 :return: The MAC tag digest, computed over the data processed so far.
                          Binary form.
                 :rtype: byte string
-        
+
         """
         frozen_outer_hash = self._outer.copy()
         frozen_outer_hash.update(self._inner.digest())
@@ -126,7 +126,7 @@ def _HMAC(key, msg, digestmod):
                 Raises:
                     ValueError: if the MAC does not match. It means that the message
                         has been tampered with or that the MAC key is incorrect.
-        
+
         """
         secret = get_random_bytes(16)
 
@@ -144,11 +144,11 @@ def _HMAC(key, msg, digestmod):
                 :return: The MAC tag, computed over the data processed so far.
                          Hexadecimal encoded.
                 :rtype: string
-        
+
         """
         return tostr(hexlify(self.digest()))
     self.hexdigest = hexdigest
-    
+
     def hexverify(hex_mac_tag):
         """
         Verify that a given **printable** MAC (computed by another party)
@@ -161,7 +161,7 @@ def _HMAC(key, msg, digestmod):
                 Raises:
                     ValueError: if the MAC does not match. It means that the message
                         has been tampered with or that the MAC key is incorrect.
-        
+
         """
         self.verify(unhexlify(tobytes(hex_mac_tag)))
     self.hexverify = hexverify
@@ -206,7 +206,7 @@ def _HMAC(key, msg, digestmod):
 
         # Start step 8 and 9
         self._outer = digestmod.new(key_0_opad)
-        
+
         return self
     self = __init__(key, msg, digestmod)
 
@@ -230,10 +230,37 @@ def new(key, msg, digestmod=None):
 
         Returns:
             An :class:`HMAC` object
-    
+
     """
     return _HMAC(key, msg, digestmod)
 
+
+def _constant_time_compare(val1, val2):
+    """Return ``True`` if the two strings are equal, ``False``
+    otherwise.
+
+    The time taken is independent of the number of characters that
+    match. Do not use this function for anything else than comparision
+    with known length targets.
+
+    This is should be implemented in C in order to get it completely
+    right.
+
+    This is an alias of :func:`hmac.compare_digest` on Python>=2.7,3.3.
+    """
+    len_eq = len(val1) == len(val2)
+    if len_eq:
+        result = 0
+        left = val1
+    else:
+        result = 1
+        left = val2
+    for x, y in zip(bytearray(left).elems(), bytearray(val2).elems()):
+        result |= x ^ y
+    return result == 0
+
+
 HMAC = larky.struct(
-    new = new
+    new = new,
+    compare_digest=_constant_time_compare
 )
