@@ -89,7 +89,7 @@ public class SimpleStruct implements LarkyObject {
     p.append("(");
     String sep = "";
     for (Map.Entry<String, Object> e : fields.entrySet()) {
-      p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue());
+      p.append(sep).append(e.getKey()).append(" = ").debugPrint(e.getValue());
       sep = ", ";
     }
     p.append(")");
