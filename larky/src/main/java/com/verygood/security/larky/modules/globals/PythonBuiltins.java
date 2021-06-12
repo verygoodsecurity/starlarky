@@ -24,6 +24,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkByte;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
@@ -609,7 +610,13 @@ public final class PythonBuiltins {
      try {
        switch (classType) {
          case "bytes":
-           _obj = ((LarkyByte) _obj).elems();
+           // TODO get rid of LarkyByte..
+           if(_obj instanceof LarkyByte) {
+             _obj = ((LarkyByte) _obj).elems();
+           }
+           else {
+             _obj = ((StarlarkByte) _obj).elems();
+           }
            // fall through
          case "bytes.elems":
          case "list":
