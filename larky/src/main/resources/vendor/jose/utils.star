@@ -74,8 +74,7 @@ def base64url_decode(input):
     rem = len(input) % 4
 
     if rem > 0:
-        input += bytes([0x3d]) * (4 - rem)
-
+        input += bytearray([0x3d]) * (4 - rem)
     return base64.urlsafe_b64decode(input)
 
 
@@ -86,7 +85,19 @@ def base64url_encode(input):
         input (str): A base64url_encoded string to encode.
 
     """
-    return base64.urlsafe_b64encode(input).replace(bytes([0x3d]), bytes(r'', encoding='utf-8'))
+    # TODO (mahmoudimus): add replace() in bytes/bytearray
+    _ba = base64.urlsafe_b64encode(input)
+    ba = []
+    needle = bytes([0x3d])  # b'='
+    replacement = bytes(r'', encoding='utf-8')
+    # return base64.urlsafe_b64encode(input).replace(needle, replacement)
+    for c in _ba.elems():
+        #print(c)
+        if c != 0x3d:
+            ba.append(c)
+        # else:
+        #     # ba.append(replacement)
+    return bytes(ba)
 
 
 def timedelta_total_seconds(delta):
