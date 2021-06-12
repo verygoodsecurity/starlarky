@@ -21,7 +21,9 @@ ctx = {"body": "thisisabody", "headers": {"accept": "xml", "content": "still-xml
 
 
 def test_request_evaluation():
-    starlark_script = """load('@stdlib/json', 'json')
+    starlark_script = """\
+load('@stdlib//json', 'json')
+load('@stdlib//proto', 'proto')
 load("@stdlib//hashlib", "hashlib")
 
 def process(input_message):
@@ -35,7 +37,12 @@ def process(input_message):
     decoded_payload["signature"] = signature
     input_message.data = json.encode(decoded_payload)
     print("returning payload")
-    return input_message
+    # TODO (mahmoudimus): FIX THIS BELOW!
+    return 'url = "%s", data = "%s", headers = %s, object: %s' % (
+               input_message.get_full_url(), 
+               input_message.data, 
+               json.dumps(dict(input_message.header_items())),
+               input_message.__dict__)
 
 process(request)
     """
