@@ -1,8 +1,9 @@
 load("@stdlib//base64", b64encode="b64encode")
-load("@stdlib//binascii", unhexlify="unhexlify")
-load("@stdlib//types", types="types")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", larky="larky")
+load("@stdlib//operator", operator="operator")
+load("@stdlib//types", types="types")
 
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Cipher/PKCS1_v1_5", PKCS1_v1_5_Cipher="PKCS1_v1_5_Cipher")
@@ -12,16 +13,18 @@ load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
 load("@vendor//Crypto/Hash/SHA384", SHA384="SHA384")
 load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
-load("@vendor//Crypto/PublicKey", RSA="RSA")
-load("@vendor//Crypto/Signature", PKCS1_v1_5_Signature="PKCS1_v1_5_Signature")
+load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
+load("@vendor//Crypto/Signature/PKCS1_v1_5", PKCS1_v1_5_Signature="PKCS1_v1_5")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
 
 # load("@vendor//jose/backends/_asn1", rsa_public_key_pkcs8_to_pkcs1="rsa_public_key_pkcs8_to_pkcs1")
 load("@vendor//jose/backends/base", Key="Key")
 load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS")
 load("@vendor//jose/exceptions", JWKError="JWKError", JWEError="JWEError", JWEAlgorithmUnsupportedError="JWEAlgorithmUnsupportedError")
-load("@vendor//jose/utils", base64_to_long="base64_to_long", long_to_base64="long_to_base64")
-load("@vendor//jose/utils", base64url_decode="base64url_decode")
+load("@vendor//jose/utils",
+     base64url_decode="base64url_decode",
+     base64_to_long="base64_to_long",
+     long_to_base64="long_to_base64")
 
 load("@vendor//option/result", Ok="Ok", Error="Error", safe="safe")
 load("@vendor//six", six="six")
@@ -232,31 +235,28 @@ def RSAKey(key, algorithm):
     self.to_dict = to_dict
 
     def wrap_key(key_data):
-        def _try_wrap_key(self, key_data):
-            if self._algorithm == ALGORITHMS.RSA1_5:
-                cipher = PKCS1_v1_5_Cipher.new(self.prepared_key)
-            else:
-                cipher = PKCS1_OAEP.new(self.prepared_key, self.hash_alg)
-            wrapped_key = cipher.encrypt(key_data)
-            return wrapped_key
-        return safe(_try_wrap_key)(self, key_data).unwrap()
+        if self._algorithm == ALGORITHMS.RSA1_5:
+            cipher = PKCS1_v1_5_Cipher.new(self.prepared_key)
+        else:
+            cipher = PKCS1_OAEP.new(self.prepared_key, self.hash_alg)
+        wrapped_key = cipher.encrypt(key_data)
+        return wrapped_key
     self.wrap_key = wrap_key
 
     def unwrap_key(wrapped_key):
-        def _try_unwrap_key(self, wrapped_key):
-            if self._algorithm == ALGORITHMS.RSA1_5:
-                sentinel = Random.new().read(32)
-                cipher = PKCS1_v1_5_Cipher.new(self.prepared_key)
-                plain_text = cipher.decrypt(wrapped_key, sentinel)
-            else:
-                cipher = PKCS1_OAEP.new(self.prepared_key, self.hash_alg)
-                plain_text = cipher.decrypt(wrapped_key)
-            return plain_text
-        return safe(_try_unwrap_key)(self, wrapped_key).unwrap()
+        if self._algorithm == ALGORITHMS.RSA1_5:
+            sentinel = Random.new().read(32)
+            cipher = PKCS1_v1_5_Cipher.new(self.prepared_key)
+            plain_text = cipher.decrypt(wrapped_key, sentinel)
+        else:
+            cipher = PKCS1_OAEP.new(self.prepared_key, self.hash_alg)
+            plain_text = cipher.decrypt(wrapped_key)
+        return plain_text
     self.unwrap_key = unwrap_key
     return self
 
-
+# code ported from this commit:
+# https://github.com/mpdavis/python-jose/commit/54417da04edbf00cf985fee283166255ab249a8a
 def AESKey(key, algorithm):
     self = larky.mutablestruct(__class__=AESKey, __name__='AESKey')
 
@@ -287,9 +287,12 @@ def AESKey(key, algorithm):
 
 
     def __init__(key, algorithm):
-        if algorithm not in ALGORITHMS.AES:
+        if not operator.contains(ALGORITHMS.AES, algorithm):
             return Error("JWKError: %s is not a valid AES algorithm" % algorithm)
-        if algorithm not in ALGORITHMS.SUPPORTED.union(ALGORITHMS.AES_PSEUDO):
+        if not operator.contains(
+                ALGORITHMS.SUPPORTED.union(ALGORITHMS.AES_PSEUDO),
+                algorithm
+        ):
             return Error("JWKError: %s is not a supported algorithm" % algorithm)
 
         self._algorithm = algorithm
@@ -298,11 +301,11 @@ def AESKey(key, algorithm):
             return Error("JWEAlgorithmUnsupportedError: AES Mode is not supported by cryptographic library")
 
         if algorithm in self.ALG_128 and len(key) != 16:
-            return Error()
+            return Error("128 bit algo: %s's key is not size 16" % algorithm)
         elif algorithm in self.ALG_192 and len(key) != 24:
-            return Error()
+            return Error("192 bit algo: %s's key is not size 24" % algorithm)
         elif algorithm in self.ALG_256 and len(key) != 32:
-            return Error()
+            return Error("256 bit algo: %s's key is not size 32" % algorithm)
 
         self._key = six.ensure_binary(key)
         return Ok(self)
@@ -335,17 +338,15 @@ def AESKey(key, algorithm):
 
     def decrypt(cipher_text, iv=None, aad=None, tag=None):
         cipher_text = six.ensure_binary(cipher_text)
-        def _try_decrypt(cipher_text, iv, aad, tag):
-            cipher = AES.new(self._key, self._mode, iv)
-            if self._mode == AES.MODE_CBC:
-                padded_plain_text = cipher.decrypt(cipher_text)
-                plain_text = self._unpad(padded_plain_text)
-            else:
-                cipher.update(aad)
-                plain_text = safe(cipher.decrypt_and_verify)(cipher_text, tag)
-                return plain_text.expect("JWEError: Invalid JWE Auth Tag")
-            return plain_text
-        return safe(_try_decrypt)(cipher_text, iv, aad, tag).unwrap()
+        cipher = AES.new(self._key, self._mode, iv)
+        if self._mode == AES.MODE_CBC:
+            padded_plain_text = cipher.decrypt(cipher_text)
+            plain_text = self._unpad(padded_plain_text)
+        else:
+            cipher.update(aad)
+            plain_text = cipher.decrypt_and_verify(cipher_text, tag)
+            return plain_text # .expect("JWEError: Invalid JWE Auth Tag")
+        return plain_text
     self.decrypt = decrypt
 
     self.DEFAULT_IV = unhexlify("A6A6A6A6A6A6A6A6")
@@ -396,7 +397,7 @@ def AESKey(key, algorithm):
         # 1) Initialize variables.
 
         # Set A = IV, an initial value
-        a = iv
+        a = bytearray(iv)
         # For i = 1 to n
         for i in range(1, n + 1):
             # R[i] = P[i]
@@ -424,12 +425,12 @@ def AESKey(key, algorithm):
             # C[i] = R[i]
             c[i] = r[i]
 
-        cipher_text = b"".join(c)  # Join the chunks to return
+        cipher_text = bytes("", encoding='utf-8').join(c)  # Join the chunks to return
         return cipher_text  # IV, cipher text, auth tag
     self.wrap_key = wrap_key
 
     def unwrap_key(wrapped_key):
-        wrapped_key = six.ensure_binary(wrapped_key)
+        wrapped_key = bytearray(six.ensure_binary(wrapped_key))
 
         # AES-1(K, W)   Decrypt W using the AES codebook with key K
         def aes_1(k_, w_):
@@ -502,7 +503,7 @@ def AESKey(key, algorithm):
             # Return an error
             return Error("JWEError: Invalid AES Keywrap")
 
-        return b"".join(p[1:])  # Join the chunks and return
+        return bytes("", encoding='utf-8').join(p[1:])  # Join the chunks and return
     self.unwrap_key = unwrap_key
 
     def _most_significant_bits(number_of_bits, _bytes):
