@@ -2,17 +2,18 @@ package com.verygood.security.larky.modules.re;
 
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Map;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkValue;
-
-import java.util.ArrayList;
-import java.util.Arrays;
 
 // java <> larky objects
 public class RegexPattern implements StarlarkValue {
@@ -47,6 +48,15 @@ public class RegexPattern implements StarlarkValue {
   protected RegexPattern pattern(Pattern pattern) {
     this.pattern = pattern;
     return this;
+  }
+
+  public Map<String, Integer> namedGroups() {
+    return pattern.namedGroups();
+  }
+
+  @Override
+  public void str(Printer printer) {
+    printer.append(pattern.toString());
   }
 
   @StarlarkMethod(
@@ -120,7 +130,7 @@ public class RegexPattern implements StarlarkValue {
               })
       })
   public RegexMatcher matcher(String input) {
-    return new RegexMatcher(pattern.matcher(input), this);
+    return new RegexMatcher(this, pattern.matcher(input), input);
   }
 
   @StarlarkMethod(

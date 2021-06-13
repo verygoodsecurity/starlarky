@@ -28,41 +28,16 @@ A good portion of `findall` and `finditer` code was ported from:
 pfalcon's pycopy-lib located at:
    https://github.com/pfalcon/pycopy-lib/tree/master/re-pcre
 """
-load("@stdlib/larky", "larky")
-load("@stdlib/types", "types")
-load("@stdlib/re2j", _re2j="re2j")
+load("@stdlib//larky", "larky")
+load("@stdlib//types", "types")
+load("@stdlib//enum", "enum")
+load("@stdlib//re2j", _re2j="re2j")
 
 
 _WHILE_LOOP_EMULATION_ITERATION = 1000
 
-
-def _enumify_iterable(iterable, enum_dict, numerator=None):
-    """A hacky function to turn an iterable into a dict with whose keys are the
-    members of the iterable, and value is the index.
-
-    If the key is a tuple, it will iterate over the keys and assign the same
-    enumerated position.
-
-    A numerator is a callable that takes the enumerated position and returns
-    the expected number in order. For example, numerator=lambda x: x << 2 will
-    map to 1, 2, 4, 8, 16 instead of 1, 2, 3, 4, 5
-
-
-    """
-    for i, t in enumerate(iterable):
-        _i = i
-        if numerator and types.is_callable(numerator):
-            _i = numerator(i)
-        if types.is_tuple(t):
-            for t_elem in t:
-                enum_dict[t_elem] = _i
-        else:
-            enum_dict[t] = _i
-    return enum_dict
-
-
 __ = -1  # Alias for the invalid class
-RegexFlags = _enumify_iterable(iterable=[
+RegexFlags = enum.enumify_iterable(iterable=[
     ("I", "IGNORECASE"),
     ("S", "DOTALL"),
     ("M", "MULTILINE"),
@@ -94,6 +69,22 @@ def _matcher__init__(matchobj):
             m.append(matchobj.group(i + 1))
         return tuple(m)
 
+    def span(group=0):
+        if group == 0:
+            return matchobj.start(group), matchobj.end(group)
+
+        for idx, items in enumerate(matchobj.groupdict().items(), start=1):
+            groupname, groupvalue = items
+            if groupname == group:
+                return matchobj.start(idx), matchobj.end(idx)
+
+    def __str__():
+        if matchobj == None:
+            return None
+        return '<re.Match object; span=%s, match=%r; groups=%r>' % (
+            span(), group(), groups()
+        )
+
     return larky.struct(
         group=group,
         groups=groups,
@@ -101,14 +92,17 @@ def _matcher__init__(matchobj):
         pattern=matchobj.pattern,
         start=matchobj.start,
         end=matchobj.end,
+        span=span,
         group_count=matchobj.group_count,
+        groupdict=matchobj.groupdict,
         matches=matchobj.matches,
         looking_at=matchobj.looking_at,
         replace_first=matchobj.replace_first,
         replace_all=matchobj.replace_all,
         append_tail=matchobj.append_tail,
         append_replacement=matchobj.append_replacement,
-        quote_replacement=matchobj.quote_replacement
+        quote_replacement=matchobj.quote_replacement,
+        __str__=__str__,
     )
 
 
@@ -119,7 +113,9 @@ def _pattern__init__(patternobj):
 
     def match(string, pos=0, endpos=-1):
         m = matcher(string)
-        if not m.looking_at():
+        if not m.looking_at(pos, endpos):
+            return None
+        if pos > 0 and not m.find(pos):
             return None
         return m
 
@@ -131,7 +127,7 @@ def _pattern__init__(patternobj):
 
     def search(string, pos=0, endpos=-1):
         m = matcher(string)
-        if not m.find():
+        if not m.find(pos):
             return None
         return m
 
@@ -281,7 +277,8 @@ def _pattern__init__(patternobj):
         finditer=finditer,
         matcher=matcher,
         split=patternobj.split,
-        patternobj=patternobj
+        patternobj=patternobj,
+        pattern=str(patternobj)
     )
 # --------------------------------------------------------------------
 # public interface
