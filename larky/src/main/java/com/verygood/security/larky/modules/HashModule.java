@@ -11,7 +11,7 @@ import net.starlark.java.eval.StarlarkValue;
 
 
 @StarlarkBuiltin(
-    name = "hashlib",
+    name = "jhashlib",
     category = "BUILTIN",
     doc = "This module implements a common interface to many different secure hash and message digest algorithms.")
 public class HashModule implements StarlarkValue {

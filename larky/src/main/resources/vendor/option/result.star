@@ -1,6 +1,10 @@
 load("@stdlib//larky", "larky")
+load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
+load("@stdlib//re", re="re")
 load("@stdlib//jresult", _JResult="jresult")
+load("@stdlib//enum", "enum")
+
 #
 # def _Result(val, is_ok):
 #     """
@@ -433,6 +437,11 @@ def Error(val):
     return _JResult.Error(val)
 
 
+Err = Error
+
+
+## larky extensions below:
+
 def safe(function):
     """
     Decorator to convert exception-throwing function to ``Result`` container.
@@ -457,13 +466,228 @@ def safe(function):
     return decorator
 
 
+def _error_is(regex, error_obj):
+    """
+    In python ::
+
+     - re.search("division.*by zero", rval.unwrap_err().args[0])
+
+     OR *larky compatible* ::
+
+     - re.search("division.*by zero", ("%s" % rval._val))
+    :param regex: a ``re`` string to pass to re.search
+    :param error_obj: the ``Result.Err`` object
+    :return: match obj if the regex matches stringified Err object is matched
+             else None
+    """
+    # TODO: assert error_obj.is_err?
+    return re.search(regex, ("%s" % error_obj._val))
+
+
 def of(o):
     return _JResult.of(o)
+
+
+def try_(func):
+    """
+    An attempt at
+    try_(foo_s_try)\
+       .except_(foo_s_Exception)\
+       .else_(foo_s_else)\
+       .finally_(foo_s_finally)\
+       .build()
+    """
+
+    _enum = enum.Enum('ExceptionFlowState', [
+        'TRY',
+        'EXCEPT',
+        'ELSE',
+        'FINALLY',
+        'BUILD'
+    ])
+
+    _state = {
+        # try => except, finally
+        _enum.TRY: [_enum.EXCEPT, _enum.FINALLY],
+        # except => except, else, finally, build
+        _enum.EXCEPT: [_enum.EXCEPT, _enum.ELSE, _enum.FINALLY, _enum.BUILD],
+        # else => finally, build
+        _enum.ELSE: [_enum.FINALLY, _enum.BUILD],
+        # finally => build
+        _enum.FINALLY: [_enum.BUILD],
+        # build => // END
+        _enum.BUILD: []
+    }
+
+    self = larky.mutablestruct(
+        _attempt = func,
+        _exc = [],
+        _else = None,
+        _finally = None,
+        _current_state=_enum.TRY,
+    )
+
+    def _assert_valid_transition(next_state):
+        if next_state in _state[self._current_state]:
+            return
+        # at this point, we have an invalid state transition
+        # (wrong try/except/else/finally order!)
+        _current_state = _enum.reverse_mapping[self._current_state]
+        _valid_transitions = ", ".join([
+            "%s => %s" % (_current_state, _enum.reverse_mapping[i])
+            for i in _state[self._current_state]
+        ])
+        fail(("Invalid state transition: %s => %s. " +
+              "The try builder was constructed in the wrong order. " +
+              "The next valid state transitions allowed are: %s")% (
+            _current_state,
+            _enum.reverse_mapping[next_state],
+            _valid_transitions,
+        ))
+
+    def except_(except_handler):
+        _assert_valid_transition(_enum.EXCEPT)
+        self._current_state = _enum.EXCEPT
+        self._exc.append(except_handler)
+        return self
+    self.except_ = except_
+
+    def else_(else_handler):
+        _assert_valid_transition(_enum.ELSE)
+        self._current_state = _enum.ELSE
+        self._else = else_handler
+        return self
+    self.else_ = else_
+
+    def finally_(finally_handler):
+        _assert_valid_transition(_enum.FINALLY)
+        self._current_state = _enum.FINALLY
+        self._finally = finally_handler
+        return self
+    self.finally_ = finally_
+
+    def build():
+        _assert_valid_transition(_enum.BUILD)
+        self._current_state = _enum.BUILD
+        rval = safe(self._attempt)()
+        if rval.is_err and self._exc:
+            for e in self._exc:
+                rval = rval.map_err(e)
+        if rval.is_ok and self._else:
+            rval = rval.map(self._else)
+        if self._finally:
+            _finally_returnval = self._finally(rval)
+            # if finally does not return None, set it to rval
+            # TODO: is this right?
+            if _finally_returnval:
+               rval = _finally_returnval
+        return rval
+
+    self.build = build
+    return self
+
+
+
+# def _GeneratorContextManager(func, args, kwds):
+#     "A base class or mixin that enables context managers to work as decorators."
+#     self = larky.mutablestruct(__class__='ContextDecorator')
+#
+#     def __init__(func, args, kwds):
+#         self.gen = func
+#         self.func, self.args, self.kwds = func, args, kwds
+#         return self
+#     self = __init__(func, args, kwds)
+#
+#     def _recreate_cm():
+#         """Return a recreated instance of self.
+#         Allows an otherwise one-shot context manager like
+#         _GeneratorContextManager to support use as
+#         a decorator via implicit recreation.
+#         This is a private interface just for _GeneratorContextManager.
+#         See issue #11647 for details.
+#         """
+#         return _GeneratorContextManager(self.func, self.args, self.kwds)
+#     self._recreate_cm = _recreate_cm
+#
+#     def __call__(func):
+#         def inner(*args, **kwds):
+#             rval = Result.with_(self._recreate_cm, func)
+#             return rval.unwrap()
+#         return inner
+#     self.__call__ = __call__
+#
+#     def __enter__():
+#         return self.gen(*self.args, **self.kwds)
+#     self.__enter__ = __enter__
+#
+#     def __exit__(type, value, traceback):
+#         if type is None:
+#            return
+#
+#         return Result.Error(str(type) + ': ' + value)
+#     self.__exit__ = __exit__
+#     return self
+#
+#
+# def contextmanager(func):
+#     """@contextmanager decorator.
+#     Typical usage:
+#         @contextmanager
+#         def some_generator(<arguments>):
+#             <setup>
+#             try:
+#                 yield <value>
+#             finally:
+#                 <cleanup>
+#     This makes this:
+#         with some_generator(<arguments>) as <variable>:
+#             <body>
+#     equivalent to this:
+#         <setup>
+#         try:
+#             <variable> = <value>
+#             <body>
+#         finally:
+#             <cleanup>
+#     """
+#     def helper(*args, **kwds):
+#         return _GeneratorContextManager(func, args, kwds)
+#     return helper
+
+# https://github.com/python/cpython/blob/v3.5.10/Lib/test/test_contextlib.py#L17
+def with_(ctxmgrs, callback):
+
+    __dict__ = dict(
+        error = None,
+        result = None
+    )
+
+    if not types.is_iterable(ctxmgrs):
+        ctxmgrs = [ctxmgrs]
+
+    for i in ctxmgrs:
+        i.__enter__()
+
+    result = (
+        try_(callback)
+        .except_(lambda e: operator.setitem(__dict__, 'error', e))
+        .build()
+    )
+
+    for i in reversed(ctxmgrs):
+        i.__exit__(__dict__['error'])
+
+    return result
 
 
 Result = larky.struct(
     Ok=Ok,
     Error=Error,
+    Err=Err,  # alias to Error
+    # below are non-Result extensions.
     safe=safe,
     of=of,
+    error_is=_error_is,
+    try_=try_,
+    with_=with_
 )

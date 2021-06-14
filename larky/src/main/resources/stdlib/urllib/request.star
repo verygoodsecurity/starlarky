@@ -77,7 +77,7 @@ def Request(url, data=None, headers={},
                   method=None):
 
     self = larky.mutablestruct(
-        url=url,
+        full_url=url,
         data=data,
         headers=headers,
         origin_req_host=origin_req_host,

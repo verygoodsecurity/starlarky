@@ -398,7 +398,7 @@ def _AssertionBuilder(val, description, kind, expected, logger):
         error=fail,
         is_length=larky.partial(is_length, self),
         is_not_equal_to=larky.partial(is_not_equal_to, self),
-        is_equal_to=types.MethodType(is_equal_to, self),
+        is_equal_to=larky.partial(is_equal_to, self),
         is_instance_of=larky.partial(is_instance_of, self),
         is_true=larky.partial(is_true, self),
         is_false=larky.partial(is_false, self),

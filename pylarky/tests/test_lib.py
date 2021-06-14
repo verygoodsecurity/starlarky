@@ -21,8 +21,10 @@ ctx = {"body": "thisisabody", "headers": {"accept": "xml", "content": "still-xml
 
 
 def test_request_evaluation():
-    starlark_script = """load('@stdlib/json', 'json')
-load("@stdlib/hashlib", "hashlib")
+    starlark_script = """\
+load('@stdlib//json', 'json')
+load('@stdlib//proto', 'proto')
+load("@stdlib//hashlib", "hashlib")
 
 def process(input_message):
     print("start script")
@@ -30,12 +32,17 @@ def process(input_message):
     
     key=input_message.get_header("Key")
     input_message.remove_header("Key")
-    signature = hashlib.sha512(key)
+    signature = hashlib.sha512(bytes(key, encoding='utf-8')).hexdigest()
     print("changing payload")
     decoded_payload["signature"] = signature
     input_message.data = json.encode(decoded_payload)
     print("returning payload")
-    return input_message
+    # TODO (mahmoudimus): FIX THIS BELOW!
+    return 'url = "%s", data = "%s", headers = %s, object: %s' % (
+               input_message.get_full_url(), 
+               input_message.data, 
+               json.dumps(dict(input_message.header_items())),
+               input_message.__dict__)
 
 process(request)
     """
