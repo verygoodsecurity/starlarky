@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules;
 
+import com.verygood.security.larky.modules.types.results.Error;
 import com.verygood.security.larky.modules.types.results.Result;
 
 import net.starlark.java.annot.Param;
@@ -59,7 +60,7 @@ public class ResultModule implements StarlarkValue {
     } catch (InterruptedException e) {
       return error(new EvalException(e.getMessage(), e));
     } catch (EvalException e) {
-      return error(e);
+      return Error.of(e); // for the stack trace.
     }
   }
 

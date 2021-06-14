@@ -107,6 +107,8 @@ def tostr(bs):
 def byte_string(s):
     return types.is_bytes(s)
 
+is_bytes = byte_string
+
 
 iter_range = range
 

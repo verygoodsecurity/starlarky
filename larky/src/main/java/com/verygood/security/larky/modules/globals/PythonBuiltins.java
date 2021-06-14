@@ -24,6 +24,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkByte;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
@@ -122,6 +123,31 @@ public final class PythonBuiltins {
     }
     return StarlarkInt.of(new BigInteger(bytes).intValueExact());
   }
+
+  @StarlarkMethod(
+       name = "chr",
+       doc = "Return the string representing a character whose Unicode code point is the " +
+               "integer i. For example, chr(97) returns the string 'a', while chr(8364) returns " +
+               "the string '€'. This is the inverse of ord().\n" +
+               "\n" +
+               "The valid range for the argument is from 0 through 1,114,111 " +
+               "(0x10FFFF in base 16). ValueError will be raised if i is outside that range.",
+       parameters = {
+           @Param(
+               name = "i",
+               allowedTypes = {
+                   @ParamType(type = StarlarkInt.class),
+               }
+           )
+       },
+       useStarlarkThread = true
+   )
+   public String chr(StarlarkInt c, StarlarkThread thread) throws EvalException {
+    if(c.toIntUnchecked() > 0x10FFFF) {
+      throw Starlark.errorf("ValueError: chr(%s) arg not in range(0x110000)", c.toIntUnchecked());
+    }
+    return new String(new int[] { c.toIntUnchecked() }, 0, 1);
+   }
 
   //override built-in getattr
 
@@ -584,7 +610,13 @@ public final class PythonBuiltins {
      try {
        switch (classType) {
          case "bytes":
-           _obj = ((LarkyByte) _obj).elems();
+           // TODO get rid of LarkyByte..
+           if(_obj instanceof LarkyByte) {
+             _obj = ((LarkyByte) _obj).elems();
+           }
+           else {
+             _obj = ((StarlarkByte) _obj).elems();
+           }
            // fall through
          case "bytes.elems":
          case "list":

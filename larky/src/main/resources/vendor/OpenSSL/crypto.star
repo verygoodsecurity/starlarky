@@ -1166,12 +1166,12 @@ def X509():
                 "gmtime_adj_notBefore": self._x509["gmtime_adj_notBefore"],
                 "issuer_name": ', '.join([
                     "%s=%s" % (k, getattr(self._x509["subject_name"], k))
-                    for k in self._x509["issuer_name"].__dict__()
+                    for k in self._x509["issuer_name"].__dict__
                     if not k.startswith('_')
                 ]),
                 "subject_name": ', '.join([
                     "%s=%s" % (k, getattr(self._x509["subject_name"], k))
-                    for k in self._x509["subject_name"].__dict__()
+                    for k in self._x509["subject_name"].__dict__
                     if not k.startswith('_')
                 ])
             }),
