@@ -33,8 +33,9 @@ def _write(node, keys, value):
         if types.is_dict(data):
             # If this is the leaf node, write
             if index == len(keys) - 1:
+                # print('data to update:', data)
                 data[key] = value
-
+                return node
             elif key in data:
                 data = data[key]
 
@@ -117,13 +118,15 @@ def _parse(query):
             if key.startswith("'") and key.endswith("'"):
                 key = key[1:-1]
             elif key == "*":
-                key = key
+                # key = key
+                fail("ParsingException('Key \"*\" is not supported, please use for loop')")
             else:
                 key = int(key)
 
             keys.append(key)
             index = close
-
+        elif query[index] == "*":
+            fail("ParsingException('Key \"*\" is not supported, please use for loop')")
         else:
             element += query[index]
 
@@ -132,6 +135,7 @@ def _parse(query):
     if len(element):
         keys.append(element)
 
+    print('json path keys:', keys)
     return keys
 
 
