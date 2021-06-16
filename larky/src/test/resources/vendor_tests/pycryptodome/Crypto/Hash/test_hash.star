@@ -10,7 +10,7 @@ load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="to
 
 
 def b(s):
-    return builtins.bytes(s, encoding="ISO-8859-1")
+    return tobytes(s)
 
 eq = asserts.eq
 
