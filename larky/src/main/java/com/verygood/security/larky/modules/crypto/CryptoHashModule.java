@@ -4,6 +4,7 @@ import com.verygood.security.larky.modules.crypto.Hash.LarkyDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyGeneralDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyLongDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyXofDigest;
+import com.verygood.security.larky.modules.crypto.Hash.LarkyKeccakDigest;
 import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
@@ -13,12 +14,14 @@ import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.EvalException;
 
 import org.bouncycastle.crypto.ExtendedDigest;
 import org.bouncycastle.crypto.digests.Blake2sDigest;
 import org.bouncycastle.crypto.digests.GeneralDigest;
 import org.bouncycastle.crypto.digests.LongDigest;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
+import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.bouncycastle.crypto.util.DigestFactory;
 
 public class CryptoHashModule implements StarlarkValue {
@@ -55,10 +58,32 @@ public class CryptoHashModule implements StarlarkValue {
     return new LarkyGeneralDigest(digest);
   }
 
-  @StarlarkMethod(name = "SHA512")
-  public LarkyLongDigest SHA512() {
-    LongDigest digest = (LongDigest) DigestFactory.createSHA512();
+  @StarlarkMethod(name = "SHA512", parameters = {
+          @Param(name = "truncate", allowedTypes = {@ParamType(type = String.class)},
+                  defaultValue = "512"),
+  })
+  public LarkyLongDigest SHA512(String truncate) throws EvalException {
+    LongDigest digest;
+    switch (truncate) {
+      case "512":
+        digest = (LongDigest) DigestFactory.createSHA512();
+        break;
+      case "224":
+        digest = (LongDigest) DigestFactory.createSHA512_224();
+        break;
+      case "256":
+        digest = (LongDigest) DigestFactory.createSHA512_256();
+        break;
+      default:
+        throw Starlark.errorf("Incorrect truncation length. It must be 224, 256 or 512.");
+    }
     return new LarkyLongDigest(digest);
+  }
+
+  @StarlarkMethod(name = "SHA3_256")
+  public LarkyKeccakDigest SHA3_256() {
+    KeccakDigest digest = (KeccakDigest) DigestFactory.createSHA3_256();
+    return new LarkyKeccakDigest(digest);
   }
 
   @StarlarkMethod(name = "SHAKE128", parameters = {
