@@ -22,7 +22,6 @@ load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 
-
 # The size of the resulting hash in bytes.
 digest_size = 16
 
