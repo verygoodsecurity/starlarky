@@ -102,10 +102,29 @@ public class Partial implements StarlarkCallable {
       .append("partial(<function ")
       .append(getName());
     if (this.func_args.size() > 0) {
-      printer.append(", args=").append(String.valueOf(this.func_args));
+      printer.append(", args=");
+      this.func_args.repr(printer);
     }
     if (this.func_kwargs.size() > 0) {
-      printer.append(", kwargs=").append(String.valueOf(this.func_kwargs));
+      printer.append(", kwargs=");
+      this.func_kwargs.repr(printer);
+    }
+    printer
+      .append(">)");
+  }
+
+  @Override
+  public void debugPrint(Printer printer) {
+    printer
+      .append("partial(<function ")
+      .append(getName());
+    if (this.func_args.size() > 0) {
+      printer.append(", args=");
+      this.func_args.debugPrint(printer);
+    }
+    if (this.func_kwargs.size() > 0) {
+      printer.append(", kwargs=");
+      this.func_kwargs.debugPrint(printer);
     }
     printer
       .append(">)");

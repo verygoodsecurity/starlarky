@@ -17,151 +17,127 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
-load("@stdlib//binascii", hexlify="hexlify")
-load("@stdlib//codecs", codecs="codecs")
+
+
 load("@stdlib//larky", larky="larky")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
-load("@vendor//Crypto/Util/py3compat", bord="bord")
+load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
+load("@vendor//option/result", Error="Error")
 
 # The size of the resulting hash in bytes.
 digest_size = 20
+
 # The internal block size of the hash algorithm in bytes.
 block_size = 64
 
 
 def SHA1Hash(data=None):
+    """A SHA-1 hash object.
+    Do not instantiate directly.
+    Use the :func:`new` function.
+
+    :ivar oid: ASN.1 Object ID
+    :vartype oid: string
+
+    :ivar block_size: the size in bytes of the internal message block,
+                      input to the compression function
+    :vartype block_size: integer
+
+    :ivar digest_size: the size in bytes of the resulting hash
+    :vartype digest_size: integer
     """
-    A SHA-1 hash object.
-        Do not instantiate directly.
-        Use the :func:`new` function.
-
-        :ivar oid: ASN.1 Object ID
-        :vartype oid: string
-
-        :ivar block_size: the size in bytes of the internal message block,
-                          input to the compression function
-        :vartype block_size: integer
-
-        :ivar digest_size: the size in bytes of the resulting hash
-        :vartype digest_size: integer
-    
-    """
-    def __init__(data=None):
-        """
-        Error %d while instantiating SHA1
-
-        """
-        self_ = {}
-        self_['_state'] = _JCrypto.Hash.SHA1()
-        if data:
-            self_['_state'].update(data)
-        return larky.mutablestruct(**self_)
-
-    self = __init__(data)
+    self = larky.mutablestruct(__class__='SHA1Hash')
 
     # The size of the resulting hash in bytes.
-    self.digest_size = digest_size
+    self.digest_size = 20
     # The internal block size of the hash algorithm in bytes.
-    self.block_size = block_size
+    self.block_size = 64
     # ASN.1 Object ID
     self.oid = "1.3.14.3.2.26"
 
-    def update(data):
-        """
-        Continue hashing of a message by consuming the next chunk of data.
 
-                Args:
-                    data (byte string/byte array/memoryview): The next chunk of the message being hashed.
-        
+    def __init__(data):
+        _state = _JCrypto.Hash.SHA1()
+        if data:
+            _state.update(data)
+        self._state = _state
+        return self
+    self = __init__(data)
+
+    def update(data):
+        """Continue hashing of a message by consuming the next chunk of data.
+
+        Args:
+            data (byte string/byte array/memoryview): The next chunk of the message being hashed.
         """
-        if data == None:
+
+        if not data:
             fail("TypeError: object supporting the buffer API required")
         self._state.update(data)
     self.update = update
 
     def digest():
-        """
-        Return the **binary** (non-printable) digest of the message that has been hashed so far.
+        """Return the **binary** (non-printable) digest of the message that has been hashed so far.
 
-                :return: The hash digest, computed over the data processed so far.
-                         Binary form.
-                :rtype: byte string
-        
+        :return: The hash digest, computed over the data processed so far.
+                 Binary form.
+        :rtype: byte string
         """
+
         return self._state.digest()
     self.digest = digest
 
     def hexdigest():
-        """
-        Return the **printable** digest of the message that has been hashed so far.
+        """Return the **printable** digest of the message that has been hashed so far.
 
-                :return: The hash digest, computed over the data processed so far.
-                         Hexadecimal encoded.
-                :rtype: string
-        
+        :return: The hash digest, computed over the data processed so far.
+                 Hexadecimal encoded.
+        :rtype: string
         """
-        return codecs.decode(hexlify(self.digest()), encoding='utf-8')
+        return tostr(hexlify(self.digest()))
     self.hexdigest = hexdigest
 
     def copy():
-        """
-        Return a copy ("clone") of the hash object.
+        """Return a copy ("clone") of the hash object.
 
-                The copy will have the same internal state as the original hash
-                object.
-                This can be used to efficiently compute the digests of strings that
-                share a common initial substring.
+        The copy will have the same internal state as the original hash
+        object.
+        This can be used to efficiently compute the digests of strings that
+        share a common initial substring.
 
-                :return: A hash object of the same type
-        
+        :return: A hash object of the same type
         """
-        h = SHA1Hash()
-        h._state = self._state.copy()
-        return h
+
+        clone = SHA1Hash()
+        clone._state = self._state.copy()
+        return clone
     self.copy = copy
 
     def new(data=None):
-        """
-        Create a fresh SHA-1 hash object.
-        """
+        """Create a fresh SHA-1 hash object."""
+
         return SHA1Hash(data)
-    
     self.new = new
     return self
 
+
 def new(data=None):
-    """
-    Create a new hash object.
+    """Create a new hash object.
 
-        :parameter data:
-            Optional. The very first chunk of the message to hash.
-            It is equivalent to an early call to :meth:`SHA1Hash.update`.
-        :type data: byte string/byte array/memoryview
+    :parameter data:
+        Optional. The very first chunk of the message to hash.
+        It is equivalent to an early call to :meth:`SHA1Hash.update`.
+    :type data: byte string/byte array/memoryview
 
-        :Return: A :class:`SHA1Hash` hash object
-    
+    :Return: A :class:`SHA1Hash` hash object
     """
     return SHA1Hash().new(data)
 
-def _pbkdf2_hmac_assist(inner, outer, first_digest, iterations):
-    """
-    Compute the expensive inner loop in PBKDF-HMAC.
-    """
-    #     assert iterations > 0
 
-    # bfr = create_string_buffer(len(first_digest));
-    # result = _raw_sha256_lib.SHA256_pbkdf2_hmac_assist(
-    #                 inner._state.get(),
-    #                 outer._state.get(),
-    #                 first_digest,
-    #                 bfr,
-    #                 c_size_t(iterations),
-    #                 c_size_t(len(first_digest)))
-    # if result:
-    #     raise ValueError("Error %d with PBKDF2-HMAC assist for SHA256" % result)
-    # return get_raw_buffer(bfr)
-    result = "IMPLEMENT ME"
-    fail("ValueError: Error %s with PBKDF2-HMAC assis for SHA1" % result)
+def _pbkdf2_hmac_assist(inner, outer, first_digest, iterations):
+    """Compute the expensive inner loop in PBKDF-HMAC."""
+    fail("NOT IMPLEMENTED")
 
 
 SHA1 = larky.struct(

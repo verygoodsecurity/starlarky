@@ -1,14 +1,15 @@
 package com.verygood.security.larky.modules.types;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Structure;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 import javax.annotation.Nullable;
 
 public interface LarkyObject extends Structure {
@@ -41,15 +42,23 @@ public interface LarkyObject extends Structure {
     return getField(PyProtocols.__CLASS__) != null;
   }
 
+  default boolean hasNameField() throws EvalException {
+    return getField(PyProtocols.__NAME__) != null;
+  }
+
   /**
    * Returns the name of the type of a value as if by the Starlark expression {@code type(x)}.
    */
   default String type() {
     try {
-      if (!hasClassField()) {
+      if (!hasClassField() && !hasNameField()) {
         return Starlark.type(this);
       }
-      return (String) getField(PyProtocols.__CLASS__);
+      if(hasNameField()) {
+        return String.valueOf(getField(PyProtocols.__NAME__));
+      }
+      // fall back to __class__ if __name__ doesn't exist
+      return String.valueOf(getField(PyProtocols.__CLASS__));
     } catch (EvalException e) {
       throw new RuntimeException(e);
     }

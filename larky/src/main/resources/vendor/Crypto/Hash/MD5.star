@@ -18,6 +18,7 @@
 # SOFTWARE.
 # ===================================================================
 load("@stdlib//larky", larky="larky")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//codecs", codecs="codecs")
@@ -89,8 +90,7 @@ def MD5Hash(data=None):
                  Hexadecimal encoded.
         :rtype: string
         """
-
-        return codecs.decode(hexlify(self.digest()), encoding='utf-8')
+        return tostr(hexlify(self.digest()))
     self.hexdigest = hexdigest
 
     def copy():

@@ -17,10 +17,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
-load("@stdlib//binascii", hexlify="hexlify")
-load("@stdlib//codecs", codecs="codecs")
+load("@vendor//Crypto/Util/py3compat", bord="bord", tostr="tostr")
 
 # The size of the full SHA-512 hash in bytes.
 digest_size = 64
@@ -104,8 +104,7 @@ def SHA512Hash(data=None, truncate=None):
                  Hexadecimal encoded.
         :rtype: string
         """
-        # return "".join(["%02x" % bord(x) for x in self.digest()])
-        return codecs.decode(hexlify(self.digest()), encoding='utf-8')
+        return tostr(hexlify(self.digest()))
     self.hexdigest = hexdigest
 
     def copy():
@@ -148,7 +147,7 @@ def new(data=None, truncate=None):
     :Return: A :class:`SHA512Hash` hash object
     """
 
-    return SHA512Hash().new(data, truncate)
+    return SHA512Hash(data, truncate)
 
 
 
