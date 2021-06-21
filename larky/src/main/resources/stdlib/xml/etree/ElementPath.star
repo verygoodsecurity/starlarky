@@ -86,12 +86,12 @@ def generator(seq):
     def __init__(seq):
         self._sequence = seq
         self._length = len(seq)
-        self._current = 0
+        self._current = -1
         return self
     self = __init__(seq)
 
     def next():
-        if self._current >= self._length:
+        if self._current >= self._length-1:
             return StopIterating
         self._current += 1
         return self._sequence[self._current]
@@ -103,6 +103,7 @@ def xpath_tokenizer(pattern, namespaces=None):
     default_namespace = namespaces.get('') if namespaces else None
     parsing_attribute = False
     result = []
+    # print('xpath tokens:', xpath_tokenizer_re.findall(pattern))
     for token in xpath_tokenizer_re.findall(pattern):
         ttype, tag = token
         if tag and tag[0] != "{":
@@ -203,7 +204,8 @@ def prepare_child(next, token):
         def select(context, result):
             rval = []
             for elem in result:
-                for e in elem:
+                #for e in elem:
+                for e in elem._children:
                     if e.tag == tag:
                         rval.append(e)
             return rval
@@ -399,7 +401,7 @@ def prepare_predicate(next, token):
     return Error("SyntaxError: invalid predicate")
 
 ops = {
-    "": prepare_child,
+    "None": prepare_child,
     "*": prepare_star,
     ".": prepare_self,
     "..": prepare_parent,
@@ -438,29 +440,35 @@ def iterfind(elem, path, namespaces=None):
         if path[:1] == "/":
             return Error("SyntaxError: cannot use absolute path on element")
         tokenizer = xpath_tokenizer(path, namespaces)
+        token = tokenizer.next()
+        print('xpath token:', token)
         selector = []
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            token = tokenizer.next()
+            # token = tokenizer.next()
             if token == StopIterating:
                 break
-            for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-                rval = ops[token[0]](tokenizer.next, token)
-                if rval == StopIterating:
-                    return Error("SyntaxError: invalid path")
-                selector.append(rval)
+            # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            rval = ops[token[0]](tokenizer.next, token)
+            if rval == StopIterating:
+                return Error("SyntaxError: invalid path")
+            selector.append(rval)
+            token = tokenizer.next()
+            print('xpath token:', token)
+            if token == StopIterating:
+                break
+            if token[0] == "/":
                 token = tokenizer.next()
                 if token == StopIterating:
                     break
-                if token[0] == "/":
-                    token = tokenizer.next()
-                    if token == StopIterating:
-                        break
-            _cache[cache_key] = selector
+            # _cache[cache_key] = selector
     # execute selector pattern
     result = [elem]
     context = _SelectorContext(elem)
+    print("_SelectorContext:", context)
+    print("xpath result:", result)
     for select in selector:
         result = select(context, result)
+        print("xpath result:", result)
     return result
 
 ##
