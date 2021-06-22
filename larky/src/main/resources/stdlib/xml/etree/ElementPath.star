@@ -103,7 +103,7 @@ def xpath_tokenizer(pattern, namespaces=None):
     default_namespace = namespaces.get('') if namespaces else None
     parsing_attribute = False
     result = []
-    # print('xpath tokens:', xpath_tokenizer_re.findall(pattern))
+    print('xpath tokens:', xpath_tokenizer_re.findall(pattern))
     for token in xpath_tokenizer_re.findall(pattern):
         ttype, tag = token
         if tag and tag[0] != "{":
@@ -131,9 +131,18 @@ def get_parent_map(context):
     if parent_map == None:
         context.parent_map = {}
         parent_map = context.parent_map
-        for p in context.root.iter():
-            for e in p:
-                parent_map[e] = p
+        # for p in context.root.iter():
+        #     for e in p:
+        #         parent_map[e] = p
+        qu = [context.root]
+        for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if len(qu) == 0:
+                break
+            parent = qu.pop(0)
+            # print('current node:', current)
+            for e in parent._children:
+                parent_map[tuple(larky.to_dict(e))] = parent
+            qu.extend(parent._children)
     return parent_map
 
 
@@ -213,21 +222,38 @@ def prepare_child(next, token):
 
 def prepare_star(next, token):
     def select(context, result):
-        return list(result)
+        # return list(result)
+        rval = []
+        for elem in result:
+            for e in elem._children:
+                rval.append(e)
+        return rval
     return select
 
 def prepare_self(next, token):
     def select(context, result):
         return list(result)
     return select
+    
+def traverse_descendant(e, tag, rval):
+    qu = e._children[0:] # duplicate arr
+    for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if len(qu) == 0:
+            break
+        current = qu.pop(0)
+        # print('current node:', current)
+        if tag == None or tag == '*' or current.tag == tag:
+            rval.append(current)
+        qu.extend(current._children)
 
 def prepare_descendant(next, token):
     token = next()
-    if not token:
+    if not token or token == StopIterating:
         return
     if token[0] == "*":
         tag = "*"
-    elif not token[0]:
+    # elif not token[0]:
+    elif token[0] == "None":
         tag = token[1]
     else:
         return Error("SyntaxError: invalid descendant")
@@ -237,10 +263,11 @@ def prepare_descendant(next, token):
         def select(context, result):
             def select_child(result):
                 rval = []
-                for elem in result:
-                    for e in elem.iter():
-                        if e != elem:
-                            rval.append(e)
+                for e in result:
+                    # for e in elem.iter():
+                    #     if e != elem:
+                    #         rval.append(e)
+                    traverse_descendant(e, None, rval)
                 return rval
             return select_tag(context, select_child(result))
     else:
@@ -248,10 +275,12 @@ def prepare_descendant(next, token):
             tag = tag[2:]  # '{}tag' == 'tag'
         def select(context, result):
             rval = []
-            for elem in result:
-                for e in elem.iter(tag):
-                    if e != elem:
-                        rval.append(e)
+            for e in result:
+                print('traverse elem:', e)
+                # for e in elem.iter(tag): 
+                # if e != elem:
+                #     rval.append(e)
+                traverse_descendant(e, tag, rval)
             return rval
     return select
 
@@ -277,16 +306,20 @@ def prepare_predicate(next, token):
     predicate = []
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         token = next()
-        if not token:
+        if not token or token == StopIterating:
             return
         if token[0] == "]":
             break
-        if token == ('', ''):
+        if token == ('None', 'None'):
             # ignore whitespace
             continue
         if token[0] and token[0][:1] in "'\"":
             token = "'", token[0][1:-1]
-        signature.append(token[0] or "-")
+        # signature.append(token[0] or "-")
+        if (not token[0]) or (token[0] == "None"):
+            signature.append("-")
+        else:
+            signature.append(token[0])
         predicate.append(token[1])
     signature = "".join(signature)
     # use signature to determine predicate type
@@ -384,13 +417,15 @@ def prepare_predicate(next, token):
             else:
                 index = -1
         def select(context, result):
+            print('parent map:', parent_map)
             parent_map = get_parent_map(context)
             rval = []
             for elem in result:
-                if elem not in parent_map:
+                if tuple(larky.to_dict(elem)) not in parent_map:
                     continue
-                parent = parent_map[elem]
+                parent = parent_map[tuple(larky.to_dict(elem))]
                 # FIXME: what if the selector is "*" ?
+            #recursion, need to convert:
                 elems = list(parent.findall(elem.tag))
                 if elem not in elems:
                     continue
@@ -423,7 +458,7 @@ def _SelectorContext(root):
 ##
 # Generate all matching objects.
 
-def iterfind(elem, path, namespaces=None):
+def iterfind(start_elem, path, namespaces=None):
     # compile selector pattern
     if path[-1:] == "/":
         path = path + "*"  # implicit all (FIXME: keep this?)
@@ -462,13 +497,14 @@ def iterfind(elem, path, namespaces=None):
                     break
             # _cache[cache_key] = selector
     # execute selector pattern
-    result = [elem]
-    context = _SelectorContext(elem)
-    print("_SelectorContext:", context)
+    result = [start_elem]
+    context = _SelectorContext(start_elem)
     print("xpath result:", result)
     for select in selector:
+        context = _SelectorContext(start_elem)
+        print("context elem:", start_elem)
         result = select(context, result)
-        print("xpath result:", result)
+        print("xpath updated result:", result)
     return result
 
 ##

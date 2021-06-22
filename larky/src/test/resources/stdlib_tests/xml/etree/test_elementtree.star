@@ -1,4 +1,3 @@
-
 load("@stdlib//builtins", "builtins")
 load("@stdlib//io/StringIO", "StringIO")
 load("@stdlib//larky", "larky")
@@ -49,21 +48,42 @@ def _test_elementtree():
     asserts.eq('two', operator.getitem(root, 1).tag)
     asserts.eq('three', operator.getitem(root, 2).tag)
 
+
 def _test_xpath():
     
-    # doc = ElementTree.ElementTree(file=f)
-    # root = ElementTree.fromstring('<doc><one>One</one><two>Two</two>hm<three>Three</three></doc>')
-    # print('xpath:', root.findall('.'))
     parser = SimpleXMLTreeBuilder.TreeBuilder()
-
     tree = parse(
-        '<doc><one>One</one><two>Two</two>hm<three>Three</three></doc>',
+        '<doc level="A"><one level="B">One</one><two level="B">Two</two>hm<three>Three</three></doc>',
         parser
     )
     root = tree.getroot()
-    print('xpath:', root.findall("./one")[0])
+    # test top-level elements and children
+    asserts.eq(1, len(root.findall(".")))
+    asserts.eq(3, len(root.findall("./")))
+    asserts.eq(3, len(root.findall("./*")))
+    # test basic expression with tag and text
     asserts.eq('one', root.findall("./one")[0].tag)
     asserts.eq('One', root.findall("./one")[0].text)
+    # test attrib
+    asserts.eq('A', root.findall(".")[0].attrib['level'])
+    # print('child attrib xpath:', root.findall("./two")[0].attrib)
+
+    tree = parse(
+        '<data><actress name="Jenny"><tv>5</tv><born>1989</born></actress><actor name="Tim"><tv>3</tv><born>1990</born></actor><actor name="John"><film>8</film><born>1984</born></actor></data>',
+        parser
+    )
+    root = tree.getroot()
+    # test grand-children
+    asserts.eq(4, len(root.findall("./actor/*")))
+    asserts.eq('5', root.findall("./actress/tv")[0].text)
+    # test all descendant
+    asserts.eq(9, len(root.findall(".//")))
+    asserts.eq(2, len(root.findall(".//tv")))
+    asserts.eq(4, len(root.findall("./actor//")))
+    asserts.eq(0, len(root.findall("./actress//film")))
+    # test positional children
+    # asserts.eq(0, len(root.findall(".//tv[2]")))
+    # asserts.eq(2, len(root.findall(".//tv[1]")))
 
 
 def _suite():
