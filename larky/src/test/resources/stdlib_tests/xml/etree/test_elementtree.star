@@ -81,9 +81,12 @@ def _test_xpath():
     asserts.eq(2, len(root.findall(".//tv")))
     asserts.eq(4, len(root.findall("./actor//")))
     asserts.eq(0, len(root.findall("./actress//film")))
-    # test positional children
-    # asserts.eq(0, len(root.findall(".//tv[2]")))
-    # asserts.eq(2, len(root.findall(".//tv[1]")))
+    # test children in certain position
+    asserts.eq(0, len(root.findall(".//tv[2]")))
+    asserts.eq(2, len(root.findall(".//tv[1]")))
+    asserts.eq(1, len(root.findall("./actress[1]")))
+    asserts.eq('1984', root.findall("./actor[2]/born")[0].text)
+    asserts.eq('8', root.findall("./actor/film[1]")[0].text)
 
 
 def _suite():

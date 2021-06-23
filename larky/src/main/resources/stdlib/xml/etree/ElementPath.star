@@ -60,7 +60,6 @@ load("@stdlib//re", re="re")
 load("@stdlib//types", types="types")
 load("@vendor//option/result", Error="Error")
 
-
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 
@@ -139,9 +138,11 @@ def get_parent_map(context):
             if len(qu) == 0:
                 break
             parent = qu.pop(0)
-            # print('current node:', current)
             for e in parent._children:
-                parent_map[tuple(larky.to_dict(e))] = parent
+                # t = tuple(sorted(larky.to_dict(e).items()))
+                # could not use tuple as dict key somehow, err: unhashable type: 'dict'
+                k = str(sorted(larky.to_dict(e).items()))
+                parent_map[k] = parent
             qu.extend(parent._children)
     return parent_map
 
@@ -276,7 +277,6 @@ def prepare_descendant(next, token):
         def select(context, result):
             rval = []
             for e in result:
-                print('traverse elem:', e)
                 # for e in elem.iter(tag): 
                 # if e != elem:
                 #     rval.append(e)
@@ -417,17 +417,25 @@ def prepare_predicate(next, token):
             else:
                 index = -1
         def select(context, result):
-            print('parent map:', parent_map)
             parent_map = get_parent_map(context)
+            # print('parent map:', parent_map)
             rval = []
             for elem in result:
-                if tuple(larky.to_dict(elem)) not in parent_map:
+                k = str(sorted(larky.to_dict(elem).items()))
+                if k not in parent_map:
                     continue
-                parent = parent_map[tuple(larky.to_dict(elem))]
+                parent = parent_map[k]
+                # print('parent:', parent)
                 # FIXME: what if the selector is "*" ?
-            #recursion, need to convert:
-                elems = list(parent.findall(elem.tag))
-                if elem not in elems:
+                #recursion, need to convert:
+                # elems = list(parent.findall(elem.tag))
+                elems = []
+                for e in parent._children:
+                    # print('e tag, elem tag:', e.tag, elem.tag)
+                    if e.tag == elem.tag:
+                        elems.append(e)
+                # print('children of the parent:', elems)
+                if elem not in elems or index >= len(elems):
                     continue
                 if elems[index] == elem:
                     rval.append(elem)
@@ -476,7 +484,6 @@ def iterfind(start_elem, path, namespaces=None):
             return Error("SyntaxError: cannot use absolute path on element")
         tokenizer = xpath_tokenizer(path, namespaces)
         token = tokenizer.next()
-        print('xpath token:', token)
         selector = []
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
             # token = tokenizer.next()
@@ -488,7 +495,7 @@ def iterfind(start_elem, path, namespaces=None):
                 return Error("SyntaxError: invalid path")
             selector.append(rval)
             token = tokenizer.next()
-            print('xpath token:', token)
+            # print('xpath token:', token)
             if token == StopIterating:
                 break
             if token[0] == "/":
@@ -499,12 +506,10 @@ def iterfind(start_elem, path, namespaces=None):
     # execute selector pattern
     result = [start_elem]
     context = _SelectorContext(start_elem)
-    print("xpath result:", result)
+    # print("xpath result:", result)
     for select in selector:
-        context = _SelectorContext(start_elem)
-        print("context elem:", start_elem)
         result = select(context, result)
-        print("xpath updated result:", result)
+        # print("xpath updated result:", result)
     return result
 
 ##
