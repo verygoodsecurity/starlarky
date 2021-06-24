@@ -417,6 +417,7 @@ def Element(tag, attrib={}, **extra):
         return self.attrib.items()
     self.items = items
 
+    # replace recursion with bfs
     def iter(tag=None):
         """Create tree iterator.
 
@@ -432,14 +433,15 @@ def Element(tag, attrib={}, **extra):
         Return an iterator containing all the matching elements.
 
         """
-        if tag == "*":
-            tag = None
-        if tag == None or self.tag == tag:
-            return self
-        s = []
-        for e in self._children:
-            s.extend(e.iter(tag))
-        return s
+        pass
+        # if tag == "*":
+        #     tag = None
+        # if tag == None or self.tag == tag:
+        #     # return self
+        #     s = []
+        #     for e in self._children:
+        #         s.extend(e.iter(tag))
+        #     return s
     self.iter = iter
 
     # compatibility

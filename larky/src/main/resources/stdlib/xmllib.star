@@ -65,7 +65,8 @@ procclose = re.compile(_opS + '\\?>')
 commentopen = re.compile('<!--')
 commentclose = re.compile('-->')
 doubledash = re.compile('--')
-attrtrans = string.maketrans(' \r\n\t', '    ')
+# does not exist in starlark, use replace instead
+# attrtrans = string.maketrans(' \r\n\t', '    ')
 
 # definitions for XML namespaces
 _NCName = '[a-zA-Z_][-a-zA-Z0-9._]*'    # XML Name, minus the ":"
@@ -618,7 +619,10 @@ def XMLParser(**kw):
                 self.syntax_error("`<' illegal in attribute value")
             if attrname in attrdict:
                 self.syntax_error("attribute `%s' specified twice" % attrname)
-            attrvalue = attrvalue.translate(attrtrans)
+            # attrvalue = attrvalue.translate(attrtrans)
+            attrvalue = attrvalue.replace('\r', ' ')
+            attrvalue = attrvalue.replace('\t', ' ')
+            attrvalue = attrvalue.replace('\n', ' ')
             attrdict[attrname] = self.translate_references(attrvalue)
         return attrdict, namespace, i
     self.parse_attributes = parse_attributes

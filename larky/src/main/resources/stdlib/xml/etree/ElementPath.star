@@ -60,7 +60,6 @@ load("@stdlib//re", re="re")
 load("@stdlib//types", types="types")
 load("@vendor//option/result", Error="Error")
 
-
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 
@@ -86,12 +85,12 @@ def generator(seq):
     def __init__(seq):
         self._sequence = seq
         self._length = len(seq)
-        self._current = 0
+        self._current = -1
         return self
     self = __init__(seq)
 
     def next():
-        if self._current >= self._length:
+        if self._current >= self._length-1:
             return StopIterating
         self._current += 1
         return self._sequence[self._current]
@@ -103,6 +102,7 @@ def xpath_tokenizer(pattern, namespaces=None):
     default_namespace = namespaces.get('') if namespaces else None
     parsing_attribute = False
     result = []
+    print('xpath tokens:', xpath_tokenizer_re.findall(pattern))
     for token in xpath_tokenizer_re.findall(pattern):
         ttype, tag = token
         if tag and tag[0] != "{":
@@ -130,9 +130,20 @@ def get_parent_map(context):
     if parent_map == None:
         context.parent_map = {}
         parent_map = context.parent_map
-        for p in context.root.iter():
-            for e in p:
-                parent_map[e] = p
+        # for p in context.root.iter():
+        #     for e in p:
+        #         parent_map[e] = p
+        qu = [context.root]
+        for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if len(qu) == 0:
+                break
+            parent = qu.pop(0)
+            for e in parent._children:
+                # t = tuple(sorted(larky.to_dict(e).items()))
+                # could not use tuple as dict key somehow, err: unhashable type: 'dict'
+                k = str(sorted(larky.to_dict(e).items()))
+                parent_map[k] = parent
+            qu.extend(parent._children)
     return parent_map
 
 
@@ -203,7 +214,8 @@ def prepare_child(next, token):
         def select(context, result):
             rval = []
             for elem in result:
-                for e in elem:
+                #for e in elem:
+                for e in elem._children:
                     if e.tag == tag:
                         rval.append(e)
             return rval
@@ -211,21 +223,38 @@ def prepare_child(next, token):
 
 def prepare_star(next, token):
     def select(context, result):
-        return list(result)
+        # return list(result)
+        rval = []
+        for elem in result:
+            for e in elem._children:
+                rval.append(e)
+        return rval
     return select
 
 def prepare_self(next, token):
     def select(context, result):
         return list(result)
     return select
+    
+def traverse_descendant(e, tag, rval):
+    qu = e._children[0:] # duplicate arr
+    for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if len(qu) == 0:
+            break
+        current = qu.pop(0)
+        # print('current node:', current)
+        if tag == None or tag == '*' or current.tag == tag:
+            rval.append(current)
+        qu.extend(current._children)
 
 def prepare_descendant(next, token):
     token = next()
-    if not token:
+    if not token or token == StopIterating:
         return
     if token[0] == "*":
         tag = "*"
-    elif not token[0]:
+    # elif not token[0]:
+    elif token[0] == "None":
         tag = token[1]
     else:
         return Error("SyntaxError: invalid descendant")
@@ -235,10 +264,11 @@ def prepare_descendant(next, token):
         def select(context, result):
             def select_child(result):
                 rval = []
-                for elem in result:
-                    for e in elem.iter():
-                        if e != elem:
-                            rval.append(e)
+                for e in result:
+                    # for e in elem.iter():
+                    #     if e != elem:
+                    #         rval.append(e)
+                    traverse_descendant(e, None, rval)
                 return rval
             return select_tag(context, select_child(result))
     else:
@@ -246,10 +276,11 @@ def prepare_descendant(next, token):
             tag = tag[2:]  # '{}tag' == 'tag'
         def select(context, result):
             rval = []
-            for elem in result:
-                for e in elem.iter(tag):
-                    if e != elem:
-                        rval.append(e)
+            for e in result:
+                # for e in elem.iter(tag): 
+                # if e != elem:
+                #     rval.append(e)
+                traverse_descendant(e, tag, rval)
             return rval
     return select
 
@@ -275,16 +306,20 @@ def prepare_predicate(next, token):
     predicate = []
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         token = next()
-        if not token:
+        if not token or token == StopIterating:
             return
         if token[0] == "]":
             break
-        if token == ('', ''):
+        if token == ('None', 'None'):
             # ignore whitespace
             continue
         if token[0] and token[0][:1] in "'\"":
             token = "'", token[0][1:-1]
-        signature.append(token[0] or "-")
+        # signature.append(token[0] or "-")
+        if (not token[0]) or (token[0] == "None"):
+            signature.append("-")
+        else:
+            signature.append(token[0])
         predicate.append(token[1])
     signature = "".join(signature)
     # use signature to determine predicate type
@@ -383,14 +418,24 @@ def prepare_predicate(next, token):
                 index = -1
         def select(context, result):
             parent_map = get_parent_map(context)
+            # print('parent map:', parent_map)
             rval = []
             for elem in result:
-                if elem not in parent_map:
+                k = str(sorted(larky.to_dict(elem).items()))
+                if k not in parent_map:
                     continue
-                parent = parent_map[elem]
+                parent = parent_map[k]
+                # print('parent:', parent)
                 # FIXME: what if the selector is "*" ?
-                elems = list(parent.findall(elem.tag))
-                if elem not in elems:
+                #recursion, need to convert:
+                # elems = list(parent.findall(elem.tag))
+                elems = []
+                for e in parent._children:
+                    # print('e tag, elem tag:', e.tag, elem.tag)
+                    if e.tag == elem.tag:
+                        elems.append(e)
+                # print('children of the parent:', elems)
+                if elem not in elems or index >= len(elems):
                     continue
                 if elems[index] == elem:
                     rval.append(elem)
@@ -399,7 +444,7 @@ def prepare_predicate(next, token):
     return Error("SyntaxError: invalid predicate")
 
 ops = {
-    "": prepare_child,
+    "None": prepare_child,
     "*": prepare_star,
     ".": prepare_self,
     "..": prepare_parent,
@@ -421,7 +466,7 @@ def _SelectorContext(root):
 ##
 # Generate all matching objects.
 
-def iterfind(elem, path, namespaces=None):
+def iterfind(start_elem, path, namespaces=None):
     # compile selector pattern
     if path[-1:] == "/":
         path = path + "*"  # implicit all (FIXME: keep this?)
@@ -438,29 +483,33 @@ def iterfind(elem, path, namespaces=None):
         if path[:1] == "/":
             return Error("SyntaxError: cannot use absolute path on element")
         tokenizer = xpath_tokenizer(path, namespaces)
+        token = tokenizer.next()
         selector = []
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            token = tokenizer.next()
+            # token = tokenizer.next()
             if token == StopIterating:
                 break
-            for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-                rval = ops[token[0]](tokenizer.next, token)
-                if rval == StopIterating:
-                    return Error("SyntaxError: invalid path")
-                selector.append(rval)
+            # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            rval = ops[token[0]](tokenizer.next, token)
+            if rval == StopIterating:
+                return Error("SyntaxError: invalid path")
+            selector.append(rval)
+            token = tokenizer.next()
+            # print('xpath token:', token)
+            if token == StopIterating:
+                break
+            if token[0] == "/":
                 token = tokenizer.next()
                 if token == StopIterating:
                     break
-                if token[0] == "/":
-                    token = tokenizer.next()
-                    if token == StopIterating:
-                        break
-            _cache[cache_key] = selector
+            # _cache[cache_key] = selector
     # execute selector pattern
-    result = [elem]
-    context = _SelectorContext(elem)
+    result = [start_elem]
+    context = _SelectorContext(start_elem)
+    # print("xpath result:", result)
     for select in selector:
         result = select(context, result)
+        # print("xpath updated result:", result)
     return result
 
 ##
