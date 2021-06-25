@@ -1019,56 +1019,6 @@ def _serialize_xml(
         write("</%s>" % elem_to_close.tag)
 
 
-    # elems = [(elem, namespaces)]
-    # for i in range(_WHILE_LOOP_EMULATION_ITERATION):
-    #     if not elems:
-    #         break
-    #     elem, namespaces = elems.pop(0)
-    #     tag = elem.tag
-    #     text = elem.text
-    #     if tag == Comment:
-    #         write("<!--%s-->" % text)
-    #     elif tag == ProcessingInstruction:
-    #         write("<?%s?>" % text)
-    #     else:
-    #         tag = qnames[tag]
-    #         if tag == None:
-    #             if text:
-    #                 write(_escape_cdata(text))
-    #             for e in elem._children:
-    #                 elems.append((e, None))
-    #         else:
-    #             write("<" + tag)
-    #             items = list(elem.items())
-    #             if items or namespaces:
-    #                 if namespaces:
-    #                     for v, k in sorted(
-    #                         namespaces.items(), key=lambda x: x[1]
-    #                     ):  # sort on prefix
-    #                         if k:
-    #                             k = ":" + k
-    #                         write(' xmlns%s="%s"' % (k, _escape_attrib(v)))
-    #                 for k, v in sorted(items):  # lexical order
-    #                     if types.is_instance(k, QName):
-    #                         k = k.text
-    #                     if types.is_instance(v, QName):
-    #                         v = qnames[v.text]
-    #                     else:
-    #                         v = _escape_attrib(v)
-    #                     write(' %s="%s"' % (qnames[k], v))
-    #             if text or len(elem._children) or not short_empty_elements:
-    #                 write(">")
-    #                 if text:
-    #                     write(_escape_cdata(text))
-    #                 for e in elem._children:
-    #                     elems.append((e, None))
-    #                 write("</" + tag + ">")
-    #             else:
-    #                 write(" />")
-    #     if elem.tail:
-    #         write(_escape_cdata(elem.tail))
-
-
 HTML_EMPTY = (
     "area",
     "base",
