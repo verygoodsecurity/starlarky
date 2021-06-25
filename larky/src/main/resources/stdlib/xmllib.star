@@ -624,7 +624,6 @@ def XMLParser(**kw):
             attrvalue = attrvalue.replace('\t', ' ')
             attrvalue = attrvalue.replace('\n', ' ')
             attrdict[attrname] = self.translate_references(attrvalue)
-            print('attrdict[attrname]', attrdict[attrname])
         return attrdict, namespace, i
     self.parse_attributes = parse_attributes
 
