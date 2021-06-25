@@ -29,7 +29,6 @@ load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITER
 load("@stdlib//re", re="re")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//types", types="types")
-#load("@vendor//Crypto/Cipher", _EKSBlowfish="_EKSBlowfish")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
 load("@vendor//Crypto/Hash/HMAC", HMAC="HMAC")
@@ -172,16 +171,6 @@ def PBKDF2(password, salt, dkLen=16, count=1000, prf=None, hmac_hash_module=None
             fail("expected byte-like from PBKDF2, but received type: {}".format(
                 type(key)
             ))
-        # return rval
-        # key = b''
-        # i = 1
-        # for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-        #     if len(key) >= dkLen:
-        #         break
-        #     base = HMAC.new(password, b"", hmac_hash_module)
-        #     first_digest = base.copy().update(salt + struct.pack(">I", i)).digest()
-        #     key += base._pbkdf2_hmac_assist(first_digest, count)
-        #     i += 1
 
     return key[:dkLen]
 
@@ -236,7 +225,6 @@ def S2V(key, ciphermod, cipher_params=None):
         """
         return S2V(key, ciphermod)
     self.new = new
-    new = new
 
     def _double(bs):
         doubled = bytes_to_long(bs)<<1
@@ -325,7 +313,7 @@ def HKDF(master, key_len, salt, hashmod, num_keys=1, context=None):
 
     output_len = key_len * num_keys
     if output_len > (255 * hashmod.digest_size):
-        return Error("ValueError: Too much secret data to derive")
+        return Error("ValueError: Too much secret data to derive").unwrap()
     if not salt:
         salt = b'\x00' * hashmod.digest_size
     if context == None:
@@ -438,43 +426,42 @@ def scrypt(password, salt, key_len, N, r, p, num_keys=1):
     # return kol
 
 
-def _bcrypt_encode(data):
+def bcrypt_encode(data):
     s = "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 
     bits = []
-    for c in data:
-        bits_c = bin(bord(c))[2:].zfill(8)
+    for c in data.elems():
+        bits_c = larky.strings.zfill(bin(bord(c))[2:], leading=8)
         bits.append(bstr(bits_c))
-    bits = b"".join(bits)
+    bits = bytes("", encoding='utf-8').join(bits)
 
     bits6 = [ bits[idx:idx+6] for idx in range(0, len(bits), 6) ]
-
     result = []
     for g in bits6[:-1]:
-        idx = int(g, 2)
+        idx = int(str(g), 2)
         result.append(s[idx])
 
     g = bits6[-1]
-    idx = int(g, 2) << (6 - len(g))
+    idx = int(str(g), 2) << (6 - len(g))
     result.append(s[idx])
     result = "".join(result)
 
-    return tobytes(result)
+    return bytearray(tobytes(result))
 
 
-def _bcrypt_decode(data):
+def bcrypt_decode(data):
     s = "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-
+    data = bytearray(data, encoding='utf-8')
     bits = []
-    for c in tostr(data):
+    for c in tostr(data).elems():
         idx = s.find(c)
-        bits6 = bin(idx)[2:].zfill(6)
+        bits6 = larky.strings.zfill(bin(idx)[2:], leading=6)
         bits.append(bits6)
     bits = "".join(bits)
 
     modulo4 = len(data) % 4
     if modulo4 == 1:
-        return Error("ValueError: Incorrect length")
+        return Error("ValueError: Incorrect length").unwrap()
     elif modulo4 == 2:
         bits = bits[:-4]
     elif modulo4 == 3:
@@ -485,24 +472,20 @@ def _bcrypt_decode(data):
     result = []
     for g in bits8:
         result.append(bchr(int(g, 2)))
-    result = b"".join(result)
+    result = bytes("", encoding='utf-8').join(result)
 
     return result
 
 
-def _bcrypt_hash(password, cost, salt, constant, invert):
+def bcrypt_hash(password, cost, salt, constant, invert):
+
     if len(password) > 72:
-        return Error("ValueError: The password is too long. It must be 72 bytes at most.")
+        return Error("ValueError: The password is too long. It must be 72 bytes at most.").unwrap()
 
-    if not (4 <= cost) and (cost <= 31):
-        return Error("ValueError: bcrypt cost factor must be in the range 4..31")
+    if not ((4 <= cost) and (cost <= 31)):
+        return Error("ValueError: bcrypt cost factor must be in the range 4..31").unwrap()
 
-    fail("IMPLEMENT ME PLZ")
-    #cipher = _EKSBlowfish.new(password, _EKSBlowfish.MODE_ECB, salt, cost, invert)
-    # ctext = constant
-    # for _ in range(64):
-    #     ctext = cipher.encrypt(ctext)
-    # return ctext
+    return _JCrypto.Protocol.bcrypt_hashpw(password, salt, cost)
 
 
 def bcrypt(password, cost, salt=None):
@@ -533,23 +516,25 @@ def bcrypt(password, cost, salt=None):
 
     password = tobytes(password, "utf-8")
 
-    if password.find(bchr(0)[0]) != -1:
-        return Error("ValueError: The password contains the zero byte")
+    for i in password.elems():
+        if i == 0:
+            return Error("ValueError: The password contains the zero byte").unwrap()
 
     if len(password) < 72:
-        password += b"\x00"
+        password = bytearray(password)
+        password += bytes("\x00", encoding='utf-8')
 
     if salt == None:
         salt = get_random_bytes(16)
+
     if len(salt) != 16:
-        return Error("ValueError: bcrypt salt must be 16 bytes long")
+        return Error("ValueError: bcrypt salt must be 16 bytes long").unwrap()
 
-    ctext = _bcrypt_hash(password, cost, salt, b"OrpheanBeholderScryDoubt", True)
-
-    cost_enc = b"$" + bstr(str(cost).zfill(2))
-    salt_enc = b"$" + _bcrypt_encode(salt)
-    hash_enc = _bcrypt_encode(ctext[:-1])     # only use 23 bytes, not 24
-    return b"$2a" + cost_enc + salt_enc + hash_enc
+    ctext = bcrypt_hash(password, cost, salt, b"OrpheanBeholderScryDoubt", True)
+    cost_enc = bytearray("$" + larky.strings.zfill(str(cost), 2), encoding='utf-8')
+    salt_enc = bytearray("$", encoding='utf-8') + bcrypt_encode(salt)
+    hash_enc = bcrypt_encode(bytes(ctext[:-1]))     # only use 23 bytes, not 24
+    return bytearray("$2a", encoding='utf-8') + cost_enc + salt_enc + hash_enc
 
 
 def bcrypt_check(password, bcrypt_hash):
@@ -571,28 +556,20 @@ def bcrypt_check(password, bcrypt_hash):
     bcrypt_hash = tobytes(bcrypt_hash)
 
     if len(bcrypt_hash) != 60:
-        return Error("ValueError: Incorrect length of the bcrypt hash: %d bytes instead of 60" % len(bcrypt_hash))
+        return Error("ValueError: Incorrect length of the bcrypt hash: %d bytes instead of 60" % len(bcrypt_hash)).unwrap()
 
-    if bcrypt_hash[:4] != b'$2a$':
-        return Error("ValueError: Unsupported prefix")
+    if bytearray(bcrypt_hash[:4], encoding='utf-8') != bytearray('$2a$', encoding='utf-8'):
+        return Error("ValueError: Unsupported prefix").unwrap()
 
-    p = re.compile(rb'\$2a\$([0-9][0-9])\$([A-Za-z0-9./]{22,22})([A-Za-z0-9./]{31,31})')
+    p = re.compile(r'\$2a\$([0-9][0-9])\$([A-Za-z0-9./]{22,22})([A-Za-z0-9./]{31,31})')
     r = p.match(bcrypt_hash)
     if not r:
-        return Error("ValueError: Incorrect bcrypt hash format")
+        return Error("ValueError: Incorrect bcrypt hash format").unwrap()
 
     cost = int(r.group(1))
     if not (4 <= cost) and (cost <= 31):
-        return Error("ValueError: Incorrect cost")
+        return Error("ValueError: Incorrect cost").unwrap()
 
-    salt = _bcrypt_decode(r.group(2))
-
-    bcrypt_hash2  = bcrypt(password, cost, salt)
-
-    secret = get_random_bytes(16)
-
-    mac1 = BLAKE2s.new(digest_bits=160, key=secret, data=bcrypt_hash).digest()
-    mac2 = BLAKE2s.new(digest_bits=160, key=secret, data=bcrypt_hash2).digest()
-    if mac1 != mac2:
-        return Error("ValueError: Incorrect bcrypt hash")
-
+    rval = _JCrypto.Protocol.bcrypt_checkpw(password, bcrypt_hash)
+    if not rval:
+        return Error("ValueError: Incorrect bcrypt hash").unwrap()

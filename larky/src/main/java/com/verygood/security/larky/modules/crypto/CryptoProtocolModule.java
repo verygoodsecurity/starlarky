@@ -1,6 +1,8 @@
 package com.verygood.security.larky.modules.crypto;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
+import java.nio.charset.StandardCharsets;
 import java.util.function.BiFunction;
 
 import com.verygood.security.larky.modules.types.LarkyByte;
@@ -14,13 +16,13 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkByte;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 
-import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.GeneralDigest;
 import org.bouncycastle.crypto.digests.MD5Digest;
@@ -29,6 +31,8 @@ import org.bouncycastle.crypto.digests.SHA224Digest;
 import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.digests.SHA384Digest;
 import org.bouncycastle.crypto.digests.SHA512Digest;
+import org.bouncycastle.crypto.generators.BCrypt;
+import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
 import org.bouncycastle.crypto.generators.PKCS5S1ParametersGenerator;
 import org.bouncycastle.crypto.generators.PKCS5S2ParametersGenerator;
 import org.bouncycastle.crypto.params.KeyParameter;
@@ -141,7 +145,7 @@ public class CryptoProtocolModule implements StarlarkValue {
 
   @VisibleForTesting
   Digest resolvePRF(final String prf) {
-    if (StringUtils.isEmpty(prf)) {
+    if (Strings.isNullOrEmpty(prf)) {
       throw new IllegalArgumentException("Cannot resolve empty PRF");
     }
     String formattedPRF = prf.toLowerCase().replaceAll("[\\W]+", "");
@@ -163,4 +167,70 @@ public class CryptoProtocolModule implements StarlarkValue {
         return new SHA512Digest();
     }
   }
+
+  @StarlarkMethod(
+    name = "bcrypt", parameters = {
+      @Param(name = "password", allowedTypes = {@ParamType(type = LarkyByteLike.class), @ParamType(type = StarlarkByte.class)}),
+      @Param(name = "salt", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "count", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+    }, useStarlarkThread = true)
+  public LarkyByteLike bcrypt(Object passwordO, LarkyByteLike salt, StarlarkInt count, StarlarkThread thread) throws EvalException {
+    byte[] password = larkyByteTypeToPrimitive(passwordO);
+    //byte[] results = org.bouncycastle.crypto.generators.BCrypt.generate(password, salt.getBytes(), count.toIntUnchecked());
+    byte[] results = OpenBSDBCrypt
+                       .generate("2a", password, salt.getBytes(), count.toIntUnchecked())
+                       .getBytes(StandardCharsets.UTF_8);
+//    try {
+//      results = BCryptKDF.bcrypt_pbkdf(
+//        password,
+//        salt.getBytes(),
+//        dkLen.toIntUnchecked(),
+//        count.toIntUnchecked());
+//    } catch (NoSuchAlgorithmException e) {
+//      throw new EvalException(e.getMessage(), e);
+//    }
+    return LarkyByteArray.builder(thread).setSequence(results).build();
+  }
+
+  @StarlarkMethod(
+    name = "bcrypt_hashpw", parameters = {
+      @Param(name = "password", allowedTypes = {@ParamType(type = LarkyByteLike.class), @ParamType(type = StarlarkByte.class)}),
+      @Param(name = "salt", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "count", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+    }, useStarlarkThread = true)
+  public LarkyByteLike bcryptHash(Object passwordO, LarkyByteLike salt, StarlarkInt count, StarlarkThread thread) throws EvalException {
+    byte[] password = larkyByteTypeToPrimitive(passwordO);
+    byte[] results = BCrypt.generate(password, salt.getBytes(), count.toIntUnchecked());
+    return LarkyByte.builder(thread).setSequence(results).build();
+  }
+
+  @StarlarkMethod(
+    name = "bcrypt_checkpw", parameters = {
+      @Param(name = "password", allowedTypes = {@ParamType(type=String.class), @ParamType(type = LarkyByteLike.class), @ParamType(type = StarlarkByte.class)}),
+      @Param(name = "bcrypt_hash", allowedTypes = {@ParamType(type = LarkyByteLike.class), @ParamType(type = StarlarkByte.class)}),
+    }, useStarlarkThread = true)
+  public boolean bcryptCheckPassword(Object passwordO, Object bcryptHashO, StarlarkThread thread) throws EvalException {
+    byte[] bcryptHash = larkyByteTypeToPrimitive(bcryptHashO);
+    if(String.class.isAssignableFrom(passwordO.getClass())) {
+      return OpenBSDBCrypt.checkPassword(
+        new String(bcryptHash),
+        ((String) passwordO).toCharArray()
+      );
+    }
+    byte[] password = larkyByteTypeToPrimitive(passwordO);
+    return OpenBSDBCrypt.checkPassword(new String(bcryptHash), password);
+  }
+
+  private byte[] larkyByteTypeToPrimitive(Object o) {
+    byte[] result;
+    if (StarlarkByte.class.isAssignableFrom(o.getClass())) {
+      result = ((StarlarkByte) o).getBytes();
+    } else if(LarkyByteLike.class.isAssignableFrom(o.getClass())) {
+      result = ((LarkyByteLike) o).getBytes();
+    } else {
+      throw new IllegalArgumentException("Invalid larky byte type! " + o.getClass());
+    }
+    return result;
+  }
+
 }
