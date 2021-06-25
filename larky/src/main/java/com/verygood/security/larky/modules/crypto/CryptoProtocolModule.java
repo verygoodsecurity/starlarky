@@ -96,6 +96,18 @@ public class CryptoProtocolModule implements StarlarkValue {
     @Param(name = "hmac_hash_module", allowedTypes = {@ParamType(type = String.class), @ParamType(type = NoneType.class)}, defaultValue = "None")
   }, useStarlarkThread = true)
   public LarkyByteLike PBKDF2(LarkyByteLike password, LarkyByteLike salt, StarlarkInt dkLen, StarlarkInt count, Object prfO, Object hmacHashModuleO, StarlarkThread thread) throws EvalException {
+
+    // first make sure only one of prf or hmac_hash_module were passed (mutually exclusive args)
+    if(!Starlark.isNullOrNone(prfO) && !Starlark.isNullOrNone(hmacHashModuleO)) {
+      throw Starlark.errorf("ValueError: 'prf' and 'hmac_hash_module' are mutually exclusive");
+    }
+
+    // if neither passed, set hmac_hash_module as SHA1
+    if(Starlark.isNullOrNone(prfO) && Starlark.isNullOrNone(hmacHashModuleO)) {
+      hmacHashModuleO = "SHA1";
+    }
+
+    // use prf of hmac module to create key of dklen (not used in java)
     BiFunction<char[], byte[], byte[]> prf = Starlark.isNullOrNone(prfO)
                    ? null
                    : (passwd, saltbytes) -> {
@@ -128,10 +140,7 @@ public class CryptoProtocolModule implements StarlarkValue {
   }
 
   @VisibleForTesting
-  byte[] PBKDF2(char[] password, byte[] salt, int dkLen_, int count, BiFunction<char[],byte[],byte[]> prf, Object hmacHashModuleO) throws EvalException {
-    // first make sure only one of prf or hmac_hash_module were passed (mutually exclusive args)
-    // if neither passed, set hmac_hash_module as SHA1
-    // use prf of hmac module to create key of dklen
+  byte[] PBKDF2(char[] password, byte[] salt, int dkLen_, int count, BiFunction<char[],byte[],byte[]> prf, Object hmacHashModuleO) {
     if(prf != null) {
       return prf.apply(password, salt);
     }
@@ -176,19 +185,9 @@ public class CryptoProtocolModule implements StarlarkValue {
     }, useStarlarkThread = true)
   public LarkyByteLike bcrypt(Object passwordO, LarkyByteLike salt, StarlarkInt count, StarlarkThread thread) throws EvalException {
     byte[] password = larkyByteTypeToPrimitive(passwordO);
-    //byte[] results = org.bouncycastle.crypto.generators.BCrypt.generate(password, salt.getBytes(), count.toIntUnchecked());
     byte[] results = OpenBSDBCrypt
                        .generate("2a", password, salt.getBytes(), count.toIntUnchecked())
                        .getBytes(StandardCharsets.UTF_8);
-//    try {
-//      results = BCryptKDF.bcrypt_pbkdf(
-//        password,
-//        salt.getBytes(),
-//        dkLen.toIntUnchecked(),
-//        count.toIntUnchecked());
-//    } catch (NoSuchAlgorithmException e) {
-//      throw new EvalException(e.getMessage(), e);
-//    }
     return LarkyByteArray.builder(thread).setSequence(results).build();
   }
 
