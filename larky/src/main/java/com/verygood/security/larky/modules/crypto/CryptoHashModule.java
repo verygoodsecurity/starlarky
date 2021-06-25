@@ -53,9 +53,9 @@ public class CryptoHashModule implements StarlarkValue {
   }
 
   @StarlarkMethod(name = "SHA384")
-  public LarkyGeneralDigest SHA384() {
-    GeneralDigest digest = (GeneralDigest) DigestFactory.createSHA384();
-    return new LarkyGeneralDigest(digest);
+  public LarkyLongDigest SHA384() {
+    LongDigest digest = (LongDigest) DigestFactory.createSHA384();
+    return new LarkyLongDigest(digest);
   }
 
   @StarlarkMethod(name = "SHA512", parameters = {

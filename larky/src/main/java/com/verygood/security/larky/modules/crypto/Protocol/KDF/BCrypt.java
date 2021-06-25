@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.crypto.KDF;
+package com.verygood.security.larky.modules.crypto.Protocol.KDF;
 // Copyright (c) 2006 Damien Miller <djm@mindrot.org>
 //
 // Permission to use, copy, modify, and distribute this software for any

@@ -145,4 +145,5 @@ SHA1 = larky.struct(
     block_size=block_size,
     new=new,
     _pbkdf2_hmac_assist=_pbkdf2_hmac_assist,
+    __name__ = 'SHA1',
 )
