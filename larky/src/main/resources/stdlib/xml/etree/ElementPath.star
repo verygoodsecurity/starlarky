@@ -102,7 +102,6 @@ def xpath_tokenizer(pattern, namespaces=None):
     default_namespace = namespaces.get('') if namespaces else None
     parsing_attribute = False
     result = []
-    print('xpath tokens:', xpath_tokenizer_re.findall(pattern))
     for token in xpath_tokenizer_re.findall(pattern):
         ttype, tag = token
         if tag and tag[0] != "{":
@@ -242,7 +241,6 @@ def traverse_descendant(e, tag, rval):
         if len(qu) == 0:
             break
         current = qu.pop(0)
-        # print('current node:', current)
         if tag == None or tag == '*' or current.tag == tag:
             rval.append(current)
         qu.extend(current._children)
@@ -418,23 +416,19 @@ def prepare_predicate(next, token):
                 index = -1
         def select(context, result):
             parent_map = get_parent_map(context)
-            # print('parent map:', parent_map)
             rval = []
             for elem in result:
                 k = str(sorted(larky.to_dict(elem).items()))
                 if k not in parent_map:
                     continue
                 parent = parent_map[k]
-                # print('parent:', parent)
                 # FIXME: what if the selector is "*" ?
                 #recursion, need to convert:
                 # elems = list(parent.findall(elem.tag))
                 elems = []
                 for e in parent._children:
-                    # print('e tag, elem tag:', e.tag, elem.tag)
                     if e.tag == elem.tag:
                         elems.append(e)
-                # print('children of the parent:', elems)
                 if elem not in elems or index >= len(elems):
                     continue
                 if elems[index] == elem:
@@ -486,16 +480,13 @@ def iterfind(start_elem, path, namespaces=None):
         token = tokenizer.next()
         selector = []
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            # token = tokenizer.next()
             if token == StopIterating:
                 break
-            # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             rval = ops[token[0]](tokenizer.next, token)
             if rval == StopIterating:
                 return Error("SyntaxError: invalid path")
             selector.append(rval)
             token = tokenizer.next()
-            # print('xpath token:', token)
             if token == StopIterating:
                 break
             if token[0] == "/":
@@ -503,13 +494,10 @@ def iterfind(start_elem, path, namespaces=None):
                 if token == StopIterating:
                     break
             # _cache[cache_key] = selector
-    # execute selector pattern
     result = [start_elem]
     context = _SelectorContext(start_elem)
-    # print("xpath result:", result)
     for select in selector:
         result = select(context, result)
-        # print("xpath updated result:", result)
     return result
 
 ##

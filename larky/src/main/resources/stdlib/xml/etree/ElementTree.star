@@ -806,7 +806,15 @@ def _ElementTree(element=None, file=None):
                                     of start/end tags
 
         """
-        return Error("Unsupported write method")
+        # return Error("Unsupported write method")
+        qnames, namespaces = _namespaces(self._root, default_namespace)
+        _serialize_xml(
+            file_or_filename.write,
+            self._root,
+            qnames,
+            namespaces,
+            short_empty_elements=short_empty_elements,
+        )
         # if not method:
         #     method = "xml"
         # elif method not in _serialize:
@@ -931,8 +939,14 @@ def _namespaces(elem, default_namespace=None):
                 .build()
 
     # populate qname and namespaces table
-    for elem in elem.iter():
-        tag = elem.tag
+    # for elem in elem.iter():
+    qu = [elem]
+    for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if len(qu) == 0:
+            break
+        current = qu.pop(0)
+
+        tag = current.tag
         if types.is_instance(tag, QName):
             if tag.text not in qnames:
                 add_qname(tag.text)
@@ -941,72 +955,118 @@ def _namespaces(elem, default_namespace=None):
                 add_qname(tag)
         elif tag != None and tag != Comment and tag != PI:
             _raise_serialization_error(tag)
-        for key, value in elem.items():
+        for key, value in current.items():
             if types.is_instance(key, QName):
                 key = key.text
             if key not in qnames:
                 add_qname(key)
             if types.is_instance(value, QName) and value.text not in qnames:
                 add_qname(value.text)
-        text = elem.text
+        text = current.text
         if types.is_instance(text, QName) and text.text not in qnames:
             add_qname(text.text)
+        qu.extend(current._children)
     return qnames, namespaces
 
+def prepare_elems_for_serialize(tops_level_elems):
+    new_elems = []
+    for el in tops_level_elems:
+        new_elems.append(el)
+        qu = el._children[0:]
+        for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if not qu:
+                break
+            else:
+                current = qu.pop()
+                new_elems.append(current)
+                qu.extend(current._children)
+    return new_elems
 
 def _serialize_xml(
-    write, elem, qnames, namespaces, short_empty_elements, **kwargs
+    write, root_elem, qnames, namespaces, short_empty_elements, **kwargs
 ):
-    elems = [(elem, namespaces)]
-
-    for i in range(_WHILE_LOOP_EMULATION_ITERATION):
-        if not elems:
-            break
-        elem, namespaces = elems.pop()
-
+    elems = prepare_elems_for_serialize([root_elem])
+    unclosed_elems = []
+    for elem in elems:
         tag = elem.tag
+        # print('iter elem:', tag)
         text = elem.text
-        if tag == Comment:
-            write("<!--%s-->" % text)
-        elif tag == ProcessingInstruction:
-            write("<?%s?>" % text)
-        else:
-            tag = qnames[tag]
-            if tag == None:
-                if text:
-                    write(_escape_cdata(text))
-                for e in elem:
-                    elems.append((e, None))
+        attrib = elem.attrib
+        for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if len(unclosed_elems) == 0:
+                break
+            if elem not in unclosed_elems[-1]._children:
+                elem_to_close = unclosed_elems.pop()
+                write("</%s>" % elem_to_close.tag)
             else:
-                write("<" + tag)
-                items = list(elem.items())
-                if items or namespaces:
-                    if namespaces:
-                        for v, k in sorted(
-                            namespaces.items(), key=lambda x: x[1]
-                        ):  # sort on prefix
-                            if k:
-                                k = ":" + k
-                            write(' xmlns%s="%s"' % (k, _escape_attrib(v)))
-                    for k, v in sorted(items):  # lexical order
-                        if types.is_instance(k, QName):
-                            k = k.text
-                        if types.is_instance(v, QName):
-                            v = qnames[v.text]
-                        else:
-                            v = _escape_attrib(v)
-                        write(' %s="%s"' % (qnames[k], v))
-                if text or len(elem) or not short_empty_elements:
-                    write(">")
-                    if text:
-                        write(_escape_cdata(text))
-                    for e in elem:
-                        elems.append((e, None))
-                    write("</" + tag + ">")
-                else:
-                    write(" />")
-        if elem.tail:
-            write(_escape_cdata(elem.tail))
+                break
+        write("<" + tag)
+        if attrib:
+            for k, v in attrib.items():
+                write(' %s="%s"' % (k, v))
+        write(">")
+        if text:
+             write(text)
+        if len(elem._children) == 0:
+            write("</%s>" % tag)
+        else:
+            unclosed_elems.append(elem)
+            # print('add unclosed elem:', elem)
+    for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if len(unclosed_elems) == 0:
+            break
+        elem_to_close = unclosed_elems.pop()
+        write("</%s>" % elem_to_close.tag)
+
+
+    # elems = [(elem, namespaces)]
+    # for i in range(_WHILE_LOOP_EMULATION_ITERATION):
+    #     if not elems:
+    #         break
+    #     elem, namespaces = elems.pop(0)
+    #     tag = elem.tag
+    #     text = elem.text
+    #     if tag == Comment:
+    #         write("<!--%s-->" % text)
+    #     elif tag == ProcessingInstruction:
+    #         write("<?%s?>" % text)
+    #     else:
+    #         tag = qnames[tag]
+    #         if tag == None:
+    #             if text:
+    #                 write(_escape_cdata(text))
+    #             for e in elem._children:
+    #                 elems.append((e, None))
+    #         else:
+    #             write("<" + tag)
+    #             items = list(elem.items())
+    #             if items or namespaces:
+    #                 if namespaces:
+    #                     for v, k in sorted(
+    #                         namespaces.items(), key=lambda x: x[1]
+    #                     ):  # sort on prefix
+    #                         if k:
+    #                             k = ":" + k
+    #                         write(' xmlns%s="%s"' % (k, _escape_attrib(v)))
+    #                 for k, v in sorted(items):  # lexical order
+    #                     if types.is_instance(k, QName):
+    #                         k = k.text
+    #                     if types.is_instance(v, QName):
+    #                         v = qnames[v.text]
+    #                     else:
+    #                         v = _escape_attrib(v)
+    #                     write(' %s="%s"' % (qnames[k], v))
+    #             if text or len(elem._children) or not short_empty_elements:
+    #                 write(">")
+    #                 if text:
+    #                     write(_escape_cdata(text))
+    #                 for e in elem._children:
+    #                     elems.append((e, None))
+    #                 write("</" + tag + ">")
+    #             else:
+    #                 write(" />")
+    #     if elem.tail:
+    #         write(_escape_cdata(elem.tail))
 
 
 HTML_EMPTY = (
@@ -1216,6 +1276,7 @@ def tostring(element, encoding=None, method=None, *, short_empty_elements=True):
     """
     # stream = io.StringIO() if encoding == "unicode" else io.BytesIO()
     stream = StringIO()
+
     _ElementTree(element).write(
         stream,
         encoding,

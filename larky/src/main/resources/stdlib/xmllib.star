@@ -624,6 +624,7 @@ def XMLParser(**kw):
             attrvalue = attrvalue.replace('\t', ' ')
             attrvalue = attrvalue.replace('\n', ' ')
             attrdict[attrname] = self.translate_references(attrvalue)
+            print('attrdict[attrname]', attrdict[attrname])
         return attrdict, namespace, i
     self.parse_attributes = parse_attributes
 
@@ -649,7 +650,7 @@ def XMLParser(**kw):
         if self.__seen_starttag and not self.stack:
             self.syntax_error('multiple elements on top level')
         k, j = tag.span('attrs')
-        attrdict, nsdict, k = self.parse_attributes(tagname, k, j)
+        attrdict, nsdict, k = self.parse_attributes(tagname, i+k, i+j)
         self.stack.append((tagname, nsdict, nstag))
         if self.__use_namespaces:
             res = qname.match(tagname)
