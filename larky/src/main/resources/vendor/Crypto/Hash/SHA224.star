@@ -26,10 +26,10 @@ load("@vendor//option/result", Error="Error")
 
 
 # The size of the resulting hash in bytes.
-digest_size = 48
+digest_size = 28
 
 # The internal block size of the hash algorithm in bytes.
-block_size = 128
+block_size = 64
 
 
 def SHA224Hash(data=None):
@@ -46,14 +46,14 @@ def SHA224Hash(data=None):
     :ivar digest_size: the size in bytes of the resulting hash
     :vartype digest_size: integer
     """
-    self = larky.mutablestruct(__class__='SHA224Hash')
+    self = larky.mutablestruct(__name__='SHA224Hash', __class__=SHA224Hash)
 
     # The size of the resulting hash in bytes.
-    digest_size = 48
+    self.digest_size = digest_size
     # The internal block size of the hash algorithm in bytes.
-    block_size = 128
+    self.block_size = 128
     # ASN.1 Object ID
-    oid = '2.16.840.1.101.3.4.2.2'
+    self.oid = '2.16.840.1.101.3.4.2.4'
 
     def __init__(data):
         _state = _JCrypto.Hash.SHA224()
