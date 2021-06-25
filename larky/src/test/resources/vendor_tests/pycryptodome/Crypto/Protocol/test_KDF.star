@@ -134,7 +134,7 @@ def PBKDF2_Tests_test3():
     password = b("xxx")
     salt = b("yyy")
 
-    for hashmod in (MD5, SHA1, SHA256, SHA384, SHA512):  # SHA224 does not work?
+    for hashmod in (MD5, SHA1, SHA224, SHA256, SHA384, SHA512):
 
         pr1 = PBKDF2(password, salt, 16, 100,
                      prf=lambda p, s: HMAC.new(p,s,hashmod).digest())
