@@ -102,6 +102,7 @@ def xpath_tokenizer(pattern, namespaces=None):
     default_namespace = namespaces.get('') if namespaces else None
     parsing_attribute = False
     result = []
+    print('xpath tokens:', xpath_tokenizer_re.findall(pattern))
     for token in xpath_tokenizer_re.findall(pattern):
         ttype, tag = token
         if tag and tag[0] != "{":
@@ -416,6 +417,7 @@ def prepare_predicate(next, token):
                 index = -1
         def select(context, result):
             parent_map = get_parent_map(context)
+            # print('parent map:', parent_map)
             rval = []
             for elem in result:
                 k = str(sorted(larky.to_dict(elem).items()))
@@ -487,6 +489,7 @@ def iterfind(start_elem, path, namespaces=None):
                 return Error("SyntaxError: invalid path")
             selector.append(rval)
             token = tokenizer.next()
+            # print('xpath token:', token)
             if token == StopIterating:
                 break
             if token[0] == "/":

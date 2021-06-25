@@ -48,7 +48,6 @@ def _test_elementtree():
     asserts.eq('three', operator.getitem(root, 2).tag)
 
 
-
 def _test_xpath():
     
     parser = SimpleXMLTreeBuilder.TreeBuilder()
@@ -89,7 +88,7 @@ def _test_xpath():
     asserts.eq(1, len(root.findall("./actress[1]")))
     asserts.eq('1984', root.findall("./actor[2]/born")[0].text)
     asserts.eq('8', root.findall("./actor/film[1]")[0].text)
-    test search by attrib
+    # test search by attrib
     asserts.eq('3', root.findall("./actor/*[@updated='Yes']")[0].text)
     asserts.eq('actress', root.findall(".//*[@name='Jenny']")[0].tag)
 
