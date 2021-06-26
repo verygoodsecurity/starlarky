@@ -14,6 +14,38 @@ We can probably find or build a maven plugin to automatically do this as per
 [Simplifying native-image generation with Maven plugin and embeddable configuration](https://medium.com/graalvm/simplifying-native-image-generation-with-maven-plugin-and-embeddable-configuration-d5b283b92f57)
 instead of having to do this manually. 
 
+Here's another way to automate this:
+
+```bash
+$ rg --no-heading "package (com.*);"  --sort 'path' --replace '$1'   > out.csv
+```
+
+then:
+
+```python
+import csv
+import json
+
+template = {
+    "allDeclaredFields": True,
+    "allDeclaredMethods": True,
+    "allPublicMethods": True,
+    "allDeclaredConstructors": True,
+    "allPublicConstructors": True
+  }
+d = []
+with open('./blah.csv') as f:
+    for i in csv.DictReader(f, delimiter=':', fieldnames=['file', 'module']):
+        t = template.copy()
+        t["name"] = f"{i['module']}.{i['file'].rpartition('/')[-1].replace('.java', '')}"
+        d.append(t)
+
+with open('./starlarky/runlarky/src/main/resources/reflect-config.json', 'w+') as fd:
+    json.dump(d, fd, indent=4)
+```
+
+and you'll have a nice json file
+
 ## Python Compatibility
 
 In order to ensure that Larky is compatible with Python Simplifying native-image generation with Maven plugin and embeddable configuration(besides the obvious `load()` vs `import` differences), we try to emulate Python's stdlib interface as much as possible. 
