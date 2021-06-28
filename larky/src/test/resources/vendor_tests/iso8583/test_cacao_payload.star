@@ -9,8 +9,6 @@ load("@vendor//iso8583/encoder", Encoder="encoder")
 def CacaoTestCase_test_decode_encode():
     payload = bytes(cacao_payload, encoding='ascii')
     decoded, encoded = Decoder.decode(payload, cacao_specs)
-    print('decoded:' + str(decoded))
-    print('encoded:' + str(encoded))
 
     asserts.assert_that(decoded['h']).is_equal_to('ISO025000055')
     asserts.assert_that(decoded['t']).is_equal_to('0200')
