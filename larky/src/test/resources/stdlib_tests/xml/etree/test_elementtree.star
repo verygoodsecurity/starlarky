@@ -95,7 +95,7 @@ def _test_xpath():
 
 def _test_update_and_serialize():
     parser = SimpleXMLTreeBuilder.TreeBuilder()
-    data = ''.join(['<data><teacher name="Jenny"><born>1983</born></teacher>',
+    data = ''.join(['<data xmlns:x="http://example.com/ns/foo">nonetag<teacher name="Jenny"><born>1983</born></teacher><x:p/>',
     '<student name="Tim"><performance><Grade>A+</Grade></performance><info><born>2005</born></info></student>',
     '<student name="John"><performance><Grade>B</Grade></performance><info><born>2004</born></info></student></data>'])
 
@@ -104,13 +104,23 @@ def _test_update_and_serialize():
 
     # test update node text
     root.findall(".//*[@name='John']/performance/Grade")[0].text = 'A-'
+    c = ElementTree.Comment('some comment')
+    pi = ElementTree.ProcessingInstruction('Here are instuctions')
+    root.append(c)
+    root.append(pi)
     
     # order of nodes on the same level is reversed but vertical nested order is correct
-    expected_xml = ''.join(['<data><student name="John"><info><born>2004</born></info><performance><Grade>A-</Grade></performance></student>',
+    expected_xml = ''.join(['<?xml version="1.0" encoding="utf-8"?>\n',
+    '<data xmlns:ns0="http://example.com/ns/foo">nonetag<?Here are instuctions?><!--some comment-->',
+    '<student name="John"><info><born>2004</born></info><performance><Grade>A-</Grade></performance></student>',
     '<student name="Tim"><info><born>2005</born></info><performance><Grade>A+</Grade></performance></student>',
-    '<teacher name="Jenny"><born>1983</born></teacher></data>'])
+    '<ns0:p /><teacher name="Jenny"><born>1983</born></teacher></data>'])
 
-    asserts.eq(expected_xml, ElementTree.tostring(root))
+    asserts.eq(expected_xml, ElementTree.tostring(root,  encoding ='utf-8', xml_declaration=True))
+
+    # test serialize on subelement and update attribute
+    root.findall('.//')[2].set("name", "Jim")
+    asserts.eq('<student name="Jim"><info><born>2005</born></info><performance><Grade>A+</Grade></performance></student>', ElementTree.tostring(root.findall('.//')[2]))
 
 
 def _suite():

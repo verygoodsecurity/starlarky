@@ -278,7 +278,7 @@ def Element(tag, attrib={}, **extra):
         # Need to refer to the actual Python implementation, not the
         # shadowing C implementation.
         if not types.is_instance(e, Element):
-            return Error("TypeError: expected an Element, not %s" % type(e).__name__)
+            Error("TypeError: expected an Element, not %s" % type(e).__name__)
     self._assert_is_element = _assert_is_element
 
     def remove(subelement):
@@ -777,7 +777,6 @@ def _ElementTree(element=None, file=None):
     def write(
         file_or_filename,
         encoding=None,
-        xml_declaration=None,
         default_namespace=None,
         method=None,
         *,
@@ -806,54 +805,35 @@ def _ElementTree(element=None, file=None):
                                     of start/end tags
 
         """
-        # return Error("Unsupported write method")
+        fail('Error("Unsupported write method")')
+    self.write = write
+
+    # for internal use by tostring() only
+    def _write(
+        stream,
+        encoding=None,
+        xml_declaration=None,
+        default_namespace=None,
+        short_empty_elements=True,
+    ):
+        if not encoding:
+            encoding = "us-ascii"
+        # print('xml_declaration:', xml_declaration)
+        if xml_declaration or (xml_declaration == None and encoding not in ("utf-8", "us-ascii")):
+            stream.write('<?xml version="1.0" encoding="%s"?>\n' % encoding)
+
         qnames, namespaces = _namespaces(self._root, default_namespace)
+        # print("qnames:", qnames)
+        # print("namespaces:", namespaces)
         _serialize_xml(
-            file_or_filename.write,
+            stream.write,
             self._root,
             qnames,
             namespaces,
             short_empty_elements=short_empty_elements,
         )
-        # if not method:
-        #     method = "xml"
-        # elif method not in _serialize:
-        #     return Error("ValueError: unknown method %r" % method)
-        # if not encoding:
-        #     if method == "c14n":
-        #         encoding = "utf-8"
-        #     else:
-        #         encoding = "us-ascii"
-        # enc_lower = encoding.lower()
-        # with _get_writer(file_or_filename, enc_lower) as write:
-        #     if method == "xml" and (
-        #         xml_declaration
-        #         or (
-        #             xml_declaration == None
-        #             and enc_lower not in ("utf-8", "us-ascii", "unicode")
-        #         )
-        #     ):
-        #         declared_encoding = encoding
-        #         if enc_lower == "unicode":
-        #             # Retrieve the default encoding for the xml declaration
-        #             declared_encoding = "utf-8"
-        #         write(
-        #             "<?xml version='1.0' encoding='%s'?>\n"
-        #             % (declared_encoding,)
-        #         )
-        #     if method == "text":
-        #         _serialize_text(write, self._root)
-        #     else:
-        #         qnames, namespaces = _namespaces(self._root, default_namespace)
-        #         serialize = _serialize[method]
-        #         serialize(
-        #             write,
-        #             self._root,
-        #             qnames,
-        #             namespaces,
-        #             short_empty_elements=short_empty_elements,
-        #         )
-    self.write = write
+    self._write = _write
+
 
     def write_c14n(file):
         # lxml.etree compatibility.  use output method instead
@@ -968,7 +948,10 @@ def _namespaces(elem, default_namespace=None):
         qu.extend(current._children)
     return qnames, namespaces
 
-def prepare_elems_for_serialize(tops_level_elems):
+def flatten_nested_elements(tops_level_elems):
+    """
+        We're building an iterative traversal due to lack of recursion support
+    """
     new_elems = []
     for el in tops_level_elems:
         new_elems.append(el)
@@ -983,15 +966,15 @@ def prepare_elems_for_serialize(tops_level_elems):
     return new_elems
 
 def _serialize_xml(
-    write, root_elem, qnames, namespaces, short_empty_elements, **kwargs
+    write, start_elem, qnames, namespaces, short_empty_elements, **kwargs
 ):
-    elems = prepare_elems_for_serialize([root_elem])
+    elems = flatten_nested_elements([start_elem])
     unclosed_elems = []
     for elem in elems:
         tag = elem.tag
         # print('iter elem:', tag)
         text = elem.text
-        attrib = elem.attrib
+        # attrib = elem.attrib
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if len(unclosed_elems) == 0:
                 break
@@ -1000,18 +983,57 @@ def _serialize_xml(
                 write("</%s>" % elem_to_close.tag)
             else:
                 break
-        write("<" + tag)
-        if attrib:
-            for k, v in attrib.items():
-                write(' %s="%s"' % (k, v))
-        write(">")
-        if text:
-             write(text)
-        if len(elem._children) == 0:
-            write("</%s>" % tag)
+        if tag == Comment:
+            write("<!--%s-->" % _escape_cdata(text))
+        elif tag == ProcessingInstruction:
+            write("<?%s?>" % _escape_cdata(text))
         else:
-            unclosed_elems.append(elem)
-            # print('add unclosed elem:', elem)
+            tag = qnames[tag]  # support QNames in XML Element and Attribute Names
+            if tag == None:
+                if text:
+                    write(_escape_cdata(text))
+                if len(elem._children) == 0:
+                        write("</%s>" % tag)
+                else:
+                    unclosed_elems.append(elem)
+                    # print('add unclosed elem:', elem)
+            else:
+                write("<" + tag)
+                items = elem.items()  # get attrib
+                if items or namespaces:
+                    if namespaces:
+                        for v, k in sorted(namespaces.items(),
+                                        key=lambda x: x[1]):  # sort on prefix
+                            if k:
+                                k = ":" + k
+                            write(" xmlns%s=\"%s\"" % (
+                                k,
+                                _escape_attrib(v)
+                                ))
+                        namespaces = None # each xml tree only has one dict of namespaces
+                    for k, v in items:
+                        # print("k, v:", k, v)
+                        if types.is_instance(k, QName):
+                            k = k.text
+                        if types.is_instance(v, QName):
+                            v = qnames[v.text]
+                        else:
+                            v = _escape_attrib(v)
+                        write(' %s="%s"' % (qnames[k], v))
+                # if attrib:
+                #     for k, v in attrib.items():
+                #         write(' %s="%s"' % (k, v))
+                if text or len(elem._children) or not short_empty_elements:
+                    write(">")
+                    if text:
+                        write(_escape_cdata(text))
+                    if len(elem._children) == 0:
+                        write("</%s>" % tag)
+                    else:
+                        unclosed_elems.append(elem)
+                        # print('add unclosed elem:', elem)
+                else:
+                    write(" />")
     for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if len(unclosed_elems) == 0:
             break
@@ -1145,34 +1167,48 @@ def register_namespace(prefix, uri):
     _namespace_map[uri] = prefix
 
 def _raise_serialization_error(text):
-    return Error(
+    fail(
         "TypeError: cannot serialize %r (type %s)" % (text, type(text))
     )
 
-
 def _escape_cdata(text):
     # escape character data
-    def _escape_cdata_try():
-        # it's worth avoiding do-nothing calls for strings that are
-        # shorter than 500 character, or so.  assume that's, by far,
-        # the most common case in most applications.
+    # it's worth avoiding do-nothing calls for strings that are
+    # shorter than 500 character, or so.  assume that's, by far,
+    # the most common case in most applications.
+    if types.is_string(text):
         if "&" in text:
             text = text.replace("&", "&amp;")
         if "<" in text:
             text = text.replace("<", "&lt;")
         if ">" in text:
             text = text.replace(">", "&gt;")
-        return text
+    else:
+        _raise_serialization_error(text)
+    return text
 
-    return try_(_escape_cdata_try)\
-            .except_(lambda x: _raise_serialization_error(text))\
-            .build()\
-            .unwrap()
+# def _escape_cdata(text):
+#     # escape character data
+#     def _escape_cdata_try():
+#         # it's worth avoiding do-nothing calls for strings that are
+#         # shorter than 500 character, or so.  assume that's, by far,
+#         # the most common case in most applications.
+#         if "&" in text:
+#             text = text.replace("&", "&amp;")
+#         if "<" in text:
+#             text = text.replace("<", "&lt;")
+#         if ">" in text:
+#             text = text.replace(">", "&gt;")
+#         return text
 
+#     return try_(_escape_cdata_try)\
+#             .except_(lambda x: _raise_serialization_error(text))\
+#             .build()\
+#             .unwrap()
 
 def _escape_attrib(text):
     # escape attribute value
-    def _escape_attrib_try():
+    if types.is_string(text):
         if "&" in text:
             text = text.replace("&", "&amp;")
         if "<" in text:
@@ -1183,12 +1219,29 @@ def _escape_attrib(text):
             text = text.replace('"', "&quot;")
         if "\n" in text:
             text = text.replace("\n", "&#10;")
-        return text
+    else:
+        _raise_serialization_error(text)
+    return text
 
-    return try_(_escape_attrib_try)\
-            .except_(lambda x: _raise_serialization_error(text))\
-            .build()\
-            .unwrap()
+# def _escape_attrib(text):
+#     # escape attribute value
+#     def _escape_attrib_try():
+#         if "&" in text:
+#             text = text.replace("&", "&amp;")
+#         if "<" in text:
+#             text = text.replace("<", "&lt;")
+#         if ">" in text:
+#             text = text.replace(">", "&gt;")
+#         if '"' in text:
+#             text = text.replace('"', "&quot;")
+#         if "\n" in text:
+#             text = text.replace("\n", "&#10;")
+#         return text
+
+#     return try_(_escape_attrib_try)\
+#             .except_(lambda x: _raise_serialization_error(text))\
+#             .build()\
+#             .unwrap()
 
 
 
@@ -1210,8 +1263,8 @@ def _escape_attrib_html(text):
 
 # --------------------------------------------------------------------
 
-
-def tostring(element, encoding=None, method=None, *, short_empty_elements=True):
+# Support convertion to xml only for now
+def tostring(element, encoding=None, xml_declaration=None, *, default_namespace=None, short_empty_elements=True):
     """Generate string representation of XML element.
 
     All subelements are included.  If encoding is "unicode", a string
@@ -1225,12 +1278,14 @@ def tostring(element, encoding=None, method=None, *, short_empty_elements=True):
 
     """
     # stream = io.StringIO() if encoding == "unicode" else io.BytesIO()
+
     stream = StringIO()
 
-    _ElementTree(element).write(
+    _ElementTree(element)._write(
         stream,
-        encoding,
-        method=method,
+        encoding=encoding,
+        xml_declaration=xml_declaration,
+        default_namespace=default_namespace,
         short_empty_elements=short_empty_elements,
     )
     return stream.getvalue()
