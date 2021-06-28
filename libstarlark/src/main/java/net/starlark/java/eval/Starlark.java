@@ -294,7 +294,7 @@ public final class Starlark {
     // Check for "direct hits" first to avoid needing to scan for annotations.
     if (c.equals(String.class)) {
       return "string";
-    } else if (StarlarkByte.class.isAssignableFrom(c)) {
+    } else if (StarlarkBytes.class.isAssignableFrom(c)) {
       return "bytes";
     } else if (StarlarkInt.class.isAssignableFrom(c)) {
       return "int";
