@@ -278,7 +278,7 @@ def Element(tag, attrib={}, **extra):
         # Need to refer to the actual Python implementation, not the
         # shadowing C implementation.
         if not types.is_instance(e, Element):
-            Error("TypeError: expected an Element, not %s" % type(e).__name__)
+            fail("TypeError: expected an Element, not %s" % type(e))
     self._assert_is_element = _assert_is_element
 
     def remove(subelement):
@@ -777,6 +777,7 @@ def _ElementTree(element=None, file=None):
     def write(
         file_or_filename,
         encoding=None,
+        xml_declaration=None,
         default_namespace=None,
         method=None,
         *,
@@ -981,6 +982,9 @@ def _serialize_xml(
             if elem not in unclosed_elems[-1]._children:
                 elem_to_close = unclosed_elems.pop()
                 write("</%s>" % elem_to_close.tag)
+                if elem_to_close.tail:
+                    # print('elem to close which has tail:', elem_to_close.tag)
+                    write(_escape_cdata(elem_to_close.tail))
             else:
                 break
         if tag == Comment:
@@ -993,7 +997,7 @@ def _serialize_xml(
                 if text:
                     write(_escape_cdata(text))
                 if len(elem._children) == 0:
-                        write("</%s>" % tag)
+                    write("</%s>" % tag)
                 else:
                     unclosed_elems.append(elem)
                     # print('add unclosed elem:', elem)
@@ -1020,25 +1024,31 @@ def _serialize_xml(
                         else:
                             v = _escape_attrib(v)
                         write(' %s="%s"' % (qnames[k], v))
-                # if attrib:
-                #     for k, v in attrib.items():
-                #         write(' %s="%s"' % (k, v))
                 if text or len(elem._children) or not short_empty_elements:
                     write(">")
                     if text:
                         write(_escape_cdata(text))
                     if len(elem._children) == 0:
                         write("</%s>" % tag)
+                        if elem.tail:
+                            # print('no child elem which has tail:', elem.tag)
+                            write(_escape_cdata(elem.tail))
                     else:
                         unclosed_elems.append(elem)
                         # print('add unclosed elem:', elem)
                 else:
                     write(" />")
+                    if elem.tail:
+                        # print('self closing elem which has tail:', elem.tag)
+                        write(_escape_cdata(elem.tail))
     for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if len(unclosed_elems) == 0:
             break
         elem_to_close = unclosed_elems.pop()
         write("</%s>" % elem_to_close.tag)
+        if elem_to_close.tail:
+            # print('remaining elem to close which has tail:', elem_to_close.tag)
+            write(_escape_cdata(elem_to_close.tail))
 
 
 HTML_EMPTY = (

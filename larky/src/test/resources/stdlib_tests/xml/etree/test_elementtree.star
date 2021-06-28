@@ -95,9 +95,9 @@ def _test_xpath():
 
 def _test_update_and_serialize():
     parser = SimpleXMLTreeBuilder.TreeBuilder()
-    data = ''.join(['<data xmlns:x="http://example.com/ns/foo">nonetag<teacher name="Jenny"><born>1983</born></teacher><x:p/>',
+    data = ''.join(['<data xmlns:x="http://example.com/ns/foo">nonetag<teacher name="Jenny"><born>1983</born></teacher>teachertail<x:p/>ptail',
     '<student name="Tim"><performance><Grade>A+</Grade></performance><info><born>2005</born></info></student>',
-    '<student name="John"><performance><Grade>B</Grade></performance><info><born>2004</born></info></student></data>'])
+    '<student name="John"><performance><Grade>B</Grade></performance><info><born>2004</born>birthtail</info>infotail</student></data>'])
 
     tree = parse(data, parser)
     root = tree.getroot()
@@ -106,18 +106,19 @@ def _test_update_and_serialize():
     root.findall(".//*[@name='John']/performance/Grade")[0].text = 'A-'
     c = ElementTree.Comment('some comment')
     pi = ElementTree.ProcessingInstruction('Here are instuctions')
+
     root.append(c)
     root.append(pi)
     
     # order of nodes on the same level is reversed but vertical nested order is correct
     expected_xml = ''.join(['<?xml version="1.0" encoding="utf-8"?>\n',
     '<data xmlns:ns0="http://example.com/ns/foo">nonetag<?Here are instuctions?><!--some comment-->',
-    '<student name="John"><info><born>2004</born></info><performance><Grade>A-</Grade></performance></student>',
+    '<student name="John"><info><born>2004</born>birthtail</info>infotail<performance><Grade>A-</Grade></performance></student>',
     '<student name="Tim"><info><born>2005</born></info><performance><Grade>A+</Grade></performance></student>',
-    '<ns0:p /><teacher name="Jenny"><born>1983</born></teacher></data>'])
+    '<ns0:p />ptail<teacher name="Jenny"><born>1983</born></teacher>teachertail</data>'])
 
     asserts.eq(expected_xml, ElementTree.tostring(root,  encoding ='utf-8', xml_declaration=True))
-
+    # print('to string:', ElementTree.tostring(root))
     # test serialize on subelement and update attribute
     root.findall('.//')[2].set("name", "Jim")
     asserts.eq('<student name="Jim"><info><born>2005</born></info><performance><Grade>A+</Grade></performance></student>', ElementTree.tostring(root.findall('.//')[2]))
