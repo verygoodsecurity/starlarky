@@ -24,7 +24,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkByte;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
@@ -643,7 +643,7 @@ public final class PythonBuiltins {
              _obj = ((LarkyByte) _obj).elems();
            }
            else {
-             _obj = ((StarlarkByte) _obj).elems();
+             _obj = ((StarlarkBytes) _obj).elems();
            }
            // fall through
          case "bytes.elems":

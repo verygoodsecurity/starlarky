@@ -15,8 +15,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 
-public class StarlarkByte extends AbstractList<StarlarkByte>
-  implements Sequence<StarlarkByte>, Comparable<StarlarkByte>, HasBinary, StarlarkValue {
+public class StarlarkBytes extends AbstractList<StarlarkBytes>
+  implements Sequence<StarlarkBytes>, Comparable<StarlarkBytes>, HasBinary, StarlarkValue {
 
   // It's always possible to overeat in small bites but we'll
   // try to stop someone swallowing the world in one gulp.
@@ -27,18 +27,18 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
 
   private static final byte[] EMPTY_ARRAY = new byte[]{};
 
-  private StarlarkByte(@Nullable Mutability mutability, byte[] elems) {
+  private StarlarkBytes(@Nullable Mutability mutability, byte[] elems) {
     this.mutability = mutability == null ? Mutability.IMMUTABLE : mutability;
     this.delegate = elems;
   }
 
   /**
-   * Takes ownership of the supplied byte array and returns a new StarlarkByte instance that
+   * Takes ownership of the supplied byte array and returns a new StarlarkBytes instance that
    * initially wraps the array. The caller must not subsequently modify the array, but the
-   * StarlarkByte instance may do so.
+   * StarlarkBytes instance may do so.
    */
-  static StarlarkByte wrap(@Nullable Mutability mutability, byte[] elems) {
-    return new StarlarkByte(mutability, elems);
+  static StarlarkBytes wrap(@Nullable Mutability mutability, byte[] elems) {
+    return new StarlarkBytes(mutability, elems);
   }
 
   @Override
@@ -49,20 +49,20 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   /**
    * A shared instance for the empty immutable byte array.
    */
-  private static final StarlarkByte EMPTY = wrap(Mutability.IMMUTABLE, EMPTY_ARRAY);
+  private static final StarlarkBytes EMPTY = wrap(Mutability.IMMUTABLE, EMPTY_ARRAY);
 
   /**
    * Returns an immutable instance backed by an empty byte array.
    */
-  public static StarlarkByte empty() {
+  public static StarlarkBytes empty() {
     return EMPTY;
   }
 
   /**
-   * Returns a {@code StarlarkByte} whose items are given by an iterable of StarlarkInt and which
+   * Returns a {@code StarlarkBytes} whose items are given by an iterable of StarlarkInt and which
    * has the given {@link Mutability}.
    */
-  public static StarlarkByte copyOf(
+  public static StarlarkBytes copyOf(
     @Nullable Mutability mutability, Iterable<StarlarkInt> elems) throws EvalException {
     StarlarkInt[] arr = Iterables.toArray(elems, StarlarkInt.class);
     byte[] array = new byte[arr.length];
@@ -86,14 +86,14 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
    * Returns an immutable byte array with the given elements. Equivalent to {@code copyOf(null,
    * elems)}.
    */
-  public static StarlarkByte immutableCopyOf(Iterable<StarlarkInt> elems) throws EvalException {
+  public static StarlarkBytes immutableCopyOf(Iterable<StarlarkInt> elems) throws EvalException {
     return copyOf(null, elems);
   }
 
   /**
-   * Returns a {@code StarlarkByte} with the given items and the {@link Mutability}.
+   * Returns a {@code StarlarkBytes} with the given items and the {@link Mutability}.
    */
-  public static StarlarkByte of(@Nullable Mutability mutability, byte... elems) {
+  public static StarlarkBytes of(@Nullable Mutability mutability, byte... elems) {
     if (elems.length == 0) {
       return wrap(mutability, EMPTY_ARRAY);
     }
@@ -102,9 +102,9 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   }
 
   /**
-   * Returns a {@code StarlarkByte} with the given items and the {@link Mutability}.
+   * Returns a {@code StarlarkBytes} with the given items and the {@link Mutability}.
    */
-  public static StarlarkByte of(@Nullable Mutability mutability, StarlarkInt... elems) {
+  public static StarlarkBytes of(@Nullable Mutability mutability, StarlarkInt... elems) {
     if (elems.length == 0) {
       return wrap(mutability, EMPTY_ARRAY);
     }
@@ -120,7 +120,7 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   /**
    * Returns an immutable {@code StarlarkList} with the given items.
    */
-  public static StarlarkByte immutableOf(StarlarkInt... elems) {
+  public static StarlarkBytes immutableOf(StarlarkInt... elems) {
     checkElemsValid(elems);
     byte[] arr = new byte[elems.length];
     for (int i = 0; i < elems.length; i++) {
@@ -130,16 +130,16 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   }
 
   /**
-   * Returns a {@code StarlarkByte} with the given items and the {@link Mutability}.
+   * Returns a {@code StarlarkBytes} with the given items and the {@link Mutability}.
    */
-  public static StarlarkByte immutableOf(byte... elems) {
+  public static StarlarkBytes immutableOf(byte... elems) {
     return wrap(null, elems);
   }
 
   /**
-   * Returns a {@code StarlarkByte} with the given items and the {@link Mutability}.
+   * Returns a {@code StarlarkBytes} with the given items and the {@link Mutability}.
    */
-  public static StarlarkByte immutableOf(char... elems) {
+  public static StarlarkBytes immutableOf(char... elems) {
     byte[] barr = UTF16toUTF8(elems);
     return wrap(null, barr);
   }
@@ -157,8 +157,8 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   }
 
   @Override
-  public StarlarkByte get(int index) {
-    return StarlarkByte.of(mutability, this.delegate[index]); // can throw OutOfBounds
+  public StarlarkBytes get(int index) {
+    return StarlarkBytes.of(mutability, this.delegate[index]); // can throw OutOfBounds
   }
 
   @Override
@@ -179,19 +179,19 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
 
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof StarlarkByte)) {
+    if (!(o instanceof StarlarkBytes)) {
       return false;
     }
     if (this == o) {
       return true;
     }
-    return this.compareTo((StarlarkByte) o) == 0;
+    return this.compareTo((StarlarkBytes) o) == 0;
   }
 
   @Override
   public boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
-    if (key instanceof StarlarkByte) {
-      return -1 != Bytes.indexOf(this.delegate, ((StarlarkByte) key).getBytes());
+    if (key instanceof StarlarkBytes) {
+      return -1 != Bytes.indexOf(this.delegate, ((StarlarkBytes) key).getBytes());
     } else if (key instanceof StarlarkInt) {
       StarlarkInt _key = ((StarlarkInt) key);
       if (!Range
@@ -213,7 +213,7 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   }
 
   @Override
-  public int compareTo(@Nonnull StarlarkByte o) {
+  public int compareTo(@Nonnull StarlarkBytes o) {
     return UnsignedBytes
              .lexicographicalComparator()
              .compare(getBytes(), o.getBytes());
@@ -238,7 +238,7 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   }
 
   @Override
-  public StarlarkByte getSlice(Mutability mu, int start, int stop, int step) {
+  public StarlarkBytes getSlice(Mutability mu, int start, int stop, int step) {
     RangeList indices = new RangeList(start, stop, step);
     int n = indices.size();
     byte[] res = new byte[n];
@@ -266,9 +266,9 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   public class StarlarkByteElems extends AbstractList<StarlarkInt>
     implements Sequence<StarlarkInt> {
 
-    final private StarlarkByte bytes;
+    final private StarlarkBytes bytes;
 
-    public StarlarkByteElems(StarlarkByte bytes) {
+    public StarlarkByteElems(StarlarkBytes bytes) {
       this.bytes = bytes;
     }
 
@@ -315,9 +315,9 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
   }
 
   /**
-   * Returns a new StarlarkByte containing n consecutive repeats of this byte array.
+   * Returns a new StarlarkBytes containing n consecutive repeats of this byte array.
    */
-  public StarlarkByte repeat(StarlarkInt n, Mutability mutability) throws EvalException {
+  public StarlarkBytes repeat(StarlarkInt n, Mutability mutability) throws EvalException {
     if (n.signum() <= 0) {
       return wrap(mutability, EMPTY_ARRAY);
     }
@@ -340,7 +340,7 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
     switch (op) {
       case STAR:
         /*
-          Attempts to multiply a StarlarkByte type by an integer. The caller is responsible for casting
+          Attempts to multiply a StarlarkBytes type by an integer. The caller is responsible for casting
           to the appropriate sub-type.
          */
         if (that instanceof StarlarkInt) {
@@ -363,23 +363,23 @@ public class StarlarkByte extends AbstractList<StarlarkByte>
     /**
      * Add right to left (i.e. [1] + [2] = [1, 2])
      */
-    static public StarlarkByte add(Object left, Object right) throws EvalException {
-      StarlarkByte left_ = toStarlarkByte(left);
-      StarlarkByte right_ = toStarlarkByte(right);
+    static public StarlarkBytes add(Object left, Object right) throws EvalException {
+      StarlarkBytes left_ = toStarlarkByte(left);
+      StarlarkBytes right_ = toStarlarkByte(right);
 
       byte[] seq = Bytes.concat(left_.getBytes(), right_.getBytes());
       return wrap(null, seq);
     }
 
-    private static StarlarkByte toStarlarkByte(Object item) throws EvalException {
+    private static StarlarkBytes toStarlarkByte(Object item) throws EvalException {
       if (item instanceof StarlarkList) {
         Sequence<StarlarkInt> cast = Sequence.cast(
           item,
           StarlarkInt.class,
           "Attempted to add list of non-Integer type to a bytearray");
-        return StarlarkByte.copyOf(null, cast);
+        return StarlarkBytes.copyOf(null, cast);
       }
-      return (StarlarkByte) item;
+      return (StarlarkBytes) item;
     }
   }
 

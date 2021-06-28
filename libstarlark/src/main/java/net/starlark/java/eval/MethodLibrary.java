@@ -308,12 +308,12 @@ class MethodLibrary {
           "elements are those integers. It is an error if any element is not in the " +
           "range 0-255.",
       parameters = {@Param(name = "x", doc = "The object to convert.")})
-  public StarlarkByte bytes(Object x) throws EvalException {
+  public StarlarkBytes bytes(Object x) throws EvalException {
     switch(Starlark.type(x)) {
       case "bytes":
-        return (StarlarkByte) x;
+        return (StarlarkBytes) x;
       case "string":
-        return StarlarkByte.immutableOf(((String) x).toCharArray());
+        return StarlarkBytes.immutableOf(((String) x).toCharArray());
       default:
         // nothing
     }
@@ -322,7 +322,7 @@ class MethodLibrary {
         x,
         StarlarkInt.class,
         Starlark.str(x));
-      return StarlarkByte.immutableCopyOf(cast);
+      return StarlarkBytes.immutableCopyOf(cast);
     }
     throw Starlark.errorf("bytes: got %s, want string, bytes, or iterable of ints", Starlark.type(x));
   }
@@ -338,7 +338,7 @@ class MethodLibrary {
                name = "c",
                allowedTypes = {
                    @ParamType(type = String.class),
-                   @ParamType(type = StarlarkByte.class),
+                   @ParamType(type = StarlarkBytes.class),
                }
            )
        }
@@ -349,9 +349,9 @@ class MethodLibrary {
      if (String.class.isAssignableFrom(c.getClass())) {
        containerSize = ((String) c).length();
        bytes = ((String) c).getBytes(StandardCharsets.UTF_8);
-     } else if (StarlarkByte.class.isAssignableFrom(c.getClass())) {
-       containerSize = ((StarlarkByte) c).size();
-       bytes = ((StarlarkByte) c).getBytes();
+     } else if (StarlarkBytes.class.isAssignableFrom(c.getClass())) {
+       containerSize = ((StarlarkBytes) c).size();
+       bytes = ((StarlarkBytes) c).getBytes();
      }
 
      if (containerSize != 1 || bytes == null) {
@@ -620,7 +620,7 @@ class MethodLibrary {
         @Param(name = "value", doc = "String value to hash.",
         allowedTypes = {
           @ParamType(type = String.class),
-          @ParamType(type = StarlarkByte.class),
+          @ParamType(type = StarlarkBytes.class),
         })
       })
   public int hash(Object value) throws EvalException {
