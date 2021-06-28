@@ -6,9 +6,9 @@ load("@vendor//iso8583/decoder", Decoder="decoder")
 load("@vendor//iso8583/encoder", Encoder="encoder")
 
 
-def CacaoTestCase_test_decode_encode():
-    payload = bytes(cacao_payload, encoding='ascii')
-    decoded, encoded = Decoder.decode(payload, cacao_specs)
+def Base24TestCase_test_decode_encode():
+    payload = bytes(base24_payload, encoding='ascii')
+    decoded, encoded = Decoder.decode(payload, base24_specs)
 
     asserts.assert_that(decoded['h']).is_equal_to('ISO025000055')
     asserts.assert_that(decoded['t']).is_equal_to('0200')
@@ -22,21 +22,20 @@ def CacaoTestCase_test_decode_encode():
     asserts.assert_that(decoded['123']).is_equal_to('')
     asserts.assert_that(decoded['126']).is_equal_to('& 0000600124! Q100002 9 ! Q200002 09! C000026 603  001          70 100 0! C400012 000000003070! 0400020             Y')
 
-    encoded2_raw, encoded2 = Encoder.encode(decoded, cacao_specs)
-    asserts.assert_that(str(encoded2_raw)).is_equal_to(cacao_payload)
+    encoded2_raw, encoded2 = Encoder.encode(decoded, base24_specs)
+    asserts.assert_that(str(encoded2_raw)).is_equal_to(base24_payload)
 
     decoded['2'] = "4111112345671111"
     decoded['35'] = "4111112345671111=2503"
 
-    encoded3_raw, encoded3 = Encoder.encode(decoded, cacao_specs)
+    encoded3_raw, encoded3 = Encoder.encode(decoded, base24_specs)
     asserts.assert_true("4111112345671111" in str(encoded3_raw))
-    asserts.assert_that(len(str(encoded3_raw))).is_equal_to(len(cacao_payload))
+    asserts.assert_that(len(str(encoded3_raw))).is_equal_to(len(base24_payload))
 
 
-cacao_payload = 'ISO0250000550200F63EC41128F18018000000001000012C164111111111111111000000000000002000000000002000051701530308810020530205162503000000004899010C0000000006493144214111111111111111=250311374422439499999999                       GOOGLE *TEMPORARY HOLDg.co/helppay#   GB254000000000000000000000000009001888260484016VISAB017+000000001900000000000000000001111111222223033DF                       00000000000000117& 0000600124! Q100002 9 ! Q200002 09! C000026 603  001          70 100 0! C400012 000000003070! 0400020             Y'
+base24_payload = 'ISO0250000550200F63EC41128F18018000000001000012C164111111111111111000000000000002000000000002000051701530308810020530205162503000000004899010C0000000006493144214111111111111111=250311374422439499999999                       GOOGLE *TEMPORARY HOLDg.co/helppay#   GB254000000000000000000000000009001888260484016VISAB017+000000001900000000000000000001111111222223033DF                       00000000000000117& 0000600124! Q100002 9 ! Q200002 09! C000026 603  001          70 100 0! C400012 000000003070! 0400020             Y'
 
-# cacao specs are similar to base64 specs
-cacao_specs = {
+base24_specs = {
     "h": {
         "data_enc": "ascii",
         "len_enc": "ascii",
@@ -958,7 +957,7 @@ cacao_specs = {
 
 def _testsuite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(CacaoTestCase_test_decode_encode))
+    _suite.addTest(unittest.FunctionTestCase(Base24TestCase_test_decode_encode))
     return _suite
 
 
