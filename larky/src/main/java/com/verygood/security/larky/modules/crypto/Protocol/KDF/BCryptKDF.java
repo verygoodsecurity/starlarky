@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.crypto.KDF;
+package com.verygood.security.larky.modules.crypto.Protocol.KDF;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

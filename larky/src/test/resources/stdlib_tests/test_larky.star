@@ -14,7 +14,7 @@ def _test_namespace_exposes_larky_builtins():
     :return: None
     """
     items = sorted(dir(larky))
-    asserts.assert_that(items).is_length(10)
+    asserts.assert_that(items).is_length(11)
     asserts.assert_that(items).is_equal_to(sorted([
         "SENTINEL",
         "mutablestruct",
@@ -25,7 +25,8 @@ def _test_namespace_exposes_larky_builtins():
         "WHILE_LOOP_EMULATION_ITERATION",
         "parametrize",
         "is_instance",
-        "translate_bytes"
+        "translate_bytes",
+        "strings"
     ]))
 
 

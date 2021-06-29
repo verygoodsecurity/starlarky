@@ -33,8 +33,6 @@ import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
 import net.starlark.java.eval.Tuple;
 
-import org.apache.commons.text.translate.CharSequenceTranslator;
-
 
 /**
  * A collection of global Larky API functions that mimic python's built-ins, to a certain extent.
@@ -122,6 +120,31 @@ public final class PythonBuiltins {
       );
     }
     return StarlarkInt.of(new BigInteger(bytes).intValueExact());
+  }
+  @StarlarkMethod(
+      name = "bin",
+      doc = "Convert an integer number to a binary string prefixed with '0b'. The result is a " +
+              "valid Python expression. If x is not a Python int object, it has to define" +
+              " an __index__() method that returns an integer.",
+      parameters = {
+          @Param(
+              name = "x",
+              allowedTypes = {
+                  @ParamType(type = StarlarkInt.class),
+              }
+          )
+      }
+  )
+  public String bin(StarlarkInt x) throws EvalException {
+    String prefix = "0b";
+    StringBuilder sb = new StringBuilder();
+    BigInteger value = x.toBigInteger();
+    if(x.signum() == -1) {
+      sb.append('-');
+    }
+    sb.append(prefix);
+    sb.append(value.abs().toString(2));
+    return sb.toString();
   }
 
   @StarlarkMethod(
@@ -284,8 +307,13 @@ public final class PythonBuiltins {
                     @ParamType(type = StarlarkInt.class),
                 }),
         })
-    public String hex(StarlarkInt value) throws EvalException {
-      return CharSequenceTranslator.hex(value.toIntUnchecked()).toLowerCase();
+    public String hex(StarlarkInt number) throws EvalException {
+      String prefix = "0x";
+      StringBuilder sb = new StringBuilder();
+      BigInteger value = number.toBigInteger();
+      sb.append(prefix);
+      sb.append(value.abs().toString(16));
+      return sb.toString();
     }
 
 

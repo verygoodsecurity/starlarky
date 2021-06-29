@@ -29,12 +29,12 @@ public class RegexMatcher implements StarlarkValue {
    * The Pattern object that created this Matcher.
    */
   private RegexPattern parentPattern;
-  private final String input;
+  private final CharSequence input;
 
   private int lastMatchStart;
   private int lastMatchEnd;
 
-  RegexMatcher(RegexPattern parentPattern, Matcher matcher, String input) {
+  RegexMatcher(RegexPattern parentPattern, Matcher matcher, CharSequence input) {
     this.matcher = matcher;
     this.parentPattern = parentPattern;
     this.input = input;
