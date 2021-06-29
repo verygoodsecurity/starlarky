@@ -1,0 +1,21 @@
+.flex-container {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-script {
+  width: 60%;
+  height: 600px;
+  margin: 5px;
+  padding: 5px;
+  border: 2px solid grey;
+}
+
+.flex-result {
+  width: 40%;
+  height: 600px;
+  margin: 5px;
+  padding: 5px;
+  border: 2px solid grey;
+}
+
