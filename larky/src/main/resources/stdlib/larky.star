@@ -132,6 +132,13 @@ def translate_bytes(s, original, replace):
     return bytes(translated)
 
 
+def _zfill(x, leading=4):
+    if len(str(x)) < leading:
+        return (('0' * leading) + str(x))[-leading:]
+    else:
+        return str(x)
+
+
 larky = _struct(
     struct=_struct,
     mutablestruct=_mutablestruct,
@@ -143,4 +150,7 @@ larky = _struct(
     parametrize=_parametrize,
     is_instance=_is_instance,
     translate_bytes=translate_bytes,
+    strings=_struct(
+        zfill=_zfill,
+    ),
 )

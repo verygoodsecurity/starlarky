@@ -3,6 +3,8 @@ package com.verygood.security.larky.modules.crypto;
 import static org.junit.Assert.assertArrayEquals;
 
 import com.google.common.primitives.Bytes;
+import java.nio.charset.StandardCharsets;
+import java.security.Security;
 
 import com.verygood.security.larky.modules.utils.ByteArrayUtil;
 
@@ -13,9 +15,6 @@ import org.bouncycastle.util.encoders.Hex;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.nio.charset.StandardCharsets;
-import java.security.Security;
-
 public class CryptoProtocolModuleTest {
 
   @BeforeClass
@@ -25,13 +24,6 @@ public class CryptoProtocolModuleTest {
       }
     }
 
-/*
-  def t2b(t):
-      if t is None:
-          return None
-      t2 = t.replace(" ", "").replace("\n", "")
-      return unhexlify(b(t2))
-  */
   public byte[] t2b(String t) {
     if(t == null) {
       return null;
@@ -40,6 +32,44 @@ public class CryptoProtocolModuleTest {
     return Hex.decode(t2.getBytes(StandardCharsets.UTF_8));
   }
 
+  @Test
+  public void PBKDF2() throws Exception {
+    /**
+      List of tuples with test data.
+      Each tuple is made up by:
+            Item #0: a pass phrase
+            Item #1: salt (encoded in hex)
+            Item #2: output key length
+            Item #3: iterations to use
+            Item #4: hash module
+            Item #5: expected result (encoded in hex)
+     */
+    Object[][] _testData = new Object[][]{
+      // From http://www.di-mgt.com.au/cryptoKDFs.html#examplespbkdf
+      {"password","78578E5A5D63CB06", 24, 2048, "SHA1" ,"BFDE6BE94DF7E11DD409BCE20A0255EC327CB936FFE93643"},
+      // From RFC 6050
+      {"password", "73616c74", 20, 1, "SHA1" ,"0c60c80f961f0e71f3a9b524af6012062fe037a6"},
+      {"password", "73616c74", 20, 2, "SHA1" ,"ea6c014dc72d6f8ccd1ed92ace1d41f0d8de8957"},
+      {"password", "73616c74", 20, 4096, "SHA1", "4b007901b765489abead49d926f721d065a429c1"},
+      {"passwordPASSWORDpassword","73616c7453414c5473616c7453414c5473616c7453414c5473616c7453414c5473616c74", 25, 4096, "SHA1" ,"3d2eec4fe41c849b80c8d83662c0e44a8b291a964cf2f07038"},
+      {"pass\0word", "7361006c74", 16, 4096, "SHA1", "56fa6aa75548099dcc37d7f03425e0c3"},
+      // From draft-josefsson-scrypt-kdf-01, Chapter 10
+      {"passwd", "73616c74", 64, 1, "SHA256", "55ac046e56e3089fec1691c22544b605f94185216dde0465e68b9d57c20dacbc49ca9cccf179b645991664b39d77ef317c71b845b1e30bd509112041d3a19783"},
+      {"Password", "4e61436c", 64, 80000, "SHA256" ,"4ddcd8f60b98be21830cee5ef22701f9641a4418d04c0414aeff08876b34ab56a1d425a1225833549adb841b51c9b3176a272bdebba1d078478f62b397f33c8d"},
+    };
+
+    for (Object[] tcase : _testData) {
+      byte[] bytes = CryptoProtocolModule.INSTANCE.PBKDF2(
+        /*password*/ ((String) tcase[0]).toCharArray(),
+        /*salt*/ t2b((String) tcase[1]),
+        /*dkLen*/ (int) tcase[2],
+        /*count*/ (int) tcase[3],
+        /*prfO*/ null,
+        /*hmacHashModuleO*/ tcase[4]
+      );
+      assertArrayEquals(bytes, t2b((String) tcase[5]));
+    }
+  }
 
   @Test
   public void PBKDF1() throws EvalException {

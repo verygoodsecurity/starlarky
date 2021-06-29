@@ -42,7 +42,7 @@ def SHA3_256_Hash(data=None, update_after_digest=False):
 
         :ivar digest_size: the size in bytes of the resulting hash
         :vartype digest_size: integer
-    
+
     """
     def __init__(data, update_after_digest):
         """
@@ -67,7 +67,7 @@ def SHA3_256_Hash(data=None, update_after_digest=False):
 
                 Args:
                     data (byte string/byte array/memoryview): The next chunk of the message being hashed.
-        
+
         """
         if self._digest_done and not self._update_after_digest:
             fail('TypeError("You can only call \'digest\' or \'hexdigest\' on this object")')
@@ -84,7 +84,7 @@ def SHA3_256_Hash(data=None, update_after_digest=False):
                 :return: The hash digest, computed over the data processed so far.
                          Binary form.
                 :rtype: byte string
-        
+
         """
         self._digest_done = True
         return self._state.digest()
@@ -97,7 +97,7 @@ def SHA3_256_Hash(data=None, update_after_digest=False):
                 :return: The hash digest, computed over the data processed so far.
                          Hexadecimal encoded.
                 :rtype: string
-        
+
         """
         return codecs.decode(hexlify(self.digest()), encoding='utf-8')
     self.hexdigest = hexdigest
@@ -112,7 +112,7 @@ def SHA3_256_Hash(data=None, update_after_digest=False):
                 share a common initial substring.
 
                 :return: A hash object of the same type
-        
+
         """
         h = SHA3_256_Hash()
         h._state = self._state.copy()
@@ -140,7 +140,7 @@ def new(*args, **kwargs):
                 (default: ``False``).
 
         :Return: A :class:`SHA3_256_Hash` hash object
-    
+
     """
 
     data = kwargs.pop("data", None)
@@ -160,4 +160,5 @@ SHA3_256 = larky.struct(
     digest_size=digest_size,
     block_size=block_size,
     new=new,
+    __name__ = 'SHA3_256',
 )
