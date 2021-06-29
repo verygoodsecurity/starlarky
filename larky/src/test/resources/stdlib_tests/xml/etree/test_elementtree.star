@@ -8,7 +8,6 @@ load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
 load("@vendor//asserts", "asserts")
 load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
 
-
 def _bytes(s):
     return builtins.bytes(s, encoding='utf-8')
 
@@ -53,7 +52,7 @@ def _test_xpath():
     
     parser = SimpleXMLTreeBuilder.TreeBuilder()
     tree = parse(
-        '<doc level="A"><one level="B">One</one><two level="B">Two</two>hm<three>Three</three></doc>',
+        '<doc level="A"><one updated="Y">One</one><two updated="N">Two</two>hm<three>Three</three></doc>',
         parser
     )
     root = tree.getroot()
@@ -66,10 +65,12 @@ def _test_xpath():
     asserts.eq('One', root.findall("./one")[0].text)
     # test attrib
     asserts.eq('A', root.findall(".")[0].attrib['level'])
-    # print('child attrib xpath:', root.findall("./two")[0].attrib)
+    asserts.eq('Y', root.findall("./")[0].attrib['updated'])
+    asserts.eq('N', root.findall("./two")[0].attrib['updated'])
+
 
     tree = parse(
-        '<data><actress name="Jenny"><tv>5</tv><born>1989</born></actress><actor name="Tim"><tv>3</tv><born>1990</born></actor><actor name="John"><film>8</film><born>1984</born></actor></data>',
+        '<data><actress name="Jenny"><tv>5</tv><born>1989</born></actress><actor name="Tim"><tv updated="Yes">3</tv><born>1990</born></actor><actor name="John"><film>8</film><born>1984</born></actor></data>',
         parser
     )
     root = tree.getroot()
@@ -87,12 +88,47 @@ def _test_xpath():
     asserts.eq(1, len(root.findall("./actress[1]")))
     asserts.eq('1984', root.findall("./actor[2]/born")[0].text)
     asserts.eq('8', root.findall("./actor/film[1]")[0].text)
+    # test search by attrib
+    asserts.eq('3', root.findall("./actor/*[@updated='Yes']")[0].text)
+    asserts.eq('actress', root.findall(".//*[@name='Jenny']")[0].tag)
+
+
+def _test_update_and_serialize():
+    parser = SimpleXMLTreeBuilder.TreeBuilder()
+    data = ''.join(['<data xmlns:x="http://example.com/ns/foo">nonetag<teacher name="Jenny"><born>1983</born></teacher>teachertail<x:p/>ptail',
+    '<student name="Tim"><performance><Grade>A+</Grade></performance><info><born>2005</born></info></student>',
+    '<student name="John"><performance><Grade>B</Grade></performance><info><born>2004</born>birthtail</info>infotail</student></data>'])
+
+    tree = parse(data, parser)
+    root = tree.getroot()
+
+    # test update node text
+    root.findall(".//*[@name='John']/performance/Grade")[0].text = 'A-'
+    c = ElementTree.Comment('some comment')
+    pi = ElementTree.ProcessingInstruction('Here are instuctions')
+
+    root.append(c)
+    root.append(pi)
+    
+    # order of nodes on the same level is reversed but vertical nested order is correct
+    expected_xml = ''.join(['<?xml version="1.0" encoding="utf-8"?>\n',
+    '<data xmlns:ns0="http://example.com/ns/foo">nonetag<?Here are instuctions?><!--some comment-->',
+    '<student name="John"><info><born>2004</born>birthtail</info>infotail<performance><Grade>A-</Grade></performance></student>',
+    '<student name="Tim"><info><born>2005</born></info><performance><Grade>A+</Grade></performance></student>',
+    '<ns0:p />ptail<teacher name="Jenny"><born>1983</born></teacher>teachertail</data>'])
+
+    asserts.eq(expected_xml, ElementTree.tostring(root,  encoding ='utf-8', xml_declaration=True))
+    # print('to string:', ElementTree.tostring(root))
+    # test serialize on subelement and update attribute
+    root.findall('.//')[2].set("name", "Jim")
+    asserts.eq('<student name="Jim"><info><born>2005</born></info><performance><Grade>A+</Grade></performance></student>', ElementTree.tostring(root.findall('.//')[2]))
 
 
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_elementtree))
     _suite.addTest(unittest.FunctionTestCase(_test_xpath))
+    _suite.addTest(unittest.FunctionTestCase(_test_update_and_serialize))
     return _suite
 
 
