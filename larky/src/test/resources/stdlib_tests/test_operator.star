@@ -399,7 +399,7 @@ def OperatorTestCase_test_attrgetter():
     asserts.assert_fails(lambda : f(a, 'dent'), ".*?accepts no more than 1 positional argument")
     asserts.assert_fails(lambda : f(a, surname='dent'), ".*?got unexpected keyword argument")
     f = operator.attrgetter('rank')
-    asserts.assert_fails(lambda : f(a), ".*?value has no field or method")
+    asserts.assert_fails(lambda : f(a), ".*?has no field or method 'rank'")
     asserts.assert_fails(lambda : operator.attrgetter(2), ".*?TypeError")
     asserts.assert_fails(lambda : operator.attrgetter(), ".*?TypeError: attrgetter expected 1 argument")
 

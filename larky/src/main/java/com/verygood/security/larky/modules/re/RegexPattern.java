@@ -2,17 +2,22 @@ package com.verygood.security.larky.modules.re;
 
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Map;
+
+import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkByte;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkValue;
-
-import java.util.ArrayList;
-import java.util.Arrays;
 
 // java <> larky objects
 public class RegexPattern implements StarlarkValue {
@@ -47,6 +52,15 @@ public class RegexPattern implements StarlarkValue {
   protected RegexPattern pattern(Pattern pattern) {
     this.pattern = pattern;
     return this;
+  }
+
+  public Map<String, Integer> namedGroups() {
+    return pattern.namedGroups();
+  }
+
+  @Override
+  public void str(Printer printer) {
+    printer.append(pattern.toString());
   }
 
   @StarlarkMethod(
@@ -116,11 +130,131 @@ public class RegexPattern implements StarlarkValue {
           @Param(
               name = "input",
               allowedTypes = {
-                  @ParamType(type = String.class),
+                @ParamType(type = String.class),
+                @ParamType(type = StarlarkByte.class),
+                @ParamType(type = LarkyByteLike.class),
               })
       })
-  public RegexMatcher matcher(String input) {
-    return new RegexMatcher(pattern.matcher(input), this);
+  public RegexMatcher matcher(Object inputO) throws EvalException {
+    if(String.class.isAssignableFrom(inputO.getClass())) {
+      String input = (String) inputO;
+      return new RegexMatcher(this, pattern.matcher(input), input);
+    }
+
+    byte[] input;
+    if (StarlarkByte.class.isAssignableFrom(inputO.getClass())) {
+      input = ((StarlarkByte) inputO).getBytes();
+    } else if(LarkyByteLike.class.isAssignableFrom(inputO.getClass())) {
+      input = ((LarkyByteLike) inputO).getBytes();
+    } else {
+      throw new EvalException("Invalid larky byte type! " + inputO.getClass());
+    }
+    return new RegexMatcher(this, pattern.matcher(input), new ByteArrayCharSequence(input));
+  }
+
+  static class ByteArrayCharSequence implements CharSequence {
+    public static final byte[] EMPTY_ARRAY = {};
+
+    /** The underlying byte array. */
+    	private byte[] b;
+    	/** The first valid byte in {@link #b}. */
+    	private int offset;
+    	/** The number of valid bytes in {@link #b}, starting at {@link #offset}. */
+    	private int length;
+
+    	/** Creates a new byte-array character sequence using the provided byte-array fragment.
+    	 *
+    	 * @param b a byte array.
+    	 * @param offset the first valid byte in <code>b</code>.
+    	 * @param length the number of valid bytes in <code>b</code>, starting at <code>offset</code>.
+    	 */
+    	public ByteArrayCharSequence(final byte[] b, int offset, int length) {
+    		wrap(b, offset, length);
+    	}
+
+    	/** Creates a new byte-array character sequence using the provided byte array.
+    	 *
+    	 * @param b a byte array.
+    	 */
+    	public ByteArrayCharSequence(final byte[] b) {
+    		this(b, 0, b.length);
+    	}
+
+    	/** Creates a new empty byte-array character sequence.
+    	 */
+    	public ByteArrayCharSequence() {
+    		this(EMPTY_ARRAY);
+    	}
+
+    	/** Wraps a byte-array fragment into this byte-array character sequence.
+    	 *
+    	 * @param b a byte array.
+    	 * @param offset the first valid byte in <code>b</code>.
+    	 * @param length the number of valid bytes in <code>b</code>, starting at <code>offset</code>.
+    	 * @return this byte-array character sequence.
+    	 */
+    	public ByteArrayCharSequence wrap(final byte[] b, int offset, int length) {
+          ensureOffsetLength(b.length, offset, length);
+          this.b = b;
+          this.offset = offset;
+          this.length = length;
+          return this;
+    	}
+    /** Ensures that a range given by an offset and a length fits an array of given length.
+    	 *
+    	 * <p>This method may be used whenever an array range check is needed.
+    	 *
+    	 * @param arrayLength an array length.
+    	 * @param offset a start index for the fragment
+    	 * @param length a length (the number of elements in the fragment).
+    	 * @throws IllegalArgumentException if {@code length} is negative.
+    	 * @throws ArrayIndexOutOfBoundsException if {@code offset} is negative or {@code offset}+{@code length} is greater than {@code arrayLength}.
+    	 */
+    	public static void ensureOffsetLength(final int arrayLength, final int offset, final int length) {
+    		if (offset < 0) throw new ArrayIndexOutOfBoundsException("Offset (" + offset + ") is negative");
+    		if (length < 0) throw new IllegalArgumentException("Length (" + length + ") is negative");
+    		if (offset + length > arrayLength) throw new ArrayIndexOutOfBoundsException("Last index (" + (offset + length) + ") is greater than array length (" + arrayLength + ")");
+    	}
+
+    	/** Wraps a byte array into this byte-array character sequence.
+    	 *
+    	 * @param b a byte array.
+    	 */
+    	public void wrap(final byte[] b) {
+    		wrap(b, 0, b.length);
+    	}
+
+    	@Override
+    	public int length() {
+    		return length;
+    	}
+
+    	@Override
+    	public char charAt(int index) {
+    		if (index < 0 || index >= length) throw new IndexOutOfBoundsException(Integer.toString(index));
+    		return (char)(b[offset + index] & 0xFF);
+    	}
+
+    	@Override
+    	public CharSequence subSequence(int start, int end) {
+    		if (start < 0 || end > length || end < 0 || end < start) throw new IndexOutOfBoundsException();
+    		return new ByteArrayCharSequence(b, start + offset, end - start);
+    	}
+
+    	@Override
+    	public String toString() {
+    		final StringBuilder builder = new StringBuilder();
+    		for(int i = 0; i < length; i++) builder.append((char)(b[offset + i] & 0xFF));
+    		return builder.toString();
+    	}
+
+    	@Override
+        public int hashCode() {
+        	int h = 0;
+        	for (int i = 0; i < length; i++) h = 31 * h + b[offset + i];
+            return h;
+        }
+
   }
 
   @StarlarkMethod(
