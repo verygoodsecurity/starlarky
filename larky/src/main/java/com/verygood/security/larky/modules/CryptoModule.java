@@ -5,7 +5,6 @@ import java.security.Security;
 import com.verygood.security.larky.modules.crypto.CryptoCipherModule;
 import com.verygood.security.larky.modules.crypto.CryptoHashModule;
 import com.verygood.security.larky.modules.crypto.CryptoIOModule;
-import com.verygood.security.larky.modules.crypto.CryptoJWEModule;
 import com.verygood.security.larky.modules.crypto.CryptoMathModule;
 import com.verygood.security.larky.modules.crypto.CryptoProtocolModule;
 import com.verygood.security.larky.modules.crypto.CryptoPublicKeyModule;
