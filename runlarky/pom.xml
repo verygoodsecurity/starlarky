@@ -33,10 +33,10 @@
         <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
         <starlarky.version>1.0-SNAPSHOT</starlarky.version>
         <org.projectlombok.version>1.18.20</org.projectlombok.version>
-        <quarkus-plugin.version>1.8.3.Final</quarkus-plugin.version>
+        <quarkus-plugin.version>1.13.7.Final</quarkus-plugin.version>
         <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
-        <quarkus.platform.version>1.8.3.Final</quarkus.platform.version>
+        <quarkus.platform.version>1.13.7.Final</quarkus.platform.version>
     </properties>
 
     <dependencyManagement>

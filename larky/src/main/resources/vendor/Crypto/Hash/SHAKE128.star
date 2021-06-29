@@ -115,5 +115,6 @@ def new(data=None):
 SHAKE128 = larky.struct(
     SHAKE128=SHAKE128_XOF,
     new=new,
+    __name__ = 'SHAKE128',
 )
 

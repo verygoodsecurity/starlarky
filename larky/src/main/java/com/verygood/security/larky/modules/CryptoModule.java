@@ -5,7 +5,6 @@ import java.security.Security;
 import com.verygood.security.larky.modules.crypto.CryptoCipherModule;
 import com.verygood.security.larky.modules.crypto.CryptoHashModule;
 import com.verygood.security.larky.modules.crypto.CryptoIOModule;
-import com.verygood.security.larky.modules.crypto.CryptoJWEModule;
 import com.verygood.security.larky.modules.crypto.CryptoMathModule;
 import com.verygood.security.larky.modules.crypto.CryptoProtocolModule;
 import com.verygood.security.larky.modules.crypto.CryptoPublicKeyModule;
@@ -80,7 +79,4 @@ public class CryptoModule implements StarlarkValue {
 
   @StarlarkMethod(name="Util", structField = true)
   public CryptoUtilModule Util()  { return CryptoUtilModule.INSTANCE; }
-
-  @StarlarkMethod(name="JWE", structField = true)
-  public CryptoJWEModule JWE() {return CryptoJWEModule.INSTANCE; }
 }

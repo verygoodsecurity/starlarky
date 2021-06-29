@@ -399,16 +399,21 @@ def _encode_field(doc_dec, doc_enc, field_key, spec):
         # BCD LLVAR length \x99 must be string "99"
         # BCD LLLVAR length \x09\x99 must be string "0999"
         # BCD LLLLVAR length \x99\x99 must be string "9999"
+        # "{:0{len_type}d}".format(enc_field_len, len_type=len_type * 2)
+        enc_field_len_str = str(enc_field_len)
+        if (len_type * 2) > len(enc_field_len_str):
+            padding = "0" * ((len_type * 2) - len(enc_field_len_str))
+            enc_field_len_str = padding + enc_field_len_str
         # TODO use unhexlify
         doc_enc[field_key]["len"] = bytes.fromhex(
-            # "{:0{len_type}d}".format(enc_field_len, len_type=len_type * 2)
-            "{enc_field_len}".format(enc_field_len=enc_field_len)
+            enc_field_len_str
         )
     else:
         # "{:0{len_type}d}".format(enc_field_len, len_type=len_type),
-        enc_field_len_str = "{enc_field_len}".format(enc_field_len=enc_field_len)
-        if len_type > len(str(enc_field_len)):
-            enc_field_len_str = "0{enc_field_len}".format(enc_field_len=enc_field_len_str)
+        enc_field_len_str = str(enc_field_len)
+        if len_type > len(enc_field_len_str):
+            padding = "0" * (len_type - len(enc_field_len_str))
+            enc_field_len_str = padding + enc_field_len_str
         doc_enc[field_key]["len"] = bytes(
             enc_field_len_str,
             spec[field_key]["len_enc"],
