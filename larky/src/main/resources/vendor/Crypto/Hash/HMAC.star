@@ -260,5 +260,6 @@ def _constant_time_compare(val1, val2):
 
 HMAC = larky.struct(
     new = new,
-    compare_digest=_constant_time_compare
+    compare_digest=_constant_time_compare,
+    __name__ = 'HMAC',
 )
