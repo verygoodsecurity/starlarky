@@ -80,7 +80,4 @@ public class CryptoModule implements StarlarkValue {
 
   @StarlarkMethod(name="Util", structField = true)
   public CryptoUtilModule Util()  { return CryptoUtilModule.INSTANCE; }
-
-  @StarlarkMethod(name="JWE", structField = true)
-  public CryptoJWEModule JWE() {return CryptoJWEModule.INSTANCE; }
 }
