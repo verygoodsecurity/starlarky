@@ -2,7 +2,6 @@ package com.verygood.security.larky.modules.types.results;
 
 import java.util.Objects;
 
-import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 
 public class Ok implements Result {
@@ -36,8 +35,13 @@ public class Ok implements Result {
   }
 
   @Override
-  public void str(Printer printer) {
+  public void repr(Printer printer) {
     printer.append(this.toString());
+  }
+
+  @Override
+  public void str(Printer printer) {
+    printer.append(String.valueOf(value));
   }
 
   @Override
@@ -46,7 +50,7 @@ public class Ok implements Result {
   }
 
   @Override
-  public EvalException getError() {
+  public Error getError() {
     return null;
   }
 

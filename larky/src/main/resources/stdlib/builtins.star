@@ -73,6 +73,25 @@ def _bytearray(source, encoding='utf-8', errors='strict'):
     return bytearray(source, encoding, errors)
 
 
+def _sum(nums,*args,**kwargs):
+    if(kwargs and args):
+      msg = "TypeError: sum() expects at most 2 arguments (" + str(len(args)+len(kwargs)+1) + " given)"
+      fail(msg)
+    elif len(args) > 1:
+      msg = "TypeError: sum() expects at most 2 arguments (" + str(len(args)+1) + " given)"
+      fail(msg)
+    else:
+      if 'start' in kwargs:
+        s = kwargs['start']
+      elif args: 
+        s = args[0]
+      else: 
+        s = 0
+      for num in nums:
+        s += num
+      return s
+
+
 def iter(o, sentinel=None):
     """
     Return an iterator object.
@@ -114,39 +133,15 @@ def map(func, iterable):
     return [func(x) for x in iterable]
 
 
-#move to larky
-def _translate(s, original, replace):
-    if not types.is_bytelike(s):
-        fail('TypeError: expected bytes, not %s' % type(s))
-    original_arr = bytearray(original)
-    replace_arr = bytearray(replace)
-
-    if len(original_arr) != len(replace_arr):
-        fail('Original and replace bytes should be same in length')
-    translated = bytearray()
-    replace_dics = dict()
-
-    for i in range(len(original_arr)):
-        replace_dics[original_arr[i]] = replace_arr[i]
-    content_arr = bytearray(s)
-
-    for c in content_arr:
-        if c in replace_dics.keys():
-            translated += bytearray([replace_dics[c]])
-        else:
-            translated += bytearray([c])
-    return bytes(translated)
-
-
 # TODO: should we move this to starlark?
 # list of functions from: https://docs.python.org/3/library/functions.html
 builtins = larky.struct(
     bytes=_bytes,
     b=_bytes,
     bytearray=_bytearray,
+    sum=_sum,
     abs=abs,
     pow=pow,
     iter=iter,
-    map=map,
-    translate=_translate
+    map=map
 )

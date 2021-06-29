@@ -3,7 +3,7 @@ package com.verygood.security.larky.modules.crypto;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.FluentLogger;
 
-import com.verygood.security.larky.modules.crypto.KDF.BCryptKDF;
+import com.verygood.security.larky.modules.crypto.Protocol.KDF.BCryptKDF;
 import com.verygood.security.larky.modules.crypto.Util.CryptoUtils;
 import com.verygood.security.larky.modules.types.LarkyByte;
 import com.verygood.security.larky.modules.types.LarkyByteLike;

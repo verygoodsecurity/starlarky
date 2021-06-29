@@ -27,16 +27,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
-load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bchr="bchr")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
+load("@stdlib//builtins","builtins")
 load("@stdlib//codecs", codecs="codecs")
+load("@stdlib//larky", larky="larky")
+load("@stdlib//unittest","unittest")
 load("@vendor//Crypto/Cipher/AES", AES="AES")
 load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
 load("@vendor//Crypto/Hash/SHAKE128", SHAKE128="SHAKE128")
+load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bchr="bchr")
 load("@vendor//Crypto/Util/strxor", strxor="strxor", strxor_c="strxor_c")
 load("@vendor//asserts","asserts")
-load("@stdlib//builtins","builtins")
-load("@stdlib//unittest","unittest")
 
 
 def get_tag_random(tag, length):
@@ -703,21 +704,13 @@ def TestVectorsGueronKrasnov_test_2():
     asserts.assert_that(digest).is_equal_to(digest2)
 
 
-# TODO(mahmoudimus): put this somewhere in a shared utility class
-def zfill(x, leading=4):
-    if len(str(x)) < leading:
-        return (('0' * leading) + str(x))[-leading:]
-    else:
-        return str(x)
-
-
 def TestVariableLength_runTest():
     _extra_params = {}
     key = bytes([0x30]) * 16
     h = SHA256.new()
 
     for length in range(160):
-        nonce = codecs.encode(zfill(length), encoding='utf-8')
+        nonce = codecs.encode(larky.strings.zfill(length), encoding='utf-8')
         data = bchr(length) * length
         cipher = AES.new(key, AES.MODE_GCM, nonce=nonce, **_extra_params)
         ct, tag = cipher.encrypt_and_digest(data)

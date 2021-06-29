@@ -33,7 +33,8 @@ def _test_safe_failure():
 
 def _test_api():
     f = Result.Ok(1)
-    asserts.assert_that(str(f)).is_equal_to("Ok{1}")
+    asserts.assert_that(str(f)).is_equal_to("1")
+    asserts.assert_that(repr(f)).is_equal_to("Ok{1}")
     asserts.assert_that(f.map(lambda x: x + x).unwrap()).is_equal_to(2)
     asserts.assert_true(f.is_ok)
     asserts.assert_false(f.is_err)
@@ -41,7 +42,8 @@ def _test_api():
     ##
 
     d = Result.Error("oh no!")
-    asserts.assert_that(str(d)).is_equal_to("Error{oh no!}")
+    asserts.assert_that(str(d)).is_equal_to("oh no!")
+    asserts.assert_that(repr(d)).is_equal_to("Error{oh no!}")
     asserts.assert_false(d.is_ok)
     asserts.assert_true(d.is_err)
 
@@ -122,8 +124,185 @@ def test_le_ge(o1, o2):
     asserts.assert_true(o1 >= o2)
 
 
+def test_try_statement_workaround():
+
+    def foo_s_try():
+        one_plus_one = 1+1
+        two_plus_one = 2+1
+        return two_plus_one / one_plus_one
+
+    def foo_s_failz():
+        return 1 / 0
+
+    def foo_s_Exception(rval):
+        # print(type(rval))
+        # print(rval) here has the entire stacktrace too...wow!
+        return Result.Error("FAILURE!")
+
+    def foo_s_else(rval):
+        # never got here
+        # print(rval)
+        return rval  # have to make sure a return get here!
+
+    def foo_s_finally(rval):
+        # print('hallo')
+        return rval  # have to make sure a returns happens!
+
+    r = Result.try_(foo_s_try)\
+       .except_(foo_s_Exception)\
+       .else_(foo_s_else)\
+       .finally_(foo_s_finally)\
+       .build()
+
+    asserts.assert_that(r.unwrap()).is_equal_to(1.5)
+
+    r = Result.try_(foo_s_failz)\
+       .except_(foo_s_Exception)\
+       .else_(foo_s_else)\
+       .finally_(foo_s_finally)\
+       .build()
+    asserts.assert_true(Result.error_is("FAILURE", r))
+
+
+def test_invalid_transitions():
+
+    def foo_s_try():
+        one_plus_one = 1+1
+        two_plus_one = 2+1
+        return two_plus_one / one_plus_one
+
+    def foo_s_Exception1(rval):
+        return rval
+
+    def foo_s_else(rval):
+        return rval
+
+    def foo_s_finally(rval):
+        return rval  # have to make sure a returns happens!
+
+    def invalid_try_else_transition():
+        return Result.try_(foo_s_try)\
+            .else_(foo_s_else)\
+            .build()
+
+    asserts.assert_fails(
+        invalid_try_else_transition,
+        "Invalid state transition: TRY => ELSE. The try builder was " +
+        "constructed in the wrong order. The next valid state transitions " +
+        "allowed are: TRY => EXCEPT, TRY => FINALLY")
+
+    def invalid_try_except_finally_else_transition():
+        return Result.try_(foo_s_try)\
+            .except_(foo_s_Exception1)\
+            .finally_(foo_s_finally)\
+            .else_(foo_s_else)\
+            .build()
+
+    asserts.assert_fails(
+        invalid_try_except_finally_else_transition,
+        "Invalid state transition: FINALLY => ELSE.*")
+
+    def invalid_transition_after_build():
+        return Result.try_(foo_s_try)\
+            .except_(foo_s_Exception1)\
+            .build()\
+            .finally_(foo_s_finally)
+
+    asserts.assert_fails(
+        invalid_transition_after_build,
+        ".*value has no field or method 'finally_'")
+
+    def invalid_multiple_elses():
+        # only thing that can be done multiple times is except_
+        return Result.try_(foo_s_try)\
+            .except_(foo_s_Exception1)\
+            .except_(foo_s_Exception1)\
+            .else_(foo_s_else)\
+            .else_(foo_s_else)\
+            .build()\
+
+    asserts.assert_fails(
+        invalid_multiple_elses,
+        "Invalid state transition: ELSE => ELSE.*")
+
+    def invalid_multiple_finally():
+        # only thing that can be done multiple times is except_
+        return Result.try_(foo_s_try)\
+            .except_(foo_s_Exception1)\
+            .except_(foo_s_Exception1)\
+            .else_(foo_s_else)\
+            .finally_(foo_s_finally)\
+            .finally_(foo_s_finally)\
+            .build()\
+
+    asserts.assert_fails(
+        invalid_multiple_finally,
+        "Invalid state transition: FINALLY => FINALLY.*")
+
+
+def test_try_transitions():
+    steps = []
+
+    def foo_s_try():
+        one_plus_one = 1+1
+        two_plus_one = 2+1
+        return two_plus_one / one_plus_one
+
+    def foo_s_failz():
+        return 1 / 0
+
+    def foo_s_Exception1(rval):
+        steps.append('exception')
+        return rval
+
+    def foo_s_else(rval):
+        steps.append('else')
+        return rval
+
+    def foo_s_finally(rval):
+        steps.append('finally')
+        return rval  # have to make sure a returns happens!
+
+    def _basic_transitions_success():
+        """
+        Exception will not be called here b/c success will call else => finally
+        """
+        return Result.try_(foo_s_try)\
+            .except_(foo_s_Exception1)\
+            .except_(foo_s_Exception1)\
+            .else_(foo_s_else)\
+            .finally_(foo_s_finally)\
+            .build()
+
+    rval = _basic_transitions_success()
+    asserts.assert_that(steps).is_equal_to(
+        ["else", "finally"]
+    )
+
+    steps.clear()
+
+    def _basic_transitions_failure():
+        """
+        Else will not be called here b/c error will call exception => finally
+        """
+        return Result.try_(foo_s_failz)\
+         .except_(foo_s_Exception1)\
+         .except_(foo_s_Exception1)\
+         .else_(foo_s_else)\
+         .finally_(foo_s_finally)\
+         .build()
+
+    rval = _basic_transitions_failure()
+    asserts.assert_that(steps).is_equal_to(
+        ["exception", "exception", "finally"]
+    )
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
+    _suite.addTest(unittest.FunctionTestCase(test_invalid_transitions))
+    _suite.addTest(unittest.FunctionTestCase(test_try_transitions))
+    _suite.addTest(unittest.FunctionTestCase(test_try_statement_workaround))
     _suite.addTest(unittest.FunctionTestCase(_test_api))
 
     _suite.addTest(unittest.FunctionTestCase(_test_safe_success))
@@ -151,7 +330,10 @@ def _testsuite():
         _suite.addTest,
         unittest.FunctionTestCase,
         "obj,call,exp",
-        [(Result.Ok(1), str, Result.Ok(1)), (Result.Error(1), str, Result.Error("1"))],
+        [
+            (Result.Ok(1), str, Result.Ok(1)),
+            (Result.Error(1), str, Result.Error("1"))
+        ],
     )(_test_map_err)
 
     larky.parametrize(

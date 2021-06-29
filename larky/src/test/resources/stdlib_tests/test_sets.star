@@ -199,8 +199,25 @@ def _repr_str_test():
     asserts.eq("[1, 2]", sets.str(sets.make([1, 2])))
 
 
+def _test_set_factory():
+    s = sets.Set([1, 2, 3])
+    asserts.eq(s.remove(3)._data, [1, 2])
+    asserts.eq(s.to_list(), [1, 2])
+    s2 = s.union(sets.Set([1,4,5]))
+    asserts.eq(s2.to_list(), [1, 2, 4, 5])
+    # original s is not changed
+    asserts.eq(s.to_list(), [1, 2])
+    s3 = s.update(sets.Set([1,4,5]))
+    # original s *IS* changed.
+    asserts.eq(s3.to_list(), s2.to_list())
+    asserts.eq(s3.to_list(), s.to_list())
+
+
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
+    _suite.addTest(unittest.FunctionTestCase(_test_set_factory))
     _suite.addTest(unittest.FunctionTestCase(_is_equal_test))
     _suite.addTest(unittest.FunctionTestCase(_is_subset_test))
     _suite.addTest(unittest.FunctionTestCase(_disjoint_test))

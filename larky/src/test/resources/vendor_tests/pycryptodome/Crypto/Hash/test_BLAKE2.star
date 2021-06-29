@@ -181,12 +181,12 @@ def Blake2Test_test_oid():
         asserts.assert_that(h.oid).is_equal_to(prefix + str(digest_bits // 8))
 
         h = BLAKE2.new(digest_bits=digest_bits, key=bytes([0x73, 0x65, 0x63, 0x72, 0x65, 0x74]))
-        asserts.assert_fails(lambda: h.oid, ".*?value has no field or method")
+        asserts.assert_fails(lambda: h.oid, ".*?has no field or method 'oid'")
 
     for digest_bits in (8, max_bits):
         if digest_bits in digest_bits_oid:
             continue
-        asserts.assert_fails(lambda: h.oid, ".*?value has no field or method")
+        asserts.assert_fails(lambda: h.oid, ".*?has no field or method 'oid'")
 
 
 def Blake2Test_test_bytearray():

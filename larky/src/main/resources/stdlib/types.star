@@ -14,6 +14,8 @@
 """Skylib module containing functions checking types."""
 load("@stdlib/larky", "larky")
 
+_is_instance = larky.is_instance
+
 # create instance singletons to avoid unnecessary allocations
 _a_bool_type = type(True)
 _a_dict_type = type({})
@@ -186,20 +188,6 @@ def _MethodType(func, instance):
     :return:
     """
     return larky.partial(func, instance)
-
-
-def _is_instance(instance, some_class):
-    t = type(instance)
-    cls_type = str(some_class)
-    if 'built-in' in cls_type or '<function ' in cls_type:
-        cls_type = cls_type.split(" ")[-1].rpartition(">")[0]
-    # TODO(Larky::Difference) this hack here is specialization for comparing
-    #  str to string when we do str(str) in larky, we get
-    #  <built-in function str>, but in python, this is <class 'str'>.
-    #  This could actually be a starlark inconsistency, but unclear.
-    if t == 'string' and cls_type == 'str':
-        return True
-    return t == cls_type
 
 
 def _is_subclass(sub_class, parent_class):
