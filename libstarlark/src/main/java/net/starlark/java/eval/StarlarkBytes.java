@@ -1,14 +1,17 @@
 package net.starlark.java.eval;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Range;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
 import java.util.AbstractList;
 import java.util.Arrays;
+import java.util.List;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.ext.ByteStringModule;
 import net.starlark.java.syntax.TokenKind;
 
 import javax.annotation.Nonnull;
@@ -16,7 +19,7 @@ import javax.annotation.Nullable;
 
 
 public class StarlarkBytes extends AbstractList<StarlarkBytes>
-  implements Sequence<StarlarkBytes>, Comparable<StarlarkBytes>, HasBinary, StarlarkValue {
+  implements ByteStringModule, Sequence<StarlarkBytes>, CharSequence, Comparable<StarlarkBytes>, HasBinary, StarlarkValue {
 
   // It's always possible to overeat in small bites but we'll
   // try to stop someone swallowing the world in one gulp.
@@ -260,6 +263,589 @@ public class StarlarkBytes extends AbstractList<StarlarkBytes>
         + "returned value might not be a list.")
   public StarlarkByteElems elems() {
     return new StarlarkByteElems(this);
+  }
+
+  @Override
+  public String hex(Object sepO, StarlarkInt bytesPerSep) throws EvalException {
+    int nbytesPerSep = bytesPerSep.toIntUnchecked();
+    byte sep;
+    if(sepO instanceof CharSequence) {
+      CharSequence sepChr = ((CharSequence) sepO);
+      if(sepChr.length() != 1) {
+        throw new EvalException("sep must be length 1.");
+      }
+      if (sepChr.charAt(0) > 0x7F) {
+        throw new EvalException("sep must be ASCII.");
+      }
+      sep = (byte)(sepChr.charAt(0) & 0xFF);
+    }
+    else {
+      sep = -1; // intentionally set to be less than -1 to avoid allocating an array
+      nbytesPerSep = 0;
+    }
+    return _hex(getBytes(), sep, nbytesPerSep);
+  }
+
+  @Override
+  public int count(Object sub, Object start, Object end) throws EvalException {
+    byte[] subarr = fromStarlarkObjectToByteArray(sub);
+    return _count(
+      getBytes(),
+      subarr,
+      Starlark.isNullOrNone(start) ? 0 : Starlark.toInt(start, "count"),
+      ByteStringModule.isNullOrNoneOrUnbound(end) ? size() : Starlark.toInt(end, "count"));
+  }
+
+  @Override
+  public StarlarkBytes removeprefix(StarlarkBytes prefix) throws EvalException {
+   byte[] prefixBytes = prefix.getBytes();
+   final int prefix_len = prefixBytes.length;
+   final int self_len = size();
+   if(self_len >= prefix_len
+       && prefix_len > 0
+       && _startsWith(getBytes(),0,prefixBytes)) {
+     return wrap(mutability, Arrays.copyOfRange(getBytes(), prefix_len,prefix_len + (self_len - prefix_len)));
+   }
+   return this;
+  }
+
+  @Override
+  public StarlarkBytes removesuffix(StarlarkBytes suffix) throws EvalException {
+    byte[] suffixBytes = suffix.getBytes();
+    final int suffix_len = suffixBytes.length;
+    final int self_len = size();
+    if(self_len >= suffix_len
+        && suffix_len > 0
+        && _endsWith(getBytes(),self_len-suffix_len, suffixBytes, 0,suffix_len)) {
+      return wrap(mutability, Arrays.copyOfRange(getBytes(),0,self_len-suffix_len));
+    }
+    return this;
+   }
+
+  @Override
+  public boolean endsWith(Object suffix, Object start, Object end) throws EvalException {
+    byte[][] suffixes;
+    if(suffix instanceof StarlarkBytes) {
+      suffixes = new byte[][] { ((StarlarkBytes)suffix).getBytes() };
+    }
+    else {
+      Tuple _seq = ((Tuple) suffix); // we want to throw a class cast exception here if not tuple
+      Sequence<StarlarkBytes> seq = Sequence.cast(_seq, StarlarkBytes.class, "endsWith");
+      suffixes = new byte[seq.size()][];
+      for (int i = 0, seqSize = seq.size(); i < seqSize; i++) {
+        suffixes[i] = seq.get(i) // does not allocate because Tuple returns item @ index
+                        .getBytes();
+      }
+    }
+    return _endsWith(
+      getBytes(),
+      Starlark.isNullOrNone(start) ? 0 : Starlark.toInt(start, "endsWith"),
+      Starlark.isNullOrNone(end) ? size() : Starlark.toInt(end, "endsWith"),
+      suffixes
+    );
+  }
+
+  @Override
+  public int find(Object sub, Object start, Object end) throws EvalException {
+    byte[] subarr = fromStarlarkObjectToByteArray(sub);
+    return _find(
+     /*forward*/true,
+     getBytes(),
+     subarr,
+     Starlark.isNullOrNone(start) ? 0 : Starlark.toInt(start, "find"),
+     ByteStringModule.isNullOrNoneOrUnbound(end) ? size() : Starlark.toInt(end, "find"));
+  }
+
+
+  @Override
+  public int index(Object sub, Object start, Object end) throws EvalException {
+    byte[] subarr = fromStarlarkObjectToByteArray(sub);
+    int loc = _find(
+      /*forward*/true,
+      getBytes(),
+      subarr,
+      Starlark.isNullOrNone(start) ? 0 : Starlark.toInt(start, "index"),
+      ByteStringModule.isNullOrNoneOrUnbound(end) ? size() : Starlark.toInt(end, "index"));
+    if(loc == -1) {
+      throw Starlark.errorf("subsection not found");
+    }
+    return loc;
+  }
+
+  @Override
+  public StarlarkBytes join(Sequence<StarlarkBytes> elements) throws EvalException {
+    byte[][] parts = new byte[elements.size()][];
+    //noinspection ForLoopReplaceableByForEach --- allocation-free looping
+    for (int i = 0; i < elements.size(); i++) {
+      parts[i] = elements.get(i).getBytes();
+    }
+    byte[] joined = _join(getBytes(), parts);
+    return StarlarkBytes.immutableOf(joined);
+  }
+
+  @Override
+  public Tuple partition(StarlarkBytes sep) throws EvalException {
+    int i = _find(true, getBytes(), sep.getBytes(), 0, size());
+    if(i != -1) {
+      return Tuple.of(
+        StarlarkBytes.immutableOf(Arrays.copyOfRange(getBytes(), 0, i)),
+        sep,
+        StarlarkBytes.immutableOf(Arrays.copyOfRange(getBytes(), i + sep.size(), size()))
+      );
+    }
+    return Tuple.of(this, StarlarkBytes.empty(),StarlarkBytes.empty());
+  }
+
+  @Override
+  public StarlarkBytes replace(StarlarkBytes oldBytes, StarlarkBytes newBytes, StarlarkInt countI, StarlarkThread thread) throws EvalException {
+    int count = Starlark.isNullOrNone(countI)
+                  ? Integer.MAX_VALUE
+                  : Starlark.toInt(countI, "replace");
+    if(count == -1) {
+      count = Integer.MAX_VALUE;
+    }
+    byte[] bytes = _replace(getBytes(), size(), oldBytes.getBytes(), newBytes.getBytes(), count);
+    return wrap(mutability, bytes);
+  }
+
+  @Override
+   public int rfind(Object sub, Object start, Object end) throws EvalException {
+    byte[] subarr = fromStarlarkObjectToByteArray(sub);
+     return _find(
+       /*forward*/false,
+       getBytes(),
+       subarr,
+       Starlark.isNullOrNone(start) ? 0 : Starlark.toInt(start, "rfind"),
+       ByteStringModule.isNullOrNoneOrUnbound(end) ? size() : Starlark.toInt(end, "rfind")
+     );
+   }
+
+  @Override
+   public int rindex(Object sub, Object start, Object end) throws EvalException {
+    byte[] subarr = fromStarlarkObjectToByteArray(sub);
+    int loc = _find(
+      /*forward*/false,
+      getBytes(),
+      subarr,
+      Starlark.isNullOrNone(start) ? 0 : Starlark.toInt(start, "index"),
+      ByteStringModule.isNullOrNoneOrUnbound(end) ? size() : Starlark.toInt(end, "index"));
+    if(loc == -1) {
+      throw Starlark.errorf("subsection not found");
+    }
+    return loc;
+   }
+
+  @Override
+  public Tuple rpartition(StarlarkBytes sep) throws EvalException {
+    int i = _find(false, getBytes(), sep.getBytes(), 0, size());
+    if(i != -1) {
+      return Tuple.of(
+        StarlarkBytes.immutableOf(Arrays.copyOfRange(getBytes(), 0, i)),
+        sep,
+        StarlarkBytes.immutableOf(Arrays.copyOfRange(getBytes(), i + sep.size(), size()))
+      );
+    }
+    return Tuple.of(StarlarkBytes.empty(),StarlarkBytes.empty(), this);
+  }
+
+  @Override
+  public boolean startsWith(Object prefix, Object start, Object end) throws EvalException {
+    byte[][] prefixes;
+    if(prefix instanceof StarlarkBytes) {
+      prefixes = new byte[][] { ((StarlarkBytes)prefix).getBytes() };
+    }
+    else {
+      Tuple _seq = ((Tuple) prefix); // we want to throw a class cast exception here if not tuple
+      Sequence<StarlarkBytes> seq = Sequence.cast(_seq, StarlarkBytes.class, "startsWith");
+      prefixes = new byte[seq.size()][];
+      for (int i = 0, seqSize = seq.size(); i < seqSize; i++) {
+        prefixes[i] = seq.get(i) // does not allocate because Tuple returns item @ index
+                        .getBytes();
+      }
+    }
+    return _startsWith(
+      getBytes(),
+      Starlark.isNullOrNone(start) ? 0 : Starlark.toInt(start, "startsWith"),
+      Starlark.isNullOrNone(end) ? size() : Starlark.toInt(end, "startsWith"),
+      prefixes
+    );
+  }
+
+  @Override
+  public StarlarkBytes translate(Object tableO, StarlarkBytes delete) throws EvalException {
+    StarlarkBytes table = empty();
+    int dellen = delete.size();
+    boolean changed = false;
+
+    if (!Starlark.isNullOrNone(tableO)) {
+      table = ((StarlarkBytes) tableO);
+      if (table.size() != 256) {
+        throw Starlark.errorf(
+          "translation table must be 256 characters long. length of table was %d",
+          table.size());
+      }
+    }
+
+    final int total_size = size();
+
+    if(dellen == 0 && !table.isEmpty()) {
+      byte[] result = new byte[total_size];
+      /* If no deletions are required, use faster code */
+      for (int i = 0; i < total_size; i++) {
+        byte c = byteAt(i);
+        byte v = table.byteAt(c);
+        if(!changed && c != v) {
+          changed = true;
+        }
+        result[i] = v;
+      }
+      if(!changed) {
+        return this;
+      }
+      return wrap(mutability, result);
+    }
+
+    byte[] table_bytes = null;
+    if(!table.isEmpty()) {
+      table_bytes = table.getBytes();
+    }
+
+    boolean[] toDelete = createDeleteTable(delete.getBytes());
+    int resultLen = 0;
+    byte[] result = new byte[total_size];
+
+    for (int i = 0; i < total_size; i++) {
+      byte c = byteAt(i);
+      if(!toDelete[c]) {
+        byte v = table_bytes == null ? c : table_bytes[c];
+        if (!changed && c != v) {
+            changed = true;
+        }
+        result[resultLen] = v;
+        resultLen++;
+      }
+    }
+    if(!changed && resultLen == total_size) {
+      return this;
+    }
+    // optimize for pre-allocated if resultLen = 0
+    if(resultLen == 0) {
+      return empty();
+    }
+    return wrap(mutability, Arrays.copyOf(result, resultLen));
+  }
+
+  @Override
+  public StarlarkBytes center(StarlarkInt width, StarlarkBytes fillbyte) throws EvalException {
+    if(fillbyte.size() != 1) {
+          throw new EvalException("fillbyte must be of length 1");
+        }
+        int nwidth = width.toIntUnchecked();
+        if((nwidth - size()) <= 0) {
+          return this;
+        }
+    int marg = nwidth - size();
+    int left = marg / 2 + (marg & nwidth & 1);
+    byte[] res = pad(getBytes(), left, marg - left, fillbyte.byteAt(0));
+    return wrap(this.mutability, res);
+  }
+
+  @Override
+  public StarlarkBytes ljust(StarlarkInt width, StarlarkBytes fillbyte) throws EvalException {
+    if(fillbyte.size() != 1) {
+      throw new EvalException("fillbyte must be of length 1");
+    }
+    int nwidth = width.toIntUnchecked();
+    if((nwidth - size()) <= 0) {
+      return this;
+    }
+    int l = nwidth - size();
+    int resLen = l + size();
+    byte[] res = new byte[resLen];
+    System.arraycopy(getBytes(), 0, res, 0, size());
+    Arrays.fill(res, size(), resLen, fillbyte.byteAt(0));
+    return wrap(this.mutability, res);
+  }
+
+  @Override
+  public StarlarkBytes lstrip(Object charsO) {
+    byte[] stripped;
+    if(Starlark.isNullOrNone(charsO)) {
+      stripped = do_strip(getBytes(), LEFTSTRIP);
+      return StarlarkBytes.immutableOf(stripped);
+    }
+    stripped = do_xstrip(getBytes(), LEFTSTRIP, ((StarlarkBytes) charsO).getBytes());
+    return StarlarkBytes.immutableOf(stripped);
+  }
+
+  @Override
+  public StarlarkBytes rjust(StarlarkInt width, StarlarkBytes fillbyte)  throws EvalException {
+    if(fillbyte.size() != 1) {
+      throw new EvalException("fillbyte must be of length 1");
+    }
+    int nwidth = width.toIntUnchecked();
+    if((nwidth - size()) <= 0) {
+      return this;
+    }
+    int l = nwidth - size();
+    int resLen = l + size();
+    byte[] res = new byte[resLen];
+    Arrays.fill(res, 0, l, fillbyte.byteAt(0));
+    for (int i = l, j = 0; i < (size() + l); j++, i++) {
+      res[i] = this.byteAt(j);
+    }
+    return wrap(this.mutability, res);
+  }
+
+  @Override
+  public StarlarkList<StarlarkBytes> rsplit(Object bytesO, Object maxSplitO, StarlarkThread thread) throws EvalException {
+    int maxSplit = Starlark.isNullOrNone(maxSplitO)
+                  ? Integer.MAX_VALUE
+                  : Starlark.toInt(maxSplitO, "rsplit");
+    if(maxSplit == -1) {
+      maxSplit = Integer.MAX_VALUE;
+    }
+    List<byte[]> split;
+    if (Starlark.isNullOrNone(bytesO)) {
+      split = _rsplitWhitespace(this.getBytes(), maxSplit);
+    } else {
+      split = _rsplit(getBytes(),((StarlarkBytes)bytesO).getBytes(), maxSplit);
+    }
+    StarlarkList<StarlarkBytes> res = StarlarkList.newList(thread.mutability());
+    for (int i = 0; i < split.size(); i++) {
+      res.addElement(StarlarkBytes.immutableOf(split.get(i)));
+    }
+    return res;
+  }
+
+  @Override
+  public StarlarkBytes rstrip(Object charsO) {
+    byte[] stripped;
+    if(Starlark.isNullOrNone(charsO)) {
+      stripped = do_strip(getBytes(), RIGHTSTRIP);
+      return StarlarkBytes.immutableOf(stripped);
+    }
+    stripped = do_xstrip(getBytes(), RIGHTSTRIP, ((StarlarkBytes) charsO).getBytes());
+    return StarlarkBytes.immutableOf(stripped);
+  }
+
+  @Override
+  public StarlarkList<StarlarkBytes> split(Object bytesO, Object maxSplitO, StarlarkThread thread) throws EvalException {
+    int maxSplit = Starlark.isNullOrNone(maxSplitO)
+                  ? Integer.MAX_VALUE
+                  : Starlark.toInt(maxSplitO,"split");
+    if(maxSplit == -1) {
+      maxSplit = Integer.MAX_VALUE;
+    }
+    List<byte[]> split;
+    if (Starlark.isNullOrNone(bytesO)) {
+      split = _splitWhitespace(this.getBytes(), maxSplit);
+    } else {
+      split = _split(getBytes(),((StarlarkBytes) bytesO).getBytes(), maxSplit);
+    }
+    StarlarkList<StarlarkBytes> res = StarlarkList.newList(thread.mutability());
+    for (int i = 0; i < split.size(); i++) {
+      res.addElement(StarlarkBytes.immutableOf(split.get(i)));
+    }
+    return res;
+  }
+
+  @Override
+  public StarlarkBytes strip(Object charsO) {
+    byte[] stripped;
+    if(Starlark.isNullOrNone(charsO)) {
+      stripped = do_strip(getBytes(), BOTHSTRIP);
+      return StarlarkBytes.immutableOf(stripped);
+    }
+    stripped = do_xstrip(getBytes(), BOTHSTRIP, ((StarlarkBytes) charsO).getBytes());
+    return StarlarkBytes.immutableOf(stripped);
+  }
+
+  @Override
+  public StarlarkBytes capitalize() throws EvalException {
+    return StarlarkBytes.immutableOf(_capitalize(getBytes()));
+  }
+
+  @Override
+  public StarlarkBytes expandTabs(StarlarkInt tabSize) throws EvalException {
+    if(size() == 0) {
+      return empty();
+    }
+    try {
+      byte[] result = _expandTabs(getBytes(), tabSize.toInt("expandTabs"), Integer.MAX_VALUE);
+      return wrap(mutability, result);
+    } catch(ArrayIndexOutOfBoundsException ex) {
+      throw new EvalException(ex);
+    }
+  }
+
+  @Override
+  public boolean isAlnum() throws EvalException {
+    return _isalnum(getBytes());
+  }
+
+  @Override
+  public boolean isAlpha() throws EvalException {
+    return _isalpha(getBytes());
+  }
+
+  @Override
+  public boolean isAscii() throws EvalException {
+    return _isAscii(getBytes());
+  }
+
+  @Override
+  public boolean isDigit() throws EvalException {
+    return _isdigit(getBytes());
+  }
+
+  @Override
+  public boolean isLower() throws EvalException {
+    return _islower(getBytes());
+  }
+
+  @Override
+  public boolean isSpace() throws EvalException {
+    return _isspace(getBytes());
+  }
+
+  @Override
+  public boolean isTitle() throws EvalException {
+    return _istitle(getBytes());
+  }
+
+  @Override
+  public boolean isUpper() throws EvalException {
+    return _isupper(getBytes());
+  }
+
+  @Override
+  public StarlarkBytes lower() throws EvalException {
+    return StarlarkBytes.immutableOf(_lower(getBytes()));
+  }
+
+  @Override
+  public Sequence<StarlarkBytes> splitLines(boolean keepEnds) throws EvalException {
+    byte[] bytes = getBytes();
+    int length = bytes.length;
+    int start = 0;
+    StarlarkList<StarlarkBytes> list = StarlarkList.newList(this.mutability);
+
+    for (int i = 0; i < length; i++) {
+      if (bytes[i] == '\n' || bytes[i] == '\r') {
+          int end = i;
+          if (bytes[i] == '\r' && i + 1 != length && bytes[i + 1] == '\n') {
+              i++;
+          }
+          if (keepEnds) {
+              end = i + 1;
+          }
+          byte[] slice = new byte[end - start];
+          System.arraycopy(bytes, start, slice, 0, slice.length);
+          list.addElement(StarlarkBytes.immutableOf(slice));
+          start = i + 1;
+      }
+    }
+    if(start == length) {
+      return list;
+    }
+    // We have remaining parts, so let's process it.
+    byte[] slice = new byte[length - start];
+    System.arraycopy(bytes, start, slice, 0, slice.length);
+    list.addElement(StarlarkBytes.immutableOf(slice));
+    return list;
+  }
+
+  @Override
+  public StarlarkBytes swapcase() throws EvalException {
+    return StarlarkBytes.immutableOf(_swapcase(getBytes()));
+  }
+
+  @Override
+  public StarlarkBytes title() throws EvalException {
+    return StarlarkBytes.immutableOf(_title(getBytes()));
+  }
+
+  @Override
+  public StarlarkBytes upper() throws EvalException {
+    return StarlarkBytes.immutableOf(_upper(getBytes()));
+  }
+
+  @Override
+  public StarlarkBytes zfill(StarlarkInt width) throws EvalException {
+    int nwidth = width.toIntUnchecked();
+
+    int len = delegate.length;
+    if (len >= nwidth) {
+        return this;
+    }
+
+    int fill = nwidth - len;
+    byte[] p = pad(delegate, fill, 0, (byte) '0');
+
+    if (len == 0) {
+        return StarlarkBytes.immutableOf(p);
+    }
+
+    if (p[fill] == '+' || p[fill] == '-') {
+        /* move sign to beginning of string */
+        p[0] = p[fill];
+        p[fill] = '0';
+    }
+    return StarlarkBytes.immutableOf(p);
+  }
+
+  /**
+   * Ensures the truth of an expression involving one or more parameters
+   * to the calling method.
+   */
+  static void checkArgument(boolean b, @Nullable String errorMessageTemplate, int p1) throws EvalException {
+    if (!b) {
+      throw new EvalException(Strings.lenientFormat(errorMessageTemplate, p1));
+    }
+  }
+
+  private byte[] fromStarlarkObjectToByteArray(Object sub) throws EvalException {
+    if (sub instanceof StarlarkBytes) {
+      return ((StarlarkBytes) sub).getBytes();
+    }
+
+    StarlarkInt sub1 = (StarlarkInt) sub;
+    int x;
+    try {
+      x = sub1.toInt("byte must be in range(0, 256)");
+    } catch (IllegalArgumentException e) {
+      throw new EvalException(e.getMessage(), e.getCause());
+    }
+    checkArgument(x >> Byte.SIZE == 0,
+      "byte must be in range(0, 256). received %d", x);
+    return new byte[]{(byte) x};
+  }
+
+  @Override
+  public int length() {
+    return size();
+  }
+
+  @Override
+  public char charAt(int index) {
+    return (char) delegate[index];
+  }
+
+  public byte byteAt(int index) {
+    return delegate[index];
+  }
+
+  public byte[] subArray(int start, int end) {
+    byte[] barr = getBytes();
+    long indices = ByteStringModule.subsequenceIndices(barr, start, end);
+    return Arrays.copyOfRange(barr, ByteStringModule.lo(indices), ByteStringModule.hi(indices));
+  }
+
+  @Override
+  public CharSequence subSequence(int start, int end) {
+    byte[] barr = subArray(start,end);
+    return StarlarkBytes.immutableOf(barr);
   }
 
   @StarlarkBuiltin(name = "bytes.elems")

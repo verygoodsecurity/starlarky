@@ -180,6 +180,9 @@ public final class ScriptTest {
     }
     File testdata = new File(root, "src/test/java/net/starlark/java/eval/testdata");
     for (String name : testdata.list()) {
+      if(!name.endsWith("bytes_ext.star")) {
+        continue;
+      }
       File file = new File(testdata, name);
       String content = Files.asCharSource(file, UTF_8).read();
       int linenum = 1;
