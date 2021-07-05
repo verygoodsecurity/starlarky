@@ -3,6 +3,8 @@ package com.verygood.security.larky.modules.testing;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
+import java.util.Enumeration;
+import java.util.Iterator;
 
 import com.verygood.security.larky.modules.utils.NullPrintStream;
 
@@ -18,12 +20,10 @@ import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkFunction;
+import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
-import java.util.Enumeration;
-import java.util.Iterator;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -65,7 +65,7 @@ public class UnittestModule implements StarlarkValue {
   public Object addFunctionUnderTest(Object function, StarlarkThread thread) {
     LarkyFunctionTestCase tc = new LarkyFunctionTestCase(Starlark.repr(function));
     //TODO: if this fails, we need to return a better error message.
-    tc.setFunction((StarlarkFunction) function);
+    tc.setFunction((StarlarkCallable) function);
     tc.setThread(thread);
     return tc;
   }
@@ -79,7 +79,7 @@ public class UnittestModule implements StarlarkValue {
 
     @Getter
     @Setter
-    private StarlarkFunction function;
+    private StarlarkCallable function;
 
     @SuppressWarnings("CdiInjectionPointsInspection")
     public LarkyFunctionTestCase(String name) {

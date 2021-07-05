@@ -31,13 +31,13 @@ final class Lexer {
   final FileLocations locs;
 
   // Information about current token. Updated by nextToken.
-  // raw and value are defined only for STRING, INT, FLOAT, IDENTIFIER, and COMMENT.
+  // raw and value are defined only for STRING, BYTE, INT, FLOAT, IDENTIFIER, and COMMENT.
   // TODO(adonovan): rename s/xyz/tokenXyz/
   TokenKind kind;
   int start; // start offset
   int end; // end offset
   String raw; // source text of token
-  Object value; // String, Integer/Long/BigInteger, or Double value of token
+  Object value; // String, Bytes, Integer/Long/BigInteger, or Double value of token
 
   // --- end of parser-visible fields ---
 
@@ -139,7 +139,7 @@ final class Lexer {
   }
 
   // setValue sets the value associated with a STRING, FLOAT, INT,
-  // IDENTIFIER, or COMMENT token, and records the raw text of the token.
+  // BYTE, IDENTIFIER, or COMMENT token, and records the raw text of the token.
   private void setValue(Object value) {
     this.value = value;
     this.raw = bufferSlice(start, end);
@@ -237,12 +237,12 @@ final class Lexer {
   }
 
   /**
-   * Scans a string literal delimited by 'quot', containing escape sequences.
+   * Scans a string or byte literal delimited by 'quot', containing escape sequences.
    *
    * <p>ON ENTRY: 'pos' is 1 + the index of the first delimiter
    * ON EXIT: 'pos' is 1 + the index of the last delimiter.
    */
-  private void escapedStringLiteral(char quot, boolean isRaw) {
+  private void escapedLiteral(char quot, boolean isRaw, TokenKind tokenKind) {
     int literalStartPos = isRaw ? pos - 2 : pos - 1;
     boolean inTriplequote = skipTripleQuote(quot);
     // more expensive second choice that expands escaped into a buffer
@@ -256,15 +256,15 @@ final class Lexer {
             literal.append(c);
             break;
           } else {
-            error("unclosed string literal", literalStartPos);
-            setToken(TokenKind.STRING, literalStartPos, pos);
+            error(String.format("unclosed %s", tokenKind.toString()), literalStartPos);
+            setToken(tokenKind, literalStartPos, pos);
             setValue(literal.toString());
             return;
           }
         case '\\':
           if (pos == buffer.length) {
-            error("unclosed string literal", literalStartPos);
-            setToken(TokenKind.STRING, literalStartPos, pos);
+            error(String.format("unclosed %s", tokenKind.toString()), literalStartPos);
+            setToken(tokenKind, literalStartPos, pos);
             setValue(literal.toString());
             return;
           }
@@ -339,20 +339,120 @@ final class Lexer {
                     }
                   }
                 }
-                if (octal > 0xff) {
-                  error("octal escape sequence out of range (maximum is \\377)", pos - 1);
+                if(tokenKind.equals(TokenKind.STRING) && octal > 127) {
+                  error(String.format(
+                    "non-ASCII octal escape \\%o " +
+                      "(use \\u%04X for the UTF-8 encoding of U+%04X)",
+                    octal, octal, octal),
+                    pos-1);
+                  setToken(tokenKind, literalStartPos, pos);
+                  setValue(literal.toString());
+                  break;
                 }
-                literal.append((char) (octal & 0xff));
+                if (octal > 0xff) {
+                  error(
+                    "octal escape sequence out of range"
+                      + " (maximum is \\377)",
+                    pos - 1);
+                  setToken(tokenKind, literalStartPos, pos);
+                  setValue(literal.toString());
+                  break;
+                }
+                literal.append((char)(octal & 0xff));
                 break;
               }
             case 'a':
+              literal.append('\u0007');
+              break;
             case 'b':
+              literal.append('\b');
+              break;
             case 'f':
-            case 'N':
-            case 'u':
-            case 'U':
+              literal.append('\f');
+              break;
             case 'v':
-            case 'x':
+              literal.append('\u000B');
+              break;
+            case 'x': {
+              if (pos + 2 >= buffer.length) {
+                error(String.format(
+                  "truncated escape sequence \\x%s",
+                  bufferSlice(pos, buffer.length - 1)),
+                  pos - 1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              int n;
+              try {
+                n = Integer.parseInt(bufferSlice(pos, pos + 2),/*radix*/16);
+              } catch (NumberFormatException nfe) {
+                error(String.format(
+                  "invalid escape sequence \\x%s",
+                  bufferSlice(pos, buffer.length - 1)),
+                  pos - 1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              if (tokenKind.equals(TokenKind.STRING) && n > Byte.MAX_VALUE) {
+                error(
+                  String.format("non-ASCII hex escape \\x%s (use \\u%04X for" +
+                                  " the UTF-8 encoding of U+%04X)",
+                    bufferSlice(pos, pos + 2), n, n), pos - 1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              literal.append(Character.toChars(n));
+              pos += 2;
+              break;
+            }
+            case 'u':
+            case 'U': {
+              int sz = c == 'u' ? 4 : 8;
+              if (pos + sz >= buffer.length) {
+                error(String.format(
+                  "truncated escape sequence \\%c%s",
+                  c, bufferSlice(pos, buffer.length - 1)),
+                  pos - 1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              int n;
+              try {
+                n = Integer.parseInt(bufferSlice(pos, pos + sz),/*radix*/16);
+              } catch (NumberFormatException nfe) {
+                error(String.format(
+                  "invalid escape sequence \\%c%s",
+                  c, bufferSlice(pos, buffer.length - 1)),
+                  pos - 1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              if (n > Character.MAX_CODE_POINT) {
+                error(String.format(
+                  "code point out of range: \\U%s (max \\U%08x)",
+                  bufferSlice(pos, buffer.length - 1), n),
+                  pos - 1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              // surrogates are disallowed.
+              if (Character.MIN_HIGH_SURROGATE <= n && n < Character.MAX_LOW_SURROGATE) {
+                error(String.format("invalid Unicode code point U+%04X", n), pos - 1);
+                setToken(tokenKind, literalStartPos, pos);
+                setValue(literal.toString());
+                break;
+              }
+              literal.append(Character.toChars(n));
+              pos += sz;
+              break;
+            }
+            case 'N':
               // exists in Python but not implemented in Blaze => error
               error("invalid escape sequence: \\" + c, pos - 1);
               break;
@@ -378,7 +478,7 @@ final class Lexer {
             literal.append(c);
           } else {
             // Matching close-delimiter, all done.
-            setToken(TokenKind.STRING, literalStartPos, pos);
+            setToken(tokenKind, literalStartPos, pos);
             setValue(literal.toString());
             return;
           }
@@ -388,8 +488,8 @@ final class Lexer {
           break;
       }
     }
-    error("unclosed string literal", literalStartPos);
-    setToken(TokenKind.STRING, literalStartPos, pos);
+    error(String.format("unclosed %s", tokenKind.toString()), literalStartPos);
+    setToken(tokenKind, literalStartPos, pos);
     setValue(literal.toString());
   }
 
@@ -400,17 +500,17 @@ final class Lexer {
    * <li> ON ENTRY: 'pos' is 1 + the index of the first delimiter
    * <li> ON EXIT: 'pos' is 1 + the index of the last delimiter.
    * </ul>
-   *
-   * @param isRaw if true, do not escape the string.
+   *  @param isRaw if true, do not escape the string.
+   * @param tokenKind
    */
-  private void stringLiteral(char quot, boolean isRaw) {
+  private void stringLiteral(char quot, boolean isRaw, TokenKind tokenKind) {
     int literalStartPos = isRaw ? pos - 2 : pos - 1;
     int contentStartPos = pos;
 
     // Don't even attempt to parse triple-quotes here.
     if (skipTripleQuote(quot)) {
       pos -= 2;
-      escapedStringLiteral(quot, isRaw);
+      escapedLiteral(quot, isRaw, tokenKind);
       return;
     }
 
@@ -420,7 +520,7 @@ final class Lexer {
       switch (c) {
         case '\n':
           error("unclosed string literal", literalStartPos);
-          setToken(TokenKind.STRING, literalStartPos, pos);
+          setToken(tokenKind, literalStartPos, pos);
           setValue(bufferSlice(contentStartPos, pos - 1));
           return;
         case '\\':
@@ -429,7 +529,7 @@ final class Lexer {
               // There was a CRLF after the newline. No shortcut possible, since it needs to be
               // transformed into a single LF.
               pos = contentStartPos;
-              escapedStringLiteral(quot, true);
+              escapedLiteral(quot, true, tokenKind);
               return;
             } else {
               pos++;
@@ -438,13 +538,13 @@ final class Lexer {
           }
           // oops, hit an escape, need to start over & build a new string buffer
           pos = contentStartPos;
-          escapedStringLiteral(quot, false);
+          escapedLiteral(quot, false, tokenKind);
           return;
         case '\'':
         case '"':
           if (c == quot) {
             // close-quote, all done.
-            setToken(TokenKind.STRING, literalStartPos, pos);
+            setToken(tokenKind, literalStartPos, pos);
             setValue(bufferSlice(contentStartPos, pos - 1));
             return;
           }
@@ -460,7 +560,7 @@ final class Lexer {
     }
 
     error("unclosed string literal", literalStartPos);
-    setToken(TokenKind.STRING, literalStartPos, pos);
+    setToken(tokenKind, literalStartPos, pos);
     setValue(bufferSlice(contentStartPos, pos));
   }
 
@@ -741,16 +841,25 @@ final class Lexer {
           break;
         case '\'':
         case '\"':
-          stringLiteral(c, false);
+          stringLiteral(c, false, TokenKind.STRING);
           break;
         default:
-          // detect raw strings, e.g. r"str"
-          if (c == 'r') {
+          // detect raw strings, e.g. r"str" or b".."
+          if (c == 'r' || c == 'b') {
             int c0 = peek(0);
             if (c0 == '\'' || c0 == '\"') {
               pos++;
-              stringLiteral((char) c0, true);
+              stringLiteral((char) c0, c == 'r', c == 'r' ? TokenKind.STRING : TokenKind.BYTE);
               break;
+            }
+            else if (c == 'r' && c0 == 'b' && (buffer.length > 2)) {
+              int c1 = peek(1);
+              // rb"..."
+              if(c1 == '"' || c1 == '\'') {
+                pos+=2;
+                stringLiteral((char) c1, true, TokenKind.BYTE);
+                break;
+              }
             }
           }
 

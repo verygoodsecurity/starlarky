@@ -231,4 +231,5 @@ def new(**kwargs):
 BLAKE2s = larky.struct(
     block_size=block_size,
     new=new,
+    __name__ = 'BLAKE2s',
 )

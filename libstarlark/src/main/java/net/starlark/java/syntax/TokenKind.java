@@ -22,6 +22,7 @@ public enum TokenKind {
   AS("as"),
   ASSERT("assert"),
   BREAK("break"),
+  BYTE("byte literal"),
   CARET("^"),
   CARET_EQUALS("^="),
   CLASS("class"),

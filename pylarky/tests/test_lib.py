@@ -17,42 +17,60 @@ ctx = {"body": "thisisabody", "headers": {"accept": "xml", "content": "still-xml
     evaluator = Evaluator(starlark_script)
     eval_output = evaluator.evaluate(input_script)
 
-    assert eval_output == '{"body": "thisisabody", "headers": {"accept": "json", "content": "still-json"}}'
+    assert (
+        eval_output
+        == '{"body": "thisisabody", "headers": {"accept": "json", "content": "still-json"}}'
+    )
 
 
 def test_request_evaluation():
-    starlark_script = """load('@stdlib/json', 'json')
-load("@stdlib/hashlib", "hashlib")
+    starlark_script = """\
+load('@stdlib//json', 'json')
+load("@stdlib//hashlib", "hashlib")
 
 def process(input_message):
     print("start script")
     decoded_payload = json.decode(input_message.data)
-    
     key=input_message.get_header("Key")
     input_message.remove_header("Key")
-    signature = hashlib.sha512(key)
+    signature = hashlib.sha512(bytes(key, encoding='utf-8')).hexdigest()
     print("changing payload")
     decoded_payload["signature"] = signature
     input_message.data = json.encode(decoded_payload)
     print("returning payload")
-    return input_message
+    # TODO (mahmoudimus): FIX THIS BELOW!
+    return 'url = "%s", data = "%s", headers = %s, object: %s' % (
+               input_message.get_full_url(), 
+               input_message.data, 
+               json.dumps(dict(input_message.header_items())),
+               input_message.__dict__)
 
 process(request)
     """
 
-    request = HttpMessage('http://httpbin.org/post',
-                          data='{"credit_card": "411111111111111111", '
-                               '"cvv": "043", '
-                               '"expiration_date": "03/43"}',
-                          headers={'Content-Type': 'application/json',
-                                   'Accept': 'application/json',
-                                   'Key': '1234567890'})
+    request = HttpMessage(
+        "http://httpbin.org/post",
+        data='{"credit_card": "411111111111111111", '
+        '"cvv": "043", '
+        '"expiration_date": "03/43"}',
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Key": "1234567890",
+        },
+    )
 
     evaluator = HttpEvaluator(starlark_script)
     modified_request: HttpMessage = evaluator.evaluate(request)
-    assert modified_request.url == 'http://httpbin.org/post'
-    assert modified_request.data == '{"credit_card":"411111111111111111","cvv":"043","expiration_date":"03/43","signature":"12b03226a6d8be9c6e8cd5e55dc6c7920caaa39df14aab92d5e3ea9340d1c8a4d3d0b8e4314f1f6ef131ba4bf1ceb9186ab87c801af0d5c95b1befb8cedae2b9"}'
-    assert modified_request.headers == {"Content-Type": "application/json", "Accept": "application/json"}
+    assert modified_request.url == "http://httpbin.org/post"
+    assert (
+        modified_request.data
+        == '{"credit_card":"411111111111111111","cvv":"043","expiration_date":"03/43","signature":"12b03226a6d8be9c6e8cd5e55dc6c7920caaa39df14aab92d5e3ea9340d1c8a4d3d0b8e4314f1f6ef131ba4bf1ceb9186ab87c801af0d5c95b1befb8cedae2b9"}'
+    )
+    assert modified_request.headers == {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
 
 
 def test_evaluation_exception():

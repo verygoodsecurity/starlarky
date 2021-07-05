@@ -116,6 +116,8 @@ public class NodeVisitor {
 
   public void visit(@SuppressWarnings("unused") StringLiteral node) {}
 
+  public void visit(@SuppressWarnings("unused") ByteLiteral node) {}
+
   public void visit(AssignmentStatement node) {
     visit(node.getRHS());
     visit(node.getLHS());

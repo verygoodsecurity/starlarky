@@ -14,6 +14,8 @@
 """Skylib module containing functions checking types."""
 load("@stdlib/larky", "larky")
 
+_is_instance = larky.is_instance
+
 # create instance singletons to avoid unnecessary allocations
 _a_bool_type = type(True)
 _a_dict_type = type({})
@@ -24,6 +26,7 @@ _an_int_type = type(1)
 _a_float_type = type(5.0)
 _a_struct_type = type(larky.struct())
 _a_mutablestruct_type = type(larky.mutablestruct())
+_a_range_type = type(range(1))
 
 
 def _a_function():
@@ -187,20 +190,6 @@ def _MethodType(func, instance):
     return larky.partial(func, instance)
 
 
-def _is_instance(instance, some_class):
-    t = type(instance)
-    cls_type = str(some_class)
-    if 'built-in' in cls_type or '<function ' in cls_type:
-        cls_type = cls_type.split(" ")[-1].rpartition(">")[0]
-    # TODO(Larky::Difference) this hack here is specialization for comparing
-    #  str to string when we do str(str) in larky, we get
-    #  <built-in function str>, but in python, this is <class 'str'>.
-    #  This could actually be a starlark inconsistency, but unclear.
-    if t == 'string' and cls_type == 'str':
-        return True
-    return t == cls_type
-
-
 def _is_subclass(sub_class, parent_class):
     if not hasattr(sub_class, '__mro__'):
         return False
@@ -209,8 +198,12 @@ def _is_subclass(sub_class, parent_class):
     return parent_class in mro
 
 
+def _is_range(iterz):
+    return type(iterz) == _a_range_type
+
+
 def _is_iterable(iterz):
-    return _is_tuple(iterz) or _is_list(iterz)
+    return _is_tuple(iterz) or _is_list(iterz) or _is_range(iterz)
 
 
 def _is_bytes(bobj):
@@ -510,6 +503,7 @@ types = larky.struct(
     is_lambda=_is_lambda,
     is_callable=_is_callable,
     is_set=_is_set,
+    is_range=_is_range,
     is_instance=_is_instance,
     is_iterable=_is_iterable,
     is_bytes=_is_bytes,

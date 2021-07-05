@@ -18,9 +18,9 @@
 # SOFTWARE.
 # ===================================================================
 load("@stdlib//larky", larky="larky")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
-
 
 # The size of the resulting hash in bytes.
 digest_size = 16
@@ -89,8 +89,7 @@ def MD5Hash(data=None):
                  Hexadecimal encoded.
         :rtype: string
         """
-
-        return "".join(["%02x" % bord(x) for x in self.digest()])
+        return tostr(hexlify(self.digest()))
     self.hexdigest = hexdigest
 
     def copy():
@@ -155,4 +154,5 @@ MD5 = larky.struct(
     block_size=block_size,
     new=new,
     _pbkdf2_hmac_assist=_pbkdf2_hmac_assist,
+    __name__ = 'MD5',
 )

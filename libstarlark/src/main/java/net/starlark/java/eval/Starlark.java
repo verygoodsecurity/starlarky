@@ -20,6 +20,15 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.errorprone.annotations.CheckReturnValue;
 import com.google.errorprone.annotations.FormatMethod;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.lang.reflect.Method;
+import java.math.BigInteger;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -33,15 +42,6 @@ import net.starlark.java.syntax.Resolver;
 import net.starlark.java.syntax.StarlarkFile;
 import net.starlark.java.syntax.SyntaxError;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.lang.reflect.Method;
-import java.math.BigInteger;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 
@@ -294,6 +294,8 @@ public final class Starlark {
     // Check for "direct hits" first to avoid needing to scan for annotations.
     if (c.equals(String.class)) {
       return "string";
+    } else if (StarlarkByte.class.isAssignableFrom(c)) {
+      return "bytes";
     } else if (StarlarkInt.class.isAssignableFrom(c)) {
       return "int";
     } else if (c.equals(Boolean.class)) {

@@ -127,8 +127,11 @@ def urlsafe_b64encode(s):
     returned.  The alphabet uses '-' instead of '+' and '_' instead of
     '/'.
     """
-#    return b64encode(s).translate(_urlsafe_encode_translation)
-    fail(" NotImplementedError()")
+    return b64encode(
+        larky.translate_bytes(s,
+                              bytes('+/', encoding='utf-8'),
+                              bytes('-_', encoding='utf-8')))
+
 
 def urlsafe_b64decode(s):
     """Decode a byte string encoded with the standard Base64 alphabet.
@@ -140,10 +143,11 @@ def urlsafe_b64decode(s):
 
     The alphabet uses '-' instead of '+' and '_' instead of '/'.
     """
-#    s = _bytes_from_decode_data(s)
-#    s = s.translate(_urlsafe_decode_translation)
-#    return b64decode(s)
-    fail(" NotImplementedError()")
+    s = _bytes_from_decode_data(s)
+    s = larky.translate_bytes(s,
+                              bytes('-_', encoding='utf-8'),
+                              bytes('+/', encoding='utf-8'))
+    return b64decode(s)
 
 
 
@@ -388,6 +392,20 @@ def decodestring(s):
 
 
 base64 = larky.struct(
-    b64encode = b64encode,
-    b64decode = b64decode,
+    b16decode = b16decode ,
+    b16encode = b16encode ,
+    b32decode = b32decode ,
+    b32encode = b32encode ,
+    b64decode = b64decode ,
+    b64encode = b64encode ,
+    decode = decode ,
+    decodebytes = decodebytes ,
+    decodestring = decodestring ,
+    encode = encode ,
+    encodebytes = encodebytes ,
+    encodestring = encodestring ,
+    standard_b64decode = standard_b64decode ,
+    standard_b64encode = standard_b64encode ,
+    urlsafe_b64decode = urlsafe_b64decode ,
+    urlsafe_b64encode = urlsafe_b64encode ,
 )

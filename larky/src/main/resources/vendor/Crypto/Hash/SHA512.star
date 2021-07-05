@@ -17,9 +17,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
-load("@vendor//Crypto/Util/py3compat", bord="bord")
+load("@vendor//Crypto/Util/py3compat", bord="bord", tostr="tostr")
 
 # The size of the full SHA-512 hash in bytes.
 digest_size = 64
@@ -28,7 +29,7 @@ digest_size = 64
 block_size = 128
 
 
-def SHA512Hash(data, truncate):
+def SHA512Hash(data=None, truncate=None):
     """A SHA-512 hash object (possibly in its truncated version SHA-512/224 or
     SHA-512/256.
     Do not instantiate directly. Use the :func:`new` function.
@@ -49,21 +50,23 @@ def SHA512Hash(data, truncate):
         self_['_truncate'] = truncate
 
         if truncate == None:
-            self_['oid'] = "2.16.840.1.101.3.4.2.3"
-            self_['digest_size'] = 64
+            # self_['oid'] = "2.16.840.1.101.3.4.2.3"
+            # self_['digest_size'] = 64
+             self_['_state'] = _JCrypto.Hash.SHA512("512")
         elif truncate == "224":
-            self_['oid'] = "2.16.840.1.101.3.4.2.5"
-            self_['digest_size'] = 28
+            # self_['oid'] = "2.16.840.1.101.3.4.2.5"
+            # self_['digest_size'] = 28
+             self_['_state'] = _JCrypto.Hash.SHA512("224")
         elif truncate == "256":
-            self_['oid'] = "2.16.840.1.101.3.4.2.6"
-            self_['digest_size'] = 32
+            # self_['oid'] = "2.16.840.1.101.3.4.2.6"
+            # self_['digest_size'] = 32
+             self_['_state'] = _JCrypto.Hash.SHA512("256")
         else:
             fail('ValueError: Incorrect truncation length. It must be "224"' +
                  ' or "256".')
-        _state = _JCrypto.Hash.SHA512()
         if data:
-            _state.update(data)
-        self_['_state'] = _state
+            self_['_state'].update(data)
+
         return larky.mutablestruct(__class__="SHA512Hash", **self_)
 
     self = __init__(data, truncate)
@@ -101,8 +104,7 @@ def SHA512Hash(data, truncate):
                  Hexadecimal encoded.
         :rtype: string
         """
-
-        return "".join(["%02x" % bord(x) for x in self.digest()])
+        return tostr(hexlify(self.digest()))
     self.hexdigest = hexdigest
 
     def copy():
@@ -121,10 +123,10 @@ def SHA512Hash(data, truncate):
         return h
     self.copy = copy
 
-    def new(data=None):
+    def new(data=None, truncate=None):
         """Create a fresh SHA-512 hash object."""
 
-        return SHA512Hash(data, self._truncate)
+        return SHA512Hash(data, truncate)
     self.new = new
     return self
 
@@ -146,7 +148,6 @@ def new(data=None, truncate=None):
     """
 
     return SHA512Hash(data, truncate)
-self.new = new
 
 
 
@@ -175,4 +176,5 @@ SHA512 = larky.struct(
     block_size=block_size,
     new=new,
     _pbkdf2_hmac_assist=_pbkdf2_hmac_assist,
+    __name__ = 'SHA512',
 )

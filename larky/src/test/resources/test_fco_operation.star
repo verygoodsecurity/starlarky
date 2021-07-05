@@ -42,7 +42,7 @@ def process(message, ctx):
     concated = "".join([v for _, v in sorted_pairs])
 
     # Sha512 hash the concat string
-    signature = hashlib.sha512(concated)
+    signature = hashlib.sha512(bytes(concated, encoding='utf-8')).hexdigest()
 
     # Set json "signature" value to the sha hash
     decoded_payload["signature"] = signature

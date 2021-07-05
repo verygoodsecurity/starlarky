@@ -2,41 +2,64 @@ package com.verygood.security.larky.modules.re;
 
 import com.google.common.base.Joiner;
 import com.google.re2j.Matcher;
+import com.google.re2j.Pattern;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Stream;
 
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
-import java.util.Arrays;
-
 public class RegexMatcher implements StarlarkValue {
-  private final Matcher matcher;
-  private final RegexPattern pattern;
+  // This is only non-final because match() function has to modify the pattern region matcher
+  private Matcher matcher;
 
-  RegexMatcher(Matcher matcher) {
+  /**
+   * The Pattern object that created this Matcher.
+   */
+  private RegexPattern parentPattern;
+  private final CharSequence input;
+
+  private int lastMatchStart;
+  private int lastMatchEnd;
+
+  RegexMatcher(RegexPattern parentPattern, Matcher matcher, CharSequence input) {
     this.matcher = matcher;
-    this.pattern = new RegexPattern().pattern(matcher.pattern());
+    this.parentPattern = parentPattern;
+    this.input = input;
   }
 
-  RegexMatcher(Matcher matcher, RegexPattern pattern) {
-    this.matcher = matcher;
-    this.pattern = pattern;
+  public RegexMatcher usePattern(Pattern newPattern) {
+    // Per JVM documentation, current search position & last append position
+    // do not change. region behavior is not mentioned, but JVM preserves
+    // the region.
+    //
+    // Info on groups from lastmatch is lost.
+    if (newPattern == null) {
+      throw new IllegalArgumentException("Pattern cannot be null");
+    }
+    this.parentPattern = this.parentPattern.pattern(newPattern);
+    this.matcher = newPattern.matcher(input); // ???
+    return this;
   }
 
   @StarlarkMethod(
       name = "pattern",
-      doc = "Returns the RegexPattern associated with this RegexMatcher.\n"
+      doc = "Returns the parent RegexPattern associated with this RegexMatcher.\n"
   )
-  public RegexPattern pattern() {
-    return pattern;
+  public RegexPattern parentPattern() {
+    return parentPattern;
   }
 
   @StarlarkMethod(
@@ -59,7 +82,37 @@ public class RegexMatcher implements StarlarkValue {
     } else if (String.class.isAssignableFrom(input.getClass())) {
       matcher.reset(String.valueOf(input));
     }
+    lastMatchStart = 0;
+    lastMatchEnd = 0;
     return this;
+  }
+
+  @StarlarkMethod(
+      name = "groupdict",
+      doc = "Return a dictionary containing all the named subgroups of the match, keyed by " +
+              "the subgroup name. The default argument is used for groups that did not " +
+              "participate in the match; it defaults to None.",
+      parameters = {
+          @Param(
+              name = "default",
+              allowedTypes = {
+                @ParamType(type = NoneType.class),
+                @ParamType(type = String.class),
+              },
+              defaultValue = "None"
+          )
+      }, useStarlarkThread = true
+  )
+  public Dict<String, Object> groupdict(Object defaulto, StarlarkThread thread) {
+    Dict.Builder<String, Object> d = new Dict.Builder<>();
+    Stream<Map.Entry<String, Integer>> sorted = ( // must be sorted to match python behavior
+      parentPattern
+      .namedGroups()
+      .entrySet()
+      .stream()
+      .sorted(Map.Entry.comparingByValue()));
+    sorted.forEach(entry -> d.put(entry.getKey(), group(entry.getValue())));
+    return d.build(thread.mutability());
   }
 
   @StarlarkMethod(
@@ -78,7 +131,12 @@ public class RegexMatcher implements StarlarkValue {
       }
   )
   public StarlarkInt start(StarlarkInt index) {
-    return StarlarkInt.of(matcher.start(index.toIntUnchecked()));
+    int idx = index.toIntUnchecked();
+    // for region
+    if(idx == 0 && lastMatchStart != 0) {
+      return StarlarkInt.of(lastMatchStart);
+    }
+    return StarlarkInt.of(matcher.start(idx));
   }
 
   @StarlarkMethod(
@@ -97,7 +155,12 @@ public class RegexMatcher implements StarlarkValue {
       }
   )
   public StarlarkInt end(StarlarkInt index) {
-    return StarlarkInt.of(matcher.end(index.toIntUnchecked()));
+    int idx = index.toIntUnchecked();
+    // for region
+    if(idx == 0 && lastMatchEnd != 0) {
+      return StarlarkInt.of(lastMatchEnd);
+    }
+    return StarlarkInt.of(matcher.end(idx));
   }
 
   @StarlarkMethod(
@@ -124,6 +187,8 @@ public class RegexMatcher implements StarlarkValue {
     String g;
     if (Starlark.isNullOrNone(group)) {
       g = matcher.group();
+    } else if (Integer.class.isAssignableFrom(group.getClass())) {
+      g = matcher.group(((Integer) group));
     } else if (StarlarkInt.class.isAssignableFrom(group.getClass())) {
       g = matcher.group(((StarlarkInt) group).toIntUnchecked());
     }
@@ -149,26 +214,84 @@ public class RegexMatcher implements StarlarkValue {
   }
 
   @StarlarkMethod(
-      name = "matches",
-      doc = "Matches the entire input against the pattern (anchored start and end). " +
-          "If there is a match, matches sets the match state to describe it.\n" +
-          "the number of subgroups; the overall match (group 0) does not count\n" +
-          "\n" +
-          "Returns: true if the entire input matches the pattern"
+    name = "matches",
+    doc = "Matches the entire input against the pattern (anchored start and end). " +
+        "If there is a match, matches sets the match state to describe it.\n" +
+        "the number of subgroups; the overall match (group 0) does not count\n" +
+        "\n" +
+        "Returns: true if the entire input matches the pattern",
+    parameters = {
+      @Param(
+        name = "pos",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+        },
+        defaultValue = "0"
+      ),
+      @Param(
+        name = "endpos",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+        },
+        defaultValue = "-1"
+      )
+    }
   )
-  public boolean matches() {
+  public boolean matches(StarlarkInt pos, StarlarkInt endpos) {
     return matcher.matches();
   }
 
   @StarlarkMethod(
-      name = "looking_at",
-      doc = "Matches the beginning of input against the pattern (anchored start). " +
-          "If there is a match, looking_at sets the match state to describe it." +
-          "\n" +
-          "Returns true if the beginning of the input matches the pattern\n"
+    name = "looking_at",
+    doc = "Matches the beginning of input against the pattern (anchored start). " +
+        "If there is a match, looking_at sets the match state to describe it." +
+        "\n" +
+        "Returns true if the beginning of the input matches the pattern\n",
+    parameters = {
+      @Param(
+        name = "pos",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+        },
+        defaultValue = "0"
+      ),
+      @Param(
+        name = "endpos",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+        },
+        defaultValue = "-1"
+      )
+    }
   )
-  public boolean lookingAt() {
-    return matcher.lookingAt();
+  public boolean lookingAt(StarlarkInt spos, StarlarkInt sendpos) {
+    int pos = spos.toIntUnchecked();
+    int endpos = sendpos.toIntUnchecked();
+    pos = Math.max(pos, 0);
+    endpos = (endpos == -1) ? input.length() : endpos;
+    //LarkyRE2Matcher.genMatch(matcher, input,pos, endpos);
+    if(pos != 0 && !parentPattern.pattern().startsWith("^")) {
+      /*
+
+        var x = m.pattern();
+        var matcher = x.matcher(s.subSequence(startByte,endByte));
+        if(matcher.lookingAt()) {
+          System.out.println(Arrays.toString(matcher.groups));
+          System.out.println(matcher.group());
+        }
+        */
+
+      // match is like search but pattern must start with ^
+      // if pos is passed in, we have to reset the pattern.
+      matcher = Pattern.compile("^" + parentPattern.pattern())
+               .matcher(input.subSequence(pos, endpos));
+    }
+    boolean ok = matcher.lookingAt();
+    if(ok) {
+      lastMatchStart = matcher.start() + pos;
+      lastMatchEnd = matcher.end() + pos;
+    }
+    return ok;
   }
 
   @StarlarkMethod(
@@ -249,7 +372,7 @@ public class RegexMatcher implements StarlarkValue {
           )}
   )
   public RegexMatcher appendReplacement(StarlarkList<String> sb, String replacement) {
-    StringBuilder builder = new StringBuilder().append(Joiner.on("").join(sb));
+    StringBuffer builder = new StringBuffer().append(Joiner.on("").join(sb));
     matcher.appendReplacement(builder, replacement);
     try {
       sb.clearElements();
@@ -275,7 +398,7 @@ public class RegexMatcher implements StarlarkValue {
           )}
   )
   public String appendTail(String s) {
-    return matcher.appendTail(new StringBuilder().append(s)).toString();
+    return matcher.appendTail(new StringBuffer().append(s)).toString();
   }
 
   @StarlarkMethod(

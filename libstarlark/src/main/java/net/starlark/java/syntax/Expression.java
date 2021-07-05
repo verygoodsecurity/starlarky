@@ -44,6 +44,7 @@ public abstract class Expression extends Node {
     SLICE,
     STRING_LITERAL,
     UNARY_OPERATOR,
+    BYTE_LITERAL
   }
 
   Expression(FileLocations locs) {

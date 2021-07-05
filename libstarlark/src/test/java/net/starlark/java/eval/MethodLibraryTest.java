@@ -501,7 +501,8 @@ public final class MethodLibraryTest {
         .testExpression("hash('starlark')", StarlarkInt.of("starlark".hashCode()))
         .testExpression("hash('google')", StarlarkInt.of("google".hashCode()))
         .testIfErrorContains(
-            "in call to hash(), parameter 'value' got value of type 'NoneType', want 'string'",
+            "in call to hash(), parameter 'value' got value of type" +
+              " 'NoneType', want 'string or bytes'",
             "hash(None)");
   }
 

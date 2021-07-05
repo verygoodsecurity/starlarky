@@ -18,7 +18,7 @@ load("@vendor//pycryptodome", "pycryptodome")
 # common.reject()
 print(collections)
 print(setz.make())
-print(hashlib.md5("foo"))
+print(hashlib.md5(bytes("foo", encoding='utf-8')))
 
 c1 = json.dumps({"one": 1, "two": 2})
 d1 = json.dumps("😹💍")

@@ -7,7 +7,12 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.truth.Truth;
+import java.io.IOException;
+import java.math.BigInteger;
+import java.security.KeyPair;
+import java.security.Security;
 
+import com.verygood.security.larky.modules.openssl.SSLUtils;
 import com.verygood.security.larky.modules.utils.NumOpsUtils;
 
 import net.starlark.java.eval.Dict;
@@ -33,10 +38,6 @@ import org.bouncycastle.util.encoders.Hex;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.io.IOException;
-import java.math.BigInteger;
-import java.security.Security;
 
 public class CryptoPublicKeyModuleTest {
 
@@ -229,5 +230,47 @@ public class CryptoPublicKeyModuleTest {
 
   @Test
   public void RSA_import_key() {
+    // # PEM encryption
+    //# With DES and passphrase 'test'
+    String[][] fixture = {
+        {
+            "test",
+            "-----BEGIN RSA PRIVATE KEY-----\n" +
+            "Proc-Type: 4,ENCRYPTED\n" +
+            "DEK-Info: DES-CBC,AF8F9A40BD2FA2FC\n" +
+            "\n" +
+            "Ckl9ex1kaVEWhYC2QBmfaF+YPiR4NFkRXA7nj3dcnuFEzBnY5XULupqQpQI3qbfA\n" +
+            "u8GYS7+b3toWWiHZivHbAAUBPDIZG9hKDyB9Sq2VMARGsX1yW1zhNvZLIiVJzUHs\n" +
+            "C6NxQ1IJWOXzTew/xM2I26kPwHIvadq+/VaT8gLQdjdH0jOiVNaevjWnLgrn1mLP\n" +
+            "BCNRMdcexozWtAFNNqSzfW58MJL2OdMi21ED184EFytIc1BlB+FZiGZduwKGuaKy\n" +
+            "9bMbdb/1PSvsSzPsqW7KSSrTw6MgJAFJg6lzIYvR5F4poTVBxwBX3+EyEmShiaNY\n" +
+            "IRX3TgQI0IjrVuLmvlZKbGWP18FXj7I7k9tSsNOOzllTTdq3ny5vgM3A+ynfAaxp\n" +
+            "dysKznQ6P+IoqML1WxAID4aGRMWka+uArOJ148Rbj9s=\n" +
+            "-----END RSA PRIVATE KEY-----"
+        },
+        {
+            // PKCS8 encryption
+            "winter",
+            "-----BEGIN ENCRYPTED PRIVATE KEY-----\n" +
+            "MIIBpjBABgkqhkiG9w0BBQ0wMzAbBgkqhkiG9w0BBQwwDgQIeZIsbW3O+JcCAggA\n" +
+            "MBQGCCqGSIb3DQMHBAgSM2p0D8FilgSCAWBhFyP2tiGKVpGj3mO8qIBzinU60ApR\n" +
+            "3unvP+N6j7LVgnV2lFGaXbJ6a1PbQXe+2D6DUyBLo8EMXrKKVLqOMGkFMHc0UaV6\n" +
+            "R6MmrsRDrbOqdpTuVRW+NVd5J9kQQh4xnfU/QrcPPt7vpJvSf4GzG0n666Ki50OV\n" +
+            "M/feuVlIiyGXY6UWdVDpcOV72cq02eNUs/1JWdh2uEBvA9fCL0c07RnMrdT+CbJQ\n" +
+            "NjJ7f8ULtp7xvR9O3Al/yJ4Wv3i4VxF1f3MCXzhlUD4I0ONlr0kJWgeQ80q/cWhw\n" +
+            "ntvgJwnCn2XR1h6LA8Wp+0ghDTsL2NhJpWd78zClGhyU4r3hqu1XDjoXa7YCXCix\n" +
+            "jCV15+ViDJzlNCwg+W6lRg18sSLkCT7alviIE0U5tHc6UPbbHwT5QqAxAABaP+nZ\n" +
+            "CGqJGyiwBzrKebjgSm/KRd4C91XqcsysyH2kKPfT51MLAoD4xelOURBP\n" +
+            "-----END ENCRYPTED PRIVATE KEY-----"
+        }
+    };
+    SSLUtils sslUtils = new SSLUtils();
+    KeyPair keyPair;
+
+    keyPair = sslUtils.decodePrivKey(fixture[0][1], fixture[0][0]);
+    assertNotNull(keyPair);
+    //TODO: skip
+    //keyPair = sslUtils.decodePrivKey(fixture[1][1], fixture[1][0]);
+    //assertNotNull(keyPair);
   }
 }

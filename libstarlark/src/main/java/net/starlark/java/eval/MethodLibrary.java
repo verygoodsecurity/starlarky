@@ -17,12 +17,14 @@ package net.starlark.java.eval;
 import com.google.common.base.Ascii;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Ordering;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -291,6 +293,82 @@ class MethodLibrary {
   }
 
   @StarlarkMethod(
+      name = "bytes",
+      doc =
+        "<pre class=\"language-python\">bytes(x)</pre> converts its argument to a bytes.\n" +
+          "\n" +
+          "If x is a bytes, the result is x.\n" +
+          "\n" +
+          "If x is a string, the result is a bytes whose elements are the UTF-8 encoding of" +
+          " the string. Each element of the string that is not part of a valid encoding of " +
+          "a code point is replaced by the UTF-8 encoding of the replacement character, " +
+          "U+FFFD.\n" +
+          "\n" +
+          "If x is an iterable sequence of int values, the result is a bytes whose " +
+          "elements are those integers. It is an error if any element is not in the " +
+          "range 0-255.",
+      parameters = {@Param(name = "x", doc = "The object to convert.")})
+  public StarlarkByte bytes(Object x) throws EvalException {
+    switch(Starlark.type(x)) {
+      case "bytes":
+        return (StarlarkByte) x;
+      case "string":
+        return StarlarkByte.immutableOf(((String) x).toCharArray());
+      default:
+        // nothing
+    }
+    if(x instanceof Sequence) {
+      Sequence<StarlarkInt> cast = Sequence.cast(
+        x,
+        StarlarkInt.class,
+        Starlark.str(x));
+      return StarlarkByte.immutableCopyOf(cast);
+    }
+    throw Starlark.errorf("bytes: got %s, want string, bytes, or iterable of ints", Starlark.type(x));
+  }
+
+
+  @StarlarkMethod(
+       name = "ord",
+       doc = "Given a string representing one Unicode character, return an integer representing" +
+           " the Unicode code point of that character. For example, ord('a') returns the " +
+           "integer 97 and ord('€') (Euro sign) returns 8364. This is the inverse of chr().",
+       parameters = {
+           @Param(
+               name = "c",
+               allowedTypes = {
+                   @ParamType(type = String.class),
+                   @ParamType(type = StarlarkByte.class),
+               }
+           )
+       }
+   )
+   public StarlarkInt ordinal(Object c) throws EvalException {
+     int containerSize = 0;
+     byte[] bytes = null;
+     if (String.class.isAssignableFrom(c.getClass())) {
+       containerSize = ((String) c).length();
+       bytes = ((String) c).getBytes(StandardCharsets.UTF_8);
+     } else if (StarlarkByte.class.isAssignableFrom(c.getClass())) {
+       containerSize = ((StarlarkByte) c).size();
+       bytes = ((StarlarkByte) c).getBytes();
+     }
+
+     if (containerSize != 1 || bytes == null) {
+       throw Starlark.errorf(
+           "ord: %s has length %d, want 1", Starlark.type(c), containerSize);
+     }
+
+    if(bytes.length == 1) {
+      return StarlarkInt.of(Byte.toUnsignedInt(bytes[0]));
+    }
+    int code = 0x10000;
+    code += (bytes[0] & 0x03FF) << 10;
+    code += (bytes[1] & 0x03FF);
+    return StarlarkInt.of(code);
+   }
+
+  @StarlarkMethod(
       name = "repr",
       doc =
           "Converts any object to a string representation. This is useful for debugging.<br>"
@@ -528,15 +606,24 @@ class MethodLibrary {
   @StarlarkMethod(
       name = "hash",
       doc =
-          "Return a hash value for a string. This is computed deterministically using the same "
+          "Return a hash value for a string or bytes." +
+            "For strings, this is computed deterministically using the same "
               + "algorithm as Java's <code>String.hashCode()</code>, namely: "
               + "<pre class=\"language-python\">s[0] * (31^(n-1)) + s[1] * (31^(n-2)) + ... + "
-              + "s[n-1]</pre> Hashing of values besides strings is not currently supported.",
+              + "s[n-1]</pre>.\n" +
+            "For bytes, this is computed using the Fnv32 hash function.\n" +
+            "Hashing of values besides strings or bytes is not currently supported.",
       // Deterministic hashing is important for the consistency of builds, hence why we
       // promise a specific algorithm. This is in contrast to Java (Object.hashCode()) and
       // Python, which promise stable hashing only within a given execution of the program.
-      parameters = {@Param(name = "value", doc = "String value to hash.")})
-  public int hash(String value) throws EvalException {
+      parameters = {
+        @Param(name = "value", doc = "String value to hash.",
+        allowedTypes = {
+          @ParamType(type = String.class),
+          @ParamType(type = StarlarkByte.class),
+        })
+      })
+  public int hash(Object value) throws EvalException {
     return value.hashCode();
   }
 
