@@ -12,7 +12,7 @@ class NoopAliasGenerator implements AliasGenerator {
     }
 
     @Override
-    public String tokenize(String value) throws EvalException {
+    public String generate(String value) throws EvalException {
         throw Starlark.errorf(String.format(
                 "Format '%s' is not supported", aliasFormatName
         ));

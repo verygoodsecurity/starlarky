@@ -4,7 +4,7 @@ import net.starlark.java.eval.EvalException;
 
 class UUIDAliasGenerator extends RawAliasGenerator {
     @Override
-    public String tokenize(String value) throws EvalException {
-        return String.format("tok_%s", super.tokenize(value)).substring(0, 30);
+    public String generate(String value) throws EvalException {
+        return String.format("tok_%s", super.generate(value)).substring(0, 30);
     }
 }

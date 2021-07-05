@@ -36,15 +36,15 @@ def _test_default_reveal():
     asserts.assert_that(revealed_card_number).is_equal_to(card_number)
 
 def _test_empty_reveal():
-    token = "tok_123"
-    revealed = vault.reveal(token)
+    alias = "tok_123"
+    revealed = vault.reveal(alias)
 
-    asserts.assert_that(revealed).is_equal_to("token")
+    asserts.assert_that(revealed).is_equal_to(alias)
 
 def _test_invalid_list_reveal():
-    token = ["tok_123"]
+    alias = ["tok_123"]
 
-    asserts.assert_fails(lambda : vault.reveal(token),
+    asserts.assert_fails(lambda : vault.reveal(alias),
         "Value of type net.starlark.java.eval.StarlarkList is not supported in DefaultVault, expecting String"
     )
 
@@ -56,9 +56,9 @@ def _test_persistent_storage():
     revealed_card_number_explicit = vault.reveal(redacted_card_number, storage='persistent')
     revealed_card_number_volatile = vault.reveal(redacted_card_number, storage='volatile')
 
-    asserts.assert_that(revealed_card_number_implicit).is_equal_to('4111111111111114')
-    asserts.assert_that(revealed_card_number_explicit).is_equal_to('4111111111111114')
-    asserts.assert_that(revealed_card_number_volatile).is_equal_to('token')
+    asserts.assert_that(revealed_card_number_implicit).is_equal_to(card_number)
+    asserts.assert_that(revealed_card_number_explicit).is_equal_to(card_number)
+    asserts.assert_that(revealed_card_number_volatile).is_equal_to(redacted_card_number)
 
 def _test_volatile_storage():
     card_number = "4111111111111115"
@@ -67,8 +67,8 @@ def _test_volatile_storage():
     revealed_card_number_volatile = vault.reveal(redacted_card_number, storage='volatile')
     revealed_card_number_persistent = vault.reveal(redacted_card_number, storage='persistent')
 
-    asserts.assert_that(revealed_card_number_volatile).is_equal_to('4111111111111115')
-    asserts.assert_that(revealed_card_number_persistent).is_equal_to('token')
+    asserts.assert_that(revealed_card_number_volatile).is_equal_to(card_number)
+    asserts.assert_that(revealed_card_number_persistent).is_equal_to(redacted_card_number)
 
 def _test_unknown_storage():
     card_number = "4111111111111116"
