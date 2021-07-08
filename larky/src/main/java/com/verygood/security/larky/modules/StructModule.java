@@ -560,6 +560,7 @@ public class StructModule implements StarlarkValue {
     char c;
     byte[] bShort = new byte[2];
     byte[] bLong = new byte[4];
+    byte[] bLongLong = new byte[8];
     ByteArrayInputStream bs = new ByteArrayInputStream(vals);
 
     int p = 0;
@@ -582,6 +583,9 @@ public class StructModule implements StarlarkValue {
           } else if (c == 'i' || c == 'I') {
             int read = bs.read(bLong);
             bxx[p] = unpack_single_data(c, bLong);
+          } else if (c == 'q' || c == 'Q') {
+            int read = bs.read(bLongLong);
+            bxx[p] = unpack_single_data(c, bLongLong);
           }
           p++;
         }
