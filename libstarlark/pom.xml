@@ -187,15 +187,6 @@
 
     <profiles>
         <profile>
-            <id>bintray</id>
-            <distributionManagement>
-                <repository>
-                    <id>bintray-vg-vgs-oss</id>
-                    <url>https://api.bintray.com/maven/vg/vgs-oss/libstarlark/;publish=1</url>
-                </repository>
-            </distributionManagement>
-        </profile>
-        <profile>
             <id>github</id>
             <distributionManagement>
                 <repository>
