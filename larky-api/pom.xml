@@ -18,22 +18,7 @@
             <id>github</id>
             <url>https://maven.pkg.github.com/verygoodsecurity/starlarky</url>
         </repository>
-        <repository>
-            <id>vgs-oss</id>
-            <url>https://dl.bintray.com/vg/vgs-oss</url>
-        </repository>
     </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>jfog</id>
-            <name>jfrog</name>
-            <url>https://dl.bintray.com/vg/vgs-oss</url>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
 
     <dependencies>
         <dependency>
@@ -170,15 +155,6 @@
     </properties>
 
     <profiles>
-        <profile>
-            <id>bintray</id>
-            <distributionManagement>
-                <repository>
-                    <id>bintray-vg-vgs-oss</id>
-                    <url>https://api.bintray.com/maven/vg/vgs-oss/larky-api/;publish=1</url>
-                </repository>
-            </distributionManagement>
-        </profile>
         <profile>
             <id>github</id>
             <distributionManagement>
