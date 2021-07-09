@@ -12,7 +12,6 @@
     <modules>
         <module>libstarlark</module>
         <module>larky</module>
-        <module>larky-api</module>
         <module>runlarky</module>
     </modules>
 
