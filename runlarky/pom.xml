@@ -18,10 +18,6 @@
             <id>github</id>
             <url>https://maven.pkg.github.com/verygoodsecurity/starlarky</url>
         </repository>
-        <repository>
-            <id>vgs-oss</id>
-            <url>https://dl.bintray.com/vg/vgs-oss</url>
-        </repository>
     </repositories>
 
     <properties>
