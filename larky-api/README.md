@@ -34,3 +34,4 @@ To download all available Larky fat-jar versions automatically, run the followin
 ```shell
 ./scripts/get_resources.sh
 ```
+
