@@ -17,11 +17,6 @@ package com.verygood.security.larky.modules.codecs;
 import com.google.common.base.Utf8;
 import com.google.common.collect.Iterators;
 import com.google.common.primitives.Bytes;
-
-import org.apache.commons.text.StringEscapeUtils;
-import org.apache.commons.text.translate.CharSequenceTranslator;
-import org.apache.commons.text.translate.EntityArrays;
-
 import java.io.DataInput;
 import java.io.IOException;
 import java.nio.Buffer;
@@ -38,6 +33,9 @@ import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.Arrays;
 import java.util.ListIterator;
+import org.apache.commons.text.StringEscapeUtils;
+import org.apache.commons.text.translate.CharSequenceTranslator;
+import org.apache.commons.text.translate.EntityArrays;
 
 /**
  * Mostly taken from Apache Arrow and from RE2j's Unicode class.
@@ -171,7 +169,7 @@ public class TextUtil {
       return -1; // duh.
     }
 
-    Buffer wrap = ByteBuffer.wrap(bytes).position(position);
+    Buffer wrap = ((Buffer) ByteBuffer.wrap(bytes)).position(position);
     // This is to allow compilation by JDK9+ with targeting JDK8 byte code
     //noinspection CastCanBeRemovedNarrowingVariableType
     return bytesToCodePoint(((ByteBuffer) wrap).slice());
@@ -197,24 +195,24 @@ public class TextUtil {
       ByteBuffer src = ByteBuffer.wrap(this.bytes, 0, this.length);
       ByteBuffer tgt = encode(what);
       byte b = tgt.get();
-      src.position(start);
+      ((Buffer) src).position(start);
 
       while (src.hasRemaining()) {
         if (b == src.get()) { // matching first byte
-          src.mark(); // save position in loop
-          tgt.mark(); // save position in target
+          ((Buffer) src).mark(); // save position in loop
+          ((Buffer) tgt).mark(); // save position in target
           boolean found = true;
           int pos = src.position() - 1;
           while (tgt.hasRemaining()) {
             if (!src.hasRemaining()) { // src expired first
-              tgt.reset();
-              src.reset();
+              ((Buffer) tgt).reset();
+              ((Buffer) src).reset();
               found = false;
               break;
             }
             if (!(tgt.get() == src.get())) {
-              tgt.reset();
-              src.reset();
+              ((Buffer) tgt).reset();
+              ((Buffer) src).reset();
               found = false;
               break; // no match
             }
@@ -1333,7 +1331,7 @@ public class TextUtil {
   static public int bytesToCodePoint(ByteBuffer bytes) {
     bytes.mark();
     byte b = bytes.get();
-    bytes.reset();
+    ((Buffer) bytes).reset();
     int extraBytesToRead = bytesFromUTF8[(b & 0xFF)];
     if (extraBytesToRead < 0) {
       return -1; // trailing byte!
@@ -1580,7 +1578,7 @@ public class TextUtil {
         }
         lastpos = buf.position();
       }catch(java.nio.BufferUnderflowException e) {
-        buf.position(lastpos);
+        ((Buffer) buf).position(lastpos);
         for(int i = lastpos; i < l; i++) {
           sb.append("\\x");
           sb.append(Integer.toHexString(Byte.toUnsignedInt(buf.get(i))));
