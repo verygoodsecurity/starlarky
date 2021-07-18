@@ -2,11 +2,30 @@ package com.verygood.security.larky.modules.crypto;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.FluentLogger;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.SignatureException;
+import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.RSAPublicKeySpec;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.verygood.security.larky.modules.crypto.Protocol.KDF.BCryptKDF;
 import com.verygood.security.larky.modules.crypto.Util.CryptoUtils;
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -15,6 +34,7 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
@@ -64,28 +84,6 @@ import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.SignatureException;
-import java.security.interfaces.RSAPrivateCrtKey;
-import java.security.interfaces.RSAPublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.RSAPublicKeySpec;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 
 public class CryptoPublicKeyModule implements StarlarkValue {
@@ -163,21 +161,21 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   @StarlarkMethod(
       name = "import_keyDER",
       parameters = {
-          @Param(name = "externKey", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+          @Param(name = "externKey", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
           @Param(name = "passPhrase", allowedTypes = {
-              @ParamType(type = LarkyByteLike.class),
+              @ParamType(type = StarlarkBytes.class),
               @ParamType(type = NoneType.class)
           })
       }, useStarlarkThread = true)
-  public StarlarkList<StarlarkInt> importKeyDER(LarkyByteLike externKey, Object passPhraseO, StarlarkThread thread) throws EvalException {
+  public StarlarkList<StarlarkInt> importKeyDER(StarlarkBytes externKey, Object passPhraseO, StarlarkThread thread) throws EvalException {
     List<BigInteger> components;
     char[] passphrase = null;
     if (!Starlark.isNullOrNone(passPhraseO)) {
-      passphrase = ((LarkyByteLike) passPhraseO).toCharArray(StandardCharsets.ISO_8859_1);
+      passphrase = ((StarlarkBytes) passPhraseO).toCharArray(StandardCharsets.ISO_8859_1);
     }
 
     try {
-      components = decodeDERKey(externKey.getBytes(), passphrase);
+      components = decodeDERKey(externKey.toByteArray(), passphrase);
     } catch (SignatureException | NoSuchAlgorithmException | IOException e) {
       throw new EvalException("ValueError: " + e.getMessage(), e);
     }
@@ -385,16 +383,16 @@ public class CryptoPublicKeyModule implements StarlarkValue {
 
   @StarlarkMethod(
       name = "PKCS8_unwrap", parameters = {
-      @Param(name = "binary_key", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "binary_key", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
       @Param(name = "oid", allowedTypes = {@ParamType(type = String.class)}),
       @Param(name = "passphrase", allowedTypes = {
-          @ParamType(type = LarkyByteLike.class),
+          @ParamType(type = StarlarkBytes.class),
           @ParamType(type = NoneType.class)
       }),
       @Param(name = "protection", allowedTypes = {@ParamType(type = String.class)})
   }, useStarlarkThread = true)
-  public Tuple PKCS8_unwrap(LarkyByteLike binaryKey, String oid, Object passphraseO, String protection, StarlarkThread thread) throws EvalException {
-    InputStreamReader r = new InputStreamReader(new ByteArrayInputStream(binaryKey.getBytes()));
+  public Tuple PKCS8_unwrap(StarlarkBytes binaryKey, String oid, Object passphraseO, String protection, StarlarkThread thread) throws EvalException {
+    InputStreamReader r = new InputStreamReader(new ByteArrayInputStream(binaryKey.toByteArray()));
     String passphrase = Starlark.isNullOrNone(passphraseO) ? null : (String) passphraseO;
     KeyPair kp;
     try (PEMParser pemParser = new PEMParser(r)) {
@@ -407,7 +405,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     String algorithm = kp.getPrivate().getAlgorithm();
     return Tuple.of(
         algorithm,
-        LarkyByte.builder(thread).setSequence(kp.getPrivate().getEncoded()).build()
+        StarlarkBytes.of(thread.mutability(),kp.getPrivate().getEncoded())
+        //StarlarkBytes.builder(thread).setSequence(kp.getPrivate().getEncoded()).build()
     );
   }
 
@@ -424,7 +423,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       parameters = {
           @Param(name = "decodeable", allowedTypes = {@ParamType(type = String.class)}),
           @Param(name = "passphrase", allowedTypes = {
-              @ParamType(type = LarkyByteLike.class), @ParamType(type = NoneType.class)}),
+              @ParamType(type = StarlarkBytes.class), @ParamType(type = NoneType.class)}),
       }, useStarlarkThread = true)
   public StarlarkList<?> PEM_decode(String decodable, Object passphrase, StarlarkThread thread) throws EvalException {
 
@@ -434,7 +433,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       if (pemObj == null) throw Starlark.errorf("Could not extract PEM encoded object!");
       char[] passChars = Starlark.isNullOrNone(passphrase)
           ? "".toCharArray()
-          : ((LarkyByteLike) passphrase).toCharArray();
+          : ((StarlarkBytes) passphrase).toCharArray();
       keyParts = PEM_parse(pemObj, passChars);
     } catch (IOException | CryptoException e) {
       throw new EvalException(e.getMessage(), e);
@@ -536,15 +535,16 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       },
       useStarlarkThread = true
   )
-  public LarkyByteLike RSADecrypt(Dict<String, StarlarkInt> finalRsaObj, LarkyByteLike cT, StarlarkThread thread) throws EvalException {
-    byte[] cipherText = cT.getBytes();
+  public StarlarkBytes RSADecrypt(Dict<String, StarlarkInt> finalRsaObj, StarlarkBytes cT, StarlarkThread thread) throws EvalException {
+    byte[] cipherText = cT.toByteArray();
     byte[] bytes;
     try {
       bytes = RSA_decrypt(finalRsaObj, cipherText);
     } catch (DataLengthException | InvalidCipherTextException e) {
       throw new EvalException("ValueError: " + e.getMessage(), e);
     }
-    return LarkyByte.builder(thread).setSequence(bytes).build();
+    return StarlarkBytes.of(thread.mutability(), bytes);
+//    return StarlarkBytes.builder(thread).setSequence(bytes).build();
   }
 
   @VisibleForTesting
@@ -569,15 +569,16 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       },
       useStarlarkThread = true
   )
-  public LarkyByteLike RSAEncrypt(Dict<String, StarlarkInt> finalRsaObj, LarkyByteLike pT, StarlarkThread thread) throws EvalException {
-    byte[] plainText = pT.getBytes();
+  public StarlarkBytes RSAEncrypt(Dict<String, StarlarkInt> finalRsaObj, StarlarkBytes pT, StarlarkThread thread) throws EvalException {
+    byte[] plainText = pT.toByteArray();
     byte[] bytes;
     try {
       bytes = RSA_encrypt(finalRsaObj, plainText);
     } catch (DataLengthException | InvalidCipherTextException e) {
       throw new EvalException("ValueError: " + e.getMessage(), e);
     }
-    return LarkyByte.builder(thread).setSequence(bytes).build();
+    return StarlarkBytes.of(thread.mutability(), bytes);
+//    return StarlarkBytes.builder(thread).setSequence(bytes).build();
   }
 
   @VisibleForTesting
@@ -597,21 +598,21 @@ public class CryptoPublicKeyModule implements StarlarkValue {
 
   @StarlarkMethod(
       name = "decrypt_openssh_key", parameters = {
-      @Param(name = "encrypted", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
-      @Param(name = "password", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
-      @Param(name = "salt", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "encrypted", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+      @Param(name = "password", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+      @Param(name = "salt", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
   }, useStarlarkThread = true)
-  public LarkyByteLike decryptOpenSSHKey(
-      LarkyByteLike encrypted, LarkyByteLike password, LarkyByteLike salt, StarlarkThread thread) throws EvalException {
+  public StarlarkBytes decryptOpenSSHKey(
+      StarlarkBytes encrypted, StarlarkBytes password, StarlarkBytes salt, StarlarkThread thread) throws EvalException {
     if (password.size() == 0) {
       throw Starlark.errorf("Password cannot have size 0 when decrypting an SSH key!");
     }
-    byte[] passInBytes = password.getBytes();
+    byte[] passInBytes = password.toByteArray();
     // We need 32+16 = 48 bytes, therefore 2 bcrypt outputs are sufficient
     byte[] key;
     try {
       // 16 rounds
-      key = BCryptKDF.bcrypt_pbkdf(passInBytes, salt.getBytes(), 48, 16);
+      key = BCryptKDF.bcrypt_pbkdf(passInBytes, salt.toByteArray(), 48, 16);
     } catch (NoSuchAlgorithmException e) {
       throw new EvalException(e.getMessage(), e);
     }
@@ -627,12 +628,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
 
     byte[] result = new byte[cipher.getOutputSize(encrypted.size())];
     int length = cipher.processBytes(
-        encrypted.getBytes(), 0, result.length, result, 0);
+      encrypted.toByteArray(), 0, result.length, result, 0);
     try {
       length += cipher.doFinal(result, length);
     } catch (InvalidCipherTextException e) {
       throw new EvalException(e.getMessage(), e);
     }
-    return LarkyByte.builder(thread).setSequence(result).build();
+    return StarlarkBytes.of(thread.mutability(), result);
+//    return StarlarkBytes.builder(thread).setSequence(result).build();
   }
 }

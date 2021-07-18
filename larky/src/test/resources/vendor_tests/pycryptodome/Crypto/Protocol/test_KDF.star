@@ -451,7 +451,7 @@ def bcrypt_Tests_test_bytearray_mismatch():
     bcrypt_check("pwd", bref)
 
     # wrong = ref[:-1] + bchr(bref[-1] ^ 0x01)
-    wrong = bytearray(ref[:-1], encoding='utf-8') + bytearray([bref[-1] ^ 0x01])
+    wrong = bytearray(ref[:-1], encoding='utf-8') + bytearray([ord(bref[-1]) ^ 0x01])
     asserts.assert_fails(lambda: bcrypt_check("pwd", wrong), ".*?ValueError")
 
     # wrong = b"x" + ref[1:]

@@ -1,7 +1,10 @@
 package com.verygood.security.larky.modules.crypto;
 
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -9,6 +12,7 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
@@ -16,12 +20,6 @@ import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.util.BigIntegers;
-
-import java.math.BigInteger;
-import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 public class CryptoRandomModule implements StarlarkValue {
 
@@ -31,11 +29,12 @@ public class CryptoRandomModule implements StarlarkValue {
       @Param(name = "n", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
 
   }, useStarlarkThread = true)
-  public LarkyByteLike urandom(StarlarkInt n, StarlarkThread thrd) throws EvalException {
+  public StarlarkBytes urandom(StarlarkInt n, StarlarkThread thrd) throws EvalException {
     SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
     byte[] key = new byte[n.toIntUnchecked()];
     secureRandom.nextBytes(key);
-    return LarkyByte.builder(thrd).setSequence(key).build();
+    return StarlarkBytes.of(thrd.mutability(), key);
+//    return StarlarkBytes.builder(thrd).setSequence(key).build();
   }
 
   @StarlarkMethod(

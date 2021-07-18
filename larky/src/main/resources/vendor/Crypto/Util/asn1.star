@@ -33,6 +33,7 @@ load("@vendor//Crypto/Util/number",
      long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
 
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@vendor//option/result", safe="safe")
 
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
@@ -43,10 +44,21 @@ __all__ = ['DerObject', 'DerInteger', 'DerOctetString', 'DerNull',
 
 
 def _is_number(x, only_non_negative=False):
-    if not types.is_int(x):
-        return False
 
-    return (not only_non_negative) or (x >= 0)
+    def _add():
+        test = 0
+        test = x + test
+    rval = safe(_add)()
+    if rval.is_err:
+        return False
+    return not only_non_negative or x >= 0
+
+# def _is_number(x, only_non_negative=False):
+#
+#     if not types.is_int(x) or not types.is_bytelike(x):
+#         return False
+#
+#     return (not only_non_negative) or (x >= 0)
 
 
 def BytesIO_EOF(initial_bytes):

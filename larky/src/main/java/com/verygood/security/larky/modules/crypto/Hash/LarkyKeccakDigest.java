@@ -26,9 +26,9 @@ public class LarkyKeccakDigest extends LarkyDigest {
 //          "  Args:\n" +
 //          "   length (integer): the amount of bytes this method must return"
 //        ,useStarlarkThread = true)
-//    public LarkyByteLike read(StarlarkThread thread) throws EvalException {
+//    public StarlarkBytes read(StarlarkThread thread) throws EvalException {
 //      byte[] bytes = new byte[this.digest.getDigestSize()];
 //      this.digest.doFinal(bytes, 0);
-//      return LarkyByte.builder(thread).setSequence(bytes).build();
+//      return StarlarkBytes.builder(thread).setSequence(bytes).build();
 //    }
 }

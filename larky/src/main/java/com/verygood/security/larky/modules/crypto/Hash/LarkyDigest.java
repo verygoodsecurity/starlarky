@@ -1,12 +1,10 @@
 package com.verygood.security.larky.modules.crypto.Hash;
 
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
-
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
@@ -23,11 +21,11 @@ public abstract class LarkyDigest implements StarlarkValue {
           "are equivalent to a single call with the concatenation of all\n" +
           "the arguments.",
       parameters = {@Param(name = "data", allowedTypes = {
-          @ParamType(type = LarkyByteLike.class)
+          @ParamType(type = StarlarkBytes.class)
       })}
   )
-  public void update(LarkyByteLike data) {
-    byte[] input = data.getBytes();
+  public void update(StarlarkBytes data) {
+    byte[] input = data.toByteArray();
     this.getDigest().update(input, 0, input.length);
   }
 
@@ -37,10 +35,11 @@ public abstract class LarkyDigest implements StarlarkValue {
           "so far as a bytes object.",
       useStarlarkThread = true
   )
-  public LarkyByteLike digest(StarlarkThread thread) throws EvalException {
+  public StarlarkBytes digest(StarlarkThread thread) throws EvalException {
     byte[] resBuf = new byte[this.getDigest().getDigestSize()];
     this.getDigest().doFinal(resBuf, 0);
-    return LarkyByte.builder(thread).setSequence(resBuf).build();
+    return StarlarkBytes.of(thread.mutability(), resBuf);
+//    return StarlarkBytes.builder(thread).setSequence(resBuf).build();
   }
 
   @StarlarkMethod(

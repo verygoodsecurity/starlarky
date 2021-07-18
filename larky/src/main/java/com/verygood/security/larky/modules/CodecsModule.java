@@ -1,18 +1,5 @@
 package com.verygood.security.larky.modules;
 
-import com.verygood.security.larky.modules.codecs.TextUtil;
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
-
-import net.starlark.java.annot.Param;
-import net.starlark.java.annot.ParamType;
-import net.starlark.java.annot.StarlarkBuiltin;
-import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkThread;
-import net.starlark.java.eval.StarlarkValue;
-
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -20,6 +7,18 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
+
+import com.verygood.security.larky.modules.codecs.TextUtil;
+
+import net.starlark.java.annot.Param;
+import net.starlark.java.annot.ParamType;
+import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.StarlarkValue;
 
 
 @StarlarkBuiltin(
@@ -66,14 +65,15 @@ public class CodecsModule implements StarlarkValue {
       },
       useStarlarkThread = true
   )
-  public LarkyByte encode(String strToEncode, String encoding, String errors, StarlarkThread thread) throws EvalException {
+  public StarlarkBytes encode(String strToEncode, String encoding, String errors, StarlarkThread thread) throws EvalException {
     CharsetEncoder encoder = Charset.forName(encoding)
         .newEncoder()
         .onMalformedInput(TextUtil.CodecHelper.convertCodingErrorAction(errors))
         .onUnmappableCharacter(TextUtil.CodecHelper.convertCodingErrorAction(errors));
     try {
       ByteBuffer encoded = encoder.encode(CharBuffer.wrap(TextUtil.unescapeJavaString(strToEncode)));
-      return (LarkyByte) LarkyByte.builder(thread).setSequence(encoded).build();
+      return StarlarkBytes.copyOf(thread.mutability(), encoded);
+//      return (StarlarkBytes) StarlarkBytes.builder(thread).setSequence(encoded).build();
     } catch (CharacterCodingException e) {
       throw Starlark.errorf(e.getMessage());
     }
@@ -92,7 +92,7 @@ public class CodecsModule implements StarlarkValue {
           @Param(
               name = "obj",
               allowedTypes = {
-                  @ParamType(type = LarkyByteLike.class),
+                  @ParamType(type = StarlarkBytes.class),
               }
           ),
           @Param(
@@ -113,9 +113,9 @@ public class CodecsModule implements StarlarkValue {
           )
       }
   )
-  public String decode(LarkyByteLike bytesToDecode, String encoding, String errors) throws EvalException {
+  public String decode(StarlarkBytes bytesToDecode, String encoding, String errors) throws EvalException {
     if(CodecsModule.UTF8.equals(encoding.toLowerCase())) { // TODO: fix this to be a normal decoder
-      return TextUtil.starlarkDecodeUtf8(bytesToDecode.getBytes());
+      return TextUtil.starlarkDecodeUtf8(bytesToDecode.toByteArray());
     }
     CharsetDecoder decoder = Charset.forName(encoding)
         .newDecoder()
@@ -123,7 +123,7 @@ public class CodecsModule implements StarlarkValue {
         .onUnmappableCharacter(TextUtil.CodecHelper.convertCodingErrorAction(errors));
     CharBuffer decoded;
     try {
-      decoded = decoder.decode(ByteBuffer.wrap(bytesToDecode.getBytes()));
+      decoded = decoder.decode(ByteBuffer.wrap(bytesToDecode.toByteArray()));
     } catch (CharacterCodingException e) {
       throw Starlark.errorf(e.getMessage());
     }

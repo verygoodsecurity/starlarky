@@ -8,10 +8,6 @@ load("@stdlib//types", types="types")
 # to a bytes stream. Some plumbing is necessary to have the signatures match.
 load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes")
 
-# Deal with integer compatibilities between Python 2 and 3.
-# Using `from builtins import int` is not supported on AppEngine.
-long = int
-
 
 def _ecdsa_long_to_bytes(n, blocksize=0):
     ret = long_to_bytes(n)
@@ -29,7 +25,7 @@ def long_to_base64(data, size=0):
 
 
 def int_arr_to_long(arr):
-    return long(''.join(["%02x" % byte for byte in arr]), 16)
+    return int(''.join(["%02x" % byte for byte in arr]), 16)
 
 
 def base64_to_long(data):
@@ -37,8 +33,8 @@ def base64_to_long(data):
         data = codecs.encode(data, encoding="ascii")
 
     # urlsafe_b64decode will happily convert b64encoded data
-    _d = base64.urlsafe_b64decode(bytes(data) + bytes([0x3d, 0x3d]))
-    return int_arr_to_long(struct.unpack('%sB' % len(_d), _d))
+    _d = base64.urlsafe_b64decode(bytes(data) + b"==")
+    return int_arr_to_long(struct.unpack("%sB" % len(_d), _d))
 
 
 def calculate_at_hash(access_token, hash_alg):
@@ -74,7 +70,8 @@ def base64url_decode(input):
     rem = len(input) % 4
 
     if rem > 0:
-        input += bytearray([0x3d]) * (4 - rem)
+        input += b"=" * (4 - rem)
+
     return base64.urlsafe_b64decode(input)
 
 
@@ -85,19 +82,7 @@ def base64url_encode(input):
         input (str): A base64url_encoded string to encode.
 
     """
-    # TODO (mahmoudimus): add replace() in bytes/bytearray
-    _ba = base64.urlsafe_b64encode(input)
-    ba = []
-    needle = bytes([0x3d])  # b'='
-    replacement = bytes(r'', encoding='utf-8')
-    # return base64.urlsafe_b64encode(input).replace(needle, replacement)
-    for c in _ba.elems():
-        #print(c)
-        if c != 0x3d:
-            ba.append(c)
-        # else:
-        #     # ba.append(replacement)
-    return bytes(ba)
+    return base64.urlsafe_b64encode(input).replace(b"=", b"")
 
 
 def timedelta_total_seconds(delta):

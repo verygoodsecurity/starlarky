@@ -2,13 +2,13 @@ package com.verygood.security.larky.modules.crypto.Hash;
 
 import com.google.common.base.Preconditions;
 
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
+import net.starlark.java.eval.StarlarkBytes;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 
@@ -43,13 +43,14 @@ public class LarkyXofDigest<T extends KeccakDigest & Xof> extends LarkyKeccakDig
       parameters = {
           @Param(name = "length", allowedTypes = {@ParamType(type = StarlarkInt.class)})
       }, useStarlarkThread = true)
-  public LarkyByteLike read(StarlarkInt length, StarlarkThread thread) throws EvalException {
+  public StarlarkBytes read(StarlarkInt length, StarlarkThread thread) throws EvalException {
     int length_ = length.toIntUnchecked();
     Preconditions.checkArgument(
         length_ < MAX_READ_LENGTH,
         "Expected length %s to be less than %s", length_, MAX_READ_LENGTH);
     byte[] bytes = new byte[length_];
     this.digest.doFinal(bytes, 0, length.toIntUnchecked());
-    return LarkyByte.builder(thread).setSequence(bytes).build();
+    return StarlarkBytes.of(thread.mutability(), bytes);
+//   return StarlarkBytes.builder(thread).setSequence(bytes).build();
   }
 }

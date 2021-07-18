@@ -1,7 +1,10 @@
 package net.starlark.java.ext;
 
 import com.google.common.base.Ascii;
+import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -9,6 +12,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.PrimitiveIterator;
@@ -19,6 +23,43 @@ import java.util.function.IntPredicate;
 import org.jetbrains.annotations.NotNull;
 
 public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Comparable<ByteList> {
+
+  public static ByteList fromByteBuffer(ByteBuffer buf) {
+    int size;
+    if (buf == null || (size = buf.remaining()) == 0) {
+      return empty();
+    }
+
+    byte[] array = new byte[size];
+    // If buf is a slice, then we must check if it has a backing array
+    // (which can actually be bigger than its capacity) without any way to tell
+    // what the proper offset is.
+    if (buf.hasArray()
+          && (buf.array().length == buf.capacity())) {
+      // it is not a slice, use System.arraycopy
+      System.arraycopy(buf.array(), buf.position(), array, 0, buf.remaining());
+    }
+    else { // _IT IS_ a slice! We must copy manually.
+      int pos = buf.position();
+      buf.get(array, 0, size);
+      buf.position(pos);
+    }
+    return ByteList.wrap(array);
+  }
+
+
+  public String decode(String encoding, String errors) throws CharacterCodingException {
+    CharsetDecoder decoder =
+              CodecHelper
+                .ThreadLocalCoders
+                .decoderFor(encoding)
+                .onMalformedInput(CodecHelper.convertCodingErrorAction(errors))
+                .onUnmappableCharacter(CodecHelper.convertCodingErrorAction(errors));
+
+    return decoder.decode(ByteBuffer.wrap(toArray()))
+             //.compact()
+             .toString();
+  }
 
   public static class PY_ISSPACE implements IntPredicate {
     public static final PY_ISSPACE INSTANCE = new PY_ISSPACE();
@@ -85,7 +126,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   public static final ByteList EMPTY = new ByteList(EMPTY_BYTE_ARRAY);
 
   public static ByteList empty() {
-    return EMPTY;
+    return ByteList.copy(EMPTY);
   }
 
   protected ByteList() {
@@ -217,6 +258,15 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     return dest;
   }
 
+  public int[] toUnsignedIntArray() {
+    final int arrSize = size();
+    int[] arr = new int[arrSize];
+    for (int i = 0; i < arrSize; ++i) {
+      arr[i] = Byte.toUnsignedInt(byteAt(i));
+    }
+    return arr;
+  }
+
   public byte byteAt(int index) {
     // ignoring the potential offset because we need to do range-checking in the
     // substring case anyway.
@@ -234,8 +284,8 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
    * @param b the source for new ByteList
    * @return the new ByteList
    */
-  public static ByteList of(byte... b) {
-    if (b.length == 0) {
+  public static ByteList wrap(byte... b) {
+    if (b == null || b.length == 0) {
       return empty();
     }
     return new ByteList(b);
@@ -248,7 +298,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
    * @return the new ByteList
    */
   public static ByteList copy(CharSequence s) {
-    return copy(CharBuffer.wrap(s).array());
+    return copy(CharBuffer.wrap(s).compact().array());
   }
 
   /**
@@ -258,7 +308,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
    * @return the new ByteList
    */
   public static ByteList copy(String s) {
-    return copy(StandardCharsets.ISO_8859_1.encode(CharBuffer.wrap(s)).array());
+    return copy(StandardCharsets.ISO_8859_1.encode(CharBuffer.wrap(s)).compact().array());
   }
 
   /**
@@ -357,6 +407,24 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
       System.arraycopy(array, offset() + index, array, index + count, oldSize - index);
     }
   }
+
+  private int shiftCapacity(int offset, int additional) {
+    if (size + additional >= capacity()) {
+      byte[] temp = new byte[Math.max(size + additional, size << 1)];
+      if (offset == 0) {
+        System.arraycopy(getArrayUnsafe(), 0, temp, additional, size);
+      } else {
+        System.arraycopy(getArrayUnsafe(), 0, temp, 0, offset);
+        System.arraycopy(getArrayUnsafe(), offset, temp, offset + additional, size - offset);
+      }
+
+      setArrayUnsafe(temp);
+    } else {
+      System.arraycopy(getArrayUnsafe(), offset, array, offset + additional, size - offset);
+    }
+    return additional;
+  }
+
 
   /**
    * Shifts the array to delete space starting at a specified index.
@@ -538,21 +606,26 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     return indexOf((byte) value);
   }
 
+  public int indexOf(byte[] target) {
+    return indexOf(ByteList.wrap(target));
+  }
+
   /**
    * Returns the start position of the first occurrence of the specified {@code target} within this
    * ByteList, or {@code -1} if there is no such occurrence.
    *
    * @param target the array to search for as a sub-sequence
    */
-  public int indexOf(byte[] target) {
-    if (target.length == 0) {
+  public int indexOf(ByteList target) {
+    final int targetSize = target.size();
+    if (targetSize == 0) {
       return 0;
     }
 
     outer:
-    for (int i = 0; i < size() - target.length + 1; i++) {
-      for (int j = 0; j < target.length; j++) {
-        if (get(i + j) != target[j]) {
+    for (int i = 0; i < size() - targetSize + 1; i++) {
+      for (int j = 0; j < targetSize; j++) {
+        if (get(i + j) != target.get(j)) {
           continue outer;
         }
       }
@@ -569,7 +642,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   }
 
   public int lastIndexOf(byte[] sub, int start, int end) {
-    return lastIndexOf(ByteList.of(sub), start, end);
+    return lastIndexOf(ByteList.wrap(sub), start, end);
   }
 
   public int lastIndexOf(ByteList sub, int start, int end) {
@@ -602,16 +675,18 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     return setValue(index, element == null ? defaultValue() : element);
   }
 
-  public void add(final int index, final Byte element) {
+  public boolean add(final int index, final Byte element) {
     addValue(index, element);
+    return true;
   }
 
-  public void add(final Byte element) {
-    add(size(), element);
+  public boolean add(final Byte element) {
+    return add(size(), element);
   }
 
-  public void extend(final ByteList list) {
-    addAll(size(), list);
+  public boolean extend(final ByteList list) {
+    final int i = size();
+    return i != addAll(i, list);
   }
 
   /**
@@ -746,10 +821,14 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
    *
    * @param forward true if we want to return the first matching index.
    */
-  int find(boolean forward, byte[] sub, int start, int end) {
-    if (sub.length == 0 && start > end) {
+  int find(boolean forward, ByteList sub, int start, int end) {
+    if (sub.size() == 0 && start > end) {
       return -1;
     }
+    final int currSize = size();
+    start = toIndex(start, currSize);
+    end = toIndex(end, currSize);
+
     ByteList subRange = substring(start, end);
     int subpos = forward
                    ? subRange.indexOf(sub)
@@ -835,11 +914,15 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   }
 
   public int count(byte[] sub, int start, int end) {
+    return count(ByteList.wrap(sub), start, end);
+  }
+
+  public int count(ByteList sub, int start, int end) {
     if (sub == null) {
       throw new IllegalArgumentException("argument should be integer or bytes-like object, not 'null'");
     }
-    int length = size();
-    int sublength = sub.length;
+    final int length = size();
+    final int sublength = sub.size();
 
     //If the sub string is longer than the value string a match cannot exist
     if (length < sublength) {
@@ -863,7 +946,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     for (int i = istart; i < ((iend - sublength) + 1); i++) {
       found_match = true;
       for (int j = 0; j < sublength; j++) {
-        if (get(i + j) != sub[j]) {
+        if (get(i + j) != sub.get(j)) {
           found_match = false;
           break;
         }
@@ -887,6 +970,9 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   }
 
   public int find(byte[] bytes, int start, int end) {
+    return find(true, ByteList.wrap(bytes), start, end);
+  }
+  public int find(ByteList bytes, int start, int end) {
     return find(true, bytes, start, end);
   }
 
@@ -945,7 +1031,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
       }
       index++;
     }
-    return ByteList.of(dest);
+    return ByteList.wrap(dest);
   }
 
   public ByteList join(ByteList... parts) {
@@ -955,32 +1041,40 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     }
     final byte[][] bytes = new byte[partsLength][];
     for (int i = 0; i < partsLength; i++) {
-      bytes[i] = parts[i].getArrayUnsafe();
+      bytes[i] = parts[i].toArray();
     }
     return join(bytes);
   }
 
   public ByteList[] partition(byte[] separator) {
+    return partition(ByteList.wrap(separator));
+  }
+
+  public ByteList[] partition(ByteList separator) {
     int i = find(true, separator, 0, size());
     if (i == -1) {
       return new ByteList[]{this, empty(), empty()};
     }
     return new ByteList[]{
       substring(0, i),
-      ByteList.of(separator),
-      substring(i + separator.length, size())
+      separator,
+      substring(i + separator.size(), size())
     };
   }
 
   public ByteList[] rpartition(byte[] separator) {
+    return rpartition(ByteList.wrap(separator));
+  }
+
+  public ByteList[] rpartition(ByteList separator) {
     int i = find(false, separator, 0, size());
     if (i == -1) {
       return new ByteList[]{empty(), empty(), this};
     }
     return new ByteList[]{
       substring(0, i),
-      ByteList.of(separator),
-      substring(i + separator.length, size())
+      separator,
+      substring(i + separator.size(), size())
     };
   }
 
@@ -989,7 +1083,11 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   }
 
   public ByteList replace(byte[] oldBytes, byte[] newBytes, int count) {
-    int i, j, pos, maxcount = count, subLen = oldBytes.length, repLen = newBytes.length;
+    return replace(ByteList.wrap(oldBytes), ByteList.wrap(newBytes), count);
+  }
+
+  public ByteList replace(ByteList oldBytes, ByteList newBytes, int count) {
+    int i, j, pos, maxcount = count, subLen = oldBytes.size(), repLen = newBytes.size();
     final ByteList replacement = new ByteList(size() + (repLen * size()));
     int resultLen = 0;
     i = 0;
@@ -1000,7 +1098,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
       }
       j = pos;
       resultLen = replacement.addAll(resultLen, substring(i, j));
-      resultLen = replacement.addAll(resultLen, ByteList.of(newBytes));
+      resultLen = replacement.addAll(resultLen, newBytes);
       i = j + subLen;
     }
 
@@ -1096,7 +1194,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
         bytes[idx] = (byte) Ascii.toUpperCase(lc);
       }
     }
-    return ByteList.of(bytes);
+    return ByteList.wrap(bytes);
   }
 
   public boolean istitle() {
@@ -1171,13 +1269,13 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     if (right > 0) {
       Arrays.fill(u, left + len, u.length, padChar);
     }
-    return ByteList.of(u);
+    return ByteList.wrap(u);
   }
 
   public ByteList title() {
     final int len = size();
     boolean capitalizeNext = true;
-    final ByteList titleCased = ByteList.of(copy());
+    final ByteList titleCased = ByteList.wrap(copy());
     for (int idx = 0; idx < len; ++idx) {
       byte lc = get(idx);
       if (!isalpha(lc)) {
@@ -1240,7 +1338,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   }
 
   public ByteList center(int width, byte[] fillChar) {
-    return center(width, ByteList.of(fillChar));
+    return center(width, ByteList.wrap(fillChar));
   }
 
   public ByteList center(int width, ByteList fillChar) {
@@ -1254,7 +1352,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   }
 
   public ByteList rjust(int width, byte[] fillChar) {
-    return rjust(width, ByteList.of(fillChar));
+    return rjust(width, ByteList.wrap(fillChar));
   }
 
   public ByteList rjust(int width, ByteList fillChar) {
@@ -1268,7 +1366,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     for (int i = l, j = 0; i < (size() + l); j++, i++) {
       res[i] = this.byteAt(j);
     }
-    return ByteList.of(res);
+    return ByteList.wrap(res);
   }
 
   public ByteList ljust(int width) {
@@ -1276,7 +1374,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   }
 
   public ByteList ljust(int width, byte[] fillChar) {
-    return ljust(width, ByteList.of(fillChar));
+    return ljust(width, ByteList.wrap(fillChar));
   }
 
   public ByteList ljust(int width, ByteList fillChar) {
@@ -1288,7 +1386,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     byte[] res = new byte[resLen];
     System.arraycopy(array, 0, res, 0, size());
     Arrays.fill(res, size(), resLen, fillChar.byteAt(0));
-    return ByteList.of(res);
+    return ByteList.wrap(res);
   }
 
   public ByteList[] splitlines() {
@@ -1322,34 +1420,38 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   }
 
   public ByteList translate(byte[] table) {
-    return translate(table, empty());
+    return translate(ByteList.wrap(table), empty());
   }
 
   public ByteList translate(byte[] table, byte[] delete) {
-    return translate(table, ByteList.of(delete));
+    return translate(ByteList.wrap(table), ByteList.wrap(delete));
   }
 
   public ByteList translate(byte[] table, ByteList delete) {
+    return translate(ByteList.wrap(table), delete);
+  }
+
+  public ByteList translate(ByteList table, ByteList delete) {
     int dellen = delete.size();
     boolean changed = false;
 
-    if (table != null) {
-      if (table.length != 256) {
+    if (table != null && !table.isEmpty()) {
+      if (table.size() != 256) {
         throw new IllegalArgumentException(
           String.format(
             "translation table must be 256 characters long. length of table was %d",
-            table.length));
+            table.size()));
       }
     }
 
     final int totalSize = size();
 
-    if (dellen == 0 && table != null) {
+    if (dellen == 0 && table != null && !table.isEmpty()) {
       byte[] result = new byte[totalSize];
       /* If no deletions are required, use faster code */
       for (int i = 0; i < totalSize; i++) {
         byte c = byteAt(i);
-        byte v = table[c];
+        byte v = table.get(c);
         if (!changed && c != v) {
           changed = true;
         }
@@ -1358,7 +1460,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
       if (!changed) {
         return this;
       }
-      return ByteList.of(result);
+      return ByteList.wrap(result);
     }
 
     boolean[] toDelete = new boolean[256];
@@ -1375,7 +1477,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     for (int i = 0; i < totalSize; i++) {
       byte c = byteAt(i);
       if (!toDelete[c]) {
-        byte v = table == null ? c : table[c];
+        byte v = (table != null && !table.isEmpty()) ? table.get(c) : c;
         if (!changed && c != v) {
           changed = true;
         }
@@ -1390,7 +1492,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     if (resultLen == 0) {
       return empty();
     }
-    return ByteList.of(result).substring(0, resultLen);
+    return ByteList.wrap(result).substring(0, resultLen);
   }
 
   public ByteList expandtabs() {
@@ -1454,7 +1556,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
       }
 
     }
-    return ByteList.of(q);
+    return ByteList.wrap(q);
   }
 
   public ByteList[] split() {
@@ -1611,11 +1713,10 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
 
   List<ByteList> splitOnSep(ByteList sep, int maxsplit) {
     int i, j, pos, maxCount = maxsplit, sepLen = sep.size();
-    final byte[] sepBytes = sep.toArray();
     List<ByteList> list = new ArrayList<>();
     i = 0;
     while ((maxCount--) > 0) {
-      pos = find(true, sepBytes, i, size());
+      pos = find(true, sep, i, size());
       if (pos < 0) {
         break;
       }
@@ -1702,12 +1803,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   }
 
   public int rfind(ByteList bytes, int start, int end) {
-    // TODO(mahmoudimus): should we check ranges here?
-    //  if end == -1, basically no restriction right?
-    if (end == -1) {
-      end = size();
-    }
-    return find(false, bytes.getArrayUnsafe(), start, end);
+    return find(false, bytes, start, end);
   }
 
   public int rfind(byte i) {
@@ -1727,7 +1823,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     final int self_len = size();
     final int prefix_len = prefix.size();
     if (self_len >= prefix_len && prefix_len > 0 && startsWith(prefix)) {
-      return ByteList.of(substring(prefix_len, prefix_len + (self_len - prefix_len)).toArray());
+      return ByteList.wrap(substring(prefix_len, prefix_len + (self_len - prefix_len)).toArray());
     }
     return this;
   }
@@ -1736,7 +1832,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     final int self_len = size();
     final int suffix_len = suffix.size();
     if (self_len >= suffix_len && suffix_len > 0 && endsWith(suffix)) {
-      return ByteList.of(substring(0, self_len - suffix_len).toArray());
+      return ByteList.wrap(substring(0, self_len - suffix_len).toArray());
     }
     return this;
   }
@@ -2115,7 +2211,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     for (int i = 0; i < value; i++) {
       System.arraycopy(array, 0, res, i * size(), size());
     }
-    return of(res);
+    return wrap(res);
   }
 
   /**
@@ -2143,7 +2239,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   }
 
   public final boolean endsWith(byte[] suffix) {
-    return endsWith(ByteList.of(suffix));
+    return endsWith(ByteList.wrap(suffix));
   }
 
   /**
@@ -2167,6 +2263,9 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
    *                                   {@code beginIndex > endIndex}.
    */
   public final ByteList substring(int beginIndex, int endIndex) {
+    beginIndex = toIndex(beginIndex, size());
+    endIndex = toIndex(endIndex, size());
+
     final int length = checkRange(beginIndex, endIndex, size());
 
     if (length == 0) {
@@ -2174,6 +2273,102 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     }
 
     return new SubByteList(array, offset() + beginIndex, length);
+  }
+
+  /**
+     * Returns the effective index denoted by a user-supplied integer. First, if the integer is
+     * negative, the length of the sequence is added to it, so an index of -1 represents the last
+     * element of the sequence. Then, the integer is "clamped" into the inclusive interval [0,
+     * length].
+     */
+    static int toIndex(int index, int length) {
+      if (index < 0) {
+        index += length;
+      }
+
+      if (index < 0) {
+        return 0;
+      } else {
+        return Math.min(index, length);
+      }
+    }
+
+  public ByteListIterator listIterator() {
+    return new ByteListIterator(0);
+  }
+
+  public ByteListIterator listIterator(int index) {
+    return new ByteListIterator(index);
+  }
+
+  public class ByteListIterator implements ListIterator<Byte>, OfByte {
+
+    private int pos;
+    private int last;
+
+    ByteListIterator(int index) {
+      pos = index;
+      last = -1;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return pos < size();
+    }
+
+    @Override
+    public byte nextByte() {
+      if (! hasNext()) throw new NoSuchElementException(); return get(last = pos++);
+    }
+
+    public byte previousByte() { if (!hasPrevious()) throw new NoSuchElementException(); return get(last = --pos); }
+
+    @Override
+    public Byte next() {
+      return nextByte();
+    }
+
+    @Override
+    public boolean hasPrevious() {
+      return pos > 0;
+    }
+
+    @Override
+    public Byte previous() {
+      return previousByte();
+    }
+
+    @Override
+    public int nextIndex() {
+      return pos;
+    }
+
+    @Override
+    public int previousIndex() {
+      return pos - 1;
+    }
+
+    @Override
+    public void remove() {
+      if (last == -1) throw new IllegalStateException();
+      ByteList.this.remove(last);
+      /* If the last operation was a next(), we are removing an element *before* us, and we must
+         decrease pos correspondingly. */
+      if (last < pos) pos--;
+      last = -1;
+    }
+
+    @Override
+    public void set(Byte k) {
+      if (last == -1) throw new IllegalStateException();
+      ByteList.this.set(last, k);
+    }
+
+    @Override
+    public void add(Byte k) {
+      ByteList.this.add(pos++, k);
+      last = -1;
+    }
   }
 
 }

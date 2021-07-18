@@ -6,12 +6,11 @@ import com.google.common.base.Strings;
 
 import com.verygood.security.larky.modules.crypto.Cipher.Engine;
 import com.verygood.security.larky.modules.crypto.Cipher.LarkyBlockCipher;
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteArray;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
+import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkBytes.StarlarkByteArray;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 
@@ -44,18 +43,23 @@ public class CryptoCipherModuleTest {
     byte[] src = Hex.decode("01020304050607080102030405060708");
     byte[] encryptResult = Hex.decode("77A7D6BCF57962B9DE153505D3821AFC");
 
+//
+//    StarlarkBytes bKey = StarlarkBytes.builder(thread).setSequence(key).build();
+//    StarlarkBytes bIV = StarlarkBytes.builder(thread).setSequence(icv).build();
+//    StarlarkBytes bEncResult = StarlarkBytes.builder(thread).setSequence(encryptResult).build();
 
-    LarkyByteLike bKey = LarkyByte.builder(thread).setSequence(key).build();
-    LarkyByteLike bIV = LarkyByte.builder(thread).setSequence(icv).build();
-    LarkyByteLike bEncResult = LarkyByte.builder(thread).setSequence(encryptResult).build();
-    LarkyByteArray out = (LarkyByteArray) LarkyByteArray.builder(thread)
-        .setSequence(new byte[src.length])
-        .build();
+    StarlarkBytes bKey = StarlarkBytes.of(thread.mutability(), key);
+    StarlarkBytes bIV = StarlarkBytes.of(thread.mutability(), icv);
+    StarlarkBytes bEncResult = StarlarkBytes.of(thread.mutability(), encryptResult);
+    StarlarkByteArray out = StarlarkByteArray.of(thread.mutability());
+//    StarlarkBytes out = (StarlarkBytes) StarlarkBytes.builder(thread)
+//        .setSequence(new byte[src.length])
+//        .build();
     Engine des = CryptoCipherModule.INSTANCE.DES(bKey);
     LarkyBlockCipher larkyBlockCipher = CryptoCipherModule.INSTANCE.CBCMode(des, bIV);
 
     larkyBlockCipher.decrypt(bEncResult, out, thread);
-    assertArrayEquals(src, out.getBytes());
+    assertArrayEquals(src, out.toByteArray());
   }
 
 
@@ -63,7 +67,8 @@ public class CryptoCipherModuleTest {
   public void testDESVectors() throws EvalException {
     // # This is a list of (plaintext, ciphertext, key, description) tuples.
     byte[] icv = new byte[8];
-    LarkyByteLike bIV = LarkyByte.builder(thread).setSequence(icv).build();
+    StarlarkBytes bIV = StarlarkBytes.of(thread.mutability(), icv);
+//    StarlarkBytes bIV = StarlarkBytes.builder(thread).setSequence(icv).build();
     String SP800_17_B1_KEY = Strings.repeat("01", 8);
     String SP800_17_B2_PT = Strings.repeat("00", 8);
 
@@ -323,15 +328,19 @@ public class CryptoCipherModuleTest {
     };
 
     for(String[] tc : test_data) {
-      LarkyByteLike bEncResult = LarkyByte.builder(thread).setSequence(Hex.decode(tc[1])).build();
-      LarkyByteLike bKey = LarkyByte.builder(thread).setSequence(Hex.decode(tc[2])).build();
-      LarkyByteArray out = (LarkyByteArray) LarkyByteArray.builder(thread)
-              .setSequence(new byte[bEncResult.size()])
-              .build();
+//      StarlarkBytes bEncResult = StarlarkBytes.builder(thread).setSequence(Hex.decode(tc[1])).build();
+//      StarlarkBytes bKey = StarlarkBytes.builder(thread).setSequence(Hex.decode(tc[2])).build();
+      StarlarkBytes bEncResult = StarlarkBytes.of(thread.mutability(), Hex.decode(tc[1]));
+      StarlarkBytes bKey = StarlarkBytes.of(thread.mutability(), Hex.decode(tc[2]));
+//      StarlarkBytes out = StarlarkBytes.of(thread.mutability(), new byte[bEncResult.size()]);
+//      out.clear();
+//      StarlarkBytes out = (StarlarkBytes) StarlarkBytes.builder(thread)
+      StarlarkByteArray out = StarlarkByteArray.of(thread.mutability());
+
       Engine des = CryptoCipherModule.INSTANCE.DES(bKey);
       LarkyBlockCipher larkyBlockCipher = CryptoCipherModule.INSTANCE.CBCMode(des, bIV);
       larkyBlockCipher.decrypt(bEncResult, out, thread);
-      assertArrayEquals(Hex.decode(tc[0]), out.getBytes());
+      assertArrayEquals(Hex.decode(tc[0]), out.toByteArray());
     }
   }
 }

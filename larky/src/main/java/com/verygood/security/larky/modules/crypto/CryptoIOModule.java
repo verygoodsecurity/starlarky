@@ -1,7 +1,18 @@
 package com.verygood.security.larky.modules.crypto;
 
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
+import java.security.SecureRandom;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.Arrays;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -9,6 +20,7 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
@@ -40,19 +52,6 @@ import org.bouncycastle.operator.OutputEncryptor;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.bouncycastle.util.io.pem.PemObjectGenerator;
 
-import java.io.IOException;
-import java.io.StringWriter;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.StandardCharsets;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
-import java.security.PrivateKey;
-import java.security.SecureRandom;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.Arrays;
 import javax.crypto.SecretKeyFactory;
 import lombok.Getter;
 
@@ -70,19 +69,19 @@ public class CryptoIOModule implements StarlarkValue {
 
     @StarlarkMethod(
         name = "wrap", parameters = {
-        @Param(name = "binary_key", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+        @Param(name = "binary_key", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
         @Param(name = "oid", allowedTypes = {@ParamType(type = String.class)}),
         @Param(name = "passphrase", allowedTypes = {
-            @ParamType(type = LarkyByteLike.class),
+            @ParamType(type = StarlarkBytes.class),
             @ParamType(type = NoneType.class)
         }),
         @Param(name = "protection", allowedTypes = {@ParamType(type = String.class), @ParamType(type = NoneType.class)}, defaultValue = "None"),
 //      TODO uncomment these parameters and implement this later
 //        @Param(name = "prot_params", allowedTypes = {@ParamType(type = Dict.class), @ParamType(type = NoneType.class)}),
-//        @Param(name = "key_params", allowedTypes = {@ParamType(type = LarkyByteLike.class), @ParamType(type = NoneType.class)}),
+//        @Param(name = "key_params", allowedTypes = {@ParamType(type = StarlarkBytes.class), @ParamType(type = NoneType.class)}),
 //        @Param(name = "randfunc", defaultValue = "None"),
     }, useStarlarkThread = true)
-    public LarkyByteLike wrap(LarkyByteLike binaryKey, String oid, Object passphraseO, Object protectionO, StarlarkThread thread) throws EvalException {
+    public StarlarkBytes wrap(StarlarkBytes binaryKey, String oid, Object passphraseO, Object protectionO, StarlarkThread thread) throws EvalException {
      /*
         oid = 1.2.840.113549.1.1.1
         oid = 1.2.840.113549.1.1.1
@@ -93,7 +92,7 @@ public class CryptoIOModule implements StarlarkValue {
       SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
 
       ExtractedProtection algoId = null;
-      char[] passphrase = Starlark.isNullOrNone(passphraseO) ? null : ((LarkyByteLike) passphraseO).toCharArray();
+      char[] passphrase = Starlark.isNullOrNone(passphraseO) ? null : ((StarlarkBytes) passphraseO).toCharArray();
       String protection = Starlark.isNullOrNone(protectionO) ? null : (String) protectionO;
       final KeyFactory keyFactory;
       final PrivateKey privateKey;
@@ -124,11 +123,12 @@ public class CryptoIOModule implements StarlarkValue {
       }
 
       try {
-        pk = RSAPrivateKey.getInstance(new ASN1InputStream(binaryKey.getBytes()).readObject());
+        pk = RSAPrivateKey.getInstance(new ASN1InputStream(binaryKey.toByteArray()).readObject());
         pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(pk.getEncoded());
         privateKey = keyFactory.generatePrivate(pkcs8EncodedKeySpec);
         PKCS8Generator gen = new JcaPKCS8Generator(privateKey, encryptor);
-        return LarkyByte.builder(thread).setSequence(gen.generate().getContent()).build();
+        return StarlarkBytes.of(thread.mutability(), gen.generate().getContent());
+//        return StarlarkBytes.builder(thread).setSequence(gen.generate().getContent()).build();
       } catch (IOException | InvalidKeySpecException e) {
         throw new EvalException(e.getMessage(), e);
       }
@@ -228,21 +228,21 @@ public class CryptoIOModule implements StarlarkValue {
             "  a byte string of random data, N bytes long. If not given, a new one is\n" +
             "  instantiated.",
         parameters = {
-            @Param(name = "data", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+            @Param(name = "data", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
             @Param(name = "marker", allowedTypes = {@ParamType(type = String.class)}),
             @Param(name = "passphrase", allowedTypes = {
-                @ParamType(type = LarkyByteLike.class), @ParamType(type = NoneType.class)}),
+                @ParamType(type = StarlarkBytes.class), @ParamType(type = NoneType.class)}),
             @Param(name = "randfunc"),
         }, useStarlarkThread = true)
-    public String encode(LarkyByteLike exportable, String marker, Object passPhraseO, Object randfunc, StarlarkThread thread) throws EvalException {
+    public String encode(StarlarkBytes exportable, String marker, Object passPhraseO, Object randfunc, StarlarkThread thread) throws EvalException {
       char[] passphrase = null;
        if (!Starlark.isNullOrNone(passPhraseO)) {
-         byte[] bytes = ((LarkyByteLike) passPhraseO).getBytes();
+         byte[] bytes = ((StarlarkBytes) passPhraseO).toByteArray();
          CharBuffer decoded = StandardCharsets.ISO_8859_1.decode(ByteBuffer.wrap(bytes));
          passphrase = Arrays.copyOf(decoded.array(), decoded.limit());
        }
       try {
-        return doEncode(exportable.getBytes(), marker, passphrase);
+        return doEncode(exportable.toByteArray(), marker, passphrase);
       } catch (IOException e) {
         throw new EvalException(e.getMessage(), e);
       }

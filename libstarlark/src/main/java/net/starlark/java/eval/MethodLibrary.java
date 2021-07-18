@@ -17,7 +17,6 @@ package net.starlark.java.eval;
 import com.google.common.base.Ascii;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Ordering;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -344,29 +343,23 @@ class MethodLibrary {
        }
    )
    public StarlarkInt ordinal(Object c) throws EvalException {
-     int containerSize = 0;
-     byte[] bytes = null;
+     int containerSize;
+     CharSequence chars;
      if (String.class.isAssignableFrom(c.getClass())) {
        containerSize = ((String) c).length();
-       bytes = ((String) c).getBytes(StandardCharsets.UTF_8);
-     } else if (StarlarkBytes.class.isAssignableFrom(c.getClass())) {
+       chars = ((String) c);
+     } else {
        containerSize = ((StarlarkBytes) c).size();
-       bytes = ((StarlarkBytes) c).getBytes();
+       chars = ((StarlarkBytes) c);
      }
 
-     if (containerSize != 1 || bytes == null) {
+     if (containerSize != 1) {
        throw Starlark.errorf(
            "ord: %s has length %d, want 1", Starlark.type(c), containerSize);
      }
 
-    if(bytes.length == 1) {
-      return StarlarkInt.of(Byte.toUnsignedInt(bytes[0]));
-    }
-    int code = 0x10000;
-    code += (bytes[0] & 0x03FF) << 10;
-    code += (bytes[1] & 0x03FF);
-    return StarlarkInt.of(code);
-   }
+    return StarlarkInt.of(Byte.toUnsignedInt((byte) chars.charAt(0)));
+  }
 
   @StarlarkMethod(
       name = "repr",

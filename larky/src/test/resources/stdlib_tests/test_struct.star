@@ -59,7 +59,7 @@ def _test_pack_into():
     # self.assertSequenceEqual(result, array.array('b', b"\xAB\xCD"))
 
     # test bytearray
-    result = bytearray([0, 0])
+    result = bytearray()
     r = struct.pack_into('>H', result, 0, 0xABCD)
     asserts.eq(r, builtins.bytes([171, 205]))
     asserts.eq(result, bytearray([171, 205]))

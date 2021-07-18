@@ -4,10 +4,9 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
-import com.verygood.security.larky.modules.types.LarkyByteLike;
-
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
@@ -18,7 +17,7 @@ public class CryptoMathModuleTest {
 
   @Test
   public void toBytes() {
-   LarkyByteLike big = null;
+   StarlarkBytes big = null;
     try (Mutability mu = Mutability.create("test")) {
      StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
       big = CryptoMathModule.INSTANCE.toBytes(StarlarkInt.of(0x1122334455667788L), StarlarkInt.of(0), "big", false, thread);

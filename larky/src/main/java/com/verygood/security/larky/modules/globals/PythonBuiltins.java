@@ -4,14 +4,10 @@ import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.modules.codecs.TextUtil;
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteArray;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
 import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.parser.StarlarkUtil;
@@ -25,6 +21,7 @@ import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkBytes.StarlarkByteArray;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
@@ -86,41 +83,41 @@ public final class PythonBuiltins {
     );
   }
 
-  @StarlarkMethod(
-      name = "ord",
-      doc = "Given a string representing one Unicode character, return an integer representing" +
-          " the Unicode code point of that character. For example, ord('a') returns the " +
-          "integer 97 and ord('€') (Euro sign) returns 8364. This is the inverse of chr().",
-      parameters = {
-          @Param(
-              name = "c",
-              allowedTypes = {
-                  @ParamType(type = String.class),
-                  @ParamType(type = LarkyByte.class),
-              }
-          )
-      },
-      useStarlarkThread = true
-  )
-  public StarlarkInt ordinal(Object c, StarlarkThread thread) throws EvalException {
-    int containerSize = 0;
-    byte[] bytes = null;
-    if (String.class.isAssignableFrom(c.getClass())) {
-      containerSize = ((String) c).length();
-      bytes = ((String) c).getBytes(StandardCharsets.UTF_8);
-    } else if (LarkyByte.class.isAssignableFrom(c.getClass())) {
-      containerSize = ((LarkyByte) c).size();
-      bytes = ((LarkyByte) c).getBytes();
-    }
-
-    if (containerSize != 1 || bytes == null) {
-      //"ord() expected a character, but string of length %d found", c.length()
-      throw new EvalException(
-          String.format("ord: %s has length %d, want 1", Starlark.type(c), containerSize)
-      );
-    }
-    return StarlarkInt.of(new BigInteger(bytes).intValueExact());
-  }
+//  @StarlarkMethod(
+//      name = "ord",
+//      doc = "Given a string representing one Unicode character, return an integer representing" +
+//          " the Unicode code point of that character. For example, ord('a') returns the " +
+//          "integer 97 and ord('€') (Euro sign) returns 8364. This is the inverse of chr().",
+//      parameters = {
+//          @Param(
+//              name = "c",
+//              allowedTypes = {
+//                  @ParamType(type = String.class),
+//                  @ParamType(type = StarlarkBytes.class),
+//              }
+//          )
+//      },
+//      useStarlarkThread = true
+//  )
+//  public StarlarkInt ordinal(Object c, StarlarkThread thread) throws EvalException {
+//    int containerSize = 0;
+//    byte[] bytes = null;
+//    if (String.class.isAssignableFrom(c.getClass())) {
+//      containerSize = ((String) c).length();
+//      bytes = ((String) c).getBytes(StandardCharsets.UTF_8);
+//    } else if (StarlarkBytes.class.isAssignableFrom(c.getClass())) {
+//      containerSize = ((StarlarkBytes) c).size();
+//      bytes = ((StarlarkBytes) c).getBytes();
+//    }
+//
+//    if (containerSize != 1 || bytes == null) {
+//      //"ord() expected a character, but string of length %d found", c.length()
+//      throw new EvalException(
+//          String.format("ord: %s has length %d, want 1", Starlark.type(c), containerSize)
+//      );
+//    }
+//    return StarlarkInt.of(new BigInteger(bytes).intValueExact());
+//  }
   @StarlarkMethod(
       name = "bin",
       doc = "Convert an integer number to a binary string prefixed with '0b'. The result is a " +
@@ -286,7 +283,7 @@ public final class PythonBuiltins {
               doc = "String or byte value to hash.",
               allowedTypes = {
                   @ParamType(type = String.class),
-                  @ParamType(type = LarkyByte.class),
+                  @ParamType(type = StarlarkBytes.class),
               }),
       })
   public int hash(Object value) throws EvalException {
@@ -427,31 +424,40 @@ public final class PythonBuiltins {
       },
       useStarlarkThread = true
   )
-  public LarkyByteLike asBytes(
+  public StarlarkBytes asBytes(
       Object _obj,
       Object _encoding,
       Object _errors,
       StarlarkThread thread
   ) throws EvalException {
-    if (!LarkyByte.class.isAssignableFrom(_obj.getClass())
+    if (!StarlarkBytes.class.isAssignableFrom(_obj.getClass())
         && !StarlarkIterable.class.isAssignableFrom(_obj.getClass())
         && !String.class.isAssignableFrom(_obj.getClass())
         && !NoneType.class.isAssignableFrom(_obj.getClass())) {
       throw Starlark.errorf("want string, bytes, or iterable of ints. got %s", Starlark.type(_obj));
     }
+//    // if it's bytes, just return
+//    if(Starlark.type(_obj).equals("bytes")) {
+//      if (_obj instanceof StarlarkBytes) {
+//        return (StarlarkBytes) _obj;
+//      }
+//    }
 
     //bytes() -> empty bytes object
-    if (Starlark.isNullOrNone(_obj) || LarkyByte.class.isAssignableFrom(_obj.getClass())) {
+    if (Starlark.isNullOrNone(_obj)
+          || StarlarkBytes.class.isAssignableFrom(_obj.getClass())
+          || StarlarkBytes.class.isAssignableFrom(_obj.getClass())) {
       return StarlarkUtil.convertFromNoneable(
           _obj,
-          LarkyByte.builder(thread)
-              .setSequence(new byte[]{})
-              .build()
+        StarlarkBytes.empty()
+//          StarlarkBytes.builder(thread)
+//              .setSequence(new byte[]{})
+//              .build()
       );
     }
 
     // handle case where string is passed in.
-    // TODO: move this to LarkyBytes class
+    // TODO: move this to StarlarkBytess class
     if (String.class.isAssignableFrom(_obj.getClass())) {
       // _obj is a string
       String encoding = StarlarkUtil.convertOptionalString(_encoding);
@@ -490,10 +496,15 @@ public final class PythonBuiltins {
       decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
       decoder.replaceWith(String.valueOf(TextUtil.REPLACEMENT_CHAR));
       //bytes(string, encoding[, errors]) -> bytes
-      return LarkyByte.builder(thread)
-          .setSequence(decoder.charset()
-              .encode(TextUtil.unescapeJavaString((String) _obj))
-          ).build();
+      return StarlarkBytes.copyOf(
+        thread.mutability(),
+        decoder
+          .charset()
+          .encode(TextUtil.unescapeJavaString((String) _obj)));
+//      return StarlarkBytes.builder(thread)
+//          .setSequence(decoder.charset()
+//              .encode(TextUtil.unescapeJavaString((String) _obj))
+//          ).build();
     }
 
     // here we are not null,
@@ -509,11 +520,12 @@ public final class PythonBuiltins {
     try {
       switch (classType) {
         case "bytearray":
-          _obj = ((LarkyByteArray) _obj).toLarkyByte().elems(); // "type safety" :D
+          _obj = ((StarlarkBytes) _obj).elems(); // "type safety" :D
         case "bytes.elems":
         case "list":
           Sequence<StarlarkInt> seq = Sequence.cast(_obj, StarlarkInt.class, classType);
-          return LarkyByte.builder(thread).setSequence(seq).build();
+          return StarlarkBytes.copyOf(thread.mutability(),seq);
+          //return StarlarkBytes.builder(thread).setSequence(seq).build();
         case "int":
           // fallthrough
         default:
@@ -556,13 +568,13 @@ public final class PythonBuiltins {
       },
       useStarlarkThread = true
   )
-  public LarkyByteLike asByteArray(
+  public StarlarkByteArray asByteArray(
        Object _obj,
        Object _encoding,
        Object _errors,
        StarlarkThread thread
    ) throws EvalException {
-      if(!LarkyByteArray.class.isAssignableFrom(_obj.getClass())
+      if(!StarlarkBytes.class.isAssignableFrom(_obj.getClass())
           && !StarlarkIterable.class.isAssignableFrom(_obj.getClass())
           && !String.class.isAssignableFrom(_obj.getClass())
           && !NoneType.class.isAssignableFrom(_obj.getClass())) {
@@ -570,17 +582,20 @@ public final class PythonBuiltins {
       }
 
      //bytes() -> empty bytes object
-     if (Starlark.isNullOrNone(_obj) || LarkyByteArray.class.isAssignableFrom(_obj.getClass())) {
+     if (Starlark.isNullOrNone(_obj)
+           || StarlarkByteArray.class.isAssignableFrom(_obj.getClass())) {
+//           || StarlarkBytes.class.isAssignableFrom(_obj.getClass())) {
        return StarlarkUtil.convertFromNoneable(
            _obj,
-           LarkyByteArray.builder(thread)
-               .setSequence(new byte[]{})
-               .build()
+         StarlarkByteArray.of(thread.mutability())
+//           StarlarkBytes.builder(thread)
+//               .setSequence(new byte[]{})
+//               .build()
        );
      }
 
      // handle case where string is passed in.
-     // TODO: move this to LarkyBytes class
+     // TODO: move this to StarlarkBytess class
      if (String.class.isAssignableFrom(_obj.getClass())) {
        // _obj is a string
        String encoding = StarlarkUtil.convertOptionalString(_encoding);
@@ -619,10 +634,14 @@ public final class PythonBuiltins {
        decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
        decoder.replaceWith(String.valueOf(TextUtil.REPLACEMENT_CHAR));
        //bytes(string, encoding[, errors]) -> bytes
-       return LarkyByteArray.builder(thread)
-           .setSequence(decoder.charset()
-               .encode(TextUtil.unescapeJavaString((String) _obj))
-           ).build();
+       return StarlarkByteArray.of(StarlarkBytes.copyOf(
+         thread.mutability(),
+         decoder.charset()
+           .encode(TextUtil.unescapeJavaString((String) _obj))));
+//       return StarlarkBytes.builder(thread)
+//           .setSequence(decoder.charset()
+//               .encode(TextUtil.unescapeJavaString((String) _obj))
+//           ).build();
      }
 
      // here we are not null,
@@ -638,18 +657,13 @@ public final class PythonBuiltins {
      try {
        switch (classType) {
          case "bytes":
-           // TODO get rid of LarkyByte..
-           if(_obj instanceof LarkyByte) {
-             _obj = ((LarkyByte) _obj).elems();
-           }
-           else {
-             _obj = ((StarlarkBytes) _obj).elems();
-           }
+           _obj = ((StarlarkBytes) _obj).elems();
+           classType = Starlark.classType(_obj.getClass());
            // fall through
          case "bytes.elems":
          case "list":
            Sequence<StarlarkInt> seq = Sequence.cast(_obj, StarlarkInt.class, classType);
-           return LarkyByteArray.builder(thread).setSequence(seq).build();
+           return StarlarkByteArray.copyOf(thread.mutability(), seq);
          case "int":
            // fallthrough
          default:

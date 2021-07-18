@@ -100,7 +100,7 @@ def StrxorTests_test_output_memoryview():
     original_term1 = term1[:]
     original_term2 = term2[:]
     expected_xor = unhexlify(bytes("c70ed123c59a7fcb6f12", encoding="utf-8"))
-    output = bytearray(r" ", encoding="utf-8") * len(term1)
+    output = bytearray(b" " * len(term1))
 
     result = strxor(term1, term2, output=output)
 
@@ -158,10 +158,9 @@ def StrxorTests_test_output_incorrect_length():
 
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     term2 = unhexlify(bytes("383d4ba020573314395b", encoding="utf-8"))
-    output = bytearray(r" ", encoding="utf-8") * (len(term1) - 1)
+    output = bytearray(b" " * (len(term1) - 1))
 
     asserts.assert_fails(lambda : strxor(term1, term2, output=output), ".*?ValueError")
-
 
 
 def Strxor_cTests_test1():
@@ -199,7 +198,7 @@ def Strxor_cTests_test_output_bytearray():
     term1 = unhexlify(bytes("ff339a83e5cd4cdf5649", encoding="utf-8"))
     original_term1 = term1[:]
     expected_result = unhexlify(bytes("be72dbc2a48c0d9e1708", encoding="utf-8"))
-    output = bytearray(r" ", encoding="utf-8") * len(term1)
+    output = bytearray(b" " * len(term1))
 
     result = strxor_c(term1, 65, output=output)
 

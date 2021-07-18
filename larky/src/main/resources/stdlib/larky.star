@@ -112,24 +112,25 @@ def translate_bytes(s, original, replace):
     """
     if not (_is_instance(s, bytes) or _is_instance(s, bytearray)):
         fail('TypeError: expected bytes, not %s' % type(s))
-    original_arr = bytearray(original)
-    replace_arr = bytearray(replace)
-
-    if len(original_arr) != len(replace_arr):
-        fail('Original and replace bytes should be same in length')
-    translated = bytearray()
-    replace_dics = dict()
-
-    for i in range(len(original_arr)):
-        replace_dics[original_arr[i]] = replace_arr[i]
-    content_arr = bytearray(s)
-
-    for c in content_arr:
-        if c in replace_dics.keys():
-            translated += bytearray([replace_dics[c]])
-        else:
-            translated += bytearray([c])
-    return bytes(translated)
+    return s.translate(original, replace)
+    # original_arr = bytearray(original)
+    # replace_arr = bytearray(replace)
+    #
+    # if len(original_arr) != len(replace_arr):
+    #     fail('Original and replace bytes should be same in length')
+    # translated = bytearray()
+    # replace_dics = dict()
+    #
+    # for i in range(len(original_arr)):
+    #     replace_dics[original_arr[i]] = replace_arr[i]
+    # content_arr = bytearray(s)
+    #
+    # for c in content_arr:
+    #     if c in replace_dics.keys():
+    #         translated += bytearray([replace_dics[c]])
+    #     else:
+    #         translated += bytearray([c])
+    # return bytes(translated)
 
 
 def _zfill(x, leading=4):

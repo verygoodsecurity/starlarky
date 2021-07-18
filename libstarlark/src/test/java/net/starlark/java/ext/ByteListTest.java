@@ -598,26 +598,26 @@ public class ByteListTest {
 
   @Test
   public void testHex() {
-    final ByteList three_bytes = ByteList.of(new byte[] {(byte) 0xb9, 0x01, (byte) 0xef});
+    final ByteList three_bytes = ByteList.wrap(new byte[] {(byte) 0xb9, 0x01, (byte) 0xef});
     assertEquals(three_bytes.hex(), "b901ef");
-    assertEquals(three_bytes.hex(ByteList.of(b(":")), 0), "b901ef");
-    assertEquals(three_bytes.hex(ByteList.of(b("\u0000"))), "b9\u000001\u0000ef");
-    assertEquals(three_bytes.hex(ByteList.of(b("\u0000"))), "b9\u000001\u0000ef");
-    assertEquals(three_bytes.hex(ByteList.of(b("\u007f"))), "b9\u007f01\u007fef");
-    assertEquals(three_bytes.hex(ByteList.of(b("\u007f"))), "b9\u007f01\u007fef");
-    assertEquals(three_bytes.hex(ByteList.of(b(":")), 3), "b901ef");
-    assertEquals(three_bytes.hex(ByteList.of(b(":")), 4), "b901ef");
-    assertEquals(three_bytes.hex(ByteList.of(b(":")), -4), "b901ef");
-    assertEquals(three_bytes.hex(ByteList.of(b(":"))),"b9:01:ef");
-    assertEquals(three_bytes.hex(ByteList.of(b("$"))),"b9$01$ef");
-    assertEquals(three_bytes.hex(ByteList.of(b(":")), 1),"b9:01:ef");
-    assertEquals(three_bytes.hex(ByteList.of(b(":")), -1), "b9:01:ef");
-    assertEquals(three_bytes.hex(ByteList.of(b(":")), 2), "b9:01ef");
-    assertEquals(three_bytes.hex(ByteList.of(b(":")), 1), "b9:01:ef");
-    assertEquals(three_bytes.hex(ByteList.of(b("*")), -2), "b901*ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 0), "b901ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b("\u0000"))), "b9\u000001\u0000ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b("\u0000"))), "b9\u000001\u0000ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b("\u007f"))), "b9\u007f01\u007fef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b("\u007f"))), "b9\u007f01\u007fef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 3), "b901ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 4), "b901ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), -4), "b901ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b(":"))),"b9:01:ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b("$"))),"b9$01$ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 1),"b9:01:ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), -1), "b9:01:ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 2), "b9:01ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 1), "b9:01:ef");
+    assertEquals(three_bytes.hex(ByteList.wrap(b("*")), -2), "b901*ef");
 
-    final ByteList value = ByteList.of(b("{s\u0005\u0000\u0000\u0000worldi\u0002\u0000\u0000\u0000s\u0005\u0000\u0000\u0000helloi\u0001\u0000\u0000\u00000"));
-    assertEquals(value.hex(ByteList.of(b(".")), 8), "7b7305000000776f.726c646902000000.730500000068656c.6c6f690100000030");
+    final ByteList value = ByteList.wrap(b("{s\u0005\u0000\u0000\u0000worldi\u0002\u0000\u0000\u0000s\u0005\u0000\u0000\u0000helloi\u0001\u0000\u0000\u00000"));
+    assertEquals(value.hex(ByteList.wrap(b(".")), 8), "7b7305000000776f.726c646902000000.730500000068656c.6c6f690100000030");
   }
 
   @Test
@@ -646,7 +646,7 @@ public class ByteListTest {
 
   @Test
   public void testEndsWith() {
-    ByteList b = ByteList.of(b("hello"));
+    ByteList b = ByteList.wrap(b("hello"));
     assertFalse(ByteList.empty().endsWith(b("anything")));
     assertTrue(b.endsWith(b("hello")));
     assertTrue(b.endsWith(b("llo")));
@@ -678,8 +678,8 @@ public class ByteListTest {
 
   @Test
   public void testJoin() {
-    assertEquals(ByteList.empty(), ByteList.of(b("")).join(new byte[][]{new byte[0]}));
-    assertEquals(ByteList.empty(), ByteList.of(b("")).join(new byte[][]{b("")}));
+    assertEquals(ByteList.empty(), ByteList.wrap(b("")).join(new byte[][]{new byte[0]}));
+    assertEquals(ByteList.empty(), ByteList.wrap(b("")).join(new byte[][]{b("")}));
     final byte[][][] abcs = {
       new byte[][] {b("abc")},
       new byte[][] {b("a"), b("bc")},
@@ -687,24 +687,24 @@ public class ByteListTest {
       new byte[][] {b("ab"), b("c")},
       new byte[][] {b("a"), b("b"), b("c")},
     };
-    final ByteList abc = ByteList.of(b("abc"));
+    final ByteList abc = ByteList.wrap(b("abc"));
     for (byte[][] bytes : abcs) {
 //      System.out.println(Arrays.deepToString(abcs[i]));
       assertEquals(ByteList.empty().join(bytes), abc);
     }
-    final ByteList joiner = ByteList.of(b(".:"));
+    final ByteList joiner = ByteList.wrap(b(".:"));
     //final $Function<ByteList, ByteList> dotJoin2 = ByteList.of(b(".:"))::join;
-    assertEquals(ByteList.of(b("ab.:cd")), joiner.join(new byte[][]{b("ab"), b("cd")}));
+    assertEquals(ByteList.wrap(b("ab.:cd")), joiner.join(new byte[][]{b("ab"), b("cd")}));
     // Stress it with many items
     ByteList[] seq = new ByteList[100000];
     for (int i = 0; i < seq.length; i++) {
-      seq[i] = ByteList.of(b("abc"));
+      seq[i] = ByteList.wrap(b("abc"));
     }
-    ByteList expected = ByteList.of(b("abc"))
-                          .mergedCopy(ByteList.of(b(".:abc")).repeat(99999));
+    ByteList expected = ByteList.wrap(b("abc"))
+                          .mergedCopy(ByteList.wrap(b(".:abc")).repeat(99999));
     assertEquals(expected, joiner.join(seq));
      //Stress test with empty separator
-    assertEquals(ByteList.of(b("abc")).repeat(100000), ByteList.of(b("")).join(seq));
+    assertEquals(ByteList.wrap(b("abc")).repeat(100000), ByteList.wrap(b("")).join(seq));
    }
 
   @SuppressWarnings("HttpUrlsUsage")
@@ -819,95 +819,95 @@ public class ByteListTest {
     };
     for(byte[] bz : bytes) {
 //        assertEquals(b.split(), [b])
-      assertArrayEquals(ByteList.of(bz).split(), new ByteList[] { ByteList.of(bz) });
+      assertArrayEquals(ByteList.wrap(bz).split(), new ByteList[] { ByteList.wrap(bz) });
     }
 
     final ByteList b = ByteList.copy("\u0009\n\u000B\u000C\r\u001C\u001D\u001E\u001F");
-    assertArrayEquals(b.split(), new ByteList[] {ByteList.of(b("\u001c\u001d\u001e\u001f"))});
-    assertArrayEquals(ByteList.of(b("a b")).split(ByteList.of(b(" "))), new ByteList[] {ByteList.copy("a"), ByteList.copy("b")});
+    assertArrayEquals(b.split(), new ByteList[] {ByteList.wrap(b("\u001c\u001d\u001e\u001f"))});
+    assertArrayEquals(ByteList.wrap(b("a b")).split(ByteList.wrap(b(" "))), new ByteList[] {ByteList.copy("a"), ByteList.copy("b")});
     // by 1 byte
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("b")), ByteList.of(b("c")), ByteList.of(b("d")) }, ByteList.of(b("a|b|c|d")).split(ByteList.of(b("|"))));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a|b|c|d")) }, ByteList.of(b("a|b|c|d")).split(ByteList.of(b("|")),0));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("b|c|d"))}, ByteList.of(b("a|b|c|d")).split(ByteList.of(b("|")),1));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("b")), ByteList.of(b("c|d"))}, ByteList.of(b("a|b|c|d")).split(ByteList.of(b("|")),2));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("b")), ByteList.of(b("c")), ByteList.of(b("d"))}, ByteList.of(b("a|b|c|d")).split(ByteList.of(b("|")),3));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("b")), ByteList.of(b("c")), ByteList.of(b("d"))}, ByteList.of(b("a|b|c|d")).split(ByteList.of(b("|")),4));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("b")), ByteList.of(b("c")), ByteList.of(b("d"))}, ByteList.of(b("a|b|c|d")).split(ByteList.of(b("|")), Integer.MAX_VALUE - 2));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a|b|c|d"))}, ByteList.of(b("a|b|c|d")).split(ByteList.of(b("|")),0));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("")), ByteList.of(b("b||c||d"))}, ByteList.of(b("a||b||c||d")).split(ByteList.of(b("|")),2));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("abcd"))}, ByteList.of(b("abcd")).split(ByteList.of(b("|"))));
-    assertArrayEquals(new ByteList[] { ByteList.of(b(""))}, ByteList.of(b("")).split(ByteList.of(b("|"))));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("endcase ")), ByteList.of(b(""))}, ByteList.of(b("endcase |")).split(ByteList.of(b("|"))));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("")), ByteList.of(b(" startcase"))}, ByteList.of(b("| startcase")).split(ByteList.of(b("|"))));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("")), ByteList.of(b("bothcase")), ByteList.of(b(""))}, ByteList.of(b("|bothcase|")).split(ByteList.of(b("|"))));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("")), ByteList.of(b("b\u0000c\u0000d"))}, ByteList.of(b("a\u0000\u0000b\u0000c\u0000d")).split(ByteList.of(b("\u0000")),2));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d")) }, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|"))));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a|b|c|d")) }, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),0));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b|c|d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),1));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c|d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),2));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),3));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),4));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")), Integer.MAX_VALUE - 2));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a|b|c|d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),0));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("")), ByteList.wrap(b("b||c||d"))}, ByteList.wrap(b("a||b||c||d")).split(ByteList.wrap(b("|")),2));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("abcd"))}, ByteList.wrap(b("abcd")).split(ByteList.wrap(b("|"))));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b(""))}, ByteList.wrap(b("")).split(ByteList.wrap(b("|"))));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("endcase ")), ByteList.wrap(b(""))}, ByteList.wrap(b("endcase |")).split(ByteList.wrap(b("|"))));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("")), ByteList.wrap(b(" startcase"))}, ByteList.wrap(b("| startcase")).split(ByteList.wrap(b("|"))));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("")), ByteList.wrap(b("bothcase")), ByteList.wrap(b(""))}, ByteList.wrap(b("|bothcase|")).split(ByteList.wrap(b("|"))));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("")), ByteList.wrap(b("b\u0000c\u0000d"))}, ByteList.wrap(b("a\u0000\u0000b\u0000c\u0000d")).split(ByteList.wrap(b("\u0000")),2));
 
     // by a bytelist
-    assertArrayEquals(new ByteList[] {ByteList.of(b("a")), ByteList.of(b("b")), ByteList.of(b("c")), ByteList.of(b("d"))}, ByteList.of(b("a//b//c//d")).split(ByteList.of(b("//"))));
+    assertArrayEquals(new ByteList[] {ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a//b//c//d")).split(ByteList.wrap(b("//"))));
 
   }
 
   @Test
   public void testRSplit() {
-    final ByteList b = ByteList.of(b("\u0009\n\u000B\u000C\r\u001C\u001D\u001E\u001F"));
-    assertArrayEquals(b.split(), new ByteList[] {ByteList.of(b("\u001c\u001d\u001e\u001f"))});
-    assertArrayEquals(ByteList.of(b("a b")).rsplit(ByteList.of(b(" "))), new ByteList[] {ByteList.copy("a"), ByteList.copy("b")});
+    final ByteList b = ByteList.wrap(b("\u0009\n\u000B\u000C\r\u001C\u001D\u001E\u001F"));
+    assertArrayEquals(b.split(), new ByteList[] {ByteList.wrap(b("\u001c\u001d\u001e\u001f"))});
+    assertArrayEquals(ByteList.wrap(b("a b")).rsplit(ByteList.wrap(b(" "))), new ByteList[] {ByteList.copy("a"), ByteList.copy("b")});
     // by 1 byte
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("b")), ByteList.of(b("c")), ByteList.of(b("d")) }, ByteList.of(b("a|b|c|d")).rsplit(ByteList.of(b("|"))));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a|b|c")), ByteList.of(b("d")) }, ByteList.of(b("a|b|c|d")).rsplit(ByteList.of(b("|")),1));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a|b")), ByteList.of(b("c")), ByteList.of(b("d"))}, ByteList.of(b("a|b|c|d")).rsplit(ByteList.of(b("|")),2));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("b")), ByteList.of(b("c")), ByteList.of(b("d"))}, ByteList.of(b("a|b|c|d")).rsplit(ByteList.of(b("|")),3));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("b")), ByteList.of(b("c")), ByteList.of(b("d"))}, ByteList.of(b("a|b|c|d")).rsplit(ByteList.of(b("|")),4));
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("b")), ByteList.of(b("c")), ByteList.of(b("d"))}, ByteList.of(b("a|b|c|d")).rsplit(ByteList.of(b("|")), Integer.MAX_VALUE - 100));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d")) }, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|"))));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a|b|c")), ByteList.wrap(b("d")) }, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|")),1));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a|b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|")),2));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|")),3));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|")),4));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|")), Integer.MAX_VALUE - 100));
 
     // by a bytelist
-    assertArrayEquals(new ByteList[] { ByteList.of(b("a")), ByteList.of(b("b")), ByteList.of(b("c")), ByteList.of(b("d"))}, ByteList.of(b("a//b//c//d")).rsplit(ByteList.of(b("//"))));
+    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a//b//c//d")).rsplit(ByteList.wrap(b("//"))));
   }
 
   @Test
   public void testStrip() {
-    assertEquals(ByteList.of(b("abc")).strip(ByteList.of(b("ac"))), ByteList.of(b("b")));
+    assertEquals(ByteList.wrap(b("abc")).strip(ByteList.wrap(b("ac"))), ByteList.wrap(b("b")));
     // whitespace
-    assertEquals(ByteList.of(b("hello")), ByteList.of(b("   hello   ")).strip());
-    assertEquals(ByteList.of(b("hello")), ByteList.of(b("hello")).strip());
+    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("   hello   ")).strip());
+    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("hello")).strip());
     final ByteList b = ByteList.copy(" \t\n\r\f\u000babc \t\n\r\f\u000b");
     assertEquals(ByteList.copy("abc"), b.strip());
 
     // strip with None arg
-    assertEquals(ByteList.of(b("hello")), ByteList.of(b("   hello   ")).strip(null));
-    assertEquals(ByteList.of(b("hello")), ByteList.of(b("hello")).strip(null));
+    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("   hello   ")).strip(null));
+    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("hello")).strip(null));
 
     // strip with byte string arg
-    assertEquals(ByteList.of(b("hello")), ByteList.of(b("xyzzyhelloxyzzy")).strip(ByteList.of(b("xyz"))));
-    assertEquals(ByteList.of(b("hello")), ByteList.of(b("hello")).strip(ByteList.of(b("xyz"))));
-    assertEquals(ByteList.of(b("")), ByteList.of(b("mississippi")).strip(ByteList.of(b("mississippi"))));
+    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("xyzzyhelloxyzzy")).strip(ByteList.wrap(b("xyz"))));
+    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("hello")).strip(ByteList.wrap(b("xyz"))));
+    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("mississippi")).strip(ByteList.wrap(b("mississippi"))));
 
     // only trim the start and end; does not strip internal characters
-    assertEquals(ByteList.of(b("mississipp")), ByteList.of(b("mississippi")).strip(ByteList.of(b("i"))));
+    assertEquals(ByteList.wrap(b("mississipp")), ByteList.wrap(b("mississippi")).strip(ByteList.wrap(b("i"))));
   }
 
   @Test
   public void testLeftStrip() {
-    assertEquals(ByteList.of(b("abc")).lstrip(ByteList.of(b("ac"))), ByteList.of(b("bc")));
-    assertEquals(ByteList.of(b("hello   ")), ByteList.of(b("   hello   ")).lstrip());
+    assertEquals(ByteList.wrap(b("abc")).lstrip(ByteList.wrap(b("ac"))), ByteList.wrap(b("bc")));
+    assertEquals(ByteList.wrap(b("hello   ")), ByteList.wrap(b("   hello   ")).lstrip());
     final ByteList b = ByteList.copy(" \t\n\r\f\u000babc \t\n\r\f\u000b");
     assertEquals(ByteList.copy("abc \t\n\r\f\u000b"), b.lstrip());
     // lstrip with None arg
-    assertEquals(ByteList.of(b("hello   ")), ByteList.of(b("   hello   ")).lstrip(null));
+    assertEquals(ByteList.wrap(b("hello   ")), ByteList.wrap(b("   hello   ")).lstrip(null));
     // lstrip with byte string arg
-    assertEquals(ByteList.of(b("helloxyzzy")), ByteList.of(b("xyzzyhelloxyzzy")).lstrip(ByteList.of(b("xyz"))));
+    assertEquals(ByteList.wrap(b("helloxyzzy")), ByteList.wrap(b("xyzzyhelloxyzzy")).lstrip(ByteList.wrap(b("xyz"))));
   }
 
   @Test
   public void testRightStrip() {
-    assertEquals(ByteList.of(b("abc")).rstrip(ByteList.of(b("ac"))), ByteList.of(b("ab")));
-    assertEquals(ByteList.of(b("   hello")), ByteList.of(b("   hello   ")).rstrip());
+    assertEquals(ByteList.wrap(b("abc")).rstrip(ByteList.wrap(b("ac"))), ByteList.wrap(b("ab")));
+    assertEquals(ByteList.wrap(b("   hello")), ByteList.wrap(b("   hello   ")).rstrip());
     final ByteList b = ByteList.copy(" \t\n\r\f\u000babc \t\n\r\f\u000b");
     assertEquals(ByteList.copy(" \t\n\r\f\u000babc"), b.rstrip());
     // rstrip with None arg
-    assertEquals(ByteList.of(b("   hello")), ByteList.of(b("   hello   ")).rstrip(null));
+    assertEquals(ByteList.wrap(b("   hello")), ByteList.wrap(b("   hello   ")).rstrip(null));
     // rstrip with byte string arg
-    assertEquals(ByteList.of(b("xyzzyhello")), ByteList.of(b("xyzzyhelloxyzzy")).rstrip(ByteList.of(b("xyz"))));
+    assertEquals(ByteList.wrap(b("xyzzyhello")), ByteList.wrap(b("xyzzyhelloxyzzy")).rstrip(ByteList.wrap(b("xyz"))));
   }
 
   @Test
@@ -915,66 +915,65 @@ public class ByteListTest {
     final ByteList b = ByteList.copy("mississippi");
     byte i = 105;
     byte w = 119;
-    assertEquals(b.rfind(ByteList.of(b("ss"))), 5);
-    assertEquals(b.rfind(ByteList.of(b("w"))), -1);
-    assertEquals(b.rfind(ByteList.of(b("mississippian"))), -1);
+    assertEquals(b.rfind(ByteList.wrap(b("ss"))), 5);
+    assertEquals(b.rfind(ByteList.wrap(b("w"))), -1);
+    assertEquals(b.rfind(ByteList.wrap(b("mississippian"))), -1);
 
     assertEquals(b.rfind(i), 10);
     assertEquals(b.rfind(w), -1);
 
-    assertEquals(b.rfind(ByteList.of(b("ss")), 3), 5);
-    assertEquals(b.rfind(ByteList.of(b("ss")), 0, 6), 2);
+    assertEquals(b.rfind(ByteList.wrap(b("ss")), 3), 5);
+    assertEquals(b.rfind(ByteList.wrap(b("ss")), 0, 6), 2);
 
     assertEquals(b.rfind(i, 1, 3), 1);
     assertEquals(b.rfind(i, 3, 9), 7);
     assertEquals(b.rfind(w, 1, 3), -1);
 
-    assertEquals(9,  ByteList.of(b("abcdefghiabc")).rfind(ByteList.of(b("abc"))));
-    assertEquals(12, ByteList.of(b("abcdefghiabc")).rfind(ByteList.of(b(""))));
-    assertEquals(0, ByteList.of(b("abcdefghiabc")).rfind(ByteList.of(b("abcd"))));
-    assertEquals(-1, ByteList.of(b("abcdefghiabc")).rfind(ByteList.of(b("abcz"))));
+    assertEquals(9,  ByteList.wrap(b("abcdefghiabc")).rfind(ByteList.wrap(b("abc"))));
+    assertEquals(12, ByteList.wrap(b("abcdefghiabc")).rfind(ByteList.wrap(b(""))));
+    assertEquals(0, ByteList.wrap(b("abcdefghiabc")).rfind(ByteList.wrap(b("abcd"))));
+    assertEquals(-1, ByteList.wrap(b("abcdefghiabc")).rfind(ByteList.wrap(b("abcz"))));
+    assertEquals(0, ByteList.wrap(b("abcdefghiabc")).rfind(ByteList.wrap(b("abc")), 0, -1));
 
-    assertEquals(3, ByteList.of(b("abc")).rfind(ByteList.of(b("")),0));
-    assertEquals(3, ByteList.of(b("abc")).rfind(ByteList.of(b("")),3));
-    assertEquals(-1, ByteList.of(b("abc")).rfind(ByteList.of(b("")),4));
+    assertEquals(3, ByteList.wrap(b("abc")).rfind(ByteList.wrap(b("")),0));
+    assertEquals(3, ByteList.wrap(b("abc")).rfind(ByteList.wrap(b("")),3));
+    assertEquals(-1, ByteList.wrap(b("abc")).rfind(ByteList.wrap(b("")),4));
 
-    // to check the ability to pass null as defaults;
-    assertEquals(12, ByteList.of(b("rrarrrrrrrrra")).rfind(ByteList.of(b("a"))));
-    assertEquals(12, ByteList.of(b("rrarrrrrrrrra")).rfind(ByteList.of(b("a")),4));
-    assertEquals(-1, ByteList.of(b("rrarrrrrrrrra")).rfind(ByteList.of(b("a")),4,6));
-    assertEquals(12, ByteList.of(b("rrarrrrrrrrra")).rfind(ByteList.of(b("a")),4,-1));
-    assertEquals(2, ByteList.of(b("rrarrrrrrrrra")).rfind(ByteList.of(b("a")),0,6));
+    assertEquals(12, ByteList.wrap(b("rrarrrrrrrrra")).rfind(ByteList.wrap(b("a"))));
+    assertEquals(12, ByteList.wrap(b("rrarrrrrrrrra")).rfind(ByteList.wrap(b("a")),4));
+    assertEquals(-1, ByteList.wrap(b("rrarrrrrrrrra")).rfind(ByteList.wrap(b("a")),4,6));
+    assertEquals(2, ByteList.wrap(b("rrarrrrrrrrra")).rfind(ByteList.wrap(b("a")),0,6));
   }
 
   @Test
   public void testLeftJustify() {
-    assertEquals(ByteList.of(b("abc       ")), ByteList.of(b("abc")).ljust(10));
-    assertEquals(ByteList.of(b("abc   ")), ByteList.of(b("abc")).ljust(6));
-    assertEquals(ByteList.of(b("abc")), ByteList.of(b("abc")).ljust(3));
-    assertEquals(ByteList.of(b("abc")), ByteList.of(b("abc")).ljust(2));
-    assertEquals(ByteList.of(b("abc*******")), ByteList.of(b("abc")).ljust(10,ByteList.of(b("*"))));
+    assertEquals(ByteList.wrap(b("abc       ")), ByteList.wrap(b("abc")).ljust(10));
+    assertEquals(ByteList.wrap(b("abc   ")), ByteList.wrap(b("abc")).ljust(6));
+    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).ljust(3));
+    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).ljust(2));
+    assertEquals(ByteList.wrap(b("abc*******")), ByteList.wrap(b("abc")).ljust(10,ByteList.wrap(b("*"))));
   }
 
   @Test
   public void testRightJustify() {
-    assertEquals(ByteList.of(b("       abc")), ByteList.of(b("abc")).rjust(10));
-    assertEquals(ByteList.of(b("   abc")), ByteList.of(b("abc")).rjust(6));
-    assertEquals(ByteList.of(b("abc")), ByteList.of(b("abc")).rjust(3));
-    assertEquals(ByteList.of(b("abc")), ByteList.of(b("abc")).rjust(2));
-    assertEquals(ByteList.of(b("*******abc")), ByteList.of(b("abc")).rjust(10,b("*")));
-    assertEquals(ByteList.of(b("*******abc")), ByteList.of(b("abc")).rjust(10,ByteList.of(b("*"))));
+    assertEquals(ByteList.wrap(b("       abc")), ByteList.wrap(b("abc")).rjust(10));
+    assertEquals(ByteList.wrap(b("   abc")), ByteList.wrap(b("abc")).rjust(6));
+    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).rjust(3));
+    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).rjust(2));
+    assertEquals(ByteList.wrap(b("*******abc")), ByteList.wrap(b("abc")).rjust(10,b("*")));
+    assertEquals(ByteList.wrap(b("*******abc")), ByteList.wrap(b("abc")).rjust(10,ByteList.wrap(b("*"))));
     final ByteList b = ByteList.copy("abc");
     assertEquals(b.rjust(7, b("-")), ByteList.copy("----abc"));
   }
 
   @Test
   public void testCenter() {
-    assertEquals(ByteList.of(b("   abc    ")), ByteList.of(b("abc")).center(10));
-    assertEquals(ByteList.of(b(" abc  ")), ByteList.of(b("abc")).center(6));
-    assertEquals(ByteList.of(b("abc")), ByteList.of(b("abc")).center(3));
-    assertEquals(ByteList.of(b("abc")), ByteList.of(b("abc")).center(2));
-    assertEquals(ByteList.of(b("***abc****")), ByteList.of(b("abc")).center(10, b("*")));
-    assertEquals(ByteList.of(b("***abc****")), ByteList.of(b("abc")).center(10, ByteList.of(b("*"))));
+    assertEquals(ByteList.wrap(b("   abc    ")), ByteList.wrap(b("abc")).center(10));
+    assertEquals(ByteList.wrap(b(" abc  ")), ByteList.wrap(b("abc")).center(6));
+    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).center(3));
+    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).center(2));
+    assertEquals(ByteList.wrap(b("***abc****")), ByteList.wrap(b("abc")).center(10, b("*")));
+    assertEquals(ByteList.wrap(b("***abc****")), ByteList.wrap(b("abc")).center(10, ByteList.wrap(b("*"))));
     // Fill character can be either bytes or bytearray (issue 12380)
     final ByteList b = ByteList.copy("abc");
     assertEquals(b.center(7, b("-")), ByteList.copy("--abc--"));
@@ -983,187 +982,187 @@ public class ByteListTest {
   @Test
   public void testSwapCase() {
     assertEquals(
-      ByteList.of(b("hEllO CoMPuTErS")),
-      ByteList.of(b("HeLLo cOmpUteRs")).swapcase());
+      ByteList.wrap(b("hEllO CoMPuTErS")),
+      ByteList.wrap(b("HeLLo cOmpUteRs")).swapcase());
   }
 
   @Test
   public void testZFill() {
-    assertEquals(ByteList.of(b("123")), ByteList.of(b("123")).zfill(2));
-    assertEquals(ByteList.of(b("123")), ByteList.of(b("123")).zfill(3));
-    assertEquals(ByteList.of(b("0123")), ByteList.of(b("123")).zfill(4));
-    assertEquals(ByteList.of(b("+123")), ByteList.of(b("+123")).zfill(3));
-    assertEquals(ByteList.of(b("+123")), ByteList.of(b("+123")).zfill(4));
-    assertEquals(ByteList.of(b("+0123")), ByteList.of(b("+123")).zfill(5));
-    assertEquals(ByteList.of(b("-123")), ByteList.of(b("-123")).zfill(3));
-    assertEquals(ByteList.of(b("-123")), ByteList.of(b("-123")).zfill(4));
-    assertEquals(ByteList.of(b("-0123")), ByteList.of(b("-123")).zfill(5));
-    assertEquals(ByteList.of(b("000")), ByteList.of(b("")).zfill(3));
-    assertEquals(ByteList.of(b("34")), ByteList.of(b("34")).zfill(1));
-    assertEquals(ByteList.of(b("0034")), ByteList.of(b("34")).zfill(4));
+    assertEquals(ByteList.wrap(b("123")), ByteList.wrap(b("123")).zfill(2));
+    assertEquals(ByteList.wrap(b("123")), ByteList.wrap(b("123")).zfill(3));
+    assertEquals(ByteList.wrap(b("0123")), ByteList.wrap(b("123")).zfill(4));
+    assertEquals(ByteList.wrap(b("+123")), ByteList.wrap(b("+123")).zfill(3));
+    assertEquals(ByteList.wrap(b("+123")), ByteList.wrap(b("+123")).zfill(4));
+    assertEquals(ByteList.wrap(b("+0123")), ByteList.wrap(b("+123")).zfill(5));
+    assertEquals(ByteList.wrap(b("-123")), ByteList.wrap(b("-123")).zfill(3));
+    assertEquals(ByteList.wrap(b("-123")), ByteList.wrap(b("-123")).zfill(4));
+    assertEquals(ByteList.wrap(b("-0123")), ByteList.wrap(b("-123")).zfill(5));
+    assertEquals(ByteList.wrap(b("000")), ByteList.wrap(b("")).zfill(3));
+    assertEquals(ByteList.wrap(b("34")), ByteList.wrap(b("34")).zfill(1));
+    assertEquals(ByteList.wrap(b("0034")), ByteList.wrap(b("34")).zfill(4));
   }
 
   @Test
   public void testIsLower() {
-    assertFalse(ByteList.of(b("")).islower());
-    assertTrue(ByteList.of(b("a")).islower());
-    assertFalse(ByteList.of(b("A")).islower());
-    assertFalse(ByteList.of(b("\n")).islower());
-    assertTrue(ByteList.of(b("abc")).islower());
-    assertFalse(ByteList.of(b("aBc")).islower());
-    assertTrue(ByteList.of(b("abc\n")).islower());
+    assertFalse(ByteList.wrap(b("")).islower());
+    assertTrue(ByteList.wrap(b("a")).islower());
+    assertFalse(ByteList.wrap(b("A")).islower());
+    assertFalse(ByteList.wrap(b("\n")).islower());
+    assertTrue(ByteList.wrap(b("abc")).islower());
+    assertFalse(ByteList.wrap(b("aBc")).islower());
+    assertTrue(ByteList.wrap(b("abc\n")).islower());
   }
 
   @Test
   public void testIsUpper() {
-    assertFalse(ByteList.of(b("")).isupper());
-    assertFalse(ByteList.of(b("a")).isupper());
-    assertTrue(ByteList.of(b("A")).isupper());
-    assertFalse(ByteList.of(b("\n")).isupper());
-    assertTrue(ByteList.of(b("ABC")).isupper());
-    assertFalse(ByteList.of(b("AbC")).isupper());
-    assertTrue(ByteList.of(b("ABC\n")).isupper());
+    assertFalse(ByteList.wrap(b("")).isupper());
+    assertFalse(ByteList.wrap(b("a")).isupper());
+    assertTrue(ByteList.wrap(b("A")).isupper());
+    assertFalse(ByteList.wrap(b("\n")).isupper());
+    assertTrue(ByteList.wrap(b("ABC")).isupper());
+    assertFalse(ByteList.wrap(b("AbC")).isupper());
+    assertTrue(ByteList.wrap(b("ABC\n")).isupper());
   }
 
   @Test
   public void testIsTitle() {
-    assertFalse(ByteList.of(b("")).istitle());
-    assertFalse(ByteList.of(b("a")).istitle());
-    assertTrue(ByteList.of(b("A")).istitle());
-    assertFalse(ByteList.of(b("\n")).istitle());
-    assertTrue(ByteList.of(b("A Titlecased Line")).istitle());
-    assertTrue(ByteList.of(b("A\nTitlecased Line")).istitle());
-    assertTrue(ByteList.of(b("A Titlecased, Line")).istitle());
-    assertFalse(ByteList.of(b("Not a capitalized String")).istitle());
-    assertFalse(ByteList.of(b("Not\ta Titlecase String")).istitle());
+    assertFalse(ByteList.wrap(b("")).istitle());
+    assertFalse(ByteList.wrap(b("a")).istitle());
+    assertTrue(ByteList.wrap(b("A")).istitle());
+    assertFalse(ByteList.wrap(b("\n")).istitle());
+    assertTrue(ByteList.wrap(b("A Titlecased Line")).istitle());
+    assertTrue(ByteList.wrap(b("A\nTitlecased Line")).istitle());
+    assertTrue(ByteList.wrap(b("A Titlecased, Line")).istitle());
+    assertFalse(ByteList.wrap(b("Not a capitalized String")).istitle());
+    assertFalse(ByteList.wrap(b("Not\ta Titlecase String")).istitle());
   }
 
   @Test
   public void testIsSpace() {
-    assertFalse(ByteList.of(b("a")).isspace());
-    assertTrue(ByteList.of(b(" ")).isspace());
-    assertTrue(ByteList.of(b("\t")).isspace());
-    assertTrue(ByteList.of(b("\r")).isspace());
-    assertTrue(ByteList.of(b("\n")).isspace());
-    assertTrue(ByteList.of(b(" \t\r\n")).isspace());
-    assertFalse(ByteList.of(b(" \t\r\na")).isspace());
+    assertFalse(ByteList.wrap(b("a")).isspace());
+    assertTrue(ByteList.wrap(b(" ")).isspace());
+    assertTrue(ByteList.wrap(b("\t")).isspace());
+    assertTrue(ByteList.wrap(b("\r")).isspace());
+    assertTrue(ByteList.wrap(b("\n")).isspace());
+    assertTrue(ByteList.wrap(b(" \t\r\n")).isspace());
+    assertFalse(ByteList.wrap(b(" \t\r\na")).isspace());
   }
 
   @Test
   public void testIsAlpha() {
-    assertFalse(ByteList.of(b("")).isalpha());
-    assertTrue(ByteList.of(b("a")).isalpha());
-    assertTrue(ByteList.of(b("A")).isalpha());
-    assertFalse(ByteList.of(b("\n")).isalpha());
-    assertTrue(ByteList.of(b("abc")).isalpha());
-    assertFalse(ByteList.of(b("aBc123")).isalpha());
-    assertFalse(ByteList.of(b("abc\n")).isalpha());
+    assertFalse(ByteList.wrap(b("")).isalpha());
+    assertTrue(ByteList.wrap(b("a")).isalpha());
+    assertTrue(ByteList.wrap(b("A")).isalpha());
+    assertFalse(ByteList.wrap(b("\n")).isalpha());
+    assertTrue(ByteList.wrap(b("abc")).isalpha());
+    assertFalse(ByteList.wrap(b("aBc123")).isalpha());
+    assertFalse(ByteList.wrap(b("abc\n")).isalpha());
   }
 
   @Test
   public void testIsAlphaNumeric() {
-    assertFalse(ByteList.of(b("")).isalnum());
-    assertTrue(ByteList.of(b("a")).isalnum());
-    assertTrue(ByteList.of(b("A")).isalnum());
-    assertFalse(ByteList.of(b("\n")).isalnum());
-    assertTrue(ByteList.of(b("123abc456")).isalnum());
-    assertTrue(ByteList.of(b("a1b3c")).isalnum());
-    assertFalse(ByteList.of(b("aBc000 ")).isalnum());
-    assertFalse(ByteList.of(b("abc\n")).isalnum());
+    assertFalse(ByteList.wrap(b("")).isalnum());
+    assertTrue(ByteList.wrap(b("a")).isalnum());
+    assertTrue(ByteList.wrap(b("A")).isalnum());
+    assertFalse(ByteList.wrap(b("\n")).isalnum());
+    assertTrue(ByteList.wrap(b("123abc456")).isalnum());
+    assertTrue(ByteList.wrap(b("a1b3c")).isalnum());
+    assertFalse(ByteList.wrap(b("aBc000 ")).isalnum());
+    assertFalse(ByteList.wrap(b("abc\n")).isalnum());
   }
 
   @Test
   public void testIsAscii() {
-    assertTrue(ByteList.of(b("")).isascii());
-    assertTrue(ByteList.of(b(" ")).isascii());
-    assertTrue(ByteList.of(b("")).isascii());
-    assertTrue(ByteList.of(b(" ")).isascii());
-    assertFalse(ByteList.of(b("")).isascii());
-    assertFalse(ByteList.of(b("é")).isascii());
+    assertTrue(ByteList.wrap(b("")).isascii());
+    assertTrue(ByteList.wrap(b(" ")).isascii());
+    assertTrue(ByteList.wrap(b("")).isascii());
+    assertTrue(ByteList.wrap(b(" ")).isascii());
+    assertFalse(ByteList.wrap(b("")).isascii());
+    assertFalse(ByteList.wrap(b("é")).isascii());
   }
 
   @Test
   public void testIsDigit() {
-    assertFalse(ByteList.of(b("")).isdigit());
-    assertFalse(ByteList.of(b("a")).isdigit());
-    assertTrue(ByteList.of(b("0")).isdigit());
-    assertTrue(ByteList.of(b("0123456789")).isdigit());
-    assertFalse(ByteList.of(b("0123456789a")).isdigit());
+    assertFalse(ByteList.wrap(b("")).isdigit());
+    assertFalse(ByteList.wrap(b("a")).isdigit());
+    assertTrue(ByteList.wrap(b("0")).isdigit());
+    assertTrue(ByteList.wrap(b("0123456789")).isdigit());
+    assertFalse(ByteList.wrap(b("0123456789a")).isdigit());
   }
 
   @Test
   public void testTitle() {
-    assertEquals(ByteList.of(b(" Hello ")), ByteList.of(b(" hello ")).title());
-    assertEquals(ByteList.of(b("Hello ")), ByteList.of(b("hello ")).title());
-    assertEquals(ByteList.of(b("Hello ")), ByteList.of(b("Hello ")).title());
-    assertEquals(ByteList.of(b("Format This As Title String")), ByteList.of(b("fOrMaT thIs aS titLe String")).title());
-    assertEquals(ByteList.of(b("Format,This-As*Title;String")), ByteList.of(b("fOrMaT,thIs-aS*titLe;String")).title());
-    assertEquals(ByteList.of(b("Getint")), ByteList.of(b("getInt")).title());
+    assertEquals(ByteList.wrap(b(" Hello ")), ByteList.wrap(b(" hello ")).title());
+    assertEquals(ByteList.wrap(b("Hello ")), ByteList.wrap(b("hello ")).title());
+    assertEquals(ByteList.wrap(b("Hello ")), ByteList.wrap(b("Hello ")).title());
+    assertEquals(ByteList.wrap(b("Format This As Title String")), ByteList.wrap(b("fOrMaT thIs aS titLe String")).title());
+    assertEquals(ByteList.wrap(b("Format,This-As*Title;String")), ByteList.wrap(b("fOrMaT,thIs-aS*titLe;String")).title());
+    assertEquals(ByteList.wrap(b("Getint")), ByteList.wrap(b("getInt")).title());
   }
 
   @Test
   public void testLower() {
-    assertEquals(ByteList.of(b("hello")), ByteList.of(b("HeLLo")).lower());
-    assertEquals(ByteList.of(b("hello")), ByteList.of(b("hello")).lower());
+    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("HeLLo")).lower());
+    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("hello")).lower());
   }
 
   @Test
   public void testUpper() {
-    assertEquals(ByteList.of(b("HELLO")), ByteList.of(b("HeLLo")).upper());
-    assertEquals(ByteList.of(b("HELLO")), ByteList.of(b("HELLO")).upper());
+    assertEquals(ByteList.wrap(b("HELLO")), ByteList.wrap(b("HeLLo")).upper());
+    assertEquals(ByteList.wrap(b("HELLO")), ByteList.wrap(b("HELLO")).upper());
   }
 
   @Test
   public void testCapitalize() {
-    assertEquals(ByteList.of(b(" hello ")), ByteList.of(b(" hello ")).capitalize());
-    assertEquals(ByteList.of(b("Hello ")), ByteList.of(b("Hello ")).capitalize());
-    assertEquals(ByteList.of(b("Hello ")), ByteList.of(b("hello ")).capitalize());
-    assertEquals(ByteList.of(b("Aaaa")), ByteList.of(b("aaaa")).capitalize());
-    assertEquals(ByteList.of(b("Aaaa")), ByteList.of(b("AaAa")).capitalize());
+    assertEquals(ByteList.wrap(b(" hello ")), ByteList.wrap(b(" hello ")).capitalize());
+    assertEquals(ByteList.wrap(b("Hello ")), ByteList.wrap(b("Hello ")).capitalize());
+    assertEquals(ByteList.wrap(b("Hello ")), ByteList.wrap(b("hello ")).capitalize());
+    assertEquals(ByteList.wrap(b("Aaaa")), ByteList.wrap(b("aaaa")).capitalize());
+    assertEquals(ByteList.wrap(b("Aaaa")), ByteList.wrap(b("AaAa")).capitalize());
   }
 
   @Test
   public void testRemovePrefix() {
-    assertEquals(ByteList.of(b("am")), ByteList.of(b("spam")).removeprefix(ByteList.of(b("sp"))));
-    assertEquals(ByteList.of(b("spamspam")), ByteList.of(b("spamspamspam")).removeprefix(ByteList.of(b("spam"))));
-    assertEquals(ByteList.of(b("spam")), ByteList.of(b("spam")).removeprefix(ByteList.of(b("python"))));
-    assertEquals(ByteList.of(b("spam")), ByteList.of(b("spam")).removeprefix(ByteList.of(b("spider"))));
-    assertEquals(ByteList.of(b("spam")), ByteList.of(b("spam")).removeprefix(ByteList.of(b("spam and eggs"))));
-    assertEquals(ByteList.of(b("")), ByteList.of(b("")).removeprefix(ByteList.of(b(""))));
-    assertEquals(ByteList.of(b("")), ByteList.of(b("")).removeprefix(ByteList.of(b("abcde"))));
-    assertEquals(ByteList.of(b("abcde")), ByteList.of(b("abcde")).removeprefix(ByteList.of(b(""))));
-    assertEquals(ByteList.of(b("")), ByteList.of(b("abcde")).removeprefix(ByteList.of(b("abcde"))));
+    assertEquals(ByteList.wrap(b("am")), ByteList.wrap(b("spam")).removeprefix(ByteList.wrap(b("sp"))));
+    assertEquals(ByteList.wrap(b("spamspam")), ByteList.wrap(b("spamspamspam")).removeprefix(ByteList.wrap(b("spam"))));
+    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removeprefix(ByteList.wrap(b("python"))));
+    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removeprefix(ByteList.wrap(b("spider"))));
+    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removeprefix(ByteList.wrap(b("spam and eggs"))));
+    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("")).removeprefix(ByteList.wrap(b(""))));
+    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("")).removeprefix(ByteList.wrap(b("abcde"))));
+    assertEquals(ByteList.wrap(b("abcde")), ByteList.wrap(b("abcde")).removeprefix(ByteList.wrap(b(""))));
+    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("abcde")).removeprefix(ByteList.wrap(b("abcde"))));
 
   }
 
   @Test
   public void testRemoveSuffix() {
-    assertEquals(ByteList.of(b("sp")), ByteList.of(b("spam")).removesuffix(ByteList.of(b("am"))));
-    assertEquals(ByteList.of(b("spamspam")), ByteList.of(b("spamspamspam")).removesuffix(ByteList.of(b("spam"))));
-    assertEquals(ByteList.of(b("spam")), ByteList.of(b("spam")).removesuffix(ByteList.of(b("python"))));
-    assertEquals(ByteList.of(b("spam")), ByteList.of(b("spam")).removesuffix(ByteList.of(b("blam"))));
-    assertEquals(ByteList.of(b("spam")), ByteList.of(b("spam")).removesuffix(ByteList.of(b("eggs and spam"))));
+    assertEquals(ByteList.wrap(b("sp")), ByteList.wrap(b("spam")).removesuffix(ByteList.wrap(b("am"))));
+    assertEquals(ByteList.wrap(b("spamspam")), ByteList.wrap(b("spamspamspam")).removesuffix(ByteList.wrap(b("spam"))));
+    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removesuffix(ByteList.wrap(b("python"))));
+    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removesuffix(ByteList.wrap(b("blam"))));
+    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removesuffix(ByteList.wrap(b("eggs and spam"))));
 
-    assertEquals(ByteList.of(b("")), ByteList.of(b("")).removesuffix(ByteList.of(b(""))));
-    assertEquals(ByteList.of(b("")), ByteList.of(b("")).removesuffix(ByteList.of(b("abcde"))));
-    assertEquals(ByteList.of(b("abcde")), ByteList.of(b("abcde")).removesuffix(ByteList.of(b(""))));
-    assertEquals(ByteList.of(b("")), ByteList.of(b("abcde")).removesuffix(ByteList.of(b("abcde"))));
+    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("")).removesuffix(ByteList.wrap(b(""))));
+    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("")).removesuffix(ByteList.wrap(b("abcde"))));
+    assertEquals(ByteList.wrap(b("abcde")), ByteList.wrap(b("abcde")).removesuffix(ByteList.wrap(b(""))));
+    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("abcde")).removesuffix(ByteList.wrap(b("abcde"))));
   }
 
   @Test
   public void testSplitLines() {
-    assertArrayEquals(new ByteList[] {ByteList.of(b("abc")), ByteList.of(b("def")), ByteList.of(b("")), ByteList.of(b("ghi"))}, ByteList.of(b("abc\ndef\n\rghi")).splitlines());
-    assertArrayEquals(new ByteList[] {ByteList.of(b("abc")), ByteList.of(b("def")), ByteList.of(b("")), ByteList.of(b("ghi"))}, ByteList.of(b("abc\ndef\n\r\nghi")).splitlines());
-    assertArrayEquals(new ByteList[] {ByteList.of(b("abc")), ByteList.of(b("def")), ByteList.of(b("ghi"))}, ByteList.of(b("abc\ndef\r\nghi")).splitlines());
-    assertArrayEquals(new ByteList[] {ByteList.of(b("abc")), ByteList.of(b("def")), ByteList.of(b("ghi"))}, ByteList.of(b("abc\ndef\r\nghi\n")).splitlines());
-    assertArrayEquals(new ByteList[] {ByteList.of(b("abc")), ByteList.of(b("def")), ByteList.of(b("ghi")), ByteList.of(b(""))}, ByteList.of(b("abc\ndef\r\nghi\n\r")).splitlines());
-    assertArrayEquals(new ByteList[] {ByteList.of(b("")), ByteList.of(b("abc")), ByteList.of(b("def")), ByteList.of(b("ghi")), ByteList.of(b(""))}, ByteList.of(b("\nabc\ndef\r\nghi\n\r")).splitlines());
-    assertArrayEquals(new ByteList[] {ByteList.of(b("")), ByteList.of(b("abc")), ByteList.of(b("def")), ByteList.of(b("ghi")), ByteList.of(b(""))}, ByteList.of(b("\nabc\ndef\r\nghi\n\r")).splitlines(false));
-    assertArrayEquals(new ByteList[] {ByteList.of(b("\n")), ByteList.of(b("abc\n")), ByteList.of(b("def\r\n")), ByteList.of(b("ghi\n")), ByteList.of(b("\r"))},
-                  ByteList.of(b("\nabc\ndef\r\nghi\n\r")).splitlines(true));
-    assertArrayEquals(new ByteList[] {ByteList.of(b("")), ByteList.of(b("abc")), ByteList.of(b("def")), ByteList.of(b("ghi")), ByteList.of(b(""))}, ByteList.of(b("\nabc\ndef\r\nghi\n\r")).splitlines(false));
-    assertArrayEquals(new ByteList[] {ByteList.of(b("\n")), ByteList.of(b("abc\n")), ByteList.of(b("def\r\n")), ByteList.of(b("ghi\n")), ByteList.of(b("\r"))},
-                  ByteList.of(b("\nabc\ndef\r\nghi\n\r")).splitlines(true));
+    assertArrayEquals(new ByteList[] {ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("")), ByteList.wrap(b("ghi"))}, ByteList.wrap(b("abc\ndef\n\rghi")).splitlines());
+    assertArrayEquals(new ByteList[] {ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("")), ByteList.wrap(b("ghi"))}, ByteList.wrap(b("abc\ndef\n\r\nghi")).splitlines());
+    assertArrayEquals(new ByteList[] {ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi"))}, ByteList.wrap(b("abc\ndef\r\nghi")).splitlines());
+    assertArrayEquals(new ByteList[] {ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi"))}, ByteList.wrap(b("abc\ndef\r\nghi\n")).splitlines());
+    assertArrayEquals(new ByteList[] {ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi")), ByteList.wrap(b(""))}, ByteList.wrap(b("abc\ndef\r\nghi\n\r")).splitlines());
+    assertArrayEquals(new ByteList[] {ByteList.wrap(b("")), ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi")), ByteList.wrap(b(""))}, ByteList.wrap(b("\nabc\ndef\r\nghi\n\r")).splitlines());
+    assertArrayEquals(new ByteList[] {ByteList.wrap(b("")), ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi")), ByteList.wrap(b(""))}, ByteList.wrap(b("\nabc\ndef\r\nghi\n\r")).splitlines(false));
+    assertArrayEquals(new ByteList[] {ByteList.wrap(b("\n")), ByteList.wrap(b("abc\n")), ByteList.wrap(b("def\r\n")), ByteList.wrap(b("ghi\n")), ByteList.wrap(b("\r"))},
+                  ByteList.wrap(b("\nabc\ndef\r\nghi\n\r")).splitlines(true));
+    assertArrayEquals(new ByteList[] {ByteList.wrap(b("")), ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi")), ByteList.wrap(b(""))}, ByteList.wrap(b("\nabc\ndef\r\nghi\n\r")).splitlines(false));
+    assertArrayEquals(new ByteList[] {ByteList.wrap(b("\n")), ByteList.wrap(b("abc\n")), ByteList.wrap(b("def\r\n")), ByteList.wrap(b("ghi\n")), ByteList.wrap(b("\r"))},
+                  ByteList.wrap(b("\nabc\ndef\r\nghi\n\r")).splitlines(true));
   }
 
   @Test
@@ -1179,39 +1178,39 @@ public class ByteListTest {
 
     ByteList c = b.translate(rosetta);
     ByteList d = b.translate(rosetta, b(""));
-    ByteList dd = b.translate(rosetta, ByteList.of(b("")));
+    ByteList dd = b.translate(rosetta, ByteList.wrap(b("")));
     assertEquals(c, d);
     assertEquals(c, dd);
-    assertEquals(c, ByteList.of(b("helle")));
+    assertEquals(c, ByteList.wrap(b("helle")));
 
     c = b.translate(rosetta, b("hello"));
-    assertEquals(b, ByteList.of(b("hello")));
-    assertEquals(c, ByteList.of(b("")));
+    assertEquals(b, ByteList.wrap(b("hello")));
+    assertEquals(c, ByteList.wrap(b("")));
 
     c = b.translate(rosetta, b("l"));
-    assertEquals(c, ByteList.of(b("hee")));
+    assertEquals(c, ByteList.wrap(b("hee")));
     c = b.translate(null, b("e"));
-    assertEquals(c, ByteList.of(b("hllo")));
+    assertEquals(c, ByteList.wrap(b("hllo")));
 
     c = b.translate(rosetta, b(""));
-    assertEquals(c, ByteList.of(b("helle")));
+    assertEquals(c, ByteList.wrap(b("helle")));
     c = b.translate(rosetta, b("l"));
-    assertEquals(c, ByteList.of(b("hee")));
+    assertEquals(c, ByteList.wrap(b("hee")));
     c = b.translate(null, b("e"));
-    assertEquals(c, ByteList.of(b("hllo")));
+    assertEquals(c, ByteList.wrap(b("hllo")));
   }
 
   @Test
   public void testExpandTabs() {
-    assertEquals(ByteList.of(b("abc\rab      def\ng       hi")), ByteList.of(b("abc\rab\tdef\ng\thi")).expandtabs());
-    assertEquals(ByteList.of(b("abc\rab      def\ng       hi")), ByteList.of(b("abc\rab\tdef\ng\thi")).expandtabs(8));
-    assertEquals(ByteList.of(b("abc\rab  def\ng   hi")), ByteList.of(b("abc\rab\tdef\ng\thi")).expandtabs(4));
-    assertEquals(ByteList.of(b("abc\r\nab      def\ng       hi")), ByteList.of(b("abc\r\nab\tdef\ng\thi")).expandtabs());
-    assertEquals(ByteList.of(b("abc\r\nab      def\ng       hi")), ByteList.of(b("abc\r\nab\tdef\ng\thi")).expandtabs(8));
-    assertEquals(ByteList.of(b("abc\r\nab  def\ng   hi")), ByteList.of(b("abc\r\nab\tdef\ng\thi")).expandtabs(4));
-    assertEquals(ByteList.of(b("abc\r\nab\r\ndef\ng\r\nhi")), ByteList.of(b("abc\r\nab\r\ndef\ng\r\nhi")).expandtabs(4));
-    assertEquals(ByteList.of(b("abc\rab      def\ng       hi")), ByteList.of(b("abc\rab\tdef\ng\thi")).expandtabs(8));
-    assertEquals(ByteList.of(b("abc\rab  def\ng   hi")), ByteList.of(b("abc\rab\tdef\ng\thi")).expandtabs(4));
-    assertEquals(ByteList.of(b("  a\n b")), ByteList.of(b(" \ta\n\tb")).expandtabs(1));
+    assertEquals(ByteList.wrap(b("abc\rab      def\ng       hi")), ByteList.wrap(b("abc\rab\tdef\ng\thi")).expandtabs());
+    assertEquals(ByteList.wrap(b("abc\rab      def\ng       hi")), ByteList.wrap(b("abc\rab\tdef\ng\thi")).expandtabs(8));
+    assertEquals(ByteList.wrap(b("abc\rab  def\ng   hi")), ByteList.wrap(b("abc\rab\tdef\ng\thi")).expandtabs(4));
+    assertEquals(ByteList.wrap(b("abc\r\nab      def\ng       hi")), ByteList.wrap(b("abc\r\nab\tdef\ng\thi")).expandtabs());
+    assertEquals(ByteList.wrap(b("abc\r\nab      def\ng       hi")), ByteList.wrap(b("abc\r\nab\tdef\ng\thi")).expandtabs(8));
+    assertEquals(ByteList.wrap(b("abc\r\nab  def\ng   hi")), ByteList.wrap(b("abc\r\nab\tdef\ng\thi")).expandtabs(4));
+    assertEquals(ByteList.wrap(b("abc\r\nab\r\ndef\ng\r\nhi")), ByteList.wrap(b("abc\r\nab\r\ndef\ng\r\nhi")).expandtabs(4));
+    assertEquals(ByteList.wrap(b("abc\rab      def\ng       hi")), ByteList.wrap(b("abc\rab\tdef\ng\thi")).expandtabs(8));
+    assertEquals(ByteList.wrap(b("abc\rab  def\ng   hi")), ByteList.wrap(b("abc\rab\tdef\ng\thi")).expandtabs(4));
+    assertEquals(ByteList.wrap(b("  a\n b")), ByteList.wrap(b(" \ta\n\tb")).expandtabs(1));
   }
 }

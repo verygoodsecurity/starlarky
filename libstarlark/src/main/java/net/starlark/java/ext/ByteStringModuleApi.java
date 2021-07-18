@@ -115,6 +115,14 @@ public interface ByteStringModuleApi {
         doc = "The suffix may be any bytes-like object.")})
   StarlarkBytes removesuffix(StarlarkBytes suffix) throws EvalException;
 
+    @StarlarkMethod(
+        name = "decode",
+        parameters = {
+            @Param(name = "encoding", defaultValue = "'utf-8'"),
+            @Param(name ="errors", defaultValue = "'strict'")
+        })
+  String decode(String encoding, String errors) throws EvalException;
+
   @StarlarkMethod(
     name = "endswith",
     doc = "B.endswith(suffix[, start[, end]]) -> bool\n" +
@@ -622,7 +630,7 @@ public interface ByteStringModuleApi {
     doc =
       "Return a copy of the sequence with each byte interpreted as an ASCII character, and the first byte capitalized and the rest lowercased. Non-ASCII byte values are passed through unchanged."
   )
-  StarlarkBytes capitalize() throws EvalException;
+  StarlarkBytes capitalize();
 
   @StarlarkMethod(
     name = "expandtabs",
@@ -691,7 +699,7 @@ public interface ByteStringModuleApi {
         ">>> b'1.23'.isdigit()\n" +
         "False"
   )
-  boolean isDigit() throws EvalException;
+  boolean isDigit();
 
   @StarlarkMethod(
     name = "islower",
@@ -707,7 +715,7 @@ public interface ByteStringModuleApi {
         "False\n" +
         "Lowercase ASCII characters are those byte values in the sequence b'abcdefghijklmnopqrstuvwxyz'. Uppercase ASCII characters are those byte values in the sequence b'ABCDEFGHIJKLMNOPQRSTUVWXYZ'."
   )
-  boolean isLower() throws EvalException;
+  boolean isLower();
 
   @StarlarkMethod(
     name = "isspace",
@@ -745,14 +753,14 @@ public interface ByteStringModuleApi {
         "False\n" +
         "Lowercase ASCII characters are those byte values in the sequence b'abcdefghijklmnopqrstuvwxyz'. Uppercase ASCII characters are those byte values in the sequence b'ABCDEFGHIJKLMNOPQRSTUVWXYZ'."
   )
-  boolean isUpper() throws EvalException;
+  boolean isUpper();
 
   @StarlarkMethod(
     name = "lower",
     doc = "B.lower() -> copy of B\n" +
             "\n" +
             "Return a copy of B with all ASCII characters converted to lowercase.")
-  StarlarkBytes lower() throws EvalException;
+  StarlarkBytes lower();
 
   @StarlarkMethod(
     name = "splitlines",
@@ -831,14 +839,14 @@ public interface ByteStringModuleApi {
         ">>> titlecase(b\"they're bill's friends.\")\n" +
         "b\"They're Bill's Friends.\""
   )
-  StarlarkBytes title() throws EvalException;
+  StarlarkBytes title();
 
   @StarlarkMethod(
     name = "upper",
     doc = "B.upper() -> copy of B\n" +
             "\n" +
             "Return a copy of B with all ASCII characters converted to uppercase.")
-  StarlarkBytes upper() throws EvalException;
+  StarlarkBytes upper();
 
   @StarlarkMethod(
     name = "zfill",
