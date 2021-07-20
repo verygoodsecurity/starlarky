@@ -19,6 +19,8 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 
+import java.util.List;
+
 
 /**
  * A library of Larky values (keyed by name) that are not part of core Starlark but are common to
@@ -30,6 +32,17 @@ import net.starlark.java.eval.Tuple;
  */
 @Library
 public final class LarkyGlobals {
+
+  @StarlarkMethod(
+      name = "stacktrace",
+      useStarlarkThread = true)
+  public void stacktrace(StarlarkThread thread) {
+    List<StarlarkThread.CallStackEntry> stack = thread.getCallStack();
+    stack = stack.subList(0, stack.size() - 1); // pop the built-in function
+    for (StarlarkThread.CallStackEntry fr : stack) {
+      System.err.printf("%s: called from %s\n", fr.location, fr.name);
+    }
+  }
 
   @StarlarkMethod(
       name = "_struct",

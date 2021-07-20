@@ -5,6 +5,8 @@ load("@stdlib//json","json")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//types", types="types")
 load("@stdlib//operator", operator="operator")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
+
 # load("@stdlib//zlib", zlib="zlib")
 load("@vendor//jose/jwk", jwk="jwk")
 load("@vendor//jose/backends", get_random_bytes="get_random_bytes")
@@ -58,6 +60,7 @@ def encrypt(plaintext, key, encryption=ALGORITHMS.A256GCM,
         return Error("JWEError: Algorithm %s not supported." % algorithm)
     if not operator.contains(ALGORITHMS.SUPPORTED, encryption):
         return Error("JWEError: Encryption %s not supported." % encryption)
+
     key = jwk.construct(key, algorithm)
     encoded_header = _encoded_header(algorithm, encryption, zip, cty, kid)
 
@@ -111,6 +114,7 @@ def decrypt(jwe_str, key):
     # specified by the "alg" (algorithm) Header Parameter.
     alg = header["alg"]
     enc = header["enc"]
+
     if not operator.contains(ALGORITHMS.SUPPORTED, alg):
         return Error("JWEError: Algorithm %s not supported." % alg).unwrap()
     if not operator.contains(ALGORITHMS.SUPPORTED, enc):
@@ -167,6 +171,7 @@ def decrypt(jwe_str, key):
             cek_bytes = _get_random_cek_bytes_for_enc(enc).unwrap()
         else:
             cek_bytes = rval.unwrap()
+            # cek_bytes = key
 
             # Record whether the CEK could be successfully determined for this
             # recipient or not.
@@ -195,9 +200,12 @@ def decrypt(jwe_str, key):
     # Authentication Tag in the manner specified for the algorithm,
     # rejecting the input without emitting any decrypted output if the
     # JWE Authentication Tag is incorrect.
-    safe_func = safe(_decrypt_and_auth)
-    rval = safe_func(cek_bytes, enc, cipher_text, iv, aad, auth_tag)
-    plain_text = rval.unwrap()
+    # safe_func = safe(_decrypt_and_auth)
+    # rval = safe_func(cek_bytes, enc, cipher_text, iv, aad, auth_tag)
+    rval = _decrypt_and_auth(cek_bytes, enc, cipher_text, iv, aad, auth_tag)
+
+    # plain_text = rval.unwrap()
+    plain_text = rval
 
     # If a "zip" parameter was included, uncompress the decrypted
     # plaintext using the specified compression algorithm.
@@ -250,6 +258,7 @@ def _decrypt_and_auth(cek_bytes, enc, cipher_text, iv, aad, auth_tag):
         auth_tag_check = _auth_tag(cipher_text, iv, aad, mac_key, key_len)
     elif operator.contains(ALGORITHMS.GCM, enc):
         encryption_key = jwk.construct(cek_bytes, enc)
+        # encryption_key = cek_bytes
         auth_tag_check = auth_tag  # GCM check auth on decrypt
     else:
         return Error("Unknown algorithm: %s" % enc)
@@ -304,6 +313,7 @@ def _jwe_compact_deserialize(jwe_bytes):
         cipher_text_segment,
         auth_tag_segment
     ) = rval.unwrap()
+
     header_data = safe(base64url_decode)(header_segment).unwrap()
 
     # Verify that the octet sequence resulting from decoding the

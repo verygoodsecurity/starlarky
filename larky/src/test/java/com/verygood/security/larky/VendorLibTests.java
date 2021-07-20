@@ -56,7 +56,8 @@ public class VendorLibTests {
   private List<Path> enumerateTests() {
     // Did we pass in a specific filename?
     // -Dlarky.stdlib_test=test_base64.star
-    String singleTestDesired = System.getProperty(PROPERTY_NAME);
+//    String singleTestDesired = System.getProperty(PROPERTY_NAME);
+    String singleTestDesired = "test_jose.star";
     try (Stream<Path> testFiles = Files.walk(VENDOR_TEST_DIR)) {
       vendorTestFiles = testFiles
           .filter(Files::isRegularFile)
