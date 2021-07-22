@@ -97,7 +97,6 @@ def decrypt(jwe_str, key):
         cipher_text,
         auth_tag
     ) = _jwe_compact_deserialize(jwe_str).unwrap()
-
     # Verify that the implementation understands and can process all
     # fields that it is required to support, whether required by this
     # specification, by the algorithms being used, or by the "crit"
@@ -149,12 +148,15 @@ def decrypt(jwe_str, key):
         # symmetric key.
         cek_bytes = _get_key_bytes_from_key(key)
     else:
-        rval = safe(key.unwrap_key)(encrypted_key)
+        rval = safe(key.unwrap)(encrypted_key, headers=header, enc_alg=enc)
         if rval.is_err:
+            print(rval)
             if Result.error_is("NotImplementedError", rval):
                 return rval.unwrap()
             elif Result.error_is("JWEError", rval):
                 return rval.unwrap()
+            else:
+                rval.unwrap()
             # Record whether the CEK could be successfully determined for this
             # recipient or not.
             cek_valid = False
@@ -288,7 +290,11 @@ def _jwe_compact_deserialize(jwe_bytes):
     # whitespace, or other additional characters have been used.
     jwe_bytes = six.ensure_binary(jwe_bytes)
     rval = jwe_bytes.split(b".", 4)
-    print(rval)
+    ## DEBUG 👇
+    # protected_s, ek_s, iv_s, ciphertext_s, tag_s = s.rsplit(b'.')
+    # rval = jwe_bytes.rsplit(b".")
+    # print(rval)
+    ## DEBUG 👆
     # rval = safe(jwe_bytes.split)(bytes('.', encoding='utf-8'), 4)
     # if rval.is_err:
     #     if Result.error_is(".*in call to split()", rval):
@@ -322,12 +328,7 @@ def _jwe_compact_deserialize(jwe_bytes):
     # Parameter name also MUST NOT occur in distinct JSON object
     # values that together comprise the JOSE Header.
     hd = six.ensure_str(header_data)
-    print(hd)
-    # hd = rval.expect("JWEParseError: Invalid header string: %s" % header_data)
     header = json.loads(hd)
-    # safe_json = safe(json.loads)
-    # header = safe_json(hd).expect("JWEParseError: Invalid json?")
-
     if not types.is_dict(header):
         return Error("JWEParseError: Invalid header string: must be a json object")
 
