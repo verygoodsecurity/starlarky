@@ -1,24 +1,5 @@
 package com.verygood.security.larky.modules;
 
-import com.google.common.primitives.Bytes;
-
-import com.verygood.security.larky.modules.codecs.TextUtil;
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteArray;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
-
-import net.starlark.java.annot.Param;
-import net.starlark.java.annot.ParamType;
-import net.starlark.java.annot.StarlarkBuiltin;
-import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkInt;
-import net.starlark.java.eval.StarlarkList;
-import net.starlark.java.eval.StarlarkThread;
-import net.starlark.java.eval.StarlarkValue;
-import net.starlark.java.eval.Tuple;
-
 import java.io.ByteArrayInputStream;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
@@ -26,6 +7,20 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+
+import com.verygood.security.larky.modules.codecs.TextUtil;
+
+import net.starlark.java.annot.Param;
+import net.starlark.java.annot.ParamType;
+import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.Tuple;
 
 
 @StarlarkBuiltin(
@@ -600,13 +595,13 @@ public class StructModule implements StarlarkValue {
               name = "format",
               allowedTypes = {
                   @ParamType(type = String.class),
-                  @ParamType(type = LarkyByte.class)
+                  @ParamType(type = StarlarkBytes.class)
               }
           )
       },
       extraPositionals = @Param(name = "args"),
       useStarlarkThread = true)
-  public LarkyByteLike struct__pack(Object format, Tuple args, StarlarkThread thread) throws Exception {
+  public StarlarkBytes struct__pack(Object format, Tuple args, StarlarkThread thread) throws Exception {
     ArrayList<Long> l = asList(args);
     byte[] bytes;
     if (String.class.isAssignableFrom(format.getClass())) {
@@ -615,7 +610,7 @@ public class StructModule implements StarlarkValue {
 
       bytes = pack(Starlark.str(format), l.stream().flatMapToLong(LongStream::of).toArray());
     }
-    return LarkyByte.builder(thread).setSequence(bytes).build();
+    return StarlarkBytes.of(thread.mutability(), bytes);
   }
 
   //  struct.unpack(format, buffer)
@@ -629,22 +624,22 @@ public class StructModule implements StarlarkValue {
               name = "format",
               allowedTypes = {
                   @ParamType(type = String.class),
-                  @ParamType(type = LarkyByte.class)
+                  @ParamType(type = StarlarkBytes.class)
               }
           ),
           @Param(
               name = "buffer",
-              allowedTypes = {@ParamType(type = LarkyByte.class)}
+              allowedTypes = {@ParamType(type = StarlarkBytes.class)}
           )
       },
       useStarlarkThread = true)
-  public Tuple struct__unpack(Object format, LarkyByte buffer, StarlarkThread thread) throws Exception {
+  public Tuple struct__unpack(Object format, StarlarkBytes buffer, StarlarkThread thread) throws Exception {
     long[] unpacked;
     if (String.class.isAssignableFrom(format.getClass())) {
-      unpacked = unpack((String) format, buffer.getBytes());
+      unpacked = unpack((String) format, buffer.toByteArray());
     }
     else {
-      unpacked = unpack(Starlark.str(format), buffer.getBytes());
+      unpacked = unpack(Starlark.str(format), buffer.toByteArray());
     }
     return Tuple.copyOf(LongStream.of(unpacked).mapToObj(StarlarkInt::of).collect(Collectors.toList()));
   }
@@ -661,7 +656,7 @@ public class StructModule implements StarlarkValue {
           ),
           @Param(
               name = "buffer",
-              allowedTypes = {@ParamType(type = LarkyByteLike.class)}
+            allowedTypes = {@ParamType(type = StarlarkBytes.class), @ParamType(type = StarlarkBytes.StarlarkByteArray.class)}
           ),
           @Param(
               name = "offset",
@@ -670,7 +665,7 @@ public class StructModule implements StarlarkValue {
       },
       extraPositionals = @Param(name = "args"),
       useStarlarkThread = true)
-  public LarkyByteLike struct__pack_into(Object format, LarkyByteLike buffer, StarlarkInt offset, Tuple args, StarlarkThread thread) throws Exception {
+  public StarlarkBytes struct__pack_into(Object format, StarlarkBytes buffer, StarlarkInt offset, Tuple args, StarlarkThread thread) throws Exception {
     ArrayList<Long> l = asList(args);
     byte[] bytes;
     if (String.class.isAssignableFrom(format.getClass())) {
@@ -681,20 +676,12 @@ public class StructModule implements StarlarkValue {
     }
 
     bytes = TextUtil.concatByteArray(
-        TextUtil.subarray(buffer.getBytes(), 0, offset.toIntUnchecked()),
+        TextUtil.subarray(buffer.toByteArray(), 0, offset.toIntUnchecked()),
         bytes);
-    if(buffer instanceof LarkyByteArray) {
-        //List<StarlarkInt> collect =
-        ((LarkyByteArray) buffer).setSequenceStorage(
-            StarlarkList.immutableCopyOf(
-                Bytes.asList(bytes)
-                    .stream()
-                    .map(Byte::toUnsignedInt)
-                    .map(StarlarkInt::of)
-                    .collect(Collectors.toList()))
-        );
+    if(buffer instanceof StarlarkBytes.StarlarkByteArray) {
+      ((StarlarkBytes.StarlarkByteArray) buffer).replaceAll(StarlarkBytes.of(thread.mutability(), bytes));
     }
-    return LarkyByte.builder(thread).setSequence(bytes).build();
+    return StarlarkBytes.of(thread.mutability(), bytes);
   }
 
   private ArrayList<Long> asList(Tuple args) throws EvalException {
@@ -723,11 +710,11 @@ public class StructModule implements StarlarkValue {
               name = "format",
               allowedTypes = {
                   @ParamType(type = String.class),
-                  @ParamType(type = LarkyByte.class)}
+                  @ParamType(type = StarlarkBytes.class)}
           ),
           @Param(
               name = "buffer",
-              allowedTypes = {@ParamType(type = LarkyByte.class)}
+              allowedTypes = {@ParamType(type = StarlarkBytes.class)}
           ),
           @Param(
               name = "offset",
@@ -736,17 +723,17 @@ public class StructModule implements StarlarkValue {
           )
       },
       useStarlarkThread = true)
-  public Tuple struct__unpack_from(Object format, LarkyByte buffer, StarlarkInt offset, StarlarkThread thread) throws Exception {
+  public Tuple struct__unpack_from(Object format, StarlarkBytes buffer, StarlarkInt offset, StarlarkThread thread) throws Exception {
     long[] unpacked;
     if (String.class.isAssignableFrom(format.getClass())) {
       unpacked = unpack(
           (String) format,
-          TextUtil.subarray(buffer.getBytes(), offset.toIntUnchecked(), buffer.size()));
+          TextUtil.subarray(buffer.toByteArray(), offset.toIntUnchecked(), buffer.size()));
     }
     else {
       unpacked = unpack(
           Starlark.str(format),
-          TextUtil.subarray(buffer.getBytes(), offset.toIntUnchecked(), buffer.size()));
+          TextUtil.subarray(buffer.toByteArray(), offset.toIntUnchecked(), buffer.size()));
     }
     return Tuple.copyOf(LongStream.of(unpacked)
         .mapToObj(StarlarkInt::of)
@@ -767,15 +754,15 @@ public class StructModule implements StarlarkValue {
               name = "format",
               allowedTypes = {
                   @ParamType(type = String.class),
-                  @ParamType(type = LarkyByte.class)}
+                  @ParamType(type = StarlarkBytes.class)}
           ),
           @Param(
               name = "buffer",
-              allowedTypes = {@ParamType(type = LarkyByte.class)}
+              allowedTypes = {@ParamType(type = StarlarkBytes.class)}
           ),
       },
       useStarlarkThread = true)
-  public Tuple struct__iter_unpack(Object format, LarkyByte buffer, StarlarkThread thread) throws Exception {
+  public Tuple struct__iter_unpack(Object format, StarlarkBytes buffer, StarlarkThread thread) throws Exception {
     return struct__unpack(format, buffer, thread); // no iterators in starlarky.
   }
 
@@ -788,7 +775,7 @@ public class StructModule implements StarlarkValue {
               name = "format",
               allowedTypes = {
                   @ParamType(type = String.class),
-                  @ParamType(type = LarkyByte.class)}
+                  @ParamType(type = StarlarkBytes.class)}
           )
       }
   )

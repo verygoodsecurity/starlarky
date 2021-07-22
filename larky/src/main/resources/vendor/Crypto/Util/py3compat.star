@@ -86,6 +86,8 @@ def bstr(s):
 
 
 def bord(s):
+    if types.is_bytelike(s) or types.is_string(s):
+        return ord(s)
     return s
 
 
@@ -132,4 +134,4 @@ def copy_bytes(start, end, seq):
     if types.is_bytearray(seq):
         return builtins.bytearray(seq[start:end])
     else:
-        return seq[start:end]
+        return bytes(seq[start:end])

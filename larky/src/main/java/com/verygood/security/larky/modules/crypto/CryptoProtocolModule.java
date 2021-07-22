@@ -5,9 +5,9 @@ import com.google.common.base.Strings;
 import java.nio.charset.StandardCharsets;
 import java.util.function.BiFunction;
 
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteArray;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
+import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkBytes;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -16,7 +16,7 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkByte;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
@@ -44,22 +44,22 @@ public class CryptoProtocolModule implements StarlarkValue {
 
   @StarlarkMethod(
       name = "PBKDF1", parameters = {
-      @Param(name = "password", allowedTypes = { @ParamType(type = LarkyByteLike.class)}),
-      @Param(name = "salt", allowedTypes = { @ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "password", allowedTypes = { @ParamType(type = StarlarkBytes.class)}),
+      @Param(name = "salt", allowedTypes = { @ParamType(type = StarlarkBytes.class)}),
       @Param(name = "dkLen", allowedTypes = { @ParamType(type = StarlarkInt.class)}),
       @Param(name = "count", allowedTypes = { @ParamType(type = StarlarkInt.class)}, defaultValue = "1000"),
       @Param(name = "hashAlgo", allowedTypes = { @ParamType(type = String.class)}, defaultValue = "'SHA1'"),
   }, useStarlarkThread = true)
 
-  public LarkyByteLike PBKDF1(LarkyByteLike password, LarkyByteLike salt, StarlarkInt dkLen, StarlarkInt count, String hashAlgo, StarlarkThread thread) throws EvalException {
+  public StarlarkBytes PBKDF1(StarlarkBytes password, StarlarkBytes salt, StarlarkInt dkLen, StarlarkInt count, String hashAlgo, StarlarkThread thread) throws EvalException {
 
     byte[] results = PBKDF1(
         password.toCharArray(),
-        salt.getBytes(),
+      salt.toByteArray(),
         dkLen.toIntUnchecked(),
         count.toIntUnchecked(),
         hashAlgo);
-    return LarkyByteArray.builder(thread).setSequence(results).build();
+    return StarlarkBytes.of(thread.mutability(), results);
   }
 
 
@@ -88,14 +88,14 @@ public class CryptoProtocolModule implements StarlarkValue {
 
   @StarlarkMethod(
     name = "PBKDF2", parameters = {
-    @Param(name = "password", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
-    @Param(name = "salt", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+    @Param(name = "password", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+    @Param(name = "salt", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
     @Param(name = "dkLen", allowedTypes = {@ParamType(type = StarlarkInt.class)}, defaultValue = "16"),
     @Param(name = "count", allowedTypes = {@ParamType(type = StarlarkInt.class)}, defaultValue = "1000"),
     @Param(name = "prf", allowedTypes = {@ParamType(type = NoneType.class), @ParamType(type = StarlarkCallable.class)}, defaultValue = "None"),
     @Param(name = "hmac_hash_module", allowedTypes = {@ParamType(type = String.class), @ParamType(type = NoneType.class)}, defaultValue = "None")
   }, useStarlarkThread = true)
-  public LarkyByteLike PBKDF2(LarkyByteLike password, LarkyByteLike salt, StarlarkInt dkLen, StarlarkInt count, Object prfO, Object hmacHashModuleO, StarlarkThread thread) throws EvalException {
+  public StarlarkBytes PBKDF2(StarlarkBytes password, StarlarkBytes salt, StarlarkInt dkLen, StarlarkInt count, Object prfO, Object hmacHashModuleO, StarlarkThread thread) throws EvalException {
 
     // first make sure only one of prf or hmac_hash_module were passed (mutually exclusive args)
     if(!Starlark.isNullOrNone(prfO) && !Starlark.isNullOrNone(hmacHashModuleO)) {
@@ -112,18 +112,22 @@ public class CryptoProtocolModule implements StarlarkValue {
                    ? null
                    : (passwd, saltbytes) -> {
       try {
-        LarkyByteLike res = (LarkyByteLike) Starlark.call(
+        StarlarkBytes res = (StarlarkBytes) Starlark.call(
           thread,
           prfO,
           Tuple.of(
-            LarkyByte.builder(thread)
-              .setSequence(PKCS5S2ParametersGenerator.PKCS5PasswordToBytes(passwd))
-              .build(),
-            LarkyByte.builder(thread)
-              .setSequence(saltbytes)
-              .build()),
+//            StarlarkBytes.builder(thread)
+//              .setSequence(PKCS5S2ParametersGenerator.PKCS5PasswordToBytes(passwd))
+//              .build(),
+            StarlarkBytes.of(thread.mutability(), PKCS5S2ParametersGenerator.PKCS5PasswordToBytes(passwd)),
+            StarlarkBytes.of(thread.mutability(), saltbytes)
+
+//            StarlarkBytes.builder(thread)
+//              .setSequence(saltbytes)
+//              .build()
+          ),
           Dict.empty());
-        return res.getBytes();
+        return res.toByteArray();
       } catch (EvalException | InterruptedException e) {
         throw new RuntimeException(e);
       }
@@ -131,12 +135,12 @@ public class CryptoProtocolModule implements StarlarkValue {
 
     byte[] results = PBKDF2(
       password.toCharArray(),
-      salt.getBytes(),
+      salt.toByteArray(),
       dkLen.toIntUnchecked(),
       count.toIntUnchecked(),
       prf,
       hmacHashModuleO);
-    return LarkyByteArray.builder(thread).setSequence(results).build();
+    return StarlarkBytes.of(thread.mutability(), results);
   }
 
   @VisibleForTesting
@@ -179,53 +183,58 @@ public class CryptoProtocolModule implements StarlarkValue {
 
   @StarlarkMethod(
     name = "bcrypt", parameters = {
-      @Param(name = "password", allowedTypes = {@ParamType(type = LarkyByteLike.class), @ParamType(type = StarlarkByte.class)}),
-      @Param(name = "salt", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "password", allowedTypes = {@ParamType(type = StarlarkBytes.class), @ParamType(type = StarlarkBytes.class)}),
+      @Param(name = "salt", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
       @Param(name = "count", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
     }, useStarlarkThread = true)
-  public LarkyByteLike bcrypt(Object passwordO, LarkyByteLike salt, StarlarkInt count, StarlarkThread thread) throws EvalException {
-    byte[] password = larkyByteTypeToPrimitive(passwordO);
+  public StarlarkBytes bcrypt(Object passwordO, StarlarkBytes salt, StarlarkInt count, StarlarkThread thread) throws EvalException {
+    byte[] password = StarlarkBytesTypeToPrimitive(passwordO);
     byte[] results = OpenBSDBCrypt
-                       .generate("2a", password, salt.getBytes(), count.toIntUnchecked())
+                       .generate("2a", password, salt.toByteArray(), count.toIntUnchecked())
                        .getBytes(StandardCharsets.UTF_8);
-    return LarkyByteArray.builder(thread).setSequence(results).build();
+    return StarlarkBytes.of(thread.mutability(), results);
   }
 
   @StarlarkMethod(
     name = "bcrypt_hashpw", parameters = {
-      @Param(name = "password", allowedTypes = {@ParamType(type = LarkyByteLike.class), @ParamType(type = StarlarkByte.class)}),
-      @Param(name = "salt", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "password", allowedTypes = {@ParamType(type = StarlarkBytes.class), @ParamType(type = StarlarkBytes.class)}),
+      @Param(name = "salt", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
       @Param(name = "count", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
     }, useStarlarkThread = true)
-  public LarkyByteLike bcryptHash(Object passwordO, LarkyByteLike salt, StarlarkInt count, StarlarkThread thread) throws EvalException {
-    byte[] password = larkyByteTypeToPrimitive(passwordO);
-    byte[] results = BCrypt.generate(password, salt.getBytes(), count.toIntUnchecked());
-    return LarkyByte.builder(thread).setSequence(results).build();
+  public StarlarkBytes bcryptHash(Object passwordO, StarlarkBytes salt, StarlarkInt count, StarlarkThread thread) throws EvalException {
+    byte[] password = StarlarkBytesTypeToPrimitive(passwordO);
+    byte[] results = BCrypt.generate(password, salt.toByteArray(), count.toIntUnchecked());
+    return StarlarkBytes.of(thread.mutability(), results);
+//    return StarlarkBytes.builder(thread).setSequence(results).build();
   }
 
   @StarlarkMethod(
     name = "bcrypt_checkpw", parameters = {
-      @Param(name = "password", allowedTypes = {@ParamType(type=String.class), @ParamType(type = LarkyByteLike.class), @ParamType(type = StarlarkByte.class)}),
-      @Param(name = "bcrypt_hash", allowedTypes = {@ParamType(type = LarkyByteLike.class), @ParamType(type = StarlarkByte.class)}),
+      @Param(name = "password", allowedTypes = {@ParamType(type=String.class), @ParamType(type = StarlarkBytes.class), @ParamType(type = StarlarkBytes.class)}),
+      @Param(name = "bcrypt_hash", allowedTypes = {@ParamType(type = StarlarkBytes.class), @ParamType(type = StarlarkBytes.class)}),
     }, useStarlarkThread = true)
   public boolean bcryptCheckPassword(Object passwordO, Object bcryptHashO, StarlarkThread thread) throws EvalException {
-    byte[] bcryptHash = larkyByteTypeToPrimitive(bcryptHashO);
+    byte[] bcryptHash = StarlarkBytesTypeToPrimitive(bcryptHashO);
     if(String.class.isAssignableFrom(passwordO.getClass())) {
       return OpenBSDBCrypt.checkPassword(
         new String(bcryptHash),
         ((String) passwordO).toCharArray()
       );
     }
-    byte[] password = larkyByteTypeToPrimitive(passwordO);
+    byte[] password = StarlarkBytesTypeToPrimitive(passwordO);
     return OpenBSDBCrypt.checkPassword(new String(bcryptHash), password);
   }
 
-  private byte[] larkyByteTypeToPrimitive(Object o) {
+  private byte[] StarlarkBytesTypeToPrimitive(Object o) {
     byte[] result;
-    if (StarlarkByte.class.isAssignableFrom(o.getClass())) {
-      result = ((StarlarkByte) o).getBytes();
-    } else if(LarkyByteLike.class.isAssignableFrom(o.getClass())) {
-      result = ((LarkyByteLike) o).getBytes();
+    if (StarlarkBytes.class.isAssignableFrom(o.getClass())) {
+      StarlarkBytes b = ((StarlarkBytes) o);
+      result =new byte[b.size()];
+      for (int i = 0, loopLength = b.size(); i < loopLength; i++) {
+        result[i] = b.byteAt(i);
+      }
+    } else if(StarlarkBytes.class.isAssignableFrom(o.getClass())) {
+      result = ((StarlarkBytes) o).toByteArray();
     } else {
       throw new IllegalArgumentException("Invalid larky byte type! " + o.getClass());
     }

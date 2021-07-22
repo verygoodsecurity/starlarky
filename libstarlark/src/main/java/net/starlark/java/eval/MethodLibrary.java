@@ -17,7 +17,6 @@ package net.starlark.java.eval;
 import com.google.common.base.Ascii;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Ordering;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -308,12 +307,12 @@ class MethodLibrary {
           "elements are those integers. It is an error if any element is not in the " +
           "range 0-255.",
       parameters = {@Param(name = "x", doc = "The object to convert.")})
-  public StarlarkByte bytes(Object x) throws EvalException {
+  public StarlarkBytes bytes(Object x) throws EvalException {
     switch(Starlark.type(x)) {
       case "bytes":
-        return (StarlarkByte) x;
+        return (StarlarkBytes) x;
       case "string":
-        return StarlarkByte.immutableOf(((String) x).toCharArray());
+        return StarlarkBytes.immutableOf(((String) x).toCharArray());
       default:
         // nothing
     }
@@ -322,7 +321,7 @@ class MethodLibrary {
         x,
         StarlarkInt.class,
         Starlark.str(x));
-      return StarlarkByte.immutableCopyOf(cast);
+      return StarlarkBytes.immutableCopyOf(cast);
     }
     throw Starlark.errorf("bytes: got %s, want string, bytes, or iterable of ints", Starlark.type(x));
   }
@@ -338,35 +337,29 @@ class MethodLibrary {
                name = "c",
                allowedTypes = {
                    @ParamType(type = String.class),
-                   @ParamType(type = StarlarkByte.class),
+                   @ParamType(type = StarlarkBytes.class),
                }
            )
        }
    )
    public StarlarkInt ordinal(Object c) throws EvalException {
-     int containerSize = 0;
-     byte[] bytes = null;
+     int containerSize;
+     CharSequence chars;
      if (String.class.isAssignableFrom(c.getClass())) {
        containerSize = ((String) c).length();
-       bytes = ((String) c).getBytes(StandardCharsets.UTF_8);
-     } else if (StarlarkByte.class.isAssignableFrom(c.getClass())) {
-       containerSize = ((StarlarkByte) c).size();
-       bytes = ((StarlarkByte) c).getBytes();
+       chars = ((String) c);
+     } else {
+       containerSize = ((StarlarkBytes) c).size();
+       chars = ((StarlarkBytes) c);
      }
 
-     if (containerSize != 1 || bytes == null) {
+     if (containerSize != 1) {
        throw Starlark.errorf(
            "ord: %s has length %d, want 1", Starlark.type(c), containerSize);
      }
 
-    if(bytes.length == 1) {
-      return StarlarkInt.of(Byte.toUnsignedInt(bytes[0]));
-    }
-    int code = 0x10000;
-    code += (bytes[0] & 0x03FF) << 10;
-    code += (bytes[1] & 0x03FF);
-    return StarlarkInt.of(code);
-   }
+    return StarlarkInt.of(Byte.toUnsignedInt((byte) chars.charAt(0)));
+  }
 
   @StarlarkMethod(
       name = "repr",
@@ -620,7 +613,7 @@ class MethodLibrary {
         @Param(name = "value", doc = "String value to hash.",
         allowedTypes = {
           @ParamType(type = String.class),
-          @ParamType(type = StarlarkByte.class),
+          @ParamType(type = StarlarkBytes.class),
         })
       })
   public int hash(Object value) throws EvalException {

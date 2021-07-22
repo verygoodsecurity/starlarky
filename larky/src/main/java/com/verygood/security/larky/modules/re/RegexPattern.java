@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 
-import com.verygood.security.larky.modules.types.LarkyByteLike;
+import net.starlark.java.eval.StarlarkBytes;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -14,7 +14,7 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkByte;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkValue;
@@ -131,8 +131,8 @@ public class RegexPattern implements StarlarkValue {
               name = "input",
               allowedTypes = {
                 @ParamType(type = String.class),
-                @ParamType(type = StarlarkByte.class),
-                @ParamType(type = LarkyByteLike.class),
+                @ParamType(type = StarlarkBytes.class),
+                @ParamType(type = StarlarkBytes.class),
               })
       })
   public RegexMatcher matcher(Object inputO) throws EvalException {
@@ -142,10 +142,14 @@ public class RegexPattern implements StarlarkValue {
     }
 
     byte[] input;
-    if (StarlarkByte.class.isAssignableFrom(inputO.getClass())) {
-      input = ((StarlarkByte) inputO).getBytes();
-    } else if(LarkyByteLike.class.isAssignableFrom(inputO.getClass())) {
-      input = ((LarkyByteLike) inputO).getBytes();
+    if (StarlarkBytes.class.isAssignableFrom(inputO.getClass())) {
+      StarlarkBytes b = ((StarlarkBytes) inputO);
+      input =new byte[b.size()];
+      for (int i = 0, loopLength = b.size(); i < loopLength; i++) {
+        input[i] = b.byteAt(i);
+      }
+    } else if(StarlarkBytes.class.isAssignableFrom(inputO.getClass())) {
+      input = ((StarlarkBytes) inputO).toByteArray();
     } else {
       throw new EvalException("Invalid larky byte type! " + inputO.getClass());
     }

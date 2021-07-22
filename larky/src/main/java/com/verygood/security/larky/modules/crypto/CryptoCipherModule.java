@@ -4,12 +4,12 @@ import com.verygood.security.larky.modules.crypto.Cipher.Engine;
 import com.verygood.security.larky.modules.crypto.Cipher.GHash;
 import com.verygood.security.larky.modules.crypto.Cipher.LarkyBlockCipher;
 import com.verygood.security.larky.modules.crypto.Cipher.LarkyStreamCipher;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.engines.AESEngine;
@@ -27,28 +27,28 @@ public class CryptoCipherModule implements StarlarkValue {
   @StarlarkMethod(
       name="GHASH",
       parameters = {
-          @Param(name = "data", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
+          @Param(name = "data", allowedTypes = {@ParamType(type = StarlarkBytes.class)})
   })
-  public GHash createGHASH(LarkyByteLike data) {
-    return new GHash(data.getBytes());
+  public GHash createGHASH(StarlarkBytes data) {
+    return new GHash(data.toByteArray());
   }
 
   @StarlarkMethod(name = "CTRMode", parameters = {
       @Param(name = "engine", allowedTypes = {@ParamType(type = Engine.class)}),
-      @Param(name = "iv", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
+      @Param(name = "iv", allowedTypes = {@ParamType(type = StarlarkBytes.class)})
   })
-  public LarkyStreamCipher<SICBlockCipher> CTRMode(Engine engine, LarkyByteLike iv) {
+  public LarkyStreamCipher<SICBlockCipher> CTRMode(Engine engine, StarlarkBytes iv) {
     // SIC = Segmented Integer Counter
     // This mode is also known as CTR mode.
-    return new LarkyStreamCipher<>(new SICBlockCipher(engine.getEngine()), engine, iv.getBytes());
+    return new LarkyStreamCipher<>(new SICBlockCipher(engine.getEngine()), engine, iv.toByteArray());
   }
 
   @StarlarkMethod(name = "CBCMode", parameters = {
       @Param(name = "engine", allowedTypes = {@ParamType(type = Engine.class)}),
-      @Param(name = "iv", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
+      @Param(name = "iv", allowedTypes = {@ParamType(type = StarlarkBytes.class)})
   })
-  public LarkyBlockCipher CBCMode(Engine engine, LarkyByteLike iv) {
-    return new LarkyBlockCipher(new CBCBlockCipher(engine.getEngine()), engine, iv.getBytes());
+  public LarkyBlockCipher CBCMode(Engine engine, StarlarkBytes iv) {
+    return new LarkyBlockCipher(new CBCBlockCipher(engine.getEngine()), engine, iv.toByteArray());
   }
 
   @StarlarkMethod(name = "ECBMode", parameters = {
@@ -59,12 +59,12 @@ public class CryptoCipherModule implements StarlarkValue {
   }
 
   @StarlarkMethod(name = "DES3", parameters = {
-      @Param(name = "key", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
+      @Param(name = "key", allowedTypes = {@ParamType(type = StarlarkBytes.class)})
   })
-  public Engine DES3(LarkyByteLike key) throws EvalException {
+  public Engine DES3(StarlarkBytes key) throws EvalException {
     DESedeEngine deSede = new DESedeEngine();
     try {
-      DESedeParameters params = new DESedeParameters(key.getBytes());
+      DESedeParameters params = new DESedeParameters(key.toByteArray());
       return new Engine(deSede, params);
     } catch(IllegalArgumentException e) {
       throw new EvalException(e.getMessage(), e);
@@ -72,12 +72,12 @@ public class CryptoCipherModule implements StarlarkValue {
   }
 
   @StarlarkMethod(name = "DES", parameters = {
-      @Param(name = "key", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
+      @Param(name = "key", allowedTypes = {@ParamType(type = StarlarkBytes.class)})
     })
-    public Engine DES(LarkyByteLike key) throws EvalException {
+    public Engine DES(StarlarkBytes key) throws EvalException {
     DESEngine desEngine = new DESEngine();
       try {
-        KeyParameter params = new KeyParameter(key.getBytes());
+        KeyParameter params = new KeyParameter(key.toByteArray());
         return new Engine(desEngine, params);
       } catch(IllegalArgumentException e) {
         throw new EvalException(e.getMessage(), e);
@@ -85,12 +85,12 @@ public class CryptoCipherModule implements StarlarkValue {
     }
 
   @StarlarkMethod(name = "AES", parameters = {
-      @Param(name = "key", allowedTypes = {@ParamType(type = LarkyByteLike.class)})
+      @Param(name = "key", allowedTypes = {@ParamType(type = StarlarkBytes.class)})
   })
-  public Engine AES(LarkyByteLike key) throws EvalException {
+  public Engine AES(StarlarkBytes key) throws EvalException {
     AESEngine aesEngine = new AESEngine();
     try {
-      KeyParameter params = new KeyParameter(key.getBytes());
+      KeyParameter params = new KeyParameter(key.toByteArray());
       return new Engine(aesEngine, params);
     } catch(IllegalArgumentException e) {
       throw new EvalException(e.getMessage(), e);

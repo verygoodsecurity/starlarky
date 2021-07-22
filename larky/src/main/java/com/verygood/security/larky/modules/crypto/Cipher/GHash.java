@@ -1,19 +1,17 @@
 package com.verygood.security.larky.modules.crypto.Cipher;
 
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
+import java.nio.ByteBuffer;
+import java.security.ProviderException;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.modes.gcm.GCMUtil;
-
-import java.nio.ByteBuffer;
-import java.security.ProviderException;
 
 /**
  * This class represents the GHASH function defined in NIST 800-38D
@@ -121,9 +119,10 @@ public class GHash implements StarlarkValue {
               "so far as a bytes object.",
           useStarlarkThread = true
       )
-      public LarkyByteLike digest(StarlarkThread thread) throws EvalException {
+      public StarlarkBytes digest(StarlarkThread thread) throws EvalException {
         byte[] resBuf = this.digest();
-        return LarkyByte.builder(thread).setSequence(resBuf).build();
+        return StarlarkBytes.of(thread.mutability(),resBuf);
+//        return StarlarkBytes.builder(thread).setSequence(resBuf).build();
       }
 
     @StarlarkMethod(
@@ -132,11 +131,11 @@ public class GHash implements StarlarkValue {
               "are equivalent to a single call with the concatenation of all\n" +
               "the arguments.",
           parameters = {@Param(name = "data", allowedTypes = {
-              @ParamType(type = LarkyByteLike.class)
+              @ParamType(type = StarlarkBytes.class)
           })}
       )
-    public void update(LarkyByteLike data) {
-        byte[] input = data.getBytes();
+    public void update(StarlarkBytes data) {
+        byte[] input = data.toByteArray();
         update(input);
     }
 

@@ -5,7 +5,7 @@ import static com.verygood.security.larky.modules.crypto.Util.ASN1.*;
 import com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyASN1Sequence;
 import com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyDerInteger;
 import com.verygood.security.larky.modules.crypto.Util.Strxor;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
+import net.starlark.java.eval.StarlarkBytes;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
@@ -50,15 +50,15 @@ public class CryptoUtilModule implements StarlarkValue {
   @StarlarkMethod(name = "DerOctetString", parameters = {
       @Param(name = "bytearr")
   })
-  public LarkyOctetString DerOctetString(LarkyByteLike bytearr) {
-    return new LarkyOctetString(new DEROctetString(bytearr.getBytes()));
+  public LarkyOctetString DerOctetString(StarlarkBytes bytearr) {
+    return new LarkyOctetString(new DEROctetString(bytearr.toByteArray()));
   }
 
   @StarlarkMethod(name = "DerBitString", parameters = {
       @Param(name = "bytearr")
   })
-  public LarkyDerBitString DerBitString(LarkyByteLike bytearr) {
-    return new LarkyDerBitString(new DERBitString(bytearr.getBytes()));
+  public LarkyDerBitString DerBitString(StarlarkBytes bytearr) {
+    return new LarkyDerBitString(new DERBitString(bytearr.toByteArray()));
   }
 
   @StarlarkMethod(name = "DerSetOf", parameters = {@Param(name = "obj")})

@@ -740,7 +740,7 @@ final class Eval {
 
   private static Object evalByteLiteral(StarlarkThread.Frame fr, ByteLiteral expr)
       throws EvalException, InterruptedException {
-    return StarlarkByte.wrap(fr.thread.mutability(), expr.getValue());
+    return StarlarkBytes.wrap(fr.thread.mutability(), expr.getValue());
   }
 
   private static Object evalSlice(StarlarkThread.Frame fr, SliceExpression slice)

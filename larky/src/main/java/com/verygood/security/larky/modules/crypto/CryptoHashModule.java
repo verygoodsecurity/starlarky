@@ -5,7 +5,7 @@ import com.verygood.security.larky.modules.crypto.Hash.LarkyGeneralDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyLongDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyXofDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyKeccakDigest;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
+import net.starlark.java.eval.StarlarkBytes;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -100,13 +100,13 @@ public class CryptoHashModule implements StarlarkValue {
           allowedTypes = {@ParamType(type = StarlarkInt.class)},
           defaultValue = "32"),
       @Param(name = "key",
-          allowedTypes = {@ParamType(type = LarkyByteLike.class), @ParamType(type = NoneType.class)},
+          allowedTypes = {@ParamType(type = StarlarkBytes.class), @ParamType(type = NoneType.class)},
           defaultValue = "None"),
   })
   public LarkyDigest BLAKE2S(StarlarkInt digestBytes, Object keyO) {
     byte[] key = Starlark.isNullOrNone(keyO)
         ? null
-        : ((LarkyByteLike) keyO).getBytes();
+        : ((StarlarkBytes) keyO).toByteArray();
     Blake2sDigest digest;
     if(key != null) {
       digest = new Blake2sDigest(key, digestBytes.toIntUnchecked(), null, null);

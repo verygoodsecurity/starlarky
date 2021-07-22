@@ -77,27 +77,27 @@ def test_JDERSequence():
 
 def DerObjectTests_testObjInit1():
     # Fail with invalid tag format (must be 1 byte)
-    asserts.assert_fails(lambda: DerObject(b(r"\x00\x99")), ".*?ValueError")
+    asserts.assert_fails(lambda: DerObject(b"\x00\x99"), ".*?ValueError")
     # Fail with invalid implicit tag (must be <0x1F)
     asserts.assert_fails(lambda: DerObject(0x1F), ".*?ValueError")
 
 
 def DerObjectTests_testObjEncode1():
     # No payload
-    der = DerObject(b(r"\x02"))
-    asserts.assert_that(der.encode(der)).is_equal_to(b(r"\x02\x00"))
+    der = DerObject(b"\x02")
+    asserts.assert_that(der.encode(der)).is_equal_to(b"\x02\x00")
     # Small payload (primitive)
-    der.payload = b(r"\x45")
-    asserts.assert_that(der.encode(der)).is_equal_to(b(r"\x02\x01\x45"))
+    der.payload = b"\x45"
+    asserts.assert_that(der.encode(der)).is_equal_to(b"\x02\x01\x45")
     # Invariant
-    asserts.assert_that(der.encode(der)).is_equal_to(b(r"\x02\x01\x45"))
+    asserts.assert_that(der.encode(der)).is_equal_to(b"\x02\x01\x45")
     # Initialize with numerical tag
     der = DerObject(0x04)
-    der.payload = b(r"\x45")
-    asserts.assert_that(der.encode(der)).is_equal_to(b(r"\x04\x01\x45"))
+    der.payload = b"\x45"
+    asserts.assert_that(der.encode(der)).is_equal_to(b"\x04\x01\x45")
     # Initialize with constructed type
-    der = DerObject(b(r"\x10"), constructed=1)
-    asserts.assert_that(der.encode(der)).is_equal_to(b(r"\x30\x00"))
+    der = DerObject(b"\x10", constructed=1)
+    asserts.assert_that(der.encode(der)).is_equal_to(b"\x30\x00")
 
 
 def DerObjectTests_testObjEncode2():

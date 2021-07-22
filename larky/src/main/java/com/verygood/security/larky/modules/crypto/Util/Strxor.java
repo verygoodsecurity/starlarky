@@ -3,13 +3,11 @@ package com.verygood.security.larky.modules.crypto.Util;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.UnsignedBytes;
 
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
-
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
@@ -34,7 +32,7 @@ public class Strxor implements StarlarkValue {
           @Param(name = "term1"),
           @Param(name = "term2")
   }, useStarlarkThread = true)
-  public LarkyByteLike strxor(LarkyByteLike term1, LarkyByteLike term2, StarlarkThread thread) throws EvalException {
+  public StarlarkBytes strxor(StarlarkBytes term1, StarlarkBytes term2, StarlarkThread thread) throws EvalException {
     if(term1.size() != term2.size()) {
       throw Starlark.errorf("term1.size() and term2.size() should be equal");
     }
@@ -42,11 +40,7 @@ public class Strxor implements StarlarkValue {
     final int[] in2 = term2.getUnsignedBytes();
     int[] out = new int[in1.length];
     _strxor(in1, in2, out, in1.length);
-    LarkyByteLike build = LarkyByte.builder(thread)
-        .setSequence(out)
-        .build();
-    return build;
-
+    return StarlarkBytes.of(thread.mutability(), out);
   }
 
   @StarlarkMethod(name = "strxor_c",
@@ -68,15 +62,12 @@ public class Strxor implements StarlarkValue {
           @Param(name = "term"),
           @Param(name = "c"),
   },useStarlarkThread = true)
-  public LarkyByteLike strxor_c(LarkyByteLike term, StarlarkInt c, StarlarkThread thread) throws EvalException {
+  public StarlarkBytes strxor_c(StarlarkBytes term, StarlarkInt c, StarlarkThread thread) {
     byte c_ = UnsignedBytes.checkedCast(c.toIntUnchecked());
     int[] in = term.getUnsignedBytes();
     int[] out = new int[in.length];
     _strxor_c(in, Byte.toUnsignedInt(c_), out, in.length);
-    LarkyByteLike build = LarkyByte.builder(thread)
-            .setSequence(out)
-            .build();
-    return build;
+    return StarlarkBytes.of(thread.mutability(), out);
   }
 
   @VisibleForTesting

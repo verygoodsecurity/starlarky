@@ -1,10 +1,15 @@
 package com.verygood.security.larky.modules.crypto.Util;
 
-import com.verygood.security.larky.modules.types.LarkyByteLike;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Objects;
+
 import com.verygood.security.larky.modules.types.LarkyObject;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 
@@ -15,11 +20,6 @@ import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERUTF8String;
-
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Objects;
 
 public class ASN1Utils {
 
@@ -141,9 +141,9 @@ public class ASN1Utils {
         return (ASN1.LarkyDerInteger) obj;
       }
       // it's a binary string
-      else if (obj instanceof LarkyByteLike) {
-        LarkyByteLike b = (LarkyByteLike) obj;
-        return new ASN1.LarkyOctetString(new DEROctetString(b.getBytes()));
+      else if (obj instanceof StarlarkBytes) {
+        StarlarkBytes b = (StarlarkBytes) obj;
+        return new ASN1.LarkyOctetString(new DEROctetString(b.toByteArray()));
       } else if (obj instanceof ASN1.LarkyOctetString) {
         return (ASN1.LarkyOctetString) obj;
       } else if (obj instanceof LarkyObject) {
@@ -164,13 +164,13 @@ public class ASN1Utils {
           case "DerNull":
             return new ASN1.LarkyDerNull();
           case "DerBitString":
-            LarkyByteLike bitstr = (LarkyByteLike) lobj.getField("value");
+            StarlarkBytes bitstr = (StarlarkBytes) lobj.getField("value");
             Objects.requireNonNull(bitstr);
-            return new ASN1.LarkyDerBitString(new DERBitString(bitstr.getBytes()));
+            return new ASN1.LarkyDerBitString(new DERBitString(bitstr.toByteArray()));
           case "DerOctetString":
-            LarkyByteLike value3 = (LarkyByteLike) lobj.getField("value");
+            StarlarkBytes value3 = (StarlarkBytes) lobj.getField("value");
             Objects.requireNonNull(value3);
-            return new ASN1.LarkyOctetString(new DEROctetString(value3.getBytes()));
+            return new ASN1.LarkyOctetString(new DEROctetString(value3.toByteArray()));
             // fall through
           case "DerUTF8String":
             String value4 = (String) lobj.getField("value");
