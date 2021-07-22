@@ -5,7 +5,6 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 import com.verygood.security.larky.modules.codecs.TextUtil;
@@ -418,14 +417,14 @@ public class StructModule implements StarlarkValue {
 
     long x;
     //@formatter:off
-    x =   ((long) val[0] << 56)
-        | ((long) val[1] << 48)
-        | ((long) val[2] << 40)
-        | ((long) val[3] << 32)
-        | ((long) val[4] << 24)
-        | ((long) val[5] << 16)
-        | ((long) val[6] << 8)
-        | ((long) val[7]);
+    x =   (((long) (val[0] & 0xff)) << 56)
+        | (((long) (val[1] & 0xff)) << 48)
+        | (((long) (val[2] & 0xff)) << 40)
+        | (((long) (val[3] & 0xff)) << 32)
+        | (((long) (val[4] & 0xff)) << 24)
+        | (((long) (val[5] & 0xff)) << 16)
+        | (((long) (val[6] & 0xff)) << 8)
+        | ((long) (val[7] & 0xff));
     //@formatter:on
     if ((x >>> 63 & 1) == 1) {
       x = ((x ^ Long.MAX_VALUE) & Long.MAX_VALUE) + 1; //2's complement 64 bit
@@ -451,54 +450,54 @@ public class StructModule implements StarlarkValue {
     //@formatter:on
   }
 
-  public long unpack_single_data(char fmt, byte[] val) throws Exception {
-    long var = 0;
+  public StarlarkInt unpack_single_data(char fmt, byte[] val) throws Exception {
+    StarlarkInt var = null;
     switch (fmt) {
       case 'b':
         if (val.length != 1)
           throw new Exception("Byte length mismatch");
-        var = unpackRaw_8b(val);
+        var = StarlarkInt.of(unpackRaw_8b(val));
         break;
       case 'B':
         if (val.length != 1)
           throw new Exception("Byte length mismatch");
-        var = unpackRaw_u8b(val);
+        var = StarlarkInt.parse(Long.toUnsignedString(unpackRaw_u8b(val)), 10);
         break;
 
       case 'h':
         if (val.length != 2)
           throw new Exception("Byte length mismatch");
-        var = unpackRaw_16b(val);
+        var = StarlarkInt.of(unpackRaw_16b(val));
         break;
       case 'H':
         if (val.length != 2)
           throw new Exception("Byte length mismatch");
 
-        var = unpackRaw_u16b(val);
+        var = StarlarkInt.parse(Long.toUnsignedString(unpackRaw_u16b(val)), 10);
         break;
 
       case 'i':
         if (val.length != 4)
           throw new Exception("Byte length mismatch");
 
-        var = unpackRaw_32b(val);
+        var = StarlarkInt.of(unpackRaw_32b(val));
         break;
       case 'I':
         if (val.length != 4)
           throw new Exception("Byte length mismatch");
-        var = unpackRaw_u32b(val);
+        var = StarlarkInt.parse(Long.toUnsignedString(unpackRaw_u32b(val)), 10);
         break;
 
       case 'q':
         if (val.length != 8)
          throw new Exception("Byte length mismatch");
-        var = unpackRaw_64b(val);
+        var = StarlarkInt.of(unpackRaw_64b(val));
         break;
 
       case 'Q':
         if (val.length != 8)
          throw new Exception("Byte length mismatch");
-        var = unpackRaw_u64b(val);
+        var = StarlarkInt.parse(Long.toUnsignedString(unpackRaw_u64b(val)), 10);
         break;
 
       default:
@@ -537,7 +536,7 @@ public class StructModule implements StarlarkValue {
     return counter;
   }
 
-  public long[] unpack(String fmt, byte[] vals) throws Exception {
+  public StarlarkInt[] unpack(String fmt, byte[] vals) throws Exception {
     int len;
     len = lenEst(fmt);
 
@@ -546,15 +545,16 @@ public class StructModule implements StarlarkValue {
 
     char c0 = fmt.charAt(0);
 
-    long[] bxx;
+    StarlarkInt[] bxx;
     if (c0 == '@' || c0 == '<' || c0 == '>' || c0 == '!') {
-      bxx = new long[fmt.length() - 1];
+      bxx = new StarlarkInt[fmt.length() - 1];
     } else {
-      bxx = new long[fmt.length()];
+      bxx = new StarlarkInt[fmt.length()];
     }
     char c;
     byte[] bShort = new byte[2];
     byte[] bLong = new byte[4];
+    byte[] bLongLong = new byte[8];
     ByteArrayInputStream bs = new ByteArrayInputStream(vals);
 
     int p = 0;
@@ -577,6 +577,9 @@ public class StructModule implements StarlarkValue {
           } else if (c == 'i' || c == 'I') {
             int read = bs.read(bLong);
             bxx[p] = unpack_single_data(c, bLong);
+          } else if (c == 'q' || c == 'Q') {
+            int read = bs.read(bLongLong);
+            bxx[p] = unpack_single_data(c, bLongLong);
           }
           p++;
         }
@@ -634,14 +637,14 @@ public class StructModule implements StarlarkValue {
       },
       useStarlarkThread = true)
   public Tuple struct__unpack(Object format, StarlarkBytes buffer, StarlarkThread thread) throws Exception {
-    long[] unpacked;
+    StarlarkInt[] unpacked;
     if (String.class.isAssignableFrom(format.getClass())) {
       unpacked = unpack((String) format, buffer.toByteArray());
     }
     else {
       unpacked = unpack(Starlark.str(format), buffer.toByteArray());
     }
-    return Tuple.copyOf(LongStream.of(unpacked).mapToObj(StarlarkInt::of).collect(Collectors.toList()));
+    return Tuple.of(unpacked[0]);
   }
 
   //  struct.pack_into(format, buffer, offset, v1, v2, ...)
@@ -689,10 +692,12 @@ public class StructModule implements StarlarkValue {
     ArrayList<Long> l = new ArrayList<>();
     while (iter.hasNext()) {
       final StarlarkInt thing1 = (StarlarkInt) iter.next();
-      l.add(thing1.toLong("Not long?"));
+      //l.add(thing1.toLong("Not long?"));
+      l.add(Long.parseUnsignedLong(Starlark.str(thing1)));
       if (iter.hasNext()) { // don't forget this one
         final StarlarkInt thing2 = (StarlarkInt) iter.next();
-        l.add(thing2.toLong("Not Long?"));
+        l.add(Long.parseUnsignedLong(Starlark.str(thing2)));
+//        l.add(thing2.toLong("Not Long?"));
       }
     }
     return l;
@@ -724,7 +729,7 @@ public class StructModule implements StarlarkValue {
       },
       useStarlarkThread = true)
   public Tuple struct__unpack_from(Object format, StarlarkBytes buffer, StarlarkInt offset, StarlarkThread thread) throws Exception {
-    long[] unpacked;
+    StarlarkInt[] unpacked;
     if (String.class.isAssignableFrom(format.getClass())) {
       unpacked = unpack(
           (String) format,
@@ -735,10 +740,8 @@ public class StructModule implements StarlarkValue {
           Starlark.str(format),
           TextUtil.subarray(buffer.toByteArray(), offset.toIntUnchecked(), buffer.size()));
     }
-    return Tuple.copyOf(LongStream.of(unpacked)
-        .mapToObj(StarlarkInt::of)
-        .collect(Collectors.toList())
-    );
+    return Tuple.of(unpacked[0]);
+
   }
 
   // struct.iter_unpack(format, buffer)

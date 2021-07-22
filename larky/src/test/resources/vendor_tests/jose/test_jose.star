@@ -28,6 +28,12 @@ def test_aes_unwrap_key(kek, output, data, algo):
     aes = AESKey(kek, algo)
     asserts.eq(aes.unwrap_key(data), output)
 
+def test_aes_unwrap_key(kek, output, data, algo):
+    kek = binascii.unhexlify(kek)
+    data = binascii.unhexlify(data)
+    output = binascii.unhexlify(output)
+    aes = AESKey(kek, algo)
+    asserts.eq(aes.unwrap_key(data), output)
 
 def test_aes_wrap_key():
     # test vector from RFC 3394
@@ -41,8 +47,10 @@ def test_aes_wrap_key():
 
 def _testsuite():
     _suite = unittest.TestSuite()
-    # _suite.addTest(unittest.FunctionTestCase(test_encrypt_and_decrypt_jwe_with_defaults))
-    _suite.addTest(unittest.FunctionTestCase(test_decrypt_GCM256_AES_wrapped_key_jwe))
+
+    _suite.addTest(unittest.FunctionTestCase(test_encrypt_and_decrypt_jwe_with_defaults))
+    # _suite.addTest(unittest.FunctionTestCase(test_decrypt_GCM256_AES_wrapped_key_jwe))
+    # _suite.addTest(unittest.FunctionTestCase(test_decrypt_GCM256_AES_wrapped_key_jwe_failing))
     larky.parametrize(
         _suite.addTest,
         unittest.FunctionTestCase,
