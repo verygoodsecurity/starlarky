@@ -75,9 +75,10 @@ def aes_wrap_key_withpad(kek, plaintext):
     return aes_wrap_key(kek, plaintext, iv)
 
 
-aes_keywrap = larky.struct (
-  aes_unwrap_key_and_iv = aes_unwrap_key_and_iv,
-  aes_unwrap_key = aes_unwrap_key,
-  aes_unwrap_key_withpad = aes_unwrap_key_withpad,
-  aes_wrap_key = aes_wrap_key
+aes_keywrap = larky.struct(
+    aes_unwrap_key_and_iv=aes_unwrap_key_and_iv,
+    aes_unwrap_key=aes_unwrap_key,
+    aes_unwrap_key_withpad=aes_unwrap_key_withpad,
+    aes_wrap_key=aes_wrap_key,
+    aes_wrap_key_withpad=aes_wrap_key_withpad
 )

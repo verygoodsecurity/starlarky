@@ -644,7 +644,8 @@ public class StructModule implements StarlarkValue {
     else {
       unpacked = unpack(Starlark.str(format), buffer.toByteArray());
     }
-    return Tuple.of(unpacked[0]);
+    //noinspection ConfusingArgumentToVarargsMethod
+    return Tuple.of(unpacked);
   }
 
   //  struct.pack_into(format, buffer, offset, v1, v2, ...)
@@ -740,8 +741,8 @@ public class StructModule implements StarlarkValue {
           Starlark.str(format),
           TextUtil.subarray(buffer.toByteArray(), offset.toIntUnchecked(), buffer.size()));
     }
-    return Tuple.of(unpacked[0]);
-
+    //noinspection ConfusingArgumentToVarargsMethod
+    return Tuple.of(unpacked);
   }
 
   // struct.iter_unpack(format, buffer)
