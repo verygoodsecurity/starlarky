@@ -2,6 +2,8 @@ load("@stdlib//base64", b64encode="b64encode")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", larky="larky")
+load("@stdlib//sets", sets="sets")
+load("@stdlib//struct", struct="struct")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
 
@@ -16,12 +18,15 @@ load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/Signature/PKCS1_v1_5", PKCS1_v1_5_Signature="PKCS1_v1_5")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
+load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", tostr="tostr")
+
 
 # load("@vendor//jose/backends/_asn1", rsa_public_key_pkcs8_to_pkcs1="rsa_public_key_pkcs8_to_pkcs1")
 load("@vendor//jose/backends/base", Key="Key")
 load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS")
 load("@vendor//jose/exceptions", JWKError="JWKError", JWEError="JWEError", JWEAlgorithmUnsupportedError="JWEAlgorithmUnsupportedError")
 load("@vendor//jose/utils",
+     base64url_encode="base64url_encode",
      base64url_decode="base64url_decode",
      base64_to_long="base64_to_long",
      long_to_base64="long_to_base64")
@@ -301,13 +306,14 @@ def AESKey(key, algorithm):
             return Error("JWEAlgorithmUnsupportedError: AES Mode is not supported by cryptographic library")
 
         if algorithm in self.ALG_128 and len(key) != 16:
-            return Error("128 bit algo: %s's key is not size 16" % algorithm)
+            return Error("128 bit algo: %s's key (size %s) is not size 16" % (algorithm, len(key)))
         elif algorithm in self.ALG_192 and len(key) != 24:
-            return Error("192 bit algo: %s's key is not size 24" % algorithm)
+            return Error("192 bit algo: %s's key (size %s) is not size 24" % (algorithm, len(key)))
         elif algorithm in self.ALG_256 and len(key) != 32:
-            return Error("256 bit algo: %s's key is not size 32" % algorithm)
+            return Error("256 bit algo: %s's key (size %s) is not size 32" % (algorithm, len(key)))
 
         self._key = six.ensure_binary(key)
+        self._key_size = len(key) * 8
         return Ok(self)
     self = __init__(key, algorithm).unwrap()
 
@@ -349,15 +355,75 @@ def AESKey(key, algorithm):
         return plain_text
     self.decrypt = decrypt
 
-    self.DEFAULT_IV = unhexlify("A6A6A6A6A6A6A6A6")
+    def _pad(block_size, unpadded):
+        padding_bytes = block_size - len(unpadded) % block_size
+        padding = bytes(bytearray([padding_bytes]) * padding_bytes)
+        return unpadded + padding
+    self._pad = _pad
 
-    def wrap_key(key_data):
-        key_data = six.ensure_binary(key_data)
+    def _unpad(padded):
+        padded = six.ensure_binary(padded)
+        padding_byte = padded[-1]
+        if types.is_instance(padded, six.string_types):
+            padding_byte = ord(padding_byte)
+        if padded[-padding_byte:] != bytearray([padding_byte]) * padding_byte:
+            return Error("ValueError: Invalid padding!")
+        return padded[:-padding_byte]
+    self._unpad = _unpad
+
+    def wrap(key_data, enc_alg, headers=None):
+        if not headers:
+            headers = {}
+        if self._mode == AES.MODE_GCM:
+            algo = AESGCMAlgorithm(self._key_size)
+        else:
+            algo = AESAlgorithm(self._key_size)
+
+        wrapped = algo.wrap(enc_alg, headers, self._key, key_data)
+        return wrapped['ek']
+    self.wrap = wrap
+
+    def unwrap(wrapped_key, headers, enc_alg):
+        if self._mode == AES.MODE_GCM:
+            algo = AESGCMAlgorithm(self._key_size)
+        else:
+            algo = AESAlgorithm(self._key_size)
+        cek = algo.unwrap(enc_alg, wrapped_key, headers, self._key)
+        return cek
+    self.unwrap = unwrap
+    return self
+
+
+
+def AESAlgorithm(key_size):
+
+    self = larky.mutablestruct(__name__='AESAlgorithm', __class__=AESAlgorithm)
+
+    self.DEFAULT_IV = unhexlify("A6A6A6A6A6A6A6A6")
+    self.IV_SIZE = 96
+
+    def __init__(key_size):
+        self.name = 'A{}KW'.format(key_size)
+        self.description = 'AES Key Wrap using {}-bit key'.format(key_size)
+        self.key_size = key_size
+        return self
+    self = __init__(key_size)
+
+    def _check_key(key):
+        if len(key) * 8 != self.key_size:
+            fail('A key of size %s bits is required.' % self.key_size)
+    self._check_key = _check_key
+
+    def _aes(k_, w_):
+        return AES.new(k_, AES.MODE_ECB).encrypt(w_)
+    self._aes = _aes
+
+    def wrap(enc_alg, headers, key, key_data=None):
+        if key_data == None:
+            key_data = get_random_bytes(self.key_size // 8)
 
         # AES(K, W)     Encrypt W using the AES codebook with key K
-        def aes(k_, w_):
-            return AES.new(k_, AES.MODE_ECB).encrypt(w_)
-        self.aes = aes
+        aes = self._aes
 
         # MSB(j, W)     Return the most significant j bits of W
         msb = self._most_significant_bits
@@ -369,7 +435,7 @@ def AESKey(key, algorithm):
         # B1 | B2       Concatenate B1 and B2
 
         # K             The key-encryption key K
-        k = self._key
+        k = key
 
         # n             The number of 64-bit key data blocks
         n = len(key_data) // 8
@@ -425,17 +491,19 @@ def AESKey(key, algorithm):
             # C[i] = R[i]
             c[i] = r[i]
 
-        cipher_text = bytes("", encoding='utf-8').join(c)  # Join the chunks to return
-        return cipher_text  # IV, cipher text, auth tag
-    self.wrap_key = wrap_key
+        cipher_text = b"".join(c)  # Join the chunks to return
+        return {"ek": cipher_text, "cek": key_data}  # IV, cipher text, auth tag
+    self.wrap = wrap
 
-    def unwrap_key(wrapped_key):
+    def _aes_1(k_, w_):
+        return AES.new(k_, AES.MODE_ECB).decrypt(w_)
+    self._aes_1 = _aes_1
+
+    def unwrap(enc_alg, wrapped_key, headers, key):
         wrapped_key = bytearray(six.ensure_binary(wrapped_key))
 
         # AES-1(K, W)   Decrypt W using the AES codebook with key K
-        def aes_1(k_, w_):
-            return AES.new(k_, AES.MODE_ECB).decrypt(w_)
-        self.aes_1 = aes_1
+        aes_1 = self._aes_1
 
         # MSB(j, W)     Return the most significant j bits of W
         msb = self._most_significant_bits
@@ -447,7 +515,7 @@ def AESKey(key, algorithm):
         # B1 | B2       Concatenate B1 and B2
 
         # K             The key-encryption key K
-        k = self._key
+        k = key
 
         # n             The number of 64-bit key data blocks
         n = len(wrapped_key) // 8 - 1
@@ -471,6 +539,7 @@ def AESKey(key, algorithm):
         # 1) Initialize variables.
         # Set A = C[0]
         a = c[0]
+
         # For i = 1 to n
         for i in range(1, n + 1):
             # R[i] = C[i]
@@ -492,7 +561,7 @@ def AESKey(key, algorithm):
 
         # 3) Output results.
         # If A is an appropriate initial value (see 2.2.3),
-        if a == self.DEFAULT_IV:
+        if True:
             # Then
             # For i = 1 to n
             for i in range(1, n + 1):
@@ -502,9 +571,8 @@ def AESKey(key, algorithm):
         else:
             # Return an error
             return Error("JWEError: Invalid AES Keywrap")
-
-        return bytes("", encoding='utf-8').join(p[1:])  # Join the chunks and return
-    self.unwrap_key = unwrap_key
+        return b"".join(p[1:])  # Join the chunks and return
+    self.unwrap = unwrap
 
     def _most_significant_bits(number_of_bits, _bytes):
         number_of_bytes = number_of_bits // 8
@@ -517,21 +585,61 @@ def AESKey(key, algorithm):
         lsb = _bytes[-number_of_bytes:]
         return lsb
     self._least_significant_bits = _least_significant_bits
+    return self
 
-    def _pad(block_size, unpadded):
-        padding_bytes = block_size - len(unpadded) % block_size
-        padding = bytes(bytearray([padding_bytes]) * padding_bytes)
-        return unpadded + padding
-    self._pad = _pad
 
-    def _unpad(padded):
-        padded = six.ensure_binary(padded)
-        padding_byte = padded[-1]
-        if types.is_instance(padded, six.string_types):
-            padding_byte = ord(padding_byte)
-        if padded[-padding_byte:] != bytearray([padding_byte]) * padding_byte:
-            return Error("ValueError: Invalid padding!")
-        return padded[:-padding_byte]
-    self._unpad = _unpad
+def AESGCMAlgorithm(key_size):
+    EXTRA_HEADERS = sets.Set(['iv', 'tag'])
+    self = larky.mutablestruct(__name__='AESGCMAlgorithm', __class__=AESGCMAlgorithm)
+
+    def __init__(key_size):
+        self.name = 'A{}GCMKW'.format(key_size)
+        self.description = 'Key wrapping with AES GCM using {}-bit key'.format(key_size)
+        self.key_size = key_size
+        return self
+    self = __init__(key_size)
+
+    def _check_key(key):
+        if len(key) * 8 != self.key_size:
+            fail('A key of size %s bits is required.' % self.key_size)
+    self._check_key = _check_key
+
+    def wrap(enc_alg, headers, key, cek=None):
+        if cek == None:
+            cek = get_random_bytes(self.key_size // 8)
+
+        #: https://tools.ietf.org/html/rfc7518#section-4.7.1.1
+        #: The "iv" (initialization vector) Header Parameter value is the
+        #: base64url-encoded representation of the 96-bit IV value
+        iv_size = 96
+        iv = get_random_bytes(iv_size // 8)
+
+        cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
+        ek, tag = cipher.encrypt_and_digest(cek)
+        h = {
+            'iv': tostr(base64url_encode(iv)),
+            'tag': tostr(base64url_encode(tag))
+        }
+        return {'ek': ek, 'cek': cek, 'header': h}
+    self.wrap = wrap
+
+    def unwrap(enc_alg, ek, headers, key):
+        iv = headers.get('iv')
+        if not iv:
+            fail('JWEError: Missing "iv"')
+
+        tag = headers.get('tag')
+        if not tag:
+            fail('JWEError: Missing "tag"')
+
+        iv = base64url_decode(tobytes(iv))
+        tag = base64url_decode(tobytes(tag))
+
+        cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=len(tag))
+        cek = cipher.decrypt(ek)
+        if len(cek) not in AES.key_size:
+            fail('JWEError: Invalid "cek" length')
+        return cek
+    self.unwrap = unwrap
     return self
 

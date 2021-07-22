@@ -4,6 +4,16 @@ import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.Collator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
@@ -18,17 +28,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.text.Collator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 public class VendorLibTests {
@@ -57,6 +56,7 @@ public class VendorLibTests {
     // Did we pass in a specific filename?
     // -Dlarky.stdlib_test=test_base64.star
     String singleTestDesired = System.getProperty(PROPERTY_NAME);
+//    String singleTestDesired = "test_jose.star";
     try (Stream<Path> testFiles = Files.walk(VENDOR_TEST_DIR)) {
       vendorTestFiles = testFiles
           .filter(Files::isRegularFile)
