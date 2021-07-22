@@ -148,10 +148,7 @@ def decrypt(jwe_str, key):
         # symmetric key.
         cek_bytes = _get_key_bytes_from_key(key)
     else:
-        # rval = safe(key.unwrap_key)(encrypted_key, iv=iv, tag=auth_tag)
-        #         print("cek:", cek_bytes.hex(), "algo:", enc, "cipher:", cipher_text.hex(), "iv:", iv.hex(), "aad:", aad.hex(), "authtag:", auth_tag.hex())
-        #             def unwrap(key, ct, iv, tag, aad, enc_alg):
-        rval = safe(key.unwrap)(encrypted_key, ct=cipher_text, headers=header, enc_alg=enc)
+        rval = safe(key.unwrap)(encrypted_key, headers=header, enc_alg=enc)
         if rval.is_err:
             print(rval)
             if Result.error_is("NotImplementedError", rval):
@@ -254,7 +251,6 @@ def _decrypt_and_auth(cek_bytes, enc, cipher_text, iv, aad, auth_tag):
         encryption_key, mac_key, key_len = _get_encryption_key_mac_key_and_key_length_from_cek(cek_bytes, enc)
         auth_tag_check = _auth_tag(cipher_text, iv, aad, mac_key, key_len)
     elif operator.contains(ALGORITHMS.GCM, enc):
-        print("cek:", cek_bytes.hex(), "algo:", enc, "cipher:", cipher_text.hex(), "iv:", iv.hex(), "aad:", aad.hex(), "authtag:", auth_tag.hex())
         encryption_key = jwk.construct(cek_bytes, enc)
         auth_tag_check = auth_tag  # GCM check auth on decrypt
     else:
@@ -333,7 +329,6 @@ def _jwe_compact_deserialize(jwe_bytes):
     # values that together comprise the JOSE Header.
     hd = six.ensure_str(header_data)
     header = json.loads(hd)
-    print("header: ", header)
     if not types.is_dict(header):
         return Error("JWEParseError: Invalid header string: must be a json object")
 
