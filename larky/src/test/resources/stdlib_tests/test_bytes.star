@@ -36,7 +36,7 @@ hello_sliced = "hello, 世界"[:-1]
 
 def _test_bytes_are_ints():
     # can always convert a bytes object into a list of integers using list(b).
-    asserts.assert_that(list(sliced)).is_equal_to([104, 101, 108, 108, 111, 44, 32, 228, 184, 150, 231, 149])
+    asserts.assert_that(list(sliced.elems())).is_equal_to([104, 101, 108, 108, 111, 44, 32, 228, 184, 150, 231, 149])
     # int in bytes
     asserts.assert_that(97 in b("abc")).is_equal_to(True)  # 97='a'
     asserts.assert_that(100 in b("abc")).is_equal_to(False) # 100='d'
@@ -55,12 +55,16 @@ def _test_bytes_vs_string():
         len(simplestr[0]) == 1,
     ]))
     # for bytes
-    asserts.assert_true(all([
-        # b[0] will be an integer,
-        sliced[0] == 104,
-        # while b[0:1] will be a bytes object of length 1.
-        sliced[0:1] == b("h"),
-    ]))
+    # b[0] will be an integer in python, but in starlark, it is the first byte
+    asserts.assert_that(ord(sliced[0])).is_equal_to(104)
+    # while b[0:1] will be a bytes object of length 1.
+    asserts.assert_that(sliced[0:1]).is_equal_to(b'h')
+    # asserts.assert_true(all([
+    #
+    #     sliced[0] == 104,
+    #
+    #     sliced[0:1] == b("h"),
+    # ]))
     asserts.assert_that(
         codecs.decode(sliced, encoding='utf-8', errors='replace')
     ).is_equal_to(r"hello, 世\xe7\x95")
@@ -73,7 +77,7 @@ def _test_bytes_construction():
     asserts.assert_that(builtins.bytes([65, 66, 67])).is_equal_to(b("ABC"))
     asserts.assert_that(builtins.bytes([0xf0, 0x9f, 0x98, 0xbf])).is_equal_to(b("😿"))
     asserts.assert_fails(lambda: builtins.bytes([300]),
-                  "out of range: 300, want value in unsigned 8-bit range")
+                  "300 out of range .+want value in unsigned 8-bit range")
     asserts.assert_fails(lambda: builtins.bytes([b("a")]),
                  "got element of type bytes, want int")
 
@@ -114,17 +118,16 @@ def _test_str_does_transcoding():
     #   golang + rust = utf-8 to utf-8
     #   java = utf-8 to utf-16
     asserts.assert_that(str(hello)).is_equal_to("hello, 世界")
-    asserts.assert_that(str(hello[:-1])).is_equal_to(r"hello, 世\xe7\x95")
+    asserts.assert_that(str(hello[:-1])).is_equal_to("hello, 世��")
     asserts.assert_that(str(goodbye)).is_equal_to("goodbye")
     asserts.assert_that(str(empty)).is_equal_to("")
-    #asserts.assert_that(str(nonprinting)).is_equal_to("\t\n\x7f\u200d")
+    asserts.assert_that(str(nonprinting)).is_equal_to("\t\n\x7f\u200d")
     f = builtins.bytes([237, 176, 128])
     # print(repr(f))
     asserts.assert_that(
         str(f)
-        # UTF-8 encoding of unpaired surrogate => U+FFFD (for Java).
-        # Compare to Golang, (this is U+FFFD * 3)
-    ).is_equal_to("�")
+        # UTF-8 encoding of unpaired surrogate => U+FFFD * 3
+    ).is_equal_to("���")
 
 
 def _test_repr_for_bytes():
@@ -221,7 +224,7 @@ def _test_elems():
     asserts.assert_that(list(goodbye.elems())).is_equal_to([103, 111, 111, 100, 98, 121, 101])
     asserts.assert_that(list(empty.elems())).is_equal_to([])
     asserts.assert_that(builtins.bytes([104, 101, 108, 108, 111, 44, 32, 228, 184, 150, 231, 149, 140])).is_equal_to(hello)
-    asserts.assert_that(str(hello.elems())).is_equal_to("b'\"hello, 世界\".elems()'")
+    asserts.assert_that(str(hello.elems())).is_equal_to("b\"hello, 世界\".elems()")
     asserts.assert_that(builtins.bytes(hello.elems())).is_equal_to(hello) # bytes(iterable) is dual to bytes.elems()
 
 

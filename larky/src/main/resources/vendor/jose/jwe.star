@@ -195,9 +195,9 @@ def decrypt(jwe_str, key):
     # Authentication Tag in the manner specified for the algorithm,
     # rejecting the input without emitting any decrypted output if the
     # JWE Authentication Tag is incorrect.
-    safe_func = safe(_decrypt_and_auth)
-    rval = safe_func(cek_bytes, enc, cipher_text, iv, aad, auth_tag)
-    plain_text = rval.unwrap()
+
+    # No reason to decorate the below. We should expect it to fail.
+    plain_text = _decrypt_and_auth(cek_bytes, enc, cipher_text, iv, aad, auth_tag)
 
     # If a "zip" parameter was included, uncompress the decrypted
     # plaintext using the specified compression algorithm.
@@ -252,11 +252,11 @@ def _decrypt_and_auth(cek_bytes, enc, cipher_text, iv, aad, auth_tag):
         encryption_key = jwk.construct(cek_bytes, enc)
         auth_tag_check = auth_tag  # GCM check auth on decrypt
     else:
-        return Error("Unknown algorithm: %s" % enc)
+        return Error("Unknown algorithm: %s" % enc).unwrap()
 
     plaintext = encryption_key.decrypt(cipher_text, iv, aad, auth_tag)
     if auth_tag != auth_tag_check:
-        return Error("JWEError: Invalid JWE Auth Tag")
+        return Error("JWEError: Invalid JWE Auth Tag").unwrap()
 
     return plaintext
 
@@ -287,25 +287,24 @@ def _jwe_compact_deserialize(jwe_bytes):
     # JWE AAD, following the restriction that no line breaks,
     # whitespace, or other additional characters have been used.
     jwe_bytes = six.ensure_binary(jwe_bytes)
-    # TODO(mahmoudimus):
-    #  LARKY-DIFFERENCE: for some reason, split(,4) in python is different
-    #     in larky. I had to change this to be split(...,5) to get 5 items..
-    rval = safe(jwe_bytes.split)(bytes('.', encoding='utf-8'), 5)
-    if rval.is_err:
-        if Result.error_is(".*in call to split()", rval):
-            return rval
-        elif Result.error_is("ValueError", rval):
-            return Error("JWEParseError: Not enough segments")
-        return Error("JWEParseError: Invalid header")
+    rval = jwe_bytes.split(b".", 4)
+    print(rval)
+    # rval = safe(jwe_bytes.split)(bytes('.', encoding='utf-8'), 4)
+    # if rval.is_err:
+    #     if Result.error_is(".*in call to split()", rval):
+    #         return rval
+    #     elif Result.error_is("ValueError", rval):
+    #         return Error("JWEParseError: Not enough segments")
+    #     return Error("JWEParseError: Invalid header")
     (
         header_segment,
         encrypted_key_segment,
         iv_segment,
         cipher_text_segment,
         auth_tag_segment
-    ) = rval.unwrap()
-    header_data = safe(base64url_decode)(header_segment).unwrap()
-
+    ) = rval#.unwrap()
+    # header_data = safe(base64url_decode)(header_segment).unwrap()
+    header_data = base64url_decode(header_segment)
     # Verify that the octet sequence resulting from decoding the
     # encoded JWE Protected Header is a UTF-8-encoded representation
     # of a completely valid JSON object conforming to RFC 7159
@@ -322,10 +321,12 @@ def _jwe_compact_deserialize(jwe_bytes):
     # Serialization, this restriction includes that the same Header
     # Parameter name also MUST NOT occur in distinct JSON object
     # values that together comprise the JOSE Header.
-    rval = safe(six.ensure_str)(header_data)
-    hd = rval.expect("JWEParseError: Invalid header string: %s" % header_data)
-    safe_json = safe(json.loads)
-    header = safe_json(hd).expect("JWEParseError: Invalid json?")
+    hd = six.ensure_str(header_data)
+    print(hd)
+    # hd = rval.expect("JWEParseError: Invalid header string: %s" % header_data)
+    header = json.loads(hd)
+    # safe_json = safe(json.loads)
+    # header = safe_json(hd).expect("JWEParseError: Invalid json?")
 
     if not types.is_dict(header):
         return Error("JWEParseError: Invalid header string: must be a json object")

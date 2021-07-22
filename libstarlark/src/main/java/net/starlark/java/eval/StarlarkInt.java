@@ -213,7 +213,8 @@ public abstract class StarlarkInt implements StarlarkValue, Comparable<StarlarkI
     @Override
     public boolean equals(Object that) {
       return (that instanceof Int32 && this.v == ((Int32) that).v)
-          || (that instanceof StarlarkFloat && intEqualsFloat(this, (StarlarkFloat) that));
+       || (that instanceof StarlarkFloat && intEqualsFloat(this, (StarlarkFloat) that))
+       || (that instanceof StarlarkBytes.StarlarkByte && this.v == ((StarlarkBytes.StarlarkByte) that).get());
     }
   }
 

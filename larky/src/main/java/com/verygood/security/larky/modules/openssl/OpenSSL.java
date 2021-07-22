@@ -17,8 +17,8 @@ import java.security.interfaces.RSAKey;
 import java.time.Instant;
 import java.util.Date;
 
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
+import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkBytes;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
@@ -28,6 +28,7 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
@@ -94,8 +95,9 @@ public class OpenSSL implements StarlarkValue {
     }
 
     @StarlarkMethod(name = "pkey", structField = true)
-    public LarkyByteLike loadPrivateKey() throws EvalException {
-      return LarkyByte.builder(null).setSequence(kp.getPrivate().getEncoded()).build();
+    public StarlarkBytes loadPrivateKey() throws EvalException {
+      return StarlarkBytes.immutableOf(kp.getPrivate().getEncoded());
+//      return StarlarkBytes.builder(null).setSequence(kp.getPrivate().getEncoded()).build();
     }
 
     @StarlarkMethod(name = "bits", structField = true)
@@ -122,20 +124,20 @@ public class OpenSSL implements StarlarkValue {
 
   @StarlarkMethod(name = "load_privatekey", parameters = {
     @Param(name = "buffer", allowedTypes = {
-        @ParamType(type = LarkyByteLike.class)
+        @ParamType(type = StarlarkBytes.class)
     }),
     @Param(name = "passphrase", allowedTypes = {
-        @ParamType(type = LarkyByteLike.class),
+        @ParamType(type = StarlarkBytes.class),
         @ParamType(type = NoneType.class),
     })
   })
-  public Loaded loadPrivateKey(LarkyByteLike buffer, Object passPhraseO) throws EvalException {
+  public Loaded loadPrivateKey(StarlarkBytes buffer, Object passPhraseO) throws EvalException {
     final String passphrase = Starlark.isNullOrNone(passPhraseO)
       ? ""
-      : new String(((LarkyByteLike) passPhraseO).getBytes(), StandardCharsets.UTF_8);
+      : new String(((StarlarkBytes) passPhraseO).toByteArray(), StandardCharsets.UTF_8);
     KeyPair keyPair = new SSLUtils()
         .decodePrivKey(
-            new String(buffer.getBytes(), StandardCharsets.UTF_8),
+            new String(buffer.toByteArray(), StandardCharsets.UTF_8),
             passphrase);
 
     return new Loaded(keyPair);
@@ -153,16 +155,16 @@ public class OpenSSL implements StarlarkValue {
   @StarlarkMethod(
     name="X509_sign",
     parameters = {
-      @Param(name = "encodedKey", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "encodedKey", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
       @Param(name = "jsonEncodedCert", allowedTypes = {@ParamType(type = String.class)}),
       @Param(name = "digestName", allowedTypes = {@ParamType(type = String.class)}),
     },
     useStarlarkThread = true
   )
-  public Object X509Sign(LarkyByteLike encodedKey, String jsonEncodedCert, String digestName, StarlarkThread thread)
+  public Object X509Sign(StarlarkBytes encodedKey, String jsonEncodedCert, String digestName, StarlarkThread thread)
     throws EvalException, IOException, OperatorCreationException, CertificateException {
 
-    RSAPrivateCrtKeyParameters key = (RSAPrivateCrtKeyParameters) PrivateKeyFactory.createKey(encodedKey.getBytes());
+    RSAPrivateCrtKeyParameters key = (RSAPrivateCrtKeyParameters) PrivateKeyFactory.createKey(encodedKey.toByteArray());
     //TODO(mahmoudimus): Eww. This should be a class that we pass to a POJO, but
     // I do not want to add a jackson / mapstruct dependency
     Dict<String, Object> serde =
@@ -237,20 +239,21 @@ public class OpenSSL implements StarlarkValue {
 //      new JcaX509CertificateConverter()
 //        .setProvider(BouncyCastleProvider.PROVIDER_NAME)
 //        .getCertificate(certificateHolder);
-    return LarkyByte.builder(thread).setSequence(certificateHolder.getEncoded()).build();
+    return StarlarkBytes.of(thread.mutability(),certificateHolder.getEncoded());
+//    return StarlarkBytes.builder(thread).setSequence(certificateHolder.getEncoded()).build();
   }
 
   @StarlarkMethod(name = "dump_certificate",
     parameters = {
-      @Param(name = "cert", allowedTypes = {@ParamType(type = LarkyByteLike.class)}),
+      @Param(name = "cert", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
       @Param(name = "type", allowedTypes = {@ParamType(type = String.class)}),
   }, useStarlarkThread = true)
-  public LarkyByteLike dumpCertificate(LarkyByteLike cert, String type, StarlarkThread thread) throws EvalException {
+  public StarlarkBytes dumpCertificate(StarlarkBytes cert, String type, StarlarkThread thread) throws EvalException {
     StringWriter stringWriter = new StringWriter();
     switch(type) {
       case "PEM":
         try(PemWriter pemWriter = new PemWriter(stringWriter)) {
-          X509CertificateHolder certificateHolder = new X509CertificateHolder(cert.getBytes());
+          X509CertificateHolder certificateHolder = new X509CertificateHolder(cert.toByteArray());
           PemObject obj = new PemObject("CERTIFICATE", certificateHolder.toASN1Structure().getEncoded());
           pemWriter.writeObject(obj);
         } catch (IOException e) {
@@ -262,9 +265,11 @@ public class OpenSSL implements StarlarkValue {
       default:
         throw Starlark.errorf("certificate type %s not supported!", type);
     }
-    return LarkyByte.builder(thread)
-             .setSequence(stringWriter.toString().getBytes(StandardCharsets.UTF_8))
-             .build();
+    return StarlarkBytes.of(thread.mutability(),stringWriter.toString().getBytes(StandardCharsets.UTF_8));
+//
+//    return StarlarkBytes.builder(thread)
+//             .setSequence(stringWriter.toString().getBytes(StandardCharsets.UTF_8))
+//             .build();
   }
 
 //

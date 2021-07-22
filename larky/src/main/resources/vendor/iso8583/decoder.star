@@ -228,13 +228,13 @@ def _decode_type(
         f_len = 4
 
     doc_dec["t"] = ""
-    doc_enc["t"] = {"len": bytes(r"", encoding='utf-8'), "data": bytes(s[idx : idx + f_len])}
+    doc_enc["t"] = {"len": b"", "data": s[idx : idx + f_len]}
 
     if len(s[idx : idx + f_len]) != f_len:
         fail(" DecodeError(\n            f\"Field data is {len(s[idx:idx + f_len])} bytes, expecting {f_len}\",\n            s,\n            doc_dec,\n            doc_enc,\n            idx,\n            \"t\",\n        )")
 
     if spec["t"]["data_enc"] == "b":
-        doc_dec["t"] = hexlify(s[idx : idx + f_len]).upper()
+        doc_dec["t"] = s[idx : idx + f_len].hex().upper()
     else:
         doc_dec["t"] = s[idx : idx + f_len].decode(spec["t"]["data_enc"])
 
@@ -291,14 +291,14 @@ def _decode_bitmaps(
     else:
         f_len = 16
 
-    doc_dec["p"] = ""
-    doc_enc["p"] = {"len": bytes(r"", encoding='utf-8'), "data": bytes(s[idx : idx + f_len])}
+    doc_dec["p"] = b""
+    doc_enc["p"] = {"len": b"", "data": s[idx : idx + f_len]}
 
     if len(s[idx : idx + f_len]) != f_len:
         fail(" DecodeError(\n            f\"Field data is {len(s[idx:idx + f_len])} bytes, expecting {f_len}\",\n            s,\n            doc_dec,\n            doc_enc,\n            idx,\n            \"p\",\n        )")
 
     if spec["p"]["data_enc"] == "b":
-        doc_dec["p"] = hexlify(s[idx : idx + f_len]).upper()
+        doc_dec["p"] = s[idx : idx + f_len].hex().upper()
         bm = s[idx : idx + f_len]
     else:
         doc_dec["p"] = s[idx : idx + f_len].decode(spec["p"]["data_enc"])
@@ -310,7 +310,7 @@ def _decode_bitmaps(
         sets.make([
             byte_idx * 8 + bit
             for bit in range(1, 9)
-            for byte_idx, byte in enumerate(bm)
+            for byte_idx, byte in enumerate(bm.elems())
             if byte >> (8 - bit) & 1
         ])
     )
@@ -330,7 +330,7 @@ def _decode_bitmaps(
         f_len = 16
 
     doc_dec["1"] = ""
-    doc_enc["1"] = {"len": bytes(r"", encoding='utf-8'), "data": bytes(s[idx : idx + f_len])}
+    doc_enc["1"] = {"len": b"", "data": s[idx : idx + f_len]}
 
     if len(s[idx : idx + f_len]) != f_len:
         fail(" DecodeError(\n            f\"Field data is {len(s[idx:idx + f_len])} bytes, expecting {f_len}\",\n            s,\n            doc_dec,\n            doc_enc,\n            idx,\n            \"1\",\n        )")
@@ -347,7 +347,7 @@ def _decode_bitmaps(
         sets.make([
             64 + byte_idx * 8 + bit
             for bit in range(1, 9)
-            for byte_idx, byte in enumerate(bm)
+            for byte_idx, byte in enumerate(bm.elems())
             if byte >> (8 - bit) & 1
         ])
     )
@@ -397,7 +397,7 @@ def _decode_field(
     len_count = spec[field_key].get("len_count", "bytes")
 
     doc_dec[field_key] = ""
-    doc_enc[field_key] = {"len": bytes(s[idx : idx + len_type]), "data": bytes(r"", encoding='utf-8')}
+    doc_enc[field_key] = {"len": s[idx : idx + len_type], "data": b""}
 
     if len(s[idx : idx + len_type]) != len_type:
         fail(" DecodeError(\n            f\"Field length is {len(s[idx:idx + len_type])} bytes wide, expecting {len_type}\",\n            s,\n            doc_dec,\n            doc_enc,\n            idx,\n            field_key,\n        )")

@@ -1,15 +1,17 @@
 package com.verygood.security.larky.modules.crypto;
 
-import com.verygood.security.larky.modules.types.LarkyByte;
-import com.verygood.security.larky.modules.types.LarkyByteLike;
-import com.verygood.security.larky.modules.utils.NumOpsUtils;
+import java.math.BigInteger;
+import java.security.SecureRandom;
+
 import com.verygood.security.larky.modules.utils.ByteArrayUtil;
+import com.verygood.security.larky.modules.utils.NumOpsUtils;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
@@ -18,9 +20,6 @@ import net.starlark.java.eval.StarlarkValue;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.math.Primes;
 import org.bouncycastle.pqc.math.linearalgebra.IntegerFunctions;
-
-import java.math.BigInteger;
-import java.security.SecureRandom;
 
 public class CryptoMathModule implements StarlarkValue {
 
@@ -108,7 +107,7 @@ public class CryptoMathModule implements StarlarkValue {
           @Param(name = "byteorder"),
           @Param(name = "signed", defaultValue = "False"),
       }, useStarlarkThread = true)
-  public LarkyByteLike toBytes(StarlarkInt integer,
+  public StarlarkBytes toBytes(StarlarkInt integer,
                                StarlarkInt byteCount,
                                String byteorder,
                                boolean signed,
@@ -146,7 +145,8 @@ public class CryptoMathModule implements StarlarkValue {
     if (minimizeLeadingZeroPads) {
       bytes = ByteArrayUtil.lstrip(bytes, new byte[]{0x00});
     }
-    return LarkyByte.builder(thread).setSequence(bytes).build();
+    return StarlarkBytes.of(thread.mutability(), bytes);
+//    return StarlarkBytes.builder(thread).setSequence(bytes).build();
   }
 
   // this is just like using the struct lib..
@@ -171,11 +171,11 @@ public class CryptoMathModule implements StarlarkValue {
           @Param(name = "byteorder"),
           @Param(name = "signed", defaultValue = "False"),
       })
-  public StarlarkInt fromBytes(LarkyByteLike bytesObj,
+  public StarlarkInt fromBytes(StarlarkBytes bytesObj,
                                String byteorder,
                                boolean signed) throws EvalException {
 
-    byte[] bytes = bytesObj.getBytes();
+    byte[] bytes = bytesObj.toByteArray();
     return StarlarkInt.of(NumOpsUtils.bytes2bigint(bytes, isBigEndian(byteorder), signed));
   }
 

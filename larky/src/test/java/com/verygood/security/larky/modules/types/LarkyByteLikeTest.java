@@ -7,6 +7,7 @@ import static org.junit.Assert.assertNotNull;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
@@ -18,29 +19,29 @@ public class LarkyByteLikeTest {
 
   @Test
   public void testSplit_1() throws EvalException {
-    StarlarkList<LarkyByteLike> split;
+    StarlarkList<StarlarkBytes> split;
     split = doSplit("hello world !".getBytes(), Starlark.NONE, Starlark.NONE);
     assertNotNull(split);
     assertEquals(split.size(), 3);
-    assertArrayEquals(split.get(0).getBytes(), "hello".getBytes());
-    assertArrayEquals(split.get(1).getBytes(), "world".getBytes());
-    assertArrayEquals(split.get(2).getBytes(), "!".getBytes());
+    assertArrayEquals(split.get(0).toByteArray(), "hello".getBytes());
+    assertArrayEquals(split.get(1).toByteArray(), "world".getBytes());
+    assertArrayEquals(split.get(2).toByteArray(), "!".getBytes());
   }
 
-  private StarlarkList<LarkyByteLike> doSplit(byte[] bytes, Object sepB, Object maxsplit) throws EvalException {
-    StarlarkList<LarkyByteLike> split;
+  private StarlarkList<StarlarkBytes> doSplit(byte[] bytes, Object sepB, Object maxsplit) throws EvalException {
+    StarlarkList<StarlarkBytes> split;
     try (Mutability mu = Mutability.create("test")) {
       StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
       Object sep = Starlark.isNullOrNone(sepB)
           ? null
-          : makeLarkyByteLike(sepB, thread);
-      LarkyByteLike tosplit = LarkyByteArray.builder(thread).setSequence(bytes).build();
+          : makeStarlarkBytes(sepB, thread);
+      StarlarkBytes tosplit = StarlarkBytes.of(thread.mutability(), bytes);
       split = tosplit.split(sep, maxsplit, thread);
     }
     return split;
   }
 
-  private LarkyByteLike makeLarkyByteLike(Object sepB, StarlarkThread thread) throws EvalException {
+  private StarlarkBytes makeStarlarkBytes(Object sepB, StarlarkThread thread) throws EvalException {
     byte[] bytes;
     if(sepB instanceof String) {
       bytes = ((String) sepB).getBytes();
@@ -48,20 +49,20 @@ public class LarkyByteLikeTest {
       bytes = (byte[]) sepB;
     }
 
-    return LarkyByteArray.builder(thread).setSequence(bytes).build();
+    return StarlarkBytes.of(thread.mutability(), bytes);
   }
 
   @Test
   public void testSplit_2() throws EvalException {
-    StarlarkList<LarkyByteLike> split = doSplit("hello world !".getBytes(), "lo", Starlark.NONE);
+    StarlarkList<StarlarkBytes> split = doSplit("hello world !".getBytes(), "lo", Starlark.NONE);
     assertNotNull(split);
     assertEquals(split.size(), 2);
-    assertArrayEquals(split.get(0).getBytes(), "hel".getBytes());
-    assertArrayEquals(split.get(1).getBytes(), " world !".getBytes());
+    assertArrayEquals(split.get(0).toByteArray(), "hel".getBytes());
+    assertArrayEquals(split.get(1).toByteArray(), " world !".getBytes());
   }
   @Test
   public void testSplit_3() throws EvalException {
-    StarlarkList<LarkyByteLike> split = doSplit(
+    StarlarkList<StarlarkBytes> split = doSplit(
         "hello world !\n\nfoo xxxx\tbrah".getBytes(),
         Starlark.NONE,
         Starlark.NONE
@@ -70,11 +71,11 @@ public class LarkyByteLikeTest {
 //    Out[10]: [b'hello', b'world', b'!', b'foo', b'xxxx', b'brah']
     assertNotNull(split);
     assertEquals(split.size(), 6);
-    assertArrayEquals(split.get(0).getBytes(), "hello".getBytes());
-    assertArrayEquals(split.get(1).getBytes(), "world".getBytes());
-    assertArrayEquals(split.get(2).getBytes(), "!".getBytes());
-    assertArrayEquals(split.get(3).getBytes(), "foo".getBytes());
-    assertArrayEquals(split.get(4).getBytes(), "xxxx".getBytes());
-    assertArrayEquals(split.get(5).getBytes(), "brah".getBytes());
+    assertArrayEquals(split.get(0).toByteArray(), "hello".getBytes());
+    assertArrayEquals(split.get(1).toByteArray(), "world".getBytes());
+    assertArrayEquals(split.get(2).toByteArray(), "!".getBytes());
+    assertArrayEquals(split.get(3).toByteArray(), "foo".getBytes());
+    assertArrayEquals(split.get(4).toByteArray(), "xxxx".getBytes());
+    assertArrayEquals(split.get(5).toByteArray(), "brah".getBytes());
   }
 }
