@@ -53,7 +53,7 @@ public class LarkyAPIEngineTest {
   }
 
   @Test
-  public void testEngine_helloWork_ok() throws Exception {
+  public void testEngine_helloWorld_ok() throws Exception {
     // Expect
     String expResult = "Hello From Larky!";
 
