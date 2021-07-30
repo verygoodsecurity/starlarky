@@ -53,7 +53,25 @@ public class LarkyAPIEngineTest {
   }
 
   @Test
-  public void testEngine_execScript_V0_2_1_ok() throws Exception {
+  public void testEngine_helloWork_ok() throws Exception {
+    // Expect
+    String expResult = "Hello From Larky!";
+
+    // Setup
+    String script =
+        "def hello_world():\n" +
+            "    return \"Hello From Larky!\"\n" +
+            "output = hello_world()";
+
+    // Execute
+    String result = engine.executeScript(script, "output").toString();
+
+    // Assert
+    assertEquals(expResult,result);
+  }
+
+  @Test
+  public void testEngine_regex_ok() throws Exception {
     // Expect
     String expResult = "1243\\*\\&\\[\\]_dsfAd";
 
@@ -64,7 +82,6 @@ public class LarkyAPIEngineTest {
             "    return re.escape(r\"1243*&[]_dsfAd\")",
             "output = re_escape()"
     );
-    String v_2_1 = "0.2.1";
 
     // Execute
     Object output = engine.executeScript(regxScript, "output");
