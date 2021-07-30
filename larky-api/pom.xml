@@ -21,12 +21,21 @@
     </repositories>
 
     <dependencies>
+
+        <!-- Starlarky -->
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
+            <groupId>com.verygood.security</groupId>
+            <artifactId>larky</artifactId>
+            <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>net.starlark.java</groupId>
+            <artifactId>libstarlark</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+
+        <!-- Misc -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -41,6 +50,14 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>${slf4j.version}</version>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

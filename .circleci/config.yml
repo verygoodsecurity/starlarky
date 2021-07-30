@@ -11,7 +11,6 @@ job-defaults: &job-defaults
     - MAVEN_OPTS: -Xmx6400m
     - GRAALVM_HOME: /home/circleci/starlarky/.graalvm
     - HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
-    - LARKY_HOME: /home/circleci/starlarky
     - LARKY_LIB_HOME: /home/circleci/.larky/lib
 
 install-java: &install-java
@@ -121,12 +120,6 @@ attach-dist: &attach-dist
   attach_workspace:
     at: *dist_directory
 
-get-resouces: &get-resources
-  run:
-    name: Get Additional Resources
-    command: |
-      ./larky-api/scripts/get_resources.sh
-
 
 # === JOBS ===
 version: 2
@@ -138,7 +131,6 @@ jobs:
     steps:
       - checkout
       - <<: *install-java
-      - <<: *get-resources
       - <<: *restore-maven-cache
       - run: mkdir -p $TEST_RESULTS_PATH/junit/
       - run: mkdir -p $TEST_RESULTS_PATH/coverage/
@@ -160,7 +152,6 @@ jobs:
     machine: true
     steps:
       - checkout
-      - <<: *get-resources
       - <<: *restore-maven-cache
       - run: mkdir -p $TEST_RESULTS_PATH/junit/
       - run: mkdir -p $TEST_RESULTS_PATH/coverage/
@@ -183,7 +174,6 @@ jobs:
     steps:
       - checkout
       - <<: *install-java
-      - <<: *get-resources
       - <<: *restore-maven-cache
       - <<: *setup-maven-distributions
       - run:
@@ -215,7 +205,6 @@ jobs:
       - checkout
       - <<: *install-java
       - <<: *setup-maven-distributions
-      - <<: *get-resources
       - <<: *restore-maven-cache
       - <<: *restore-graalvm-cache
       - <<: *install-graalvm
@@ -254,12 +243,6 @@ jobs:
             # add gu to PATH
             ln -s "$GRAALVM_HOME/bin/gu" /usr/local/bin
             gu install native-image
-      - run:
-          name: MacOS Setup for get-resources
-          command: |
-            echo 'export LARKY_HOME=/Users/distiller/starlarky' >> $BASH_ENV
-            source $BASH_ENV
-      - <<: *get-resources
       - <<: *setup-maven-distributions
       - <<: *build-quarkus-runnable
       - <<: *install_python

@@ -26,10 +26,9 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 
 
-public class VersionedLarkyEngineImplTest {
+public class LarkyAPIEngineTest {
 
-  private static String version = "0.4.0";
-  private VersionedLarkyEngineImpl engine;
+  private LarkyAPIEngine engine;
 
   @Rule
   public ExpectedException exceptionRule = ExpectedException.none();
@@ -38,7 +37,7 @@ public class VersionedLarkyEngineImplTest {
   public void setUp() throws Exception {
     synchronized (this) {
       // General
-      engine = new VersionedLarkyEngineImpl(version);
+      engine = new LarkyAPIEngine();
     }
   }
 
@@ -51,26 +50,6 @@ public class VersionedLarkyEngineImplTest {
   public void testEngine_ok() {
     // Assert
     assertNotNull(engine);
-  }
-
-
-  @Test
-  public void testEngine_execScript_V0_2_0_exception() throws Exception {
-    // Expect
-    exceptionRule.expect(NullPointerException.class);
-
-    // Setup
-    String regxScript = String.join("\n",
-            "load(\"@stdlib/re\", \"re\")",
-            "def re_escape():",
-            "    return re.escape(r\"1243*&[]_dsfAd\")",
-            "output = re_escape()"
-    );
-    String v_2_0 = "0.2.0";
-
-    // Execute
-    engine = new VersionedLarkyEngineImpl(v_2_0);
-    engine.executeScript(regxScript, "output");
   }
 
   @Test
@@ -88,27 +67,10 @@ public class VersionedLarkyEngineImplTest {
     String v_2_1 = "0.2.1";
 
     // Execute
-    engine = new VersionedLarkyEngineImpl(v_2_1);
     Object output = engine.executeScript(regxScript, "output");
 
     // Assert
     assertEquals(expResult,output.toString());
-  }
-
-
-  @Test
-  public void testEngine_getVersion_ok() throws Exception {
-    // Assert
-    assertEquals(engine.getVersion(), version);
-  }
-
-  @Test
-  public void testEngine_badVersion_exception() throws Exception {
-    // Expect
-    exceptionRule.expect(IllegalArgumentException.class);
-    exceptionRule.expectMessage("Engine Version not Found");
-
-    engine = new VersionedLarkyEngineImpl("0.0.0");
   }
 
 
