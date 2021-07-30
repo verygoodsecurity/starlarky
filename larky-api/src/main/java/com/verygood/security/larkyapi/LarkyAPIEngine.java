@@ -22,12 +22,14 @@ public class LarkyAPIEngine extends LarkyScriptEngine {
 
     public Object executeScript(String script, String outputVar, ScriptContext context)
         throws ScriptException, NullPointerException {
-        return extractStarfileOutput((ParsedStarFile) eval(script, context), outputVar);
+        setContext(context);
+        return executeScript(script, outputVar);
     }
 
     public Object executeScript(Reader script, String outputVar, ScriptContext context)
                 throws ScriptException, NullPointerException {
-        return extractStarfileOutput((ParsedStarFile) eval(script, context), outputVar);
+        setContext(context);
+        return executeScript(script, outputVar);
     }
 
     public Object executeScript(Reader script, String outputVar)
