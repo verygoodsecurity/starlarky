@@ -15,13 +15,6 @@ def test_encrypt_and_decrypt_jwe_with_defaults():
 
 
 def test_decrypt_GCM256_AES_wrapped_key_jwe():
-    jweString = "eyJhbGciOiJBMjU2R0NNS1ciLCJlbmMiOiJBMjU2R0NNIn0.g3e9G/PzZ/W3cDHDsyDf0Zm/cSwgaU6MDD52xwo+QwyLx1RcH+uoRA.N+K+DwwXh/GKYkFn0gT1+w.KbsO.LjIo5FQQ3fxCqpFSuGiQyg"
-    encryptionKey = bytes('b11444485bd146cc823ae1bf3fa42209', encoding='utf-8')
-    payload = jwe.decrypt(bytes(jweString, encoding='utf-8'), encryptionKey)
-    asserts.assert_that(payload).is_equal_to(bytes('533', encoding='utf-8'))
-
-
-def test_decrypt_GCM256_AES_wrapped_key_jwe_failing():
     jweString = b"eyJlbmMiOiJBMjU2R0NNIiwidGFnIjoiazhaNnpTNjRJclllaUNpNV9JaWY5QSIsImFsZyI6IkEyNTZHQ01LVyIsIml2IjoieW9sTk8xLVFXSVg3R1poSCJ9.knPF3qV22v0pE-N6oUzlSIoBUEjr_k3sfFyYX-XuSH8.XkADjU0P2phiynPA.cvCd.Wp5oFTRAzEIFN8pImDnhmw"
     encryptionKey = b'96a18c1acc0b48beb9b24479355b70b5'
     payload = jwe.decrypt(jweString, encryptionKey)
@@ -50,7 +43,7 @@ def _testsuite():
     _suite = unittest.TestSuite()
 
     _suite.addTest(unittest.FunctionTestCase(test_encrypt_and_decrypt_jwe_with_defaults))
-    _suite.addTest(unittest.FunctionTestCase(test_decrypt_GCM256_AES_wrapped_key_jwe_failing))
+    _suite.addTest(unittest.FunctionTestCase(test_decrypt_GCM256_AES_wrapped_key_jwe))
     larky.parametrize(
         _suite.addTest,
         unittest.FunctionTestCase,
