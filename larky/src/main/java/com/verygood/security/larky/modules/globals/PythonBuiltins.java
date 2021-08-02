@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.globals;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
@@ -49,9 +50,13 @@ public final class PythonBuiltins {
           "The two-argument form pow(base, exp) is equivalent to using the power operator: base**exp.",
       parameters = {
           @Param(
-              name = "base",
-              doc = "The function to invoke when the struct is called",
-              named = true
+            name = "base",
+            doc = "The function to invoke when the struct is called",
+            named = true,
+            allowedTypes = {
+              @ParamType(type = StarlarkInt.class),
+              @ParamType(type = StarlarkFloat.class),
+            }
           ),
           @Param(
               name = "exp",
@@ -70,54 +75,48 @@ public final class PythonBuiltins {
           )
       }
   )
-  public StarlarkInt pow(StarlarkInt base, StarlarkInt exp, Object mod) throws EvalException {
-    if (Starlark.isNullOrNone(mod)) {
-      return StarlarkInt.of(
-          base.toBigInteger()
-              .pow(exp.toInt("exp " + exp.toString() + " is too big."))
-      );
+  public Object pow(Object baseO, StarlarkInt exp, Object mod) throws EvalException {
+    if(!(baseO instanceof StarlarkInt) && !(baseO instanceof StarlarkFloat)) {
+      throw Starlark.errorf("Error in pow: in call to pow(), parameter 'base' got " +
+                              "value of type '%s', want 'int' or 'float'", Starlark.type(baseO));
     }
-    return StarlarkInt.of(
-        base.toBigInteger()
-            .modPow(exp.toBigInteger(), ((StarlarkInt) mod).toBigInteger())
-    );
+    final BigDecimal bigLeft;
+    if(baseO instanceof StarlarkInt) {
+      bigLeft = new BigDecimal(((StarlarkInt)baseO).toBigInteger());
+    }
+    else {
+      bigLeft = BigDecimal.valueOf(((StarlarkFloat)baseO).toDouble());
+    }
+
+    final BigInteger bigRight = exp.toBigInteger();
+
+    if (Starlark.isNullOrNone(mod)) {
+      if(bigRight.signum() < 0) {
+        return StarlarkFloat.of(Math.pow(bigLeft.doubleValue(), bigRight.longValueExact()));
+      }
+      return StarlarkInt.of(bigLeft.toBigIntegerExact().pow((bigRight.intValueExact())));
+    }
+    final BigInteger bigMod = ((StarlarkInt) mod).toBigInteger();
+    final BigInteger bigModPos =  bigMod.signum() < 0 ? bigMod.abs() : bigMod;
+
+    if (bigMod.signum() == 0) {
+      throw Starlark.errorf("pow() 3rd argument cannot be 0");
+    }
+
+    try {
+      BigInteger pow = bigLeft.toBigIntegerExact().modPow(bigRight, bigModPos);
+      if (bigModPos.equals(bigMod) || BigInteger.ZERO.equals(pow)) {
+        return StarlarkInt.of(pow);
+      } else {
+        return StarlarkInt.of(pow.subtract(bigModPos));
+      }
+    } catch (ArithmeticException e) {
+      // a positive mod was used, so this exception must mean the exponent was
+      // negative and the base is not relatively prime to the exponent
+      throw Starlark.errorf("base is not invertible for the given modulus");
+    }
   }
 
-//  @StarlarkMethod(
-//      name = "ord",
-//      doc = "Given a string representing one Unicode character, return an integer representing" +
-//          " the Unicode code point of that character. For example, ord('a') returns the " +
-//          "integer 97 and ord('€') (Euro sign) returns 8364. This is the inverse of chr().",
-//      parameters = {
-//          @Param(
-//              name = "c",
-//              allowedTypes = {
-//                  @ParamType(type = String.class),
-//                  @ParamType(type = StarlarkBytes.class),
-//              }
-//          )
-//      },
-//      useStarlarkThread = true
-//  )
-//  public StarlarkInt ordinal(Object c, StarlarkThread thread) throws EvalException {
-//    int containerSize = 0;
-//    byte[] bytes = null;
-//    if (String.class.isAssignableFrom(c.getClass())) {
-//      containerSize = ((String) c).length();
-//      bytes = ((String) c).getBytes(StandardCharsets.UTF_8);
-//    } else if (StarlarkBytes.class.isAssignableFrom(c.getClass())) {
-//      containerSize = ((StarlarkBytes) c).size();
-//      bytes = ((StarlarkBytes) c).getBytes();
-//    }
-//
-//    if (containerSize != 1 || bytes == null) {
-//      //"ord() expected a character, but string of length %d found", c.length()
-//      throw new EvalException(
-//          String.format("ord: %s has length %d, want 1", Starlark.type(c), containerSize)
-//      );
-//    }
-//    return StarlarkInt.of(new BigInteger(bytes).intValueExact());
-//  }
   @StarlarkMethod(
       name = "bin",
       doc = "Convert an integer number to a binary string prefixed with '0b'. The result is a " +

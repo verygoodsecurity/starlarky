@@ -309,7 +309,7 @@ def OperatorTestCase_test_pos():
 def OperatorTestCase_test_pow():
     operator = module
     asserts.assert_fails(lambda : operator.pow(), "missing 2 required positional arguments")
-    asserts.assert_fails(lambda : operator.pow(None, None), ".*?got value of type '\\w+', want 'int'")
+    asserts.assert_fails(lambda : operator.pow(None, None), ".*?got value of type '\\w+', want 'int or float'")
     asserts.assert_that(operator.pow(3,5)).is_equal_to(pow(3, 5))
     asserts.assert_fails(lambda : operator.pow(1), "missing 1 required positional argument")
     asserts.assert_fails(lambda : operator.pow(1, 2, 3), ".*?accepts no more than 2 positional arguments but got")
