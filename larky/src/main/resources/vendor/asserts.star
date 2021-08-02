@@ -217,7 +217,7 @@ def is_equal_to(self, other, **kwargs):
 
     if _diff:
         fail('Expected <{}> to be equal to <{}>, but was not.'
-             .format(self.val, other))
+             .format(repr(self.val), repr(other)))
 
     return self
 
@@ -273,6 +273,70 @@ def is_less_than(self, other):
         #         other.strftime('%Y-%m-%d %H:%M:%S')))
         # else:
         fail('Expected <{}> to be less than <{}>, but was not.'.format(
+            self.val, other
+        ))
+    return self
+
+
+def is_lte_to(self, other):
+    """Asserts that val is numeric and is less than or equal to other.
+    Args:
+        other: the other date, expected to be greater than or equal to val
+    Examples:
+        Usage::
+            assert_that(1).is_lte_to(0)
+            assert_that(1).is_lte_to(1)
+            assert_that(123.4).is_lte_to(100.0)
+        For dates, behavior is identical to :meth:`~assertpy.date.DateMixin.is_before` *except* when equal::
+            import datetime
+            today = datetime.datetime.now()
+            yesterday = today - datetime.timedelta(days=1)
+            assert_that(yesterday).is_lte_to(today)
+            assert_that(today).is_lte_to(today)
+    Returns:
+        AssertionBuilder: returns this instance to chain to the next assertion
+    Raises:
+        AssertionError: if val is **not** less than or equal to other
+    """
+    if self.val > other:
+        # if type(self.val) is datetime.datetime:
+        #     fail('Expected <%s> to be less than <%s>, but was not.'.format(
+        #         self.val.strftime('%Y-%m-%d %H:%M:%S'),
+        #         other.strftime('%Y-%m-%d %H:%M:%S')))
+        # else:
+        fail('Expected <{}> to be less than or equal to <{}>, but was not.'.format(
+            self.val, other
+        ))
+    return self
+
+
+def is_gte_to(self, other):
+    """Asserts that val is numeric and is greater than or equal to other.
+    Args:
+        other: the other date, expected to be less than or equal to val
+    Examples:
+        Usage::
+            assert_that(1).is_gte_to(0)
+            assert_that(1).is_gte_to(1)
+            assert_that(123.4).is_gte_to(111.1)
+        For dates, behavior is identical to :meth:`~assertpy.date.DateMixin.is_after` *except* when equal::
+            import datetime
+            today = datetime.datetime.now()
+            yesterday = today - datetime.timedelta(days=1)
+            assert_that(today).is_gte_to(yesterday)
+            assert_that(today).is_gte_to(today)
+    Returns:
+        AssertionBuilder: returns this instance to chain to the next assertion
+    Raises:
+        AssertionError: if val is **not** greater than or equal to other
+    """
+    if self.val < other:
+        # if type(self.val) is datetime.datetime:
+        #     fail('Expected <%s> to be less than <%s>, but was not.'.format(
+        #         self.val.strftime('%Y-%m-%d %H:%M:%S'),
+        #         other.strftime('%Y-%m-%d %H:%M:%S')))
+        # else:
+        fail('Expected <{}> to be greater than or equal to <{}>, but was not.'.format(
             self.val, other
         ))
     return self
@@ -404,7 +468,11 @@ def _AssertionBuilder(val, description, kind, expected, logger):
         is_false=larky.partial(is_false, self),
         is_none=larky.partial(is_false, self),
         is_not_none=larky.partial(is_not_none, self),
-        is_less_than=larky.partial(is_less_than, self)
+        is_less_than=larky.partial(is_less_than, self),
+        is_lte_to=larky.partial(is_lte_to, self),
+        is_less_than_or_equal_to=larky.partial(is_lte_to, self),
+        is_gte_to=larky.partial(is_gte_to, self),
+        is_greater_than_or_equal_to=larky.partial(is_gte_to, self),
     )
     klass.described_as=larky.partial(_described_as, klass, self)
     return klass
