@@ -101,6 +101,33 @@ def test_vector_RFC_5649_20_unwrap():
     asserts.eq(aes.unwrap(cipher, headers={"with_padding": True}, enc_alg=algo), plain)
 
 
+def test_pbkdf2_hmac_aes_key_wrapped():
+    encryption_key = bytes('3800321e74ff4334bbb8feb815195592', encoding='utf-8')
+    payload = json.decode('{"emailAddress":"","countryCode":"null","header":{"prefixNumber":"544288","eventType":"NWC","instId":"B9","eventId":"e64ef50c-d726-4cdb-a53e-0cb450e74846","version":"1.0","activityType":"CARD_OPEN","cardNumber":"eyJwMnMiOiI2VHBsdGxYc0gxTlZNRTdQSzZ3OUZPdG0xMFh1TDdQcVpxV1laZFltWE9zPSIsInAyYyI6MTAwMCwiZW5jIjoiQTI1NkdDTSIsImFsZyI6IlBCRVMyLUhTNTEyK0EyNTZLVyJ9.PNSr-dFdQLIDPYEywGZElEwCv3b9RVvPUufGE8xPlyB1q5cV5EOF0A==.N7ye54PShluyDCPW.nHpCVtaZbY_KSLB_Lt3_nA==.PfpX0v3M82HeSOTr","eventTimestamp":"2021-07-29T00:27:07.967"},"mobilePhoneNumber":"","expirationDate":"0829","members":[{"lastName":"UAT","isPrimary":true,"firstName":"TEST"}]}')
+    header = payload['header']
+    jwe_string = header['cardNumber']
+
+    parts = jwe_string.split('.')
+    hdrBytes = base64.urlsafe_b64decode(parts[0])
+    ekBytes = base64.urlsafe_b64decode(parts[1] + '==')
+    ivBytes = base64.urlsafe_b64decode(parts[2])
+    ctBytes = base64.urlsafe_b64decode(parts[3] + '==')
+    atBytes = base64.urlsafe_b64decode(parts[4])
+
+    json_header = json.loads(hdrBytes.decode("utf-8"))
+    salt = base64.urlsafe_b64decode(json_header['p2s'] + '==')
+    iteration_count = json_header['p2c']
+
+    password = bytes(encryption_key, encoding='utf-8')
+    derived_key = PBKDF2(password, salt, 32, count=iteration_count, hmac_hash_module=SHA512)
+    key = jwk.construct(derived_key, 'A256KW')
+    cek = key.unwrap(ekBytes, headers=json_header, enc_alg=json_header["enc"])
+    # so dangerous..
+    cipher = AES.new(cek, AES.MODE_GCM, nonce=ivBytes, mac_len=12)
+    d = cipher.decrypt(ctBytes) # does not verify or authenticate the tag..
+    asserts.assert_that(base64.b64encode(d)).is_equal_to(b'NTQ0Mjg4MzAxMDAxNjc5Mg==')
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
 
@@ -126,6 +153,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_vector_RFC_5649_7_unwrap))
     _suite.addTest(unittest.FunctionTestCase(test_vector_RFC_5649_20_wrap))
     _suite.addTest(unittest.FunctionTestCase(test_vector_RFC_5649_20_unwrap))
+    _suite.addTest(unittest.FunctionTestCase(test_pbkdf2_hmac_aes_key_wrapped))
 
     return _suite
 
