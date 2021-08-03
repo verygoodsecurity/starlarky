@@ -1,0 +1,3 @@
+# https://github.com/github/linguist/tree/47b109be3657fe3d5933fba6840a6ceea0f94498#overrides
+# allows *.star files to be rendered like *.bzl files
+*.star linguist-language=Starlark
