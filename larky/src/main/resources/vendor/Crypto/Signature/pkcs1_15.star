@@ -80,7 +80,7 @@ def PKCS115_SigScheme(rsa_key):
         k = ceil_div(modBits,8) # Convert from bits to bytes
 
         # Step 1
-        em = _EMSA_PKCS1_V1_5_ENCODE(msg_hash, k)
+        em = _EMSA_PKCS1_V1_5_ENCODE(msg_hash, k).unwrap()
         # Step 2a (OS2IP)
         em_int = bytes_to_long(em)
         # Step 2b (RSASP1)
