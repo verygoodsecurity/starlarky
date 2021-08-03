@@ -21,11 +21,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import net.starlark.java.syntax.Location;
-
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
+import net.starlark.java.syntax.Location;
 
 /**
  * An StarlarkThread represents a Starlark thread.
