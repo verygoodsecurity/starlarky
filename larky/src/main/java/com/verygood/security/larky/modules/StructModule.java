@@ -154,6 +154,18 @@ public class StructModule implements StarlarkValue {
     new BEDoubleFormatDef().init('d', 8, 0),
   };
 
+  // ❯❯❯ ./a.out
+  // sizeof(char): 1
+  // bool: 1 => sizeof(st_bool): 2
+  // short: 2 => sizeof(st_short): 4
+  // int: 4 => sizeof(st_int): 8
+  // float: 4 => sizeof(st_float): 8
+  // double: 8 => sizeof(st_double): 16
+  // voidp: 8 => sizeof(st_void_p): 16
+  // size_t: 8 => sizeof(st_size_t): 16
+  // long: 8 => sizeof(st_long): 16
+  // longlong: 8 => sizeof(s_long_long): 16
+
   private static final FormatDef[] nativeTable = {
     new PadFormatDef().init('x', 1, 0),
     new ByteFormatDef().init('b', 1, 0),
@@ -178,17 +190,9 @@ public class StructModule implements StarlarkValue {
     new PointerFormatDef().init('P'),
   };
 
-  // ❯❯❯ ./a.out
-  // sizeof(char): 1
-  // bool: 1 => sizeof(st_bool): 2
-  // short: 2 => sizeof(st_short): 4
-  // int: 4 => sizeof(st_int): 8
-  // float: 4 => sizeof(st_float): 8
-  // double: 8 => sizeof(st_double): 16
-  // voidp: 8 => sizeof(st_void_p): 16
-  // size_t: 8 => sizeof(st_size_t): 16
-  // long: 8 => sizeof(st_long): 16
-  // longlong: 8 => sizeof(s_long_long): 16
+
+  /** the constant 2^64 */
+  private static final BigInteger TWO_64 = BigInteger.ONE.shiftLeft(64);
 
   static ByteStream pack(String format, FormatDef[] f, int size, int start, Tuple args) throws EvalException {
     ByteStream res = new ByteStream();
@@ -450,7 +454,11 @@ public class StructModule implements StarlarkValue {
       } else if(unpack instanceof Long) {
         siArr[i] = StarlarkInt.of((Long) unpack);
       } else if(unpack instanceof BigInteger) {
-        siArr[i] = StarlarkInt.of(Long.parseUnsignedLong(unpack.toString()));
+        BigInteger b = ((BigInteger)unpack);
+        if(b.signum() < 0) {
+          b = b.add(TWO_64);
+        }
+        siArr[i] = StarlarkInt.of(b);
       } else if(unpack instanceof Boolean) {
         siArr[i] = (Boolean) unpack ? Boolean.TRUE : Boolean.FALSE;
       } else if(unpack instanceof Float || unpack instanceof Double) {
@@ -774,7 +782,6 @@ public class StructModule implements StarlarkValue {
       return null;
     }
 
-//    int doPack(ByteStream buf, int count, int pos, Number[][] args) throws EvalException {
     int doPack(ByteStream buf, int count, int pos, Tuple args) throws EvalException {
      if (pos + count > args.size()) {
         throw Starlark.errorf("expected %d items for packing (got %d)", buf.position()-pos, args.size());
@@ -782,7 +789,6 @@ public class StructModule implements StarlarkValue {
 
       int cnt = count;
       while (count-- > 0)
-//        pack(buf, args[pos++]);
         pack(buf, args.get(pos++));
       return cnt;
     }
@@ -818,7 +824,11 @@ public class StructModule implements StarlarkValue {
           "required argument is not an integer - received type of: %s",
           value.getClass());
       }
-      return BigInteger.valueOf(Long.parseUnsignedLong(value.toString()));
+      BigInteger b = BigInteger.valueOf((Long) value);
+      if(b.signum() < 0) {
+        b = b.add(TWO_64);
+      }
+      return b;
     }
 
     double get_float(Number value) throws EvalException {
