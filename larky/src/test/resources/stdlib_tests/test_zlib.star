@@ -73,23 +73,41 @@ def ExceptionTestCase_test_badlevel():
     asserts.assert_fails(lambda: zlib.compress(b'ERROR', 10), ".*?")
 
 def ExceptionTestCase_test_badargs():
-    asserts.assert_fails(lambda: zlib.adler32(), ".*?TypeError")
-    asserts.assert_fails(lambda: zlib.crc32(), ".*?TypeError")
-    asserts.assert_fails(lambda: zlib.compress(), ".*?TypeError")
-    asserts.assert_fails(lambda: zlib.decompress(), ".*?TypeError")
+    asserts.assert_fails(lambda: zlib.adler32(), ".*?missing 1 required positional argument")
+    asserts.assert_fails(lambda: zlib.crc32(), ".*?missing 1 required positional argument")
+    asserts.assert_fails(lambda: zlib.compress(), ".*?missing 1 required positional argument")
+    asserts.assert_fails(lambda: zlib.decompress(), ".*?missing 1 required positional argument")
     for arg in (42, None, '', 'abc', (), []):
-        asserts.assert_fails(lambda: zlib.adler32(arg), ".*?TypeError")
-        asserts.assert_fails(lambda: zlib.crc32(arg), ".*?TypeError")
-        asserts.assert_fails(lambda: zlib.compress(arg), ".*?TypeError")
-        asserts.assert_fails(lambda: zlib.decompress(arg), ".*?TypeError")
+        asserts.assert_fails(lambda: zlib.adler32(arg), r".*?TypeError: a bytes-like object is required, not '\w+'")
+        asserts.assert_fails(lambda: zlib.crc32(arg), r".*?TypeError: a bytes-like object is required, not '\w+'")
+        asserts.assert_fails(lambda: zlib.compress(arg), r".*?TypeError: a bytes-like object is required, not '\w+'")
+        asserts.assert_fails(lambda: zlib.decompress(arg), r".*?TypeError: a bytes-like object is required, not '\w+'")
 
 def ExceptionTestCase_test_badcompressobj():
+    """
+    In [29]: zlib.compressobj(1, zlib.DEFLATED, 0)
+    ---------------------------------------------------------------------------
+    ValueError                                Traceback (most recent call last)
+    <ipython-input-29-c23e3750c18e> in <module>
+    ----> 1 zlib.compressobj(1, zlib.DEFLATED, 0)
+
+    ValueError: Invalid initialization option
+    """
     # verify failure on building compress object with bad params
     asserts.assert_fails(lambda: zlib.compressobj(1, zlib.DEFLATED, 0), ".*?ValueError")
     # specifying total bits too large causes an error
     asserts.assert_fails(lambda: zlib.compressobj(1, zlib.DEFLATED, zlib.MAX_WBITS + 1), ".*?ValueError")
 
 def ExceptionTestCase_test_baddecompressobj():
+    """
+    In [31]: zlib.decompressobj(-1)
+    ---------------------------------------------------------------------------
+    ValueError                                Traceback (most recent call last)
+    <ipython-input-31-9968f2f0d9b5> in <module>
+    ----> 1 zlib.decompressobj(-1)
+
+    ValueError: Invalid initialization option
+    """
     # verify failure on building decompress object with bad params
     asserts.assert_fails(lambda: zlib.decompressobj(-1), ".*?ValueError")
 
@@ -97,24 +115,21 @@ def ExceptionTestCase_test_decompressobj_badflush():
     # verify failure on calling decompressobj.flush with bad params
     asserts.assert_fails(lambda: zlib.decompressobj().flush(0), ".*?ValueError")
     asserts.assert_fails(lambda: zlib.decompressobj().flush(-1), ".*?ValueError")
-#
-# def ExceptionTestCase_test_overflow():
-#     def ExceptionTestCase_ExceptionTestCase__larky_1364090598():
-#         zlib.decompress(b'', 15, sys.maxsize + 1)
-#     asserts.assert_fails(lambda: _larky_1364090598(), ".*?OverflowError.*int too large")
-#     def ExceptionTestCase_ExceptionTestCase__larky_1185669041():
-#         zlib.decompressobj().decompress(b'', sys.maxsize + 1)
-#     asserts.assert_fails(lambda: _larky_1185669041(), ".*?OverflowError.*int too large")
-#     def ExceptionTestCase_ExceptionTestCase__larky_565197355():
-#         zlib.decompressobj().flush(sys.maxsize + 1)
-#     asserts.assert_fails(lambda: _larky_565197355(), ".*?OverflowError.*int too large")
-# test_overflow = support.cpython_only(test_overflow)
-#
-# def ExceptionTestCase_test_disallow_instantiation():
-#     # Ensure that the type disallows instantiation (bpo-43916)
-#     support.check_disallow_instantiation(self, type(zlib.compressobj()))
-#     support.check_disallow_instantiation(self, type(zlib.decompressobj()))
-# test_disallow_instantiation = support.cpython_only(test_disallow_instantiation)
+
+
+SYS_MAXSIZE = 2147483647
+
+def ExceptionTestCase_test_overflow():
+    def _larky_1364090598():
+        zlib.decompress(b'', 15, SYS_MAXSIZE + 1)
+    asserts.assert_fails(lambda: _larky_1364090598(), ".*?OverflowError.*int too large")
+    def _larky_1185669041():
+        zlib.decompressobj().decompress(b'', SYS_MAXSIZE + 1)
+    asserts.assert_fails(lambda: _larky_1185669041(), ".*?OverflowError.*int too large")
+    def _larky_565197355():
+        zlib.decompressobj().flush(SYS_MAXSIZE + 1)
+    asserts.assert_fails(lambda: _larky_565197355(), ".*?OverflowError.*int too large")
+
 # def BaseCompressTestCase():
 #     def BaseCompressTestCase_check_big_compress_buffer(size, compress_func):
 #         _1M = 1024 * 1024
@@ -963,8 +978,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_badcompressobj))
     _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_baddecompressobj))
     _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_decompressobj_badflush))
-    # _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_overflow))
-    # _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_disallow_instantiation))
+    _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_overflow))
     return _suite
 
 _runner = unittest.TextTestRunner()

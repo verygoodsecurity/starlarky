@@ -55,6 +55,9 @@ load("@stdlib//jzlib", _JZLib="jzlib")
 load("@vendor//option/result", Result="Result", Error="Error")
 
 
+MAX_BUFSIZE = 1073741824 #  (1 << 30)
+
+
 DEFLATED = 8
 MAX_WBITS = 15
 DEF_MEM_LEVEL = 8
@@ -77,21 +80,46 @@ Z_DEFAULT_STRATEGY = 0
 Z_FINISH = 4
 _valid_flush_modes = (Z_FINISH,)
 
-def adler32(s, value=1):
-    return _JZLib.adler32(s, value)
 
-def crc32(string, value=0):
-    return binascii.crc32(string, value)
+def adler32(data, value=1):
+    """
+    Compute an Adler-32 checksum of data.
 
-def compress(string, level=6):
+      value
+        Starting value of the checksum.
+
+    The returned checksum is an integer.
+    """
+    if not types.is_bytelike(data):
+        fail("TypeError: a bytes-like object is required, not '%s'" % type(data))
+    return _JZLib.adler32(data, value)
+
+
+def crc32(data, value=0):
+    """
+    Compute a CRC-32 checksum of data.
+
+      value
+        Starting value of the checksum.
+
+    The returned checksum is an integer.
+    """
+    if not types.is_bytelike(data):
+        fail("TypeError: a bytes-like object is required, not '%s'" % type(data))
+    return binascii.crc32(data, value)
+
+
+def compress(data, level=6):
     if level < Z_BEST_SPEED or level > Z_BEST_COMPRESSION:
-        return Error("error: Bad compression level")
+        return Error("error: Bad compression level").unwrap()
+    if not types.is_bytelike(data):
+        fail("TypeError: a bytes-like object is required, not '%s'" % type(data))
     deflater = _JZLib.Deflater(level, 0)
 
     def __enter__():
         # noinspection PyUnboundLocalVariable
-        string = _to_input(string)
-        deflater.setInput(string, 0, len(string))
+        data = _to_input(data)
+        deflater.setInput(data, 0, len(data))
         deflater.finish()
         return _get_deflate_data(deflater)
     def __exit__(rval):
@@ -100,10 +128,19 @@ def compress(string, level=6):
 
     return Result.try_(__enter__).finally_(__exit__).build()
 
-def decompress(string, wbits=0, bufsize=16384):
+
+def decompress(data, wbits=0, bufsize=16384):
+    if bufsize < 0:
+        fail("ValueError: bufsize must be non-negative")
+    elif bufsize == 0:
+        bufsize = 1
+    elif bufsize > MAX_BUFSIZE:
+        fail("OverflowError: int too large (bufsize: '%d'), max is: %d", bufsize, MAX_BUFSIZE)
+    if not types.is_bytelike(data):
+        fail("TypeError: a bytes-like object is required, not '%s'" % type(data))
     inflater = _JZLib.Inflater(wbits < 0)
     def __enter__():
-        inflater.setInput(_to_input(string))
+        inflater.setInput(_to_input(data))
         return _get_inflate_data(inflater)
     def __exit__(rval):
         inflater.end()
@@ -113,8 +150,7 @@ def decompress(string, wbits=0, bufsize=16384):
 
 def compressobj(level=6, method=DEFLATED, wbits=MAX_WBITS, memLevel=0, strategy=0):
     self = larky.mutablestruct(__name__='compressobj', __class__=compressobj)
-    def __init__(level, method, wbits,
-                       memLevel, strategy):
+    def __init__(level, method, wbits, memLevel, strategy):
         if abs(wbits) > MAX_WBITS or abs(wbits) < 8:
             return Error("ValueError: Invalid initialization option").unwrap()
         self.deflater = _JZLib.Deflater(level, wbits < 0)
@@ -166,6 +202,12 @@ def decompressobj(wbits=MAX_WBITS):
     self = __init__(wbits)
 
     def decompress(string, max_length=0):
+        if max_length < 0:
+            return Error("ValueError: max_length must be a positive integer").unwrap()
+        elif max_length > MAX_BUFSIZE:
+            return Error("OverflowError: int too large " +
+                         "(bufsize: '%d'), max is: %d" %
+                         (max_length, MAX_BUFSIZE)).unwrap()
         if self._ended:
             return Error("error: decompressobj may not be used after flush()").unwrap()
 
@@ -177,8 +219,6 @@ def decompressobj(wbits=MAX_WBITS):
         self.unused_data = ""
         self.unconsumed_tail = ""
 
-        if max_length < 0:
-            return Error("ValueError: max_length must be a positive integer").unwrap()
 
         # Suppress gzip header if present and wbits < 0
         if self.gzip and not self.gzip_header_skipped:
@@ -208,6 +248,10 @@ def decompressobj(wbits=MAX_WBITS):
             length = 0
         elif length <= 0:
             return Error("ValueError: length must be greater than zero").unwrap()
+        elif length > MAX_BUFSIZE:
+            return Error("OverflowError: int too large " +
+                         "(bufsize: '%d'), max is: %d" %
+                         (length, MAX_BUFSIZE)).unwrap()
         last = _get_inflate_data(self.inflater, length)
         self.inflater.end()
         return last

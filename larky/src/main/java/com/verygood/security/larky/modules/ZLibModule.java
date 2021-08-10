@@ -7,8 +7,11 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkBytes.StarlarkByteArray;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
+
+import org.jetbrains.annotations.NotNull;
 
 
 @StarlarkBuiltin(
@@ -112,5 +115,118 @@ public class ZLibModule implements StarlarkValue {
       }
       result = (s2 << 16) | s1;
       return result;
+  }
+
+  static class LarkyInflater implements StarlarkValue {
+
+    private final boolean param;
+
+    private LarkyInflater(boolean param) {
+      this.param = param;
+    }
+
+    public static @NotNull LarkyInflater of(boolean param) {
+      return new LarkyInflater(param);
+    }
+
+    @StarlarkMethod(name="setInput", parameters = {@Param(name = "param")})
+    public void setInput(String param) {
+
+    }
+
+    @StarlarkMethod(name="getRemaining")
+    public StarlarkInt getRemaining() {
+      return StarlarkInt.of(0);
+    }
+
+    @StarlarkMethod(name="finished")
+    public boolean finished() {
+      return false;
+    }
+
+    @StarlarkMethod(name="end")
+    public void end() {
+
+    }
+
+    @StarlarkMethod(name="inflate", parameters = {
+      @Param(name = "buf"),
+      @Param(name = "start", defaultValue = "0"),
+      @Param(name = "end", defaultValue = "unbound"),
+    })
+    public StarlarkInt inflate(StarlarkByteArray buf, Object startO, Object endO) {
+      return StarlarkInt.of(0);
+    }
+
+  }
+
+  @StarlarkMethod(name="Inflater", parameters = {@Param(name = "bool")})
+  public LarkyInflater inflater(boolean param) {
+    return LarkyInflater.of(param);
+  }
+
+  static class LarkyDeflater implements StarlarkValue {
+
+    private final int level;
+    private final boolean nowrap;
+
+    private LarkyDeflater(int level, boolean nowrap) {
+      this.level = level;
+      this.nowrap = nowrap;
+    }
+
+    /**
+     * Creates a new compressor using the specified compression level.
+     * If 'nowrap' is true then the ZLIB header and checksum fields will
+     * not be used in order to support the compression format used in
+     * both GZIP and PKZIP.
+     * @param level the compression level (0-9)
+     * @param nowrap if true then use GZIP compatible compression
+     */
+    public static @NotNull LarkyDeflater of(int level, boolean nowrap) {
+      return new LarkyDeflater(level, nowrap);
+    }
+
+    @StarlarkMethod(name="setInput", parameters = {
+      @Param(name = "data"),
+      @Param(name = "start", defaultValue = "0"),
+      @Param(name = "end", defaultValue = "unbound"),
+    })
+    public void setInput(StarlarkByteArray data, Object startO, Object endO) {
+    }
+
+
+    @StarlarkMethod(name="finish")
+    public void finish() {
+    }
+
+    @StarlarkMethod(name="finished")
+    public boolean finished() {
+      return false;
+    }
+
+    @StarlarkMethod(name="end")
+    public void end() {
+    }
+
+    @StarlarkMethod(name="setStrategy", parameters = {@Param(name="strategy")})
+    public void setStrategy(StarlarkInt strategy) {
+    }
+
+    @StarlarkMethod(name="deflate", parameters = {
+      @Param(name = "buf"),
+    })
+    public StarlarkInt deflate(StarlarkByteArray buf) {
+      return StarlarkInt.of(0);
+    }
+
+  }
+
+  @StarlarkMethod(name="Deflater", parameters = {
+    @Param(name = "level", allowedTypes = {@ParamType(type= StarlarkInt.class)}),
+    @Param(name = "nowrap", allowedTypes = {@ParamType(type= Boolean.class)}),
+  })
+  public LarkyDeflater deflater(StarlarkInt level, boolean nowrap) {
+    return LarkyDeflater.of(level.toIntUnchecked(), nowrap);
   }
 }
