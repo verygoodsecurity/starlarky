@@ -33,7 +33,6 @@ def ChecksumTestCase_test_crc32empty():
 
 def ChecksumTestCase_test_adler32start():
     asserts.assert_that(zlib.adler32(b"")).is_equal_to(zlib.adler32(b"", 1))
-    print("wtf is this: ",zlib.adler32(b"abc", 0xffffffff))
     asserts.assert_that(zlib.adler32(b"abc", 0xffffffff)).is_true()
 
 def ChecksumTestCase_test_adler32empty():
@@ -130,42 +129,33 @@ def ExceptionTestCase_test_overflow():
         zlib.decompressobj().flush(SYS_MAXSIZE + 1)
     asserts.assert_fails(lambda: _larky_565197355(), ".*?OverflowError.*int too large")
 
-# def BaseCompressTestCase():
-#     def BaseCompressTestCase_check_big_compress_buffer(size, compress_func):
-#         _1M = 1024 * 1024
-#         # Generate 10 MiB worth of random, and expand it by repeating it.
-#         # The assumption is that zlib's memory is not big enough to exploit
-#         # such spread out redundancy.
-#         data = random.randbytes(_1M * 10)
-#         data = data * (size // len(data) + 1)
-#         try:
-#             compress_func(data)
-#         finally:
-#             # Release memory
-#             data = None
-#     self.BaseCompressTestCase_check_big_compress_buffer = BaseCompressTestCase_check_big_compress_buffer
-#
-#     def BaseCompressTestCase_check_big_decompress_buffer(size, decompress_func):
-#         data = b'x' * size
-#         try:
-#             compressed = zlib.compress(data, 1)
-#         finally:
-#             # Release memory
-#             data = None
-#         data = decompress_func(compressed)
-#         # Sanity check
-#         try:
-#             asserts.assert_that(len(data)).is_equal_to(size)
-#             asserts.assert_that(len(data.strip(b'x'))).is_equal_to(0)
-#         finally:
-#             data = None
-#     self.BaseCompressTestCase_check_big_decompress_buffer = BaseCompressTestCase_check_big_decompress_buffer
-#     return self
+
+def _check_big_compress_buffer(size, compress_func):
+    _1M = 1024 * 1024
+    # Generate 10 MiB worth of random, and expand it by repeating it.
+    # The assumption is that zlib's memory is not big enough to exploit
+    # such spread out redundancy.
+    data = random.randbytes(_1M * 10)
+    data = data * (size // len(data) + 1)
+    compress_func(data)
+
+
+def _check_big_decompress_buffer(size, decompress_func):
+    data = b'x' * size
+    compressed = zlib.compress(data, 1)
+    data = decompress_func(compressed)
+    # Sanity check
+    asserts.assert_that(len(data)).is_equal_to(size)
+    asserts.assert_that(len(data.strip(b'x'))).is_equal_to(0)
+
+
+# Test compression in one go (whole message compression)
+def CompressTestCase_test_speech():
+    x = zlib.compress(HAMLET_SCENE)
+    asserts.assert_that(zlib.decompress(x)).is_equal_to(HAMLET_SCENE)
+
 # def CompressTestCase():
-#     # Test compression in one go (whole message compression)
-#     def CompressTestCase_test_speech():
-#         x = zlib.compress(HAMLET_SCENE)
-#         asserts.assert_that(zlib.decompress(x)).is_equal_to(HAMLET_SCENE)
+
 #     self.CompressTestCase_test_speech = CompressTestCase_test_speech
 #
 #     def CompressTestCase_test_keywords():
@@ -956,12 +946,14 @@ LAERTES
 
        Farewell.
 """
+
 def CustomInt():
     self = larky.mutablestruct(__class__=CustomInt, __name__='CustomInt')
     def __index__():
         return 100
     self.__index__ = __index__
     return self
+
 
 def _testsuite():
     _suite = unittest.TestSuite()
@@ -979,6 +971,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_baddecompressobj))
     _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_decompressobj_badflush))
     _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_overflow))
+    _suite.addTest(unittest.FunctionTestCase(CompressTestCase_test_speech))
     return _suite
 
 _runner = unittest.TextTestRunner()

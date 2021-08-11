@@ -114,19 +114,19 @@ def compress(data, level=6):
         return Error("error: Bad compression level").unwrap()
     if not types.is_bytelike(data):
         fail("TypeError: a bytes-like object is required, not '%s'" % type(data))
-    deflater = _JZLib.Deflater(level, 0)
+    deflater = _JZLib.Deflater(level, False)
 
     def __enter__():
-        # noinspection PyUnboundLocalVariable
-        data = _to_input(data)
         deflater.setInput(data, 0, len(data))
         deflater.finish()
         return _get_deflate_data(deflater)
+
     def __exit__(rval):
         deflater.end()
         return rval
 
-    return Result.try_(__enter__).finally_(__exit__).build()
+    result = Result.try_(__enter__).finally_(__exit__).build()
+    return result.unwrap()
 
 
 def decompress(data, wbits=0, bufsize=16384):
@@ -139,14 +139,18 @@ def decompress(data, wbits=0, bufsize=16384):
     if not types.is_bytelike(data):
         fail("TypeError: a bytes-like object is required, not '%s'" % type(data))
     inflater = _JZLib.Inflater(wbits < 0)
+
     def __enter__():
-        inflater.setInput(_to_input(data))
+        inflater.setInput(data)
         return _get_inflate_data(inflater)
+
     def __exit__(rval):
         inflater.end()
         return rval
 
-    return Result.try_(__enter__).finally_(__exit__).build()
+    result = Result.try_(__enter__).finally_(__exit__).build()
+    return result.unwrap()
+
 
 def compressobj(level=6, method=DEFLATED, wbits=MAX_WBITS, memLevel=0, strategy=0):
     self = larky.mutablestruct(__name__='compressobj', __class__=compressobj)
@@ -164,7 +168,6 @@ def compressobj(level=6, method=DEFLATED, wbits=MAX_WBITS, memLevel=0, strategy=
     def compress(string):
         if self._ended:
             return Error("error: compressobj may not be used after flush(Z_FINISH)").unwrap()
-        string = _to_input(string)
         self.deflater.setInput(string, 0, len(string))
         return _get_deflate_data(self.deflater)
     self.compress = compress
@@ -225,8 +228,6 @@ def decompressobj(wbits=MAX_WBITS):
             string = _skip_gzip_header(string)
             self.gzip_header_skipped = True
 
-        string = _to_input(string)
-
         self.inflater.setInput(string)
         inflated = _get_inflate_data(self.inflater, max_length)
 
@@ -259,12 +260,10 @@ def decompressobj(wbits=MAX_WBITS):
 
     return self
 
-def _to_input(string):
-    return str(string)
 
 def _get_deflate_data(deflater):
-    buf = bytearray([0]*1024)
-    s = StringIO()
+    data = bytearray()
+    buf = bytearray(b" " * 1024)
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if not not deflater.finished():
             break
@@ -272,14 +271,14 @@ def _get_deflate_data(deflater):
 
         if l == 0:
             break
-        # s.write(String(buf, 0, 0, l))
-        s.write(buf[0:l])
-    s.seek(0)
-    return s.read()
+        data.extend(buf[0:l])
+        buf.clear()
+    return data
+
 
 def _get_inflate_data(inflater, max_length=0):
     buf = bytearray([0]*1024)
-    s = StringIO()
+    data = bytearray()
     total = 0
 
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
@@ -295,12 +294,10 @@ def _get_inflate_data(inflater, max_length=0):
             break
 
         total += l
-        # s.write(String(buf, 0, 0, l))
-        s.write(buf[0:l])
+        data.extend(buf[0:l])
         if max_length and total == max_length:
             break
-    s.seek(0)
-    return s.read()
+    return data
 
 
 

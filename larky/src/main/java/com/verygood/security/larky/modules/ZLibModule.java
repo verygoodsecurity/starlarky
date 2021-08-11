@@ -1,5 +1,11 @@
 package com.verygood.security.larky.modules;
 
+import java.util.zip.DataFormatException;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
+
+import com.verygood.security.larky.parser.StarlarkUtil;
+
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -119,10 +125,10 @@ public class ZLibModule implements StarlarkValue {
 
   static class LarkyInflater implements StarlarkValue {
 
-    private final boolean param;
+    private final Inflater inflater;
 
-    private LarkyInflater(boolean param) {
-      this.param = param;
+    private LarkyInflater(boolean nowrap) {
+      this.inflater = new Inflater(nowrap);
     }
 
     public static @NotNull LarkyInflater of(boolean param) {
@@ -130,32 +136,53 @@ public class ZLibModule implements StarlarkValue {
     }
 
     @StarlarkMethod(name="setInput", parameters = {@Param(name = "param")})
-    public void setInput(String param) {
-
+    public void setInput(StarlarkBytes param) {
+      this.inflater.setInput(param.toByteArray());
     }
 
     @StarlarkMethod(name="getRemaining")
     public StarlarkInt getRemaining() {
-      return StarlarkInt.of(0);
+      return StarlarkInt.of(this.inflater.getRemaining());
     }
 
     @StarlarkMethod(name="finished")
     public boolean finished() {
-      return false;
+      return this.inflater.finished();
     }
 
     @StarlarkMethod(name="end")
     public void end() {
-
+      this.inflater.end();
     }
 
     @StarlarkMethod(name="inflate", parameters = {
       @Param(name = "buf"),
-      @Param(name = "start", defaultValue = "0"),
-      @Param(name = "end", defaultValue = "unbound"),
+      @Param(name = "offset", defaultValue = "0"),
+      @Param(name = "length", defaultValue = "unbound"),
     })
-    public StarlarkInt inflate(StarlarkByteArray buf, Object startO, Object endO) {
-      return StarlarkInt.of(0);
+    public StarlarkInt inflate(StarlarkByteArray buf, Object offsetO, Object lengthO) throws EvalException {
+      final byte[] bytes = buf.toByteArray();
+      int result;
+
+      if(!StarlarkUtil.isNullOrNoneOrUnbound(lengthO)) {
+        final StarlarkInt off = (StarlarkInt) StarlarkUtil.valueToStarlark(offsetO);
+        final StarlarkInt len = (StarlarkInt) StarlarkUtil.valueToStarlark(lengthO);
+        try {
+          result = this.inflater.inflate(bytes, off.toIntUnchecked(), len.toIntUnchecked());
+        }catch (DataFormatException e) {
+          throw new EvalException(e.getMessage(), e.getCause());
+        }
+      }
+      else {
+        try {
+          result = this.inflater.inflate(bytes);
+        }catch(DataFormatException e) {
+          throw new EvalException(e.getMessage(), e.getCause());
+        }
+      }
+
+      buf.replaceAll(StarlarkBytes.immutableOf(bytes));
+      return StarlarkInt.of(result);
     }
 
   }
@@ -167,12 +194,10 @@ public class ZLibModule implements StarlarkValue {
 
   static class LarkyDeflater implements StarlarkValue {
 
-    private final int level;
-    private final boolean nowrap;
+    private final Deflater deflater;
 
     private LarkyDeflater(int level, boolean nowrap) {
-      this.level = level;
-      this.nowrap = nowrap;
+      this.deflater = new Deflater(level, nowrap);
     }
 
     /**
@@ -189,37 +214,53 @@ public class ZLibModule implements StarlarkValue {
 
     @StarlarkMethod(name="setInput", parameters = {
       @Param(name = "data"),
-      @Param(name = "start", defaultValue = "0"),
-      @Param(name = "end", defaultValue = "unbound"),
+      @Param(name = "offset", defaultValue = "0"),
+      @Param(name = "length", defaultValue = "unbound"),
     })
-    public void setInput(StarlarkByteArray data, Object startO, Object endO) {
+    public void setInput(StarlarkBytes data, Object offsetO, Object lengthO) {
+      if(!StarlarkUtil.isNullOrNoneOrUnbound(lengthO)) {
+        final StarlarkInt off = (StarlarkInt) StarlarkUtil.valueToStarlark(offsetO);
+        final StarlarkInt len = (StarlarkInt) StarlarkUtil.valueToStarlark(lengthO);
+        deflater.setInput(data.toByteArray(), off.toIntUnchecked(), len.toIntUnchecked());
+      }
+      else {
+        deflater.setInput(data.toByteArray());
+      }
     }
-
 
     @StarlarkMethod(name="finish")
     public void finish() {
+      deflater.finish();
     }
 
     @StarlarkMethod(name="finished")
     public boolean finished() {
-      return false;
+      return deflater.finished();
     }
 
     @StarlarkMethod(name="end")
     public void end() {
+      deflater.end();
     }
 
     @StarlarkMethod(name="setStrategy", parameters = {@Param(name="strategy")})
     public void setStrategy(StarlarkInt strategy) {
+      deflater.setStrategy(strategy.toIntUnchecked());
     }
 
     @StarlarkMethod(name="deflate", parameters = {
       @Param(name = "buf"),
     })
     public StarlarkInt deflate(StarlarkByteArray buf) {
-      return StarlarkInt.of(0);
+      final int outLength = buf.size();
+      final byte[] out = new byte[outLength];
+      int result = deflater.deflate(out);
+      for (int i = 0; i < outLength; i++) {
+        byte b = out[i];
+        buf.set(i, b);
+      }
+      return StarlarkInt.of(result);
     }
-
   }
 
   @StarlarkMethod(name="Deflater", parameters = {
