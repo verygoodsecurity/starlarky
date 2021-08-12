@@ -48,37 +48,45 @@ Information about the version of the zlib library in use is available through th
 """
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//codecs", codecs="codecs")
-load("@stdlib//io/StringIO", StringIO="StringIO")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//jzlib", _JZLib="jzlib")
 load("@vendor//option/result", Result="Result", Error="Error")
 
-
-MAX_BUFSIZE = 1073741824 #  (1 << 30)
-
-
+# Variables with simple values
 DEFLATED = 8
-MAX_WBITS = 15
+DEF_BUF_SIZE = 16384
 DEF_MEM_LEVEL = 8
-ZLIB_VERSION = "1.1.3"
-ZLIB_RUNTIME_VERSION = "1.1.3"
-
+MAX_WBITS = 15
+# https://github.com/openjdk/jdk/blob/jdk8-b120/jdk/src/share/native/java/util/zip/zlib-1.2.5/README#L3
+ZLIB_RUNTIME_VERSION = b"1.2.5"
+ZLIB_VERSION = b"1.2.5"
 Z_BEST_COMPRESSION = 9
 Z_BEST_SPEED = 1
-
-Z_FILTERED = 1
-Z_HUFFMAN_ONLY = 2
-
+Z_BLOCK = 5
 Z_DEFAULT_COMPRESSION = -1
 Z_DEFAULT_STRATEGY = 0
-
-# Most options are removed because java does not support them
-# Z_NO_FLUSH = 0
-# Z_SYNC_FLUSH = 2
-# Z_FULL_FLUSH = 3
+Z_FILTERED = 1
 Z_FINISH = 4
-_valid_flush_modes = (Z_FINISH,)
+Z_FIXED = 4
+Z_FULL_FLUSH = 3  # Unsupported by java
+Z_HUFFMAN_ONLY = 2
+Z_NO_COMPRESSION = 0
+Z_NO_FLUSH = 0  # Unsupported by java
+Z_PARTIAL_FLUSH = 1
+Z_RLE = 3
+Z_SYNC_FLUSH = 2  # Unsupported by java
+Z_TREES = 6
+
+# Larky specific
+LARKY_MAX_BUFSIZE = 1073741824 #  (1 << 30)
+_valid_flush_modes = (Z_NO_FLUSH, Z_SYNC_FLUSH, Z_FULL_FLUSH, Z_FINISH,)
+
+_zlib_to_deflater = {
+    Z_NO_FLUSH: _JZLib.NO_FLUSH,
+    Z_SYNC_FLUSH: _JZLib.SYNC_FLUSH,
+    Z_FULL_FLUSH: _JZLib.FULL_FLUSH
+}
 
 
 def adler32(data, value=1):
@@ -134,15 +142,20 @@ def decompress(data, wbits=0, bufsize=16384):
         fail("ValueError: bufsize must be non-negative")
     elif bufsize == 0:
         bufsize = 1
-    elif bufsize > MAX_BUFSIZE:
-        fail("OverflowError: int too large (bufsize: '%d'), max is: %d", bufsize, MAX_BUFSIZE)
+    elif bufsize > LARKY_MAX_BUFSIZE:
+        fail("OverflowError: int too large " +
+             "(bufsize: '%d'), max is: %d" %
+             (bufsize, LARKY_MAX_BUFSIZE))
     if not types.is_bytelike(data):
         fail("TypeError: a bytes-like object is required, not '%s'" % type(data))
     inflater = _JZLib.Inflater(wbits < 0)
 
     def __enter__():
         inflater.setInput(data)
-        return _get_inflate_data(inflater)
+        rval = _get_inflate_data(inflater)
+        if not inflater.finished():
+            return Error("Error -5 while decompressing data: incomplete or truncated stream")
+        return rval
 
     def __exit__(rval):
         inflater.end()
@@ -152,23 +165,25 @@ def decompress(data, wbits=0, bufsize=16384):
     return result.unwrap()
 
 
-def compressobj(level=6, method=DEFLATED, wbits=MAX_WBITS, memLevel=0, strategy=0):
+def compressobj(level=6, method=DEFLATED, wbits=MAX_WBITS, memLevel=DEF_MEM_LEVEL, strategy=0, zdict=None):
     self = larky.mutablestruct(__name__='compressobj', __class__=compressobj)
-    def __init__(level, method, wbits, memLevel, strategy):
+    def __init__(level, method, wbits, memLevel, strategy, zdict):
         if abs(wbits) > MAX_WBITS or abs(wbits) < 8:
             return Error("ValueError: Invalid initialization option").unwrap()
         self.deflater = _JZLib.Deflater(level, wbits < 0)
         self.deflater.setStrategy(strategy)
+        if zdict:
+            self.deflater.setDictionary(zdict)
         if wbits < 0:
             _get_deflate_data(self.deflater)
         self._ended = False
         return self
-    self = __init__(level, method, wbits, memLevel, strategy)
+    self = __init__(level, method, wbits, memLevel, strategy, zdict)
 
-    def compress(string):
+    def compress(data):
         if self._ended:
             return Error("error: compressobj may not be used after flush(Z_FINISH)").unwrap()
-        self.deflater.setInput(string, 0, len(string))
+        self.deflater.setInput(data, 0, len(data))
         return _get_deflate_data(self.deflater)
     self.compress = compress
 
@@ -177,6 +192,8 @@ def compressobj(level=6, method=DEFLATED, wbits=MAX_WBITS, memLevel=0, strategy=
             return Error("error: compressobj may not be used after flush(Z_FINISH)").unwrap()
         if mode not in _valid_flush_modes:
             return Error("ValueError: Invalid flush option").unwrap()
+        #if mode == Z_FINISH:
+        #    self.deflater.finish()
         self.deflater.finish()
         last = _get_deflate_data(self.deflater)
         if mode == Z_FINISH:
@@ -186,31 +203,34 @@ def compressobj(level=6, method=DEFLATED, wbits=MAX_WBITS, memLevel=0, strategy=
     self.flush = flush
     return self
 
-def decompressobj(wbits=MAX_WBITS):
+
+def decompressobj(wbits=MAX_WBITS, zdict=None):
     self = larky.mutablestruct(__name__='decompressobj', __class__=decompressobj)
 
-    def __init__(wbits):
+    def __init__(wbits, zdict):
         if abs(wbits) < 8:
             return Error("ValueError: Invalid initialization option").unwrap()
-        if abs(wbits) > 16:  # NOTE apparently this also implies being negative in CPython/zlib
+        if abs(wbits) > 16: # XX: apparently wbits > 16 = negative in CPython..
             wbits = -1
 
         self.inflater = _JZLib.Inflater(wbits < 0)
         self._ended = False
-        self.unused_data = ""
-        self.unconsumed_tail = ""
+        self.unused_data = b""
+        self.unconsumed_tail = b""
         self.gzip = wbits < 0
         self.gzip_header_skipped = False
+        if self.gzip and zdict:
+            self.inflater.setDictionary(zdict)
         return self
-    self = __init__(wbits)
+    self = __init__(wbits, zdict)
 
-    def decompress(string, max_length=0):
+    def decompress(data, max_length=0):
         if max_length < 0:
             return Error("ValueError: max_length must be a positive integer").unwrap()
-        elif max_length > MAX_BUFSIZE:
+        elif max_length > LARKY_MAX_BUFSIZE:
             return Error("OverflowError: int too large " +
                          "(bufsize: '%d'), max is: %d" %
-                         (max_length, MAX_BUFSIZE)).unwrap()
+                         (max_length, LARKY_MAX_BUFSIZE)).unwrap()
         if self._ended:
             return Error("error: decompressobj may not be used after flush()").unwrap()
 
@@ -219,24 +239,24 @@ def decompressobj(wbits=MAX_WBITS):
         # unconsumed_tail is whatever input was not used because max_length
         # was exceeded before inflation finished.
         # Thus, at most one of {unused_data, unconsumed_tail} may be non-empty.
-        self.unused_data = ""
-        self.unconsumed_tail = ""
-
+        self.unconsumed_tail = b""
+        if not self.inflater.finished() and not (self.gzip and not self.gzip_header_skipped):
+            self.unused_data = b""
 
         # Suppress gzip header if present and wbits < 0
         if self.gzip and not self.gzip_header_skipped:
-            string = _skip_gzip_header(string)
+            data = _skip_gzip_header(data)
             self.gzip_header_skipped = True
 
-        self.inflater.setInput(string)
+        self.inflater.setInput(data)
         inflated = _get_inflate_data(self.inflater, max_length)
 
         r = self.inflater.getRemaining()
         if r:
-            if max_length:
-                self.unconsumed_tail = string[-r:]
+            if max_length and not self.inflater.finished():
+                self.unconsumed_tail = data[-r:]
             else:
-                self.unused_data = string[-r:]
+                self.unused_data = data[-r:]
 
         return inflated
     self.decompress = decompress
@@ -249,10 +269,10 @@ def decompressobj(wbits=MAX_WBITS):
             length = 0
         elif length <= 0:
             return Error("ValueError: length must be greater than zero").unwrap()
-        elif length > MAX_BUFSIZE:
+        elif length > LARKY_MAX_BUFSIZE:
             return Error("OverflowError: int too large " +
                          "(bufsize: '%d'), max is: %d" %
-                         (length, MAX_BUFSIZE)).unwrap()
+                         (length, LARKY_MAX_BUFSIZE)).unwrap()
         last = _get_inflate_data(self.inflater, length)
         self.inflater.end()
         return last
@@ -263,7 +283,7 @@ def decompressobj(wbits=MAX_WBITS):
 
 def _get_deflate_data(deflater):
     data = bytearray()
-    buf = bytearray(b" " * 1024)
+    buf = bytearray(b"\x00" * 1024)
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if not not deflater.finished():
             break
@@ -272,12 +292,12 @@ def _get_deflate_data(deflater):
         if l == 0:
             break
         data.extend(buf[0:l])
-        buf.clear()
-    return data
+    buf.clear()
+    return bytes(data)
 
 
 def _get_inflate_data(inflater, max_length=0):
-    buf = bytearray([0]*1024)
+    buf = bytearray(b" " * 1024)
     data = bytearray()
     total = 0
 
@@ -297,7 +317,8 @@ def _get_inflate_data(inflater, max_length=0):
         data.extend(buf[0:l])
         if max_length and total == max_length:
             break
-    return data
+    buf.clear()
+    return bytes(data)
 
 
 
@@ -307,17 +328,18 @@ FEXTRA = 4
 FNAME = 8
 FCOMMENT = 16
 
-def _skip_gzip_header(string):
+def _skip_gzip_header(data):
     # per format specified in http://tools.ietf.org/html/rfc1952
-
-    s = bytearray(codecs.encode(string, encoding='utf-8'))
+    s = data
+    if not types.is_bytelike(data):
+        s = bytearray(codecs.encode(data, encoding='utf-8'))
 
     id1 = s[0]
     id2 = s[1]
 
     # Check gzip magic
     if id1 != 31 or id2 != 139:
-        return string
+        return data
 
     cm = s[2]
     flg = s[3]
@@ -347,27 +369,32 @@ def _skip_gzip_header(string):
 
 zlib = larky.struct(
     DEFLATED=DEFLATED,
+    DEF_BUF_SIZE=DEF_BUF_SIZE,
     DEF_MEM_LEVEL=DEF_MEM_LEVEL,
+    MAX_WBITS=MAX_WBITS,
+    ZLIB_RUNTIME_VERSION=ZLIB_RUNTIME_VERSION,
+    ZLIB_VERSION=ZLIB_VERSION,
+    Z_BEST_COMPRESSION=Z_BEST_COMPRESSION,
+    Z_BEST_SPEED=Z_BEST_SPEED,
+    Z_BLOCK=Z_BLOCK,
+    Z_DEFAULT_COMPRESSION=Z_DEFAULT_COMPRESSION,
+    Z_DEFAULT_STRATEGY=Z_DEFAULT_STRATEGY,
+    Z_FILTERED=Z_FILTERED,
+    Z_FINISH=Z_FINISH,
+    Z_FIXED=Z_FIXED,
+    Z_FULL_FLUSH=Z_FULL_FLUSH,
+    Z_HUFFMAN_ONLY=Z_HUFFMAN_ONLY,
+    Z_NO_COMPRESSION=Z_NO_COMPRESSION,
+    Z_NO_FLUSH=Z_NO_FLUSH,
+    Z_PARTIAL_FLUSH=Z_PARTIAL_FLUSH,
+    Z_RLE=Z_RLE,
+    Z_SYNC_FLUSH=Z_SYNC_FLUSH,
+    Z_TREES=Z_TREES,
     FCOMMENT=FCOMMENT,
     FEXTRA=FEXTRA,
     FHCRC=FHCRC,
     FNAME=FNAME,
     FTEXT=FTEXT,
-    MAX_WBITS=MAX_WBITS,
-    ZLIB_VERSION=ZLIB_VERSION,
-    ZLIB_RUNTIME_VERSION=ZLIB_RUNTIME_VERSION,
-    Z_BEST_COMPRESSION=Z_BEST_COMPRESSION,
-    Z_BEST_SPEED=Z_BEST_SPEED,
-    Z_DEFAULT_COMPRESSION=Z_DEFAULT_COMPRESSION,
-    Z_DEFAULT_STRATEGY=Z_DEFAULT_STRATEGY,
-    Z_FILTERED=Z_FILTERED,
-    Z_FINISH=Z_FINISH,
-    Z_HUFFMAN_ONLY=Z_HUFFMAN_ONLY,
-    # _get_deflate_data=_get_deflate_data,
-    # _get_inflate_data=_get_inflate_data,
-    # _skip_gzip_header=_skip_gzip_header,
-    # _to_input=_to_input,
-    # _valid_flush_modes=_valid_flush_modes,
     adler32=adler32,
     compress=compress,
     compressobj=compressobj,

@@ -28,6 +28,21 @@ public class ZLibModule implements StarlarkValue {
 
   public static final ZLibModule INSTANCE = new ZLibModule();
 
+  @StarlarkMethod(name="NO_FLUSH", structField = true)
+  public StarlarkInt NO_FLUSH() {
+    return StarlarkInt.of(Deflater.NO_FLUSH);
+  }
+
+  @StarlarkMethod(name="SYNC_FLUSH", structField = true)
+  public StarlarkInt SYNC_FLUSH() {
+    return StarlarkInt.of(Deflater.SYNC_FLUSH);
+  }
+
+  @StarlarkMethod(name="FULL_FLUSH", structField = true)
+  public StarlarkInt FULL_FLUSH() {
+    return StarlarkInt.of(Deflater.FULL_FLUSH);
+  }
+
   /**
    *  The NMAX optimization avoids modulo calculations on every iteration.
    *
@@ -126,13 +141,25 @@ public class ZLibModule implements StarlarkValue {
   static class LarkyInflater implements StarlarkValue {
 
     private final Inflater inflater;
+    private final boolean nowrap;
+    private byte[] zdict;
 
     private LarkyInflater(boolean nowrap) {
+      this.nowrap = nowrap;
       this.inflater = new Inflater(nowrap);
     }
 
     public static @NotNull LarkyInflater of(boolean param) {
       return new LarkyInflater(param);
+    }
+
+    @StarlarkMethod(name="setDictionary", parameters = {@Param(name="zdict")})
+    public void setDictionary(StarlarkBytes zdict) throws EvalException {
+      if(StarlarkUtil.isNullOrNoneOrUnbound(zdict)) {
+        throw Starlark.errorf("setDictionary requires a sequence of bytes of at least length 1");
+      }
+      this.zdict = zdict.toByteArray();
+      inflater.setDictionary(zdict.toByteArray());
     }
 
     @StarlarkMethod(name="setInput", parameters = {@Param(name = "param")})
@@ -161,26 +188,29 @@ public class ZLibModule implements StarlarkValue {
       @Param(name = "length", defaultValue = "unbound"),
     })
     public StarlarkInt inflate(StarlarkByteArray buf, Object offsetO, Object lengthO) throws EvalException {
+      try {
+        return _inflate(buf, offsetO, lengthO);
+      } catch (DataFormatException e) {
+        throw new EvalException(e.getMessage(), e.getCause());
+      }
+    }
+
+    @NotNull
+    private StarlarkInt _inflate(StarlarkByteArray buf, Object offsetO, Object lengthO) throws DataFormatException {
       final byte[] bytes = buf.toByteArray();
       int result;
-
       if(!StarlarkUtil.isNullOrNoneOrUnbound(lengthO)) {
         final StarlarkInt off = (StarlarkInt) StarlarkUtil.valueToStarlark(offsetO);
         final StarlarkInt len = (StarlarkInt) StarlarkUtil.valueToStarlark(lengthO);
-        try {
-          result = this.inflater.inflate(bytes, off.toIntUnchecked(), len.toIntUnchecked());
-        }catch (DataFormatException e) {
-          throw new EvalException(e.getMessage(), e.getCause());
-        }
+        result = this.inflater.inflate(bytes, off.toIntUnchecked(), len.toIntUnchecked());
       }
       else {
-        try {
-          result = this.inflater.inflate(bytes);
-        }catch(DataFormatException e) {
-          throw new EvalException(e.getMessage(), e.getCause());
-        }
+        result = this.inflater.inflate(bytes);
       }
-
+//      if (!nowrap && result == 0 && inflater.needsDictionary() && zdict.length > 0) {
+//          inflater.setDictionary(zdict);
+//          inflater.inflate(bytes);
+//      }
       buf.replaceAll(StarlarkBytes.immutableOf(bytes));
       return StarlarkInt.of(result);
     }
@@ -246,6 +276,14 @@ public class ZLibModule implements StarlarkValue {
     @StarlarkMethod(name="setStrategy", parameters = {@Param(name="strategy")})
     public void setStrategy(StarlarkInt strategy) {
       deflater.setStrategy(strategy.toIntUnchecked());
+    }
+
+    @StarlarkMethod(name="setDictionary", parameters = {@Param(name="zdict")})
+    public void setDictionary(StarlarkBytes zdict) throws EvalException {
+      if(StarlarkUtil.isNullOrNoneOrUnbound(zdict)) {
+        throw Starlark.errorf("setDictionary requires a sequence of bytes of at least length 1");
+      }
+      deflater.setDictionary(zdict.toByteArray());
     }
 
     @StarlarkMethod(name="deflate", parameters = {
