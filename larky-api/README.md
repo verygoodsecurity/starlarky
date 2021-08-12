@@ -16,21 +16,18 @@
 Note that if `com.verygood.security:larky` is already in your classpath, 
 this may impact the usability of this API. 
 
-### 2) Download the needed Larky fat-jars.
+### 2) Write some code.
 
-From the [github package registry](https://github.com/verygoodsecurity/starlarky/packages/673862),
-download the Larky fat-jar files with the format `larky-x.x.x-jar-with-dependencies.jar` for the versions you want to include in your 
-API, 
-rename them to `larky-x.x.x-fat.jar`,
-and place them in `~/.larky/lib`.
+Try this Hello World example.
 
-#### - Changing Larky fat-jar directory:
-By default, the API will detect versions in `~/.larky/lib/larky-x.x.x-fat.jar`.
-To change the root directory, set the `LARKY_LIB_HOME` environment variable and the API will then detect versions from
-`$LARKY_LIB_HOME/larky-x.x.x-fat.jar`
+```
+String script = 
+            "def hello_world():\n" +
+            "    return \"Hello From Larky!\"\n" +
+            "output = hello_world()";
+    
+LarkyAPIEngine engine = new LarkyAPIEngine();
+String result = engine.executeScript(script, "output").toString();
 
-#### - Downloading all versions with a script:
-To download all available Larky fat-jar versions automatically, run the following script:
-```shell
-./scripts/get_resources.sh
+// result == "Hello From Larky!"
 ```
