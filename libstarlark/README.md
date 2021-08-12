@@ -27,7 +27,8 @@ The following is a **complete** list of changes applied to upstream.  The list e
 - [396e243](https://github.com/verygoodsecurity/starlarky/commit/5f8103c22e40ec33c92d5846ec2849eb481a0e2b): Rename StarlarkByte => StarlarkBytes
 - [34abe6b](https://github.com/verygoodsecurity/starlarky/commit/34abe6bd9c00101b690feba7da0a20b0bb80644f): Introduced ByteStringModuleApi
 - [d796c6f](https://github.com/verygoodsecurity/starlarky/commit/d796c6f6779b6541fc859ae699f91afa783b355a): Use StarlarkBytes and StarlarkByteArray instead of LarkyByte and LarkyByteArray
-  
+- [1716e47](https://github.com/verygoodsecurity/starlarky/pull/149/commits/1716e47a1f756516834da971d31e849982ca9fe0): StarlarkBytes - General cleanup  
+
 ## Extending Starlark
 
 The easiest way to learn about extending Starlark with custom built-ins is to look into the tests directory. 

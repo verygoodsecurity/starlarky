@@ -14,6 +14,9 @@
 
 package com.verygood.security.larky.modules;
 
+import java.util.Arrays;
+import java.util.Map;
+
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -28,11 +31,9 @@ import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
+import net.starlark.java.lib.json.Json;
 
-import java.util.Arrays;
-import java.util.Map;
-
-// Tests at //src/test/java/net/starlark/java/eval:testdata/json.sky
+// Tests at //src/test/java/net/starlark/java/eval:testdata/json.star
 
 /**
  * JsonModule defines the Starlark {@code json} module, which provides functions for encoding/decoding
@@ -90,8 +91,15 @@ public final class JsonModule implements StarlarkValue {
    */
   public static final JsonModule INSTANCE = new JsonModule();
 
-  /** An interface for StarlarkValue subclasses to define their own JSON encoding. */
-  public interface Encodable {
+  /**
+   * An interface for StarlarkValue subclasses to define their own JSON encoding.
+   *
+   * This extends the {@link Json.Encodable} interface that comes built-in with Starlark
+   * directly so that Larky has a shared common way to encode in json without modifying
+   * anything in {@link net.starlark.java} which we want to keep to a minimum.
+   * */
+  public interface Encodable extends Json.Encodable {
+    @Override
     String encodeJSON();
   }
 
