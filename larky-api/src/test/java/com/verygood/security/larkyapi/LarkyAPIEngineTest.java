@@ -28,7 +28,7 @@ import static org.junit.Assert.assertTrue;
 
 public class LarkyAPIEngineTest {
 
-  private LarkyAPIEngine engine;
+  private LarkyRuntime engine;
 
   @Rule
   public ExpectedException exceptionRule = ExpectedException.none();
@@ -37,7 +37,7 @@ public class LarkyAPIEngineTest {
   public void setUp() throws Exception {
     synchronized (this) {
       // General
-      engine = new LarkyAPIEngine();
+      engine = new LarkyRuntime();
     }
   }
 
