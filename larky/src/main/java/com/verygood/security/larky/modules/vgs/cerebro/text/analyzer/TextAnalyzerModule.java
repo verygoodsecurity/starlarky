@@ -1,17 +1,16 @@
-package com.verygood.security.larky.modules;
+package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-import com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.DefaultTextPIIAnalyzer;
-import com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.NoopTextPIIAnalyzer;
-import com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.dto.TextPIIEntity;
-import com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.spi.TextPIIAnalyzer;
+import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.DefaultTextPIIAnalyzer;
+import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.NoopTextPIIAnalyzer;
+import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto.TextPIIEntity;
+import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.spi.TextPIIAnalyzer;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkFloat;
 
@@ -21,17 +20,17 @@ import java.util.ServiceLoader;
 import java.util.Set;
 
 @StarlarkBuiltin(
-    name = "text_pii_analyzer",
+    name = "TextPIIAnalyzer",
     category = "BUILTIN",
-    doc = "Overridable PII Analysis API in Larky")
-public class CerebroTextAnalyzerModule implements TextPIIAnalyzer {
+    doc = "Overridable Text PII Analysis API in Larky")
+public class TextAnalyzerModule implements TextPIIAnalyzer {
 
-  public static final CerebroTextAnalyzerModule INSTANCE = new CerebroTextAnalyzerModule();
+  public static final TextAnalyzerModule INSTANCE = new TextAnalyzerModule();
   public static final String ENABLE_INMEMORY_PROPERTY = "larky.modules.vgs.cerebro.piiAnalyzer.text.enableInMemory";
 
   private TextPIIAnalyzer textPiiAnalyzer;
 
-  public CerebroTextAnalyzerModule() {
+  public TextAnalyzerModule() {
 
     ServiceLoader<TextPIIAnalyzer> loader = ServiceLoader.load(TextPIIAnalyzer.class);
     List<TextPIIAnalyzer> textAnalyzerProviders = ImmutableList.copyOf(loader.iterator());
@@ -67,9 +66,8 @@ public class CerebroTextAnalyzerModule implements TextPIIAnalyzer {
               name = "language",
               doc = "two characters for the desired language in ISO_639-1 format.",
               named = true,
-              defaultValue = "EN",
+              defaultValue = "'EN'",
               allowedTypes = {
-                  @ParamType(type = NoneType.class),
                   @ParamType(type = String.class),
               }),
           @Param(
@@ -82,7 +80,7 @@ public class CerebroTextAnalyzerModule implements TextPIIAnalyzer {
                   @ParamType(type = List.class),
               }),
           @Param(
-              name = "scoreThreshold",
+              name = "score_threshold",
               doc = "a minimum value for which to return an identified entity, defaults to 0.0",
               named = true,
               defaultValue = "0.0",

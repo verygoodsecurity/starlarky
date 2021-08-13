@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.dto;
+package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto;
 
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;

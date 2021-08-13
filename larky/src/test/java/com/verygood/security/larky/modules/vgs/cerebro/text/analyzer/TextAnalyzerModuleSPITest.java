@@ -1,8 +1,7 @@
-package com.verygood.security.larky.modules.vgs.cerebro.analyzer.text;
+package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer;
 
-import com.verygood.security.larky.modules.CerebroTextAnalyzerModule;
 import com.verygood.security.larky.modules.VaultModule;
-import com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.dto.TextPIIEntity;
+import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto.TextPIIEntity;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkList;
@@ -20,7 +19,7 @@ import java.util.Collections;
 import java.util.List;
 
 // Tests that CerebroTextAnalyzerModule SPI functionality works as expected
-public class CerebroTextAnalyzerModuleSPITest {
+public class TextAnalyzerModuleSPITest {
 
   // This is the path to CerebroTextAnalyzerModule ServiceLoader config in the test classpath
   // Do not reference src/test/resources/META-INF/services because it is not put in the classpath at runtime,
@@ -30,7 +29,7 @@ public class CerebroTextAnalyzerModuleSPITest {
       "com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.spi.TextPIIAnalyzer"
   );
   private static String TEXT_PII_ANALYZER_SAVED_CONFIG;
-  private CerebroTextAnalyzerModule textAnalyzerModule;
+  private TextAnalyzerModule textAnalyzerModule;
 
   @BeforeAll
   public static void setUp() throws Exception {
@@ -48,8 +47,8 @@ public class CerebroTextAnalyzerModuleSPITest {
     // Arrange
     // Setup Noop Vault
     setTextPIIAnalyzerImpl("");
-    System.setProperty(CerebroTextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "false");
-    textAnalyzerModule = new CerebroTextAnalyzerModule();
+    System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "false");
+    textAnalyzerModule = new TextAnalyzerModule();
 
     // Act Assert
     // Assert Exceptions
@@ -79,8 +78,8 @@ public class CerebroTextAnalyzerModuleSPITest {
     // Arrange
     // Setup Default Vault through system config
     setTextPIIAnalyzerImpl("");
-    System.setProperty(CerebroTextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
-    textAnalyzerModule = new CerebroTextAnalyzerModule();
+    System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
+    textAnalyzerModule = new TextAnalyzerModule();
     List<String> cardNumbers = new ArrayList<>();
     cardNumbers.add("4095-2609-9393-4932");
     cardNumbers.add("4095260993934932");
@@ -107,8 +106,8 @@ public class CerebroTextAnalyzerModuleSPITest {
     // Arrange
     // Setup Default Vault through system config
     setTextPIIAnalyzerImpl("");
-    System.setProperty(CerebroTextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
-    textAnalyzerModule = new CerebroTextAnalyzerModule();
+    System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
+    textAnalyzerModule = new TextAnalyzerModule();
     String language = "ES";
 
     // Act
@@ -131,8 +130,8 @@ public class CerebroTextAnalyzerModuleSPITest {
     // Arrange
     // Setup Default Vault through system config
     setTextPIIAnalyzerImpl("");
-    System.setProperty(CerebroTextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
-    textAnalyzerModule = new CerebroTextAnalyzerModule();
+    System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
+    textAnalyzerModule = new TextAnalyzerModule();
     List<String> entities = new ArrayList<>();
     entities.add("CARD_NUMBER");
     entities.add("BLA_BLA_BLA");
@@ -154,8 +153,8 @@ public class CerebroTextAnalyzerModuleSPITest {
     // Arrange
     // Setup Default Vault through system config
     setTextPIIAnalyzerImpl("");
-    System.setProperty(CerebroTextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
-    textAnalyzerModule = new CerebroTextAnalyzerModule();
+    System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
+    textAnalyzerModule = new TextAnalyzerModule();
     String language = "ES";
 
     // Act
@@ -175,8 +174,8 @@ public class CerebroTextAnalyzerModuleSPITest {
   @Test
   public void testSPIModule_single_ok() throws Exception {
     // Setup Default Vault through SPI config
-    setTextPIIAnalyzerImpl("com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.DefaultTextPIIAnalyzer");
-    textAnalyzerModule = new CerebroTextAnalyzerModule();
+    setTextPIIAnalyzerImpl("com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.analyzers.DefaultTextPIIAnalyzer");
+    textAnalyzerModule = new TextAnalyzerModule();
     List<String> cardNumbers = new ArrayList<>();
     cardNumbers.add("4095-2609-9393-4932");
     cardNumbers.add("4095260993934932");
@@ -201,14 +200,14 @@ public class CerebroTextAnalyzerModuleSPITest {
   public void testSPIModule_multiple_exception() throws Exception {
 
     // Setup multiple vault SPI configs
-    setTextPIIAnalyzerImpl("com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.DefaultTextPIIAnalyzer\n"
-        + "com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.NoopTextPIIAnalyzer\n");
+    setTextPIIAnalyzerImpl("com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.analyzers.DefaultTextPIIAnalyzer\n"
+        + "com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.analyzers.NoopTextPIIAnalyzer\n");
     System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "false");
 
     // Assert Exception
     Assertions.assertThrows(IllegalArgumentException.class,
         () -> {
-          textAnalyzerModule = new CerebroTextAnalyzerModule();
+          textAnalyzerModule = new TextAnalyzerModule();
         },
         "Cerebro expecting only 1 text PII data analyzer provider of type TextPiiAnalyzer, found 2"
     );

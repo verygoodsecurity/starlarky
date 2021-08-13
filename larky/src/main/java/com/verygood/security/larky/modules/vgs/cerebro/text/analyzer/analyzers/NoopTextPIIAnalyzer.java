@@ -1,7 +1,7 @@
-package com.verygood.security.larky.modules.vgs.cerebro.analyzer.text;
+package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers;
 
-import com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.dto.TextPIIEntity;
-import com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.spi.TextPIIAnalyzer;
+import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto.TextPIIEntity;
+import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.spi.TextPIIAnalyzer;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkFloat;

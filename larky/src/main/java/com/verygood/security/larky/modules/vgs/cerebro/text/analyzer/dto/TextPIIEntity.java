@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.dto;
+package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,7 +14,7 @@ import java.util.Map;
 @Builder
 @AllArgsConstructor
 @StarlarkBuiltin(
-    name = "text_pii_entity",
+    name = "TextPIIEntity",
     category = "BUILTIN",
     doc = "The type represents TextPIIAnalyzer text analysis result, and describes an instance of PII entity.")
 public class TextPIIEntity implements StarlarkValue {
@@ -33,6 +33,7 @@ public class TextPIIEntity implements StarlarkValue {
 
   @StarlarkMethod(
       name = "entity_type",
+      structField = true,
       doc = "PII entity entity type")
   public String entityType() {
     return entityType;
@@ -40,6 +41,7 @@ public class TextPIIEntity implements StarlarkValue {
 
   @StarlarkMethod(
       name = "score",
+      structField = true,
       doc = "The PII detection score")
   public StarlarkFloat score() {
     return score;
@@ -47,6 +49,7 @@ public class TextPIIEntity implements StarlarkValue {
 
   @StarlarkMethod(
       name = "start",
+      structField = true,
       doc = "Where the PII starts")
   public StarlarkInt start() {
     return start;
@@ -54,6 +57,7 @@ public class TextPIIEntity implements StarlarkValue {
 
   @StarlarkMethod(
       name = "end",
+      structField = true,
       doc = "Where the PII ends")
   public StarlarkInt end() {
     return end;
