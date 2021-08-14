@@ -69,13 +69,13 @@ Z_DEFAULT_STRATEGY = 0
 Z_FILTERED = 1
 Z_FINISH = 4
 Z_FIXED = 4
-Z_FULL_FLUSH = 3  # Unsupported by java
+Z_FULL_FLUSH = 3  # Supported by java
 Z_HUFFMAN_ONLY = 2
 Z_NO_COMPRESSION = 0
-Z_NO_FLUSH = 0  # Unsupported by java
+Z_NO_FLUSH = 0  # Supported by java
 Z_PARTIAL_FLUSH = 1
 Z_RLE = 3
-Z_SYNC_FLUSH = 2  # Unsupported by java
+Z_SYNC_FLUSH = 2  # Supported by java
 Z_TREES = 6
 
 # Larky specific
@@ -258,11 +258,11 @@ def decompressobj(wbits=MAX_WBITS, zdict=None):
             data = _skip_gzip_header(data)
             self.gzip_header_skipped = True
 
+        # print("1. needs input?: ", self.inflater.needs_input(), "finished?:", self.inflater.finished())
         if self.inflater.finished():
             self.inflater.reset()
-        #print("1. needs input?: ", self.inflater.needs_input(), "finished?:", self.inflater.finished())
         self.inflater.setInput(data)
-        #print("2. needs input?: ", self.inflater.needs_input(), "finished?:", self.inflater.finished())
+        # print("2. needs input?: ", self.inflater.needs_input(), "finished?:", self.inflater.finished())
         inflated = _get_inflate_data(self.inflater, max_length)
         #print("3. needs input?: ", self.inflater.needs_input(), "finished?:", self.inflater.finished())
         if self.inflater.needs_dictionary():
@@ -301,7 +301,7 @@ def _get_deflate_data(deflater, mode):
     data = bytearray()
     buf = bytearray(b"\x00" * 1024)
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-        if not not deflater.finished():
+        if deflater.finished():
             break
         l = deflater.deflate(buf, mode)
         if l == 0:
@@ -317,7 +317,7 @@ def _get_inflate_data(inflater, max_length=0):
     total = 0
 
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-        if not not inflater.finished():
+        if inflater.finished():
             break
 
         if max_length:

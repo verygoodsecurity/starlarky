@@ -162,17 +162,17 @@ public class ZLibModule implements StarlarkValue {
   static class LarkyInflater implements StarlarkValue {
     private static final byte[] EMPTY_ARRAY = new byte[0];
     private final Inflater inflater;
-    private final boolean nowrap;
+    private final boolean rawInflate;
     private byte[] zdict;
 
-    private LarkyInflater(boolean nowrap) {
-      this.nowrap = nowrap;
-      this.inflater = new Inflater(nowrap);
+    private LarkyInflater(boolean rawInflate) {
+      this.rawInflate = rawInflate;
+      this.inflater = new Inflater(rawInflate);
       this.zdict = EMPTY_ARRAY;
     }
 
-    public static @NotNull LarkyInflater of(boolean param) {
-      return new LarkyInflater(param);
+    public static @NotNull LarkyInflater of(boolean rawInflate) {
+      return new LarkyInflater(rawInflate);
     }
 
     @StarlarkMethod(name="setDictionary", parameters = {@Param(name="zdict")})
@@ -224,6 +224,12 @@ public class ZLibModule implements StarlarkValue {
       @Param(name = "length", defaultValue = "unbound"),
     })
     public StarlarkInt inflate(StarlarkByteArray buf, Object offsetO, Object lengthO) throws EvalException {
+      if(rawInflate) {
+        // The docs (https://github.com/madler/zlib/blob/master/zlib.h#L828) say that in raw mode
+        // setDictionary can be called right after inflateInit2, so set the dictionary before
+        // inflate() if the mode is INFLATERAW
+        this.inflater.setDictionary(this.zdict);
+      }
       try {
         return _inflate(buf, offsetO, lengthO);
       } catch (DataFormatException e) {
@@ -243,7 +249,8 @@ public class ZLibModule implements StarlarkValue {
       else {
         result = this.inflater.inflate(bytes);
       }
-      if (!nowrap && result == 0 && inflater.needsDictionary() && zdict.length > 0) {
+
+      if (!rawInflate && result == 0 && inflater.needsDictionary() && zdict.length > 0) {
         inflater.setDictionary(zdict);
         result = inflater.inflate(bytes);
       }
