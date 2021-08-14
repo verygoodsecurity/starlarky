@@ -43,6 +43,27 @@ public class ZLibModule implements StarlarkValue {
     return StarlarkInt.of(Deflater.FULL_FLUSH);
   }
 
+  public enum Flush {
+    Z_NO_FLUSH, Z_PARTIAL_FLUSH, Z_SYNC_FLUSH, Z_FULL_FLUSH, Z_FINISH, Z_BLOCK;
+
+    public static int mapFlush(Flush flush) {
+      switch (flush) {
+        case Z_SYNC_FLUSH:
+          return Deflater.SYNC_FLUSH;
+        case Z_FULL_FLUSH:
+          return Deflater.FULL_FLUSH;
+        case Z_NO_FLUSH:
+        default:
+          return Deflater.NO_FLUSH;
+      }
+    }
+
+    public static int mapFlush(int flush) {
+      return mapFlush(Flush.values()[flush]);
+    }
+
+  }
+
   /**
    *  The NMAX optimization avoids modulo calculations on every iteration.
    *
@@ -139,7 +160,7 @@ public class ZLibModule implements StarlarkValue {
   }
 
   static class LarkyInflater implements StarlarkValue {
-
+    private static final byte[] EMPTY_ARRAY = new byte[0];
     private final Inflater inflater;
     private final boolean nowrap;
     private byte[] zdict;
@@ -147,6 +168,7 @@ public class ZLibModule implements StarlarkValue {
     private LarkyInflater(boolean nowrap) {
       this.nowrap = nowrap;
       this.inflater = new Inflater(nowrap);
+      this.zdict = EMPTY_ARRAY;
     }
 
     public static @NotNull LarkyInflater of(boolean param) {
@@ -159,7 +181,6 @@ public class ZLibModule implements StarlarkValue {
         throw Starlark.errorf("setDictionary requires a sequence of bytes of at least length 1");
       }
       this.zdict = zdict.toByteArray();
-      inflater.setDictionary(zdict.toByteArray());
     }
 
     @StarlarkMethod(name="setInput", parameters = {@Param(name = "param")})
@@ -167,9 +188,24 @@ public class ZLibModule implements StarlarkValue {
       this.inflater.setInput(param.toByteArray());
     }
 
+    @StarlarkMethod(name="needs_dictionary")
+    public boolean needsDictionary() {
+      return inflater.needsDictionary();
+    }
+
+    @StarlarkMethod(name="needs_input")
+    public boolean needsInput() {
+      return inflater.needsInput();
+    }
+
     @StarlarkMethod(name="getRemaining")
     public StarlarkInt getRemaining() {
       return StarlarkInt.of(this.inflater.getRemaining());
+    }
+
+    @StarlarkMethod(name="reset")
+    public void reset() {
+      inflater.reset();
     }
 
     @StarlarkMethod(name="finished")
@@ -207,10 +243,10 @@ public class ZLibModule implements StarlarkValue {
       else {
         result = this.inflater.inflate(bytes);
       }
-//      if (!nowrap && result == 0 && inflater.needsDictionary() && zdict.length > 0) {
-//          inflater.setDictionary(zdict);
-//          inflater.inflate(bytes);
-//      }
+      if (!nowrap && result == 0 && inflater.needsDictionary() && zdict.length > 0) {
+        inflater.setDictionary(zdict);
+        result = inflater.inflate(bytes);
+      }
       buf.replaceAll(StarlarkBytes.immutableOf(bytes));
       return StarlarkInt.of(result);
     }
@@ -222,6 +258,7 @@ public class ZLibModule implements StarlarkValue {
     return LarkyInflater.of(param);
   }
 
+  // start COMPRESSION (OR DEFLATE)
   static class LarkyDeflater implements StarlarkValue {
 
     private final Deflater deflater;
@@ -258,6 +295,11 @@ public class ZLibModule implements StarlarkValue {
       }
     }
 
+    @StarlarkMethod(name="reset")
+    public void reset() {
+      deflater.reset();
+    }
+
     @StarlarkMethod(name="finish")
     public void finish() {
       deflater.finish();
@@ -288,11 +330,18 @@ public class ZLibModule implements StarlarkValue {
 
     @StarlarkMethod(name="deflate", parameters = {
       @Param(name = "buf"),
+      @Param(name = "flush"),
     })
-    public StarlarkInt deflate(StarlarkByteArray buf) {
+    public StarlarkInt deflate(StarlarkByteArray buf, StarlarkInt flush) throws EvalException {
       final int outLength = buf.size();
       final byte[] out = new byte[outLength];
-      int result = deflater.deflate(out);
+      int result;
+      try {
+        // flush here means we have to reset input?
+        result = deflater.deflate(out, 0, outLength, flush.toIntUnchecked());
+      } catch(IllegalArgumentException e) {
+        throw new EvalException(e.getMessage(), e.getCause());
+      }
       for (int i = 0; i < outLength; i++) {
         byte b = out[i];
         buf.set(i, b);

@@ -127,7 +127,7 @@ def compress(data, level=6):
     def __enter__():
         deflater.setInput(data, 0, len(data))
         deflater.finish()
-        return _get_deflate_data(deflater)
+        return _get_deflate_data(deflater, Z_NO_FLUSH)
 
     def __exit__(rval):
         deflater.end()
@@ -175,7 +175,7 @@ def compressobj(level=6, method=DEFLATED, wbits=MAX_WBITS, memLevel=DEF_MEM_LEVE
         if zdict:
             self.deflater.setDictionary(zdict)
         if wbits < 0:
-            _get_deflate_data(self.deflater)
+            _get_deflate_data(self.deflater, Z_NO_FLUSH)
         self._ended = False
         return self
     self = __init__(level, method, wbits, memLevel, strategy, zdict)
@@ -184,7 +184,7 @@ def compressobj(level=6, method=DEFLATED, wbits=MAX_WBITS, memLevel=DEF_MEM_LEVE
         if self._ended:
             return Error("error: compressobj may not be used after flush(Z_FINISH)").unwrap()
         self.deflater.setInput(data, 0, len(data))
-        return _get_deflate_data(self.deflater)
+        return _get_deflate_data(self.deflater, Z_NO_FLUSH)
     self.compress = compress
 
     def flush(mode=Z_FINISH):
@@ -195,10 +195,16 @@ def compressobj(level=6, method=DEFLATED, wbits=MAX_WBITS, memLevel=DEF_MEM_LEVE
         #if mode == Z_FINISH:
         #    self.deflater.finish()
         self.deflater.finish()
-        last = _get_deflate_data(self.deflater)
         if mode == Z_FINISH:
+            last = _get_deflate_data(self.deflater, Z_NO_FLUSH)
             self.deflater.end()
             self._ended = True
+        else:
+            last = _get_deflate_data(self.deflater, mode)
+
+        if mode == Z_SYNC_FLUSH:
+            # reset after z_sync_flush?
+            self.deflater.reset()
         return last
     self.flush = flush
     return self
@@ -219,10 +225,14 @@ def decompressobj(wbits=MAX_WBITS, zdict=None):
         self.unconsumed_tail = b""
         self.gzip = wbits < 0
         self.gzip_header_skipped = False
-        if self.gzip and zdict:
+        if zdict:
             self.inflater.setDictionary(zdict)
         return self
     self = __init__(wbits, zdict)
+
+    def _eof():
+        return self.inflater.finished()
+    self.eof = larky.property(_eof)
 
     def decompress(data, max_length=0):
         if max_length < 0:
@@ -248,9 +258,15 @@ def decompressobj(wbits=MAX_WBITS, zdict=None):
             data = _skip_gzip_header(data)
             self.gzip_header_skipped = True
 
+        if self.inflater.finished():
+            self.inflater.reset()
+        #print("1. needs input?: ", self.inflater.needs_input(), "finished?:", self.inflater.finished())
         self.inflater.setInput(data)
+        #print("2. needs input?: ", self.inflater.needs_input(), "finished?:", self.inflater.finished())
         inflated = _get_inflate_data(self.inflater, max_length)
-
+        #print("3. needs input?: ", self.inflater.needs_input(), "finished?:", self.inflater.finished())
+        if self.inflater.needs_dictionary():
+            fail("error: Error 2 while decompressing data")
         r = self.inflater.getRemaining()
         if r:
             if max_length and not self.inflater.finished():
@@ -281,14 +297,13 @@ def decompressobj(wbits=MAX_WBITS, zdict=None):
     return self
 
 
-def _get_deflate_data(deflater):
+def _get_deflate_data(deflater, mode):
     data = bytearray()
     buf = bytearray(b"\x00" * 1024)
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if not not deflater.finished():
             break
-        l = deflater.deflate(buf)
-
+        l = deflater.deflate(buf, mode)
         if l == 0:
             break
         data.extend(buf[0:l])

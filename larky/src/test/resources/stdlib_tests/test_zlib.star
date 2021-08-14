@@ -839,16 +839,16 @@ def _testsuite():
     # --works
     _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_odd_flush))
     _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_empty_flush))
+    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_dictionary))
+    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_dictionary_streaming))
     # -- doesn't
-    # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_dictionary))
-    # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_dictionary_streaming))
     # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_incomplete_stream))
     # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_eof))
     # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_eof_incomplete_stream))
     # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_unused_data))
     # -- works
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_raw_with_dictionary))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_flush_with_freed_input))
+    # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_raw_with_dictionary))
+    # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_flush_with_freed_input))
     # -- doesn't
     # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_flush_custom_length))
     # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_compresscopy))
