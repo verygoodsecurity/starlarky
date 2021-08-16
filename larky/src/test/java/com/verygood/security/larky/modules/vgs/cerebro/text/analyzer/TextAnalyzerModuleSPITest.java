@@ -174,7 +174,7 @@ public class TextAnalyzerModuleSPITest {
   @Test
   public void testSPIModule_single_ok() throws Exception {
     // Setup Default Vault through SPI config
-    setTextPIIAnalyzerImpl("com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.analyzers.DefaultTextPIIAnalyzer");
+    setTextPIIAnalyzerImpl("com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.DefaultTextPIIAnalyzer");
     textAnalyzerModule = new TextAnalyzerModule();
     List<String> cardNumbers = new ArrayList<>();
     cardNumbers.add("4095-2609-9393-4932");
@@ -200,8 +200,8 @@ public class TextAnalyzerModuleSPITest {
   public void testSPIModule_multiple_exception() throws Exception {
 
     // Setup multiple vault SPI configs
-    setTextPIIAnalyzerImpl("com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.analyzers.DefaultTextPIIAnalyzer\n"
-        + "com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.analyzers.NoopTextPIIAnalyzer\n");
+    setTextPIIAnalyzerImpl("com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.DefaultTextPIIAnalyzer\n"
+        + "com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.NoopTextPIIAnalyzer\n");
     System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "false");
 
     // Assert Exception
