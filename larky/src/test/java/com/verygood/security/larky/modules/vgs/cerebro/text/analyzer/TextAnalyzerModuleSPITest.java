@@ -26,7 +26,7 @@ public class TextAnalyzerModuleSPITest {
   // and thus not reference by ServiceLoader
   private static final Path TEXT_PII_ANALYZER_CONFIG_PATH = Paths.get(
       "target", "test-classes", "META-INF", "services",
-      "com.verygood.security.larky.modules.vgs.cerebro.analyzer.text.spi.TextPIIAnalyzer"
+      "com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.spi.TextPIIAnalyzer"
   );
   private static String TEXT_PII_ANALYZER_SAVED_CONFIG;
   private TextAnalyzerModule textAnalyzerModule;
