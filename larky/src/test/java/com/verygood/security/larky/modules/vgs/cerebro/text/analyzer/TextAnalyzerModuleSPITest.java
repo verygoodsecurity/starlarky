@@ -1,6 +1,5 @@
 package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer;
 
-import com.verygood.security.larky.modules.VaultModule;
 import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto.TextPIIEntity;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkFloat;
@@ -202,13 +201,11 @@ public class TextAnalyzerModuleSPITest {
     // Setup multiple vault SPI configs
     setTextPIIAnalyzerImpl("com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.DefaultTextPIIAnalyzer\n"
         + "com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.NoopTextPIIAnalyzer\n");
-    System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "false");
+    System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "false");
 
     // Assert Exception
     Assertions.assertThrows(IllegalArgumentException.class,
-        () -> {
-          textAnalyzerModule = new TextAnalyzerModule();
-        },
+        TextAnalyzerModule::new,
         "Cerebro expecting only 1 text PII data analyzer provider of type TextPiiAnalyzer, found 2"
     );
   }
