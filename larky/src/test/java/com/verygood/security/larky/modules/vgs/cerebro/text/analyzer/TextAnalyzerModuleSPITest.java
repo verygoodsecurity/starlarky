@@ -28,11 +28,13 @@ public class TextAnalyzerModuleSPITest {
       "com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.spi.TextPIIAnalyzer"
   );
   private static String TEXT_PII_ANALYZER_SAVED_CONFIG;
-  private TextAnalyzerModule textAnalyzerModule;
+  private static TextAnalyzerModule textAnalyzerModule;
 
   @BeforeAll
   public static void setUp() throws Exception {
     TEXT_PII_ANALYZER_SAVED_CONFIG = getTextPIIAnalyzerImpl();
+    // Initialize class static fields before all tests
+    textAnalyzerModule = new TextAnalyzerModule();
   }
 
   @AfterAll
