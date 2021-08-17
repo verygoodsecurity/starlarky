@@ -31,6 +31,15 @@ public class TextPIIEntity implements StarlarkValue {
   // Where the PII ends
   private final StarlarkInt end;
 
+  public static TextPIIEntity of(String entityType, double score, int start, int end) {
+    return TextPIIEntity.builder()
+        .entityType(entityType)
+        .score(StarlarkFloat.of(score))
+        .start(StarlarkInt.of(start))
+        .end(StarlarkInt.of(end))
+        .build();
+  }
+
   @StarlarkMethod(
       name = "entity_type",
       structField = true,
