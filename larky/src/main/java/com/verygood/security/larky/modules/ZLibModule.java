@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules;
 
+import java.util.zip.CRC32;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -203,6 +204,11 @@ public class ZLibModule implements StarlarkValue {
       return StarlarkInt.of(this.inflater.getRemaining());
     }
 
+    @StarlarkMethod(name="getBytesWritten")
+    public StarlarkInt getBytesWritten() {
+      return StarlarkInt.of(this.inflater.getBytesWritten());
+    }
+
     @StarlarkMethod(name="reset")
     public void reset() {
       inflater.reset();
@@ -233,7 +239,7 @@ public class ZLibModule implements StarlarkValue {
       try {
         return _inflate(buf, offsetO, lengthO);
       } catch (DataFormatException e) {
-        throw new EvalException(e.getMessage(), e.getCause());
+        throw new EvalException(e.getMessage(), e);
       }
     }
 
@@ -363,5 +369,31 @@ public class ZLibModule implements StarlarkValue {
   })
   public LarkyDeflater deflater(StarlarkInt level, boolean nowrap) {
     return LarkyDeflater.of(level.toIntUnchecked(), nowrap);
+  }
+
+  static class LarkyCRC32 implements StarlarkValue {
+    private final CRC32 x;
+
+    public LarkyCRC32() {
+      this.x = new CRC32();
+    }
+
+    @StarlarkMethod(name="update", parameters = {
+          @Param(name = "data")}
+    )
+    public void update(StarlarkBytes buf) throws EvalException {
+      byte[] bytes = buf.toByteArray();
+      this.x.update(bytes, 0, bytes.length);
+    }
+
+    @StarlarkMethod(name="getValue")
+    public StarlarkInt getValue() throws EvalException {
+      return StarlarkInt.of(x.getValue());
+    }
+  }
+
+  @StarlarkMethod(name="CRC32")
+  public LarkyCRC32 crc32z() {
+    return new LarkyCRC32();
   }
 }
