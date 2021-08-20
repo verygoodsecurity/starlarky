@@ -100,7 +100,7 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
               }),
           @Param(
               name = "language",
-              doc = "two characters for the desired language in ISO_639-1 format.",
+              doc = "two characters for the desired language in ISO_639-1 format. Defaults to 'en'.",
               named = true,
               defaultValue = "'en'",
               allowedTypes = {
