@@ -37,7 +37,7 @@ public class SimpleStruct implements LarkyObject {
     return new MutableStruct(kwargs, thread);
   }
 
-  public SimpleStruct(Map<String, Object> fields, StarlarkThread currentThread) {
+  protected SimpleStruct(Map<String, Object> fields, StarlarkThread currentThread) {
     this.currentThread = currentThread;
     this.fields = fields;
   }
