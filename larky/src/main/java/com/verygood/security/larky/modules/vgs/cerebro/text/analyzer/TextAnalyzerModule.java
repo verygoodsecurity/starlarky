@@ -25,10 +25,9 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.logging.Level;
 
-@StarlarkBuiltin(
-    name = "TextPIIAnalyzer",
-    category = "BUILTIN",
-    doc = "Overridable Text PII Analysis API in Larky")
+/**
+ * "Overridable Text PII Analysis API in Larky"
+*/
 public class TextAnalyzerModule implements TextPIIAnalyzer {
 
   private static final FluentLogger log = FluentLogger.forEnclosingClass();
