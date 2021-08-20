@@ -109,7 +109,8 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
           @Param(
               name = "entities",
               doc = "list of PII entities that should be looked for in the text.\n" +
-                  "If List is empty, analyzer will look for all supported entities for given language.",
+                  "If List is empty, analyzer will look for all supported entities for given language.\n" +
+                  "Example: ['CREDIT_CARD', 'CRYPTO']",
               named = true,
               defaultValue = "[]",
               allowedTypes = {
