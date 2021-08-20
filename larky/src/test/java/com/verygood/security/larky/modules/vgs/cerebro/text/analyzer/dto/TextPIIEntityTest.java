@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto;
 
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import org.junit.jupiter.api.Assertions;
@@ -15,7 +16,7 @@ public class TextPIIEntityTest {
   private static final String SCORE_KEY = "score";
 
   @Test
-  void testTextPIIEntity_toDict_ok() {
+  void testTextPIIEntity_toDict_ok() throws EvalException {
     // Arrange
     final String entityType = "CARD_NUMBER";
     final int start = 0;
@@ -23,9 +24,9 @@ public class TextPIIEntityTest {
     final double score = 0.0;
 
     // Act
-    final TextPIIEntity piiEntity = createTextPiiEntity(entityType, start, end, score);
+    final TextPIIEntity piiEntity = TextPIIEntity.of(entityType, score, start, end);
 
-    final Map<String, Object> piiDict = piiEntity.toDict();
+    final Map<String, Object> piiDict = piiEntity.dunderDict();
 
     // Assert
     Assertions.assertEquals(4, piiDict.size());
@@ -33,14 +34,5 @@ public class TextPIIEntityTest {
     Assertions.assertEquals(StarlarkInt.of(start), piiDict.get(START_KEY));
     Assertions.assertEquals(StarlarkInt.of(end), piiDict.get(END_KEY));
     Assertions.assertEquals(StarlarkFloat.of(score), piiDict.get(SCORE_KEY));
-  }
-
-  private TextPIIEntity createTextPiiEntity(String entityType, int start, int end, double score) {
-    return TextPIIEntity.builder()
-        .entityType(entityType)
-        .start(StarlarkInt.of(start))
-        .end(StarlarkInt.of(end))
-        .score(StarlarkFloat.of(score))
-        .build();
   }
 }

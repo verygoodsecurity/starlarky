@@ -1,20 +1,19 @@
 package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto;
 
-import lombok.Builder;
+import com.verygood.security.larky.modules.types.PyProtocols;
+import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
-import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.StarlarkThread;
 
-
-@Builder
 @StarlarkBuiltin(
     name = "TextPIIEntity",
     category = "BUILTIN",
     doc = "The type represents TextPIIAnalyzer text analysis result, and describes an instance of PII entity.")
-public class TextPIIEntity implements StarlarkValue {
+public class TextPIIEntity extends SimpleStruct {
 
   // Type of the PII entity. e.g.: CARD_NUMBER, CRYPTO, etc.
   private final String entityType;
@@ -28,13 +27,17 @@ public class TextPIIEntity implements StarlarkValue {
   // Where the PII ends
   private final StarlarkInt end;
 
+
+  TextPIIEntity(String entityType, StarlarkFloat score, StarlarkInt start, StarlarkInt end, StarlarkThread thread) {
+    super(dictOf(entityType, score, start, end), thread);
+    this.entityType = entityType;
+    this.score = score;
+    this.start = start;
+    this.end = end;
+  }
+
   public static TextPIIEntity of(String entityType, double score, int start, int end) {
-    return TextPIIEntity.builder()
-        .entityType(entityType)
-        .score(StarlarkFloat.of(score))
-        .start(StarlarkInt.of(start))
-        .end(StarlarkInt.of(end))
-        .build();
+    return new TextPIIEntity(entityType, StarlarkFloat.of(score), StarlarkInt.of(start), StarlarkInt.of(end), null);
   }
 
   @StarlarkMethod(
@@ -69,16 +72,24 @@ public class TextPIIEntity implements StarlarkValue {
     return end;
   }
 
-  @StarlarkMethod(
-      name = "to_dict",
-      doc = "Dictionary PII representation")
-  public Dict<String, Object> toDict() {
-    return Dict.<String, Object>builder()
-        .put("entity_type", this.entityType)
-        .put("score", this.score)
-        .put("start", this.start)
-        .put("end", this.end)
-        .buildImmutable();
+  @Override
+  @StarlarkMethod(name = PyProtocols.__DICT__, structField = true)
+  public Dict<String, Object> dunderDict() {
+    return TextPIIEntity.dictOf(this.entityType, this.score, this.start, this.end);
   }
 
+  @Override
+  public boolean isImmutable() {
+    return true;
+  }
+
+  private static Dict<String, Object> dictOf(String entityType, StarlarkFloat score, StarlarkInt start,
+                                             StarlarkInt end) {
+    return Dict.<String, Object>builder()
+        .put("entity_type", entityType)
+        .put("score", score)
+        .put("start", start)
+        .put("end", end)
+        .buildImmutable();
+  }
 }

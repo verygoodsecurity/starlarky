@@ -3,13 +3,11 @@ package com.verygood.security.larky.modules.types.structs;
 import com.google.common.base.Joiner;
 
 import com.verygood.security.larky.modules.types.Property;
-import com.verygood.security.larky.modules.types.PyProtocols;
 
+import com.verygood.security.larky.modules.types.PyProtocols;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 
 import lombok.SneakyThrows;
@@ -19,20 +17,14 @@ class MutableStruct extends SimpleStruct {
     super(fields, currentThread);
   }
 
+  @Override
   @StarlarkMethod(name = PyProtocols.__DICT__, structField = true)
   public Dict<String, Object> dunderDict() throws EvalException {
-    StarlarkThread thread = getCurrentThread();
-    StarlarkList<String> keys = Starlark.dir(thread.mutability(), thread.getSemantics(), this);
-    Dict.Builder<String, Object> builder = Dict.builder();
-    for(String k : keys) {
-      // obviously, ignore the actual __dict__ key since we're in this method already
-      if(k.equals(PyProtocols.__DICT__)) {
-        continue;
-      }
-      Object value = super.getValue(k);
-      builder.put(k,  value != null ? value : Starlark.NONE);
-    }
-    return builder.build(thread.mutability());
+    Dict<String, Object> structDict = super.dunderDict();
+    Dict.Builder<String, Object> dictBuilder = Dict.builder();
+    return dictBuilder
+        .putAll(structDict)
+        .build(this.currentThread.mutability());
   }
 
   @Override
