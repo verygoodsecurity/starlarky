@@ -34,7 +34,7 @@ public class TextAnalyzerModuleSPITest {
   public static void setUp() throws Exception {
     TEXT_PII_ANALYZER_SAVED_CONFIG = getTextPIIAnalyzerImpl();
     // Initialize class static fields before all tests
-    textAnalyzerModule = new TextAnalyzerModule();
+    textAnalyzerModule = TextAnalyzerModule.init();
   }
 
   @AfterAll
@@ -49,7 +49,7 @@ public class TextAnalyzerModuleSPITest {
     // Setup Noop Vault
     setTextPIIAnalyzerImpl("");
     System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "false");
-    textAnalyzerModule = new TextAnalyzerModule();
+    textAnalyzerModule = TextAnalyzerModule.init();
 
     // Act Assert
     // Assert Exceptions
@@ -80,7 +80,7 @@ public class TextAnalyzerModuleSPITest {
     // Setup Default Vault through system config
     setTextPIIAnalyzerImpl("");
     System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
-    textAnalyzerModule = new TextAnalyzerModule();
+    textAnalyzerModule = TextAnalyzerModule.init();
     List<String> cardNumbers = new ArrayList<>();
     cardNumbers.add("4095-2609-9393-4932");
     cardNumbers.add("4095260993934932");
@@ -108,7 +108,7 @@ public class TextAnalyzerModuleSPITest {
     // Setup Default Vault through system config
     setTextPIIAnalyzerImpl("");
     System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
-    textAnalyzerModule = new TextAnalyzerModule();
+    textAnalyzerModule = TextAnalyzerModule.init();
     String language = "english";
 
     // Act
@@ -129,7 +129,7 @@ public class TextAnalyzerModuleSPITest {
     // Setup Default Vault through system config
     setTextPIIAnalyzerImpl("");
     System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
-    textAnalyzerModule = new TextAnalyzerModule();
+    textAnalyzerModule = TextAnalyzerModule.init();
     String language = "es";
 
     // Act
@@ -153,7 +153,7 @@ public class TextAnalyzerModuleSPITest {
     // Setup Default Vault through system config
     setTextPIIAnalyzerImpl("");
     System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
-    textAnalyzerModule = new TextAnalyzerModule();
+    textAnalyzerModule = TextAnalyzerModule.init();
     List<String> entities = new ArrayList<>();
     entities.add("CARD_NUMBER");
     entities.add("BLA_BLA_BLA");
@@ -176,7 +176,7 @@ public class TextAnalyzerModuleSPITest {
     // Setup Default Vault through system config
     setTextPIIAnalyzerImpl("");
     System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
-    textAnalyzerModule = new TextAnalyzerModule();
+    textAnalyzerModule = TextAnalyzerModule.init();
     String language = "ES";
 
     // Act
@@ -197,7 +197,7 @@ public class TextAnalyzerModuleSPITest {
   public void testSPIModule_single_ok() throws Exception {
     // Setup Default Vault through SPI config
     setTextPIIAnalyzerImpl("com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.InMemoryTextPIIAnalyzer");
-    textAnalyzerModule = new TextAnalyzerModule();
+    textAnalyzerModule = TextAnalyzerModule.init();
     List<String> cardNumbers = new ArrayList<>();
     cardNumbers.add("4095-2609-9393-4932");
     cardNumbers.add("4095260993934932");
@@ -228,7 +228,7 @@ public class TextAnalyzerModuleSPITest {
 
     // Assert Exception
     Assertions.assertThrows(IllegalArgumentException.class,
-        TextAnalyzerModule::new,
+        TextAnalyzerModule::init,
         "Cerebro expecting only 1 text PII data analyzer provider of type TextPiiAnalyzer, found 2"
     );
   }

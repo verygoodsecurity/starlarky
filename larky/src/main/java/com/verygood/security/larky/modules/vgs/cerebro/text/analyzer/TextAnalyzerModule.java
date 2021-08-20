@@ -37,13 +37,13 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
   private static final Set<String> ISO_LANGUAGES = new HashSet<>
       (Arrays.asList(Locale.getISOLanguages()));
 
-  public static final TextAnalyzerModule INSTANCE = new TextAnalyzerModule();
+  public static final TextAnalyzerModule INSTANCE = init();
   public static final String ENABLE_INMEMORY_PROPERTY =
       "larky.modules.vgs.cerebro.text.analyzer.spi.enableInMemoryPIIAnalyzer";
 
   private final TextPIIAnalyzer textPiiAnalyzer;
 
-  public TextAnalyzerModule() {
+  private TextAnalyzerModule() {
 
     ServiceLoader<TextPIIAnalyzer> loader = ServiceLoader.load(TextPIIAnalyzer.class);
     List<TextPIIAnalyzer> textAnalyzerProviders = ImmutableList.copyOf(loader.iterator());
@@ -68,6 +68,10 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
       textPiiAnalyzer = textAnalyzerProviders.get(0);
     }
 
+  }
+
+  public static TextAnalyzerModule init() {
+    return new TextAnalyzerModule();
   }
 
   @StarlarkMethod(
