@@ -32,7 +32,7 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
 
   private static final FluentLogger log = FluentLogger.forEnclosingClass();
 
-  //  ISO 639 language codes
+  //ISO 639 language codes
   private static final Set<String> ISO_LANGUAGES = new HashSet<>
       (Arrays.asList(Locale.getISOLanguages()));
 
@@ -40,7 +40,7 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
   public static final String ENABLE_INMEMORY_PROPERTY =
       "larky.modules.vgs.cerebro.text.analyzer.spi.enableInMemoryPIIAnalyzer";
 
-  private TextPIIAnalyzer textPiiAnalyzer;
+  private final TextPIIAnalyzer textPiiAnalyzer;
 
   public TextAnalyzerModule() {
 
