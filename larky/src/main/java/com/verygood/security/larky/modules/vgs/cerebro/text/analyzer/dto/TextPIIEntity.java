@@ -43,7 +43,7 @@ public class TextPIIEntity extends SimpleStruct {
   }
 
   public static TextPIIEntity immutableOf(String entityType, double score, int start, int end) {
-    return new TextPIIEntity(entityType, StarlarkFloat.of(score), StarlarkInt.of(start), StarlarkInt.of(end), null);
+    return TextPIIEntity.of(entityType, score, start, end, null);
   }
 
   public static TextPIIEntity of(String entityType, double score, int start, int end, StarlarkThread thread) {
