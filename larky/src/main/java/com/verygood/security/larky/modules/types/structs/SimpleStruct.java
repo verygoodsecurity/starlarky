@@ -112,7 +112,6 @@ public class SimpleStruct implements LarkyObject {
   protected Dict.Builder<String, Object> composeAndFillDunderDictBuilder() throws EvalException {
     StarlarkThread thread = getCurrentThread();
     StarlarkList<String> keys = Starlark.dir(thread.mutability(), thread.getSemantics(), this);
-    Collections.sort(keys);
     Dict.Builder<String, Object> builder = Dict.builder();
     for(String k : keys) {
       // obviously, ignore the actual __dict__ key since we're in this method already
