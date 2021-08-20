@@ -37,7 +37,8 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
       (Arrays.asList(Locale.getISOLanguages()));
 
   public static final TextAnalyzerModule INSTANCE = new TextAnalyzerModule();
-  public static final String ENABLE_INMEMORY_PROPERTY = "larky.modules.vgs.cerebro.piiAnalyzer.text.enableInMemory";
+  public static final String ENABLE_INMEMORY_PROPERTY =
+      "larky.modules.vgs.cerebro.text.analyzer.spi.enableInMemoryPIIAnalyzer";
 
   private TextPIIAnalyzer textPiiAnalyzer;
 
@@ -58,7 +59,7 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
     } else {
       if (textAnalyzerProviders.size() != 1) {
         throw new IllegalArgumentException(String.format(
-            "Cerebro expecting only 1 text PII data analyzer provider of type TextPiiAnalyzer, found %d",
+            "Cerebro expecting only 1 text PII data analyzer provider of type TextPIIAnalyzer, found %d",
             textAnalyzerProviders.size()
         ));
       }
