@@ -31,13 +31,9 @@ public class DefaultTextPIIAnalyzer implements TextPIIAnalyzer {
     List<TextPIIEntity> foundEntities = new ArrayList<>();
     int start = 0;
     while (matcher.find(start)) {
-      TextPIIEntity entity = TextPIIEntity.builder()
-          .entityType("CREDIT_CARD")
-          .start(StarlarkInt.of(matcher.start()))
-          .end(StarlarkInt.of(matcher.end()))
-          .score(StarlarkFloat.of(1.0))
-          .build();
-      foundEntities.add(entity);
+      foundEntities.add(
+          TextPIIEntity.of("CREDIT_CARD", 1.0D, matcher.start(), matcher.end())
+      );
       start = matcher.end();
     }
 
