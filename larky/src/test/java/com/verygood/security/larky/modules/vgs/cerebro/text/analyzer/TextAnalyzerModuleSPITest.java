@@ -90,7 +90,7 @@ public class TextAnalyzerModuleSPITest {
     // Invoke Vault
     String testInput = "4095-2609-9393-4932,4095260993934932,4095 2609 9393 4932,12345";
     final List<TextPIIEntity> piiEntities = textAnalyzerModule.analyze(testInput,
-        "EN", Collections.EMPTY_LIST, StarlarkFloat.of(0.0));
+        "en", Collections.EMPTY_LIST, StarlarkFloat.of(0.0));
 
     // Assert
     Assertions.assertEquals(3, piiEntities.size());
