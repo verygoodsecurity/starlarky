@@ -114,7 +114,7 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
               named = true,
               defaultValue = "[]",
               allowedTypes = {
-                  @ParamType(type = List.class),
+                  @ParamType(type = List.class, generic1 = String.class),
               }),
           @Param(
               name = "score_threshold",
