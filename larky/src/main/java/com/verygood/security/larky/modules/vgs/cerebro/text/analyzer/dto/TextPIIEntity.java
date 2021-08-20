@@ -1,18 +1,15 @@
 package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
-import java.util.HashMap;
-import java.util.Map;
 
 @Builder
-@AllArgsConstructor
 @StarlarkBuiltin(
     name = "TextPIIEntity",
     category = "BUILTIN",
@@ -75,14 +72,13 @@ public class TextPIIEntity implements StarlarkValue {
   @StarlarkMethod(
       name = "to_dict",
       doc = "Dictionary PII representation")
-  public Map<String, Object> toDict() {
-    Map<String, Object> dictRepresentation = new HashMap<>();
-    dictRepresentation.put("entity_type", this.entityType);
-    dictRepresentation.put("score", this.score);
-    dictRepresentation.put("start", start);
-    dictRepresentation.put("end", end);
-
-    return dictRepresentation;
+  public Dict<String, Object> toDict() {
+    return Dict.<String, Object>builder()
+        .put("entity_type", this.entityType)
+        .put("score", this.score)
+        .put("start", this.start)
+        .put("end", this.end)
+        .buildImmutable();
   }
 
 }
