@@ -36,7 +36,11 @@ public class TextPIIEntity extends SimpleStruct {
     this.end = end;
   }
 
-  public static TextPIIEntity of(String entityType, double score, int start, int end) {
+  public static TextPIIEntity immutableOf(String entityType, double score, int start, int end) {
+    return new TextPIIEntity(entityType, StarlarkFloat.of(score), StarlarkInt.of(start), StarlarkInt.of(end), null);
+  }
+
+  public static TextPIIEntity of(String entityType, double score, int start, int end, StarlarkThread thread) {
     return new TextPIIEntity(entityType, StarlarkFloat.of(score), StarlarkInt.of(start), StarlarkInt.of(end), null);
   }
 
@@ -80,7 +84,7 @@ public class TextPIIEntity extends SimpleStruct {
 
   @Override
   public boolean isImmutable() {
-    return true;
+    return false;
   }
 
   private static Dict<String, Object> dictOf(String entityType, StarlarkFloat score, StarlarkInt start,

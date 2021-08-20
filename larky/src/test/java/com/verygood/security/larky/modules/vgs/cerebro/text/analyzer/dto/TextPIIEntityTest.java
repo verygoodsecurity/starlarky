@@ -24,7 +24,7 @@ public class TextPIIEntityTest {
     final double score = 0.0;
 
     // Act
-    final TextPIIEntity piiEntity = TextPIIEntity.of(entityType, score, start, end);
+    final TextPIIEntity piiEntity = TextPIIEntity.immutableOf(entityType, score, start, end);
 
     final Map<String, Object> piiDict = piiEntity.dunderDict();
 

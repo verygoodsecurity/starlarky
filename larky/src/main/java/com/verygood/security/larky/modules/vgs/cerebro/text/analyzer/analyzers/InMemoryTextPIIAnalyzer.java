@@ -4,7 +4,6 @@ import com.google.common.collect.Sets;
 import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto.TextPIIEntity;
 import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.spi.TextPIIAnalyzer;
 import net.starlark.java.eval.StarlarkFloat;
-import net.starlark.java.eval.StarlarkInt;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +31,7 @@ public class InMemoryTextPIIAnalyzer implements TextPIIAnalyzer {
     int start = 0;
     while (matcher.find(start)) {
       foundEntities.add(
-          TextPIIEntity.of("CREDIT_CARD", 1.0D, matcher.start(), matcher.end())
+          TextPIIEntity.immutableOf("CREDIT_CARD", 1.0D, matcher.start(), matcher.end())
       );
       start = matcher.end();
     }
