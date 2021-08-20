@@ -42,19 +42,7 @@ public class SimpleStruct implements LarkyObject {
 
   @StarlarkMethod(name = PyProtocols.__DICT__, structField = true)
   public Dict<String, Object> dunderDict() throws EvalException {
-    StarlarkThread thread = getCurrentThread();
-    StarlarkList<String> keys = Starlark.dir(thread.mutability(), thread.getSemantics(), this);
-    Dict.Builder<String, Object> builder = Dict.builder();
-    for(String k : keys) {
-      // obviously, ignore the actual __dict__ key since we're in this method already
-      if(k.equals(PyProtocols.__DICT__)) {
-        continue;
-      }
-      Object value = getValue(k);
-      builder.put(k,  value != null ? value : Starlark.NONE);
-    }
-
-    return builder.build(Mutability.IMMUTABLE);
+    return composeAndFillDunderDictBuilder().build(Mutability.IMMUTABLE);
   }
 
   @Override
@@ -114,6 +102,22 @@ public class SimpleStruct implements LarkyObject {
       sep = ", ";
     }
     p.append(")");
+  }
+
+  protected Dict.Builder<String, Object> composeAndFillDunderDictBuilder() throws EvalException {
+    StarlarkThread thread = getCurrentThread();
+    StarlarkList<String> keys = Starlark.dir(thread.mutability(), thread.getSemantics(), this);
+    Dict.Builder<String, Object> builder = Dict.builder();
+    for(String k : keys) {
+      // obviously, ignore the actual __dict__ key since we're in this method already
+      if(k.equals(PyProtocols.__DICT__)) {
+        continue;
+      }
+      Object value = getValue(k);
+      builder.put(k,  value != null ? value : Starlark.NONE);
+    }
+
+    return builder;
   }
 
 }

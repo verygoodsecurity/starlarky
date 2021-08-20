@@ -20,10 +20,7 @@ class MutableStruct extends SimpleStruct {
   @Override
   @StarlarkMethod(name = PyProtocols.__DICT__, structField = true)
   public Dict<String, Object> dunderDict() throws EvalException {
-    Dict<String, Object> structDict = super.dunderDict();
-    Dict.Builder<String, Object> dictBuilder = Dict.builder();
-    return dictBuilder
-        .putAll(structDict)
+    return composeAndFillDunderDictBuilder()
         .build(this.currentThread.mutability());
   }
 
