@@ -3,8 +3,8 @@ package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.google.common.flogger.FluentLogger;
+import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.InMemoryTextPIIAnalyzer;
 import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.DefaultTextPIIAnalyzer;
-import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.NotImplementedTextPIIAnalyzer;
 import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto.TextPIIEntity;
 import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.spi.TextPIIAnalyzer;
 import net.starlark.java.annot.Param;
@@ -50,12 +50,12 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
     if (Boolean.getBoolean(ENABLE_INMEMORY_PROPERTY)) {
       if (!textAnalyzerProviders.isEmpty()) {
         log.at(Level.WARNING).log("Property %s is set to true," +
-            " but TextPIIAnalyzer services implementations detected.\nProceeding with default implementation." +
+            " but TextPIIAnalyzer services implementations detected.\nProceeding with in memory implementation." +
             " To use custom TextPIIAnalyzer service implementation, set property to 'false' or unset it.");
       }
-      textPiiAnalyzer = new DefaultTextPIIAnalyzer();
+      textPiiAnalyzer = new InMemoryTextPIIAnalyzer();
     } else if (textAnalyzerProviders.isEmpty()) {
-      textPiiAnalyzer = new NotImplementedTextPIIAnalyzer();
+      textPiiAnalyzer = new DefaultTextPIIAnalyzer();
     } else {
       if (textAnalyzerProviders.size() != 1) {
         throw new IllegalArgumentException(String.format(
