@@ -8,7 +8,7 @@ import net.starlark.java.eval.StarlarkFloat;
 
 import java.util.List;
 
-public class NoopTextPIIAnalyzer implements TextPIIAnalyzer {
+public class NotImplementedTextPIIAnalyzer implements TextPIIAnalyzer {
   @Override
   public List<TextPIIEntity> analyze(String text, String language, List<String> entities, StarlarkFloat scoreThreshold)
       throws EvalException {

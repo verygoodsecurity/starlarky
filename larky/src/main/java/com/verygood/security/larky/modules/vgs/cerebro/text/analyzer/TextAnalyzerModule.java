@@ -2,8 +2,9 @@ package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import com.google.common.flogger.FluentLogger;
 import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.DefaultTextPIIAnalyzer;
-import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.NoopTextPIIAnalyzer;
+import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.NotImplementedTextPIIAnalyzer;
 import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto.TextPIIEntity;
 import com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.spi.TextPIIAnalyzer;
 import net.starlark.java.annot.Param;
@@ -21,12 +22,15 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.logging.Level;
 
 @StarlarkBuiltin(
     name = "TextPIIAnalyzer",
     category = "BUILTIN",
     doc = "Overridable Text PII Analysis API in Larky")
 public class TextAnalyzerModule implements TextPIIAnalyzer {
+
+  private static final FluentLogger log = FluentLogger.forEnclosingClass();
 
   //  ISO 639 language codes
   private static final Set<String> ISO_LANGUAGES = new HashSet<>
@@ -43,9 +47,14 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
     List<TextPIIAnalyzer> textAnalyzerProviders = ImmutableList.copyOf(loader.iterator());
 
     if (Boolean.getBoolean(ENABLE_INMEMORY_PROPERTY)) {
+      if (!textAnalyzerProviders.isEmpty()) {
+        log.at(Level.WARNING).log("Property %s is set to true," +
+            " but TextPIIAnalyzer services implementations detected.\nProceeding with default implementation." +
+            " To use custom TextPIIAnalyzer service implementation, set property to 'false' or unset it.");
+      }
       textPiiAnalyzer = new DefaultTextPIIAnalyzer();
     } else if (textAnalyzerProviders.isEmpty()) {
-      textPiiAnalyzer = new NoopTextPIIAnalyzer();
+      textPiiAnalyzer = new NotImplementedTextPIIAnalyzer();
     } else {
       if (textAnalyzerProviders.size() != 1) {
         throw new IllegalArgumentException(String.format(
