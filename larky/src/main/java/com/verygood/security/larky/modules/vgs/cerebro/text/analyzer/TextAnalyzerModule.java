@@ -71,7 +71,26 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
 
   @StarlarkMethod(
       name = "analyze",
-      doc = "performs PII entities search, given supported language.",
+      doc = "performs PII entities search, given supported language." +
+          "@return a list[TextPIIEntity], representing the found entities in given text" +
+          "Example:\n" +
+          "> message = 'My credit card number is 4095-2609-9393-4932 and my crypto wallet id is 16Yeky6GMjeNkAiNcBY7ZhrLoMSgg1BoyZ.'\n" +
+          "> result = pii_analyzer.analyze(message)\n" +
+          "> print([e.to_dict() for e in result])\n" +
+          "[\n" +
+          "    {\n" +
+          "        'entity_type': 'CREDIT_CARD',\n" +
+          "        'start': 25,\n" +
+          "        'end': 44,\n" +
+          "        'score': 1.0\n" +
+          "    },\n" +
+          "    {\n" +
+          "        'entity_type': 'CRYPTO',\n" +
+          "        'start': 72,\n" +
+          "        'end': 106,\n" +
+          "        'score': 1.0\n" +
+          "    } \n" +
+          "]",
       parameters = {
           @Param(
               name = "text",
@@ -118,7 +137,31 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
 
   @StarlarkMethod(
       name = "supported_entities",
-      doc = "performs PII entities search, given supported language.",
+      doc = "performs PII entities search, given supported language.\n" +
+          "@return a list[str] of names of supported PII entities\n" +
+          "Example:" +
+          "> entities = pii_analyzer.supported_entities()\n" +
+          "> print(entities)" +
+          "  [\n" +
+          "  'PHONE_NUMBER',\n" +
+          "  'US_DRIVER_LICENSE',\n" +
+          "  'US_PASSPORT',\n" +
+          "  'LOCATION',\n" +
+          "  'CREDIT_CARD',\n" +
+          "  'CRYPTO',\n" +
+          "  'UK_NHS',\n" +
+          "  'US_SSN',\n" +
+          "  'US_BANK_NUMBER',\n" +
+          "  'EMAIL_ADDRESS',\n" +
+          "  'DATE_TIME',\n" +
+          "  'IP_ADDRESS',\n" +
+          "  'PERSON',\n" +
+          "  'IBAN_CODE',\n" +
+          "  'NRP',\n" +
+          "  'US_ITIN',\n" +
+          "  'DOMAIN_NAME',\n" +
+          "  'MEDICAL_LICENS'\n" +
+          "]",
       parameters = {
           @Param(
               name = "language",
@@ -134,7 +177,11 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
 
   @StarlarkMethod(
       name = "supported_languages",
-      doc = "list of supported languages in ISO_639-1 format.")
+      doc = "@return list[str] of supported languages in ISO_639-1 format." +
+          "Example:\n" +
+          "> languages = pii_analyzer.supported_languages()\n" +
+          "> print(languages)\n" +
+          "['EN']\n")
   @Override
   public List<String> supportedLanguages() throws EvalException {
     return this.textPiiAnalyzer.supportedLanguages();
