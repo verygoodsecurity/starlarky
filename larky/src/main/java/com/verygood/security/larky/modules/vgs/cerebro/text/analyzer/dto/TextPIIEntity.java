@@ -47,7 +47,7 @@ public class TextPIIEntity extends SimpleStruct {
   }
 
   public static TextPIIEntity of(String entityType, double score, int start, int end, StarlarkThread thread) {
-    return new TextPIIEntity(entityType, StarlarkFloat.of(score), StarlarkInt.of(start), StarlarkInt.of(end), null);
+    return new TextPIIEntity(entityType, StarlarkFloat.of(score), StarlarkInt.of(start), StarlarkInt.of(end), thread);
   }
 
   @StarlarkMethod(
