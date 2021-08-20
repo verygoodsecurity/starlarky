@@ -2,6 +2,8 @@ package com.verygood.security.larky.modules.types.structs;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+
+import java.util.Collections;
 import java.util.Map;
 
 import com.verygood.security.larky.modules.types.LarkyObject;
@@ -104,9 +106,13 @@ public class SimpleStruct implements LarkyObject {
     p.append(")");
   }
 
+  /**
+   * Avoid un-necessary allocation if we need to override the immutability of the `__dict__` in a subclass for the caller.
+   * */
   protected Dict.Builder<String, Object> composeAndFillDunderDictBuilder() throws EvalException {
     StarlarkThread thread = getCurrentThread();
     StarlarkList<String> keys = Starlark.dir(thread.mutability(), thread.getSemantics(), this);
+    Collections.sort(keys);
     Dict.Builder<String, Object> builder = Dict.builder();
     for(String k : keys) {
       // obviously, ignore the actual __dict__ key since we're in this method already
