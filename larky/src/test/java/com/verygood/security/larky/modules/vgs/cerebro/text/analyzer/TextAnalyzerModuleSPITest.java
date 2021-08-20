@@ -55,7 +55,7 @@ public class TextAnalyzerModuleSPITest {
     // Assert Exceptions
     Assertions.assertThrows(EvalException.class,
         () -> {
-          textAnalyzerModule.analyze("some text", "EN", StarlarkList.empty(), null);
+          textAnalyzerModule.analyze("some text", "en", StarlarkList.empty(), null);
         },
         "must be overridden"
     );
@@ -67,7 +67,7 @@ public class TextAnalyzerModuleSPITest {
     );
     Assertions.assertThrows(EvalException.class,
         () -> {
-          textAnalyzerModule.supportedEntities("EN");
+          textAnalyzerModule.supportedEntities("en");
         },
         "must be overridden"
     );
@@ -102,6 +102,27 @@ public class TextAnalyzerModuleSPITest {
   }
 
   @Test
+  public void testDefaultModule_supportedEntities_notSupportedLanguageFormat_exception() throws Exception {
+
+    // Arrange
+    // Setup Default Vault through system config
+    setTextPIIAnalyzerImpl("");
+    System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
+    textAnalyzerModule = new TextAnalyzerModule();
+    String language = "english";
+
+    // Act
+    // Assert
+    Assertions.assertThrows(EvalException.class,
+        () -> {
+          textAnalyzerModule.supportedEntities(language);
+        },
+        String.format("Provided language: %s is not valid. Language must be ISO_639-1 format.",
+            language)
+    );
+  }
+
+  @Test
   public void testDefaultModule_analyze_notSupportedLanguage_exception() throws Exception {
 
     // Arrange
@@ -109,7 +130,7 @@ public class TextAnalyzerModuleSPITest {
     setTextPIIAnalyzerImpl("");
     System.setProperty(TextAnalyzerModule.ENABLE_INMEMORY_PROPERTY, "true");
     textAnalyzerModule = new TextAnalyzerModule();
-    String language = "ES";
+    String language = "es";
 
     // Act
     // Invoke Vault
@@ -118,9 +139,9 @@ public class TextAnalyzerModuleSPITest {
     // Assert
     Assertions.assertThrows(EvalException.class,
         () -> {
-          textAnalyzerModule.supportedEntities("ES");
+          textAnalyzerModule.analyze(testInput, language, Collections.EMPTY_LIST, StarlarkFloat.of(1.0));
         },
-        String.format("Provided language: %s is not currently supported.\nList of supported languages: [EN]",
+        String.format("Provided language: %s is not currently supported.\nList of supported languages: [en]",
             language)
     );
   }
@@ -141,7 +162,7 @@ public class TextAnalyzerModuleSPITest {
     // Assert
     Assertions.assertThrows(EvalException.class,
         () -> {
-          textAnalyzerModule.analyze("Sth, sth", "EN", entities, StarlarkFloat.of(0.0));
+          textAnalyzerModule.analyze("Sth, sth", "en", entities, StarlarkFloat.of(0.0));
         },
         "Requested PII entities: [BLA_BLA_BLA] are not currently supported.\n" +
             "List of supported PII entities: [CARD_NUMBER]"
@@ -165,9 +186,9 @@ public class TextAnalyzerModuleSPITest {
     // Assert
     Assertions.assertThrows(EvalException.class,
         () -> {
-          textAnalyzerModule.analyze(testInput,"ES", Collections.EMPTY_LIST, StarlarkFloat.of(0.0));
+          textAnalyzerModule.analyze(testInput,"es", Collections.EMPTY_LIST, StarlarkFloat.of(0.0));
         },
-        String.format("Provided language: %s is not currently supported.\nList of supported languages: [EN]",
+        String.format("Provided language: %s is not currently supported.\nList of supported languages: [es]",
             language)
     );
   }
@@ -186,7 +207,7 @@ public class TextAnalyzerModuleSPITest {
     // Invoke Vault
     String testInput = "4095-2609-9393-4932,4095260993934932,4095 2609 9393 4932,12345";
     final List<TextPIIEntity> piiEntities = textAnalyzerModule.analyze(testInput,
-        "EN", Collections.EMPTY_LIST, StarlarkFloat.of(0.0));
+        "en", Collections.EMPTY_LIST, StarlarkFloat.of(0.0));
 
     // Assert OK
     Assertions.assertEquals(3, piiEntities.size());

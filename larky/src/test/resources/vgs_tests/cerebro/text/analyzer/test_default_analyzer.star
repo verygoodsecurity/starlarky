@@ -26,7 +26,7 @@ def _test_default_analyze_params_ok():
     card_number = "4111111111111111"
 
     # Act
-    analyzer_result = pii_analyzer.analyze(card_number, language='EN', entities=['CREDIT_CARD'], score_threshold=1.0)
+    analyzer_result = pii_analyzer.analyze(card_number, language='en', entities=['CREDIT_CARD'], score_threshold=1.0)
 
     # Assert
     # asserts.assert_that(analyzer_result.is_ok).is_true()
@@ -43,10 +43,10 @@ def _test_default_analyze_unsupportedLanguage_error():
     card_number = "4111111111111111"
 
     # Act
-    analyzer_result = pii_analyzer.analyze(card_number, language='ES', entities=['CREDIT_CARD'], score_threshold=1.0)
+    analyzer_result = pii_analyzer.analyze(card_number, language='es', entities=['CREDIT_CARD'], score_threshold=1.0)
 
     # Assert
-    asserts.assert_fails(lambda: analyzer_result.unwrap(), "Provided language: ES is not currently supported.*")
+    asserts.assert_fails(lambda: analyzer_result.unwrap(), "Provided language: es is not currently supported.*")
     asserts.assert_that(analyzer_result.is_err).is_true()
 
 def _test_default_analyze_unsupportedEntities_error():
@@ -54,7 +54,7 @@ def _test_default_analyze_unsupportedEntities_error():
     card_number = "4111111111111111"
 
     # Act
-    analyzer_result = pii_analyzer.analyze(card_number, language='EN', entities=['CRYPTO'], score_threshold=1.0)
+    analyzer_result = pii_analyzer.analyze(card_number, language='en', entities=['CRYPTO'], score_threshold=1.0)
 
     # Assert
     asserts.assert_fails(lambda: analyzer_result.unwrap(), "Requested PII entities: \\[CRYPTO\\] are not currently supported.*")
@@ -67,11 +67,11 @@ def _test_default_supported_languages_defaults_ok():
 
     # Assert
     asserts.assert_that(len(supported_languages)).is_equal_to(1)
-    asserts.assert_that(supported_languages[0]).is_equal_to('EN')
+    asserts.assert_that(supported_languages[0]).is_equal_to('en')
 
 def _test_default_supported_entities_validInput_ok():
     # Arrange
-    language = 'EN'
+    language = 'en'
     # Act
     result = pii_analyzer.supported_entities(language)
 
@@ -83,13 +83,13 @@ def _test_default_supported_entities_validInput_ok():
 
 def _test_default_supported_entities_unsupportedLanguage_ok():
     # Arrange
-    language = 'ES'
+    language = 'es'
     # Act
     result = pii_analyzer.supported_entities(language)
 
     # Assert
     asserts.assert_that(result.is_err).is_true()
-    asserts.assert_fails(lambda: result.unwrap(), "Provided language: ES is not currently supported.*")
+    asserts.assert_fails(lambda: result.unwrap(), "Provided language: es is not currently supported.*")
 
 def _suite():
     _suite = unittest.TestSuite()

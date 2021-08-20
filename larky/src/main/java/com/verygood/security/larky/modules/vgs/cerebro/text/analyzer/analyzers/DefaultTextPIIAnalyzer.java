@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 
 public class DefaultTextPIIAnalyzer implements TextPIIAnalyzer {
 
-  private static final Set<String> SUPPORTED_LANGUAGES = Sets.newHashSet("EN");
+  private static final Set<String> SUPPORTED_LANGUAGES = Sets.newHashSet("en");
 
   private static final Set<String> SUPPORTED_PII_ENTITIES = Sets.newHashSet("CREDIT_CARD");
 

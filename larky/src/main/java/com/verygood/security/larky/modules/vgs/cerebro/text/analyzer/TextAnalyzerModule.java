@@ -14,7 +14,10 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkFloat;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.Set;
@@ -24,6 +27,10 @@ import java.util.Set;
     category = "BUILTIN",
     doc = "Overridable Text PII Analysis API in Larky")
 public class TextAnalyzerModule implements TextPIIAnalyzer {
+
+  //  ISO 639 language codes
+  private static final Set<String> ISO_LANGUAGES = new HashSet<>
+      (Arrays.asList(Locale.getISOLanguages()));
 
   public static final TextAnalyzerModule INSTANCE = new TextAnalyzerModule();
   public static final String ENABLE_INMEMORY_PROPERTY = "larky.modules.vgs.cerebro.piiAnalyzer.text.enableInMemory";
@@ -66,7 +73,7 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
               name = "language",
               doc = "two characters for the desired language in ISO_639-1 format.",
               named = true,
-              defaultValue = "'EN'",
+              defaultValue = "'en'",
               allowedTypes = {
                   @ParamType(type = String.class),
               }),
@@ -124,9 +131,13 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
   }
 
   private void validateLanguage(String language) throws EvalException {
+    if (!ISO_LANGUAGES.contains(language)) {
+      throw Starlark.errorf("Provided language: %s is not valid. Language must be ISO_639-1 format.", language);
+    }
+
     if (!this.supportedLanguages().contains(language)) {
-      throw Starlark.errorf(String.format("Provided language: %s is not currently supported.\n" +
-          "List of supported languages: %s", language, this.supportedLanguages()));
+      throw Starlark.errorf("Provided language: %s is not currently supported.\nList of supported languages: %s",
+          language, this.supportedLanguages());
     }
   }
 
@@ -134,8 +145,8 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
     Set<String> deduplicatedEntities = Sets.newHashSet(entities);
     deduplicatedEntities.removeAll(this.supportedEntities(language));
     if (!deduplicatedEntities.isEmpty()) {
-      throw Starlark.errorf(String.format("Requested PII entities: %s are not currently supported." +
-          " List of supported PII entities: %s", deduplicatedEntities, this.supportedEntities(language)));
+      throw Starlark.errorf("Requested PII entities: %s are not currently supported. List of supported PII entities: %s",
+          deduplicatedEntities, this.supportedEntities(language));
     }
   }
 }
