@@ -118,12 +118,12 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
               }),
           @Param(
               name = "score_threshold",
-              doc = "a minimum value for which to return an identified entity, defaults to 0.0 ." +
-                  " Value vary from 0.0 to 1.0, where 1.0 - means that we are 100% sure that the value represents" +
-                  " particular PII entity.\n" +
-                  "Supplying values > 1.0 will result in empty responses, as we can't detect" +
-                  " something with more than 100% assurance.\n" +
-                  "Supplying values < 0.0 will result in the same results as 0.0, as we can't be less than 0% accurate.",
+              doc = "a minimum value for which to return an identified entity, defaults to 0.0 .\n" +
+                  "Usually, supplied values vary from 0.0 to 1.0, where 1.0 means that we are around 100% " +
+                  "confident that the value may represent particular PII entity.\n" +
+                  "Supplying values > 1.0 will result in empty responses, as we can't detect " +
+                  "something with more than 100% confidence.\n" +
+                  "Supplying values < 0.0 will result in the same results as 0.0, as we can't be less than 0% confident.",
               named = true,
               defaultValue = "0.0",
               allowedTypes = {
