@@ -9,6 +9,12 @@ import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 @StarlarkBuiltin(
     name = "TextPIIEntity",
     category = "BUILTIN",
@@ -89,11 +95,19 @@ public class TextPIIEntity extends SimpleStruct {
 
   private static Dict<String, Object> dictOf(String entityType, StarlarkFloat score, StarlarkInt start,
                                              StarlarkInt end) {
-    return Dict.<String, Object>builder()
-        .put("entity_type", entityType)
-        .put("score", score)
-        .put("start", start)
-        .put("end", end)
-        .buildImmutable();
+    Map<String, Object> mapRepresentation = new HashMap<>();
+    mapRepresentation.put("end", end);
+    mapRepresentation.put("entity_type", entityType);
+    mapRepresentation.put("score", score);
+    mapRepresentation.put("start", start);
+
+    final Dict.Builder<String, Object> builder = Dict.builder();
+    final List<String> keySet = new ArrayList<>(mapRepresentation.keySet());
+    Collections.sort(keySet);
+    for (String k: keySet) {
+      builder.put(k, mapRepresentation.get(k));
+    }
+
+    return builder.buildImmutable();
   }
 }
