@@ -14,6 +14,7 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkFloat;
+import net.starlark.java.eval.StarlarkList;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -131,14 +132,14 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
               }),
       })
   @Override
-  public List<TextPIIEntity> analyze(String text, String language, List<String> entities, StarlarkFloat scoreThreshold)
+  public StarlarkList<TextPIIEntity> analyze(String text, String language, List<String> entities, StarlarkFloat scoreThreshold)
       throws EvalException {
     validateLanguage(language);
     if (Objects.isNull(entities) || entities.isEmpty()) {
       entities = this.supportedEntities(language);
     }
     validateEntities(language, entities);
-    return this.textPiiAnalyzer.analyze(text, language, entities, scoreThreshold);
+    return StarlarkList.immutableCopyOf(this.textPiiAnalyzer.analyze(text, language, entities, scoreThreshold));
   }
 
   @StarlarkMethod(
@@ -176,9 +177,9 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
                   @ParamType(type = String.class),
               })})
   @Override
-  public List<String> supportedEntities(String language) throws EvalException {
+  public StarlarkList<String> supportedEntities(String language) throws EvalException {
     validateLanguage(language);
-    return this.textPiiAnalyzer.supportedEntities(language);
+    return StarlarkList.immutableCopyOf(this.textPiiAnalyzer.supportedEntities(language));
   }
 
   @StarlarkMethod(
@@ -189,8 +190,8 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
           "> print(languages)\n" +
           "['EN']\n")
   @Override
-  public List<String> supportedLanguages() throws EvalException {
-    return this.textPiiAnalyzer.supportedLanguages();
+  public StarlarkList<String> supportedLanguages() throws EvalException {
+    return StarlarkList.immutableCopyOf(this.textPiiAnalyzer.supportedLanguages());
   }
 
   private void validateLanguage(String language) throws EvalException {
