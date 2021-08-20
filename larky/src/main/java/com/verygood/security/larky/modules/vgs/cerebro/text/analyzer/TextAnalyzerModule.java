@@ -132,7 +132,7 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
               }),
       })
   @Override
-  public StarlarkList<TextPIIEntity> analyze(String text, String language, List<String> entities, StarlarkFloat scoreThreshold)
+  public List<TextPIIEntity> analyze(String text, String language, List<String> entities, StarlarkFloat scoreThreshold)
       throws EvalException {
     validateLanguage(language);
     if (Objects.isNull(entities) || entities.isEmpty()) {
@@ -177,7 +177,7 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
                   @ParamType(type = String.class),
               })})
   @Override
-  public StarlarkList<String> supportedEntities(String language) throws EvalException {
+  public List<String> supportedEntities(String language) throws EvalException {
     validateLanguage(language);
     return StarlarkList.immutableCopyOf(this.textPiiAnalyzer.supportedEntities(language));
   }
@@ -190,7 +190,7 @@ public class TextAnalyzerModule implements TextPIIAnalyzer {
           "> print(languages)\n" +
           "['EN']\n")
   @Override
-  public StarlarkList<String> supportedLanguages() throws EvalException {
+  public List<String> supportedLanguages() throws EvalException {
     return StarlarkList.immutableCopyOf(this.textPiiAnalyzer.supportedLanguages());
   }
 
