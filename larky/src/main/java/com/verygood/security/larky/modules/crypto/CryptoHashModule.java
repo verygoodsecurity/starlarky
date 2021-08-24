@@ -5,6 +5,7 @@ import com.verygood.security.larky.modules.crypto.Hash.LarkyGeneralDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyLongDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyXofDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyKeccakDigest;
+import com.verygood.security.larky.modules.crypto.Hash.LarkyKeccak256Digest;
 import net.starlark.java.eval.StarlarkBytes;
 
 import net.starlark.java.annot.Param;
@@ -23,6 +24,7 @@ import org.bouncycastle.crypto.digests.LongDigest;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
 import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.bouncycastle.crypto.util.DigestFactory;
+import org.bouncycastle.jcajce.provider.digest.Keccak;
 
 public class CryptoHashModule implements StarlarkValue {
 
@@ -78,6 +80,12 @@ public class CryptoHashModule implements StarlarkValue {
         throw Starlark.errorf("Incorrect truncation length. It must be 224, 256 or 512.");
     }
     return new LarkyLongDigest(digest);
+  }
+
+  @StarlarkMethod(name = "Keccak_256")
+  public LarkyKeccak256Digest Keccak_256() {
+    Keccak.Digest256 digest256 = new Keccak.Digest256();
+    return new LarkyKeccak256Digest(digest256);
   }
 
   @StarlarkMethod(name = "SHA3_256")

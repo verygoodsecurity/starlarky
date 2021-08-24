@@ -1,4 +1,10 @@
-def Keccak_Hash(object):
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@stdlib//binascii", hexlify="hexlify")
+load("@stdlib//codecs", codecs="codecs")
+load("@stdlib//larky", larky="larky")
+# load("@vendor//option/result", Error="Error")
+
+def Keccak_Hash(data=None, digest_bytes=256, update_after_digest=False):
     """
     A Keccak hash object.
         Do not instantiate directly.
@@ -8,12 +14,20 @@ def Keccak_Hash(object):
         :vartype digest_size: integer
     
     """
-    def __init__(self, data, digest_bytes, update_after_digest):
+
+    def __init__(data, digest_bytes, update_after_digest):
         """
          The size of the resulting hash in bytes.
 
         """
-    def update(self, data):
+        self_ = {'digest_size': digest_bytes, '_update_after_digest': update_after_digest, '_digest_done': False}
+        self_['_state'] = _JCrypto.Hash.Keccak_256()
+        if data:
+            self_['_state'].update(data)
+        return larky.mutablestruct(**self_)
+    self = __init__(data, digest_bytes, update_after_digest)
+
+    def update(data):
         """
         Continue hashing of a message by consuming the next chunk of data.
 
@@ -21,6 +35,16 @@ def Keccak_Hash(object):
                     data (byte string/byte array/memoryview): The next chunk of the message being hashed.
         
         """
+
+        if self._digest_done and not self._update_after_digest:
+            fail('TypeError("You can only call \'digest\' or \'hexdigest\' on this object")')
+
+
+        if data == None:
+            fail("TypeError: object supporting the buffer API required")
+        self._state.update(data)
+    self.update = update
+
     def digest(self):
         """
         Return the **binary** (non-printable) digest of the message that has been hashed so far.
@@ -30,6 +54,10 @@ def Keccak_Hash(object):
                 :rtype: byte string
         
         """
+        self._digest_done = True
+        return self._state.digest()
+    self.digest = digest
+
     def hexdigest(self):
         """
         Return the **printable** digest of the message that has been hashed so far.
@@ -39,10 +67,20 @@ def Keccak_Hash(object):
                 :rtype: string
         
         """
+        return codecs.decode(hexlify(self.digest()), encoding='utf-8')
+    self.hexdigest = hexdigest
+
     def new(self, **kwargs):
         """
         Create a fresh Keccak hash object.
         """
+        if "digest_bytes" not in kwargs and "digest_bits" not in kwargs:
+            kwargs["digest_bytes"] = self.digest_size
+
+        return Keccak_Hash(**kwargs)
+    self.new = new
+    return self
+
 def new(**kwargs):
     """
     Create a new hash object.
@@ -62,3 +100,30 @@ def new(**kwargs):
         :Return: A :class:`Keccak_Hash` hash object
     
     """
+
+    data = kwargs.pop("data", None)
+    update_after_digest = kwargs.pop("update_after_digest", False)
+
+    digest_bytes = kwargs.pop("digest_bytes", None)
+    digest_bits = kwargs.pop("digest_bits", None)
+    if None not in (digest_bytes, digest_bits):
+        fail("TypeError: Only one digest parameter must be provided")
+    if (None, None) == (digest_bytes, digest_bits):
+        fail("TypeError: Digest size (bits, bytes) not provided")
+    if digest_bytes != None:
+        if digest_bytes not in (28, 32, 48, 64):
+            fail("ValueError: 'digest_bytes' must be: 28, 32, 48 or 64")
+    else:
+        if digest_bits not in (224, 256, 384, 512):
+            fail("ValueError: 'digest_bytes' must be: 224, 256, 384 or 512")
+        digest_bytes = digest_bits // 8
+
+    if kwargs:
+        fail("TypeError: " + "Unknown parameters: " + str(kwargs))
+
+    return Keccak_Hash(data, digest_bytes, update_after_digest)
+
+Keccak = larky.struct(
+    new=new,
+    __name__ = 'Keccak',
+)
