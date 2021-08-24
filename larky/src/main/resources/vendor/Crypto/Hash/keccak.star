@@ -21,31 +21,31 @@ def Keccak_Hash(data=None, digest_bytes=256, update_after_digest=False):
 
         """
         self_ = {'digest_size': digest_bytes, '_update_after_digest': update_after_digest, '_digest_done': False}
-        self_['_state'] = _JCrypto.Hash.Keccak_256()
-        if data:
-            self_['_state'].update(data)
+        self_['_state'] = _JCrypto.Hash.Keccak_256(data)
+        # if data:
+        #     self_['_state'].update(data)
         return larky.mutablestruct(**self_)
     self = __init__(data, digest_bytes, update_after_digest)
 
-    def update(data):
-        """
-        Continue hashing of a message by consuming the next chunk of data.
+    # def update(data):
+    #     """
+    #     Continue hashing of a message by consuming the next chunk of data.
 
-                Args:
-                    data (byte string/byte array/memoryview): The next chunk of the message being hashed.
+    #             Args:
+    #                 data (byte string/byte array/memoryview): The next chunk of the message being hashed.
         
-        """
+    #     """
 
-        if self._digest_done and not self._update_after_digest:
-            fail('TypeError("You can only call \'digest\' or \'hexdigest\' on this object")')
+    #     if self._digest_done and not self._update_after_digest:
+    #         fail('TypeError("You can only call \'digest\' or \'hexdigest\' on this object")')
 
 
-        if data == None:
-            fail("TypeError: object supporting the buffer API required")
-        self._state.update(data)
-    self.update = update
+    #     if data == None:
+    #         fail("TypeError: object supporting the buffer API required")
+    #     self._state.update(data)
+    # self.update = update
 
-    def digest(self):
+    def digest():
         """
         Return the **binary** (non-printable) digest of the message that has been hashed so far.
 
@@ -58,7 +58,7 @@ def Keccak_Hash(data=None, digest_bytes=256, update_after_digest=False):
         return self._state.digest()
     self.digest = digest
 
-    def hexdigest(self):
+    def hexdigest():
         """
         Return the **printable** digest of the message that has been hashed so far.
 
@@ -67,10 +67,10 @@ def Keccak_Hash(data=None, digest_bytes=256, update_after_digest=False):
                 :rtype: string
         
         """
-        return codecs.decode(hexlify(self.digest()), encoding='utf-8')
+        return codecs.decode(hexlify(self._state), encoding='utf-8')
     self.hexdigest = hexdigest
 
-    def new(self, **kwargs):
+    def new(**kwargs):
         """
         Create a fresh Keccak hash object.
         """

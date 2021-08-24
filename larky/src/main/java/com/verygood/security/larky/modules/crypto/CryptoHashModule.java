@@ -1,21 +1,16 @@
 package com.verygood.security.larky.modules.crypto;
 
+import com.google.crypto.tink.subtle.Hex;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyGeneralDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyLongDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyXofDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyKeccakDigest;
-import com.verygood.security.larky.modules.crypto.Hash.LarkyKeccak256Digest;
-import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.*;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.NoneType;
-import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkInt;
-import net.starlark.java.eval.StarlarkValue;
-import net.starlark.java.eval.EvalException;
 
 import org.bouncycastle.crypto.ExtendedDigest;
 import org.bouncycastle.crypto.digests.Blake2sDigest;
@@ -82,10 +77,12 @@ public class CryptoHashModule implements StarlarkValue {
     return new LarkyLongDigest(digest);
   }
 
-  @StarlarkMethod(name = "Keccak_256")
-  public LarkyKeccak256Digest Keccak_256() {
+  @StarlarkMethod(name = "Keccak_256", parameters = {
+          @Param(name = "data", allowedTypes = {@ParamType(type = StarlarkBytes.class)})
+  }, useStarlarkThread = true)
+  public StarlarkBytes Keccak_256(StarlarkBytes data, StarlarkThread thread) {
     Keccak.Digest256 digest256 = new Keccak.Digest256();
-    return new LarkyKeccak256Digest(digest256);
+    return StarlarkBytes.of(thread.mutability(), digest256.digest(data.toByteArray()));
   }
 
   @StarlarkMethod(name = "SHA3_256")
