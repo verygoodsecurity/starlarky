@@ -57,6 +57,8 @@ public class ResultModule implements StarlarkValue {
   public static Result safe(StarlarkCallable func, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread) {
     try {
       return ok(Starlark.call(thread, func, args, kwargs));
+    } catch(Error e) {
+      return e;
     } catch (EvalException e) {
       return Error.of(e); // for the stack trace.
     } catch (InterruptedException | RuntimeException e) {
