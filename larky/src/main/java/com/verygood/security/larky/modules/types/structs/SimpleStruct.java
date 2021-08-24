@@ -2,14 +2,20 @@ package com.verygood.security.larky.modules.types.structs;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+
+import java.util.Collections;
 import java.util.Map;
 
 import com.verygood.security.larky.modules.types.LarkyObject;
 
+import com.verygood.security.larky.modules.types.PyProtocols;
+import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.spelling.SpellChecker;
 
@@ -31,9 +37,14 @@ public class SimpleStruct implements LarkyObject {
     return new MutableStruct(kwargs, thread);
   }
 
-  SimpleStruct(Map<String, Object> fields, StarlarkThread currentThread) {
+  protected SimpleStruct(Map<String, Object> fields, StarlarkThread currentThread) {
     this.currentThread = currentThread;
     this.fields = fields;
+  }
+
+  @StarlarkMethod(name = PyProtocols.__DICT__, structField = true)
+  public Dict<String, Object> dunderDict() throws EvalException {
+    return composeAndFillDunderDictBuilder().build(Mutability.IMMUTABLE);
   }
 
   @Override
@@ -93,6 +104,25 @@ public class SimpleStruct implements LarkyObject {
       sep = ", ";
     }
     p.append(")");
+  }
+
+  /**
+   * Avoid un-necessary allocation if we need to override the immutability of the `__dict__` in a subclass for the caller.
+   * */
+  protected Dict.Builder<String, Object> composeAndFillDunderDictBuilder() throws EvalException {
+    StarlarkThread thread = getCurrentThread();
+    StarlarkList<String> keys = Starlark.dir(thread.mutability(), thread.getSemantics(), this);
+    Dict.Builder<String, Object> builder = Dict.builder();
+    for(String k : keys) {
+      // obviously, ignore the actual __dict__ key since we're in this method already
+      if(k.equals(PyProtocols.__DICT__)) {
+        continue;
+      }
+      Object value = getValue(k);
+      builder.put(k,  value != null ? value : Starlark.NONE);
+    }
+
+    return builder;
   }
 
 }
