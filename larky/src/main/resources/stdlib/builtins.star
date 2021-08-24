@@ -83,9 +83,9 @@ def _sum(nums,*args,**kwargs):
     else:
       if 'start' in kwargs:
         s = kwargs['start']
-      elif args: 
+      elif args:
         s = args[0]
-      else: 
+      else:
         s = 0
       for num in nums:
         s += num
@@ -143,5 +143,6 @@ builtins = larky.struct(
     abs=abs,
     pow=pow,
     iter=iter,
-    map=map
+    map=map,
+    isinstance=types.is_instance,
 )
