@@ -2,7 +2,6 @@ load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", larky="larky")
-# load("@vendor//option/result", Error="Error")
 
 def Keccak_Hash(data=None, digest_bits=256, update_after_digest=False):
     """
@@ -115,7 +114,7 @@ def new(**kwargs):
 
     return Keccak_Hash(data, digest_bits, update_after_digest)
 
-Keccak = larky.struct(
+keccak = larky.struct(
     new=new,
-    __name__ = 'Keccak',
+    __name__ = 'keccak',
 )
