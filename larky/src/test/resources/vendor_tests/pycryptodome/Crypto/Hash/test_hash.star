@@ -51,9 +51,13 @@ def SHA3_256_test():
     h.update(b("new text"))
 
 def Keccak_test():
-    h = Keccak.new(data=b("test"), digest_bits=256)
-    # h.update(b("test"))
+    h = Keccak.new(digest_bits=256)
+    h.update(b("test"))
     eq(h.hexdigest(), '9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658')
+
+    h = Keccak.new(digest_bits=512)
+    h.update(b("test"))
+    eq(h.hexdigest(), '1e2e9fc2002b002d75198b7503210c05a1baac4560916a3c6d93bcce3a50d7f00fd395bf1647b9abb8d1afcc9c76c289b0c9383ba386a956da4b38934417789e')
 
 
 def _suite():

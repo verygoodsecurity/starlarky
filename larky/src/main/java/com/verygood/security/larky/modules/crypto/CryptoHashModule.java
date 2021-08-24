@@ -1,12 +1,16 @@
 package com.verygood.security.larky.modules.crypto;
 
-import com.google.crypto.tink.subtle.Hex;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyGeneralDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyLongDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyXofDigest;
 import com.verygood.security.larky.modules.crypto.Hash.LarkyKeccakDigest;
-import net.starlark.java.eval.*;
+import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.EvalException;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -19,7 +23,6 @@ import org.bouncycastle.crypto.digests.LongDigest;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
 import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.bouncycastle.crypto.util.DigestFactory;
-import org.bouncycastle.jcajce.provider.digest.Keccak;
 
 public class CryptoHashModule implements StarlarkValue {
 
@@ -77,12 +80,11 @@ public class CryptoHashModule implements StarlarkValue {
     return new LarkyLongDigest(digest);
   }
 
-  @StarlarkMethod(name = "Keccak_256", parameters = {
-          @Param(name = "data", allowedTypes = {@ParamType(type = StarlarkBytes.class)})
-  }, useStarlarkThread = true)
-  public StarlarkBytes Keccak_256(StarlarkBytes data, StarlarkThread thread) {
-    Keccak.Digest256 digest256 = new Keccak.Digest256();
-    return StarlarkBytes.of(thread.mutability(), digest256.digest(data.toByteArray()));
+  @StarlarkMethod(name = "Keccak", parameters = {
+          @Param(name = "digest_bits", allowedTypes = {@ParamType(type = StarlarkInt.class)})
+  })
+  public LarkyKeccakDigest Keccak(StarlarkInt digest_bits) {
+    return new LarkyKeccakDigest(new KeccakDigest(digest_bits.toIntUnchecked()));
   }
 
   @StarlarkMethod(name = "SHA3_256")
