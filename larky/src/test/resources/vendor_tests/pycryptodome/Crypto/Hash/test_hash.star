@@ -61,6 +61,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(SHA1_test))
     _suite.addTest(unittest.FunctionTestCase(SHA512_test))
     _suite.addTest(unittest.FunctionTestCase(SHA3_256_test))
+    _suite.addTest(unittest.FunctionTestCase(Keccak_test))
     return _suite
 
 
