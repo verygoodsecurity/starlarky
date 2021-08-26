@@ -198,4 +198,18 @@ public final class StarlarkUtil {
     }
     return false;
   }
+
+  public static StarlarkCallable toCallable(Object x) throws EvalException {
+     if(x instanceof StarlarkCallable) {
+       return (StarlarkCallable) x;
+     }
+     // if we have a user defined type and it has a __call__
+     else if(x instanceof Structure) {
+       final Object value = ((Structure) x).getValue(PyProtocols.__CALL__);
+       if(value != null) {
+         return ((StarlarkCallable) value);
+       }
+     }
+     throw Starlark.errorf("%s is not a callable", Starlark.type(x));
+   }
 }
