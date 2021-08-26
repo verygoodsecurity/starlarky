@@ -38,7 +38,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>${junit.version}</version>
+            <version>${org.junit.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -146,12 +146,12 @@
 
         <slf4j.version>1.7.30</slf4j.version>
         <org.projectlombok.version>1.18.20</org.projectlombok.version>
-        <junit.version>4.13.1</junit.version>
+        <org.junit.version>4.13.2</org.junit.version>
         <google.findbugs.version>3.0.2</google.findbugs.version>
         <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
         <maven.compiler.plugin.version>3.6.2</maven.compiler.plugin.version>
         <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
-        <google.errorprone.version>2.5.1</google.errorprone.version>
+        <google.errorprone.version>2.9.0</google.errorprone.version>
     </properties>
 
     <profiles>
