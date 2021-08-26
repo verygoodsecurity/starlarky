@@ -566,10 +566,10 @@ def try_(func):
         return self
     self.finally_ = finally_
 
-    def build():
+    def build(*args, **kwargs):
         _assert_valid_transition(_enum.BUILD)
         self._current_state = _enum.BUILD
-        rval = safe(self._attempt)()
+        rval = safe(self._attempt)(*args, **kwargs)
         if rval.is_err and self._exc:
             for e in self._exc:
                 rval = rval.map_err(e)
@@ -577,10 +577,11 @@ def try_(func):
             rval = rval.map(self._else)
         if self._finally:
             _finally_returnval = self._finally(rval)
+            # -> make this an option when setting up finally?
             # if finally does not return None, set it to rval
             # TODO: is this right?
-            if _finally_returnval:
-               rval = _finally_returnval
+            if _finally_returnval != None:
+                rval = _finally_returnval
         return rval
 
     self.build = build

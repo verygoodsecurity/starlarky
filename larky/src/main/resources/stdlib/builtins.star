@@ -110,6 +110,7 @@ builtins = larky.struct(
     next=next,
     map=map,
     isinstance=types.is_instance,
+    repr=repr,
     # Errors..
     StopIteration=StopIteration,
     IndexError=IndexError

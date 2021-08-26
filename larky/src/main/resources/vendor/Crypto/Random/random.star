@@ -130,7 +130,7 @@ load("@stdlib//jcrypto", _JCrypto="jcrypto")
 #             selected[r] = 1
 #         return retval
 
-_r = larky.struct(
+random = larky.struct(
     getrandbits=_JCrypto.Random.getrandbits,
     randrange=_JCrypto.Random.randrange,
     randint=_JCrypto.Random.randint,
@@ -142,13 +142,13 @@ _r = larky.struct(
 
 
 # _r = StrongRandom()
-getrandbits = _r.getrandbits
-randrange = _r.randrange
-randint = _r.randint
-choice = _r.choice
-shuffle = _r.shuffle
-sample = _r.sample
-urandom = _r.urandom
+getrandbits = random.getrandbits
+randrange = random.randrange
+randint = random.randint
+choice = random.choice
+shuffle = random.shuffle
+sample = random.sample
+urandom = random.urandom
 
 # These are at the bottom to avoid problems with recursive imports
 # load("@vendor//Crypto/Util/number", ceil_div="ceil_div", bytes_to_long="bytes_to_long", long_to_bytes="long_to_bytes", size="size")

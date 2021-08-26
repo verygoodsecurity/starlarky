@@ -508,16 +508,11 @@ public final class PythonBuiltins {
 //    }
 
     //bytes() -> empty bytes object
-    if (Starlark.isNullOrNone(_obj)
-          || StarlarkBytes.class.isAssignableFrom(_obj.getClass())
-          || StarlarkBytes.class.isAssignableFrom(_obj.getClass())) {
-      return StarlarkUtil.convertFromNoneable(
-          _obj,
-        StarlarkBytes.empty()
-//          StarlarkBytes.builder(thread)
-//              .setSequence(new byte[]{})
-//              .build()
-      );
+    if (Starlark.isNullOrNone(_obj)) {
+      return StarlarkUtil.convertFromNoneable(_obj, StarlarkBytes.empty());
+    }
+    else if(_obj instanceof StarlarkBytes) {
+      return StarlarkBytes.immutableCopyOf(((StarlarkBytes) _obj).elems());
     }
 
     // handle case where string is passed in.
