@@ -6,6 +6,7 @@ load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
 load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Hash/SHA3_256", SHA3_256="SHA3_256")
+load("@vendor//Crypto/Hash/keccak", keccak="keccak")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 
 
@@ -49,12 +50,22 @@ def SHA3_256_test():
     h.hexdigest()
     h.update(b("new text"))
 
+def Keccak_test():
+    h = keccak.new(digest_bits=256)
+    h.update(b("test"))
+    eq(h.hexdigest(), '9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658')
+
+    h = keccak.new(digest_bits=512)
+    h.update(b("test"))
+    eq(h.hexdigest(), '1e2e9fc2002b002d75198b7503210c05a1baac4560916a3c6d93bcce3a50d7f00fd395bf1647b9abb8d1afcc9c76c289b0c9383ba386a956da4b38934417789e')
+
 
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(SHA1_test))
     _suite.addTest(unittest.FunctionTestCase(SHA512_test))
     _suite.addTest(unittest.FunctionTestCase(SHA3_256_test))
+    _suite.addTest(unittest.FunctionTestCase(Keccak_test))
     return _suite
 
 
