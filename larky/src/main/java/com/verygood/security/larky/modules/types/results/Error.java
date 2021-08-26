@@ -9,22 +9,22 @@ import net.starlark.java.eval.Starlark;
 
 public class Error extends EvalException implements Result {
 
-  private final Object errValue;
-  private final EvalException exc;
+  final Object errValue;
+  final EvalException exc;
 
-  private Error(EvalException error) {
+  Error(EvalException error) {
     super(error.getMessage(), error.getCause());
     this.errValue = error.getMessage();
     this.exc = error;
   }
 
-  private Error(Error errorObj) {
+  Error(Error errorObj) {
     super(errorObj.exc.getMessage(), errorObj.exc.getCause());
     this.errValue = errorObj.exc.getMessage();
     this.exc = errorObj.exc;
   }
 
-  private Error(Object errorObj) {
+  Error(Object errorObj) {
     super(Starlark.str(errorObj));
     this.errValue = errorObj;
     this.exc = new EvalException(Starlark.str(errorObj));
