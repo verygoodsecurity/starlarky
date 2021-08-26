@@ -105,18 +105,32 @@ public class CryptoRandomModule implements StarlarkValue {
   }
 
   @StarlarkMethod(
-      name = "choice",
-      doc = "Return a random element from a (non-empty) sequence. " +
-          "If the sequence is empty, raises IndexError.",
-      parameters = {@Param(name = "seq")}
+       name = "choice",
+       doc = "Return a random element from a (non-empty) sequence. " +
+           "If the sequence is empty, raises IndexError.",
+       parameters = {@Param(name = "seq")}
+   )
+   public Object choice(Sequence<?> seq) throws EvalException {
+     if(seq.size() == 0) {
+       throw Starlark.errorf("IndexError: sequence index is out of range");
+     }
+     SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
+     int ri = secureRandom.nextInt(seq.size());
+     return seq.get(ri);
+   }
+
+  @StarlarkMethod(
+      name = "randbytes",
+      doc = "Generate n random bytes.",
+      parameters = {@Param(name = "n")},
+     useStarlarkThread = true
   )
-  public Object choice(Sequence<?> seq) throws EvalException {
-    if(seq.size() == 0) {
-      throw Starlark.errorf("IndexError: sequence index is out of range");
-    }
-    SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
-    int ri = secureRandom.nextInt(seq.size());
-    return seq.get(ri);
+  public StarlarkBytes randbytes(StarlarkInt n, StarlarkThread thread) {
+    SecureRandom secRandom = CryptoServicesRegistrar.getSecureRandom();
+    int numBytes = n.toIntUnchecked();
+    byte[] randomBytes = new byte[numBytes];
+    secRandom.nextBytes(randomBytes);
+    return StarlarkBytes.of(thread.mutability(), randomBytes);
   }
 
   @StarlarkMethod(

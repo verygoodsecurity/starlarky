@@ -32,7 +32,7 @@ def hexlify(data):
     return b2a_hex(data)
 
 
-def crc32(data, value):
+def crc32(data, value=0):
     'Compute CRC-32 incrementally.'
     return _binascii.crc32(data, value)
 

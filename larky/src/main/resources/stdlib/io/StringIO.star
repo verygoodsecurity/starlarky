@@ -39,7 +39,7 @@ __all__ = ["StringIO"]
 
 def _complain_ifclosed(closed):
     if closed:
-        return Error("ValueError: I/O operation on closed file")
+        return Error("ValueError: I/O operation on closed file").unwrap()
 
 
 def StringIO(buf = ''):
