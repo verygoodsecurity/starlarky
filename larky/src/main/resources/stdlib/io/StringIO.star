@@ -82,8 +82,7 @@ def StringIO(buf = ''):
         _complain_ifclosed(self.closed)
         r = self.readline()
         if not r:
-            # PY2LARKY: pay attention to this!
-            return Error("StopIteration")
+            return StopIteration()
         return r
     self.__next__ = __next__
 
@@ -92,8 +91,8 @@ def StringIO(buf = ''):
         """
         if not self.closed:
             self.closed = True
-            # del self.buf, self.pos
-            pass
+            self.buf = None
+            self.pos = 0
     self.close = close
 
     def isatty():
