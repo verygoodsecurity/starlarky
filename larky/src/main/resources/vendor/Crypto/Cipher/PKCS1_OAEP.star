@@ -22,13 +22,11 @@
 load("@stdlib//larky", larky="larky")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
-# load("@vendor//Crypto/Signature/pss", MGF1="MGF1")
+load("@vendor//Crypto/Signature/pss", MGF1="MGF1")
 load("@vendor//Crypto/Util/number", number_size="size", ceil_div="ceil_div", bytes_to_long="bytes_to_long", long_to_bytes="long_to_bytes")
 load("@vendor//Crypto/Util/py3compat", bord="bord", _copy_bytes="copy_bytes")
 load("@vendor//Crypto/Util/strxor", strxor="strxor")
 load("@vendor//option/result", Error="Error")
-
-MGF1 = lambda *args: args
 
 
 def PKCS1OAEP_Cipher(key, hashAlgo, mgfunc, label, randfunc):

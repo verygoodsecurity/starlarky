@@ -140,10 +140,9 @@ def decode(pem_data, passphrase=None):
             key = _EVP_BytesToKey(passphrase, salt[:8], 32)
             objdec = AES.new(key, AES.MODE_CBC, salt)
         elif algo.lower() == "id-aes256-gcm":
-            fail("IMPLEMENT ME! " + algo.lower())
-            #key = _EVP_BytesToKey(passphrase, salt[:8], 32)
-            #objdec = AES.new(key, AES.MODE_GCM, nonce=salt)
-            #padding = False
+            key = _EVP_BytesToKey(passphrase, salt[:8], 32)
+            objdec = AES.new(key, AES.MODE_GCM, nonce=salt)
+            padding = False
         else:
             fail("Unsupport PEM encryption algorithm (%s)." % algo)
 

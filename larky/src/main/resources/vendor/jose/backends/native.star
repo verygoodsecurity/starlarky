@@ -2,6 +2,7 @@ load("@stdlib//builtins", "builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//hashlib", hashlib="hashlib")
 load("@stdlib//operator", operator="operator")
+load("@stdlib//types", types="types")
 load("@stdlib//larky", larky="larky")
 load("@vendor//Crypto/Hash/HMAC", hmac="HMAC")
 load("@vendor//jose/backends/base", Key="Key")
@@ -28,13 +29,41 @@ def HMACKey(key, algorithm):
 
     def __init__(key, algorithm):
         if not operator.contains(ALGORITHMS.HMAC, algorithm):
-            fail(" JWKError('hash_alg: %s is not a valid hash algorithm' % algorithm)")
+            fail("JWKError: hash_alg: %s is not a valid hash algorithm" % algorithm)
+        self._algorithm = algorithm
+        self._hash_alg = self.HASHES.get(algorithm)
+
+        if types.is_dict(key):
+            self.prepared_key = self._process_jwk(key)
+            return self
+
+        if not types.is_string(key) and not types.is_bytelike(key):
+            fail('JWKError: Expecting a string- or bytes-formatted key.')
+
+        if types.is_string(key):
+            key = codecs.encode(key, encoding="utf-8")
+
+        invalid_strings = [
+            b"-----BEGIN PUBLIC KEY-----",
+            b"-----BEGIN RSA PUBLIC KEY-----",
+            b"-----BEGIN CERTIFICATE-----",
+            b"ssh-rsa",
+        ]
+
+        for string_value in invalid_strings:
+            if string_value in key:
+                fail("JWKError: The specified key is an asymmetric key or " +
+                     "x509 certificate and should not be used as an HMAC secret.")
+
+        self.prepared_key = key
         return self
+
     self = __init__(key, algorithm)
 
     def _process_jwk(jwk_dict):
         if not jwk_dict.get('kty') == 'oct':
-            fail(" JWKError(\"Incorrect key type. Expected: 'oct', Received: %s\" % jwk_dict.get('kty'))")
+            fail("JWKError: Incorrect key type. Expected: 'oct', Received: %s"
+                 % jwk_dict.get('kty'))
 
         k = jwk_dict.get('k')
         k = codecs.encode(k, encoding='utf-8')
@@ -45,7 +74,7 @@ def HMACKey(key, algorithm):
     self._process_jwk = _process_jwk
 
     def sign(msg):
-        return hmac.new(self.prepared_key, msg, self._hash_alg).digest()
+        return hmac.new(self.prepared_key, msg, self._hash_alg()).digest()
     self.sign = sign
 
     def verify(msg, sig):
@@ -58,7 +87,7 @@ def HMACKey(key, algorithm):
             'kty': 'oct',
             'k': codecs.decode(
                 base64url_encode(self.prepared_key),
-                encoding='ASCII'
+                encoding='ISO-8859-1'
             ),
         }
     self.to_dict = to_dict
