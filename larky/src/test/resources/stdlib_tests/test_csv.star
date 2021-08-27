@@ -13,9 +13,23 @@ def _test_simple_testcase():
     asserts.assert_that(csv.list_dialects()).is_equal_to(["excel"])
 
 
+def _test_simple_reader():
+    csvfile = StringIO("""first_name,last_name,email
+John,Doe,john-doe@bogusemail.com
+Mary,Smith-Robinson,maryjacobs@bogusemail.com
+Dave,Smith,davesmith@bogusemail.com
+Jane,Stuart,janestuart@bogusemail.com
+Tom,Wright,tomwright@bogusemail.com""")
+    spamreader = csv.reader(csvfile)
+    for row in iter(spamreader):
+        print(', '.join(row))
+    # for row in spamreader:
+    #     print(', '.join(row))
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_simple_testcase))
+    _suite.addTest(unittest.FunctionTestCase(_test_simple_reader))
     return _suite
 
 

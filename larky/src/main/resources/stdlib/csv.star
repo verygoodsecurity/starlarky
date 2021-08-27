@@ -31,16 +31,36 @@ load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITER
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//types", types="types")
-load("@vendor//option/result", Error="Error")
+load("@vendor//option/result", Error="Error", safe="safe")
 
 QUOTE_MINIMAL, QUOTE_ALL, QUOTE_NONNUMERIC, QUOTE_NONE = range(4)
 _dialects = {}
-_field_limit = 128 * 1024 # max parsed field size
 
 
 string_types = str
 text_type = str
 binary_type = bytes
+
+
+undefined = larky.SENTINEL
+_field_limit = [128 * 1024] # max parsed field size
+
+def field_size_limit(limit=undefined):
+    """Sets an upper limit on parsed fields.
+    csv.field_size_limit([limit])
+    Returns old limit. If limit is not given, no new limit is set and
+    the old limit is returned"""
+
+    old_limit = _field_limit[0]
+
+    if limit != undefined:
+        if not types.is_int(limit):
+            return Error("TypeError: int expected, got %s"
+                         % type(limit)).unwrap()
+
+        _field_limit[0] = limit
+
+    return old_limit
 
 
 def QuoteStrategy(dialect):
@@ -255,234 +275,231 @@ def QuoteNoneStrategy(dialect):
 #             self.writerow(row)
 #     self.writerows = writerows
 #     return self
-#
-#
-# START_RECORD = 0
-# START_FIELD = 1
-# ESCAPED_CHAR = 2
-# IN_FIELD = 3
-# IN_QUOTED_FIELD = 4
-# ESCAPE_IN_QUOTED_FIELD = 5
-# QUOTE_IN_QUOTED_FIELD = 6
-# EAT_CRNL = 7
-# AFTER_ESCAPED_CRNL = 8
-# def reader(fileobj, dialect="excel", **fmtparams):
-#     self = larky.mutablestruct(__name__='reader', __class__=reader)
-#     def __init__(fileobj, dialect, fmtparams):
-#         self.input_iter = iter(fileobj)
-#
-#         if types.is_instance(dialect, text_type):
-#             dialect = get_dialect(dialect)
-#
-#         try:
-#             self.dialect = Dialect.combine(dialect, fmtparams)
-#         except Error as e:
-#             return Error()
-#
-#         self.fields = None
-#         self.field = None
-#         self.line_num = 0
-#         return self
-#     self = __init__(fileobj, dialect, fmtparams)
-#
-#     def parse_reset():
-#         self.fields = []
-#         self.field = []
-#         self.state = START_RECORD
-#         self.numeric_field = False
-#     self.parse_reset = parse_reset
-#
-#     def parse_save_field():
-#         field = "".join(self.field)
-#         self.field = []
-#         if self.numeric_field:
-#             field = float(field)
-#             self.numeric_field = False
-#         self.fields.append(field)
-#     self.parse_save_field = parse_save_field
-#
-#     def parse_add_char(c):
-#         if len(self.field) >= field_size_limit():
-#             return Error("Error: field size limit exceeded")
-#         self.field.append(c)
-#     self.parse_add_char = parse_add_char
-#
-#     def parse_process_char(c):
-#         switch = {
-#             START_RECORD: self._parse_start_record,
-#             START_FIELD: self._parse_start_field,
-#             ESCAPED_CHAR: self._parse_escaped_char,
-#             AFTER_ESCAPED_CRNL: self._parse_after_escaped_crnl,
-#             IN_FIELD: self._parse_in_field,
-#             IN_QUOTED_FIELD: self._parse_in_quoted_field,
-#             ESCAPE_IN_QUOTED_FIELD: self._parse_escape_in_quoted_field,
-#             QUOTE_IN_QUOTED_FIELD: self._parse_quote_in_quoted_field,
-#             EAT_CRNL: self._parse_eat_crnl,
-#         }
-#         return switch[self.state](c)
-#     self.parse_process_char = parse_process_char
-#
-#     def _parse_start_record(c):
-#         if c == "\0":
-#             return
-#         elif c == "\n" or c == "\r":
-#             self.state = EAT_CRNL
-#             return
-#
-#         self.state = START_FIELD
-#         return self._parse_start_field(c)
-#     self._parse_start_record = _parse_start_record
-#
-#     def _parse_start_field(c):
-#         if c == "\n" or c == "\r" or c == "\0":
-#             self.parse_save_field()
-#             self.state = START_RECORD if c == "\0" else EAT_CRNL
-#         elif c == self.dialect.quotechar and self.dialect.quoting != QUOTE_NONE:
-#             self.state = IN_QUOTED_FIELD
-#         elif c == self.dialect.escapechar:
-#             self.state = ESCAPED_CHAR
-#         elif c == " " and self.dialect.skipinitialspace:
-#             pass  # Ignore space at start of field
-#         elif c == self.dialect.delimiter:
-#             # Save empty field
-#             self.parse_save_field()
-#         else:
-#             # Begin new unquoted field
-#             if self.dialect.quoting == QUOTE_NONNUMERIC:
-#                 self.numeric_field = True
-#             self.parse_add_char(c)
-#             self.state = IN_FIELD
-#     self._parse_start_field = _parse_start_field
-#
-#     def _parse_escaped_char(c):
-#         if c == "\n" or c == "\r":
-#             self.parse_add_char(c)
-#             self.state = AFTER_ESCAPED_CRNL
-#             return
-#         if c == "\0":
-#             c = "\n"
-#         self.parse_add_char(c)
-#         self.state = IN_FIELD
-#     self._parse_escaped_char = _parse_escaped_char
-#
-#     def _parse_after_escaped_crnl(c):
-#         if c == "\0":
-#             return
-#         return self._parse_in_field(c)
-#     self._parse_after_escaped_crnl = _parse_after_escaped_crnl
-#
-#     def _parse_in_field(c):
-#         # In unquoted field
-#         if c == "\n" or c == "\r" or c == "\0":
-#             # End of line - return [fields]
-#             self.parse_save_field()
-#             self.state = START_RECORD if c == "\0" else EAT_CRNL
-#         elif c == self.dialect.escapechar:
-#             self.state = ESCAPED_CHAR
-#         elif c == self.dialect.delimiter:
-#             self.parse_save_field()
-#             self.state = START_FIELD
-#         else:
-#             # Normal character - save in field
-#             self.parse_add_char(c)
-#     self._parse_in_field = _parse_in_field
-#
-#     def _parse_in_quoted_field(c):
-#         if c == "\0":
-#             pass
-#         elif c == self.dialect.escapechar:
-#             self.state = ESCAPE_IN_QUOTED_FIELD
-#         elif c == self.dialect.quotechar and self.dialect.quoting != QUOTE_NONE:
-#             if self.dialect.doublequote:
-#                 self.state = QUOTE_IN_QUOTED_FIELD
-#             else:
-#                 self.state = IN_FIELD
-#         else:
-#             self.parse_add_char(c)
-#     self._parse_in_quoted_field = _parse_in_quoted_field
-#
-#     def _parse_escape_in_quoted_field(c):
-#         if c == "\0":
-#             c = "\n"
-#
-#         self.parse_add_char(c)
-#         self.state = IN_QUOTED_FIELD
-#     self._parse_escape_in_quoted_field = _parse_escape_in_quoted_field
-#
-#     def _parse_quote_in_quoted_field(c):
-#         if self.dialect.quoting != QUOTE_NONE and c == self.dialect.quotechar:
-#             # save "" as "
-#             self.parse_add_char(c)
-#             self.state = IN_QUOTED_FIELD
-#         elif c == self.dialect.delimiter:
-#             self.parse_save_field()
-#             self.state = START_FIELD
-#         elif c == "\n" or c == "\r" or c == "\0":
-#             # End of line = return [fields]
-#             self.parse_save_field()
-#             self.state = START_RECORD if c == "\0" else EAT_CRNL
-#         elif not self.dialect.strict:
-#             self.parse_add_char(c)
-#             self.state = IN_FIELD
-#         else:
-#             # illegal
-#             return Error()
-#     self._parse_quote_in_quoted_field = _parse_quote_in_quoted_field
-#
-#     def _parse_eat_crnl(c):
-#         if c == "\n" or c == "\r":
-#             pass
-#         elif c == "\0":
-#             self.state = START_RECORD
-#         else:
-#             return Error()
-#     self._parse_eat_crnl = _parse_eat_crnl
-#
-#     def __iter__():
-#         return self
-#     self.__iter__ = __iter__
-#
-#     def __next__():
-#         self.parse_reset()
-#         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-#             if not True:
-#                 break
-#             try:
-#                 lineobj = next(self.input_iter)
-#             except StopIteration:
-#                 if len(self.field) != 0 or self.state == IN_QUOTED_FIELD:
-#                     if self.dialect.strict:
-#                         return Error("Error: unexpected end of data")
-#                     self.parse_save_field()
-#                 if self.fields:
-#                     break
-#                 return
-#
-#             if not types.is_instance(lineobj, text_type):
-#                 typ = type(lineobj)
-#                 typ_name = "bytes" if typ == bytes else typ.__name__
-#                 err_str = ("iterator should return strings, not {0}" +
-#                     " (did you open the file in text mode?)")
-#                 return Error()
-#
-#             self.line_num += 1
-#             for c in lineobj:
-#                 if c == "\0":
-#                     return Error("Error: line contains NULL byte")
-#                 self.parse_process_char(c)
-#
-#             self.parse_process_char("\0")
-#
-#             if self.state == START_RECORD:
-#                 break
-#
-#         fields = self.fields
-#         self.fields = None
-#         return fields
-#     self.__next__ = __next__
-#
-#     next = __next__
-#     return self
+
+
+START_RECORD = 0
+START_FIELD = 1
+ESCAPED_CHAR = 2
+IN_FIELD = 3
+IN_QUOTED_FIELD = 4
+ESCAPE_IN_QUOTED_FIELD = 5
+QUOTE_IN_QUOTED_FIELD = 6
+EAT_CRNL = 7
+AFTER_ESCAPED_CRNL = 8
+
+
+def reader(fileobj, dialect="excel", **fmtparams):
+    self = larky.mutablestruct(__name__='reader', __class__=reader)
+    def __init__(fileobj, dialect, fmtparams):
+        self.input_iter = iter(fileobj)
+
+        if types.is_string(dialect):
+            dialect = get_dialect(dialect)
+        d = Dialect()
+        self.dialect = d.combine(d, dialect, fmtparams)
+        self.fields = None
+        self.field = None
+        self.line_num = 0
+        return self
+    self = __init__(fileobj, dialect, fmtparams)
+
+    def parse_reset():
+        self.fields = []
+        self.field = []
+        self.state = START_RECORD
+        self.numeric_field = False
+    self.parse_reset = parse_reset
+
+    def parse_save_field():
+        field = "".join(self.field)
+        self.field = []
+        if self.numeric_field:
+            field = float(field)
+            self.numeric_field = False
+        self.fields.append(field)
+    self.parse_save_field = parse_save_field
+
+    def parse_add_char(c):
+        if len(self.field) >= field_size_limit():
+            return Error("Error: field size limit exceeded").unwrap()
+        self.field.append(c)
+    self.parse_add_char = parse_add_char
+
+    def parse_process_char(c):
+        switch = {
+            START_RECORD: self._parse_start_record,
+            START_FIELD: self._parse_start_field,
+            ESCAPED_CHAR: self._parse_escaped_char,
+            AFTER_ESCAPED_CRNL: self._parse_after_escaped_crnl,
+            IN_FIELD: self._parse_in_field,
+            IN_QUOTED_FIELD: self._parse_in_quoted_field,
+            ESCAPE_IN_QUOTED_FIELD: self._parse_escape_in_quoted_field,
+            QUOTE_IN_QUOTED_FIELD: self._parse_quote_in_quoted_field,
+            EAT_CRNL: self._parse_eat_crnl,
+        }
+        return switch[self.state](c)
+    self.parse_process_char = parse_process_char
+
+    def _parse_start_record(c):
+        if c == "\0":
+            return
+        elif c == "\n" or c == "\r":
+            self.state = EAT_CRNL
+            return
+
+        self.state = START_FIELD
+        return self._parse_start_field(c)
+    self._parse_start_record = _parse_start_record
+
+    def _parse_start_field(c):
+        if c == "\n" or c == "\r" or c == "\0":
+            self.parse_save_field()
+            self.state = START_RECORD if c == "\0" else EAT_CRNL
+        elif c == self.dialect.quotechar and self.dialect.quoting != QUOTE_NONE:
+            self.state = IN_QUOTED_FIELD
+        elif c == self.dialect.escapechar:
+            self.state = ESCAPED_CHAR
+        elif c == " " and self.dialect.skipinitialspace:
+            pass  # Ignore space at start of field
+        elif c == self.dialect.delimiter:
+            # Save empty field
+            self.parse_save_field()
+        else:
+            # Begin new unquoted field
+            if self.dialect.quoting == QUOTE_NONNUMERIC:
+                self.numeric_field = True
+            self.parse_add_char(c)
+            self.state = IN_FIELD
+    self._parse_start_field = _parse_start_field
+
+    def _parse_escaped_char(c):
+        if c == "\n" or c == "\r":
+            self.parse_add_char(c)
+            self.state = AFTER_ESCAPED_CRNL
+            return
+        if c == "\0":
+            c = "\n"
+        self.parse_add_char(c)
+        self.state = IN_FIELD
+    self._parse_escaped_char = _parse_escaped_char
+
+    def _parse_after_escaped_crnl(c):
+        if c == "\0":
+            return
+        return self._parse_in_field(c)
+    self._parse_after_escaped_crnl = _parse_after_escaped_crnl
+
+    def _parse_in_field(c):
+        # In unquoted field
+        if c == "\n" or c == "\r" or c == "\0":
+            # End of line - return [fields]
+            self.parse_save_field()
+            self.state = START_RECORD if c == "\0" else EAT_CRNL
+        elif c == self.dialect.escapechar:
+            self.state = ESCAPED_CHAR
+        elif c == self.dialect.delimiter:
+            self.parse_save_field()
+            self.state = START_FIELD
+        else:
+            # Normal character - save in field
+            self.parse_add_char(c)
+    self._parse_in_field = _parse_in_field
+
+    def _parse_in_quoted_field(c):
+        if c == "\0":
+            pass
+        elif c == self.dialect.escapechar:
+            self.state = ESCAPE_IN_QUOTED_FIELD
+        elif c == self.dialect.quotechar and self.dialect.quoting != QUOTE_NONE:
+            if self.dialect.doublequote:
+                self.state = QUOTE_IN_QUOTED_FIELD
+            else:
+                self.state = IN_FIELD
+        else:
+            self.parse_add_char(c)
+    self._parse_in_quoted_field = _parse_in_quoted_field
+
+    def _parse_escape_in_quoted_field(c):
+        if c == "\0":
+            c = "\n"
+
+        self.parse_add_char(c)
+        self.state = IN_QUOTED_FIELD
+    self._parse_escape_in_quoted_field = _parse_escape_in_quoted_field
+
+    def _parse_quote_in_quoted_field(c):
+        if self.dialect.quoting != QUOTE_NONE and c == self.dialect.quotechar:
+            # save "" as "
+            self.parse_add_char(c)
+            self.state = IN_QUOTED_FIELD
+        elif c == self.dialect.delimiter:
+            self.parse_save_field()
+            self.state = START_FIELD
+        elif c == "\n" or c == "\r" or c == "\0":
+            # End of line = return [fields]
+            self.parse_save_field()
+            self.state = START_RECORD if c == "\0" else EAT_CRNL
+        elif not self.dialect.strict:
+            self.parse_add_char(c)
+            self.state = IN_FIELD
+        else:
+            # illegal
+            return Error("{delimiter}' expected after '{quotechar}".format(
+                            delimiter=self.dialect.delimiter,
+                            quotechar=self.dialect.quotechar,
+                        )).unwrap()
+    self._parse_quote_in_quoted_field = _parse_quote_in_quoted_field
+
+    def _parse_eat_crnl(c):
+        if c == "\n" or c == "\r":
+            pass
+        elif c == "\0":
+            self.state = START_RECORD
+        else:
+            return Error(
+                'new-line character seen in unquoted field - do you ' +
+                'need to open the file in universal-newline mode?').unwrap()
+    self._parse_eat_crnl = _parse_eat_crnl
+
+    def __iter__():
+        return self
+    self.__iter__ = __iter__
+
+    def __next__():
+        self.parse_reset()
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            lineobj = safe(next)(self.input_iter)
+            if lineobj == StopIteration():
+                if len(self.field) != 0 or self.state == IN_QUOTED_FIELD:
+                    if self.dialect.strict:
+                        return Error("Error: unexpected end of data").unwrap()
+                    self.parse_save_field()
+                if self.fields:
+                    break
+                return StopIteration()
+            lineobj = lineobj.unwrap()
+            if not types.is_string(lineobj):
+                err_str = ("iterator should return strings, not {0}" +
+                    " (did you open the file in text mode?)")
+                return Error(err_str.format(type(lineobj))).unwrap()
+
+            self.line_num += 1
+            for c in iter(lineobj):
+                if c == "\0":
+                    return Error("Error: line contains NULL byte").unwrap()
+                self.parse_process_char(c)
+
+            self.parse_process_char("\0")
+
+            if self.state == START_RECORD:
+                break
+
+        fields = self.fields
+        self.fields = None
+        return fields
+    self.__next__ = __next__
+    self.next = __next__
+    return self
 
 
 _dialect_registry = {}
@@ -563,7 +580,10 @@ def Dialect():
         dialect = cls.extend(cls, dialect)
 
         if not types.is_int(dialect.quoting):
-            return Error("Error: 'quoting' must be an integer").unwrap()
+            return Error(("Error: 'quoting' (%s) must be an integer, but is" +
+                         " of type: %s") % (
+                             repr(dialect.quoting), type(dialect.quoting)
+                         )).unwrap()
 
         if dialect.delimiter == None:
             return Error("Error: delimiter must be set").unwrap()
@@ -618,7 +638,7 @@ def Dialect():
 
     def combine(cls, dialect, fmtparams):
         """Create a new dialect with defaults and added parameters."""
-        dialect = cls.extend(dialect, fmtparams)
+        dialect = cls.extend(cls, dialect, fmtparams)
         defaults = cls.defaults()
         specified = dict(
             [(attr, getattr(dialect, attr, None))
@@ -634,7 +654,7 @@ def Dialect():
             __class__=cls.__class__,
             **defaults
         )
-        cls.validate(dialect)
+        cls.validate(cls, dialect)
         return dialect
     self.combine = combine
 
@@ -660,7 +680,7 @@ def Dialect():
     return self
 
 
-def excel():
+def excel(init=True):
     """Describe the usual properties of Excel-generated CSV files."""
     self = Dialect()
     self.__name__ = 'excel'
@@ -671,32 +691,39 @@ def excel():
     self.skipinitialspace = False
     self.lineterminator = "\r\n"
     self.quoting = QUOTE_MINIMAL
-    return self.__init__()
+    if init:
+        return self.__init__()
+    return self
 
 register_dialect("excel", excel())
 
-#
-# def excel_tab():
-#     """Describe the usual properties of Excel-generated TAB-delimited files."""
-#
-#     delimiter = "\t"
-#     return self
-# register_dialect("excel-tab", excel_tab)
+
+def excel_tab():
+    """Describe the usual properties of Excel-generated TAB-delimited files."""
+    self = excel(init=False)
+    self.__name__ = 'excel_tab'
+    self.__class__ = excel_tab
+    self.delimiter = "\t"
+    return self.__init__()
+
+register_dialect("excel-tab", excel_tab())
 
 
-# def unix_dialect():
-#     """Describe the usual properties of Unix-generated CSV files."""
-#
-#     delimiter = ","
-#     quotechar = '"'
-#     doublequote = True
-#     skipinitialspace = False
-#     lineterminator = "\n"
-#     quoting = QUOTE_ALL
-#     return self
-#
-#
-# register_dialect("unix", unix_dialect)
+def unix_dialect():
+    """Describe the usual properties of Unix-generated CSV files."""
+    self = Dialect()
+    self.__name__ = 'unix_dialect'
+    self.__class__ = unix_dialect
+    self.delimiter = ","
+    self.quotechar = '"'
+    self.doublequote = True
+    self.skipinitialspace = False
+    self.lineterminator = "\n"
+    self.quoting = QUOTE_ALL
+    return self.__init__()
+
+
+register_dialect("unix", unix_dialect())
 # def DictReader(f,
 #     fieldnames=None,
 #     restkey=None,
@@ -1122,9 +1149,13 @@ register_dialect("excel", excel())
 csv = larky.struct(
     __name__='csv',
     _dialects=_dialects,
-    _field_limit=_field_limit,
+    field_size_limit=field_size_limit,
     QuoteStrategy=QuoteStrategy,
     QuoteMinimalStrategy=QuoteMinimalStrategy,
+    QuoteAllStrategy=QuoteAllStrategy,
+    QuoteNonnumericStrategy=QuoteNonnumericStrategy,
+    QuoteNoneStrategy=QuoteNoneStrategy,
+    reader=reader,
     register_dialect=register_dialect,
     unregister_dialect=unregister_dialect,
     get_dialect=get_dialect,

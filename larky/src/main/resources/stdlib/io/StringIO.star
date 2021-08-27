@@ -54,7 +54,7 @@ def StringIO(buf = ''):
     cannot be interpreted as 7-bit ASCII (that use the 8th bit) will cause
     a UnicodeError to be raised when getvalue() is called.
     """
-    self = larky.mutablestruct(__class__='StringIO')
+    self = larky.mutablestruct(__name__='StringIO', __class__=StringIO)
     def __init__(buf):
         # Force self.buf to be a string or unicode
         if not types.is_string(buf):
