@@ -9,8 +9,7 @@ load("@vendor//option/result", Result="Result", Error="Error")
 
 def _test_simple_testcase():
     asserts.assert_that(True).is_equal_to(True)
-    repr(csv.QuoteMinimalStrategy(csv.excel()))
-    asserts.assert_that(csv.list_dialects()).is_equal_to(["excel"])
+    asserts.assert_that(csv.list_dialects()).is_equal_to(["excel", "excel-tab", "unix"])
 
 
 def _test_simple_reader():
@@ -20,16 +19,48 @@ Mary,Smith-Robinson,maryjacobs@bogusemail.com
 Dave,Smith,davesmith@bogusemail.com
 Jane,Stuart,janestuart@bogusemail.com
 Tom,Wright,tomwright@bogusemail.com""")
+
+    expected = [
+        ["first_name", "last_name", "email"],
+        ["John", "Doe", "john-doe@bogusemail.com"],
+        ["Mary", "Smith-Robinson", "maryjacobs@bogusemail.com"],
+        ["Dave", "Smith", "davesmith@bogusemail.com"],
+        ["Jane", "Stuart", "janestuart@bogusemail.com"],
+        ["Tom", "Wright", "tomwright@bogusemail.com"],
+    ]
+
     spamreader = csv.reader(csvfile)
-    for row in iter(spamreader):
-        print(', '.join(row))
-    # for row in spamreader:
-    #     print(', '.join(row))
+    for i, row in enumerate(iter(spamreader)):
+        asserts.assert_that(len(row)).is_equal_to(3)
+        asserts.assert_that(row).is_equal_to(expected[i])
+
+
+def _test_simple_dictreader():
+    csvfile = StringIO("""first_name,last_name,email
+John,Doe,john-doe@bogusemail.com
+Mary,Smith-Robinson,maryjacobs@bogusemail.com
+Dave,Smith,davesmith@bogusemail.com
+Jane,Stuart,janestuart@bogusemail.com
+Tom,Wright,tomwright@bogusemail.com""")
+
+    expected = [
+        {"first_name": "John", "last_name": "Doe", "email": "john-doe@bogusemail.com"},
+        {"first_name": "Mary", "last_name": "Smith-Robinson", "email": "maryjacobs@bogusemail.com"},
+        {"first_name": "Dave", "last_name": "Smith", "email": "davesmith@bogusemail.com"},
+        {"first_name": "Jane", "last_name": "Stuart", "email": "janestuart@bogusemail.com"},
+        {"first_name": "Tom",  "last_name": "Wright", "email": "tomwright@bogusemail.com"},
+    ]
+    spamreader = csv.DictReader(csvfile)
+    results = list(iter(spamreader))
+    asserts.assert_that(results).is_equal_to(expected)
+
 
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_simple_testcase))
     _suite.addTest(unittest.FunctionTestCase(_test_simple_reader))
+    _suite.addTest(unittest.FunctionTestCase(_test_simple_dictreader))
+
     return _suite
 
 

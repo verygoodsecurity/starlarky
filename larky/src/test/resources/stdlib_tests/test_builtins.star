@@ -55,7 +55,17 @@ def test_iter_string():
     asserts.assert_that(next(s_iter)).is_equal_to("o")
     asserts.assert_that(next(s_iter)).is_equal_to("o")
     asserts.assert_fails(lambda: next(s_iter), ".*StopIteration")
-    rval = safe(next)(s_iter)
+    # test normal for iteration works fine
+    asserts.assert_that([x for x in iter(s)]).is_equal_to(["f", "o", "o"])
+    asserts.assert_that(list(iter(s))).is_equal_to(["f", "o", "o"])
+
+
+def test_iter_with_Result_type(func):
+    s = "foo"
+    s_iter = iter(s)
+    asserts.assert_that(list(s_iter)).is_equal_to(["f", "o", "o"])
+
+    rval = func(s_iter)#
     asserts.assert_that(rval.is_err).is_true()
     # Confirm that safe() will return the actual instance of the the Error subtype
     asserts.assert_that(rval).is_instance_of(StopIteration)
@@ -69,10 +79,6 @@ def test_iter_string():
     # Check to see if we can match it for isinstance() for python compatibility
     # reasons
     asserts.assert_that(builtins.isinstance(rval, StopIteration))
-
-    # test normal for iteration works fine
-    asserts.assert_that([x for x in iter(s)]).is_equal_to(["f", "o", "o"])
-    asserts.assert_that(list(iter(s))).is_equal_to(["f", "o", "o"])
 
 
 def test_standard_iter_operations():
@@ -236,8 +242,25 @@ def test_iter_function_stop():
     )
 
 
+def _Result_map(s_iter):
+    return Result.Ok(s_iter).map(next)
+
+def _Result_safe(s_iter):
+    return safe(next)(s_iter)
+
 def _add_iter_suite(suite):
     suite.addTest(unittest.FunctionTestCase(test_iter_string))
+
+    larky.parametrize(
+        suite.addTest,
+        unittest.FunctionTestCase,
+        'func',
+        [
+            _Result_map,
+            _Result_safe
+        ],
+    )(test_iter_with_Result_type)
+
     suite.addTest(unittest.FunctionTestCase(test_standard_iter_operations))
     suite.addTest(unittest.FunctionTestCase(test_iter_list))
     suite.addTest(unittest.FunctionTestCase(test_iter_userdefined))

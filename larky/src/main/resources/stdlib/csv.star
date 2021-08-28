@@ -31,7 +31,7 @@ load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITER
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//types", types="types")
-load("@vendor//option/result", Error="Error", safe="safe")
+load("@vendor//option/result", Error="Error", Result="Result", safe="safe")
 
 QUOTE_MINIMAL, QUOTE_ALL, QUOTE_NONNUMERIC, QUOTE_NONE = range(4)
 _dialects = {}
@@ -724,75 +724,75 @@ def unix_dialect():
 
 
 register_dialect("unix", unix_dialect())
-# def DictReader(f,
-#     fieldnames=None,
-#     restkey=None,
-#     restval=None,
-#     dialect="excel",
-#     *args,
-#     **kwds
-# ):
-#     self = larky.mutablestruct(__name__='DictReader', __class__=DictReader)
-#     def __init__(
-#         f,
-#         fieldnames,
-#         restkey,
-#         restval,
-#         dialect,
-#         kwds
-#     ):
-#         self._fieldnames = fieldnames  # list of keys for the dict
-#         self.restkey = restkey  # key to catch long rows
-#         self.restval = restval  # default value for short rows
-#         self.reader = reader(f, dialect, *args, **kwds)
-#         self.dialect = dialect
-#         self.line_num = 0
-#         return self
-#     self = __init__(f, fieldnames, restkey, restval, dialect, kwds)
-#
-#     def __iter__():
-#         return self
-#     self.__iter__ = __iter__
-#
-#     def fieldnames():
-#         if self._fieldnames == None:
-#             try:
-#                 self._fieldnames = next(self.reader)
-#             except StopIteration:
-#                 pass
-#         self.line_num = self.reader.line_num
-#         return self._fieldnames
-#     self.fieldnames = fieldnames
-#     fieldnames = property(fieldnames)
-#
-#     def fieldnames(value):
-#         self._fieldnames = value
-#     self.fieldnames = fieldnames
-#     fieldnames = fieldnames.setter(fieldnames)
-#
-#     def __next__():
-#         if self.line_num == 0:
-#             # Used only for its side effect.
-#             self.fieldnames
-#         row = next(self.reader)
-#         self.line_num = self.reader.line_num
-#         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-#             if row != []:
-#                 break
-#             row = next(self.reader)
-#         d = dict(list(zip(self.fieldnames, row)))
-#         lf = len(self.fieldnames)
-#         lr = len(row)
-#         if lf < lr:
-#             d[self.restkey] = row[lf:]
-#         elif lf > lr:
-#             for key in self.fieldnames[lr:]:
-#                 d[key] = self.restval
-#         return d
-#     self.__next__ = __next__
-#
-#     next = __next__
-#     return self
+
+
+def DictReader(f,
+    fieldnames=None,
+    restkey=None,
+    restval=None,
+    dialect="excel",
+    *args,
+    **kwds
+):
+    self = larky.mutablestruct(__name__='DictReader', __class__=DictReader)
+    def __init__(
+        f,
+        fieldnames,
+        restkey,
+        restval,
+        dialect,
+        kwds
+    ):
+        self._fieldnames = fieldnames  # list of keys for the dict
+        self.restkey = restkey  # key to catch long rows
+        self.restval = restval  # default value for short rows
+        self.reader = reader(f, dialect, *args, **kwds)
+        self.dialect = dialect
+        self.line_num = 0
+        return self
+    self = __init__(f, fieldnames, restkey, restval, dialect, kwds)
+
+    def __iter__():
+        return self
+    self.__iter__ = __iter__
+
+    def get_fieldnames():
+        if self._fieldnames == None:
+            rval = Result.Ok(iter(self.reader)).map(next)
+            if rval != StopIteration():
+                self._fieldnames = rval.unwrap()
+        self.line_num = self.reader.line_num
+        return self._fieldnames
+
+    def set_fieldnames(value):
+        self._fieldnames = value
+
+    self.fieldnames = larky.property(get_fieldnames, set_fieldnames)
+
+    def __next__():
+        if self.line_num == 0:
+            # Used only for its side effect.
+            self.fieldnames
+        row = next(iter(self.reader))
+        self.line_num = self.reader.line_num
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if row != []:
+                break
+            row = next(self.reader)
+        d = dict(list(zip(self.fieldnames, row)))
+        lf = len(self.fieldnames)
+        lr = len(row)
+        if lf < lr:
+            d[self.restkey] = row[lf:]
+        elif lf > lr:
+            for key in self.fieldnames[lr:]:
+                d[key] = self.restval
+        return d
+
+    self.__next__ = __next__
+    self.next = __next__
+    return self
+
 # def DictWriter(f,
 #     fieldnames,
 #     restval="",
@@ -1161,5 +1161,8 @@ csv = larky.struct(
     get_dialect=get_dialect,
     list_dialects=list_dialects,
     Dialect=Dialect,
-    excel=excel
+    excel=excel,
+    excel_tab=excel_tab,
+    unix_dialect=unix_dialect,
+    DictReader=DictReader,
 )
