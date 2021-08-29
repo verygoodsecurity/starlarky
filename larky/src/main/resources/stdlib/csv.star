@@ -26,6 +26,7 @@ The csv module’s reader and writer objects read and write sequences. Programme
 can also read and write data in dictionary form using the DictReader and
 DictWriter classes.
 """
+load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//io/StringIO", StringIO="StringIO")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
 load("@stdlib//operator", operator="operator")
@@ -36,7 +37,7 @@ load("@vendor//option/result", Error="Error", Result="Result", safe="safe")
 QUOTE_MINIMAL, QUOTE_ALL, QUOTE_NONNUMERIC, QUOTE_NONE = range(4)
 _dialects = {}
 
-
+map = builtins.map
 string_types = str
 text_type = str
 binary_type = bytes
@@ -232,49 +233,46 @@ def QuoteNoneStrategy(dialect):
     return self.__init__(dialect)
 
 
-# def writer(fileobj, dialect="excel", **fmtparams):
-#     self = larky.mutablestruct(__name__='writer', __class__=writer)
-#     def __init__(fileobj, dialect, fmtparams):
-#         if fileobj == None:
-#             return Error("TypeError: fileobj must be file-like, not None")
-#
-#         self.fileobj = fileobj
-#
-#         if types.is_instance(dialect, text_type):
-#             dialect = get_dialect(dialect)
-#
-#         try:
-#             self.dialect = Dialect.combine(dialect, fmtparams)
-#         except Error as e:
-#             return Error()
-#
-#         strategies = {
-#             QUOTE_MINIMAL: QuoteMinimalStrategy,
-#             QUOTE_ALL: QuoteAllStrategy,
-#             QUOTE_NONNUMERIC: QuoteNonnumericStrategy,
-#             QUOTE_NONE: QuoteNoneStrategy,
-#         }
-#         self.strategy = strategies[self.dialect.quoting](self.dialect)
-#         return self
-#     self = __init__(fileobj, dialect, fmtparams)
-#
-#     def writerow(row):
-#         if row == None:
-#             return Error("Error: row must be an iterable")
-#
-#         row = list(row)
-#         only = len(row) == 1
-#         row = [self.strategy.prepare(field, only=only) for field in row]
-#
-#         line = self.dialect.delimiter.join(row) + self.dialect.lineterminator
-#         return self.fileobj.write(line)
-#     self.writerow = writerow
-#
-#     def writerows(rows):
-#         for row in rows:
-#             self.writerow(row)
-#     self.writerows = writerows
-#     return self
+def writer(fileobj, dialect="excel", **fmtparams):
+    self = larky.mutablestruct(__name__='writer', __class__=writer)
+    def __init__(fileobj, dialect, fmtparams):
+        if fileobj == None:
+            return Error("TypeError: fileobj must be file-like, not None").unwrap()
+
+        self.fileobj = fileobj
+
+        if types.is_string(dialect):
+            dialect = get_dialect(dialect)
+
+        self.dialect = _DIALECT.combine(_DIALECT, dialect, fmtparams)
+
+        strategies = {
+            QUOTE_MINIMAL: QuoteMinimalStrategy,
+            QUOTE_ALL: QuoteAllStrategy,
+            QUOTE_NONNUMERIC: QuoteNonnumericStrategy,
+            QUOTE_NONE: QuoteNoneStrategy,
+        }
+        self.strategy = strategies[self.dialect.quoting](self.dialect)
+        return self
+    self = __init__(fileobj, dialect, fmtparams)
+
+    def writerow(row):
+        if row == None:
+            return Error("Error: row must be an iterable").unwrap()
+
+        row = list(row)
+        only = len(row) == 1
+        row = [self.strategy.prepare(field, only=only) for field in row]
+
+        line = self.dialect.delimiter.join(row) + self.dialect.lineterminator
+        return self.fileobj.write(line)
+    self.writerow = writerow
+
+    def writerows(rows):
+        for row in rows:
+            self.writerow(row)
+    self.writerows = writerows
+    return self
 
 
 START_RECORD = 0
@@ -295,8 +293,7 @@ def reader(fileobj, dialect="excel", **fmtparams):
 
         if types.is_string(dialect):
             dialect = get_dialect(dialect)
-        d = Dialect()
-        self.dialect = d.combine(d, dialect, fmtparams)
+        self.dialect = _DIALECT.combine(_DIALECT, dialect, fmtparams)
         self.fields = None
         self.field = None
         self.line_num = 0
@@ -680,6 +677,9 @@ def Dialect():
     return self
 
 
+_DIALECT = Dialect()
+
+
 def excel(init=True):
     """Describe the usual properties of Excel-generated CSV files."""
     self = Dialect()
@@ -793,63 +793,68 @@ def DictReader(f,
     self.next = __next__
     return self
 
-# def DictWriter(f,
-#     fieldnames,
-#     restval="",
-#     extrasaction="raise",
-#     dialect="excel",
-#     *args,
-#     **kwds
-# ):
-#     self = larky.mutablestruct(__name__='DictWriter', __class__=DictWriter)
-#     def __init__(
-#         f,
-#         fieldnames,
-#         restval,
-#         extrasaction,
-#         dialect,
-#         kwds
-#     ):
-#         self.fieldnames = fieldnames  # list of keys for the dict
-#         self.restval = restval  # for writing short dicts
-#         if extrasaction.lower() not in ("raise", "ignore"):
-#             return Error("ValueError: " + "extrasaction (%s) must be 'raise' or 'ignore'" % extrasaction
-#             )
-#         self.extrasaction = extrasaction
-#         self.writer = writer(f, dialect, *args, **kwds)
-#         return self
-#     self = __init__(f, fieldnames, restval, extrasaction, dialect, kwds)
+
+def DictWriter(f,
+    fieldnames,
+    restval="",
+    extrasaction="raise",
+    dialect="excel",
+    *args,
+    **kwds
+):
+    self = larky.mutablestruct(__name__='DictWriter', __class__=DictWriter)
+    def __init__(
+        f,
+        fieldnames,
+        restval,
+        extrasaction,
+        dialect,
+        kwds
+    ):
+        self.fieldnames = fieldnames  # list of keys for the dict
+        self.restval = restval  # for writing short dicts
+        if extrasaction.lower() not in ("raise", "ignore",):
+            err = (
+                "extrasaction (%s) must be 'raise' or 'ignore'" % extrasaction
+            )
+            return Error("ValueError: " + err).unwrap()
+        self.extrasaction = extrasaction
+        self.writer = writer(f, dialect, *args, **kwds)
+        return self
+    self = __init__(f, fieldnames, restval, extrasaction, dialect, kwds)
+
+    def writeheader():
+        header = dict(list(zip(self.fieldnames, self.fieldnames)))
+        self.writerow(header)
+    self.writeheader = writeheader
+
+    def _dict_to_list(rowdict):
+        if self.extrasaction == "raise":
+            wrong_fields = [k for k in rowdict if k not in self.fieldnames]
+            if wrong_fields:
+                return Error(
+                    "ValueError: " +
+                    "dict contains fields not in fieldnames: " +
+                    ", ".join([repr(x) for x in wrong_fields])
+                ).unwrap()
+        return [rowdict.get(key, self.restval) for key in self.fieldnames]
+    self._dict_to_list = _dict_to_list
+
+    def writerow(rowdict):
+        return self.writer.writerow(self._dict_to_list(rowdict))
+    self.writerow = writerow
+
+    def writerows(rowdicts):
+        return self.writer.writerows(list(map(self._dict_to_list, rowdicts)))
+    self.writerows = writerows
+    return self
 #
-#     def writeheader():
-#         header = dict(list(zip(self.fieldnames, self.fieldnames)))
-#         self.writerow(header)
-#     self.writeheader = writeheader
-#
-#     def _dict_to_list(rowdict):
-#         if self.extrasaction == "raise":
-#             wrong_fields = [k for k in rowdict if k not in self.fieldnames]
-#             if wrong_fields:
-#                 return Error("ValueError: " + "dict contains fields not in fieldnames: "
-#                     + ", ".join([repr(x) for x in wrong_fields])
-#                 )
-#         return [rowdict.get(key, self.restval) for key in self.fieldnames]
-#     self._dict_to_list = _dict_to_list
-#
-#     def writerow(rowdict):
-#         return self.writer.writerow(self._dict_to_list(rowdict))
-#     self.writerow = writerow
-#
-#     def writerows(rowdicts):
-#         return self.writer.writerows(list(map(self._dict_to_list, rowdicts)))
-#     self.writerows = writerows
-#     return self
-# #
-# #
-# # # Guard Sniffer's type checking against builds that exclude complex()
-# # try:
-# #     complex
-# # except NameError:
-# #     complex = float
+
+# Guard Sniffer's type checking against builds that exclude complex()
+# Larky does not support complex so this is just float
+complex = float
+
+
 # def Sniffer():
 #     """
 #     "Sniffs" the format of a CSV file (i.e. delimiter, quotechar)
@@ -1156,6 +1161,7 @@ csv = larky.struct(
     QuoteNonnumericStrategy=QuoteNonnumericStrategy,
     QuoteNoneStrategy=QuoteNoneStrategy,
     reader=reader,
+    writer=writer,
     register_dialect=register_dialect,
     unregister_dialect=unregister_dialect,
     get_dialect=get_dialect,
@@ -1165,4 +1171,5 @@ csv = larky.struct(
     excel_tab=excel_tab,
     unix_dialect=unix_dialect,
     DictReader=DictReader,
+    DictWriter=DictWriter,
 )
