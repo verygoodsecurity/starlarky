@@ -24,30 +24,15 @@
 Counter Feedback (CFB) mode.
 """
 
-__all__ = ['CfbMode']
-
-load("@vendor//Crypto/Util/py3compat", _copy_bytes="_copy_bytes")
-load("@vendor//Crypto/Util/_raw_api", load_pycryptodome_raw_lib="load_pycryptodome_raw_lib", VoidPointer="VoidPointer", create_string_buffer="create_string_buffer", get_raw_buffer="get_raw_buffer", SmartPointer="SmartPointer", c_size_t="c_size_t", c_uint8_ptr="c_uint8_ptr", is_writeable_buffer="is_writeable_buffer")
-
+load("@stdlib//larky", larky="larky")
+load("@stdlib//types", types="types")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@vendor//Crypto/Util/py3compat", _copy_bytes="copy_bytes")
 load("@vendor//Crypto/Random", get_random_bytes="get_random_bytes")
 
-raw_cfb_lib = load_pycryptodome_raw_lib("Crypto.Cipher._raw_cfb","""
-                    int CFB_start_operation(void *cipher,
-                                            const uint8_t iv[],
-                                            size_t iv_len,
-                                            size_t segment_len, /* In bytes */
-                                            void **pResult);
-                    int CFB_encrypt(void *cfbState,
-                                    const uint8_t *in,
-                                    uint8_t *out,
-                                    size_t data_len);
-                    int CFB_decrypt(void *cfbState,
-                                    const uint8_t *in,
-                                    uint8_t *out,
-                                    size_t data_len);
-                    int CFB_stop_operation(void *state);"""
-                    )
-def CfbMode(block_cipher, iv, segment_size):
+__all__ = ['CfbMode']
+
+def _CfbMode(block_cipher, iv, segment_size):
     """*Cipher FeedBack (CFB)*.
 
     This mode is similar to CFB, but it transforms
@@ -65,57 +50,7 @@ def CfbMode(block_cipher, iv, segment_size):
 
     :undocumented: __init__
     """
-
-    def __init__(block_cipher, iv, segment_size):
-        """Create a new block cipher, configured in CFB mode.
-
-        :Parameters:
-          block_cipher : C pointer
-            A smart pointer to the low-level block cipher instance.
-
-          iv : bytes/bytearray/memoryview
-            The initialization vector to use for encryption or decryption.
-            It is as long as the cipher block.
-
-            **The IV must be unpredictable**. Ideally it is picked randomly.
-
-            Reusing the *IV* for encryptions performed with the same key
-            compromises confidentiality.
-
-          segment_size : integer
-            The number of bytes the plaintext and ciphertext are segmented in.
-        """
-
-        self._state = VoidPointer()
-        result = raw_cfb_lib.CFB_start_operation(block_cipher.get(),
-                                                 c_uint8_ptr(iv),
-                                                 c_size_t(len(iv)),
-                                                 c_size_t(segment_size),
-                                                 self._state.address_of())
-        if result:
-            fail(" ValueError(\"Error %d while instantiating the CFB mode\" % result)")
-
-        # Ensure that object disposal of this Python object will (eventually)
-        # free the memory allocated by the raw library for the cipher mode
-        self._state = SmartPointer(self._state.get(),
-                                   raw_cfb_lib.CFB_stop_operation)
-
-        # Memory allocated for the underlying block cipher is now owed
-        # by the cipher mode
-        block_cipher.release()
-
-        self.block_size = len(iv)
-        """The block size of the underlying cipher, in bytes."""
-
-        self.iv = _copy_bytes(None, None, iv)
-        """The Initialization Vector originally used to create the object.
-        The value does not change."""
-
-        self.IV = self.iv
-        """Alias for `iv`"""
-
-        self._next = [ self.encrypt, self.decrypt ]
-    self = __init__(block_cipher, iv, segment_size)
+    self = larky.mutablestruct(__class__='CfbMode')
 
     def encrypt(plaintext, output=None):
         """Encrypt data with the key and the parameters set at initialization.
@@ -155,27 +90,25 @@ def CfbMode(block_cipher, iv, segment_size):
         self._next = [ self.encrypt ]
 
         if output == None:
-            ciphertext = create_string_buffer(len(plaintext))
+            ciphertext = bytearray()
         else:
             ciphertext = output
 
-            if not is_writeable_buffer(output):
+            if not types.is_bytearray(output):
                 fail(" TypeError(\"output must be a bytearray or a writeable memoryview\")")
 
             if len(plaintext) != len(output):
-                fail(" ValueError(\"output must have the same length as the input\"\n                                 \"  (%d bytes)\" % len(plaintext))")
+                fail("ValueError: output must have the same length as the input (%d bytes)" % len(plaintext))
 
-        result = raw_cfb_lib.CFB_encrypt(self._state.get(),
-                                         c_uint8_ptr(plaintext),
-                                         c_uint8_ptr(ciphertext),
-                                         c_size_t(len(plaintext)))
+        result = self._state.encrypt(plaintext, ciphertext)
+
         if result:
-            fail(" ValueError(\"Error %d while encrypting in CFB mode\" % result)")
+            fail("ValueError: Error %d while encrypting in CFB mode" % result)
 
-        if output == None:
-            return get_raw_buffer(ciphertext)
-        else:
-            return None
+        if output != None:
+            return 
+
+        return ciphertext
     self.encrypt = encrypt
 
     def decrypt(ciphertext,  output=None):
@@ -212,34 +145,71 @@ def CfbMode(block_cipher, iv, segment_size):
         """
 
         if self.decrypt not in self._next:
-            fail(" TypeError(\"decrypt() cannot be called after encrypt()\")")
+            fail("TypeError: decrypt() cannot be called after encrypt()")
         self._next = [ self.decrypt ]
 
         if output == None:
-            plaintext = create_string_buffer(len(ciphertext))
+            plaintext = bytearray()
         else:
             plaintext = output
 
-            if not is_writeable_buffer(output):
+            if not types.is_bytearray(output):
                 fail(" TypeError(\"output must be a bytearray or a writeable memoryview\")")
 
             if len(ciphertext) != len(output):
-                fail(" ValueError(\"output must have the same length as the input\"\n                                 \"  (%d bytes)\" % len(plaintext))")
+                fail("ValueError: output must have the same length as the input (%d bytes)" % len(ciphertext))
 
-        result = raw_cfb_lib.CFB_decrypt(self._state.get(),
-                                         c_uint8_ptr(ciphertext),
-                                         c_uint8_ptr(plaintext),
-                                         c_size_t(len(ciphertext)))
+        result = self._state.decrypt(ciphertext, plaintext)
+
         if result:
-            fail(" ValueError(\"Error %d while decrypting in CFB mode\" % result)")
+            fail("ValueError: Error %d while decrypting in CFB mode" % result)
 
-        if output == None:
-            return get_raw_buffer(plaintext)
-        else:
-            return None
+        if output != None:
+            return
+
+        return plaintext
     self.decrypt = decrypt
+
+    def __init__(self, block_cipher, iv, segment_size):
+        """Create a new block cipher, configured in CFB mode.
+
+        :Parameters:
+          block_cipher : C pointer
+            A smart pointer to the low-level block cipher instance.
+
+          iv : bytes/bytearray/memoryview
+            The initialization vector to use for encryption or decryption.
+            It is as long as the cipher block.
+
+            **The IV must be unpredictable**. Ideally it is picked randomly.
+
+            Reusing the *IV* for encryptions performed with the same key
+            compromises confidentiality.
+
+          segment_size : integer
+            The number of bytes the plaintext and ciphertext are segmented in.
+        """
+
+        self._state = _JCrypto.Cipher.CFBMode(block_cipher, iv, segment_size*8)
+
+        self.block_size = len(iv)
+        """The block size of the underlying cipher, in bytes."""
+
+        self.iv = _copy_bytes(None, None, iv)
+        """The Initialization Vector originally used to create the object.
+        The value does not change."""
+
+        self.IV = self.iv
+        """Alias for `iv`"""
+
+        self._next = [ self.encrypt, self.decrypt ]
+        return self
+
+    self = __init__(self, block_cipher, iv, segment_size)
     return self
 
+def divmod(x, y):
+    return x // y, x % y
 
 def _create_cfb_cipher(factory, **kwargs):
     """Instantiate a cipher object that performs CFB encryption/decryption.
@@ -278,13 +248,18 @@ def _create_cfb_cipher(factory, **kwargs):
         iv = IV
 
     if len(iv) != factory.block_size:
-        fail(" ValueError(\"Incorrect IV length (it must be %d bytes long)\" %\n                factory.block_size)")
+        fail("ValueError: Incorrect IV length (it must be %d bytes long)" % factory.block_size)
 
     segment_size_bytes, rem = divmod(kwargs.pop("segment_size", 8), 8)
     if segment_size_bytes == 0 or rem != 0:
         fail(" ValueError(\"'segment_size' must be positive and multiple of 8 bits\")")
 
     if kwargs:
-        fail(" TypeError(\"Unknown parameters for CFB: %s\" % str(kwargs))")
-    return CfbMode(cipher_state, iv, segment_size_bytes)
+        fail("TypeError: Unknown parameters for CFB: %s" % str(kwargs))
+
+    return _CfbMode(cipher_state, iv, segment_size_bytes)
+
+CfbMode = larky.struct(
+    _create_cfb_cipher=_create_cfb_cipher,
+)
 
