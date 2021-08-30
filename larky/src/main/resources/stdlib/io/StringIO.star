@@ -217,7 +217,7 @@ def StringIO(buf = ''):
         if size == None:
             size = self.pos
         elif size < 0:
-            return Error("IOError: Negative size not allowed")
+            return Error("IOError: Negative size not allowed").unwrap()
         elif size < self.pos:
             self.pos = size
         self.buf = self.getvalue()[:size]
