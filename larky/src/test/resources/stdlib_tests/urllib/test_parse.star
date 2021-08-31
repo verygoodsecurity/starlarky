@@ -1,9 +1,9 @@
 """Unit tests for parse.star"""
-
-load("@vendor//asserts", "asserts")
+load("@stdlib//larky", larky="larky")
+load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//unittest", "unittest")
 load("@stdlib//urllib/parse", "parse")
-load("@stdlib//builtins", builtins="builtins")
+load("@vendor//asserts", "asserts")
 
 def b(s):
     return builtins.bytes(s, encoding="utf-8")
@@ -51,6 +51,41 @@ def _test_parse_qs():
     eq({"i": ["main"], "mode": ["front"], "sid": ["12ab"], "enc": [" Hello"]}, parse.parse_qs(parsed_url.query))
 
 
+def _test_urlencode_sequences():
+    # Other tests incidentally urlencode things; test non-covered cases:
+    # Sequence and object values.
+    result = parse.urlencode({'a': [1, 2], 'b': (3, 4, 5)}, True)
+    # we can rely on ordering here because Larky is deterministic.
+    asserts.assert_that(
+        result.split('&')
+    ).is_equal_to(['a=1', 'a=2', 'b=3', 'b=4', 'b=5'])
+
+    Trivial = larky.mutablestruct(
+        __name__='Trivial',
+        __str__ = lambda: 'trivial')
+
+    result = parse.urlencode({'a': Trivial}, True)
+    asserts.assert_that(result).is_equal_to('a=trivial')
+
+def _test_urlencode_quote_via():
+    result = parse.urlencode({'a': 'some value'})
+    asserts.assert_that(result).is_equal_to("a=some+value")
+    result = parse.urlencode({'a': 'some value/another'},
+                                quote_via=parse.quote)
+    asserts.assert_that(result).is_equal_to("a=some%20value%2Fanother")
+    result = parse.urlencode({'a': 'some value/another'},
+                                safe='/', quote_via=parse.quote)
+    asserts.assert_that(result).is_equal_to("a=some%20value/another")
+
+
+def _test_quote_from_bytes():
+    asserts.assert_fails(lambda: parse.quote_from_bytes('foo'), ".*TypeError")
+    result = parse.quote_from_bytes(b'archaeological arcana')
+    asserts.assert_that(result).is_equal_to('archaeological%20arcana')
+    result = parse.quote_from_bytes(b'')
+    asserts.assert_that(result).is_equal_to('')
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_urlparse))
@@ -59,6 +94,10 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_urlunsplit))
     _suite.addTest(unittest.FunctionTestCase(_test_parse_qsl))
     _suite.addTest(unittest.FunctionTestCase(_test_parse_qs))
+    _suite.addTest(unittest.FunctionTestCase(_test_urlencode_sequences))
+    _suite.addTest(unittest.FunctionTestCase(_test_urlencode_quote_via))
+    _suite.addTest(unittest.FunctionTestCase(_test_quote_from_bytes))
+
     return _suite
 
 
