@@ -50,7 +50,7 @@ def _CfbMode(block_cipher, iv, segment_size):
 
     :undocumented: __init__
     """
-    self = larky.mutablestruct(__class__='CfbMode')
+    self = larky.mutablestruct(__class__=_CfbMode, __name__='CfbMode')
 
     def encrypt(plaintext, output=None):
         """Encrypt data with the key and the parameters set at initialization.
@@ -208,9 +208,6 @@ def _CfbMode(block_cipher, iv, segment_size):
     self = __init__(self, block_cipher, iv, segment_size)
     return self
 
-def divmod(x, y):
-    return x // y, x % y
-
 def _create_cfb_cipher(factory, **kwargs):
     """Instantiate a cipher object that performs CFB encryption/decryption.
 
@@ -260,6 +257,6 @@ def _create_cfb_cipher(factory, **kwargs):
     return _CfbMode(cipher_state, iv, segment_size_bytes)
 
 CfbMode = larky.struct(
-    _create_cfb_cipher=_create_cfb_cipher,
+    _create_cfb_cipher = _create_cfb_cipher,
+    __name__ = 'CfbMode',
 )
-
