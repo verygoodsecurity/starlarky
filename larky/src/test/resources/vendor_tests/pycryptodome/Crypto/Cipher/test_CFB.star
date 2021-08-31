@@ -64,7 +64,6 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(CfbTests_test_incorrect_iv))
     _suite.addTest(unittest.FunctionTestCase(CfbTests_test_incorrect_segment_size))
     _suite.addTest(unittest.FunctionTestCase(CfbTests_test_unknown_param))
-    _suite.addTest(unittest.FunctionTestCase(_testsuite))
     return _suite
 
 _runner = unittest.TextTestRunner()
