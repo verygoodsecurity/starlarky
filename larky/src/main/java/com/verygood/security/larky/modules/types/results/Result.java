@@ -81,7 +81,7 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     try {
       return of(Starlark.call(thread, func, Tuple.of(getValue()), Dict.empty()));
     } catch (EvalException | InterruptedException e) {
-      throw new RuntimeException(e);
+      return error(e);
     }
   }
 
@@ -93,7 +93,7 @@ public interface Result extends StarlarkValue, Comparable<Result> {
       try {
         return ok(Starlark.call(thread, func, Tuple.of(getValue()), Dict.empty()));
       } catch (EvalException | InterruptedException e) {
-        throw new RuntimeException(e);
+        return error(e);
       }
     }
     return this;

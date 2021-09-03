@@ -111,6 +111,9 @@ load("@stdlib//enum", "enum")
 #             Ok(2)
 #             >>> Err(1).map(lambda x: x * 2)
 #             Err(1)
+#             >>> Ok([]).map(iter).map(next).map(lambda x: x * 2)
+#             Err(StopIteration)
+#
 #         """
 #         return self._obj.map(op)
 #         # return self._type.Ok(op(self._val)) if self._is_ok else self  # type: ignore
@@ -133,6 +136,7 @@ load("@stdlib//enum", "enum")
 #         Examples:
 #             >>> def sq(x): return Ok(x * x)
 #             >>> def err(x): return Err(x)
+#             >>> def nextelement(x): return next(x)
 #             >>> Ok(2).flatmap(sq).flatmap(sq)
 #             Ok(16)
 #             >>> Ok(2).flatmap(sq).flatmap(err)
@@ -141,6 +145,8 @@ load("@stdlib//enum", "enum")
 #             Err(2)
 #             >>> Err(3).flatmap(sq).flatmap(sq)
 #             Err(3)
+#             >>> Ok([]).flatmap(iter).flatmap(nextelement).flatmap(sq)
+#             Err(StopIteration)
 #         """
 #         return op(self._val) if self._is_ok else self  # type: ignore
 #     self.flatmap = flatmap
