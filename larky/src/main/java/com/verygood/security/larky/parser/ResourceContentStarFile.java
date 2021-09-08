@@ -1,22 +1,21 @@
 package com.verygood.security.larky.parser;
 
+import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
-
-import net.starlark.java.eval.EvalException;
-
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOUtils;
-
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import net.starlark.java.eval.EvalException;
+
 import javax.annotation.Nullable;
 import lombok.SneakyThrows;
 
@@ -48,7 +47,10 @@ public class ResourceContentStarFile implements StarFile {
 
   public static ResourceContentStarFile buildStarFile(String resourcePath, InputStream inputStream) throws IOException {
     return new ResourceContentStarFile(resourcePath,
-        String.join("\n", IOUtils.readLines(inputStream, Charset.defaultCharset())).getBytes());
+      String.join(
+        "\n",
+          CharStreams.toString(new InputStreamReader(inputStream, StandardCharsets.UTF_8)))
+        .getBytes());
   }
 
   public static ResourceContentStarFile buildStarFile(String resourcePath) throws EvalException {
@@ -56,7 +58,8 @@ public class ResourceContentStarFile implements StarFile {
     InputStream resourceStream = ResourceContentStarFile.class.getClassLoader().getResourceAsStream(resourceName);
     if(resourceStream == null) {
       // If we cannot find our package, try to see if it's a module (i.e. Module/__init__.star)
-      String baseName = FilenameUtils.getBaseName(resourceName);
+      @SuppressWarnings("UnstableApiUsage")
+      String baseName = Files.getNameWithoutExtension(resourceName);
       String errorMsg = "Unable to find resource: " + resourceName;
       if(!baseName.equals("__init__")) {
         resourceName = resourceName.replace(
