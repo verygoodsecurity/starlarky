@@ -54,6 +54,7 @@ def Wrapper(packet):
         cipher = cipher
         
         return cipher(AES, 32, 16)
+    self.get_cipher = get_cipher
         # if algo == 2:
         #     return cipher(Crypto.Cipher.DES3, 24, 8)
         # elif algo == 3:
@@ -69,7 +70,10 @@ def Wrapper(packet):
 
         # return (None,None,None) # Not supported
 
-    self.get_cipher = get_cipher
+    def _block_pad_unpad(cls, siz, bs, go):
+        pad_amount = siz - (len(bs) % siz)
+        return go(bs + b'\0'*pad_amount)[:-pad_amount]
+    self._block_pad_unpad = _block_pad_unpad
 
     def encrypt(passphrases_and_keys, symmetric_algorithm=9):
         cipher, key_bytes, key_block_bytes = self.get_cipher(symmetric_algorithm)
@@ -88,7 +92,7 @@ def Wrapper(packet):
 
         encrypted = [OpenPGP.IntegrityProtectedDataPacket(self._block_pad_unpad(key_block_bytes, to_encrypt, lambda x: session_cipher.encrypt(x)))]
 
-        if not types.is_instance(passphrases_and_keys, collections.Iterable) or hasattr(passphrases_and_keys, 'encode'):
+        if not types.is_iterable(passphrases_and_keys) or hasattr(passphrases_and_keys, 'encode'):
             passphrases_and_keys = [passphrases_and_keys]
 
         for psswd in passphrases_and_keys:
@@ -109,6 +113,8 @@ def Wrapper(packet):
 
         return OpenPGP.Message(encrypted)
     self.encrypt = encrypt
+
+    return self
 
 
 Crypto = larky.struct(

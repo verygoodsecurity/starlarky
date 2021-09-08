@@ -1,20 +1,24 @@
-load("@vendor//OpenPGP", Crypto="Crypto")
-load("@vendor//OpenPGP", OpenPGP="OpenPGP")
+# load("@vendor//OpenPGP", Crypto="Crypto")
+# load("@vendor//OpenPGP", OpenPGP="OpenPGP")
+load("@stdlib//unittest", "unittest")
+load("@vendor//asserts",  "asserts")
 
-def PGP_test():
-    wkey = OpenPGP.Message.parse(open('key', 'rb').read())[0]
 
-    data = OpenPGP.LiteralDataPacket('This is text.', 'u', 'stuff.txt')
-    encrypt = OpenPGP.Crypto.Wrapper(data)
-    encrypted = encrypt.encrypt([wkey])
+# def PGP_test():
 
-    print(list(encrypted))
+#     wkey = OpenPGP.Message.parse(open('key', 'rb').read())[0]
 
-    # Now decrypt it with the same key
-    decryptor = OpenPGP.Crypto.Wrapper(wkey)
-    decrypted = decryptor.decrypt(encrypted)
+#     data = OpenPGP.LiteralDataPacket('This is text.', 'u', 'stuff.txt')
+#     encrypt = OpenPGP.Crypto.Wrapper(data)
+#     encrypted = encrypt.encrypt([wkey])
 
-    print(list(decrypted))
+#     print(list(encrypted))
+
+#     # Now decrypt it with the same key
+#     decryptor = OpenPGP.Crypto.Wrapper(wkey)
+#     decrypted = decryptor.decrypt(encrypted)
+
+#     print(list(decrypted))
 
 def _testsuite():
     _suite = unittest.TestSuite()
