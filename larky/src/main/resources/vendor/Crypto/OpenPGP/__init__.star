@@ -1,8 +1,26 @@
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
-load("@stdlib//struct", struct="struct")
+load("@stdlib//struct", pack="pack", unpack="unpack")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 load("@vendor//option/result", Error="Error")
 load("@stdlib//codecs", codecs="codecs")
+load("@stdlib//math", math="math")
+load("@vendor//Crypto/Hash", MD5="MD5")
+load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
+load("@vendor//Crypto/Hash", SHA512="SHA512")
+load("@vendor//Crypto/Hash", MD5="MD5")
+load("@vendor//Crypto/Hash", SHA256="SHA256")
+# load("@vendor//Crypto/Hash", SHA224="SHA224")
+# load("@vendor//Crypto/Hash", SHA384="SHA384")
+
+hash_algorithms = {
+    1: MD5,
+    2: SHA1,
+    # 3: 'RIPEMD160',
+    8: SHA256,
+    # 9: 'SHA384',
+    10: SHA512,
+    # 11: 'SHA224'
+}
 
 
 def _ensure_bytes(n, chunk, g):
@@ -26,6 +44,71 @@ def _slurp(g):
     for chunk in g:
         s += tostr(chunk)
     return tobytes(s)
+
+def bitlength(data):
+    """ http://tools.ietf.org/html/rfc4880#section-12.2 """
+    if ord(data[0:1]) == 0:
+        fail('OpenPGPException("Tried to get bitlength of string with leading 0")')
+    # return (len(data) - 1) * 8 + int(floor(math.log(ord(data[0:1]), 2))) + 1
+    return (len(data) - 1) * 8 + int(math.log(ord(data[0:1]), 2)) + 1
+
+def checksum(data):
+    mkChk = 0
+    for i in range(0, len(data)):
+        mkChk = (mkChk + ord(data[i:i+1])) % 65536
+    return mkChk
+
+def S2K(salt, hash_algorithm, count, type):
+
+    def __init__(salt=b'BADSALT', hash_algorithm=10, count=65536, type=3):
+        self.type = type
+        self.hash_algorithm = hash_algorithm
+        self.salt = salt
+        self.count = count
+    self = __init__(salt, hash_algorithm, count, type)
+
+    def raw_hash(self, s, prefix=b''):
+        # hasher = hashlib.new(SignaturePacket.hash_algorithms[self.hash_algorithm].lower())
+        hasher = hash_algorithms[self.hash_algorithm].new()
+        hasher.update(prefix)
+        hasher.update(s)
+        return hasher.digest()
+
+    def iterate(self, s, prefix=b''):
+        hasher = hash_algorithms[self.hash_algorithm].new()
+        hasher.update(prefix)
+        hasher.update(s)
+        remaining = self.count - len(s)
+        # while remaining > 0:
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if remaining <= 0:
+                break
+            hasher.update(s[0:remaining])
+            remaining -= len(s)
+        return hasher.digest()
+
+    def sized_hash(hasher, s, size):
+        hsh = hasher(s)
+        prefix = b'\0'
+        # while len(hsh) < size:
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if len(hsh) >= size:
+                break
+            hsh += hasher(s, prefix)
+            prefix += b'\0'
+        return hsh[0:size]
+    self.sized_hash = sized_hash
+
+    def make_key(self, passphrase, size):
+        if self.type == 0:
+            return self.sized_hash(self.raw_hash, passphrase, size)
+        elif self.type == 1:
+            return self.sized_hash(self.raw_hash, self.salt + passphrase, size)
+        elif self.type == 3:
+            return self.sized_hash(self.iterate, self.salt + passphrase, size)
+    self.make_key = make_key
+
+    return self
 
 def PushbackGenerator(g):
     self = larky.mutablestruct(__name__='PushbackGenerator', __class__=PushbackGenerator)
@@ -103,9 +186,42 @@ def PublicKeyPacket(Packet):
             self.key = keydata
     self = __init__(keydata, version, algorithm, timestamp)
 
+    def fingerprint_material():
+        if self.version == 2 or self.version == 3:
+            material = []
+            for i in self.key_fields[self.key_algorithm]:
+                material += [pack('!H', bitlength(self.key[i]))]
+                material += [self.key[i]]
+            return material
+        elif self.version == 4:
+            head = [pack('!B', 0x99), None, pack('!B', self.version), pack('!L', self.timestamp), pack('!B', self.key_algorithm)]
+            material = b''
+            for i in self.key_fields[self.key_algorithm]:
+                material += pack('!H', bitlength(self.key[i]))
+                material += self.key[i]
+            head[1] = pack('!H', 6 + len(material))
+            return head + [material]
+    self.fingerprint_material = fingerprint_material
+
+    def fingerprint():
+        """ http://tools.ietf.org/html/rfc4880#section-12.2
+            http://tools.ietf.org/html/rfc4880#section-3.3
+        """
+        if self._fingerprint:
+            return self._fingerprint
+        if self.version == 2 or self.version == 3:
+            # self._fingerprint = hashlib.md5(b''.join(self.fingerprint_material())).hexdigest().upper()
+            self._fingerprint = MD5.new(b''.join(self.fingerprint_material())).hexdigest().upper()
+        elif self.version == 4:
+            # self._fingerprint = hashlib.sha1(b''.join(self.fingerprint_material())).hexdigest().upper()
+            self._fingerprint = SHA1.new(b''.join(self.fingerprint_material())).hexdigest().upper()
+
+        return self._fingerprint
+    self.fingerprint = fingerprint
+
     return self
 
-def Message():
+def Message(packets=[]):
 
     self = larky.mutablestruct(__class__=Message, __name__='Message')
 
@@ -114,6 +230,16 @@ def Message():
         self._packets_end = []
         self._input = None
     self = __init__()
+
+    def parse(input_data):
+        m = Message([])
+        if hasattr(input_data, 'next') or hasattr(input_data, '__next__'):
+            m._input = PushbackGenerator(input_data)
+        else:
+            m._input = PushbackGenerator(_gen_one(input_data))
+
+        return m
+    self.parse = parse
 
     return self
 
@@ -202,7 +328,7 @@ def Packet():
             chunk = _ensure_bytes(6, chunk, g)
             if len(chunk) > 6:
                 g.push(chunk[6:])
-            return (tag, struct.unpack('!L', chunk[2:6])[0])
+            return (tag, unpack('!L', chunk[2:6])[0])
         # TODO: Partial body lengths. 1 << ($len & 0x1F)
     self.parse_new_format = parse_new_format
 
@@ -221,11 +347,11 @@ def Packet():
         elif length == 1: # The packet has a two-octet length. The header is 3 octets long.
             head_length = 3
             chunk = _ensure_bytes(head_length, chunk, g)
-            data_length = struct.unpack('!H', chunk[1:3])[0]
+            data_length = unpack('!H', chunk[1:3])[0]
         elif length == 2: # The packet has a four-octet length. The header is 5 octets long.
             head_length = 5
             chunk = _ensure_bytes(head_length, chunk, g)
-            data_length = struct.unpack('!L', chunk[1:5])[0]
+            data_length = unpack('!L', chunk[1:5])[0]
         elif length == 3: # The packet is of indeterminate length. The header is 1 octet long.
             head_length = 1
             chunk = _ensure_bytes(head_length, chunk, g)
@@ -247,8 +373,8 @@ def Packet():
 
     def header_and_body():
         body = self.body()
-        tag = struct.pack('!B', self.tag | 0xC0)
-        size = struct.pack('!B', 255) + struct.pack('!L', body and len(body) or 0)
+        tag = pack('!B', self.tag | 0xC0)
+        size = pack('!B', 255) + pack('!L', body and len(body) or 0)
         return {'header': tag + size, 'body': body}
     self.header_and_body = header_and_body
 
@@ -338,7 +464,44 @@ def IntegrityProtectedDataPacket(EncryptedDataPacket):
     return self
 
 
-def ModificationDetectionCodePacket(Packet):
+def AsymmetricSessionKeyPacket():
+    """ OpenPGP Public-Key Encrypted Session Key packet (tag 1).
+        http://tools.ietf.org/html/rfc4880#section-5.1
+    """
+    self = larky.mutablestruct(__name__='AsymmetricSessionKeyPacket', __class__=AsymmetricSessionKeyPacket)
+
+    def __init__(key_algorithm='', keyid='', encrypted_data='', version=3):
+        # super(AsymmetricSessionKeyPacket, self).__init__()
+        self = Packet()
+        self.__name__ = 'AsymmetricSessionKeyPacket'
+        self.__class__ = AsymmetricSessionKeyPacket
+        self.version = version
+        self.keyid = keyid[-16:]
+        self.key_algorithm = key_algorithm
+        self.encrypted_data = encrypted_data
+    self = __init__(key_algorithm, keyid, encrypted_data, version)
+
+    return self
+
+def SymmetricSessionKeyPacket():
+    """ OpenPGP Symmetric-Key Encrypted Session Key packet (tag 3).
+        http://tools.ietf.org/html/rfc4880#section-5.3
+    """
+    def __init__(s2k=None, encrypted_data=b'', symmetric_algorithm=9, version=3):
+        # super(SymmetricSessionKeyPacket, self).__init__()
+        self = Packet()
+        self.__name__ = 'SymmetricSessionKeyPacket'
+        self.__class__ = SymmetricSessionKeyPacket
+        self.version = version
+        self.symmetric_algorithm = symmetric_algorithm
+        self.s2k = s2k
+        self.encrypted_data = encrypted_data
+    self = __init__(s2k, encrypted_data, symmetric_algorithm, version)
+
+    return self
+
+
+def ModificationDetectionCodePacket():
     """ OpenPGP Modification Detection Code packet (tag 19).
         http://tools.ietf.org/html/rfc4880#section-5.14
     """
@@ -373,9 +536,9 @@ def ModificationDetectionCodePacket(Packet):
     return self
 
 Packet_tags = {
-    #  1: AsymmetricSessionKeyPacket, # Public-Key Encrypted Session Key
+     1: AsymmetricSessionKeyPacket, # Public-Key Encrypted Session Key
     #  2: SignaturePacket, # Signature Packet
-    #  3: SymmetricSessionKeyPacket, # Symmetric-Key Encrypted Session Key Packet
+     3: SymmetricSessionKeyPacket, # Symmetric-Key Encrypted Session Key Packet
     #  4: OnePassSignaturePacket, # One-Pass Signature Packet
      5: SecretKeyPacket, # Secret-Key Packet
      6: PublicKeyPacket, # Public-Key Packet
@@ -396,8 +559,15 @@ Packet_tags = {
     # 63: ExperimentalPacket, # Private or Experimental Values
 }
 
+
 OpenPGP = larky.struct(
     Packet=Packet,
     LiteralDataPacket=LiteralDataPacket,
-    ModificationDetectionCodePacket=ModificationDetectionCodePacket
+    ModificationDetectionCodePacket=ModificationDetectionCodePacket,
+    IntegrityProtectedDataPacket=IntegrityProtectedDataPacket,
+    AsymmetricSessionKeyPacket=AsymmetricSessionKeyPacket,
+    SymmetricSessionKeyPacket=SymmetricSessionKeyPacket,
+    Message=Message,
+    checksum=checksum,
+    bitlength=bitlength,
 )
