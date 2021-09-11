@@ -45,6 +45,7 @@ public final class PyProtocols {
   public static final String __HASH__ = "__hash__";
   public static final String __LEN__ = "__len__";
   public static final String __REVERSED__ = "__reversed__";
+  public static final String __LENGTH_HINT__ = "__length_hint__";
 
   /* mathematical operators */
   public static final String __ADD__ = "__add__";
