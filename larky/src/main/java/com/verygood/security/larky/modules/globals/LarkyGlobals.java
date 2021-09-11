@@ -2,6 +2,7 @@ package com.verygood.security.larky.modules.globals;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
+import com.verygood.security.larky.modules.types.LarkyCounter;
 import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
@@ -83,6 +84,23 @@ public final class LarkyGlobals {
   )
   public StarlarkValue sentinel() {
     return Sentinel.getInstance();
+  }
+
+
+    @StarlarkMethod(
+        name="_Counter",
+        doc="creates a simple counter"
+    )
+    public LarkyCounter counter() {
+      return LarkyCounter.newCounter();
+    }
+
+  @StarlarkMethod(
+      name="_ThreadsafeCounter",
+      doc="creates a thread-safe counter"
+  )
+  public LarkyCounter threadsafeCounter() {
+    return LarkyCounter.threadSafeCounter();
   }
 
   @StarlarkMethod(

@@ -175,4 +175,7 @@ larky = _struct(
     strings=_struct(
         zfill=_zfill,
     ),
-)
+    utils=_struct(
+        Counter=_Counter,
+        ThreadsafeCounter=_ThreadsafeCounter
+    ))
