@@ -152,6 +152,14 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
     }
   }
 
+  public boolean hasLengthHintMethod() throws EvalException {
+    return getField(PyProtocols.__LENGTH_HINT__) != null;
+  }
+
+  public StarlarkCallable getLengthHintMethod() throws EvalException {
+    return (StarlarkCallable) getField(PyProtocols.__LENGTH_HINT__);
+  }
+
   private static class LarkyStringIterator extends LarkyIterator {
 
     private final String obj;
@@ -265,9 +273,11 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
           (https://docs.python.org/3/library/stdtypes.html#typeiter)
        */
 
-      if (iterator == null || obj != iterator) { // this is an instance identity check!
+      if (iterator == null
+            // this is an instance identity check!
+            || iterator.invoke(iterator.getField(PyProtocols.__ITER__)) != iterator) {
         throw Starlark.errorf(
-          "ValueError: __iter__() on iterator object (%s) are required to return" +
+          "ValueError: __iter__() on iterator object (%s) are required to return " +
             "themselves (https://docs.python.org/3/reference/datamodel.html#object.__iter__)",
           obj.type());
       }
