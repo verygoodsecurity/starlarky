@@ -26,9 +26,11 @@ import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkBytes.StarlarkByteArray;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
+import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
@@ -454,6 +456,77 @@ public final class PythonBuiltins {
     BigInteger bigB = b.toBigInteger();
     BigInteger[] dm = bigA.divideAndRemainder(bigB);
     return Tuple.of(StarlarkInt.of(dm[0]), StarlarkInt.of(dm[1]));
+  }
+
+  @StarlarkMethod(
+       name = "len",
+       doc =
+           "Returns the length of a string, sequence (such as a list or tuple), dict, or other"
+               + " iterable.",
+       parameters = {@Param(name = "x", doc = "The value whose length to report.")}
+  )
+   public StarlarkInt len(Object x) throws EvalException {
+    final String typeString;
+    if(LarkyIterator.class.isAssignableFrom(x.getClass())) {
+      LarkyIterator object = ((LarkyIterator) x);
+      typeString = object.type();
+      // IF LarkyObject has a `__length_hint__()` method, invoke it. Otherwise, ...
+      if(object.hasLengthHintMethod()) {
+        return (StarlarkInt) object.invoke(object.getLengthHintMethod());
+      }
+    }
+    else if (LarkyObject.class.isAssignableFrom(x.getClass())) {
+      LarkyObject object = ((LarkyObject) x);
+      typeString = object.type();
+
+      // IF LarkyObject has a `__len__()` method, invoke it. Otherwise, ...
+      // TODO(mahmoudimus): This should be a sub type of LarkyObject(?) called
+      //  Sizeable that hasLenMethod() and getLenMethod()
+      if(object.hasLenField()) {
+        return (StarlarkInt) object.invoke(object.getField(PyProtocols.__LEN__));
+      }
+    }
+    else {
+      typeString = Starlark.type(x);
+    }
+     int len = Starlark.len(x);
+     if (len < 0) {
+       throw Starlark.errorf("%s is not iterable", typeString);
+     }
+     return StarlarkInt.of(len);
+   }
+
+  @StarlarkMethod(
+     name = "list",
+     doc =
+         "Returns a new list with the same elements as the given iterable value."
+             + "<pre class=\"language-python\">list([1, 2]) == [1, 2]\n"
+             + "list((2, 3, 2)) == [2, 3, 2]\n"
+             + "list({5: \"a\", 2: \"b\", 4: \"c\"}) == [5, 2, 4]</pre>",
+     parameters = {@Param(name = "x", defaultValue = "[]", doc = "The object to convert.")},
+     useStarlarkThread = true)
+  public StarlarkList<?> list(Object x, StarlarkThread thread) throws EvalException {
+    final String errmsg = "Error in list: in call to list(), parameter 'x' got value of type '%s', want 'iterable'";
+    final Object[] arr;
+
+    // convert to array
+    if (x instanceof StarlarkIterable) {
+      arr = Starlark.toArray(x);
+    } else {
+      final String objType;
+      if (x instanceof LarkyObject) {
+        objType = ((LarkyObject) x).type();
+        try {
+          arr = Starlark.toArray(LarkyIterator.from(x, thread));
+        } catch (EvalException ex) {
+          throw Starlark.errorf(errmsg, objType);
+        }
+      } else {
+        objType = Starlark.type(x);
+        throw Starlark.errorf(errmsg, objType);
+      }
+    }
+    return StarlarkEvalWrapper.zeroCopyList(thread.mutability(), arr);
   }
 
   @StarlarkMethod(
