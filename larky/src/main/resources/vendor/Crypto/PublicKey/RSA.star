@@ -28,12 +28,12 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
-
 load("@stdlib//binascii", binascii="binascii")
-load("@stdlib//larky", larky="larky")
-load("@stdlib//struct", struct="struct")
-load("@stdlib//sets", "sets")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@stdlib//larky", larky="larky")
+load("@stdlib//operator", "operator")
+load("@stdlib//sets", "sets")
+load("@stdlib//struct", struct="struct")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
@@ -199,11 +199,16 @@ def _RsaKey(**kwargs):
 
     def __repr__():
         if self.has_private():
-            extra = ", d=%d, p=%d, q=%d, u=%d" % (int(self._d), int(self._p),
-                                                  int(self._q), int(self._u))
+            extra = ", d=%d, p=%d, q=%d, u=%d" % (
+                operator.index(self._d),
+                operator.index(self._p),
+                operator.index(self._q),
+                operator.index(self._u))
         else:
             extra = ""
-        return "RsaKey(n=%d, e=%d%s)" % (int(self._n), int(self._e), extra)
+        return "RsaKey(n=%d, e=%d%s)" % (
+            operator.index(self._n),
+            operator.index(self._e), extra)
     self.__repr__ = __repr__
 
     def __str__():
