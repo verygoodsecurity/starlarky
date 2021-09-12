@@ -40,12 +40,21 @@ public interface LarkyObject extends Structure {
     return getField(PyProtocols.__STR__) != null;
   }
 
+  default boolean hasReprField() throws EvalException {
+    return getField(PyProtocols.__REPR__) != null;
+  }
+
   default boolean hasClassField() throws EvalException {
     return getField(PyProtocols.__CLASS__) != null;
   }
 
   default boolean hasNameField() throws EvalException {
     return getField(PyProtocols.__NAME__) != null;
+  }
+
+  // TODO(mahmoudimus): should this move to a sizeable interface?
+  default boolean hasLenField() throws EvalException {
+    return getField(PyProtocols.__LEN__) != null;
   }
 
   /**
