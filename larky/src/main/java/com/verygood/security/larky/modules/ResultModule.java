@@ -62,7 +62,7 @@ public class ResultModule implements StarlarkValue {
     } catch (EvalException e) {
       return Error.of(e); // for the stack trace.
     } catch (InterruptedException | RuntimeException e) {
-      return error(new EvalException(e.getMessage(), e));
+      return error(new EvalException(e.getMessage(), e.getCause()));
     }
   }
 

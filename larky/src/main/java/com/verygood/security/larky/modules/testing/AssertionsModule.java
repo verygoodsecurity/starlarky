@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
+import java.util.Objects;
 
 import com.verygood.security.larky.modules.utils.Reporter;
 
@@ -16,8 +17,6 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
-
-import java.util.Objects;
 
 
 @StarlarkBuiltin(
@@ -84,7 +83,7 @@ public class AssertionsModule implements StarlarkValue {
     try {
       Starlark.call(thread, f, ImmutableList.of(), ImmutableMap.of());
       errorMsg = String.format("evaluation succeeded unexpectedly (want error matching %s)", wantError);
-    } catch (EvalException ex) {
+    } catch (Starlark.UncheckedEvalException | EvalException ex) {
       // Verify error matches expectation.
       String msg = ex.getMessage();
       if (pattern.matcher(msg).find()) {
