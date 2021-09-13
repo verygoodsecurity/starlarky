@@ -122,6 +122,7 @@ def _Base():
             return default
         return Error("KeyError: " + "Key not found: %r" % key).unwrap()
     self.getall = getall
+    self.get = getall
 
     def getone(key, default=_marker):
         """Get first value matching the key."""
@@ -498,42 +499,6 @@ def MultiDict(*args, **kwargs):
             else:
                 i += 1
     self._replace = _replace
-    #
-    # def __len__():
-    #     return len(self.keys())
-    #
-    # def __iter__():
-    #     return iter(self.keys())
-    #
-    # def __getitem__(self, key):
-    #     raise KeyError
-    #
-    # def get(self, key, default=None):
-    #     'D.get(k[,d]) -> D[k] if k in D, else d.  d defaults to None.'
-    #     try:
-    #       return self[key]
-    #     except KeyError:
-    #       return default
-    #
-    # def __contains__(self, key):
-    #     try:
-    #       self[key]
-    #     except KeyError:
-    #       return False
-    #     else:
-    #       return True
-    #
-    # def keys():
-    #     "D.keys() -> a set-like object providing a view on D's keys"
-    #     return _KeysView(self)
-    #
-    # def items():
-    #     "D.items() -> a set-like object providing a view on D's items"
-    #     return _ItemsView(self)
-    #
-    # def values(self):
-    #     "D.values() -> an object providing a view on D's values"
-    #     return ValuesView(self)
 
     def __init__(*args, **kwargs):
         self._impl = _Impl()
@@ -560,24 +525,6 @@ def CIMultiDict(*args, **kwargs):
         return self
     self = __init__(*args, **kwargs)
     return self
-
-# TODO(mahmoudimus): move to larky namespace
-def PoorManGenerator(func):
-    self = larky.mutablestruct(__name__='PoorManGenerator',
-                               __class__=PoorManGenerator)
-    def __init__(func):
-        self.f = func
-        return self
-    self = __init__(func)
-
-    def __getitem__(i):
-        r = self.f(i)
-        if r.is_err and r == StopIteration():
-            return IndexError()
-        return r.unwrap()
-
-    self.__getitem__ = __getitem__
-    return iter(self)
 
 
 def _Iter(size, iterator):
@@ -676,7 +623,7 @@ def _ItemsView(impl):
     self.__contains__ = __contains__
 
     def __iter__():
-        return _Iter(len(self), PoorManGenerator(self._iter))
+        return _Iter(len(self), larky.DeterministicGenerator(self._iter))
     self.__iter__ = __iter__
 
     def _iter(i):
@@ -715,7 +662,7 @@ def _ValuesView(impl):
     self.__contains__ = __contains__
 
     def __iter__():
-        return _Iter(len(self), PoorManGenerator(self._iter))
+        return _Iter(len(self), larky.DeterministicGenerator(self._iter))
     self.__iter__ = __iter__
 
     def _iter(i):
@@ -794,7 +741,7 @@ def _KeysView(impl):
     self.__contains__ = __contains__
 
     def __iter__():
-        return _Iter(len(self), PoorManGenerator(self._iter))
+        return _Iter(len(self), larky.DeterministicGenerator(self._iter))
     self.__iter__ = __iter__
 
     def _iter(i):

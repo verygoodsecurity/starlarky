@@ -160,6 +160,33 @@ def _zfill(x, leading=4):
         return str(x)
 
 
+def _DeterministicGenerator(func):
+    """
+    Exploits iterator protocol support to emulate a generator that
+    preserves state by returning an iterator that supports `__getitem__`
+    to emulate a "deterministic" generator.
+
+    :param func: Must be a function that returns a
+      `vendor/option/results.star`#`Result` object
+    :return: an iterator that iterates over a fixed and deterministic sequence
+    """
+    self = _mutablestruct(__name__='DeterministicGenerator',
+                          __class__=_DeterministicGenerator)
+    def __init__(func):
+        self.f = func
+        return self
+    self = __init__(func)
+
+    def __getitem__(i):
+        r = self.f(i)
+        if r.is_err and r == StopIteration():
+            return IndexError()
+        return r.unwrap()
+
+    self.__getitem__ = __getitem__
+    return iter(self)
+
+
 larky = _struct(
     struct=_struct,
     mutablestruct=_mutablestruct,
@@ -172,6 +199,7 @@ larky = _struct(
     is_instance=_is_instance,
     impl_function_name=_impl_function_name,
     translate_bytes=translate_bytes,
+    DeterministicGenerator=_DeterministicGenerator,
     strings=_struct(
         zfill=_zfill,
     ),
