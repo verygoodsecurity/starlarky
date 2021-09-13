@@ -2,8 +2,10 @@ package com.verygood.security.larky.modules.types.structs;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.util.Iterator;
 import java.util.Map;
 
+import com.verygood.security.larky.modules.types.LarkyIterator;
 import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
 
@@ -15,15 +17,19 @@ import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkIndexable;
+import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.spelling.SpellChecker;
 import net.starlark.java.syntax.TokenKind;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 // A trivial struct-like class with Starlark fields defined by a map.
-public class SimpleStruct implements LarkyObject, HasBinary {
+public class SimpleStruct implements LarkyObject, StarlarkIterable<Object>, StarlarkIndexable, HasBinary {
 
   final Map<String, Object> fields;
   final StarlarkThread currentThread;
@@ -100,7 +106,6 @@ public class SimpleStruct implements LarkyObject, HasBinary {
         }
       }
     } catch (EvalException ex) {
-      //TODO(mahmoudimus): Should this throw a RuntimeException?
       throw new RuntimeException(ex);
     }
     p.append("<class '").append(type()).append("'>");
@@ -121,7 +126,8 @@ public class SimpleStruct implements LarkyObject, HasBinary {
   }
 
   /**
-   * Avoid un-necessary allocation if we need to override the immutability of the `__dict__` in a subclass for the caller.
+   * Avoid un-necessary allocation if we need to override the immutability of the `__dict__` in a
+   * subclass for the caller.
    * */
   protected Dict.Builder<String, Object> composeAndFillDunderDictBuilder() throws EvalException {
     StarlarkThread thread = getCurrentThread();
@@ -167,9 +173,14 @@ public class SimpleStruct implements LarkyObject, HasBinary {
     return super.hashCode();
   }
 
-  //TODO(mahmoudimus): evaluate if we should have LarkyObject extend StarlarkIndexable
-  // and dispatch overridden behavior in `containsKey()` or not?
-  //TODO(mahmoudimus): should this belong in LarkyObject?
+  /**
+   * The below does not belong in LarkyObject because LarkyObject does not dictate what operations
+   * should exist on an object. That is left to the interface implementer.
+   *
+   * However, for SimpleStruct and its hierarchy tree, in Larky, we can simply "tack-on" the
+   * magic method (i.e. __len__ or __contains__, etc.) and we expect various operations to work
+   * on that object, which is why we want to enable binaryOp on SimpleStruct.
+   */
   @Nullable
   @Override
   public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
@@ -177,6 +188,7 @@ public class SimpleStruct implements LarkyObject, HasBinary {
     switch (op) {
       case IN:
         // is this (thisLeft = true) "is this in that?" or (thisLeft = false) "is that in this?"
+        // first, check to see if __contains__ exists?
         final StarlarkCallable __contains__ =
           thisLeft
                 ? (StarlarkCallable) ((SimpleStruct) that).getField(PyProtocols.__CONTAINS__)
@@ -186,11 +198,51 @@ public class SimpleStruct implements LarkyObject, HasBinary {
                    ? (boolean) ((SimpleStruct) that).invoke(__contains__, ImmutableList.of(this))
                    : (boolean) this.invoke(__contains__, ImmutableList.of(that));
         }
+        // it does not. ok, is thisLeft = false & it is an iterator?
+        if(!thisLeft) {
+          try {
+            final LarkyIterator iterator = (LarkyIterator) iterator();
+            return iterator.binaryOp(op, that, false);
+          } catch (RuntimeException ignored) {}
+        }
         // *not in* case will be handled by EvalUtils
         // fallthrough
       default:
         // unsupported binary operation!
         return null;
+    }
+  }
+
+  // supports object[key] retrieval if `__getitem__` is implemented
+  @Override
+  public Object getIndex(StarlarkSemantics semantics, Object key) throws EvalException {
+    // The __getitem__ magic method is usually used for list indexing, dictionary lookup, or
+    // accessing ranges of values.
+    final StarlarkCallable __getitem__ = (StarlarkCallable) getField(PyProtocols.__GETITEM__);
+    if(__getitem__ != null) {
+      return this.invoke(__getitem__, ImmutableList.of(key));
+    }
+    throw Starlark.errorf("TypeError: '%s' object is not subscriptable", type());
+  }
+
+  // supports `in` operator if __contains__ is implemented
+  @Override
+  public boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
+    final Object result = binaryOp(TokenKind.IN, key, false);
+    if(result == null) {
+      throw Starlark.errorf(
+              "unsupported binary operation: %s %s %s", Starlark.type(key), TokenKind.IN, type());
+    }
+    return (boolean) result;
+  }
+
+  @NotNull
+  @Override
+  public Iterator<Object> iterator() {
+    try {
+      return LarkyIterator.LarkyObjectIterator.of(this, getCurrentThread());
+    } catch (EvalException e) {
+      throw new RuntimeException(e);
     }
   }
 }
