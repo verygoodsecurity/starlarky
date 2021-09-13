@@ -25,8 +25,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
-
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -212,5 +212,31 @@ public final class StarlarkUtil {
        }
      }
      throw Starlark.errorf("%s is not a callable", Starlark.type(x));
+   }
+
+  /**
+   * Returns the name of the type of {@code x} as if by the Starlark expression {@code type(x)}.
+   *
+   * This respects the __NAME__ and __CLASS__ parameters otherwise falls back to
+   * {@code Starlark.type()}
+   */
+   public static String richType(Object x) {
+    if(x instanceof LarkyObject) {
+      LarkyObject obj = ((LarkyObject) x);
+      try {
+        if (!obj.hasClassField() && !obj.hasNameField()) {
+          return Starlark.type(obj);
+        }
+        if(obj.hasNameField()) {
+          return String.valueOf(obj.getField(PyProtocols.__NAME__));
+        }
+        // fall back to __class__ if __name__ doesn't exist
+        return String.valueOf(obj.getField(PyProtocols.__CLASS__));
+      } catch (EvalException e) {
+        throw new RuntimeException(e);
+      }
+    }
+     // otherwise, just return Starlark.type()
+     return Starlark.type(x);
    }
 }

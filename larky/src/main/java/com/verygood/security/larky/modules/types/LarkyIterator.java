@@ -57,12 +57,9 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
 
   final protected ImmutableSet<String> fieldNames = fields.keySet();
 
-  // __iter__() => hasIterField() ? invoke() : hasGetItemField() ? return invoke() : return iterator()
-  // __next__() => hasNextField() ? invoke() : return if not hasNext(): raise StopIterable else return next()
   private StarlarkThread currentThread;
 
   public static LarkyIterator from(Object obj, StarlarkThread thread) throws EvalException {
-    // TODO: add iter(dict)..
     if (obj instanceof LarkyIterator) {
       final LarkyIterator obj1 = (LarkyIterator) obj;
       obj1.setCurrentThread(thread);
@@ -202,8 +199,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
 
     private LarkyIterableIterator(Iterable<?> obj) {
       this.iterator = obj.iterator();
-      this.type = Starlark.type(obj) + "_iterator";
-
+      this.type = StarlarkUtil.richType(obj) + "_iterator";
     }
 
     public static LarkyIterableIterator of(Iterable<?> obj, StarlarkThread thread) {
@@ -232,7 +228,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
 
   }
 
-  private static class LarkyObjectIterator extends LarkyIterator {
+  public static class LarkyObjectIterator extends LarkyIterator {
     private final String type;
     protected Supplier<Object> iterator_method;
     protected boolean checkedForNext;
