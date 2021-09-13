@@ -77,9 +77,8 @@ def RSAKey(key, algorithm):
                                SHA1=SHA1)
 
     def __init__(key, algorithm):
-
-        if algorithm not in ALGORITHMS.RSA:
-            return Error("JWKError: hash_alg: %s is not a valid hash algorithm" % algorithm)
+        if not operator.contains(ALGORITHMS.RSA, algorithm):
+            return Error("JWKError: hash_alg: %s is not a valid hash algorithm" % algorithm).unwrap()
 
         self.hash_alg = {
             ALGORITHMS.RS256: self.SHA256,
@@ -95,22 +94,22 @@ def RSAKey(key, algorithm):
             self.prepared_key = key
             return self
 
-        if types.is_instance(key, dict):
+        if types.is_dict(key):
             self._process_jwk(key)
             return self
 
-        if types.is_instance(key, six.string_types):
-            key = key.encode('utf-8')
+        if types.is_string(key):
+            key = codecs.encode(key, encoding='utf-8')
 
-        if types.is_instance(key, six.binary_type):
+        if types.is_bytelike(key):
             if key.startswith(b'-----BEGIN CERTIFICATE-----'):
                 safe(self._process_cert)(key).unwrap()
                 return self
 
-            self.prepared_key = safe(RSA.importKey)(key).unwrap()
+            self.prepared_key = RSA.importKey(key)
             return self
 
-        return Error("JWKError: Unable to parse an RSA_JWK from key: %s" % key)
+        return Error("JWKError: Unable to parse an RSA_JWK from key: %s" % key).unwrap()
 
     self = __init__(key, algorithm)
 
@@ -240,6 +239,11 @@ def RSAKey(key, algorithm):
         return data
     self.to_dict = to_dict
 
+
+    def wrap(key_data, enc_alg=None, headers=None):
+        return self.wrap_key(key_data)
+    self.wrap = wrap
+
     def wrap_key(key_data):
         if self._algorithm == ALGORITHMS.RSA1_5:
             cipher = PKCS1_v1_5_Cipher.new(self.prepared_key)
@@ -248,6 +252,10 @@ def RSAKey(key, algorithm):
         wrapped_key = cipher.encrypt(key_data)
         return wrapped_key
     self.wrap_key = wrap_key
+
+    def unwrap(wrapped_key, headers=None, enc_alg=None):
+        return self.unwrap_key(wrapped_key)
+    self.unwrap = unwrap
 
     def unwrap_key(wrapped_key):
         if self._algorithm == ALGORITHMS.RSA1_5:
@@ -365,8 +373,7 @@ def AESKey(key, algorithm):
     def _unpad(padded):
         padded = six.ensure_binary(padded)
         padding_byte = padded[-1]
-        if types.is_instance(padded, six.string_types):
-            padding_byte = ord(padding_byte)
+        padding_byte = ord(padding_byte)
         if padded[-padding_byte:] != bytearray([padding_byte]) * padding_byte:
             return Error("ValueError: Invalid padding!")
         return padded[:-padding_byte]

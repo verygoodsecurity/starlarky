@@ -278,8 +278,9 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
       }
 
       return () -> {
+        Object rval;
         try {
-          return iterator.invoke(iterator.getField(PyProtocols.__NEXT__));
+          rval =  iterator.invoke(iterator.getField(PyProtocols.__NEXT__));
         } catch (EvalException e) {
           if (e instanceof LarkyStopIteration) {
             // NOTE: If an error is thrown here, we will
@@ -288,6 +289,10 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
             throw new RuntimeException(e);
           }
         }
+        if (rval == LarkyStopIteration.getInstance()) {
+          rval = null;
+        }
+        return rval;
       };
     }
 
