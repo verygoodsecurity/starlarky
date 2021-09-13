@@ -90,11 +90,12 @@ def _HMAC(key, msg, digestmod):
                 :return: An :class:`HMAC`
 
         """
-        new_hmac = _HMAC(tobytes("fake key"), digestmod=self._digestmod)
+        new_hmac = _HMAC(b"fake key", digestmod=self._digestmod)
 
         # Syncronize the state
         new_hmac._inner = self._inner.copy()
         new_hmac._outer = self._outer.copy()
+
         return new_hmac
     self.copy = copy
 
@@ -144,7 +145,7 @@ def _HMAC(key, msg, digestmod):
                 :rtype: string
 
         """
-        return tostr(hexlify(self.digest()))
+        return self.digest().hex()
     self.hexdigest = hexdigest
 
     def hexverify(hex_mac_tag):
@@ -164,43 +165,49 @@ def _HMAC(key, msg, digestmod):
         self.verify(unhexlify(tobytes(hex_mac_tag)))
     self.hexverify = hexverify
 
-    def __init__(key, msg, digestmod=None):
+    def __init__(key, msg=b"", digestmod=None):
         """
-        b
+        An HMAC hash object.
+        Do not instantiate directly. Use the :func:`new` function.
+        :ivar digest_size: the size in bytes of the resulting MAC tag
+        :vartype digest_size: integer
         """
         if digestmod == None:
             digestmod = MD5
 
         if msg == None:
-            msg = tobytes(r"")
+            msg = b""
 
         # Size of the MAC tag
         self.digest_size = digestmod.digest_size
 
         self._digestmod = digestmod
 
-        if hasattr(digestmod, 'block_size'):
-            if len(key) <= digestmod.block_size:
-                # Step 1 or 2
-                key_0 = tostr(key) + "\\x00" * (digestmod.block_size - len(key))
-                key_0 = tobytes(key_0)
-            else:
-                # Step 3
-                hash_k = digestmod.new(key).digest()
-                key_0 = tostr(hash_k) + "\\x00" * (digestmod.block_size - len(key))
-                key_0 = tobytes(key_0)
+        if not hasattr(digestmod, 'block_size'):
+            # Not all hash types have "block_size"
+            fail("ValueError: Hash type incompatible to HMAC")
+
+        if len(key) <= digestmod.block_size:
+            # Step 1 or 2
+            key_0 = key + b"\x00" * (digestmod.block_size - len(key))
+            # key_0 = tostr(key) + "\\x00" * (digestmod.block_size - len(key))
+            # key_0 = tobytes(key_0)
         else:
-            fail('ValueError("Hash type incompatible to HMAC")')
+            # Step 3
+            hash_k = digestmod.new(key).digest()
+            key_0 = hash_k + b"\x00" * (digestmod.block_size - len(hash_k))
+            # key_0 = tostr(hash_k) + "\\x00" * (digestmod.block_size - len(key))
+            # key_0 = tobytes(key_0)
 
         # Step 4
-        key_0_ipad = strxor(key_0, tobytes(r"\x36") * len(key_0))
+        key_0_ipad = strxor(key_0, b"\x36" * len(key_0))
 
         # Start step 5 and 6
         self._inner = digestmod.new(key_0_ipad)
         self._inner.update(msg)
 
         # Step 7
-        key_0_opad = strxor(key_0, tobytes(r"\x5c") * len(key_0))
+        key_0_opad = strxor(key_0, b"\x5c" * len(key_0))
 
         # Start step 8 and 9
         self._outer = digestmod.new(key_0_opad)
@@ -210,7 +217,7 @@ def _HMAC(key, msg, digestmod):
 
     return self
 
-def new(key, msg, digestmod=None):
+def new(key, msg=b"", digestmod=None):
     """
     Create a new MAC object.
 

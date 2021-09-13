@@ -75,11 +75,32 @@ def _parametrize(testaddr, testcase, param, args):
     return parametrized
 
 
-def _is_instance(instance, some_class):
-    t = type(instance)
-    cls_type = str(some_class)
+
+def _impl_function_name(f):
+    """Derives the name of the given rule implementation function.
+
+    This can be used for better test feedback.
+
+    Args:
+      impl: the rule implementation function
+
+    Returns:
+      The name of the given function
+    """
+
+    # Starlark currently stringifies a function as "<function NAME>", so we use
+    # that knowledge to parse the "NAME" portion out. If this behavior ever
+    # changes, we'll need to update this.
+    # TODO(bazel-team): Expose a ._name field on functions to avoid this.
+    cls_type = str(f)
     if 'built-in' in cls_type or '<function ' in cls_type:
         cls_type = cls_type.split(" ")[-1].rpartition(">")[0]
+    return cls_type
+
+
+def _is_instance(instance, some_class):
+    t = type(instance)
+    cls_type = _impl_function_name(some_class)
     # TODO(Larky::Difference) this hack here is specialization for comparing
     #  str to string when we do str(str) in larky, we get
     #  <built-in function str>, but in python, this is <class 'str'>.
@@ -87,7 +108,6 @@ def _is_instance(instance, some_class):
     if t == 'string' and cls_type == 'str':
         return True
     return t == cls_type
-
 
 def translate_bytes(s, original, replace):
     """
@@ -150,6 +170,7 @@ larky = _struct(
     SENTINEL=_SENTINEL,
     parametrize=_parametrize,
     is_instance=_is_instance,
+    impl_function_name=_impl_function_name,
     translate_bytes=translate_bytes,
     strings=_struct(
         zfill=_zfill,

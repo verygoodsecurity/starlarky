@@ -7,8 +7,10 @@ import java.util.Map;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Structure;
+import net.starlark.java.spelling.SpellChecker;
 
 import javax.annotation.Nullable;
 
@@ -82,9 +84,25 @@ public interface LarkyObject extends Structure {
   @Nullable
   @Override
   default String getErrorMessageForUnknownField(String field) {
-    return String.format("'%s' object has no attribute '%s'",
-        Starlark.type(this),
-        field);
+    String starlarkType = Starlark.type(this);
+    String larkyType = type();
+    if(!larkyType.equals(starlarkType)) {
+      starlarkType += String.format(" of class '%s'",larkyType);
+    }
+
+    return String.format(
+      "%s has no field or method '%s'%s",
+      starlarkType,
+      field,
+      SpellChecker.didYouMean(field,
+        Starlark.dir(
+          getCurrentThread() != null
+            ? getCurrentThread().mutability()
+            : null,
+          getCurrentThread() != null
+            ? getCurrentThread().getSemantics()
+            : StarlarkSemantics.DEFAULT,
+          this)));
   }
 
   default Object invoke(Object function) throws EvalException {

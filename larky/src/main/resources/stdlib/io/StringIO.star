@@ -39,7 +39,7 @@ __all__ = ["StringIO"]
 
 def _complain_ifclosed(closed):
     if closed:
-        return Error("ValueError: I/O operation on closed file")
+        return Error("ValueError: I/O operation on closed file").unwrap()
 
 
 def StringIO(buf = ''):
@@ -54,7 +54,7 @@ def StringIO(buf = ''):
     cannot be interpreted as 7-bit ASCII (that use the 8th bit) will cause
     a UnicodeError to be raised when getvalue() is called.
     """
-    self = larky.mutablestruct(__class__='StringIO')
+    self = larky.mutablestruct(__name__='StringIO', __class__=StringIO)
     def __init__(buf):
         # Force self.buf to be a string or unicode
         if not types.is_string(buf):
@@ -82,8 +82,7 @@ def StringIO(buf = ''):
         _complain_ifclosed(self.closed)
         r = self.readline()
         if not r:
-            # PY2LARKY: pay attention to this!
-            return Error("StopIteration")
+            return StopIteration()
         return r
     self.__next__ = __next__
 
@@ -92,8 +91,8 @@ def StringIO(buf = ''):
         """
         if not self.closed:
             self.closed = True
-            # del self.buf, self.pos
-            pass
+            self.buf = None
+            self.pos = 0
     self.close = close
 
     def isatty():
@@ -218,7 +217,7 @@ def StringIO(buf = ''):
         if size == None:
             size = self.pos
         elif size < 0:
-            return Error("IOError: Negative size not allowed")
+            return Error("IOError: Negative size not allowed").unwrap()
         elif size < self.pos:
             self.pos = size
         self.buf = self.getvalue()[:size]

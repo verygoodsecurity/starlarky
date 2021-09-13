@@ -111,6 +111,9 @@ load("@stdlib//enum", "enum")
 #             Ok(2)
 #             >>> Err(1).map(lambda x: x * 2)
 #             Err(1)
+#             >>> Ok([]).map(iter).map(next).map(lambda x: x * 2)
+#             Err(StopIteration)
+#
 #         """
 #         return self._obj.map(op)
 #         # return self._type.Ok(op(self._val)) if self._is_ok else self  # type: ignore
@@ -133,6 +136,7 @@ load("@stdlib//enum", "enum")
 #         Examples:
 #             >>> def sq(x): return Ok(x * x)
 #             >>> def err(x): return Err(x)
+#             >>> def nextelement(x): return next(x)
 #             >>> Ok(2).flatmap(sq).flatmap(sq)
 #             Ok(16)
 #             >>> Ok(2).flatmap(sq).flatmap(err)
@@ -141,6 +145,8 @@ load("@stdlib//enum", "enum")
 #             Err(2)
 #             >>> Err(3).flatmap(sq).flatmap(sq)
 #             Err(3)
+#             >>> Ok([]).flatmap(iter).flatmap(nextelement).flatmap(sq)
+#             Err(StopIteration)
 #         """
 #         return op(self._val) if self._is_ok else self  # type: ignore
 #     self.flatmap = flatmap
@@ -566,10 +572,10 @@ def try_(func):
         return self
     self.finally_ = finally_
 
-    def build():
+    def build(*args, **kwargs):
         _assert_valid_transition(_enum.BUILD)
         self._current_state = _enum.BUILD
-        rval = safe(self._attempt)()
+        rval = safe(self._attempt)(*args, **kwargs)
         if rval.is_err and self._exc:
             for e in self._exc:
                 rval = rval.map_err(e)
@@ -577,10 +583,11 @@ def try_(func):
             rval = rval.map(self._else)
         if self._finally:
             _finally_returnval = self._finally(rval)
+            # -> make this an option when setting up finally?
             # if finally does not return None, set it to rval
             # TODO: is this right?
-            if _finally_returnval:
-               rval = _finally_returnval
+            if _finally_returnval != None:
+                rval = _finally_returnval
         return rval
 
     self.build = build

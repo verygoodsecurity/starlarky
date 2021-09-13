@@ -1,8 +1,7 @@
 """Unit tests for larky.star."""
 load("@stdlib//larky", "larky")
-
-load("@vendor//asserts",  "asserts")
 load("@stdlib//unittest", "unittest")
+load("@vendor//asserts",  "asserts")
 
 
 def _test_namespace_exposes_larky_builtins():
@@ -14,7 +13,7 @@ def _test_namespace_exposes_larky_builtins():
     :return: None
     """
     items = sorted(dir(larky))
-    asserts.assert_that(items).is_length(11)
+    asserts.assert_that(items).is_length(13)
     asserts.assert_that(items).is_equal_to(sorted([
         "SENTINEL",
         "mutablestruct",
@@ -26,7 +25,9 @@ def _test_namespace_exposes_larky_builtins():
         "parametrize",
         "is_instance",
         "translate_bytes",
-        "strings"
+        "strings",
+        "__dict__",
+        "impl_function_name"
     ]))
 
 

@@ -83,50 +83,14 @@ def _sum(nums,*args,**kwargs):
     else:
       if 'start' in kwargs:
         s = kwargs['start']
-      elif args: 
+      elif args:
         s = args[0]
-      else: 
+      else:
         s = 0
       for num in nums:
         s += num
       return s
 
-
-def iter(o, sentinel=None):
-    """
-    Return an iterator object.
-
-    The first argument is interpreted very differently depending on the
-    presence of the second argument. Without a second argument, object
-    must be a collection object which supports the iteration
-    protocol (the __iter__() method), or it must support the sequence
-    protocol (the __getitem__() method with integer arguments starting at 0).
-    If it does not support either of those protocols, TypeError is raised.
-
-    If the second argument, sentinel, is given, then object must be a
-    callable object. The iterator created in this case will call object
-    with no arguments for each call to its __next__() method; if the value
-    returned is equal to sentinel, StopIteration will be raised, otherwise
-    the value will be returned.
-
-    :param o:
-    :param sentinel:
-    :return:
-    """
-    if not any([
-        hasattr(o, '__iter__'),
-        types.is_iterable(o),
-        types.is_string(o),
-    ]):
-        msg = "TypeError: type '%s' is not iterable"
-        msg %= (type(o))
-        fail(msg)
-    iterable = o
-    if types.is_string(o):
-        iterable = o.elems()
-    elif hasattr(o, '__iter__'):
-        iterable = o.__iter__()
-    return iterable
 
 
 def map(func, iterable):
@@ -143,5 +107,11 @@ builtins = larky.struct(
     abs=abs,
     pow=pow,
     iter=iter,
-    map=map
+    next=next,
+    map=map,
+    isinstance=types.is_instance,
+    repr=repr,
+    # Errors..
+    StopIteration=StopIteration,
+    IndexError=IndexError
 )

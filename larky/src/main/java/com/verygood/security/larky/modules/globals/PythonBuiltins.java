@@ -9,8 +9,11 @@ import java.nio.charset.UnsupportedCharsetException;
 
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.modules.codecs.TextUtil;
+import com.verygood.security.larky.modules.types.LarkyIterator;
 import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
+import com.verygood.security.larky.modules.types.results.LarkyIndexError;
+import com.verygood.security.larky.modules.types.results.LarkyStopIteration;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
@@ -141,6 +144,68 @@ public final class PythonBuiltins {
     sb.append(prefix);
     sb.append(value.abs().toString(2));
     return sb.toString();
+  }
+
+  @StarlarkMethod(name="StopIteration")
+  public LarkyStopIteration stopIteration() {//throws LarkyStopIteration {
+    return LarkyStopIteration.getInstance();
+  }
+
+  @StarlarkMethod(name="IndexError")
+  public LarkyIndexError indexError() {//throws LarkyIndexError {
+    return LarkyIndexError.getInstance();
+  }
+
+
+  // iter(object[, sentinel])
+  /*
+  iter(iterable) -> iterator
+  iter(callable, sentinel) -> iterator
+
+   */
+  @StarlarkMethod(name = "iter",
+    doc = "Get an iterator from an object.  In the first form, the argument must\n" +
+            "supply its own iterator, or be a sequence.\n" +
+            "In the second form, the callable is called until it returns the sentinel.\n",
+    parameters = {
+    @Param(name = "iterable"),
+    @Param(name = "sentinel", defaultValue = "unbound")
+  }, useStarlarkThread = true)
+  public LarkyIterator iter(Object iterableO, Object sentinelO, StarlarkThread thread)
+    throws EvalException {
+
+    if(StarlarkUtil.isNullOrNoneOrUnbound(sentinelO)) {
+      return LarkyIterator.from(iterableO, thread);
+    }
+
+    if(!StarlarkUtil.isCallable(iterableO)) {
+      throw Starlark.errorf("TypeError: iter(v, w): v must be callable");
+    }
+
+    return LarkyIterator.LarkyCallableIterator.of(
+      StarlarkUtil.toCallable(iterableO), sentinelO, thread);
+  }
+
+  @StarlarkMethod(name = "next",
+     doc = "next(iterator[, default])\n" +
+             "\n" +
+             "Return the next item from the iterator. If default is given and the iterator\n" +
+             "is exhausted, it is returned instead of raising StopIteration.\n",
+     parameters = {
+     @Param(name = "iterator"),
+     @Param(name = "default", defaultValue = "unbound")
+   }, useStarlarkThread = true)
+  public Object next(LarkyIterator iterator, Object defaultO, StarlarkThread thread) throws EvalException {
+    if(iterator.hasNext()) {
+      iterator.setCurrentThread(thread);
+      return iterator.next();
+    }
+    // If default is given and the iterator is exhausted, it is returned
+    if(defaultO != Starlark.UNBOUND) {
+      return defaultO;
+    }
+    // else raise StopIteration
+    throw LarkyStopIteration.getInstance();
   }
 
   @StarlarkMethod(
@@ -443,16 +508,11 @@ public final class PythonBuiltins {
 //    }
 
     //bytes() -> empty bytes object
-    if (Starlark.isNullOrNone(_obj)
-          || StarlarkBytes.class.isAssignableFrom(_obj.getClass())
-          || StarlarkBytes.class.isAssignableFrom(_obj.getClass())) {
-      return StarlarkUtil.convertFromNoneable(
-          _obj,
-        StarlarkBytes.empty()
-//          StarlarkBytes.builder(thread)
-//              .setSequence(new byte[]{})
-//              .build()
-      );
+    if (Starlark.isNullOrNone(_obj)) {
+      return StarlarkUtil.convertFromNoneable(_obj, StarlarkBytes.empty());
+    }
+    else if(_obj instanceof StarlarkBytes) {
+      return StarlarkBytes.immutableCopyOf(((StarlarkBytes) _obj).elems());
     }
 
     // handle case where string is passed in.

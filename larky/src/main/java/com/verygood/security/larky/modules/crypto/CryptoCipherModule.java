@@ -10,12 +10,14 @@ import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.engines.DESEngine;
 import org.bouncycastle.crypto.engines.DESedeEngine;
 import org.bouncycastle.crypto.modes.CBCBlockCipher;
+import org.bouncycastle.crypto.modes.CFBBlockCipher;
 import org.bouncycastle.crypto.modes.SICBlockCipher;
 import org.bouncycastle.crypto.params.DESedeParameters;
 import org.bouncycastle.crypto.params.KeyParameter;
@@ -56,6 +58,15 @@ public class CryptoCipherModule implements StarlarkValue {
   })
   public LarkyBlockCipher ECBMode(Engine engine) {
     return new LarkyBlockCipher(engine.getEngine(), engine, null);
+  }
+
+  @StarlarkMethod(name = "CFBMode", parameters = {
+      @Param(name = "engine", allowedTypes = {@ParamType(type = Engine.class)}),
+      @Param(name = "iv", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+      @Param(name = "segment_size", allowedTypes = {@ParamType(type = StarlarkInt.class)})
+  })
+  public LarkyBlockCipher CFBMode(Engine engine, StarlarkBytes iv, StarlarkInt segmentSize) {
+    return new LarkyBlockCipher(new CFBBlockCipher(engine.getEngine(), segmentSize.toIntUnchecked()), engine, iv.toByteArray());
   }
 
   @StarlarkMethod(name = "DES3", parameters = {

@@ -20,17 +20,22 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.verygood.security.larky.modules.types.PyProtocols;
+
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.Structure;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -178,4 +183,34 @@ public final class StarlarkUtil {
       // For all other attribute values, shallow conversion is safe.
       return Starlark.fromJava(x, mutability);
     }
+
+  /** Reports whether {@code x} is Java null or Starlark None. */
+  public static boolean isNullOrNoneOrUnbound(Object x) {
+    return x == null || x == Starlark.NONE || x == Starlark.UNBOUND;
+  }
+
+  public static boolean isCallable(Object x) throws EvalException {
+    if(x instanceof StarlarkCallable) {
+      return true;
+    }
+    // if we have a user defined type and it has a __call__
+    else if(x instanceof Structure) {
+      return ((Structure)x).getValue(PyProtocols.__CALL__) != null;
+    }
+    return false;
+  }
+
+  public static StarlarkCallable toCallable(Object x) throws EvalException {
+     if(x instanceof StarlarkCallable) {
+       return (StarlarkCallable) x;
+     }
+     // if we have a user defined type and it has a __call__
+     else if(x instanceof Structure) {
+       final Object value = ((Structure) x).getValue(PyProtocols.__CALL__);
+       if(value != null) {
+         return ((StarlarkCallable) value);
+       }
+     }
+     throw Starlark.errorf("%s is not a callable", Starlark.type(x));
+   }
 }

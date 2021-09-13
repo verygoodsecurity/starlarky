@@ -4,8 +4,10 @@ This exports `asserts` which contains the assertions used within tests.
 
 This is modeled after assertpy (https://github.com/assertpy/assertpy)
 """
-load("@stdlib//larky", "larky")
+load("@stdlib//larky", larky="larky")
+load("@stdlib//reprlib", reprlib="reprlib")
 load("@stdlib//assertions", _assertions="assertions")
+load("@stdlib//re", re="re")
 
 load("sets", "sets")
 load("types", "types")
@@ -15,25 +17,7 @@ load("partial", "partial")
 _extensions = {}
 
 
-def _impl_function_name(f):
-    """Derives the name of the given rule implementation function.
-
-    This can be used for better test feedback.
-
-    Args:
-      impl: the rule implementation function
-
-    Returns:
-      The name of the given function
-    """
-
-    # Starlark currently stringifies a function as "<function NAME>", so we use
-    # that knowledge to parse the "NAME" portion out. If this behavior ever
-    # changes, we'll need to update this.
-    # TODO(bazel-team): Expose a ._name field on functions to avoid this.
-    impl_name = str(f)
-    impl_name = impl_name.partition("<function ")[-1]
-    return impl_name.rpartition(">")[0]
+_impl_function_name = larky.impl_function_name
 
 
 def _add_extension(func):
@@ -217,7 +201,7 @@ def is_equal_to(self, other, **kwargs):
 
     if _diff:
         fail('Expected <{}> to be equal to <{}>, but was not.'
-             .format(repr(self.val), repr(other)))
+             .format(reprlib.repr(self.val), reprlib.repr(other)))
 
     return self
 
@@ -273,6 +257,32 @@ def is_less_than(self, other):
         #         other.strftime('%Y-%m-%d %H:%M:%S')))
         # else:
         fail('Expected <{}> to be less than <{}>, but was not.'.format(
+            self.val, other
+        ))
+    return self
+
+
+def is_greater_than(self, other):
+    """
+    Asserts that val is numeric and is greater than other.
+    Args:
+        other: the other date, expected to be less than val
+    Examples:
+        Usage::
+            assert_that(0).is_greater_than(1)
+            assert_that(123.4).is_greater_than(555.5)
+        For dates, behavior is identical to :meth:`~assertpy.date.DateMixin.is_before`::
+            import datetime
+            today = datetime.datetime.now()
+            yesterday = today - datetime.timedelta(days=1)
+            assert_that(yesterday).is_greater_than(today)
+    Returns:
+        AssertionBuilder: returns this instance to chain to the next assertion
+    Raises:
+        AssertionError: if val is **not** less than other
+    """
+    if self.val <= other:
+        fail('Expected <{}> to be greater than <{}>, but was not.'.format(
             self.val, other
         ))
     return self
@@ -367,9 +377,8 @@ def is_instance_of(self, some_class):
         AssertionError: if val is **not** an instance of the given class
     """
     if not types.is_instance(self.val, some_class):
-        t = type(self.val)
-        fail('Expected <%s:%s> to be instance of class <%s>, but was not.' % (
-            self.val, t, _impl_function_name(some_class)))
+        msg = 'Expected type(%s) to be class <%s>, but was of type <%s> instead.'
+        fail(msg % (reprlib.repr(self.val), _impl_function_name(some_class), type(self.val)))
     return self
 
 
@@ -450,6 +459,78 @@ def is_not_none(self):
     return self
 
 
+def matches(self, pattern):
+    """Asserts that val is string and matches the given regex pattern.
+    Args:
+        pattern (str): the regular expression pattern, as raw string (aka prefixed with ``r``)
+    Examples:
+        Usage::
+            assert_that('foo').matches(r'\\w')
+            assert_that('123-456-7890').matches(r'\\d{3}-\\d{3}-\\d{4}')
+        Match is partial unless anchored, so these assertion pass::
+            assert_that('foo').matches(r'\\w')
+            assert_that('foo').matches(r'oo')
+            assert_that('foo').matches(r'\\w{2}')
+        To match the entire string, just use an anchored regex pattern where ``^`` and ``$``
+        match the start and end of line and ``\\A`` and ``\\Z`` match the start and end of string::
+            assert_that('foo').matches(r'^\\w{3}$')
+            assert_that('foo').matches(r'\\A\\w{3}\\Z')
+        And regex flags, such as ``re.MULTILINE`` and ``re.DOTALL``, can only be applied via
+        *inline modifiers*, such as ``(?m)`` and ``(?s)``::
+            s = '''bar
+            foo
+            baz'''
+            # using multiline (?m)
+            assert_that(s).matches(r'(?m)^foo$')
+            # using dotall (?s)
+            assert_that(s).matches(r'(?s)b(.*)z')
+    Returns:
+        AssertionBuilder: returns this instance to chain to the next assertion
+    Raises:
+        AssertionError: if val does **not** match pattern
+    Tip:
+        Regular expressions are tricky.  Be sure to use raw strings (aka prefixed with ``r``).
+        Also, note that the :meth:`matches` assertion passes for partial matches (as does the
+        underlying ``re.match`` method).  So, if you need to match the entire string, you must
+        include anchors in the regex pattern.
+    """
+    if not types.is_string(self.val) or types.is_bytelike(self.val):
+        fail("TypeError: 'val' is not string or byte-like")
+    if not types.is_string(pattern) or types.is_bytelike(pattern):
+        fail("TypeError: given pattern arg must be a string or byte-like")
+    if len(pattern) == 0:
+        fail('ValueError: given pattern arg must not be empty')
+    if re.search(pattern, self.val) == None:
+        return fail('Expected <%s> to match pattern <%s>, but did not.' % (self.val, pattern))
+    return self
+
+
+def does_not_match(self, pattern):
+    """Asserts that val is string and does not match the given regex pattern.
+    Args:
+        pattern (str): the regular expression pattern, as raw string (aka prefixed with ``r``)
+    Examples:
+        Usage::
+            assert_that('foo').does_not_match(r'\\d+')
+            assert_that('123').does_not_match(r'\\w+')
+    Returns:
+        AssertionBuilder: returns this instance to chain to the next assertion
+    Raises:
+        AssertionError: if val **does** match pattern
+    See Also:
+        :meth:`matches` - for more about regex patterns
+    """
+    if not types.is_string(self.val) or types.is_bytelike(self.val):
+        fail("TypeError: 'val' is not string or byte-like")
+    if not types.is_string(pattern) or types.is_bytelike(pattern):
+        fail("TypeError: given pattern arg must be a string or byte-like")
+    if len(pattern) == 0:
+        fail('ValueError: given pattern arg must not be empty')
+    if re.search(pattern, self.val) != None:
+        return self.error('Expected <%s> to not match pattern <%s>, but did.' % (self.val, pattern))
+    return self
+
+
 def _AssertionBuilder(val, description, kind, expected, logger):
     self = larky.mutablestruct(val=val,
                                description=description,
@@ -469,10 +550,13 @@ def _AssertionBuilder(val, description, kind, expected, logger):
         is_none=larky.partial(is_false, self),
         is_not_none=larky.partial(is_not_none, self),
         is_less_than=larky.partial(is_less_than, self),
+        is_greater_than=larky.partial(is_greater_than, self),
         is_lte_to=larky.partial(is_lte_to, self),
         is_less_than_or_equal_to=larky.partial(is_lte_to, self),
         is_gte_to=larky.partial(is_gte_to, self),
         is_greater_than_or_equal_to=larky.partial(is_gte_to, self),
+        matches=larky.partial(matches, self),
+        does_not_match=larky.partial(does_not_match, self),
     )
     klass.described_as=larky.partial(_described_as, klass, self)
     return klass
@@ -560,3 +644,4 @@ asserts = larky.struct(
     assert_fails=_assert_fails,
     eq=_assert_eq
 )
+assert_that = asserts.assert_that
