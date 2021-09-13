@@ -6,6 +6,7 @@ This is modeled after assertpy (https://github.com/assertpy/assertpy)
 """
 load("@stdlib//larky", larky="larky")
 load("@stdlib//reprlib", reprlib="reprlib")
+load("@stdlib//operator", operator="operator")
 load("@stdlib//assertions", _assertions="assertions")
 load("@stdlib//re", re="re")
 
@@ -186,16 +187,6 @@ def is_equal_to(self, other, **kwargs):
         _diff = _compare_sets(self.val, other)
         if _diff:
             fail(_diff['message'])
-    elif types.is_structlike(self.val) or types.is_structlike(other):
-        # if either are struct-like, check to see if
-        # there is an __eq__
-        # TODO: move the below to LarkyObject so that == works
-        #       check for __ne__ too.
-        if hasattr(self.val, '__eq__'):
-            _diff = not self.val.__eq__(other)
-        elif hasattr(other, '__eq__'):
-            _diff = not other.__eq__(self.val)
-        # fall through to checking equality
     else:
         _diff = (self.val != other)
 
@@ -527,7 +518,91 @@ def does_not_match(self, pattern):
     if len(pattern) == 0:
         fail('ValueError: given pattern arg must not be empty')
     if re.search(pattern, self.val) != None:
-        return self.error('Expected <%s> to not match pattern <%s>, but did.' % (self.val, pattern))
+        fail('Expected <%s> to not match pattern <%s>, but did.' % (self.val, pattern))
+    return self
+
+
+def contains(self, *items):
+    """Asserts that val contains the given item or items.
+    Checks if the collection contains the given item or items using ``in`` operator.
+    Args:
+        *items: the item or items expected to be contained
+    Examples:
+        Usage::
+            assert_that('foo').contains('f')
+            assert_that('foo').contains('f', 'oo')
+            assert_that(['a', 'b']).contains('b', 'a')
+            assert_that((1, 2, 3)).contains(3, 2, 1)
+            assert_that({'a': 1, 'b': 2}).contains('b', 'a')  # checks keys
+            assert_that({'a', 'b'}).contains('b', 'a')
+            assert_that([1, 2, 3]).is_type_of(list).contains(1, 2).does_not_contain(4, 5)
+    Returns:
+        AssertionBuilder: returns this instance to chain to the next assertion
+    Raises:
+        AssertionError: if val does **not** contain the item or items
+    Tip:
+        Use the :meth:`~assertpy.dict.DictMixin.contains_key` alias when working with
+        *dict-like* objects to be self-documenting.
+    See Also:
+        :meth:`~assertpy.string.StringMixin.contains_ignoring_case` - for case-insensitive string contains
+    """
+    if len(items) == 0:
+        fail('ValueError: one or more args must be given')
+    elif len(items) == 1:
+        if items[0] not in self.val or not operator.contains(self.val, items[0]):
+            # if _check_dict_like(self.val, return_as_bool=True):
+            if types.is_dict(self.val):
+                fail('Expected <%s> to contain key <%s>, but did not.' % (self.val, items[0]))
+            else:
+                fail('Expected <%s> to contain item <%s>, but did not.' % (self.val, items[0]))
+    else:
+        missing = []
+        for i in items:
+            if i not in self.val or not operator.contains(self.val, i):
+                missing.append(i)
+        if missing:
+            if types.is_dict(self.val):
+            # if self._check_dict_like(self.val, return_as_bool=True):
+                fail('Expected <%s> to contain keys %s, but did not contain key%s %s.' % (
+                    self.val, reprlib.repr(items), '' if len(missing) == 0 else 's', reprlib.repr(missing)))
+            else:
+                fail('Expected <%s> to contain items %s, but did not contain %s.' % (self.val, reprlib.repr(items), reprlib.repr(missing)))
+    return self
+
+
+def does_not_contain(self, *items):
+    """Asserts that val does not contain the given item or items.
+    Checks if the collection excludes the given item or items using ``in`` operator.
+    Args:
+        *items: the item or items expected to be excluded
+    Examples:
+        Usage::
+            assert_that('foo').does_not_contain('x')
+            assert_that(['a', 'b']).does_not_contain('x', 'y')
+            assert_that((1, 2, 3)).does_not_contain(4, 5)
+            assert_that({'a': 1, 'b': 2}).does_not_contain('x', 'y')  # checks keys
+            assert_that({'a', 'b'}).does_not_contain('x', 'y')
+            assert_that([1, 2, 3]).is_type_of(list).contains(1, 2).does_not_contain(4, 5)
+    Returns:
+        AssertionBuilder: returns this instance to chain to the next assertion
+    Raises:
+        AssertionError: if val **does** contain the item or items
+    Tip:
+        Use the :meth:`~assertpy.dict.DictMixin.does_not_contain_key` alias when working with
+        *dict-like* objects to be self-documenting.
+    """
+    if len(items) == 0:
+        fail("ValueError: one or more args must be given")
+    elif len(items) == 1:
+        if items[0] in self.val or operator.contains(self.val, items[0]):
+            fail('Expected <%s> to not contain item <%s>, but did.' % (self.val, items[0]))
+    else:
+        found = []
+        for i in items:
+            if i in self.val or operator.contains(self.val, i):
+                found.append(i)
+        if found:
+            fail('Expected <%s> to not contain items %s, but did contain %s.' % (self.val, reprlib.repr(items),  reprlib.repr(found)))
     return self
 
 
@@ -557,6 +632,8 @@ def _AssertionBuilder(val, description, kind, expected, logger):
         is_greater_than_or_equal_to=larky.partial(is_gte_to, self),
         matches=larky.partial(matches, self),
         does_not_match=larky.partial(does_not_match, self),
+        contains=larky.partial(contains, self),
+        does_not_contain=larky.partial(does_not_contain, self),
     )
     klass.described_as=larky.partial(_described_as, klass, self)
     return klass

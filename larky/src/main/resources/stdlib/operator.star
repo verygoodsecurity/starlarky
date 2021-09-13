@@ -94,7 +94,11 @@ def floordiv(a, b):
 
 def index(a):
     "Same as a.__index__()."
-    return a.__index__()
+    if types.is_int(a) or types.is_float(a) or types.is_bool(a) or types.is_string(a):
+        return int(a)
+    if hasattr(a, "__index__"):
+        return a.__index__()
+    fail("TypeError: '%s' object cannot be interpreted as an integer" % type(a))
 
 def inv(a):
     "Same as ~a."
@@ -203,22 +207,27 @@ def delitem(a, b):
     if not any((
         hasattr(a, '__delitem__'),
         types.is_list(a),
+        types.is_dict(a)
     )):
-        fail("TypeError: 'a' does not support delitem")
+        fail("TypeError: '%s' does not support delitem" % type(a))
 
-    if not any((
-        types.is_int(b),
-        #types.is_slice(b)  # todo(mahmoudimus): not supported yet..
-    )):
-        fail("TypeError: list indices must be integers or slices, not %s"
-             % type(b))
     if types.is_list(a):
+        if not any((
+            types.is_int(b),
+            #types.is_slice(b)  # todo(mahmoudimus): not supported yet..
+        )):
+            fail("TypeError: list indices must be integers or slices, not %s"
+                     % type(b))
         a.pop(b)
         return
+    elif types.is_dict(a):
+        if b not in a:
+            fail("KeyError: '%s'" % b)
+        a.pop(b)
     else:
         a.__delitem__(b)   # no del in starlark!
         return
-    fail("Unsure if delitem is supported for type: %s" % type(a))
+    fail("TypeError: '%s' does not support delitem" % type(a))
 
 
 def getitem(a, b):
