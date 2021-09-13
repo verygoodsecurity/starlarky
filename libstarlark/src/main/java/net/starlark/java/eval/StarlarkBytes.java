@@ -160,7 +160,10 @@ public class StarlarkBytes implements ByteStringModuleApi,
     @Nullable
     @Override
     public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
-      return EvalUtils.binaryOp(op, toStarlarkInt(), that, StarlarkSemantics.DEFAULT, null);
+      try(Mutability mu = Mutability.create("StarlarkBytesBinaryOp")) {
+        StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+        return EvalUtils.binaryOp(op, toStarlarkInt(), that, thread);
+      }
     }
 
   }

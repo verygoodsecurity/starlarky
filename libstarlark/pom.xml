@@ -80,6 +80,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.google.truth.extensions</groupId>
+            <artifactId>truth-java8-extension</artifactId>
+            <version>${google.truth.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.google.testing.compile</groupId>
             <artifactId>compile-testing</artifactId>
             <version>${google.compile.testing.version}</version>
