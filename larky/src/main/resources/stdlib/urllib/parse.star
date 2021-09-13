@@ -10,6 +10,8 @@ load("@stdlib//types", "types")
 load("@stdlib//codecs", "codecs")
 load("@stdlib//re", "re")
 load("@stdlib//binascii", "unhexlify")
+load("@stdlib//sets", "sets")
+load("@vendor//option/result", Error="Error", _safe="safe")
 
 # Unsafe bytes to be removed per WHATWG spec
 _UNSAFE_URL_BYTES_TO_REMOVE = ['\t', '\r', '\n']
@@ -77,10 +79,10 @@ def _coerce_args(*args):
     return _decode_args(args) + (_encode_result,)
 
 def _ParseResult(**kwargs):
-    return larky.mutablestruct(__class__="ParseResult", **kwargs)
+    return larky.mutablestruct(__class__=_ParseResult, __name__="ParseResult", **kwargs)
 
 def _SplitResult(**kwargs):
-    return larky.mutablestruct(__class__="SplitResult", **kwargs)
+    return larky.mutablestruct(__class__=_SplitResult, __name__="SplitResult", **kwargs)
 
 def _urlparse(url, scheme='', allow_fragments=True):
     """Parse a URL into 6 components:
@@ -355,11 +357,222 @@ def _unquote_to_bytes(string):
             append(item)
     return b('').join(res)
 
+
+_ALWAYS_SAFE = sets.Set((
+    b'ABCDEFGHIJKLMNOPQRSTUVWXYZ' +
+    b'abcdefghijklmnopqrstuvwxyz' +
+    b'0123456789' +
+    b'_.-~').elems())
+_ALWAYS_SAFE_BYTES = bytes(_ALWAYS_SAFE._data)
+
+
+def _byte_quoter_factory(safe):
+    safe = _ALWAYS_SAFE.union(sets.Set(safe))
+
+    def quoter(b):
+        return chr(b) if safe.contains(b) else ('%%%X' % b)
+
+    return quoter
+
+
+def quote_from_bytes(bs, safe='/'):
+    """Like quote(), but accepts a bytes object rather than a str, and does
+    not perform string-to-bytes encoding.  It always returns an ASCII string.
+    quote_from_bytes(b'abc def\x3f') -> 'abc%20def%3f'
+    """
+    if not types.is_bytelike(bs):
+        return Error("TypeError: quote_from_bytes() expected bytes").unwrap()
+    if not bs:
+        return ''
+    if types.is_string(safe):
+        # Normalize 'safe' by converting to bytes and removing non-ASCII chars
+        safe = codecs.encode(safe, encoding='ascii', errors='ignore')
+    else:
+        # List comprehensions are faster than generator expressions.
+        safe = bytes([c for c in safe.elems() if c < 128])
+    if not bs.rstrip(_ALWAYS_SAFE_BYTES + safe):
+        return bs.decode()
+    quoter = _byte_quoter_factory(safe.elems())
+    return ''.join([quoter(char) for char in bs.elems()])
+
+
+
+def quote(string, safe='/', encoding=None, errors=None):
+    """quote('abc def') -> 'abc%20def'
+
+    Each part of a URL, e.g. the path info, the query, etc., has a
+    different set of reserved characters that must be quoted. The
+    quote function offers a cautious (not minimal) way to quote a
+    string for most of these parts.
+
+    RFC 3986 Uniform Resource Identifier (URI): Generic Syntax lists
+    the following (un)reserved characters.
+
+    unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
+    reserved      = gen-delims / sub-delims
+    gen-delims    = ":" / "/" / "?" / "#" / "[" / "]" / "@"
+    sub-delims    = "!" / "$" / "&" / "'" / "(" / ")"
+                  / "*" / "+" / "," / ";" / "="
+
+    Each of the reserved characters is reserved in some component of a URL,
+    but not necessarily in all of them.
+
+    The quote function %-escapes all characters that are neither in the
+    unreserved chars ("always safe") nor the additional chars set via the
+    safe arg.
+
+    The default for the safe arg is '/'. The character is reserved, but in
+    typical usage the quote function is being called on a path where the
+    existing slash characters are to be preserved.
+
+    Python 3.7 updates from using RFC 2396 to RFC 3986 to quote URL strings.
+    Now, "~" is included in the set of unreserved characters.
+
+    string and safe may be either str or bytes objects. encoding and errors
+    must not be specified if string is a bytes object.
+
+    The optional encoding and errors parameters specify how to deal with
+    non-ASCII characters, as accepted by the str.encode method.
+
+    By default, encoding='utf-8' (characters are encoded with UTF-8), and
+    errors='strict' (unsupported characters raise a UnicodeEncodeError).
+    """
+    if types.is_string(string):
+        if not string:
+            return string
+        if encoding == None:
+            encoding = 'utf-8'
+        if errors == None:
+            errors = 'strict'
+        string = codecs.encode(string, encoding=encoding, errors=errors)
+    else:
+        if encoding != None:
+            return Error("TypeError: quote() doesn't support 'encoding' for bytes").unwrap()
+        if errors != None:
+            return Error("TypeError: quote() doesn't support 'errors' for bytes").unwrap()
+    return quote_from_bytes(string, safe)
+
+
+def quote_plus(string, safe='', encoding=None, errors=None):
+    """Like quote(), but also replace ' ' with '+', as required for quoting
+    HTML form values. Plus signs in the original string are escaped unless
+    they are included in safe. It also does not have safe default to '/'.
+    """
+    # Check if ' ' in string, where string may either be a str or bytes.  If
+    # there are no spaces, the regular quote will produce the right answer.
+    if ((types.is_string(string) and ' ' not in string) or
+        (types.is_bytes(string) and b' ' not in string)):
+        return quote(string, safe, encoding, errors)
+    if types.is_string(safe):
+        space = ' '
+    else:
+        space = b' '
+    string = quote(string, safe + space, encoding, errors)
+    return string.replace(' ', '+')
+
+
+def urlencode(query, doseq=False, safe='', encoding=None, errors=None,
+              quote_via=quote_plus):
+    """Encode a dict or sequence of two-element tuples into a URL query string.
+
+    If any values in the query arg are sequences and doseq is true, each
+    sequence element is converted to a separate parameter.
+
+    If the query arg is a sequence of two-element tuples, the order of the
+    parameters in the output will match the order of parameters in the
+    input.
+
+    The components of a query arg may each be either a string or a bytes type.
+    The safe, encoding, and errors parameters are passed down to the function
+    specified by quote_via (encoding and errors only if a component is a str).
+    """
+
+    if hasattr(query, "items"):
+        query = query.items()
+    else:
+        # In Larky, strings and string-like objects are not sequences.
+        if len(query) and (
+                types.is_string(query[0])
+                or types.is_bytelike(query[0])
+        ):
+            return Error("not a valid non-string sequence or mapping object").unwrap()
+        # Zero-length sequences of all types will get here and succeed,
+        # but that's a minor nit.  Since the original implementation
+        # allowed empty dicts that type of behavior probably should be
+        # preserved for consistency
+
+    l = []
+    if not doseq:
+        for k, v in query:
+            if types.is_bytelike(k):
+                k = quote_via(k, safe)
+            else:
+                k = quote_via(str(k), safe, encoding, errors)
+
+            if types.is_bytelike(v):
+                v = quote_via(v, safe)
+            else:
+                v = quote_via(str(v), safe, encoding, errors)
+            l.append(k + '=' + v)
+    else:
+        for k, v in query:
+            if types.is_bytelike(k):
+                k = quote_via(k, safe)
+            else:
+                k = quote_via(str(k), safe, encoding, errors)
+
+            if types.is_bytelike(v):
+                v = quote_via(v, safe)
+                l.append(k + '=' + v)
+            elif types.is_string(v):
+                v = quote_via(v, safe, encoding, errors)
+                l.append(k + '=' + v)
+            else:
+                # Is this a sufficient test for sequence-ness?
+                rval = _safe(len)(v)
+                if rval.is_err:
+                    # not a sequence
+                    v = quote_via(str(v), safe, encoding, errors)
+                    l.append(k + '=' + v)
+                else:
+                    # loop over the sequence
+                    for elt in v:
+                        if types.is_bytelike(elt):
+                            elt = quote_via(elt, safe)
+                        else:
+                            elt = quote_via(str(elt), safe, encoding, errors)
+                        l.append(k + '=' + elt)
+    return '&'.join(l)
+
+
+def unwrap(url):
+    """Transform a string like '<URL:scheme://host/path>' into 'scheme://host/path'.
+    The string is returned unchanged if it's not a wrapped URL.
+    """
+    # url = bytes(url, encoding='utf-8').strip()
+    # if url[:1] == b'<' and url[-1:] == b'>':
+    #     url = url[1:-1].strip()
+    # if url[:4] == b'URL:':
+    #     url = url[4:].strip()
+    # return url.decode('utf-8')
+    url = str(url).strip()
+    if url[:1] == '<' and url[-1:] == '>':
+        url = url[1:-1].strip()
+    if url[:4] == 'URL:':
+        url = url[4:].strip()
+    return url
+
+
 parse = larky.struct(
     urlparse = _urlparse,
     urlsplit = _urlsplit,
     urlunparse = _urlunparse,
     urlunsplit = _urlunsplit,
     parse_qs = _parse_qs,
-    parse_qsl = _parse_qsl
+    parse_qsl = _parse_qsl,
+    quote_from_bytes = quote_from_bytes,
+    quote = quote,
+    quote_plus = quote_plus,
+    urlencode = urlencode,
+    unwrap = unwrap,
 )
