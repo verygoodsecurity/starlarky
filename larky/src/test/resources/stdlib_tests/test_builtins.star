@@ -110,6 +110,20 @@ def test_iter_list():
     asserts.assert_that(repr(s_iter)).matches(r"<list_iterator at 0x")
 
 
+def test_iter_dict():
+    s = {"1": "2", "foo": "manchu", "three": "4", "get": "thedoor"}
+    asserts.assert_that([x for x in s]).is_equal_to(["1", "foo", "three", "get"])
+    s_iter = iter(s)
+    asserts.assert_that(next(s_iter)).is_equal_to("1")
+    asserts.assert_that(next(s_iter)).is_equal_to("foo")
+    asserts.assert_that(next(s_iter)).is_equal_to("three")
+    asserts.assert_that(next(s_iter)).is_equal_to("get")
+    asserts.assert_fails(lambda: next(s_iter), ".*StopIteration")
+    # test normal for iteration works fine
+    asserts.assert_that([x for x in s]).is_equal_to(["1", "foo", "three", "get"])
+    asserts.assert_that(list(iter(s))).is_equal_to(["1", "foo", "three", "get"])
+
+
 def IteratorProxyClass(i):
     self = larky.mutablestruct(__name__='IteratorProxyClass',
                                __class__=IteratorProxyClass)
@@ -178,12 +192,20 @@ def test_iter_userdefined():
     asserts.assert_that(next(s_iter)).is_equal_to(1)
     asserts.assert_that(next(s_iter)).is_equal_to(2)
     asserts.assert_fails(lambda: next(s_iter), ".*StopIteration")
+
+    # iter works on the class
     asserts.assert_that(
         [x for x in iter(IteratorProxyClass(iter(range(3))))]
     ).is_equal_to([0, 1, 2])
 
+    # list takes an iterable
     asserts.assert_that(
         list(iter(IteratorProxyClass(iter(range(3)))))
+    ).is_equal_to([0, 1, 2])
+
+    # mutablestructs are now iterable so iter() is not necessary
+    asserts.assert_that(
+        list(IteratorProxyClass(iter(range(3))))
     ).is_equal_to([0, 1, 2])
 
     z = iter(IteratorProxyClass(iter(range(3))))
@@ -196,13 +218,26 @@ def test_iter_userdefined():
         asserts.assert_that(i in z).is_false()
     asserts.assert_fails(lambda: next(z), ".*StopIteration")
 
+    # test next(iterator[, default])
+    asserts.assert_that(next(z, larky.SENTINEL)).is_equal_to(larky.SENTINEL)
+
+    # iter() is not needed to iterate over mutablestruct, since `in` will
+    # create a new iterator, EVERY TIME, if needed.
+
+    z = SequenceClass(5)
+    asserts.assert_fails(lambda: next(z), ".*want \'LarkyIterator\'")
+    for i in range(3):
+       asserts.assert_that(i in z).is_true()  # in works.
+    # assert that state resets
+    asserts.assert_that(list(z)).is_equal_to([0, 1, 2, 3, 4])
+
+    # however, if we want to maintain state, iter() *is needed* for next()
+    # as in Python.
     z = iter(SequenceClass(5))
     for i in range(5):
         asserts.assert_that(i).is_equal_to(next(z))
     asserts.assert_fails(lambda: next(z), ".*StopIteration")
 
-    # test next(iterator[, default])
-    asserts.assert_that(next(z, larky.SENTINEL)).is_equal_to(larky.SENTINEL)
 
 
 def test_iter_callable():
@@ -263,6 +298,7 @@ def _add_iter_suite(suite):
 
     suite.addTest(unittest.FunctionTestCase(test_standard_iter_operations))
     suite.addTest(unittest.FunctionTestCase(test_iter_list))
+    suite.addTest(unittest.FunctionTestCase(test_iter_dict))
     suite.addTest(unittest.FunctionTestCase(test_iter_userdefined))
     suite.addTest(unittest.FunctionTestCase(test_iter_callable))
     suite.addTest(unittest.FunctionTestCase(test_iter_function))
@@ -274,7 +310,7 @@ def _add_iter_suite(suite):
 
 def _testsuite():
     _suite = unittest.TestSuite()
-    #_add_sum_suite(_suite)
+    _add_sum_suite(_suite)
     _add_iter_suite(_suite)
     return _suite
 
