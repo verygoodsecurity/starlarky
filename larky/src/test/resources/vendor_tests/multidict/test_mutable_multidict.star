@@ -146,7 +146,7 @@ def TestMutableMultiDict_test_set_default():
     asserts.assert_that("one").is_equal_to(d.setdefault("key", "three"))
     asserts.assert_that("three").is_equal_to(d.setdefault("otherkey", "three"))
     asserts.assert_that(d).contains("otherkey")
-    asserts.assert_that("three").is_equal_to(operator.getitem(d, "otherkey"))
+    asserts.assert_that("three").is_equal_to(d["otherkey"])
 
 
 def TestMutableMultiDict_test_popitem():
@@ -292,7 +292,7 @@ def TestCIMutableMultiDict_test_getall():
 
 def TestCIMutableMultiDict_test_ctor():
     d = ci_cls(k1="v1")
-    asserts.assert_that("v1").is_equal_to(operator.getitem(d, "K1"))
+    asserts.assert_that("v1").is_equal_to(d["K1"])
     asserts.assert_that(d.items()).contains(("k1", "v1"))
 
 
@@ -302,7 +302,7 @@ def TestCIMutableMultiDict_test_setitem():
     # see comment in TestMutableMultiDict_test_add about SetIndexable
     # d["k1"] = "v1"
     operator.setitem(d, "k1", "v1")
-    asserts.assert_that("v1").is_equal_to(operator.getitem(d, "K1"))
+    asserts.assert_that("v1").is_equal_to(d["K1"])
     asserts.assert_that(d.items()).contains(("k1", "v1"))
 
 
@@ -430,7 +430,7 @@ def TestCIMutableMultiDict_test_set_default():
     asserts.assert_that("three").is_equal_to(d.setdefault("otherkey", "three"))
     asserts.assert_that(d).contains("otherkey")
     asserts.assert_that(d.items()).contains(("otherkey", "three"))
-    asserts.assert_that("three").is_equal_to(operator.getitem(d, "OTHERKEY"))
+    asserts.assert_that("three").is_equal_to(d["OTHERKEY"])
 
 
 def TestCIMutableMultiDict_test_popitem():

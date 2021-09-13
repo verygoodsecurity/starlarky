@@ -4,6 +4,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import com.verygood.security.larky.parser.StarlarkUtil;
+
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
@@ -61,18 +63,7 @@ public interface LarkyObject extends Structure {
    * Returns the name of the type of a value as if by the Starlark expression {@code type(x)}.
    */
   default String type() {
-    try {
-      if (!hasClassField() && !hasNameField()) {
-        return Starlark.type(this);
-      }
-      if(hasNameField()) {
-        return String.valueOf(getField(PyProtocols.__NAME__));
-      }
-      // fall back to __class__ if __name__ doesn't exist
-      return String.valueOf(getField(PyProtocols.__CLASS__));
-    } catch (EvalException e) {
-      throw new RuntimeException(e);
-    }
+    return StarlarkUtil.richType(this);
   }
 
   @Override
