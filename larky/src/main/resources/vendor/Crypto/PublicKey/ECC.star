@@ -54,49 +54,68 @@ load("@stdlib//operator", operator="operator")
 # """)
 
 # _Curve = namedtuple("_Curve", "p b order Gx Gy G modulus_bits oid context desc openssh")
-# _curves = {}
+_curves = {}
 
 
 # p256_names = ["p256", "NIST P-256", "P-256", "prime256v1", "secp256r1",
 #               "nistp256"]
 
 
-# def init_p256():
-#     p = 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff
-#     b = 0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b
-#     order = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
-#     Gx = 0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296
-#     Gy = 0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5
+def init_p256():
+    p = 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff
+    b = 0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b
+    order = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
+    Gx = 0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296
+    Gy = 0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5
 
-#     p256_modulus = long_to_bytes(p, 32)
-#     p256_b = long_to_bytes(b, 32)
-#     p256_order = long_to_bytes(order, 32)
+    p256_modulus = long_to_bytes(p, 32)
+    p256_b = long_to_bytes(b, 32)
+    p256_order = long_to_bytes(order, 32)
 
-#     ec_p256_context = VoidPointer()
-#     result = _ec_lib.ec_ws_new_context(ec_p256_context.address_of(),
-#                                        c_uint8_ptr(p256_modulus),
-#                                        c_uint8_ptr(p256_b),
-#                                        c_uint8_ptr(p256_order),
-#                                        c_size_t(len(p256_modulus)),
-#                                        c_ulonglong(getrandbits(64))
-#                                        )
-#     if result:
-#         return Error("ImportError: " + "Error %d initializing P-256 context" % result)
+    # ec_p256_context = VoidPointer()
+    # result = _ec_lib.ec_ws_new_context(ec_p256_context.address_of(),
+    #                                    c_uint8_ptr(p256_modulus),
+    #                                    c_uint8_ptr(p256_b),
+    #                                    c_uint8_ptr(p256_order),
+    #                                    c_size_t(len(p256_modulus)),
+    #                                    c_ulonglong(getrandbits(64))
+    #                                    )
+    # if result:
+    #     return Error("ImportError: " + "Error %d initializing P-256 context" % result)
 
-#     context = SmartPointer(ec_p256_context.get(), _ec_lib.ec_free_context)
-#     p256 = _Curve(Integer(p),
-#                   Integer(b),
-#                   Integer(order),
-#                   Integer(Gx),
-#                   Integer(Gy),
-#                   None,
-#                   256,
-#                   "1.2.840.10045.3.1.7",    # ANSI X9.62
-#                   context,
-#                   "NIST P-256",
-#                   "ecdsa-sha2-nistp256")
-#     global p256_names
-#     _curves.update(dict.fromkeys(p256_names, p256))
+    # context = SmartPointer(ec_p256_context.get(), _ec_lib.ec_free_context)
+    context = _JCrypto.PublicKey
+    # p256 = _Curve(Integer(p),
+    #               Integer(b),
+    #               Integer(order),
+    #               Integer(Gx),
+    #               Integer(Gy),
+    #               None,
+    #               256,
+    #               "1.2.840.10045.3.1.7",    # ANSI X9.62
+    #             #   context,
+    #               "NIST P-256",
+    #               "ecdsa-sha2-nistp256")
+    kwargs = {'p': Integer(p), 
+          'b': Integer(b), 
+          'order': Integer(order), 
+          'Gx': Integer(Gx), 
+          'Gy': Integer(Gy), 
+          'G': None, 
+          'modulus_bits': 256,
+          'oid': "1.2.840.10045.3.1.7",
+          'context': context,
+          'desc': "NIST P-256",
+          'openssh': "ecdsa-sha2-nistp256"}
+    p256 = larky.mutablestruct(__name__="_Curve", **kwargs)
+    # global p256_names
+    # _curves.update(dict.fromkeys(p256_names, p256))
+    _curves["p256"] = p256
+    _curves["NIST P-256"] = p256
+    _curves["P-256"] = p256
+    _curves["prime256v1"] = p256
+    _curves["secp256r1"] = p256
+    _curves["nistp256"] = p256
 
 
 # init_p256()
