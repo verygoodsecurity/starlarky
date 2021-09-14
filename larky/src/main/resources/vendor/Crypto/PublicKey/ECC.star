@@ -84,7 +84,7 @@ def init_p256():
     #     return Error("ImportError: " + "Error %d initializing P-256 context" % result)
 
     # context = SmartPointer(ec_p256_context.get(), _ec_lib.ec_free_context)
-    context = _JCrypto.PublicKey
+    # context = _JCrypto.PublicKey
     # p256 = _Curve(Integer(p),
     #               Integer(b),
     #               Integer(order),
@@ -104,7 +104,7 @@ def init_p256():
           'G': None, 
           'modulus_bits': 256,
           'oid': "1.2.840.10045.3.1.7",
-          'context': context,
+          'context': None,
           'desc': "NIST P-256",
           'openssh': "ecdsa-sha2-nistp256"}
     p256 = larky.mutablestruct(__name__="_Curve", **kwargs)
@@ -118,7 +118,7 @@ def init_p256():
     _curves["nistp256"] = p256
 
 
-# init_p256()
+init_p256()
 # del init_p256
 
 
@@ -239,10 +239,8 @@ def EccPoint(x, y, curve="p256"):
         :ivar xy: The tuple with X- and Y- coordinates
     
     """
-    def __init__(self, x, y, curve="p256"):
-        """
-        Unknown curve name %s
-        """
+    self = larky.mutablestruct(__class__=EccPoint, __name__="EccPoint")
+
     def set(self, point):
         """
         Error %d while cloning an EC point
@@ -310,6 +308,54 @@ def EccPoint(x, y, curve="p256"):
          Last piece of initialization
 
         """
+    
+    def __init__(self, x, y, curve="p256"):
+        """
+        Unknown curve name %s
+        """
+        if curve in _curves:
+            self._curve = _curves[curve]
+        else:
+            fail('ValueError("Unknown curve name %s")', str(curve))
+        self._curve_name = curve
+
+        modulus_bytes = self.size_in_bytes()
+        context = self._curve.context
+
+        xb = long_to_bytes(x, modulus_bytes)
+        yb = long_to_bytes(y, modulus_bytes)
+        if len(xb) != modulus_bytes or len(yb) != modulus_bytes:
+            fail('ValueError("Incorrect coordinate length")')
+
+        # self._point = VoidPointer()
+        # result = _ec_lib.ec_ws_new_point(self._point.address_of(),
+        #                                  c_uint8_ptr(xb),
+        #                                  c_uint8_ptr(yb),
+        #                                  c_size_t(modulus_bytes),
+        #                                  context.get())
+        # if result:
+        #     if result == 15:
+        #         fail('ValueError("The EC point does not belong to the curve")')
+        #     fail('ValueError("Error %d while instantiating an EC point")', result)
+
+        # Ensure that object disposal of this Python object will (eventually)
+        # free the memory allocated by the raw library for the EC point
+        # self._point = SmartPointer(self._point.get(),
+        #                            _ec_lib.ec_free_point)
+        self._point = _JCrypto.PublicKey
+        return self
+    self = __init__(self, x, y, curve)
+    return self
+
+p256_G = EccPoint(_curves['p256'].Gx, _curves['p256'].Gy, "p256")
+_curves['p256'].G = p256_G
+p256 = _curves['p256']
+# _curves.update(dict.fromkeys(p256_names, p256))
+_curves["NIST P-256"] = p256
+_curves["P-256"] = p256
+_curves["prime256v1"] = p256
+_curves["secp256r1"] = p256
+_curves["nistp256"] = p256
 
 def EccKey(**kwargs):
     r"""Class defining an ECC key.
@@ -341,19 +387,19 @@ def EccKey(**kwargs):
         self._d = kwargs_.pop("d", None)
         self._point = kwargs_.pop("point", None)
         if kwargs_:
-            return Error("TypeError: " + "Unknown parameters: " + str(kwargs_))
+            return fail("TypeError: Unknown parameters: %s", str(kwargs_))
 
         if curve_name not in _curves:
-            return Error("ValueError: Unsupported curve (%s)", )
+            return fail("ValueError: Unsupported curve (%s)", curve_names)
         self._curve = _curves[curve_name]
 
         if self._d == None:
             if self._point == None:
-                return Error("ValueError: Either private or public ECC component must be specified, not both")
+                return fail("ValueError: Either private or public ECC component must be specified, not both")
         else:
             self._d = Integer(self._d)
             if not (1 <= self._d) and (self._d < self._curve.order):
-                return Error("ValueError: Invalid ECC private component")
+                return fail("ValueError: Invalid ECC private component")
 
         self.curve = self._curve.desc
         return self
@@ -374,7 +420,7 @@ def EccKey(**kwargs):
         """
         This is not a private ECC key
         """
-    def pointQ(self):
+    def pointQ():
         if self._point == None:
             self._point = self._curve.G * self._d
         return self._point
