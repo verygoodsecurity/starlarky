@@ -261,10 +261,32 @@ def EccPoint(x, y, curve="p256"):
         """
         Return the point-at-infinity for the curve this point is on.
         """
-    def x(self):
+    def x():
         """
         Error %d while encoding an EC point
         """
+        return self.xy[0]
+    self.x = x
+
+    def y():
+        return self.xy[1]
+    self.y = y
+
+    # @property
+    def xy():
+        modulus_bytes = self.size_in_bytes()
+        xb = bytearray(modulus_bytes)
+        yb = bytearray(modulus_bytes)
+        # result = _ec_lib.ec_ws_get_xy(c_uint8_ptr(xb),
+        #                               c_uint8_ptr(yb),
+        #                               c_size_t(modulus_bytes),
+        #                               self._point.get())
+        # if result:
+        #     raise ValueError("Error %d while encoding an EC point" % result)
+
+        return (Integer(bytes_to_long(xb)), Integer(bytes_to_long(yb)))
+    self.xy = xy
+
     def size_in_bytes():
         """
         Size of each coordinate, in bytes.
@@ -391,7 +413,7 @@ def EccKey(**kwargs):
 
         if curve_name not in _curves:
             return fail("ValueError: Unsupported curve (%s)", curve_names)
-        self._curve = _curves[curve_name]
+        self._curve = _curves[curve_name] # a mutablestruct _Curve
 
         if self._d == None:
             if self._point == None:
@@ -420,8 +442,17 @@ def EccKey(**kwargs):
         """
         This is not a private ECC key
         """
+
+    def d():
+        if not self.has_private():
+            fail('ValueError("This is not a private ECC key")')
+        return self._d
+    self.d = d
+
+    # @property
     def pointQ():
         if self._point == None:
+            # for ref: self._curve.G = EccPoint(_curves['p256'].Gx, _curves['p256'].Gy, "p256")
             self._point = self._curve.G * self._d
         return self._point
     self.pointQ = pointQ
@@ -449,13 +480,13 @@ def EccKey(**kwargs):
         modulus_bytes = self.pointQ.size_in_bytes()
 
         if compress:
-            first_byte = 2 + self.pointQ.y.is_odd()
+            first_byte = 2 + self.pointQ.y().is_odd()
             public_key = (bchr(first_byte) +
-                          self.pointQ.x.to_bytes(modulus_bytes))
+                          self.pointQ.x().to_bytes(modulus_bytes))
         else:
             public_key = (b'\x04' +
-                          self.pointQ.x.to_bytes(modulus_bytes) +
-                          self.pointQ.y.to_bytes(modulus_bytes))
+                          self.pointQ.x().to_bytes(modulus_bytes) +
+                          self.pointQ.y().to_bytes(modulus_bytes))
 
         unrestricted_oid = "1.2.840.10045.2.1"
         return _create_subject_public_key_info(unrestricted_oid,
@@ -475,13 +506,15 @@ def EccKey(**kwargs):
         #    }
 
         # Public key - uncompressed form
+        # modulus_bytes = self.pointQ.size_in_bytes()
+        self.pointQ = self.pointQ()
         modulus_bytes = self.pointQ.size_in_bytes()
         public_key = (b'\x04' +
-                    self.pointQ.x.to_bytes(modulus_bytes) +
-                    self.pointQ.y.to_bytes(modulus_bytes))
+                    self.pointQ.x().to_bytes(modulus_bytes) +
+                    self.pointQ.y().to_bytes(modulus_bytes))
 
         seq = [1,
-            DerOctetString(self.d.to_bytes(modulus_bytes)),
+            DerOctetString(self.d().to_bytes(modulus_bytes)),
             DerObjectId(self._curve.oid, explicit=0),
             DerBitString(public_key, explicit=1)]
 
@@ -527,19 +560,19 @@ def EccKey(**kwargs):
         Cannot export OpenSSH private keys
         """
         if self.has_private():
-            return Error("ValueError: Cannot export OpenSSH private keys")
+            return fail("ValueError: Cannot export OpenSSH private keys")
 
         desc = self._curve.openssh
         modulus_bytes = self.pointQ.size_in_bytes()
 
         if compress:
-            first_byte = 2 + self.pointQ.y.is_odd()
+            first_byte = 2 + self.pointQ.y().is_odd()
             public_key = (bchr(first_byte) +
-                        self.pointQ.x.to_bytes(modulus_bytes))
+                        self.pointQ.x().to_bytes(modulus_bytes))
         else:
             public_key = (b'\x04' +
-                        self.pointQ.x.to_bytes(modulus_bytes) +
-                        self.pointQ.y.to_bytes(modulus_bytes))
+                        self.pointQ.x().to_bytes(modulus_bytes) +
+                        self.pointQ.y().to_bytes(modulus_bytes))
 
         middle = desc.split("-")[2]
         comps = (tobytes(desc), tobytes(middle), public_key)
@@ -612,7 +645,7 @@ def EccKey(**kwargs):
         args = kwargs.copy()
         ext_format = args.pop("format")
         if ext_format not in ("PEM", "DER", "OpenSSH"):
-            return Error("ValueError: " + "Unknown format '%s'" % ext_format)
+            return fail("ValueError: Unknown format '%s'", ext_format)
 
         compress = args.pop("compress", False)
 
@@ -621,7 +654,7 @@ def EccKey(**kwargs):
             if types.is_string(passphrase):
                 passphrase = tobytes(passphrase)
                 if not passphrase:
-                    return Error("ValueError: Empty passphrase")
+                    return fail("ValueError: Empty passphrase")
             use_pkcs8 = args.pop("use_pkcs8", True)
             if ext_format == "PEM":
                 if use_pkcs8:
@@ -635,17 +668,17 @@ def EccKey(**kwargs):
             elif ext_format == "DER":
                 # DER
                 if passphrase and not use_pkcs8:
-                    return Error("ValueError: Private keys can only be encrpyted with DER using PKCS#8")
+                    return fail("ValueError: Private keys can only be encrpyted with DER using PKCS#8")
                 if use_pkcs8:
                     # return self._export_pkcs8(passphrase=passphrase, **args)
                     fail('ValueError: pkcs8 is not supported currently')
                 else:
                     return self._export_private_der()
             else:
-                return Error("ValueError: Private keys cannot be exported in OpenSSH format")
+                return fail("ValueError: Private keys cannot be exported in OpenSSH format")
         else:  # Public key
             if args:
-                return Error("ValueError: " + "Unexpected parameters: '%s'" % args)
+                return fail("ValueError: Unexpected parameters: '%s'", args)
             if ext_format == "PEM":
                 return self._export_public_pem(compress)
             elif ext_format == "DER":

@@ -85,6 +85,9 @@ import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
 
+import java.security.spec.ECPoint;
+import java.security.spec.EllipticCurve;
+
 
 public class CryptoPublicKeyModule implements StarlarkValue {
 
@@ -637,4 +640,16 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     return StarlarkBytes.of(thread.mutability(), result);
 //    return StarlarkBytes.builder(thread).setSequence(result).build();
   }
+
+//  @StarlarkMethod(
+//          name = "ECPoint", parameters = {
+//          @Param(name = "x", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+//          @Param(name = "y", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+//          @Param(name = "curve", allowedTypes = {@ParamType(type = Dict.class)}),
+//  }, useStarlarkThread = true)
+//  public StarlarkBytes ECPoint(StarlarkInt x, StarlarkInt y, Dict<String, Object> curve, StarlarkThread thread) throws EvalException {
+//
+//    ECPoint point = new ECPoint(x.toBigInteger(), y.toBigInteger());
+//    return point;
+//
 }
