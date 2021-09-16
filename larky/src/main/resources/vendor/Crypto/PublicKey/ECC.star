@@ -17,6 +17,7 @@ load("@vendor//Crypto/PublicKey",
      _extract_subject_public_key_info="extract_subject_public_key_info")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//operator", operator="operator")
+load("@vendor//option/result", Error="Error")
 
 
 # _ec_lib = load_pycryptodome_raw_lib("Crypto.PublicKey._ec_ws", """
@@ -712,42 +713,116 @@ def generate(**kwargs):
 
     return EccKey(curve=curve_name, d=d)
 
+
 def construct(**kwargs):
+    """Build a new ECC key (private or public) starting
+    from some base components.
+    Args:
+      curve (string):
+        Mandatory. It must be a curve name defined in :numref:`curve_names`.
+      d (integer):
+        Only for a private key. It must be in the range ``[1..order-1]``.
+      point_x (integer):
+        Mandatory for a public key. X coordinate (affine) of the ECC point.
+      point_y (integer):
+        Mandatory for a public key. Y coordinate (affine) of the ECC point.
+    Returns:
+      :class:`EccKey` : a new ECC key object
     """
-    Build a new ECC key (private or public) starting
-        from some base components.
 
-        Args:
+    curve_name = kwargs["curve"]
+    curve = _curves[curve_name]
+    point_x = kwargs.pop("point_x", None)
+    point_y = kwargs.pop("point_y", None)
 
-          curve (string):
-            Mandatory. It must be a curve name defined in :numref:`curve_names`.
+    if "point" in kwargs:
+        return Error("TypeError: Unknown keyword: point")
 
-          d (integer):
-            Only for a private key. It must be in the range ``[1..order-1]``.
+    if None not in (point_x, point_y):
+        # ValueError is raised if the point is not on the curve
+        kwargs["point"] = EccPoint(point_x, point_y, curve_name)
 
-          point_x (integer):
-            Mandatory for a public key. X coordinate (affine) of the ECC point.
+    # Validate that the private key matches the public one
+    d = kwargs.get("d", None)
+    if d != None and "point" in kwargs:
+        pub_key = curve.G * d
+        if pub_key.xy != (point_x, point_y):
+            return Error("ValueError: Private and public ECC keys do not match")
 
-          point_y (integer):
-            Mandatory for a public key. Y coordinate (affine) of the ECC point.
+    return EccKey(**kwargs)
 
-        Returns:
-          :class:`EccKey` : a new ECC key object
-    
-    """
+
 def _import_public_der(curve_oid, ec_point):
+    """Convert an encoded EC point into an EccKey object
+    curve_name: string with the OID of the curve
+    ec_point: byte string with the EC point (not DER encoded)
     """
-    Convert an encoded EC point into an EccKey object
 
-        curve_name: string with the OID of the curve
-        ec_point: byte string with the EC point (not DER encoded)
+    for curve_name, curve in _curves.items():
+        if curve.oid == curve_oid:
+            break
+    else:
+        return Error("UnsupportedEccFeature: " + "Unsupported ECC curve (OID: %s)" % curve_oid)
 
-    
-    """
+    # See 2.2 in RFC5480 and 2.3.3 in SEC1
+    # The first byte is:
+    # - 0x02:   compressed, only X-coordinate, Y-coordinate is even
+    # - 0x03:   compressed, only X-coordinate, Y-coordinate is odd
+    # - 0x04:   uncompressed, X-coordinate is followed by Y-coordinate
+    #
+    # PAI is in theory encoded as 0x00.
+
+    modulus_bytes = curve.p.size_in_bytes()
+    point_type = bord(ec_point[0])
+
+    # Uncompressed point
+    if point_type == 0x04:
+        if len(ec_point) != (1 + 2 * modulus_bytes):
+            return Error("ValueError: Incorrect EC point length")
+        x = Integer.from_bytes(ec_point[1:modulus_bytes+1])
+        y = Integer.from_bytes(ec_point[modulus_bytes+1:])
+    # Compressed point
+    elif point_type in (0x02, 0x3):
+        if len(ec_point) != (1 + modulus_bytes):
+            return Error("ValueError: Incorrect EC point length")
+        x = Integer.from_bytes(ec_point[1:])
+        y = (pow(x, 3) - x*3 + curve.b).sqrt(curve.p)    # Short Weierstrass
+        if point_type == 0x02 and y.is_odd():
+            y = curve.p - y
+        if point_type == 0x03 and y.is_even():
+            y = curve.p - y
+    else:
+        return Error("ValueError: Incorrect EC point encoding")
+
+    return construct(curve=curve_name, point_x=x, point_y=y)
+
+
+
 def _import_subjectPublicKeyInfo(encoded, *kwargs):
     """
     Convert a subjectPublicKeyInfo into an EccKey object
     """
+    unrestricted_oid = "1.2.840.10045.2.1"
+    ecdh_oid = "1.3.132.1.12"
+    ecmqv_oid = "1.3.132.1.13"
+
+    if oid not in (unrestricted_oid, ecdh_oid, ecmqv_oid):
+        fail('UnsupportedEccFeature("Unsupported ECC purpose (OID: %s)")', oid)
+    
+    # Parameters are mandatory for all three types
+    if not params:
+        fail('ValueError("Missing ECC parameters")')
+    
+    # ECParameters ::= CHOICE {
+    #   namedCurve         OBJECT IDENTIFIER
+    #   -- implicitCurve   NULL
+    #   -- specifiedCurve  SpecifiedECDomain
+    # }
+    #
+    # implicitCurve and specifiedCurve are not supported (as per RFC)
+    curve_oid = DerObjectId().decode(params).value
+    return _import_public_der(curve_oid, ec_point)
+
 def _import_private_der(encoded, passphrase, curve_oid=None):
     """
      See RFC5915 https://tools.ietf.org/html/rfc5915
@@ -778,6 +853,40 @@ def _import_x509_cert(encoded, *kwargs):
     """
     Not an ECC DER key
     """
+    sp_info = _extract_subject_public_key_info(encoded)
+    return _import_subjectPublicKeyInfo(sp_info)
+
+def _import_der(encoded, passphrase):
+    return _import_x509_cert(encoded, passphrase)
+    # try:
+    #     return _import_subjectPublicKeyInfo(encoded, passphrase)
+    # except UnsupportedEccFeature as err:
+    #     raise err
+    # except (ValueError, TypeError, IndexError):
+    #     pass
+
+    # try:
+        # return _import_x509_cert(encoded, passphrase)
+    # except UnsupportedEccFeature as err:
+    #     raise err
+    # except (ValueError, TypeError, IndexError):
+    #     pass
+
+    # try:
+    #     return _import_private_der(encoded, passphrase)
+    # except UnsupportedEccFeature as err:
+    #     raise err
+    # except (ValueError, TypeError, IndexError):
+    #     pass
+
+    # try:
+    #     return _import_pkcs8(encoded, passphrase)
+    # except UnsupportedEccFeature as err:
+    #     raise err
+    # except (ValueError, TypeError, IndexError):
+    #     pass
+
+    # raise ValueError("Not an ECC DER key")
 
 def _import_openssh_public(encoded):
     """
@@ -818,9 +927,56 @@ def import_key(encoded, passphrase=None):
     .. _`PKCS#8`: http://www.ietf.org/rfc/rfc5208.txt
     .. _`OpenSSH 6.5+`: https://flak.tedunangst.com/post/new-openssh-key-format-and-bcrypt-pbkdf
     """
+    encoded = tobytes(encoded)
+    if passphrase != None:
+        passphrase = tobytes(passphrase)
+
+    # PEM
+    if encoded.startswith(b'-----BEGIN OPENSSH PRIVATE KEY'):
+        text_encoded = tostr(encoded)
+        openssh_encoded, marker, enc_flag = codecs.decode(PEM, encoding=text_encoded)
+        result = _import_openssh_private_ecc(openssh_encoded, passphrase)
+        return result
+
+    elif encoded.startswith(b'-----'):
+
+        text_encoded = tostr(encoded)
+
+        # Remove any EC PARAMETERS section
+        # Ignore its content because the curve type must be already given in the key
+        ecparams_start = "-----BEGIN EC PARAMETERS-----"
+        ecparams_end = "-----END EC PARAMETERS-----"
+        text_encoded = re.sub(ecparams_start + ".*?" + ecparams_end, "",
+                                text_encoded,
+                                flags=re.DOTALL)
+
+        der_encoded, marker, enc_flag = codecs.decode(PEM, encoding=text_encoded)
+        if enc_flag:
+            passphrase = None
+        result = _import_der(der_encoded, passphrase)
+        # result = _import_x509_cert(der_encoded, passphrase)
+        return result
+        # try:
+        #     result = _import_der(der_encoded, passphrase)
+        # except UnsupportedEccFeature as uef:
+        #     # PY2LARKY: pay attention to this!
+        #     return uef
+        # except ValueError:
+        #     return Error("ValueError: Invalid DER encoding inside the PEM file")
+
+    # OpenSSH
+    if encoded.startswith(b'ecdsa-sha2-'):
+        return _import_openssh_public(encoded)
+
+    # DER
+    if len(encoded) > 0 and bord(encoded[0]) == 0x30:
+        return _import_der(encoded, passphrase)
+
+    return Error("ValueError: ECC key format is not supported")
     
 
 
 ECC = larky.struct(
     generate=generate,
+    import_key=import_key,
 )
