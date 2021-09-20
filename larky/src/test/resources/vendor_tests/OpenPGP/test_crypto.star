@@ -21,7 +21,9 @@ def PGP_test():
     x+azHUi7YnXbASHofGrrSqkbLTQkz+NTjK9oIWpLafxseYFUI/f4UdySq24=
     =ACke
     -----END PGP PUBLIC KEY BLOCK-----'''
-    wkey = OpenPGP.Message.parse(k)[0]
+
+    # wkey = OpenPGP.Message.parse(open('key', 'rb').read())[0]
+    wkey = OpenPGP.Message().parse(k).__getitem__(0)
 
     data = OpenPGP.LiteralDataPacket('This is text.', 'u', 'stuff.txt', 1000)
     encrypt = Crypto.Wrapper(data)

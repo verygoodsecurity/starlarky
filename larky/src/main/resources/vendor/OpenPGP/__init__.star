@@ -1,17 +1,19 @@
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
-load("@stdlib//struct", pack="pack", unpack="unpack")
+load("@stdlib//struct", struct="struct")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 load("@vendor//option/result", Error="Error")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//types", types="types")
 load("@stdlib//math", math="math")
-load("@vendor//Crypto/Hash", MD5="MD5")
+load("@vendor//Crypto/Hash/MD5", MD5="MD5")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
-load("@vendor//Crypto/Hash", SHA512="SHA512")
-load("@vendor//Crypto/Hash", MD5="MD5")
-load("@vendor//Crypto/Hash", SHA256="SHA256")
+load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
+load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
 # load("@vendor//Crypto/Hash", SHA224="SHA224")
 # load("@vendor//Crypto/Hash", SHA384="SHA384")
+
+pack = struct.pack
+unpack = struct.unpack
 
 hash_algorithms = {
     1: MD5,
@@ -66,16 +68,17 @@ def S2K(salt, hash_algorithm, count, type):
         self.hash_algorithm = hash_algorithm
         self.salt = salt
         self.count = count
+        return self
     self = __init__(salt, hash_algorithm, count, type)
 
-    def raw_hash(self, s, prefix=b''):
+    def raw_hash(s, prefix=b''):
         # hasher = hashlib.new(SignaturePacket.hash_algorithms[self.hash_algorithm].lower())
         hasher = hash_algorithms[self.hash_algorithm].new()
         hasher.update(prefix)
         hasher.update(s)
         return hasher.digest()
 
-    def iterate(self, s, prefix=b''):
+    def iterate(s, prefix=b''):
         hasher = hash_algorithms[self.hash_algorithm].new()
         hasher.update(prefix)
         hasher.update(s)
@@ -100,7 +103,7 @@ def S2K(salt, hash_algorithm, count, type):
         return hsh[0:size]
     self.sized_hash = sized_hash
 
-    def make_key(self, passphrase, size):
+    def make_key(passphrase, size):
         if self.type == 0:
             return self.sized_hash(self.raw_hash, passphrase, size)
         elif self.type == 1:
@@ -124,9 +127,9 @@ def PushbackGenerator(g):
         return self
     self.__iter__ = __iter__
 
-    def next():
+    def next_item(): # somehow next() would raise recursive err when calling next(self._g) below
         return self.__next__()
-    self.next = next
+    self.next_item = next_item
 
     def __next__():
         if len(self._pushback):
@@ -143,7 +146,7 @@ def PushbackGenerator(g):
         #     return True
         # except StopIteration:
         #     return False
-        chunk = next(self)
+        chunk = self.next_item()
         if chunk == StopIteration():
            return False
         self.push(chunk)
@@ -185,6 +188,7 @@ def PublicKeyPacket(keydata, version, algorithm, timestamp):
                  self.key[self.key_fields[self.key_algorithm][i]] = keydata[i]
         else:
             self.key = keydata
+        return self
     self = __init__(keydata, version, algorithm, timestamp)
 
     def fingerprint_material():
@@ -230,7 +234,41 @@ def Message(packets=[]):
         self._packets_start = packets
         self._packets_end = []
         self._input = None
-    self = __init__()
+        return self
+    self = __init__(packets)
+
+    # def __iter__(self):
+
+    def __getitem__(item):
+        i = 0
+        # for p in self:
+        #     if i == item:
+        #         return pack
+        #     i += 1
+        for p in self._packets_start:
+            if i == item:
+                return p 
+            i += 1
+        
+        if self._input:
+            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                if not self._input.hasNext():
+                    break
+                packet = Packet(None).parse(self._input)
+                if packet:
+                    self._packets_start.append(packet)
+                    if i == item:
+                        return packet
+                else:
+                    fail('OpenPGPException("Parsing is stuck")')
+                i += 1
+        
+        for p in self._packets_end:
+            if i == item:
+                return p
+            i += 1
+        
+    self.__getitem__ = __getitem__
 
     def parse(input_data):
         m = Message([])
@@ -243,7 +281,6 @@ def Message(packets=[]):
     self.parse = parse
 
     return self
-
 
 def Packet(data):
     """ OpenPGP packet.
@@ -259,6 +296,7 @@ def Packet(data):
                 self.tag = tag
                 break
         self.data = data
+        return self
     self = __init__(data)
 
     def parse(input_data):
@@ -269,7 +307,8 @@ def Packet(data):
 
         packet = None
         # If there is not even one byte, then there is no packet at all
-        chunk = _ensure_bytes(1, next(g), g)
+        # chunk = _ensure_bytes(1, next(g), g),
+        chunk = _ensure_bytes(1, g.next_item(), g)
 
         # try:
         # Parse header
@@ -414,6 +453,7 @@ def LiteralDataPacket(data, format, filename, timestamp):
         self.format = format
         self.filename = filename.encode('utf-8')
         self.timestamp = timestamp
+        return self
     self = __init__(data, format, filename, timestamp)
 
     def normalize():
@@ -452,6 +492,7 @@ def IntegrityProtectedDataPacket(data, version):
         self.__name__ = 'IntegrityProtectedDataPacket'
         self.version = version
         self.data = data
+        return self
     self = __init__(data, version)
 
     def read(self):
@@ -481,6 +522,7 @@ def AsymmetricSessionKeyPacket(key_algorithm, keyid, encrypted_data, version):
         self.keyid = keyid[-16:]
         self.key_algorithm = key_algorithm
         self.encrypted_data = encrypted_data
+        return self
     self = __init__(key_algorithm, keyid, encrypted_data, version)
 
     return self
@@ -498,6 +540,7 @@ def SymmetricSessionKeyPacket(s2k, encrypted_data, symmetric_algorithm, version)
         self.symmetric_algorithm = symmetric_algorithm
         self.s2k = s2k
         self.encrypted_data = encrypted_data
+        return self
     self = __init__(s2k, encrypted_data, symmetric_algorithm, version)
 
     return self
@@ -516,6 +559,7 @@ def ModificationDetectionCodePacket(sha1):
         self.__name__ = 'ModificationDetectionCodePacket'
         self.__class__ = ModificationDetectionCodePacket
         self.data = sha1
+        return self
     self = __init__(sha1)
 
     def read(self):

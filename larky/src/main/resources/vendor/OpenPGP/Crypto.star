@@ -1,21 +1,21 @@
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
 # load("@stdlib//hashlib", hashlib="hashlib", math="math", sys="sys", copy="copy", collections="collections")
-load("@stdlib//struct", pack="pack", unpack="unpack")
+load("@stdlib//struct", struct="struct")
 load("@stdlib//types", types="types")
-load("@vendor//Crypto", Random="Random")
+load("@vendor//Crypto/Random", Random="Random")
 load("@stdlib//builtins", builtins="builtins")
 # load("@vendor//Crypto/Cipher", DES3="DES3")
 # load("@vendor//Crypto/Cipher", Blowfish="Blowfish")
-load("@vendor//Crypto/Cipher", PKCS1_v1_5="PKCS1_v1_5")
+load("@vendor//Crypto/Cipher/PKCS1_v1_5", PKCS1_v1_5_Cipher="PKCS1_v1_5_Cipher")
 # load("@vendor//Crypto/Cipher", CAST="CAST")
-load("@vendor//Crypto/Cipher", AES="AES")
+load("@vendor//Crypto/Cipher/AES", AES="AES")
 # load("@vendor//Crypto/Hash", SHA512="SHA512")
 # load("@vendor//Crypto/Hash", MD5="MD5")
 # load("@vendor//Crypto/Hash", SHA224="SHA224")
 # load("@vendor//Crypto/Hash", SHA384="SHA384")
 # load("@vendor//Crypto/Hash", RIPEMD="RIPEMD")
-load("@vendor//Crypto/Hash", SHA="SHA")
+load("@vendor//Crypto/Hash/SHA", SHA="SHA")
 # load("@vendor//Crypto/Hash", SHA256="SHA256")
 # load("@vendor//Crypto/PublicKey", RSA="RSA")
 # load("@vendor//Crypto/PublicKey", DSA="DSA")
@@ -25,6 +25,8 @@ load("@vendor//Crypto/Hash", SHA="SHA")
 load("@vendor//OpenPGP", OpenPGP="OpenPGP")
 load("@vendor//option/result", Error="Error")
 
+pack = struct.pack
+unpack = struct.unpack
 
 __all__ = ['Wrapper']
 def Wrapper(packet):
@@ -99,7 +101,7 @@ def Wrapper(packet):
                 if not psswd.key_algorithm in [1,2,3]:
                     return Error("Exception: Only RSA keys are supported.")
                 rsa = self.__class__(psswd).public_key()
-                pkcs1 = PKCS1_v1_5.new(rsa)
+                pkcs1 = PKCS1_v1_5_Cipher.new(rsa)
                 esk = pkcs1.encrypt(pack('!B', symmetric_algorithm) + key + pack('!H', OpenPGP.checksum(key)))
                 esk = pack('!H', OpenPGP.bitlength(esk)) + esk
                 encrypted = [OpenPGP.AsymmetricSessionKeyPacket(psswd.key_algorithm, psswd.fingerprint(), esk)] + encrypted
