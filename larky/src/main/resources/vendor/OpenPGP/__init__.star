@@ -117,7 +117,6 @@ def S2K(salt, hash_algorithm, count, type):
 def PushbackGenerator(g):
     self = larky.mutablestruct(__name__='PushbackGenerator', __class__=PushbackGenerator)
     def __init__(g):
-        # self._g = g
         self._g = g
         self._pushback = []
         return self
@@ -127,14 +126,14 @@ def PushbackGenerator(g):
         return self
     self.__iter__ = __iter__
 
-    def next_item(): # somehow next() would raise recursive err when calling next(self._g) below
+    def next(): 
         return self.__next__()
-    self.next_item = next_item
+    self.next = next
 
     def __next__():
         if len(self._pushback):
             return self._pushback.pop(0)
-        return next(self._g)
+        return next(self._g) #self._g is str_iterator from _gen_one(input_data) where input_data is a string
     self.__next__ = __next__
 
     def hasNext():
@@ -146,7 +145,7 @@ def PushbackGenerator(g):
         #     return True
         # except StopIteration:
         #     return False
-        chunk = self.next_item()
+        chunk = self.next()
         if chunk == StopIteration():
            return False
         self.push(chunk)
@@ -308,7 +307,7 @@ def Packet(data):
         packet = None
         # If there is not even one byte, then there is no packet at all
         # chunk = _ensure_bytes(1, next(g), g),
-        chunk = _ensure_bytes(1, g.next_item(), g)
+        chunk = _ensure_bytes(1, g.next(), g)
 
         # try:
         # Parse header
