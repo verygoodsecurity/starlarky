@@ -3,6 +3,7 @@ load("@stdlib//struct", pack="pack", unpack="unpack")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 load("@vendor//option/result", Error="Error")
 load("@stdlib//codecs", codecs="codecs")
+load("@stdlib//types", types="types")
 load("@stdlib//math", math="math")
 load("@vendor//Crypto/Hash", MD5="MD5")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
@@ -158,7 +159,7 @@ def PushbackGenerator(g):
     self.push = push
     return self
 
-def PublicKeyPacket(Packet):
+def PublicKeyPacket(keydata, version, algorithm, timestamp):
     """ OpenPGP Public-Key packet (tag 6).
         http://tools.ietf.org/html/rfc4880#section-5.5.1.1
         http://tools.ietf.org/html/rfc4880#section-5.5.2
@@ -168,7 +169,7 @@ def PublicKeyPacket(Packet):
     self = larky.mutablestruct(__class__=PublicKeyPacket, __name__='PublicKeyPacket')
 
     # def __init__(self, keydata=None, version=4, algorithm=1, timestamp=time()):
-    def __init__(keydata=None, version=4, algorithm=1, timestamp):
+    def __init__(keydata=None, version=4, algorithm=1, timestamp=1000):
         # super(PublicKeyPacket, self).__init__()
         self = Packet()
         self.__class__ = PublicKeyPacket
@@ -244,7 +245,7 @@ def Message(packets=[]):
     return self
 
 
-def Packet():
+def Packet(data):
     """ OpenPGP packet.
         http://tools.ietf.org/html/rfc4880#section-4.1
         http://tools.ietf.org/html/rfc4880#section-4.3
@@ -394,18 +395,18 @@ def Packet():
     return self
 
 
-def LiteralDataPacket(Packet):
+def LiteralDataPacket(data, format, filename, timestamp):
     """ OpenPGP Literal Data packet (tag 11).
         http://tools.ietf.org/html/rfc4880#section-5.9
     """
     self = larky.mutablestruct(__name__='LiteralDataPacket', __class__=LiteralDataPacket)
 
     # def __init__(data=None, format='b', filename='data', timestamp=time()):
-    def __init__(data=None, format='b', filename='data', timestamp):
+    def __init__(data=None, format='b', filename='data', timestamp=1000):
         # super(LiteralDataPacket, self).__init__()
         self = Packet()
         self.__name__ = 'LiteralDataPacket'
-        self.__class__ = LiteralDataPacket
+        self.__class__ = Message
         if hasattr(data, 'encode'):
             # data = data.encode('utf-8')
             codecs.encode(data, encoding='utf-8')
@@ -437,7 +438,7 @@ def LiteralDataPacket(Packet):
     return self
 
 
-def IntegrityProtectedDataPacket(EncryptedDataPacket):
+def IntegrityProtectedDataPacket(data, version):
     """ OpenPGP Sym. Encrypted Integrity Protected Data packet (tag 18).
         http://tools.ietf.org/html/rfc4880#section-5.13
     """
@@ -445,7 +446,8 @@ def IntegrityProtectedDataPacket(EncryptedDataPacket):
 
     def __init__(data=b'', version=1):
         # super(IntegrityProtectedDataPacket, self).__init__()
-        self = EncryptedDataPacket()
+        # self = EncryptedDataPacket()  just inherit Packet in original implementation
+        self = Packet()
         self.__class__ = IntegrityProtectedDataPacket
         self.__name__ = 'IntegrityProtectedDataPacket'
         self.version = version
@@ -464,7 +466,7 @@ def IntegrityProtectedDataPacket(EncryptedDataPacket):
     return self
 
 
-def AsymmetricSessionKeyPacket():
+def AsymmetricSessionKeyPacket(key_algorithm, keyid, encrypted_data, version):
     """ OpenPGP Public-Key Encrypted Session Key packet (tag 1).
         http://tools.ietf.org/html/rfc4880#section-5.1
     """
@@ -483,7 +485,7 @@ def AsymmetricSessionKeyPacket():
 
     return self
 
-def SymmetricSessionKeyPacket():
+def SymmetricSessionKeyPacket(s2k, encrypted_data, symmetric_algorithm, version):
     """ OpenPGP Symmetric-Key Encrypted Session Key packet (tag 3).
         http://tools.ietf.org/html/rfc4880#section-5.3
     """
@@ -501,7 +503,7 @@ def SymmetricSessionKeyPacket():
     return self
 
 
-def ModificationDetectionCodePacket():
+def ModificationDetectionCodePacket(sha1):
     """ OpenPGP Modification Detection Code packet (tag 19).
         http://tools.ietf.org/html/rfc4880#section-5.14
     """
@@ -540,7 +542,7 @@ Packet_tags = {
     #  2: SignaturePacket, # Signature Packet
      3: SymmetricSessionKeyPacket, # Symmetric-Key Encrypted Session Key Packet
     #  4: OnePassSignaturePacket, # One-Pass Signature Packet
-     5: SecretKeyPacket, # Secret-Key Packet
+    #  5: SecretKeyPacket, # Secret-Key Packet
      6: PublicKeyPacket, # Public-Key Packet
     #  7: SecretSubkeyPacket, # Secret-Subkey Packet
     #  8: CompressedDataPacket, # Compressed Data Packet

@@ -1,4 +1,5 @@
-# load("@stdlib//codecs", codecs="codecs")
+load("@stdlib//codecs", codecs="codecs")
+load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
 # load("@stdlib//hashlib", hashlib="hashlib", math="math", sys="sys", copy="copy", collections="collections")
 load("@stdlib//struct", pack="pack", unpack="unpack")
 load("@stdlib//types", types="types")
@@ -22,10 +23,8 @@ load("@vendor//Crypto/Hash", SHA="SHA")
 # load("@vendor//Crypto/Signature", PKCS1_v1_5="PKCS1_v1_5")
 # load("@vendor//Crypto/Util", number="number")
 load("@vendor//OpenPGP", OpenPGP="OpenPGP")
-# load("@vendor//option/result", Error="Error")
+load("@vendor//option/result", Error="Error")
 
-def b(s):
-    return builtins.bytes(s, encoding="utf-8")
 
 __all__ = ['Wrapper']
 def Wrapper(packet):
@@ -47,7 +46,7 @@ def Wrapper(packet):
         def cipher(m, ks, bs):
             return (lambda k: lambda iv:
                     m.new(k, mode=AES.MODE_CFB,
-                        IV=iv or b('\0')*bs,
+                        IV=iv or b'\0'*bs,
                         segment_size=bs*8),
                 ks, bs)
         self.cipher = cipher
@@ -87,7 +86,7 @@ def Wrapper(packet):
         session_cipher = cipher(key, None)
 
         to_encrypt = prefix + self._message.to_bytes()
-        mdc = OpenPGP.ModificationDetectionCodePacket(SHA.new(to_encrypt + b('\xD3\x14')).digest())
+        mdc = OpenPGP.ModificationDetectionCodePacket(SHA.new(to_encrypt + b'\xD3\x14').digest())
         to_encrypt += mdc.to_bytes()
 
         encrypted = [OpenPGP.IntegrityProtectedDataPacket(self._block_pad_unpad(key_block_bytes, to_encrypt, lambda x: session_cipher.encrypt(x)))]
