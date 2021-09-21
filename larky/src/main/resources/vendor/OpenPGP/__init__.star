@@ -9,6 +9,7 @@ load("@vendor//Crypto/Hash/MD5", MD5="MD5")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
+load("@stdlib//operator", operator="operator")
 # load("@vendor//Crypto/Hash", SHA224="SHA224")
 # load("@vendor//Crypto/Hash", SHA384="SHA384")
 
@@ -114,6 +115,9 @@ def S2K(salt, hash_algorithm, count, type):
 
     return self
 
+def g_next(s):
+    next(s)
+
 def PushbackGenerator(g):
     self = larky.mutablestruct(__name__='PushbackGenerator', __class__=PushbackGenerator)
     def __init__(g):
@@ -126,14 +130,14 @@ def PushbackGenerator(g):
         return self
     self.__iter__ = __iter__
 
-    def next(): 
+    def next():
         return self.__next__()
     self.next = next
 
     def __next__():
         if len(self._pushback):
             return self._pushback.pop(0)
-        return next(self._g) #self._g is str_iterator from _gen_one(input_data) where input_data is a string
+        return g_next(self._g)
     self.__next__ = __next__
 
     def hasNext():
@@ -233,6 +237,7 @@ def Message(packets=[]):
         self._packets_start = packets
         self._packets_end = []
         self._input = None
+        self._input_data = None
         return self
     self = __init__(packets)
 
@@ -253,7 +258,8 @@ def Message(packets=[]):
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 if not self._input.hasNext():
                     break
-                packet = Packet(None).parse(self._input)
+                # packet = Packet(None).parse(self._input) #self._input is a mutablestruct from PushbackGenerator
+                packet = Packet(None).parse(self._input_data) 
                 if packet:
                     self._packets_start.append(packet)
                     if i == item:
@@ -275,6 +281,7 @@ def Message(packets=[]):
             m._input = PushbackGenerator(input_data)
         else:
             m._input = PushbackGenerator(_gen_one(input_data))
+            m._input_data = input_data
 
         return m
     self.parse = parse
@@ -306,7 +313,7 @@ def Packet(data):
 
         packet = None
         # If there is not even one byte, then there is no packet at all
-        # chunk = _ensure_bytes(1, next(g), g),
+        # chunk = _ensure_bytes(1, next(g), g)
         chunk = _ensure_bytes(1, g.next(), g)
 
         # try:
@@ -412,7 +419,8 @@ def Packet(data):
 
     def header_and_body():
         body = self.body()
-        tag = pack('!B', self.tag | 0xC0)
+        # tag = pack('!B', self.tag | 0xC0)
+        tag = pack('!B', operator.or_(self.tag, 0xC0))
         size = pack('!B', 255) + pack('!L', body and len(body) or 0)
         return {'header': tag + size, 'body': body}
     self.header_and_body = header_and_body
@@ -442,15 +450,16 @@ def LiteralDataPacket(data, format, filename, timestamp):
     # def __init__(data=None, format='b', filename='data', timestamp=time()):
     def __init__(data=None, format='b', filename='data', timestamp=1000):
         # super(LiteralDataPacket, self).__init__()
-        self = Packet()
+        self = Packet(data)
         self.__name__ = 'LiteralDataPacket'
-        self.__class__ = Message
+        self.__class__ = LiteralDataPacket
+        self.tag = 11
         if hasattr(data, 'encode'):
             # data = data.encode('utf-8')
             codecs.encode(data, encoding='utf-8')
         self.data = data
         self.format = format
-        self.filename = filename.encode('utf-8')
+        self.filename = codecs.encode(filename, encoding='utf-8')
         self.timestamp = timestamp
         return self
     self = __init__(data, format, filename, timestamp)
@@ -471,13 +480,13 @@ def LiteralDataPacket(data, format, filename, timestamp):
     self.read = read
 
     def body():
-        return self.format.encode('ascii') + pack('!B', len(self.filename)) + self.filename + pack('!L', int(self.timestamp)) + self.data
+        return codecs.encode(self.format, encoding='ascii') + pack('!B', len(self.filename)) + self.filename + pack('!L', int(self.timestamp)) + tobytes(self.data)
     self.body = body
     
     return self
 
 
-def IntegrityProtectedDataPacket(data, version):
+def IntegrityProtectedDataPacket(data, version=1):
     """ OpenPGP Sym. Encrypted Integrity Protected Data packet (tag 18).
         http://tools.ietf.org/html/rfc4880#section-5.13
     """
@@ -486,7 +495,7 @@ def IntegrityProtectedDataPacket(data, version):
     def __init__(data=b'', version=1):
         # super(IntegrityProtectedDataPacket, self).__init__()
         # self = EncryptedDataPacket()  just inherit Packet in original implementation
-        self = Packet()
+        self = Packet(data)
         self.__class__ = IntegrityProtectedDataPacket
         self.__name__ = 'IntegrityProtectedDataPacket'
         self.version = version
@@ -554,7 +563,7 @@ def ModificationDetectionCodePacket(sha1):
 
     def __init__(sha1=''):
         # super(ModificationDetectionCodePacket, self).__init__()
-        self = Packet()
+        self = Packet(sha1)
         self.__name__ = 'ModificationDetectionCodePacket'
         self.__class__ = ModificationDetectionCodePacket
         self.data = sha1
@@ -567,14 +576,14 @@ def ModificationDetectionCodePacket(sha1):
             fail("Bad ModificationDetectionCodePacket")
     self.read = read
 
-    def header_and_body(self):
+    def header_and_body():
         body = self.body() # Get body first, we will need it's length
         if(len(body) != 20):
             fail("Bad ModificationDetectionCodePacket")
         return {'header': b'\xD3\x14', 'body': body }
     self.header_and_body = header_and_body
 
-    def body(self):
+    def body():
         return self.data
     self.body = body
 
@@ -615,4 +624,5 @@ OpenPGP = larky.struct(
     Message=Message,
     checksum=checksum,
     bitlength=bitlength,
+    PublicKeyPacket=PublicKeyPacket,
 )

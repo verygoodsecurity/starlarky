@@ -1,4 +1,5 @@
 load("@stdlib//codecs", codecs="codecs")
+load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
 # load("@stdlib//hashlib", hashlib="hashlib", math="math", sys="sys", copy="copy", collections="collections")
 load("@stdlib//struct", struct="struct")
@@ -32,8 +33,25 @@ __all__ = ['Wrapper']
 def Wrapper(packet):
     """ A wrapper for using the classes from OpenPGP.py with PyCrypto """
     self = larky.mutablestruct(__name__='Wrapper', __class__=Wrapper)
+
+    # def _parse_packet(packet):
+    #     if types.is_instance(packet, OpenPGP.Packet) or types.is_instance(packet, OpenPGP.Message) or types.is_instance(packet, Crypto.PublicKey.RSA._RSAobj) or types.is_instance(packet, Crypto.PublicKey.DSA._DSAobj):
+    #         return packet
+    #     elif types.is_tuple(packet) or types.is_list(packet):
+    #         if sys.version_info[0] == 2 and types.is_instance(packet[0], long) or types.is_int(packet[0]):
+    #             data = []
+    #             for i in packet:
+    #                 data.append(long_to_bytes(i)) # OpenPGP likes bytes
+    #         else:
+    #             data = packet
+    #         data = packet
+    #         return OpenPGP.SecretKeyPacket(keydata=data, algorithm=1, version=3) # V3 for fingerprint with no timestamp
+    #     else:
+    #         return OpenPGP.Message.parse(packet)
+    # self._parse_packet = _parse_packet
+
     def __init__(packet):
-        packet = self._parse_packet(packet)
+        # packet = self._parse_packet(packet)
         self._key = None
         self._message = self._key
         if types.is_instance(packet, OpenPGP.PublicKeyPacket) or (hasattr(packet, '__getitem__') and types.is_instance(packet[0], OpenPGP.PublicKeyPacket)): 
@@ -42,17 +60,21 @@ def Wrapper(packet):
         else:
             self._message = packet
         return self
-    self = __init__(data=None, format='b')
+    self = __init__(packet)
 
     def get_cipher(algo):
         def cipher(m, ks, bs):
-            return (lambda k: lambda iv:
-                    m.new(k, mode=AES.MODE_CFB,
+                def _cipher(k, iv):
+                    return m.new(k, mode=AES.MODE_CFB,
                         IV=iv or b'\0'*bs,
-                        segment_size=bs*8),
-                ks, bs)
+                        segment_size=bs*8)
+                return (_cipher, ks, bs)
+            # return (lambda k: lambda iv:
+            #         m.new(k, mode=AES.MODE_CFB,
+            #             IV=iv or b'\0'*bs,
+            #             segment_size=bs*8),
+            #     ks, bs)
         self.cipher = cipher
-        cipher = cipher
         
         return cipher(AES, 32, 16)
     self.get_cipher = get_cipher
@@ -71,7 +93,7 @@ def Wrapper(packet):
 
         # return (None,None,None) # Not supported
 
-    def _block_pad_unpad(cls, siz, bs, go):
+    def _block_pad_unpad(siz, bs, go):
         pad_amount = siz - (len(bs) % siz)
         return go(bs + b'\0'*pad_amount)[:-pad_amount]
     self._block_pad_unpad = _block_pad_unpad
@@ -79,7 +101,7 @@ def Wrapper(packet):
     def encrypt(passphrases_and_keys, symmetric_algorithm=9):
         cipher, key_bytes, key_block_bytes = self.get_cipher(symmetric_algorithm)
         if not cipher:
-            return Error("Exception: Unsupported cipher")
+            fail('Error("Exception: Unsupported cipher")')
         prefix = Random.new().read(key_block_bytes)
         prefix += prefix[-2:]
 
@@ -93,13 +115,14 @@ def Wrapper(packet):
 
         encrypted = [OpenPGP.IntegrityProtectedDataPacket(self._block_pad_unpad(key_block_bytes, to_encrypt, lambda x: session_cipher.encrypt(x)))]
 
-        if not types.is_iterable(passphrases_and_keys) or hasattr(passphrases_and_keys, 'encode'):
+        # if not types.is_iterable(passphrases_and_keys) or hasattr(passphrases_and_keys, 'encode'):
+        if not types.is_list(passphrases_and_keys) or hasattr(passphrases_and_keys, 'encode'):
             passphrases_and_keys = [passphrases_and_keys]
 
         for psswd in passphrases_and_keys:
             if types.is_instance(psswd, OpenPGP.PublicKeyPacket):
                 if not psswd.key_algorithm in [1,2,3]:
-                    return Error("Exception: Only RSA keys are supported.")
+                    return fail('Error("Exception: Only RSA keys are supported.")')
                 rsa = self.__class__(psswd).public_key()
                 pkcs1 = PKCS1_v1_5_Cipher.new(rsa)
                 esk = pkcs1.encrypt(pack('!B', symmetric_algorithm) + key + pack('!H', OpenPGP.checksum(key)))
@@ -462,22 +485,6 @@ Crypto = larky.struct(
     #     return None
     # self.decrypt_packet = decrypt_packet
     # decrypt_packet = decrypt_packet
-
-    # def _parse_packet(cls, packet):
-    #     if types.is_instance(packet, OpenPGP.Packet) or types.is_instance(packet, OpenPGP.Message) or types.is_instance(packet, Crypto.PublicKey.RSA._RSAobj) or types.is_instance(packet, Crypto.PublicKey.DSA._DSAobj):
-    #         return packet
-    #     elif types.is_instance(packet, tuple) or types.is_instance(packet, list):
-    #         if sys.version_info[0] == 2 and types.is_instance(packet[0], long) or types.is_instance(packet[0], int):
-    #             data = []
-    #             for i in packet:
-    #                 data.append(Crypto.Util.number.long_to_bytes(i)) # OpenPGP likes bytes
-    #         else:
-    #             data = packet
-    #         return OpenPGP.SecretKeyPacket(keydata=data, algorithm=1, version=3) # V3 for fingerprint with no timestamp
-    #     else:
-    #         return OpenPGP.Message.parse(packet)
-    # self._parse_packet = _parse_packet
-    # _parse_packet = _parse_packet
 
     # def convert_key(cls, packet, private=False):
     #     if types.is_instance(packet, Crypto.PublicKey.RSA._RSAobj) or types.is_instance(packet, Crypto.PublicKey.DSA._DSAobj):
