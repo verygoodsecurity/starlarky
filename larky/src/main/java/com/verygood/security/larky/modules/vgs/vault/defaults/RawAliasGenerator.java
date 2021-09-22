@@ -7,7 +7,7 @@ import java.util.UUID;
 
 class RawAliasGenerator implements AliasGenerator {
     @Override
-    public String tokenize(String value) throws EvalException {
+    public String generate(String value) throws EvalException {
         return new String(Base64.getEncoder().encode(UUID.randomUUID().toString().getBytes()));
     }
 }
