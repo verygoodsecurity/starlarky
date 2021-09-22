@@ -68,11 +68,11 @@ public class VaultModuleSPITest {
 
         // Invoke Vault
         String secret = "4111111111111111";
-        String token = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
-        String result = (String) vault.reveal(token, Starlark.NONE);
+        String alias = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
+        String result = (String) vault.reveal(alias, Starlark.NONE);
 
         // Assert OK
-        Assertions.assertTrue(token.contains("tok_"));
+        Assertions.assertTrue(alias.contains("tok_"));
         Assertions.assertEquals(secret, result);
     }
 
@@ -85,11 +85,11 @@ public class VaultModuleSPITest {
 
         // Invoke Vault
         String secret = "4111111111111111";
-        String token = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
-        String result = (String) vault.reveal(token, Starlark.NONE);
+        String alias = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
+        String result = (String) vault.reveal(alias, Starlark.NONE);
 
         // Assert OK
-        Assertions.assertTrue(token.contains("tok_"));
+        Assertions.assertTrue(alias.contains("tok_"));
         Assertions.assertEquals(secret, result);
     }
 
