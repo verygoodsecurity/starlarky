@@ -137,11 +137,12 @@ def PushbackGenerator(g):
     def __next__():
         if len(self._pushback):
             return self._pushback.pop(0)
+        return g_next(self._g)
         # when called from self._input.hasNext(), self._g is a str_iterator and need to use next(self._g)
         # but when self._g is a mutablestruct from pushbackgenerator, we need to use self._g.next()
-        if self._g.__class__ == str_iterator:
-            return g_next(self._g)
-        return self._g.next()
+        # if self._g.__class__ == str_iterator:
+        #     return g_next(self._g)
+        # return self._g.next()
     self.__next__ = __next__
 
     def hasNext():
@@ -318,8 +319,8 @@ def Packet(data):
 
         packet = None
         # If there is not even one byte, then there is no packet at all
-        # chunk = _ensure_bytes(1, next(g), g)
-        chunk = _ensure_bytes(1, g.next(), g)
+        chunk = _ensure_bytes(1, next(g), g)
+        # chunk = _ensure_bytes(1, g.next(), g)
 
         # try:
         # Parse header
