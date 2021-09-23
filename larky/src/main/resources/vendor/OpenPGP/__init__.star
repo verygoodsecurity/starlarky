@@ -137,7 +137,11 @@ def PushbackGenerator(g):
     def __next__():
         if len(self._pushback):
             return self._pushback.pop(0)
-        return g_next(self._g)
+        # when called from self._input.hasNext(), self._g is a str_iterator and need to use next(self._g)
+        # but when self._g is a mutablestruct from pushbackgenerator, we need to use self._g.next()
+        if self._g.__class__ == str_iterator:
+            return g_next(self._g)
+        return self._g.next()
     self.__next__ = __next__
 
     def hasNext():
@@ -258,8 +262,9 @@ def Message(packets=[]):
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 if not self._input.hasNext():
                     break
-                # packet = Packet(None).parse(self._input) #self._input is a mutablestruct from PushbackGenerator
-                packet = Packet(None).parse(self._input_data) 
+                # Here below, self._input is a mutablestruct from PushbackGenerator, but its attribute _g is a str_iterator from iter(seq) in func _gen_one
+                packet = Packet(None).parse(self._input) 
+                # packet = Packet(None).parse(self._input_data) 
                 if packet:
                     self._packets_start.append(packet)
                     if i == item:
@@ -307,7 +312,7 @@ def Packet(data):
 
     def parse(input_data):
         if hasattr(input_data, 'next') or hasattr(input_data, '__next__'):
-            g = PushbackGenerator(input_data)
+            g = PushbackGenerator(input_data)  # input_data is already a mutablestruct from PushbackGenerator
         else:
             g = PushbackGenerator(_gen_one(input_data))
 
