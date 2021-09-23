@@ -23,14 +23,14 @@ def PGP_test():
     -----END PGP PUBLIC KEY BLOCK-----'''
 
     # wkey = OpenPGP.Message.parse(open('key', 'rb').read())[0]
-    # wkey = OpenPGP.Message().parse(k).__getitem__(0)
+    wkey = OpenPGP.Message().parse(k).__getitem__(0)
     # print('parse key:', OpenPGP.Message().parse(k))
 
-    data = OpenPGP.LiteralDataPacket('This is text.', 'u', 'stuff.txt', 1000)
-    encrypt = Crypto.Wrapper(data)
-    encrypted = encrypt.encrypt([k])
+    # data = OpenPGP.LiteralDataPacket('This is text.', 'u', 'stuff.txt', 1000)
+    # encrypt = Crypto.Wrapper(data)
+    # encrypted = encrypt.encrypt([k])
 
-    print('pgp encrypted:', encrypted)
+    # print('pgp encrypted:', encrypted)
 
 #     # Now decrypt it with the same key
 #     decryptor = OpenPGP.Crypto.Wrapper(wkey)
