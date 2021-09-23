@@ -189,12 +189,6 @@ jobs:
             mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl larky
             mvn clean dependency:go-offline package -pl larky -U -Dmaven.test.skip.exec -T 2.0C -B
             mvn deploy -DskipTests -pl larky -Pgithub
-      - run:
-          name: Build and deploy larky-api
-          command: |
-            mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl larky-api
-            mvn clean dependency:go-offline package -pl larky-api -U -Dmaven.test.skip.exec -T 2.0C -B
-            mvn deploy -DskipTests -pl larky-api -Pgithub
       - <<: *save-maven-cache
 
   build-dist-linux:
