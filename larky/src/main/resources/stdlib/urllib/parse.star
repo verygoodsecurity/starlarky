@@ -572,6 +572,7 @@ parse = larky.struct(
     parse_qsl = _parse_qsl,
     quote_from_bytes = quote_from_bytes,
     quote = quote,
+    unquote = _unquote,
     quote_plus = quote_plus,
     urlencode = urlencode,
     unwrap = unwrap,
