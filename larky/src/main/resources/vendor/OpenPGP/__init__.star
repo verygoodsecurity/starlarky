@@ -422,7 +422,7 @@ def Packet(data):
             head_length = 3
             chunk = _ensure_bytes(head_length, chunk, g)
             print("print chunk:", chunk)
-            data_length = unpack('!H', tobytes(chunk[1:3]))[0]
+            data_length = unpack('!H', chunk[1:3])[0]
         elif length == 2: # The packet has a four-octet length. The header is 5 octets long.
             head_length = 5
             chunk = _ensure_bytes(head_length, chunk, g)
@@ -460,8 +460,8 @@ def Packet(data):
     self.to_bytes = to_bytes
 
     def read_byte():
-      byte = self.read_bytes(1)
-      return byte and byte[0:1] or None
+        byte = self.read_bytes(1)
+        return byte and byte[0:1] or None
     self.read_byte = read_byte
 
     def read_bytes(count):
