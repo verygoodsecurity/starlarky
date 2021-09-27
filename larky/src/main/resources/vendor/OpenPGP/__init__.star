@@ -115,8 +115,8 @@ def S2K(salt, hash_algorithm, count, type):
 
     return self
 
-def g_next(s):
-    next(s)
+def g_next(g):
+    return next(iter(g))
 
 def PushbackGenerator(g):
     self = larky.mutablestruct(__name__='PushbackGenerator', __class__=PushbackGenerator)
@@ -138,11 +138,6 @@ def PushbackGenerator(g):
         if len(self._pushback):
             return self._pushback.pop(0)
         return g_next(self._g)
-        # when called from self._input.hasNext(), self._g is a str_iterator and need to use next(self._g)
-        # but when self._g is a mutablestruct from pushbackgenerator, we need to use self._g.next()
-        # if self._g.__class__ == str_iterator:
-        #     return g_next(self._g)
-        # return self._g.next()
     self.__next__ = __next__
 
     def hasNext():
@@ -318,9 +313,21 @@ def Packet(data):
             g = PushbackGenerator(_gen_one(input_data))
 
         packet = None
+
+        prepare_chunk = None
+        if len(g._pushback):
+            prepare_chunk = g._pushback.pop(0)
+        else:
+            if hasattr(g._g, '__name__'):
+                if len(g._g._pushback):
+                    prepare_chunk = g._g._pushback.pop(0)
+                else:
+                    prepare_chunk = next(g._g._g)
+            else:
+                prepare_chunk = next(g._g)
         # If there is not even one byte, then there is no packet at all
-        chunk = _ensure_bytes(1, next(g), g)
-        # chunk = _ensure_bytes(1, g.next(), g)
+        # chunk = _ensure_bytes(1, next(iter(g)), g)
+        chunk = _ensure_bytes(1, prepare_chunk, g)
 
         # try:
         # Parse header
