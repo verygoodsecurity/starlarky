@@ -26,12 +26,26 @@ hash_algorithms = {
     # 11: 'SHA224'
 }
 
+def find_next_chunk_iteratively(generator):
+    pass
 
 def _ensure_bytes(n, chunk, g):
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if len(chunk) >= n:
             break
-        next_chunk = next(g)
+        # next_chunk = next(iter(g))  # should work the same way as python like next(g); trigger recursive warning
+        # to solve next call on nested generator which would trigger recursive warning
+        next_chunk = None
+        if len(g._pushback):
+            next_chunk = g._pushback.pop(0)
+        else:
+            if hasattr(g._g, '__name__'):
+                if len(g._g._pushback):
+                    next_chunk = g._g._pushback.pop(0)
+                else:
+                    next_chunk = next(g._g._g)
+            else:
+                next_chunk = next(g._g)
         if next_chunk == StopIteration():
             return fail("OpenPGPException: Not enough bytes")
         # chunk += next(g)
@@ -314,11 +328,12 @@ def Packet(data):
 
         packet = None
 
+        # to solve next call on nested generator which would trigger recursive warning
         prepare_chunk = None
         if len(g._pushback):
             prepare_chunk = g._pushback.pop(0)
         else:
-            if hasattr(g._g, '__name__'):
+            if hasattr(g._g, '__name__'): # which means it is a mutable struct from pushbackgenerator not str_iterator
                 if len(g._g._pushback):
                     prepare_chunk = g._g._pushback.pop(0)
                 else:
