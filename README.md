@@ -20,6 +20,7 @@
 <!-- tocstop -->
 
 ## Description
+
 Starlarky is VGS in-house edition of Bazel hermetically-sealed language created by Google called [Starlark](https://github.com/bazelbuild/starlark).
 This language is used to run "unsafe" user-submitted code without exposing service at whole to possible attack and/or vulnerabilities.
 Starlark has Python-like syntax and is created to support same structure of additional libraries. 
