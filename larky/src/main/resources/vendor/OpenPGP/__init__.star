@@ -57,11 +57,10 @@ def _gen_one(seq):
     return iter(seq)
 
 def _slurp(g):
-    # bs = b''
-    s = ''
+    bs = b''
     for chunk in g:
-        s += tostr(chunk)
-    return tobytes(s)
+        bs += chunk
+    return bs
 
 def bitlength(data):
     """ http://tools.ietf.org/html/rfc4880#section-12.2 """
@@ -179,7 +178,7 @@ def PushbackGenerator(g):
     self.push = push
     return self
 
-def PublicKeyPacket(keydata, version, algorithm, timestamp):
+def PublicKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
     """ OpenPGP Public-Key packet (tag 6).
         http://tools.ietf.org/html/rfc4880#section-5.5.1.1
         http://tools.ietf.org/html/rfc4880#section-5.5.2
@@ -189,7 +188,7 @@ def PublicKeyPacket(keydata, version, algorithm, timestamp):
     self = larky.mutablestruct(__class__=PublicKeyPacket, __name__='PublicKeyPacket')
 
     # def __init__(self, keydata=None, version=4, algorithm=1, timestamp=time()):
-    def __init__(keydata=None, version=4, algorithm=1, timestamp=1000):
+    def __init__(keydata=None, version=4, algorithm=1, timestamp=1000000):
         # super(PublicKeyPacket, self).__init__()
         self = Packet()
         self.__class__ = PublicKeyPacket
@@ -243,6 +242,84 @@ def PublicKeyPacket(keydata, version, algorithm, timestamp):
 
     return self
 
+def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
+    """ OpenPGP Secret-Key packet (tag 5).
+        http://tools.ietf.org/html/rfc4880#section-5.5.1.3
+        http://tools.ietf.org/html/rfc4880#section-5.5.3
+        http://tools.ietf.org/html/rfc4880#section-11.2
+        http://tools.ietf.org/html/rfc4880#section-12
+    """
+    def __init__(keydata=None, version=4, algorithm=1, timestamp=1000000):
+        # super(SecretKeyPacket, self).__init__(keydata, version, algorithm, timestamp)
+        self = PublicKeyPacket()
+        self.__class__ = SecretKeyPacket
+        self.__name__ = 'SecretKeyPacket'
+        self.s2k_useage = 0
+        self.read()
+        if types.is_tuple(keydata) or types.is_list(keydata):
+            public_len = len(self.key_fields[self.key_algorithm])
+            for i in range(public_len, len(keydata)):
+                 self.key[self.secret_key_fields[self.key_algorithm][i-public_len]] = keydata[i]
+        return self
+    self = __init__(keydata, version, algorithm, timestamp)
+
+    def read():
+        # super(SecretKeyPacket, self).read() # All the fields from PublicKey
+        self.s2k_useage = ord(self.read_byte())
+        if self.s2k_useage == 255 or self.s2k_useage == 254:
+            self.symmetric_algorithm = ord(self.read_byte())
+            self.s2k, s2k_bytes = S2K.parse(self.input)
+            self.length -= s2k_bytes
+        elif self.s2k_useage > 0:
+            self.symmetric_algorithm = self.s2k_useage
+        if self.s2k_useage > 0:
+            # Rest of input is MPIs and checksum (encrypted)
+            self.encrypted_data = self.read_bytes(self.length)
+        else:
+            material = self.read_bytes(self.length - 2)
+            self.input.push(material)
+            self.key_from_input()
+            chk = self.read_unpacked(2, '!H')
+            if chk != checksum(material):
+                fail('OpenPGPException("Checksum verification failed when parsing SecretKeyPacket")')
+    self.read = read
+
+    def key_from_input():
+        for field in self.secret_key_fields[self.key_algorithm]:
+            self.key[field] = self.read_mpi()
+    self.key_from_input = key_from_input
+
+    def body():
+        b = super(SecretKeyPacket, self).body() + pack('!B', self.s2k_useage)
+        secret_material = b''
+        if self.s2k_useage == 255 or self.s2k_useage == 254:
+            b += pack('!B', self.symmetric_algorithm)
+            b += self.s2k.to_bytes()
+        if self.s2k_useage > 0:
+            b += self.encrypted_data
+        else:
+            for f in self.secret_key_fields[self.key_algorithm]:
+                f = self.key[f]
+                secret_material += pack('!H', bitlength(f))
+                secret_material += f
+            b += secret_material
+
+            # 2-octet checksum
+            chk = 0
+            for i in range(0, len(secret_material)):
+                chk = (chk + ord(secret_material[i:i+1])) % 65536
+            b += pack('!H', chk)
+        return b
+    self.body = body
+
+    secret_key_fields = {
+        1: ['d', 'p', 'q', 'u'], # RSA
+       16: ['x'],                # ELG-E
+       17: ['x'],                # DSA
+    }
+    return self
+
+
 def Message(packets=[]):
 
     self = larky.mutablestruct(__class__=Message, __name__='Message')
@@ -273,7 +350,7 @@ def Message(packets=[]):
                 if not self._input.hasNext():
                     break
                 # Here below, self._input is a mutablestruct from PushbackGenerator, but its attribute _g is a str_iterator from iter(seq) in func _gen_one
-                packet = Packet(None).parse(self._input) 
+                packet = Packet(None).parse(self._input)
                 # packet = Packet(None).parse(self._input_data) 
                 if packet:
                     self._packets_start.append(packet)
@@ -303,7 +380,7 @@ def Message(packets=[]):
 
     return self
 
-def Packet(data):
+def Packet(data=None):
     """ OpenPGP packet.
         http://tools.ietf.org/html/rfc4880#section-4.1
         http://tools.ietf.org/html/rfc4880#section-4.3
@@ -371,7 +448,7 @@ def Packet(data):
             packet.input = g
             packet.length = data_length
             packet.read()
-            packet.read_bytes(packet.length) # Remove excess bytes
+            # packet.read_bytes(packet.length) # Remove excess bytes
             packet.input = None
             packet.length = None
         # except StopIteration:
@@ -503,6 +580,12 @@ def LiteralDataPacket(data=None, format='b', filename='data', timestamp=1000):
             self.data = self.data.replace(b"\r\n", b"\n").replace(b"\r", b"\n").replace(b"\n", b"\r\n")
     self.normalize = normalize
 
+    def read_unpacked(count, fmt):
+        """ http://docs.python.org/library/struct.html """
+        unpacked = unpack(fmt, self.read_bytes(count))
+        return unpacked[0] # unpack returns tuple
+    self.read_unpacked = read_unpacked
+
     def read():
         self.size = self.length - 1 - 1 - 4
         self.format = self.read_byte().decode('ascii')
@@ -512,6 +595,11 @@ def LiteralDataPacket(data=None, format='b', filename='data', timestamp=1000):
         self.timestamp = self.read_timestamp()
         self.data = self.read_bytes(self.size)
     self.read = read
+
+    def read_timestamp():
+        """ ttp://tools.ietf.org/html/rfc4880#section-3.5 """
+        return self.read_unpacked(4, '!L')
+    self.read_timestamp = read_timestamp
 
     def body():
         return codecs.encode(self.format, encoding='ascii') + pack('!B', len(self.filename)) + self.filename + pack('!L', int(self.timestamp)) + tobytes(self.data)
@@ -628,7 +716,7 @@ Packet_tags = {
     #  2: SignaturePacket, # Signature Packet
      3: SymmetricSessionKeyPacket, # Symmetric-Key Encrypted Session Key Packet
     #  4: OnePassSignaturePacket, # One-Pass Signature Packet
-    #  5: SecretKeyPacket, # Secret-Key Packet
+     5: SecretKeyPacket, # Secret-Key Packet
      6: PublicKeyPacket, # Public-Key Packet
     #  7: SecretSubkeyPacket, # Secret-Subkey Packet
     #  8: CompressedDataPacket, # Compressed Data Packet
@@ -639,7 +727,7 @@ Packet_tags = {
     # 13: UserIDPacket, # User ID Packet
     # 14: PublicSubkeyPacket, # Public-Subkey Packet
     # 17: UserAttributePacket, # User Attribute Packet
-    # 18: IntegrityProtectedDataPacket, # Sym. Encrypted and Integrity Protected Data Packet
+    18: IntegrityProtectedDataPacket, # Sym. Encrypted and Integrity Protected Data Packet
     # 19: ModificationDetectionCodePacket, # Modification Detection Code Packet
     # 60: ExperimentalPacket, # Private or Experimental Values
     # 61: ExperimentalPacket, # Private or Experimental Values

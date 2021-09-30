@@ -120,6 +120,7 @@ def Wrapper(packet):
             passphrases_and_keys = [passphrases_and_keys]
 
         for psswd in passphrases_and_keys:
+            print('pgp public key:', psswd)
             if types.is_instance(psswd, OpenPGP.PublicKeyPacket):
                 if not psswd.key_algorithm in [1,2,3]:
                     return fail('Error("Exception: Only RSA keys are supported.")')
