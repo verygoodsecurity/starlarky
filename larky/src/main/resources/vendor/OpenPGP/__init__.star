@@ -37,6 +37,7 @@ def _ensure_bytes(n, chunk, g):
         # next_chunk = next(iter(g))  # should work the same way as python like next(g); trigger recursive warning
         # to solve next call on nested generator which would trigger recursive warning
         next_chunk = None
+        # print("g._pushback:", g._pushback)
         if len(g._pushback):
             next_chunk = g._pushback.pop(0)
         else:
@@ -155,6 +156,7 @@ def PushbackGenerator(g):
     self.__next__ = __next__
 
     def hasNext():
+        print("self._pushback in hasNext:", self._pushback)
         if len(self._pushback) > 0:
             return True
         # try:
@@ -257,6 +259,7 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
         self.__class__ = SecretKeyPacket
         self.__name__ = 'SecretKeyPacket'
         self.s2k_useage = 0
+        self.length = 400 # to be impelemented
         self.read()
         self.b = self.body()
         if types.is_tuple(keydata) or types.is_list(keydata):
@@ -362,11 +365,12 @@ def Message(packets=[]):
         
         if self._input:
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-                if not self._input.hasNext():
+                if not self._input.hasNext(): # only called once from __getitem__(0)
                     break
+                print("self._input:", self._input)
                 # Here below, self._input is a mutablestruct from PushbackGenerator, but its attribute _g is a str_iterator from iter(seq) in func _gen_one
                 packet = Packet(None).parse(self._input)
-                # packet = Packet(None).parse(self._input_data) 
+                # above should get OpenPGP.SecretKeyPacket
                 if packet:
                     self._packets_start.append(packet)
                     if i == item:
@@ -374,6 +378,7 @@ def Message(packets=[]):
                 else:
                     fail('OpenPGPException("Parsing is stuck")')
                 i += 1
+            self._input = None # parsing done
         
         for p in self._packets_end:
             if i == item:
@@ -434,6 +439,7 @@ def Packet(data=None):
                 prepare_chunk = next(g._g)
         # If there is not even one byte, then there is no packet at all
         # chunk = _ensure_bytes(1, next(iter(g)), g)
+        print("prepare_chunk:", prepare_chunk)
         chunk = _ensure_bytes(1, prepare_chunk, g)
 
         # try:
@@ -464,7 +470,7 @@ def Packet(data=None):
             packet.input = g
             packet.length = data_length
             packet.read()
-            # packet.read_bytes(packet.length) # Remove excess bytes
+            packet.read_bytes(packet.length) # Remove excess bytes
             packet.input = None
             packet.length = None
         # except StopIteration:
