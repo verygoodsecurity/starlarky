@@ -2,6 +2,7 @@ load("@vendor//OpenPGP/Crypto", Crypto="Crypto")
 load("@vendor//OpenPGP", OpenPGP="OpenPGP")
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts",  "asserts")
+load("@stdlib//codecs", codecs="codecs")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
 
 
@@ -111,7 +112,7 @@ def PGP_test():
         '''
 
     # wkey = OpenPGP.Message.parse(open('key', 'rb').read())[0]
-    wkey = OpenPGP.Message().parse(tobytes(k)).__getitem__(0)
+    wkey = OpenPGP.Message().parse(codecs.encode(k, encoding="utf-8")).__getitem__(0)
     # wkey should be of <class 'OpenPGP.SecretKeyPacket'>
     print('parsed key:', wkey)
 

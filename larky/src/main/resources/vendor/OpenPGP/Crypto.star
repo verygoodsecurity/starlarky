@@ -54,6 +54,8 @@ def Wrapper(packet):
         # packet = self._parse_packet(packet)
         self._key = None
         self._message = self._key
+        # get OpenPGP.LiteralDataPacket when init wrapper, get OpenPGP.SecretKeyPacket when from encrypt()
+        print("init packet:", packet) 
         if types.is_instance(packet, OpenPGP.PublicKeyPacket) or (hasattr(packet, '__getitem__') and types.is_instance(packet[0], OpenPGP.PublicKeyPacket)): 
         # If it's a key (other keys are subclasses of this one)
             self._key = packet
@@ -120,10 +122,12 @@ def Wrapper(packet):
             passphrases_and_keys = [passphrases_and_keys]
 
         for psswd in passphrases_and_keys:
+            # should get object of <class 'OpenPGP.SecretKeyPacket'>
             print('pgp public key:', psswd)
-            if types.is_instance(psswd, OpenPGP.PublicKeyPacket):
+            if types.is_instance(psswd, OpenPGP.SecretKeyPacket):
                 if not psswd.key_algorithm in [1,2,3]:
                     return fail('Error("Exception: Only RSA keys are supported.")')
+                # below should get object of OpenPGP.SecretKeyPacket 
                 rsa = self.__class__(psswd).public_key()
                 pkcs1 = PKCS1_v1_5_Cipher.new(rsa)
                 esk = pkcs1.encrypt(pack('!B', symmetric_algorithm) + key + pack('!H', OpenPGP.checksum(key)))
