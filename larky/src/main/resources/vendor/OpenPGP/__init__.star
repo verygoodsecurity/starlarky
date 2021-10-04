@@ -30,6 +30,7 @@ def find_next_chunk_iteratively(generator):
     pass
 
 def _ensure_bytes(n, chunk, g):
+    print("type of chunk:", type(chunk))
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if len(chunk) >= n:
             break
@@ -249,6 +250,7 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
         http://tools.ietf.org/html/rfc4880#section-11.2
         http://tools.ietf.org/html/rfc4880#section-12
     """
+
     def __init__(keydata=None, version=4, algorithm=1, timestamp=1000000):
         # super(SecretKeyPacket, self).__init__(keydata, version, algorithm, timestamp)
         self = PublicKeyPacket()
@@ -256,6 +258,7 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
         self.__name__ = 'SecretKeyPacket'
         self.s2k_useage = 0
         self.read()
+        self.b = self.body()
         if types.is_tuple(keydata) or types.is_list(keydata):
             public_len = len(self.key_fields[self.key_algorithm])
             for i in range(public_len, len(keydata)):
@@ -290,7 +293,8 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
     self.key_from_input = key_from_input
 
     def body():
-        b = super(SecretKeyPacket, self).body() + pack('!B', self.s2k_useage)
+        # b = super(SecretKeyPacket, self).body() + pack('!B', self.s2k_useage)
+        b = self.b + pack('!B', self.s2k_useage)
         secret_material = b''
         if self.s2k_useage == 255 or self.s2k_useage == 254:
             b += pack('!B', self.symmetric_algorithm)
@@ -318,6 +322,17 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
        17: ['x'],                # DSA
     }
     return self
+
+
+def SecretSubkeyPacket():
+
+    """ OpenPGP Secret-Subkey packet (tag 7).
+        http://tools.ietf.org/html/rfc4880#section-5.5.1.4
+        http://tools.ietf.org/html/rfc4880#section-5.5.3
+        http://tools.ietf.org/html/rfc4880#section-11.2
+        http://tools.ietf.org/html/rfc4880#section-12
+    """
+    pass
 
 
 def Message(packets=[]):
@@ -438,6 +453,7 @@ def Packet(data=None):
             #     packet_class = Packet.tags[tag]
             # except KeyError:
             #     packet_class = Packet
+            print("tag:", tag)
             if tag in Packet_tags:
                 packet_class = Packet_tags[tag]
             else:
@@ -489,7 +505,9 @@ def Packet(data=None):
         """
         chunk = _ensure_bytes(1, chunk, g)
         tag = ord(chunk[0:1])
+        print("tag from chunk:", tag)
         length = tag & 3
+        print("length:", length)
         tag = (tag >> 2) & 15
         if length == 0: # The packet has a one-octet length. The header is 2 octets long.
             head_length = 2
@@ -747,4 +765,5 @@ OpenPGP = larky.struct(
     checksum=checksum,
     bitlength=bitlength,
     PublicKeyPacket=PublicKeyPacket,
+    SecretKeyPacket=SecretKeyPacket,
 )
