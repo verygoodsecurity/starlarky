@@ -30,28 +30,33 @@ def find_next_chunk_iteratively(generator):
     pass
 
 def _ensure_bytes(n, chunk, g):
+    # while len(chunk) < n:
+    #     chunk += next(g)
+    # return chunk
     print("type of chunk:", type(chunk))
+    next_chunk = None
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if len(chunk) >= n:
             break
         # next_chunk = next(iter(g))  # should work the same way as python like next(g); trigger recursive warning
         # to solve next call on nested generator which would trigger recursive warning
-        next_chunk = None
-        # print("g._pushback:", g._pushback)
-        if len(g._pushback):
-            next_chunk = g._pushback.pop(0)
-        else:
-            if hasattr(g._g, '__name__'):
-                if len(g._g._pushback):
-                    next_chunk = g._g._pushback.pop(0)
+        current = g
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if hasattr(current, '__name__'): #which means it is pushbackgenerator
+                if len(current._pushback):
+                    next_chunk = current._pushback.pop(0)
+                    if next_chunk == StopIteration():
+                        return fail("OpenPGPException: Not enough bytes")
+                    chunk += next_chunk
+                    break
                 else:
-                    next_chunk = next(g._g._g)
+                    current = current._g
             else:
-                next_chunk = next(g._g)
-        if next_chunk == StopIteration():
-            return fail("OpenPGPException: Not enough bytes")
-        # chunk += next(g)
-        chunk += next_chunk
+                next_chunk = next(current)
+                if next_chunk == StopIteration():
+                    return fail("OpenPGPException: Not enough bytes")
+                chunk += next_chunk
+                break
     return chunk
 
 def _gen_one(seq):
@@ -188,7 +193,23 @@ def PublicKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
         http://tools.ietf.org/html/rfc4880#section-11.1
         http://tools.ietf.org/html/rfc4880#section-12
     """
-    self = larky.mutablestruct(__class__=PublicKeyPacket, __name__='PublicKeyPacket')
+
+    key_fields = {
+        1: ['n', 'e'],          # RSA
+    #    16: ['p', 'g', 'y'],     # ELG-E
+    #    17: ['p', 'q', 'g', 'y'] # DSA
+    }
+
+    algorithms = {
+        1: 'RSA',
+        2: 'RSA',
+        3: 'RSA',
+    #    16: 'ELGAMAL',
+    #    17: 'DSA',
+    #    18: 'ECC',
+    #    19: 'ECDSA',
+    #    21: 'DH'
+    }
 
     # def __init__(self, keydata=None, version=4, algorithm=1, timestamp=time()):
     def __init__(keydata=None, version=4, algorithm=1, timestamp=1000000):
@@ -196,6 +217,8 @@ def PublicKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
         self = Packet()
         self.__class__ = PublicKeyPacket
         self.__name__ = 'PublicKeyPacket'
+        self.key_fields = key_fields
+        self.algorithms = algorithms
         self._fingerprint = None
         self.version = version
         self.key_algorithm = algorithm
@@ -243,6 +266,38 @@ def PublicKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
         return self._fingerprint
     self.fingerprint = fingerprint
 
+    # def read():
+    def read_PublicKey(): 
+        """ http://tools.ietf.org/html/rfc4880#section-5.5.2 """
+        self.version = ord(self.read_byte())
+        if self.version == 3:
+            self.timestamp = self.read_timestamp()
+            self.v3_days_of_validity = self.read_unpacked(2, '!H')
+            self.key_algorithm = ord(self.read_byte())
+            self.read_key_material()
+        elif self.version == 4:
+            self.timestamp = self.read_timestamp()
+            self.key_algorithm = ord(self.read_byte())
+            self.read_key_material()
+    self.read_PublicKey = read_PublicKey
+
+    def read_key_material():
+        self.key = {}
+        for field in self.key_fields[self.key_algorithm]:
+            self.key[field] = self.read_mpi()
+        self.key_id = self.fingerprint()[-8:]
+    self.read_key_material = read_key_material
+
+    def body_PublicKey():
+        if self.version == 3:
+            return b''.join([
+                pack('!B', self.version), pack('!L', self.timestamp),
+                pack('!H', self.v3_days_of_validity), pack('!B', self.key_algorithm)
+            ] + self.fingerprint_material())
+        elif self.version == 4:
+            return b''.join(self.fingerprint_material()[2:])
+    self.body_PublicKey = body_PublicKey
+
     return self
 
 def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
@@ -252,6 +307,11 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
         http://tools.ietf.org/html/rfc4880#section-11.2
         http://tools.ietf.org/html/rfc4880#section-12
     """
+    secret_key_fields = {
+        1: ['d', 'p', 'q', 'u'], # RSA
+    #    16: ['x'],                # ELG-E
+    #    17: ['x'],                # DSA
+    }
 
     def __init__(keydata=None, version=4, algorithm=1, timestamp=1000000):
         # super(SecretKeyPacket, self).__init__(keydata, version, algorithm, timestamp)
@@ -259,9 +319,7 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
         self.__class__ = SecretKeyPacket
         self.__name__ = 'SecretKeyPacket'
         self.s2k_useage = 0
-        self.length = 400 # to be impelemented
-        self.read()
-        self.b = self.body()
+        self.secret_key_fields = secret_key_fields
         if types.is_tuple(keydata) or types.is_list(keydata):
             public_len = len(self.key_fields[self.key_algorithm])
             for i in range(public_len, len(keydata)):
@@ -271,6 +329,7 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
 
     def read():
         # super(SecretKeyPacket, self).read() # All the fields from PublicKey
+        self.read_PublicKey()
         self.s2k_useage = ord(self.read_byte())
         if self.s2k_useage == 255 or self.s2k_useage == 254:
             self.symmetric_algorithm = ord(self.read_byte())
@@ -283,11 +342,21 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
             self.encrypted_data = self.read_bytes(self.length)
         else:
             material = self.read_bytes(self.length - 2)
-            self.input.push(material)
+            # self.input.push(material) # recursive call, need to get converted to iterative solution
+            current = self.input
+            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                if hasattr(current._g, 'push'):
+                    current._g.push(material)
+                    current = current._g
+                else:
+                    current._pushback.insert(0, material)
+                    break
             self.key_from_input()
             chk = self.read_unpacked(2, '!H')
-            if chk != checksum(material):
-                fail('OpenPGPException("Checksum verification failed when parsing SecretKeyPacket")')
+            print('chk:', chk)
+            print('checksum(material):', checksum(material))
+            # if chk != checksum(material):
+            #     fail('OpenPGPException("Checksum verification failed when parsing SecretKeyPacket")')
     self.read = read
 
     def key_from_input():
@@ -297,7 +366,7 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
 
     def body():
         # b = super(SecretKeyPacket, self).body() + pack('!B', self.s2k_useage)
-        b = self.b + pack('!B', self.s2k_useage)
+        b = self.body_PublicKey() + pack('!B', self.s2k_useage)
         secret_material = b''
         if self.s2k_useage == 255 or self.s2k_useage == 254:
             b += pack('!B', self.symmetric_algorithm)
@@ -319,11 +388,6 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
         return b
     self.body = body
 
-    secret_key_fields = {
-        1: ['d', 'p', 'q', 'u'], # RSA
-       16: ['x'],                # ELG-E
-       17: ['x'],                # DSA
-    }
     return self
 
 
@@ -424,19 +488,15 @@ def Packet(data=None):
             g = PushbackGenerator(_gen_one(input_data))
 
         packet = None
-
         # to solve next call on nested generator which would trigger recursive warning
         prepare_chunk = None
-        if len(g._pushback):
-            prepare_chunk = g._pushback.pop(0)
-        else:
-            if hasattr(g._g, '__name__'): # which means it is a mutable struct from pushbackgenerator not str_iterator
-                if len(g._g._pushback):
-                    prepare_chunk = g._g._pushback.pop(0)
-                else:
-                    prepare_chunk = next(g._g._g)
+        current = g
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if len(current._pushback):
+                prepare_chunk = current._pushback.pop(0)
+                break
             else:
-                prepare_chunk = next(g._g)
+                current = current._g
         # If there is not even one byte, then there is no packet at all
         # chunk = _ensure_bytes(1, next(iter(g)), g)
         print("prepare_chunk:", prepare_chunk)
@@ -469,6 +529,7 @@ def Packet(data=None):
             packet.tag = tag
             packet.input = g
             packet.length = data_length
+            print("Packet:", packet)
             packet.read()
             packet.read_bytes(packet.length) # Remove excess bytes
             packet.input = None
@@ -522,6 +583,11 @@ def Packet(data=None):
         elif length == 1: # The packet has a two-octet length. The header is 3 octets long.
             head_length = 3
             chunk = _ensure_bytes(head_length, chunk, g)
+            # for __while__ in WHILE_LOOP_EMULATION_ITERATION:
+            #     if len(chunk) >= n:
+            #         break
+            #     else:
+            #         chunk += next(g)
             print("print chunk:", chunk)
             data_length = unpack('!H', chunk[1:3])[0]
         elif length == 2: # The packet has a four-octet length. The header is 5 octets long.
@@ -547,6 +613,24 @@ def Packet(data=None):
         return self.data # Will normally be overridden by subclasses
     self.body = body
 
+    def read_timestamp():
+        """ ttp://tools.ietf.org/html/rfc4880#section-3.5 """
+        return self.read_unpacked(4, '!L')
+    self.read_timestamp = read_timestamp
+
+    def read_mpi():
+        """ http://tools.ietf.org/html/rfc4880#section-3.2 """
+        length = self.read_unpacked(2, '!H') # length in bits
+        length = int((length + 7) / 8) # length in bytes
+        return self.read_bytes(length)
+    self.read_mpi = read_mpi
+
+    def read_unpacked(count, fmt):
+        """ http://docs.python.org/library/struct.html """
+        unpacked = unpack(fmt, self.read_bytes(count))
+        return unpacked[0] # unpack returns tuple
+    self.read_unpacked = read_unpacked
+
     def header_and_body():
         body = self.body()
         # tag = pack('!B', self.tag | 0xC0)
@@ -568,7 +652,15 @@ def Packet(data=None):
     def read_bytes(count):
         chunk = _ensure_bytes(count, b'', self.input)
         if len(chunk) > count:
-            self.input.push(chunk[count:])
+            # self.input.push(chunk[count:]) # recursive call, converted to iterative version
+            current = self.input
+            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                if hasattr(current._g, 'push'):
+                    current._g.push(chunk[count:])
+                    current = current._g
+                else:
+                    current._pushback.insert(0, chunk[count:])
+                    break
         self.length -= count
         return chunk[:count]
     self.read_bytes = read_bytes
@@ -619,11 +711,6 @@ def LiteralDataPacket(data=None, format='b', filename='data', timestamp=1000):
         self.timestamp = self.read_timestamp()
         self.data = self.read_bytes(self.size)
     self.read = read
-
-    def read_timestamp():
-        """ ttp://tools.ietf.org/html/rfc4880#section-3.5 """
-        return self.read_unpacked(4, '!L')
-    self.read_timestamp = read_timestamp
 
     def body():
         return codecs.encode(self.format, encoding='ascii') + pack('!B', len(self.filename)) + self.filename + pack('!L', int(self.timestamp)) + tobytes(self.data)
