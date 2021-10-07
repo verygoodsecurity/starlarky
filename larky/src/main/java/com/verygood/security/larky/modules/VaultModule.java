@@ -44,7 +44,8 @@ public class VaultModule implements LarkyVault {
             "FPE_ACC_NUM_T_FOUR",
             "FPE_ALPHANUMERIC_ACC_NUM_T_FOUR",
             "GENERIC_T_FOUR",
-            "ALPHANUMERIC_SIX_T_FOUR"
+            "ALPHANUMERIC_SIX_T_FOUR",
+            "VGS_FIXED_LEN_GENERIC"
     );
 
     public VaultModule() {

@@ -81,7 +81,7 @@ def _test_unknown_format():
     asserts.assert_fails(lambda : vault.redact(card_number, format="unknown"),
         "Format 'unknown' not found in supported format types: " +
         "\\[RAW_UUID, UUID, NUM_LENGTH_PRESERVING, PFPT, FPE_SIX_T_FOUR, FPE_T_FOUR, NON_LUHN_FPE_ALPHANUMERIC, " +
-        "FPE_SSN_T_FOUR, FPE_ACC_NUM_T_FOUR, FPE_ALPHANUMERIC_ACC_NUM_T_FOUR, GENERIC_T_FOUR, ALPHANUMERIC_SIX_T_FOUR\\]"
+        "FPE_SSN_T_FOUR, FPE_ACC_NUM_T_FOUR, FPE_ALPHANUMERIC_ACC_NUM_T_FOUR, GENERIC_T_FOUR, ALPHANUMERIC_SIX_T_FOUR, VGS_FIXED_LEN_GENERIC\\]"
     )
 
 def _test_unsupported_format():
