@@ -33,21 +33,19 @@ def _ensure_bytes(n, chunk, g):
     # while len(chunk) < n:
     #     chunk += next(g)
     # return chunk
-    print("type of chunk:", type(chunk))
-    next_chunk = None
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if len(chunk) >= n:
             break
         # next_chunk = next(iter(g))  # should work the same way as python like next(g); trigger recursive warning
         # to solve next call on nested generator which would trigger recursive warning
         current = g
+        next_chunk = None
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if hasattr(current, '__name__'): #which means it is pushbackgenerator
+                print("if len(current._pushback):", len(current._pushback))
                 if len(current._pushback):
+                    print("len of current._pushback", len(current._pushback))
                     next_chunk = current._pushback.pop(0)
-                    if next_chunk == StopIteration():
-                        return fail("OpenPGPException: Not enough bytes")
-                    chunk += next_chunk
                     break
                 else:
                     current = current._g
@@ -55,8 +53,8 @@ def _ensure_bytes(n, chunk, g):
                 next_chunk = next(current)
                 if next_chunk == StopIteration():
                     return fail("OpenPGPException: Not enough bytes")
-                chunk += next_chunk
                 break
+        chunk += next_chunk
     return chunk
 
 def _gen_one(seq):
@@ -346,7 +344,6 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
             current = self.input
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 if hasattr(current._g, 'push'):
-                    current._g.push(material)
                     current = current._g
                 else:
                     current._pushback.insert(0, material)
@@ -355,8 +352,8 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
             chk = self.read_unpacked(2, '!H')
             print('chk:', chk)
             print('checksum(material):', checksum(material))
-            # if chk != checksum(material):
-            #     fail('OpenPGPException("Checksum verification failed when parsing SecretKeyPacket")')
+            if chk != checksum(material):
+                fail('OpenPGPException("Checksum verification failed when parsing SecretKeyPacket")')
     self.read = read
 
     def key_from_input():
@@ -651,12 +648,13 @@ def Packet(data=None):
 
     def read_bytes(count):
         chunk = _ensure_bytes(count, b'', self.input)
+        print("len of chunk in read_bytes:", len(chunk))
         if len(chunk) > count:
             # self.input.push(chunk[count:]) # recursive call, converted to iterative version
             current = self.input
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                print("current generator:", current)
                 if hasattr(current._g, 'push'):
-                    current._g.push(chunk[count:])
                     current = current._g
                 else:
                     current._pushback.insert(0, chunk[count:])
