@@ -1,5 +1,5 @@
 load("@stdlib//codecs", codecs="codecs")
-load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes")
+load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
 # load("@stdlib//hashlib", hashlib="hashlib", math="math", sys="sys", copy="copy", collections="collections")
 load("@stdlib//struct", struct="struct")
@@ -18,11 +18,10 @@ load("@vendor//Crypto/Cipher/AES", AES="AES")
 # load("@vendor//Crypto/Hash", RIPEMD="RIPEMD")
 load("@vendor//Crypto/Hash/SHA", SHA="SHA")
 # load("@vendor//Crypto/Hash", SHA256="SHA256")
-# load("@vendor//Crypto/PublicKey", RSA="RSA")
+load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 # load("@vendor//Crypto/PublicKey", DSA="DSA")
 # load("@vendor//Crypto/Random", random="random")
 # load("@vendor//Crypto/Signature", PKCS1_v1_5="PKCS1_v1_5")
-# load("@vendor//Crypto/Util", number="number")
 load("@vendor//OpenPGP", OpenPGP="OpenPGP")
 load("@vendor//option/result", Error="Error")
 
@@ -56,7 +55,9 @@ def Wrapper(packet):
         self._message = self._key
         # get OpenPGP.LiteralDataPacket when init wrapper, get OpenPGP.SecretKeyPacket when from encrypt()
         print("init packet:", packet) 
-        if types.is_instance(packet, OpenPGP.PublicKeyPacket) or (hasattr(packet, '__getitem__') and types.is_instance(packet[0], OpenPGP.PublicKeyPacket)): 
+        # if isinstance(packet, OpenPGP.PublicKeyPacket) or (hasattr(packet, '__getitem__') and isinstance(packet[0], OpenPGP.PublicKeyPacket)): 
+        # If it's a key (other keys are subclasses of this one)
+        if types.is_instance(packet, OpenPGP.SecretKeyPacket) or types.is_instance(packet, OpenPGP.PublicKeyPacket) or (hasattr(packet, '__getitem__') and types.is_instance(packet[0], OpenPGP.PublicKeyPacket)): 
         # If it's a key (other keys are subclasses of this one)
             self._key = packet
         else:
@@ -123,8 +124,7 @@ def Wrapper(packet):
 
         for psswd in passphrases_and_keys:
             # should get object of <class 'OpenPGP.SecretKeyPacket'>
-            print('pgp public key:', psswd)
-            if types.is_instance(psswd, OpenPGP.SecretKeyPacket):
+            if types.is_instance(psswd, OpenPGP.SecretKeyPacket) or types.is_instance(psswd, OpenPGP.PublicKeyPacket):
                 if not psswd.key_algorithm in [1,2,3]:
                     return fail('Error("Exception: Only RSA keys are supported.")')
                 # below should get object of OpenPGP.SecretKeyPacket 
@@ -185,6 +185,56 @@ def Wrapper(packet):
         return None # Failed
     self.decrypt = decrypt
 
+    def key(keyid=None):
+        if not self._key: # No key
+            return None
+        if types.is_instance(self._key, OpenPGP.Message):
+            for p in self._key:
+                if types.is_instance(p, OpenPGP.PublicKeyPacket):
+                    if not keyid or p.fingerprint()[len(keyid)*-1:].upper() == keyid.upper():
+                        return p
+        return self._key
+    self.key = key
+
+    def public_key(keyid=None):
+        """ Get _RSAobj or _DSAobj for the public key """
+        return self.convert_public_key(self.key(keyid))
+    self.public_key = public_key
+
+    def convert_key(packet, private=False):
+        # if types.is_instance(packet, Crypto.PublicKey.RSA._RSAobj) or types.is_instance(packet, Crypto.PublicKey.DSA._DSAobj):
+        # if types.is_instance(packet, RSA._RSAobj):
+        #     return packet
+        # packet = self._parse_packet(packet)
+        if types.is_instance(packet, OpenPGP.Message):
+            packet = packet[0]
+
+        if packet.key_algorithm_name() == 'DSA':
+            fail('Error("Exception: DSA is not supported currently.")')
+            # public = (Crypto.Util.number.bytes_to_long(packet.key['y']),
+            #           Crypto.Util.number.bytes_to_long(packet.key['g']),
+            #           Crypto.Util.number.bytes_to_long(packet.key['p']),
+            #           Crypto.Util.number.bytes_to_long(packet.key['q']))
+            # if private:
+            #     private = (Crypto.Util.number.bytes_to_long(packet.key['x']),)
+            #     return Crypto.PublicKey.DSA.construct(public + private)
+            # else:
+            #     return Crypto.PublicKey.DSA.construct(public)
+        else: # RSA
+            public = (bytes_to_long(packet.key['n']), bytes_to_long(packet.key['e']))
+            if private:
+                private =  (bytes_to_long(packet.key['d']),)
+                if 'p' in packet.key: # Has optional parts
+                    private += (bytes_to_long(packet.key['p']), bytes_to_long(packet.key['q']), bytes_to_long(packet.key['u']))
+                return RSA.construct(public + private)
+            else:
+                return RSA.construct(public)
+    self.convert_key = convert_key
+
+    def convert_public_key(packet):
+        return self.convert_key(packet, False)
+    self.convert_public_key = convert_public_key
+
     return self
 
 
@@ -193,21 +243,6 @@ Crypto = larky.struct(
     __name__ = 'Wrapper',
 )
 
-    # def key(keyid=None):
-    #     if not self._key: # No key
-    #         return None
-    #     if types.is_instance(self._key, OpenPGP.Message):
-    #         for p in self._key:
-    #             if types.is_instance(p, OpenPGP.PublicKeyPacket):
-    #                 if not keyid or p.fingerprint()[len(keyid)*-1:].upper() == keyid.upper():
-    #                     return p
-    #     return self._key
-    # self.key = key
-
-    # def public_key(keyid=None):
-    #     """ Get _RSAobj or _DSAobj for the public key """
-    #     return self.convert_public_key(self.key(keyid))
-    # self.public_key = public_key
 
     # def private_key(keyid=None):
     #     """ Get _RSAobj or _DSAobj for the public key """
@@ -490,40 +525,6 @@ Crypto = larky.struct(
     #     return None
     # self.decrypt_packet = decrypt_packet
     # decrypt_packet = decrypt_packet
-
-    # def convert_key(cls, packet, private=False):
-    #     if types.is_instance(packet, Crypto.PublicKey.RSA._RSAobj) or types.is_instance(packet, Crypto.PublicKey.DSA._DSAobj):
-    #         return packet
-    #     packet = cls._parse_packet(packet)
-    #     if types.is_instance(packet, OpenPGP.Message):
-    #         packet = packet[0]
-
-    #     if packet.key_algorithm_name() == 'DSA':
-    #         public = (Crypto.Util.number.bytes_to_long(packet.key['y']),
-    #                   Crypto.Util.number.bytes_to_long(packet.key['g']),
-    #                   Crypto.Util.number.bytes_to_long(packet.key['p']),
-    #                   Crypto.Util.number.bytes_to_long(packet.key['q']))
-    #         if private:
-    #             private = (Crypto.Util.number.bytes_to_long(packet.key['x']),)
-    #             return Crypto.PublicKey.DSA.construct(public + private)
-    #         else:
-    #             return Crypto.PublicKey.DSA.construct(public)
-    #     else: # RSA
-    #         public = (Crypto.Util.number.bytes_to_long(packet.key['n']), Crypto.Util.number.bytes_to_long(packet.key['e']))
-    #         if private:
-    #             private =  (Crypto.Util.number.bytes_to_long(packet.key['d']),)
-    #             if 'p' in packet.key: # Has optional parts
-    #                 private += (Crypto.Util.number.bytes_to_long(packet.key['p']), Crypto.Util.number.bytes_to_long(packet.key['q']), Crypto.Util.number.bytes_to_long(packet.key['u']))
-    #             return Crypto.PublicKey.RSA.construct(public + private)
-    #         else:
-    #             return Crypto.PublicKey.RSA.construct(public)
-    # self.convert_key = convert_key
-    # convert_key = convert_key
-
-    # def convert_public_key(cls, packet):
-    #     return cls.convert_key(packet, False)
-    # self.convert_public_key = convert_public_key
-    # convert_public_key = convert_public_key
 
     # def convert_private_key(cls, packet):
     #     return cls.convert_key(packet, True)

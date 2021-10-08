@@ -8,6 +8,7 @@ load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="to
 
 
 def PGP_test():
+    # the test key below contains both private key and public key data
     # k = ''.join(('9502 3904 4f77 1224 0104 e0cc 4734 72ab\n',
     #             'e3aa bca9 76d7 238c 5835 81f0 a35b 00c0\n',
     #             '720a 3654 6c53 0829 0a3e 86ea ac99 f790\n',
@@ -114,9 +115,9 @@ def PGP_test():
     # wkey should be of <class 'OpenPGP.SecretKeyPacket'>
     print('parsed key:', wkey)
 
-    # data = OpenPGP.LiteralDataPacket('This is text.', 'u', 'stuff.txt', 1000000)
-    # encrypt = Crypto.Wrapper(data)
-    # encrypted = encrypt.encrypt([wkey])
+    data = OpenPGP.LiteralDataPacket('This is text.', 'u', 'stuff.txt', 1000000)
+    encrypt = Crypto.Wrapper(data)
+    encrypted = encrypt.encrypt([wkey])
 
     # print('pgp encrypted:', encrypted)
 
