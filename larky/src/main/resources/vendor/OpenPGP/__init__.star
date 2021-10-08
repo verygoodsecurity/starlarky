@@ -286,6 +286,11 @@ def PublicKeyPacket(keydata=None, version=4, algorithm=1, timestamp=1000000):
         self.key_id = self.fingerprint()[-8:]
     self.read_key_material = read_key_material
 
+    def key_algorithm_name():
+        # return self.__class__.algorithms[self.key_algorithm]
+        return self.algorithms[self.key_algorithm]
+    self.key_algorithm_name = key_algorithm_name
+
     def body_PublicKey():
         if self.version == 3:
             return b''.join([
@@ -746,7 +751,7 @@ def IntegrityProtectedDataPacket(data, version=1):
     return self
 
 
-def AsymmetricSessionKeyPacket(key_algorithm, keyid, encrypted_data, version):
+def AsymmetricSessionKeyPacket(key_algorithm='', keyid='', encrypted_data='', version=3):
     """ OpenPGP Public-Key Encrypted Session Key packet (tag 1).
         http://tools.ietf.org/html/rfc4880#section-5.1
     """
