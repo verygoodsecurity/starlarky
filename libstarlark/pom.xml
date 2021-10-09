@@ -22,15 +22,15 @@
         <maven.compiler.plugin.version>3.6.2</maven.compiler.plugin.version>
         <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
         <google.errorprone.javac.version>9+181-r4173-1</google.errorprone.javac.version>
-        <org.projectlombok.version>1.18.12</org.projectlombok.version>
+        <org.projectlombok.version>1.18.22</org.projectlombok.version>
         <google.errorprone.version>2.9.0</google.errorprone.version>
         <google.auto.value.version>1.8.2</google.auto.value.version>
-        <google.truth.version>1.0.1</google.truth.version>
-        <google.jimfs.version>1.1</google.jimfs.version>
-        <google.compile.testing.version>0.18</google.compile.testing.version>
-        <org.jetbrains.annotations.version>20.1.0</org.jetbrains.annotations.version>
-        <google.guava.version>30.1.1-jre</google.guava.version>
-        <org.junit.version>4.13.1</org.junit.version>
+        <google.truth.version>1.1.3</google.truth.version>
+        <google.jimfs.version>1.2</google.jimfs.version>
+        <google.compile.testing.version>0.19</google.compile.testing.version>
+        <org.jetbrains.annotations.version>22.0.0</org.jetbrains.annotations.version>
+        <google.guava.version>31.0.1-jre</google.guava.version>
+        <org.junit.version>4.13.2</org.junit.version>
     </properties>
 
     <dependencies>
