@@ -90,7 +90,7 @@ def SHA256Hash(data=None):
                  Hexadecimal encoded.
         :rtype: string
         """
-        return self.digest.hex()
+        return self.digest().hex()
     self.hexdigest = hexdigest
 
     def copy():
