@@ -25,11 +25,17 @@ _pow = builtins.pow
 
 def lt(a, b):
     "Same as a < b."
-    return a < b
+    _m = getattr(a, '__lt__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        return a < b
+    return _m(b)
 
 def le(a, b):
     "Same as a <= b."
-    return a <= b
+    _m = getattr(a, '__le__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        return a <= b
+    return _m(b)
 
 def eq(a, b):
     "Same as a == b."
@@ -47,24 +53,42 @@ def ne(a, b):
 
 def ge(a, b):
     "Same as a >= b."
-    return a >= b
+    _m = getattr(a, '__ge__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        return a >= b
+    return _m(b)
 
 def gt(a, b):
     "Same as a > b."
-    return a > b
+    _m = getattr(a, '__gt__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        return a > b
+    return _m(b)
 
 # Logical Operations **********************************************************#
 
-def not_(a):
-    "Same as not a."
-    return not a
 
 def truth(a):
     "Return True if a is true, False otherwise."
+    if a == True:
+        return True
+    elif a == False:
+        return False
+    elif a == None:
+        return False
+
     _m = getattr(a, '__bool__', getattr(a, '__nonzero__', larky.SENTINEL))
     if _m == larky.SENTINEL:
-        return True if a else False
-    return _m()
+        _m = getattr(a, '__len__', larky.SENTINEL)
+        if _m == larky.SENTINEL:
+            # return True if a else False
+            return bool(a)
+        return True if len(a) > 0 else False
+    return bool(_m())
+
+def not_(a):
+    "Same as not a."
+    return False if truth(a) else True
 
 def is_(a, b):
     "Same as a is b."
@@ -244,8 +268,9 @@ def indexOf(a, b):
 
 def setitem(a, b, c):
     "Same as a[b] = c."
-    if hasattr(a, '__setitem__'):
-        a.__setitem__(b, c)
+    _m = getattr(a, '__setitem__', larky.SENTINEL)
+    if _m != larky.SENTINEL:
+        _m(b, c)
     else:
         a[b] = c
 

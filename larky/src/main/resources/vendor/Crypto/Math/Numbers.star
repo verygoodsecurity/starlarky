@@ -36,19 +36,20 @@ _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 _implementation = {"library": "jdk", "api": "starlarky"}
 
 
-def Integer(value):
+def _Integer(value):
     """A class to model a natural integer (including zero)"""
+    self = larky.mutablestruct(
+                __name__='Integer',
+                __class__=_Integer
+            )
 
     def __init__(value):
         if types.is_float(value):
             fail('ValueError("A floating point type is not a natural number")')
         if hasattr(value, '_value'):
             value = value._value
-        return larky.mutablestruct(
-            _value=value,
-            __class__='Integer'
-        )
-
+        self._value=value
+        return self
     self = __init__(value)
 
     # Conversions
@@ -56,6 +57,12 @@ def Integer(value):
         return self._value
 
     self.__int__ = __int__
+
+    # Only Python 3.x
+    def __index__():
+        return int(self._value)
+
+    self.__index__ = __index__
 
     def __str__():
         return str(__int__())
@@ -66,12 +73,6 @@ def Integer(value):
         return "Integer(%s)" % str(self)
 
     self.__repr__ = __repr__
-
-    # Only Python 3.x
-    def __index__():
-        return int(self._value)
-
-    self.__index__ = __index__
 
     def to_bytes(block_size=0):
         if self._value < 0:
@@ -84,7 +85,6 @@ def Integer(value):
 
     def from_bytes(byte_string):
         return Integer(bytes_to_long(byte_string))
-
     self.from_bytes = from_bytes
 
     # Relations
@@ -436,3 +436,19 @@ def Integer(value):
     self.jacobi_symbol = jacobi_symbol
 
     return self
+
+
+def _from_bytes(byte_string):
+    return _Integer(bytes_to_long(byte_string))
+
+
+Numbers = larky.struct(
+    __name__='Numbers',
+    Integer=larky.struct(
+        __call__=_Integer,
+        __name__='Integer',
+        from_bytes=_from_bytes,
+    )
+)
+
+Integer = Numbers.Integer
