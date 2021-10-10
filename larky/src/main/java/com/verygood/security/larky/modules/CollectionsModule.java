@@ -146,6 +146,19 @@ public class CollectionsModule implements StarlarkValue {
       return create(cls_ns, args, Dict.empty(), getCurrentThread());
     }
 
+    @StarlarkMethod(
+      name = "_replace",
+      extraKeywords =  @Param(name = "kwds"),
+      useStarlarkThread = true)
+    public LarkyNamedTuple replace(Dict<String, Object> kwds, StarlarkThread thread) throws EvalException {
+      final Sequence<String> fields = namedFields();
+      Dict.Builder<String, Object> values = Dict.builder();
+      for (int i = 0, fieldsSize = fields.size(); i < fieldsSize; i++) {
+        String key = fields.get(i);
+        values.put(key, kwds.get2(key, this.get(i), thread));
+      }
+      return make(values.buildImmutable().values0(thread));
+    }
     @Override
     public void repr(Printer p) {
       p.append(type()).append('(');

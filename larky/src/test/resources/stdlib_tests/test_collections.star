@@ -27,9 +27,30 @@ def _test_namedtuple():
     asserts.assert_that(repr(z._make(range(2)))).is_equal_to("_Curve(p=0, b=1)")
 
 
+def _test_namedtuple_replace():
+    Point = namedtuple( "Point" , [ "x" , "y" ] )
+    p = Point( 0 , 1 )
+    asserts.assert_that( p._fields).is_equal_to( ( "x" , "y" ))
+
+    asserts.assert_that( p[0] ).is_equal_to( 0 )
+    asserts.assert_that( p[1]).is_equal_to(  1 )
+    asserts.assert_that( p.x ).is_equal_to( 0 )
+    asserts.assert_that( p.y ).is_equal_to(1)
+
+    asserts.assert_that( list( p ) ).is_equal_to( [ 0 , 1 ])
+
+    q = p._replace( x=33 )
+    asserts.assert_that( q._fields).is_equal_to( ( "x" , "y" ))
+    asserts.assert_that( q[0] ).is_equal_to( 33 )
+    asserts.assert_that( q[1]).is_equal_to(  1 )
+    asserts.assert_that( q.x ).is_equal_to( 33 )
+    asserts.assert_that( q.y ).is_equal_to(1)
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_namedtuple))
+    _suite.addTest(unittest.FunctionTestCase(_test_namedtuple_replace))
     return _suite
 
 
