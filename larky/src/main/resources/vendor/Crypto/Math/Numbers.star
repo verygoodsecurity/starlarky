@@ -28,6 +28,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
 load("@stdlib//larky", larky="larky")
+load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
@@ -338,9 +339,7 @@ def _Integer(value):
     self.set = set
 
     def inplace_inverse(modulus):
-        modulus = (modulus.__int__()
-                if types.is_instance(modulus, Integer)
-                else int(modulus))
+        modulus = operator.index(modulus)
         if modulus == 0:
             fail('ZeroDivisionError: Modulus cannot be zero')
         if modulus < 0:

@@ -71,7 +71,7 @@ asserts.assert_that(c.data).is_equal_to({'herpa': '2'})
 def _test_structure_callable():
 
     def __call__(*args, **kwargs):
-        return "in call!", args, kwargs
+        return "in call! %s %s" % (args, kwargs)
 
     cls = larky.mutablestruct(
         frombytes=lambda x: 'frombytes ' + str(x),
