@@ -65,3 +65,50 @@ c.data = {'herpa': '2'}
 asserts.assert_that(c.data).is_equal_to(_get_data(s1))
 asserts.assert_that(c.data).is_equal_to(s1.state)
 asserts.assert_that(c.data).is_equal_to({'herpa': '2'})
+
+
+
+def _test_structure_callable():
+
+    def __call__(*args, **kwargs):
+        return "in call!", args, kwargs
+
+    cls = larky.mutablestruct(
+        frombytes=lambda x: 'frombytes ' + str(x),
+        __call__=__call__
+    )
+
+    asserts.assert_that(cls.frombytes(1)).is_equal_to("frombytes 1")
+    asserts.assert_that(cls(1, 2, foo='cls')).is_equal_to('in call! (1, 2) {"foo": "cls"}')
+
+    cls2 = larky.struct(
+        frombytes=lambda x: 'cls2-frombytes ' + str(x),
+        __call__=__call__
+    )
+
+    asserts.assert_that(cls2.frombytes(1)).is_equal_to("cls2-frombytes 1")
+    asserts.assert_that(cls2(1, 2, foo='cls2')).is_equal_to('in call! (1, 2) {"foo": "cls2"}')
+
+    cls3 = larky.struct(
+        frombytes=lambda x: 'cls3-frombytes ' + str(x),
+    )
+    asserts.assert_that(cls3.frombytes(1)).is_equal_to("cls3-frombytes 1")
+    asserts.assert_fails(lambda: cls3(1, 2, foo='cls3'), ".*'ImmutableStruct' object is not callable.*")
+
+    cls4 = larky.struct(
+        __name__="AnonClass",
+        frombytes=lambda x: 'cls4-frombytes ' + str(x),
+    )
+    asserts.assert_fails(lambda: cls4(1, 2, foo='cls4'), ".*'AnonClass' object is not callable.*")
+
+    cls5 = larky.struct(
+        __name__="__Call__NOT_CALLABLE",
+        frombytes=lambda x: 'cls5-frombytes ' + str(x),
+        __call__=1,
+    )
+    asserts.assert_fails(
+        lambda: cls5(1, 2, foo='cls5'),
+        ".*__Call__NOT_CALLABLE.__call__<type: int, value=1>' object is not callable.*")
+
+
+_test_structure_callable()
