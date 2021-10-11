@@ -46,6 +46,9 @@ load("@vendor//Crypto/Util/asn1", DerObjectId="DerObjectId", DerOctetString="Der
 load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long", long_to_bytes="long_to_bytes")
 load("@vendor//Crypto/Util/py3compat", bord="bord", tobytes="tobytes", tostr="tostr", bchr="bchr", is_string="is_string")
 load("@vendor//option/result", Error="Error", Ok="Ok", Result="Result")
+
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
+
 #
 # _ec_lib = load_pycryptodome_raw_lib("Crypto.PublicKey._ec_ws", """
 # typedef void EcContext;
@@ -90,9 +93,9 @@ p256_names = ["p256", "NIST P-256", "P-256", "prime256v1", "secp256r1",
 
 
 def _init_p256():
-    p = 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff
-    b = 0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b
-    order = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
+    p = 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff # bc <-Q
+    b = 0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b # bc <- b
+    order = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551 # n
     Gx = 0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296
     Gy = 0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5
 
@@ -112,7 +115,7 @@ def _init_p256():
 #         return Error("ImportError: " + "Error %d initializing P-256 context" % result)
 #
 #     context = SmartPointer(ec_p256_context.get(), _ec_lib.ec_free_context)
-    context = larky.struct(__name__="TODO")
+    context = _JCrypto.PublicKey.ECC.P256R1Curve()
     p256 = _Curve(Integer(p),
                   Integer(b),
                   Integer(order),
@@ -158,7 +161,7 @@ def _init_p384():
     #     return Error("ImportError: " + "Error %d initializing P-384 context" % result)
 
     # context = SmartPointer(ec_p384_context.get(), _ec_lib.ec_free_context)
-    context = larky.struct(__name__="TODO")
+    context = _JCrypto.PublicKey.ECC.P384R1Curve()
     p384 = _Curve(Integer(p),
                   Integer(b),
                   Integer(order),
@@ -203,7 +206,8 @@ def _init_p521():
     #     return Error("ImportError: " + "Error %d initializing P-521 context" % result)
     #
     # context = SmartPointer(ec_p521_context.get(), _ec_lib.ec_free_context)
-    context = larky.struct(__name__="TODO")
+    # context = larky.struct(__name__="TODO")
+    context = _JCrypto.PublicKey.ECC.P521R1Curve()
     p521 = _Curve(Integer(p),
                   Integer(b),
                   Integer(order),
@@ -248,29 +252,21 @@ def EccPoint(x, y, curve="p256"):
     self = larky.mutablestruct(__name__='EccPoint', __class__=EccPoint)
 
     def set(point):
-        # self._point = VoidPointer()
-        # result = _ec_lib.ec_ws_clone(self._point.address_of(),
-        #                              point._point.get())
-        # if result:
-        #     return Error("ValueError: " + "Error %d while cloning an EC point" % result)
-        #
-        # self._point = SmartPointer(self._point.get(),
-        #                            _ec_lib.ec_free_point)
-
+        self._point = point._point
         return self
     self.set = set
 
     def __eq__(point):
-        # return 0 == _ec_lib.ec_ws_cmp(self._point.get(), point._point.get())
-        pass
+        return self._point == point._point
+
     self.__eq__ = __eq__
 
     def __neg__():
         np = self.copy()
-        # result = _ec_lib.ec_ws_neg(np._point.get())
-        result = None
-        if result:
-            return Error("ValueError: " + "Error %d while inverting an EC point" % result)
+        np._point.negate()
+        # result = None
+        # if result:
+        #     return Error("ValueError: " + "Error %d while inverting an EC point" % result)
         return np
     self.__neg__ = __neg__
 
@@ -301,18 +297,19 @@ def EccPoint(x, y, curve="p256"):
 
     def _xy():
         modulus_bytes = self.size_in_bytes()
-        xb = bytearray(modulus_bytes)
-        yb = bytearray(modulus_bytes)
+        xb, yb = self._point.as_tuple()
+        return Integer(xb), Integer(yb)
+        # xb = bytearray(modulus_bytes)
+        # yb = bytearray(modulus_bytes)
         # result = _ec_lib.ec_ws_get_xy(c_uint8_ptr(xb),
         #                               c_uint8_ptr(yb),
         #                               c_size_t(modulus_bytes),
         #                               self._point.get())
         # if result:
         #     return Error("ValueError: " + "Error %d while encoding an EC point" % result)
-
-        return (Integer(bytes_to_long(xb)), Integer(bytes_to_long(yb)))
+        #
+        # return (Integer(bytes_to_long(xb)), Integer(bytes_to_long(yb)))
     self.xy = larky.property(_xy)
-
 
     def size_in_bytes():
         """Size of each coordinate, in bytes."""
@@ -331,10 +328,11 @@ def EccPoint(x, y, curve="p256"):
             :class:`EccPoint` : this same object (to enable chaining)
         """
 
+        self._point.twice()
         # result = _ec_lib.ec_ws_double(self._point.get())
-        result = None
-        if result:
-            return Error("ValueError: " + "Error %d while doubling an EC point" % result)
+        # result = None
+        # if result:
+        #     return Error("ValueError: " + "Error %d while doubling an EC point" % result)
         return self
     self.double = double
 
@@ -342,11 +340,12 @@ def EccPoint(x, y, curve="p256"):
         """Add a second point to this one"""
 
         # result = _ec_lib.ec_ws_add(self._point.get(), point._point.get())
-        result = None
-        if result:
-            if result == 16:
-                return Error("ValueError: EC points are not on the same curve")
-            return Error("ValueError: " + "Error %d while adding two EC points" % result)
+        self._point.add(point._point)
+        # result = None
+        # if result:
+        #     if result == 16:
+        #         return Error("ValueError: EC points are not on the same curve")
+        #     return Error("ValueError: " + "Error %d while adding two EC points" % result)
         return self
     self.__iadd__ = __iadd__
 
@@ -354,7 +353,7 @@ def EccPoint(x, y, curve="p256"):
         """Return a new point, the addition of this one and another"""
 
         np = self.copy()
-        np += point
+        np.__iadd__(point)
         return np
     self.__add__ = __add__
 
@@ -362,22 +361,23 @@ def EccPoint(x, y, curve="p256"):
         """Multiply this point by a scalar"""
 
         if scalar < 0:
-            return Error("ValueError: Scalar multiplication is only defined for non-negative integers")
-        sb = long_to_bytes(scalar)
+            return Error("ValueError: Scalar multiplication is only defined for non-negative integers").unwrap()
+        # sb = long_to_bytes(scalar)
+        self._point.multiply(scalar)
         # result = _ec_lib.ec_ws_scalar(self._point.get(),
         #                               c_uint8_ptr(sb),
         #                               c_size_t(len(sb)),
         #                               c_ulonglong(getrandbits(64)))
-        result = None
-        if result:
-            return Error("ValueError: " + "Error %d during scalar multiplication" % result)
+        # result = None
+        # if result:
+        #     return Error("ValueError: " + "Error %d during scalar multiplication" % result)
         return self
     self.__imul__ = __imul__
 
     def __mul__(scalar):
         """Return a new point, the scalar product of this one"""
         np = self.copy()
-        np *= scalar
+        np.__imul__(scalar)
         return np
     self.__mul__ = __mul__
 
@@ -416,7 +416,7 @@ def EccPoint(x, y, curve="p256"):
         # self._point = SmartPointer(self._point.get(),
         #                           _ec_lib.ec_free_point)
         # TODO ^^^
-        self._point = None
+        self._point = context.point(operator.index(x), operator.index(y))
         return self
     self = __init__(x, y, curve)
     return self

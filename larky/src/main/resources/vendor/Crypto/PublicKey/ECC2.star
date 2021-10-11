@@ -975,6 +975,13 @@ def import_key(encoded, passphrase=None):
     # return Error("ValueError: ECC key format is not supported")
     #
 
+def EccPoint(*args, **kwargs):
+    pass
+
+curves = _curves
+
+def EccKey(*args, **kwargs):
+    pass
 
 ECC = larky.struct(
     generate=generate,

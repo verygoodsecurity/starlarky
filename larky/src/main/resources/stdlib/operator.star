@@ -162,12 +162,18 @@ def pow(a, b):
     return _pow(a, b)
 
 def rshift(a, b):
-    "Same as a >> b."
-    return a >> b
+    "Same as a >> b." # __rshift__
+    _m = getattr(a, '__rshift__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        return a >> b
+    return _m(b)
 
 def sub(a, b):
     "Same as a - b."
-    return a - b
+    _m = getattr(a, '__sub__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        return a - b
+    return _m(b)
 
 def truediv(a, b):
     "Same as a / b."
@@ -175,7 +181,10 @@ def truediv(a, b):
 
 def xor(a, b):
     "Same as a ^ b."
-    return a ^ b
+    _m = getattr(a, '__xor__', larky.SENTINEL)
+    if _m == larky.SENTINEL:
+        return a ^ b
+    return _m(b)
 
 # Sequence Operations *********************************************************#
 

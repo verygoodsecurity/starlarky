@@ -74,6 +74,11 @@ import org.bouncycastle.jcajce.provider.asymmetric.rsa.BCRSAPublicKey;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.KeyFactorySpi;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.RSAUtil;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.math.ec.ECCurve;
+import org.bouncycastle.math.ec.ECPoint;
+import org.bouncycastle.math.ec.custom.sec.SecP256R1Curve;
+import org.bouncycastle.math.ec.custom.sec.SecP384R1Curve;
+import org.bouncycastle.math.ec.custom.sec.SecP521R1Curve;
 import org.bouncycastle.openssl.PEMDecryptorProvider;
 import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMException;
@@ -84,9 +89,6 @@ import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
-
-import java.security.spec.ECPoint;
-import java.security.spec.EllipticCurve;
 
 
 public class CryptoPublicKeyModule implements StarlarkValue {
@@ -641,6 +643,88 @@ public class CryptoPublicKeyModule implements StarlarkValue {
 //    return StarlarkBytes.builder(thread).setSequence(result).build();
   }
 
+  public static class LarkyECPoint implements StarlarkValue {
+    private ECPoint point;
+    public LarkyECPoint(ECPoint point) {
+      this.point = point;
+    }
+
+    @StarlarkMethod(name="negate")
+    public LarkyECPoint negate() {
+      return new LarkyECPoint(this.point.negate());
+    }
+    @StarlarkMethod(name="as_tuple")
+    public Tuple asTuple() {
+      return Tuple.of(
+        this.point.getXCoord().toBigInteger(),
+        this.point.getYCoord().toBigInteger()
+      );
+    }
+    @StarlarkMethod(name="twice")
+    public LarkyECPoint twice() {
+      this.point = this.point.twice();
+      return this;
+    }
+
+    @StarlarkMethod(name="add", parameters = {@Param(name="point", allowedTypes = {@ParamType(type=LarkyECPoint.class)})})
+    public LarkyECPoint add(LarkyECPoint other) {
+      this.point = this.point.add(other.point);
+      return this;
+    }
+
+    @StarlarkMethod(name="multiply", parameters = {@Param(name="point", allowedTypes = {@ParamType(type=StarlarkInt.class)})})
+    public LarkyECPoint multiply(StarlarkInt scale) {
+      this.point = this.point.multiply(scale.toBigInteger());
+      return this;
+    }
+  }
+
+
+  public static class LarkyEllipticCurveCrypto implements StarlarkValue {
+    public static LarkyEllipticCurveCrypto INSTANCE = new LarkyEllipticCurveCrypto();
+
+
+    public static class LarkyECCurve implements StarlarkValue {
+      final private ECCurve curve;
+
+      public LarkyECCurve(ECCurve curve) {
+        this.curve = curve;
+      }
+
+      @StarlarkMethod(name="point", parameters = {
+        @Param(name="xb", allowedTypes = {@ParamType(type=StarlarkInt.class)}),
+        @Param(name="yb", allowedTypes = {@ParamType(type=StarlarkInt.class)}),
+      })
+      public LarkyECPoint point(StarlarkInt xb, StarlarkInt yb) {
+        BigInteger x = xb.toBigInteger();
+        BigInteger y = yb.toBigInteger();
+        ECPoint point = this.curve.createPoint(x, y);
+        return new LarkyECPoint(point);
+      }
+    }
+
+    @StarlarkMethod(name="P256R1Curve")
+    public LarkyECCurve P256R1Curve() {
+      return new LarkyECCurve(new SecP256R1Curve());
+    }
+
+    @StarlarkMethod(name="P384R1Curve")
+    public LarkyECCurve P384R1Curve() {
+      return new LarkyECCurve(new SecP384R1Curve());
+    }
+
+    @StarlarkMethod(name="P521R1Curve")
+    public LarkyECCurve P521R1Curve() {
+      return new LarkyECCurve(new SecP521R1Curve());
+    }
+  }
+
+  @StarlarkMethod(
+    name = "ECC", structField = true
+  )
+  public LarkyEllipticCurveCrypto ECC() throws EvalException {
+    return LarkyEllipticCurveCrypto.INSTANCE;
+  }
 //  @StarlarkMethod(
 //          name = "ECPoint", parameters = {
 //          @Param(name = "x", allowedTypes = {@ParamType(type = StarlarkInt.class)}),

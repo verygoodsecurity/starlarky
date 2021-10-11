@@ -51,10 +51,8 @@ load("@vendor//Crypto/PublicKey/ECC",
 
 
 def test_basic_ECC_generate_test():
-    pass
-
-    # key = ECC.generate(curve='P-256')
-    # print('ECC key:', key.export_key(format='PEM'))
+    key = ECC.generate(curve='P-256')
+    print('ECC key:', key.export_key(format='PEM'))
 
 
 # def TestEccPoint_test_mix():
@@ -835,7 +833,7 @@ def _testsuite():
     # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_test_mix))
     _suite.addTest(unittest.FunctionTestCase(test_basic_ECC_generate_test))
     _suite.addTest(unittest.FunctionTestCase(TestEccPoint_test_repr))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_set))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_set))
     # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_copy))
     # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_negate))
     # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_addition))

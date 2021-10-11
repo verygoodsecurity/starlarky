@@ -27,11 +27,14 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
-load("@stdlib//larky", larky="larky")
+load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
+load("@vendor//Crypto/Util/py3compat", bord="bord", bchr="bchr")
+load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error")
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 _implementation = {"library": "jdk", "api": "starlarky"}
@@ -133,6 +136,31 @@ def _Integer(value):
     def is_negative():
         return self._value < 0
     self.is_negative = is_negative
+
+    # Arithmetic operations
+    def __add__(term):
+        return self.__class__(self._value + int(term))
+    self.__add__ = __add__
+
+
+    def __sub__(term):
+        return self.__class__(self._value - int(term))
+    self.__sub__ = __sub__
+
+    def __mul__(factor):
+        return self.__class__(self._value * int(factor))
+    self.__mul__ = __mul__
+
+    def __floordiv__(divisor):
+        return self.__class__(self._value // int(divisor))
+    self.__floordiv__ = __floordiv__
+
+    def __mod__(divisor):
+        divisor_value = int(divisor)
+        if divisor_value < 0:
+            return Error("ValueError: Modulus must be positive").unwrap()
+        return self.__class__(self._value % divisor_value)
+    self.__mod__ = __mod__
 
     def inplace_pow(exponent, modulus=None):
         exp_value = int(exponent)
@@ -441,12 +469,105 @@ def _from_bytes(byte_string):
     return _Integer(bytes_to_long(byte_string))
 
 
+def _random(**kwargs):
+    """Generate a random natural integer of a certain size.
+    :Keywords:
+      exact_bits : positive integer
+        The length in bits of the resulting random Integer number.
+        The number is guaranteed to fulfil the relation:
+            2^bits > result >= 2^(bits - 1)
+      max_bits : positive integer
+        The maximum length in bits of the resulting random Integer number.
+        The number is guaranteed to fulfil the relation:
+            2^bits > result >=0
+      randfunc : callable
+        A function that returns a random byte string. The length of the
+        byte string is passed as parameter. Optional.
+        If not provided (or ``None``), randomness is read from the system RNG.
+    :Return: a Integer object
+    """
+
+    exact_bits = kwargs.pop("exact_bits", None)
+    max_bits = kwargs.pop("max_bits", None)
+    randfunc = kwargs.pop("randfunc", None)
+
+    if randfunc == None:
+        randfunc = Random.new().read
+
+    if exact_bits == None and max_bits == None:
+        return Error("Either 'exact_bits' or 'max_bits' must be specified").unwrap()
+
+    if exact_bits != None and max_bits != None:
+        return Error("'exact_bits' and 'max_bits' are mutually exclusive").unwrap()
+
+    bits = exact_bits or max_bits
+    bytes_needed = ((bits - 1) // 8) + 1
+    significant_bits_msb = 8 - (bytes_needed * 8 - bits)
+    msb = bord(randfunc(1)[0])
+    if exact_bits != None:
+        msb |= 1 << (significant_bits_msb - 1)
+    msb &= (1 << significant_bits_msb) - 1
+
+    return _from_bytes(bchr(msb) + randfunc(bytes_needed - 1))
+
+
+def _random_range(**kwargs):
+    """Generate a random integer within a given internal.
+    :Keywords:
+      min_inclusive : integer
+        The lower end of the interval (inclusive).
+      max_inclusive : integer
+        The higher end of the interval (inclusive).
+      max_exclusive : integer
+        The higher end of the interval (exclusive).
+      randfunc : callable
+        A function that returns a random byte string. The length of the
+        byte string is passed as parameter. Optional.
+        If not provided (or ``None``), randomness is read from the system RNG.
+    :Returns:
+        An Integer randomly taken in the given interval.
+    """
+
+    min_inclusive = kwargs.pop("min_inclusive", None)
+    max_inclusive = kwargs.pop("max_inclusive", None)
+    max_exclusive = kwargs.pop("max_exclusive", None)
+    randfunc = kwargs.pop("randfunc", None)
+
+    if kwargs:
+        return Error("ValueError: Unknown keywords: " + str(kwargs.keys())).unwrap()
+    if None not in (max_inclusive, max_exclusive):
+        return Error("ValueError: max_inclusive and max_exclusive cannot be both" +
+                     " specified").unwrap()
+    if max_exclusive != None:
+        max_inclusive = operator.sub(max_exclusive, 1)
+    if None in (min_inclusive, max_inclusive):
+        return Error("ValueError: Missing keyword to identify the interval").unwrap()
+
+    if randfunc == None:
+        randfunc = Random.new().read
+
+    norm_maximum = operator.sub(max_inclusive, min_inclusive)
+    bits_needed = _Integer(norm_maximum).size_in_bits()
+
+    norm_candidate = -1
+    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        if (operator.le(0, norm_candidate) and operator.le(norm_candidate, norm_maximum)):
+            break
+        norm_candidate = _random(
+                                max_bits=bits_needed,
+                                randfunc=randfunc
+                                )
+    return norm_candidate + min_inclusive
+
+
 Numbers = larky.struct(
     __name__='Numbers',
     Integer=larky.struct(
         __call__=_Integer,
         __name__='Integer',
         from_bytes=_from_bytes,
+        random_range=_random_range,
+        random=_random
     )
 )
 
