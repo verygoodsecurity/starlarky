@@ -42,41 +42,21 @@ _implementation = {"library": "jdk", "api": "starlarky"}
 
 def _Integer(value):
     """A class to model a natural integer (including zero)"""
-    self = larky.mutablestruct(
-                __name__='Integer',
-                __class__=_Integer
-            )
-
-    def __init__(value):
-        if types.is_float(value):
-            fail('ValueError("A floating point type is not a natural number")')
-        if hasattr(value, '_value'):
-            value = value._value
-        self._value=value
-        return self
-    self = __init__(value)
+    self = None # will be re-defined
 
     # Conversions
     def __int__():
         return self._value
 
-    self.__int__ = __int__
-
     # Only Python 3.x
     def __index__():
         return int(self._value)
 
-    self.__index__ = __index__
-
     def __str__():
         return str(__int__())
 
-    self.__str__ = __str__
-
     def __repr__():
-        return "Integer(%s)" % str(self)
-
-    self.__repr__ = __repr__
+        return "%s(_value=%s)" % (self.__name__, self.__index__())
 
     def to_bytes(block_size=0):
         if self._value < 0:
@@ -85,82 +65,60 @@ def _Integer(value):
         if (len(result) > block_size) and (block_size > 0):
             fail('ValueError("Value too large to encode")')
         return result
-    self.to_bytes = to_bytes
 
     def from_bytes(byte_string):
         return Integer(bytes_to_long(byte_string))
-    self.from_bytes = from_bytes
 
-    # Relations
+    # Rich comparisons
     def __eq__(term):
         if term == None:
             return False
-        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        term = operator.index(term)
         return self._value == term
 
-    self.__eq__ = __eq__
+    def __lt__(term):
+        if term == None:
+            return False
+        term = operator.index(term)
+        return self._value < term
 
     def __ne__(term):
         return not __eq__(term)
 
-    self.__ne__  = __ne__
-
-    def __lt__(term):
-        term = term.__int__() if types.is_instance(term, Integer) else int(term)
-        return self._value < term
-
-    self.__lt__  = __lt__
-
     def __le__(term):
         return __lt__(term) or __eq__(term)
-
-    self.__le__ = __le__
 
     def __gt__(term):
         return not __le__(term)
 
-    self.__gt__ = __gt__
-
     def __ge__(term):
         return not __lt__(term)
-
-    self.__ge__ = __ge__
 
     def __nonzero__():
         return self._value != 0
     __bool__ = __nonzero__
 
-    self.__nonzero__ = __nonzero__
-    self.__bool__ = __bool__
-
     def is_negative():
         return self._value < 0
-    self.is_negative = is_negative
 
     # Arithmetic operations
     def __add__(term):
         return self.__class__(self._value + int(term))
-    self.__add__ = __add__
-
 
     def __sub__(term):
         return self.__class__(self._value - int(term))
-    self.__sub__ = __sub__
 
     def __mul__(factor):
         return self.__class__(self._value * int(factor))
-    self.__mul__ = __mul__
 
     def __floordiv__(divisor):
         return self.__class__(self._value // int(divisor))
-    self.__floordiv__ = __floordiv__
 
     def __mod__(divisor):
         divisor_value = int(divisor)
         if divisor_value < 0:
             return Error("ValueError: Modulus must be positive").unwrap()
         return self.__class__(self._value % divisor_value)
-    self.__mod__ = __mod__
 
     def inplace_pow(exponent, modulus=None):
         exp_value = int(exponent)
@@ -178,15 +136,11 @@ def _Integer(value):
         self._value = pow(self._value, exp_value, mod_value)
         return self
 
-    self.inplace_pow = inplace_pow
-
     def __pow__(exponent, modulus=None):
         return self.inplace_pow(exponent, modulus)
-    self.__pow__ = __pow__
 
     def __abs__():
         return abs(self._value)
-    self.__abs__ = __abs__
 
     def sqrt(modulus=None):
         value = self._value
@@ -208,25 +162,21 @@ def _Integer(value):
             result = self._tonelli_shanks(self % modulus, modulus)
         self._value = result
         return self
-    self.sqrt = sqrt
 
     def __iadd__(term):
         term = term.__int__() if types.is_instance(term, Integer) else int(term)
         self._value += term
         return self
-    self.__iadd__ = __iadd__
 
     def __isub__(term):
         term = term.__int__() if types.is_instance(term, Integer) else int(term)
         self._value -= term
         return self
-    self.__isub__ = __isub__
 
     def __imul__(term):
         term = term.__int__() if types.is_instance(term, Integer) else int(term)
         self._value *= term
         return self
-    self.__imul__ = __imul__
 
     def __imod__(term):
         term = term.__int__() if types.is_instance(term, Integer) else int(term)
@@ -237,18 +187,15 @@ def _Integer(value):
             fail('ValueError("Modulus must be positive")')
         self._value %= modulus
         return self
-    self.__imod__ = __imod__
 
     # Boolean/bit operations
     def __and__(term):
         term = term.__int__() if types.is_instance(term, Integer) else int(term)
         return Integer(self._value & term)
-    self.__and__ = __and__
 
     def __or__(term):
         term = term.__int__() if types.is_instance(term, Integer) else int(term)
         return Integer(self._value | term)
-    self.__or__ = __or__
 
     def __rshift__(pos):
         result = self._value >> pos.__int__()
@@ -297,16 +244,13 @@ def _Integer(value):
         # except OverflowError:
         #     result = 0
         return result
-    self.get_bit = get_bit
 
     # Extra
     def is_odd():
         return (self._value & 1) == 1
-    self.is_odd = is_odd
 
     def is_even():
         return (self._value & 1) == 0
-    self.is_even = is_even
 
     def size_in_bits():
         if self._value < 0:
@@ -325,11 +269,9 @@ def _Integer(value):
         #     bit_size += 1
         #
         # return bit_size
-    self.size_in_bits = size_in_bits
 
     def size_in_bytes():
         return (size_in_bits() - 1) // 8 + 1
-    self.size_in_bytes = size_in_bytes
 
     def is_perfect_square():
         if self._value < 0:
@@ -346,7 +288,6 @@ def _Integer(value):
             square_x = pow(x, 2)
 
         return self._value == pow(x, 2)
-    self.is_perfect_square = is_perfect_square
 
     def fail_if_divisible_by(small_prime):
         small_prime = (small_prime.__int__()
@@ -355,16 +296,13 @@ def _Integer(value):
 
         if (self._value % small_prime) == 0:
             fail(' ValueError("Value is composite")')
-    self.fail_if_divisible_by = fail_if_divisible_by
 
     def multiply_accumulate(a, b):
         self._value += a.__int__() * b.__int__()
         return self
-    self.multiply_accumulate = multiply_accumulate
 
     def set(source):
         _value = source.__int__()
-    self.set = set
 
     def inplace_inverse(modulus):
         modulus = operator.index(modulus)
@@ -388,13 +326,11 @@ def _Integer(value):
             s_p += modulus
         self._value = s_p
         return self
-    self.inplace_inverse = inplace_inverse
 
     def inverse(modulus):
         result = Integer(self)
         result.inplace_inverse(modulus)
         return result
-    self.inverse = inverse
 
     def gcd(term):
         term = (term.__int__()
@@ -407,7 +343,6 @@ def _Integer(value):
             q = r_p // r_n
             r_p, r_n = r_n, r_p - q * r_n
         return Integer(r_p)
-    self.gcd = gcd
 
     def lcm(term):
         term = (term.__int__()
@@ -417,7 +352,6 @@ def _Integer(value):
             return Integer(0)
         return Integer(_JCrypto.Math.lcm(self._value, term))
         # return Integer(abs((self._value * term) // self.gcd(term)._value))
-    self.lcm = lcm
 
     def jacobi_symbol(a, n):
         a = a.__int__() if types.is_instance(a, Integer) else int(a)
@@ -460,8 +394,63 @@ def _Integer(value):
         # n1 = n % a1
         # # Step 8
         # return s * self.jacobi_symbol(n1, a1)
-    self.jacobi_symbol = jacobi_symbol
 
+    def __init__(value):
+        if types.is_float(value):
+            fail('ValueError("A floating point type is not a natural number")')
+        if hasattr(value, '_value'):
+            value = value._value
+        return larky.mutablestruct(
+            __name__='Integer',
+            __class__=_Integer,
+            _value=value,
+            __int__=__int__,
+            __index__=__index__,
+            __str__=__str__,
+            __repr__=__repr__,
+            to_bytes=to_bytes,
+            from_bytes=from_bytes,
+            __eq__=__eq__,
+            __lt__=__lt__,
+            __ne__=__ne__,
+            __le__=__le__,
+            __gt__=__gt__,
+            __ge__=__ge__,
+            __nonzero__=__nonzero__,
+            __bool__=__bool__,
+            is_negative=is_negative,
+            __add__=__add__,
+            __sub__=__sub__,
+            __mul__=__mul__,
+            __floordiv__=__floordiv__,
+            __mod__=__mod__,
+            inplace_pow=inplace_pow,
+            __pow__=__pow__,
+            __abs__=__abs__,
+            sqrt=sqrt,
+            __iadd__=__iadd__,
+            __isub__=__isub__,
+            __imul__=__imul__,
+            __imod__=__imod__,
+            __and__=__and__,
+            __or__=__or__,
+            __rshift__=__rshift__,
+            get_bit=get_bit,
+            is_odd=is_odd,
+            is_even=is_even,
+            size_in_bits=size_in_bits,
+            size_in_bytes=size_in_bytes,
+            is_perfect_square=is_perfect_square,
+            fail_if_divisible_by=fail_if_divisible_by,
+            multiply_accumulate=multiply_accumulate,
+            set=set,
+            inplace_inverse=inplace_inverse,
+            inverse=inverse,
+            gcd=gcd,
+            lcm=lcm,
+            jacobi_symbol=jacobi_symbol,
+        )
+    self = __init__(value)
     return self
 
 
@@ -551,13 +540,14 @@ def _random_range(**kwargs):
 
     norm_candidate = -1
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-        if (operator.le(0, norm_candidate) and operator.le(norm_candidate, norm_maximum)):
+        if (operator.le(0, norm_candidate) and
+                operator.le(norm_candidate, norm_maximum)):
             break
         norm_candidate = _random(
                                 max_bits=bits_needed,
                                 randfunc=randfunc
                                 )
-    return norm_candidate + min_inclusive
+    return operator.add(norm_candidate, min_inclusive)
 
 
 Numbers = larky.struct(
