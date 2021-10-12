@@ -119,13 +119,13 @@ def PGP_test():
     encrypt = Crypto.Wrapper(data)
     encrypted = encrypt.encrypt([wkey])
 
-    # print('pgp encrypted:', encrypted)
+    print('pgp encrypted:', encrypted)
 
 #     # Now decrypt it with the same key
-#     decryptor = OpenPGP.Crypto.Wrapper(wkey)
-#     decrypted = decryptor.decrypt(encrypted)
+    decryptor = Crypto.Wrapper(wkey)
+    decrypted = decryptor.decrypt(encrypted)
 
-#     print(list(decrypted))
+    print('pgp decrypted:', decrypted)
 
 def _testsuite():
     _suite = unittest.TestSuite()

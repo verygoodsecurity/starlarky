@@ -143,28 +143,77 @@ def Wrapper(packet):
         return OpenPGP.Message(encrypted)
     self.encrypt = encrypt
 
+    def decrypt_packet(epacket, symmetric_algorithm, key):
+        cipher, key_bytes, key_block_bytes = self.get_cipher(symmetric_algorithm)
+        if not cipher:
+            return None
+        cipher = cipher(key)
+
+        if types.is_instance(epacket, OpenPGP.IntegrityProtectedDataPacket):
+            data = self._block_pad_unpad(key_block_bytes, epacket.data, lambda x: cipher(None).decrypt(x))
+            prefix = data[0:key_block_bytes+2]
+            mdc = data[-22:][2:]
+            data = data[key_block_bytes+2:-22]
+
+            # mkMDC = hashlib.sha1(prefix + data + b'\xd3\x14').digest()
+            mkMDC = SHA.new(prefix + data + b'\xd3\x14').digest()
+            if mdc != mkMDC:
+                return False
+
+            # try:
+            #     return OpenPGP.Message.parse(data)
+            # except:
+            #     return None
+            return OpenPGP.Message.parse(data)
+        else:
+            # No MDC means decrypt with resync
+            edata = epacket.data[key_block_bytes+2:]
+            data = self._block_pad_unpad(key_block_bytes, edata, lambda x: cipher(epacket.data[2:key_block_bytes+2]).decrypt(x))
+            # try:
+            #     return OpenPGP.Message.parse(data)
+            # except:
+            #     return None
+            return OpenPGP.Message.parse(data)
+
+        return None
+    self.decrypt_packet = decrypt_packet
+
+    def try_decrypt_session(key, edata):
+        pkcs15 = PKCS1_v1_5_Cipher.new(key)
+        data = pkcs15.decrypt(edata, Random.new().read(len(edata)))
+        sk = data[1:len(data)-2]
+        chk = unpack('!H', data[-2:])[0]
+
+        sk_chk = 0
+        for i in range(0, len(sk)):
+            sk_chk = (sk_chk + ord(sk[i:i+1])) % 65536
+
+        if sk_chk != chk:
+            return None
+        return (ord(data[0:1]), sk)
+    self.try_decrypt_session = try_decrypt_session
 
     def decrypt(packet):
-        if types.is_instance(packet, list):
-            packet = OpenPGP.Message(packet)
-        elif not types.is_instance(packet, OpenPGP.Message):
-            packet = OpenPGP.Message.parse(packet)
+        # if types.is_instance(packet, list):
+        #     packet = OpenPGP.Message(packet)
+        # elif not types.is_instance(packet, OpenPGP.Message):
+        #     packet = OpenPGP.Message.parse(packet)
 
-        if types.is_instance(packet, OpenPGP.SecretKeyPacket) or types.is_instance(packet, Crypto.PublicKey.RSA._RSAobj) or (hasattr(packet, '__getitem__') and types.is_instance(packet[0], OpenPGP.SecretKeyPacket)):
-            keys = packet
-        else:
-            keys = self._key
-            self._message = packet
+        # if types.is_instance(packet, OpenPGP.SecretKeyPacket) or types.is_instance(packet, Crypto.PublicKey.RSA._RSAobj) or (hasattr(packet, '__getitem__') and types.is_instance(packet[0], OpenPGP.SecretKeyPacket)):
+        #     keys = packet
+        # else:
+        keys = self._key
+        self._message = packet
 
         if not keys or not self._message:
             return None # Missing some data
 
-        if not types.is_instance(keys, Crypto.PublicKey.RSA._RSAobj):
+        if not types.is_instance(keys, RSA.RsaKey):
             keys = self.__class__(keys)
 
         for p in self._message:
             if types.is_instance(p, OpenPGP.AsymmetricSessionKeyPacket):
-                if types.is_instance(keys, Crypto.PublicKey.RSA._RSAobj):
+                if types.is_instance(keys, RSA.RsaKey):
                     sk = self.try_decrypt_session(keys, p.encrypted_data[2:])
                 elif len(p.keyid.replace('0','')) < 1:
                     for k in keys.key:
@@ -184,6 +233,27 @@ def Wrapper(packet):
 
         return None # Failed
     self.decrypt = decrypt
+
+    def private_key(keyid=None):
+        """ Get _RSAobj or _DSAobj for the public key """
+        return self.convert_private_key(self.key(keyid))
+    self.private_key = private_key
+
+    def convert_private_key(packet):
+        return self.convert_key(packet, True)
+    self.convert_private_key = convert_private_key
+
+    def encrypted_data():
+        if not self._message:
+            return None
+
+        for p in self._message:
+            # if types.is_instance(p, OpenPGP.EncryptedDataPacket):
+            if types.is_instance(p, OpenPGP.AsymmetricSessionKeyPacket) or types.is_instance(p, OpenPGP.SymmetricSessionKeyPacket) or types.is_instance(p, OpenPGP.IntegrityProtectedDataPacket):
+                return p
+
+        return None
+    self.encrypted_data = encrypted_data
 
     def key(keyid=None):
         if not self._key: # No key
@@ -243,22 +313,6 @@ Crypto = larky.struct(
     __name__ = 'Wrapper',
 )
 
-
-    # def private_key(keyid=None):
-    #     """ Get _RSAobj or _DSAobj for the public key """
-    #     return self.convert_private_key(self.key(keyid))
-    # self.private_key = private_key
-
-    # def encrypted_data():
-    #     if not self._message:
-    #         return None
-
-    #     for p in self._message:
-    #         if types.is_instance(p, OpenPGP.EncryptedDataPacket):
-    #             return p
-
-    #     return None
-    # self.encrypted_data = encrypted_data
 
     # def verifier(h, m, s):
     #     """ Used in implementation of verify """
@@ -416,22 +470,6 @@ Crypto = larky.struct(
     #     return packet
     # self.sign_key_userid = sign_key_userid
 
-    # def try_decrypt_session(cls, key, edata):
-    #     pkcs15 = Crypto.Cipher.PKCS1_v1_5.new(key)
-    #     data = pkcs15.decrypt(edata, Random.new().read(len(edata)))
-    #     sk = data[1:len(data)-2]
-    #     chk = unpack('!H', data[-2:])[0]
-
-    #     sk_chk = 0
-    #     for i in range(0, len(sk)):
-    #         sk_chk = (sk_chk + ord(sk[i:i+1])) % 65536
-
-    #     if sk_chk != chk:
-    #         return None
-    #     return (ord(data[0:1]), sk)
-    # self.try_decrypt_session = try_decrypt_session
-    # try_decrypt_session = try_decrypt_session
-
     # def decrypt_symmetric(passphrase):
     #     epacket = self.encrypted_data()
     #     if hasattr(passphrase, 'encode'):
@@ -492,44 +530,6 @@ Crypto = larky.struct(
     #     packet.input = None
     #     return packet
     # self.decrypt_secret_key = decrypt_secret_key
-
-    # def decrypt_packet(cls, epacket, symmetric_algorithm, key):
-    #     cipher, key_bytes, key_block_bytes = cls.get_cipher(symmetric_algorithm)
-    #     if not cipher:
-    #         return None
-    #     cipher = cipher(key)
-
-    #     if types.is_instance(epacket, OpenPGP.IntegrityProtectedDataPacket):
-    #         data = cls._block_pad_unpad(key_block_bytes, epacket.data, lambda x: cipher(None).decrypt(x))
-    #         prefix = data[0:key_block_bytes+2]
-    #         mdc = data[-22:][2:]
-    #         data = data[key_block_bytes+2:-22]
-
-    #         mkMDC = hashlib.sha1(prefix + data + b'\xd3\x14').digest()
-    #         if mdc != mkMDC:
-    #             return False
-
-    #         try:
-    #             return OpenPGP.Message.parse(data)
-    #         except:
-    #             return None
-    #     else:
-    #         # No MDC means decrypt with resync
-    #         edata = epacket.data[key_block_bytes+2:]
-    #         data = cls._block_pad_unpad(key_block_bytes, edata, lambda x: cipher(epacket.data[2:key_block_bytes+2]).decrypt(x))
-    #         try:
-    #             return OpenPGP.Message.parse(data)
-    #         except:
-    #             return None
-
-    #     return None
-    # self.decrypt_packet = decrypt_packet
-    # decrypt_packet = decrypt_packet
-
-    # def convert_private_key(cls, packet):
-    #     return cls.convert_key(packet, True)
-    # self.convert_private_key = convert_private_key
-    # convert_private_key = convert_private_key
 
     # def _block_pad_unpad(cls, siz, bs, go):
     #     pad_amount = siz - (len(bs) % siz)
