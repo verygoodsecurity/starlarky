@@ -1,10 +1,12 @@
 package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto;
 
+import com.verygood.security.larky.modules.JsonModule;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
@@ -19,7 +21,7 @@ import java.util.Map;
     name = "TextPIIEntity",
     category = "BUILTIN",
     doc = "The type represents TextPIIAnalyzer text analysis result, and describes an instance of PII entity.")
-public class TextPIIEntity extends SimpleStruct {
+public class TextPIIEntity extends SimpleStruct implements JsonModule.Encodable {
 
   // Type of the PII entity. e.g.: CARD_NUMBER, CRYPTO, etc.
   private final String entityType;
@@ -110,4 +112,14 @@ public class TextPIIEntity extends SimpleStruct {
 
     return builder.buildImmutable();
   }
+
+  @Override
+  public String encodeJSON() {
+    try {
+      return JsonModule.INSTANCE.dumps(dunderDict());
+    }  catch (EvalException ex) {
+      return "{}";
+    }
+  }
+
 }
