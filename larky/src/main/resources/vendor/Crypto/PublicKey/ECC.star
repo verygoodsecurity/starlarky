@@ -263,9 +263,6 @@ def EccPoint(x, y, curve="p256"):
     def __neg__():
         np = self.copy()
         np._point.negate()
-        # result = None
-        # if result:
-        #     return Error("ValueError: " + "Error %d while inverting an EC point" % result)
         return np
     self.__neg__ = __neg__
 
@@ -278,7 +275,7 @@ def EccPoint(x, y, curve="p256"):
 
     def is_point_at_infinity():
         """``True`` if this is the point-at-infinity."""
-        return self.xy == (0, 0)
+        return self._point.is_infinity()
     self.is_point_at_infinity = is_point_at_infinity
 
     def point_at_infinity():
@@ -295,19 +292,8 @@ def EccPoint(x, y, curve="p256"):
     self.y = larky.property(_y)
 
     def _xy():
-        modulus_bytes = self.size_in_bytes()
         xb, yb = self._point.as_tuple()
         return Integer(xb), Integer(yb)
-        # xb = bytearray(modulus_bytes)
-        # yb = bytearray(modulus_bytes)
-        # result = _ec_lib.ec_ws_get_xy(c_uint8_ptr(xb),
-        #                               c_uint8_ptr(yb),
-        #                               c_size_t(modulus_bytes),
-        #                               self._point.get())
-        # if result:
-        #     return Error("ValueError: " + "Error %d while encoding an EC point" % result)
-        #
-        # return (Integer(bytes_to_long(xb)), Integer(bytes_to_long(yb)))
     self.xy = larky.property(_xy)
 
     def size_in_bytes():
@@ -337,20 +323,12 @@ def EccPoint(x, y, curve="p256"):
 
     def __iadd__(point):
         """Add a second point to this one"""
-
-        # result = _ec_lib.ec_ws_add(self._point.get(), point._point.get())
         self._point.add(point._point)
-        # result = None
-        # if result:
-        #     if result == 16:
-        #         return Error("ValueError: EC points are not on the same curve")
-        #     return Error("ValueError: " + "Error %d while adding two EC points" % result)
         return self
     self.__iadd__ = __iadd__
 
     def __add__(point):
         """Return a new point, the addition of this one and another"""
-
         np = self.copy()
         np.__iadd__(point)
         return np
@@ -401,23 +379,10 @@ def EccPoint(x, y, curve="p256"):
         if len(xb) != modulus_bytes or len(yb) != modulus_bytes:
             return Error("ValueError: Incorrect coordinate length").unwrap()
 
-        # self._point = VoidPointer()
-        # result = _ec_lib.ec_ws_new_point(self._point.address_of(),
-        #                                 c_uint8_ptr(xb),
-        #                                 c_uint8_ptr(yb),
-        #                                 c_size_t(modulus_bytes),
-        #                                 context.get())
-        # if result:
-        #    if result == 15:
-        #        return Error("ValueError: The EC point does not belong to the curve")
-        #    return Error("ValueError: " + "Error %d while instantiating an EC point" % result)
-        #
-        # # Ensure that object disposal of this Python object will (eventually)
-        # # free the memory allocated by the raw library for the EC point
-        # self._point = SmartPointer(self._point.get(),
-        #                           _ec_lib.ec_free_point)
-        # TODO ^^^
-        self._point = context.point(operator.index(x), operator.index(y))
+        if operator.eq(x, 0) and operator.eq(y, 0):
+            self._point = context.infinity()
+        else:
+            self._point = context.point(operator.index(x), operator.index(y))
         return self
     self = __init__(x, y, curve)
     return self

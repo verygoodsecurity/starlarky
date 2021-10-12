@@ -96,59 +96,94 @@ def TestEccPoint_test_repr():
 
 """Tests defined in section 4.3 of https://www.nsa.gov/ia/_files/nist-routines.pdf"""
 
-NIST4_3_pointS = EccPoint(
-            0xde2444bebc8d36e682edd27e0f271508617519b3221a8fa0b77cab3989da97c9,
-            0xc093ae7ff36e5380fc01a5aad1e66659702de80f53cec576b6350b243042a256)
-
-NIST4_3_pointT = EccPoint(
-            0x55a8b00f8da1d44e62f6b3b25316212e39540dc861c89575bb8cf92e35e0986b,
-            0x5421c3209c2d6c704835d82ac4c3dd90f61a8a52598b9e7ab656e9d8c8b24316)
 
 def TestEccPoint_NIST_P256_test_set():
+    NIST4_3_pointS = EccPoint(
+        0xde2444bebc8d36e682edd27e0f271508617519b3221a8fa0b77cab3989da97c9,
+        0xc093ae7ff36e5380fc01a5aad1e66659702de80f53cec576b6350b243042a256)
+
+    NIST4_3_pointT = EccPoint(
+        0x55a8b00f8da1d44e62f6b3b25316212e39540dc861c89575bb8cf92e35e0986b,
+        0x5421c3209c2d6c704835d82ac4c3dd90f61a8a52598b9e7ab656e9d8c8b24316)
+
     pointW = EccPoint(0, 0)
     pointW.set(NIST4_3_pointS)
     asserts.assert_that(pointW).is_equal_to(NIST4_3_pointS)
 
+
 def TestEccPoint_NIST_P256_test_copy():
+    NIST4_3_pointS = EccPoint(
+        0xde2444bebc8d36e682edd27e0f271508617519b3221a8fa0b77cab3989da97c9,
+        0xc093ae7ff36e5380fc01a5aad1e66659702de80f53cec576b6350b243042a256)
+
+    NIST4_3_pointT = EccPoint(
+        0x55a8b00f8da1d44e62f6b3b25316212e39540dc861c89575bb8cf92e35e0986b,
+        0x5421c3209c2d6c704835d82ac4c3dd90f61a8a52598b9e7ab656e9d8c8b24316)
     pointW = NIST4_3_pointS.copy()
     asserts.assert_that(pointW).is_equal_to(NIST4_3_pointS)
     pointW.set(NIST4_3_pointT)
     asserts.assert_that(pointW).is_equal_to(NIST4_3_pointT)
     asserts.assert_that(NIST4_3_pointS).is_not_equal_to(NIST4_3_pointT)
 
+
 def TestEccPoint_NIST_P256_test_negate():
-    negS = -NIST4_3_pointS
-    sum = NIST4_3_pointS + negS
+    NIST4_3_pointS = EccPoint(
+        0xde2444bebc8d36e682edd27e0f271508617519b3221a8fa0b77cab3989da97c9,
+        0xc093ae7ff36e5380fc01a5aad1e66659702de80f53cec576b6350b243042a256)
+
+    NIST4_3_pointT = EccPoint(
+        0x55a8b00f8da1d44e62f6b3b25316212e39540dc861c89575bb8cf92e35e0986b,
+        0x5421c3209c2d6c704835d82ac4c3dd90f61a8a52598b9e7ab656e9d8c8b24316)
+    negS = operator.neg(NIST4_3_pointS)
+    sum = operator.add(NIST4_3_pointS, negS)
     asserts.assert_that(sum).is_equal_to(NIST4_3_pointS.point_at_infinity())
 
+
 def TestEccPoint_NIST_P256_test_addition():
+    NIST4_3_pointS = EccPoint(
+        0xde2444bebc8d36e682edd27e0f271508617519b3221a8fa0b77cab3989da97c9,
+        0xc093ae7ff36e5380fc01a5aad1e66659702de80f53cec576b6350b243042a256)
+
+    NIST4_3_pointT = EccPoint(
+        0x55a8b00f8da1d44e62f6b3b25316212e39540dc861c89575bb8cf92e35e0986b,
+        0x5421c3209c2d6c704835d82ac4c3dd90f61a8a52598b9e7ab656e9d8c8b24316)
+
     pointRx = 0x72b13dd4354b6b81745195e98cc5ba6970349191ac476bd4553cf35a545a067e
     pointRy = 0x8d585cbb2e1327d75241a8a122d7620dc33b13315aa5c9d46d013011744ac264
 
-    pointR = NIST4_3_pointS + NIST4_3_pointT
+    pointR = operator.add(NIST4_3_pointS, NIST4_3_pointT)
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
     pai = pointR.point_at_infinity()
 
     # S + 0
-    pointR = NIST4_3_pointS + pai
+    pointR = operator.add(NIST4_3_pointS, pai)
     asserts.assert_that(pointR).is_equal_to(NIST4_3_pointS)
 
     # 0 + S
-    pointR = pai + NIST4_3_pointS
+    pointR = operator.add(pai, NIST4_3_pointS)
     asserts.assert_that(pointR).is_equal_to(NIST4_3_pointS)
 
     # 0 + 0
-    pointR = pai + pai
+    pointR = operator.add(pai, pai)
     asserts.assert_that(pointR).is_equal_to(pai)
+
 
 def TestEccPoint_NIST_P256_test_inplace_addition():
+    NIST4_3_pointS = EccPoint(
+        0xde2444bebc8d36e682edd27e0f271508617519b3221a8fa0b77cab3989da97c9,
+        0xc093ae7ff36e5380fc01a5aad1e66659702de80f53cec576b6350b243042a256)
+
+    NIST4_3_pointT = EccPoint(
+        0x55a8b00f8da1d44e62f6b3b25316212e39540dc861c89575bb8cf92e35e0986b,
+        0x5421c3209c2d6c704835d82ac4c3dd90f61a8a52598b9e7ab656e9d8c8b24316)
+
     pointRx = 0x72b13dd4354b6b81745195e98cc5ba6970349191ac476bd4553cf35a545a067e
     pointRy = 0x8d585cbb2e1327d75241a8a122d7620dc33b13315aa5c9d46d013011744ac264
 
     pointR = NIST4_3_pointS.copy()
-    pointR += NIST4_3_pointT
+    pointR = operator.iadd(pointR, NIST4_3_pointT)
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
@@ -156,20 +191,29 @@ def TestEccPoint_NIST_P256_test_inplace_addition():
 
     # S + 0
     pointR = NIST4_3_pointS.copy()
-    pointR += pai
+    pointR = operator.iadd(pointR, pai)
     asserts.assert_that(pointR).is_equal_to(NIST4_3_pointS)
 
     # 0 + S
     pointR = pai.copy()
-    pointR += NIST4_3_pointS
+    pointR = operator.iadd(pointR, NIST4_3_pointS)
     asserts.assert_that(pointR).is_equal_to(NIST4_3_pointS)
 
     # 0 + 0
     pointR = pai.copy()
-    pointR += pai
+    pointR = operator.iadd(pointR, pai)
     asserts.assert_that(pointR).is_equal_to(pai)
 
+
 def TestEccPoint_NIST_P256_test_doubling():
+    NIST4_3_pointS = EccPoint(
+        0xde2444bebc8d36e682edd27e0f271508617519b3221a8fa0b77cab3989da97c9,
+        0xc093ae7ff36e5380fc01a5aad1e66659702de80f53cec576b6350b243042a256)
+
+    NIST4_3_pointT = EccPoint(
+        0x55a8b00f8da1d44e62f6b3b25316212e39540dc861c89575bb8cf92e35e0986b,
+        0x5421c3209c2d6c704835d82ac4c3dd90f61a8a52598b9e7ab656e9d8c8b24316)
+
     pointRx = 0x7669e6901606ee3ba1a8eef1e0024c33df6c22f3b17481b82a860ffcdb6127b0
     pointRy = 0xfa878162187a54f6c39f6ee0072f33de389ef3eecd03023de10ca2c1db61d0c7
 
@@ -186,50 +230,82 @@ def TestEccPoint_NIST_P256_test_doubling():
 
     # S + S
     pointR = NIST4_3_pointS.copy()
-    pointR += pointR
+    pointR = operator.iadd(pointR, pointR)
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
+
 def TestEccPoint_NIST_P256_test_scalar_multiply():
+    NIST4_3_pointS = EccPoint(
+        0xde2444bebc8d36e682edd27e0f271508617519b3221a8fa0b77cab3989da97c9,
+        0xc093ae7ff36e5380fc01a5aad1e66659702de80f53cec576b6350b243042a256)
+
+    NIST4_3_pointT = EccPoint(
+        0x55a8b00f8da1d44e62f6b3b25316212e39540dc861c89575bb8cf92e35e0986b,
+        0x5421c3209c2d6c704835d82ac4c3dd90f61a8a52598b9e7ab656e9d8c8b24316)
+
     d = 0xc51e4753afdec1e6b6c6a5b992f43f8dd0c7a8933072708b6522468b2ffb06fd
     pointRx = 0x51d08d5f2d4278882946d88d83c97d11e62becc3cfc18bedacc89ba34eeca03f
     pointRy = 0x75ee68eb8bf626aa5b673ab51f6e744e06f8fcf8a6c0cf3035beca956a7b41d5
 
-    pointR = NIST4_3_pointS * d
+    pointR = operator.mul(NIST4_3_pointS, d)
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
     # 0*S
     pai = NIST4_3_pointS.point_at_infinity()
-    pointR = NIST4_3_pointS * 0
+    pointR = operator.mul(NIST4_3_pointS, 0)
     asserts.assert_that(pointR).is_equal_to(pai)
 
     # -1*S
-    asserts.assert_fails(lambda: lambda: NIST4_3_pointS * -1(), ".*?ValueError")
+    def neg_1_times_S():
+        return operator.mul(NIST4_3_pointS, -1)
+
+    asserts.assert_fails(lambda: neg_1_times_S(), ".*?ValueError")
 
     # Reverse order
-    pointR = d * NIST4_3_pointS
+    pointR = operator.mul(d, NIST4_3_pointS)
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
-    pointR = Integer(d) * NIST4_3_pointS
+    pointR = operator.mul(Integer(d), NIST4_3_pointS)
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
 
 def TestEccPoint_NIST_P256_test_joing_scalar_multiply():
+    NIST4_3_pointS = EccPoint(
+        0xde2444bebc8d36e682edd27e0f271508617519b3221a8fa0b77cab3989da97c9,
+        0xc093ae7ff36e5380fc01a5aad1e66659702de80f53cec576b6350b243042a256)
+
+    NIST4_3_pointT = EccPoint(
+        0x55a8b00f8da1d44e62f6b3b25316212e39540dc861c89575bb8cf92e35e0986b,
+        0x5421c3209c2d6c704835d82ac4c3dd90f61a8a52598b9e7ab656e9d8c8b24316)
+
     d = 0xc51e4753afdec1e6b6c6a5b992f43f8dd0c7a8933072708b6522468b2ffb06fd
     e = 0xd37f628ece72a462f0145cbefe3f0b355ee8332d37acdd83a358016aea029db7
     pointRx = 0xd867b4679221009234939221b8046245efcf58413daacbeff857b8588341f6b8
     pointRy = 0xf2504055c03cede12d22720dad69c745106b6607ec7e50dd35d54bd80f615275
 
-    t = NIST4_3_pointS * d
+    t = operator.mul(NIST4_3_pointS, d)
 
-    pointR = NIST4_3_pointS * d + NIST4_3_pointT * e
+    pointR = operator.add(
+        operator.mul(NIST4_3_pointS, d),
+        operator.mul(NIST4_3_pointT, e)
+    )
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
+
 def TestEccPoint_NIST_P256_test_sizes():
+    NIST4_3_pointS = EccPoint(
+        0xde2444bebc8d36e682edd27e0f271508617519b3221a8fa0b77cab3989da97c9,
+        0xc093ae7ff36e5380fc01a5aad1e66659702de80f53cec576b6350b243042a256)
+
+    NIST4_3_pointT = EccPoint(
+        0x55a8b00f8da1d44e62f6b3b25316212e39540dc861c89575bb8cf92e35e0986b,
+        0x5421c3209c2d6c704835d82ac4c3dd90f61a8a52598b9e7ab656e9d8c8b24316)
+
     asserts.assert_that(NIST4_3_pointS.size_in_bits()).is_equal_to(256)
     asserts.assert_that(NIST4_3_pointS.size_in_bytes()).is_equal_to(32)
 
@@ -848,14 +924,20 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_basic_ECC_construct_example))
     _suite.addTest(unittest.FunctionTestCase(TestEccPoint_test_repr))
     _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_set))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_copy))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_negate))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_addition))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_inplace_addition))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_doubling))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_scalar_multiply))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_joing_scalar_multiply))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_sizes))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_copy))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_negate))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_addition))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_inplace_addition))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_doubling))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_scalar_multiply))
+    _suite.addTest(unittest.FunctionTestCase(
+        TestEccPoint_NIST_P256_test_joing_scalar_multiply))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_sizes))
     # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_set))
     # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_copy))
     # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_negate))

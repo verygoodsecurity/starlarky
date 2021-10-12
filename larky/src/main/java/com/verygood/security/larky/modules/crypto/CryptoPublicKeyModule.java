@@ -645,16 +645,28 @@ public class CryptoPublicKeyModule implements StarlarkValue {
 
   public static class LarkyECPoint implements StarlarkValue {
     private ECPoint point;
+
     public LarkyECPoint(ECPoint point) {
       this.point = point;
     }
 
-    @StarlarkMethod(name="negate")
+    @StarlarkMethod(name = "negate")
     public LarkyECPoint negate() {
-      return new LarkyECPoint(this.point.negate());
+      this.point = this.point.normalize().negate();
+      return this;
+      //return new LarkyECPoint(this.point.normalize().negate());
     }
-    @StarlarkMethod(name="as_tuple")
+
+    @StarlarkMethod(name = "is_infinity")
+    public boolean isInfinity() {
+      return this.point.isInfinity();
+    }
+
+    @StarlarkMethod(name = "as_tuple")
     public Tuple asTuple() {
+      if (this.point.isInfinity()) {
+        return Tuple.of(StarlarkInt.of(0), StarlarkInt.of(0));
+      }
       return Tuple.of(
         StarlarkInt.of(this.point.getXCoord().toBigInteger()),
         StarlarkInt.of(this.point.getYCoord().toBigInteger())
@@ -662,7 +674,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     }
     @StarlarkMethod(name="twice")
     public LarkyECPoint twice() {
-      this.point = this.point.twice();
+      this.point = this.point.twice().normalize();
       return this;
     }
 
@@ -671,17 +683,28 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       if (!(this.point.getCurve().equals(other.point.getCurve()))) {
         throw Starlark.errorf("ValueError: EC points are not on the same curve");
       }
-      this.point = this.point.add(other.point);
+      this.point = this.point.add(other.point).normalize();
       return this;
     }
 
-    @StarlarkMethod(name="multiply", parameters = {@Param(name="point", allowedTypes = {@ParamType(type=StarlarkInt.class)})})
+    @StarlarkMethod(name = "multiply", parameters = {@Param(name = "point", allowedTypes = {@ParamType(type = StarlarkInt.class)})})
     public LarkyECPoint multiply(StarlarkInt scale) {
       ////ECPoint point2 = this.point.multiply(scale.toBigInteger());
       //ECPoint point2 = new FixedPointCombMultiplier().multiply(this.point, scale.toBigInteger()).normalize();
       //point2.getXCoord().toBigInteger();
       this.point = this.point.multiply(scale.toBigInteger()).normalize();
       return this;
+    }
+
+    @Override
+    public boolean equals(final Object that) {
+      return that instanceof LarkyECPoint
+               && this.point.equals(((LarkyECPoint) that).point);
+    }
+
+    @Override
+    public int hashCode() {
+      return this.point.normalize().hashCode();
     }
   }
 
@@ -697,23 +720,20 @@ public class CryptoPublicKeyModule implements StarlarkValue {
         this.curve = curve;
       }
 
-      @StarlarkMethod(name="point", parameters = {
-        @Param(name="xb", allowedTypes = {@ParamType(type=StarlarkInt.class)}),
-        @Param(name="yb", allowedTypes = {@ParamType(type=StarlarkInt.class)}),
+      @StarlarkMethod(name = "point", parameters = {
+        @Param(name = "xb", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+        @Param(name = "yb", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
       })
       public LarkyECPoint point(StarlarkInt xb, StarlarkInt yb) {
         BigInteger x = xb.toBigInteger();
         BigInteger y = yb.toBigInteger();
         ECPoint point = this.curve.createPoint(x, y);
         return new LarkyECPoint(point);
-        /*
-        var _point = this.curve.createPoint(x, y);
-        _point.getXCoord().toBigInteger();
-        _point.getYCoord().toBigInteger();
-        var _point2 = _point.twice();
-        _point2.getXCoord().toBigInteger();
-        _point2.getYCoord().toBigInteger();
-         */
+      }
+
+      @StarlarkMethod(name = "infinity")
+      public LarkyECPoint pointAtInfinity() {
+        return new LarkyECPoint(this.curve.getInfinity());
       }
     }
 
