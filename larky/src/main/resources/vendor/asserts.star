@@ -549,7 +549,7 @@ def contains(self, *items):
     if len(items) == 0:
         fail('ValueError: one or more args must be given')
     elif len(items) == 1:
-        if items[0] not in self.val or not operator.contains(self.val, items[0]):
+        if items[0] not in self.val and not operator.contains(self.val, items[0]):
             # if _check_dict_like(self.val, return_as_bool=True):
             if types.is_dict(self.val):
                 fail('Expected <%s> to contain key <%s>, but did not.' % (self.val, items[0]))
