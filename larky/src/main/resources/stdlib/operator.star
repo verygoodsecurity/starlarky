@@ -196,41 +196,57 @@ def _create_binary_op(name, operator, default=None):
 
     return binary_op
 
+
 add = _create_binary_op("add", "+", default=lambda lhs, rhs: lhs + rhs)
 sub = _create_binary_op("sub", "-", default=lambda lhs, rhs: lhs - rhs)
 mul = _create_binary_op("mul", "*", default=lambda lhs, rhs: lhs * rhs)
 mod = _create_binary_op("mod", "%", default=lambda lhs, rhs: lhs % rhs)
 pow = _create_binary_op("pow", "**", default=_pow)
-truediv = _create_binary_op("truediv", "/", default=lambda lhs, rhs:  lhs / rhs)
-floordiv = _create_binary_op("floordiv", "//", default=lambda lhs, rhs:  lhs // rhs)
-lshift = _create_binary_op("lshift", "<<", default=lambda lhs, rhs:  lhs << rhs)
-rshift = _create_binary_op("rshift", ">>", default=lambda lhs, rhs:  lhs >> rhs)
+truediv = _create_binary_op("truediv", "/", default=lambda lhs, rhs: lhs / rhs)
+floordiv = _create_binary_op("floordiv", "//",
+                             default=lambda lhs, rhs: lhs // rhs)
+lshift = _create_binary_op("lshift", "<<", default=lambda lhs, rhs: lhs << rhs)
+rshift = _create_binary_op("rshift", ">>", default=lambda lhs, rhs: lhs >> rhs)
 and_ = _create_binary_op("and", "&", default=lambda lhs, rhs: lhs & rhs)
 xor = _create_binary_op("xor", "^", default=lambda lhs, rhs: lhs ^ rhs)
 or_ = _create_binary_op("or", "|", default=lambda lhs, rhs: lhs | rhs)
 matmul = _create_binary_op("matmul", "@")
 
 
-def inv(a):
-    "Same as ~a."
-    return ~a
+def _create_unary_op(name, operator):
+    # type: (str, str) -> Callable[[Any], Any]
+    """Create a unary arithmetic operation function."""
+    method_name = "__{}__".format(name)
+
+    def unary_op(object_):
+        # type: (Any) -> Any
+        """A closure implementing a unary arithmetic operation."""
+        type_ = type(object_)
+        unary_method = getattr(object_, method_name, larky.SENTINEL)
+        if unary_method == larky.SENTINEL:
+            fail("bad operand type for unary %s: %r", operator, type_)
+        else:
+            return unary_method()
+
+    return unary_op
+
+
+neg = _create_unary_op("neg", "-")
+pos = _create_unary_op("pos", "+")
+# inv/__inv__ are from Python 1; invert/__invert__ introduced in Python 2.0.
+inv = _create_unary_op("invert", "~")
 invert = inv
 
-def neg(a):
-    "Same as -a."
-    return -a
-
-def pos(a):
-    "Same as +a."
-    return +a
 
 def abs(a):
     "Same as abs(a)."
     return _abs(a)
 
+
 def index(a):
     "Same as a.__index__()."
-    if types.is_int(a) or types.is_float(a) or types.is_bool(a) or types.is_string(a):
+    if types.is_int(a) or types.is_float(a) or types.is_bool(
+            a) or types.is_string(a):
         return int(a)
     if hasattr(a, "__index__"):
         return a.__index__()
