@@ -37,7 +37,7 @@ load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long", inverse="inverse")
 load("@vendor//asserts", asserts="asserts")
-
+load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error", safe="safe")
 
 load("@vendor//Crypto/PublicKey/ECC",
      ECC="ECC",
@@ -47,39 +47,52 @@ load("@vendor//Crypto/PublicKey/ECC",
      )
 
 
-
-
-
-def test_basic_ECC_generate_test():
+def test_basic_ECC_generate():
     key = ECC.generate(curve='P-256')
-    print('ECC key:', key.export_key(format='PEM'))
+    out = key.export_key(format='PEM')
+    asserts.assert_that(out).contains('-----BEGIN PRIVATE KEY-----')
+    asserts.assert_that(out).contains('-----END PRIVATE KEY-----')
 
 
-# def TestEccPoint_test_mix():
-#
-#     p1 = ECC.generate(curve='P-256').pointQ
-#     p2 = ECC.generate(curve='P-384').pointQ
-#
-#     try:
-#         p1 + p2
-#         assert(False)
-#     except ValueError as e:
-#         assert "not on the same curve" in str(e)
-#
-#     try:
-#         p1 += p2
-#         assert(False)
-#     except ValueError as e:
-#         assert "not on the same curve" in str(e)
+def test_basic_ECC_construct_example():
+    expected = r"""-----BEGIN PRIVATE KEY-----
+MIGFAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBGswaQIBAQQg12c78JWM96fm6y5F
+ERvbYZZ2xjx+0UNGLO9qXymxeIgDQgAEi5xvAqjfAoOG2/SvXDt2t3QsJzXU0rSt
+lWwO3LYapfwZu5BghENdUtEMxwpeOf01fmc50RL0sPCsWVf0+CoduQ==
+-----END PRIVATE KEY-----"""
+    key = ECC.construct(
+        curve='P-256',
+        d=97429661382245629931385077694012714418891341000979321935485875586665209231496,
+        point_x=63147880260728048945060155999382431581790870540307511127381386767481037301244,
+        point_y=11639218069252970133283017693609492584733444595055167772364063571679199763897
+    )
+    output = key.export_key(format='PEM')
+    asserts.assert_that(output).is_equal_to(expected)
+
+
+def TestEccPoint_test_mix():
+
+    p1 = ECC.generate(curve='P-256').pointQ
+    p2 = ECC.generate(curve='P-384').pointQ
+
+    res = Result.Ok(operator).map(lambda x: x.add(p1, p2))
+    if not res.is_err:
+        fail("expected result to give an error")
+    asserts.assert_that(Result.error_is("not on the same curve", res)).is_true()
+
+    res = Result.Ok(operator).map(lambda x: x.iadd(p1, p2))
+    if not res.is_err:
+        fail("expected result to give an error")
+    asserts.assert_that(Result.error_is("not on the same curve", res)).is_true()
+
 
 def TestEccPoint_test_repr():
-    print('1')
-    # p1 = ECC.construct(curve='P-256',
-    #                    d=75467964919405407085864614198393977741148485328036093939970922195112333446269,
-    #                    point_x=20573031766139722500939782666697015100983491952082159880539639074939225934381,
-    #                    point_y=108863130203210779921520632367477406025152638284581252625277850513266505911389)
-    # asserts.assert_that(repr(p1)).is_equal_to("EccKey(curve='NIST P-256', point_x=20573031766139722500939782666697015100983491952082159880539639074939225934381, point_y=108863130203210779921520632367477406025152638284581252625277850513266505911389, d=75467964919405407085864614198393977741148485328036093939970922195112333446269)")
-    #
+    p1 = ECC.construct(curve='P-256',
+                       d=75467964919405407085864614198393977741148485328036093939970922195112333446269,
+                       point_x=20573031766139722500939782666697015100983491952082159880539639074939225934381,
+                       point_y=108863130203210779921520632367477406025152638284581252625277850513266505911389)
+    asserts.assert_that(repr(p1)).is_equal_to("EccKey(curve='NIST P-256', point_x=20573031766139722500939782666697015100983491952082159880539639074939225934381, point_y=108863130203210779921520632367477406025152638284581252625277850513266505911389, d=75467964919405407085864614198393977741148485328036093939970922195112333446269)")
+
 
 """Tests defined in section 4.3 of https://www.nsa.gov/ia/_files/nist-routines.pdf"""
 
@@ -830,8 +843,9 @@ def TestEccModule_P521_test_negative_construct():
 
 def _testsuite():
     _suite = unittest.TestSuite()
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_test_mix))
-    _suite.addTest(unittest.FunctionTestCase(test_basic_ECC_generate_test))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_test_mix))
+    _suite.addTest(unittest.FunctionTestCase(test_basic_ECC_generate))
+    _suite.addTest(unittest.FunctionTestCase(test_basic_ECC_construct_example))
     _suite.addTest(unittest.FunctionTestCase(TestEccPoint_test_repr))
     _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_set))
     # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_copy))

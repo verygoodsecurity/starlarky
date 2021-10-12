@@ -656,8 +656,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     @StarlarkMethod(name="as_tuple")
     public Tuple asTuple() {
       return Tuple.of(
-        this.point.getXCoord().toBigInteger(),
-        this.point.getYCoord().toBigInteger()
+        StarlarkInt.of(this.point.getXCoord().toBigInteger()),
+        StarlarkInt.of(this.point.getYCoord().toBigInteger())
       );
     }
     @StarlarkMethod(name="twice")
@@ -667,14 +667,20 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     }
 
     @StarlarkMethod(name="add", parameters = {@Param(name="point", allowedTypes = {@ParamType(type=LarkyECPoint.class)})})
-    public LarkyECPoint add(LarkyECPoint other) {
+    public LarkyECPoint add(LarkyECPoint other) throws EvalException {
+      if (!(this.point.getCurve().equals(other.point.getCurve()))) {
+        throw Starlark.errorf("ValueError: EC points are not on the same curve");
+      }
       this.point = this.point.add(other.point);
       return this;
     }
 
     @StarlarkMethod(name="multiply", parameters = {@Param(name="point", allowedTypes = {@ParamType(type=StarlarkInt.class)})})
     public LarkyECPoint multiply(StarlarkInt scale) {
-      this.point = this.point.multiply(scale.toBigInteger());
+      ////ECPoint point2 = this.point.multiply(scale.toBigInteger());
+      //ECPoint point2 = new FixedPointCombMultiplier().multiply(this.point, scale.toBigInteger()).normalize();
+      //point2.getXCoord().toBigInteger();
+      this.point = this.point.multiply(scale.toBigInteger()).normalize();
       return this;
     }
   }
@@ -700,6 +706,14 @@ public class CryptoPublicKeyModule implements StarlarkValue {
         BigInteger y = yb.toBigInteger();
         ECPoint point = this.curve.createPoint(x, y);
         return new LarkyECPoint(point);
+        /*
+        var _point = this.curve.createPoint(x, y);
+        _point.getXCoord().toBigInteger();
+        _point.getYCoord().toBigInteger();
+        var _point2 = _point.twice();
+        _point2.getXCoord().toBigInteger();
+        _point2.getYCoord().toBigInteger();
+         */
       }
     }
 

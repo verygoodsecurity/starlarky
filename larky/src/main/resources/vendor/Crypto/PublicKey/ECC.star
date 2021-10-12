@@ -34,9 +34,8 @@ load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITER
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//struct", struct="struct")
-load("@vendor//Crypto/IO/PEM", PEM="PEM")
-# load("@vendor//Crypto/IO", PEM="PEM")
-# load("@vendor//Crypto/IO", PKCS8="PKCS8")
+load("@vendor//Crypto/IO", PEM="PEM")
+load("@vendor//Crypto/IO", PKCS8="PKCS8")
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/PublicKey", _expand_subject_public_key_info="expand_subject_public_key_info", _create_subject_public_key_info="create_subject_public_key_info", _extract_subject_public_key_info="extract_subject_public_key_info")
 load("@vendor//Crypto/PublicKey/_openssh", import_openssh_private_generic="import_openssh_private_generic", read_bytes="read_bytes", read_string="read_string", check_padding="check_padding")
@@ -360,10 +359,10 @@ def EccPoint(x, y, curve="p256"):
     def __imul__(scalar):
         """Multiply this point by a scalar"""
 
-        if scalar < 0:
+        if operator.lt(scalar, 0):
             return Error("ValueError: Scalar multiplication is only defined for non-negative integers").unwrap()
         # sb = long_to_bytes(scalar)
-        self._point.multiply(scalar)
+        self._point.multiply(operator.index(scalar))
         # result = _ec_lib.ec_ws_scalar(self._point.get(),
         #                               c_uint8_ptr(sb),
         #                               c_size_t(len(sb)),
@@ -394,7 +393,9 @@ def EccPoint(x, y, curve="p256"):
 
         modulus_bytes = self.size_in_bytes()
         context = self._curve.context
-
+        # print("ecc__init__", modulus_bytes, type(modulus_bytes))
+        # print("ecc__init__", x, type(x))
+        # print("ecc__init__", y, type(y))
         xb = long_to_bytes(x, modulus_bytes)
         yb = long_to_bytes(y, modulus_bytes)
         if len(xb) != modulus_bytes or len(yb) != modulus_bytes:
@@ -483,7 +484,7 @@ def EccKey(**kwargs):
                 return Error("ValueError: Either private or public ECC component must be specified, not both").unwrap()
         else:
             self._d = Integer(self._d)
-            if not ((1 <= self._d) and (self._d < self._curve.order)):
+            if not (operator.le(1, self._d) and operator.lt(self._d, self._curve.order)):
                 return Error("ValueError: Invalid ECC private component").unwrap()
 
         self.curve = self._curve.desc
@@ -499,16 +500,15 @@ def EccKey(**kwargs):
 
     def __repr__():
         if self.has_private():
-            extra = ", d=%d" % int(self._d)
+            extra = ", d=%d" % operator.index(self._d)
         else:
             extra = ""
         x, y = self.pointQ.xy
-        return "EccKey(curve='%s', point_x=%d, point_y=%d%s)" % (self._curve.desc, x, y, extra)
+        return "EccKey(curve='%s', point_x=%d, point_y=%d%s)" % (self._curve.desc, operator.index(x), operator.index(y), extra)
     self.__repr__ = __repr__
 
     def has_private():
         """``True`` if this key can be used for making signatures or decrypting data."""
-
         return self._d != None
     self.has_private = has_private
 
@@ -544,7 +544,11 @@ def EccKey(**kwargs):
 
     def _pointQ():
         if self._point == None:
-            self._point = self._curve.G * self._d
+            # print("_pointQ")
+            # print(self._curve.G, type(self._curve.G))
+            # print(self._d, type(self._d))
+            # print("END_pointQ")
+            self._point = operator.mul(self._curve.G, self._d)
         return self._point
     self.pointQ = larky.property(_pointQ)
 
@@ -614,19 +618,16 @@ def EccKey(**kwargs):
     self._export_private_der = _export_private_der
 
     def _export_pkcs8(**kwargs):
-        fail("TODO")
-        # load("@vendor//Crypto/IO", PKCS8="PKCS8")
-        #
-        # if kwargs.get('passphrase', None) != None and 'protection' not in kwargs:
-        #     return Error("ValueError: At least the 'protection' parameter should be present")
-        #
-        # unrestricted_oid = "1.2.840.10045.2.1"
-        # private_key = self._export_private_der(include_ec_params=False)
-        # result = PKCS8.wrap(private_key,
-        #                     unrestricted_oid,
-        #                     key_params=DerObjectId(self._curve.oid),
-        #                     **kwargs)
-        # return result
+        if kwargs.get('passphrase', None) != None and 'protection' not in kwargs:
+            return Error("ValueError: At least the 'protection' parameter should be present").unwrap()
+
+        unrestricted_oid = "1.2.840.10045.2.1"
+        private_key = self._export_private_der(include_ec_params=False)
+        result = PKCS8.wrap(private_key,
+                            unrestricted_oid,
+                            key_params=DerObjectId(self._curve.oid),
+                            **kwargs)
+        return result
     self._export_pkcs8 = _export_pkcs8
 
     def _export_public_pem(compress):
@@ -735,7 +736,7 @@ def EccKey(**kwargs):
             A multi-line string (for PEM and OpenSSH) or bytes (for DER) with the encoded key.
         """
 
-        args = kwargs.copy()
+        args = dict(**kwargs)
         ext_format = args.pop("format")
         if ext_format not in ("PEM", "DER", "OpenSSH"):
             return Error("ValueError: Unknown format '%s'" % ext_format).unwrap()
@@ -806,7 +807,7 @@ def generate(**kwargs):
     return EccKey(curve=curve_name, d=d)
 
 
-def construct(**kwargs):
+def _construct(**kwargs):
     """Build a new ECC key (private or public) starting
     from some base components.
 
@@ -843,11 +844,35 @@ def construct(**kwargs):
     # Validate that the private key matches the public one
     d = kwargs.get("d", None)
     if d != None and "point" in kwargs:
-        pub_key = curve.G * d
-        if pub_key.xy != (point_x, point_y):
+        pub_key = operator.mul(curve.G, d)
+        if operator.ne(pub_key.x, point_x) or operator.ne(pub_key.y, point_y):
             return Error("ValueError: Private and public ECC keys do not match")
 
     return Ok(EccKey(**kwargs))
+
+
+def construct(**kwargs):
+    """Build a new ECC key (private or public) starting
+    from some base components.
+
+    Args:
+
+      curve (string):
+        Mandatory. It must be a curve name defined in :numref:`curve_names`.
+
+      d (integer):
+        Only for a private key. It must be in the range ``[1..order-1]``.
+
+      point_x (integer):
+        Mandatory for a public key. X coordinate (affine) of the ECC point.
+
+      point_y (integer):
+        Mandatory for a public key. Y coordinate (affine) of the ECC point.
+
+    Returns:
+      :class:`EccKey` : a new ECC key object
+    """
+    return _construct(**kwargs).unwrap()
 
 
 def _import_public_der(curve_oid, ec_point):
@@ -898,7 +923,7 @@ def _import_public_der(curve_oid, ec_point):
         return Error("ValueError: Incorrect EC point encoding")
 
     # noinspection PyUnboundLocalVariable
-    return construct(curve=curve_name, point_x=x, point_y=y)
+    return _construct(curve=curve_name, point_x=x, point_y=y)
 
 
 def _import_subjectPublicKeyInfo(encoded, *kwargs):
@@ -987,34 +1012,32 @@ def _import_private_der(encoded, passphrase, curve_oid=None):
         point_x = None
         point_y = point_x
 
-    return construct(curve=curve_name, d=d, point_x=point_x, point_y=point_y)
+    return _construct(curve=curve_name, d=d, point_x=point_x, point_y=point_y)
 
 
 def _import_pkcs8(encoded, passphrase):
-    fail("TODO!")
-    # load("@vendor//Crypto/IO", PKCS8="PKCS8")
+
+    # From RFC5915, Section 1:
     #
-    # # From RFC5915, Section 1:
-    # #
-    # # Distributing an EC private key with PKCS#8 [RFC5208] involves including:
-    # # a) id-ecPublicKey, id-ecDH, or id-ecMQV (from [RFC5480]) with the
-    # #    namedCurve as the parameters in the privateKeyAlgorithm field; and
-    # # b) ECPrivateKey in the PrivateKey field, which is an OCTET STRING.
-    #
-    # algo_oid, private_key, params = PKCS8.unwrap(encoded, passphrase)
-    #
-    # # We accept id-ecPublicKey, id-ecDH, id-ecMQV without making any
-    # # distiction for now.
-    # unrestricted_oid = "1.2.840.10045.2.1"
-    # ecdh_oid = "1.3.132.1.12"
-    # ecmqv_oid = "1.3.132.1.13"
-    #
-    # if algo_oid not in (unrestricted_oid, ecdh_oid, ecmqv_oid):
-    #     return UnsupportedEccFeature("Unsupported ECC purpose (OID: %s)" % algo_oid)
-    #
-    # curve_oid = codecs.decode(DerObjectId(), encoding=params).value
-    #
-    # return _import_private_der(private_key, passphrase, curve_oid)
+    # Distributing an EC private key with PKCS#8 [RFC5208] involves including:
+    # a) id-ecPublicKey, id-ecDH, or id-ecMQV (from [RFC5480]) with the
+    #    namedCurve as the parameters in the privateKeyAlgorithm field; and
+    # b) ECPrivateKey in the PrivateKey field, which is an OCTET STRING.
+
+    algo_oid, private_key, params = PKCS8.unwrap(encoded, passphrase)
+
+    # We accept id-ecPublicKey, id-ecDH, id-ecMQV without making any
+    # distinction for now.
+    unrestricted_oid = "1.2.840.10045.2.1"
+    ecdh_oid = "1.3.132.1.12"
+    ecmqv_oid = "1.3.132.1.13"
+
+    if algo_oid not in (unrestricted_oid, ecdh_oid, ecmqv_oid):
+        return UnsupportedEccFeature("Unsupported ECC purpose (OID: %s)" % algo_oid)
+
+    curve_oid = DerObjectId().decode(params).value
+
+    return _import_private_der(private_key, passphrase, curve_oid)
 
 
 def _import_x509_cert(encoded, *kwargs):
@@ -1206,6 +1229,7 @@ def import_key(encoded, passphrase=None):
 
 curves = _curves
 ECC = larky.struct(
+    construct=construct,
     generate=generate,
     import_key=import_key,
     curves=_curves,
