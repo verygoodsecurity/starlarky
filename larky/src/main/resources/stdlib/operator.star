@@ -58,7 +58,7 @@ def _create_rich_comparison(operator,    # type: str
         for first_obj, meth, second_obj in calls:
             if meth == larky.SENTINEL:
                 continue
-            # print(meth, first_obj, second_obj)
+            print(meth, first_obj, second_obj)
             value = meth(second_obj)
             return value
 
@@ -213,8 +213,8 @@ or_ = _create_binary_op("or", "|", default=lambda lhs, rhs: lhs | rhs)
 matmul = _create_binary_op("matmul", "@")
 
 
-def _create_unary_op(name, operator):
-    # type: (str, str) -> Callable[[Any], Any]
+def _create_unary_op(name, operator, default=None):
+    # type: (str, str, Optional[Callable]) -> Callable[[Any], Any]
     """Create a unary arithmetic operation function."""
     method_name = "__{}__".format(name)
 
@@ -224,17 +224,19 @@ def _create_unary_op(name, operator):
         type_ = type(object_)
         unary_method = getattr(object_, method_name, larky.SENTINEL)
         if unary_method == larky.SENTINEL:
-            fail("bad operand type for unary %s: %r", operator, type_)
+            if not default:
+                fail("unsupported unary operation: %s%r" %(operator, type_))
+            return default(object_)
         else:
             return unary_method()
 
     return unary_op
 
 
-neg = _create_unary_op("neg", "-")
-pos = _create_unary_op("pos", "+")
+neg = _create_unary_op("neg", "-", default=lambda o: -o)
+pos = _create_unary_op("pos", "+", default=lambda o: +o)
 # inv/__inv__ are from Python 1; invert/__invert__ introduced in Python 2.0.
-inv = _create_unary_op("invert", "~")
+inv = _create_unary_op("invert", "~", default=lambda o: ~o)
 invert = inv
 
 
