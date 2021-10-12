@@ -22,48 +22,81 @@ _pow = builtins.pow
 
 
 # Comparison Operations *******************************************************#
+def _create_rich_comparison(operator,    # type: str
+                            name,        # type: str
+                            reflection,  # type: str
+                            default      # type: Callable[[str, Any, Any], bool]
+                            ):
+    # type: (...)  -> Callable[[Any, Any], Any]
+    """Create a rich comparison function.
+    The 'operator' parameter is the human-readable symbol of the operation (e.g.
+    `>`). The 'name' parameter is the primary function (e.g. __gt__), while
+    'reflection' is the reflection of that function (e.g. __lt__). The 'default'
+    parameter is a callable to use when both functions don't exist and/or return
+    NotImplemented.
+    """
 
-def lt(a, b):
-    "Same as a < b."
-    _m = getattr(a, '__lt__', larky.SENTINEL)
-    if _m == larky.SENTINEL:
-        return a < b
-    return _m(b)
+    def _rich_comparison(lhs, rhs):
+        # type:  (Any, Any) -> Any
+        """Implement the rich comparison `a {operator} b`."""
+        lhs_type = type(lhs)
+        lhs_method = getattr(lhs, name, larky.SENTINEL)
 
-def le(a, b):
-    "Same as a <= b."
-    _m = getattr(a, '__le__', larky.SENTINEL)
-    if _m == larky.SENTINEL:
-        return a <= b
-    return _m(b)
+        rhs_type = type(rhs)
+        rhs_method = getattr(rhs, reflection, larky.SENTINEL)
 
-def eq(a, b):
-    "Same as a == b."
-    _m = getattr(a, '__eq__', larky.SENTINEL)
-    if _m == larky.SENTINEL:
-        return a == b
-    return _m(b)
+        call_lhs = lhs, lhs_method, rhs
+        call_rhs = rhs, rhs_method, lhs
+        # print("here1 @ ", name, operator, lhs_type, ":", call_lhs)
+        # print("here2 @ ", name, operator, rhs_type, ":", call_rhs, "reflection?", reflection)
+        if rhs_type == lhs_type:
+            calls = call_rhs, call_lhs
+        else:
+            calls = call_lhs, call_rhs
 
-def ne(a, b):
-    "Same as a != b."
-    _m = getattr(a, '__ne__', larky.SENTINEL)
-    if _m == larky.SENTINEL:
-        return a != b
-    return _m(b)
+        _larky_forelse_run_else = True
+        for first_obj, meth, second_obj in calls:
+            if meth == larky.SENTINEL:
+                continue
+            # print(meth, first_obj, second_obj)
+            value = meth(second_obj)
+            return value
 
-def ge(a, b):
-    "Same as a >= b."
-    _m = getattr(a, '__ge__', larky.SENTINEL)
-    if _m == larky.SENTINEL:
-        return a >= b
-    return _m(b)
+        if _larky_forelse_run_else:
+            return default(operator, lhs, rhs)
 
-def gt(a, b):
-    "Same as a > b."
-    _m = getattr(a, '__gt__', larky.SENTINEL)
-    if _m == larky.SENTINEL:
-        return a > b
-    return _m(b)
+    return _rich_comparison
+
+
+def _rich_comparison_unsupported(operator, lhs, rhs):
+    # type: (str, Any, Any) -> None
+    """Raise TypeError when a rich comparison has no fallback logic."""
+    fail("TypeError: unsupported operand type(s) for {}: {} and {}".format(
+        repr(operator),
+        repr(type(lhs)),
+        repr(type(rhs))))
+
+
+__gt__ = _create_rich_comparison(">",
+                                 "__gt__", "__lt__", lambda __, a, b: a > b)
+__lt__ = _create_rich_comparison("<",
+                                 "__lt__", "__gt__", lambda __, a, b: a < b)
+__ge__ = _create_rich_comparison(">=",
+                                 "__ge__", "__le__", lambda _, a, b: a >= b)
+__le__ = _create_rich_comparison("<=",
+                                 "__le__", "__ge__", lambda _, a, b: a <= b)
+__eq__ = _create_rich_comparison("==",
+                                 "__eq__", "__eq__", lambda _, a, b: a == b)
+__ne__ = _create_rich_comparison("!=",
+                                 "__ne__", "__ne__", lambda _, a, b: a != b)
+
+gt = __gt__
+lt = __lt__
+ge = __ge__
+le = __le__
+eq = __eq__
+ne = __ne__
+
 
 # Logical Operations **********************************************************#
 
@@ -98,23 +131,102 @@ def is_not(a, b):
     "Same as a is not b."
     return a != b
 
-# Mathematical/Bitwise Operations *********************************************#
+# Mathematical/Bitwise/Binary Operations ******************************#
+
+
+def _create_binary_op(name, operator, default=None):
+    # type:  (str, str, Optional[Callable]) -> Any
+    """Create a binary operation function.
+
+    The `name` parameter specifies the name of the special method used for the
+    binary operation (e.g. `sub` for `__sub__`). The `operator` name is the
+    token representing the binary operation (e.g. `-` for subtraction).
+    """
+
+    lhs_method_name = "__{}__".format(name)
+
+    def binary_op(lhs, rhs):
+        # type:  (Any, Any) -> Any
+        """A closure implementing a binary operation in Python."""
+        rhs_method_name = "__r{}__".format(name)
+
+        # lhs.__*__
+        lhs_method = getattr(lhs, lhs_method_name, larky.SENTINEL)
+        lhs_type = type(lhs)
+
+        # lhs.__r*__ (for knowing if rhs.__r*__ should be called first)
+        lhs_rmethod = getattr(lhs, rhs_method_name, larky.SENTINEL)
+
+        # rhs.__r*__
+        rhs_method = getattr(rhs, rhs_method_name, larky.SENTINEL)
+        rhs_type = type(rhs)
+
+        call_lhs = lhs, lhs_method, rhs
+        call_rhs = rhs, rhs_method, lhs
+        # print("here1 @ ", name, operator, " || ", lhs_type, ":", call_lhs, "lhs_rmethod?", lhs_rmethod)
+        # print("here2 @ ", name, operator, " || ", rhs_type, ":", call_rhs)
+
+        if (
+            rhs_type != lhs_type  # Could RHS be a subclass?
+            and lhs_rmethod != rhs_method  # Is __r*__ actually different?
+        ):
+            calls = call_rhs, call_lhs
+        elif lhs_type != rhs_type:
+            calls = call_lhs, call_rhs
+        else:
+            calls = (call_lhs,)
+
+        _larky_forelse_run_else = True
+        for first_obj, meth, second_obj in calls:
+            if meth == larky.SENTINEL:
+                continue
+            value = meth(second_obj)
+            return value
+
+        if _larky_forelse_run_else:
+            if not default:
+                fail(
+                    "TypeError: unsupported operand type(s) for {}: {} and {}".format(
+                        operator,
+                        repr(lhs_type),
+                        repr(rhs_type),
+                    )
+                )
+            return default(lhs, rhs)
+
+    return binary_op
+
+add = _create_binary_op("add", "+", default=lambda lhs, rhs: lhs + rhs)
+sub = _create_binary_op("sub", "-", default=lambda lhs, rhs: lhs - rhs)
+mul = _create_binary_op("mul", "*", default=lambda lhs, rhs: lhs * rhs)
+mod = _create_binary_op("mod", "%", default=lambda lhs, rhs: lhs % rhs)
+pow = _create_binary_op("pow", "**", default=_pow)
+truediv = _create_binary_op("truediv", "/", default=lambda lhs, rhs:  lhs / rhs)
+floordiv = _create_binary_op("floordiv", "//", default=lambda lhs, rhs:  lhs // rhs)
+lshift = _create_binary_op("lshift", "<<", default=lambda lhs, rhs:  lhs << rhs)
+rshift = _create_binary_op("rshift", ">>", default=lambda lhs, rhs:  lhs >> rhs)
+and_ = _create_binary_op("and", "&", default=lambda lhs, rhs: lhs & rhs)
+xor = _create_binary_op("xor", "^", default=lambda lhs, rhs: lhs ^ rhs)
+or_ = _create_binary_op("or", "|", default=lambda lhs, rhs: lhs | rhs)
+matmul = _create_binary_op("matmul", "@")
+
+
+def inv(a):
+    "Same as ~a."
+    return ~a
+invert = inv
+
+def neg(a):
+    "Same as -a."
+    return -a
+
+def pos(a):
+    "Same as +a."
+    return +a
 
 def abs(a):
     "Same as abs(a)."
     return _abs(a)
-
-def add(a, b):
-    "Same as a + b."
-    return a + b
-
-def and_(a, b):
-    "Same as a & b."
-    return a & b
-
-def floordiv(a, b):
-    "Same as a // b."
-    return a // b
 
 def index(a):
     "Same as a.__index__()."
@@ -123,68 +235,6 @@ def index(a):
     if hasattr(a, "__index__"):
         return a.__index__()
     fail("TypeError: '%s' object cannot be interpreted as an integer" % type(a))
-
-def inv(a):
-    "Same as ~a."
-    return ~a
-invert = inv
-
-def lshift(a, b):
-    "Same as a << b."
-    return a << b
-
-def mod(a, b):
-    "Same as a % b."
-    return a % b
-
-def mul(a, b):
-    "Same as a * b."
-    return a * b
-
-def matmul(a, b):
-    "Same as a @ b."
-    return a.__matmul__(b)
-
-def neg(a):
-    "Same as -a."
-    return -a
-
-def or_(a, b):
-    "Same as a | b."
-    return a | b
-
-def pos(a):
-    "Same as +a."
-    return +a
-
-def pow(a, b):
-    "Same as a ** b."
-    return _pow(a, b)
-
-def rshift(a, b):
-    "Same as a >> b." # __rshift__
-    _m = getattr(a, '__rshift__', larky.SENTINEL)
-    if _m == larky.SENTINEL:
-        return a >> b
-    return _m(b)
-
-def sub(a, b):
-    "Same as a - b."
-    _m = getattr(a, '__sub__', larky.SENTINEL)
-    if _m == larky.SENTINEL:
-        return a - b
-    return _m(b)
-
-def truediv(a, b):
-    "Same as a / b."
-    return a / b
-
-def xor(a, b):
-    "Same as a ^ b."
-    _m = getattr(a, '__xor__', larky.SENTINEL)
-    if _m == larky.SENTINEL:
-        return a ^ b
-    return _m(b)
 
 # Sequence Operations *********************************************************#
 
