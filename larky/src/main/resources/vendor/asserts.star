@@ -188,7 +188,7 @@ def is_equal_to(self, other, **kwargs):
         if _diff:
             fail(_diff['message'])
     else:
-        _diff = (self.val != other)
+        _diff = operator.ne(self.val, other)
 
     if _diff:
         fail('Expected <{}> to be equal to <{}>, but was not.'
