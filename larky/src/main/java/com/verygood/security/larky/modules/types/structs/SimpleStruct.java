@@ -31,7 +31,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 // A trivial struct-like class with Starlark fields defined by a map.
-public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIterable<Object>, StarlarkIndexable, HasBinary {
+public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIterable<Object>, StarlarkIndexable, HasBinary, Comparable<Object> {
 
   final Map<String, Object> fields;
   final StarlarkThread currentThread;
@@ -149,25 +149,22 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
 
   @Override
   public boolean equals(Object obj) {
-    StarlarkCallable equals;
-    StarlarkCallable notEquals;
-
     if (!(obj instanceof SimpleStruct)) {
       return false;
     }
-    try {
-      equals = (StarlarkCallable) getField(PyProtocols.__EQ__);
-      if (equals != null) {
-        return (boolean) invoke(equals, ImmutableList.of(obj));
-      }
-      notEquals = (StarlarkCallable) getField(PyProtocols.__NE__);
-      if (notEquals != null) {
-        return !(boolean) invoke(notEquals, ImmutableList.of(obj));
-      }
-    } catch (EvalException e) {
-      throw new RuntimeException(e);
+    if (this == obj) {
+      return true;
     }
-    return this == obj;
+
+    boolean result;
+    try {
+      result = StructBinOp.richComparison(
+        this, obj, PyProtocols.__EQ__, PyProtocols.__NE__, this.getCurrentThread()
+      );
+    } catch (EvalException e) {
+      result = false;
+    }
+    return result;
   }
 
   @Override
@@ -186,33 +183,7 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
   @Nullable
   @Override
   public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
-    //noinspection SwitchStatementWithTooFewBranches
-    switch (op) {
-      case IN:
-        // is this (thisLeft = true) "is this in that?" or (thisLeft = false) "is that in this?"
-        // first, check to see if __contains__ exists?
-        final StarlarkCallable __contains__ =
-          thisLeft
-                ? (StarlarkCallable) ((SimpleStruct) that).getField(PyProtocols.__CONTAINS__)
-                : (StarlarkCallable) getField(PyProtocols.__CONTAINS__);
-        if (__contains__ != null) {
-          return thisLeft
-                   ? (boolean) ((SimpleStruct) that).invoke(__contains__, ImmutableList.of(this))
-                   : (boolean) this.invoke(__contains__, ImmutableList.of(that));
-        }
-        // it does not. ok, is thisLeft = false & it is an iterator?
-        if(!thisLeft) {
-          try {
-            final LarkyIterator iterator = (LarkyIterator) iterator();
-            return iterator.binaryOp(op, that, false);
-          } catch (RuntimeException ignored) {}
-        }
-        // *not in* case will be handled by EvalUtils
-        // fallthrough
-      default:
-        // unsupported binary operation!
-        return null;
-    }
+    return StructBinOp.operatorDispatch(this, op, that, thisLeft, this.getCurrentThread());
   }
 
   // supports object[key] retrieval if `__getitem__` is implemented
@@ -274,8 +245,7 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
     StringBuilder name = new StringBuilder(type());
     if (callable instanceof StarlarkCallable) {
       name.append(".").append(((StarlarkCallable)callable).getName());
-    }
-    else if(callable != null) {
+    } else if (callable != null) {
       name.append(".")
         .append("__call__<type: ")
         .append(StarlarkUtil.richType(callable))
@@ -284,5 +254,45 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
         .append(">");
     }
     return name.toString();
+  }
+
+  private static final TokenKind[] COMPARE_OPNAMES = new TokenKind[]{
+    TokenKind.LESS,
+    TokenKind.LESS_EQUALS,
+    TokenKind.EQUALS_EQUALS,
+    TokenKind.NOT_EQUALS,
+    TokenKind.GREATER,
+    TokenKind.GREATER_EQUALS
+  };
+
+  @Override
+  public int compareTo(@NotNull Object o) {
+    SimpleStruct other = (SimpleStruct) o;
+
+    try {
+      final boolean lt = (Boolean) StructBinOp.operatorDispatch(
+        this,
+        TokenKind.LESS,
+        other,
+        true,
+        this.getCurrentThread()
+      );
+      if (lt) {
+        return -1;
+      }
+      final boolean gt = (boolean) StructBinOp.operatorDispatch(
+        this,
+        TokenKind.GREATER,
+        other,
+        true,
+        this.getCurrentThread()
+      );
+      if (gt) {
+        return 1;
+      }
+    } catch (EvalException e) {
+      throw new RuntimeException(e);
+    }
+    return 0;
   }
 }
