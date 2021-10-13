@@ -58,7 +58,7 @@ def _create_rich_comparison(operator,    # type: str
         for first_obj, meth, second_obj in calls:
             if meth == larky.SENTINEL:
                 continue
-            print(meth, first_obj, second_obj)
+            # print(meth, first_obj, second_obj)
             value = meth(second_obj)
             return value
 
