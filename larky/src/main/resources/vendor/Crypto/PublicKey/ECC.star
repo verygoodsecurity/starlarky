@@ -312,12 +312,7 @@ def EccPoint(x, y, curve="p256"):
         :Return:
             :class:`EccPoint` : this same object (to enable chaining)
         """
-
         self._point.twice()
-        # result = _ec_lib.ec_ws_double(self._point.get())
-        # result = None
-        # if result:
-        #     return Error("ValueError: " + "Error %d while doubling an EC point" % result)
         return self
     self.double = double
 
@@ -336,18 +331,9 @@ def EccPoint(x, y, curve="p256"):
 
     def __imul__(scalar):
         """Multiply this point by a scalar"""
-
         if operator.lt(scalar, 0):
             return Error("ValueError: Scalar multiplication is only defined for non-negative integers").unwrap()
-        # sb = long_to_bytes(scalar)
         self._point.multiply(operator.index(scalar))
-        # result = _ec_lib.ec_ws_scalar(self._point.get(),
-        #                               c_uint8_ptr(sb),
-        #                               c_size_t(len(sb)),
-        #                               c_ulonglong(getrandbits(64)))
-        # result = None
-        # if result:
-        #     return Error("ValueError: " + "Error %d during scalar multiplication" % result)
         return self
     self.__imul__ = __imul__
 
