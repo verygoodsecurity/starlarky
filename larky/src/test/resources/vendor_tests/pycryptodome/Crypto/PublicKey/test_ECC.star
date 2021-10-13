@@ -661,11 +661,13 @@ def TestEccKey_P256_test_public_key_derived():
     asserts.assert_that(priv_key.pointQ).is_equal_to(pub_key.pointQ)
 
 def TestEccKey_P256_test_invalid_curve():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-257", d=1)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-257", d=1), ".*?ValueError")
+
 
 def TestEccKey_P256_test_invalid_d():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-256", d=0)(), ".*?ValueError")
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-256", d=_curves['p256'].order)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-256", d=0), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-256", d=_curves['p256'].order),
+                         ".*?ValueError")
 
 def TestEccKey_P256_test_equality():
 
@@ -722,12 +724,13 @@ def TestEccKey_P384_test_public_key_derived():
     asserts.assert_that(priv_key.pointQ).is_equal_to(pub_key.pointQ)
 
 def TestEccKey_P384_test_invalid_curve():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-385", d=1)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-385", d=1), ".*?ValueError")
+
 
 def TestEccKey_P384_test_invalid_d():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-384", d=0)(), ".*?ValueError")
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-384",
-                                                 d=_curves['p384'].order)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-384", d=0), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-384", d=_curves['p384'].order),
+                         ".*?ValueError")
 
 def TestEccKey_P384_test_equality():
 
@@ -784,12 +787,13 @@ def TestEccKey_P521_test_public_key_derived():
     asserts.assert_that(priv_key.pointQ).is_equal_to(pub_key.pointQ)
 
 def TestEccKey_P521_test_invalid_curve():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-522", d=1)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-522", d=1), ".*?ValueError")
+
 
 def TestEccKey_P521_test_invalid_d():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-521", d=0)(), ".*?ValueError")
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-521",
-                                                 d=_curves['p521'].order)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-521", d=0), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-521", d=_curves['p521'].order),
+                         ".*?ValueError")
 
 def TestEccKey_P521_test_equality():
 
@@ -927,40 +931,55 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_sizes))
     _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_set))
     _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_copy))
-    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_negate))
-    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_addition))
-    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_inplace_addition))
-    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_doubling))
-    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_scalar_multiply))
-    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_joing_scalar_multiply))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_negate))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_addition))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_inplace_addition))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_doubling))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_scalar_multiply))
+    _suite.addTest(unittest.FunctionTestCase(
+        TestEccPoint_NIST_P521_test_joing_scalar_multiply))
     _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_sizes))
     _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_private_key))
     _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_public_key))
-    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_public_key_derived))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_invalid_curve))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_invalid_d))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_equality))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_private_key))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_public_key))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_public_key_derived))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_invalid_curve))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_invalid_d))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_equality))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_private_key))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_public_key))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_public_key_derived))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_invalid_curve))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_invalid_d))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_equality))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P256_test_generate))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P256_test_construct))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P256_test_negative_construct))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P384_test_generate))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P384_test_construct))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P384_test_negative_construct))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P521_test_generate))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P521_test_construct))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P521_test_negative_construct))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P256_test_public_key_derived))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P256_test_invalid_curve))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_invalid_d))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_equality))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_private_key))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_public_key))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P384_test_public_key_derived))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P384_test_invalid_curve))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_invalid_d))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_equality))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_private_key))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_public_key))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P521_test_public_key_derived))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P521_test_invalid_curve))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_invalid_d))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_equality))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P256_test_generate))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P256_test_construct))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccModule_P256_test_negative_construct))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P384_test_generate))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P384_test_construct))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccModule_P384_test_negative_construct))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P521_test_generate))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P521_test_construct))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccModule_P521_test_negative_construct))
     return _suite
 
 _runner = unittest.TextTestRunner()

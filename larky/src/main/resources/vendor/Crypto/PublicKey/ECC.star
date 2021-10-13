@@ -357,9 +357,6 @@ def EccPoint(x, y, curve="p256"):
 
         modulus_bytes = self.size_in_bytes()
         context = self._curve.context
-        # print("ecc__init__", modulus_bytes, type(modulus_bytes))
-        # print("ecc__init__", x, type(x))
-        # print("ecc__init__", y, type(y))
         xb = long_to_bytes(x, modulus_bytes)
         yb = long_to_bytes(y, modulus_bytes)
         if len(xb) != modulus_bytes or len(yb) != modulus_bytes:

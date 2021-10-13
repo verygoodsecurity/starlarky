@@ -724,10 +724,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
         @Param(name = "xb", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
         @Param(name = "yb", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
       })
-      public LarkyECPoint point(StarlarkInt xb, StarlarkInt yb) {
+      public LarkyECPoint point(StarlarkInt xb, StarlarkInt yb) throws EvalException {
         BigInteger x = xb.toBigInteger();
         BigInteger y = yb.toBigInteger();
         ECPoint point = this.curve.createPoint(x, y);
+        if (!point.isValid()) {
+          throw Starlark.errorf("ValueError: The EC point does not belong to the curve");
+        }
         return new LarkyECPoint(point);
       }
 
