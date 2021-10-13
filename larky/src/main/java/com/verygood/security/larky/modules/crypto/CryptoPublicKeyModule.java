@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.verygood.security.larky.modules.crypto.Protocol.KDF.BCryptKDF;
+import com.verygood.security.larky.modules.crypto.PublicKey.LarkyEllipticCurveCryptography;
 import com.verygood.security.larky.modules.crypto.Util.CryptoUtils;
 
 import net.starlark.java.annot.Param;
@@ -74,11 +75,6 @@ import org.bouncycastle.jcajce.provider.asymmetric.rsa.BCRSAPublicKey;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.KeyFactorySpi;
 import org.bouncycastle.jcajce.provider.asymmetric.rsa.RSAUtil;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.math.ec.ECCurve;
-import org.bouncycastle.math.ec.ECPoint;
-import org.bouncycastle.math.ec.custom.sec.SecP256R1Curve;
-import org.bouncycastle.math.ec.custom.sec.SecP384R1Curve;
-import org.bouncycastle.math.ec.custom.sec.SecP521R1Curve;
 import org.bouncycastle.openssl.PEMDecryptorProvider;
 import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMException;
@@ -640,137 +636,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       throw new EvalException(e.getMessage(), e);
     }
     return StarlarkBytes.of(thread.mutability(), result);
-//    return StarlarkBytes.builder(thread).setSequence(result).build();
-  }
-
-  public static class LarkyECPoint implements StarlarkValue {
-    private ECPoint point;
-
-    public LarkyECPoint(ECPoint point) {
-      this.point = point;
-    }
-
-    @StarlarkMethod(name = "negate")
-    public LarkyECPoint negate() {
-      this.point = this.point.normalize().negate();
-      return this;
-      //return new LarkyECPoint(this.point.normalize().negate());
-    }
-
-    @StarlarkMethod(name = "is_infinity")
-    public boolean isInfinity() {
-      return this.point.isInfinity();
-    }
-
-    @StarlarkMethod(name = "as_tuple")
-    public Tuple asTuple() {
-      if (this.point.isInfinity()) {
-        return Tuple.of(StarlarkInt.of(0), StarlarkInt.of(0));
-      }
-      return Tuple.of(
-        StarlarkInt.of(this.point.getXCoord().toBigInteger()),
-        StarlarkInt.of(this.point.getYCoord().toBigInteger())
-      );
-    }
-    @StarlarkMethod(name="twice")
-    public LarkyECPoint twice() {
-      this.point = this.point.twice().normalize();
-      return this;
-    }
-
-    @StarlarkMethod(name="add", parameters = {@Param(name="point", allowedTypes = {@ParamType(type=LarkyECPoint.class)})})
-    public LarkyECPoint add(LarkyECPoint other) throws EvalException {
-      if (!(this.point.getCurve().equals(other.point.getCurve()))) {
-        throw Starlark.errorf("ValueError: EC points are not on the same curve");
-      }
-      this.point = this.point.add(other.point).normalize();
-      return this;
-    }
-
-    @StarlarkMethod(name = "multiply", parameters = {@Param(name = "point", allowedTypes = {@ParamType(type = StarlarkInt.class)})})
-    public LarkyECPoint multiply(StarlarkInt scale) {
-      ////ECPoint point2 = this.point.multiply(scale.toBigInteger());
-      //ECPoint point2 = new FixedPointCombMultiplier().multiply(this.point, scale.toBigInteger()).normalize();
-      //point2.getXCoord().toBigInteger();
-      this.point = this.point.multiply(scale.toBigInteger()).normalize();
-      return this;
-    }
-
-    @Override
-    public boolean equals(final Object that) {
-      return that instanceof LarkyECPoint
-               && this.point.equals(((LarkyECPoint) that).point);
-    }
-
-    @Override
-    public int hashCode() {
-      return this.point.normalize().hashCode();
-    }
-  }
-
-
-  public static class LarkyEllipticCurveCrypto implements StarlarkValue {
-    public static LarkyEllipticCurveCrypto INSTANCE = new LarkyEllipticCurveCrypto();
-
-
-    public static class LarkyECCurve implements StarlarkValue {
-      final private ECCurve curve;
-
-      public LarkyECCurve(ECCurve curve) {
-        this.curve = curve;
-      }
-
-      @StarlarkMethod(name = "point", parameters = {
-        @Param(name = "xb", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
-        @Param(name = "yb", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
-      })
-      public LarkyECPoint point(StarlarkInt xb, StarlarkInt yb) throws EvalException {
-        BigInteger x = xb.toBigInteger();
-        BigInteger y = yb.toBigInteger();
-        ECPoint point = this.curve.createPoint(x, y);
-        if (!point.isValid()) {
-          throw Starlark.errorf("ValueError: The EC point does not belong to the curve");
-        }
-        return new LarkyECPoint(point);
-      }
-
-      @StarlarkMethod(name = "infinity")
-      public LarkyECPoint pointAtInfinity() {
-        return new LarkyECPoint(this.curve.getInfinity());
-      }
-    }
-
-    @StarlarkMethod(name="P256R1Curve")
-    public LarkyECCurve P256R1Curve() {
-      return new LarkyECCurve(new SecP256R1Curve());
-    }
-
-    @StarlarkMethod(name="P384R1Curve")
-    public LarkyECCurve P384R1Curve() {
-      return new LarkyECCurve(new SecP384R1Curve());
-    }
-
-    @StarlarkMethod(name="P521R1Curve")
-    public LarkyECCurve P521R1Curve() {
-      return new LarkyECCurve(new SecP521R1Curve());
-    }
   }
 
   @StarlarkMethod(
     name = "ECC", structField = true
   )
-  public LarkyEllipticCurveCrypto ECC() throws EvalException {
-    return LarkyEllipticCurveCrypto.INSTANCE;
+  public LarkyEllipticCurveCryptography ECC() throws EvalException {
+    return LarkyEllipticCurveCryptography.INSTANCE;
   }
-//  @StarlarkMethod(
-//          name = "ECPoint", parameters = {
-//          @Param(name = "x", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
-//          @Param(name = "y", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
-//          @Param(name = "curve", allowedTypes = {@ParamType(type = Dict.class)}),
-//  }, useStarlarkThread = true)
-//  public StarlarkBytes ECPoint(StarlarkInt x, StarlarkInt y, Dict<String, Object> curve, StarlarkThread thread) throws EvalException {
-//
-//    ECPoint point = new ECPoint(x.toBigInteger(), y.toBigInteger());
-//    return point;
-//
+
 }
