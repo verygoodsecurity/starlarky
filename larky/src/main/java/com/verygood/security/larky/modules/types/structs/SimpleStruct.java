@@ -243,4 +243,44 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
     }
     return 0;
   }
+
+  private static final TokenKind[] COMPARE_OPNAMES = new TokenKind[]{
+    TokenKind.LESS,
+    TokenKind.LESS_EQUALS,
+    TokenKind.EQUALS_EQUALS,
+    TokenKind.NOT_EQUALS,
+    TokenKind.GREATER,
+    TokenKind.GREATER_EQUALS
+  };
+
+  @Override
+  public int compareTo(@NotNull Object o) {
+    SimpleStruct other = (SimpleStruct) o;
+
+    try {
+      final boolean lt = (Boolean) StructBinOp.operatorDispatch(
+        this,
+        TokenKind.LESS,
+        other,
+        true,
+        this.getCurrentThread()
+      );
+      if (lt) {
+        return -1;
+      }
+      final boolean gt = (boolean) StructBinOp.operatorDispatch(
+        this,
+        TokenKind.GREATER,
+        other,
+        true,
+        this.getCurrentThread()
+      );
+      if (gt) {
+        return 1;
+      }
+    } catch (EvalException e) {
+      throw new RuntimeException(e);
+    }
+    return 0;
+  }
 }
