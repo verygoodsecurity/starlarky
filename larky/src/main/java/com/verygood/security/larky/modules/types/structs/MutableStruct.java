@@ -3,8 +3,8 @@ package com.verygood.security.larky.modules.types.structs;
 import com.google.common.base.Joiner;
 
 import com.verygood.security.larky.modules.types.Property;
-
 import com.verygood.security.larky.modules.types.PyProtocols;
+
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -38,7 +38,13 @@ class MutableStruct extends SimpleStruct {
     } catch (
         NoSuchMethodException
             | EvalException exception) {
-      throw new RuntimeException(exception);
+      StringBuilder s = new StringBuilder("Exception encountered for property '")
+                         .append(name)
+                         .append("' pointing to: '")
+                         .append(field)
+                         .append("': ")
+                         .append(exception.getMessage());
+      throw new RuntimeException(s.toString(), exception.getCause());
     }
   }
 

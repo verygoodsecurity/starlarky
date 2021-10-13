@@ -25,13 +25,15 @@
 #
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//builtins", "builtins")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//larky", "larky")
-load("@stdlib//types", "types")
 load("@stdlib//math", math="math")
+load("@stdlib//operator", operator="operator")
 load("@stdlib//struct", struct="struct")
+load("@stdlib//types", "types")
+
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/py3compat", iter_range="iter_range")
-load("@stdlib//jcrypto", _JCrypto="jcrypto")
 
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
@@ -272,11 +274,16 @@ def long_to_bytes(n, blocksize=0):
     If :data:`blocksize` is zero or not provided, the byte string will
     be of minimal length.
     """
-    if n < 0 or blocksize < 0:
+
+    if operator.lt(n, 0) or operator.lt(blocksize, 0):
         fail('raise ValueError("Values must be non-negative")')
 
-    result = bytearray(_JCrypto.Math.int_to_bytes(n, blocksize, 'big', False))
-    if n == 0:
+    result = bytearray(
+        _JCrypto.Math.int_to_bytes(operator.index(n),
+                                   blocksize,
+                                   'big',
+                                   False))
+    if operator.eq(n, 0):
         if len(result) == 0:
             result = bytearray([0])
     return result

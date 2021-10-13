@@ -67,7 +67,7 @@ def BadIterable():
 
 def OperatorTestCase_test_lt():
     operator = module
-    asserts.assert_fails(lambda : operator.lt(), "missing 2 required positional arguments: a, b")
+    asserts.assert_fails(lambda : operator.lt(), "missing 2 required positional arguments: lhs, rhs")
     asserts.assert_that(operator.lt(1, 0)).is_false()
     asserts.assert_that(operator.lt(1, 0.0)).is_false()
     asserts.assert_that(operator.lt(1, 1)).is_false()
@@ -77,7 +77,7 @@ def OperatorTestCase_test_lt():
 
 def OperatorTestCase_test_le():
     operator = module
-    asserts.assert_fails(lambda : operator.le(), "missing 2 required positional arguments: a, b")
+    asserts.assert_fails(lambda : operator.le(), "missing 2 required positional arguments: lhs, rhs")
     asserts.assert_that(operator.le(1, 0)).is_false()
     asserts.assert_that(operator.le(1, 0.0)).is_false()
     asserts.assert_that(operator.le(1, 1)).is_true()
@@ -93,7 +93,7 @@ def OperatorTestCase_test_eq():
             fail(" SyntaxError")
         self.__eq__ = __eq__
         return self
-    asserts.assert_fails(lambda : operator.eq(), "missing 2 required positional arguments: a, b")
+    asserts.assert_fails(lambda : operator.eq(), "missing 2 required positional arguments: lhs, rhs")
     asserts.assert_fails(lambda : operator.eq(C(), C()), ".*?SyntaxError")
     asserts.assert_that(operator.eq(1, 0)).is_false()
     asserts.assert_that(operator.eq(1, 0.0)).is_false()
@@ -138,7 +138,7 @@ def OperatorTestCase_test_ne():
             fail(" SyntaxError")
         self.__ne__ = __ne__
         return self
-    asserts.assert_fails(lambda : operator.ne(), "missing 2 required positional arguments: a, b")
+    asserts.assert_fails(lambda : operator.ne(), "missing 2 required positional arguments: lhs, rhs")
     asserts.assert_fails(lambda : operator.ne(C(), C()), ".*?SyntaxError")
     asserts.assert_that(operator.ne(1, 0)).is_true()
     asserts.assert_that(operator.ne(1, 0.0)).is_true()
@@ -150,7 +150,7 @@ def OperatorTestCase_test_ne():
 
 def OperatorTestCase_test_ge():
     operator = module
-    asserts.assert_fails(lambda : operator.ge(), "missing 2 required positional arguments: a, b")
+    asserts.assert_fails(lambda : operator.ge(), "missing 2 required positional arguments: lhs, rhs")
     asserts.assert_that(operator.ge(1, 0)).is_true()
     asserts.assert_that(operator.ge(1, 0.0)).is_true()
     asserts.assert_that(operator.ge(1, 1)).is_true()
@@ -161,7 +161,7 @@ def OperatorTestCase_test_ge():
 
 def OperatorTestCase_test_gt():
     operator = module
-    asserts.assert_fails(lambda : operator.gt(), "missing 2 required positional arguments: a, b")
+    asserts.assert_fails(lambda : operator.gt(), "missing 2 required positional arguments: lhs, rhs")
     asserts.assert_that(operator.gt(1, 0)).is_true()
     asserts.assert_that(operator.gt(1, 0.0)).is_true()
     asserts.assert_that(operator.gt(1, 1)).is_false()
@@ -180,15 +180,15 @@ def OperatorTestCase_test_abs():
 
 def OperatorTestCase_test_add():
     operator = module
-    asserts.assert_fails(lambda : operator.add(), "missing 2 required positional arguments: a, b")
-    asserts.assert_fails(lambda : operator.add(None, None), "unsupported binary operation")
+    asserts.assert_fails(lambda : operator.add(), "missing 2 required positional arguments: lhs, rhs")
+    asserts.assert_fails(lambda : operator.add(None, None), "unsupported binary operation: \\w+ +")
     asserts.assert_that(operator.add(3, 4)).is_equal_to(7)
 
 
 def OperatorTestCase_test_bitwise_and():
     operator = module
-    asserts.assert_fails(lambda : operator.and_(), "missing 2 required positional arguments: a, b")
-    asserts.assert_fails(lambda : operator.and_(None, None), "unsupported binary operation")
+    asserts.assert_fails(lambda : operator.and_(), "missing 2 required positional arguments: lhs, rhs")
+    asserts.assert_fails(lambda : operator.and_(None, None), ".*unsupported binary operation: \\w+ &")
     asserts.assert_that(operator.and_(0xf, 0xa)).is_equal_to(0xa)
 
 def OperatorTestCase_test_concat():

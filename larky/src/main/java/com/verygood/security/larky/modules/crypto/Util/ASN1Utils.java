@@ -168,7 +168,7 @@ public class ASN1Utils {
             Objects.requireNonNull(bitstr);
             return new ASN1.LarkyDerBitString(new DERBitString(bitstr.toByteArray()));
           case "DerOctetString":
-            StarlarkBytes value3 = (StarlarkBytes) lobj.getField("value");
+            StarlarkBytes value3 = (StarlarkBytes) lobj.getField("payload");
             Objects.requireNonNull(value3);
             return new ASN1.LarkyOctetString(new DEROctetString(value3.toByteArray()));
             // fall through

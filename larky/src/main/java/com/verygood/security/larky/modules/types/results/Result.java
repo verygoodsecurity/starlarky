@@ -3,8 +3,6 @@ package com.verygood.security.larky.modules.types.results;
 import java.util.Objects;
 import java.util.function.Function;
 
-import com.verygood.security.larky.modules.types.PyProtocols;
-
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -24,8 +22,8 @@ import org.jetbrains.annotations.NotNull;
 )
 public interface Result extends StarlarkValue, Comparable<Result> {
 
-  @StarlarkMethod(name = "Error", parameters = {@Param(name = "error")})
-  static Result error(Object error) {
+  @StarlarkMethod(name = "Error", parameters = {@Param(name = "error")}, useStarlarkThread = true)
+  static Result error(Object error, StarlarkThread thread) {
     Objects.requireNonNull(error);
     if(error instanceof Result) {
       return (Result) error;
@@ -42,13 +40,13 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     return new Ok(value);
   }
 
-  @StarlarkMethod(name = "of", parameters = {@Param(name = "o")})
-  static Result of(Object o) {
+  @StarlarkMethod(name = "of", parameters = {@Param(name = "o")}, useStarlarkThread = true)
+  static Result of(Object o, StarlarkThread thread) {
     if(o instanceof Result) {
       return (Result) o;
     }
     else if (o instanceof Exception) {
-      return error(o);
+      return error(o, thread);
     }
     return ok(o);
   }
@@ -79,9 +77,10 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     }
 
     try {
-      return of(Starlark.call(thread, func, Tuple.of(getValue()), Dict.empty()));
+      final Object res = Starlark.call(thread, func, Tuple.of(getValue()), Dict.empty());
+      return of(res, thread);
     } catch (EvalException | InterruptedException e) {
-      return error(e);
+      return error(e, thread);
     }
   }
 
@@ -93,7 +92,7 @@ public interface Result extends StarlarkValue, Comparable<Result> {
       try {
         return ok(Starlark.call(thread, func, Tuple.of(getValue()), Dict.empty()));
       } catch (EvalException | InterruptedException e) {
-        return error(e);
+        return error(e, thread);
       }
     }
     return this;
@@ -107,7 +106,8 @@ public interface Result extends StarlarkValue, Comparable<Result> {
       return this;
     }
     try {
-      return error(Starlark.call(thread, func, Tuple.of(getError().getValue()), Dict.empty()));
+      final Object res = Starlark.call(thread, func, Tuple.of(getError().getValue()), Dict.empty());
+      return error(res, thread);
     } catch (EvalException | InterruptedException e) {
       throw new RuntimeException(e);
     }
@@ -228,41 +228,6 @@ public interface Result extends StarlarkValue, Comparable<Result> {
   @Override
   default boolean truth() {
     return isOk();
-  }
-
-  @StarlarkMethod(name = PyProtocols.__BOOL__)
-  default boolean __bool__() {
-    return truth();
-  }
-
-  @StarlarkMethod(name = PyProtocols.__EQ__)
-  default boolean __eq__(Result o) {
-    return compareTo(o) == 0;
-  }
-
-  @StarlarkMethod(name = PyProtocols.__NE__)
-  default boolean __ne__(Result o) {
-    return compareTo(o) != 0;
-  }
-
-  @StarlarkMethod(name = PyProtocols.__LT__)
-  default boolean __lt__(Result o) {
-    return compareTo(o) != 0;
-  }
-
-  @StarlarkMethod(name = PyProtocols.__LE__)
-  default boolean __le__(Result o) {
-    return compareTo(o) <= 0;
-  }
-
-  @StarlarkMethod(name = PyProtocols.__GT__)
-  default boolean __gt__(Result o) {
-    return compareTo(o) > 0;
-  }
-
-  @StarlarkMethod(name = PyProtocols.__GE__)
-  default boolean __ge__(Result o) {
-    return compareTo(o) >= 0;
   }
 
   @Override
