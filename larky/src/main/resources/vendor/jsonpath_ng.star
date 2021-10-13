@@ -11,7 +11,7 @@ def _read(node, keys):
     # First key should always be $, ignore
     for index in range(1, len(keys)):
         key = keys[index]
-        print(key, data, types.is_dict(data), types.is_list(data))
+        # print(key, data, types.is_dict(data), types.is_list(data))
         if types.is_dict(data):
             if key in data:
                 data = data[key]
@@ -135,7 +135,7 @@ def _parse(query):
     if len(element):
         keys.append(element)
 
-    print('json path keys:', keys)
+    # print('json path keys:', keys)
     return keys
 
 

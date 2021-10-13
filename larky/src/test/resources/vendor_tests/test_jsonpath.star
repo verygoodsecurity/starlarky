@@ -47,13 +47,13 @@ def _test_simple_jsonpath():
 
     asserts.assert_fails(lambda : jsonpath_ng.parse("$.store.*"), ".*?ParsingException")
     asserts.assert_fails(lambda : jsonpath_ng.parse("$.store.book[*].author"), ".*?ParsingException")
-    
+
     expr2 = jsonpath_ng.parse("$.store.drink")
     asserts.assert_fails(lambda : expr2.find(FIXTURE), ".*?ParsingException")
 
 
 def _test_update_jsonpath():
-    # update field value 
+    # update field value
     expr = jsonpath_ng.parse("$.store.book[0].author")
     result = expr.update(FIXTURE, "William Cavendish")
     asserts.assert_that(result.value["store"]["book"][0]["author"]).is_equal_to("William Cavendish")
@@ -61,7 +61,7 @@ def _test_update_jsonpath():
     # add field
     expr2 = jsonpath_ng.parse("$.store.bicycle.type")
     result = expr2.update(FIXTURE, "Mountain Bike")
-    print('Updated json:', result.value)
+    # print('Updated json:', result.value)
     asserts.assert_that(result.value["store"]["bicycle"]["type"]).is_equal_to("Mountain Bike")
 
 
