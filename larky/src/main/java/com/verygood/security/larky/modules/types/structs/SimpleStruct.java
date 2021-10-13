@@ -8,6 +8,7 @@ import java.util.Map;
 import com.verygood.security.larky.modules.types.LarkyIterator;
 import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
+import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
@@ -22,6 +23,7 @@ import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.Tuple;
 import net.starlark.java.spelling.SpellChecker;
 import net.starlark.java.syntax.TokenKind;
 
@@ -29,7 +31,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 // A trivial struct-like class with Starlark fields defined by a map.
-public class SimpleStruct implements LarkyObject, StarlarkIterable<Object>, StarlarkIndexable, HasBinary {
+public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIterable<Object>, StarlarkIndexable, HasBinary {
 
   final Map<String, Object> fields;
   final StarlarkThread currentThread;
@@ -244,5 +246,43 @@ public class SimpleStruct implements LarkyObject, StarlarkIterable<Object>, Star
     } catch (EvalException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) throws EvalException, InterruptedException {
+    Object callable = getField(PyProtocols.__CALL__);
+    if (callable instanceof StarlarkCallable) {
+      // we have to pass the execution thread here b/c otherwise
+      // we will pass the thread that was responsible for capturing the
+      // the closure -- which is not what we want.
+      return invoke(thread, callable, args, kwargs);
+    }
+    //StarlarkCallable.super.call(thread, args, kwargs);
+    throw Starlark.errorf(
+      "'%s' object is not callable (either def __call__(*args, **kwargs) is not " +
+      "defined or __call__ is defined but is not callable)", getName());
+  }
+
+  @Override
+  public String getName() {
+    Object callable;
+    try {
+      callable = getField(PyProtocols.__CALL__);
+    } catch (EvalException ex) {
+      throw new RuntimeException(ex);
+    }
+    StringBuilder name = new StringBuilder(type());
+    if (callable instanceof StarlarkCallable) {
+      name.append(".").append(((StarlarkCallable)callable).getName());
+    }
+    else if(callable != null) {
+      name.append(".")
+        .append("__call__<type: ")
+        .append(StarlarkUtil.richType(callable))
+        .append(", value=")
+        .append(Starlark.str(callable))
+        .append(">");
+    }
+    return name.toString();
   }
 }

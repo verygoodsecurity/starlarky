@@ -116,11 +116,11 @@ iter_range = range
 
 
 def is_native_int(x):
-    return types.is_instance(x, int)
+    return types.is_int(x)
 
 
 def is_string(x):
-    return types.is_string(x, str)
+    return types.is_string(x)
 
 
 def FileNotFoundError(*args, **kwargs):

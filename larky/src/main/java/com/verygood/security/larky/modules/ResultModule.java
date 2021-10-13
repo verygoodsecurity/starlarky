@@ -33,9 +33,10 @@ public class ResultModule implements StarlarkValue {
 
   public static final ResultModule INSTANCE = new ResultModule();
 
-  @StarlarkMethod(name = "Error", parameters = {@Param(name = "error")})
-  public static Result error(Object error) {
-    return Result.error(error);
+  @StarlarkMethod(name = "Error", parameters = {@Param(name = "error")}, useStarlarkThread = true)
+  public static Result error(Object error, StarlarkThread thread) {
+    // TODO: capture stack frame
+    return Result.error(error, thread);
   }
 
   @StarlarkMethod(name = "Ok", parameters = {@Param(name = "value")})
@@ -43,9 +44,9 @@ public class ResultModule implements StarlarkValue {
     return Result.ok(value);
   }
 
-  @StarlarkMethod(name = "of", parameters = {@Param(name = "o")})
-  public static Result of(Object o) {
-    return Result.of(o);
+  @StarlarkMethod(name = "of", parameters = {@Param(name = "o")}, useStarlarkThread = true)
+  public static Result of(Object o, StarlarkThread thread) {
+    return Result.of(o, thread);
   }
 
   @StarlarkMethod(name = "safe",
@@ -62,7 +63,7 @@ public class ResultModule implements StarlarkValue {
     } catch (EvalException e) {
       return Error.of(e); // for the stack trace.
     } catch (InterruptedException | RuntimeException e) {
-      return error(new EvalException(e.getMessage(), e.getCause()));
+      return error(new EvalException(e.getMessage(), e.getCause()), thread);
     }
   }
 

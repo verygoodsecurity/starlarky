@@ -118,8 +118,12 @@ public interface LarkyObject extends Structure {
   }
 
   default Object invoke(Object function, List<Object> args, Map<String, Object> kwargs) throws EvalException {
+    return invoke(getCurrentThread(), function, args, kwargs);
+  }
+
+  default Object invoke(StarlarkThread thread, Object function, List<Object> args, Map<String, Object> kwargs) throws EvalException {
     try {
-      return Starlark.call(getCurrentThread(), function, args, kwargs);
+      return Starlark.call(thread, function, args, kwargs);
     } catch (InterruptedException e) {
       throw new EvalException(e.getMessage(), e.fillInStackTrace());
     }

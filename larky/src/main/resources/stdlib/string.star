@@ -65,6 +65,10 @@ def maketrans(fromstr, tostr):
     return ''.join(L)
 
 
+
+# for formatters, we can port over parmatter's parser + formatter
+# (https://github.com/Ricyteach/parmatter/blob/master/src/parmatter/parmatter.py)
+
 string = larky.struct(
     maketrans=maketrans,
     whitespace=whitespace,

@@ -647,8 +647,6 @@ def _import_keyDER(extern_key, passphrase):
                  _import_pkcs8)
     for decoding in decodings:
         error, result = decoding(extern_key, passphrase)
-        if error != None:
-            print(error)
         if result:
             return None, result
     fail('ValueError("RSA key format is not supported")')

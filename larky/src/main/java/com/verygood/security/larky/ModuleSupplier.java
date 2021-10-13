@@ -26,6 +26,7 @@ import com.verygood.security.larky.modules.BinasciiModule;
 import com.verygood.security.larky.modules.C99MathModule;
 import com.verygood.security.larky.modules.CerebroModule;
 import com.verygood.security.larky.modules.CodecsModule;
+import com.verygood.security.larky.modules.CollectionsModule;
 import com.verygood.security.larky.modules.CryptoModule;
 import com.verygood.security.larky.modules.JsonModule;
 import com.verygood.security.larky.modules.OpenSSLModule;
@@ -66,7 +67,8 @@ public class ModuleSupplier {
     OpenSSLModule.INSTANCE,
     ResultModule.INSTANCE,
     SysModule.INSTANCE,
-    ZLibModule.INSTANCE
+    ZLibModule.INSTANCE,
+    CollectionsModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(

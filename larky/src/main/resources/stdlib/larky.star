@@ -187,6 +187,15 @@ def _DeterministicGenerator(func):
     return iter(self)
 
 
+
+def _fromkeys(iterable, value=None):
+    """dict.fromkeys(S[, v]) ->
+
+    Create a new dictionary with keys from iterable and values set to value.
+    """
+    return {key: value for key in iterable}
+
+
 larky = _struct(
     struct=_struct,
     mutablestruct=_mutablestruct,
@@ -202,6 +211,9 @@ larky = _struct(
     DeterministicGenerator=_DeterministicGenerator,
     strings=_struct(
         zfill=_zfill,
+    ),
+    dicts=_struct(
+      fromkeys=_fromkeys,
     ),
     utils=_struct(
         Counter=_Counter,
