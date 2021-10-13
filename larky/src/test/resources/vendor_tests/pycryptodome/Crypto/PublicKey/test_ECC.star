@@ -257,10 +257,6 @@ def TestEccPoint_NIST_P256_test_scalar_multiply():
     pointR = NIST4_3_pointS * 0
     asserts.assert_that(pointR).is_equal_to(pai)
 
-    # -1*S
-    # def neg_1_times_S():
-    #     return operator.mul(NIST4_3_pointS, -1)
-
     asserts.assert_fails(lambda: NIST4_3_pointS * -1, ".*?ValueError")
 
     # Reverse order
@@ -359,8 +355,8 @@ def TestEccPoint_NIST_P384_test_addition():
     asserts.assert_that(pointR).is_equal_to(pai)
 
 def TestEccPoint_NIST_P384__test_inplace_addition():
-    pointRx = 0x72b13dd4354b6b81745195e98cc5ba6970349191ac476bd4553cf35a545a067e
-    pointRy = 0x8d585cbb2e1327d75241a8a122d7620dc33b13315aa5c9d46d013011744ac264
+    pointRx = 0x12dc5ce7acdfc5844d939f40b4df012e68f865b89c3213ba97090a247a2fc009075cf471cd2e85c489979b65ee0b5eed
+    pointRy = 0x167312e58fe0c0afa248f2854e3cddcb557f983b3189b67f21eee01341e7e9fe67f6ee81b36988efa406945c8804a4b0
 
     pointR = NIST4_4_pointS.copy()
     pointR += NIST4_4_pointT
@@ -420,7 +416,7 @@ def TestEccPoint_NIST_P384_test_scalar_multiply():
     asserts.assert_that(pointR).is_equal_to(pai)
 
     # -1*S
-    asserts.assert_fails(lambda: lambda: NIST4_4_pointS * -1(), ".*?ValueError")
+    asserts.assert_fails(lambda: NIST4_4_pointS * -1, ".*?ValueError")
 
 def TestEccPoint_NIST_P384_test_joing_scalar_multiply():
     d = 0xa4ebcae5a665983493ab3e626085a24c104311a761b5a8fdac052ed1f111a5c44f76f45659d2d111a61b5fdd97583480
@@ -464,7 +460,7 @@ def TestEccPoint_NIST_P521_test_copy():
     asserts.assert_that(NIST4_5_pointS).is_not_equal_to(NIST4_5_pointT)
 
 def TestEccPoint_NIST_P521_test_negate():
-    negS = -NIST4_5_pointS
+    negS = operator.neg(NIST4_5_pointS)
     sum = NIST4_5_pointS + negS
     asserts.assert_that(sum).is_equal_to(NIST4_5_pointS.point_at_infinity())
 
@@ -552,7 +548,7 @@ def TestEccPoint_NIST_P521_test_scalar_multiply():
     asserts.assert_that(pointR).is_equal_to(pai)
 
     # -1*S
-    asserts.assert_fails(lambda: lambda: NIST4_5_pointS * -1(), ".*?ValueError")
+    asserts.assert_fails(lambda: NIST4_5_pointS * -1, ".*?ValueError")
 
 def TestEccPoint_NIST_P521_test_joing_scalar_multiply():
     d = 0x000001eb7f81785c9629f136a7e8f8c674957109735554111a2a866fa5a166699419bfa9936c78b62653964df0d6da940a695c7294d41b2d6600de6dfcf0edcfc89fdcb1
@@ -935,24 +931,24 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(
         TestEccPoint_NIST_P256_test_joing_scalar_multiply))
     _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_sizes))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_set))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_copy))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_negate))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_addition))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384__test_inplace_addition))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_doubling))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_scalar_multiply))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_joing_scalar_multiply))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_sizes))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_set))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_copy))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_negate))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_addition))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_inplace_addition))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_doubling))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_scalar_multiply))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_joing_scalar_multiply))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_sizes))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_set))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_copy))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_negate))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_addition))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384__test_inplace_addition))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_doubling))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_scalar_multiply))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_joing_scalar_multiply))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_sizes))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_set))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_copy))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_negate))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_addition))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_inplace_addition))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_doubling))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_scalar_multiply))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_joing_scalar_multiply))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_sizes))
     # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_private_key))
     # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_public_key))
     # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_public_key_derived))
