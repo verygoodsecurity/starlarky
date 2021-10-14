@@ -270,6 +270,7 @@ public class StructBinOp {
         // *not in* case will be handled by EvalUtils
         // fallthrough
       case EQUALS_EQUALS:
+        /* this is handled by {@link EvalUtils#binaryOp} in libstarlark */
       default:
         // unsupported binary operation!
         return null;
