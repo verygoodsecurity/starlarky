@@ -2,6 +2,7 @@ load("@vendor//Crypto/Hash/HMAC", HMAC="HMAC")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
+load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
 load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 
@@ -34,11 +35,33 @@ def HMAC_test_update():
     eq(hmac.hexdigest(), 'c7d49ccaae072a775cd168659c52698f')
 
 
+def HMAC_test_issue_179():
+    # https://github.com/verygoodsecurity/starlarky/issues/179
+    key = b'aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434ddabede0f3b482cd9aea9434d'
+    msg = b'hello world'
+    expected = "85a5308073975a335e69381949fa33e269ff3b1a"
+    asserts.assert_that(HMAC.new(key, msg, digestmod=SHA1).hexdigest()).is_equal_to(expected)
+
+    # test key length surpasses 64
+    key = b'aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434ddabede0f3b482cd9aea9434dt'
+    msg = b'hello world'
+    expected = "6a176496acfd81da8d2d88514a4ec453a0028fbc"
+    asserts.assert_that(HMAC.new(key, msg, digestmod=SHA1).hexdigest()).is_equal_to(expected)
+
+    # manual implementation
+    key = b'aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434ddabede0f3b482cd9aea9434dt'
+    key_hashed = SHA1.new(key).digest()
+    msg = b'hello world'
+    expected = "6a176496acfd81da8d2d88514a4ec453a0028fbc"
+    asserts.assert_that(HMAC.new(key_hashed, msg, digestmod=SHA1).hexdigest()).is_equal_to(expected)
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(HMAC_test_hex_digest))
     _suite.addTest(unittest.FunctionTestCase(HMAC_test_hexverify))
     _suite.addTest(unittest.FunctionTestCase(HMAC_test_update))
+    _suite.addTest(unittest.FunctionTestCase(HMAC_test_issue_179))
     return _suite
 
 
