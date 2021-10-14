@@ -7,9 +7,11 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.ext.ByteList;
 
 import org.bouncycastle.crypto.ExtendedDigest;
-import org.bouncycastle.util.encoders.Hex;
+import org.bouncycastle.crypto.digests.GeneralDigest;
+import org.bouncycastle.util.Memoable;
 
 public abstract class LarkyDigest implements StarlarkValue {
 
@@ -36,10 +38,19 @@ public abstract class LarkyDigest implements StarlarkValue {
       useStarlarkThread = true
   )
   public StarlarkBytes digest(StarlarkThread thread) throws EvalException {
+    return StarlarkBytes.of(thread.mutability(), reuseDigestIfPossible());
+  }
+
+  protected byte[] reuseDigestIfPossible() {
     byte[] resBuf = new byte[this.getDigest().getDigestSize()];
-    this.getDigest().doFinal(resBuf, 0);
-    return StarlarkBytes.of(thread.mutability(), resBuf);
-//    return StarlarkBytes.builder(thread).setSequence(resBuf).build();
+    final ExtendedDigest copy;
+    if(this instanceof Memoable) {
+      copy = (ExtendedDigest) ((GeneralDigest) this.getDigest()).copy();
+    } else {
+      copy = this.getDigest();
+    }
+    copy.doFinal(resBuf, 0);
+    return resBuf;
   }
 
   @StarlarkMethod(
@@ -47,9 +58,7 @@ public abstract class LarkyDigest implements StarlarkValue {
       doc = "Like digest() except the digest is returned as a string\n" +
           "of double length, containing only hexadecimal digits."
   )
-  public String hexdigest() {
-    byte[] resBuf = new byte[this.getDigest().getDigestSize()];
-    this.getDigest().doFinal(resBuf, 0);
-    return Hex.toHexString(resBuf);
+  public String hexDigest() {
+    return ByteList.wrap(reuseDigestIfPossible()).hex();
   }
 }
