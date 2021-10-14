@@ -28,4 +28,8 @@ public class StarlarkEvalWrapper {
   public static int compareUnchecked(Object x, Object y) {
     return Starlark.compareUnchecked(x, y);
   }
+
+  public static StarlarkInt ofFiniteDouble(double x) {
+    return StarlarkFloat.finiteDoubleToIntExact(x);
+  }
 }
