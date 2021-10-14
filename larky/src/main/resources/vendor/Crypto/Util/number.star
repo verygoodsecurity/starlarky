@@ -339,6 +339,13 @@ def long_to_bytes(n, blocksize=0):
             bresult = b'\x00' * (target_len - len(bresult)) + bresult
     return bresult
 
+        result[0] = result[0].lstrip(b'\x00')
+        bresult = b''.join(result)
+        # bresult has minimum length here
+        if blocksize > 0:
+            target_len = ((len(bresult) - 1) // blocksize + 1) * blocksize
+            bresult = b'\x00' * (target_len - len(bresult)) + bresult
+    return bresult
 
 def bytes_to_long(s,  byteorder='big', signed=False):
     r"""Convert a byte string to a long integer (big endian).
