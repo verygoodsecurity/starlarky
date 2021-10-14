@@ -3,6 +3,7 @@ package com.verygood.security.larky.modules.crypto;
 import com.verygood.security.larky.modules.crypto.Cipher.Engine;
 import com.verygood.security.larky.modules.crypto.Cipher.GHash;
 import com.verygood.security.larky.modules.crypto.Cipher.LarkyBlockCipher;
+import com.verygood.security.larky.modules.crypto.Cipher.LarkyPKCS1;
 import com.verygood.security.larky.modules.crypto.Cipher.LarkyStreamCipher;
 
 import net.starlark.java.annot.Param;
@@ -107,4 +108,11 @@ public class CryptoCipherModule implements StarlarkValue {
       throw new EvalException(e.getMessage(), e);
     }
   }
+
+  @StarlarkMethod(name = "PKCS1", structField = true)
+  public LarkyPKCS1 PKCS1() throws EvalException {
+    return LarkyPKCS1.INSTANCE;
+  }
+
+
 }
