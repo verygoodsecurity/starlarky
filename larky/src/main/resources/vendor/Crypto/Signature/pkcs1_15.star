@@ -115,7 +115,7 @@ def PKCS115_SigScheme(rsa_key):
 
         # Step 1
         if len(signature) != k:
-            return Error("ValueError: Invalid signature")
+            return Error("ValueError: Invalid signature").unwrap()
         # Step 2a (O2SIP)
         signature_int = bytes_to_long(signature)
         # Step 2b (RSAVP1)
@@ -142,8 +142,7 @@ def PKCS115_SigScheme(rsa_key):
         # scheme like Bleichenbacher's (see http://www.mail-archive.com/cryptography@metzdowd.com/msg06537).
         #
         if em1 not in possible_em1:
-            return Error("ValueError: Invalid signature")
-        pass
+            return Error("ValueError: Invalid signature").unwrap()
     self.verify = verify
     return self
 
@@ -202,7 +201,6 @@ def _EMSA_PKCS1_V1_5_ENCODE(msg_hash, emLen, with_hash_parameters=True):
 
     if with_hash_parameters:
         digestAlgo.append(DerNull().encode())
-
     digest      = DerOctetString(msg_hash.digest())
     digestInfo  = DerSequence([
                     digestAlgo.encode(),
