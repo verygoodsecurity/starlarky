@@ -6,6 +6,7 @@ load("@stdlib//struct", struct="struct")
 load("@stdlib//types", types="types")
 load("@vendor//Crypto/Random", Random="Random")
 load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//binascii", hexlify="hexlify")
 # load("@vendor//Crypto/Cipher", DES3="DES3")
 # load("@vendor//Crypto/Cipher", Blowfish="Blowfish")
 load("@vendor//Crypto/Cipher/PKCS1_v1_5", PKCS1_v1_5_Cipher="PKCS1_v1_5_Cipher")
@@ -129,9 +130,12 @@ def Wrapper(packet):
                     return fail('Error("Exception: Only RSA keys are supported.")')
                 # below should get object of OpenPGP.SecretKeyPacket 
                 rsa = self.__class__(psswd).public_key()
+                print('rsa', rsa)
                 pkcs1 = PKCS1_v1_5_Cipher.new(rsa)
                 esk = pkcs1.encrypt(pack('!B', symmetric_algorithm) + key + pack('!H', OpenPGP.checksum(key)))
+                print('test byte arr:', hexlify(bytearray([7])))
                 esk = pack('!H', OpenPGP.bitlength(esk)) + esk
+                print('esk:', hexlify(esk))
                 encrypted = [OpenPGP.AsymmetricSessionKeyPacket(psswd.key_algorithm, psswd.fingerprint(), esk)] + encrypted
             elif hasattr(psswd, 'encode'):
                 psswd = codecs.encode(psswd, encoding='utf-8')
@@ -180,7 +184,9 @@ def Wrapper(packet):
 
     def try_decrypt_session(key, edata):
         pkcs15 = PKCS1_v1_5_Cipher.new(key)
+        print('edata', edata)
         data = pkcs15.decrypt(edata, Random.new().read(len(edata)))
+        # return True
         sk = data[1:len(data)-2]
         chk = unpack('!H', data[-2:])[0]
 
@@ -217,7 +223,7 @@ def Wrapper(packet):
                     sk = self.try_decrypt_session(keys, p.encrypted_data[2:])
                 elif len(p.keyid.replace('0','')) < 1:
                     for k in keys.key:
-                        sk = self.try_decrypt_session(self.convert_private_key(k), p.encyrpted_data[2:]);
+                        sk = self.try_decrypt_session(self.convert_private_key(k), p.encyrpted_data[2:])
                         if sk:
                             break
                 else:
@@ -230,6 +236,7 @@ def Wrapper(packet):
                 r = self.decrypt_packet(self.encrypted_data(), sk[0], sk[1])
                 if r:
                     return r
+                return None
 
         return None # Failed
     self.decrypt = decrypt

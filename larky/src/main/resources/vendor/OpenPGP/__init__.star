@@ -72,6 +72,7 @@ def bitlength(data):
     if ord(data[0:1]) == 0:
         fail('OpenPGPException("Tried to get bitlength of string with leading 0")')
     # return (len(data) - 1) * 8 + int(floor(math.log(ord(data[0:1]), 2))) + 1
+    print('data in bitlength', data)
     return (len(data) - 1) * 8 + int(math.log(ord(data[0:1]), 2)) + 1
 
 def checksum(data):
