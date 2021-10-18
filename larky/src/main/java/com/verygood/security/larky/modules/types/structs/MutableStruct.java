@@ -32,19 +32,15 @@ class MutableStruct extends SimpleStruct {
         || !Property.class.isAssignableFrom(field.getClass())) {
       return field;
     }
-
+    final Property field1 = (Property) field;
     try {
-      return ((Property) field).call();
-    } catch (
-        NoSuchMethodException
-            | EvalException exception) {
-      StringBuilder s = new StringBuilder("Exception encountered for property '")
-                         .append(name)
-                         .append("' pointing to: '")
-                         .append(field)
-                         .append("': ")
-                         .append(exception.getMessage());
-      throw new RuntimeException(s.toString(), exception.getCause());
+      return field1.call();
+    } catch (NoSuchMethodException | NullPointerException | EvalException exception) {
+      String s = String.format(
+        "Exception encountered for property '%s' pointing to: '%s': %s",
+        name, field, exception
+      );
+      throw new EvalException(s, exception);
     }
   }
 
@@ -64,7 +60,7 @@ class MutableStruct extends SimpleStruct {
     try {
       ((Property) field).call(new Object[]{value, name}, null);
     } catch (NoSuchMethodException exception) {
-      throw new RuntimeException(exception);
+      throw new EvalException(exception);
     }
   }
 

@@ -2,8 +2,6 @@ package com.verygood.security.larky.modules.crypto.Hash;
 
 import com.google.common.base.Preconditions;
 
-import net.starlark.java.eval.StarlarkBytes;
-
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
@@ -51,6 +49,5 @@ public class LarkyXofDigest<T extends KeccakDigest & Xof> extends LarkyKeccakDig
     byte[] bytes = new byte[length_];
     this.digest.doFinal(bytes, 0, length.toIntUnchecked());
     return StarlarkBytes.of(thread.mutability(), bytes);
-//   return StarlarkBytes.builder(thread).setSequence(bytes).build();
   }
 }

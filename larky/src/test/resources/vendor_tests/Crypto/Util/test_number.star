@@ -133,27 +133,30 @@ def test_size():
     asserts.assert_fails(lambda : number.size(-1), ".*?ValueError")
 
 
-def test1():
-    asserts.assert_that(long_to_bytes(0)).is_equal_to(bytes([0x00]))
-    asserts.assert_that(long_to_bytes(1)).is_equal_to(bytes([0x01]))
-    asserts.assert_that(long_to_bytes(0x100)).is_equal_to(bytes([0x01, 0x00]))
-    asserts.assert_that(long_to_bytes(0xFF00000000)).is_equal_to(bytes([0xff, 0x00, 0x00, 0x00, 0x00]))
-    asserts.assert_that(long_to_bytes(0x1122334455667788)).is_equal_to(bytes([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]))
-    asserts.assert_that(long_to_bytes(0x112233445566778899)).is_equal_to(bytes([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99]))
+def Long2Bytes_test1():
+    asserts.assert_that(long_to_bytes(0)).is_equal_to(b'\x00')
+    asserts.assert_that(long_to_bytes(1)).is_equal_to(b'\x01')
+    asserts.assert_that(long_to_bytes(0x100)).is_equal_to(b'\x01\x00')
+    asserts.assert_that(long_to_bytes(0xFF00000000)).is_equal_to(b'\xFF\x00\x00\x00\x00')
+    asserts.assert_that(long_to_bytes(0xFF00000000)).is_equal_to(b'\xFF\x00\x00\x00\x00')
+    asserts.assert_that(long_to_bytes(0x1122334455667788)).is_equal_to(b'\x11\x22\x33\x44\x55\x66\x77\x88')
+    asserts.assert_that(long_to_bytes(0x112233445566778899)).is_equal_to(b'\x11\x22\x33\x44\x55\x66\x77\x88\x99')
 
 
-def test2():
-    asserts.assert_that(long_to_bytes(0, 1)).is_equal_to(bytes([0x00]))
-    asserts.assert_that(long_to_bytes(0, 2)).is_equal_to(bytes([0x00, 0x00]))
-    asserts.assert_that(long_to_bytes(1, 3)).is_equal_to(bytes([0x00, 0x00, 0x01]))
-    # asserts.assert_that(long_to_bytes(0x100, 1)).is_equal_to(bytes([0x01, 0x00]))
-    asserts.assert_that(long_to_bytes(0xFF00000001, 6)).is_equal_to(bytes([0x00, 0xFF, 0x00, 0x00, 0x00, 0x01]))
-    asserts.assert_that(long_to_bytes(0xFF00000001, 8)).is_equal_to(bytes([0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x01]))
-    asserts.assert_that(long_to_bytes(0xFF00000001, 10)).is_equal_to(bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x01]))
-    asserts.assert_that(long_to_bytes(0xFF00000001, 11)).is_equal_to(bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x01]))
+def Long2Bytes_test2():
+    asserts.assert_that(long_to_bytes(0, 1)).is_equal_to(b'\x00')
+    asserts.assert_that(long_to_bytes(0, 2)).is_equal_to(b'\x00\x00')
+    asserts.assert_that(long_to_bytes(1, 3)).is_equal_to(b'\x00\x00\x01')
+    asserts.assert_that(long_to_bytes(65535, 2)).is_equal_to(b'\xFF\xFF')
+    asserts.assert_that(long_to_bytes(65536, 2)).is_equal_to(b'\x00\x01\x00\x00')
+    asserts.assert_that(long_to_bytes(0x100, 1)).is_equal_to(b'\x01\x00')
+    asserts.assert_that(long_to_bytes(0xFF00000001, 6)).is_equal_to(b'\x00\xFF\x00\x00\x00\x01')
+    asserts.assert_that(long_to_bytes(0xFF00000001, 8)).is_equal_to(b'\x00\x00\x00\xFF\x00\x00\x00\x01')
+    asserts.assert_that(long_to_bytes(0xFF00000001, 10)).is_equal_to(b'\x00\x00\x00\x00\x00\xFF\x00\x00\x00\x01')
+    asserts.assert_that(long_to_bytes(0xFF00000001, 11)).is_equal_to(b'\x00\x00\x00\x00\x00\x00\xFF\x00\x00\x00\x01')
 
 
-def test_err1():
+def Long2Bytes_test_err1():
     asserts.assert_fails(lambda : long_to_bytes(-1), ".*?ValueError")
 
 
@@ -163,9 +166,9 @@ def _testsuite():
     # _suite.addTest(unittest.FunctionTestCase(test_getStrongPrime))
     _suite.addTest(unittest.FunctionTestCase(test_isPrime))
     _suite.addTest(unittest.FunctionTestCase(test_size))
-    _suite.addTest(unittest.FunctionTestCase(test1))
-    _suite.addTest(unittest.FunctionTestCase(test2))
-    _suite.addTest(unittest.FunctionTestCase(test_err1))
+    _suite.addTest(unittest.FunctionTestCase(Long2Bytes_test1))
+    _suite.addTest(unittest.FunctionTestCase(Long2Bytes_test2))
+    _suite.addTest(unittest.FunctionTestCase(Long2Bytes_test_err1))
     return _suite
 
 

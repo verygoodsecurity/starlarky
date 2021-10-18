@@ -312,12 +312,7 @@ def EccPoint(x, y, curve="p256"):
         :Return:
             :class:`EccPoint` : this same object (to enable chaining)
         """
-
         self._point.twice()
-        # result = _ec_lib.ec_ws_double(self._point.get())
-        # result = None
-        # if result:
-        #     return Error("ValueError: " + "Error %d while doubling an EC point" % result)
         return self
     self.double = double
 
@@ -336,18 +331,9 @@ def EccPoint(x, y, curve="p256"):
 
     def __imul__(scalar):
         """Multiply this point by a scalar"""
-
         if operator.lt(scalar, 0):
             return Error("ValueError: Scalar multiplication is only defined for non-negative integers").unwrap()
-        # sb = long_to_bytes(scalar)
         self._point.multiply(operator.index(scalar))
-        # result = _ec_lib.ec_ws_scalar(self._point.get(),
-        #                               c_uint8_ptr(sb),
-        #                               c_size_t(len(sb)),
-        #                               c_ulonglong(getrandbits(64)))
-        # result = None
-        # if result:
-        #     return Error("ValueError: " + "Error %d during scalar multiplication" % result)
         return self
     self.__imul__ = __imul__
 
@@ -371,9 +357,6 @@ def EccPoint(x, y, curve="p256"):
 
         modulus_bytes = self.size_in_bytes()
         context = self._curve.context
-        # print("ecc__init__", modulus_bytes, type(modulus_bytes))
-        # print("ecc__init__", x, type(x))
-        # print("ecc__init__", y, type(y))
         xb = long_to_bytes(x, modulus_bytes)
         yb = long_to_bytes(y, modulus_bytes)
         if len(xb) != modulus_bytes or len(yb) != modulus_bytes:

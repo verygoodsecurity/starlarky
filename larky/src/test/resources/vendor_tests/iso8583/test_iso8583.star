@@ -10,8 +10,8 @@ load("@vendor//iso8583/encoder", Encoder="encoder")
 def MyTestCase_test_decode_encode():
     payload = unhexlify(bytes(hex_string_payload, encoding='utf-8'))
     decoded, encoded1 = Decoder.decode(payload, test_payload_spec)
-    print('encoded1:' + str(encoded1))
-    print('decoded:' + str(decoded))
+    # print('encoded1:' + str(encoded1))
+    # print('decoded:' + str(decoded))
     # token = vault.put(encoded)
     # decoded['2'] = token
 
@@ -24,17 +24,17 @@ def MyTestCase_test_decode_encode():
     asserts.assert_that(decoded['2'] == encoded2['p'])
     asserts.assert_that(decoded['2'] == encoded2['2']['data'])
     for field_key in decoded:
-        print(field_key+':'+str(decoded[field_key]) + ' | ' + str(encoded2[field_key]['data']))
+        # print(field_key+':'+str(decoded[field_key]) + ' | ' + str(encoded2[field_key]['data']))
         asserts.assert_that(decoded[field_key] == encoded2[field_key]['data'])
-
-    print("encoded1:"+str(encoded1))
-    print("encoded2:"+str(encoded2))
-    print("payload :"+str(payload))
-    print("encoded_:"+str(encoded_raw))
+    #
+    # print("encoded1:"+str(encoded1))
+    # print("encoded2:"+str(encoded2))
+    # print("payload :"+str(payload))
+    # print("encoded_:"+str(encoded_raw))
 
     hex_string_payload_encoded_raw = str(hexlify(bytes(encoded_raw, encoding='utf-8')))
-    print("hex_string_payload :" + hex_string_payload)
-    print("hex_string_payload_:" + hex_string_payload_encoded_raw)
+    # print("hex_string_payload :" + hex_string_payload)
+    # print("hex_string_payload_:" + hex_string_payload_encoded_raw)
     asserts.assert_that(hex_string_payload).is_equal_to(hex_string_payload_encoded_raw)
 
 

@@ -135,7 +135,7 @@ def TestEccPoint_NIST_P256_test_negate():
         0x55a8b00f8da1d44e62f6b3b25316212e39540dc861c89575bb8cf92e35e0986b,
         0x5421c3209c2d6c704835d82ac4c3dd90f61a8a52598b9e7ab656e9d8c8b24316)
     negS = operator.neg(NIST4_3_pointS)
-    sum = operator.add(NIST4_3_pointS, negS)
+    sum = NIST4_3_pointS + negS
     asserts.assert_that(sum).is_equal_to(NIST4_3_pointS.point_at_infinity())
 
 
@@ -151,22 +151,22 @@ def TestEccPoint_NIST_P256_test_addition():
     pointRx = 0x72b13dd4354b6b81745195e98cc5ba6970349191ac476bd4553cf35a545a067e
     pointRy = 0x8d585cbb2e1327d75241a8a122d7620dc33b13315aa5c9d46d013011744ac264
 
-    pointR = operator.add(NIST4_3_pointS, NIST4_3_pointT)
+    pointR = NIST4_3_pointS + NIST4_3_pointT
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
     pai = pointR.point_at_infinity()
 
     # S + 0
-    pointR = operator.add(NIST4_3_pointS, pai)
+    pointR = NIST4_3_pointS + pai
     asserts.assert_that(pointR).is_equal_to(NIST4_3_pointS)
 
     # 0 + S
-    pointR = operator.add(pai, NIST4_3_pointS)
+    pointR = pai + NIST4_3_pointS
     asserts.assert_that(pointR).is_equal_to(NIST4_3_pointS)
 
     # 0 + 0
-    pointR = operator.add(pai, pai)
+    pointR = pai + pai
     asserts.assert_that(pointR).is_equal_to(pai)
 
 
@@ -183,7 +183,7 @@ def TestEccPoint_NIST_P256_test_inplace_addition():
     pointRy = 0x8d585cbb2e1327d75241a8a122d7620dc33b13315aa5c9d46d013011744ac264
 
     pointR = NIST4_3_pointS.copy()
-    pointR = operator.iadd(pointR, NIST4_3_pointT)
+    pointR += NIST4_3_pointT
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
@@ -191,17 +191,17 @@ def TestEccPoint_NIST_P256_test_inplace_addition():
 
     # S + 0
     pointR = NIST4_3_pointS.copy()
-    pointR = operator.iadd(pointR, pai)
+    pointR += pai
     asserts.assert_that(pointR).is_equal_to(NIST4_3_pointS)
 
     # 0 + S
     pointR = pai.copy()
-    pointR = operator.iadd(pointR, NIST4_3_pointS)
+    pointR += NIST4_3_pointS
     asserts.assert_that(pointR).is_equal_to(NIST4_3_pointS)
 
     # 0 + 0
     pointR = pai.copy()
-    pointR = operator.iadd(pointR, pai)
+    pointR += pai
     asserts.assert_that(pointR).is_equal_to(pai)
 
 
@@ -230,7 +230,7 @@ def TestEccPoint_NIST_P256_test_doubling():
 
     # S + S
     pointR = NIST4_3_pointS.copy()
-    pointR = operator.iadd(pointR, pointR)
+    pointR += pointR
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
@@ -248,27 +248,27 @@ def TestEccPoint_NIST_P256_test_scalar_multiply():
     pointRx = 0x51d08d5f2d4278882946d88d83c97d11e62becc3cfc18bedacc89ba34eeca03f
     pointRy = 0x75ee68eb8bf626aa5b673ab51f6e744e06f8fcf8a6c0cf3035beca956a7b41d5
 
-    pointR = operator.mul(NIST4_3_pointS, d)
+    pointR = NIST4_3_pointS * d
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
     # 0*S
     pai = NIST4_3_pointS.point_at_infinity()
-    pointR = operator.mul(NIST4_3_pointS, 0)
+    pointR = NIST4_3_pointS * 0
     asserts.assert_that(pointR).is_equal_to(pai)
 
     # -1*S
-    def neg_1_times_S():
-        return operator.mul(NIST4_3_pointS, -1)
+    # def neg_1_times_S():
+    #     return operator.mul(NIST4_3_pointS, -1)
 
-    asserts.assert_fails(lambda: neg_1_times_S(), ".*?ValueError")
+    asserts.assert_fails(lambda: NIST4_3_pointS * -1, ".*?ValueError")
 
     # Reverse order
-    pointR = operator.mul(d, NIST4_3_pointS)
+    pointR = d * NIST4_3_pointS
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
-    pointR = operator.mul(Integer(d), NIST4_3_pointS)
+    pointR = Integer(d) * NIST4_3_pointS
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
@@ -287,12 +287,9 @@ def TestEccPoint_NIST_P256_test_joing_scalar_multiply():
     pointRx = 0xd867b4679221009234939221b8046245efcf58413daacbeff857b8588341f6b8
     pointRy = 0xf2504055c03cede12d22720dad69c745106b6607ec7e50dd35d54bd80f615275
 
-    t = operator.mul(NIST4_3_pointS, d)
+    t = NIST4_3_pointS * d
 
-    pointR = operator.add(
-        operator.mul(NIST4_3_pointS, d),
-        operator.mul(NIST4_3_pointT, e)
-    )
+    pointR = (NIST4_3_pointS * d) + (NIST4_3_pointT * e)
     asserts.assert_that(pointR.x).is_equal_to(pointRx)
     asserts.assert_that(pointR.y).is_equal_to(pointRy)
 
@@ -335,7 +332,7 @@ def TestEccPoint_NIST_P384_test_copy():
     asserts.assert_that(NIST4_4_pointS).is_not_equal_to(NIST4_4_pointT)
 
 def TestEccPoint_NIST_P384_test_negate():
-    negS = -NIST4_4_pointS
+    negS = operator.neg(NIST4_4_pointS)
     sum = NIST4_4_pointS + negS
     asserts.assert_that(sum).is_equal_to(NIST4_4_pointS.point_at_infinity())
 
@@ -362,8 +359,8 @@ def TestEccPoint_NIST_P384_test_addition():
     asserts.assert_that(pointR).is_equal_to(pai)
 
 def TestEccPoint_NIST_P384__test_inplace_addition():
-    pointRx = 0x72b13dd4354b6b81745195e98cc5ba6970349191ac476bd4553cf35a545a067e
-    pointRy = 0x8d585cbb2e1327d75241a8a122d7620dc33b13315aa5c9d46d013011744ac264
+    pointRx = 0x12dc5ce7acdfc5844d939f40b4df012e68f865b89c3213ba97090a247a2fc009075cf471cd2e85c489979b65ee0b5eed
+    pointRy = 0x167312e58fe0c0afa248f2854e3cddcb557f983b3189b67f21eee01341e7e9fe67f6ee81b36988efa406945c8804a4b0
 
     pointR = NIST4_4_pointS.copy()
     pointR += NIST4_4_pointT
@@ -423,7 +420,7 @@ def TestEccPoint_NIST_P384_test_scalar_multiply():
     asserts.assert_that(pointR).is_equal_to(pai)
 
     # -1*S
-    asserts.assert_fails(lambda: lambda: NIST4_4_pointS * -1(), ".*?ValueError")
+    asserts.assert_fails(lambda: NIST4_4_pointS * -1, ".*?ValueError")
 
 def TestEccPoint_NIST_P384_test_joing_scalar_multiply():
     d = 0xa4ebcae5a665983493ab3e626085a24c104311a761b5a8fdac052ed1f111a5c44f76f45659d2d111a61b5fdd97583480
@@ -467,7 +464,7 @@ def TestEccPoint_NIST_P521_test_copy():
     asserts.assert_that(NIST4_5_pointS).is_not_equal_to(NIST4_5_pointT)
 
 def TestEccPoint_NIST_P521_test_negate():
-    negS = -NIST4_5_pointS
+    negS = operator.neg(NIST4_5_pointS)
     sum = NIST4_5_pointS + negS
     asserts.assert_that(sum).is_equal_to(NIST4_5_pointS.point_at_infinity())
 
@@ -555,7 +552,7 @@ def TestEccPoint_NIST_P521_test_scalar_multiply():
     asserts.assert_that(pointR).is_equal_to(pai)
 
     # -1*S
-    asserts.assert_fails(lambda: lambda: NIST4_5_pointS * -1(), ".*?ValueError")
+    asserts.assert_fails(lambda: NIST4_5_pointS * -1, ".*?ValueError")
 
 def TestEccPoint_NIST_P521_test_joing_scalar_multiply():
     d = 0x000001eb7f81785c9629f136a7e8f8c674957109735554111a2a866fa5a166699419bfa9936c78b62653964df0d6da940a695c7294d41b2d6600de6dfcf0edcfc89fdcb1
@@ -664,11 +661,13 @@ def TestEccKey_P256_test_public_key_derived():
     asserts.assert_that(priv_key.pointQ).is_equal_to(pub_key.pointQ)
 
 def TestEccKey_P256_test_invalid_curve():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-257", d=1)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-257", d=1), ".*?ValueError")
+
 
 def TestEccKey_P256_test_invalid_d():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-256", d=0)(), ".*?ValueError")
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-256", d=_curves['p256'].order)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-256", d=0), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-256", d=_curves['p256'].order),
+                         ".*?ValueError")
 
 def TestEccKey_P256_test_equality():
 
@@ -725,12 +724,13 @@ def TestEccKey_P384_test_public_key_derived():
     asserts.assert_that(priv_key.pointQ).is_equal_to(pub_key.pointQ)
 
 def TestEccKey_P384_test_invalid_curve():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-385", d=1)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-385", d=1), ".*?ValueError")
+
 
 def TestEccKey_P384_test_invalid_d():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-384", d=0)(), ".*?ValueError")
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-384",
-                                                 d=_curves['p384'].order)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-384", d=0), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-384", d=_curves['p384'].order),
+                         ".*?ValueError")
 
 def TestEccKey_P384_test_equality():
 
@@ -787,12 +787,13 @@ def TestEccKey_P521_test_public_key_derived():
     asserts.assert_that(priv_key.pointQ).is_equal_to(pub_key.pointQ)
 
 def TestEccKey_P521_test_invalid_curve():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-522", d=1)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-522", d=1), ".*?ValueError")
+
 
 def TestEccKey_P521_test_invalid_d():
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-521", d=0)(), ".*?ValueError")
-    asserts.assert_fails(lambda: lambda: EccKey(curve="P-521",
-                                                 d=_curves['p521'].order)(), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-521", d=0), ".*?ValueError")
+    asserts.assert_fails(lambda: EccKey(curve="P-521", d=_curves['p521'].order),
+                         ".*?ValueError")
 
 def TestEccKey_P521_test_equality():
 
@@ -919,71 +920,68 @@ def TestEccModule_P521_test_negative_construct():
 
 def _testsuite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_test_mix))
-    _suite.addTest(unittest.FunctionTestCase(test_basic_ECC_generate))
-    _suite.addTest(unittest.FunctionTestCase(test_basic_ECC_construct_example))
-    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_test_repr))
-    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_set))
-    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_copy))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_set))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_copy))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_negate))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_addition))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384__test_inplace_addition))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_doubling))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_scalar_multiply))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_joing_scalar_multiply))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_sizes))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_set))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_copy))
     _suite.addTest(
-        unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_negate))
+        unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_negate))
     _suite.addTest(
-        unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_addition))
+        unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_addition))
     _suite.addTest(
-        unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_inplace_addition))
+        unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_inplace_addition))
     _suite.addTest(
-        unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_doubling))
+        unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_doubling))
     _suite.addTest(
-        unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_scalar_multiply))
+        unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_scalar_multiply))
     _suite.addTest(unittest.FunctionTestCase(
-        TestEccPoint_NIST_P256_test_joing_scalar_multiply))
-    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P256_test_sizes))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_set))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_copy))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_negate))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_addition))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384__test_inplace_addition))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_doubling))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_scalar_multiply))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_joing_scalar_multiply))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P384_test_sizes))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_set))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_copy))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_negate))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_addition))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_inplace_addition))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_doubling))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_scalar_multiply))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_joing_scalar_multiply))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_sizes))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_private_key))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_public_key))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_public_key_derived))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_invalid_curve))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_invalid_d))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_equality))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_private_key))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_public_key))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_public_key_derived))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_invalid_curve))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_invalid_d))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_equality))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_private_key))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_public_key))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_public_key_derived))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_invalid_curve))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_invalid_d))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_equality))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P256_test_generate))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P256_test_construct))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P256_test_negative_construct))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P384_test_generate))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P384_test_construct))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P384_test_negative_construct))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P521_test_generate))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P521_test_construct))
-    # _suite.addTest(unittest.FunctionTestCase(TestEccModule_P521_test_negative_construct))
+        TestEccPoint_NIST_P521_test_joing_scalar_multiply))
+    _suite.addTest(unittest.FunctionTestCase(TestEccPoint_NIST_P521_test_sizes))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_private_key))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_public_key))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P256_test_public_key_derived))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P256_test_invalid_curve))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_invalid_d))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P256_test_equality))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_private_key))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_public_key))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P384_test_public_key_derived))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P384_test_invalid_curve))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_invalid_d))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P384_test_equality))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_private_key))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_public_key))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P521_test_public_key_derived))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccKey_P521_test_invalid_curve))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_invalid_d))
+    _suite.addTest(unittest.FunctionTestCase(TestEccKey_P521_test_equality))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P256_test_generate))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P256_test_construct))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccModule_P256_test_negative_construct))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P384_test_generate))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P384_test_construct))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccModule_P384_test_negative_construct))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P521_test_generate))
+    _suite.addTest(unittest.FunctionTestCase(TestEccModule_P521_test_construct))
+    _suite.addTest(
+        unittest.FunctionTestCase(TestEccModule_P521_test_negative_construct))
     return _suite
+
 
 _runner = unittest.TextTestRunner()
 _runner.run(_testsuite())

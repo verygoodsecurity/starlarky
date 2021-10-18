@@ -1,5 +1,7 @@
 package com.verygood.security.larky.modules;
 
+import static java.lang.Math.min;
+
 import com.google.common.collect.Iterables;
 import java.util.Map;
 
@@ -17,6 +19,7 @@ import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkSemantics;
@@ -24,6 +27,8 @@ import net.starlark.java.eval.StarlarkSequence;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
+
+import org.jetbrains.annotations.NotNull;
 
 
 @StarlarkBuiltin(
@@ -50,6 +55,7 @@ public class CollectionsModule implements StarlarkValue {
     implements StarlarkSequence<Tuple, Object> {
 
     final Tuple backingTuple;
+
     protected LarkyNamedTuple(Map<String, Object> fields, Iterable<?> obj, StarlarkThread currentThread) {
       super(fields, currentThread);
       backingTuple = Tuple.copyOf(obj);
@@ -92,11 +98,62 @@ public class CollectionsModule implements StarlarkValue {
       return StarlarkSequence.super.containsKey(semantics, key);
     }
 
+    /**
+     * Compares two sequences of values.
+     *
+     * Sequences compare equal if corresponding elements compare equal using {@code
+     * iterator.next().equals(iterator.next())}.
+     *
+     * Otherwise, the result is the ordered comparison of the first element for which {@code
+     * !iterator.next().equals(iterator.next())}.
+     *
+     * If one sequence is a prefix of another, the result is the comparison of the sequence's sizes.
+     *
+     * @throws ClassCastException if any comparison failed.
+     */
+    // Suppress duplicated code because StarlarkSequence should be a
+    // Collection and not necessarily a *list*.
+    @SuppressWarnings("DuplicatedCode")
+    @Override
+    public int compareTo(@NotNull Object o) {
+      final Sequence<?> x;
+      try {
+        x = Sequence.cast(o, Object.class, "compareTo");
+      } catch (EvalException e) {
+        throw new RuntimeException(e);
+      }
+      for (int i = 0; i < min(this.size(), x.size()); i++) {
+        Object xelem = this.get(i);
+        Object yelem = x.get(i);
+
+        // First test for equality. This avoids an unnecessary
+        // ordered comparison, which may be unsupported despite
+        // the values being equal. Also, it is potentially more
+        // expensive. For example, list==list need not look at
+        // the elements if the lengths are unequal.
+        if (xelem == yelem || xelem.equals(yelem)) {
+          continue;
+        }
+
+        // The ordered comparison of unequal elements should
+        // always be nonzero unless compareTo is inconsistent.
+        int cmp = StarlarkEvalWrapper.compareUnchecked(xelem, yelem);
+        if (cmp == 0) {
+          throw new IllegalStateException(
+            String.format(
+              "x.equals(y) yet x.compareTo(y)==%d (x: %s, y: %s)",
+              cmp, Starlark.type(xelem), Starlark.type(yelem)));
+        }
+        return cmp;
+      }
+      return Integer.compare(this.size(), x.size());
+    }
+
     @Override
     public Object getValue(String name) throws EvalException {
       final Sequence<String> _names = namedFields();
       final int pos = _names.indexOf(name);
-      if(pos != -1) {
+      if (pos != -1) {
         return this.backingTuple.get(pos);
       }
       return super.getValue(name);

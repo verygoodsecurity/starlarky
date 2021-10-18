@@ -47,38 +47,58 @@ public final class PyProtocols {
   public static final String __REVERSED__ = "__reversed__";
   public static final String __LENGTH_HINT__ = "__length_hint__";
 
-  /* mathematical operators */
+  /* mathematical + binary operators */
   public static final String __ADD__ = "__add__";
+  public static final String __AND__ = "__and__";
   public static final String __FLOORDIV__ = "__floordiv__";
   public static final String __INT__ = "__int__";
-  public static final String __INVERT__ = "__invert__";
+  public static final String __LSHIFT__ = "__lshift__";
+  public static final String __MATMUL__ = "__matmul__";
   public static final String __MOD__ = "__mod__";
   public static final String __MUL__ = "__mul__";
-  public static final String __NEG__ = "__neg__";
-  public static final String __POS__ = "__pos__";
+  public static final String __OR__ = "__or__";
+  public static final String __POW__ = "__pow__";
   public static final String __RADD__ = "__radd__";
   public static final String __RFLOORDIV__ = "__rfloordiv__";
   public static final String __RMOD__ = "__rmod__";
   public static final String __RMUL__ = "__rmul__";
+  public static final String __RSHIFT__ = "__rshift__";
   public static final String __RSUB__ = "__rsub__";
   public static final String __SUB__ = "__sub__";
+  public static final String __TRUEDIV__ = "__truediv__";
+  public static final String __XOR__ = "__xor__";
+
+  /* in place mathematical binary operators */
+  public static final String __IADD__ = "__iadd__";
+  public static final String __IAND__ = "__iand__";
+  public static final String __IFLOORDIV__ = "__ifloordiv__";
+  public static final String __ILSHIFT__ = "__ilshift__";
+  public static final String __IMATMUL__ = "__imatmul__";
+  public static final String __IMOD__ = "__imod__";
+  public static final String __IMUL__ = "__imul__";
+  public static final String __IOR__ = "__ior__";
+  public static final String __IPOW__ = "__ipow__";
+  public static final String __IRSHIFT__ = "__irshift__";
+  public static final String __ISUB__ = "__isub__";
+  public static final String __ITRUEDIV__ = "__itruediv__";
+  public static final String __IXOR__ = "__ixor__";
+
+  public static final String __INVERT__ = "__invert__";
+  public static final String __NEG__ = "__neg__";
+  public static final String __POS__ = "__pos__";
 
   /* comparison && truthiness operators */
+
   public static final String __BOOL__ = "__bool__";
+  public static final String __INDEX__ = "__index__";
   public static final String __EQ__ = "__eq__";
   public static final String __GE__ = "__ge__";
   public static final String __GT__ = "__gt__";
-  public static final String __INDEX__ = "__index__";
   public static final String __ITER__ = "__iter__";
   public static final String __LE__ = "__le__";
   public static final String __LT__ = "__lt__";
   public static final String __NE__ = "__ne__";
   public static final String __NEXT__ = "__next__";
-  public static final String __RGE__ = "__rge__";
-  public static final String __RGT__ = "__rgt__";
-  public static final String __RLE__ = "__rle__";
-  public static final String __RLT__ = "__rlt__";
-
 
   private PyProtocols() {
   }

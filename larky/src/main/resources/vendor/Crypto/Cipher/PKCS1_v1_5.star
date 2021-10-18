@@ -19,11 +19,12 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
-
+load("@stdlib//larky", larky="larky")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@stdlib//operator", operator="operator")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long", long_to_bytes="long_to_bytes")
 load("@vendor//Crypto/Util/py3compat", bord="bord", is_bytes="is_bytes", _copy_bytes="copy_bytes")
-load("@stdlib//larky", larky="larky")
 load("@vendor//option/result", Error="Error")
 
 
@@ -95,7 +96,7 @@ def PKCS115_Cipher(key, randfunc):
 
         # Step 1
         if mLen > k - 11:
-            return Error("ValueError: Plaintext is too long.")
+            return Error("ValueError: Plaintext is too long.").unwrap()
         # Step 2a
         ps = []
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
@@ -166,31 +167,29 @@ def PKCS115_Cipher(key, randfunc):
 
         # Step 1
         if len(ciphertext) != k:
-            return Error("ValueError: Ciphertext with incorrect length (not %d bytes)" % k)
+            return Error(
+                "ValueError: Ciphertext with incorrect length " +
+                "(not %d bytes)" % k
+            ).unwrap()
 
-        # Step 2a (O2SIP)
-        ct_int = bytes_to_long(ciphertext)
-
-        # Step 2b (RSADP)
-        m_int = self._key._decrypt(ct_int)
-
-        # Complete step 2c (I2OSP)
-        em = long_to_bytes(m_int, k)
-
-        # Step 3 (not constant time when the sentinel is not a byte string)
-        output = bytearray(k)
+        # all constant time
+        output = bytearray(b'\0' * k)
         if not is_bytes(sentinel) or len(sentinel) > k:
-            size = _pkcs1_decode(em, b'', expected_pt_len, output)
-            if size < 0:
-                return sentinel
-            else:
-                return output[size:]
+            sentinel = b''
 
-        # Step 3 (somewhat constant time)
-        size = _pkcs1_decode(em, sentinel, expected_pt_len, output)
-        return output[size:]
+        size = _JCrypto.Cipher.PKCS1.decode(
+            ciphertext,
+            sentinel,
+            expected_pt_len,
+            output,
+            self._key._to_dict()
+        )
+        if size <= 0:
+            return sentinel
+        return output[-size:]
     self.decrypt = decrypt
     return self
+
 
 
 def new(key, randfunc=None):

@@ -57,7 +57,6 @@ Namespaces are one honking great idea -- let's do more of those!"""
 
 
 def test_import_this():
-    print(import_this())
     asserts.assert_that(import_this()).is_equal_to(expected)
 
 

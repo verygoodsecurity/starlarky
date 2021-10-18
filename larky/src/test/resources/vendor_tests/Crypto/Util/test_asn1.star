@@ -383,9 +383,8 @@ def DerSequenceTests_testInit1():
     # I believe that pycryptodome asn1.py is broken for this test.
     # This can be verified by pyasn1 and bouncycastle. There is no
     # tagless encoding in the ASN1 specification if you use a DERSequence...
-    der = DerSequence([1, DerInteger(2), bytes([0x30, 0x00])])
-    # expected = bytes([0x30, 0x08, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x30, 0x00])
-    expected = bytes([0x30, 0x0a, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x04, 0x02, 0x30, 0x00])
+    der = DerSequence([1, DerInteger(2), b('0\x00')])
+    expected = b'0\x08\x02\x01\x01\x02\x01\x020\x00'
     actual = der.encode()
     asserts.assert_that(actual).is_equal_to(expected)
 
@@ -442,14 +441,18 @@ def DerSequenceTests_testEncode4():
 
 def DerSequenceTests_testEncode5():
     der = DerSequence()
-    der.__iadd__(1)
-    der.__iadd__(b([0x30, 0x00]))
-    encoded = der.encode()
-    expected = b([0x30, 0x07, 0x02, 0x01, 0x01, 0x04, 0x02, 0x30, 0x00])
-    #        pyasn: 300702010104023000
-    # pycryptodome: 3005020101    3000
-    # bouncycastle: 300702010104023000
-    asserts.assert_that(hexlify(encoded)).is_equal_to(hexlify(expected))
+    der += 1
+    der += b'\x30\x00'
+    asserts.assert_that(der.encode()).is_equal_to(b'\x30\x05\x02\x01\x01\x30\x00')
+    # der = DerSequence()
+    # der.__iadd__(1)
+    # der.__iadd__(b([0x30, 0x00]))
+    # encoded = der.encode()
+    # expected = b([0x30, 0x07, 0x02, 0x01, 0x01, 0x30, 0x00])
+    # #        pyasn: 300702010104023000
+    # # pycryptodome: 3005020101    3000
+    # # bouncycastle: 300702010104023000
+    # asserts.assert_that(hexlify(encoded)).is_equal_to(hexlify(expected))
 
 
 def DerSequenceTests_testEncode6():
@@ -483,23 +486,19 @@ def DerSequenceTests_testEncode7():
     # One integer and another type (already encoded)
     der = DerSequence()
     der.append(0x180)
-    der.append(bytes([0x30, 0x03, 0x02, 0x01, 0x05]))
-    asserts.assert_that(
-        der.encode()
-    ).is_equal_to(
-        bytes([0x30, 0x0b, 0x02, 0x02, 0x01, 0x80, 0x04, 0x05, 0x30, 0x03, 0x02, 0x01, 0x05]))
-# pyasn:          [0x30, 0x0b, 0x02, 0x02, 0x01, 0x80, 0x04, 0x05, 0x30, 0x03, 0x02, 0x01, 0x05]
-# pycrypto: bytes([0x30, 0x09, 0x02, 0x02, 0x01, 0x80, 0x30, 0x03, 0x02, 0x01, 0x05]))
+    der.append(b'0\x03\x02\x01\x05')
+    asserts.assert_that(der.encode()).is_equal_to(b'0\x09\x02\x02\x01\x800\x03\x02\x01\x05')
     asserts.assert_that(der.hasOnlyInts()).is_false()
+    # pyasn:          [0x30, 0x0b, 0x02, 0x02, 0x01, 0x80, 0x04, 0x05, 0x30, 0x03, 0x02, 0x01, 0x05]
+    # pycrypto: bytes([0x30, 0x09, 0x02, 0x02, 0x01, 0x80, 0x30, 0x03, 0x02, 0x01, 0x05]))
 
 
-# Test will not pass since we do not enable recursion in Larky
 def DerSequenceTests_testEncode8():
     # One integer and another type (yet to encode)
     der = DerSequence()
     der.append(0x180)
     der.append(DerSequence([5]))
-    asserts.assert_that(der.encode()).is_equal_to(bytes([0x30, 0x09, 0x02, 0x02, 0x01, 0x80, 0x30, 0x03, 0x02, 0x01, 0x05]))
+    asserts.assert_that(der.encode()).is_equal_to(b'0\x09\x02\x02\x01\x800\x03\x02\x01\x05')
     asserts.assert_that(der.hasOnlyInts()).is_false()
 
     ####
@@ -579,10 +578,10 @@ def DerSequenceTests_testDecode8():
     # This test fails on both pyasn and bouncycastle, (again a bug in pycrypto)
     # Only 2 other types
     der = DerSequence()
-    der.decode(bytearray([0x30, 0x06, 0x24, 0x02, 0xb6, 0x63, 0x12, 0x00]))
-    asserts.assert_that(der.__len__()).is_equal_to(2)
-    asserts.assert_that(der.__getitem__(0)).is_equal_to(bytes([0x24, 0x02, 0xb6, 0x63]))
-    asserts.assert_that(der.__getitem__(1)).is_equal_to(bytes([0x12, 0x00]))
+    der.decode(b'0\x06\x24\x02\xb6\x63\x12\x00')
+    asserts.assert_that(len(der)).is_equal_to(2)
+    asserts.assert_that(der[0]).is_equal_to(b'\x24\x02\xb6\x63')
+    asserts.assert_that(der[1]).is_equal_to(b'\x12\x00')
     asserts.assert_that(der.hasInts()).is_equal_to(0)
     asserts.assert_that(der.hasInts(False)).is_equal_to(0)
     asserts.assert_that(der.hasOnlyInts()).is_false()
@@ -615,8 +614,10 @@ def DerSequenceTests_testErrDecode3():
     # Wrong length format
     der = DerSequence()
     # Missing length in sub-item
-    asserts.assert_fails(lambda : der.decode(bytes([0x30, 0x04, 0x02, 0x01, 0x01, 0x00])), ".*?ValueError")
+    asserts.assert_fails(lambda : der.decode(b'\x30\x04\x02\x01\x01\x00'), ".*?ValueError")
     # Valid BER, but invalid DER length
+    # asserts.assert_fails(lambda : der.decode(b'\x30\x81\x03\x02\x01\x01'), ".*?ValueError")
+    # asserts.assert_fails(lambda : der.decode(b'\x30\x04\x02\x81\x01\x01'), ".*?ValueError")
     # I don't know how to do this with pycryptodome or pyasn..
     # asserts.assert_fails(lambda : der.decode(bytes([0x30, 0x81, 0x03, 0x02, 0x01, 0x01])), ".*?ValueError")
     # asserts.assert_fails(lambda : der.decode(bytes([0x30, 0x04, 0x02, 0x81, 0x01, 0x01])), ".*?ValueError")
