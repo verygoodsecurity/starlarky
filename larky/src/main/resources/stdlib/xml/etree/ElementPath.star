@@ -111,7 +111,7 @@ def xpath_tokenizer(pattern, namespaces=None):
                     return Error(
                         "SyntaxError: prefix %r not found in prefix map" %
                          prefix
-                    )
+                    ).unwrap()
                 result.append((ttype, "{%s}%s" % (namespaces[prefix], uri)))
             elif default_namespace and not parsing_attribute:
                 result.append((ttype, "{%s}%s" % (default_namespace, tag)))
@@ -195,7 +195,7 @@ def _prepare_tag(tag):
                     result.append(elem)
             return result
     else:
-        return Error("internal parser error, got %s" % tag)
+        return Error("internal parser error, got %s" % tag).unwrap()
     return select
 
 
@@ -234,7 +234,7 @@ def prepare_self(next, token):
     def select(context, result):
         return list(result)
     return select
-    
+
 def traverse_descendant(e, tag, rval):
     qu = e._children[0:] # duplicate arr
     for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
@@ -255,7 +255,7 @@ def prepare_descendant(next, token):
     elif token[0] == "None":
         tag = token[1]
     else:
-        return Error("SyntaxError: invalid descendant")
+        return Error("SyntaxError: invalid descendant").unwrap()
 
     if _is_wildcard_tag(tag):
         select_tag = _prepare_tag(tag)
@@ -275,7 +275,7 @@ def prepare_descendant(next, token):
         def select(context, result):
             rval = []
             for e in result:
-                # for e in elem.iter(tag): 
+                # for e in elem.iter(tag):
                 # if e != elem:
                 #     rval.append(e)
                 traverse_descendant(e, tag, rval)
@@ -402,16 +402,16 @@ def prepare_predicate(next, token):
             # [index]
             index = int(predicate[0]) - 1
             if index < 0:
-                return Error("SyntaxError: XPath position >= 1 expected")
+                return Error("SyntaxError: XPath position >= 1 expected").unwrap()
         else:
             if predicate[0] != "last":
-                return Error("SyntaxError: unsupported function")
+                return Error("SyntaxError: unsupported function").unwrap()
             if signature == "-()-":
                 if not types.is_instance(predicate[2]):
-                    return Error("SyntaxError: unsupported expression")
+                    return Error("SyntaxError: unsupported expression").unwrap()
                 index = int(predicate[2]) - 1
                 if index > -2:
-                    return Error("SyntaxError: XPath offset from last() must be negative")
+                    return Error("SyntaxError: XPath offset from last() must be negative").unwrap()
             else:
                 index = -1
         def select(context, result):
@@ -435,7 +435,7 @@ def prepare_predicate(next, token):
                     rval.append(elem)
             return rval
         return select
-    return Error("SyntaxError: invalid predicate")
+    return Error("SyntaxError: invalid predicate").unwrap()
 
 ops = {
     "None": prepare_child,
@@ -475,7 +475,7 @@ def iterfind(start_elem, path, namespaces=None):
         if len(_cache) > 100:
             _cache.clear()
         if path[:1] == "/":
-            return Error("SyntaxError: cannot use absolute path on element")
+            return Error("SyntaxError: cannot use absolute path on element").unwrap()
         tokenizer = xpath_tokenizer(path, namespaces)
         token = tokenizer.next()
         selector = []
@@ -484,7 +484,7 @@ def iterfind(start_elem, path, namespaces=None):
                 break
             rval = ops[token[0]](tokenizer.next, token)
             if rval == StopIterating:
-                return Error("SyntaxError: invalid path")
+                return Error("SyntaxError: invalid path").unwrap()
             selector.append(rval)
             token = tokenizer.next()
             if token == StopIterating:

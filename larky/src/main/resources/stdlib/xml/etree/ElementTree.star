@@ -69,15 +69,16 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
 # OF THIS SOFTWARE.
 # --------------------------------------------------------------------
+load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//io/StringIO", StringIO="StringIO")
-load("@stdlib//operator", operator="operator")
 load("@stdlib//larky", larky="larky")
+load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//sets", sets="sets")
+load("@stdlib//string", string="string")
 load("@stdlib//types", types="types")
 load("@stdlib//xml/etree/ElementPath", ElementPath="ElementPath")
 load("@stdlib//xmllib", xmllib="xmllib")
-load("@stdlib//string", string="string")
 load("@vendor//option/result", safe="safe", try_="try_", Error="Error")
 
 __all__ = [
@@ -595,6 +596,29 @@ def QName(text_or_uri, tag=None):
         return self.text != other
     self.__ne__ = __ne__
     return self
+
+
+def CDATA(data):
+    """CDATA(data)
+    CDATA factory.  This factory creates an opaque data object that
+    can be used to set Element text.  The usual way to use it is::
+        >>> from xml.etree import ElementTree s etree
+        >>> el = etree.Element('content')
+        >>> el.text = etree.CDATA('a string')
+    """
+    element = Element(CDATA)
+    if types.is_string(data):
+        element.text = codecs.encode(data, encoding='utf-8')
+    else:
+        element.text = data
+    return element
+
+
+def iselement(element):
+    """iselement(element)
+    Checks if an object appears to be a valid element object.
+    """
+    return types.isinstance(element, 'Element')
 
 
 def _ElementTree(element=None, file=None):
