@@ -11,14 +11,9 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.security.interfaces.DSAKey;
-import java.security.interfaces.ECKey;
-import java.security.interfaces.RSAKey;
 import java.time.Instant;
 import java.util.Date;
 
-import net.starlark.java.eval.StarlarkBytes;
-import net.starlark.java.eval.StarlarkBytes;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
@@ -54,73 +49,8 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
 
-import lombok.Builder;
-import lombok.Data;
-
 public class OpenSSL implements StarlarkValue {
   public static final OpenSSL INSTANCE = new OpenSSL();
-
-  public static class Loaded implements StarlarkValue {
-
-    enum KEY_TYPE {
-      UNKNOWN("UNKNOWN"), RSA("RSA"), DSA("DSA"), ECKey("ECKey");
-
-      private final String val;
-
-      KEY_TYPE(String val) {
-        this.val = val;
-      }
-
-      @Override
-      public String toString() {
-        return this.val;
-      }
-    }
-
-    final private KeyPair kp;
-    final private KEY_TYPE type;
-
-    public Loaded(KeyPair kp) {
-      this.kp = kp;
-      PrivateKey key = kp.getPrivate();
-      if (key instanceof RSAKey) {
-        type = KEY_TYPE.RSA;
-      } else if (key instanceof DSAKey) {
-        type = KEY_TYPE.DSA;
-      } else if (kp.getPrivate() instanceof ECKey) {
-        type = KEY_TYPE.ECKey;
-      } else {
-        type = KEY_TYPE.UNKNOWN;
-      }
-    }
-
-    @StarlarkMethod(name = "pkey", structField = true)
-    public StarlarkBytes loadPrivateKey() throws EvalException {
-      return StarlarkBytes.immutableOf(kp.getPrivate().getEncoded());
-//      return StarlarkBytes.builder(null).setSequence(kp.getPrivate().getEncoded()).build();
-    }
-
-    @StarlarkMethod(name = "bits", structField = true)
-    public StarlarkInt bits() throws EvalException {
-      switch(type) {
-        case RSA:
-          return StarlarkInt.of(((RSAKey) kp.getPrivate()).getModulus().bitLength());
-        case DSA:
-          return StarlarkInt.of(((DSAKey) kp.getPrivate()).getParams().getP().bitLength());
-        case ECKey:
-          return StarlarkInt.of(((ECKey) kp.getPrivate()).getParams().getCurve().getField().getFieldSize());
-        default:
-          throw new EvalException("Unable to determine length in bits of specified Key instance");
-
-      }
-    }
-
-    @StarlarkMethod(name = "key_type", structField = true)
-    public String keytype() {
-      return type.toString();
-    }
-
-  }
 
   @StarlarkMethod(name = "load_privatekey", parameters = {
     @Param(name = "buffer", allowedTypes = {
@@ -131,7 +61,7 @@ public class OpenSSL implements StarlarkValue {
         @ParamType(type = NoneType.class),
     })
   })
-  public Loaded loadPrivateKey(StarlarkBytes buffer, Object passPhraseO) throws EvalException {
+  public LarkyLoadedKey loadPrivateKey(StarlarkBytes buffer, Object passPhraseO) throws EvalException {
     final String passphrase = Starlark.isNullOrNone(passPhraseO)
       ? ""
       : new String(((StarlarkBytes) passPhraseO).toByteArray(), StandardCharsets.UTF_8);
@@ -140,16 +70,7 @@ public class OpenSSL implements StarlarkValue {
             new String(buffer.toByteArray(), StandardCharsets.UTF_8),
             passphrase);
 
-    return new Loaded(keyPair);
-  }
-
-  @Data
-  @Builder
-  static class Payload {
-    BigInteger gmtime_adj_notAfter;
-    BigInteger gmtime_adj_notBefore;
-    String issuer_name;
-    String subject_name;
+    return new LarkyLoadedKey(keyPair);
   }
 
   @StarlarkMethod(
@@ -174,7 +95,7 @@ public class OpenSSL implements StarlarkValue {
           thread.mutability()),
         String.class, Object.class, "Cannot convert JSON payload");
 
-    Payload payload = Payload.builder()
+    LarkyX509Cert payload = LarkyX509Cert.builder()
                         .gmtime_adj_notAfter(((StarlarkInt) serde.get("gmtime_adj_notAfter")).toBigInteger())
                         .gmtime_adj_notBefore(((StarlarkInt) serde.get("gmtime_adj_notBefore")).toBigInteger())
                         .issuer_name((String) serde.get("issuer_name"))
