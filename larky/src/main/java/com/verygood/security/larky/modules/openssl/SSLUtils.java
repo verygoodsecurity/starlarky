@@ -1,15 +1,15 @@
 package com.verygood.security.larky.modules.openssl;
 
+import static com.google.re2j.Pattern.CASE_INSENSITIVE;
+
 import com.google.common.flogger.FluentLogger;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
-
-import org.bouncycastle.util.encoders.Base64;
-import org.bouncycastle.util.encoders.Hex;
-
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
+import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.MessageDigest;
@@ -19,14 +19,32 @@ import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.DSAPrivateKeySpec;
 import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.RSAPrivateCrtKeySpec;
 import java.security.spec.RSAPublicKeySpec;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
+
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.cert.bc.BcX509ExtensionUtils;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.util.encoders.Base64;
+import org.bouncycastle.util.encoders.Hex;
+
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -40,6 +58,17 @@ import javax.crypto.spec.SecretKeySpec;
 public final class SSLUtils {
     private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
+    private static final Pattern CERT_PATTERN = Pattern.compile(
+                "-+BEGIN\\s+.*CERTIFICATE[^-]*-+(?:\\s|\\r|\\n)+" + // Header
+                        "([a-z0-9+/=\\r\\n]+)" +                    // Base64 text
+                        "-+END\\s+.*CERTIFICATE[^-]*-+",            // Footer
+                CASE_INSENSITIVE);
+
+    private static final Pattern KEY_PATTERN = Pattern.compile(
+                "-+BEGIN\\s+.*PRIVATE\\s+KEY[^-]*-+(?:\\s|\\r|\\n)+" + // Header
+                        "([a-z0-9+/=\\r\\n]+)" +                       // Base64 text
+                        "-+END\\s+.*PRIVATE\\s+KEY[^-]*-+",            // Footer
+                CASE_INSENSITIVE);
     private static final Pattern PRIVKEY_DSA_BEGIN = Pattern.compile("^-----BEGIN DSA PRIVATE KEY-----\n");
     private static final Pattern PRIVKEY_DSA_END = Pattern.compile("\n-----END DSA PRIVATE KEY-----\\s*$");
     private static final Pattern PRIVKEY_RSA_BEGIN = Pattern.compile("^-----BEGIN RSA PRIVATE KEY-----\n");
@@ -49,6 +78,51 @@ public final class SSLUtils {
 
     private static final Pattern PRIVKEY_PROCTYPE = Pattern.compile("^Proc-Type:\\s+4,ENCRYPTED\n");
     private static final Pattern PRIVKEY_DEKINFO = Pattern.compile("^DEK-Info:\\s+([^,]+),(\\S+)\n");
+    private static final String X_509 = "X.509";
+
+    /**
+     * create a basic X509 certificate from the given keys
+     */
+    protected static X509Certificate makeCertificate(
+      KeyPair subKP,
+      BigInteger serialNo,
+      String subDN,
+      KeyPair issKP,
+      String issDN)
+          throws GeneralSecurityException, IOException, OperatorCreationException {
+      PublicKey subPub = subKP.getPublic();
+      PrivateKey issPriv = issKP.getPrivate();
+      PublicKey issPub = issKP.getPublic();
+
+      X509v3CertificateBuilder v3CertGen = new JcaX509v3CertificateBuilder(
+          new X500Name(issDN),
+          serialNo,
+          new Date(System.currentTimeMillis()),
+          new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 100)),
+          new X500Name(subDN),
+          subPub);
+
+      BcX509ExtensionUtils bcXUtils = new BcX509ExtensionUtils();
+      v3CertGen.addExtension(
+          Extension.subjectKeyIdentifier,
+          false,
+          bcXUtils.createSubjectKeyIdentifier(
+              SubjectPublicKeyInfo.getInstance(subPub.getEncoded())));
+
+      v3CertGen.addExtension(
+          Extension.authorityKeyIdentifier,
+          false,
+          bcXUtils.createAuthorityKeyIdentifier(
+                  SubjectPublicKeyInfo.getInstance(issPub.getEncoded())));
+
+      return new JcaX509CertificateConverter()
+          .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+          .getCertificate(
+              v3CertGen.build(
+                  new JcaContentSignerBuilder("MD5withRSA")
+                      .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+                      .build(issPriv)));
+    }
 
     enum KeyType {
         UNKNOWN,
@@ -73,20 +147,35 @@ public final class SSLUtils {
      * @return A list of Certificates.
      * @throws CertificateException if a certificate could not be decoded.
      */
-    public Collection<? extends Certificate> decodeCertificates(final String pem) throws CertificateException {
+    public Collection<? extends Certificate> decodeCertificates(final String pem)
+      throws CertificateException {
         if (null == pem || pem.isEmpty()) {
             throw new IllegalArgumentException("PEM data is null or empty");
         }
-        try {
-            final ByteArrayInputStream bis = new ByteArrayInputStream(pem.getBytes(Charset.defaultCharset()));
-            final CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        try(final ByteArrayInputStream bis = new ByteArrayInputStream(pem.getBytes(Charset.defaultCharset()))) {
+            final CertificateFactory cf = CertificateFactory.getInstance(X_509);
             return cf.generateCertificates(bis);
-        } catch (Throwable t) {
+        } catch (IOException t) {
             logger.atFine().log("", t);
-            throw t;
+            throw new RuntimeException(t);
         }
     }
 
+    public static List<X509Certificate> readCertificateChain(final String certificateChainContents)
+      throws GeneralSecurityException {
+        Matcher matcher = CERT_PATTERN.matcher(certificateChainContents);
+        CertificateFactory certificateFactory = CertificateFactory.getInstance(X_509);
+        List<X509Certificate> certificates = new ArrayList<>();
+
+        int start = 0;
+        while (matcher.find(start)) {
+            byte[] buffer = Base64.decode(matcher.group(1));
+            certificates.add((X509Certificate) certificateFactory.generateCertificate(new ByteArrayInputStream(buffer)));
+            start = matcher.end();
+        }
+
+        return certificates;
+    }
     /**
      * Decodes a PEM-encoded private key.
      * If the key is encrypted, it is expected to be encoded

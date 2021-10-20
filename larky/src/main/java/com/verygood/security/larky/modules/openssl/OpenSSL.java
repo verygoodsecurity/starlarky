@@ -4,13 +4,9 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 import java.security.KeyPair;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.util.Date;
 
@@ -30,12 +26,8 @@ import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.lib.json.Json;
 
 import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x509.Extension;
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
-import org.bouncycastle.cert.bc.BcX509ExtensionUtils;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
@@ -170,6 +162,20 @@ public class OpenSSL implements StarlarkValue {
       @Param(name = "type", allowedTypes = {@ParamType(type = String.class)}),
   }, useStarlarkThread = true)
   public StarlarkBytes dumpCertificate(StarlarkBytes cert, String type, StarlarkThread thread) throws EvalException {
+    /*
+      > pemWriter.close();
+      > return stringWriter.toString();
+      > Files.write(new File(RESULT_FOLDER, "CA.crt").toPath(), signCert.getEncoded());
+
+      cert we sign against
+
+      > origDN = "CN=Eric H. Echidna, E=eric@bouncycastle.org, O=Bouncy Castle, C=AU";
+      > origKP = kpg.generateKeyPair();
+      > origCert = makeCertificate(origKP, origDN, signKP, signDN);
+      > Files.write(
+      ... new File(RESULT_FOLDER, "User.crt").toPath(),
+      ... origCert.getEncoded());
+     */
     StringWriter stringWriter = new StringWriter();
     switch(type) {
       case "PEM":
@@ -187,73 +193,7 @@ public class OpenSSL implements StarlarkValue {
         throw Starlark.errorf("certificate type %s not supported!", type);
     }
     return StarlarkBytes.of(thread.mutability(),stringWriter.toString().getBytes(StandardCharsets.UTF_8));
-//
-//    return StarlarkBytes.builder(thread)
-//             .setSequence(stringWriter.toString().getBytes(StandardCharsets.UTF_8))
-//             .build();
   }
-
-//
-//
-//
-//    pemWriter.close();
-//
-//    return stringWriter.toString();
-    //Files.write(new File(RESULT_FOLDER, "CA.crt").toPath(), signCert.getEncoded());
-
-    //
-    // cert we sign against
-    //
-    //origDN = "CN=Eric H. Echidna, E=eric@bouncycastle.org, O=Bouncy Castle, C=AU";
-    //origKP = kpg.generateKeyPair();
-    //origCert = makeCertificate(origKP, origDN, signKP, signDN);
-    //Files.write(new File(RESULT_FOLDER, "User.crt").toPath(), origCert.getEncoded());
-
-
-    /**
-     * create a basic X509 certificate from the given keys
-     */
-    static X509Certificate makeCertificate (
-        KeyPair subKP,
-        BigInteger serialNo,
-        String subDN,
-        KeyPair issKP,
-        String issDN)
-          throws GeneralSecurityException, IOException, OperatorCreationException {
-      PublicKey subPub = subKP.getPublic();
-      PrivateKey issPriv = issKP.getPrivate();
-      PublicKey issPub = issKP.getPublic();
-
-      X509v3CertificateBuilder v3CertGen = new JcaX509v3CertificateBuilder(
-          new X500Name(issDN),
-          serialNo,
-          new Date(System.currentTimeMillis()),
-          new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 100)),
-          new X500Name(subDN),
-          subPub);
-
-      BcX509ExtensionUtils bcXUtils = new BcX509ExtensionUtils();
-      v3CertGen.addExtension(
-          Extension.subjectKeyIdentifier,
-          false,
-          bcXUtils.createSubjectKeyIdentifier(
-              SubjectPublicKeyInfo.getInstance(subPub.getEncoded())));
-
-      v3CertGen.addExtension(
-          Extension.authorityKeyIdentifier,
-          false,
-          bcXUtils.createAuthorityKeyIdentifier(
-                  SubjectPublicKeyInfo.getInstance(issPub.getEncoded())));
-
-      return new JcaX509CertificateConverter()
-          .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-          .getCertificate(
-              v3CertGen.build(
-                  new JcaContentSignerBuilder("MD5withRSA")
-                      .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-                      .build(issPriv)));
-    }
-
 
 
 }
