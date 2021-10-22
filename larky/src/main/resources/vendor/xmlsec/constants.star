@@ -7,6 +7,8 @@ __KeyData = KeyData
 Transform = namedtuple('__Transform', "name href usage")
 __Transform = Transform
 
+ID_ATTR = "Id"
+
 DSigNs = 'http://www.w3.org/2000/09/xmldsig#'
 EncNs = 'http://www.w3.org/2001/04/xmlenc#'
 

@@ -1,7 +1,7 @@
 load("@stdlib//builtins", "builtins")
 load("@stdlib//types", "types")
 load("@stdlib//operator", operator="operator")
-
+load("@stdlib//codecs", codecs="codecs")
 
 load("@stdlib//io/StringIO", "StringIO")
 load("@stdlib//larky", "larky")
@@ -81,7 +81,8 @@ def load_xml(xml):
     # remove_blank_text=True
     # remove_comments=True
     # resolve_entities=False
-    return ElementTree.parse(f, parser=parser)
+    # lxml sends root, we match it.
+    return ElementTree.parse(f, parser=parser).getroot()
 
 
 namespaces = {
@@ -191,7 +192,7 @@ def test_xmlsec_sign():
                     xml_declaration=True,
                     pretty_print=True,
     )
-    print(signed.decode('utf-8'))
+    print(signed)
     # doc = ElementTree.fromstring(signed)
 
 

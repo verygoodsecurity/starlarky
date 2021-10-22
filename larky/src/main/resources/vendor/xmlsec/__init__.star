@@ -8,7 +8,8 @@ load("@vendor//xmlsec/ns", ns="ns")
 load("@vendor//xmlsec/template", template="template")
 load("@vendor//xmlsec/utils", get_or_create_header="get_or_create_header", detect_soap_env="detect_soap_env")
 load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error")
-
+load("@stdlib//jopenssl", _JOpenSSL="jopenssl")
+load("@vendor//Crypto/Util/py3compat", tobytes="tobytes")
 
 # SOAP envelope
 SOAP_NS = "http://schemas.xmlsoap.org/soap/envelope/"
@@ -41,24 +42,28 @@ KeyFormat = larky.struct(
     PKCS12_PEM=constants.KeyDataFormatPkcs12,
     CERT_PEM=constants.KeyDataFormatCertPem,
     CERT_DER=constants.KeyDataFormatCertDer,
+    _value=lambda z: [k for k, v in KeyFormat.__dict__.items() if v == z][0],
 )
 
 
-def _Key():
+def _Key(key):
+
     self = larky.mutablestruct(__name__='Key', __class__=_Key)
+    def __init__(key):
+        self.key = key
+        self.cert = None
+        return self
+    self = __init__(key)
 
     def load_cert_from_memory(certdata, keyformat):
-        pass
-    self.load_cert_from_memory = load_cert_from_memory
-
-    def load_cert_from_memory(data, format):
-        pass
+        self.cert = _JOpenSSL.OpenSSL.load_certificate(certdata, KeyFormat._value(keyformat))
     self.load_cert_from_memory = load_cert_from_memory
     return self
 
 
 def _from_memory(key_data, keyformat, password=None):
-    pass
+    key = _JOpenSSL.OpenSSL.load_privatekey(key_data, password)
+    return _Key(key)
 
 
 def _from_binary_data(klass, data):
@@ -185,10 +190,10 @@ def ensure_id(node):
     """
     if node == None:
         fail("ensure_id received a Node which is None")
-    id_val = node.get(ID_ATTR)
+    id_val = node.get(ID_ATTR.text)
     if not id_val:
         id_val = get_unique_id()
-        node.set(ID_ATTR, id_val)
+        node.set(ID_ATTR.text, id_val)
     return id_val
 
 
@@ -206,7 +211,7 @@ def get_security_header(doc):
 
 
 def _make_sign_key(key_data, cert_data, password):
-    key = Key.from_memory(key_data, KeyFormat.PEM, password)
+    key = Key.from_memory(tobytes(key_data), KeyFormat.PEM, tobytes(password))
     key.load_cert_from_memory(cert_data, KeyFormat.PEM)
     return key
 
@@ -284,6 +289,7 @@ def BinarySignature(key_file,
     self.__class__ = BinarySignature
 
     def apply(envelope, headers):
+        print("did i get here?")
         key = _make_sign_key(self.key_data, self.cert_data, self.password)
         _sign_envelope_with_key_binary(
             envelope, key, self.signature_method, self.digest_method
@@ -500,6 +506,7 @@ def _verify_envelope_with_key(envelope, key):
     # Find each signed element and register its ID with the signing context.
     refs = xp(signature, "ds:SignedInfo/ds:Reference", namespaces={"ds": ns.DS})
     for ref in refs:
+        print(ref)
         # Get the reference URI and cut off the initial '#'
         referenced_id = ref.get("URI")[1:]
         referenced = xp(
