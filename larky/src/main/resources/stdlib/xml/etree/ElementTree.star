@@ -128,12 +128,7 @@ def ParseError(code, position, msg=""):
 # --------------------------------------------------------------------
 
 
-def iselement(element):
-    """Return True if *element* appears to be an Element."""
-    return hasattr(element, "tag")
-
-
-def Element(tag, attrib={}, **extra):
+def Element(tag, attrib=None, **extra):
     """An XML element.
 
     This class is the reference implementation of the Element interface.
@@ -158,7 +153,7 @@ def Element(tag, attrib={}, **extra):
     self.tag = tag
     """The element's name."""
 
-    self.attrib = attrib
+    self.attrib = attrib or {}
     """Dictionary of the element's attributes."""
 
     self.text = None
@@ -182,12 +177,17 @@ def Element(tag, attrib={}, **extra):
         if not types.is_dict(attrib):
             return Error("TypeError: attrib must be dict, not %s" % type(attrib))
         attrib = dict(**attrib)
+
+        self._parent = None
+        if 'parent' in extra:
+            self._parent = extra.pop('parent')
+
         attrib.update(extra)
         self.tag = tag
         self.attrib = attrib
         self._children = []
         return self
-    self = __init__(tag, attrib, extra)
+    self = __init__(tag, attrib or {}, extra)
 
     def __repr__():
         return "<Element %s>" % (repr(self.tag))
@@ -202,7 +202,7 @@ def Element(tag, attrib={}, **extra):
         Do not call this method, use the SubElement factory function instead.
 
         """
-        return Element(tag, attrib)
+        return Element(tag, attrib, parent=self)
     self.makeelement = makeelement
 
     def copy():
@@ -254,6 +254,8 @@ def Element(tag, attrib={}, **extra):
 
         """
         self._assert_is_element(subelement)
+        if not subelement.getparent():
+            subelement._parent = self
         self._children.append(subelement)
 
     self.append = append
@@ -264,14 +266,20 @@ def Element(tag, attrib={}, **extra):
         *elements* is a sequence with zero or more elements.
 
         """
+        elems = []
         for element in elements:
             self._assert_is_element(element)
-        self._children.extend(elements)
+            if not element.getparent():
+                element._parent = self
+            elems.append(element)
+        self._children.extend(elems)
     self.extend = extend
 
     def insert(index, subelement):
         """Insert *subelement* at position *index*."""
         self._assert_is_element(subelement)
+        if not subelement.getparent():
+            subelement._parent = self
         self._children.insert(index, subelement)
     self.insert = insert
 
@@ -307,6 +315,14 @@ def Element(tag, attrib={}, **extra):
         return self._children
     self.getchildren = getchildren
 
+    def getparent():
+        """Return node parent
+
+        XMLTreeNode if this XMLTreeNode has a parent, None if this is the root node
+        """
+        return self._parent
+    self.getparent = getparent
+
     def find(path, namespaces=None):
         """Find first matching element by tag name or path.
 
@@ -316,6 +332,8 @@ def Element(tag, attrib={}, **extra):
         Return the first matching element, or None if no element was found.
 
         """
+        if types.is_instance(path, QName):
+            path = path.text
         return ElementPath.find(self, path, namespaces)
     self.find = find
 
@@ -367,6 +385,7 @@ def Element(tag, attrib={}, **extra):
         """
         self.attrib.clear()
         self._children = []
+        self._parent = None
         self.text = None
         self.tail = None
     self.clear = clear
@@ -474,7 +493,7 @@ def Element(tag, attrib={}, **extra):
     return self
 
 
-def SubElement(parent, tag, attrib={}, **extra):
+def SubElement(parent, tag, attrib=None, **extra):
     """Subelement factory which creates an element instance, and appends it
     to an existing parent.
 
@@ -486,7 +505,10 @@ def SubElement(parent, tag, attrib={}, **extra):
     additional attributes given as keyword arguments.
 
     """
-    attrib = attrib.copy()
+    if not attrib:
+        attrib = {}
+    else:
+        attrib = dict(**attrib)
     attrib.update(extra)
     element = parent.makeelement(tag, attrib)
     parent.append(element)
@@ -524,7 +546,18 @@ def ProcessingInstruction(target, text=None):
     return element
 
 
+def _getNsTag(tag):
+    # Split the namespace URL out of a fully-qualified lxml tag
+    # name. Copied from lxml's src/lxml/sax.py.
+    if tag[0] == '{':
+        return tuple(tag[1:].split('}', 1))
+    else:
+        return (None, tag)
+
+
 PI = ProcessingInstruction
+
+
 def QName(text_or_uri, tag=None):
     """Qualified name wrapper.
 
@@ -539,12 +572,32 @@ def QName(text_or_uri, tag=None):
     be interpreted as a local name.
 
     """
-    self = larky.mutablestruct(__class__='QName')
+    self = larky.mutablestruct(__name__='QName', __class__=QName)
 
     def __init__(text_or_uri, tag):
+        if not types.is_string(text_or_uri):
+            if iselement(text_or_uri):
+                text_or_uri = text_or_uri.tag
+                if not types.is_string(text_or_uri):
+                    fail("Invalid input tag of type %r" % type(text_or_uri))
+                elif types.is_instance(text_or_uri, QName):
+                    text_or_uri = text_or_uri.text
+                else:
+                    text_or_uri = text_or_uri
+        ns_utf, tag_utf = _getNsTag(text_or_uri)
         if tag:
-            text_or_uri = "{%s}%s" % (text_or_uri, tag)
-        self.text = text_or_uri
+            # either ('ns', 'tag') or ('{ns}oldtag', 'newtag')
+            if ns_utf == None:
+                ns_utf = tag_utf # case 1: namespace ended up as tag name
+            tag_utf = tag
+
+        self.localname = tag_utf
+        if ns_utf == None:
+            self.namespace = None
+            self.text = self.localname
+        else:
+            self.namespace = ns_utf
+            self.text = "{%s}%s" % (self.namespace, self.localname)
         return self
     self = __init__(text_or_uri, tag)
 
@@ -616,9 +669,10 @@ def CDATA(data):
 
 def iselement(element):
     """iselement(element)
-    Checks if an object appears to be a valid element object.
+    Checks if an object appears to be a valid element object or
+    if *element* appears to be an Element.
     """
-    return types.isinstance(element, 'Element')
+    return types.is_instance(element, Element) or hasattr(element, "tag")
 
 
 def _ElementTree(element=None, file=None):
@@ -933,7 +987,7 @@ def _namespaces(elem, default_namespace=None):
             else:
                 if default_namespace:
                     # FIXME: can this be handled in XML 1.0?
-                    return Error()
+                    return Error("can this be handled in XML 1.0?").unwrap()
                 qnames[qname] = qname
 
         def _namespaces_add_qname_error_01():
@@ -1016,6 +1070,8 @@ def _serialize_xml(
         elif tag == ProcessingInstruction:
             write("<?%s?>" % _escape_cdata(text))
         else:
+            if types.is_instance(tag, QName):
+                tag = tag.text
             tag = qnames[tag]  # support QNames in XML Element and Attribute Names
             if tag == None:
                 if text:
@@ -1040,12 +1096,14 @@ def _serialize_xml(
                                 ))
                         namespaces = None # each xml tree only has one dict of namespaces
                     for k, v in items:
-                        # print("k, v:", k, v)
+                        # print("=====>", elem, "k, v:", k, v)
                         if types.is_instance(k, QName):
                             k = k.text
                         if types.is_instance(v, QName):
                             v = qnames[v.text]
                         else:
+                            if not types.is_string(v):  # TODO: hack
+                                continue
                             v = _escape_attrib(v)
                         write(' %s="%s"' % (qnames[k], v))
                 if text or len(elem._children) or not short_empty_elements:
@@ -1298,7 +1356,13 @@ def _escape_attrib_html(text):
 # --------------------------------------------------------------------
 
 # Support convertion to xml only for now
-def tostring(element, encoding=None, xml_declaration=None, *, default_namespace=None, short_empty_elements=True):
+def tostring(element,
+             encoding=None,
+             method="xml",
+             xml_declaration=None,
+             default_namespace=None,
+             short_empty_elements=True,
+             pretty_print=False):
     """Generate string representation of XML element.
 
     All subelements are included.  If encoding is "unicode", a string

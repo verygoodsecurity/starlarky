@@ -215,7 +215,10 @@ def prepare_child(next, token):
             for elem in result:
                 #for e in elem:
                 for e in elem._children:
-                    if e.tag == tag:
+                    needle = e.tag
+                    if type(needle) == "QName":  # to avoid circular imports..
+                        needle = needle.text
+                    if needle == tag:
                         rval.append(e)
             return rval
     return select
