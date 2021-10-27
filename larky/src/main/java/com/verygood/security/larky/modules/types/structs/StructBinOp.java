@@ -24,8 +24,6 @@ import static net.starlark.java.syntax.TokenKind.STAR;
 import static net.starlark.java.syntax.TokenKind.STAR_EQUALS;
 import static net.starlark.java.syntax.TokenKind.STAR_STAR;
 
-import com.google.common.collect.ImmutableList;
-
 import com.verygood.security.larky.modules.types.LarkyIterator;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.parser.StarlarkUtil;
@@ -53,17 +51,10 @@ public class StructBinOp {
    * or __contains__, etc.) and we expect various operations to work on that object, which is why we want to enable
    * binaryOp on SimpleStruct.
    */
-  public static Object __contains__(SimpleStruct lhs, TokenKind op, Object rhs, boolean thisLeft) throws EvalException {
-    // is this (thisLeft = true) "is this in that?" or (thisLeft = false) "is that in this?"
-    // first, check to see if __contains__ exists?
-    final StarlarkCallable __contains__ =
-      thisLeft
-        ? (StarlarkCallable) ((SimpleStruct) rhs).getField(PyProtocols.__CONTAINS__)
-        : (StarlarkCallable) lhs.getField(PyProtocols.__CONTAINS__);
-    if (__contains__ != null) {
-      return thisLeft
-               ? (boolean) ((SimpleStruct) rhs).invoke(__contains__, ImmutableList.of(lhs))
-               : (boolean) lhs.invoke(__contains__, ImmutableList.of(rhs));
+  public static Object __contains__(SimpleStruct lhs, TokenKind op, Object rhs, boolean thisLeft, StarlarkThread thread) throws EvalException {
+    try {
+      return lhs.__contains__(lhs, op, rhs, thisLeft, thread);
+    } catch(EvalException ignored) {
     }
     // it does not. ok, is thisLeft = false & it is an iterator?
     if (!thisLeft) {
@@ -263,7 +254,7 @@ public class StructBinOp {
       case PIPE_EQUALS:
         return inplaceBinaryOperation(lhs, rhs, PyProtocols.__IOR__, PIPE_EQUALS.name(), thread);
       case IN:
-        Object contains = StructBinOp.__contains__(lhs, op, rhs, thisLeft);
+        Object contains = __contains__(lhs, op, rhs, thisLeft, thread);
         if (contains != null) {
           return contains;
         }
