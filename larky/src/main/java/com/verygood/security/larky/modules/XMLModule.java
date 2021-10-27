@@ -4,6 +4,7 @@ import com.verygood.security.larky.modules.xml.LarkyXMLNamespaceContext;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 
@@ -14,8 +15,8 @@ import net.starlark.java.eval.StarlarkValue;
 public class XMLModule implements StarlarkValue {
   public static final XMLModule INSTANCE = new XMLModule();
 
-  @StarlarkMethod(name="_namespace_map")
-  public LarkyXMLNamespaceContext namespaceMap() {
-    return LarkyXMLNamespaceContext.INSTANCE;
+  @StarlarkMethod(name="_namespace_map", useStarlarkThread = true)
+  public LarkyXMLNamespaceContext namespaceMap(StarlarkThread thread) {
+    return LarkyXMLNamespaceContext.withThread(thread);
   }
 }

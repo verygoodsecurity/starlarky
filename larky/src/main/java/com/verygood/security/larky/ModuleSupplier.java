@@ -36,7 +36,7 @@ import com.verygood.security.larky.modules.ResultModule;
 import com.verygood.security.larky.modules.StructModule;
 import com.verygood.security.larky.modules.SysModule;
 import com.verygood.security.larky.modules.VaultModule;
-import com.verygood.security.larky.modules.XMLSecModule;
+import com.verygood.security.larky.modules.XMLModule;
 import com.verygood.security.larky.modules.ZLibModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
@@ -69,7 +69,7 @@ public class ModuleSupplier {
     ResultModule.INSTANCE,
     StructModule.INSTANCE,
     SysModule.INSTANCE,
-    XMLSecModule.INSTANCE,
+    XMLModule.INSTANCE,
     ZLibModule.INSTANCE
   );
 
