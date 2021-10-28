@@ -70,8 +70,7 @@ def iselement(element):
     return types.isinstance(element, 'Element')
 
 
-def ElementMaker(typemap=None,
-             namespace=None, nsmap=None, makeelement=None):
+def ElementMaker(typemap=None, namespace=None, nsmap=None, makeelement=None):
     """Element generator factory.
     Unlike the ordinary Element factory, the E factory allows you to pass in
     more than just a tag and some optional attributes; you can also pass in
@@ -146,8 +145,7 @@ def ElementMaker(typemap=None,
     """
     self = larky.mutablestruct(__name__='ElementMaker', __class__=ElementMaker)
 
-    def __init__(typemap,
-                 namespace, nsmap, makeelement):
+    def __init__(typemap, namespace, nsmap, makeelement):
         if namespace != None:
             self._namespace = '{' + namespace + '}'
         else:
