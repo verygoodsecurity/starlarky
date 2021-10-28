@@ -708,6 +708,9 @@ def XMLParser(**kw):
                 if val != None and not key in attrdict:
                     attrdict[key] = val
         method = self.elements.get(nstag, (None, None))[0]
+        if nsdict:
+            attrdict['nsmap'] = {v:k for k, v in nsdict.items()}
+            # print("xmllib: ", nstag, "!", attrdict, "!", method, "!", nsdict)
         self.finish_starttag(nstag, attrdict, method)
         if tag.group('slash') == '/':
             self.finish_endtag(tagname)

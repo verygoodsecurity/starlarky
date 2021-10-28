@@ -112,11 +112,10 @@ def _test_update_and_serialize():
 
     # order of nodes on the same level is reversed but vertical nested order is correct
     expected_xml = ''.join(['<?xml version="1.0" encoding="utf-8"?>\n',
-    '<data xmlns:ns0="http://example.com/ns/foo">nonetag<?Here are instuctions?><!--some comment-->',
+    '<data xmlns:x="http://example.com/ns/foo">nonetag<?Here are instuctions?><!--some comment-->',
     '<student name="John"><info><born>2004</born>birthtail</info>infotail<performance><Grade>A-</Grade></performance></student>',
     '<student name="Tim"><info><born>2005</born></info><performance><Grade>A+</Grade></performance></student>',
-    '<ns0:p />ptail<teacher name="Jenny"><born>1983</born></teacher>teachertail</data>'])
-
+    '<x:p/>ptail<teacher name="Jenny"><born>1983</born></teacher>teachertail</data>'])
     asserts.eq(expected_xml, ElementTree.tostring(root,  encoding ='utf-8', xml_declaration=True))
     # print('to string:', ElementTree.tostring(root))
     # test serialize on subelement and update attribute

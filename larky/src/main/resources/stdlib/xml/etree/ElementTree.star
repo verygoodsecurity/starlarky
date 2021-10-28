@@ -72,6 +72,7 @@
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//io/StringIO", StringIO="StringIO")
 load("@stdlib//larky", larky="larky")
+load("@stdlib//jxml", _JXML="jxml")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//sets", sets="sets")
@@ -79,7 +80,7 @@ load("@stdlib//string", string="string")
 load("@stdlib//types", types="types")
 load("@stdlib//xml/etree/ElementPath", ElementPath="ElementPath")
 load("@stdlib//xmllib", xmllib="xmllib")
-load("@vendor//option/result", safe="safe", try_="try_", Error="Error")
+load("@vendor//option/result", Result="Result", try_="try_", Error="Error")
 
 __all__ = [
     # public symbols
@@ -178,9 +179,11 @@ def Element(tag, attrib=None, **extra):
             return Error("TypeError: attrib must be dict, not %s" % type(attrib))
         attrib = dict(**attrib)
 
-        self._parent = None
-        if 'parent' in extra:
-            self._parent = extra.pop('parent')
+        # non-std extension
+        self._parent = extra.pop('parent') if 'parent' in extra else None
+        self._nsmap = extra.pop('nsmap') if 'nsmap'in extra else {}
+        _namespace_map.update(self._nsmap)
+        # end non-std extensions
 
         attrib.update(extra)
         self.tag = tag
@@ -286,7 +289,7 @@ def Element(tag, attrib=None, **extra):
     def _assert_is_element(e):
         # Need to refer to the actual Python implementation, not the
         # shadowing C implementation.
-        if not types.is_instance(e, Element):
+        if not iselement(e):
             fail("TypeError: expected an Element, not %s" % type(e))
     self._assert_is_element = _assert_is_element
 
@@ -386,6 +389,7 @@ def Element(tag, attrib=None, **extra):
         self.attrib.clear()
         self._children = []
         self._parent = None
+        self._nsmap = {}
         self.text = None
         self.tail = None
     self.clear = clear
@@ -609,9 +613,9 @@ def QName(text_or_uri, tag=None):
         return "<QName %r>" % (self.text,)
     self.__repr__ = __repr__
 
-    # def __hash__():
-    #     return hash(self.text)
-    # self.__hash__ = __hash__
+    def __hash__():
+        return hash(self.text)
+    self.__hash__ = __hash__
 
     def __le__(other):
         if types.is_instance(other, QName):
@@ -733,7 +737,7 @@ def _ElementTree(element=None, file=None):
             self._root = parser.close()
             return self._root
 
-        rval = safe(_parse_safe)(parser)
+        rval = Result.Ok(_parse_safe).map(lambda f: f(parser))
         if close_source:
             source.close()
         return rval.unwrap()
@@ -957,79 +961,131 @@ def _get_writer(file_or_filename, encoding):
         .build()
 
 
+def add_qname(qname, qnames, namespaces, prefix_finder, default_namespace=None):
+    # calculate serialized qname representation
+    def _namespaces_add_qname_try():
+        if qname[:1] == "{":
+            uri, tag = qname[1:].rsplit("}", 1)
+            prefix = prefix_finder(uri)
+            namespaces[uri] = prefix
+            if prefix:
+                qnames[qname] = "%s:%s" % (prefix, tag)
+            else:
+                qnames[qname] = tag  # default element
+        else:
+            if default_namespace:
+                # FIXME: can this be handled in XML 1.0?
+                fail("can this be handled in XML 1.0?")
+            qnames[qname] = qname
+
+    def _namespaces_add_qname_error_01(val):
+        _raise_serialization_error(qname)
+
+    return try_(_namespaces_add_qname_try)\
+            .except_(_namespaces_add_qname_error_01)\
+            .build()
+
+
 def _namespaces(elem, default_namespace=None):
     # identify namespaces used in this tree
 
     # maps qnames to *encoded* prefix:local names
     qnames = {None: None}
+    flat_ns_map, new_nspaces = _collect_namespaces(_namespace_map, elem)
+    prefix_finder = larky.partial(_find_prefix,
+                                  flat_namespaces_map=flat_ns_map,
+                                  new_namespaces=new_nspaces)
 
     # maps uri:s to prefixes
     namespaces = {}
     if default_namespace:
         namespaces[default_namespace] = ""
-
-    def add_qname(qname):
-        # calculate serialized qname representation
-        def _namespaces_add_qname_try():
-            if qname[:1] == "{":
-                uri, tag = qname[1:].rsplit("}", 1)
-                prefix = namespaces.get(uri)
-                if prefix == None:
-                    prefix = _namespace_map.get(uri)
-                    if prefix == None:
-                        prefix = "ns%d" % len(namespaces)
-                    if prefix != "xml":
-                        namespaces[uri] = prefix
-                if prefix:
-                    qnames[qname] = "%s:%s" % (prefix, tag)
-                else:
-                    qnames[qname] = tag  # default element
-            else:
-                if default_namespace:
-                    # FIXME: can this be handled in XML 1.0?
-                    return Error("can this be handled in XML 1.0?").unwrap()
-                qnames[qname] = qname
-
-        def _namespaces_add_qname_error_01():
-            _raise_serialization_error(qname)
-
-        return try_(_namespaces_add_qname_try)\
-                .except_(_namespaces_add_qname_error_01)\
-                .build()
-
     # populate qname and namespaces table
-    # for elem in elem.iter():
     qu = [elem]
     for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if len(qu) == 0:
             break
         current = qu.pop(0)
-
         tag = current.tag
+        _qname = None
         if types.is_instance(tag, QName):
             if tag.text not in qnames:
-                add_qname(tag.text)
+                _qname = tag.text
         elif types.is_instance(tag, str):
             if tag not in qnames:
-                add_qname(tag)
+                _qname = tag
         elif tag != None and tag != Comment and tag != PI:
             _raise_serialization_error(tag)
+
+        _nsmap = getattr(current, '_nsmap', None) or {}
+        if _qname != None:
+            add_qname(_qname, qnames, namespaces,
+                      prefix_finder,
+                      default_namespace=default_namespace)
+
         for key, value in current.items():
             if types.is_instance(key, QName):
                 key = key.text
+            # print("k, v in current.items()", key, value, current.tag)
             if key not in qnames:
-                add_qname(key)
+                add_qname(key, qnames, namespaces,
+                          prefix_finder,
+                          default_namespace=default_namespace)
             if types.is_instance(value, QName) and value.text not in qnames:
-                add_qname(value.text)
+                add_qname(_qname, qnames, namespaces,
+                          prefix_finder,
+                          default_namespace=default_namespace)
+
         text = current.text
         if types.is_instance(text, QName) and text.text not in qnames:
-            add_qname(text.text)
+            add_qname(_qname, qnames, namespaces,
+                      prefix_finder,
+                      default_namespace=default_namespace)
+
         qu.extend(current._children)
+
     return qnames, namespaces
+
+
+def _collect_namespaces(nsmap, parent):
+    new_namespaces = []
+    flat_namespaces_map = {}
+    for ns_href_url, prefix in nsmap.items():
+        flat_namespaces_map[ns_href_url] = prefix
+        if prefix == None:
+            # use empty bytes rather than None to allow sorting
+            new_namespaces.append(('', 'xmlns', ns_href_url))
+        else:
+            new_namespaces.append(('xmlns', prefix, ns_href_url))
+    # merge in flat namespace map of parent
+    if parent:
+        for ns_href_url, prefix in parent.items():
+            if flat_namespaces_map.get(ns_href_url) == None:
+                # unknown or empty prefix => prefer a 'real' prefix
+                flat_namespaces_map[ns_href_url] = prefix
+    return flat_namespaces_map, new_namespaces
+
+
+def _find_prefix(href, flat_namespaces_map, new_namespaces):
+    if href == None:
+        return None
+    if href in flat_namespaces_map:
+        return flat_namespaces_map[href]
+    # need to create a new prefix
+    prefixes = flat_namespaces_map.values()
+    for i in range(_WHILE_LOOP_EMULATION_ITERATION):
+        prefix = 'ns%d' % i
+        if prefix not in prefixes:
+            new_namespaces.append(('xmlns', prefix, href))
+            flat_namespaces_map[href] = prefix
+            return prefix
+
 
 def flatten_nested_elements(tops_level_elems):
     """
-        We're building an iterative traversal due to lack of recursion support
+    We're building an iterative traversal due to lack of recursion support
+    however, we're keeping the order of seen children to have a
+    deterministic depth first search.
     """
     new_elems = []
     for el in tops_level_elems:
@@ -1038,33 +1094,36 @@ def flatten_nested_elements(tops_level_elems):
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if not qu:
                 break
-            else:
-                current = qu.pop()
-                new_elems.append(current)
-                qu.extend(current._children)
+            current = qu.pop(0)
+            new_elems.append(current)
+            qu = list(current._children) + list(qu)
     return new_elems
 
+
 def _serialize_xml(
-    write, start_elem, qnames, namespaces, short_empty_elements, **kwargs
+    write, start_elem, qnames, namespaces, short_empty_elements, **_kwargs
 ):
     elems = flatten_nested_elements([start_elem])
     unclosed_elems = []
     for elem in elems:
         tag = elem.tag
-        # print('iter elem:', tag)
         text = elem.text
         # attrib = elem.attrib
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if len(unclosed_elems) == 0:
                 break
-            if elem not in unclosed_elems[-1]._children:
-                elem_to_close = unclosed_elems.pop()
-                write("</%s>" % elem_to_close.tag)
-                if elem_to_close.tail:
-                    # print('elem to close which has tail:', elem_to_close.tag)
-                    write(_escape_cdata(elem_to_close.tail))
-            else:
+            if elem in unclosed_elems[-1]._children:
                 break
+            elem_to_close = unclosed_elems.pop()
+            _tag = elem_to_close.tag
+            if types.is_instance(_tag, QName):
+                _tag = _tag.text
+            _tag = qnames.get(_tag, _tag)  # support QNames in XML Element and Attribute Names
+            write("</%s>" % _tag)
+            if elem_to_close.tail:
+                # print('elem to close which has tail:', elem_to_close.tag)
+                write(_escape_cdata(elem_to_close.tail))
+
         if tag == Comment:
             write("<!--%s-->" % _escape_cdata(text))
         elif tag == ProcessingInstruction:
@@ -1082,28 +1141,25 @@ def _serialize_xml(
                     unclosed_elems.append(elem)
                     # print('add unclosed elem:', elem)
             else:
+                # this is the start element
                 write("<" + tag)
                 items = elem.items()  # get attrib
                 if items or namespaces:
                     if namespaces:
-                        for v, k in sorted(namespaces.items(),
-                                        key=lambda x: x[1]):  # sort on prefix
+                        for v, k in sorted(namespaces.items(), key=lambda x: x[1]):  # sort on prefix
                             if k:
                                 k = ":" + k
-                            write(" xmlns%s=\"%s\"" % (
-                                k,
-                                _escape_attrib(v)
-                                ))
-                        namespaces = None # each xml tree only has one dict of namespaces
+                            write(" xmlns%s=\"%s\"" % (k,_escape_attrib(v)))
+                        namespaces = None  # each xml tree only has one dict of namespaces
                     for k, v in items:
                         # print("=====>", elem, "k, v:", k, v)
                         if types.is_instance(k, QName):
                             k = k.text
                         if types.is_instance(v, QName):
                             v = qnames[v.text]
+                        if not types.is_string(v) and hasattr(v, 'href'):
+                            v = v.href
                         else:
-                            if not types.is_string(v):  # TODO: hack
-                                continue
                             v = _escape_attrib(v)
                         write(' %s="%s"' % (qnames[k], v))
                 if text or len(elem._children) or not short_empty_elements:
@@ -1119,7 +1175,7 @@ def _serialize_xml(
                         unclosed_elems.append(elem)
                         # print('add unclosed elem:', elem)
                 else:
-                    write(" />")
+                    write("/>")
                     if elem.tail:
                         # print('self closing elem which has tail:', elem.tag)
                         write(_escape_cdata(elem.tail))
@@ -1127,11 +1183,14 @@ def _serialize_xml(
         if len(unclosed_elems) == 0:
             break
         elem_to_close = unclosed_elems.pop()
-        write("</%s>" % elem_to_close.tag)
+        tag = elem_to_close.tag
+        if types.is_instance(tag, QName):
+            tag = tag.text
+        tag = qnames.get(tag, tag)  # support QNames in XML Element and Attribute Names
+        write("</%s>" % tag)
         if elem_to_close.tail:
             # print('remaining elem to close which has tail:', elem_to_close.tag)
             write(_escape_cdata(elem_to_close.tail))
-
 
 HTML_EMPTY = (
     "area",
@@ -1226,18 +1285,8 @@ _serialize = {
 }
 
 
-_namespace_map = {
-    # "well-known" namespace prefixes
-    "http://www.w3.org/XML/1998/namespace": "xml",
-    "http://www.w3.org/1999/xhtml": "html",
-    "http://www.w3.org/1999/02/22-rdf-syntax-ns#": "rdf",
-    "http://schemas.xmlsoap.org/wsdl/": "wsdl",
-    # xml schema
-    "http://www.w3.org/2001/XMLSchema": "xs",
-    "http://www.w3.org/2001/XMLSchema-instance": "xsi",
-    # dublin core
-    "http://purl.org/dc/elements/1.1/": "dc",
-}
+_namespace_map = _JXML._namespace_map()
+
 
 def register_namespace(prefix, uri):
     """Register a namespace prefix.
@@ -1251,12 +1300,10 @@ def register_namespace(prefix, uri):
     ValueError is raised if prefix is reserved or is invalid.
 
     """
-    if re.match(r"ns\d+$", prefix):
-        return Error("ValueError: Prefix format reserved for internal use")
-    for k, v in list(_namespace_map.items()):
-        if k == uri or v == prefix:
-            operator.delitem(_namespace_map, k)
-    _namespace_map[uri] = prefix
+    # if re.match(r"ns\d+$", prefix):
+    #     return Error("ValueError: Prefix format reserved for internal use")
+    _namespace_map.register_namespace(prefix, uri)
+
 
 def _raise_serialization_error(text):
     fail(
@@ -1279,24 +1326,6 @@ def _escape_cdata(text):
         _raise_serialization_error(text)
     return text
 
-# def _escape_cdata(text):
-#     # escape character data
-#     def _escape_cdata_try():
-#         # it's worth avoiding do-nothing calls for strings that are
-#         # shorter than 500 character, or so.  assume that's, by far,
-#         # the most common case in most applications.
-#         if "&" in text:
-#             text = text.replace("&", "&amp;")
-#         if "<" in text:
-#             text = text.replace("<", "&lt;")
-#         if ">" in text:
-#             text = text.replace(">", "&gt;")
-#         return text
-
-#     return try_(_escape_cdata_try)\
-#             .except_(lambda x: _raise_serialization_error(text))\
-#             .build()\
-#             .unwrap()
 
 def _escape_attrib(text):
     # escape attribute value
@@ -1314,27 +1343,6 @@ def _escape_attrib(text):
     else:
         _raise_serialization_error(text)
     return text
-
-# def _escape_attrib(text):
-#     # escape attribute value
-#     def _escape_attrib_try():
-#         if "&" in text:
-#             text = text.replace("&", "&amp;")
-#         if "<" in text:
-#             text = text.replace("<", "&lt;")
-#         if ">" in text:
-#             text = text.replace(">", "&gt;")
-#         if '"' in text:
-#             text = text.replace('"', "&quot;")
-#         if "\n" in text:
-#             text = text.replace("\n", "&#10;")
-#         return text
-
-#     return try_(_escape_attrib_try)\
-#             .except_(lambda x: _raise_serialization_error(text))\
-#             .build()\
-#             .unwrap()
-
 
 
 def _escape_attrib_html(text):
@@ -1489,7 +1497,10 @@ def iterparse(source, events=None, parser=None):
         fail("GOT HERE?")
         # source = open(source, "rb")
         close_source = True
-    rval = safe(_IterParseIterator)(source, events, parser, close_source)
+    rval = (
+        Result
+        .Ok(_IterParseIterator)
+        .map(lambda itrprsr: itrprsr(source, events, parser, close_source)))
     if close_source:
         source.close()
     return rval.unwrap()
@@ -1519,7 +1530,7 @@ def XMLPullParser(events=None, _parser=None):
             return Error("ValueError: feed() called after end of stream")
         if not data:
             return
-        rval = safe(self._parser.feed)(data)
+        rval = Result.Ok(self._parser.feed).map(lambda f: f(data))
         if rval.is_err:
             self._events_queue.append(rval)
     self.feed = feed
@@ -1588,8 +1599,6 @@ def _IterParseIterator(source, events, parser, close_source=False):
     def __next__():
         events = []
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            if not 1:
-                break
             for event in self._parser.read_events():
                 events.append(event)
             if self._parser._parser == None:
@@ -1739,8 +1748,18 @@ def TreeBuilder(element_factory=None):
         attributes.
 
         """
+        # non-std extension
+        extras = {}
+        if 'nsmap' in attrs:
+            extras['nsmap'] = attrs.pop('nsmap')
+            for uri, prefix in extras['nsmap'].items():
+                # we do not want to use register_namespace here because
+                # we want to preserve the internal prefixes (ns0..etc)
+                # when reading an XML payload, etc.
+                operator.setitem(_namespace_map, prefix, uri)
+        # end non-std extension
         self._flush()
-        self._last = self._factory(tag, attrs)
+        self._last = self._factory(tag, attrs, **extras)
         elem = self._last
         if self._elem:
             self._elem[-1].append(elem)
@@ -1763,68 +1782,6 @@ def TreeBuilder(element_factory=None):
         return self._last
     self.end = end
     return self
-
-
-# def fixname(name, split=None):
-#     # xmllib in 2.0 and later provides limited (and slightly broken)
-#     # support for XML namespaces.
-#     if " " not in name:
-#         return name
-#     if not split:
-#         split = name.split
-#     return "{%s}%s" % tuple(split(" ", 1))
-#
-#
-# ##
-# # ElementTree builder for XML source data.
-# #
-# # @see elementtree.ElementTree
-#
-# def TreeBuilder(element_factory=None):
-#
-#     def __init__(element_factory):
-#         self = xmllib.XMLParser()
-#         self.__class__ = 'SimpleXMLTreeBuilder.TreeBuilder'
-#         self.__builder = _TreeBuilder(element_factory)
-#         return self
-#     self = __init__(element_factory)
-#
-#     ##
-#     # Feeds data to the parser.
-#     #
-#     # @param data Encoded data.
-#     XMLParser_feed = self.feed
-#     def feed(data):
-#         XMLParser_feed(data)
-#     self.feed = feed
-#
-#     ##
-#     # Finishes feeding data to the parser.
-#     #
-#     # @return An element structure.
-#     # @defreturn Element
-#     XMLParser_close = self.close
-#     def close():
-#         XMLParser_close()
-#         return self.__builder.close()
-#     self.close = close
-#
-#     def handle_data(data):
-#         self.__builder.data(data)
-#     self.handle_data = handle_data
-#     self.handle_cdata = handle_data
-#
-#     def unknown_starttag(self, tag, attrs):
-#         attrib = {}
-#         for key, value in attrs.items():
-#             attrib[fixname(key)] = value
-#         self.__builder.start(fixname(tag), attrib)
-#     self.unknown_starttag = unknown_starttag
-#
-#     def unknown_endtag(self, tag):
-#         self.__builder.end(fixname(tag))
-#     self.unknown_endtag = unknown_endtag
-#     return self
 
 
 def XMLParser(html=0, target=None, encoding=None):
@@ -1992,14 +1949,14 @@ def XMLParser(html=0, target=None, encoding=None):
 
     def feed(data):
         """Feed encoded data to parser."""
-        rval = safe(self.parser.Parse)(data, 0)
+        rval = Result.Ok(self.parser.Parse).map(lambda f: f(data, 0))
         if rval.is_err:
             return self._raiseerror(rval.unwrap_err("XMLParser.feed() "))
     self.feed = feed
 
     def close():
         """Finish feeding data to parser and return element structure."""
-        rval = safe(self.parser.Parse)("", 1)  # end of data
+        rval = Result.Ok(self.parser.Parse).map(lambda f: f("", 1))  # end of data
         if rval.is_err:
             return self._raiseerror(rval.unwrap_err("XMLParser.close() "))
 
