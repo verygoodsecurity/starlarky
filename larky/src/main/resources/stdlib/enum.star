@@ -87,7 +87,7 @@ def enum2(*sequential, **named):
     """
     enums = dict(zip(sequential, range(len(sequential))), **named)
     reverse = {value: key for key, value in enums.items()}
-    enums['reverse_mapping'] = reverse
+    enums['_value2member_map_'] = reverse
     return larky.struct(__class__='Enum', **enums)
 
 
@@ -104,6 +104,7 @@ def _generate_next_value_(name, start, count, last_values):
             return last_value + 1
 
     return start
+
 
 # try to emulate python's functional API
 # https://docs.python.org/3/library/enum.html#functional-api
@@ -133,17 +134,22 @@ def Enum(class_name, names, module=None, qualname=None, type=None, start=1):
                 last_values.append(value)
                 names.append((name, value))
 
-        _reverse_mapping = {}
+        _value2member_map_ = {}
         # Here, names is either an iterable of (name, value) or a mapping.
         for item in names:
             if types.is_string(item):
                 member_name, member_value = item, names[item]
             else:
                 member_name, member_value = item
-            _reverse_mapping[member_value] = member_name
+            _value2member_map_[member_value] = member_name
             clsdict[member_name] = member_value
-        clsdict["reverse_mapping"] = _reverse_mapping
-        return larky.struct(__class__ = class_name, **clsdict)  # Immutable.
+
+        return larky.struct(
+            __class__ = class_name,
+            __members__=clsdict,
+            _value2member_map_=_value2member_map_,
+            **clsdict
+        )  # Immutable.
 
     self = __init__(class_name, names, module, qualname, type, start)
     return self
