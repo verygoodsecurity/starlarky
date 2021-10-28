@@ -1,5 +1,5 @@
 load("@stdlib//larky", larky="larky")
-load("@stdlib//enum", enum="Enum")
+load("@stdlib//enum", enum="enum")
 load("@stdlib//uuid", uuid="uuid")
 load("@stdlib//xml/etree/ElementTree", etree="ElementTree", QName="QName")
 load("@vendor//xmlsec/constants", constants="constants")
@@ -23,27 +23,24 @@ InternalError = Error("InternalError")
 VerificationError = Error("VerificationError")
 
 
-Transform = larky.struct(
-    __name__='Transform',
-    EXCL_C14N=constants.TransformExclC14N,
-    RSA_SHA1=constants.TransformRsaSha1,
-    SHA1=constants.TransformSha1,
-)
+Transform = enum.Enum('Transform', [
+    ("EXCL_C14N", constants.TransformExclC14N),
+    ("RSA_SHA1", constants.TransformRsaSha1),
+    ("SHA1", constants.TransformSha1),
+])
 
 
-KeyFormat = larky.struct(
-    __name__='KeyFormat',
-    UNKNOWN=constants.KeyDataFormatUnknown,
-    BINARY=constants.KeyDataFormatBinary,
-    PEM=constants.KeyDataFormatPem,
-    DER=constants.KeyDataFormatDer,
-    PKCS8_PEM=constants.KeyDataFormatPkcs8Pem,
-    PKCS8_DER=constants.KeyDataFormatPkcs8Der,
-    PKCS12_PEM=constants.KeyDataFormatPkcs12,
-    CERT_PEM=constants.KeyDataFormatCertPem,
-    CERT_DER=constants.KeyDataFormatCertDer,
-    _value=lambda z: [k for k, v in KeyFormat.__dict__.items() if v == z][0],
-)
+KeyFormat = enum.Enum('KeyFormat', [
+    ("UNKNOWN", constants.KeyDataFormatUnknown),
+    ("BINARY", constants.KeyDataFormatBinary),
+    ("PEM", constants.KeyDataFormatPem),
+    ("DER", constants.KeyDataFormatDer),
+    ("PKCS8_PEM", constants.KeyDataFormatPkcs8Pem),
+    ("PKCS8_DER", constants.KeyDataFormatPkcs8Der),
+    ("PKCS12_PEM", constants.KeyDataFormatPkcs12),
+    ("CERT_PEM", constants.KeyDataFormatCertPem),
+    ("CERT_DER", constants.KeyDataFormatCertDer),
+])
 
 
 def _Key(key):
@@ -56,7 +53,7 @@ def _Key(key):
     self = __init__(key)
 
     def load_cert_from_memory(certdata, keyformat):
-        self.cert = _JOpenSSL.OpenSSL.load_certificate(certdata, KeyFormat._value(keyformat))
+        self.cert = _JOpenSSL.OpenSSL.load_certificate(certdata, KeyFormat._value2member_map_[keyformat])
     self.load_cert_from_memory = load_cert_from_memory
     return self
 
@@ -289,8 +286,8 @@ def BinarySignature(key_file,
     self.__class__ = BinarySignature
 
     def apply(envelope, headers):
-        print("did i get here?")
         key = _make_sign_key(self.key_data, self.cert_data, self.password)
+        # print("BinarySignature.apply", key)
         _sign_envelope_with_key_binary(
             envelope, key, self.signature_method, self.digest_method
         )
@@ -404,18 +401,40 @@ def _signature_prepare(envelope, key, signature_method, digest_method):
     soap_env = detect_soap_env(envelope)
 
     # Create the Signature node.
+    # signature = template.create(
+    #     envelope,
+    #     Transform.EXCL_C14N,
+    #     signature_method or Transform.RSA_SHA1,
+    # )
+    # Create a signature template for RSA-SHA1 enveloped signature.
     signature = template.create(
-        envelope,
-        Transform.EXCL_C14N,
-        signature_method or Transform.RSA_SHA1,
+        c14n_method=Transform.EXCL_C14N,
+        sign_method=signature_method or Transform.RSA_SHA1,
     )
 
+    # Add the <ds:Signature/> node to the document.
+    # soap_env.append(signature)
+    # Add the <ds:Reference/> node to the signature template.
+    ref = template.add_reference(signature, Transform.SHA1)
+
+    # Add the enveloped transform descriptor.
+    template.add_transform(ref, constants.TransformEnveloped)
     # Add a KeyInfo node with X509Data child to the Signature. XMLSec will fill
     # in this template with the actual certificate details when it signs.
+    # Add the <ds:KeyInfo/> and <ds:KeyName/> nodes.
     key_info = template.ensure_key_info(signature)
     x509_data = template.add_x509_data(key_info)
     template.x509_data_add_issuer_serial(x509_data)
     template.x509_data_add_certificate(x509_data)
+    # Create a digital signature context (no key manager is needed).
+    # Load private key (assuming that there is no password).
+    # Set the key on the context.
+    # ctx = xmlsig.SignatureContext()
+
+    # key_info = template.ensure_key_info(signature)
+    # x509_data = template.add_x509_data(key_info)
+    # template.x509_data_add_issuer_serial(x509_data)
+    # template.x509_data_add_certificate(x509_data)
 
     # Insert the Signature node in the wsse:Security header.
     security = get_security_header(envelope)
@@ -449,6 +468,11 @@ def _sign_envelope_with_key_binary(envelope, key, signature_method, digest_metho
     security, sec_token_ref, x509_data = _signature_prepare(
         envelope, key, signature_method, digest_method
     )
+    # print("_sign_envelope_with_key_binary: ", "\n",
+    #       "==> ", security, "\n",
+    #       "==> ", sec_token_ref, "\n",
+    #       "==> ", x509_data, "\n",
+    #       )
     ref = etree.SubElement(
         sec_token_ref,
         QName(ns.WSSE, "Reference"),
@@ -502,11 +526,11 @@ def _verify_envelope_with_key(envelope, key):
     signature = security.find(QName(ns.DS, "Signature"))
 
     ctx = _SignatureContext()
-
+    print("xmlsec/__init__.star._verify_envelope_with_key(): ", signature)
     # Find each signed element and register its ID with the signing context.
     refs = xp(signature, "ds:SignedInfo/ds:Reference", namespaces={"ds": ns.DS})
     for ref in refs:
-        print(ref)
+        print("xmlsec/__init__.star._verify_envelope_with_key(): ", ref)
         # Get the reference URI and cut off the initial '#'
         referenced_id = ref.get("URI")[1:]
         referenced = xp(

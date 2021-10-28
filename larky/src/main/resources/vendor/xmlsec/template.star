@@ -64,7 +64,7 @@ def add_x509_data(node):
 
 
 def create(c14n_method=False, sign_method=False, name=False, ns="ds"):
-    node = etree.Element(etree.QName(DSigNs, "Signature"), nsmap={ns: DSigNs})
+    node = etree.Element(etree.QName(DSigNs, "Signature"), nsmap={DSigNs: ns})
     node.text = "\n"
     if name:
         node.set(ID_ATTR, name)
