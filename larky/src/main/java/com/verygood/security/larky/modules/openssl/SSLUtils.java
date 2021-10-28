@@ -227,7 +227,7 @@ return keyStore;
         try (PEMParser keyReader = new PEMParser(new InputStreamReader(new ByteArrayInputStream(pem)))) {
             decryptorProvider = new JcePEMDecryptorProviderBuilder()
               .build(
-                Optional.of(keyPassword).map(String::toCharArray).orElse(null)
+                Optional.ofNullable(keyPassword).map(String::toCharArray).orElse(null)
               );
             keyPair = keyReader.readObject();
         }
