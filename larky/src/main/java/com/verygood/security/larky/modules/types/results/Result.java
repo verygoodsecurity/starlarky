@@ -28,7 +28,7 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     if(error instanceof Result) {
       return (Result) error;
     }
-    return Error.of(error);
+    return Error.withThread(error, thread);
   }
 
   @StarlarkMethod(name = "Ok", parameters = {@Param(name = "value")})
