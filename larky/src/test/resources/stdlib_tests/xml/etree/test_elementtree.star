@@ -1,5 +1,6 @@
 load("@stdlib//builtins", "builtins")
 load("@stdlib//io/StringIO", "StringIO")
+load("@stdlib//re", re="re")
 load("@stdlib//larky", "larky")
 load("@stdlib//types", "types")
 load("@stdlib//operator", operator="operator")
@@ -93,12 +94,41 @@ def _test_xpath():
     asserts.eq('actress', root.findall(".//*[@name='Jenny']")[0].tag)
 
 
+def normalize_newlines(s):
+    return re.sub(r'(\r?\n)+', '\n', s)
+
+
+def normalize_ws(s):
+    _s = normalize_newlines(s)
+    return ''.join([l.strip() for l in _s.split('\n')])
+    # return re.sub(r'(\s|\x0B)+', replace, s).strip()
+
+
 def _test_update_and_serialize():
     parser = SimpleXMLTreeBuilder.TreeBuilder()
-    data = ''.join(['<data xmlns:x="http://example.com/ns/foo">nonetag<teacher name="Jenny"><born>1983</born></teacher>teachertail<x:p/>ptail',
-    '<student name="Tim"><performance><Grade>A+</Grade></performance><info><born>2005</born></info></student>',
-    '<student name="John"><performance><Grade>B</Grade></performance><info><born>2004</born>birthtail</info>infotail</student></data>'])
-
+    data = normalize_ws("""
+    <data xmlns:x="http://example.com/ns/foo">nonetag
+        <teacher name="Jenny">
+            <born>1983</born>
+        </teacher>teachertail
+        <x:p/>ptail
+        <student name="Tim">
+            <performance>
+                <Grade>A+</Grade>
+            </performance>
+            <info>
+                <born>2005</born>
+            </info>
+        </student>
+        <student name="John">
+            <performance>
+                <Grade>B</Grade>
+            </performance>
+            <info>
+                <born>2004</born>birthtail
+            </info>infotail
+        </student>
+    </data>""")
     tree = parse(data, parser)
     root = tree.getroot()
 
@@ -112,16 +142,22 @@ def _test_update_and_serialize():
 
     # order of nodes on the same level is reversed but vertical nested order is correct
     expected_xml = ''.join(['<?xml version="1.0" encoding="utf-8"?>\n',
-    '<data xmlns:x="http://example.com/ns/foo">nonetag<?Here are instuctions?><!--some comment-->',
-    '<student name="John"><info><born>2004</born>birthtail</info>infotail<performance><Grade>A-</Grade></performance></student>',
-    '<student name="Tim"><info><born>2005</born></info><performance><Grade>A+</Grade></performance></student>',
-    '<x:p/>ptail<teacher name="Jenny"><born>1983</born></teacher>teachertail</data>'])
-    asserts.eq(expected_xml, ElementTree.tostring(root,  encoding ='utf-8', xml_declaration=True))
+    '<data xmlns:x="http://example.com/ns/foo">nonetag<teacher name="Jenny">',
+    '<born>1983</born></teacher>teachertail<x:p/>ptail<student name="Tim">',
+    '<performance><Grade>A+</Grade></performance><info><born>2005</born>',
+    '</info></student><student name="John"><performance><Grade>A-</Grade>',
+    '</performance><info><born>2004</born>birthtail</info>infotail</student>',
+    '<!--some comment--><?Here are instuctions?></data>'
+   ])
+    actual_xml = ElementTree.tostring(root,  encoding ='utf-8', xml_declaration=True)
+    asserts.eq(expected_xml, actual_xml)
     # print('to string:', ElementTree.tostring(root))
     # test serialize on subelement and update attribute
     root.findall('.//')[2].set("name", "Jim")
-    asserts.eq('<student name="Jim"><info><born>2005</born></info><performance><Grade>A+</Grade></performance></student>', ElementTree.tostring(root.findall('.//')[2]))
+    asserts.eq('<student name="Jim"><performance><Grade>A+</Grade></performance><info><born>2005</born></info></student>', ElementTree.tostring(root.findall('.//')[2]))
 
+    # query = "//*[@*[local-name() = 'name' ]='John']"
+    # print(root.findall(query))
 
 def _test_wsse_signed_payload():
 
