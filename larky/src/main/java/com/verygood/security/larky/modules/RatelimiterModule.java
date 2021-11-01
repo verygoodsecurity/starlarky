@@ -1,6 +1,8 @@
 package com.verygood.security.larky.modules;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -62,24 +64,34 @@ public class RatelimiterModule implements StarlarkValue {
                                     @ParamType(type = String.class),
                             }),
             })
-    public Boolean isLimited(String domain, Dict<String, Object> descriptors, StarlarkInt limit, String unit) throws IOException {
+    public Boolean isLimited(String domain, Dict<String, String> descriptors, StarlarkInt limit, String unit) throws IOException {
         URL url = new URL("http://localhost:8080/json");
         URLConnection con = url.openConnection();
         HttpURLConnection http = (HttpURLConnection)con;
         http.setRequestMethod("POST");
         http.setDoOutput(true);
 
-        List<HashMap<String, Object>> entries = new ArrayList<>();
-        for(Map.Entry<String, Object> entry: descriptors.entrySet()) {
-            entries.add(new HashMap<String, Object>(){{
-                put("key", entry.getKey());
-                put("value", entry.getValue());
-            }});
+        JsonArray entries = new JsonArray();
+        for(Map.Entry<String, String> entry: descriptors.entrySet()) {
+            JsonObject descriptorEntry = new JsonObject();
+            descriptorEntry.addProperty("key", entry.getKey());
+            descriptorEntry.addProperty("value", entry.getValue());
+            entries.add(descriptorEntry);
         }
-        // need to construct json array with nested objects instead
-        // String body = String.format("{\"domain\": %s, \"descriptors\": [{ \"entries\": %s,\"limit\": {\"requests_per_unit\": %s, \"unit\": %s}}] }", domain, entries.toString(), limit, unit);
-        byte[] out = "{\"domain\": \"rl\", \"descriptors\": [{ \"entries\": [{ \"key\":  \"tenant\", \"value\": \"tnt03\" }, {\"key\": \"ip\", \"value\": \"111\"}],\"limit\": {\"requests_per_unit\": 5, \"unit\": \"MINUTE\"}}] }".getBytes(StandardCharsets.UTF_8);
-        // byte[] out = body.getBytes(StandardCharsets.UTF_8);
+        JsonObject limitObj = new JsonObject();
+        limitObj.addProperty("requests_per_unit", limit.toIntUnchecked());
+        limitObj.addProperty("unit", unit);
+        JsonObject descriptorObj = new JsonObject();
+        descriptorObj.add("entries", entries);
+        descriptorObj.add("limit", limitObj);
+        JsonArray descriptorsArr = new JsonArray();
+        descriptorsArr.add(descriptorObj);
+        JsonObject body = new JsonObject();
+        body.addProperty("domain", domain);
+        body.add("descriptors", descriptorsArr);
+
+//        byte[] out = "{\"domain\": \"rl\", \"descriptors\": [{ \"entries\": [{ \"key\":  \"tenant\", \"value\": \"tnt03\" }, {\"key\": \"ip\", \"value\": \"111\"}],\"limit\": {\"requests_per_unit\": 5, \"unit\": \"MINUTE\"}}] }".getBytes(StandardCharsets.UTF_8);
+        byte[] out = body.toString().getBytes(StandardCharsets.UTF_8);
         int length = out.length;
 
         http.setFixedLengthStreamingMode(length);

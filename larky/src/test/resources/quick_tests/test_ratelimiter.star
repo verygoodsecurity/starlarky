@@ -2,9 +2,10 @@
 # load("@stdlib//unittest", "unittest")
 # load("@vgs//ratelimiter", "ratelimiter")
 
-# for local test, running okay
+# # for local test
 # def Test_ratelimiter():
 
+#     # would get: 'ratelimiter response: True'
 #     print('ratelimiter response:', ratelimiter.is_limited("rl", {"ip":"123", "tenant": "tnt321"}, 5, "MINUTE"))
 
 
