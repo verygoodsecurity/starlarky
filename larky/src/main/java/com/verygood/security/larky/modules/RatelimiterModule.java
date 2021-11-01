@@ -14,9 +14,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 
@@ -65,7 +62,13 @@ public class RatelimiterModule implements StarlarkValue {
                             }),
             })
     public Boolean isLimited(String domain, Dict<String, String> descriptors, StarlarkInt limit, String unit) throws IOException {
-        URL url = new URL("http://localhost:8080/json");
+        String envoyURL = System.getenv("envoyURL");
+        URL url;
+        if (envoyURL != null) {
+            url = new URL(envoyURL);
+        } else {
+            url = new URL("http://localhost:8080/json");
+        }
         URLConnection con = url.openConnection();
         HttpURLConnection http = (HttpURLConnection)con;
         http.setRequestMethod("POST");
@@ -90,7 +93,6 @@ public class RatelimiterModule implements StarlarkValue {
         body.addProperty("domain", domain);
         body.add("descriptors", descriptorsArr);
 
-//        byte[] out = "{\"domain\": \"rl\", \"descriptors\": [{ \"entries\": [{ \"key\":  \"tenant\", \"value\": \"tnt03\" }, {\"key\": \"ip\", \"value\": \"111\"}],\"limit\": {\"requests_per_unit\": 5, \"unit\": \"MINUTE\"}}] }".getBytes(StandardCharsets.UTF_8);
         byte[] out = body.toString().getBytes(StandardCharsets.UTF_8);
         int length = out.length;
 
@@ -109,6 +111,6 @@ public class RatelimiterModule implements StarlarkValue {
         }
         Gson g = new Gson();
         Map<String, Object> resp = g.fromJson(responseBuilder.toString(), Map.class);
-        return resp.get("overallCode").toString().equals("OK");
+        return resp.get("overallCode").toString().equals("OVER_LIMIT");
     }
 }
