@@ -2,11 +2,18 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
+
+load("@vendor//Crypto/Util/number",
+     _long_to_bytes="long_to_bytes",
+     _bytes_to_long="bytes_to_long")
 load("@vendor//option/result", Result="Result", Error="Error")
+
 load("@vendor//xmlsec/ns", ns="ns")
 
 NotImplemented = larky.SENTINEL
 b64_intro = 64
+long_to_bytes = _long_to_bytes
+bytes_to_long = _bytes_to_long
 
 
 def b64_print(s):
@@ -15,12 +22,16 @@ def b64_print(s):
     :param s: String to print
     :return: String
     """
-    string = codecs.encode(s, encoding="utf-8")
+    string = s
+    if types.is_string(s):
+        string = codecs.encode(s, encoding="utf-8")
+    if not types.is_bytelike(string):
+        fail("expected bytelike object, not %s", type(string))
     r = []
     for pos in range(0, len(string), b64_intro):
         r.append(string[pos : pos + b64_intro])  # noqa: E203
 
-    return "\n".join(r)
+    return b"\n".join(r)
 
 
 def _escape_dn_value(val):

@@ -2,6 +2,7 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//enum", enum="enum")
 load("@stdlib//uuid", uuid="uuid")
 load("@stdlib//xml/etree/ElementTree", etree="ElementTree", QName="QName")
+load("@vendor//xmlsec/signature_context", SignatureContext="SignatureContext")
 load("@vendor//xmlsec/constants", constants="constants")
 load("@vendor//xmlsec/elementmaker", ElementMaker="ElementMaker")
 load("@vendor//xmlsec/ns", ns="ns")
@@ -23,24 +24,14 @@ InternalError = Error("InternalError")
 VerificationError = Error("VerificationError")
 
 
-Transform = enum.Enum('Transform', [
+_Transform = enum.Enum('Transform', [
     ("EXCL_C14N", constants.TransformExclC14N),
     ("RSA_SHA1", constants.TransformRsaSha1),
     ("SHA1", constants.TransformSha1),
 ])
 
 
-KeyFormat = enum.Enum('KeyFormat', [
-    ("UNKNOWN", constants.KeyDataFormatUnknown),
-    ("BINARY", constants.KeyDataFormatBinary),
-    ("PEM", constants.KeyDataFormatPem),
-    ("DER", constants.KeyDataFormatDer),
-    ("PKCS8_PEM", constants.KeyDataFormatPkcs8Pem),
-    ("PKCS8_DER", constants.KeyDataFormatPkcs8Der),
-    ("PKCS12_PEM", constants.KeyDataFormatPkcs12),
-    ("CERT_PEM", constants.KeyDataFormatCertPem),
-    ("CERT_DER", constants.KeyDataFormatCertDer),
-])
+KeyFormat = constants.KeyFormat
 
 
 def _Key(key):
@@ -135,43 +126,6 @@ def EncryptionContext(manager=None):
         pass
     self.reset = reset
 
-    return self
-
-
-def _SignatureContext():
-    self = larky.mutablestruct(__class__=_SignatureContext, __name__='SignatureContext')
-
-    def enable_reference_transform(transform):
-        pass
-    self.enable_reference_transform = enable_reference_transform
-
-    def enable_signature_transform(transform):
-        pass
-    self.enable_signature_transform = enable_signature_transform
-
-    def register_id(node, id_attr="ID", id_ns=None):
-        pass
-    self.register_id = register_id
-
-    def set_enabled_key_data(keydata_list):
-        pass
-    self.set_enabled_key_data = set_enabled_key_data
-
-    def sign(node):
-        pass
-    self.sign = sign
-
-    def sign_binary(bytes, transform):
-        pass
-    self.sign_binary = sign_binary
-
-    def verify(node):
-        pass
-    self.verify = verify
-
-    def verify_binary(bytes, transform, signature):
-        pass
-    self.verify_binary = verify_binary
     return self
 
 
@@ -399,7 +353,7 @@ def sign_envelope(
 def _signature_prepare(envelope, key, signature_method, digest_method):
     """Prepare envelope and sign."""
     soap_env = detect_soap_env(envelope)
-
+    print(soap_env)
     # Create the Signature node.
     # signature = template.create(
     #     envelope,
@@ -408,14 +362,14 @@ def _signature_prepare(envelope, key, signature_method, digest_method):
     # )
     # Create a signature template for RSA-SHA1 enveloped signature.
     signature = template.create(
-        c14n_method=Transform.EXCL_C14N,
-        sign_method=signature_method or Transform.RSA_SHA1,
+        c14n_method=_Transform.EXCL_C14N,
+        sign_method=signature_method or _Transform.RSA_SHA1,
     )
 
     # Add the <ds:Signature/> node to the document.
     # soap_env.append(signature)
     # Add the <ds:Reference/> node to the signature template.
-    ref = template.add_reference(signature, Transform.SHA1)
+    ref = template.add_reference(signature, _Transform.SHA1)
 
     # Add the enveloped transform descriptor.
     template.add_transform(ref, constants.TransformEnveloped)
@@ -426,28 +380,26 @@ def _signature_prepare(envelope, key, signature_method, digest_method):
     x509_data = template.add_x509_data(key_info)
     template.x509_data_add_issuer_serial(x509_data)
     template.x509_data_add_certificate(x509_data)
-    # Create a digital signature context (no key manager is needed).
-    # Load private key (assuming that there is no password).
-    # Set the key on the context.
-    # ctx = xmlsig.SignatureContext()
-
-    # key_info = template.ensure_key_info(signature)
-    # x509_data = template.add_x509_data(key_info)
-    # template.x509_data_add_issuer_serial(x509_data)
-    # template.x509_data_add_certificate(x509_data)
 
     # Insert the Signature node in the wsse:Security header.
     security = get_security_header(envelope)
     security.insert(0, signature)
 
+    # Create a digital signature context (no key manager is needed).
+    # Load private key (assuming that there is no password).
+    # Set the key on the context.
+    ctx = SignatureContext()
+    ctx.load_pkcs12(key)
+    # Sign the template.
     # Perform the actual signing.
-    ctx = _SignatureContext()
-    ctx.key = key
-    _sign_node(ctx, signature, envelope.find(QName(soap_env, "Body")), digest_method)
-    timestamp = security.find(QName(ns.WSU, "Timestamp"))
-    if timestamp != None:
-        _sign_node(ctx, signature, timestamp, digest_method)
     ctx.sign(signature)
+
+    # ctx.verify(signature)
+    # _sign_node(ctx, signature, envelope.find(QName(soap_env, "Body")), digest_method)
+    # timestamp = security.find(QName(ns.WSU, "Timestamp"))
+    # if timestamp != None:
+    #     _sign_node(ctx, signature, timestamp, digest_method)
+    # ctx.sign(signature)
 
     # Place the X509 data inside a WSSE SecurityTokenReference within
     # KeyInfo. The recipient expects this structure, but we can't rearrange
@@ -468,11 +420,6 @@ def _sign_envelope_with_key_binary(envelope, key, signature_method, digest_metho
     security, sec_token_ref, x509_data = _signature_prepare(
         envelope, key, signature_method, digest_method
     )
-    # print("_sign_envelope_with_key_binary: ", "\n",
-    #       "==> ", security, "\n",
-    #       "==> ", sec_token_ref, "\n",
-    #       "==> ", x509_data, "\n",
-    #       )
     ref = etree.SubElement(
         sec_token_ref,
         QName(ns.WSSE, "Reference"),
@@ -525,7 +472,7 @@ def _verify_envelope_with_key(envelope, key):
     security = header.find(QName(ns.WSSE, "Security"))
     signature = security.find(QName(ns.DS, "Signature"))
 
-    ctx = _SignatureContext()
+    ctx = SignatureContext()
     print("xmlsec/__init__.star._verify_envelope_with_key(): ", signature)
     # Find each signed element and register its ID with the signing context.
     refs = xp(signature, "ds:SignedInfo/ds:Reference", namespaces={"ds": ns.DS})
@@ -572,13 +519,13 @@ def _sign_node(ctx, signature, target, digest_method=None):
 
     # Add reference to signature with URI attribute pointing to that ID.
     ref = template.add_reference(
-        signature, digest_method or Transform.SHA1, uri="#" + node_id
+        signature, digest_method or _Transform.SHA1, uri="#" + node_id
     )
     # This is an XML normalization transform which will be performed on the
     # target node contents before signing. This ensures that changes to
     # irrelevant whitespace, attribute ordering, etc won't invalidate the
     # signature.
-    template.add_transform(ref, Transform.EXCL_C14N)
+    template.add_transform(ref, _Transform.EXCL_C14N)
 
 
 xmlsec = larky.struct(

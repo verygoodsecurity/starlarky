@@ -1,18 +1,66 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//collections", namedtuple="namedtuple")
 load("@stdlib//enum", enum="enum")
+load("@vendor//Crypto/Hash", hashes="Hash")
 
-KeyData = namedtuple('__KeyData', "name href")
-__KeyData = KeyData
+load("@vendor//xmlsec/ns", ns="ns")
+load("@vendor//xmlsec/algorithms", HMACAlgorithm="HMACAlgorithm", RSAAlgorithm="RSAAlgorithm")
 
-Transform = namedtuple('__Transform', "name href usage")
-__Transform = Transform
 
 ID_ATTR = "Id"
-
+NS_MAP = ns.NS_MAP
 DSigNs = 'http://www.w3.org/2000/09/xmldsig#'
 EncNs = 'http://www.w3.org/2001/04/xmlenc#'
+DSignNsMore = ns.DSignNsMore
+DSigNs11 = ns.DSigNs11
 
+
+KeyData = namedtuple('__KeyData', "name href")
+Transform = namedtuple('__Transform', "name href usage")
+
+
+_TransformUsageUnknown = 0
+_TransformUsageDSigTransform = 1
+_TransformUsageC14NMethod = 2
+_TransformUsageDigestMethod = 4
+_TransformUsageSignatureMethod = 8
+_TransformUsageEncryptionMethod = 16
+_TransformUsageAny = 65535
+
+
+TransformUsage = enum.Enum('TransformUsage', [
+    ("Unknown", _TransformUsageUnknown),
+    ("DSigTransform", _TransformUsageDSigTransform),
+    ("C14NMethod", _TransformUsageC14NMethod),
+    ("DigestMethod", _TransformUsageDigestMethod),
+    ("SignatureMethod", _TransformUsageSignatureMethod),
+    ("EncryptionMethod", _TransformUsageEncryptionMethod),
+    ("Any", _TransformUsageAny),
+])
+
+
+KeyDataTypeNone = 0
+KeyDataTypeUnknown = 0
+KeyDataTypePublic = 1
+KeyDataTypePrivate = 2
+KeyDataTypeSymmetric = 4
+KeyDataTypeSession = 8
+KeyDataTypePermanent = 16
+KeyDataTypeTrusted = 256
+KeyDataTypeAny = 65535
+
+
+KeyType = enum.Enum('KeyType', [
+    ("NONE", KeyDataTypeNone),
+    ("UNKNOWN", KeyDataTypeUnknown),
+    ("PUBLIC", KeyDataTypePublic),
+    ("PRIVATE", KeyDataTypePrivate),
+    ("SYMMETRIC", KeyDataTypeSymmetric),
+    ("SESSION", KeyDataTypeSession),
+    ("PERMANENT", KeyDataTypePermanent),
+    ("TRUSTED", KeyDataTypeTrusted),
+    ("ANY", KeyDataTypeAny),
+])
 
 KeyDataFormatUnknown = 0
 KeyDataFormatBinary = 1
@@ -24,6 +72,45 @@ KeyDataFormatPkcs12 = 6
 KeyDataFormatCertPem = 7
 KeyDataFormatCertDer = 8
 
+
+KeyFormat = enum.Enum('KeyFormat', [
+    ("UNKNOWN", KeyDataFormatUnknown),
+    ("BINARY", KeyDataFormatBinary),
+    ("PEM", KeyDataFormatPem),
+    ("DER", KeyDataFormatDer),
+    ("PKCS8_PEM", KeyDataFormatPkcs8Pem),
+    ("PKCS8_DER", KeyDataFormatPkcs8Der),
+    ("PKCS12_PEM", KeyDataFormatPkcs12),
+    ("CERT_PEM", KeyDataFormatCertPem),
+    ("CERT_DER", KeyDataFormatCertDer),
+])
+
+
+KEYDATA_ALGO2HREF = {}
+KEYDATA_HREF2ALGO = {}
+
+
+# noinspection PyPep8Naming
+def __KeyData(name, href):
+    KEYDATA_ALGO2HREF[href] = name
+    KEYDATA_ALGO2HREF[name] = href
+    return KeyData(name, href)
+
+
+TRANSFORM_VIA_HREF = {}
+TRANSFORM_VIA_USAGE = {}
+TRANSFORM_VIA_NAME = {}
+
+
+# noinspection PyPep8Naming
+def __Transform(name, href, usage):
+    _transform = Transform(name, href, usage)
+    TRANSFORM_VIA_HREF.setdefault(href, []).append(_transform)
+    TRANSFORM_VIA_USAGE.setdefault(usage, []).append(_transform)
+    TRANSFORM_VIA_NAME.setdefault(name, []).append(_transform)
+    return _transform
+
+
 KeyDataAes = __KeyData('aes', 'http://www.aleksey.com/xmlsec/2002#AESKeyValue')
 KeyDataDes = __KeyData('des', 'http://www.aleksey.com/xmlsec/2002#DESKeyValue')
 KeyDataDsa = __KeyData('dsa', 'http://www.w3.org/2000/09/xmldsig#DSAKeyValue')
@@ -34,16 +121,6 @@ KeyDataName = __KeyData('key-name', None)
 KeyDataRawX509Cert = __KeyData('raw-x509-cert', 'http://www.w3.org/2000/09/xmldsig#rawX509Certificate')
 KeyDataRetrievalMethod = __KeyData('retrieval-method', None)
 KeyDataRsa = __KeyData('rsa', 'http://www.w3.org/2000/09/xmldsig#RSAKeyValue')
-
-KeyDataTypeNone = 0
-KeyDataTypeUnknown = 0
-KeyDataTypePublic = 1
-KeyDataTypePrivate = 2
-KeyDataTypeSymmetric = 4
-KeyDataTypeSession = 8
-KeyDataTypePermanent = 16
-KeyDataTypeTrusted = 256
-KeyDataTypeAny = 65535
 
 
 KeyDataValue = __KeyData('key-value', None)
@@ -81,24 +158,6 @@ NsExcC14N = 'http://www.w3.org/2001/10/xml-exc-c14n#'
 NsExcC14NWithComments = 'http://www.w3.org/2001/10/xml-exc-c14n#WithComments'
 Soap11Ns = 'http://schemas.xmlsoap.org/soap/envelope/'
 Soap12Ns = 'http://www.w3.org/2002/06/soap-envelope'
-
-TransformUsageUnknown = 0
-TransformUsageDSigTransform = 1
-TransformUsageC14NMethod = 2
-TransformUsageDigestMethod = 4
-TransformUsageSignatureMethod = 8
-TransformUsageEncryptionMethod = 16
-TransformUsageAny = 65535
-
-TransformUsage = enum.Enum('TransformUsage', [
-    ("Unknown", TransformUsageUnknown),
-    ("DSigTransform", TransformUsageDSigTransform),
-    ("C14NMethod", TransformUsageC14NMethod),
-    ("DigestMethod", TransformUsageDigestMethod),
-    ("SignatureMethod", TransformUsageSignatureMethod),
-    ("EncryptionMethod", TransformUsageEncryptionMethod),
-    ("Any", TransformUsageAny),
-])
 
 
 TransformAes128Cbc = __Transform('aes128-cbc', 'http://www.w3.org/2001/04/xmlenc#aes128-cbc', TransformUsage.EncryptionMethod)
@@ -164,40 +223,70 @@ XPath2Ns = 'http://www.w3.org/2002/06/xmldsig-filter2'
 XPathNs = 'http://www.w3.org/TR/1999/REC-xpath-19991116'
 XPointerNs = 'http://www.w3.org/2001/04/xmldsig-more/xptr'
 
+# TODO: fill this out below
+TransformBase64 = DSigNs + "base64"
+TransformDsaSha256 = DSigNs11 + "dsa-sha256"
+
+
+TransformUsageUnknown = {}
+TransformUsageDSigTransform = [TransformEnveloped.href, TransformBase64]
+TransformUsageC14NMethod = {
+    TransformInclC14N: {"method": "c14n", "exclusive": False, "comments": False},
+    TransformInclC14NWithComments: {
+        "method": "c14n",
+        "exclusive": False,
+        "comments": True,
+    },
+    TransformExclC14N: {"method": "c14n", "exclusive": True, "comments": False},
+    TransformExclC14NWithComments: {
+        "method": "c14n",
+        "exclusive": True,
+        "comments": False,
+    },
+}
+
+TransformUsageDSigTransform.extend(TransformUsageC14NMethod.keys())
+
+TransformUsageDigestMethod = {
+    TransformMd5: "md5",
+    TransformSha1: "sha1",
+    TransformSha224: "sha224",
+    TransformSha256: "sha256",
+    TransformSha384: "sha384",
+    TransformSha512: "sha512",
+    # TransformRipemd160: "ripemd160",
+}
+
+TransformUsageSignatureMethod = {
+    TransformRsaMd5: {"digest": hashes.MD5.new, "method": RSAAlgorithm},
+    TransformRsaSha1: {"digest": hashes.SHA1.new, "method": RSAAlgorithm},
+    TransformRsaSha224: {"digest": hashes.SHA224.new, "method": RSAAlgorithm},
+    TransformRsaSha256: {"digest": hashes.SHA256.new, "method": RSAAlgorithm},
+    TransformRsaSha384: {"digest": hashes.SHA384.new, "method": RSAAlgorithm},
+    TransformRsaSha512: {"digest": hashes.SHA512.new, "method": RSAAlgorithm},
+    TransformHmacSha1: {"digest": hashes.SHA1.new, "method": HMACAlgorithm},
+    TransformHmacSha224: {"digest": hashes.SHA256.new, "method": HMACAlgorithm},
+    TransformHmacSha256: {"digest": hashes.SHA256.new, "method": HMACAlgorithm},
+    TransformHmacSha384: {"digest": hashes.SHA384.new, "method": HMACAlgorithm},
+    TransformHmacSha512: {"digest": hashes.SHA512.new, "method": HMACAlgorithm},
+}
+
+TransformUsageEncryptionMethod = {}
+TransformUsageAny = {}
+
 
 constants = larky.struct(
+    ID_ATTR=ID_ATTR,
+    NS_MAP=NS_MAP,
+    DSignNsMore=DSignNsMore,
+    DSigNs11=DSigNs11,
     DSigNs=DSigNs,
     EncNs=EncNs,
-    KeyDataAes=KeyDataAes,
-    KeyDataDes=KeyDataDes,
-    KeyDataDsa=KeyDataDsa,
-    KeyDataEcdsa=KeyDataEcdsa,
-    KeyDataEncryptedKey=KeyDataEncryptedKey,
-    KeyDataFormatBinary=KeyDataFormatBinary,
-    KeyDataFormatCertDer=KeyDataFormatCertDer,
-    KeyDataFormatCertPem=KeyDataFormatCertPem,
-    KeyDataFormatDer=KeyDataFormatDer,
-    KeyDataFormatPem=KeyDataFormatPem,
-    KeyDataFormatPkcs12=KeyDataFormatPkcs12,
-    KeyDataFormatPkcs8Der=KeyDataFormatPkcs8Der,
-    KeyDataFormatPkcs8Pem=KeyDataFormatPkcs8Pem,
-    KeyDataFormatUnknown=KeyDataFormatUnknown,
-    KeyDataHmac=KeyDataHmac,
-    KeyDataName=KeyDataName,
-    KeyDataRawX509Cert=KeyDataRawX509Cert,
-    KeyDataRetrievalMethod=KeyDataRetrievalMethod,
-    KeyDataRsa=KeyDataRsa,
-    KeyDataTypeAny=KeyDataTypeAny,
-    KeyDataTypeNone=KeyDataTypeNone,
-    KeyDataTypePermanent=KeyDataTypePermanent,
-    KeyDataTypePrivate=KeyDataTypePrivate,
-    KeyDataTypePublic=KeyDataTypePublic,
-    KeyDataTypeSession=KeyDataTypeSession,
-    KeyDataTypeSymmetric=KeyDataTypeSymmetric,
-    KeyDataTypeTrusted=KeyDataTypeTrusted,
-    KeyDataTypeUnknown=KeyDataTypeUnknown,
-    KeyDataValue=KeyDataValue,
-    KeyDataX509=KeyDataX509,
+    Ns=Ns,
+    NsExcC14N=NsExcC14N,
+    NsExcC14NWithComments=NsExcC14NWithComments,
+    Soap11Ns=Soap11Ns,
+    Soap12Ns=Soap12Ns,
     NodeCanonicalizationMethod=NodeCanonicalizationMethod,
     NodeCipherData=NodeCipherData,
     NodeCipherReference=NodeCipherReference,
@@ -224,11 +313,39 @@ constants = larky.struct(
     NodeSignatureValue=NodeSignatureValue,
     NodeSignedInfo=NodeSignedInfo,
     NodeX509Data=NodeX509Data,
-    Ns=Ns,
-    NsExcC14N=NsExcC14N,
-    NsExcC14NWithComments=NsExcC14NWithComments,
-    Soap11Ns=Soap11Ns,
-    Soap12Ns=Soap12Ns,
+    KeyDataAes=KeyDataAes,
+    KeyDataDes=KeyDataDes,
+    KeyDataDsa=KeyDataDsa,
+    KeyDataEcdsa=KeyDataEcdsa,
+    KeyDataEncryptedKey=KeyDataEncryptedKey,
+    KeyFormat=KeyFormat,
+    KeyDataFormatBinary=KeyDataFormatBinary,
+    KeyDataFormatCertDer=KeyDataFormatCertDer,
+    KeyDataFormatCertPem=KeyDataFormatCertPem,
+    KeyDataFormatDer=KeyDataFormatDer,
+    KeyDataFormatPem=KeyDataFormatPem,
+    KeyDataFormatPkcs12=KeyDataFormatPkcs12,
+    KeyDataFormatPkcs8Der=KeyDataFormatPkcs8Der,
+    KeyDataFormatPkcs8Pem=KeyDataFormatPkcs8Pem,
+    KeyDataFormatUnknown=KeyDataFormatUnknown,
+    KeyDataHmac=KeyDataHmac,
+    KeyDataName=KeyDataName,
+    KeyDataRawX509Cert=KeyDataRawX509Cert,
+    KeyDataRetrievalMethod=KeyDataRetrievalMethod,
+    KeyDataRsa=KeyDataRsa,
+    KeyData=KeyData,
+    KeyDataTypeAny=KeyDataTypeAny,
+    KeyDataTypeNone=KeyDataTypeNone,
+    KeyDataTypePermanent=KeyDataTypePermanent,
+    KeyDataTypePrivate=KeyDataTypePrivate,
+    KeyDataTypePublic=KeyDataTypePublic,
+    KeyDataTypeSession=KeyDataTypeSession,
+    KeyDataTypeSymmetric=KeyDataTypeSymmetric,
+    KeyDataTypeTrusted=KeyDataTypeTrusted,
+    KeyDataTypeUnknown=KeyDataTypeUnknown,
+    KeyDataValue=KeyDataValue,
+    KeyDataX509=KeyDataX509,
+    TransformUsage=TransformUsage,
     TransformAes128Cbc=TransformAes128Cbc,
     TransformAes128Gcm=TransformAes128Gcm,
     TransformAes192Cbc=TransformAes192Cbc,
@@ -294,4 +411,9 @@ constants = larky.struct(
     XPath2Ns=XPath2Ns,
     XPathNs=XPathNs,
     XPointerNs=XPointerNs,
+    KEYDATA_ALGO2HREF=KEYDATA_ALGO2HREF,
+    KEYDATA_HREF2ALGO=KEYDATA_HREF2ALGO,
+    TRANSFORM_VIA_HREF=TRANSFORM_VIA_HREF,
+    TRANSFORM_VIA_NAME=TRANSFORM_VIA_NAME,
+    TRANSFORM_VIA_USAGE=TRANSFORM_VIA_USAGE,
 )
