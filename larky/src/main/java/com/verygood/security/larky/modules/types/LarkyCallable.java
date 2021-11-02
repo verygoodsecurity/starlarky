@@ -18,7 +18,8 @@ public interface LarkyCallable extends StarlarkCallable {
     //StarlarkCallable.super.call(thread, args, kwargs);
     throw Starlark.errorf(
       "'%s' object is not callable (either def __call__(*args, **kwargs) is not " +
-      "defined or __call__ is defined but is not callable)", getName());
+      "defined or __call__ is defined but is not callable)",
+      StarlarkUtil.richType(this));
   }
 
   @Override
@@ -29,11 +30,20 @@ public interface LarkyCallable extends StarlarkCallable {
       method = callable();
     } catch (EvalException ex) {
       Object methodO = get__call__();
+      String methodType;
+      String methodName;
+      if(methodO != null) {
+         methodType = StarlarkUtil.richType(methodO);
+         methodName = Starlark.str(methodO);
+      } else {
+        methodType = "None";
+        methodName = "None";
+      }
       name.append(".")
         .append("__call__<type: ")
-        .append(StarlarkUtil.richType(methodO))
+        .append(methodType)
         .append(", value=")
-        .append(Starlark.str(methodO))
+        .append(methodName)
         .append(">");
       return name.toString();
     }
