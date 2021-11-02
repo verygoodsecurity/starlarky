@@ -1,7 +1,7 @@
 load("@stdlib//base64", b64decode="b64decode")
 load("@vendor//Crypto/Hash/HMAC", HMAC="HMAC")
 
-load("@vendor//xmlsec/algorithms/base", Algorithm="Algorithm")
+load("@vendor//xmlsig/algorithms/base", Algorithm="Algorithm")
 
 
 def _HMACAlgorithm():

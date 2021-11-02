@@ -2,9 +2,9 @@ load("@stdlib//base64", b64decode="b64decode", b64encode="b64encode")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/Signature/pkcs1_15", pkcs1_15="pkcs1_15")
 
-load("@vendor//xmlsec/algorithms/base", Algorithm="Algorithm")
-load("@vendor//xmlsec/ns", ns="ns")
-load("@vendor//xmlsec/utils", b64_print="b64_print", create_node="create_node", long_to_bytes="long_to_bytes", os2ip="os2ip")
+load("@vendor//xmlsig/algorithms/base", Algorithm="Algorithm")
+load("@vendor//xmlsig/ns", ns="ns")
+load("@vendor//xmlsig/utils", b64_print="b64_print", create_node="create_node", long_to_bytes="long_to_bytes", os2ip="os2ip")
 
 
 NS_MAP = ns.NS_MAP

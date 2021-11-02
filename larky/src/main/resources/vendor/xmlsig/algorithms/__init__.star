@@ -1,7 +1,7 @@
 load("@stdlib//larky", larky="larky")
 
-load("@vendor//xmlsec/algorithms/hmac", HMACAlgorithm="HMACAlgorithm")
-load("@vendor//xmlsec/algorithms/rsa", RSAAlgorithm="RSAAlgorithm")
+load("@vendor//xmlsig/algorithms/hmac", HMACAlgorithm="HMACAlgorithm")
+load("@vendor//xmlsig/algorithms/rsa", RSAAlgorithm="RSAAlgorithm")
 
 
 algorithms = larky.struct(

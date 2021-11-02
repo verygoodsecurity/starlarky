@@ -2,10 +2,10 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//collections", namedtuple="namedtuple")
 load("@stdlib//enum", enum="enum")
 
-load("@vendor//Crypto/Hash", hashes="Hash")
-load("@vendor//xmlsec/algorithms", HMACAlgorithm="HMACAlgorithm", RSAAlgorithm="RSAAlgorithm")
-load("@vendor//xmlsec/ns", _ns="ns", NS_MAP="NS_MAP")  # noqa:F401
-load("@vendor//xmlsec/ns",
+load("@vendor//cryptography/hazmat/primitives", hashes="hashes")
+load("@vendor//xmlsig/algorithms", HMACAlgorithm="HMACAlgorithm", RSAAlgorithm="RSAAlgorithm")
+load("@vendor//xmlsig/ns", _ns="ns", NS_MAP="NS_MAP")  # noqa:F401
+load("@vendor//xmlsig/ns",
      DSignNsMore="DSignNsMore",
      DSigNs="DSigNs",
      DSigNs11="DSigNs11",
@@ -97,17 +97,17 @@ TransformUsageDigestMethod = {
 }
 
 TransformUsageSignatureMethod = {
-    TransformRsaMd5: {"digest": hashes.MD5.new, "method": RSAAlgorithm},
-    TransformRsaSha1: {"digest": hashes.SHA1.new, "method": RSAAlgorithm},
-    TransformRsaSha224: {"digest": hashes.SHA224.new, "method": RSAAlgorithm},
-    TransformRsaSha256: {"digest": hashes.SHA256.new, "method": RSAAlgorithm},
-    TransformRsaSha384: {"digest": hashes.SHA384.new, "method": RSAAlgorithm},
-    TransformRsaSha512: {"digest": hashes.SHA512.new, "method": RSAAlgorithm},
-    TransformHmacSha1: {"digest": hashes.SHA1.new, "method": HMACAlgorithm},
-    TransformHmacSha224: {"digest": hashes.SHA224.new, "method": HMACAlgorithm},
-    TransformHmacSha256: {"digest": hashes.SHA256.new, "method": HMACAlgorithm},
-    TransformHmacSha384: {"digest": hashes.SHA384.new, "method": HMACAlgorithm},
-    TransformHmacSha512: {"digest": hashes.SHA512.new, "method": HMACAlgorithm},
+    TransformRsaMd5: {"digest": hashes.MD5, "method": RSAAlgorithm},
+    TransformRsaSha1: {"digest": hashes.SHA1, "method": RSAAlgorithm},
+    TransformRsaSha224: {"digest": hashes.SHA224, "method": RSAAlgorithm},
+    TransformRsaSha256: {"digest": hashes.SHA256, "method": RSAAlgorithm},
+    TransformRsaSha384: {"digest": hashes.SHA384, "method": RSAAlgorithm},
+    TransformRsaSha512: {"digest": hashes.SHA512, "method": RSAAlgorithm},
+    TransformHmacSha1: {"digest": hashes.SHA1, "method": HMACAlgorithm},
+    TransformHmacSha224: {"digest": hashes.SHA224, "method": HMACAlgorithm},
+    TransformHmacSha256: {"digest": hashes.SHA256, "method": HMACAlgorithm},
+    TransformHmacSha384: {"digest": hashes.SHA384, "method": HMACAlgorithm},
+    TransformHmacSha512: {"digest": hashes.SHA512, "method": HMACAlgorithm},
 }
 
 TransformUsageEncryptionMethod = {}

@@ -1,17 +1,8 @@
 load("@stdlib//larky", larky="larky")
+
 load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
-load("@vendor//xmlsec/constants", Transform="Transform", ID_ATTR="ID_ATTR")
-load("@vendor//xmlsec/utils", create_node="create_node")
-load("@vendor//xmlsec/ns", ns="ns")
-
-
-Element = etree.Element
-
-DSigNs = ns.DSigNs
-
-
-def add_encrypted_key(node, method, id=None, type=None, recipient=None):
-    pass
+load("@vendor//xmlsig/constants", ID_ATTR="ID_ATTR", NS_MAP="NS_MAP", DSigNs="DSigNs")
+load("@vendor//xmlsig/utils", create_node="create_node")
 
 
 def add_key_name(node, name):
@@ -49,7 +40,7 @@ def add_reference(node, digest_method, name=False, uri=False, uri_type=False):
 
 
 def add_transform(node, transform):
-    transforms_node = node.find("ds:Transforms", namespaces=ns.NS_MAP)
+    transforms_node = node.find("ds:Transforms", namespaces=NS_MAP)
     if transforms_node == None:
         transforms_node = create_node("Transforms", ns=DSigNs, tail="\n", text="\n")
         node.insert(0, transforms_node)
@@ -64,7 +55,15 @@ def add_x509_data(node):
 
 
 def create(c14n_method=False, sign_method=False, name=False, ns="ds"):
-    node = etree.Element(etree.QName(DSigNs, "Signature"), nsmap={DSigNs: ns})
+    node = etree.Element(etree.QName(DSigNs, "Signature"),
+                         # PY2LARKY DIFF below:
+                         # nsmap when creating the element should be inverse
+                         # to have the prefix as the *value* instead of the
+                         # *key*.
+                         #
+                         # This is a minor but important change for:
+                         #  xml.etree.ElementTree <<>> lxml.etree.ElementTree
+                         nsmap={DSigNs: ns})
     node.text = "\n"
     if name:
         node.set(ID_ATTR, name)
@@ -79,18 +78,6 @@ def create(c14n_method=False, sign_method=False, name=False, ns="ds"):
     return node
 
 
-def encrypted_data_create(node, method, id=None, type=None, mime_type=None, encoding=None, ns=None):
-    pass
-
-
-def encrypted_data_ensure_cipher_value(node):
-    pass
-
-
-def encrypted_data_ensure_key_info(node, id=None, ns=None):
-    pass
-
-
 def ensure_key_info(node, name=False):
     key_info = node.find("{" + DSigNs + "}KeyInfo")
     if key_info == None:
@@ -99,10 +86,6 @@ def ensure_key_info(node, name=False):
     if name:
         key_info.set(ID_ATTR, name)
     return key_info
-
-
-def transform_add_c14n_inclusive_namespaces(node, prefixes):
-    pass
 
 
 def x509_data_add_certificate(node):
@@ -141,18 +124,14 @@ def x509_issuer_serial_add_serial_number(node):
 
 
 template = larky.struct(
-    add_encrypted_key=add_encrypted_key,
+    __name__='template',
     add_key_name=add_key_name,
     add_key_value=add_key_value,
     add_reference=add_reference,
     add_transform=add_transform,
     add_x509_data=add_x509_data,
     create=create,
-    encrypted_data_create=encrypted_data_create,
-    encrypted_data_ensure_cipher_value=encrypted_data_ensure_cipher_value,
-    encrypted_data_ensure_key_info=encrypted_data_ensure_key_info,
     ensure_key_info=ensure_key_info,
-    transform_add_c14n_inclusive_namespaces=transform_add_c14n_inclusive_namespaces,
     x509_data_add_certificate=x509_data_add_certificate,
     x509_data_add_crl=x509_data_add_crl,
     x509_data_add_issuer_serial=x509_data_add_issuer_serial,

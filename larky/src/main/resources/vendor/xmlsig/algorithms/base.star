@@ -3,7 +3,7 @@ load("@stdlib//base64", base64="base64")
 load("@stdlib//types", types="types")
 load("@vendor//jopenssl", _JOpenSSL="jopenssl")
 load("@vendor//option/result", Error="Error")
-load("@vendor//xmlsec/ns", ns="ns")
+load("@vendor//xmlsig/ns", ns="ns")
 
 
 def Algorithm():
