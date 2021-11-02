@@ -98,9 +98,14 @@ def _impl_function_name(f):
     return cls_type
 
 
-def _is_instance(instance, some_class):
+def _is_instance(instance, some_class_or_factory):
     t = type(instance)
-    cls_type = _impl_function_name(some_class)
+    # are the types the same?
+    _hasname = getattr(some_class_or_factory, '__name__', None)
+    if _hasname and t == _hasname:
+        return True
+    # otherwise
+    cls_type = _impl_function_name(some_class_or_factory)
     # TODO(Larky::Difference) this hack here is specialization for comparing
     #  str to string when we do str(str) in larky, we get
     #  <built-in function str>, but in python, this is <class 'str'>.
@@ -108,6 +113,7 @@ def _is_instance(instance, some_class):
     if t == 'string' and cls_type == 'str':
         return True
     return t == cls_type
+
 
 def translate_bytes(s, original, replace):
     """
@@ -160,7 +166,7 @@ def _zfill(x, leading=4):
         return str(x)
 
 
-def _DeterministicGenerator(func):
+def _DeterministicGenerator(func, *args, **kwargs):
     """
     Exploits iterator protocol support to emulate a generator that
     preserves state by returning an iterator that supports `__getitem__`
@@ -172,13 +178,16 @@ def _DeterministicGenerator(func):
     """
     self = _mutablestruct(__name__='DeterministicGenerator',
                           __class__=_DeterministicGenerator)
-    def __init__(func):
+
+    def __init__(func, *args, **kwargs):
         self.f = func
+        self.args = args
+        self.kwargs = kwargs
         return self
-    self = __init__(func)
+    self = __init__(func, *args, **kwargs)
 
     def __getitem__(i):
-        r = self.f(i)
+        r = self.f(i, *self.args, **self.kwargs)
         if r.is_err and r == StopIteration():
             return IndexError()
         return r.unwrap()
@@ -194,6 +203,100 @@ def _fromkeys(iterable, value=None):
     Create a new dictionary with keys from iterable and values set to value.
     """
     return {key: value for key in iterable}
+
+#
+# def _with(ctx):
+#     l = ctx.__enter__()
+#     try:
+#         f(*args, **kwargs)
+#         if not len(l) > 0:
+#             raise AssertionError("No warning raised when calling %s"
+#                     % f.__name__)
+#         if not l[0].category is DeprecationWarning:
+#             raise AssertionError("First warning for %s is not a " \
+#                     "DeprecationWarning( is %s)" % (f.__name__, l[0]))
+#     finally:
+#         ctx.__exit__()
+#
+
+def _Peekable(iterator, retain_max_elems=5):
+    """An iterable class which can return the next element of the wrapped
+    iterator without advancing it."""
+
+    self = _mutablestruct(__name__='Peekable', __class__=_Peekable)
+    self.SENTINEL = _SENTINEL
+
+    def __init__(iterator, retain_max_elems):
+        self.cache = []
+        self.peeked = []
+        self._retain_max_elems = retain_max_elems
+
+        if hasattr(iterator, '__iter__'):
+            self.iterator = iter(iterator)
+        else:
+            self.iterator = iterator
+        return self
+    self = __init__(iterator, retain_max_elems)
+
+    def __iter__():
+        return self
+    self.__iter__ = __iter__
+
+    def __bool__():
+        rv = self.peek()
+        if rv == StopIteration:
+            return False
+        return True
+    self.__bool__ = __bool__
+
+    def __next__():
+        # TODO: fix this
+        i = self.peeked.pop() if self.peeked else next(self.iterator)
+        self.cache.append(i)
+        self._ensure_size()
+        return i
+    self.__next__ = __next__
+    self.next = __next__
+
+    def peek(default=_SENTINEL):
+        if self.peeked:
+            # we already have done the peek, let's return the head
+            return self.peeked[-1]
+
+        i = next(self.iterator)
+        if i == StopIteration:
+            if default == self.SENTINEL:
+                return StopIteration
+            i = default
+
+        self.peeked.append(i)
+        return i
+    self.peek = peek
+
+    def rewind(n):
+        if not (len(self.cache) >= n):
+            fail("assert len(self.cache) >= n failed!")
+
+        for _ in range(n):
+            self.peeked.append(self.cache.pop())
+    self.rewind = rewind
+
+    def putback(*items):
+        for item in items:
+            self.cache.append(item)
+        self._ensure_size()
+        self.rewind(len(items))
+    self.putback = putback
+
+    def flush():
+        self.cache.clear()
+    self.flush = flush
+
+    def _ensure_size():
+        if len(self.cache) >= self._retain_max_elems:
+            self.cache = self.cache[-self._retain_max_elems :]
+    self._ensure_size = _ensure_size
+    return self
 
 
 larky = _struct(
@@ -217,5 +320,6 @@ larky = _struct(
     ),
     utils=_struct(
         Counter=_Counter,
-        ThreadsafeCounter=_ThreadsafeCounter
+        ThreadsafeCounter=_ThreadsafeCounter,
+        Peekable=_Peekable,
     ))
