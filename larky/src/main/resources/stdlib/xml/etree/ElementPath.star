@@ -77,7 +77,7 @@ xpath_tokenizer_re = re.compile(r"".join([
 ]))
 
 
-StopIterating = Error("StopIteration")
+StopIterating = StopIteration
 
 
 def generator(seq):
@@ -95,6 +95,7 @@ def generator(seq):
         self._current += 1
         return self._sequence[self._current]
     self.next = next
+    self.__next__ = next
     return self
 
 
@@ -199,7 +200,7 @@ def _prepare_tag(tag):
     return select
 
 
-def prepare_child(next, token):
+def prepare_child(peekable, token):
     tag = token[1]
     if _is_wildcard_tag(tag):
         select_tag = _prepare_tag(tag)
@@ -223,7 +224,7 @@ def prepare_child(next, token):
             return rval
     return select
 
-def prepare_star(next, token):
+def prepare_star(peekable, token):
     def select(context, result):
         # return list(result)
         rval = []
@@ -233,10 +234,12 @@ def prepare_star(next, token):
         return rval
     return select
 
-def prepare_self(next, token):
+
+def prepare_self(peekable, token):
     def select(context, result):
         return list(result)
     return select
+
 
 def traverse_descendant(e, tag, rval):
     qu = e._children[0:] # duplicate arr
@@ -248,8 +251,9 @@ def traverse_descendant(e, tag, rval):
             rval.append(current)
         qu.extend(current._children)
 
-def prepare_descendant(next, token):
-    token = next()
+
+def prepare_descendant(peekable, token):
+    token = peekable.next()
     if not token or token == StopIterating:
         return
     if token[0] == "*":
@@ -285,7 +289,8 @@ def prepare_descendant(next, token):
             return rval
     return select
 
-def prepare_parent(next, token):
+
+def prepare_parent(peekable, token):
     def select(context, result):
         # FIXME: raise error if .. is applied at toplevel?
         rval = []
@@ -300,17 +305,27 @@ def prepare_parent(next, token):
         return rval
     return select
 
-def prepare_predicate(next, token):
+
+def prepare_predicate(peekable, token):
     # FIXME: replace with real parser!!! refs:
     # http://javascript.crockford.com/tdop/tdop.html
     signature = []
     predicate = []
+    # print("old token:", token)
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-        token = next()
+        token = peekable.next()
         if not token or token == StopIterating:
             return
+        # print('token?', token)
         if token[0] == "]":
-            break
+            peeked = peekable.peek()
+            if not peeked or peeked == StopIterating:
+                break
+
+            p_ttype, p_tag = peeked
+            if p_ttype != '=':
+                break
+            # print('peeked!', peeked)
         if token == ('None', 'None'):
             # ignore whitespace
             continue
@@ -323,6 +338,9 @@ def prepare_predicate(next, token):
             signature.append(token[0])
         predicate.append(token[1])
     signature = "".join(signature)
+    # print("===> predicate:", predicate)
+    # print("===> signature:", signature)
+    # print("===> token:", token)
     # use signature to determine predicate type
     if signature == "@-":
         # [@attribute] predicate
@@ -410,7 +428,7 @@ def prepare_predicate(next, token):
             if predicate[0] != "last":
                 return Error("SyntaxError: unsupported function").unwrap()
             if signature == "-()-":
-                if not types.is_instance(predicate[2]):
+                if not types.is_int(predicate[2]):
                     return Error("SyntaxError: unsupported expression").unwrap()
                 index = int(predicate[2]) - 1
                 if index > -2:
@@ -426,7 +444,7 @@ def prepare_predicate(next, token):
                     continue
                 parent = parent_map[k]
                 # FIXME: what if the selector is "*" ?
-                #recursion, need to convert:
+                # recursion, need to convert:
                 # elems = list(parent.findall(elem.tag))
                 elems = []
                 for e in parent._children:
@@ -438,7 +456,96 @@ def prepare_predicate(next, token):
                     rval.append(elem)
             return rval
         return select
-    return Error("SyntaxError: invalid predicate").unwrap()
+    if signature == "@*[-()=']='":
+        # [@attribute[local-name() = 'KEY' ]='VALUE']
+        xpath_function = predicate[3]
+        xpath_funcargs = [] if predicate[4] == "None" else predicate[4]
+        # print(xpath_funcargs)
+        # print(signature.find("'"))
+        key = predicate[signature.find("'") - 1]
+        value = predicate[-1]
+        def select(context, result):
+            # print("func", xpath_function, "args", xpath_funcargs)
+            # print("key", key, "value", value)
+            # print("context", context, repr(context))
+            # print("result", result)
+            rval = []
+            for elem in result:
+                context.node = elem
+                attrs = eval_function(xpath_function, [[elem.attrib]], context)
+                # print(attrs)
+                if attrs.get(key) == value:
+                    rval.append(elem)
+            return rval
+        return select
+    return fail("SyntaxError: invalid predicate")
+
+
+def eval_function(xpath_func_name, xpath_func_args, context):
+    if xpath_func_name == 'local-name':
+        if xpath_func_args:
+            # fail("function arguments are not support for now")
+            node_set = xpath_func_args[0]
+            if len(node_set) == 0:
+                return ""
+            node = node_set[0]
+        else:
+            node = context.node
+
+        if node == context.root:
+            uri, local_part = "", ""
+        elif iselement(node):
+            uri, local_part = get_expanded_name(node.tag)
+        elif types.is_dict(node):
+            _node = {}
+            for k, v in node.items():
+                _, lp = get_expanded_name(k)
+                _node[lp] = v
+            return _node
+        else:
+            print(node, type(node))
+            # Text
+            fail('%s() not supported for this node type.' % xpath_func_name)
+
+        if xpath_func_name == "local-name":
+            return local_part
+        elif xpath_func_name == "namespace-uri":
+            return uri
+        else:
+            if xpath_func_name != "name":
+                fail("xpath_func_name != 'name'")
+            if uri:
+                fail('name() not supported for qualified names.')
+            else:
+                return local_part
+
+
+def iselement(element):
+    """iselement(element)
+    Checks if an object appears to be a valid element object or
+    if *element* appears to be an Element.
+    """
+    return type(element) == 'Element' or hasattr(element, "tag")
+
+
+def is_node_set(x):
+    return types.is_list(x) or types.is_tuple(x) or iselement(x)
+
+
+def get_expanded_name(tag):
+    if tag[:1] != "{":
+        return (None, tag)
+    else:
+        return tag[1:].split("}", 1)
+
+
+def get_attribute_value(node, uri, name):
+    if iselement(node):
+        if uri:
+            name = "{%s}%s" % (uri, name)
+        return node.get(name)
+    else:
+        return None
 
 ops = {
     "None": prepare_child,
@@ -449,11 +556,15 @@ ops = {
     "[": prepare_predicate,
     }
 
+
 _cache = {}
-def _SelectorContext(root):
+
+
+def SelectorContext(root):
     self = larky.mutablestruct(__class__='_SelectorContext', parent_map=None)
     def __init__(root):
         self.root = root
+        self.node = None
         return self
     self = __init__(root)
     return self
@@ -479,13 +590,13 @@ def iterfind(start_elem, path, namespaces=None):
             _cache.clear()
         if path[:1] == "/":
             return Error("SyntaxError: cannot use absolute path on element").unwrap()
-        tokenizer = xpath_tokenizer(path, namespaces)
+        tokenizer = larky.utils.Peekable(xpath_tokenizer(path, namespaces))
         token = tokenizer.next()
         selector = []
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if token == StopIterating:
                 break
-            rval = ops[token[0]](tokenizer.next, token)
+            rval = ops[token[0]](tokenizer, token)
             if rval == StopIterating:
                 return Error("SyntaxError: invalid path").unwrap()
             selector.append(rval)
@@ -498,7 +609,7 @@ def iterfind(start_elem, path, namespaces=None):
                     break
             # _cache[cache_key] = selector
     result = [start_elem]
-    context = _SelectorContext(start_elem)
+    context = SelectorContext(start_elem)
     for select in selector:
         result = select(context, result)
     return result

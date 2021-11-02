@@ -193,7 +193,12 @@ def Element(tag, attrib=None, **extra):
     self = __init__(tag, attrib or {}, extra)
 
     def __repr__():
-        return "<Element %s>" % (repr(self.tag))
+        # non-std repr (easier for debugging)
+        _children = [c.tag for c in self.getchildren()]
+        return "<Element %r, Children: %s>" % (
+            self.tag,
+            ", ".join(_children) if _children else _children
+        )
     self.__repr__ = __repr__
 
     def makeelement(tag, attrib):
@@ -216,6 +221,7 @@ def Element(tag, attrib=None, **extra):
 
         """
         elem = self.makeelement(self.tag, self.attrib)
+        elem._parent = self._parent
         elem.text = self.text
         elem.tail = self.tail
         for i, c in enumerate(self._children):
@@ -228,7 +234,7 @@ def Element(tag, attrib=None, **extra):
     self.__len__ = __len__
 
     def __bool__():
-        return len(self._children) != 0  # emulate old behaviour, for now
+        return len(self.getchildren()) != 0  # emulate old behaviour, for now
     self.__bool__ = __bool__
 
     def __getitem__(index):
@@ -259,6 +265,7 @@ def Element(tag, attrib=None, **extra):
         self._assert_is_element(subelement)
         if not subelement.getparent():
             subelement._parent = self
+            # print("append()", self.__class__)
         self._children.append(subelement)
 
     self.append = append
@@ -276,6 +283,8 @@ def Element(tag, attrib=None, **extra):
                 element._parent = self
             elems.append(element)
         self._children.extend(elems)
+        # if elems:
+        #     print("extend()", self.__class__)
     self.extend = extend
 
     def insert(index, subelement):
@@ -283,6 +292,7 @@ def Element(tag, attrib=None, **extra):
         self._assert_is_element(subelement)
         if not subelement.getparent():
             subelement._parent = self
+            # print("insert()", self.__class__)
         self._children.insert(index, subelement)
     self.insert = insert
 
@@ -306,7 +316,22 @@ def Element(tag, attrib=None, **extra):
 
         """
         # assert iselement(element)
-        self._children.remove(subelement)
+        # fast path
+        if subelement in self.getchildren():
+            self._children.remove(subelement)
+            return
+        # else, iteratively search through all children to find the child
+        # and remove it from the node
+        children = [(self, x) for x in self.getchildren()]
+        for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if not children:
+                break
+            parent, child = children.pop(0)
+            if child == subelement:
+                parent._children.remove(subelement)
+                return
+            children.extend([(child, c) for c in child.getchildren()])
+        fail("ValueError: unable to remove %r because it was not found", subelement)
     self.remove = remove
 
     def getchildren():
@@ -325,6 +350,17 @@ def Element(tag, attrib=None, **extra):
         """
         return self._parent
     self.getparent = getparent
+
+    def getroottree():
+        lastnode = self
+        parent = lastnode.getparent()
+        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if parent == None:
+                return _ElementTree(lastnode)
+            lastnode = parent
+            parent = lastnode.getparent()
+
+    self.getroottree = getroottree
 
     def find(path, namespaces=None):
         """Find first matching element by tag name or path.
@@ -679,6 +715,133 @@ def iselement(element):
     return types.is_instance(element, Element) or hasattr(element, "tag")
 
 
+def _getNs(element):
+    if types.is_instance(element, QName):
+        ns_utf, tag_utf = _getNsTag(element.text)
+    else:
+        ns_utf, tag_utf = _getNsTag(element)
+
+    if ns_utf:
+        return ns_utf
+    if not element._nsmap:
+        return None
+    for pfx in element._nsmap:
+        return element._nsmap[pfx]
+
+    # (((c_node)->ns == 0) ? 0 : ((c_node)->ns->href))
+
+
+def _namespacedNameFromNsName(href, name):
+    if href == None:
+        return name
+    if types.is_instance(name, QName):
+        ns_utf, tag_utf = _getNsTag(name.text)
+    else:
+        ns_utf, tag_utf = _getNsTag(name)
+    return "{%s}%s" % (ns_utf, tag_utf)
+
+
+def _tagMatches(c_node, c_href, c_name):
+    """Tests if the node matches namespace URI and tag name.
+    A node matches if it matches both c_href and c_name.
+    A node matches c_href if any of the following is true:
+    * c_href is NULL
+    * its namespace is NULL and c_href is the empty string
+    * its namespace string equals the c_href string
+    A node matches c_name if any of the following is true:
+    * c_name is NULL
+    * its name string equals the c_name string
+    """
+    if c_node == None:
+        return False
+    if not iselement(c_node):
+        # not an element, only succeed if we match everything
+        return c_name == None and c_href == None
+    if c_name == None:
+        if c_href == None:
+            # always match
+            return True
+        else:
+            c_node_href = _getNs(c_node)
+            if c_node_href == None:
+                return c_href[0] == ""
+            else:
+                return c_node_href == c_href
+    elif c_href == None:
+        if _getNs(c_node) != None:
+            return False
+        return c_node.tag == c_name
+    elif c_node.tag == c_name:
+        c_node_href = _getNs(c_node)
+        if c_node_href == None:
+            return c_href[0] == ""
+        else:
+            return c_node_href == c_href
+    else:
+        return False
+
+
+def getelementpath(tree, element):
+    """getelementpath(tree, element)
+
+    Returns a structural, absolute ElementPath expression to find the
+    element.  This path can be used in the .find() method to look up
+    the element, provided that the elements along the path and their
+    list of immediate children were not modified in between.
+    ElementPath has the advantage over an XPath expression (as returned
+    by the .getpath() method) that it does not require additional prefix
+    declarations.  It is always self-contained.
+    """
+    root = None
+
+    if not iselement(element):
+        fail("ValueError: input is not an Element")
+    if tree.getroot() != None:
+        root = tree.getroot()
+    else:
+        fail("ValueError: Element is not in this tree")
+
+    path = []
+    c_element = element
+    for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        if c_element == root:
+            break
+        c_name = c_element.tag
+        c_href = _getNs(c_name)
+        # print(c_href)
+        tag = _namespacedNameFromNsName(c_href, c_name)
+        # print(tag)
+        if c_href == None:
+            c_href = b""  # no namespace (NULL is wildcard)
+        # use tag[N] if there are preceding siblings with the same tag
+        count = 0
+        loc = c_element.getparent().getchildren().index(c_element)
+        for i in range(0, loc):
+            c_node = c_element.getparent().getchildren()[i]
+            if iselement(c_node):
+                if _tagMatches(c_node, c_href, c_name):
+                    count += 1
+        if count:
+            tag = "%s[%d]" % (tag, count + 1)
+        else:
+            # use tag[1] if there are following siblings with the same tag
+            end = len(c_element.getparent().getchildren())
+            for i in range(loc, end):
+                c_node = c_element.getparent().getchildren()[i]
+                if iselement(c_node):
+                    if _tagMatches(c_node, c_href, c_name):
+                        tag += "[1]"
+                        break
+        path.append(tag)
+        c_element = c_element.getparent()
+        if c_element == None or not iselement(c_element):
+            fail("ValueError: Element is not in this tree.")
+    if not path:
+        return "."
+    path = reversed(path) # .reverse()
+    return "/".join(path)
+
+
 def _ElementTree(element=None, file=None):
     """An XML element hierarchy.
 
@@ -727,14 +890,14 @@ def _ElementTree(element=None, file=None):
                     # can define an internal _parse_whole API for efficiency.
                     # It can be used to parse the whole source without feeding
                     # it with chunks.
-                    self._root = parser._parse_whole(source)
+                    self._setroot(parser._parse_whole(source))
                     return self._root
             for _i in range(_WHILE_LOOP_EMULATION_ITERATION):
                 data = source.read(65536)
                 if not data:
                     break
                 parser.feed(data)
-            self._root = parser.close()
+            self._setroot(parser.close())
             return self._root
 
         rval = Result.Ok(_parse_safe).map(lambda f: f(parser))
@@ -767,7 +930,6 @@ def _ElementTree(element=None, file=None):
         # assert iselement(element)
         self._root = element
     self._setroot = _setroot
-
 
     def iter(tag=None):
         """Create and return tree iterator for the root element.
@@ -1190,7 +1352,7 @@ def _serialize_xml(
         write("</%s>" % tag)
         if elem_to_close.tail:
             # print('remaining elem to close which has tail:', elem_to_close.tag)
-            write(_escape_cdata(elem_to_close.tail))
+            write(_escape_cdata(elem_to_close.tail).strip())
 
 HTML_EMPTY = (
     "area",
@@ -1315,6 +1477,9 @@ def _escape_cdata(text):
     # it's worth avoiding do-nothing calls for strings that are
     # shorter than 500 character, or so.  assume that's, by far,
     # the most common case in most applications.
+    if types.is_bytelike(text):
+        text = text.decode('utf-8').strip()
+
     if types.is_string(text):
         if "&" in text:
             text = text.replace("&", "&amp;")
@@ -1370,7 +1535,9 @@ def tostring(element,
              xml_declaration=None,
              default_namespace=None,
              short_empty_elements=True,
-             pretty_print=False):
+             pretty_print=False,
+             with_comments=False,
+             exclusive=False):
     """Generate string representation of XML element.
 
     All subelements are included.  If encoding is "unicode", a string
@@ -1387,7 +1554,10 @@ def tostring(element,
 
     stream = StringIO()
 
-    _ElementTree(element)._write(
+    if type(element) != 'ElementTree':
+        element = _ElementTree(element)
+
+    element._write(
         stream,
         encoding=encoding,
         xml_declaration=xml_declaration,
@@ -1399,7 +1569,7 @@ def tostring(element,
 
 def _ListDataStream(lst):
     """An auxiliary stream accumulating into a list reference."""
-    self = larky.mutablestruct(__class__='_ListDataStream')
+    self = larky.mutablestruct(__class__=_ListDataStream, __name__='ListDataStream')
 
     def __init__(lst):
         self.lst = lst
@@ -2048,4 +2218,5 @@ ElementTree = larky.struct(
     register_namespace=register_namespace,
     tostring=tostring,
     tostringlist=tostringlist,
+    getelementpath=getelementpath,
 )
