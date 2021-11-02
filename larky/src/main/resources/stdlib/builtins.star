@@ -111,7 +111,10 @@ builtins = larky.struct(
     map=map,
     isinstance=types.is_instance,
     repr=repr,
+    # Sentintel
+    NotImplemented=larky.SENTINEL,
     # Errors..
     StopIteration=StopIteration,
-    IndexError=IndexError
+    IndexError=IndexError,
+
 )

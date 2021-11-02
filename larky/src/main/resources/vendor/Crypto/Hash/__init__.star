@@ -22,5 +22,6 @@ Hash = larky.struct(
     SHA512=SHA512,
     SHAKE128=SHAKE128,
     keccak=keccak,
+    KECCAK=keccak,
     SHA3_256=SHA3_256,
 )
