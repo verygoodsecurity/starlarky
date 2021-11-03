@@ -3,9 +3,12 @@
 # for complete details.
 load("@stdlib//larky", larky="larky")
 load("@vendor//cryptography/hazmat/primitives/hashes", _hashes="hashes")
+load("@vendor//cryptography/hazmat/primitives/serialization",
+     _serialization="serialization")
 
 
 hashes = _hashes
+serialization = _serialization
 
 
 primitives = larky.struct(

@@ -2,8 +2,11 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 #
-# This file is non std to avoid the circular imports that can be handled
+# This file is non-std to avoid the circular imports that can be handled
 # in python, but cannot be handled in Larky
+#
+# This exists to break an import cycle. These classes are normally accessible
+# from the hashes module.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//builtins", builtins="builtins")
 

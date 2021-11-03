@@ -4,7 +4,7 @@
 load("@stdlib//enum", enum="enum")
 load("@stdlib//larky", larky="larky")
 load("@vendor//Crypto/Hash", Hash="Hash")
-load("@vendor//cryptography/hazmat/primitives/_hash_interface",
+load("@vendor//cryptography/hazmat/primitives/_hashes",
      HashContext="HashContext",
      )
 

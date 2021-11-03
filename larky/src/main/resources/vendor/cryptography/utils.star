@@ -4,6 +4,7 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//builtins", builtins="builtins")
+load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long", long_to_bytes="long_to_bytes")
 
 
 def _check_bytes(name, value):
@@ -18,8 +19,16 @@ def _check_byteslike(name, value):
         fail("{} must be bytes-like".format(name))
 
 
+int_from_bytes = bytes_to_long
+
+
+int_to_bytes = long_to_bytes
+
+
 utils = larky.struct(
     __name__='utils',
     _check_bytes=_check_bytes,
     _check_byteslike=_check_byteslike,
+    int_from_bytes=bytes_to_long,
+    int_to_bytes=long_to_bytes,
 )

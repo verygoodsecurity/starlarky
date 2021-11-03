@@ -340,7 +340,7 @@ def long_to_bytes(n, blocksize=0):
     return bresult
 
 
-def bytes_to_long(s):
+def bytes_to_long(s,  byteorder='big', signed=False):
     r"""Convert a byte string to a long integer (big endian).
 
     In Python 3.2+, use the native method instead::
@@ -354,7 +354,7 @@ def bytes_to_long(s):
 
     This is (essentially) the inverse of :func:`long_to_bytes`.
     """
-    return _JCrypto.Math.int_from_bytes(s, 'big')
+    return _JCrypto.Math.int_from_bytes(s, byteorder)
 
 
 def long2str(n, blocksize=0):

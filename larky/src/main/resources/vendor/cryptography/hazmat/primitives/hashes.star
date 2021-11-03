@@ -5,7 +5,7 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//builtins", builtins="builtins")
 load("@vendor//Crypto/Hash", _Hash="Hash")
 load("@vendor//cryptography", utils="utils")
-load("@vendor//cryptography/hazmat/primitives/_hash_interface",
+load("@vendor//cryptography/hazmat/primitives/_hashes",
      HashAlgorithm="HashAlgorithm",
      HashContext="HashContext",
      )
