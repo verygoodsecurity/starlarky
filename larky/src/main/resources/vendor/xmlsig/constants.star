@@ -414,6 +414,7 @@ constants = larky.struct(
     NodeSignedInfo=NodeSignedInfo,
     NodeX509Data=NodeX509Data,
     Ns=Ns,
+    NS_MAP=NS_MAP,
     XPathNs=XPathNs,
     XPath2Ns=XPath2Ns,
     XPointerNs=XPointerNs,
