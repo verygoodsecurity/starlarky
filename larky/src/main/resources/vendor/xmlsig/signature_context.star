@@ -6,6 +6,8 @@ load("@stdlib//types", types="types")
 load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
 
 load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
+load("@vendor//cryptography/hazmat/primitives", serialization="serialization")
+
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes")
 load("@vendor//cryptography/x509/oid", ExtensionOID="ExtensionOID")
@@ -96,7 +98,7 @@ def SignatureContext():
         x509_crl = x509_data.find("ds:X509CRL", namespaces=constants.NS_MAP)
         if x509_crl != None and self.crl != None:
             x509_data.text = base64.b64encode(
-                self.crl.public_bytes('DER')
+                self.crl.public_bytes(serialization.Encoding.DER)
             )
         x509_subject = x509_data.find("ds:X509SubjectName", namespaces=constants.NS_MAP)
         if x509_subject != None:
@@ -113,7 +115,7 @@ def SignatureContext():
         )
         if x509_certificate != None:
             s = base64.b64encode(
-                self.x509.public_bytes(encoding="DER")
+                self.x509.public_bytes(serialization.Encoding.DER)
             )
             x509_certificate.text = b64_print(s)
             for certificate in self.ca_certificates:
@@ -122,7 +124,7 @@ def SignatureContext():
                 )
                 certificate_node.text = b64_print(
                     base64.b64encode(
-                        certificate.public_bytes(encoding='DER')
+                        certificate.public_bytes(serialization.Encoding.DER)
                     )
                 )
                 x509_certificate.addnext(certificate_node)
@@ -385,21 +387,12 @@ def SignatureContext():
         :type key: Union[OpenSSL.crypto.PKCS12, tuple]
         :return: None
         """
-        self.x509 = key.cert
-        self.private_key = RSA.import_key(key.key.private_key())
-        self.public_key = self.private_key.public_key()
-        # if types.is_instance(key, OpenSSL.crypto.PKCS12):
-        #     # This would happen if we are using pyOpenSSL
-        #     self.x509 = key.get_certificate().to_cryptography()
-        #     self.public_key = key.get_certificate().to_cryptography().public_key()
-        #     self.private_key = key.get_privatekey().to_cryptography_key()
-        # elif types.is_instance(key, tuple):
-        #     # This would happen if we are using cryptography
-        #     self.x509 = key[1]
-        #     self.public_key = key[1].public_key()
-        #     self.private_key = key[0]
-        # else:
-        #     return Error()
+        self.x509 = key[1]
+        self.public_key = key[1].public_key()
+        self.private_key = key[0]
+        # self.x509 = key.cert
+        # self.private_key = RSA.import_key(key.key.private_key())
+        # self.public_key = self.private_key.public_key()
     self.load_pkcs12 = load_pkcs12
     return self
 
