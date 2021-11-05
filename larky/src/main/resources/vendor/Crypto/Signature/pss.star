@@ -391,3 +391,9 @@ def new(rsa_key, **kwargs):
                      str(kwargs.keys())).unwrap()
     return PSS_SigScheme(rsa_key, mask_func, salt_len, rand_func)
 
+
+pss = larky.struct(
+    __name__='pss',
+    MGF1=MGF1,
+    new=new,
+)
