@@ -13,10 +13,12 @@ import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
+import javax.crypto.interfaces.DHKey;
+
 public class LarkyLoadedKey implements StarlarkValue {
 
   enum KEY_TYPE {
-    UNKNOWN("UNKNOWN"), RSA("RSA"), DSA("DSA"), ECKey("ECKey");
+    UNKNOWN("UNKNOWN"), RSA("RSA"), DSA("DSA"), EC("EC"), DH("DH");
 
     private final String val;
 
@@ -31,16 +33,18 @@ public class LarkyLoadedKey implements StarlarkValue {
   }
 
   public static KEY_TYPE keyType(PrivateKey aPrivate) {
-     if (aPrivate instanceof RSAKey) {
-           return KEY_TYPE.RSA;
-         } else if (aPrivate instanceof DSAKey) {
-       return KEY_TYPE.DSA;
-         } else if (aPrivate instanceof ECKey) {
-       return KEY_TYPE.ECKey;
-         } else {
-       return KEY_TYPE.UNKNOWN;
-         }
-   }
+    if (aPrivate instanceof RSAKey) {
+      return KEY_TYPE.RSA;
+    } else if (aPrivate instanceof DSAKey) {
+      return KEY_TYPE.DSA;
+    } else if (aPrivate instanceof ECKey) {
+      return KEY_TYPE.EC;
+    } else if (aPrivate instanceof DHKey) {
+      return KEY_TYPE.DH;
+    } else {
+      return KEY_TYPE.UNKNOWN;
+    }
+  }
 
   final private PrivateKey privateKey;
   final private PublicKey publicKey;
@@ -68,6 +72,15 @@ public class LarkyLoadedKey implements StarlarkValue {
     return publicKey;
   }
 
+  @StarlarkMethod(name="public_key")
+  public StarlarkBytes publicKey() {
+    return StarlarkBytes.immutableOf(getPublicKey().getEncoded());
+  }
+
+  @StarlarkMethod(name="private_key")
+  public StarlarkBytes privateKey() {
+    return loadPrivateKey();
+  }
 
   @StarlarkMethod(name = "pkey", structField = true)
   public StarlarkBytes loadPrivateKey() {
@@ -81,8 +94,10 @@ public class LarkyLoadedKey implements StarlarkValue {
         return StarlarkInt.of(((RSAKey)getPrivateKey()).getModulus().bitLength());
       case DSA:
         return StarlarkInt.of(((DSAKey)getPrivateKey()).getParams().getP().bitLength());
-      case ECKey:
+      case EC:
         return StarlarkInt.of(((ECKey) getPrivateKey()).getParams().getCurve().getField().getFieldSize());
+      case DH:
+        return StarlarkInt.of(((DHKey)getPrivateKey()).getParams().getL());
       default:
         throw new EvalException("Unable to determine length in bits of specified Key instance");
     }
