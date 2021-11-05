@@ -25,10 +25,15 @@ int_from_bytes = bytes_to_long
 int_to_bytes = long_to_bytes
 
 
+def read_only_property(prop):
+    return larky.property(lambda : prop)
+
+
 utils = larky.struct(
     __name__='utils',
     _check_bytes=_check_bytes,
     _check_byteslike=_check_byteslike,
     int_from_bytes=bytes_to_long,
     int_to_bytes=long_to_bytes,
+    read_only_property=read_only_property,
 )

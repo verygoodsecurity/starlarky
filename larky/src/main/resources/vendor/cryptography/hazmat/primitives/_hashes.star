@@ -9,6 +9,7 @@
 # from the hashes module.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//builtins", builtins="builtins")
+load("@vendor//cryptography/utils", utils="utils")
 
 
 def _HashAlgorithm(name, digest_size, block_size):
@@ -30,7 +31,8 @@ def _HashAlgorithm(name, digest_size, block_size):
 
 
 def HashAlgorithm(**kwargs):
-    return lambda: _HashAlgorithm(**kwargs)
+    # print("HashAlgorithm:", kwargs)
+    return lambda : _HashAlgorithm(kwargs['name'], kwargs['digest_size'], kwargs['block_size'])
 
 
 def HashContext(algorithm):
@@ -68,3 +70,62 @@ def HashContext(algorithm):
         """
     self.copy = copy
     return self
+
+
+def Hash(algorithm, backend = None, ctx = None):
+    # type: (HashAlgorithm, Optional[Backend], Optional["HashContext"]) -> Hash
+    self = HashContext(algorithm)
+    self.__name__ = 'Hash'
+    self.__class__ = Hash
+    def __init__(
+        algorithm, # type: HashAlgorithm,
+        backend,   # type: Optional[Backend] = None,
+        ctx        # type: Optional["HashContext"] = None,
+    ):
+        if not backend:
+            fail("Backend not found")
+            # backend = backends._get_backend(backend)
+        self._algorithm = algorithm
+        self._backend = backend
+
+        if ctx == None:
+            self._ctx = self._backend.create_hash_ctx(self.algorithm)
+        else:
+            self._ctx = ctx
+        return self
+    self = __init__(algorithm, backend, ctx)
+
+    def update(data):
+        # type: (bytes) -> None
+        if self._ctx == None:
+            fail("AlreadyFinalized: Context was already finalized.")
+        utils._check_byteslike("data", data)
+        self._ctx.update(data)
+    self.update = update
+
+    def copy():
+        # type: () -> "Hash"
+        if self._ctx == None:
+            fail("AlreadyFinalized: Context was already finalized.")
+        return Hash(
+            self.algorithm, backend=self._backend, ctx=self._ctx.copy()
+        )
+    self.copy = copy
+
+    def finalize():
+        # type: () -> bytes
+        if self._ctx == None:
+            fail("AlreadyFinalized: Context was already finalized.")
+        digest = self._ctx.finalize()
+        self._ctx = None
+        return digest
+    self.finalize = finalize
+    return self
+
+hashes = larky.struct(
+    __name__='_hashes',
+    HashContext=HashContext,
+    Hash=Hash,
+    HashAlgorithm=HashAlgorithm,
+    _HashAlgorithm=_HashAlgorithm
+)

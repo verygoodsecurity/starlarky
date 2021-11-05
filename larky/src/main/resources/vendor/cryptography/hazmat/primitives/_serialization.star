@@ -68,3 +68,15 @@ def NoEncryption():
     self.__name__ = 'NoEncryption'
     self.__class__ = NoEncryption
     return self
+
+
+serialization = larky.struct(
+    __name__='_serialization',
+    Encoding=Encoding,
+    PrivateFormat=PrivateFormat,
+    PublicFormat=PublicFormat,
+    ParameterFormat=ParameterFormat,
+    KeySerializationEncryption=KeySerializationEncryption,
+    BestAvailableEncryption=BestAvailableEncryption,
+    NoEncryption=NoEncryption,
+)

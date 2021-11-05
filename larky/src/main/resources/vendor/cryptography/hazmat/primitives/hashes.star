@@ -8,52 +8,8 @@ load("@vendor//cryptography", utils="utils")
 load("@vendor//cryptography/hazmat/primitives/_hashes",
      HashAlgorithm="HashAlgorithm",
      HashContext="HashContext",
+     Hash="Hash",
      )
-load("@vendor//cryptography/hazmat/backends", backends="backends")
-
-
-def Hash(algorithm, backend = None, ctx = None):
-    # type: (HashAlgorithm, Optional[Backend], Optional["HashContext"]) -> Hash
-    self = HashContext(algorithm)
-    self.__name__ = 'Hash'
-    self.__class__ = Hash
-
-    def __init__(
-        algorithm, # type: HashAlgorithm,
-        backend,   # type: Optional[Backend] = None,
-        ctx        # type: Optional["HashContext"] = None,
-    ):
-        backend = backends._get_backend(backend)
-        self._algorithm = algorithm
-        self._backend = backend
-
-        if ctx == None:
-            self._ctx = self._backend.create_hash_ctx(self.algorithm)
-        else:
-            self._ctx = ctx
-
-    def update(data):
-        # type: (bytes) -> None
-        if self._ctx == None:
-            fail("AlreadyFinalized: Context was already finalized.")
-        utils._check_byteslike("data", data)
-        self._ctx.update(data)
-
-    def copy():
-        # type: () -> "Hash"
-        if self._ctx == None:
-            fail("AlreadyFinalized: Context was already finalized.")
-        return Hash(
-            self.algorithm, backend=self._backend, ctx=self._ctx.copy()
-        )
-
-    def finalize():
-        # type: () -> bytes
-        if self._ctx == None:
-            fail("AlreadyFinalized: Context was already finalized.")
-        digest = self._ctx.finalize()
-        self._ctx = None
-        return digest
 
 
 SHA1 = HashAlgorithm(

@@ -5,7 +5,7 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//builtins", builtins="builtins")
 load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error", safe="safe")
-
+load("@vendor//cryptography/hazmat/primitives/hashes", hashes="hashes")
 
 NotImplemented = builtins.NotImplemented
 
@@ -168,6 +168,7 @@ NameOID = larky.struct(
     UNSTRUCTURED_NAME = ObjectIdentifier("1.2.840.113549.1.9.2"),
 )
 
+
 SignatureAlgorithmOID = larky.struct(
     __name__='SignatureAlgorithmOID',
     RSA_WITH_MD5 = ObjectIdentifier("1.2.840.113549.1.1.4"),
@@ -193,6 +194,30 @@ SignatureAlgorithmOID = larky.struct(
     GOSTR3410_2012_WITH_3411_2012_256 = ObjectIdentifier("1.2.643.7.1.1.3.2"),
     GOSTR3410_2012_WITH_3411_2012_512 = ObjectIdentifier("1.2.643.7.1.1.3.3"),
 )
+
+
+_SIG_OIDS_TO_HASH = {
+    SignatureAlgorithmOID.RSA_WITH_MD5: hashes.MD5(),
+    SignatureAlgorithmOID.RSA_WITH_SHA1: hashes.SHA1(),
+    SignatureAlgorithmOID._RSA_WITH_SHA1: hashes.SHA1(),
+    SignatureAlgorithmOID.RSA_WITH_SHA224: hashes.SHA224(),
+    SignatureAlgorithmOID.RSA_WITH_SHA256: hashes.SHA256(),
+    SignatureAlgorithmOID.RSA_WITH_SHA384: hashes.SHA384(),
+    SignatureAlgorithmOID.RSA_WITH_SHA512: hashes.SHA512(),
+    SignatureAlgorithmOID.ECDSA_WITH_SHA1: hashes.SHA1(),
+    SignatureAlgorithmOID.ECDSA_WITH_SHA224: hashes.SHA224(),
+    SignatureAlgorithmOID.ECDSA_WITH_SHA256: hashes.SHA256(),
+    SignatureAlgorithmOID.ECDSA_WITH_SHA384: hashes.SHA384(),
+    SignatureAlgorithmOID.ECDSA_WITH_SHA512: hashes.SHA512(),
+    SignatureAlgorithmOID.DSA_WITH_SHA1: hashes.SHA1(),
+    SignatureAlgorithmOID.DSA_WITH_SHA224: hashes.SHA224(),
+    SignatureAlgorithmOID.DSA_WITH_SHA256: hashes.SHA256(),
+    SignatureAlgorithmOID.ED25519: None,
+    SignatureAlgorithmOID.ED448: None,
+    SignatureAlgorithmOID.GOSTR3411_94_WITH_3410_2001: None,
+    SignatureAlgorithmOID.GOSTR3410_2012_WITH_3411_2012_256: None,
+    SignatureAlgorithmOID.GOSTR3410_2012_WITH_3411_2012_512: None,
+}
 
 
 ExtendedKeyUsageOID = larky.struct(
@@ -356,4 +381,5 @@ oid = larky.struct(
     CertificatePoliciesOID=CertificatePoliciesOID,
     AttributeOID=AttributeOID,
     _OID_NAMES=_OID_NAMES,
+    _SIG_OIDS_TO_HASH=_SIG_OIDS_TO_HASH,
 )
