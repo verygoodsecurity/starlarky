@@ -1,24 +1,35 @@
-package com.verygood.security.larky.modules.openssl;
+package com.verygood.security.larky.modules.x509;
 
+import java.security.KeyFactory;
 import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.interfaces.DSAKey;
 import java.security.interfaces.ECKey;
 import java.security.interfaces.RSAKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
+import java.security.spec.RSAPrivateKeySpec;
+import java.security.spec.RSAPublicKeySpec;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.params.RSAKeyParameters;
+import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
+
 import javax.crypto.interfaces.DHKey;
 
-public class LarkyLoadedKey implements StarlarkValue {
+public class LarkyKeyPair implements StarlarkValue {
 
   enum KEY_TYPE {
-    UNKNOWN("UNKNOWN"), RSA("RSA"), DSA("DSA"), EC("EC"), DH("DH");
+    UNKNOWN("UNKNOWN"), RSA("RSA"), DSA("DSA"), EC("EC"), DH("DiffieHellman");
 
     private final String val;
 
@@ -50,17 +61,57 @@ public class LarkyLoadedKey implements StarlarkValue {
   final private PublicKey publicKey;
   final private KEY_TYPE type;
 
-  public LarkyLoadedKey(PublicKey aPublic, PrivateKey aPrivate, KEY_TYPE type) {
+  public LarkyKeyPair(PublicKey aPublic, PrivateKey aPrivate, KEY_TYPE type) {
     this.privateKey = aPrivate;
     this.publicKey = aPublic;
     this.type = type;
   }
 
-  public LarkyLoadedKey(PublicKey aPublic, PrivateKey aPrivate) {
+  public static LarkyKeyPair of(AsymmetricKeyParameter publicParam, AsymmetricKeyParameter privateParam, KEY_TYPE keyType) throws EvalException {
+    final KeyFactory kf;
+    try {
+      kf = KeyFactory.getInstance(keyType.toString());
+    } catch (NoSuchAlgorithmException e) {
+      throw new EvalException(e);
+    }
+    KeySpec publicKeySpec = null, privateKeySpec = null;
+    switch(keyType) {
+      case RSA:
+        publicKeySpec = new RSAPublicKeySpec(
+          ((RSAKeyParameters)publicParam).getModulus(),
+          ((RSAKeyParameters)publicParam).getExponent()
+        );
+        if(privateParam != null) {
+          privateKeySpec = new RSAPrivateKeySpec(
+            ((RSAPrivateCrtKeyParameters)privateParam).getModulus(),
+            ((RSAPrivateCrtKeyParameters)privateParam).getExponent()
+          );
+        }
+        break;
+      case DSA:
+      case EC:
+      case DH:
+      case UNKNOWN:
+      default:
+        throw Starlark.errorf("Not valid key type: %s", keyType);
+    }
+    try {
+      PublicKey publicKey = kf.generatePublic(publicKeySpec);
+      PrivateKey privateKey = null;
+      if(privateKeySpec != null) {
+        privateKey = kf.generatePrivate(privateKeySpec);
+      }
+      return new LarkyKeyPair(publicKey, privateKey, keyType);
+    } catch (InvalidKeySpecException e) {
+      throw new EvalException(e);
+    }
+
+  }
+  public LarkyKeyPair(PublicKey aPublic, PrivateKey aPrivate) {
    this(aPublic, aPrivate, keyType(aPrivate));
   }
 
-  public LarkyLoadedKey(KeyPair kp) {
+  public LarkyKeyPair(KeyPair kp) {
     this(kp.getPublic(), kp.getPrivate());
   }
 
