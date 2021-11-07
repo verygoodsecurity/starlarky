@@ -1,6 +1,7 @@
 load("@stdlib//base64", b64decode="b64decode", b64encode="b64encode")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/Signature/pkcs1_15", pkcs1_15="pkcs1_15")
+load("@vendor//cryptography/hazmat/primitives/asymmetric", padding="padding", rsa="rsa")
 
 load("@vendor//xmlsig/algorithms/base", Algorithm="Algorithm")
 load("@vendor//xmlsig/ns", ns="ns")
@@ -20,9 +21,20 @@ def _RSAAlgorithm():
     self.public_key_class = RSA.RsaKey
 
     def sign(data, private_key, digest):
-        signature = pkcs1_15.new(private_key).sign(digest(data))
-        b64_signature = b64encode(signature).strip()
-        return b64_signature
+        print(data)
+        print(private_key)
+        print(digest())
+        return private_key.sign(data, padding.PKCS1v15(), digest())
+        # print(digest)
+        # # hash_ctx = hashes.Hash(algorithm, backend)
+        # # hash_ctx.update(data)
+        # # data = hash_ctx.finalize()
+        # h = digest()
+        # print(h)
+        # # h.update(data)
+        # signature = pkcs1_15.new(private_key).sign(h)
+        # b64_signature = b64encode(signature).strip()
+        # return b64_signature
     self.sign = sign
 
     def verify(signature_value, data, public_key, digest):

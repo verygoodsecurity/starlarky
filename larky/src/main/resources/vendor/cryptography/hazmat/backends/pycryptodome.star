@@ -447,7 +447,7 @@ def _Certificate(backend, x509_cert):
         self._ocsp_resp_ref = None
 
         # version = self._backend.X509_get_version(self._x509)
-        version = self._x509.version
+        version = self._x509.version()
         if version == 0:
             self._version = X509Version.v1
         elif version == 2:
@@ -477,9 +477,10 @@ def _Certificate(backend, x509_cert):
     self.__hash__ = __hash__
 
     def fingerprint(algorithm):
-        ctx = self._backend.create_hash_ctx(algorithm)
-        ctx.update(self.public_bytes(serialization.Encoding.DER))
-        return ctx.finalize()
+        return self._x509.fingerprint(algorithm.name)
+        # ctx = self._backend.create_hash_ctx(algorithm)
+        # ctx.update(self.public_bytes(serialization.Encoding.DER))
+        # return ctx.finalize()
     self.fingerprint = fingerprint
 
     self.version = larky.property(lambda: self._version)

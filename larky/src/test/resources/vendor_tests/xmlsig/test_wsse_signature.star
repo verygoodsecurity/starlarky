@@ -1,20 +1,20 @@
 load("@stdlib//builtins", "builtins")
-load("@stdlib//types", "types")
-load("@stdlib//operator", operator="operator")
 load("@stdlib//codecs", codecs="codecs")
-
 load("@stdlib//io/StringIO", "StringIO")
 load("@stdlib//larky", "larky")
+load("@stdlib//operator", operator="operator")
+load("@stdlib//types", "types")
 load("@stdlib//unittest", "unittest")
-load("@vendor//asserts", "asserts")
-
 load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
+
+load("@vendor//asserts", "asserts")
+load("@vendor//cryptography/hazmat/backends", default_backend="default_backend")
+load("@vendor//cryptography/hazmat/primitives", serialization="serialization")
+load("@vendor//cryptography/hazmat/primitives/serialization/pkcs12", pkcs12="pkcs12")
+load("@vendor//cryptography/x509", load_pem_x509_certificate="load_pem_x509_certificate")
 load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
 
-
 load("@vendor//xmlsig", xmlsig="xmlsig")
-load("@vendor//xmlsig/ns", ns="ns")
-load("@vendor//xmlsig/constants", constants="constants")
 
 # TEST START
 load("./base", load_xml="load_xml", compare="compare")
@@ -22,9 +22,9 @@ load("./data/pkcs12_pfx_encoded_pw", FIXTURE="FIXTURE", HttpHeader="HttpHeader")
 
 
 namespaces = {
-    'soap-env': ns.SOAP_ENV_11,
-    'wsse': ns.WSSE,
-    'ds': ns.DS,
+    'soap-env': xmlsig.ns.SOAP_ENV_11,
+    'wsse': xmlsig.ns.WSSE,
+    'ds': xmlsig.ns.DS,
     'ns0': "http://schemas.mastercard.com.chssecure/2011/01",
     "ns1": "http://schemas.datacontract.org/2004/07/CHSSecureBusinessServices.Request",
 }
@@ -85,6 +85,42 @@ def test_xmlsig_sign():
                 </ns0:GetBenefitInformation>
             </soap-env:Body>
         </soap-env:Envelope>""")
+
+    # Create a signature template for RSA-SHA1 enveloped signature.
+    sign = xmlsig.template.create(
+        c14n_method=xmlsig.constants.TransformExclC14N,
+        sign_method=xmlsig.constants.TransformRsaSha1,
+    )
+    asserts.assert_that(sign).is_not_none()
+
+    # Add the <ds:Signature/> node to the document.
+    envelope.append(sign)
+
+    # Add the <ds:Reference/> node to the signature template.
+    ref = xmlsig.template.add_reference(sign, xmlsig.constants.TransformSha1)
+
+    # Add the enveloped transform descriptor.
+    xmlsig.template.add_transform(ref, xmlsig.constants.TransformEnveloped)
+
+    # Add the <ds:KeyInfo/> and <ds:KeyName/> nodes.
+    key_info = xmlsig.template.ensure_key_info(sign)
+    x509_data = xmlsig.template.add_x509_data(key_info)
+    xmlsig.template.x509_data_add_issuer_serial(x509_data)
+    xmlsig.template.x509_data_add_certificate(x509_data)
+    ctx = xmlsig.SignatureContext()
+    loaded = pkcs12.load_key_and_certificates(FIXTURE, HttpHeader['X-Keystore-Pass'])
+    print("pkcs12.load_key_and_certificates: ", loaded)
+    ctx.load_pkcs12(loaded)
+    # Sign the template.
+    ctx.sign(sign)
+    signed = ElementTree.tostring(
+                       envelope,
+                       method="xml",
+                       encoding="utf-8",
+                       xml_declaration=True,
+                       pretty_print=True,
+    )
+    print(signed)
     # plugin = BinarySignature(
     #     key_file=KEY_FILE_PW_STR,
     #     certfile=KEY_FILE_PW_STR,
@@ -115,7 +151,6 @@ def test_xmlsig_sign():
     # )
     # print(signed)
     # # doc = ElementTree.fromstring(signed)
-
 
 
 def _suite():
