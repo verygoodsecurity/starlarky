@@ -66,6 +66,7 @@ import javax.crypto.spec.SecretKeySpec;
  * A decoder, capable of decoding PEM-encoded keys and certificates.
  * @author <a href="mailto:gds2@fritz-elfert.de">Fritz Elfert</a>
  * @author <a href="mailto:plattner@trilead.com">Christian Plattner</a> (Original code fragments - BSD-licensed)
+ * @author <a href="mailto:mahmoud@$vgs$dot$io">Mahmoud Abdelkader</a>
  */
 public final class SSLUtils {
     private static final FluentLogger logger = FluentLogger.forEnclosingClass();

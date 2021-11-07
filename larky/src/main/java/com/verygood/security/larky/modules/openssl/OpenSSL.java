@@ -4,12 +4,19 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyPair;
+import java.security.GeneralSecurityException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 
+import com.verygood.security.larky.modules.x509.LarkyKeyPair;
+import com.verygood.security.larky.modules.x509.LarkyX509Certificate;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
@@ -21,8 +28,10 @@ import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.Tuple;
 import net.starlark.java.lib.json.Json;
 
 import org.bouncycastle.asn1.x500.X500Name;
@@ -35,14 +44,21 @@ import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.crypto.util.PrivateKeyInfoFactory;
 import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMKeyPair;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.DefaultAlgorithmNameFinder;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
 
+import lombok.Builder;
+import lombok.Data;
+
 public class OpenSSL implements StarlarkValue {
   public static final OpenSSL INSTANCE = new OpenSSL();
+  public static final DefaultAlgorithmNameFinder algFinder = new DefaultAlgorithmNameFinder();
 
   @StarlarkMethod(name = "load_privatekey", parameters = {
     @Param(name = "buffer", allowedTypes = {
@@ -53,17 +69,48 @@ public class OpenSSL implements StarlarkValue {
         @ParamType(type = NoneType.class),
     })
   })
-  public LarkyLoadedKey loadPrivateKey(StarlarkBytes buffer, Object passPhraseO) throws EvalException {
+  public LarkyKeyPair loadPrivateKey(StarlarkBytes buffer, Object passPhraseO) throws EvalException {
     final String passphrase = Starlark.isNullOrNone(passPhraseO)
-      ? ""
-      : new String(((StarlarkBytes) passPhraseO).toByteArray(), StandardCharsets.UTF_8);
-    KeyPair keyPair = new SSLUtils()
-        .decodePrivKey(
-            new String(buffer.toByteArray(), StandardCharsets.UTF_8),
-            passphrase);
+      ? null
+      : ((StarlarkBytes) passPhraseO).decode("utf-8", "report");
 
-    return new LarkyLoadedKey(keyPair);
+    try {
+      final PEMKeyPair pki =
+        SSLUtils.readKeyPair(buffer.toByteArray(), passphrase);
+      JcaPEMKeyConverter converter =
+        new JcaPEMKeyConverter()
+          .setProvider(BouncyCastleProvider.PROVIDER_NAME);
+
+      PrivateKey privateKey = converter.getPrivateKey(pki.getPrivateKeyInfo());
+      PublicKey publicKey = converter.getPublicKey(pki.getPublicKeyInfo());
+
+      return new LarkyKeyPair(publicKey, privateKey);
+    } catch (IOException e) {
+      throw new EvalException(e);
+    }
+
+//    final PrivateKey privateKey;
+//    try {
+//      privateKey = CryptoUtils.loadPrivateKey(o, passphrase.toCharArray());
+//    } catch (IOException e) {
+//      throw new EvalException(e);
+//    }
+//    KeyPair keyPair = new SSLUtils()
+//        .decodePrivKey(
+//            new String(buffer.toByteArray(), StandardCharsets.UTF_8),
+//            passphrase);
+
   }
+
+  @Data
+  @Builder
+  class LarkyX509Cert {
+    BigInteger gmtime_adj_notAfter;
+    BigInteger gmtime_adj_notBefore;
+    String issuer_name;
+    String subject_name;
+  }
+
 
   @StarlarkMethod(
     name="X509_sign",
@@ -194,6 +241,53 @@ public class OpenSSL implements StarlarkValue {
     }
     return StarlarkBytes.of(thread.mutability(),stringWriter.toString().getBytes(StandardCharsets.UTF_8));
   }
+
+  @StarlarkMethod(name = "load_certificate",
+    parameters = {
+      @Param(name = "cert", allowedTypes = {@ParamType(type = String.class)}),
+      @Param(name = "type", allowedTypes = {@ParamType(type = String.class)}),
+  }, useStarlarkThread = true)
+  public LarkyX509Certificate loadCertificate(final String cert, String type, StarlarkThread thread) throws EvalException {
+    //PEM, DER, CRT, and CER: X.509
+    if(!Objects.equals(type, "PEM")) {
+      throw Starlark.errorf("Unsupported certificate type: %s", type);
+    }
+    try {
+      final List<X509Certificate> x509Certificates = SSLUtils.readCertificateChain(cert);
+      return LarkyX509Certificate.of(x509Certificates.get(0));
+    } catch (GeneralSecurityException e) {
+      throw new EvalException(e);
+    }
+
+  }
+
+  @StarlarkMethod(name = "load_key_and_certificates_from_pkcs12",
+     parameters = {
+           @Param(name = "buffer", allowedTypes = {
+               @ParamType(type = StarlarkBytes.class)
+           }),
+           @Param(name = "passphrase", allowedTypes = {
+               @ParamType(type = StarlarkBytes.class),
+               @ParamType(type = NoneType.class),
+           })
+   }, useStarlarkThread = true)
+   public Tuple loadKeyAndCertsFromPKCS12(final StarlarkBytes buffer, Object passwordO, StarlarkThread thread) throws EvalException {
+    final LarkyKeyPair larkyKeyPair = loadPrivateKey(buffer, passwordO);
+    final List<X509Certificate> x509Certificates;
+    try {
+      x509Certificates = SSLUtils.readCertificateChain(buffer.decode("utf-8", "report"));
+    } catch (GeneralSecurityException e) {
+      throw new EvalException(e);
+    }
+    return Tuple.of(
+      larkyKeyPair,
+      LarkyX509Certificate.of(x509Certificates.remove(0)),
+      x509Certificates.isEmpty()
+        ? StarlarkList.empty() // avoid allocation
+        : StarlarkList.immutableCopyOf(x509Certificates)
+    );
+  }
+
 
 
 }
