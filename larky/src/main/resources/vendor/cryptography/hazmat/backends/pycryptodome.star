@@ -56,8 +56,21 @@ def _register_x509_encoders(self):
     pass
 
 
-def _rsa_sig_verify(*args):
-    fail(args)
+def _rsa_sig_verify(backend, padding, algorithm, public_key, signature, data):
+    # public_key.verify(
+            #     b64decode(signature_value), data, padding.PKCS1v15(), digest()
+            # )
+    pkey_ctx = _rsa_sig_setup(
+        backend,
+        padding,
+        algorithm,
+        public_key,
+        None,
+    )
+
+    hashctx = backend.create_hash_ctx(algorithm)
+    hashctx.update(data)
+    pkey_ctx.new(public_key._evp_pkey).verify(hashctx._ctx, signature)
 
 
 def _rsa_sig_determine_padding(backend, key, padding, algorithm):
@@ -131,15 +144,16 @@ def _calculate_digest_and_algorithm(backend, data, algorithm):
     return (data, algorithm)
 
 
-def RSAPrivateKey(backend, evp_pkey):
+def RSAPrivateKey(backend, rsa_cdata, evp_pkey):
     self = larky.mutablestruct(__name__='RSAPrivateKey',
                                __class__=RSAPrivateKey)
 
-    def __init__(backend, evp_pkey):
+    def __init__(backend, rsa_cdata, evp_pkey):
         self._backend = backend
+        self._rsa_cdata = rsa_cdata
         self._evp_pkey = evp_pkey
         return self
-    self = __init__(backend, evp_pkey)
+    self = __init__(backend, rsa_cdata, evp_pkey)
 
     def decrypt(ciphertext, padding):
         """
@@ -237,6 +251,12 @@ def RSAPublicKey(backend, evp_pkey):
         """
         Verifies the signature of the data.
         """
+        data, algorithm = _calculate_digest_and_algorithm(
+            self._backend, data, algorithm
+        )
+        return _rsa_sig_verify(
+            self._backend, padding, algorithm, self, signature, data
+        )
     self.verify = verify
 
     def recover_data_from_signature(
@@ -364,7 +384,7 @@ def RSAPublicNumbers(e, n):
 
     def public_key(backend = None):
         # backend = _get_backend(backend)
-        return backend.load_rsa_public_numbers(self)
+        return pycryptodome().load_rsa_public_numbers(self)
     self.public_key = public_key
 
     def __repr__():
@@ -448,9 +468,9 @@ def _Certificate(backend, x509_cert):
 
         # version = self._backend.X509_get_version(self._x509)
         version = self._x509.version()
-        if version == 0:
+        if version == 1:
             self._version = X509Version.v1
-        elif version == 2:
+        elif version == 3:
             self._version = X509Version.v3
         else:
             fail("{} is not a valid X509 version".format(version))
@@ -492,7 +512,9 @@ def _Certificate(backend, x509_cert):
 
     def public_key():
         # fail("ValueError: Certificate public key is of an unknown type")
-        return self._backend._pkey_to_public_key(self._x509.public_key())
+        print(self._x509.public_key())
+        return RSAPublicKey(self, self._x509.public_key())
+        # return self._backend._evp_pkey_to_public_key(self._x509.public_key())
     self.public_key = public_key
 #
 #     def not_valid_before():
@@ -512,6 +534,7 @@ def _Certificate(backend, x509_cert):
     def signature_hash_algorithm():
         oid = self.signature_algorithm_oid
         roid = oid._SIG_OIDS_TO_HASH.get(oid, None)
+        print(self._x509.signature_hash_algorithm())
         if roid == None:
             fail("Signature algorithm OID:{} not recognized".format(oid))
         return oid
@@ -524,7 +547,7 @@ def _Certificate(backend, x509_cert):
         # )
         # self._backend.openssl_assert(alg[0] != self._backend._ffi.NULL)
         # oid = _obj2txt(self._backend, alg[0].algorithm)
-        return oid.ObjectIdentifier(self._x509.oid)
+        return oid.ObjectIdentifier(self._x509.signature_algorithm_oid())
     self.signature_algorithm_oid = larky.property(signature_algorithm_oid)
 
     def extensions():
@@ -536,7 +559,7 @@ def _Certificate(backend, x509_cert):
         """
         Returns the signature bytes.
         """
-        return _asn1_string_to_bytes(self._backend, self._x509.signature[0])
+        return self._x509.signature()
     self.signature = larky.property(signature)
 
     def tbs_certificate_bytes():
@@ -544,15 +567,11 @@ def _Certificate(backend, x509_cert):
         """
         Returns the tbsCertificate payload bytes as defined in RFC 5280.
         """
-        return self._x509.tbs_certificate()
+        return self._x509.tbs_certificate_bytes()
     self.tbs_certificate_bytes = larky.property(tbs_certificate_bytes)
 
     def public_bytes(encoding):
-        if encoding == serialization.Encoding.PEM:
-            return self._x509.to_pem()
-        elif encoding == serialization.Encoding.DER:
-            return self._x509.to_der()
-        fail("TypeError: encoding must be an item from the Encoding enum")
+        return self._x509.public_bytes(encoding)
     self.public_bytes = public_bytes
     return self
 
@@ -650,7 +669,7 @@ def pycryptodome():
         # key = None
         # additional_certificates = []
         key, cert, additional_certificates = _JOpenSSL.OpenSSL.load_key_and_certificates_from_pkcs12(tobytes(data), password)
-        return RSAPrivateKey(self, RSA.import_key(key.private_key())), cert, additional_certificates
+        return RSAPrivateKey(self, key, RSA.import_key(key.private_key())), _Certificate(self, cert), [_Certificate(self, c) for c in additional_certificates]
     self.load_key_and_certificates_from_pkcs12 = load_key_and_certificates_from_pkcs12
 
     def load_rsa_private_numbers(private_numbers):

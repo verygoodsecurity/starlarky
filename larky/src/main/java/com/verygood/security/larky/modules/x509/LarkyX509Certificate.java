@@ -261,8 +261,8 @@ public class LarkyX509Certificate implements StarlarkValue {
           Returns the ObjectIdentifier of the signature algorithm.
           */
   @StarlarkMethod(name = "signature_algorithm_oid")
-  public ASN1ObjectIdentifier signature_algorithm_oid() {
-    return this.cert.getSignatureAlgorithm().getAlgorithm();
+  public String signature_algorithm_oid() {
+    return this.cert.getSignatureAlgorithm().getAlgorithm().toString();
   }
 
 
@@ -272,7 +272,8 @@ public class LarkyX509Certificate implements StarlarkValue {
   @StarlarkMethod(name = "extensions", useStarlarkThread = true)
   public StarlarkList<?> extensions(StarlarkThread thread) {
     final ASN1ObjectIdentifier[] oids = this.cert.getExtensions().getExtensionOIDs();
-    return StarlarkEvalWrapper.zeroCopyList(thread.mutability(), oids);
+    String[] ASN1ObjectIdentifiers = Arrays.stream(oids).map(ASN1ObjectIdentifier::toString).toArray(String[]::new);
+    return StarlarkEvalWrapper.zeroCopyList(thread.mutability(), ASN1ObjectIdentifiers);
   }
 
 
@@ -354,15 +355,17 @@ public class LarkyX509Certificate implements StarlarkValue {
           throw new EvalException(e);
         }
       case "PEM":
-        return StarlarkBytes.immutableOf(to_pem().toCharArray());
+        return StarlarkBytes.of(
+          thread.mutability(),
+          StarlarkBytes.UTF16toUTF8(to_pem().toCharArray())
+        );
       case "OpenSSH":
       case "Raw":
       case "ANSI X9.62":
       case "S/MIME":
       default:
-        throw Starlark.errorf("Unsupported encoding: %s", encoding);
+        throw Starlark.errorf("TypeError: encoding %s must be an item from the Encoding enum", encoding);
     }
-
   }
 
   @StarlarkMethod(name = "to_der", useStarlarkThread = true)

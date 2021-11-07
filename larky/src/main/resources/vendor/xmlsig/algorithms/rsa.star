@@ -39,12 +39,12 @@ def _RSAAlgorithm():
 
     def verify(signature_value, data, public_key, digest):
         # def verify(msg_hash, signature):
-        pkcs1_15.new(public_key).verify(digest(data), b64decode(signature_value))
+        # pkcs1_15.new(public_key).verify(digest(data), b64decode(signature_value))
         # key = RSA.import_key(key_str)
         # hash = SHA256.new(utf_8_msg)
-        # public_key.verify(
-        #     b64decode(signature_value), data, padding.PKCS1v15(), digest()
-        # )
+        public_key.verify(
+            b64decode(signature_value), data, padding.PKCS1v15(), digest()
+        )
     self.verify = verify
 
     def key_value(node, public_key):

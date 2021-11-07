@@ -104,7 +104,7 @@ public class OpenSSL implements StarlarkValue {
 
   @Data
   @Builder
-  class LarkyX509Cert {
+  static class LarkyX509Cert {
     BigInteger gmtime_adj_notAfter;
     BigInteger gmtime_adj_notBefore;
     String issuer_name;
