@@ -1,13 +1,15 @@
 load("@stdlib//larky", "larky")
 load("@stdlib//io/StringIO", "StringIO")
+load("@stdlib//types", types="types")
 load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
-
 load("@vendor//asserts", "asserts")
 load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
 
 
 def load_xml(xml):
-    f = StringIO(xml.decode('utf-8'))
+    if types.is_bytelike(xml):
+        xml = xml.decode('utf-8')
+    f = StringIO(xml)
     parser = SimpleXMLTreeBuilder.TreeBuilder()
     # remove_blank_text=True
     # remove_comments=True

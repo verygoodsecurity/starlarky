@@ -5,8 +5,6 @@ import java.io.StringWriter;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -15,6 +13,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 
+import com.verygood.security.larky.modules.crypto.CryptoIOModule;
 import com.verygood.security.larky.modules.x509.LarkyKeyPair;
 import com.verygood.security.larky.modules.x509.LarkyX509Certificate;
 import com.verygood.security.larky.parser.StarlarkUtil;
@@ -44,8 +43,6 @@ import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.crypto.util.PrivateKeyInfoFactory;
 import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.openssl.PEMKeyPair;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.DefaultAlgorithmNameFinder;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -70,36 +67,7 @@ public class OpenSSL implements StarlarkValue {
     })
   })
   public LarkyKeyPair loadPrivateKey(StarlarkBytes buffer, Object passPhraseO) throws EvalException {
-    final String passphrase = Starlark.isNullOrNone(passPhraseO)
-      ? null
-      : ((StarlarkBytes) passPhraseO).decode("utf-8", "report");
-
-    try {
-      final PEMKeyPair pki =
-        SSLUtils.readKeyPair(buffer.toByteArray(), passphrase);
-      JcaPEMKeyConverter converter =
-        new JcaPEMKeyConverter()
-          .setProvider(BouncyCastleProvider.PROVIDER_NAME);
-
-      PrivateKey privateKey = converter.getPrivateKey(pki.getPrivateKeyInfo());
-      PublicKey publicKey = converter.getPublicKey(pki.getPublicKeyInfo());
-
-      return new LarkyKeyPair(publicKey, privateKey);
-    } catch (IOException e) {
-      throw new EvalException(e);
-    }
-
-//    final PrivateKey privateKey;
-//    try {
-//      privateKey = CryptoUtils.loadPrivateKey(o, passphrase.toCharArray());
-//    } catch (IOException e) {
-//      throw new EvalException(e);
-//    }
-//    KeyPair keyPair = new SSLUtils()
-//        .decodePrivKey(
-//            new String(buffer.toByteArray(), StandardCharsets.UTF_8),
-//            passphrase);
-
+    return CryptoIOModule.INSTANCE.PEM().loadPrivateKey(buffer,passPhraseO);
   }
 
   @Data

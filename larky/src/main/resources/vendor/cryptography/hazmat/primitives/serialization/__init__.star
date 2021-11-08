@@ -33,4 +33,10 @@ Encoding = _Encoding
 serialization = larky.struct(
     __name__='serialization',
     Encoding=Encoding,
+    load_der_parameters=load_der_parameters,
+    load_der_private_key=load_der_private_key,
+    load_der_public_key=load_der_public_key,
+    load_pem_parameters=load_pem_parameters,
+    load_pem_private_key=load_pem_private_key,
+    load_pem_public_key=load_pem_public_key,
 )

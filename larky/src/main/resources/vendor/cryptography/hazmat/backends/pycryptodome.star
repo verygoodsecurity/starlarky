@@ -6,6 +6,7 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//jopenssl", _JOpenSSL="jopenssl")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Hash", Hash="Hash")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/Signature/pkcs1_15", pkcs1_15="pkcs1_15")
@@ -611,6 +612,46 @@ def pycryptodome():
         return _HashContext(algorithm, self)
     self.create_hash_ctx = create_hash_ctx
 
+    def _evp_pkey_to_private_key(evp_pkey):
+        """
+        Return the appropriate type of PrivateKey given an evp_pkey cdata
+        pointer.
+        """
+        key_type = evp_pkey.key_type
+        if key_type == 'RSA':
+            return RSAPrivateKey(self, evp_pkey, RSA.import_key(evp_pkey.private_key()))
+
+        # elif key_type == self._lib.EVP_PKEY_DSA:
+        #     dsa_cdata = self._lib.EVP_PKEY_get1_DSA(evp_pkey)
+        #     self.openssl_assert(dsa_cdata != self._ffi.NULL)
+        #     dsa_cdata = self._ffi.gc(dsa_cdata, self._lib.DSA_free)
+        #     return _DSAPrivateKey(self, dsa_cdata, evp_pkey)
+        # elif key_type == self._lib.EVP_PKEY_EC:
+        #     ec_cdata = self._lib.EVP_PKEY_get1_EC_KEY(evp_pkey)
+        #     self.openssl_assert(ec_cdata != self._ffi.NULL)
+        #     ec_cdata = self._ffi.gc(ec_cdata, self._lib.EC_KEY_free)
+        #     return _EllipticCurvePrivateKey(self, ec_cdata, evp_pkey)
+        # elif key_type in self._dh_types:
+        #     dh_cdata = self._lib.EVP_PKEY_get1_DH(evp_pkey)
+        #     self.openssl_assert(dh_cdata != self._ffi.NULL)
+        #     dh_cdata = self._ffi.gc(dh_cdata, self._lib.DH_free)
+        #     return _DHPrivateKey(self, dh_cdata, evp_pkey)
+        # elif key_type == getattr(self._lib, "EVP_PKEY_ED25519", None):
+        #     # EVP_PKEY_ED25519 is not present in OpenSSL < 1.1.1
+        #     return _Ed25519PrivateKey(self, evp_pkey)
+        # elif key_type == getattr(self._lib, "EVP_PKEY_X448", None):
+        #     # EVP_PKEY_X448 is not present in OpenSSL < 1.1.1
+        #     return _X448PrivateKey(self, evp_pkey)
+        # elif key_type == getattr(self._lib, "EVP_PKEY_X25519", None):
+        #     # EVP_PKEY_X25519 is not present in OpenSSL < 1.1.0
+        #     return _X25519PrivateKey(self, evp_pkey)
+        # elif key_type == getattr(self._lib, "EVP_PKEY_ED448", None):
+        #     # EVP_PKEY_ED448 is not present in OpenSSL < 1.1.1
+        #     return _Ed448PrivateKey(self, evp_pkey)
+        # else:
+        fail("UnsupportedAlgorithm: Unsupported key type: %s" % key_type)
+    self._evp_pkey_to_private_key = _evp_pkey_to_private_key
+
     def _evp_pkey_to_public_key(pkey):
         """
         Return the appropriate type of PublicKey given an pkey cdata
@@ -675,6 +716,15 @@ def pycryptodome():
     def load_rsa_private_numbers(private_numbers):
         return
     self.load_rsa_private_numbers = load_rsa_private_numbers
+
+    def load_pem_private_key(data, password):
+        if password != None:
+            utils._check_byteslike("password", password)
+        # fail("TypeError: Password was not given but private key is encrypted")
+        evp_pkey = _JCrypto.IO.PEM.load_privatekey(data, password)
+        return self._evp_pkey_to_private_key(evp_pkey)
+
+    self.load_pem_private_key = load_pem_private_key
     return self
 
 

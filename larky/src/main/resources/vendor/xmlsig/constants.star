@@ -318,6 +318,10 @@ TypeEncElement = EncNs + '#Element'
 
 constants = larky.struct(
     __name__='constants',
+    DSignNsMore=DSignNsMore,
+    DSigNs=DSigNs,
+    DSigNs11=DSigNs11,
+    EncNs=EncNs,
     ID_ATTR=ID_ATTR,
     TransformInclC14N=TransformInclC14N,
     TransformInclC14NWithComments=TransformInclC14NWithComments,
