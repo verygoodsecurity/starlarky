@@ -154,7 +154,11 @@ def _test_update_and_serialize():
     # print('to string:', ElementTree.tostring(root))
     # test serialize on subelement and update attribute
     root.findall('.//')[2].set("name", "Jim")
-    asserts.eq('<student name="Jim"><performance><Grade>A+</Grade></performance><info><born>2005</born></info></student>', ElementTree.tostring(root.findall('.//')[2]))
+    actual = ElementTree.tostring(root.findall('.//')[2])
+    expected = '<student name="Jim"><performance><Grade>A+</Grade></performance><info><born>2005</born></info></student>'
+    # print("expected: ", expected)
+    # print("  actual: ", actual)
+    asserts.eq(expected, actual)
 
 
 def _test_wsse_signed_payload():
@@ -404,6 +408,100 @@ def _test_nonstd_xpath_functions():
     # asserts.assert_that(len(result)).is_equal_to(1)
 
 
+ET = ElementTree
+
+
+def T_test_indent():
+    elem = ET.XML("<root></root>", parser=SimpleXMLTreeBuilder.TreeBuilder())
+    ET.indent(elem)
+    asserts.assert_that(ET.tostring(elem, encoding=None)).is_equal_to(b"<root/>")
+
+    elem = ET.XML("<html><body>text</body></html>", parser=SimpleXMLTreeBuilder.TreeBuilder())
+    ET.indent(elem)
+    asserts.assert_that(ET.tostring(elem, encoding=None)).is_equal_to(b"<html>\n  <body>text</body>\n  </html>")
+
+    elem = ET.XML("<html> <body>text</body>  </html>", parser=SimpleXMLTreeBuilder.TreeBuilder())
+    ET.indent(elem)
+    asserts.assert_that(ET.tostring(elem, encoding=None)).is_equal_to(b"<html>\n  <body>text</body>\n  </html>")
+
+    elem = ET.XML("<html><body>text</body>tail</html>", parser=SimpleXMLTreeBuilder.TreeBuilder())
+    ET.indent(elem)
+    asserts.assert_that(ET.tostring(elem, encoding=None)).is_equal_to(b"<html>\n  <body>text</body>tail</html>")
+
+    elem = ET.XML("<html><body><p>par</p>\n<p>text</p>\t<p><br/></p></body></html>", parser=SimpleXMLTreeBuilder.TreeBuilder())
+    ET.indent(elem)
+    print(repr(ET.tostring(elem, encoding=None)))
+    asserts.assert_that(ET.tostring(elem, encoding=None)).is_equal_to((b"<html>\n" +
+        b"  <body>\n" +
+        b"    <p>par</p>\n" +
+        b"    <p>text</p>\n" +
+        b"    <p>\n" +
+        b"      <br/>\n" +
+        b"    </p>\n" +
+        b"  </body>\n" +
+        b"</html>"))
+
+    elem = ET.XML("<html><body><p>pre<br/>post</p><p>text</p></body></html>", parser=SimpleXMLTreeBuilder.TreeBuilder())
+    ET.indent(elem)
+    asserts.assert_that(ET.tostring(elem)).is_equal_to((b"<html>\n" +
+        b"  <body>\n" +
+        b"    <p>pre<br />post</p>\n" +
+        b"    <p>text</p>\n" +
+        b"  </body>\n" +
+        b"</html>"))
+
+def T_test_indent_space():
+    elem = ET.XML("<html><body><p>pre<br/>post</p><p>text</p></body></html>", parser=SimpleXMLTreeBuilder.TreeBuilder())
+    ET.indent(elem, space="\t")
+    asserts.assert_that(ET.tostring(elem)).is_equal_to((b"<html>\n" +
+        b"\t<body>\n" +
+        b"\t\t<p>pre<br />post</p>\n" +
+        b"\t\t<p>text</p>\n" +
+        b"\t</body>\n" +
+        b"</html>"))
+
+    elem = ET.XML("<html><body><p>pre<br/>post</p><p>text</p></body></html>", parser=SimpleXMLTreeBuilder.TreeBuilder())
+    ET.indent(elem, space="")
+    asserts.assert_that(ET.tostring(elem)).is_equal_to((b"<html>\n" +
+        b"<body>\n" +
+        b"<p>pre<br />post</p>\n" +
+        b"<p>text</p>\n" +
+        b"</body>\n" +
+        b"</html>"))
+
+def T_test_indent_space_caching():
+    elem = ET.XML(
+        "<html><body><p>par</p><p>text</p><p><br/></p><p /></body></html>"
+        , parser=SimpleXMLTreeBuilder.TreeBuilder())
+    ET.indent(elem)
+    asserts.assert_that([el.tail for el in elem.iter()]).is_equal_to([None, "\n", "\n  ", "\n    "])
+    asserts.assert_that([el.text for el in elem.iter()]).is_equal_to([None, "\n  ", "\n    ", "\n      ", "par", "text"])
+    asserts.assert_that(len([el.tail for el in elem.iter()])).is_equal_to(len([el.tail for el in elem.iter()]))
+
+def T_test_indent_level():
+    elem = ET.XML("<html><body><p>pre<br/>post</p><p>text</p></body></html>", parser=SimpleXMLTreeBuilder.TreeBuilder())
+    def _larky_2739997752():
+        ET.indent(elem, level=-1)
+    asserts.assert_fails(lambda: _larky_2739997752(), ".*?ValueError")
+    asserts.assert_that(ET.tostring(elem)).is_equal_to(b"<html><body><p>pre<br />post</p><p>text</p></body></html>")
+
+    ET.indent(elem, level=2)
+    asserts.assert_that(ET.tostring(elem)).is_equal_to((b"<html>\n" +
+        b"      <body>\n" +
+        b"        <p>pre<br />post</p>\n" +
+        b"        <p>text</p>\n" +
+        b"      </body>\n" +
+        b"    </html>"))
+
+    elem = ET.XML("<html><body><p>pre<br/>post</p><p>text</p></body></html>", parser=SimpleXMLTreeBuilder.TreeBuilder())
+    ET.indent(elem, level=1, space=" ")
+    asserts.assert_that(ET.tostring(elem)).is_equal_to((b"<html>\n" +
+        b"  <body>\n" +
+        b"   <p>pre<br />post</p>\n" +
+        b"   <p>text</p>\n" +
+        b"  </body>\n" +
+        b" </html>"))
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_elementtree))
@@ -411,6 +509,11 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_update_and_serialize))
     _suite.addTest(unittest.FunctionTestCase(_test_wsse_signed_payload))
     _suite.addTest(unittest.FunctionTestCase(_test_nonstd_xpath_functions))
+    # TODO(mahmoudimus): these tests are failing, need to fix
+    # _suite.addTest(unittest.FunctionTestCase(T_test_indent))
+    # _suite.addTest(unittest.FunctionTestCase(T_test_indent_space))
+    # _suite.addTest(unittest.FunctionTestCase(T_test_indent_space_caching))
+    # _suite.addTest(unittest.FunctionTestCase(T_test_indent_level))
     return _suite
 
 
