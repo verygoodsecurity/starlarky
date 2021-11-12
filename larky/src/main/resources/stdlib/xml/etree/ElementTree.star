@@ -80,6 +80,8 @@ load("@stdlib//string", string="string")
 load("@stdlib//types", types="types")
 load("@stdlib//xml/etree/ElementPath", ElementPath="ElementPath")
 load("@stdlib//xmllib", xmllib="xmllib")
+load("@vendor//elementtree/_SimpleXMLTreeBuilderHelper",
+     SimpleXMLTreeBuilderHelper="SimpleXMLTreeBuilderHelper")
 load("@vendor//option/result", Result="Result", try_="try_", Error="Error")
 load("@vendor//six", six="six")
 
@@ -498,15 +500,36 @@ def Element(tag, attrib=None, **extra):
         Return an iterator containing all the matching elements.
 
         """
-        pass
+
+        # """
+        # We're building an iterative traversal due to lack of recursion support
+        # however, we're keeping the order of seen children to have a
+        # deterministic depth first search.
+        # """
         # if tag == "*":
         #     tag = None
-        # if tag == None or self.tag == tag:
-        #     # return self
-        #     s = []
-        #     for e in self._children:
-        #         s.extend(e.iter(tag))
-        #     return s
+        # if tag is None or self.tag == tag:
+        #     yield self
+        # for e in self._children:
+        #     yield from e.iter(tag)
+        if tag == "*":
+            tag = None
+
+        items = []
+        if tag == None or self.tag == tag:
+            items.append(self)
+        for el in self:
+            if tag == None or el.tag == tag:
+                items.append(el)
+            qu = el._children[0:]
+            for _ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+                if not qu:
+                    break
+                current = qu.pop(0)
+                if tag == None or current.tag == tag:
+                    items.append(current)
+                qu = list(current._children) + list(qu)
+        return items
     self.iter = iter
 
     # compatibility
@@ -1345,9 +1368,10 @@ def _serialize_xml(
             if types.is_instance(_tag, QName):
                 _tag = _tag.text
             _tag = qnames.get(_tag, _tag)  # support QNames in XML Element and Attribute Names
+            # print("_serialize_xml", "pre-body", "_tag?", _tag, "_repr(text)", repr(elem_to_close.text), "_tail?", repr(elem_to_close.tail))
             write("</%s>" % _tag)
             if elem_to_close.tail:
-                # print('elem to close which has tail:', elem_to_close.tag)
+                # print("_serialize_xml", "elem to close which has tail:", elem_to_close.tag)
                 write(_escape_cdata(elem_to_close.tail))
 
         if tag == Comment:
@@ -1388,7 +1412,11 @@ def _serialize_xml(
                         else:
                             v = _escape_attrib(v)
                         write(' %s="%s"' % (qnames[k], v))
-                if text or len(elem._children) or not short_empty_elements:
+                if any((
+                        (text and text.strip()),
+                        len(elem._children),
+                        not short_empty_elements,
+                )):
                     write(">")
                     if text:
                         write(_escape_cdata(text))
@@ -1401,7 +1429,7 @@ def _serialize_xml(
                         unclosed_elems.append(elem)
                         # print('add unclosed elem:', elem)
                 else:
-                    write("/>")
+                    write(" />")
                     if elem.tail:
                         # print('self closing elem which has tail:', elem.tag)
                         write(_escape_cdata(elem.tail))
@@ -1413,10 +1441,11 @@ def _serialize_xml(
         if types.is_instance(tag, QName):
             tag = tag.text
         tag = qnames.get(tag, tag)  # support QNames in XML Element and Attribute Names
+        # print("_serialize_xml", "post-body", "_tag?", tag, "_repr(text)", repr(elem_to_close.text), "_tail?", repr(elem_to_close.tail))
         write("</%s>" % tag)
         if elem_to_close.tail:
             # print('remaining elem to close which has tail:', elem_to_close.tag)
-            write(_escape_cdata(elem_to_close.tail).strip())
+            write(_escape_cdata(elem_to_close.tail))
 
 HTML_EMPTY = (
     "area",
@@ -1711,12 +1740,14 @@ def indent(tree, space="  ", level=0):
     if type(tree) == 'ElementTree':
         tree = tree.getroot()
     if level < 0:
-        fail("Initial indentation level must be >= 0, got %s" % level)
+        fail("ValueError: Initial indentation level must be >= 0, got %s" % level)
     if not len(tree):
         return
 
     # Reduce the memory consumption by reusing indentation strings.
     indentations = ["\n" + level * space]
+
+    # No recursion support in Larky means we have to iteratively indent.
 
     def _indent_children(root, lvl):
         element = root
@@ -1726,25 +1757,32 @@ def indent(tree, space="  ", level=0):
                 break
             level, element = queue.pop(0)
             child_level = level + 1
-            children = [(child_level, child) for child in list(element)]
+            children = [(child_level, child) for child in element]
+
             if len(indentations) > child_level:
                 child_indentation = indentations[child_level]
             else:
                 child_indentation = indentations[level] + space
                 indentations.append(child_indentation)
 
-            if not element.text or not element.text.strip():
-                element.text = child_indentation
-
             if children:
-                element.text = indentations[child_level]  # for child open
-            if queue:
+                # only if children exist and there's no text, then we should
+                # give it indentation!
+                if not element.text or not element.text.strip():
+                    element.text = child_indentation
+
+                if element != root:
+                    element.tail = indentations[child_level]  # for child open
+
+            if queue and (not element.tail or not element.tail.strip()):
                 element.tail = indentations[queue[0][0]]  # for sibling open
             else:
-                element.tail = indentations[level-1]  # for parent close
+                if element != root and (not element.tail or not element.tail.strip()):
+                    element.tail = indentations[level - 1] # for parent close
+
             # queue[0:0] = children
             for c in reversed(children):
-                queue.insert(0, c) # prepend so children come before siblings
+                queue.insert(0, c)  # prepend so children come before siblings
 
     _indent_children(tree, 0)
 
@@ -1923,7 +1961,12 @@ def XML(text, parser=None):
 
     """
     if not parser:
-        parser = XMLParser(target=TreeBuilder())
+        parser = SimpleXMLTreeBuilderHelper.TreeBuilderHelper(
+            TreeBuilder,
+            element_factory=None,
+            parser=xmllib.XMLParser()
+        )
+        # parser = XMLParser(target=TreeBuilder())
     parser.feed(text)
     return parser.close()
 
