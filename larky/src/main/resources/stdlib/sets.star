@@ -318,15 +318,19 @@ def Set(iterable=None):
         return Set([e for e in self._values.keys() if e not in b._values])
     self.difference = difference
 
-    def _length():
+    def _set_length():
         return _length(self)
-    self._length = _length
-    self.__len__ = _length  # alias
+    self._length = _set_length
+    self.__len__ = _set_length  # alias
 
     def __repr__():
         return _repr(self)
     self.__repr__ = __repr__
     self.__str__ = __repr__  # alias
+
+    def __iter__():
+        return iter(self._values)
+    self.__iter__ = __iter__
     return self
 
 
