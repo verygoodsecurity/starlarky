@@ -7,6 +7,7 @@ load("@stdlib//types", "types")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//unittest", "unittest")
 load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
+load("@vendor//_etreeplus/xmltreenode", XMLTreeNode="XMLTreeNode")
 load("@vendor//asserts", "asserts")
 load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
 
@@ -32,7 +33,7 @@ def _test_elementtree():
     f = StringIO(
         '<doc><one>One</one><two>Two</two>hm<three>Three</three></doc>'
     )
-    parser = SimpleXMLTreeBuilder.TreeBuilder()
+    parser = SimpleXMLTreeBuilder.TreeBuilder(element_factory=XMLTreeNode.XMLNode)
     # doc = ElementTree.ElementTree(file=f)
     doc = parse(
         '<doc><one>One</one><two>Two</two>hm<three>Three</three></doc>',
@@ -53,7 +54,7 @@ def _test_elementtree():
 
 def _test_xpath():
 
-    parser = SimpleXMLTreeBuilder.TreeBuilder()
+    parser = SimpleXMLTreeBuilder.TreeBuilder(element_factory=XMLTreeNode.XMLNode)
     tree = parse(
         '<doc level="A"><one updated="Y">One</one><two updated="N">Two</two>hm<three>Three</three></doc>',
         parser
@@ -107,7 +108,7 @@ def normalize_ws(s):
 
 
 def _test_update_and_serialize():
-    parser = SimpleXMLTreeBuilder.TreeBuilder()
+    parser = SimpleXMLTreeBuilder.TreeBuilder(element_factory=XMLTreeNode.XMLNode)
     data = normalize_ws("""
     <data xmlns:x="http://example.com/ns/foo">nonetag
         <teacher name="Jenny">
@@ -136,8 +137,8 @@ def _test_update_and_serialize():
 
     # test update node text
     root.findall(".//*[@name='John']/performance/Grade")[0].text = 'A-'
-    c = ElementTree.Comment('some comment')
-    pi = ElementTree.ProcessingInstruction('Here are instuctions')
+    c = XMLTreeNode.Comment('some comment')
+    pi = XMLTreeNode.ProcessingInstruction('Here are instuctions')
 
     root.append(c)
     root.append(pi)
@@ -173,7 +174,7 @@ def _test_wsse_signed_payload():
         "ns1": "http://schemas.datacontract.org/2004/07/CHSSecureBusinessServices.Request",
     }
 
-    parser = SimpleXMLTreeBuilder.TreeBuilder()
+    parser = SimpleXMLTreeBuilder.TreeBuilder(element_factory=XMLTreeNode.XMLNode)
     data = """\
     <?xml version='1.0' encoding='utf-8'?>
     <soap-env:Envelope
@@ -301,7 +302,7 @@ def _test_wsse_signed_payload():
 
 
 def _test_nonstd_xpath_functions():
-    parser = SimpleXMLTreeBuilder.TreeBuilder()
+    parser = SimpleXMLTreeBuilder.TreeBuilder(element_factory=XMLTreeNode.XMLNode)
     data = """\
     <?xml version='1.0' encoding='utf-8'?>
     <soap-env:Envelope

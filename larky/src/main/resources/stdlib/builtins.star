@@ -111,6 +111,7 @@ builtins = larky.struct(
     map=map,
     isinstance=types.is_instance,
     repr=repr,
+    reversed=reversed,
     # Sentintel
     NotImplemented=larky.SENTINEL,
     # Errors..

@@ -583,7 +583,7 @@ def SubElement(parent, tag, attrib=None, **extra):
     return element
 
 
-def Comment(text=None):
+def Comment(text=None, element_factory=Element):
     """Comment element factory.
 
     This function creates a special element which the standard serializer
@@ -592,12 +592,12 @@ def Comment(text=None):
     *text* is a string containing the comment string.
 
     """
-    element = Element(Comment)
+    element = element_factory(Comment)
     element.text = text
     return element
 
 
-def ProcessingInstruction(target, text=None):
+def ProcessingInstruction(target, text=None, element_factory=Element):
     """Processing Instruction element factory.
 
     This function creates a special element which the standard serializer
@@ -607,7 +607,7 @@ def ProcessingInstruction(target, text=None):
     string containing the processing instruction contents, if any.
 
     """
-    element = Element(ProcessingInstruction)
+    element = element_factory(ProcessingInstruction)
     element.text = target
     if text:
         element.text = element.text + " " + text
@@ -719,7 +719,7 @@ def QName(text_or_uri, tag=None):
     return self
 
 
-def CDATA(data):
+def CDATA(data, element_factory=Element):
     """CDATA(data)
     CDATA factory.  This factory creates an opaque data object that
     can be used to set Element text.  The usual way to use it is::
@@ -926,7 +926,7 @@ def _ElementTree(element=None, file=None):
                     break
                 parser.feed(data)
             self._setroot(parser.close())
-            return self._root
+            return self.getroot()
 
         rval = Result.Ok(_parse_safe).map(lambda f: f(parser))
         if close_source:
@@ -2013,7 +2013,13 @@ def fromstringlist(sequence, parser=None):
     return parser.close()
 
 
-def TreeBuilder(element_factory=None):
+def TreeBuilder(
+    element_factory=None,
+    comment_factory=None,
+    pi_factory=None,
+    insert_comments=False,
+    insert_pis=False
+):
     """Generic element structure builder.
 
     This builder converts a sequence of start, data, and end method
@@ -2025,33 +2031,55 @@ def TreeBuilder(element_factory=None):
     *element_factory* is an optional element factory which is called
     to create new Element instances, as necessary.
 
-    """
+    *comment_factory* is a factory to create comments to be used instead of
+    the standard factory.  If *insert_comments* is false (the default),
+    comments will not be inserted into the tree.
 
-    def __init__(element_factory):
-        self = larky.mutablestruct(__class__='TreeBuilder')
+    *pi_factory* is a factory to create processing instructions to be used
+    instead of the standard factory.  If *insert_pis* is false (the default),
+    processing instructions will not be inserted into the tree.
+
+    """
+    self = larky.mutablestruct(__name__='TreeBuilder', __class__=TreeBuilder)
+
+    def __init__(
+        element_factory,
+        comment_factory,
+        pi_factory,
+        insert_comments,
+        insert_pis
+    ):
         self._data = []  # data collector
         self._elem = []  # element stack
         self._last = None  # last element
+        self._root = None  # root element
         self._tail = None  # true if we're after an end tag
+        if comment_factory == None:
+            comment_factory = Comment
+        self._comment_factory = comment_factory
+        self.insert_comments = insert_comments
+        if pi_factory == None:
+            pi_factory = ProcessingInstruction
+        self._pi_factory = pi_factory
+        self.insert_pis = insert_pis
         if element_factory == None:
             element_factory = Element
         self._factory = element_factory
         return self
-    self = __init__(element_factory)
+    self = __init__(element_factory, comment_factory, pi_factory, insert_comments, insert_pis)
 
     def close():
         """Flush builder buffers and return toplevel document Element."""
         if not (len(self._elem) == 0):
-            return Error("missing end tags")
-        if not (self._last != None):
-            return Error("missing toplevel element")
-        return self._last
+            fail("missing end tags")
+        if not (self._root != None):
+            fail("missing toplevel element")
+        return self._root
     self.close = close
 
     def _flush():
         if not self._data:
             return
-
         if self._last == None:
             self._data = []
             return
@@ -2059,11 +2087,11 @@ def TreeBuilder(element_factory=None):
         text = "".join(self._data)
         if self._tail:
             if not (self._last.tail == None):
-                return Error("internal error (tail)")
+                fail("internal error (tail)")
             self._last.tail = text
         else:
             if not (self._last.text == None):
-                return Error("internal error (text)")
+                fail("internal error (text)")
             self._last.text = text
         self._data = []
     self._flush = _flush
@@ -2082,8 +2110,8 @@ def TreeBuilder(element_factory=None):
         """
         # non-std extension
         extras = {}
-        if 'nsmap' in attrs:
-            extras['nsmap'] = attrs.pop('nsmap')
+        if "nsmap" in attrs:
+            extras["nsmap"] = attrs.pop("nsmap")
             # for uri, prefix in extras['nsmap'].items():
             #     # we do not want to use register_namespace here because
             #     # we want to preserve the internal prefixes (ns0..etc)
@@ -2095,9 +2123,12 @@ def TreeBuilder(element_factory=None):
         elem = self._last
         if self._elem:
             self._elem[-1].append(elem)
+        elif self._root == None:
+            self._root = elem
         self._elem.append(elem)
         self._tail = 0
         return elem
+
     self.start = start
 
     def end(tag):
@@ -2109,11 +2140,51 @@ def TreeBuilder(element_factory=None):
         self._flush()
         self._last = self._elem.pop()
         if self._last.tag != tag:
-            fail("end tag mismatch (expected %s, got %s)" % (self._last.tag, tag))
+            fail(
+                "end tag mismatch (expected %s, got %s)"
+                % (
+                    self._last.tag,
+                    tag,
+                )
+            )
         self._tail = 1
         return self._last
+
     self.end = end
+
+    def comment(text):
+        """Create a comment using the comment_factory.
+
+        *text* is the text of the comment.
+        """
+        return self._handle_single(self._comment_factory, self.insert_comments, text)
+
+    self.comment = comment
+
+    def pi(target, text=None):
+        """Create a processing instruction using the pi_factory.
+
+        *target* is the target name of the processing instruction.
+
+        *text* is the data of the processing instruction, or ''.
+        """
+        return self._handle_single(self._pi_factory, self.insert_pis, target, text)
+
+    self.pi = pi
+
+    def _handle_single(factory, insert, *args):
+        elem = factory(*args)
+        if insert:
+            self._flush()
+            self._last = elem
+            if self._elem:
+                self._elem[-1].append(elem)
+            self._tail = 1
+        return elem
+
+    self._handle_single = _handle_single
     return self
+
 
 
 def XMLParser(html=0, target=None, encoding=None):
