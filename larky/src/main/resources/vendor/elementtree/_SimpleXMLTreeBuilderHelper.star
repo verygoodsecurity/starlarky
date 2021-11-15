@@ -13,6 +13,7 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//xmllib", xmllib="xmllib")
 load("@stdlib//string", string="string")
+load("@vendor//option/result", Ok="Ok")
 
 
 def fixname(name, split=None):
@@ -24,13 +25,20 @@ def fixname(name, split=None):
         split = name.split
     return "{%s}%s" % tuple(split(" ", 1))
 
+
+def __fake_append(*_args):
+    pass
+
+
+__fakequeue = larky.struct(append=__fake_append)
+
 ##
 # ElementTree builder for XML source data.
 #
 # @see elementtree.ElementTree
 
-
-def TreeBuilderHelper(builder, element_factory=None, parser=None, **options):
+# builder is equivalent to "target"
+def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_queue=False, **options):
     """
     Use like follows::
 
@@ -51,10 +59,11 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, **options):
         self = parser
         self.__name__ = '_SimpleXMLTreeBuilder.TreeBuilderHelper'
         self.__class__ = TreeBuilderHelper
-        self.__builder_cls = builder
+        self.__target_cls = builder
         self.__element_factory = element_factory
         self.__options = options
-        self.__builder = self.__builder_cls(self.__element_factory, **self.__options)
+        self._events_queue = [] if capture_event_queue else __fakequeue
+        self.target = self.__target_cls(self.__element_factory, **self.__options)
         return self
     self = __init__(builder, element_factory, parser, **options)
 
@@ -75,15 +84,15 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, **options):
     XMLParser_close = self.close
     def close():
         XMLParser_close()
-        root = self.__builder.close()
-        self.__builder = None
+        root = self.target.close()
+        self.target = None
         return root
     self.close = close
 
     def _builder():
-        if not self.__builder:
-            self.__builder = self.__builder_cls(self.__element_factory, **self.__options)
-        return self.__builder
+        if not self.target:
+            self.target = self.__target_cls(self.__element_factory, **self.__options)
+        return self.target
     self._builder = _builder
 
     def handle_data(data):
@@ -95,12 +104,16 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, **options):
     self.handle_cdata = handle_cdata
 
     def handle_comment(data):
-        self._builder().comment(data)
+        self._events_queue.append(
+            ("comment", self._builder().comment(data))
+        )
     self.handle_comment = handle_comment
 
     # Example -- handle processing instructions, could be overridden
     def handle_proc(name, data):
-       self._builder().pi(name, text=data)
+        self._events_queue.append(
+            ("pi", self._builder().pi(name, text=data))
+        )
     self.handle_proc = handle_proc
 
     # Overridden -- handle XML
@@ -119,19 +132,55 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, **options):
 
     # Overridable -- handle start tag
     XMLParser_handle_starttag = self.handle_starttag
+
     def handle_starttag(tag, method, attrs):
         # method(attrs)
-        XMLParser_handle_starttag(tag, method, attrs)
+        self._events_queue.append(
+            ("start", XMLParser_handle_starttag(tag, method, attrs))
+        )
     self.handle_starttag = handle_starttag
 
     # Overridable -- handle end tag
     XMLParser_handle_endtag = self.handle_endtag
+
     def handle_endtag(tag, method):
-        XMLParser_handle_endtag(tag, method)
+        self._events_queue.append(
+            ("end", XMLParser_handle_endtag(tag, method))
+        )
     self.handle_endtag = handle_endtag
+
+    # Overridable -- start-ns
+    XMLParser_handle_startns = self.handle_startns
+
+    def handle_startns(prefix, qualified, href):
+        if hasattr(self._builder(), "start_ns"):
+            r = self._builder().start_ns(prefix, href)
+        else:
+            r = (prefix or '', href or '')
+        self._events_queue.append(
+            ("start-ns", r)
+        )
+        # print("start-ns - name:", prefix, "qname:", qualified, "href:", href)
+    self.handle_startns = handle_startns
+
+    # Overridable -- end-ns
+    XMLParser_handle_endns = self.handle_endns
+
+    def handle_endns(prefix):
+        r = None
+        if hasattr(self._builder(), "end_ns"):
+            r = self._builder().end_ns(prefix)
+
+        self._events_queue.append(
+            ("end-ns", r)
+        )
+        # for k in ns_map.keys():
+        #     print("end-ns - name:", k or None)
+    self.handle_endns = handle_endns
 
     # Example -- handle character reference, no need to override
     XMLParser_handle_charref = self.handle_charref
+
     def handle_charref(name):
         XMLParser_handle_charref(name)
     self.handle_charref = handle_charref
@@ -145,13 +194,29 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, **options):
         attrib = {}
         for key, value in attrs.items():
             attrib[fixname(key)] = value
-        self._builder().start(fixname(tag), attrib)
+        self._events_queue.append(
+            ("start", self._builder().start(fixname(tag), attrib))
+        )
     self.unknown_starttag = unknown_starttag
 
     def unknown_endtag(tag):
-        self._builder().end(fixname(tag))
+        self._events_queue.append(
+            ("end", self._builder().end(fixname(tag)))
+        )
     self.unknown_endtag = unknown_endtag
 
+    def _read(i):
+        if i >= len(self._events_queue):
+            self._events_queue.clear()
+            return StopIteration()
+        return Ok(self._events_queue[i])
+
+    def read_events():
+        if self._events_queue == __fakequeue:
+            return []
+        return larky.DeterministicGenerator(_read)
+
+    self.read_events = read_events
     # def unknown_charref(ref):
     #     pass
     # self.unknown_charref = unknown_charref

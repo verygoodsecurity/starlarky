@@ -174,14 +174,20 @@ def XMLParser(**kw):
 
     # Interface -- handle the remaining data
     def close():
-        arg = 1
-        func = self.goahead
+        func, arg = self.goahead, 1
+        q = []
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            # if not q:
+            #     break
+            # func, arg = q.pop(0)
             r = func(arg)
             if r == None:
+                for __ in range(len(q)):
+                    self._gohead_finish(*q.pop())
                 break
             elif types.is_tuple(r):
-                func, arg = r
+                func, arg, rawdata = r
+                q.append((arg, rawdata))
                 continue
             else:
                 # error
@@ -433,9 +439,13 @@ def XMLParser(**kw):
             self.handle_data(data)
             self.lineno = self.lineno + data.count('\n')
             self.rawdata = rawdata[i+1:]
-            return self.goahead, end
+            return self.goahead, end, rawdata[i:]
+        else:
+            self._gohead_finish(end, rawdata[i:])
             #return self.goahead(end)
-        self.rawdata = rawdata[i:]
+    self.goahead = goahead
+    def _gohead_finish(end, rawdata):
+        self.rawdata = rawdata
         if end:
             if not self.__seen_starttag:
                 self.syntax_error('no elements in file')
@@ -445,7 +455,7 @@ def XMLParser(**kw):
                     if not self.stack:
                         break
                     self.finish_endtag(self.stack[-1][0])
-    self.goahead = goahead
+    self._gohead_finish = _gohead_finish
 
     # Internal -- parse comment, return length or -1 if not terminated
     def parse_comment(i):
@@ -611,6 +621,8 @@ def XMLParser(**kw):
             if res != None:
                 # namespace declaration
                 ncname = res.group('ncname')
+                # NOTE: larky addition below
+                self.handle_startns(ncname, attrname, attrvalue)
                 namespace[ncname or ''] = attrvalue or None
                 if not self.__use_namespaces:
                     self.__use_namespaces = len(self.stack)+1
@@ -653,10 +665,7 @@ def XMLParser(**kw):
         # if not plus i, it will keep getting attrib between k and j in the first tag, not the current tag
         attrdict, nsdict, k = self.parse_attributes(tagname, i+k, i+j)
         self.stack.append((tagname, nsdict, nstag))
-        if self.__use_namespaces:
-            res = qname.match(tagname)
-        else:
-            res = None
+        res = qname.match(tagname) if self.__use_namespaces else None
         if res != None:
             prefix, nstag = res.group('prefix', 'local')
             if prefix == None:
@@ -772,12 +781,14 @@ def XMLParser(**kw):
             if found == -1:
                 self.syntax_error('unopened end tag')
                 return
+        ns = []
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if len(self.stack) <= found:
                 break
             if found < len(self.stack) - 1:
                 self.syntax_error('missing close tag for %s' % self.stack[-1][2])
             nstag = self.stack[-1][2]
+            ns.append(self.stack[-1][1])
             method = self.elements.get(nstag, (None, None))[1]
             if method != None:
                 self.handle_endtag(nstag, method)
@@ -786,6 +797,15 @@ def XMLParser(**kw):
             if self.__use_namespaces == len(self.stack):
                 self.__use_namespaces = 0
             operator.delitem(self.stack, -1)
+
+        for i in ns:
+            if not i:
+                continue
+            k = i.keys()
+            if len(k) != 1:
+                fail("ns length is greater than 1: k: %s, i: %s" %(k, i))
+            self.handle_endns(k[0])
+        ns.clear()
     self.finish_endtag = finish_endtag
 
     # Overridable -- handle xml processing instruction
@@ -831,7 +851,7 @@ def XMLParser(**kw):
     self.handle_charref = handle_charref
 
     # Definition of entities -- derived classes may override
-    entitydefs = {'lt': '&#60;',        # must use charref
+    self.entitydefs = {'lt': '&#60;',        # must use charref
                   'gt': '&#62;',
                   'amp': '&#38;',       # must use charref
                   'quot': '&#34;',
@@ -842,6 +862,19 @@ def XMLParser(**kw):
     def handle_data(data):
         pass
     self.handle_data = handle_data
+
+    # Example -- handle startns, should be overridden
+    def handle_startns(prefix, qualified, href):
+        pass
+        # print("start-ns - name:", prefix, "qname:", qualified, "href:", href)
+    self.handle_startns = handle_startns
+
+    # Example -- handle end, should be overridden
+    def handle_endns(prefix):
+        pass
+        # for k in ns_map.keys():
+        #     print("end-ns - name:", k or None)
+    self.handle_endns = handle_endns
 
     # Example -- handle cdata, could be overridden
     def handle_cdata(data):
@@ -857,6 +890,7 @@ def XMLParser(**kw):
     def handle_proc(name, data):
         pass
     self.handle_proc = handle_proc
+    self.handle_pi = handle_proc     # Added for Larky
 
     # Example -- handle relatively harmless syntax errors, could be overridden
     def syntax_error(message):

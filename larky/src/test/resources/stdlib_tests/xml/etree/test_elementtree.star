@@ -524,6 +524,48 @@ def T_test_indent_level():
         b"  </body>\n" +
         b" </html>"))
 
+def _test_ns_events():
+    simple_ns = """
+<root xmlns='http://namespace/'>
+   <element key='value'>text</element>
+   <element>text</element>tail
+   <empty-element/>
+</root>    
+    """
+    parser = SimpleXMLTreeBuilder.TreeBuilder(element_factory=XMLTreeNode.XMLNode, capture_event_queue=True)
+    data = normalize_ws(simple_ns)
+    tree = parse(data, parser)
+    root = tree.getroot()
+    # https://github.com/lxml/lxml/blob/ea954da3c87bd8f6874f6bf4203e2ef5269ea383/src/lxml/tests/selftest.py#L458-L474
+    expected = [
+        ("start-ns", ("", "http://namespace/")),
+        ("start", "{http://namespace/}root"),
+        ("start", "{http://namespace/}element"),
+        ("end", "{http://namespace/}element"),
+        ("start", "{http://namespace/}element"),
+        ("end", "{http://namespace/}element"),
+        ("start", "{http://namespace/}empty-element"),
+        ("end", "{http://namespace/}empty-element"),
+        ("end", "{http://namespace/}root"),
+        ("end-ns", None),
+    ]
+
+    actual_events = list(parser.read_events())
+    asserts.assert_that(len(actual_events)).is_equal_to(len(expected))
+
+    for i, actual in enumerate(actual_events, start=0):
+        expected_event, expected_payload = expected[i]
+        actual_event, actual_payload = actual
+        asserts.assert_that(expected_event).is_equal_to(actual_event)
+        if types.is_tuple(actual_payload) or not actual_payload:
+            asserts.assert_that(expected_payload).is_equal_to(actual_payload)
+        else:
+            asserts.assert_that(expected_payload).is_equal_to(actual_payload.tag)
+
+    # assert that we clear events
+    asserts.assert_that(len(list(parser.read_events()))).is_equal_to(0)
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_elementtree))
@@ -535,6 +577,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(T_test_indent_space))
     _suite.addTest(unittest.FunctionTestCase(T_test_indent_space_caching))
     _suite.addTest(unittest.FunctionTestCase(T_test_indent_level))
+    _suite.addTest(unittest.FunctionTestCase(_test_ns_events))
+
     return _suite
 
 

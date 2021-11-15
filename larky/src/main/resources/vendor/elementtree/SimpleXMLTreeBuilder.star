@@ -61,21 +61,22 @@ load("@stdlib//xmllib", xmllib="xmllib")
 load("@stdlib//string", string="string")
 load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
 load("@vendor//elementtree/_SimpleXMLTreeBuilderHelper",
-     SimpleXMLTreeBuilderHelper="SimpleXMLTreeBuilderHelper")
+     _SimpleXMLTreeBuilderHelper="SimpleXMLTreeBuilderHelper")
 
 
-fixname = SimpleXMLTreeBuilderHelper.fixname
+fixname = _SimpleXMLTreeBuilderHelper.fixname
 
 ##
 # ElementTree builder for XML source data.
 #
 # @see elementtree.ElementTree
 
-def TreeBuilder(element_factory=None):
-    self = SimpleXMLTreeBuilderHelper.TreeBuilderHelper(
+def TreeBuilder(element_factory=None, capture_event_queue=False):
+    self = _SimpleXMLTreeBuilderHelper.TreeBuilderHelper(
         ElementTree.TreeBuilder,
         element_factory=element_factory,
-        parser=xmllib.XMLParser()
+        parser=xmllib.XMLParser(),
+        capture_event_queue=capture_event_queue
     )
     self.__class__ = 'SimpleXMLTreeBuilder.TreeBuilder'
     return self
