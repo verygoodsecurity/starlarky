@@ -961,9 +961,9 @@ def flatten_nested_elements(tops_level_elems):
             if not qu:
                 break
             else:
-                current = qu.pop()
+                current = qu.pop(0)
                 new_elems.append(current)
-                qu.extend(current._children)
+                qu = current._children + qu 
     return new_elems
 
 def _serialize_xml(
