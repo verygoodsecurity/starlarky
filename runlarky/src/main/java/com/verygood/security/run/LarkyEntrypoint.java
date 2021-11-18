@@ -1,5 +1,8 @@
 package com.verygood.security.run;
 
+import com.google.common.eventbus.EventBus;
+import com.google.devtools.build.lib.events.Reporter;
+
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.BufferedReader;
@@ -9,6 +12,7 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 
 import com.verygood.security.larky.ModuleSupplier;
@@ -16,6 +20,7 @@ import com.verygood.security.larky.console.CapturingConsole;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.FileConsole;
 import com.verygood.security.larky.console.LogConsole;
+import com.verygood.security.larky.debug.StarlarkDebuggerModule;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 import com.verygood.security.larky.parser.PrependMergedStarFile;
@@ -92,7 +97,11 @@ public class LarkyEntrypoint implements QuarkusApplication {
 
     PrependMergedStarFile prependMergedStarFile = new PrependMergedStarFile(input, script);
 
-    if(debug) {
+    Files.write(Path.of("/tmp/file-merged.out"), prependMergedStarFile.readContentBytes(), StandardOpenOption.CREATE_NEW);
+
+    if (debug) {
+      Reporter reporter = new Reporter(new EventBus());
+      StarlarkDebuggerModule.initializeDebugging(reporter, 7300, true);
       System.err.println("==================================");
       System.err.println(new String(prependMergedStarFile.readContentBytes()));
       System.err.println("==================================");
@@ -108,12 +117,13 @@ public class LarkyEntrypoint implements QuarkusApplication {
 
     if (debug) {
       System.err.println(output);
+      StarlarkDebuggerModule.disableDebugging();
     }
 
     try(FileWriter writer = new FileWriter(Path.of(outputPath).toFile())) {
         writer.write(output);
     }
-    catch(IOException e){
+    catch(IOException e) {
       e.printStackTrace(System.err);
       throw new RuntimeException(e.getMessage(), e);
     }
