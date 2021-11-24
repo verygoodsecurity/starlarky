@@ -71,12 +71,13 @@ fixname = _SimpleXMLTreeBuilderHelper.fixname
 #
 # @see elementtree.ElementTree
 
-def TreeBuilder(element_factory=None, capture_event_queue=False):
+def TreeBuilder(element_factory=None, **options):
     self = _SimpleXMLTreeBuilderHelper.TreeBuilderHelper(
         ElementTree.TreeBuilder,
         element_factory=element_factory,
-        parser=xmllib.XMLParser(),
-        capture_event_queue=capture_event_queue
+        parser=options.pop('parser', xmllib.XMLParser()),
+        capture_event_queue=options.pop('capture_event_queue', False),
+        **options
     )
     self.__class__ = 'SimpleXMLTreeBuilder.TreeBuilder'
     return self

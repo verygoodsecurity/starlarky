@@ -155,7 +155,7 @@ def Element(tag, attrib=None, **extra):
         <tag attrib>text<child/>...</tag>tail
 
     """
-    self = larky.mutablestruct(__class__='Element')
+    self = larky.mutablestruct(__class__=Element, __name__='Element')
 
     self.tag = tag
     """The element's name."""
@@ -180,14 +180,14 @@ def Element(tag, attrib=None, **extra):
 
     """
 
-    def __init__(tag, attrib, extra):
+    def __init__(tag, attrib, **extra):
         if not types.is_dict(attrib):
             return Error("TypeError: attrib must be dict, not %s" % type(attrib))
         attrib = dict(**attrib)
 
         # non-std extension
-        self._parent = extra.pop('parent') if 'parent' in extra else None
-        self._nsmap = extra.pop('nsmap') if 'nsmap'in extra else {}
+        self._nsmap = attrib.pop('nsmap', {})
+        self._parent = extra.pop('parent', None)
         # _namespace_map.update(self._nsmap)
         # print(self._nsmap)
         # end non-std extensions
@@ -197,7 +197,7 @@ def Element(tag, attrib=None, **extra):
         self.attrib = attrib
         self._children = []
         return self
-    self = __init__(tag, attrib or {}, extra)
+    self = __init__(tag, attrib or {}, **extra)
 
     def __repr__():
         # non-std repr (easier for debugging)
@@ -727,7 +727,7 @@ def CDATA(data, element_factory=Element):
         >>> el = etree.Element('content')
         >>> el.text = etree.CDATA('a string')
     """
-    element = Element(CDATA)
+    element = element_factory(CDATA)
     if types.is_string(data):
         element.text = codecs.encode(data, encoding='utf-8')
     else:
@@ -1174,7 +1174,10 @@ def add_qname(qname, qnames, namespaces, prefix_finder, default_namespace=None):
             qnames[qname] = qname
 
     def _namespaces_add_qname_error_01(val):
-        _raise_serialization_error(qname)
+        fail(
+            "TypeError: cannot serialize qname=%r (type %s), msg: %s" %
+            (qname, type(qname), val)
+        )
 
     return try_(_namespaces_add_qname_try)\
             .except_(_namespaces_add_qname_error_01)\
@@ -1242,7 +1245,6 @@ def _namespaces(elem, default_namespace=None):
         for key, value in current.items():
             if types.is_instance(key, QName):
                 key = key.text
-            # print("k, v in current.items()", key, value, current.tag)
             if key not in qnames:
                 add_qname(key, qnames, namespaces,
                           prefix_finder,
@@ -1737,7 +1739,7 @@ def indent(tree, space="  ", level=0):
     value than 0 can be used for indenting subtrees that are more deeply
     nested inside of a document.
     """
-    if type(tree) == 'ElementTree':
+    if hasattr(tree, 'getroot') or type(tree) == 'ElementTree':
         tree = tree.getroot()
     if level < 0:
         fail("ValueError: Initial indentation level must be >= 0, got %s" % level)
@@ -1790,7 +1792,7 @@ def indent(tree, space="  ", level=0):
 # parsing
 
 
-def parse(source, parser=None):
+def parse(source, parser=None, tree_factory=_ElementTree):
     """Parse XML document into element tree.
 
     *source* is a filename or file object containing XML data,
@@ -1799,7 +1801,7 @@ def parse(source, parser=None):
     Return an ElementTree instance.
 
     """
-    tree = _ElementTree()
+    tree = tree_factory()
     tree.parse(source, parser)
     return tree
 
@@ -1819,18 +1821,22 @@ def iterparse(source, events=None, parser=None):
     Returns an iterator providing (event, elem) pairs.
 
     """
-    close_source = False
     if not hasattr(source, "read"):
-        fail("GOT HERE?")
-        # source = open(source, "rb")
-        close_source = True
-    rval = (
-        Result
-        .Ok(_IterParseIterator)
-        .map(lambda itrprsr: itrprsr(source, events, parser, close_source)))
-    if close_source:
-        source.close()
-    return rval.unwrap()
+        fail("TypeError: source (in Larky) must have a read function")
+    tree = parse(source, parser)
+    event_queue = list(parser.read_events())
+    if events:
+        event_queue = [e for e in event_queue if e[0] in events]
+
+    def _iterate(idx):
+        if idx >= len(event_queue):
+            return StopIteration()
+        return Result.Ok(event_queue[idx])
+
+    it = larky.DeterministicGenerator(_iterate)
+    # does not work!
+    # it.root = tree.getroot()
+    return it
 
 
 def XMLPullParser(events=None, _parser=None):
@@ -1910,44 +1916,6 @@ def XMLPullParser(events=None, _parser=None):
     return self
 
 
-def _IterParseIterator(source, events, parser, close_source=False):
-    self = larky.mutablestruct(__class__='_IterParseIterator')
-    def __init__(source, events, parser, close_source):
-        # Use the internal, undocumented _parser argument for now; When the
-        # parser argument of iterparse is removed, this can be killed.
-        self._parser = XMLPullParser(events=events, _parser=parser)
-        self._file = source
-        self._close_file = close_source
-        self.root = None
-        self._root = None
-        return self
-    self = __init__(source, events, parser, close_source)
-
-    def __next__():
-        events = []
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            for event in self._parser.read_events():
-                events.append(event)
-            if self._parser._parser == None:
-                break
-            # load event buffer
-            data = self._file.read(16 * 1024)   # <- TODO: PY2LARKY how big??
-            if data:
-                self._parser.feed(data)
-            else:
-                self._root = self._parser._close_and_return_root()
-        self.root = self._root
-
-        if self._close_file:
-            self._file.close()
-
-    self.__next__ = __next__
-
-    def __iter__():
-        return self
-    self.__iter__ = __iter__
-    return self
-
 
 def XML(text, parser=None):
     """Parse XML document from string constant.
@@ -2018,7 +1986,8 @@ def TreeBuilder(
     comment_factory=None,
     pi_factory=None,
     insert_comments=False,
-    insert_pis=False
+    insert_pis=False,
+    **options
 ):
     """Generic element structure builder.
 
@@ -2047,7 +2016,8 @@ def TreeBuilder(
         comment_factory,
         pi_factory,
         insert_comments,
-        insert_pis
+        insert_pis,
+        **options
     ):
         self._data = []  # data collector
         self._elem = []  # element stack
@@ -2066,7 +2036,7 @@ def TreeBuilder(
             element_factory = Element
         self._factory = element_factory
         return self
-    self = __init__(element_factory, comment_factory, pi_factory, insert_comments, insert_pis)
+    self = __init__(element_factory, comment_factory, pi_factory, insert_comments, insert_pis, **options)
 
     def close():
         """Flush builder buffers and return toplevel document Element."""
@@ -2108,19 +2078,9 @@ def TreeBuilder(
         attributes.
 
         """
-        # non-std extension
-        extras = {}
-        if "nsmap" in attrs:
-            extras["nsmap"] = attrs.pop("nsmap")
-            # for uri, prefix in extras['nsmap'].items():
-            #     # we do not want to use register_namespace here because
-            #     # we want to preserve the internal prefixes (ns0..etc)
-            #     # when reading an XML payload, etc.
-            #     operator.setitem(_namespace_map, prefix, uri)
-        # end non-std extension
         self._flush()
-        self._last = self._factory(tag, attrs, **extras)
-        elem = self._last
+        elem = self._factory(tag, attrs)
+        self._last = elem
         if self._elem:
             self._elem[-1].append(elem)
         elif self._root == None:
@@ -2803,7 +2763,6 @@ ElementTree = larky.struct(
     XMLID=XMLID,
     XMLParser=XMLParser,
     XMLPullParser=XMLPullParser,
-    _IterParseIterator=_IterParseIterator,
     _ListDataStream=_ListDataStream,
     _escape_attrib=_escape_attrib,
     _escape_attrib_html=_escape_attrib_html,
@@ -2828,5 +2787,5 @@ ElementTree = larky.struct(
     getelementpath=getelementpath,
     indent=indent,
     canonicalize=canonicalize,
-    C14NWriterTarget=C14NWriterTarget,
+    C14NWriterTarget=C14NWriterTarget
 )

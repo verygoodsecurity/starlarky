@@ -13,6 +13,12 @@ load("@vendor//cryptography/hazmat/primitives", serialization="serialization")
 load("@vendor//cryptography/hazmat/primitives/serialization", serialization="serialization")
 load("@vendor//cryptography/x509", load_pem_x509_certificate="load_pem_x509_certificate")
 load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
+load("@vendor//elementtree/ElementC14N", ElementC14N="ElementC14N")
+load("@vendor//_etreeplus/C14NParser", C14NParser="C14NParser")
+load("@vendor//_etreeplus/xmlwriter", xmlwriter="xmlwriter")
+load("@vendor//_etreeplus/xmltreenode", XMLTreeNode="XMLTreeNode")
+load("@vendor//_etreeplus/xmltree", xmltree="xmltree")
+
 
 load("@vendor//xmlsig", xmlsig="xmlsig")
 
@@ -53,7 +59,47 @@ def find_node_by_attribute(nodes, attribute, value):
 
 
 def test_xmlsig_sign_case1():
-    root = load_xml(SIGN1_IN_XML)
+    parser = SimpleXMLTreeBuilder.TreeBuilder(
+        element_factory=XMLTreeNode.XMLNode,
+        capture_event_queue=True,
+        doctype_factory=XMLTreeNode.DocumentType,
+        document_factory=XMLTreeNode.Document,
+        comment_factory=XMLTreeNode.Comment,
+        insert_comments=True,
+        insert_pis=True,
+    )
+    root = load_xml(SIGN1_IN_XML, parser=parser)
+    tree = xmltree.XMLTree(root)
+    # print(xmltree.tostring(tree, method='c14n2')) # <- works!
+    # print(xmltree.tostringC14N(root, True, True, False))
+    print(xmltree.tostring(tree))
+    # print(xmltree.tostring(tree, method='c14n'))
+    sio = StringIO()
+    qnames, namespaces = ElementTree._namespaces(root, None)
+    ElementC14N._serialize_c14n(write=sio.write, elem=root, encoding='utf-8', qnames=qnames, namespaces=namespaces)
+    print("C14N 1.0", "\n", sio.getvalue())
+    print("--" * 100)
+    print(xmltree.tostring(tree))
+
+    # writer0 = xmlwriter.XMLWriter(xmltree.XMLTree(root))
+    # print(writer0())
+
+    # tree = ElementC14N.parse(StringIO(SIGN1_IN_XML), parser)
+    # ElementC14N.write(tree, sio, exclusive=True)
+    # print("C14N 1.0", "\n", sio.getvalue())
+    # print("--" * 100)
+    # serializer = xmlwriter.XMLSerializer(sio)
+    # serializer.serialize(root)
+    # print("serializer", "\n", sio.getvalue())
+    print("--" * 100)
+    # ----
+    sio = StringIO()
+    parser = C14NParser.C14nCanonicalizer(ElementTree.C14NWriterTarget, element_factory=sio.write)
+    ElementTree.canonicalize(SIGN1_IN_XML, out=sio, parser=parser)
+    print("C14N 2.0", "\n", sio.getvalue())
+    # ----
+    # writer0 = xmlwriter.XMLWriter(ElementTree.ElementTree(root))
+    # print(writer0())
     # return node.findall(xpath, namespaces=namespaces)
     # print(ElementTree.tostring(
     #     root,
@@ -74,7 +120,6 @@ def test_xmlsig_sign_case1():
     # sign = root.find(qname)
     # print(sign)
     asserts.assert_that(sign).is_not_none()
-
     ctx = xmlsig.SignatureContext()
     loaded = serialization.load_pem_private_key(RSAKEY_PEM, password=None)
     # print("loaded: ", loaded)
@@ -83,14 +128,22 @@ def test_xmlsig_sign_case1():
     ctx.key_name = "rsakey.pem"
     asserts.assert_that(ctx.key_name).is_equal_to("rsakey.pem")
     ctx.sign(sign)
-    signed = ElementTree.tostring(
-       root,
-       method="xml",
-       encoding="utf-8",
-       xml_declaration=True,
-       pretty_print=True,
-    )
-    print(signed)
+    print(xmltree.tostring(tree))
+    # writer0 = xmlwriter.XMLWriter(ElementTree.ElementTree(root))
+    # signed = writer0(
+    #     method="xml",
+    #     encoding="utf-8",
+    #     xml_declaration=True,
+    #     pretty_print=True,
+    # )
+    # signed = ElementTree.tostring(
+    #    root,
+    #    method="xml",
+    #    encoding="utf-8",
+    #    xml_declaration=True,
+    #    pretty_print=True,
+    # )
+    # print(signed)
     # ctx.verify(sign)
     # compare("sign1-out.xml", root)
     # self.assertIsNotNone(ctx.key)

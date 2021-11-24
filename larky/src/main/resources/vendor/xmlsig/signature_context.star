@@ -1,4 +1,5 @@
 load("@stdlib//larky", larky="larky")
+load("@stdlib//io", io="io", BytesIO="BytesIO")
 load("@stdlib//base64", base64="base64")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//hashlib", hashlib="hashlib")
@@ -6,6 +7,9 @@ load("@stdlib//types", types="types")
 load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
 
 load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
+load("@vendor//_etreeplus/C14NParser", C14NParser="C14NParser")
+load("@vendor//_etreeplus/xmlwriter", XMLWriter="XMLWriter")
+load("@vendor//_etreeplus/xmltree", xmltree="xmltree")
 load("@vendor//cryptography/hazmat/primitives", serialization="serialization")
 
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
@@ -78,7 +82,7 @@ def SignatureContext():
             if self.public_key == None:
                 key = self.private_key.public_key()
             if not types.is_instance(key, signature["method"].public_key_class):
-                return Error("Exception: Key not compatible with signature method")
+                fail("Exception: Key not compatible with signature method")
             signature["method"].key_value(key_value, key)
     self.fill_key_info = fill_key_info
 
@@ -207,14 +211,13 @@ def SignatureContext():
         # Enveloped method removes the Signature Node from the element
         if method == constants.TransformEnveloped:
             # print("here3?", method)
-
             tree = transform.getroottree()
+            # print(node)
             root = etree.fromstring(node, parser=SimpleXMLTreeBuilder.TreeBuilder())
             pointer2parent = etree.getelementpath(
                 tree,
                 transform.getparent().getparent().getparent().getparent()
             )
-            # print(pointer2parent)
             signature = root.find(pointer2parent)
             root.remove(signature)
             return self.canonicalization(constants.TransformInclC14N, root)
@@ -246,13 +249,39 @@ def SignatureContext():
             fail("Exception: " + "Method not allowed: " + method)
         # print("method", method)
         c14n_method = constants.TransformUsageC14NMethod[method]
-        # print("c14n_method", c14n_method)
-        return etree.tostring(
-            node,
-            method=c14n_method["method"],
+        # if not hasattr(node, 'getroot'):
+        #     node = xmltree.XMLTree(node)
+        # c14n_node = xmltree.tostring(
+        #     node,
+        #     method=c14n_method["method"],
+        #     with_comments=c14n_method["comments"],
+        #     exclusive=c14n_method["exclusive"],
+        # )
+        if type(node) != 'ElementTree':
+            node = etree.ElementTree(node)
+        writer0 = XMLWriter(node)
+        sio = io.StringIO()
+        parser = C14NParser.C14nCanonicalizer(
+            etree.C14NWriterTarget,
+            element_factory=sio.write,
             with_comments=c14n_method["comments"],
-            exclusive=c14n_method["exclusive"],
         )
+        etree.canonicalize(writer0(), out=sio, parser=parser)
+        c14n_node = sio.getvalue()
+        if c14n_method["exclusive"] == False:
+            # TODO: there must be a nicer way to do this. See also:
+            # http://www.w3.org/TR/xml-c14n, "namespace axis"
+            # http://www.w3.org/TR/xml-c14n2/#sec-Namespace-Processing
+            c14n_node = c14n_node.replace(' xmlns=""', '')
+        return c14n_node
+        # print("c14n_method", c14n_method)
+        # if type(node) != 'ElementTree':
+        #     node = etree.ElementTree(node)
+        # writer = XMLWriter(node)
+        # return writer(
+        #     method=c14n_method["method"],
+        #     with_comments=c14n_method["comments"],
+        #     exclusive=c14n_method["exclusive"])
     self.canonicalization = canonicalization
 
     def digest(method, node):
@@ -264,9 +293,13 @@ def SignatureContext():
         :type node: str
         :return: hash result
         """
+        # b'ZLwUdyUkLUovpCNNO8VloO1jtxY='
         if method not in constants.TransformUsageDigestMethod:
             fail("Exception: Method not allowed")
         lib = hashlib.new(constants.TransformUsageDigestMethod[method])
+        # root = etree.fromstring(node, parser=SimpleXMLTreeBuilder.TreeBuilder())
+        # writer0 = XMLWriter(etree.ElementTree(root))
+        # lib.update(tobytes(writer0()))
         lib.update(tobytes(node))
         return base64.b64encode(lib.digest())
     self.digest = digest
@@ -310,7 +343,7 @@ def SignatureContext():
         """
         Calculates or verifies the digest of the reference
         :param reference: Reference node
-        :type reference: lxml.etree.Element
+        :type reference: xml.etree.Element
         :param sign: It marks if we must sign or check a signature
         :type sign: bool
         :return: None

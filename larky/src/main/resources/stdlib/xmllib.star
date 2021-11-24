@@ -52,14 +52,14 @@ _ExternalId = '(?:SYSTEM|'+ \
               ')'+_S+_SystemLiteral%'syslit'
 doctype = re.compile('<!DOCTYPE'+_S+'(?P<name>'+_Name+')'+
                      '(?:'+_S+_ExternalId+')?'+_opS)
-xmldecl = re.compile(r'<?xml'+_S+
+xmldecl = re.compile(r'<\?xml'+_S+
                      'version'+_opS+'='+_opS+'(?P<version>'+_QStr+')'+
                      '(?:'+_S+'encoding'+_opS+'='+_opS+
                         "(?P<encoding>'[A-Za-z][-A-Za-z0-9._]*'|" +
                         '"[A-Za-z][-A-Za-z0-9._]*"))?' +
                      '(?:'+_S+'standalone'+_opS+'='+_opS+
                         '(?P<standalone>\'(?:yes|no)\'|"(?:yes|no)"))?'+
-                     _opS+r'?>')
+                     _opS+r'\?*>')
 procopen = re.compile('<\\?(?P<proc>' + _Name + ')' + _opS)
 procclose = re.compile(_opS + '\\?>')
 commentopen = re.compile('<!--')
@@ -486,7 +486,7 @@ def XMLParser(**kw):
         pubid, syslit = res.group('pubid', 'syslit')
         if pubid != None:
             pubid = pubid[1:-1]         # remove quotes
-            pubid = ' '.join(pubid.split()) # normalize
+            pubid = ' '.join([e for e in pubid.split(" ") if e]) # normalize
         if syslit != None:
             syslit = syslit[1:-1] # remove quotes
         j = res.end(0)

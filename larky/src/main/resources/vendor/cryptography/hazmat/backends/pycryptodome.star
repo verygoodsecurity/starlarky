@@ -184,9 +184,6 @@ def RSAPrivateKey(backend, rsa_cdata, evp_pkey):
         """
         Signs the data.
         """
-        data, algorithm = _calculate_digest_and_algorithm(
-                self._backend, data, algorithm
-        )
         return _rsa_sig_sign(self._backend, padding, algorithm, self, data)
     self.sign = sign
 

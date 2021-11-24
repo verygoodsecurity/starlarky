@@ -7,6 +7,7 @@ load("@stdlib//types", "types")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//unittest", "unittest")
 load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
+load("@vendor//_etreeplus/xmltree", xmltree="xmltree")
 load("@vendor//_etreeplus/xmltreenode", XMLTreeNode="XMLTreeNode")
 load("@vendor//asserts", "asserts")
 load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
@@ -16,10 +17,10 @@ def _bytes(s):
     return builtins.bytes(s, encoding='utf-8')
 
 
-def parse(text, parser=None):
+def parse(text, parser=None, tree_factory=ElementTree.ElementTree):
     #f = BytesIO(text) if isinstance(text, bytes) else StringIO(text)
     f = StringIO(text)
-    return ElementTree.parse(f, parser=parser)
+    return ElementTree.parse(f, parser=parser, tree_factory=tree_factory)
 
 
 def _rootstring(self, tree):
@@ -524,7 +525,9 @@ def T_test_indent_level():
         b"  </body>\n" +
         b" </html>"))
 
+
 def _test_ns_events():
+    # https://github.com/lxml/lxml/blob/ea954da3c87bd8f6874f6bf4203e2ef5269ea383/src/lxml/tests/selftest.py#L458-L474
     simple_ns = """
 <root xmlns='http://namespace/'>
    <element key='value'>text</element>
@@ -536,7 +539,6 @@ def _test_ns_events():
     data = normalize_ws(simple_ns)
     tree = parse(data, parser)
     root = tree.getroot()
-    # https://github.com/lxml/lxml/blob/ea954da3c87bd8f6874f6bf4203e2ef5269ea383/src/lxml/tests/selftest.py#L458-L474
     expected = [
         ("start-ns", ("", "http://namespace/")),
         ("start", "{http://namespace/}root"),
@@ -557,13 +559,67 @@ def _test_ns_events():
         expected_event, expected_payload = expected[i]
         actual_event, actual_payload = actual
         asserts.assert_that(expected_event).is_equal_to(actual_event)
-        if types.is_tuple(actual_payload) or not actual_payload:
-            asserts.assert_that(expected_payload).is_equal_to(actual_payload)
-        else:
-            asserts.assert_that(expected_payload).is_equal_to(actual_payload.tag)
+        asserts.assert_that(expected_payload).is_equal_to(actual_payload)
 
     # assert that we clear events
     asserts.assert_that(len(list(parser.read_events()))).is_equal_to(0)
+
+
+def _test_doctype_parser():
+    # https://github.com/lxml/lxml/blob/ea954da3c87bd8f6874f6bf4203e2ef5269ea383/src/lxml/tests/selftest.py#L458-L474
+    full_doctype = """
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "sys.dtd">
+<html><body></body></html>
+    """
+    parser = SimpleXMLTreeBuilder.TreeBuilder(
+        element_factory=XMLTreeNode.XMLNode,
+        capture_event_queue=True,
+        doctype_factory=XMLTreeNode.DocumentType,
+    )
+    data = normalize_ws(full_doctype)
+    tree = parse(data, parser)
+
+    expected_events = [
+        ("doctype", ("html", "-//W3C//DTD HTML 4.01//EN", "sys.dtd")),
+        ("start", "html"), ("start", "body"),
+        ("end", "body"), ("end", "html")
+    ]
+    actual_events = list(parser.read_events())
+    asserts.assert_that(actual_events).is_equal_to(expected_events)
+
+    target_doctype_html = "<!DOCTYPE html><html><body></body></html>"
+    data = normalize_ws(target_doctype_html)
+    parse(data, parser)
+    expected_events = [
+        ("doctype", ("html", None, None)),
+        ("start", "html"), ("start", "body"),
+        ("end", "body"), ("end", "html")
+    ]
+    actual_events = list(parser.read_events())
+    asserts.assert_that(actual_events).is_equal_to(expected_events)
+
+
+def _test_doctype_internal():
+    doctype_internal = """
+    <!DOCTYPE b SYSTEM "none" [
+    <!ELEMENT b (a)>
+    <!ELEMENT a EMPTY>
+    ]>
+    <b><a/></b>
+    """
+    parser = SimpleXMLTreeBuilder.TreeBuilder(
+        element_factory=XMLTreeNode.XMLNode,
+        capture_event_queue=True,
+        doctype_factory=XMLTreeNode.DocumentType,
+        document_factory=XMLTreeNode.Document,
+        comment_factory=XMLTreeNode.Comment,
+        insert_comments=True,
+        insert_pis=True,
+    )
+    data = normalize_ws(doctype_internal)
+    tree = parse(data, parser, tree_factory=xmltree.XMLTree)
+    dtd = tree.docinfo.internalDTD
+    asserts.assert_that(dtd).is_true()
 
 
 def _suite():
@@ -578,6 +634,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(T_test_indent_space_caching))
     _suite.addTest(unittest.FunctionTestCase(T_test_indent_level))
     _suite.addTest(unittest.FunctionTestCase(_test_ns_events))
+    _suite.addTest(unittest.FunctionTestCase(_test_doctype_parser))
+    _suite.addTest(unittest.FunctionTestCase(_test_doctype_internal))
 
     return _suite
 

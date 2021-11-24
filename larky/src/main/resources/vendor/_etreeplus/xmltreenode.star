@@ -2,12 +2,19 @@ load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//operator", operator="operator")
+load("@stdlib//xml/dom", dom="dom")
 load("@stdlib//xml/etree/ElementPath", ElementPath="ElementPath")
 load("@stdlib//xml/etree/ElementTree", element_tree="ElementTree")
-load("@vendor//_etreeplus/xmlwriter", XMLWriter="XMLWriter")
+load("@vendor//_etreeplus/xmltree", xmltree="xmltree", iselement="iselement", ELEMENT_TYPES="ELEMENT_TYPES")
 
 
 QName = element_tree.QName
+
+_namespaced_name = xmltree.namespaced_name
+_get_ns_tag = xmltree.get_ns_tag
+_get_ns = xmltree.get_ns
+_namespaced_name_from_ns_name = xmltree.namespaced_name_from_ns_name
+_tag_matches = xmltree.tag_matches
 
 
 def XMLNodeList():
@@ -70,7 +77,7 @@ def XMLNodeList():
         """ Returns iterator of the items
         @returns iterator of the items
         """
-        return iter(self.node_list)
+        return builtins.iter(self.node_list)
     self.__iter__ = __iter__
 
     def __len__():
@@ -89,7 +96,87 @@ def XMLNodeList():
     return self
 
 
-def XMLNode(tag, attrib=None, nsmap=None, **extra):
+lxml_xml_node_structs = """
+    ctypedef enum xmlElementType:
+        XML_ELEMENT_NODE=           1
+        XML_ATTRIBUTE_NODE=         2
+        XML_TEXT_NODE=              3
+        XML_CDATA_SECTION_NODE=     4
+        XML_ENTITY_REF_NODE=        5
+        XML_ENTITY_NODE=            6
+        XML_PI_NODE=                7
+        XML_COMMENT_NODE=           8
+        XML_DOCUMENT_NODE=          9
+        XML_DOCUMENT_TYPE_NODE=     10
+        XML_DOCUMENT_FRAG_NODE=     11
+        XML_NOTATION_NODE=          12
+        XML_HTML_DOCUMENT_NODE=     13
+        XML_DTD_NODE=               14
+        XML_ELEMENT_DECL=           15
+        XML_ATTRIBUTE_DECL=         16
+        XML_ENTITY_DECL=            17
+        XML_NAMESPACE_DECL=         18
+        XML_XINCLUDE_START=         19
+        XML_XINCLUDE_END=           20
+        
+    ctypedef enum xmlAttributeType:
+        XML_ATTRIBUTE_CDATA =      1
+        XML_ATTRIBUTE_ID=          2
+        XML_ATTRIBUTE_IDREF=       3
+        XML_ATTRIBUTE_IDREFS=      4
+        XML_ATTRIBUTE_ENTITY=      5
+        XML_ATTRIBUTE_ENTITIES=    6
+        XML_ATTRIBUTE_NMTOKEN=     7
+        XML_ATTRIBUTE_NMTOKENS=    8
+        XML_ATTRIBUTE_ENUMERATION= 9
+        XML_ATTRIBUTE_NOTATION=    10
+        
+    ctypedef struct xmlAttr:
+        void* _private
+        xmlElementType type
+        const_xmlChar* name
+        xmlNode* children
+        xmlNode* last
+        xmlNode* parent
+        xmlAttr* next
+        xmlAttr* prev
+        xmlDoc* doc
+        xmlNs* ns
+        xmlAttributeType atype
+        
+    ctypedef struct xmlNs:
+        const_xmlChar* href
+        const_xmlChar* prefix
+        xmlNs* next
+
+    # https://github.com/lxml/lxml/blob/982f8d5612925010a12a70748a077af846def6be/src/lxml/includes/tree.pxd#L162-L176
+    ctypedef struct xmlNode:
+        void * _private  # application data
+        xmlElementType type  # type number, must be second !
+        const xmlChar * name  # the name of the node, or the entity
+        struct _xmlNode * children  # parent->childs link
+        struct _xmlNode * last  # last child link
+        struct _xmlNode * parent  # child->parent link
+        struct _xmlNode * next  # next sibling link
+        struct _xmlNode * prev  # previous sibling link
+        struct _xmlDoc * doc  # the containing document End of common p
+        xmlChar * content  # the content
+        struct _xmlAttr * properties  # properties list
+        xmlNs * ns  # pointer to the associated namespace
+        xmlNs * nsDef  # namespace definitions on this node
+        unsigned short line  # line number
+    # from: https://mail.gnome.org/archives/xml/2005-May/msg00145.html        
+    # Libxml2 handles the corresponding DOM Node methods namespaceURI() and
+    # prefix() in the following way:
+    # node->ns->prefix == result of node.prefix()
+    # node->ns->href   == result of node.namespaceURI()
+    # 
+    # The node->ns field is a pointer to an xmlNs struct, which
+    # is held in the elem->nsDef field of element-nodes
+    
+"""
+
+def XMLNode(tag, attrib=None, **extra):
     """
     Custom Tree structure, may contain any number of children.
 
@@ -103,7 +190,33 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
     # XMLNodeList is a nested class
     self.XMLNodeList = XMLNodeList
 
-    def __init__(tag, attrib, nsmap, **extra):
+    # comes first so we can easily remember to clear() anything we add
+    # in __init__
+    def clear():
+        """Reset element.
+
+        This function removes all subelements, clears all attributes, and sets
+        the text and tail attributes to None.
+
+        """
+        self._nsmap = {}
+        self.__cached_nsmap = None
+        self.__cached_prefix = None
+
+        self.attrib.clear()
+
+        self._children = []
+
+        self.text = None
+        self.tail = None
+
+        self._owner_doc = None
+        self._doctype = None
+        self.__parent = None
+        self.__nodeType = None
+    self.clear = clear
+
+    def __init__(tag, attrib, **extra):
         """
         Create a new element and initialize text content, attributes, and namespaces.
 
@@ -112,12 +225,27 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
         @param nsmap Namespace map
         @param **extra Additional attributes, given as keyword arguments
         """
-        # tag(1): data
-        # tag(2): {http://example.com/ns/foo}p
+
+        # ----- NOTE -----
+        # ADDING ANY INSTANCE VARIABLES HERE SHOULD ALSO BE ADDED IN
+        # clear() above (except tag -- which will never change)
+        # --- END NOTE----
+
+        # tag(1): data => prefix = None, href => None
+        # tag(2): {http://example.com/ns/foo}p => prefix = None, href => http://example.com/ns/foo
         # nsmap: {"http://example.com/ns/foo": "x"}
         # print("DEBUG:::", tag, attrib, nsmap)
-        self.tag = tag
-        self._nsmap = nsmap or {}
+        self.tag = tag  # could be a qualified tag
+        # get the ns/prefix (if any)
+        self._href, self._name = _get_ns_tag(tag)  # won't change
+        # nsmap's type: Dict["http://example.com/ns/foo", "x"]
+        attrib = attrib or {}
+        self._nsmap = attrib.pop('nsmap', {})
+        # used in _build_nsmap below (accessible through self.nsmap property)
+        self.__cached_nsmap = None
+        # used in prefix below
+        self.__cached_prefix = None
+
         self.attrib = dict(**attrib) if attrib else {}
         self.attrib.update(extra)
         self._children = []
@@ -125,47 +253,72 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
         self.text = None
         self.tail = None
 
-        self.__parent = None
+        self._doctype = None
+        self._owner_doc = None
+        self.__parent = attrib.pop('parent', None)
         self.__nodeType = None
         return self
-    self = __init__(tag, attrib, nsmap, **extra)
+    self = __init__(tag, attrib, **extra)
 
-    def _index():
-        return self.__parent.index(self)
+    # read-only properties
+    self.ns = larky.property(lambda: dict(**self._nsmap))
+    self.name = larky.property(lambda: self._name)
+    self.href = larky.property(lambda: self._href)
+    self._index = larky.property(lambda: self.__parent.index(self))
 
-    self._index = larky.property(_index)
+    def _owner_document():
+        """Document: An associated document."""
+        current = self
+        doc = self._owner_doc
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if current == None:
+                break
+            if doc != None:
+                return doc
+            parent = current.getparent()
+            if parent == None:
+                break
+            current = parent
+            doc = current._owner_doc
+        return None
+    self.owner_doc = larky.property(_owner_document)
 
-    # def _nsmap():
-    # data {} {"http://example.com/ns/foo": "x"}
-    # def _build_nsmap():
-    #     """
-    #     Namespace prefix->URI mapping known in the context of this Element.
-    #     This includes all namespace declarations of the parents.
-    #     """
-    #     cdef xmlNs* c_ns
-    #     nsmap = {}
-    #     qu = [self._nsmap]
-    #     for _ in range(WHILE_LOOP_EMULATION_ITERATION):
-    #         if not qu:
-    #             break
-    #
-    #     while c_node is not NULL and c_node.type == tree.XML_ELEMENT_NODE:
-    #         c_ns = c_node.nsDef
-    #         while c_ns is not NULL:
-    #             prefix = funicodeOrNone(c_ns.prefix)
-    #             if prefix not in nsmap:
-    #                 nsmap[prefix] = funicodeOrNone(c_ns.href)
-    #             c_ns = c_ns.next
-    #         c_node = c_node.parent
-    #     return nsmap
-    self.nsmap = larky.property(lambda: self._nsmap)
+    def _build_nsmap():
+        """
+        Namespace prefix->URI mapping known in the context of this Element.
+        This includes all namespace declarations of the parents.
+        """
+        if self.__cached_nsmap:
+            return self.__cached_nsmap
+
+        nsmap = {}
+        qu = [self]
+        for _ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if not qu:
+                break
+            cnode = qu.pop(0)
+            # while c_node is not NULL and c_node.type == tree.XML_ELEMENT_NODE:
+            if cnode == None or not iselement(cnode):# or not cnode.ns:
+                continue
+
+            c_ns = cnode.ns
+            for uri, prefix in c_ns.items():
+                if prefix not in nsmap:
+                    nsmap[prefix] = uri
+            qu.append(cnode.getparent())
+        self.__cached_nsmap = nsmap
+        return self.__cached_nsmap
+    self.nsmap = larky.property(_build_nsmap)
 
     def _prefix():
         """Namespace prefix or None.
         """
-        for k in self._nsmap.keys():
-            return k
-        return None
+        if self.__cached_prefix:
+            return self.__cached_prefix
+
+        self.__cached_prefix = self.nsmap.get(self._href, None)
+        return self.__cached_prefix
+
     self.prefix = larky.property(_prefix)
 
     def appendvalue(value):
@@ -370,6 +523,13 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
 
     self.isdata = isdata
 
+    def nodetype():
+        data = self.getdata()
+        if types.is_function(data):
+            data = larky.impl_function_name(data)
+        return data
+    self.nodetype = nodetype
+
     def numchildren():
         """ Return the number of children under this XMLNode
         @returns Number of children
@@ -394,6 +554,8 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
         if addchild:
             self.__parent.addchild(self, reparent=False)
 
+        # clear cached nsmap which traverses parents.
+        self.__cached_nsmap = None
     self.reparent = reparent
 
     def to_recursive_sort_string():
@@ -457,6 +619,9 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
         """ Get the root node
         @returns Root node instance or None if not found
         """
+        if self.nodetype() == 'Document':
+            return self._children[-1]
+
         root = self
         parent = root.getparent()
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
@@ -503,12 +668,75 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
 
     self.deepcopy = deepcopy
 
+    # not in ElementTree but in lxml etree
+
+    def set_doctype(doctype):
+        if self._name != "DOCUMENT_ROOT":
+            fail("can only set doctype on document node")
+        self._doctype = doctype
+    self.set_doctype = set_doctype
+    self.set_docinfo = set_doctype
+
+    """Information about the document provided by parser and DTD."""
+    self.docinfo = larky.property(lambda: getattr(self, '_doctype', None))
+    self.doctype = larky.property(lambda: getattr(self, '_doctype', None))
+
+    def attach_document(document):
+        """Attaches an associated document.
+        Arguments:
+            document (Document): A document that is associated with the node.
+        Returns:
+            bool: Returns True if successful; otherwise False.
+        """
+        if document == None:
+            return False
+        self._owner_doc = document
+        return True
+    self.attach_document = attach_document
+
+    def detach_document():
+        """Detaches an associated document.
+        Returns:
+            Document: A document to be detached.
+        """
+        owner_document = self._owner_doc
+        self._owner_doc = None
+        return owner_document
+    self.deattach_document = detach_document
+
+    # @cython.final
+    # cdef getdoctype(self):
+    #     # get doctype info: root tag, public/system ID (or None if not known)
+    #     cdef tree.xmlDtd* c_dtd
+    #     cdef xmlNode* c_root_node
+    #     public_id = None
+    #     sys_url   = None
+    #     c_dtd = self._c_doc.intSubset
+    #     if c_dtd is not NULL:
+    #         if c_dtd.ExternalID is not NULL:
+    #             public_id = funicode(c_dtd.ExternalID)
+    #         if c_dtd.SystemID is not NULL:
+    #             sys_url = funicode(c_dtd.SystemID)
+    #     c_dtd = self._c_doc.extSubset
+    #     if c_dtd is not NULL:
+    #         if not public_id and c_dtd.ExternalID is not NULL:
+    #             public_id = funicode(c_dtd.ExternalID)
+    #         if not sys_url and c_dtd.SystemID is not NULL:
+    #             sys_url = funicode(c_dtd.SystemID)
+    #     c_root_node = tree.xmlDocGetRootElement(self._c_doc)
+    #     if c_root_node is NULL:
+    #         root_name = None
+    #     else:
+    #         root_name = funicode(c_root_node.name)
+    #     return root_name, public_id, sys_url
     # etree api
     def addnext(elem):
         """
         Adds the element as a following sibling directly after this element.
         This is normally used to set a processing instruction or comment after
-        the root node of a document. Note that tail text is automatically discarded when adding at the root level.
+        the root node of a document.
+
+        Note that tail text is automatically discarded when adding at the root level.
         """
         self.__parent.insert(self._index + 1, elem)
 
@@ -517,8 +745,17 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
     def addprevious(elem):
         """
         Adds the element as a preceding sibling directly before this element.
-        This is normally used to set a processing instruction or comment before the root node of a document. Note that tail text is automatically discarded when adding at the root level.
+        This is normally used to set a processing instruction or comment before
+         the root node of a document.
+
+         Note that tail text is automatically discarded when adding at the root level.
         """
+        # if type(elem) not in ('Element', 'XMLNode', 'ProcessingInstruction', 'Comment',):
+        #     fail(
+        #        ("HierarchyRequestError: This node type '{}' cannot insert " +
+        #         "as a sibling node of type '{}'")
+        #            .format(elem.__name__, self.__name__))
+        # elem.attach_document(self.owner_doc)
         self.__parent.insert(self._index, elem)
 
     self.addprevious = addprevious
@@ -543,22 +780,6 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
             self._children.append(child)
 
     self.append = append
-
-    def clear():
-        """Reset element.
-
-        This function removes all subelements, clears all attributes, and sets
-        the text and tail attributes to None.
-
-        """
-        self._nsmap = {}
-        self.attrib.clear()
-        self._children = []
-        self.text = None
-        self.tail = None
-        self.__parent = None
-        self.__nodeType = None
-    self.clear = clear
 
     def cssselect(expr, translator='xml'):
         """
@@ -945,7 +1166,7 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
 
         Creates a new element associated with the same document.
         """
-        fail("not implemented")
+        return self.__class__(_tag, attrib, nsmap, **_extra)
     self.makeelement = makeelement
 
     def remove(child):
@@ -1062,8 +1283,9 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
         """ Iterates thorough the children
         @returns Iterator
         """
-        # Generator way
-        return iter(self._children)
+        # use builtins here because iter() is shadowed in this scope
+        # for larky
+        return builtins.iter(self._children)
 
     self.__iter__ = __iter__
 
@@ -1089,8 +1311,8 @@ def XMLNode(tag, attrib=None, nsmap=None, **extra):
         """ String presentation of this object
         @returns String presentation of this object
         """
-        return "%s %s" % (self.__name__, "%s %s" % (
-            ("%s" % self.getdata())
+        return "%s[%s]" % (self.__name__, "tag=%s, attrib=%s" % (
+            ("%s" % self.nodetype())
                 .replace(" ", "")
                 .replace("'", ""),
             self.attrib
@@ -1118,7 +1340,7 @@ def Comment(text=None):
 
     """
     # def XMLNode(tag, attrib, nsmap=None, **extra):
-    element = element_tree.Comment(element_tree.Comment, element_factory=XMLNode)
+    element = element_tree.Comment(text=text, element_factory=XMLNode)
     element.text = text
     return element
 
@@ -1133,98 +1355,23 @@ def ProcessingInstruction(target, text=None):
     string containing the processing instruction contents, if any.
 
     """
-    element = element_tree.PI(element_tree.PI, element_factory=XMLNode)
-    element.text = target
-    if text:
-        element.text = element.text + " " + text
+    element = element_tree.PI(target, text=text, element_factory=XMLNode)
+    element.target = target
+    element.data = text
     return element
 
 
-def _get_ns_tag(tag):
-    # Split the namespace URL out of a fully-qualified lxml tag
-    # name. Copied from lxml's src/lxml/sax.py.
-    if tag[0] == '{':
-        return tuple(tag[1:].split('}', 1))
-    else:
-        return (None, tag)
+def CDATA(data):
+    """CDATA(data)
 
-
-def _get_ns(element):
-    if type(element) == 'QName':
-        ns_utf, tag_utf = _get_ns_tag(element.text)
-    else:
-        ns_utf, tag_utf = _get_ns_tag(element)
-
-    if ns_utf:
-        return ns_utf
-    if not element.nsmap:
-        return None
-    for pfx in element.nsmap:
-        return element.nsmap[pfx]
-
-    # (((c_node)->ns == 0) ? 0 : ((c_node)->ns->href))
-
-
-def _namespaced_name_from_ns_name(href, name):
-    if href == None:
-        return name
-    if type(name) == 'QName':
-        ns_utf, tag_utf = _get_ns_tag(name.text)
-    else:
-        ns_utf, tag_utf = _get_ns_tag(name)
-    return "{%s}%s" % (ns_utf, tag_utf)
-
-
-def _tag_matches(c_node, c_href, c_name):
-    """Tests if the node matches namespace URI and tag name.
-    A node matches if it matches both c_href and c_name.
-    A node matches c_href if any of the following is true:
-    * c_href is NULL
-    * its namespace is NULL and c_href is the empty string
-    * its namespace string equals the c_href string
-    A node matches c_name if any of the following is true:
-    * c_name is NULL
-    * its name string equals the c_name string
+    CDATA factory.  This factory creates an opaque data object that
+    can be used to set Element text.  The usual way to use it is::
+        >>> from xml.etree import ElementTree as etree
+        >>> el = etree.Element('content')
+        >>> el.text = etree.CDATA('a string')
     """
-    if c_node == None:
-        return False
-    if not iselement(c_node):
-        # not an element, only succeed if we match everything
-        return c_name == None and c_href == None
-    if c_name == None:
-        if c_href == None:
-            # always match
-            return True
-        else:
-            c_node_href = _get_ns(c_node)
-            if c_node_href == None:
-                return c_href[0] == ""
-            else:
-                return c_node_href == c_href
-    elif c_href == None:
-        if _get_ns(c_node) != None:
-            return False
-        return c_node.tag == c_name
-    elif c_node.tag == c_name:
-        c_node_href = _get_ns(c_node)
-        if c_node_href == None:
-            return c_href[0] == ""
-        else:
-            return c_node_href == c_href
-    else:
-        return False
-
-
-_ELEMENT_TYPES = ['Element', 'XMLNode']
-
-def iselement(element):
-    """iselement(element)
-    Checks if an object appears to be a valid element object or
-    if *element* appears to be an Element.
-    """
-    if hasattr(element, "tag"):
-        return True
-    return type(element) in _ELEMENT_TYPES
+    element = element_tree.CDATA(data, element_factory=XMLNode)
+    return element
 
 
 def getelementpath(tree, element):
@@ -1288,16 +1435,214 @@ def getelementpath(tree, element):
     return "/".join(path)
 
 
+#
+# implements the depth-first iterator
+#
+
+def ElementDepthFirstIterator(node):
+    self = larky.mutablestruct(
+        __name__='ElementDepthFirstIterator',
+        __class__=ElementDepthFirstIterator
+    )
+
+    def __init__(node):
+        self.node = node
+        self.parents = []
+        return self
+    self = __init__(node)
+
+    def __iter__():
+        return self
+    self.__iter__ = __iter__
+
+    def __next__():
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if self.node:
+                ret = self.node
+                self.parents.append(self.node)
+                children = self.node.getchildren()
+                self.node = children[0] if children else None
+                return ret
+
+            if not self.parents:
+                return StopIteration()
+
+            parent = self.parents.pop()
+            self.node = parent.getnext()
+    self.__next__ = __next__
+    return self
+
+
+def ElementBreadthFirstIterator(node):
+    self = larky.mutablestruct(
+        __name__='ElementBreadthFirstIterator',
+        __class__=ElementBreadthFirstIterator
+    )
+
+    def __init__(node):
+        self.node = node
+        self.parents = []
+        return self
+    self = __init__(node)
+
+    def __iter__():
+        return self
+    self.__iter__ = __iter__
+
+    def __next__():
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if self.node:
+                ret = self.node
+                self.parents.append(self.node)
+                self.node = self.node.getnext()
+                return ret
+
+            if not self.parents:
+                return StopIteration()
+            parent = self.parents.pop()
+            children = parent.getchildren()
+            self.node = children[0] if children else None
+    self.__next__ = __next__
+    return self
+
+
+# non standard factories
+def DocumentType(name, public_id, system_id, data):
+    """Doctype node
+
+    """
+    node = XMLNode(DocumentType)
+    node.text = name
+    node.public_id = public_id
+    node.system_id = system_id
+    node.data = data
+    node._name = "<!DOCTYPE>"
+    node.internalDTD = larky.property(lambda: data)
+    # print("DocumentType factory:", type(node))
+    return node
+
+
+def Document(encoding=None, standalone=None, version=None, doctype=None):
+    """Document
+    """
+    self = XMLNode(Document)
+    self.text = "DOCUMENT_ROOT"
+    self._name = "DOCUMENT_ROOT"
+    # nodeName = "#document"
+    self.encoding = encoding
+    self.standalone = standalone
+    self.version = version
+    self.set_doctype(doctype)
+
+    def xml_comment_factory(data):
+        node = Comment(data)
+        node._owner_doc = self
+        return node
+    self.xml_comment_factory = xml_comment_factory
+
+    def xml_processing_instruction_factory(target, text=None):
+        node = ProcessingInstruction(target, text=text)
+        node.attach_document(self)
+        return node
+    self.xml_processing_instruction_factory = xml_processing_instruction_factory
+
+    self.createComment = xml_comment_factory
+    self.createProcessingInstruction = xml_processing_instruction_factory
+
+    def xml_text_factory(data):
+        fail("not implemented")
+        # node = Text(data)
+        # node._owner_doc = self
+        # return node
+    self.xml_text_factory = xml_text_factory
+
+    # def xml_element_factory(ns, local):
+    #     node = XMLNode(ns, local)
+    #     node._owner_doc = self
+    #     return node
+
+    def createDocumentFragment():
+        fail("not implemented")
+    self.createDocumentFragment = createDocumentFragment
+
+    def createElement(tagName):
+        e = XMLNode(tagName)
+        e._owner_doc = self
+        return e
+    self.createElement = createElement
+
+    def createTextNode(data):
+        if not types.is_string(data):
+            fail("TypeError: node contents must be a string")
+        fail("not supported. use .text or .tail on XMLNode")
+        # t = XMLNode(tagName)
+        # t.data = data
+        # t.ownerDocument = self
+        # return t
+    self.createTextNode = createTextNode
+
+    def createCDATASection(data):
+        if not types.is_string(data):
+            fail("TypeError: node contents must be a string")
+        c = CDATA(data)
+        c._owner_doc = self
+        return c
+    self.createCDATASection = createCDATASection
+
+    def createAttribute(qName):
+        fail("not supported yet")
+        # a = Attr(qName)
+        # a.ownerDocument = self
+        # a.xml_value = ""
+        # return a
+    self.createAttribute = createAttribute
+
+    def createElementNS(namespaceURI, qualifiedName):
+        prefix, localName = _get_ns_tag(qualifiedName)
+        attrib = {'nsmap': {namespaceURI: prefix}}
+        e = XMLNode(qualifiedName, attrib)
+        e._owner_doc = self
+        return e
+    self.createElementNS = createElementNS
+
+    def createAttributeNS(namespaceURI, qualifiedName):
+        fail("not supported yet")
+        # prefix, localName = _get_ns_tag(qualifiedName)
+        # a = Attr(qualifiedName, namespaceURI, localName, prefix)
+        # a.ownerDocument = self
+        # a.xml_value = ""
+        # return a
+    self.createAttributeNS = createAttributeNS
+
+    # A couple of implementation-specific helpers to create node types
+    # not supported by the W3C DOM specs:
+
+    # def _create_entity(self, name, publicId, systemId, notationName):
+    #     e = Entity(name, publicId, systemId, notationName)
+    #     e.ownerDocument = self
+    #     return e
+    #
+    # def _create_notation(self, name, publicId, systemId):
+    #     n = Notation(name, publicId, systemId)
+    #     n.ownerDocument = self
+    #     return n
+
+    # print("Document factory:", type(node))
+    return self
+
+
 XMLTreeNode = larky.struct(
     __name__='XMLTreeNode',
     get_ns_tag=_get_ns_tag,
     get_ns=_get_ns,
     namespaced_name_from_ns_name=_namespaced_name_from_ns_name,
     tag_matches=_tag_matches,
-    ELEMENT_TYPES=_ELEMENT_TYPES,
+    ELEMENT_TYPES=ELEMENT_TYPES,
     iselement=iselement,
     getelementpath=getelementpath,
     XMLNode=XMLNode,
     Comment=Comment,
     ProcessingInstruction=ProcessingInstruction,
+    DocumentType=DocumentType,
+    Document=Document,
 )

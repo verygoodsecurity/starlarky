@@ -6,11 +6,12 @@ load("@vendor//asserts", "asserts")
 load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
 
 
-def load_xml(xml):
+def load_xml(xml, parser=None):
     if types.is_bytelike(xml):
         xml = xml.decode('utf-8')
     f = StringIO(xml)
-    parser = SimpleXMLTreeBuilder.TreeBuilder()
+    if not parser:
+        parser = SimpleXMLTreeBuilder.TreeBuilder()
     # remove_blank_text=True
     # remove_comments=True
     # resolve_entities=False
@@ -18,8 +19,8 @@ def load_xml(xml):
     return etree.parse(f, parser=parser).getroot()
 
 
-def parse_xml(name):
-    return load_xml(name)
+def parse_xml(name, parser=None):
+    return load_xml(name, parser=parser)
 
 
 def xp(node, xpath, ns):
