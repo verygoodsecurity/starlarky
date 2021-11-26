@@ -8,13 +8,15 @@ LOG_PARAM = "-l"
 INPUT_PARAM = "-i"
 OUTPUT_PARAM = "-o"
 SCRIPT_PARAM = "-s"
+DEBUG_PARAM = "-d"
+DEBUG_PORT_PARAM = "-p"
 
 
 class Evaluator:
     def __init__(self, script_data: str):
         self.script_data = script_data
 
-    def evaluate(self, input_data: str) -> str:
+    def evaluate(self, input_data: str, debug: bool = False, debug_port: int = 7300) -> str:
         with tempfile.NamedTemporaryFile(mode="w+") as output_file:
             with tempfile.NamedTemporaryFile(
                 mode="w+"
@@ -23,17 +25,16 @@ class Evaluator:
                 input_file.write(input_data)
                 script_file.flush()
                 input_file.flush()
-                self.__evaluate(script_file.name, input_file.name, output_file.name)
+                self.__evaluate(script_file.name, input_file.name, output_file.name, debug, debug_port)
             output_file.flush()
             return output_file.read()
 
-    def __evaluate(self, script_path, input_path, output_path):
+    def __evaluate(self, script_path, input_path, output_path, debug, debug_port):
         try:
             with tempfile.NamedTemporaryFile(mode="w+") as log_file:
                 proc = subprocess.Popen(
                     [
                         RUNNER_EXECUTABLE,
-                        "-d",
                         INPUT_PARAM,
                         input_path,
                         OUTPUT_PARAM,
@@ -42,6 +43,7 @@ class Evaluator:
                         script_path,
                         LOG_PARAM,
                         log_file.name,
+                        f"{DEBUG_PARAM} {DEBUG_PORT_PARAM} {debug_port}" if debug else ""
                     ],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
