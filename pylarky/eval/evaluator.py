@@ -43,7 +43,9 @@ class Evaluator:
                         script_path,
                         LOG_PARAM,
                         log_file.name,
-                        f"{DEBUG_PARAM} {DEBUG_PORT_PARAM} {debug_port}" if debug else ""
+                        DEBUG_PARAM if debug else "",
+                        DEBUG_PORT_PARAM if debug else "",
+                        debug_port if debug else "",
                     ],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
