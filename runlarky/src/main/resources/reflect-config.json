@@ -342,14 +342,6 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.HashModule"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.JsonModule"
   },
   {
@@ -471,14 +463,6 @@
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.crypto.CryptoIOModule"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.crypto.CryptoJWEModule"
   },
   {
       "allDeclaredFields": true,
@@ -710,39 +694,7 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.types.ByteArray"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.types.LarkyByte"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.types.LarkyByteArray"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.types.LarkyByteElems"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.types.LarkyByteLike"
   },
   {
       "allDeclaredFields": true,
@@ -775,14 +727,6 @@
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.types.PyProtocols"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.types.hashing.HashObject"
   },
   {
       "allDeclaredFields": true,

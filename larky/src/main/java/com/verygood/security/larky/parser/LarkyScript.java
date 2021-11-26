@@ -31,7 +31,9 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.syntax.FileOptions;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -123,6 +125,12 @@ public class LarkyScript {
     Module module = new LarkyEvaluator(this, moduleSet, console).eval(content);
     starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
     return module;
+  }
+
+  public Object executeSkylarkWithOutput(File file, ModuleSet moduleSet, Console console)
+      throws IOException, EvalException, InterruptedException {
+    StarFile content = new PathBasedStarFile(Path.of(file.getPath()), null, null);
+    return executeSkylarkWithOutput(content, moduleSet, console);
   }
 
   public Object executeSkylarkWithOutput(StarFile content, ModuleSet moduleSet, Console console)

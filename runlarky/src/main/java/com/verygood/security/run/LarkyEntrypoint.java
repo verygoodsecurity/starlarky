@@ -6,6 +6,7 @@ import com.google.devtools.build.lib.events.Reporter;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -46,7 +47,9 @@ import io.quarkus.runtime.annotations.QuarkusMain;
 import lombok.SneakyThrows;
 
 @QuarkusMain
-public class LarkyEntrypoint implements QuarkusApplication {
+public class LarkyEntrypoint
+    implements QuarkusApplication
+{
 
   //REPL
   private static final String START_PROMPT = ">> ";
@@ -67,6 +70,7 @@ public class LarkyEntrypoint implements QuarkusApplication {
   @SneakyThrows
   @Override
   public int run(String... args) {
+//  public static void main(String[] args) {
     if (args.length == 0) {
       readEvalPrintLoop();
     } else {
@@ -74,6 +78,7 @@ public class LarkyEntrypoint implements QuarkusApplication {
       if (!commandLine.hasOption('s') || !commandLine.hasOption('o') || !commandLine.hasOption('l')) {
         System.out.println("Usage: larky-runer -s script_file -o output_file -l log_file -i input_param_file");
         return 1;
+//        return;
       }
       execute(commandLine);
     }
@@ -83,6 +88,7 @@ public class LarkyEntrypoint implements QuarkusApplication {
 
   @SneakyThrows
   private static void execute(CommandLine commandLine) {
+    final File tempFile = File.createTempFile("merge", ".star");
     String outputPath = commandLine.getOptionValue('o');
     String script = readFile(commandLine.getOptionValue('s'));
     boolean debug = commandLine.hasOption("d");
@@ -97,21 +103,28 @@ public class LarkyEntrypoint implements QuarkusApplication {
 
     PrependMergedStarFile prependMergedStarFile = new PrependMergedStarFile(input, script);
 
-    Files.write(Path.of("/tmp/file-merged.out"), prependMergedStarFile.readContentBytes(), StandardOpenOption.CREATE_NEW);
+    Files.write(Path.of(tempFile.getPath()), prependMergedStarFile.readContentBytes(), StandardOpenOption.WRITE);
+//    Files.write(Path.of("/tmp/file-merged.out"), prependMergedStarFile.readContentBytes(), StandardOpenOption.CREATE_NEW);
 
     if (debug) {
+      int port = commandLine.hasOption("p") ? Integer.parseInt(commandLine.getOptionValue("p")) : 7300;
       Reporter reporter = new Reporter(new EventBus());
-      StarlarkDebuggerModule.initializeDebugging(reporter, 7300, true);
-      System.err.println("==================================");
-      System.err.println(new String(prependMergedStarFile.readContentBytes()));
-      System.err.println("==================================");
+      StarlarkDebuggerModule.initializeDebugging(reporter, port, true);
+//      System.err.println("==================================");
+//      System.err.println(new String(prependMergedStarFile.readContentBytes()));
+//      System.err.println("==================================");
     }
 
     Console console = new FileConsole(CapturingConsole.captureAllConsole(
         LogConsole.writeOnlyConsole(System.out, true)), Path.of(logPath), Duration.ZERO);
 
+//    String output = new LarkyScript(StarlarkMode.STRICT)
+//        .executeSkylarkWithOutput(prependMergedStarFile,
+//            new ModuleSupplier().create(), console)
+//        .toString();
+
     String output = new LarkyScript(StarlarkMode.STRICT)
-        .executeSkylarkWithOutput(prependMergedStarFile,
+        .executeSkylarkWithOutput(tempFile,
             new ModuleSupplier().create(), console)
         .toString();
 
@@ -189,6 +202,7 @@ public class LarkyEntrypoint implements QuarkusApplication {
     options.addOption("o", "output", true, "Output parameters");
     options.addOption("l", "log", true, "Log output");
     options.addOption("d", "debug", false, "Verbose merged script");
+    options.addOption("p", "debug-port", true, "Debug port");
     CommandLineParser parser = new DefaultParser();
     return parser.parse(options, args);
   }
