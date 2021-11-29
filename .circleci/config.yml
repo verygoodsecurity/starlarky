@@ -284,6 +284,9 @@ workflows:
       - build-dist-linux:
           requires:
             - build-and-test
+      - build-dist-macos:
+          requires:
+            - build-and-test
 
   release:
     jobs:
@@ -317,6 +320,7 @@ workflows:
               ignore: /.*/
           requires:
             - build-dist-linux
+            - build-dist-macos
       - publish-to-pypi:
           filters:
             tags:
@@ -325,4 +329,4 @@ workflows:
               ignore: /.*/
           requires:
             - build-dist-linux
-
+            - build-dist-macos
