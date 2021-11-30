@@ -10,8 +10,8 @@ class HttpEvaluator(Evaluator):
     def __init__(self, script):
         super().__init__(script)
 
-    def evaluate(self, http_message: HttpMessage) -> HttpMessage:
-        modified_message = super().evaluate(http_message.to_starlark())
+    def evaluate(self, http_message: HttpMessage, debug: bool = False, debug_port: int = 7300) -> HttpMessage:
+        modified_message = super().evaluate(http_message.to_starlark(), debug, debug_port)
         struct_pattern = \
             r"""^.*url = \"(?P<url>.*)\", data = \"(?P<data>.*)\", headers = (?P<headers>.*), o.*"""
         match = re.search(struct_pattern, modified_message)
