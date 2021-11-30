@@ -45,7 +45,7 @@ class Evaluator:
                         log_file.name,
                         DEBUG_PARAM if debug else "",
                         DEBUG_PORT_PARAM if debug else "",
-                        debug_port if debug else "",
+                        str(debug_port) if debug else "",
                     ],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
