@@ -9,7 +9,7 @@ load("@stdlib//unittest", "unittest")
 load("@stdlib//xml/etree/ElementTree", QName="QName", ElementTree="ElementTree")
 
 load("@vendor//asserts", "asserts")
-load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
+load("@vendor//elementtree/AdvancedXMLTreeBuilder", AdvancedXMLTreeBuilder="AdvancedXMLTreeBuilder")
 load("@vendor//elementtree/ElementC14N", ElementC14N="ElementC14N")
 load("@vendor//_etreeplus/C14NParser", C14NParser="C14NParser")
 load("@vendor//_etreeplus/xmlwriter", xmlwriter="xmlwriter")
@@ -158,7 +158,7 @@ test_results = {
 
 
 def test_c14n_1():
-    parser = SimpleXMLTreeBuilder.TreeBuilder(
+    parser = AdvancedXMLTreeBuilder.TreeBuilder(
         element_factory=XMLTreeNode.XMLNode,
         capture_event_queue=True,
         doctype_factory=XMLTreeNode.DocumentType,
@@ -176,8 +176,20 @@ def test_c14n_1():
     print(base64.b64decode((test_results[eg1])))
 
 
+def test_c14n_2():
+    builder = XMLTreeNode.TreeBuilder(debug=True)
+    tree = builder.fromstring(eg1)
+    # root = load_xml(eg1, parser=parser)
+    # tree = xmltree.XMLTree(root)
+    print(xmltree.tostring(tree))
+    print("--" * 50)
+    print(xmltree.tostring(tree, method='c14n'))
+    print("--" * 50)
+    print(base64.b64decode((test_results[eg1])))
+
+
 def test_xmlsig_sign_case1():
-    parser = SimpleXMLTreeBuilder.TreeBuilder(
+    parser = AdvancedXMLTreeBuilder.TreeBuilder(
         element_factory=XMLTreeNode.XMLNode,
         capture_event_queue=True,
         doctype_factory=XMLTreeNode.DocumentType,
@@ -323,7 +335,9 @@ def test_xmlsig_sign_case1():
 
 def _suite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(test_c14n_1))
+    # _suite.addTest(unittest.FunctionTestCase(test_c14n_1))
+    _suite.addTest(unittest.FunctionTestCase(test_c14n_2))
+
     return _suite
 
 

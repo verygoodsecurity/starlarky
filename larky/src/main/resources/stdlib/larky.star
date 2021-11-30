@@ -92,10 +92,11 @@ def _impl_function_name(f):
     # that knowledge to parse the "NAME" portion out. If this behavior ever
     # changes, we'll need to update this.
     # TODO(bazel-team): Expose a ._name field on functions to avoid this.
-    cls_type = str(f)
-    if 'built-in' in cls_type or '<function ' in cls_type:
-        cls_type = cls_type.split(" ")[-1].rpartition(">")[0]
-    return cls_type
+    return _func_name(f)
+    # cls_type = str(f)
+    # if 'built-in' in cls_type or '<function ' in cls_type:
+    #     cls_type = cls_type.split(" ")[-1].rpartition(">")[0]
+    # return cls_type
 
 
 def _is_instance(instance, some_class_or_factory):

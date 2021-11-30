@@ -102,7 +102,7 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
     p.append("(");
     String sep = "";
     for (Map.Entry<String, Object> e : fields.entrySet()) {
-      p.append(sep).append(e.getKey()).append(" = ").debugPrint(e.getValue());
+      p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue());
       sep = ", ";
     }
     p.append(")");

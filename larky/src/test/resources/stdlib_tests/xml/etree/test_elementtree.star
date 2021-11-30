@@ -11,6 +11,7 @@ load("@vendor//_etreeplus/xmltree", xmltree="xmltree")
 load("@vendor//_etreeplus/xmltreenode", XMLTreeNode="XMLTreeNode")
 load("@vendor//asserts", "asserts")
 load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
+load("@vendor//elementtree/AdvancedXMLTreeBuilder", AdvancedXMLTreeBuilder="AdvancedXMLTreeBuilder")
 
 
 def _bytes(s):
@@ -564,6 +565,7 @@ def _test_ns_events():
     # assert that we clear events
     asserts.assert_that(len(list(parser.read_events()))).is_equal_to(0)
 
+# the below is not standard in python
 
 def _test_doctype_parser():
     # https://github.com/lxml/lxml/blob/ea954da3c87bd8f6874f6bf4203e2ef5269ea383/src/lxml/tests/selftest.py#L458-L474
@@ -571,10 +573,14 @@ def _test_doctype_parser():
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "sys.dtd">
 <html><body></body></html>
     """
-    parser = SimpleXMLTreeBuilder.TreeBuilder(
+    parser = AdvancedXMLTreeBuilder.TreeBuilder(
         element_factory=XMLTreeNode.XMLNode,
         capture_event_queue=True,
         doctype_factory=XMLTreeNode.DocumentType,
+        document_factory=XMLTreeNode.Document,
+        comment_factory=XMLTreeNode.Comment,
+        insert_comments=True,
+        insert_pis=True,
     )
     data = normalize_ws(full_doctype)
     tree = parse(data, parser)
@@ -607,7 +613,7 @@ def _test_doctype_internal():
     ]>
     <b><a/></b>
     """
-    parser = SimpleXMLTreeBuilder.TreeBuilder(
+    parser = AdvancedXMLTreeBuilder.TreeBuilder(
         element_factory=XMLTreeNode.XMLNode,
         capture_event_queue=True,
         doctype_factory=XMLTreeNode.DocumentType,

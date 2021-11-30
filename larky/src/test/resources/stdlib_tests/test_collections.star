@@ -47,10 +47,18 @@ def _test_namedtuple_replace():
     asserts.assert_that( q.y ).is_equal_to(1)
 
 
+def _test_deque_simple():
+    d = collections.deque([1, 6, 2, 4])
+    asserts.assert_that(list(d)).is_equal_to([1, 6, 2, 4])
+    d = d.__reversed__()
+    asserts.assert_that(list(d)).is_equal_to(list(reversed([1, 6, 2, 4])))
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_namedtuple))
     _suite.addTest(unittest.FunctionTestCase(_test_namedtuple_replace))
+    _suite.addTest(unittest.FunctionTestCase(_test_deque_simple))
     return _suite
 
 

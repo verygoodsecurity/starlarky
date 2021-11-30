@@ -144,6 +144,7 @@ def _implementation(node, write, **kw):
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if not queue:
                 break
+            print("queue: ", queue)
             state, payload = queue.pop(0)
             if state == _SerializeState.PRE:
                 level, child = payload
@@ -171,20 +172,23 @@ def _implementation(node, write, **kw):
                     new_state = self._do_element(child)
                     if child.text:  # b/c we do not have "text" nodes..
                         handlers["Text"](child)
+                    if child.tail:
+                        print("child has tail: %r, %s" % (child, child.tail))
                     children = [
                         (_SerializeState.PRE, (level + 1, c))
                         for c in child
                     ]
-                    if children:
-                        stack.append(self.state)
-                        self.state = new_state
+                    # if children:
+                    #     stack.append(self.state)
+                    #     self.state = new_state
                     children.append((_SerializeState.POST, child)) # post visit
+                    stack.append(self.state)
+                    self.state = new_state
                     queue = children + queue
-                    self.documentOrder = _GreaterElement # After document element
                 else:
                     fail('TypeError: %s (child: %r)' % (type(child), child))
             elif state == _SerializeState.POST:
-        # Push state, recurse, pop state.
+                # Push state, recurse, pop state.
                 if stack:
                     state = stack.pop()
                     self.state = state
@@ -193,6 +197,8 @@ def _implementation(node, write, **kw):
                     self._do_tail(child)
                 if child.name:
                     self.write('</%s>' % child.name)
+                self.documentOrder = _GreaterElement # After document element
+
     self._do_document = _do_document
     handlers["Document"] = _do_document
     handlers["XMLTree"] = _do_document

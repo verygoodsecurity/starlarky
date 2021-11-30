@@ -244,7 +244,7 @@ def XMLTree(root=None):
         """
         self._root = root
         self._doc = getattr(root, "owner_doc", None)  # for lxml compatibility purposes
-        # print("setting root!", repr(root), "document:", repr(self._doc))
+        print("setting root!", repr(root), "document:", repr(self._doc))
     self._setroot = _setroot
 
     def __init__(root):

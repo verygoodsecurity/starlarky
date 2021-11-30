@@ -12,7 +12,7 @@ load("@vendor//cryptography/hazmat/backends", default_backend="default_backend")
 load("@vendor//cryptography/hazmat/primitives", serialization="serialization")
 load("@vendor//cryptography/hazmat/primitives/serialization", serialization="serialization")
 load("@vendor//cryptography/x509", load_pem_x509_certificate="load_pem_x509_certificate")
-load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
+load("@vendor//elementtree/AdvancedXMLTreeBuilder", AdvancedXMLTreeBuilder="AdvancedXMLTreeBuilder")
 load("@vendor//elementtree/ElementC14N", ElementC14N="ElementC14N")
 load("@vendor//_etreeplus/C14NParser", C14NParser="C14NParser")
 load("@vendor//_etreeplus/xmlwriter", xmlwriter="xmlwriter")
@@ -59,7 +59,7 @@ def find_node_by_attribute(nodes, attribute, value):
 
 
 def test_xmlsig_sign_case1():
-    parser = SimpleXMLTreeBuilder.TreeBuilder(
+    parser = AdvancedXMLTreeBuilder.TreeBuilder(
         element_factory=XMLTreeNode.XMLNode,
         capture_event_queue=True,
         doctype_factory=XMLTreeNode.DocumentType,

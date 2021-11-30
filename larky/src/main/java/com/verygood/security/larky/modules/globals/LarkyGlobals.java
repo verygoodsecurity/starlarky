@@ -1,5 +1,7 @@
 package com.verygood.security.larky.modules.globals;
 
+import java.util.List;
+
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
 import com.verygood.security.larky.modules.types.LarkyCounter;
@@ -160,5 +162,27 @@ public final class LarkyGlobals {
         .fget(getter)
         .fset(setter != Starlark.NONE ? (StarlarkCallable) setter : null)
         .build();
+  }
+
+  @StarlarkMethod(
+        name = "_func_name",
+        parameters = {@Param(name="obj")},
+        useStarlarkThread = true)
+  public String funcName(StarlarkValue obj, StarlarkThread thread) {
+    if(obj instanceof StarlarkCallable) {
+      return ((StarlarkCallable) obj).getName();
+    }
+    return Starlark.type(obj);
+  }
+
+  @StarlarkMethod(
+        name = "stacktrace",
+        useStarlarkThread = true)
+  public void stacktrace(StarlarkThread thread) {
+    List<StarlarkThread.CallStackEntry> stack = thread.getCallStack();
+    stack = stack.subList(0, stack.size() - 1); // pop the built-in function
+    for (StarlarkThread.CallStackEntry fr : stack) {
+      System.err.printf("%s: called from %s\n", fr.location, fr.name);
+    }
   }
 }

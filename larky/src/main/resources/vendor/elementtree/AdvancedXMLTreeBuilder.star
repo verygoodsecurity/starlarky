@@ -14,6 +14,7 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//xmllib", xmllib="xmllib")
 load("@stdlib//string", string="string")
 load("@vendor//option/result", Ok="Ok")
+load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
 
 
 def fixname(name, split=None):
@@ -38,7 +39,7 @@ __fakequeue = larky.struct(append=__fake_append)
 # @see elementtree.ElementTree
 
 # builder is equivalent to "target"
-def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_queue=False, **options):
+def TreeBuilder(element_factory=None, parser=None, capture_event_queue=False, **options):
     """
     Use like follows::
 
@@ -49,6 +50,7 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
         )
         self.__class__ = 'SimpleXMLTreeBuilder.TreeBuilder'
     """
+    builder = options.pop('builder', ElementTree.TreeBuilder)
     if not builder:
         fail("Cannot instantiate builder. Have you tried passing in " +
              "ElementTree.TreeBuilder?")
@@ -57,11 +59,16 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
         if not parser:
             parser = xmllib.XMLParser()
         self = parser
-        self.__name__ = '_SimpleXMLTreeBuilder.TreeBuilderHelper'
-        self.__class__ = TreeBuilderHelper
+        self.__name__ = 'AdvancedXMLTreeBuilder.TreeBuilder'
+        self.__class__ = TreeBuilder
         self.__target_cls = builder
         self.__element_factory = element_factory
         self.__options = options
+        self._initial_comments = []
+        self._doctype = None
+        self._document = None
+        self._pop_elem_tag = False
+        self.unfed_so_far = True
         self._events_queue = [] if capture_event_queue else __fakequeue
         self.target = self.__target_cls(self.__element_factory, **self.__options)
         return self
@@ -73,6 +80,10 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
     # @param data Encoded data.
     XMLParser_feed = self.feed
     def feed(data):
+        if self.unfed_so_far:
+            self.document()
+            self.unfed_so_far = False
+
         XMLParser_feed(data)
     self.feed = feed
 
@@ -83,9 +94,27 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
     # @defreturn Element
     XMLParser_close = self.close
     def close():
+        # if self._pop_elem_tag:
+        #     _document = self._builder()._elem.pop()
+        #     if _document != self._document:
+        #         fail("missing end tags")
         XMLParser_close()
         root = self.target.close()
+        self._document.append(root)
+        print('close()', root.getparent() != None, repr(self._document), root.owner_doc == self._document)
+        # print(repr(root.owner_doc), root.owner_doc.getchildren())
+        # if self._document:
+        #     if self._initial_comments:
+        #         # Append the initial comments:
+        #         for c in self._initial_comments:
+        #             self._document.append(c)
+        #         self._initial_comments.clear()
+        #     self._document.append(root, reparent=False)
+        #     root.attach_document(self._document)
+            # print(root.getparent(), repr(self._document), root.owner_doc == self._document)
         self.target = None
+        self._document = None
+        self._pop_elem_tag = False
         return root
     self.close = close
 
@@ -96,8 +125,8 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
     self._builder = _builder
 
     def handle_data(data):
-        # if self._builder()._last:
-        #     print("current tag:", self._builder()._last.nodetype(), "data:", repr(data))
+        if self._builder()._last:
+            print("current tag:", self._builder()._last.nodetype(), "data:", repr(data))
         self._builder().data(data)
     self.handle_data = handle_data
 
@@ -120,12 +149,19 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
 
     def handle_comment(data):
         r = self._builder().comment(data)
+        r.attach_document(self._document)
+        if not self._builder()._root:
+            self._document.append(r)
+            # self.insert_comment_initial(r)
         self._events_queue.append(("comment", r.tag))
     self.handle_comment = handle_comment
 
     # Example -- handle processing instructions, could be overridden
     def handle_proc(name, data):
         r = self._builder().pi(name, text=data)
+        r.attach_document(self._document)
+        if not self._builder()._root:
+            self._document.append(r)
         self._events_queue.append(("pi", r.tag))
     self.handle_proc = handle_proc
 
@@ -133,11 +169,9 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
     XMLParser_handle_xml = self.handle_xml
 
     def handle_xml(encoding, standalone):
-        self.document(encoding=encoding, standalone=standalone)
-        # if not self._builder()._root:
-        #     self._builder()._root = self._document
-        #     self._builder()._elem.append(self._document)
-        #     self._pop_elem_tag = True
+        self._document.encoding = encoding
+        self._document.standalone = standalone
+        # self.document(encoding=encoding, standalone=standalone)
     self.handle_xml = handle_xml
 
     def doctype(name, pubid, system, data):
@@ -148,13 +182,10 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
         - *system* is the system identifier.
         - *data* is internal/external dtd
         """
-        doctype_factory = self.__options.pop('doctype_factory', None)
+        doctype_factory = self.__options.get('doctype_factory', None)
         if doctype_factory:
             _doctype = doctype_factory(name, pubid, system, data)
-            if not self._document:
-                self.document(doctype=_doctype)
-            else:
-                self._document.set_doctype(_doctype)
+            self._document.set_doctype(_doctype)
             # if hasattr(self._builder(), '_handle_single'):
             #     self.__doctype = self._builder()._handle_single(
             #         doctype_factory, True, name, pubid, system, data
@@ -163,7 +194,7 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
 
     def document(encoding=None, standalone=None, version=None, doctype=None):
         # print("document() repr", repr(self.__element_factory))
-        document_factory = self.__options.pop('document_factory', None)
+        document_factory = self.__options.get('document_factory', None)
         if document_factory:
             if not doctype:
                 doctype = self._doctype
@@ -173,6 +204,10 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
                 version=version,
                 doctype=doctype
             )
+            # if not self._builder()._root:
+            #     self._builder()._root = self._document
+            #     self._builder()._elem.append(self._document)
+                # self._pop_elem_tag = True
             # if hasattr(self._builder(), '_handle_single'):
             #     self.__doctype = self._builder()._handle_single(
             #         doctype_factory, True, name, pubid, system, data
@@ -200,6 +235,7 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
     def handle_starttag(tag, method, attrs):
         # method(attrs)
         r = XMLParser_handle_starttag(tag, method, attrs)
+        r.attach_document(self._document)
         self._events_queue.append(("start", r.tag))
     self.handle_starttag = handle_starttag
 
@@ -208,6 +244,7 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
 
     def handle_endtag(tag, method):
         r = XMLParser_handle_endtag(tag, method)
+        r.attach_document(self._document)
         self._events_queue.append(("end", r.tag))
     self.handle_endtag = handle_endtag
 
@@ -255,6 +292,7 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
         for key, value in attrs.items():
             attrib[fixname(key)] = value
         r = self._builder().start(fixname(tag), attrib)
+        r.attach_document(self._document)
         self._events_queue.append(
             ("start", r.tag)
         )
@@ -262,6 +300,9 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
 
     def unknown_endtag(tag):
         r = self._builder().end(fixname(tag))
+        r.attach_document(self._document)
+        if not self._builder()._root:
+            self._document.append(r)
         self._events_queue.append(
             ("end", r.tag)
         )
@@ -289,8 +330,30 @@ def TreeBuilderHelper(builder, element_factory=None, parser=None, capture_event_
     return self
 
 
-SimpleXMLTreeBuilderHelper = larky.struct(
-    __name__='_SimpleXMLTreeBuilderHelper',
-    TreeBuilderHelper=TreeBuilderHelper,
+AdvancedXMLTreeBuilder = larky.struct(
+    __name__='AdvancedXMLTreeBuilder',
+    TreeBuilder=TreeBuilder,
     fixname=fixname,
 )
+
+# ##
+# # ElementTree builder for XML source data.
+# #
+# # @see elementtree.ElementTree
+#
+# def TreeBuilder(element_factory=None, **options):
+#     self = _SimpleXMLTreeBuilderHelper.TreeBuilderHelper(
+#         ElementTree.TreeBuilder,
+#         element_factory=element_factory,
+#         parser=options.pop('parser', xmllib.XMLParser()),
+#         capture_event_queue=options.pop('capture_event_queue', False),
+#         **options
+#     )
+#     self.__class__ = 'SimpleXMLTreeBuilder.TreeBuilder'
+#     return self
+
+
+# SimpleXMLTreeBuilder = larky.struct(
+#     TreeBuilder=TreeBuilder,
+#     fixname=fixname,
+# )

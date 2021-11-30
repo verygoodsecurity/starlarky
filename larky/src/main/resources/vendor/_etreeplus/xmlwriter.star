@@ -437,6 +437,12 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                 for n in reversed(node):
                     q.insert(0, (n, dict(**namespaces), node))
                 continue
+            elif write_complete_document and tag_type == 'DocumentType':
+                # comments are not parsed by ElementTree!
+                self.write_doctype(node)
+                if (write_complete_document or with_tail) and node.tail:
+                    self.write_content(node.tail)
+                continue
             elif write_complete_document and tag_type == 'Comment':
                 # comments are not parsed by ElementTree!
                 self.write_comment(node)

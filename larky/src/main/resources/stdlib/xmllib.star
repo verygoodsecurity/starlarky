@@ -1,5 +1,6 @@
 """A parser for XML, using the derived class as static DTD."""
 
+load("@stdlib//_markupbase", ParserBase="ParserBase")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
@@ -7,7 +8,7 @@ load("@stdlib//string", string="string")
 load("@stdlib//types", types="types")
 load("@vendor//option/result", safe="safe", try_="try_", Error="Error")
 
-version = '0.3'
+version = '0.3-larky'
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 # Regular expressions used for parsing
@@ -50,8 +51,11 @@ _PublicLiteral = '(?P<%s>"[-\'\\(\\)+,./:=?;!*#@$_%% \n\ra-zA-Z0-9]*"|' + \
 _ExternalId = '(?:SYSTEM|'+ \
                  'PUBLIC'+_S+_PublicLiteral%'pubid'+ \
               ')'+_S+_SystemLiteral%'syslit'
-doctype = re.compile('<!DOCTYPE'+_S+'(?P<name>'+_Name+')'+
-                     '(?:'+_S+_ExternalId+')?'+_opS)
+decltag = re.compile(r'<!')
+declDoctype = re.compile(r'DOCTYPE'+_S+'(?P<name>'+_Name+')' +
+                         '(?:'+_S+_ExternalId+')?'+_opS)
+doctype = re.compile(decltag.pattern + declDoctype.pattern)
+special = re.compile(decltag.pattern + '(?P<special>[^<>]*)>')
 xmldecl = re.compile(r'<\?xml'+_S+
                      'version'+_opS+'='+_opS+'(?P<version>'+_QStr+')'+
                      '(?:'+_S+'encoding'+_opS+'='+_opS+
@@ -78,7 +82,10 @@ xmlns = re.compile('xmlns(?::(?P<ncname>'+_NCName+'))?$')
 
 
 def XMLParser(**kw):
-    self = larky.mutablestruct(__class__='xmllib.XMLParser')
+    # self = larky.mutablestruct(__class__='xmllib.XMLParser')
+    self = ParserBase()
+    self.__name__ = 'XMLParser'
+    self.__class__ = XMLParser
 
     self.attributes = {}                     # default, to be overridden
     self.elements = {}                       # default, to be overridden
@@ -118,7 +125,9 @@ def XMLParser(**kw):
     self.__fixdict = __fixdict
 
     # Interface -- reset this instance.  Loses all unprocessed data
+    __ParserBase_reset = self.reset
     def reset():
+        __ParserBase_reset()
         self.rawdata = ''
         self.stack = []
         self.nomoretags = 0
@@ -358,23 +367,41 @@ def XMLParser(**kw):
                 res = doctype.match(rawdata, i)
                 if res:
                     if self.literal:
-                        data = rawdata[i]
-                        self.handle_data(data)
-                        self.lineno = self.lineno + data.count('\n')
-                        i = i+1
-                        continue
+                       data = rawdata[i]
+                       self.handle_data(data)
+                       self.lineno = self.lineno + data.count('\n')
+                       i = i+1
+                       continue
                     if self.__seen_doctype:
-                        self.syntax_error('multiple DOCTYPE elements')
+                       self.syntax_error('multiple DOCTYPE elements')
                     if self.__seen_starttag:
-                        self.syntax_error('DOCTYPE not at beginning of document')
+                       self.syntax_error('DOCTYPE not at beginning of document')
                     k = self.parse_doctype(res)
                     if k < 0: break
                     self.__seen_doctype = res.group('name')
                     if self.__map_case:
-                        self.__seen_doctype = self.__seen_doctype.lower()
+                       self.__seen_doctype = self.__seen_doctype.lower()
                     self.lineno = self.lineno + rawdata[i:k].count('\n')
                     i = k
                     continue
+                res = special.match(rawdata, i)
+                if res:
+                    if self.literal:
+                        data = rawdata[i]
+                        self.handle_data(data)
+                        self.lineno = self.lineno + string.count(data, '\n')
+                        i = i+1
+                        continue
+                    self.handle_special(res.group('special'))
+                    self.lineno = self.lineno + string.count(res.group(0), '\n')
+                    i = res.end(0)
+                    continue
+                # if rawdata.startswith("<!", i):
+                #     k = self.parse_declaration(i)
+                #     if k < 0: break
+                #     self.lineno = self.lineno + rawdata[i:k].count('\n')
+                #     i = k
+                #     continue
             elif rawdata[i] == '&':
                 if self.literal:
                     data = rawdata[i]
@@ -477,8 +504,28 @@ def XMLParser(**kw):
     self.parse_comment = parse_comment
 
     # Internal -- handle DOCTYPE tag, return length or -1 if not terminated
-    def parse_doctype(res):
-        rawdata = self.rawdata
+    def handle_decl(data):
+        res = declDoctype.match(data)
+        if not res:
+            fail("Not a doctype:", repr(data))
+        if self.literal:
+            data = data[0]
+            self.handle_data(data)
+            self.lineno = self.lineno + data.count('\n')
+            return
+        if self.__seen_doctype:
+            self.syntax_error('multiple DOCTYPE elements')
+        if self.__seen_starttag:
+            self.syntax_error('DOCTYPE not at beginning of document')
+        k = self.parse_doctype(res, rawdata=data)
+        self.__seen_doctype = res.group('name')
+        if self.__map_case:
+            self.__seen_doctype = self.__seen_doctype.lower()
+        return k   # should we call update_offset()?
+    self.handle_decl = handle_decl
+
+    def parse_doctype(res, rawdata=None):
+        rawdata = rawdata if rawdata else self.rawdata
         n = len(rawdata)
         name = res.group('name')
         if self.__map_case:
@@ -509,9 +556,26 @@ def XMLParser(**kw):
                 elif sq or dq:
                     pass
                 elif level <= 0 and c == ']':
-                    res = endbracket.match(rawdata, k+1)
-                    if res == None:
-                        return -1
+                    # print("level <= 0 and c == ']'")
+                    # print("k", k, "n", n)
+                    # if we snipped off the <> tags, if we passed in
+                    # a subset of `rawdata` to this function,
+                    # then it might be that we've come to the *end*
+                    # of the statement we're parsing.
+                    # let's check to see if that's the case by seeing
+                    # if k+1 == n, if it's not, then we continue with
+                    # the default behavior..
+                    if k+1 != n:
+                        res = endbracket.match(rawdata, k+1)
+                        if res == None:
+                            return -1
+                    # find first <!, if any
+                    # m = decltag.search(rawdata)
+                    # if m:
+                    #     decltype, j = self._scan_name(
+                    #         m.span()[1]+len(decltag.pattern),
+                    #         res.span()[0]
+                    #     )
                     self.handle_doctype(name, pubid, syslit, rawdata[j+1:k])
                     return res.end(0)
                 elif c == '<':
@@ -522,6 +586,7 @@ def XMLParser(**kw):
                         self.syntax_error("bogus `>' in DOCTYPE")
                 k = k+1
         res = endbracketfind.match(rawdata, k)
+        # print("res = endbracketfind.match(rawdata, k)")
         if res == None:
             return -1
         if endbracket.match(rawdata, k) == None:
@@ -554,6 +619,7 @@ def XMLParser(**kw):
         end = procclose.search(rawdata, i)
         if end == None:
             return -1
+        # j = end.end(0) - 2   # find the end "?>" and subtract the total #
         j = end.start(0)
         if not self.__accept_utf8 and illegal.search(rawdata, i+2, j):
             self.syntax_error('illegal character in processing instruction')
@@ -818,6 +884,11 @@ def XMLParser(**kw):
         pass
     self.handle_doctype = handle_doctype
 
+    # Example -- handle special instructions, could be overridden
+    def handle_special(data):
+        pass
+    self.handle_special = handle_special
+
     # Overridable -- handle start tag
     def handle_starttag(tag, method, attrs):
         method(attrs)
@@ -1001,5 +1072,6 @@ def TestXMLParser(**kw):
 
 xmllib = larky.struct(
     XMLParser=XMLParser,
-    TestXMLParser=TestXMLParser
+    TestXMLParser=TestXMLParser,
+    version=version
 )
