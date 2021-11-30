@@ -619,8 +619,9 @@ def XMLParser(**kw):
         end = procclose.search(rawdata, i)
         if end == None:
             return -1
-        # j = end.end(0) - 2   # find the end "?>" and subtract the total #
-        j = end.start(0)
+        j = end.end(0) - 2   # find the end "?>" and subtract the total #
+        # j = end.start(0)
+        print("procclose.search", repr(procclose.pattern), "start=", i, "span: ", end.span())
         if not self.__accept_utf8 and illegal.search(rawdata, i+2, j):
             self.syntax_error('illegal character in processing instruction')
         res = tagfind.match(rawdata, i+2)
@@ -656,7 +657,8 @@ def XMLParser(**kw):
         else:
             if name.lower() == 'xml':
                 self.syntax_error('illegal processing instruction target name')
-            self.handle_proc(name, rawdata[k:j])
+            # maintain spaces but strip spaces to the left from name
+            self.handle_proc(name, rawdata[k:j].lstrip())
         return end.end(0)
     self.parse_proc = parse_proc
 

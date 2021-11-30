@@ -2535,7 +2535,6 @@ __fakeq = larky.struct(append=lambda *args: None)
 # builder is equivalent to "target"
 
 
-
 def Comment(text=None):
     """Comment element factory.
 
@@ -2624,6 +2623,20 @@ def CDATA(data):
 #
 #     self.childNodes = larky.property(_getChildNodes)
 
+def Text(value):
+    """Text element factory.
+
+    This function creates a special element which the standard serializer
+    serializes as XML text comment.
+
+    *value* is a string containing the text, whitespace is ok.
+
+    """
+    self = XMLNode(Text)
+    self.text = value
+    self.data = value
+    return self
+
 
 def DocumentType(name, public_id, system_id, data):
     """Doctype node
@@ -2637,6 +2650,7 @@ def DocumentType(name, public_id, system_id, data):
     self.internalDTD = larky.property(lambda: data)
     self.text = "<!DOCTYPE>"
     return self
+
 
 def Document(encoding=None, standalone=None, version=None, doctype=None):
 
@@ -3188,6 +3202,7 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
     self.commentClass = options.pop('comment_factory', Comment)
     self.piClass = options.pop('pi_factory', ProcessingInstruction)
     self.debug = options.pop('debug', False)
+    self.ignorews = options.pop('ignorews', True)
     self._ev_q = [] if options.pop('capture_event_queue', False) else __fakeq
 
     def __init__(**options):
@@ -3244,12 +3259,6 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
             parent = self.elementStack[-1]
             self.insertProcessingInstruction(payload, parent)
             node = parent.last_child()
-            # if not self.seenRoot:
-            #     self.insertProcessingInstruction(payload, self.document)
-            #     node = self.document.last_child()
-            # else:
-            #     self.insertProcessingInstruction(payload)
-            #     node = self.openElements[-1].last_child()
             self.lastEvent[1] = [(ParserEvents.PROCESSING_INSTRUCTION, node), None]
             self.lastEvent = self.lastEvent[1]
         elif event == ParserEvents.COMMENT:
@@ -3257,12 +3266,6 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
             parent = self.elementStack[-1]
             self.insertComment(payload, parent)
             node = parent.last_child()
-            # if not self.seenRoot:
-            #     self.insertComment(payload, self.document)
-            #     node = self.document.last_child()
-            # else:
-            #     self.insertComment(payload)
-            #     node = self.openElements[-1].last_child()
             self.lastEvent[1] = [(ParserEvents.COMMENT, node), None]
             self.lastEvent = self.lastEvent[1]
         elif event == ParserEvents.START_ELEMENT:
@@ -3297,21 +3300,12 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
             # Text...can come before or after Element
             node = self.elementStack[-1]
             self.insertText(payload["data"], node)
-            # else:
-            #     self.insertText(payload["data"])
-            #     node = self.openElements[-1]
             self.lastEvent[1] = [(ParserEvents.CHARACTERS, node), None]
             self.lastEvent = self.lastEvent[1]
         elif event == ParserEvents.CDATA:
             # <![CDATA[ ..>  => CDATA
             node = self.elementStack[-1]
             self.insertText(payload["data"], node)
-            # if not self.seenRoot:
-            #     self.insertText(payload["data"], self.document)
-            #     node = self.document
-            # else:
-            #     self.insertText(payload["data"])
-            #     node = self.openElements[-1]
             self.lastEvent[1] = [(ParserEvents.CDATA, node), None]
             self.lastEvent = self.lastEvent[1]
         elif event == ParserEvents.SPACE:
@@ -3319,14 +3313,10 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
             #   in attribute values
             #   CDATA sections
             #   comments
+            if self.ignorews:
+                return
             node = self.elementStack[-1]
             self.insertText(payload["data"], node)
-            # if not self.seenRoot:
-            #     self.insertText(payload["data"], self.document)
-            #     node = self.document
-            # else:
-            #     self.insertText(payload["data"])
-            #     node = self.openElements[-1]
             self.lastEvent[1] = [(ParserEvents.SPACE, node), None]
             self.lastEvent = self.lastEvent[1]
         # ignore the below events

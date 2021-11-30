@@ -144,11 +144,11 @@ def _implementation(node, write, **kw):
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if not queue:
                 break
-            print("queue: ", queue)
+            # print("queue: ", queue)
             state, payload = queue.pop(0)
             if state == _SerializeState.PRE:
                 level, child = payload
-                print("!!!", type(child), "==>", child.nodetype())
+                # print("!!!", type(child), "==>", child.nodetype())
             # for child in node.iter():
                 if child.nodetype() == 'Document':
                     if child != node:
@@ -172,8 +172,6 @@ def _implementation(node, write, **kw):
                     new_state = self._do_element(child)
                     if child.text:  # b/c we do not have "text" nodes..
                         handlers["Text"](child)
-                    if child.tail:
-                        print("child has tail: %r, %s" % (child, child.tail))
                     children = [
                         (_SerializeState.PRE, (level + 1, c))
                         for c in child
@@ -386,7 +384,7 @@ def _implementation(node, write, **kw):
 
         # Processing state.
         self.state = (nsdict, {'xml':''}, {})  #0422
-        print("xxxxx", type(node), "==>", node.nodetype())
+        # print("xxxxx", type(node), "==>", node.nodetype())
         if node.nodetype() == 'Document':
             self._do_document(node)
         elif type(node) in ('Element', 'XMLNode',):
