@@ -362,8 +362,9 @@ def XMLNode(tag, attrib=None, **extra):
         self._children = []
         self._flags = []
 
-        self.text = None
-        self.tail = None
+        self.data = None
+        # self.text = None
+        # self.tail = None
 
         self._owner_doc = None
         self._doctype = None
@@ -412,8 +413,10 @@ def XMLNode(tag, attrib=None, **extra):
         # A list of miscellaneous flags that can be set on the node.
         self._flags = []
 
-        self.text = None
-        self.tail = None
+        # self.text = None
+        # self.tail = None
+        # Raw data representing the underlying node data
+        self.data = self.attrib.pop('data', None)
 
         self._doctype = None
         self._owner_doc = None
@@ -428,7 +431,7 @@ def XMLNode(tag, attrib=None, **extra):
     self.unprefixed_name = larky.property(lambda: self._name)
     self.href = larky.property(lambda: self._href)
     self.parent = larky.property(lambda: self.__parent)
-    self._index = larky.property(lambda: self.__parent.index(self))
+    self._index = larky.property(lambda: self.parent.index(self) if self.parent else 0)
 
     def _owner_document():
         """Document: An associated document."""
@@ -446,6 +449,9 @@ def XMLNode(tag, attrib=None, **extra):
             doc = current._owner_doc
         return None
     self.owner_doc = larky.property(_owner_document)
+    # aliased
+    self._doc = larky.property(_owner_document)
+    self.doc = larky.property(_owner_document)
 
     def _build_nsmap():
         """
@@ -501,6 +507,7 @@ def XMLNode(tag, attrib=None, **extra):
         """ Set value of the Node, or the text
         @param value Any value
         """
+        fail("do not call")
         self.text = "%s%s" % ('' if not self.text else self.text, value)
 
     self.appendvalue = appendvalue
@@ -509,6 +516,7 @@ def XMLNode(tag, attrib=None, **extra):
         """ Set value of the Node, or the text
         @param value Any value
         """
+        fail("do not call")
         self.text = value
 
     self.setvalue = setvalue
@@ -537,21 +545,21 @@ def XMLNode(tag, attrib=None, **extra):
         self.attrib.pop(key)
     self.delattrib = delattrib
 
-    def getdata():
-        """ Get the data under this XMLNode
-        @returns Data set under this XMLNode
-        """
-        return self.tag
-
-    self.getdata = getdata
-
-    def setdata(data):
-        """ Set node data, can be anything
-        @param data Any data to set under this XMLNode
-        """
-        self.tag = data
-
-    self.setdata = setdata
+    # def getdata():
+    #     """ Get the data under this XMLNode
+    #     @returns Data set under this XMLNode
+    #     """
+    #     return self.tag
+    #
+    # self.getdata = getdata
+    #
+    # def setdata(data):
+    #     """ Set node data, can be anything
+    #     @param data Any data to set under this XMLNode
+    #     """
+    #     self.tag = data
+    #
+    # self.setdata = setdata
 
     def getchildrenref():
         """ Get list of children, don't make copy just get reference
@@ -587,17 +595,17 @@ def XMLNode(tag, attrib=None, **extra):
         a = XMLNode("ChildA")
         b = XMLNode("ChildB")
         c = XMLNode("ChildC")
-        root.addchild( a )
-        root.addchild( b )
-        root.addchild( c )
-        a.addchild( XMLNode("Test") )
-        a.addchild( XMLNode("Test2") )
+        root.append( a )
+        root.append( b )
+        root.append( c )
+        a.append( XMLNode("Test") )
+        a.append( XMLNode("Test2") )
         n = TreeNode("Test")
-        b.addchild( n )
-        n.addchild( XMLNode("SubTest") )
-        n.addchild( XMLNode("SubTest2") )
-        c.addchild( XMLNode("Test") )
-        c.addchild( XMLNode("Other") )
+        b.append( n )
+        n.append( XMLNode("SubTest") )
+        n.append( XMLNode("SubTest2") )
+        c.append( XMLNode("Test") )
+        c.append( XMLNode("Other") )
 
         This would create tree like:
 
@@ -654,13 +662,44 @@ def XMLNode(tag, attrib=None, **extra):
 
     self.get_treenode_by_name = get_treenode_by_name
 
-    def getvalue():
+    def gettextaslist(reverse=False):
+        # iterate through entire children
+        if not self._children:
+            return []
+
+        _txt = []
+        iterable = self._children if not reverse else reversed(self._children)
+        for c in iterable:
+            if c.nodetype() != 'Text':
+                break
+            text = c.data
+            _txt.append(text)
+        return _txt
+    self.gettextaslist = gettextaslist
+
+    def gettext(strip=None):
         """ Return value of the XMLNode
         @returns Value of the XMLNode
         """
-        return self.text
+        # iterate through entire children
+        return self.data
 
-    self.getvalue = getvalue
+    self.gettext = gettext
+    self.text = larky.property(gettext)
+
+    def gettail(strip=None):
+        _txt = []
+        for text in self.gettextaslist(reverse=True):
+            print(repr(self), repr(text))
+            if strip:
+                if strip == True:
+                    text = text.strip()
+                else:
+                    text = strip(text)
+            _txt.append(text)
+        return ''.join(_txt)
+    self.gettail = gettail
+    self.tail = larky.property(gettail)
 
     def insertafterchild(afterchild, child, reparent=True):
         """ Add a child node after another child
@@ -700,10 +739,10 @@ def XMLNode(tag, attrib=None, **extra):
     self.isdata = isdata
 
     def nodetype():
-        data = self.getdata()
-        if types.is_function(data):
-            data = larky.impl_function_name(data)
-        return data
+        ntype = self.tag
+        if types.is_function(ntype):
+            ntype = larky.impl_function_name(ntype)
+        return ntype
     self.nodetype = nodetype
 
     def numchildren():
@@ -728,7 +767,7 @@ def XMLNode(tag, attrib=None, **extra):
         # Set new parent
         self.__parent = newparent
         if addchild:
-            self.__parent.addchild(self, reparent=False)
+            self.__parent.append(self, reparent=False)
 
         # clear cached nsmap which traverses parents.
         self.__cached_nsmap = None
@@ -853,7 +892,7 @@ def XMLNode(tag, attrib=None, **extra):
         tmp = self._do_copy(self)
         for c in self._children:
             newch = self._do_copy(c)
-            tmp.addchild(newch)
+            tmp.append(newch)
         return tmp
 
     self.deepcopy = deepcopy
@@ -863,6 +902,11 @@ def XMLNode(tag, attrib=None, **extra):
     def set_doctype(doctype):
         if self._name != "DOCUMENT_ROOT":
             fail("can only set doctype on document node")
+        # if we already have a self._doctype..
+        if self._doctype:
+            self.replace(self._doctype, doctype)
+        elif doctype != None:
+            self.append(doctype)
         self._doctype = doctype
     self.set_doctype = set_doctype
     self.set_docinfo = set_doctype
@@ -1102,7 +1146,7 @@ def XMLNode(tag, attrib=None, **extra):
         Returns the following sibling of this element or None.
         """
         ix = self._index
-        if ix == (len(self.__parent) - 1):
+        if not self.parent or ix == (self.parent.numchildren() - 1):
             return None
         return self.__parent[ix + 1]
 
@@ -1205,21 +1249,31 @@ def XMLNode(tag, attrib=None, **extra):
                            If False, then it appends to the current
                            node's text.
         """
-
         if self.numchildren() == 0:
-            self.text = (self.text or "") + data
+            self.appendChild(data)
         elif insertBefore == None:
-            # Insert the text as the tail of the last child element
-            tail = self._children[-1].tail
-            self._children[-1].tail = (tail or "") + data
+            self.addnext(data)
+            # self._children[-1].appendChild(data)
         else:
-            # Insert the text before the specified node
             index = self.index(insertBefore)
             if index > 0:
-                tail = self._children[index - 1].tail
-                self._children[index - 1].tail = (tail or "") + data
+                self._children[index - 1].appendChild(data)
             else:
-                self.text = (self.text or "") + data
+                self.appendChild(data)
+        # if self.numchildren() == 0:
+        #     self.text = (self.text or "") + data
+        # elif insertBefore == None:
+        #     # Insert the text as the tail of the last child element
+        #     tail = self._children[-1].tail
+        #     self._children[-1].tail = (tail or "") + data
+        # else:
+        #     # Insert the text before the specified node
+        #     index = self.index(insertBefore)
+        #     if index > 0:
+        #         tail = self._children[index - 1].tail
+        #         self._children[index - 1].tail = (tail or "") + data
+        #     else:
+        #         self.text = (self.text or "") + data
     self.insertText = insertText
 
     def insertBefore(node, refNode):
@@ -2297,6 +2351,8 @@ def parse(source, parser=None, base_url=None, tree_factory=XMLTree):
     Return an ElementTree instance.
 
     """
+    if not parser:
+        parser = XMLParser(TreeBuilder())
     tree = tree_factory()
     tree.parse(source, parser, base_url=base_url)
     return tree
@@ -2534,6 +2590,19 @@ __fakeq = larky.struct(append=lambda *args: None)
 
 # builder is equivalent to "target"
 
+def Text(value):
+    """Text element factory.
+
+    This function creates a special element which the standard serializer
+    serializes as XML text comment.
+
+    *value* is a string containing the text, whitespace is ok.
+
+    """
+    self = XMLNode(Text)
+    self.data = value
+    return self
+
 
 def Comment(text=None):
     """Comment element factory.
@@ -2545,12 +2614,14 @@ def Comment(text=None):
 
     """
     # def XMLNode(tag, attrib, nsmap=None, **extra):
-    element = element_tree.Comment(text=text, element_factory=XMLNode)
-    element.text = text
+    element = XMLNode(element_tree.Comment)
+    element.data = text
+    element.text = larky.property(lambda: element.data)
+    # element.tail = larky.property(lambda: None)
     return element
 
 
-def ProcessingInstruction(target, text=None):
+def ProcessingInstruction(name, data=None):
     """Processing Instruction element factory.
 
     This function creates a special element which the standard serializer
@@ -2560,9 +2631,11 @@ def ProcessingInstruction(target, text=None):
     string containing the processing instruction contents, if any.
 
     """
-    element = element_tree.PI(target, text=text, element_factory=XMLNode)
-    element.target = target
-    element.data = text
+    element = XMLNode(element_tree.PI)
+    element._name = name
+    element.data = data
+    element.text = larky.property(lambda: "%s%s" %
+                                          (name, " " + data if data else ''))
     return element
 
 
@@ -2576,6 +2649,9 @@ def CDATA(data):
         >>> el.text = etree.CDATA('a string')
     """
     element = element_tree.CDATA(data, element_factory=XMLNode)
+    element.data = data
+    element.text = larky.property(lambda: element.data)
+    # element.tail = larky.property(lambda: None)
     return element
 
 
@@ -2623,20 +2699,6 @@ def CDATA(data):
 #
 #     self.childNodes = larky.property(_getChildNodes)
 
-def Text(value):
-    """Text element factory.
-
-    This function creates a special element which the standard serializer
-    serializes as XML text comment.
-
-    *value* is a string containing the text, whitespace is ok.
-
-    """
-    self = XMLNode(Text)
-    self.text = value
-    self.data = value
-    return self
-
 
 def DocumentType(name, public_id, system_id, data):
     """Doctype node
@@ -2648,20 +2710,26 @@ def DocumentType(name, public_id, system_id, data):
     self.system_id = system_id
     self.data = data
     self.internalDTD = larky.property(lambda: data)
-    self.text = "<!DOCTYPE>"
+    self.text = larky.property(lambda: self.data if self.data else '')
+    # self.tail = larky.property(lambda: None)
+
+    # self._name = "<!DOCTYPE>"
     return self
 
 
 def Document(encoding=None, standalone=None, version=None, doctype=None):
 
     self = XMLNode(Document)
-    self.text = "DOCUMENT_ROOT"
+    # self.value = "DOCUMENT_ROOT"
     self._name = "DOCUMENT_ROOT"
     # nodeName = "#document"
     self.encoding = encoding
     self.standalone = standalone
     self.version = version
     self.set_doctype(doctype)
+    self.intSubset = larky.property(
+        lambda: self.docinfo.internalDTD if self.docinfo else None
+    )
     self._root = None
 
     def getroot():
@@ -2810,10 +2878,10 @@ ParserEvents = enum.Enum('ParserEvents', dict(
 ).items())
 
 
-def XMLParserEventLoop(target):
+def XMLParser(target):
     self = xmllib.XMLParser()
-    self.__name__ = 'XMLParserEventLoop'
-    self.__class__ = XMLParserEventLoop
+    self.__name__ = 'XMLParser'
+    self.__class__ = XMLParser
 
     # xmllib -- overridden methods
     xmllib_XMLParser_reset = self.reset
@@ -3118,8 +3186,8 @@ def BaseTreeBuilder(namespaceHTMLElements):
         systemId = token["system"]
         data = token.get('data')
         doctype = self.doctypeClass(name, publicId, systemId, data)
-        self.document.appendChild(doctype)
         doctype.attach_document(self.document)
+        self.document.set_doctype(doctype)
     self.insertDoctype = insertDoctype
 
     def insertComment(token, parent=None):
@@ -3165,7 +3233,9 @@ def BaseTreeBuilder(namespaceHTMLElements):
         """Insert text data."""
         if parent == None:
             parent = self.openElements[-1]
-        parent.insertText(data)
+        text = Text(data)
+        text.attach_document(self.document)
+        parent.insertText(text)
     self.insertText = insertText
 
     def generateImpliedEndTags(exclude=None):
@@ -3202,7 +3272,7 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
     self.commentClass = options.pop('comment_factory', Comment)
     self.piClass = options.pop('pi_factory', ProcessingInstruction)
     self.debug = options.pop('debug', False)
-    self.ignorews = options.pop('ignorews', True)
+    self.preservews = options.pop('preservews', False)
     self._ev_q = [] if options.pop('capture_event_queue', False) else __fakeq
 
     def __init__(**options):
@@ -3222,9 +3292,8 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
     self = __init__(**options)  # builder, element_factory, parser,
 
     def fromstring(xmlstr):
-        parser = XMLParserEventLoop(self)
-        output = parse(io.StringIO(xmlstr), parser=parser)
-        return output
+        parser = XMLParser(self)
+        return parse(io.StringIO(xmlstr), parser=parser)
     self.fromstring = fromstring
 
     def publish(event, **payload):
@@ -3313,12 +3382,21 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
             #   in attribute values
             #   CDATA sections
             #   comments
-            if self.ignorews:
+            if not self.preservews:
+                if self.debug:
+                    print("skipping ws, last event",
+                          self.lastEvent[0],
+                          "stack top",
+                          repr(self.elementStack[-1]))
                 return
-            node = self.elementStack[-1]
-            self.insertText(payload["data"], node)
-            self.lastEvent[1] = [(ParserEvents.SPACE, node), None]
-            self.lastEvent = self.lastEvent[1]
+            # skip any whitespace that is associated to the document
+            ## if self.lastEvent[0][1] == self.document:
+            # if self.elementStack[-1] == self.document:
+            #     return
+            if self.debug:
+                print(self.lastEvent[0])
+            self.insertText(payload["data"], self.elementStack[-1])
+            # self.insertText(payload["data"], self.lastEvent[0][1])
         # ignore the below events
         elif event == ParserEvents.NOTATION_DECLARATION:
             pass
@@ -3433,6 +3511,7 @@ XMLTreeNode = larky.struct(
     DocumentType=DocumentType,
     Document=Document,
     # stuff
-    XMLParserEventLoop=XMLParserEventLoop,
+    XMLParser=XMLParser,
     TreeBuilder=TreeBuilder,
+    parse=parse,
 )

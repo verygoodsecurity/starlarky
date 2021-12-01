@@ -621,7 +621,7 @@ def XMLParser(**kw):
             return -1
         j = end.end(0) - 2   # find the end "?>" and subtract the total #
         # j = end.start(0)
-        print("procclose.search", repr(procclose.pattern), "start=", i, "span: ", end.span())
+        # print("procclose.search", repr(procclose.pattern), "start=", i, "span: ", end.span())
         if not self.__accept_utf8 and illegal.search(rawdata, i+2, j):
             self.syntax_error('illegal character in processing instruction')
         res = tagfind.match(rawdata, i+2)

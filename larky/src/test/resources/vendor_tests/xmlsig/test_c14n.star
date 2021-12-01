@@ -1,7 +1,7 @@
 load("@stdlib//builtins", "builtins")
 load("@stdlib//base64", base64="base64")
 load("@stdlib//codecs", codecs="codecs")
-load("@stdlib//io/StringIO", "StringIO")
+load("@stdlib//io", io="io")
 load("@stdlib//larky", "larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", "types")
@@ -13,12 +13,12 @@ load("@vendor//elementtree/AdvancedXMLTreeBuilder", AdvancedXMLTreeBuilder="Adva
 load("@vendor//elementtree/ElementC14N", ElementC14N="ElementC14N")
 load("@vendor//_etreeplus/C14NParser", C14NParser="C14NParser")
 load("@vendor//_etreeplus/xmlwriter", xmlwriter="xmlwriter")
-load("@vendor//_etreeplus/xmltreenode", XMLTreeNode="XMLTreeNode")
+load("@vendor//_etreeplus/xmltreenode", etree="XMLTreeNode")
 load("@vendor//_etreeplus/xmltree", xmltree="xmltree")
 
 
 # TEST START
-load("./base", load_xml="load_xml", compare="compare")
+load("./base", load_xml="load_xml")
 
 eg1 = """<?xml version="1.0"?>
 
@@ -159,12 +159,12 @@ test_results = {
 
 def test_c14n_1():
     parser = AdvancedXMLTreeBuilder.TreeBuilder(
-        element_factory=XMLTreeNode.XMLNode,
+        element_factory=etree.XMLNode,
         capture_event_queue=True,
-        doctype_factory=XMLTreeNode.DocumentType,
-        document_factory=XMLTreeNode.Document,
-        comment_factory=XMLTreeNode.Comment,
-        pi_factory=XMLTreeNode.ProcessingInstruction,
+        doctype_factory=etree.DocumentType,
+        document_factory=etree.Document,
+        comment_factory=etree.Comment,
+        pi_factory=etree.ProcessingInstruction,
         insert_comments=True,
         insert_pis=True,
     )
@@ -177,24 +177,35 @@ def test_c14n_1():
 
 
 def test_c14n_2():
-    builder = XMLTreeNode.TreeBuilder(debug=True)
-    tree = builder.fromstring(eg1)
-    # root = load_xml(eg1, parser=parser)
-    # tree = xmltree.XMLTree(root)
-    print(xmltree.tostring(tree))
-    print("--" * 50)
-    print(xmltree.tostring(tree, method='c14n'))
-    print("--" * 50)
-    print(base64.b64decode((test_results[eg1])))
+    tree = etree.parse(io.StringIO(eg1))
+
+    # builder = XMLTreeNode.TreeBuilder(debug=True)
+    # tree = builder.fromstring(eg1)
+    # In [30]: print(etree.tostring(z).decode('utf-8'))
+    expected = ('<?xml-stylesheet href="doc.xsl"\n   type="text/xsl"   ?>' +
+                     '<!DOCTYPE doc SYSTEM "doc.dtd">\n<doc>Hello, world!' +
+                     '<!-- Comment 1\n--></doc><?pi-without-data?>' +
+                     '<!-- Comment 2 --><!-- Comment 3 -->')
+    actual = etree.tostring(tree)
+    # print(repr(actual))
+    # print(repr(expected))
+    asserts.assert_that(actual).is_equal_to(expected)
+    # print("--" * 50)
+    actual = etree.tostring(tree, method='c14n')
+    expected = base64.b64decode((test_results[eg1])).decode('utf-8')
+    # print(repr(actual))
+    # print(repr(expected))
+    asserts.assert_that(actual).is_equal_to(expected)
+
 
 
 def test_xmlsig_sign_case1():
     parser = AdvancedXMLTreeBuilder.TreeBuilder(
-        element_factory=XMLTreeNode.XMLNode,
+        element_factory=etree.XMLNode,
         capture_event_queue=True,
-        doctype_factory=XMLTreeNode.DocumentType,
-        document_factory=XMLTreeNode.Document,
-        comment_factory=XMLTreeNode.Comment,
+        doctype_factory=etree.DocumentType,
+        document_factory=etree.Document,
+        comment_factory=etree.Comment,
         insert_comments=True,
         insert_pis=True,
     )
@@ -204,7 +215,7 @@ def test_xmlsig_sign_case1():
     # print(xmltree.tostringC14N(root, True, True, False))
     print(xmltree.tostring(tree))
     # print(xmltree.tostring(tree, method='c14n'))
-    sio = StringIO()
+    sio = io.StringIO()
     qnames, namespaces = ElementTree._namespaces(root, None)
     ElementC14N._serialize_c14n(write=sio.write, elem=root, encoding='utf-8', qnames=qnames, namespaces=namespaces)
     print("C14N 1.0", "\n", sio.getvalue())
@@ -223,7 +234,7 @@ def test_xmlsig_sign_case1():
     # print("serializer", "\n", sio.getvalue())
     print("--" * 100)
     # ----
-    sio = StringIO()
+    sio = io.StringIO()
     parser = C14NParser.C14nCanonicalizer(ElementTree.C14NWriterTarget, element_factory=sio.write)
     ElementTree.canonicalize(eg1, out=sio, parser=parser)
     print("C14N 2.0", "\n", sio.getvalue())

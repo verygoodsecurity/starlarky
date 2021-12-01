@@ -92,10 +92,16 @@ def _sum(nums,*args,**kwargs):
       return s
 
 
-
 def map(func, iterable):
     return [func(x) for x in iterable]
 
+
+def callable(obj):
+    if types.is_function(obj):
+        return True
+    if hasattr(obj, "__call__"):
+        return True
+    return False
 
 # TODO: should we move this to starlark?
 # list of functions from: https://docs.python.org/3/library/functions.html
@@ -112,6 +118,7 @@ builtins = larky.struct(
     isinstance=types.is_instance,
     repr=repr,
     reversed=reversed,
+    callable=callable,
     # Sentintel
     NotImplemented=larky.SENTINEL,
     # Errors..

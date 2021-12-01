@@ -168,7 +168,7 @@ public final class LarkyGlobals {
         name = "_func_name",
         parameters = {@Param(name="obj")},
         useStarlarkThread = true)
-  public String funcName(StarlarkValue obj, StarlarkThread thread) {
+  public String funcName(Object obj, StarlarkThread thread) {
     if(obj instanceof StarlarkCallable) {
       return ((StarlarkCallable) obj).getName();
     }

@@ -1215,7 +1215,8 @@ def _namespaces(elem, default_namespace=None):
             if tag not in qnames:
                 _qname = tag
         elif tag != None and tag != Comment and tag != PI:
-            _raise_serialization_error(tag)
+            if not hasattr(current, 'nodetype'):
+                _raise_serialization_error(tag)
 
         _nsmap = getattr(current, '_nsmap', {})
         # print("ns: ", namespaces)

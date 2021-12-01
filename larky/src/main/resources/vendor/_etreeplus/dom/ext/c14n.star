@@ -144,7 +144,8 @@ def _implementation(node, write, **kw):
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if not queue:
                 break
-            # print("queue: ", queue)
+            if self.debug:
+                print("queue: ", queue)
             state, payload = queue.pop(0)
             if state == _SerializeState.PRE:
                 level, child = payload
@@ -167,11 +168,11 @@ def _implementation(node, write, **kw):
                     self._do_comment(child)
                 elif child.nodetype() == 'DocumentType':
                     pass
+                elif child.nodetype() == 'Text':
+                    self._do_text(child)
                 elif type(child) in ('Element', 'XMLNode',):
                     self.documentOrder = _Element        # At document element
                     new_state = self._do_element(child)
-                    if child.text:  # b/c we do not have "text" nodes..
-                        handlers["Text"](child)
                     children = [
                         (_SerializeState.PRE, (level + 1, c))
                         for c in child
@@ -191,10 +192,11 @@ def _implementation(node, write, **kw):
                     state = stack.pop()
                     self.state = state
                 child = payload
-                if child.tail:  # b/c we do not have "text" nodes..
-                    self._do_tail(child)
                 if child.name:
                     self.write('</%s>' % child.name)
+                # b/c we do not have "text" nodes..
+                # if self.documentOrder == _Element and child.tail:
+                #     self._do_tail(child)
                 self.documentOrder = _GreaterElement # After document element
 
     self._do_document = _do_document
@@ -305,6 +307,7 @@ def _implementation(node, write, **kw):
         # Divide attributes into NS, XML, and others.
         other_attrs = initial_other_attrs[:]
         in_subset = _in_subset(self.subset, node)
+        # print(self.subset, repr(node), in_subset)
         for name, href in node.attrib.items():
             if href == XMLNS.BASE:
                 n = name
@@ -380,6 +383,7 @@ def _implementation(node, write, **kw):
         self.subset = kw.get('subset')
         self.comments = kw.get('comments', 0)
         self.unsuppressedPrefixes = kw.get('unsuppressedPrefixes')
+        self.debug = kw.get('debug', False)
         nsdict = kw.get('nsdict', { 'xml': XMLNS.XML, 'xmlns': XMLNS.BASE })
 
         # Processing state.

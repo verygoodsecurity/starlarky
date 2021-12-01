@@ -1,5 +1,6 @@
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
+load("@stdlib//enum", enum="enum")
 load("@stdlib//io", io="io")
 load("@stdlib//itertools", itertools="itertools")
 load("@stdlib//larky", larky="larky")
@@ -8,6 +9,12 @@ load("@stdlib//sets", sets="sets")
 load("@stdlib//types", types="types")
 load("@stdlib//zlib", zlib="zlib")
 load("@vendor//option/result", Error="Error")
+
+
+_IterWalkState = enum.Enum('_IterWalkState', [
+    ('PRE', 0),
+    ('POST', 1)
+])
 
 
 BASIC = "BASIC"
@@ -160,9 +167,6 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                 type(self.tree)
             ))
 
-        root = self.tree.getroot()
-        if root == None:
-            fail("self.tree.getroot() == None!")
         ns = dict(**self.declared_namespaces)
         supported_methods = ("xml", "c14n", "c14n2")
         if self.options['method'] not in supported_methods:
@@ -174,15 +178,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
             )
         # need a copy here, because original must stay intact
         if self.options.get('autowrite', True):
-            if xml_declaration:
-                self.write_xml_header()
-            node = getattr(root, 'owner_doc', root)
-            self.write(
-                node, ns,
-                with_tail=self.options["with_tail"],
-                write_complete_document=self.options.get(
-                    'write_complete_document', True
-            ))
+            self.write(namespaces=ns, xml_declaration=xml_declaration)
             return self.file.getvalue()
         return self
     self.__call__ = __call__
@@ -214,7 +210,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
         return "<![CDATA[%s]]>" % text
     self.cdata = cdata
 
-    def write_doctype(doctype):
+    def write_dtd(doctype):
         """
         Handles a doctype event.
 
@@ -224,13 +220,9 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
             return
         # Name in document type declaration must match the root element tag.
         # For XML, case sensitive match, for HTML insensitive.
-        root = self.tree.getroot()
-        print("doctype:", root._name, " @@ ", doctype.text)
-        if root._name != doctype.text:
-           return
         h = [
             "<!DOCTYPE ",
-            doctype.text,
+            doctype._name,
         ]
         if doctype.public_id:
             h.append(' PUBLIC "')
@@ -271,7 +263,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
         h.append("]>\n")
         self.file.write(''.join(h))
         return
-    self.write_doctype = write_doctype
+    self.write_dtd = write_dtd
 
     def write_xml_header():
         """
@@ -318,7 +310,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
     self.write_end_tag = write_end_tag
 
     def write_comment(node):
-        self.file.write("<!-- %s -->" % self.escape_text(node.text))
+        self.file.write("<!--%s-->" % self.escape_text(node.text))
     self.write_comment = write_comment
 
     def write_pi(node):
@@ -406,122 +398,264 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
         return xmlns
     self._add_node_namespaces_to_root = _add_node_namespaces_to_root
 
-    def write(node, namespaces, with_tail=True, write_complete_document=True):
-        q = [(node, namespaces, None)]
-        unclosed_elems = []
+    def _nodetype(node):
+        if hasattr(node, 'nodetype'):
+            return node.nodetype()
+        # default to checking the tag
+        print(repr(node))
+        tag = node.tag
+        # this is a special marker to denote a special tag subtype of Element
+        # (i.e. Comment, CData, etc)
+        # this helps with backwards compatibility with ElementTree
+        if builtins.callable(tag):
+            return larky.impl_function_name(tag)
+        return type(tag)
+    self._nodetype = _nodetype
+
+    def _is_element(node):
+        return type(node) not in ("XMLTree",)
+    self._is_element = _is_element
+
+    def write(namespaces, xml_declaration):
+        root = self.tree.getroot()
+        if root == None:
+            fail("self.tree.getroot() == None!")
+
+        c_doc = getattr(root, 'doc', None)  # TODO: introduce fakedoc?
+        # print("DEBUG", "root owner doc?", repr(c_doc))
+        write_complete_document = self.options.get('write_complete_document',
+                                                   True)
+        # if write_xml_declaration and c_method == OUTPUT_METHOD_XML:
+        if xml_declaration and self.options['method'] == 'xml':
+            # _writeDeclarationToBuffer(c_buffer, c_doc.version, encoding, standalone)
+            self.write_xml_header()
+
+        # comments/processing instructions before doctype declaration
+        if write_complete_document and c_doc.docinfo:
+            # print("DEBUG", "comments/processing instructions before doctype")
+            # for n in c_doc:
+            #     print("DEBUG", "n:", repr(n), "n.next_sibling():", repr(n.next_sibling()))
+            #     if self._nodetype(n) == 'DocumentType':
+            #         break
+            #     self.write_node(
+            #         n,
+            #         namespaces=namespaces,
+            #         with_tail=self.options["with_tail"],
+            #         write_complete_document=write_complete_document)
+            self.write_previous_siblings(c_doc.docinfo, namespaces)
+        if self.options['doctype']:
+            self.write_content(self.options['doctype'])
+            self.write_content('\n')
+
+        # write internal DTD subset, preceding PIs/comments, etc.
+        if write_complete_document and not self.options['doctype']:
+            # print("DEBUG", "write internal DTD subset")
+            self.write_dtd(c_doc.docinfo)
+            self.write_previous_siblings(root, namespaces)
+            # _write = False
+            # for n in c_doc:
+            #     # print("DEBUG", "n:", repr(n))
+            #     if n == root:
+            #         _write = False
+            #         break
+            #     if self._nodetype(n) == 'DocumentType':
+            #         _write = True
+            #         continue
+            #     if _write:
+            #         print("DEBUG", "writing--", repr(n))
+            #         self.write_node(
+            #             n,
+            #             namespaces=namespaces,
+            #             with_tail=self.options["with_tail"],
+            #             write_complete_document=write_complete_document)
+            # self.write_content('\n')
+
+        # c_nsdecl_node = c_node
+        # if not c_node.parent or c_node.parent.type != tree.XML_DOCUMENT_NODE:
+        #     # copy the node and add namespaces from parents
+        #     # this is required to make libxml write them
+        #     c_nsdecl_node = tree.xmlCopyNode(c_node, 2)
+        #     if not c_nsdecl_node:
+        #         c_buffer.error = xmlerror.XML_ERR_NO_MEMORY
+        #         return
+        #     _copyParentNamespaces(c_node, c_nsdecl_node)
+        #
+        #     c_nsdecl_node.parent = c_node.parent
+        #     c_nsdecl_node.children = c_node.children
+        #     c_nsdecl_node.last = c_node.last
+        self.write_node(
+            root, namespaces,
+            with_tail=self.options["with_tail"],
+            write_complete_document=self.options.get(
+                'write_complete_document', True
+            ))
+        # write tail, trailing comments, etc.
+        # if with_tail:
+        #     _writeTail(c_buffer, c_node, encoding, c_method, pretty_print)
+        if write_complete_document:
+            self.write_next_siblings(root, namespaces)
+        if self.options['pretty_print']:
+            self.write_content('\n')
+
+    self.write = write
+
+    def write_previous_siblings(c_node, namespaces):
+        if c_node.getparent() and (
+                self._nodetype(c_node.getparent()) != 'Document'
+        ):
+            return
+        # we are at a root node, so add PI and comment siblings
+        c_sibling = c_node
+        for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+            c_prev_sibling = c_sibling.previous_sibling()
+            # print(repr(c_node), repr(c_sibling.previous_sibling()))
+            if not c_prev_sibling or self._nodetype(c_prev_sibling) not in (
+                'Comment',
+                'ProcessingInstruction',
+            ):
+                break
+            c_sibling = c_prev_sibling
+
+        for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+            if not c_sibling or c_sibling == c_node:
+                break
+            self.write_node(c_sibling, namespaces)
+            if self.options['pretty_print']:
+                self.write_content('\n')
+            c_sibling = c_sibling.next_sibling()
+    self.write_previous_siblings = write_previous_siblings
+
+    def write_next_siblings(c_node, namespaces):
+        if c_node.getparent() and (
+                self._nodetype(c_node.getparent()) != 'Document'
+        ):
+            return
+        # we are at a root node, so add PI and comment siblings
+        c_sibling = c_node.next_sibling()
+        for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+            if not c_sibling or self._nodetype(c_sibling) not in (
+                'Comment',
+                'ProcessingInstruction',
+            ):
+                break
+            if self.options['pretty_print']:
+                self.write_content('\n')
+            self.write_node(c_sibling, namespaces)
+            c_sibling = c_sibling.next_sibling()
+
+    self.write_next_siblings = write_next_siblings
+
+    def write_node(node, namespaces, with_tail=True, write_complete_document=True):
+        q = [(_IterWalkState.PRE, (node, namespaces, None))]
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if not q:
                 break
-            node, namespaces, _parent = q.pop(0)
-            # if there is a parent and there is an unclosed element,
-            # it means that we are *not at the root node* and that we
-            # have descended to serialize children.
-            # first, check to see if the current child's parent is the
-            # actual parent in the parent <==> child context.
-            if _parent and unclosed_elems and _parent != unclosed_elems[-1][0]:
-                # if it is not, then we need to iteratively close all
-                # nodes in unclosed_elems until we deplete unclosed elems or
-                # ascend to _parent
-                for _ in range(len(unclosed_elems)):
-                    if unclosed_elems[-1][0] == _parent:
-                        break
-                    _node, _tag = unclosed_elems.pop()
-                    self.write_end_tag(_tag)
-                    if (write_complete_document or with_tail) and _node.tail:
-                        self.write_content(_node.tail)
-            # write XML to file
-            tag = node.tag
-            tag_type = larky.impl_function_name(tag) if types.is_function(tag) else type(tag)
-            print("xmlwriter.write(): ", tag, tag_type)
-            if tag_type == 'Document':
-                for n in reversed(node):
-                    q.insert(0, (n, dict(**namespaces), node))
-                continue
-            elif write_complete_document and tag_type == 'DocumentType':
-                # comments are not parsed by ElementTree!
-                self.write_doctype(node)
-                if (write_complete_document or with_tail) and node.tail:
-                    self.write_content(node.tail)
-                continue
-            elif write_complete_document and tag_type == 'Comment':
-                # comments are not parsed by ElementTree!
-                self.write_comment(node)
-                if (write_complete_document or with_tail) and node.tail:
-                    self.write_content(node.tail)
-                continue
-            elif write_complete_document and tag_type == 'ProcessingInstruction':
-                # PI's are not parsed by ElementTree!
-                self.write_pi(node)
-                if (write_complete_document or with_tail) and node.tail:
-                    self.write_content(node.tail)
-                continue
-            elif all((
-                    write_complete_document,
-                    self.options['doctype'],
-                    tag_type == 'DocumentType',
-            )):
-                self.write_doctype(node)
-                if (write_complete_document or with_tail) and node.tail:
-                    self.write_content(node.tail)
-                continue
-            else:
-                xmlns_items = [] # collects new namespaces in this scope
-                attributes = list(node.items())
-                for attrname, value in attributes:
-                    # (the elementtree parser discards these attributes)
-                    if attrname.startswith("xmlns:"):
-                        namespaces[value] = attrname[6:]
-                    if attrname == "xmlns":
-                        namespaces[value] = ''
-                # get namespace for tag
-                tag, xmlns = self.add_prefix(tag, namespaces, attr=False)
-                # insert all declared namespaces into the root element
-                if node == self.tree.getroot():
-                    xmlns = self._add_node_namespaces_to_root(
-                        node, xmlns, xmlns_items
-                    )
-                if xmlns:
-                    xmlns_items.append(xmlns)
-                self.write_start_tag_open(tag)
-                # write attribute nodes
-                for attrname, value in attributes:
-                    attrname, xmlns = self.add_prefix(attrname, namespaces)
-                    if xmlns:
-                        xmlns_items.append(xmlns)
-                    self.write_attr(attrname, value)
-                # write collected xmlns attributes
-                for attrname, value in xmlns_items:
-                    self.write_attr(attrname, value)
-
-                if not (node.text or len(node)):
-                    if self.options.get('short_empty_elements', True):
-                        self.write_empty_tag_close()
-                    else:
-                        self.write_start_tag_close()
-                        self.write_end_tag(tag)
-
+            state, payload = q.pop(0)
+            if state == _IterWalkState.PRE:
+                (node, namespaces, _parent) = payload
+                # write XML to file
+                tag = node.tag
+                tag_type = self._nodetype(node)
+                # tag_type = larky.impl_function_name(tag) if types.is_function(tag) else type(tag)
+                if self.options.get('debug'):
+                    print("xmlwriter.write(): ", tag, tag_type)
+                if tag_type == 'Document':
+                    children = [
+                        (_IterWalkState.PRE, (n, dict(**namespaces), node,))
+                        for n in node
+                    ]
+                    q = children + q
+                    continue
+                elif write_complete_document and tag_type == 'Comment':
+                    # comments are not parsed by ElementTree!
+                    self.write_comment(node)
                     if (write_complete_document or with_tail) and node.tail:
                         self.write_content(node.tail)
+                    continue
+                elif write_complete_document and tag_type == 'Text':
+                    # comments are not parsed by ElementTree!
+                    self.write_content(node.text)
+                    if (write_complete_document or with_tail) and node.tail:
+                        self.write_content(node.tail)
+                    continue
+                elif write_complete_document and tag_type == 'ProcessingInstruction':
+                    # PI's are not parsed by ElementTree!
+                    self.write_pi(node)
+                    if (write_complete_document or with_tail) and node.tail:
+                        self.write_content(node.tail)
+                    continue
+                elif all((
+                        write_complete_document,
+                        tag_type == 'DocumentType',
+                        not self.options['doctype']
+                )):
+                    self.write_dtd(node)
+                    if (write_complete_document or with_tail) and node.tail:
+                        self.write_content(node.tail)
+                    continue
                 else:
-                    self.write_start_tag_close()
-                    if node.text:
-                        self.write_content(node.text)
+                    xmlns_items = [] # collects new namespaces in this scope
+                    attributes = list(node.items())
+                    for attrname, value in attributes:
+                        # (the elementtree parser discards these attributes)
+                        if attrname.startswith("xmlns:"):
+                            namespaces[value] = attrname[6:]
+                        if attrname == "xmlns":
+                            namespaces[value] = ''
+                    # get namespace for tag
+                    tag, xmlns = self.add_prefix(tag, namespaces, attr=False)
+                    # insert all declared namespaces into the root element
+                    if node == self.tree.getroot():
+                        xmlns = self._add_node_namespaces_to_root(
+                            node, xmlns, xmlns_items
+                        )
+                    if xmlns:
+                        xmlns_items.append(xmlns)
+                    self.write_start_tag_open(tag)
+                    # write attribute nodes
+                    for attrname, value in attributes:
+                        attrname, xmlns = self.add_prefix(attrname, namespaces)
+                        if xmlns:
+                            xmlns_items.append(xmlns)
+                        self.write_attr(attrname, value)
+                    # write collected xmlns attributes
+                    for attrname, value in xmlns_items:
+                        self.write_attr(attrname, value)
 
-                    if write_complete_document:
-                        for n in reversed(node):
-                            q.insert(0, (n, dict(**namespaces), node))
-                        # self.write(n, dict(**namespaces))
-                    unclosed_elems.append((node, tag))
-                    # self.write_end_tag(tag)
-                # for attrname, value in xmlns_items:
-                #    del namespaces[value]
-        for _ in range(len(unclosed_elems)):
-            _node, _tag = unclosed_elems.pop()
-            self.write_end_tag(_tag)
-            if (write_complete_document or with_tail) and _node.tail:
-                self.write_content(_node.tail)
+                    if not (node.text or len(node)):
+                        if self.options.get('short_empty_elements', True):
+                            self.write_empty_tag_close()
+                        else:
+                            self.write_start_tag_close()
+                            self.write_end_tag(tag)
 
-    self.write = write
+                        if (write_complete_document or with_tail) and node.tail:
+                            self.write_content(node.tail)
+                    else:
+                        self.write_start_tag_close()
+                        if node.text:
+                            self.write_content(node.text)
+
+                        children = []
+                        if write_complete_document:
+                            # self.write(n, dict(**namespaces))
+                            children = [
+                                (_IterWalkState.PRE, (n, dict(**namespaces), node,))
+                                for n in node
+                            ]
+                        # post visit
+                        children.append((_IterWalkState.POST, (node, tag)))
+                        q = children + q
+                        # self.write_end_tag(tag)
+                    # for attrname, value in xmlns_items:
+                    #    del namespaces[value]
+            elif state == _IterWalkState.POST:
+                node, tag = payload
+                self.write_end_tag(tag)
+                if (write_complete_document or with_tail) and node.tail:
+                    self.write_content(node.tail)
+
+    self.write_node = write_node
     return self
 
 
