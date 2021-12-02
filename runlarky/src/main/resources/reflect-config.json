@@ -1209,7 +1209,23 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$DebugRequest$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$SetBreakpointsRequest",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$SetBreakpointsRequest$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -1225,7 +1241,23 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$ContinueExecutionRequest$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$EvaluateRequest",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$EvaluateRequest$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -1241,7 +1273,23 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$ListFramesRequest$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$StartDebuggingRequest",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$StartDebuggingRequest$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -1257,7 +1305,23 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$PauseThreadRequest$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$GetChildrenRequest",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$GetChildrenRequest$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -1273,7 +1337,23 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$DebugEvent$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$Error",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$Error$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -1289,7 +1369,23 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$SetBreakpointsResponse$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$ContinueExecutionResponse",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$ContinueExecutionResponse$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -1305,7 +1401,23 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$EvaluateResponse$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$ListFramesResponse",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$ListFramesResponse$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -1321,7 +1433,23 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$StartDebuggingResponse$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$PauseThreadResponse",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$PauseThreadResponse$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -1337,7 +1465,23 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$GetChildrenResponse$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$ThreadPausedEvent",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$ThreadPausedEvent$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -1353,7 +1497,23 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$ThreadContinuedEvent$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$Breakpoint",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$Breakpoint$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -1369,7 +1529,23 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$Frame$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$Location",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$Location$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
@@ -1385,6 +1561,14 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$Scope$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$PausedThread",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
@@ -1393,7 +1577,39 @@
     "allPublicConstructors": true
   },
   {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$PausedThread$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
     "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$Value",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$Value$Builder",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$PauseReason",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "allDeclaredConstructors": true,
+    "allPublicConstructors": true
+  },
+  {
+    "name": "com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos$PauseReason$Builder",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allPublicMethods": true,
