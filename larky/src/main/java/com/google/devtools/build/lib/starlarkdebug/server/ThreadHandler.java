@@ -23,8 +23,11 @@ import com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos.B
 import com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos.Error;
 import com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos.PauseReason;
 import com.google.devtools.build.lib.starlarkdebugging.StarlarkDebuggingProtos.Value;
+
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -236,10 +239,16 @@ final class ThreadHandler {
         throw new DebugRequestException(
             String.format("Thread %s is not paused or does not exist.", threadId));
       }
-      return Debug.getCallStack(thread.thread).stream()
-          .map(frame -> DebugEventHelper.getFrameProto(thread.objectMap, frame))
-          .collect(toImmutableList())
-          .reverse();
+      List<StarlarkDebuggingProtos.Frame> frameList = new ArrayList<>();
+      final ImmutableList<Debug.Frame> callStack = Debug.getCallStack(thread.thread);
+      for (Debug.Frame frame : callStack) {
+        frameList.add(DebugEventHelper.getFrameProto(thread.objectMap, frame));
+      }
+      return ImmutableList.<StarlarkDebuggingProtos.Frame>builder().addAll(frameList).build();
+//      return Debug.getCallStack(thread.thread).stream()
+//          .map(frame -> DebugEventHelper.getFrameProto(thread.objectMap, frame))
+//          .collect(toImmutableList())
+//          .reverse();
     }
   }
 

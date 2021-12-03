@@ -14,7 +14,6 @@
 
 package com.google.devtools.build.lib.starlarkdebug.server;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.events.EventHandler;
@@ -146,6 +145,24 @@ public final class StarlarkDebugServer implements Debug.Debugger {
     if (!transport.isClosed()) {
       threadHandler.pauseIfNecessary(thread, location, transport);
     }
+  }
+
+  public void setFirstBreakpoint(String path) {
+    final StarlarkDebuggingProtos.Location location =
+        StarlarkDebuggingProtos.Location.newBuilder()
+            .setPath(path)
+            .setLineNumber(1)
+            .setColumnNumber(0)
+            .build();
+    final StarlarkDebuggingProtos.Breakpoint breakpoint =
+        StarlarkDebuggingProtos.Breakpoint.newBuilder()
+            .setLocation(location)
+            .build();
+    final StarlarkDebuggingProtos.SetBreakpointsRequest setBreakpoint =
+        StarlarkDebuggingProtos.SetBreakpointsRequest.newBuilder()
+            .addBreakpoint(breakpoint)
+            .build();
+    setBreakpoints(1, setBreakpoint);
   }
 
   /** Handles a request from the client, and returns the response, where relevant. */

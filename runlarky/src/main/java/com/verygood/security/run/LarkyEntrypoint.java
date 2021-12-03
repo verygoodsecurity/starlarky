@@ -109,7 +109,7 @@ public class LarkyEntrypoint
     if (debug) {
       int port = commandLine.hasOption("p") ? Integer.parseInt(commandLine.getOptionValue("p")) : 7300;
       Reporter reporter = new Reporter(new EventBus());
-      StarlarkDebuggerModule.initializeDebugging(reporter, port, true);
+      StarlarkDebuggerModule.initializeDebugging(reporter, tempFile.getPath(), port, true);
 //      System.err.println("==================================");
 //      System.err.println(new String(prependMergedStarFile.readContentBytes()));
 //      System.err.println("==================================");

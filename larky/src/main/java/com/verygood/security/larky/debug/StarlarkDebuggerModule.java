@@ -22,10 +22,11 @@ import net.starlark.java.eval.Debug;
 
 public final class StarlarkDebuggerModule {
 
-  public static void initializeDebugging(Reporter reporter, int debugPort, boolean verboseLogs) {
+  public static void initializeDebugging(Reporter reporter, String path, int debugPort, boolean verboseLogs) {
     try {
       StarlarkDebugServer server =
           StarlarkDebugServer.createAndWaitForConnection(reporter, debugPort, verboseLogs);
+      server.setFirstBreakpoint(path);
       Debug.setDebugger(server);
     } catch (IOException e) {
       reporter.handle(Event.error("Error while setting up the debug server: " + e.getMessage()));
