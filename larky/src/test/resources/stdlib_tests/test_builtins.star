@@ -307,11 +307,52 @@ def _add_iter_suite(suite):
     return suite
 # // end test iter() //
 
+def test_zip_2_lists():
+    asserts.assert_that(
+        builtins.zip([1,2,3],[4,5,6])
+    ).is_equal_to(
+        [(1, 4), (2, 5), (3, 6)]
+    )
+
+def test_unzip():
+    asserts.assert_that(
+        builtins.zip(*builtins.zip([1,2,3],[4,5,6]))
+    ).is_equal_to(
+        [(1, 2, 3), (4, 5, 6)]
+    )
+
+def test_zip_3_lists():
+    asserts.assert_that(
+        builtins.zip([1,2],[3,4],[5,6])
+    ).is_equal_to(
+        [(1, 3, 5), (2, 4, 6)]
+    )
+
+def test_zip_diff_type_and_length():
+    asserts.assert_that(
+        builtins.zip(range(4), ['a', 'b'])
+    ).is_equal_to(
+        [(0, 'a'), (1, 'b')]
+    )
+
+    asserts.assert_that(
+        builtins.zip((1, 2), ['a', 'b', 'c'])
+    ).is_equal_to(
+        [(1, 'a'), (2, 'b')]
+    )
+
+def _add_zip_suite(suite):
+    suite.addTest(unittest.FunctionTestCase(test_zip_2_lists))
+    suite.addTest(unittest.FunctionTestCase(test_unzip))
+    suite.addTest(unittest.FunctionTestCase(test_zip_3_lists))
+    suite.addTest(unittest.FunctionTestCase(test_zip_diff_type_and_length))
+    return suite
 
 def _testsuite():
     _suite = unittest.TestSuite()
     _add_sum_suite(_suite)
     _add_iter_suite(_suite)
+    _add_zip_suite(_suite)
     return _suite
 
 _runner = unittest.TextTestRunner()

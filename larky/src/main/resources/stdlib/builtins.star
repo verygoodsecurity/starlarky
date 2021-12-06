@@ -96,6 +96,18 @@ def _sum(nums,*args,**kwargs):
 def map(func, iterable):
     return [func(x) for x in iterable]
 
+def zip(*iterables):
+    zipper = []
+    shortest_length = len(iterables[0])
+    for iterable in iterables:
+      if len(iterable) < shortest_length:
+        shortest_length = len(iterable)
+    for i in range(shortest_length):
+      pair = ()
+      for iterable in iterables:
+        pair = pair + (iterable[i],)
+      zipper.append(pair)
+    return zipper
 
 # TODO: should we move this to starlark?
 # list of functions from: https://docs.python.org/3/library/functions.html
@@ -111,6 +123,7 @@ builtins = larky.struct(
     map=map,
     isinstance=types.is_instance,
     repr=repr,
+    zip=zip,
     # Errors..
     StopIteration=StopIteration,
     IndexError=IndexError
