@@ -110,25 +110,42 @@ def _test_update_and_serialize():
     root.append(c)
     root.append(pi)
     
-    # order of nodes on the same level is reversed but vertical nested order is correct
+    # Order of nodes no longer reversed, append() now appends instead of prepending
     expected_xml = ''.join(['<?xml version="1.0" encoding="utf-8"?>\n',
-    '<data xmlns:ns0="http://example.com/ns/foo">nonetag<?Here are instuctions?><!--some comment-->',
-    '<student name="John"><info><born>2004</born>birthtail</info>infotail<performance><Grade>A-</Grade></performance></student>',
-    '<student name="Tim"><info><born>2005</born></info><performance><Grade>A+</Grade></performance></student>',
-    '<ns0:p />ptail<teacher name="Jenny"><born>1983</born></teacher>teachertail</data>'])
+    '<data xmlns:ns0="http://example.com/ns/foo">nonetag<teacher name="Jenny"><born>1983</born></teacher>teachertail<ns0:p />ptail',
+    '<student name="Tim"><performance><Grade>A+</Grade></performance><info><born>2005</born></info></student>',
+    '<student name="John"><performance><Grade>A-</Grade></performance><info><born>2004</born>birthtail</info>infotail</student>',
+    '<!--some comment--><?Here are instuctions?></data>'
+        ])
+
+    print(expected_xml)
+    print(ElementTree.tostring(root, encoding = 'utf-8', xml_declaration=True))
 
     asserts.eq(expected_xml, ElementTree.tostring(root,  encoding ='utf-8', xml_declaration=True))
     # print('to string:', ElementTree.tostring(root))
     # test serialize on subelement and update attribute
     root.findall('.//')[2].set("name", "Jim")
-    asserts.eq('<student name="Jim"><info><born>2005</born></info><performance><Grade>A+</Grade></performance></student>', ElementTree.tostring(root.findall('.//')[2]))
+    asserts.eq('<student name="Jim"><performance><Grade>A+</Grade></performance><info><born>2005</born></info></student>', ElementTree.tostring(root.findall('.//')[2]))
 
+def _test_append_and_flatten():
+  first = ElementTree.Element('First')
+  second = first.makeelement('Second',{})
+  first.append(second)
+  third = first.makeelement('Third',{})
+  first.append(third)
+  fourth = first.makeelement('Fourth',{})
+  first.append(fourth)
+
+  result = ElementTree.tostring(first)
+  asserts.assert_that(result).is_not_equal_to('<First><Fourth /><Third /><Second /></First>')
+  asserts.assert_that(result).is_equal_to('<First><Second /><Third /><Fourth /></First>')
 
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_elementtree))
     _suite.addTest(unittest.FunctionTestCase(_test_xpath))
     _suite.addTest(unittest.FunctionTestCase(_test_update_and_serialize))
+    _suite.addTest(unittest.FunctionTestCase(_test_append_and_flatten))
     return _suite
 
 
