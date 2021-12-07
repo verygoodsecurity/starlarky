@@ -206,6 +206,8 @@ def _test_sax_parser_eg1():
                 "characters",
                 "processingInstruction",
                 "characters",
+                "startDTD",
+                "endDTD",
                 "characters",
                     "startElement",
                         "characters",

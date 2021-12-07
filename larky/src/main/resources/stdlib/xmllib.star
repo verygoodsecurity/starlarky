@@ -214,8 +214,6 @@ def XMLParser(**kw):
             return data
         i = 0
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-            if not 1:
-                break
             res = amp.search(data, i)
             if res == None:
                 return data
@@ -755,6 +753,10 @@ def XMLParser(**kw):
             attrnamemap[key] = key
         if self.__use_namespaces:
             nattrdict = {}
+            # NOTE: this is done here (instead of after constructing the nattridct)
+            # to preserve the expected order of insertion
+            if nsdict:
+                nattrdict['nsmap'] = {v:k for k, v in nsdict.items()}
             for key, val in list(attrdict.items()):
                 okey = key
                 res = qname.match(key)
@@ -785,9 +787,7 @@ def XMLParser(**kw):
                 if val != None and not key in attrdict:
                     attrdict[key] = val
         method = self.elements.get(nstag, (None, None))[0]
-        if nsdict:
-            attrdict['nsmap'] = {v:k for k, v in nsdict.items()}
-            # print("xmllib: ", nstag, "!", attrdict, "!", method, "!", nsdict)
+        # print("xmllib: ", nstag, "!", attrdict, "!", method, "!", nsdict)
         self.finish_starttag(nstag, attrdict, method)
         if tag.group('slash') == '/':
             self.finish_endtag(tagname)
@@ -869,10 +869,11 @@ def XMLParser(**kw):
         for i in ns:
             if not i:
                 continue
-            k = i.keys()
-            if len(k) != 1:
-                fail("ns length is greater than 1: k: %s, i: %s" %(k, i))
-            self.handle_endns(k[0])
+            for k in reversed(i):
+                self.handle_endns(k)
+            # if len(k) != 1:
+            #     fail("ns length is greater than 1: k: %s, i: %s" %(k, i))
+            # self.handle_endns(k[0])
         ns.clear()
     self.finish_endtag = finish_endtag
 

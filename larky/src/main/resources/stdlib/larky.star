@@ -102,7 +102,16 @@ def _impl_function_name(f):
 def _is_instance(instance, some_class_or_factory):
     t = type(instance)
     # are the types the same?
-    _hasname = getattr(some_class_or_factory, '__name__', None)
+    _hasname = None
+    for i in ('__class__', '__name__',):
+        _hasname = getattr(some_class_or_factory, i, None)
+        if _hasname:
+            break
+    if _hasname:
+        _hasname = str(_hasname)
+        if 'built-in' in _hasname or '<function ' in _hasname:
+            _hasname = _hasname.split(" ")[-1].rpartition(">")[0]
+
     if _hasname and t == _hasname:
         return True
     # otherwise

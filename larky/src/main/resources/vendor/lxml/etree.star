@@ -12,15 +12,16 @@ load("@stdlib//xml/etree/ElementPath", ElementPath="ElementPath")
 load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
 load("@stdlib//xmllib", xmllib="xmllib")
 load("@stdlib//zlib", zlib="zlib")
-load("@vendor//_etreeplus/dom/ext/c14n", c14n="c14n")
-load("@vendor//_etreeplus/xmlwriter", xmlwriter="xmlwriter")
-load("@vendor//elementtree/ElementC14N", ElementC14N="ElementC14N")
-load("@vendor//option/result", Ok="Ok", Error="Error")
+load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error")
+
+load("@vendor//lxml/_c14n", c14n="c14n")
+load("@vendor//lxml/_xmlwriter", xmlwriter="xmlwriter")
 
 
 element_tree = ElementTree
 QName = element_tree.QName
 tag_regexp = re.compile("{([^}]*)}(.*)")
+
 
 fullTree = True
 ElementTreeImplementation = ElementTree
@@ -67,6 +68,8 @@ def _get_ns_tag(tag):
     Copied from lxml's src/lxml/sax.py and modified for larky
     """
     # this is a special Comment, ProcessingInstruction, etc.
+    # if tag == None:
+    #     return None, ""
     if types.is_function(tag) or tag[0] != '{':
         return None, tag
     return tuple(tag[1:].split('}', 1))
@@ -95,6 +98,7 @@ def _namespaced_name_from_ns_name(href, name):
         ns_utf, tag_utf = _get_ns_tag(name.text)
     else:
         ns_utf, tag_utf = _get_ns_tag(name)
+    # return ("{%s}%s" % (ns_utf, tag_utf)) if ns_utf else tag_utf
     return "{%s}%s" % (ns_utf, tag_utf)
 
 
@@ -391,9 +395,17 @@ def XMLNode(tag, attrib=None, **extra):
         # tag(2): {http://example.com/ns/foo}p => prefix = None, href => http://example.com/ns/foo
         # nsmap: {"http://example.com/ns/foo": "x"}
         # print("DEBUG:::", tag, attrib, nsmap)
-        self.tag = tag  # could be a qualified tag
+        if types.is_string(tag):
+            qname = fixname(tag)
+            self.tag = qname
+            self._href, tag = _get_ns_tag(qname)
+            self._prefix, _ = split_qname(tag)
+        else:
+            self.tag = tag
+            self._href = None
+            self._prefix = None
         # get the ns/prefix (if any)
-        self._href, self._name = _get_ns_tag(tag)  # won't change
+        # self._href, self._name = _get_ns_tag(self.tag)  # won't change
 
         # A dict holding name -> value pairs for attributes of the node
         attrib = attrib or {}
@@ -401,7 +413,13 @@ def XMLNode(tag, attrib=None, **extra):
         self.attrib = dict(**attrib)
 
         # nsmap's type: Dict["http://example.com/ns/foo", "x"]
-        self._nsmap = self.attrib.pop('nsmap', {})
+        self._nsmap = self.attrib.pop('nsmap', {}) or {}
+        if self._nsmap and not self._href and not self._prefix:
+            self._prefix = ""
+            self._href = _invert(self._nsmap).get(self._prefix)
+            if self._href:
+                self.tag = "{%s}%s" % (self._href, self.tag)
+
         # used in _build_nsmap below (accessible through self.nsmap property)
         self.__cached_nsmap = None
         # used in prefix below
@@ -428,7 +446,8 @@ def XMLNode(tag, attrib=None, **extra):
     # read-only properties
     self.ns = larky.property(lambda: dict(**self._nsmap))
     self.name = larky.property(lambda: self.tag)
-    self.unprefixed_name = larky.property(lambda: self._name)
+    self.qname = larky.property(lambda: QName(self))
+    self.prefix = larky.property(lambda: split_qname(self.qname)[0])
     self.href = larky.property(lambda: self._href)
     self.parent = larky.property(lambda: self.__parent)
     self._index = larky.property(lambda: self.parent.index(self) if self.parent else 0)
@@ -690,7 +709,7 @@ def XMLNode(tag, attrib=None, **extra):
     def gettail(strip=None):
         _txt = []
         for text in self.gettextaslist(reverse=True):
-            print(repr(self), repr(text))
+            # print(repr(self), repr(text))
             if strip:
                 if strip == True:
                     text = text.strip()
@@ -836,13 +855,13 @@ def XMLNode(tag, attrib=None, **extra):
         @returns Root node instance or None if not found
         """
         current = self
-        print("current.nodetype():", current.nodetype())
+        # print("current.nodetype():", current.nodetype())
         if current.nodetype() != 'Document':
             current = self.owner_doc
-            print("current owner doc:", current)
+            # print("current owner doc:", current)
 
         for c in current:
-            print("current.children", c.nodetype())
+            # print("current.children", c.nodetype())
             if c.nodetype() not in (
                     'ProcessingInstruction',
                     'Comment',
@@ -1000,6 +1019,7 @@ def XMLNode(tag, attrib=None, **extra):
         @param child Any instance of XMLNode
         @param reparent True if should be reparented, False to skip
         """
+        # print("child ", repr(child), "appending to ", repr(self))
         if reparent:
             # This will call addchild again after reparenting is done
             # but reparent flags as False
@@ -1252,7 +1272,10 @@ def XMLNode(tag, attrib=None, **extra):
         if self.numchildren() == 0:
             self.appendChild(data)
         elif insertBefore == None:
-            self.addnext(data)
+            # if self.getparent():
+            #     self.addnext(data)
+            # else:
+            self.appendChild(data)
             # self._children[-1].appendChild(data)
         else:
             index = self.index(insertBefore)
@@ -2163,7 +2186,7 @@ def tofilelikeC14N(f, element, exclusive, with_comments,
             unsuppressedPrefixes=inclusive_ns_prefixes
         )
     else:
-        c14n.Canonicalize(c_doc, f, comments=with_comments, nsdict=namespaces)
+        c14n.Canonicalize(c_doc, f, comments=with_comments) #, nsdict=namespaces)
     # print("ElementC14N.Canonicalize", "\n", sio.getvalue())
     # ElementC14N.write(c_doc,
     #                   f,
@@ -2181,7 +2204,7 @@ def tofilelikeC14N(f, element, exclusive, with_comments,
 def _tostring(element, encoding, doctype,
               method, write_xml_declaration,
               write_complete_document, pretty_print,
-              with_tail, standalone):
+              with_tail, standalone, **options):
     """Serialize an element to an encoded string representation of its XML
     tree.
     """
@@ -2216,6 +2239,7 @@ def _tostring(element, encoding, doctype,
         standalone=standalone,
         doctype=c_doctype,
         write_complete_document=write_complete_document,
+        **options
     )
     result = c_result_buffer.getvalue()
     if encoding == b"unicode":
@@ -2320,6 +2344,15 @@ def tostring(element_or_tree,
     else:
         write_declaration = xml_declaration
     if encoding == None:
+        # TODO(mahmoudimus): support encoding
+        # owner_doc = getattr(element_or_tree, 'owner_doc', None)
+        # if not owner_doc:
+        #     owner_doc = getattr(element_or_tree, '_doc', None)
+        #
+        # if not owner_doc or not getattr(owner_doc, 'encoding', None):
+        #     encoding = 'ASCII'
+        # else:
+        #     encoding = owner_doc.encoding
         encoding = 'ASCII'
     if standalone == None:
         is_standalone = False
@@ -2333,29 +2366,86 @@ def tostring(element_or_tree,
     if iselement(element_or_tree):
         return _tostring(XMLTree(element_or_tree), encoding, doctype, method,
                          write_declaration, False, pretty_print, with_tail,
-                         is_standalone)
+                         is_standalone, **options)
     elif iselementtree(element_or_tree):
         return _tostring(element_or_tree,
                          encoding, doctype, method, write_declaration, True,
-                         pretty_print, with_tail, is_standalone)
+                         pretty_print, with_tail, is_standalone, **options)
     else:
         fail("TypeError: Type '%s' cannot be serialized." % (type(element_or_tree)))
 
 
-def parse(source, parser=None, base_url=None, tree_factory=XMLTree):
-    """Parse XML document into element tree.
+def ElementTree(element=None, file=None, parser=None):
+    """ElementTree(element=None, file=None, parser=None)
 
-    *source* is a filename or file object containing XML data,
-    *parser* is an optional parser instance defaulting to XMLParser.
+    ElementTree wrapper class.
+    """
 
-    Return an ElementTree instance.
+    if element != None:
+        return XMLTree(element)
+    elif file != None:
+        return parse(file, parser=parser, base_url=None)
 
+    return XMLTree()
+
+
+def parse(source, parser=None, base_url=None):
+    """parse(source, parser=None, base_url=None)
+
+    Return an ElementTree object loaded with source elements.  If no parser
+    is provided as second argument, the default parser is used.
+
+    The ``source`` can be any of the following:
+
+    - a file name/path
+    - a file object
+    - a file-like object
+    - a URL using the HTTP or FTP protocol
+
+    To parse from a string, use the ``fromstring()`` function instead.
+
+    Note that it is generally faster to parse from a file path or URL
+    than from an open file object or file-like object.  Transparent
+    decompression from gzip compressed sources is supported (unless
+    explicitly disabled in libxml2).
+
+    The ``base_url`` keyword allows setting a URL for the document
+    when parsing from a file-like object.  This is needed when looking
+    up external entities (DTD, XInclude, ...) with relative paths.
     """
     if not parser:
         parser = XMLParser(TreeBuilder())
-    tree = tree_factory()
+    tree = XMLTree()
     tree.parse(source, parser, base_url=base_url)
     return tree
+
+
+def XML(text, parser=None, base_url=None):
+    """XML(text, parser=None, base_url=None)
+
+    Parses an XML document or fragment from a string constant.
+    Returns the root node (or the result returned by a parser target).
+    This function can be used to embed "XML literals" in Python code,
+    like in
+
+       >>> root = XML("<root><test/></root>")
+       >>> print(root.tag)
+       root
+
+    To override the parser with a different ``XMLParser`` you can pass it to
+    the ``parser`` keyword argument.
+
+    The ``base_url`` keyword argument allows to set the original base URL of
+    the document to support relative Paths when looking up external entities
+    (DTD, XInclude, ...).
+    """
+    if not parser:
+        parser = XMLParser(TreeBuilder())
+    tree = XMLTree()
+    src = io.StringIO(text) if types.is_string(text) else io.BytesIO(text)
+    tree.parse(src, parser, base_url=base_url)
+    return tree.getroot()
+
 
 #
 # def Element(name, namespace=None):
@@ -2655,49 +2745,47 @@ def CDATA(data):
     return element
 
 
-# non standard factories
-# def DocumentType(name, public_id, system_id, data):
-#     """Doctype node
-#
-#     """
-#     self = larky.mutablestruct(__name__='DocumentType', __class__=DocumentType)
-#     self.name = name
-#     self.public_id = public_id
-#     self.system_id = system_id
-#     self.data = data
-#     self.internalDTD = larky.property(lambda: data)
-#     self.text = "<!DOCTYPE>"
-#     return self
-#
-#
-# def Document(encoding=None, standalone=None, version=None, doctype=None):
-#     """Document
-#     """
-#     self = larky.mutablestruct(__name__='Document', __class__=Document)
-#
-#     def __init__(encoding, standalone, version, doctype):
-#         self.encoding = encoding
-#         self.standalone = standalone
-#         self.version = version
-#         self.doctype = doctype
-#         self._elementTree = None
-#         self._childNodes = []
-#         return self
-#     self = __init__(encoding, standalone, version, doctype)
-#
-#     def appendChild(element):
-#         last = self._elementTree.getroot()
-#         for last in self._elementTree.getroot().itersiblings():
-#             pass
-#
-#         last.addnext(element._element)
-#     self.appendChild = appendChild
-#
-#     def _getChildNodes():
-#         return self._childNodes
-#     self._getChildNodes = _getChildNodes
-#
-#     self.childNodes = larky.property(_getChildNodes)
+def Attr(ownerDocument, name, namespaceURI, prefix, localName):
+    self = XMLNode(Attr, attrib={
+        "nsmap": {
+            namespaceURI: prefix,
+        },
+        localName: localName,
+        name: name,
+    })
+    self._name = name
+    self._owner_doc = ownerDocument
+
+    def _get_value():
+        return ''.join(self.gettextaslist())
+    self._get_value = _get_value
+
+    def _set_value(value):
+        pass
+        # old_value = self.value
+        # if value != old_value or len(self.childNodes) > 1:
+        #     # Remove previous childNodes
+        #     while self.firstChild:
+        #         self.removeChild(self.firstChild)
+        #     if value:
+        #         self.appendChild(self.ownerDocument.createTextNode(value))
+        #     owner = self._ownerElement
+        #     if owner:
+        #         owner._4dom_fireMutationEvent('DOMAttrModified',
+        #                                       relatedNode=self,
+        #                                       prevValue=old_value,
+        #                                       newValue=value,
+        #                                       attrName=self.name,
+        #                                       attrChange=MutationEvent.MODIFICATION)
+        #         owner._4dom_fireMutationEvent('DOMSubtreeModified')
+    self._set_value = _set_value
+
+    def __repr__():
+        return '<Attribute Node: Name="%s", Value="%s">' % (
+            self._name,
+            self._get_value()
+            )
+    self.__repr__ = __repr__
 
 
 def DocumentType(name, public_id, system_id, data):
@@ -3020,10 +3108,26 @@ def XMLParser(target):
     self.handle_cdata = handle_cdata
 
     xmllib_XMLParser_handle_charref = self.handle_charref
-    xmllib_XMLParser_unknown_charref = self.unknown_charref
-    self.handle_charref = xmllib_XMLParser_handle_charref
-    self.unknown_charref = xmllib_XMLParser_unknown_charref
+    # Example -- handle character reference, no need to override
+    def handle_charref(name):
+        if name[0] == 'x':
+            rval = Ok(name[1:]).map(lambda x: int(x, 16))
+        else:
+            rval = Ok(name).map(int)
 
+        if rval.is_err:
+            self.unknown_charref(name)
+            return
+
+        n = rval.unwrap()
+        if not ((0 <= n) and (n <= 255)):
+            self.unknown_charref(name)
+            return
+        self.handle_data(chr(n))
+    self.handle_charref = handle_charref
+
+    xmllib_XMLParser_unknown_charref = self.unknown_charref
+    self.unknown_entityref = xmllib_XMLParser_unknown_charref
     return self
 
 
@@ -3173,8 +3277,8 @@ def BaseTreeBuilder(namespaceHTMLElements):
     #     return False
     # self.elementInActiveFormattingElements = elementInActiveFormattingElements
 
-    def insertRoot(token):
-        element = self.createElement(token)
+    def insertRoot(**token):
+        element = self.createElement(**token)
         self.openElements.append(element)
         self.document.appendChild(element)
         element.attach_document(self.document)
@@ -3206,23 +3310,27 @@ def BaseTreeBuilder(namespaceHTMLElements):
         pi_node.attach_document(self.document)
     self.insertProcessingInstruction = insertProcessingInstruction
 
-    def createElement(token):
+    def createElement(**token):
         """Create an element but don't insert it anywhere"""
         name = token["tag"]
         namespace = token.get("namespace", self.defaultNamespace)
-        element = self.elementClass(name, namespace)
-        element.attributes = token["attrs"]
+        element = self.elementClass(
+            _namespaced_name_from_ns_name(namespace, name),
+            {fixname(key): value for key, value in token["attrs"].items()}
+        )
         element.attach_document(self.document)
         return element
     self.createElement = createElement
 
-    def insertElementNormal(token):
+    def insertElementNormal(**token):
         name = token["tag"]
         if not types.is_string(name):
             fail("Element %s not string!" % name)
         namespace = token.get("namespace", self.defaultNamespace)
-        element = self.elementClass(name, namespace)
-        element.attributes = token["attrs"]
+        element = self.elementClass(
+            _namespaced_name_from_ns_name(namespace, name),
+            {fixname(key): value for key, value in token["attrs"].items()}
+        )
         element.attach_document(self.document)
         self.openElements[-1].appendChild(element)
         self.openElements.append(element)
@@ -3262,6 +3370,28 @@ def BaseTreeBuilder(namespaceHTMLElements):
 
     return self
 
+
+def split_qname(qname):
+    """
+    Input a QName according to XML Namespaces 1.0
+    http://www.w3.org/TR/REC-xml-names
+    Return the name parts according to the spec
+    In the case of namespace declarations the tuple returned
+    is (prefix, 'xmlns')
+    Note that this won't hurt users since prefixes and local parts starting
+    with "xml" are reserved, but it makes ns-aware builders easier to write
+    """
+    fields = qname.split(':')
+    if len(fields) == 1:
+        return None, 'xmlns' if qname == 'xmlns' else qname
+    elif len(fields) == 2:
+        if fields[0] == 'xmlns':
+            return fields[1], 'xmlns'
+        else:
+            return fields[0], fields[1]
+    return None, None
+
+
 XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace"
 def TreeBuilder(namespaceHTMLElements=False, **options):
     # self = larky.mutablestruct(__name__='TreeBuilder', __class__=TreeBuilder)
@@ -3296,6 +3426,17 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
         return parse(io.StringIO(xmlstr), parser=parser)
     self.fromstring = fromstring
 
+    def _buildTag(ns_name_tuple):
+        ns_uri, local_name = ns_name_tuple
+        if ns_uri:
+            el_tag = "{%s}%s" % ns_name_tuple
+        elif self._default_ns:
+            el_tag = "{%s}%s" % (self._default_ns, local_name)
+        else:
+            el_tag = local_name
+        return el_tag
+    self._buildTag = _buildTag
+
     def publish(event, **payload):
         if self.debug:
             print("** SEEN EVENT: ", event, payload)
@@ -3311,7 +3452,7 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
             self.lastEvent[1] = [(ParserEvents.END_DOCUMENT, self.document), None]
             self.pop()
         elif event == ParserEvents.ERROR:
-            fail("unexpected error encountered: " + payload)
+            fail("unexpected error encountered: %s" % payload["message"])
         elif event == ParserEvents.DECLARATION:
             # <?xml ......>  => Declaration
             self.document.encoding = payload["encoding"]
@@ -3323,6 +3464,7 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
             node = self.document.last_child()
             self.lastEvent[1] = [(ParserEvents.DTD, node), None]
             self.lastEvent = self.lastEvent[1]
+            self._ev_q.append(("doctype", node))
         elif event == ParserEvents.PROCESSING_INSTRUCTION:
             # <?target ...>  => Processing instruction
             parent = self.elementStack[-1]
@@ -3341,16 +3483,114 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
             # <name ......>  => Element
             # <name>         => Element without attributes
             # <name/>        => Empty Element
+            xmlns_uri = 'http://www.w3.org/2000/xmlns/'
+            ns_attrs = {}
+            if self._xmlns_attrs:
+                for aname, value in self._xmlns_attrs:
+                    ns_attrs[(xmlns_uri, aname or "")] = value
+                self._xmlns_attrs = []
+            localname = payload['tag']
+            nsmap = payload['attrs'].pop('nsmap', {})
+            if nsmap:
+                # uri = node_attrib['nsmap'].keys()[0] or ""
+                uri, localname = _get_ns_tag(fixname(localname))
+                # When using namespaces, the reader may or may not
+                # provide us with the original name. If not, create
+                # *a* valid tagName from the current context.
+                prefix = self._current_context.get(uri)
+                if self.debug:
+                    print("uri:", uri, "ctx[uri]..(prefix): ", prefix)
+                if prefix:
+                    tagName = prefix
+                    if localname:
+                        tagName += (":" + localname)
+                else:
+                    tagName = localname
+                localname = tagName
+
             if not self.seenRoot:
-                self.insertRoot(payload)
+                self.insertRoot(tag=localname, attrs={'nsmap': nsmap})
                 self.seenRoot = True
                 node = self.document.last_child()
                 self.document.setroot(node)
             else:
-                node = self.insertElementNormal(payload)
+                # print("openElements[-1]", repr(self.openElements[-1]))
+                node = self.insertElementNormal(tag=localname, attrs={'nsmap': nsmap})
+
+            node_attrib = dict(**payload['attrs'])
+            if self.debug:
+                print("tagname", localname, "node_attrib: ", node_attrib)
+            # to preserve expected insertion order
+            # _attribs = node.attrib
+            # node.attrib = {}
+            ns_attrs.update(node_attrib)
+            for aname,value in ns_attrs.items():
+                if types.is_tuple(aname):
+                    a_uri, a_localname = aname
+                else:
+                    a_uri, a_localname = _get_ns_tag(fixname(aname))
+
+                if a_uri == xmlns_uri:
+                    if a_localname == 'xmlns':
+                        qname = a_localname
+                    else:
+                        qname = 'xmlns'
+                        if a_localname:
+                            qname += (":" + a_localname)
+                    node._nsmap[a_uri] = qname
+                    key = qname
+                    # attr = self.document.createAttributeNS(a_uri, qname)
+                    # node.setAttributeNodeNS(attr)
+                elif a_uri:
+                    prefix = self._current_context[a_uri]
+                    if prefix:
+                        qname = prefix
+                        if a_localname:
+                            qname += (":" + a_localname)
+                    else:
+                        qname = a_localname
+                    node._nsmap[a_uri] = qname
+                    key = qname
+                    # attr = self.document.createAttributeNS(a_uri, qname)
+                    # node.setAttributeNodeNS(attr)
+                else:
+                    node._nsmap[None] = a_localname
+                    # attr = self.document.createAttribute(a_localname)
+                    # node.setAttributeNode(attr)
+                    # a_uri, a_localname = aname
+                    key = _namespaced_name_from_ns_name(a_uri, a_localname)
+                if self.debug:
+                    print("params = ", a_uri, a_localname, "value=", value, "key=",key)
+                node.attrib[key] = value
+                # node.attrib[] = value
+            # node.attrib.update(_attribs)
+            self.lastEvent[1] = [(ParserEvents.START_ELEMENT, node), None]
+            self.lastEvent = self.lastEvent[1]
             self.push(node)
+            self._ev_q.append(("start", node))
         elif event == ParserEvents.ATTRIBUTE:
-            print("** ATTRIBUTE:", payload)
+            pass
+            # top = self.elementStack[-1]
+            # xmlns_uri = 'http://www.w3.org/2000/xmlns/'
+            # if self._xmlns_attrs != None:
+            #     for aname, value in self._xmlns_attrs:
+            #         key = _namespaced_name_from_ns_name(xmlns_uri, aname)
+            #         top.attrib[key] = value
+            #     self._xmlns_attrs = []
+            #
+            # if top.tag != fixname(payload['tag']):
+            #     fail(("received attribute event for (%s) and its not " +
+            #           "related to current node: %s") %
+            #          (fixname(payload['tag']), repr(top)))
+            # key = payload['name']
+            # value = payload['value']
+            # if key == 'nsmap':
+            #     top._nsmap.update(value)
+            # else:
+            #     top.attrib[key] = value
+            #
+            ## {"tag": "e9", "name": "nsmap", "value": {None: "", "http://www.ietf.org": "a"}}
+            #
             # attrs = payload['attrs']
             # if self._xmlns_attrs is not None:
             #     for aname, value in _xmlns_attrs:
@@ -3359,10 +3599,15 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
         elif event == ParserEvents.NAMESPACE:
             self._xmlns_attrs.append((payload.get('prefix', 'xmlns'), payload['href']))
             self._ns_contexts.append(dict(**self._current_context))
-            self._current_context[payload['href']] = payload.get('prefix')
+            self._current_context[payload['href']] = payload.get('prefix') or None
+            self._ev_q.append(
+                ("start-ns", (payload.get('prefix') or "", payload['href']))
+            )
         elif event == ParserEvents.END_NAMESPACE:
+            self._ev_q.append(("end-ns", None))
             self._current_context = self._ns_contexts.pop()
         elif event == ParserEvents.END_ELEMENT:
+            self._ev_q.append(("end", self.openElements.pop()))
             self.lastEvent[1] = [(ParserEvents.END_ELEMENT, self.pop()), None]
             self.lastEvent = self.lastEvent[1]
         elif event == ParserEvents.CHARACTERS:
@@ -3382,20 +3627,20 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
             #   in attribute values
             #   CDATA sections
             #   comments
-            if not self.preservews:
+            if self.preservews:
+                if self.debug:
+                    print("insertWS to this parent:", repr(self.elementStack[-1]))
+                self.insertText(payload["data"], self.elementStack[-1])
+            else:
                 if self.debug:
                     print("skipping ws, last event",
                           self.lastEvent[0],
                           "stack top",
                           repr(self.elementStack[-1]))
-                return
             # skip any whitespace that is associated to the document
             ## if self.lastEvent[0][1] == self.document:
             # if self.elementStack[-1] == self.document:
             #     return
-            if self.debug:
-                print(self.lastEvent[0])
-            self.insertText(payload["data"], self.elementStack[-1])
             # self.insertText(payload["data"], self.lastEvent[0][1])
         # ignore the below events
         elif event == ParserEvents.NOTATION_DECLARATION:
@@ -3493,19 +3738,103 @@ def ElementBreadthFirstIterator(node):
     return self
 
 
-XMLTreeNode = larky.struct(
-    __name__='XMLTreeNode',
+def iterparse(source, events=("end",), tag=None,
+            attribute_defaults=False, dtd_validation=False,
+            load_dtd=False, no_network=True, remove_blank_text=False,
+            compact=True, resolve_entities=True, remove_comments=False,
+            remove_pis=False, strip_cdata=True, encoding=None,
+            html=False, recover=None, huge_tree=False, collect_ids=True,
+            schema=None):
+    """
+    iterparse(self, source, events=("end",), tag=None, \
+                      attribute_defaults=False, dtd_validation=False, \
+                      load_dtd=False, no_network=True, remove_blank_text=False, \
+                      remove_comments=False, remove_pis=False, encoding=None, \
+                      html=False, recover=None, huge_tree=False, schema=None)
+
+    Incremental parser.
+
+    Parses XML into a tree and generates tuples (event, element) in a
+    SAX-like fashion. ``event`` is any of 'start', 'end', 'start-ns',
+    'end-ns'.
+
+    For 'start' and 'end', ``element`` is the Element that the parser just
+    found opening or closing.  For 'start-ns', it is a tuple (prefix, URI) of
+    a new namespace declaration.  For 'end-ns', it is simply None.  Note that
+    all start and end events are guaranteed to be properly nested.
+
+    The keyword argument ``events`` specifies a sequence of event type names
+    that should be generated.  By default, only 'end' events will be
+    generated.
+
+    The additional ``tag`` argument restricts the 'start' and 'end' events to
+    those elements that match the given tag.  The ``tag`` argument can also be
+    a sequence of tags to allow matching more than one tag.  By default,
+    events are generated for all elements.  Note that the 'start-ns' and
+    'end-ns' events are not impacted by this restriction.
+
+    The other keyword arguments in the constructor are mainly based on the
+    libxml2 parser configuration.  A DTD will also be loaded if validation or
+    attribute default values are requested.
+
+    Available boolean keyword arguments:
+     - attribute_defaults: read default attributes from DTD
+     - dtd_validation: validate (if DTD is available)
+     - load_dtd: use DTD for parsing
+     - no_network: prevent network access for related files
+     - remove_blank_text: discard blank text nodes
+     - remove_comments: discard comments
+     - remove_pis: discard processing instructions
+     - strip_cdata: replace CDATA sections by normal text content (default: True)
+     - compact: safe memory for short text content (default: True)
+     - resolve_entities: replace entities by their text value (default: True)
+     - huge_tree: disable security restrictions and support very deep trees
+                  and very long text content (only affects libxml2 2.7+)
+     - html: parse input as HTML (default: XML)
+     - recover: try hard to parse through broken input (default: True for HTML,
+                False otherwise)
+
+    Other keyword arguments:
+     - encoding: override the document encoding
+     - schema: an XMLSchema to validate against
+    """
+    if not hasattr(source, "read"):
+        fail("TypeError: source (in Larky) must have a read function")
+    builder = TreeBuilder(capture_event_queue=bool(events))
+    parser = XMLParser(builder)
+    parse(source, parser=parser)
+
+    event_queue = list(builder.read_events())
+    if events:
+        event_queue = [e for e in event_queue if e[0] in events]
+
+    def _iterate(idx):
+        if idx >= len(event_queue):
+            return StopIteration()
+        return Result.Ok(event_queue[idx])
+
+    it = larky.DeterministicGenerator(_iterate)
+    # does not work!
+    # it.root = tree.getroot()
+    return it
+
+
+etree = larky.struct(
+    __name__='etree',
+
     namespaced_name=_namespaced_name,
     get_ns_tag=_get_ns_tag,
     get_ns=_get_ns,
     namespaced_name_from_ns_name=_namespaced_name_from_ns_name,
     tag_matches=_tag_matches,
+    # TODO: rename..
     XMLTree=XMLTree,
+    XMLNode=XMLNode,
+
     tostring=tostring,
     tostringC14N=tostringC14N,
     tofilelikeC14N=tofilelikeC14N,
     iselement=iselement,
-    XMLNode=XMLNode,
     Comment=Comment,
     ProcessingInstruction=ProcessingInstruction,
     DocumentType=DocumentType,
@@ -3514,4 +3843,8 @@ XMLTreeNode = larky.struct(
     XMLParser=XMLParser,
     TreeBuilder=TreeBuilder,
     parse=parse,
+    iterparse=iterparse,
+    XML=XML,
+    ElementTree=ElementTree,
+    QName=QName,
 )
