@@ -1,26 +1,21 @@
-load("@stdlib//builtins", "builtins")
+load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
-load("@stdlib//io/StringIO", "StringIO")
-load("@stdlib//larky", "larky")
+load("@stdlib//io", io="io")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
-load("@stdlib//types", "types")
-load("@stdlib//unittest", "unittest")
+load("@stdlib//types", types="types")
+load("@stdlib//unittest", unittest="unittest")
 load("@stdlib//xml/etree/ElementTree", QName="QName", ElementTree="ElementTree")
 
-load("@vendor//asserts", "asserts")
+load("@vendor//asserts", asserts="asserts")
 load("@vendor//cryptography/hazmat/backends", default_backend="default_backend")
 load("@vendor//cryptography/hazmat/primitives", serialization="serialization")
 load("@vendor//cryptography/hazmat/primitives/serialization", serialization="serialization")
 load("@vendor//cryptography/x509", load_pem_x509_certificate="load_pem_x509_certificate")
-load("@vendor//elementtree/AdvancedXMLTreeBuilder", AdvancedXMLTreeBuilder="AdvancedXMLTreeBuilder")
-load("@vendor//elementtree/ElementC14N", ElementC14N="ElementC14N")
-load("@vendor//_etreeplus/C14NParser", C14NParser="C14NParser")
-load("@vendor//_etreeplus/xmlwriter", xmlwriter="xmlwriter")
-load("@vendor//_etreeplus/xmltreenode", XMLTreeNode="XMLTreeNode")
-load("@vendor//_etreeplus/xmltree", xmltree="xmltree")
-
+load("@vendor//lxml/etree", etree="etree")
 
 load("@vendor//xmlsig", xmlsig="xmlsig")
+
 
 # TEST START
 load("./base", load_xml="load_xml", compare="compare")
@@ -59,27 +54,20 @@ def find_node_by_attribute(nodes, attribute, value):
 
 
 def test_xmlsig_sign_case1():
-    parser = AdvancedXMLTreeBuilder.TreeBuilder(
-        element_factory=XMLTreeNode.XMLNode,
-        capture_event_queue=True,
-        doctype_factory=XMLTreeNode.DocumentType,
-        document_factory=XMLTreeNode.Document,
-        comment_factory=XMLTreeNode.Comment,
-        insert_comments=True,
-        insert_pis=True,
-    )
-    root = load_xml(SIGN1_IN_XML, parser=parser)
-    tree = xmltree.XMLTree(root)
-    # print(xmltree.tostring(tree, method='c14n2')) # <- works!
-    # print(xmltree.tostringC14N(root, True, True, False))
-    print(xmltree.tostring(tree))
-    # print(xmltree.tostring(tree, method='c14n'))
-    sio = StringIO()
-    qnames, namespaces = ElementTree._namespaces(root, None)
-    ElementC14N._serialize_c14n(write=sio.write, elem=root, encoding='utf-8', qnames=qnames, namespaces=namespaces)
-    print("C14N 1.0", "\n", sio.getvalue())
-    print("--" * 100)
-    print(xmltree.tostring(tree))
+    tree = etree.parse(io.StringIO(SIGN1_IN_XML))
+    root = tree.getroot()
+    # root = load_xml(SIGN1_IN_XML)
+    #
+    print(etree.tostring(tree)) # <- works!
+    # # print(xmltree.tostringC14N(root, True, True, False))
+    # print(xmltree.tostring(tree))
+    # # print(xmltree.tostring(tree, method='c14n'))
+    # sio = StringIO()
+    # qnames, namespaces = ElementTree._namespaces(root, None)
+    # ElementC14N._serialize_c14n(write=sio.write, elem=root, encoding='utf-8', qnames=qnames, namespaces=namespaces)
+    # print("C14N 1.0", "\n", sio.getvalue())
+    # print("--" * 100)
+    # print(xmltree.tostring(tree))
 
     # writer0 = xmlwriter.XMLWriter(xmltree.XMLTree(root))
     # print(writer0())
@@ -91,12 +79,12 @@ def test_xmlsig_sign_case1():
     # serializer = xmlwriter.XMLSerializer(sio)
     # serializer.serialize(root)
     # print("serializer", "\n", sio.getvalue())
-    print("--" * 100)
-    # ----
-    sio = StringIO()
-    parser = C14NParser.C14nCanonicalizer(ElementTree.C14NWriterTarget, element_factory=sio.write)
-    ElementTree.canonicalize(SIGN1_IN_XML, out=sio, parser=parser)
-    print("C14N 2.0", "\n", sio.getvalue())
+    # print("--" * 100)
+    # # ----
+    # sio = StringIO()
+    # parser = C14NParser.C14nCanonicalizer(ElementTree.C14NWriterTarget, element_factory=sio.write)
+    # ElementTree.canonicalize(SIGN1_IN_XML, out=sio, parser=parser)
+    # print("C14N 2.0", "\n", sio.getvalue())
     # ----
     # writer0 = xmlwriter.XMLWriter(ElementTree.ElementTree(root))
     # print(writer0())
@@ -128,7 +116,7 @@ def test_xmlsig_sign_case1():
     ctx.key_name = "rsakey.pem"
     asserts.assert_that(ctx.key_name).is_equal_to("rsakey.pem")
     ctx.sign(sign)
-    print(xmltree.tostring(tree))
+    print(etree.tostring(tree, xml_declaration=True, encoding='UTF-8', space_inside_empty_tag=False, pretty_print=True))
     # writer0 = xmlwriter.XMLWriter(ElementTree.ElementTree(root))
     # signed = writer0(
     #     method="xml",

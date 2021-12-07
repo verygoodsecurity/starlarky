@@ -23,10 +23,6 @@ def _RSAAlgorithm():
     self.public_key_class = RSA.RsaKey
 
     def sign(data, private_key, digest):
-        print(repr(data))
-        print(data)
-        print(private_key)
-        print(digest())
         return private_key.sign(data, padding.PKCS1v15(), digest())
     self.sign = sign
 

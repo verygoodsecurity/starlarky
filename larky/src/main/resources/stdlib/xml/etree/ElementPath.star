@@ -561,12 +561,19 @@ _cache = {}
 
 
 def SelectorContext(root):
-    self = larky.mutablestruct(__class__='_SelectorContext', parent_map=None)
+    self = larky.mutablestruct(__class__='_SelectorContext')
     def __init__(root):
         self.root = root
         self.node = None
         return self
     self = __init__(root)
+    def _parent_map():
+        hasparent = getattr(root, 'getparent', None)
+        if not hasparent:
+            return None
+        else:
+            return hasparent()
+    self.parent_map = larky.property(_parent_map)
     return self
 
 # --------------------------------------------------------------------

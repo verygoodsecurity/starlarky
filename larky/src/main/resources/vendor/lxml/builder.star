@@ -41,33 +41,17 @@ load("@stdlib//functools", partial="partial")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error")
-load("@stdlib//xml/etree/ElementTree", etree="ElementTree", QName="QName")
+load("@vendor//lxml/etree", etree="etree")
 
 
-Element = etree.Element
-
-
-def CDATA(data):
-    """CDATA(data)
-    CDATA factory.  This factory creates an opaque data object that
-    can be used to set Element text.  The usual way to use it is::
-        >>> from xml.etree import ElementTree s etree
-        >>> el = etree.Element('content')
-        >>> el.text = etree.CDATA('a string')
-    """
-    element = Element(CDATA)
-    if types.is_string(data):
-        element.text = codecs.encode(data, encoding='utf-8')
-    else:
-        element.text = data
-    return element
+Element = etree.XMLNode
 
 
 def iselement(element):
     """iselement(element)
     Checks if an object appears to be a valid element object.
     """
-    return types.isinstance(element, 'Element')
+    return type(element) == 'XMLNode'
 
 
 def ElementMaker(typemap=None, namespace=None, nsmap=None, makeelement=None):

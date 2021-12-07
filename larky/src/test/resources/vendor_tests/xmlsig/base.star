@@ -1,17 +1,14 @@
-load("@stdlib//larky", "larky")
-load("@stdlib//io/StringIO", "StringIO")
+load("@stdlib//larky", larky="larky")
+load("@stdlib//io", io="io")
 load("@stdlib//types", types="types")
-load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
-load("@vendor//asserts", "asserts")
-load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
+load("@vendor//asserts", asserts="asserts")
+load("@vendor//lxml/etree", etree="etree")
 
 
 def load_xml(xml, parser=None):
     if types.is_bytelike(xml):
         xml = xml.decode('utf-8')
-    f = StringIO(xml)
-    if not parser:
-        parser = SimpleXMLTreeBuilder.TreeBuilder()
+    f = io.StringIO(xml)
     # remove_blank_text=True
     # remove_comments=True
     # resolve_entities=False

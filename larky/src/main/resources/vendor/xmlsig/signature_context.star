@@ -4,13 +4,14 @@ load("@stdlib//base64", base64="base64")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//hashlib", hashlib="hashlib")
 load("@stdlib//types", types="types")
-load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
+# load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
 
-load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
-load("@vendor//_etreeplus/C14NParser", C14NParser="C14NParser")
-load("@vendor//_etreeplus/xmlwriter", XMLWriter="XMLWriter")
-load("@vendor//_etreeplus/xmltree", xmltree="xmltree")
+# load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
+# load("@vendor//_etreeplus/C14NParser", C14NParser="C14NParser")
+# load("@vendor//_etreeplus/xmlwriter", XMLWriter="XMLWriter")
+# load("@vendor//_etreeplus/xmltree", xmltree="xmltree")
 load("@vendor//cryptography/hazmat/primitives", serialization="serialization")
+load("@vendor//lxml/etree", etree="etree")
 
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes")
@@ -212,10 +213,8 @@ def SignatureContext():
         if method == constants.TransformEnveloped:
             # print("here3?", method)
             tree = transform.getroottree()
-            # print(node)
-            root = etree.fromstring(node, parser=SimpleXMLTreeBuilder.TreeBuilder())
-            pointer2parent = etree.getelementpath(
-                tree,
+            root = etree.fromstring(node)
+            pointer2parent = tree.getelementpath(
                 transform.getparent().getparent().getparent().getparent()
             )
             signature = root.find(pointer2parent)
@@ -247,41 +246,19 @@ def SignatureContext():
         """
         if method not in constants.TransformUsageC14NMethod:
             fail("Exception: " + "Method not allowed: " + method)
-        # print("method", method)
         c14n_method = constants.TransformUsageC14NMethod[method]
-        # if not hasattr(node, 'getroot'):
-        #     node = xmltree.XMLTree(node)
-        # c14n_node = xmltree.tostring(
-        #     node,
-        #     method=c14n_method["method"],
-        #     with_comments=c14n_method["comments"],
-        #     exclusive=c14n_method["exclusive"],
-        # )
-        if type(node) != 'ElementTree':
-            node = etree.ElementTree(node)
-        writer0 = XMLWriter(node)
-        sio = io.StringIO()
-        parser = C14NParser.C14nCanonicalizer(
-            etree.C14NWriterTarget,
-            element_factory=sio.write,
+        c14n_node = etree.tostring(
+            node,
+            method=c14n_method["method"],
             with_comments=c14n_method["comments"],
+            exclusive=c14n_method["exclusive"],
         )
-        etree.canonicalize(writer0(), out=sio, parser=parser)
-        c14n_node = sio.getvalue()
         if c14n_method["exclusive"] == False:
             # TODO: there must be a nicer way to do this. See also:
             # http://www.w3.org/TR/xml-c14n, "namespace axis"
             # http://www.w3.org/TR/xml-c14n2/#sec-Namespace-Processing
             c14n_node = c14n_node.replace(' xmlns=""', '')
         return c14n_node
-        # print("c14n_method", c14n_method)
-        # if type(node) != 'ElementTree':
-        #     node = etree.ElementTree(node)
-        # writer = XMLWriter(node)
-        # return writer(
-        #     method=c14n_method["method"],
-        #     with_comments=c14n_method["comments"],
-        #     exclusive=c14n_method["exclusive"])
     self.canonicalization = canonicalization
 
     def digest(method, node):

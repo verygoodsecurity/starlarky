@@ -1,6 +1,6 @@
 load("@stdlib//larky", larky="larky")
 
-load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
+load("@vendor//lxml/etree", etree="etree")
 load("@vendor//xmlsig/constants", ID_ATTR="ID_ATTR", NS_MAP="NS_MAP", DSigNs="DSigNs")
 load("@vendor//xmlsig/utils", create_node="create_node")
 

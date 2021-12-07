@@ -295,13 +295,13 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
         # self.file.write('<?xml version="1.0" encoding="%s"?>\n' % self.encoding)
         version = self.options.get('version', "1.0")
         standalone = self.options.get('standalone', None)
-        header = ["<?xml version='", version, "' encoding='", self.encoding]
+        header = ['<?xml version="', version, '" encoding="', self.encoding]
         if standalone == None:
-            header.append("'?>\n")
+            header.append('"?>\n')
         elif not standalone:
-            header.append("' standalone='no'?>\n")
+            header.append('" standalone="no"?>\n')
         else:
-            header.append("' standalone='yes'?>\n")
+            header.append('" standalone="yes"?>\n')
         self.file.write("".join(header))
     self.write_xml_header = write_xml_header
 
@@ -593,13 +593,13 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                     ]
                     q = children + q
                     continue
-                elif write_complete_document and tag_type == 'Comment':
+                elif tag_type == 'Comment':
                     # comments are not parsed by ElementTree!
                     self.write_comment(node)
                     if (write_complete_document or with_tail) and node.tail:
                         self.write_content(node.tail)
                     continue
-                elif write_complete_document and tag_type == 'Text':
+                elif tag_type == 'Text':
                     # Text are not parsed by ElementTree!
                     if self.options.get('debug'):
                         print("text node:", repr(node.text), repr(node.tail))
@@ -607,14 +607,13 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                     if (write_complete_document or with_tail) and node.tail:
                         self.write_content(node.tail)
                     continue
-                elif write_complete_document and tag_type == 'ProcessingInstruction':
+                elif tag_type == 'ProcessingInstruction':
                     # PI's are not parsed by ElementTree!
                     self.write_pi(node)
                     if (write_complete_document or with_tail) and node.tail:
                         self.write_content(node.tail)
                     continue
                 elif all((
-                        write_complete_document,
                         tag_type == 'DocumentType',
                         not self.options['doctype']
                 )):
@@ -665,13 +664,11 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                         if node.text:
                             self.write_content(node.text)
 
-                        children = []
-                        if write_complete_document:
-                            # self.write(n, dict(**namespaces))
-                            children = [
-                                (_IterWalkState.PRE, (n, dict(**namespaces), node,))
-                                for n in node
-                            ]
+                        # self.write(n, dict(**namespaces))
+                        children = [
+                            (_IterWalkState.PRE, (n, dict(**namespaces), node,))
+                            for n in node
+                        ]
                         # post visit
                         children.append((_IterWalkState.POST, (node, tag)))
                         q = children + q

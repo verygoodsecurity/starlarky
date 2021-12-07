@@ -32,6 +32,7 @@ load("@stdlib//larky",
     WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION",
     larky="larky",
 )
+load("@stdlib//types", types="types")
 load("@stdlib//sets", Set="Set")
 load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
 load("@vendor//option/result", Error="Error")
@@ -59,7 +60,7 @@ def _children(E):
 
 
 def _IN_XML_NS(n):
-    return n.tag.startswith("xmlns")
+    return n[0].startswith("xmlns")
 
 
 def _inclusive(n):
@@ -174,24 +175,27 @@ def _implementation(node, write, **kw):
         # Walk up and get all xml:XXX attributes we inherit.
         inherited, parent = [], node.getparent()
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-            if not parent and type(node) in (
-                "Element",
-                "XMLNode",
-            ):
+            if not (parent and parent.nodetype() not in (
+                "Document",
+                'ProcessingInstruction',
+                'Comment',
+                'DocumentType',
+                'Text'
+            )):
                 break
             for a in _attrs(parent):
                 if not _IN_XML_NS(a):
                     continue
-                n = a.localName
+                t, n = _nssplit(a[0])
                 if n not in xmlattrs:
                     xmlattrs.append(n)
                     inherited.append(a)
-            parent = parent.parentNode
+            parent = parent.getparent()
         return inherited
 
     self._inherit_context = _inherit_context
 
-    def _do_document(node):
+    def _do_document(node, inherited=None):
         """_do_document(self, node) -> None
 
         Process a document node. documentOrder holds whether the document
@@ -232,7 +236,8 @@ def _implementation(node, write, **kw):
                     "XMLNode",
                 ):
                     self.documentOrder = _Element  # At document element
-                    new_state = self._do_element(child)
+                    initial = inherited if level == 0 and inherited else None
+                    new_state = self._do_element(child, initial_other_attrs=initial)
                     children = [(_SerializeState.PRE, (level + 1, c)) for c in child]
                     # if children:
                     #     stack.append(self.state)
@@ -267,7 +272,10 @@ def _implementation(node, write, **kw):
         as their C14N entity representations."""
         if not _in_subset(self.subset, node):
             return
-        s = node.text.replace("&", "&amp;")
+        s = node.text
+        if types.is_bytelike(s):
+            s = s.decode('utf-8')
+        s = s.replace("&", "&amp;")
         s = s.replace("<", "&lt;")
         s = s.replace(">", "&gt;")
         s = s.replace("\r", "&#xD;")
@@ -284,7 +292,10 @@ def _implementation(node, write, **kw):
         as their C14N entity representations."""
         if not node.tail:
             return
-        s = node.tail.replace("&", "&amp;")
+        s = node.tail
+        if types.is_bytelike(s):
+            s = s.decode('utf-8')
+        s = s.replace("&", "&amp;")
         s = s.replace("<", "&lt;")
         s = s.replace(">", "&gt;")
         s = s.replace("\r", "&#xD;")
@@ -500,10 +511,10 @@ def _implementation(node, write, **kw):
         ):
             self.documentOrder = _Element  # At document element
             if not _inclusive(self):
-                self._do_element(node)
+                self._do_document(node)
             else:
                 inherited = self._inherit_context(node)
-                self._do_element(node, inherited)
+                self._do_document(node, inherited)
         elif type(node) == "DocumentType":
             pass
         else:

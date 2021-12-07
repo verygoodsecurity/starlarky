@@ -636,13 +636,10 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                         if node.text:
                             self.write_content(node.text)
 
-                        children = []
-                        if write_complete_document:
-                            # self.write(n, dict(**namespaces))
-                            children = [
-                                (_IterWalkState.PRE, (n, dict(**namespaces), node,))
-                                for n in node
-                            ]
+                        children = [
+                            (_IterWalkState.PRE, (n, dict(**namespaces), node,))
+                            for n in node
+                        ]
                         # post visit
                         children.append((_IterWalkState.POST, (node, tag)))
                         q = children + q

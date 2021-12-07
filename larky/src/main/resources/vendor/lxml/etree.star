@@ -9,7 +9,7 @@ load("@stdlib//string", string="string")
 load("@stdlib//types", types="types")
 load("@stdlib//xml/dom", dom="dom")
 load("@stdlib//xml/etree/ElementPath", ElementPath="ElementPath")
-load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
+load("@stdlib//xml/etree/ElementTree", element_tree="ElementTree")
 load("@stdlib//xmllib", xmllib="xmllib")
 load("@stdlib//zlib", zlib="zlib")
 load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error")
@@ -18,14 +18,14 @@ load("@vendor//lxml/_c14n", c14n="c14n")
 load("@vendor//lxml/_xmlwriter", xmlwriter="xmlwriter")
 
 
-element_tree = ElementTree
+# element_tree = ElementTree
 QName = element_tree.QName
 tag_regexp = re.compile("{([^}]*)}(.*)")
 
 
 fullTree = True
-ElementTreeImplementation = ElementTree
-ElementTreeCommentType = ElementTree.Comment("asd").tag
+# ElementTreeImplementation = ElementTree
+# ElementTreeCommentType = ElementTree.Comment("asd").tag
 
 
 def _invert(d):
@@ -704,7 +704,18 @@ def XMLNode(tag, attrib=None, **extra):
         return self.data
 
     self.gettext = gettext
-    self.text = larky.property(gettext)
+
+    def settext(data):
+        """ set value of the XMLNode
+        @returns None
+        """
+        text = Text(data)
+        text.attach_document(self.owner_doc)
+        self.insertText(text)
+        # self.data = data
+    self.settext = settext
+
+    self.text = larky.property(gettext, self.settext)
 
     def gettail(strip=None):
         _txt = []
@@ -809,7 +820,7 @@ def XMLNode(tag, attrib=None, **extra):
         """ Convert to XML string, does not do any formatting
         @returns XML presentation of the tree
         """
-        res = element_tree.tostring(self)
+        res = tostring(self)
         res = res.decode('utf-8', 'replace')
         return res
 
@@ -844,7 +855,7 @@ def XMLNode(tag, attrib=None, **extra):
         @returns XML presentation of the tree
         """
         self.indent(self)
-        res = element_tree.tostring(self)
+        res = tostring(self)
         res = res.decode('utf-8', 'replace')
         return '%s%s' % (doctype, res)
 
@@ -1201,17 +1212,14 @@ def XMLNode(tag, attrib=None, **extra):
             return self._children[0]
     self.first_child = first_child
 
-    def getroottree(tree_cls=None):
+    def getroottree():
         """ Get the root node and pass it to the tree_cls
 
         @returns tree_cls(Root node instance) or None if not found
         """
-        if not tree_cls:
-            tree_cls = element_tree.ElementTree
-
         rootnode = self.getroot()
         if rootnode:
-            return tree_cls(rootnode)
+            return XMLTree(rootnode)
 
     self.getroottree = getroottree
 
@@ -1898,6 +1906,7 @@ def XMLTree(root=None):
 
         path = []
         c_element = element
+        tag = None
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if c_element == root:
                 break
@@ -1907,33 +1916,63 @@ def XMLTree(root=None):
             tag = _namespaced_name_from_ns_name(c_href, c_name)
             # print(tag)
             if c_href == None:
-                c_href = b""  # no namespace (NULL is wildcard)
+                c_href = ""  # no namespace (NULL is wildcard)
             # use tag[N] if there are preceding siblings with the same tag
+
             count = 0
-            loc = c_element.getparent().getchildren().index(c_element)
-            for i in range(0, loc):
-                c_node = c_element.getparent().getchildren()[i]
+            c_node = c_element.previous_sibling()
+            for _while2_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+                if c_node == None:
+                    break
                 if iselement(c_node):
                     if _tag_matches(c_node, c_href, c_name):
                         count += 1
+                c_node = c_node.previous_sibling()
+            # count = 0
+            # loc = c_element.getparent().getchildren().index(c_element)
+            # for i in range(0, loc):
+            #     c_node = c_element.getparent().getchildren()[i]
+            #     if iselement(c_node):
+            #         if _tag_matches(c_node, c_href, c_name):
+            #             count += 1
             if count:
                 tag = "%s[%d]" % (tag, count + 1)
             else:
                 # use tag[1] if there are following siblings with the same tag
-                end = len(c_element.getparent().getchildren())
-                for i in range(loc, end):
-                    c_node = c_element.getparent().getchildren()[i]
+                # if c_node.type == tree.XML_ELEMENT_NODE:
+                #     if _tagMatches(c_node, c_href, c_name):
+                #         tag += '[1]'
+                #         break
+                # c_node = c_node.next
+                c_node = c_element.next_sibling()
+                for _while2_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+                    if c_node == None:
+                        break
                     if iselement(c_node):
                         if _tag_matches(c_node, c_href, c_name):
-                            tag += "[1]"
+                            tag += '[1]'
                             break
-            path.append(tag)
+                    c_node = c_node.next_sibling()
+                # end = len(c_element.getparent().getchildren())
+                # for i in range(loc, end):
+                #     c_node = c_element.getparent().getchildren()[i]
+                #     if iselement(c_node):
+                #         if _tag_matches(c_node, c_href, c_name):
+                #             tag += "[1]"
+                #             break
+
             c_element = c_element.getparent()
             if c_element == None or not iselement(c_element):
                 fail("ValueError: Element is not in this tree.")
+
+        path.append(tag)
+        c_element = c_element.getparent()
+        if c_element == None or not iselement(c_element):
+            fail("ValueError: Element is not in this tree.")
+
         if not path:
             return "."
-        path = reversed(path) # .reverse()
+        path = reversed(path)
         return "/".join(path)
     self.getelementpath = getelementpath
 
@@ -2168,8 +2207,9 @@ def tofilelikeC14N(f, element, exclusive, with_comments,
         compression = 0
 
     # c_doc = element if iselement(element) else element.getroot()
-    c_doc = element.owner_doc if iselement(element) else element.getroot().owner_doc
-
+    # c_doc = element.owner_doc if iselement(element) else element.getroot().owner_doc
+    # c_doc = XMLTree(element) if iselement(element) else element
+    c_doc = element if iselement(element) else element.getroot().owner_doc
     # c_inclusive_ns_prefixes = (
     #     # TODO: c_doc.dict == all namespaces?
     #     _convert_ns_prefixes(c_doc, inclusive_ns_prefixes)
@@ -2178,7 +2218,7 @@ def tofilelikeC14N(f, element, exclusive, with_comments,
     if not hasattr(f, 'write'):
         fail("TypeError: File (or something that has 'write') expected, got %s " % type(f))
 
-    _qnames, namespaces = element_tree._namespaces(element.getroot(), None)
+    # _qnames, namespaces = element_tree._namespaces(element.getroot(), None)
     if exclusive:
         c14n.Canonicalize(
             c_doc, f,
@@ -2215,13 +2255,13 @@ def _tostring(element, encoding, doctype,
         # return _textToString(element._c_node, encoding, with_tail)
     if encoding == None or encoding == "unicode":
         c_enc = None
-        encoding = bytes(encoding, encoding='utf-8')
+        encoding = "unicode"
     else:
-        c_enc = bytes(encoding, encoding='utf-8')
+        c_enc = encoding
     if doctype == None:
         c_doctype = None
     else:
-        c_doctype = bytes(doctype, encoding='utf-8')
+        c_doctype = doctype
     # it is necessary to *and* find the encoding handler *and* use
     # encoding during output
     # print("encoding", encoding, type(encoding))
@@ -2242,7 +2282,7 @@ def _tostring(element, encoding, doctype,
         **options
     )
     result = c_result_buffer.getvalue()
-    if encoding == b"unicode":
+    if encoding == "unicode":
         result = result.decode('utf-8')
     return result
 
@@ -2355,7 +2395,7 @@ def tostring(element_or_tree,
         #     encoding = owner_doc.encoding
         encoding = 'ASCII'
     if standalone == None:
-        is_standalone = False
+        is_standalone = None
     elif standalone:
         write_declaration = True
         is_standalone = True
@@ -2364,10 +2404,12 @@ def tostring(element_or_tree,
         is_standalone = False
 
     if iselement(element_or_tree):
+        doc = element_or_tree.owner_doc
         return _tostring(XMLTree(element_or_tree), encoding, doctype, method,
                          write_declaration, False, pretty_print, with_tail,
                          is_standalone, **options)
     elif iselementtree(element_or_tree):
+        doc = element_or_tree._doc
         return _tostring(element_or_tree,
                          encoding, doctype, method, write_declaration, True,
                          pretty_print, with_tail, is_standalone, **options)
@@ -2389,7 +2431,7 @@ def ElementTree(element=None, file=None, parser=None):
     return XMLTree()
 
 
-def parse(source, parser=None, base_url=None):
+def parse(source, parser=None, base_url=None, **options):
     """parse(source, parser=None, base_url=None)
 
     Return an ElementTree object loaded with source elements.  If no parser
@@ -2414,7 +2456,7 @@ def parse(source, parser=None, base_url=None):
     up external entities (DTD, XInclude, ...) with relative paths.
     """
     if not parser:
-        parser = XMLParser(TreeBuilder())
+        parser = XMLParser(TreeBuilder(preservews=True, **options))
     tree = XMLTree()
     tree.parse(source, parser, base_url=base_url)
     return tree
@@ -2440,12 +2482,27 @@ def XML(text, parser=None, base_url=None):
     (DTD, XInclude, ...).
     """
     if not parser:
-        parser = XMLParser(TreeBuilder())
+        parser = XMLParser(TreeBuilder(preservews=True))
     tree = XMLTree()
     src = io.StringIO(text) if types.is_string(text) else io.BytesIO(text)
     tree.parse(src, parser, base_url=base_url)
     return tree.getroot()
 
+
+def fromstring(text, parser=None, base_url=None):
+    """fromstring(text, parser=None, base_url=None)
+
+    Parses an XML document or fragment from a string.  Returns the
+    root node (or the result returned by a parser target).
+
+    To override the default parser with a different parser you can pass it to
+    the ``parser`` keyword argument.
+
+    The ``base_url`` keyword argument allows to set the original base URL of
+    the document to support relative Paths when looking up external entities
+    (DTD, XInclude, ...).
+    """
+    return XML(text, parser, base_url)
 
 #
 # def Element(name, namespace=None):
@@ -2738,8 +2795,13 @@ def CDATA(data):
         >>> el = etree.Element('content')
         >>> el.text = etree.CDATA('a string')
     """
-    element = element_tree.CDATA(data, element_factory=XMLNode)
+    element = XMLNode(element_tree.CDATA)
     element.data = data
+    # TODO(mahmoudimus): fix encoding
+    # if types.is_string(data):
+    #     element.text = codecs.encode(data, encoding='utf-8')
+    # else:
+    #     element.text = data
     element.text = larky.property(lambda: element.data)
     # element.tail = larky.property(lambda: None)
     return element
@@ -3627,7 +3689,7 @@ def TreeBuilder(namespaceHTMLElements=False, **options):
             #   in attribute values
             #   CDATA sections
             #   comments
-            if self.preservews:
+            if self.preservews and self.seenRoot:
                 if self.debug:
                     print("insertWS to this parent:", repr(self.elementStack[-1]))
                 self.insertText(payload["data"], self.elementStack[-1])
@@ -3844,6 +3906,7 @@ etree = larky.struct(
     TreeBuilder=TreeBuilder,
     parse=parse,
     iterparse=iterparse,
+    fromstring=fromstring,
     XML=XML,
     ElementTree=ElementTree,
     QName=QName,
