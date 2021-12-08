@@ -102,12 +102,15 @@ def tobytes(s, encoding="ISO-8859-1"):
         return builtins.bytes([s])
 
 
-def tostr(bs):
-    return codecs.decode(bs, encoding="ISO-8859-1")
+def tostr(bs, encoding="ISO-8859-1"):
+    if types.is_string(bs):
+        return bs
+    return codecs.decode(bs, encoding=encoding)
 
 
 def byte_string(s):
     return types.is_bytes(s)
+
 
 is_bytes = byte_string
 
