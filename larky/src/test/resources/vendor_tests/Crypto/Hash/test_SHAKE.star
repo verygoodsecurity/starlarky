@@ -67,7 +67,7 @@ def SHAKETest_test_digest():
     digest = h.read(90)
 
     # read returns a byte string of the right length
-    asserts.assert_that(types.is_instance(digest, type(b("digest")))).is_true()
+    asserts.assert_that(types.is_bytes(digest)).is_true()
     asserts.assert_that(len(digest)).is_equal_to(90)
 
 def SHAKETest_test_update_after_read():
