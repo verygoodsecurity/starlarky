@@ -20,16 +20,21 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
-
-import net.starlark.java.eval.Dict;
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.Sequence;
-import net.starlark.java.eval.Starlark;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.verygood.security.larky.modules.types.LarkyObject;
+import com.verygood.security.larky.modules.types.PyProtocols;
+
+import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Mutability;
+import net.starlark.java.eval.Sequence;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.Structure;
 
 import javax.annotation.Nullable;
 
@@ -152,7 +157,11 @@ public final class StarlarkUtil {
     return x == Starlark.NONE ? null : (String) x;
   }
 
-  public static Object valueToStarlark(Object x)  {
+  public static Object valueToStarlark(Object x) throws IllegalArgumentException {
+    return valueToStarlark(x, null);
+  }
+
+  public static Object valueToStarlark(Object x, @Nullable Mutability mutability) throws IllegalArgumentException {
       // Is x a non-empty string_list_dict?
       if (x instanceof Map) {
         Map<?, ?> map = (Map<?,?>) x;
@@ -163,7 +172,7 @@ public final class StarlarkUtil {
             try {
               dict.putEntry(
                   e.getKey(),
-                  Starlark.fromJava(e.getValue(),null));
+                  Starlark.fromJava(e.getValue(),mutability));
             } catch (EvalException evalException) {
               throw new RuntimeException(evalException);
             }
@@ -172,6 +181,62 @@ public final class StarlarkUtil {
         }
       }
       // For all other attribute values, shallow conversion is safe.
-      return Starlark.fromJava(x, null);
+      return Starlark.fromJava(x, mutability);
     }
+
+  /** Reports whether {@code x} is Java null or Starlark None. */
+  public static boolean isNullOrNoneOrUnbound(Object x) {
+    return x == null || x == Starlark.NONE || x == Starlark.UNBOUND;
+  }
+
+  public static boolean isCallable(Object x) throws EvalException {
+    if(x instanceof StarlarkCallable) {
+      return true;
+    }
+    // if we have a user defined type and it has a __call__
+    else if(x instanceof Structure) {
+      return ((Structure)x).getValue(PyProtocols.__CALL__) != null;
+    }
+    return false;
+  }
+
+  public static StarlarkCallable toCallable(Object x) throws EvalException {
+     if(x instanceof StarlarkCallable) {
+       return (StarlarkCallable) x;
+     }
+     // if we have a user defined type and it has a __call__
+     else if(x instanceof Structure) {
+       final Object value = ((Structure) x).getValue(PyProtocols.__CALL__);
+       if(value != null) {
+         return ((StarlarkCallable) value);
+       }
+     }
+     throw Starlark.errorf("%s is not a callable", Starlark.type(x));
+   }
+
+  /**
+   * Returns the name of the type of {@code x} as if by the Starlark expression {@code type(x)}.
+   *
+   * This respects the __NAME__ and __CLASS__ parameters otherwise falls back to
+   * {@code Starlark.type()}
+   */
+   public static String richType(Object x) {
+    if(x instanceof LarkyObject) {
+      LarkyObject obj = ((LarkyObject) x);
+      try {
+        if (!obj.hasClassField() && !obj.hasNameField()) {
+          return Starlark.type(obj);
+        }
+        if(obj.hasNameField()) {
+          return String.valueOf(obj.getField(PyProtocols.__NAME__));
+        }
+        // fall back to __class__ if __name__ doesn't exist
+        return String.valueOf(obj.getField(PyProtocols.__CLASS__));
+      } catch (EvalException e) {
+        throw new RuntimeException(e);
+      }
+    }
+     // otherwise, just return Starlark.type()
+     return Starlark.type(x);
+   }
 }

@@ -1,6 +1,8 @@
 package com.verygood.security.larky;
 
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.common.annotations.VisibleForTesting;
 
 import net.starlark.java.eval.EvalException;
@@ -17,15 +19,15 @@ import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.SyntaxError;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Larky {
 
@@ -143,7 +145,11 @@ public class Larky {
   }
 
   static void writeOutput(String outputFile, StarlarkValue returnValue) throws IOException {
-    Files.writeString(Paths.get(outputFile), returnValue.toString(), StandardOpenOption.CREATE);
+    try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(outputFile),
+                                                     Charset.defaultCharset(),
+                                                     StandardOpenOption.CREATE)) {
+      bw.write(returnValue.toString());
+    }
   }
 
   public static void main(String[] args) throws Exception {

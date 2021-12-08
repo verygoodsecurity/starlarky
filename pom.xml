@@ -6,187 +6,20 @@
 
     <groupId>com.verygood.security</groupId>
     <artifactId>starlarky</artifactId>
-    <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
     <modules>
         <module>libstarlark</module>
         <module>larky</module>
         <module>runlarky</module>
     </modules>
 
-    <dependencies>
-        <!--
-        We use jetbrain's annotations library because of some
-        licensing concerns that occur with javax.annotations jsr305 library.
-
-        See this issue: https://github.com/google/guava/issues/2960
-        -->
-        <dependency>
-            <groupId>org.jetbrains</groupId>
-            <artifactId>annotations</artifactId>
-            <version>${org.jetbrains.annotations.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <version>${google.guava.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.auto.value</groupId>
-            <artifactId>auto-value-annotations</artifactId>
-            <version>${google.auto.value.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.errorprone</groupId>
-            <artifactId>error_prone_core</artifactId>
-            <version>${google.errorprone.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>${org.projectlombok.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.auto.value</groupId>
-            <artifactId>auto-value</artifactId>
-            <version>${google.auto.value.version}</version>
-            <optional>true</optional>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.flogger</groupId>
-            <artifactId>flogger</artifactId>
-            <version>${google.flogger.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.flogger</groupId>
-            <artifactId>flogger-system-backend</artifactId>
-            <version>${google.flogger.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.flogger</groupId>
-            <artifactId>flogger-slf4j-backend</artifactId>
-            <version>${google.flogger.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>${protobuf.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java-util</artifactId>
-            <version>${protobuf.version}</version>
-        </dependency>
-
-        <!--
-          junit is not scoped for test because we are using
-          it in larky/nativelib to offer unittest interface
-          to starlark
-        -->
-
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>${org.junit.version}</version>
-        </dependency>
-
-        <!-- test -->
-        <dependency>
-            <groupId>javax.xml.bind</groupId>
-            <artifactId>jaxb-api</artifactId>
-            <version>${javax.xml.bind.jaxb-api.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.truth</groupId>
-            <artifactId>truth</artifactId>
-            <version>${google.truth.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.testing.compile</groupId>
-            <artifactId>compile-testing</artifactId>
-            <version>${google.compile.testing.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>${org.mockito.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.jimfs</groupId>
-            <artifactId>jimfs</artifactId>
-            <version>${google.jimfs.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-    </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven.compiler.plugin.version}</version>
-                <configuration>
-                    <source>${maven.compiler.source}</source>
-                    <target>${maven.compiler.target}</target>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>${maven.source.plugin.version}</version>
-            </plugin>
-        </plugins>
-        <extensions>
-          <extension>
-            <groupId>kr.motd.maven</groupId>
-            <artifactId>os-maven-plugin</artifactId>
-            <version>${kr.motd.maven.os-maven-plugin.version}</version>
-          </extension>
-        </extensions>
-    </build>
-
-    <properties>
-        <compiler-plugin.version>3.8.1</compiler-plugin.version>
-        <surefire-plugin.version>2.22.1</surefire-plugin.version>
-        <maven.compiler.plugin.version>3.6.2</maven.compiler.plugin.version>
-        <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
-        <google.errorprone.version>2.4.0</google.errorprone.version>
-        <google.auto.value.version>1.7.4</google.auto.value.version>
-        <google.compile.testing.version>0.18</google.compile.testing.version>
-        <google.flogger.version>0.5.1</google.flogger.version>
-        <google.guava.version>29.0-jre</google.guava.version>
-        <google.jimfs.version>1.1</google.jimfs.version>
-        <google.truth.version>1.0.1</google.truth.version>
-        <javax.xml.bind.jaxb-api.version>2.3.0</javax.xml.bind.jaxb-api.version>
-        <org.jetbrains.annotations.version>20.1.0</org.jetbrains.annotations.version>
-        <org.junit.version>4.13.1</org.junit.version>
-        <org.mockito.version>3.5.13</org.mockito.version>
-        <org.projectlombok.version>1.18.12</org.projectlombok.version>
-        <org.slf4j.version>1.7.30</org.slf4j.version>
-        <kr.motd.maven.os-maven-plugin.version>1.6.1</kr.motd.maven.os-maven-plugin.version>
-        <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
-        <protobuf.version>3.13.0</protobuf.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
+    <scm>
+        <url>https://github.com/verygoodsecurity/starlarky.git</url>
+        <connection>scm:git:git://github.com/verygoodsecurity/starlarky.git</connection>
+        <developerConnection>scm:git:git@github.com:verygoodsecurity/starlarky.git
+        </developerConnection>
+    </scm>
 
 </project>

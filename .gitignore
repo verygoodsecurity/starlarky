@@ -1,4 +1,8 @@
 # Created by .ignore support plugin (hsz.mobi)
+setup.py
+test-results/*
+.python-version
+build/*
 
 ### Java template
 *.class
@@ -70,11 +74,6 @@ deploys/
 
 # sonarqube
 .scannerwork/
-
-# vault-mgmt prod config file
-smoke-tests/vault-mgmt/live_auth_config.yml
-smoke-tests/vault-mgmt/sandbox_auth_config.yml
-LOG_FILE_JSON_IS_UNDEFINED
 
 .tmp
 

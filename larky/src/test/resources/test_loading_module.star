@@ -1,9 +1,10 @@
 # load("//testlib/builtinz", "setz") # works, but root is not defined.
 # load("/testlib/builtinz", "setz")  # does not work
 # load("./testlib/builtinz", "setz") # works
-load("@stdlib/json", "json")
-load("@stdlib/hashlib", "hashlib")
+load("@stdlib//json", "json")
+load("@stdlib//hashlib", "hashlib")
 load("testlib/builtinz", "setz", "collections")
+load("@vendor//pycryptodome", "pycryptodome")
 
 # # request = struct(
 # #     max_content_length = native.request.max_content_length,
@@ -17,6 +18,13 @@ load("testlib/builtinz", "setz", "collections")
 # common.reject()
 print(collections)
 print(setz.make())
-print(hashlib.md5("foo"))
-print(json.decode('{"one": 1, "two": 2}'))
-print(json.decode('"\\ud83d\\ude39\\ud83d\\udc8d"'))
+print(hashlib.md5(bytes("foo", encoding='utf-8')))
+
+c1 = json.dumps({"one": 1, "two": 2})
+d1 = json.dumps("😹💍")
+print(c1)
+print(d1)
+c = json.decode(c1)
+d = json.decode(d1)
+print(json.loads('{"one": 1, "two": 2}') == c)
+print(json.loads('"\\ud83d\\ude39\\ud83d\\udc8d"') == d)

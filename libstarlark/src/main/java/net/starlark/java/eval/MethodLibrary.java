@@ -23,6 +23,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -82,7 +83,7 @@ class MethodLibrary {
               + "<pre class=\"language-python\">all([\"hello\", 3, True]) == True\n"
               + "all([-1, 0, 1]) == False</pre>",
       parameters = {@Param(name = "elements", doc = "A string or a collection of elements.")})
-  public Boolean all(Object collection) throws EvalException {
+  public boolean all(Object collection) throws EvalException {
     return !hasElementWithBooleanValue(collection, false);
   }
 
@@ -94,7 +95,7 @@ class MethodLibrary {
               + "<pre class=\"language-python\">any([-1, 0, 1]) == True\n"
               + "any([False, 0, \"\"]) == False</pre>",
       parameters = {@Param(name = "elements", doc = "A string or a collection of elements.")})
-  public Boolean any(Object collection) throws EvalException {
+  public boolean any(Object collection) throws EvalException {
     return hasElementWithBooleanValue(collection, true);
   }
 
@@ -271,7 +272,7 @@ class MethodLibrary {
               + " iterable.",
       parameters = {@Param(name = "x", doc = "The value whose length to report.")},
       useStarlarkThread = true)
-  public Integer len(Object x, StarlarkThread thread) throws EvalException {
+  public int len(Object x, StarlarkThread thread) throws EvalException {
     int len = Starlark.len(x);
     if (len < 0) {
       throw Starlark.errorf("%s is not iterable", Starlark.type(x));
@@ -288,6 +289,76 @@ class MethodLibrary {
       parameters = {@Param(name = "x", doc = "The object to convert.")})
   public String str(Object x) throws EvalException {
     return Starlark.str(x);
+  }
+
+  @StarlarkMethod(
+      name = "bytes",
+      doc =
+        "<pre class=\"language-python\">bytes(x)</pre> converts its argument to a bytes.\n" +
+          "\n" +
+          "If x is a bytes, the result is x.\n" +
+          "\n" +
+          "If x is a string, the result is a bytes whose elements are the UTF-8 encoding of" +
+          " the string. Each element of the string that is not part of a valid encoding of " +
+          "a code point is replaced by the UTF-8 encoding of the replacement character, " +
+          "U+FFFD.\n" +
+          "\n" +
+          "If x is an iterable sequence of int values, the result is a bytes whose " +
+          "elements are those integers. It is an error if any element is not in the " +
+          "range 0-255.",
+      parameters = {@Param(name = "x", doc = "The object to convert.")})
+  public StarlarkBytes bytes(Object x) throws EvalException {
+    switch(Starlark.type(x)) {
+      case "bytes":
+        return (StarlarkBytes) x;
+      case "string":
+        return StarlarkBytes.immutableOf(((String) x).toCharArray());
+      default:
+        // nothing
+    }
+    if(x instanceof Sequence) {
+      Sequence<StarlarkInt> cast = Sequence.cast(
+        x,
+        StarlarkInt.class,
+        Starlark.str(x));
+      return StarlarkBytes.immutableCopyOf(cast);
+    }
+    throw Starlark.errorf("bytes: got %s, want string, bytes, or iterable of ints", Starlark.type(x));
+  }
+
+
+  @StarlarkMethod(
+       name = "ord",
+       doc = "Given a string representing one Unicode character, return an integer representing" +
+           " the Unicode code point of that character. For example, ord('a') returns the " +
+           "integer 97 and ord('€') (Euro sign) returns 8364. This is the inverse of chr().",
+       parameters = {
+           @Param(
+               name = "c",
+               allowedTypes = {
+                   @ParamType(type = String.class),
+                   @ParamType(type = StarlarkBytes.class),
+               }
+           )
+       }
+   )
+   public StarlarkInt ordinal(Object c) throws EvalException {
+     int containerSize;
+     CharSequence chars;
+     if (String.class.isAssignableFrom(c.getClass())) {
+       containerSize = ((String) c).length();
+       chars = ((String) c);
+     } else {
+       containerSize = ((StarlarkBytes) c).size();
+       chars = ((StarlarkBytes) c);
+     }
+
+     if (containerSize != 1) {
+       throw Starlark.errorf(
+           "ord: %s has length %d, want 1", Starlark.type(c), containerSize);
+     }
+
+    return StarlarkInt.of(Byte.toUnsignedInt((byte) chars.charAt(0)));
   }
 
   @StarlarkMethod(
@@ -309,7 +380,7 @@ class MethodLibrary {
               + "empty collection (e.g. <code>()</code>, <code>[]</code>). "
               + "Otherwise, it returns <code>True</code>.",
       parameters = {@Param(name = "x", defaultValue = "False", doc = "The variable to convert.")})
-  public Boolean bool(Object x) throws EvalException {
+  public boolean bool(Object x) throws EvalException {
     return Starlark.truth(x);
   }
 
@@ -528,15 +599,24 @@ class MethodLibrary {
   @StarlarkMethod(
       name = "hash",
       doc =
-          "Return a hash value for a string. This is computed deterministically using the same "
+          "Return a hash value for a string or bytes." +
+            "For strings, this is computed deterministically using the same "
               + "algorithm as Java's <code>String.hashCode()</code>, namely: "
               + "<pre class=\"language-python\">s[0] * (31^(n-1)) + s[1] * (31^(n-2)) + ... + "
-              + "s[n-1]</pre> Hashing of values besides strings is not currently supported.",
+              + "s[n-1]</pre>.\n" +
+            "For bytes, this is computed using the Fnv32 hash function.\n" +
+            "Hashing of values besides strings or bytes is not currently supported.",
       // Deterministic hashing is important for the consistency of builds, hence why we
       // promise a specific algorithm. This is in contrast to Java (Object.hashCode()) and
       // Python, which promise stable hashing only within a given execution of the program.
-      parameters = {@Param(name = "value", doc = "String value to hash.")})
-  public Integer hash(String value) throws EvalException {
+      parameters = {
+        @Param(name = "value", doc = "String value to hash.",
+        allowedTypes = {
+          @ParamType(type = String.class),
+          @ParamType(type = StarlarkBytes.class),
+        })
+      })
+  public int hash(Object value) throws EvalException {
     return value.hashCode();
   }
 
@@ -603,7 +683,7 @@ class MethodLibrary {
         @Param(name = "name", doc = "The name of the attribute.")
       },
       useStarlarkThread = true)
-  public Boolean hasattr(Object obj, String name, StarlarkThread thread) throws EvalException {
+  public boolean hasattr(Object obj, String name, StarlarkThread thread) throws EvalException {
     return Starlark.hasattr(thread.getSemantics(), obj, name);
   }
 
@@ -680,7 +760,7 @@ class MethodLibrary {
               doc =
                   "A list of values, formatted with str and joined with spaces, that appear in the"
                       + " error message."))
-  public NoneType fail(Object msg, Object attr, Tuple args) throws EvalException {
+  public void fail(Object msg, Object attr, Tuple args) throws EvalException {
     List<String> elems = new ArrayList<>();
     // msg acts like a leading element of args.
     if (msg != Starlark.NONE) {
@@ -719,7 +799,7 @@ class MethodLibrary {
       // NB: as compared to Python3, we're missing optional named-only arguments 'end' and 'file'
       extraPositionals = @Param(name = "args", doc = "The objects to print."),
       useStarlarkThread = true)
-  public NoneType print(String sep, Sequence<?> args, StarlarkThread thread) throws EvalException {
+  public void print(String sep, Sequence<?> args, StarlarkThread thread) throws EvalException {
     Printer p = new Printer();
     String separator = "";
     for (Object x : args) {
@@ -734,7 +814,6 @@ class MethodLibrary {
     }
 
     thread.getPrintHandler().print(thread, p.toString());
-    return Starlark.NONE;
   }
 
   @StarlarkMethod(

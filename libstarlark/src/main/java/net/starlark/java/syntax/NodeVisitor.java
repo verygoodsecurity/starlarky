@@ -116,6 +116,8 @@ public class NodeVisitor {
 
   public void visit(@SuppressWarnings("unused") StringLiteral node) {}
 
+  public void visit(@SuppressWarnings("unused") ByteLiteral node) {}
+
   public void visit(AssignmentStatement node) {
     visit(node.getRHS());
     visit(node.getLHS());
@@ -168,6 +170,11 @@ public class NodeVisitor {
   public void visit(IndexExpression node) {
     visit(node.getObject());
     visit(node.getKey());
+  }
+
+  public void visit(LambdaExpression node) {
+    visitAll(node.getParameters());
+    visit(node.getBody());
   }
 
   public void visit(SliceExpression node) {

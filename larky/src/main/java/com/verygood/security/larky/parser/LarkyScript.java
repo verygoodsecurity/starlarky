@@ -27,6 +27,7 @@ import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import com.verygood.security.larky.console.Console;
 
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.syntax.FileOptions;
 
@@ -54,11 +55,12 @@ public class LarkyScript {
   public static final FileOptions STARLARK_STRICT_FILE_OPTIONS =
       FileOptions.DEFAULT.toBuilder()
           .allowToplevelRebinding(true)
+          .loadBindsGlobally(true)
           .build();
 
   public static final FileOptions STARLARK_LOOSE_FILE_OPTIONS =
       STARLARK_STRICT_FILE_OPTIONS.toBuilder()
-          .restrictStringEscapes(true)
+          .restrictStringEscapes(false)
           .requireLoadStatementsFirst(false)
           .build();
 
@@ -114,7 +116,7 @@ public class LarkyScript {
 
   @VisibleForTesting
   public Module executeSkylark(StarFile content, ModuleSet moduleSet, Console console)
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, EvalException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
@@ -124,7 +126,7 @@ public class LarkyScript {
   }
 
   public Object executeSkylarkWithOutput(StarFile content, ModuleSet moduleSet, Console console)
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, EvalException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
@@ -134,12 +136,12 @@ public class LarkyScript {
   }
 
   public ParsedStarFile evaluate(StarFile content, ModuleSet moduleSet, Console console)
-      throws IOException {
+      throws IOException, EvalException {
     return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
   }
 
   public ParsedStarFile evaluate(StarFile content, Console console)
-      throws IOException {
+      throws IOException, EvalException {
     return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
   }
 
@@ -155,7 +157,7 @@ public class LarkyScript {
    */
   public StarFileWithDependencies getStarFileWithTransitiveImports(
       StarFile starScriptFile, ModuleSet moduleSet, Console console)
-      throws IOException {
+      throws IOException, EvalException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(starScriptFile);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
@@ -171,7 +173,7 @@ public class LarkyScript {
 
   private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSet moduleSet,
                                               Console console)
-      throws IOException {
+      throws IOException, EvalException {
     Module module;
     try {
       module = new LarkyEvaluator(this, moduleSet, console).eval(content);

@@ -1,5 +1,16 @@
 package com.verygood.security.run;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.io.BufferedReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.Duration;
+
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.CapturingConsole;
 import com.verygood.security.larky.console.Console;
@@ -25,20 +36,9 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
-import java.time.Duration;
-
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;
 import lombok.SneakyThrows;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 @QuarkusMain
 public class LarkyEntrypoint implements QuarkusApplication {
@@ -80,6 +80,7 @@ public class LarkyEntrypoint implements QuarkusApplication {
   private static void execute(CommandLine commandLine) {
     String outputPath = commandLine.getOptionValue('o');
     String script = readFile(commandLine.getOptionValue('s'));
+    boolean debug = commandLine.hasOption("d");
 
     String input = commandLine.hasOption('i') ?
         readFile(commandLine.getOptionValue('i'))
@@ -91,7 +92,7 @@ public class LarkyEntrypoint implements QuarkusApplication {
 
     PrependMergedStarFile prependMergedStarFile = new PrependMergedStarFile(input, script);
 
-    if (commandLine.hasOption("d")) {
+    if(debug) {
       System.err.println("==================================");
       System.err.println(new String(prependMergedStarFile.readContentBytes()));
       System.err.println("==================================");
@@ -105,7 +106,17 @@ public class LarkyEntrypoint implements QuarkusApplication {
             new ModuleSupplier().create(), console)
         .toString();
 
-    Files.writeString(Path.of(outputPath), output, StandardOpenOption.CREATE);
+    if (debug) {
+      System.err.println(output);
+    }
+
+    try(FileWriter writer = new FileWriter(Path.of(outputPath).toFile())) {
+        writer.write(output);
+    }
+    catch(IOException e){
+      e.printStackTrace(System.err);
+      throw new RuntimeException(e.getMessage(), e);
+    }
   }
 
   private static void readEvalPrintLoop() {

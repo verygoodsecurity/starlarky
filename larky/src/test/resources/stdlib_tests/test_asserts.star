@@ -5,15 +5,10 @@ This exports `asserts` which contains the assertions used within tests.
 This is modeled after assertpy (https://github.com/assertpy/assertpy)
 """
 
-load("@stdlib/asserts",  "asserts")
-
+load("@vendor//asserts",  "asserts")
 
 print(asserts)
-
 v = asserts.assert_that(1)
-print(v)
-print(v.described_as('foo'))
-print(type(v.described_as))
 
 asserts.assert_that('foo').is_length(3)
 asserts.assert_that(['a', 'b']).is_length(2)

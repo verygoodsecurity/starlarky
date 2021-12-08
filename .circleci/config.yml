@@ -11,6 +11,7 @@ job-defaults: &job-defaults
     - MAVEN_OPTS: -Xmx6400m
     - GRAALVM_HOME: /home/circleci/starlarky/.graalvm
     - HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
+    - LARKY_LIB_HOME: /home/circleci/.larky/lib
 
 install-java: &install-java
   run:
@@ -32,11 +33,23 @@ install-graalvm: &install-graalvm
     name: Install GraalVM
     command: |
       [ ! -d $GRAALVM_HOME ] \
-        && curl https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-20.2.0/graalvm-ce-java11-linux-amd64-20.2.0.tar.gz -O -J -L \
-        && tar xfz graalvm-ce-java11-linux-amd64-20.2.0.tar.gz \
-        && mv graalvm-ce-java11-20.2.0 .graalvm \
-        && rm graalvm-ce-java11-linux-amd64-20.2.0.tar.gz \
+        && curl https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-21.1.0/graalvm-ce-java11-linux-amd64-21.1.0.tar.gz -O -J -L \
+        && tar xfz graalvm-ce-java11-linux-amd64-21.1.0.tar.gz \
+        && mv graalvm-ce-java11-21.1.0 .graalvm \
+        && rm graalvm-ce-java11-linux-amd64-21.1.0.tar.gz \
         && $GRAALVM_HOME/bin/gu install native-image
+
+build-quarkus-runnable: &build-quarkus-runnable
+  run:
+    name: Build binary for runlarky
+    command: |
+      if [ "${CIRCLE_TAG}" != "" ] ;
+      then
+        mvn versions:set-property -Dproperty=starlarky.version -DnewVersion=${CIRCLE_TAG} -pl runlarky
+        mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl runlarky
+      fi
+      mvn package -Pnative -DskipTests
+    no_output_timeout: 30m
 
 # Template to save Maven dependency cache to restore it in another jobs
 save-maven-cache: &save-maven-cache
@@ -58,6 +71,23 @@ save-graalvm-cache: &save-graalvm-cache
 restore-graalvm-cache: &restore-graalvm-cache
   restore_cache:
     key: starlarky-{{ checksum ".circleci/config.yml" }}
+
+setup-maven-distributions: &setup-maven-distributions
+  run:
+    name: Setup distrubution servers for larky
+    command: |
+      mkdir -p ~/.m2
+      cat <<EOF > ~/.m2/settings.xml
+      <settings>
+        <servers>
+          <server>
+            <id>github</id>
+            <username>$GITHUB_USERNAME</username>
+            <password>$GITHUB_API_TOKEN</password>
+          </server>
+        </servers>
+      </settings>
+      EOF
 
 install_python: &install_python
   run:
@@ -90,6 +120,7 @@ attach-dist: &attach-dist
   attach_workspace:
     at: *dist_directory
 
+
 # === JOBS ===
 version: 2
 jobs:
@@ -116,7 +147,27 @@ jobs:
       - store_test_results:
           path: *test_results_directory
 
-  build-dist-linux:
+  build-and-test-docker:
+    <<: *job-defaults
+    machine: true
+    steps:
+      - checkout
+      - <<: *restore-maven-cache
+      - run: mkdir -p $TEST_RESULTS_PATH/junit/
+      - run: mkdir -p $TEST_RESULTS_PATH/coverage/
+      - run: docker-compose build
+      - run: docker-compose run local bash /src/build-and-test-java.sh
+      - <<: *save-maven-cache
+      - run: find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
+      - run: find . -type f -regex ".*/target/surefire-reports/.*-output.txt" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
+      - run: find . -type f -regex ".*/target/site/.*" -exec cp --parents {} $TEST_RESULTS_PATH/coverage/ \;
+      - run: docker-compose run local bash /src/build-and-test-python.sh
+      - store_artifacts:
+          path: *test_results_directory
+      - store_test_results:
+          path: *test_results_directory
+
+  build-dist-maven:
     <<: *job-defaults
     machine:
       image: ubuntu-1604:202007-01
@@ -124,13 +175,35 @@ jobs:
       - checkout
       - <<: *install-java
       - <<: *restore-maven-cache
+      - <<: *setup-maven-distributions
+      - run:
+          name: Build and deploy libstarlark
+          command: |
+            mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl libstarlark
+            mvn clean dependency:go-offline package -pl libstarlark -U -Dmaven.test.skip.exec -T 2.0C -B
+            mvn deploy -DskipTests -pl libstarlark -Pgithub
+      - run:
+          name: Build and deploy larky
+          command: |
+            mvn versions:set-property -Dproperty=libstarlark.version -DnewVersion=${CIRCLE_TAG}
+            mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl larky
+            mvn clean dependency:go-offline package -pl larky -U -Dmaven.test.skip.exec -T 2.0C -B
+            mvn deploy -DskipTests -pl larky -Pgithub
+      - <<: *save-maven-cache
+
+  build-dist-linux:
+    <<: *job-defaults
+    machine:
+      image: ubuntu-1604:202007-01
+    steps:
+      - checkout
+      - <<: *install-java
+      - <<: *setup-maven-distributions
+      - <<: *restore-maven-cache
       - <<: *restore-graalvm-cache
       - <<: *install-graalvm
       - <<: *save-graalvm-cache
-      - run:
-          name: Build (Native)
-          command: mvn package -Pnative -DskipTests
-          no_output_timeout: 30m
+      - <<: *build-quarkus-runnable
       - <<: *install_python
       - <<: *build_test_pylarky
       - run:
@@ -149,7 +222,9 @@ jobs:
       - checkout
       - run:
           name: Install dev
-          command: brew install maven
+          command: |
+            brew install openjdk@11
+            brew install maven
       - run:
           name: Install GRAALVM
           command: |
@@ -162,14 +237,8 @@ jobs:
             # add gu to PATH
             ln -s "$GRAALVM_HOME/bin/gu" /usr/local/bin
             gu install native-image
-      - run:
-          name: Maven Clean Package
-          command: |
-            mvn clean install -DskipTests dependency:go-offline -T 2.0C -B
-      - run:
-          name: Build (Native)
-          command: mvn package -Pnative -DskipTests
-          no_output_timeout: 30m
+      - <<: *setup-maven-distributions
+      - <<: *build-quarkus-runnable
       - <<: *install_python
       - <<: *build_test_pylarky
       - run:
@@ -190,7 +259,7 @@ jobs:
           name: Create GH release
           command: |
             mv ${DIST_PATH}/larky-linux ${DIST_PATH}/larky-${CIRCLE_TAG}-linux
-            mv ${DIST_PATH}/larky-macos ${DIST_PATH}/larky-${CIRCLE_TAG}-macos
+            # mv ${DIST_PATH}/larky-macos ${DIST_PATH}/larky-${CIRCLE_TAG}-macos
             ghr -draft -t ${GITHUB_API_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -n ${CIRCLE_TAG} ${CIRCLE_TAG} ${DIST_PATH}
 
   publish-to-pypi:
@@ -211,27 +280,27 @@ workflows:
   build_and_tests:
     jobs:
       - build-and-test
+      - build-and-test-docker
       - build-dist-linux:
-          requires:
-            - build-and-test
-      - build-dist-macos:
           requires:
             - build-and-test
 
   release:
     jobs:
+      - build-dist-maven:
+          filters:
+            tags:
+              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+            branches:
+              ignore: /.*/
       - build-dist-linux:
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
             branches:
               ignore: /.*/
-      - build-dist-macos:
-          filters:
-            tags:
-              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
-            branches:
-              ignore: /.*/
+          requires:
+            - build-dist-maven
       - publish-to-gh:
           filters:
             tags:
@@ -240,7 +309,6 @@ workflows:
               ignore: /.*/
           requires:
             - build-dist-linux
-            - build-dist-macos
       - publish-to-pypi:
           filters:
             tags:
@@ -249,4 +317,4 @@ workflows:
               ignore: /.*/
           requires:
             - build-dist-linux
-            - build-dist-macos
+

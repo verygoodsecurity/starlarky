@@ -19,21 +19,31 @@ package com.verygood.security.larky;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.util.Map;
+import java.util.function.Function;
 
-import com.verygood.security.larky.nativelib.LarkyGlobals;
-import com.verygood.security.larky.nativelib.PythonBuiltins;
-import com.verygood.security.larky.nativelib.std.C99Math;
-import com.verygood.security.larky.nativelib.std.Hashlib;
+import com.verygood.security.larky.modules.BinasciiModule;
+import com.verygood.security.larky.modules.C99MathModule;
+import com.verygood.security.larky.modules.CerebroModule;
+import com.verygood.security.larky.modules.CodecsModule;
+import com.verygood.security.larky.modules.CollectionsModule;
+import com.verygood.security.larky.modules.CryptoModule;
+import com.verygood.security.larky.modules.JsonModule;
+import com.verygood.security.larky.modules.OpenSSLModule;
+import com.verygood.security.larky.modules.ProtoBufModule;
+import com.verygood.security.larky.modules.RegexModule;
+import com.verygood.security.larky.modules.ResultModule;
+import com.verygood.security.larky.modules.StructModule;
+import com.verygood.security.larky.modules.SysModule;
+import com.verygood.security.larky.modules.VaultModule;
+import com.verygood.security.larky.modules.ZLibModule;
+import com.verygood.security.larky.modules.globals.LarkyGlobals;
+import com.verygood.security.larky.modules.globals.PythonBuiltins;
+import com.verygood.security.larky.modules.testing.AssertionsModule;
+import com.verygood.security.larky.modules.testing.UnittestModule;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkValue;
-import com.verygood.security.larky.nativelib.std.Json;
-import com.verygood.security.larky.nativelib.std.Proto;
-import com.verygood.security.larky.nativelib.test.LarkyAssertions;
-import com.verygood.security.larky.nativelib.test.UnittestModule;
-
-import java.util.Map;
-import java.util.function.Function;
 
 /**
  * A supplier of modules for Larky
@@ -41,20 +51,34 @@ import java.util.function.Function;
 public class ModuleSupplier {
 
   public static final ImmutableSet<Class<?>> CORE_MODULES = ImmutableSet.of(
-      LarkyGlobals.class,
-      PythonBuiltins.class
+    LarkyGlobals.class,
+    PythonBuiltins.class
   );
 
   public static final ImmutableSet<StarlarkValue> STD_MODULES = ImmutableSet.of(
-      Json.INSTANCE,
-      Proto.INSTANCE,
-      Hashlib.INSTANCE,
-      C99Math.INSTANCE
+    JsonModule.INSTANCE,
+    ProtoBufModule.INSTANCE,
+    C99MathModule.INSTANCE,
+    RegexModule.INSTANCE,
+    CodecsModule.INSTANCE,
+    BinasciiModule.INSTANCE,
+    StructModule.INSTANCE,
+    CryptoModule.INSTANCE,
+    OpenSSLModule.INSTANCE,
+    ResultModule.INSTANCE,
+    SysModule.INSTANCE,
+    ZLibModule.INSTANCE,
+    CollectionsModule.INSTANCE
+  );
+
+  public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
+    VaultModule.INSTANCE,
+    CerebroModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
-      UnittestModule.INSTANCE,
-      LarkyAssertions.INSTANCE
+    UnittestModule.INSTANCE,
+    AssertionsModule.INSTANCE
   );
 
   private final Map<String, Object> environment;
@@ -79,9 +103,13 @@ public class ModuleSupplier {
   }
 
   public ImmutableSet<StarlarkValue> getModules(boolean withTest) {
-    return withTest ? ImmutableSet.<StarlarkValue>builder()
-        .addAll(STD_MODULES)
-        .addAll(getTestModules()).build() : STD_MODULES;
+    ImmutableSet.Builder<StarlarkValue> modules = ImmutableSet.<StarlarkValue>builder()
+                                                    .addAll(STD_MODULES)
+                                                    .addAll(VGS_MODULES);
+
+    return withTest
+             ? modules.addAll(getTestModules()).build()
+             : modules.build();
   }
 
   public ImmutableSet<StarlarkValue> getTestModules() {
@@ -94,22 +122,26 @@ public class ModuleSupplier {
 
   public final ModuleSet create() {
     return new ModuleSet(ImmutableMap.<String, Object>builder()
-        .putAll(modulesToVariableMap())
-        .putAll(getEnvironment())
-        .build()); // should allow overrides ;
+                           .putAll(modulesToVariableMap())
+                           .putAll(getEnvironment())
+                           .build()); // should allow overrides ;
   }
 
   private ImmutableMap<String, Object> moduleSetAsMap(ImmutableSet<StarlarkValue> moduleSet) {
     return moduleSet
-        .stream()
-        .collect(
-            ImmutableMap.toImmutableMap(
-                this::findClosestStarlarkBuiltinName,
-                Function.identity()));
+             .stream()
+             .collect(
+               ImmutableMap.toImmutableMap(
+                 this::findClosestStarlarkBuiltinName,
+                 Function.identity()));
   }
 
   public ImmutableMap<String, Object> modulesToVariableMap() {
-    return moduleSetAsMap(getModules());
+    return moduleSetAsMap(getModules(false));
+  }
+
+  public ModuleSet modulesToVariableMap(boolean withTest) {
+    return new ModuleSet(moduleSetAsMap(getModules(withTest)));
   }
 
   private String findClosestStarlarkBuiltinName(Object o) {

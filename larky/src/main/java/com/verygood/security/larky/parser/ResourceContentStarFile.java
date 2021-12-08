@@ -1,15 +1,41 @@
 package com.verygood.security.larky.parser;
 
-import org.apache.commons.io.IOUtils;
-
+import com.google.common.io.CharStreams;
+import com.google.common.io.Files;
+import com.google.re2j.Matcher;
+import com.google.re2j.Pattern;
+import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
+import net.starlark.java.eval.EvalException;
+
+import javax.annotation.Nullable;
 import lombok.SneakyThrows;
 
-import static com.verygood.security.larky.parser.LarkyEvaluator.LarkyLoader.STDLIB;
-
 public class ResourceContentStarFile implements StarFile {
+  /*
+     Right now, it just has them all as built-ins, with namespaces
+     __builtin__.struct() // struct()
+     unittest // exists in the global namespace by default
+     import unittest // unittest
+     load('unitest', 'unitest') => it now is usable in global namespace, otherwise, unknown symbol is thrown
+   */
+  /**
+   * load("//testlib/builtinz", "setz") # works, but root is not defined.
+   * load("./testlib/builtinz", "setz") # works load("testlib/builtinz", "setz", "collections")
+   * load("/testlib/builtinz", "setz")  # does not work
+   */
+  private static final String STDLIB = "@stdlib";
+  private static final String VENDOR = "@vendor//";
+  private static final String VGS = "@vgs//";
+  private static final Pattern NAMESPACE_PREFIX = Pattern.compile("@(\\w+)/?/(.+)");
 
   private String resourcePath;
   private byte[] content;
@@ -19,22 +45,83 @@ public class ResourceContentStarFile implements StarFile {
     this.content = content;
   }
 
-  @SneakyThrows
-  public static ResourceContentStarFile buildStarFile(String resourcePath, InputStream inputStream) {
+  public static ResourceContentStarFile buildStarFile(String resourcePath, InputStream inputStream) throws IOException {
     return new ResourceContentStarFile(resourcePath,
-        String.join("\n", IOUtils.readLines(inputStream, Charset.defaultCharset())).getBytes());
+      String.join(
+        "\n",
+          CharStreams.toString(new InputStreamReader(inputStream, StandardCharsets.UTF_8)))
+        .getBytes());
   }
 
-  @SneakyThrows
-  public static ResourceContentStarFile buildStarFile(String resourcePath) {
+  public static ResourceContentStarFile buildStarFile(String resourcePath) throws EvalException {
     String resourceName = resolveResourceName(resourcePath);
     InputStream resourceStream = ResourceContentStarFile.class.getClassLoader().getResourceAsStream(resourceName);
-    return buildStarFile(resourceName, resourceStream);
+    if(resourceStream == null) {
+      // If we cannot find our package, try to see if it's a module (i.e. Module/__init__.star)
+      @SuppressWarnings("UnstableApiUsage")
+      String baseName = Files.getNameWithoutExtension(resourceName);
+      String errorMsg = "Unable to find resource: " + resourceName;
+      if(!baseName.equals("__init__")) {
+        resourceName = resourceName.replace(
+            baseName + ".star",
+            baseName + "/__init__.star");
+        resourceStream = ResourceContentStarFile.class.getClassLoader().getResourceAsStream(resourceName);
+        errorMsg += " and additionally there was no module for " + resourceName + " found";
+      }
+      // resourceStream still null? ok, let's throw the exception..
+      if(resourceStream == null) {
+        throw new EvalException(errorMsg);
+      }
+    }
+    try {
+      return buildStarFile(resourceName, resourceStream);
+    } catch (IOException e) {
+      throw new EvalException(e);
+    }
   }
+
+  public static boolean startsWithPrefix(String moduleToLoad) {
+    return moduleToLoad.startsWith(STDLIB) || moduleToLoad.startsWith(VENDOR) || moduleToLoad.startsWith(VGS);
+  }
+
+  public static String getModulePath(String moduleToLoad) {
+    Matcher m = NAMESPACE_PREFIX.matcher(moduleToLoad);
+    if(!m.find()) {
+      throw new RuntimeException("Could not find match for module: " + moduleToLoad);
+    }
+    assert m.groupCount() == 2;
+    return m.group(2); // this is 1 --> namespace/path <-- this is 2
+  }
+
+  public static String resolveResourceName(String moduleToLoad) {
+    Matcher m = NAMESPACE_PREFIX.matcher(moduleToLoad);
+    String prefix;
+    String modulePath;
+    if(!m.find() || m.groupCount() != 2) {
+      // Could not find a module match or is incorrectly constructed
+      // We default to a stdlib directory (unless we do not want this behavior?)
+      prefix = STDLIB.replace("@", "");
+      modulePath = moduleToLoad;
+      // throw new RuntimeException("Could not find match for module: " + moduleToLoad);
+    } else {
+      prefix = m.group(1);
+      modulePath = m.group(2);
+    }
+
+    return String.format("%s/%s%s",
+        prefix,
+        modulePath,
+        modulePath.endsWith(LarkyScript.STAR_EXTENSION) ? "" : LarkyScript.STAR_EXTENSION);
+  }
+
 
   @Override
   public StarFile resolve(String path) {
-    return buildStarFile(path);
+    try {
+      return buildStarFile(path);
+    } catch (EvalException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
@@ -52,10 +139,28 @@ public class ResourceContentStarFile implements StarFile {
     return resourcePath.replace(LarkyScript.STAR_EXTENSION, "");
   }
 
-  public static String resolveResourceName(String moduleName) {
-    return String.format("%s/%s%s",
-        STDLIB.replace("@", ""),
-        moduleName,
-        moduleName.endsWith(LarkyScript.STAR_EXTENSION) ? "" : LarkyScript.STAR_EXTENSION);
+
+  @SneakyThrows
+  @Nullable
+  private Path getStdlibPath() {
+    URL resourceUrl = this.getClass().getClassLoader()
+        .getResource(STDLIB.replace("@", ""));
+    assert resourceUrl != null;
+    URI resourceAsURI;
+    try {
+      resourceAsURI = resourceUrl.toURI();
+    } catch (URISyntaxException e) {
+      return null;
+    }
+
+    return Paths.get(resourceAsURI);
   }
+
+  @SuppressWarnings("UnstableApiUsage")
+  private String withExtension(String moduleToLoad) {
+    String nameWithoutExtension = Files.getNameWithoutExtension(moduleToLoad);
+    String fname = Files.simplifyPath(nameWithoutExtension + LarkyScript.STAR_EXTENSION);
+    return StarFile.ABSOLUTE_PREFIX + moduleToLoad.replace(nameWithoutExtension, fname);
+  }
+
 }

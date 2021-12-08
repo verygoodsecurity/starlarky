@@ -39,7 +39,7 @@ import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
-import com.verygood.security.larky.nativelib.std.Json;
+import com.verygood.security.larky.modules.JsonModule;
 import net.starlark.java.syntax.FileOptions;
 import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.SyntaxError;
@@ -173,7 +173,7 @@ public final class ScriptTest {
         ParserInput input = ParserInput.fromString(buf.toString(), file.toString());
         ImmutableMap.Builder<String, Object> predeclared = ImmutableMap.builder();
         Starlark.addMethods(predeclared, new ScriptTest()); // e.g. assert_eq
-        predeclared.put("json", Json.INSTANCE);
+        predeclared.put("json", JsonModule.INSTANCE);
 
         StarlarkSemantics semantics = StarlarkSemantics.DEFAULT;
         Module module = Module.withPredeclared(semantics, predeclared.build());
