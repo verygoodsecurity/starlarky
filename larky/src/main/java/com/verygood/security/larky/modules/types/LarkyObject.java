@@ -59,6 +59,10 @@ public interface LarkyObject extends Structure {
     return getField(PyProtocols.__LEN__) != null;
   }
 
+  default Object get__len__() throws EvalException {
+    return getField(PyProtocols.__LEN__);
+  }
+
   /**
    * Returns the name of the type of a value as if by the Starlark expression {@code type(x)}.
    */
