@@ -52,7 +52,8 @@ class MutableStruct extends SimpleStruct {
     Object field = this.fields.get(name);
     /* if we have assigned a field that is a descriptor, we can invoke it */
     if (field == null
-        || !Property.class.isAssignableFrom(field.getClass())) {
+        || !Property.class.isAssignableFrom(field.getClass())
+         || Property.class.isAssignableFrom(value.getClass())) {
       ((Dict<String, Object>) fields).putEntry(name, value);
       return;
     }
