@@ -5,6 +5,7 @@ import java.util.Objects;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkThread;
 
 
 public class Error extends EvalException implements Result {
@@ -36,6 +37,21 @@ public class Error extends EvalException implements Result {
     }
     else if(EvalException.class.isAssignableFrom(e.getClass())) {
       return new Error((EvalException) e);
+    }
+    return new Error(e);
+  }
+
+  public static Error withThread(Object e, StarlarkThread thread) {
+    if(Error.class.isAssignableFrom(e.getClass())) {
+      return new Error(e);
+    }
+    else if(e instanceof EvalException) {
+      return new Error((EvalException) e);
+    }
+    else if(e instanceof Starlark.UncheckedEvalException) {
+      final Starlark.UncheckedEvalException e1 = (Starlark.UncheckedEvalException) e;
+      final EvalException evalException = new EvalException(e1.getCause().getMessage(), e1.getCause());
+      return new Error(evalException);
     }
     return new Error(e);
   }
