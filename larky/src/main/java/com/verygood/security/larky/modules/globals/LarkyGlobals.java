@@ -161,4 +161,16 @@ public final class LarkyGlobals {
         .fset(setter != Starlark.NONE ? (StarlarkCallable) setter : null)
         .build();
   }
+
+  @StarlarkMethod(
+        name = "_func_name",
+        parameters = {@Param(name="obj")},
+        useStarlarkThread = true)
+  public String funcName(Object obj, StarlarkThread thread) {
+    if(obj instanceof StarlarkCallable) {
+      return ((StarlarkCallable) obj).getName();
+    }
+    return Starlark.type(obj);
+  }
+
 }
