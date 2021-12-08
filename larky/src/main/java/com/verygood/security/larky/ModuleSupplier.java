@@ -36,6 +36,8 @@ import com.verygood.security.larky.modules.ResultModule;
 import com.verygood.security.larky.modules.StructModule;
 import com.verygood.security.larky.modules.SysModule;
 import com.verygood.security.larky.modules.VaultModule;
+import com.verygood.security.larky.modules.X509Module;
+import com.verygood.security.larky.modules.XMLModule;
 import com.verygood.security.larky.modules.ZLibModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
@@ -56,19 +58,21 @@ public class ModuleSupplier {
   );
 
   public static final ImmutableSet<StarlarkValue> STD_MODULES = ImmutableSet.of(
-    JsonModule.INSTANCE,
-    ProtoBufModule.INSTANCE,
-    C99MathModule.INSTANCE,
-    RegexModule.INSTANCE,
-    CodecsModule.INSTANCE,
     BinasciiModule.INSTANCE,
-    StructModule.INSTANCE,
+    C99MathModule.INSTANCE,
+    CodecsModule.INSTANCE,
+    CollectionsModule.INSTANCE,
     CryptoModule.INSTANCE,
+    JsonModule.INSTANCE,
     OpenSSLModule.INSTANCE,
+    ProtoBufModule.INSTANCE,
+    RegexModule.INSTANCE,
     ResultModule.INSTANCE,
+    StructModule.INSTANCE,
     SysModule.INSTANCE,
-    ZLibModule.INSTANCE,
-    CollectionsModule.INSTANCE
+    X509Module.INSTANCE,
+    XMLModule.INSTANCE,
+    ZLibModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
