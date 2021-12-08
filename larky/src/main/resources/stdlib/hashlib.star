@@ -52,7 +52,7 @@ load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Hash/SHAKE128", SHAKE128="SHAKE128")
 
 
-hashlib = larky.struct(
+__hashes = dict(
     md5=MD5.new,
     sha=SHA1.new,
     sha1=SHA1.new,
@@ -63,3 +63,19 @@ hashlib = larky.struct(
     blake2s=BLAKE2s.new,
     shake_128=SHAKE128.new,
 )
+
+def _new(name, data=b'', **kwargs):
+    """new(name, data=b'') - Return a new hashing object using the named algorithm;
+    optionally initialized with data (which must be a bytes-like object).
+    """
+    if name in __hashes:
+        # Prefer our builtin blake2 implementation.
+        return __hashes[name](data, **kwargs)
+
+
+hashlib = larky.struct(
+    __name__='hashlib',
+    new=_new,
+    **__hashes
+)
+
