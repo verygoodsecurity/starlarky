@@ -89,6 +89,7 @@ def _matcher__init__(matchobj):
         group=group,
         groups=groups,
         find=matchobj.find,
+        search=matchobj.search,
         pattern=matchobj.pattern,
         start=matchobj.start,
         end=matchobj.end,
@@ -125,7 +126,7 @@ def _pattern__init__(patternobj):
 
     def search(string, pos=0, endpos=-1):
         m = matcher(string)
-        if not m.find(pos):
+        if not m.search(pos, endpos):
             return None
         return m
 
