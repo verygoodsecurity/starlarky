@@ -66,7 +66,7 @@ def TestRSA_test_create_x509_pyopenssl():
     new_private_key = RSA.import_key(sample_private_key)
     new_private_key_pem = new_private_key.export_key("PEM")
     k = crypto.load_privatekey(crypto.FILETYPE_PEM, new_private_key_pem, None)
-    cert = crypto.X509();
+    cert = crypto.X509()
     cert.get_subject().C = "US"
     cert.get_subject().ST = "VIRGINIA"
     cert.get_subject().L = "RICHMOND"
@@ -90,6 +90,7 @@ def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(TestRSA_test_create_x509_pyopenssl))
     return _suite
+
 
 _runner = unittest.TextTestRunner()
 _runner.run(_testsuite())
