@@ -8,7 +8,7 @@ import java.util.ListIterator;
 
 import org.jetbrains.annotations.NotNull;
 
-public interface StarlarkSequence<K extends Collection<T>, T> extends Sequence<T> {
+public interface StarlarkSequence<K extends Collection<T>, T> extends StarlarkIndexable.Threaded, Sequence<T> {
 
   // interface
   //Collection<T> collection();
@@ -38,6 +38,16 @@ public interface StarlarkSequence<K extends Collection<T>, T> extends Sequence<T
       }
     }
     return true;
+  }
+
+  @Override
+  default T getIndex(StarlarkThread starlarkThread, StarlarkSemantics semantics, Object key) throws EvalException {
+    return Sequence.super.getIndex(semantics, key);
+  }
+
+  @Override
+  default boolean containsKey(StarlarkThread starlarkThread, StarlarkSemantics semantics, Object key) throws EvalException {
+    return Sequence.super.containsKey(semantics, key);
   }
 
   @Override
