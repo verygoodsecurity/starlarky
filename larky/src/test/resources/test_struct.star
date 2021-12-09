@@ -108,7 +108,8 @@ def _test_structure_callable():
     )
     asserts.assert_fails(
         lambda: cls5(1, 2, foo='cls5'),
-        ".*__Call__NOT_CALLABLE.__call__<type: int, value=1>' object is not callable.*")
+        r"'__Call__NOT_CALLABLE' object is not callable.*" +
+        r"__call__ is defined but is not callable")
 
 
 _test_structure_callable()

@@ -3,7 +3,7 @@
 # load("./testlib/builtinz", "setz") # works
 load("@stdlib//json", "json")
 load("@stdlib//hashlib", "hashlib")
-load("@vendor//pycryptodome", "pycryptodome")
+load("@vendor//Crypto/Hash", "Hash")
 load("testlib/builtinz", "setz", "collections")
 
 

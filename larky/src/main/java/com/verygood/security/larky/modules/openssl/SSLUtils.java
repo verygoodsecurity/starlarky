@@ -1,15 +1,17 @@
 package com.verygood.security.larky.modules.openssl;
 
+import static com.google.re2j.Pattern.CASE_INSENSITIVE;
+
 import com.google.common.flogger.FluentLogger;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
-
-import org.bouncycastle.util.encoders.Base64;
-import org.bouncycastle.util.encoders.Hex;
-
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.StringWriter;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
+import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.MessageDigest;
@@ -17,16 +19,44 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.DSAPrivateKeySpec;
 import java.security.spec.DSAPublicKeySpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.RSAPrivateCrtKeySpec;
 import java.security.spec.RSAPublicKeySpec;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+
+import com.verygood.security.larky.modules.crypto.Util.CryptoUtils;
+import com.verygood.security.larky.modules.crypto.Util.SimpleDERReader;
+
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.cert.bc.BcX509ExtensionUtils;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.PEMDecryptorProvider;
+import org.bouncycastle.openssl.PEMEncryptedKeyPair;
+import org.bouncycastle.openssl.PEMKeyPair;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.util.encoders.Base64;
+import org.bouncycastle.util.encoders.Hex;
+
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -36,9 +66,28 @@ import javax.crypto.spec.SecretKeySpec;
  * A decoder, capable of decoding PEM-encoded keys and certificates.
  * @author <a href="mailto:gds2@fritz-elfert.de">Fritz Elfert</a>
  * @author <a href="mailto:plattner@trilead.com">Christian Plattner</a> (Original code fragments - BSD-licensed)
+ * @author <a href="mailto:mahmoud@$vgs$dot$io">Mahmoud Abdelkader</a>
  */
 public final class SSLUtils {
     private static final FluentLogger logger = FluentLogger.forEnclosingClass();
+
+    public static final String BEF = "-----";
+    public static final String AFT = "-----";
+    public static final String BEF_G = BEF + "BEGIN ";
+    public static final String BEF_E = BEF + "END ";
+    public static final String PEM_STRING_X509="CERTIFICATE";
+
+    private static final Pattern CERT_PATTERN = Pattern.compile(
+                "-+BEGIN\\s+.*CERTIFICATE[^-]*-+(?:\\s|\\r|\\n)+" + // Header
+                        "([a-z0-9+/=\\r\\n]+)" +                    // Base64 text
+                        "-+END\\s+.*CERTIFICATE[^-]*-+",            // Footer
+                CASE_INSENSITIVE);
+
+    private static final Pattern KEY_PATTERN = Pattern.compile(
+                "-+BEGIN\\s+.*PRIVATE\\s+KEY[^-]*-+(?:\\s|\\r|\\n)+" + // Header
+                        "([a-z0-9+/=\\r\\n]+)" +                       // Base64 text
+                        "-+END\\s+.*PRIVATE\\s+KEY[^-]*-+",            // Footer
+                CASE_INSENSITIVE);
 
     private static final Pattern PRIVKEY_DSA_BEGIN = Pattern.compile("^-----BEGIN DSA PRIVATE KEY-----\n");
     private static final Pattern PRIVKEY_DSA_END = Pattern.compile("\n-----END DSA PRIVATE KEY-----\\s*$");
@@ -46,9 +95,53 @@ public final class SSLUtils {
     private static final Pattern PRIVKEY_RSA_END = Pattern.compile("\n-----END RSA PRIVATE KEY-----\\s*$");
     private static final Pattern PRIVKEY_EC_BEGIN = Pattern.compile("^-----BEGIN EC PRIVATE KEY-----\n");
     private static final Pattern PRIVKEY_EC_END = Pattern.compile("-----END EC PRIVATE KEY-----\\s*$");
-
     private static final Pattern PRIVKEY_PROCTYPE = Pattern.compile("^Proc-Type:\\s+4,ENCRYPTED\n");
     private static final Pattern PRIVKEY_DEKINFO = Pattern.compile("^DEK-Info:\\s+([^,]+),(\\S+)\n");
+    private static final String X_509 = "X.509";
+
+    /**
+     * create a basic X509 certificate from the given keys
+     */
+    static X509Certificate makeCertificate(
+      KeyPair subKP,
+      BigInteger serialNo,
+      String subDN,
+      KeyPair issKP,
+      String issDN)
+          throws GeneralSecurityException, IOException, OperatorCreationException {
+      PublicKey subPub = subKP.getPublic();
+      PrivateKey issPriv = issKP.getPrivate();
+      PublicKey issPub = issKP.getPublic();
+
+      X509v3CertificateBuilder v3CertGen = new JcaX509v3CertificateBuilder(
+          new X500Name(issDN),
+          serialNo,
+          new Date(System.currentTimeMillis()),
+          new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 100)),
+          new X500Name(subDN),
+          subPub);
+
+      BcX509ExtensionUtils bcXUtils = new BcX509ExtensionUtils();
+      v3CertGen.addExtension(
+          Extension.subjectKeyIdentifier,
+          false,
+          bcXUtils.createSubjectKeyIdentifier(
+              SubjectPublicKeyInfo.getInstance(subPub.getEncoded())));
+
+      v3CertGen.addExtension(
+          Extension.authorityKeyIdentifier,
+          false,
+          bcXUtils.createAuthorityKeyIdentifier(
+                  SubjectPublicKeyInfo.getInstance(issPub.getEncoded())));
+
+      return new JcaX509CertificateConverter()
+          .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+          .getCertificate(
+              v3CertGen.build(
+                  new JcaContentSignerBuilder("MD5withRSA")
+                      .setProvider(BouncyCastleProvider.PROVIDER_NAME)
+                      .build(issPriv)));
+    }
 
     enum KeyType {
         UNKNOWN,
@@ -73,20 +166,92 @@ public final class SSLUtils {
      * @return A list of Certificates.
      * @throws CertificateException if a certificate could not be decoded.
      */
-    public Collection<? extends Certificate> decodeCertificates(final String pem) throws CertificateException {
+    public Collection<? extends Certificate> decodeCertificates(final String pem)
+      throws CertificateException {
         if (null == pem || pem.isEmpty()) {
             throw new IllegalArgumentException("PEM data is null or empty");
         }
-        try {
-            final ByteArrayInputStream bis = new ByteArrayInputStream(pem.getBytes(Charset.defaultCharset()));
-            final CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        try(final ByteArrayInputStream bis = new ByteArrayInputStream(pem.getBytes(Charset.defaultCharset()))) {
+            final CertificateFactory cf = CertificateFactory.getInstance(X_509);
             return cf.generateCertificates(bis);
-        } catch (Throwable t) {
+        } catch (IOException t) {
             logger.atFine().log("", t);
-            throw t;
+            throw new RuntimeException(t);
         }
     }
 
+    public static List<X509Certificate> readCertificateChain(final String certificateChainContents)
+      throws GeneralSecurityException {
+        Matcher matcher = CERT_PATTERN.matcher(certificateChainContents);
+        CertificateFactory certificateFactory = CertificateFactory.getInstance(X_509);
+        List<X509Certificate> certificates = new ArrayList<>();
+
+        int start = 0;
+        while (matcher.find(start)) {
+            byte[] buffer = Base64.decode(matcher.group(1));
+            certificates.add((X509Certificate) certificateFactory.generateCertificate(new ByteArrayInputStream(buffer)));
+            start = matcher.end();
+        }
+
+        return certificates;
+    }
+/*
+// https://github.com/rfoltyns/log4j2-elasticsearch/blob/784784b90f896ba7792426391a28a71f71f0a4c1/log4j2-elasticsearch-hc/src/main/java/org/appenders/log4j2/elasticsearch/hc/thirdparty/PemReader.java#L80
+
+    public static KeyStore loadKeyStore(FileInputStream certificateChainFis, FileInputStream privateKeyFis, Optional<String> keyPassword)
+            throws IOException, GeneralSecurityException
+PKCS8EncodedKeySpec encodedKeySpec = new KeyReader().readPrivateKey(privateKeyFis, keyPassword);
+PrivateKey key;
+try {
+    KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+    key = keyFactory.generatePrivate(encodedKeySpec);
+}
+catch (InvalidKeySpecException ignore) {
+    KeyFactory keyFactory = KeyFactory.getInstance("DSA");
+    key = keyFactory.generatePrivate(encodedKeySpec);
+}
+
+List<X509Certificate> certificateChain = readCertificateChain(certificateChainFis);
+if (certificateChain.isEmpty()) {
+    throw new CertificateException("Certificate file does not contain any certificates");
+}
+
+KeyStore keyStore = KeyStore.getInstance("JKS");
+keyStore.load(null, null);
+keyStore.setKeyEntry("key", key, keyPassword.orElse("").toCharArray(), certificateChain.stream().toArray(Certificate[]::new));
+return keyStore;
+ */
+    public static PEMKeyPair readKeyPair(final byte[] pem, String keyPassword)
+         throws IOException {
+        PEMDecryptorProvider decryptorProvider;
+        Object keyPair;
+        try (PEMParser keyReader = new PEMParser(new InputStreamReader(new ByteArrayInputStream(pem)))) {
+            decryptorProvider = new JcePEMDecryptorProviderBuilder()
+              .build(
+                Optional.ofNullable(keyPassword).map(String::toCharArray).orElse(null)
+              );
+            keyPair = keyReader.readObject();
+        }
+
+        PEMKeyPair decryptedKeyPair;
+
+       if (keyPair instanceof PEMEncryptedKeyPair) {
+         decryptedKeyPair = ((PEMEncryptedKeyPair) keyPair)
+           .decryptKeyPair(decryptorProvider);
+       } else {
+           decryptedKeyPair = ((PEMKeyPair) keyPair);
+       }
+
+       return decryptedKeyPair;
+     }
+
+    public static PEMEncryptedKeyPair decodePrivateKey(final byte[] pem, final String password) throws GeneralSecurityException {
+        PEMEncryptedKeyPair keypair = (PEMEncryptedKeyPair)
+                                        CryptoUtils.extractPEMObject(pem);
+
+//        SSLUtils.readCertificateChain(new String(pem));
+        return keypair;
+    }
     /**
      * Decodes a PEM-encoded private key.
      * If the key is encrypted, it is expected to be encoded
@@ -369,240 +534,34 @@ public final class SSLUtils {
         }
     }
 
-  private static class SimpleDERReader {
 
-      private static final int CONSTRUCTED = 0x20;
+    public static void writeX509Certificate(final StringWriter out, final X509Certificate cert) throws IOException, CertificateEncodingException {
+        final byte[] enc = cert.getEncoded();
+        out.write(BEF_G + PEM_STRING_X509 + AFT);
+        out.write("\n");
+        writeEncoded(out, enc, enc.length);
+        out.write(BEF_E + PEM_STRING_X509 + AFT);
+        out.write("\n");
+        out.flush();
+     }
 
-      private byte[] buffer;
-      private int pos;
-      private int count;
+    private static void writeEncoded(StringWriter out,
+                                     byte[] bytes, final int bytesLen) {
+        final char[] buf = new char[64];
+        bytes = Base64.encode(bytes, 0 ,bytesLen);
+        for (int i = 0; i < bytes.length; i += buf.length) {
+            int index = 0;
 
-      /**
-       * Create a new reader.
-       * @param b The new content of this reader.
-       */
-      public SimpleDERReader(final byte[] b) {
-          resetInput(b);
-      }
+            while (index != buf.length) {
+                if ((i + index) >= bytes.length) {
+                    break;
+                }
+                buf[index] = (char) bytes[i + index];
+                index++;
+            }
+            out.write(buf, 0, index);
+            out.write("\n");
+        }
+    }
 
-      /**
-       * Create a new reader.
-       * @param b The new content of this reader.
-       * @param off The position to start reading from.
-       * @param len The size limit of the content.
-       */
-      public SimpleDERReader(final byte[] b, final int off, final int len) {
-          resetInput(b, off, len);
-      }
-
-      /**
-       * Resets the reader state.
-       * @param b the new content.
-       */
-      public void resetInput(final byte[] b) {
-          resetInput(b, 0, b.length);
-      }
-
-      /**
-       * Resets the reader state.
-       * @param b The new content of this reader.
-       * @param off The position to start reading from.
-       * @param len The size limit of the content.
-       */
-      public void resetInput(final byte[] b, final int off, final int len) {
-          buffer = b.clone();
-          pos = off;
-          count = len;
-      }
-
-      /**
-       * Reads a single byte.
-       * @return The byte from the DER stream.
-       */
-      private byte readByte() {
-          if (count <= 0) {
-              throw new IllegalArgumentException("DER byte array: out of data");
-          }
-          count--;
-          return buffer[pos++];
-      }
-
-      /**
-       * Reads an array of bytes.
-       * @param len The number of bytes to read.
-       * @return The array of bytes.
-       */
-      private byte[] readBytes(final int len) {
-          if (len > count) {
-              throw new IllegalArgumentException("DER byte array: out of data");
-          }
-          final byte[] b = new byte[len];
-          System.arraycopy(buffer, pos, b, 0, len);
-          pos += len;
-          count -= len;
-          return b;
-      }
-
-      /**
-       * Determine amount of available data.
-       * @return The number of bytes currently available.
-       */
-      public int available() {
-          return count;
-      }
-
-      // CHECKSTYLE IGNORE MagicNumber FOR NEXT 147 LINES
-      /**
-       * Read the length of the next DER object.
-       * @return The length of the next object in bytes.
-       */
-      private int readLength() {
-          int len = readByte() & 0xff;
-          if ((len & 0x80) == 0) {
-              return len;
-          }
-          int remain = len & 0x7F;
-          if (remain == 0) {
-              return -1;
-          }
-          len = 0;
-          while (remain > 0) {
-              len = len << 8;
-              len = len | (readByte() & 0xff);
-              remain--;
-          }
-          return len;
-      }
-
-      /**
-       * Skips the next DER object.
-       * @return The type of the DER object just skipped.
-       */
-      public int ignoreNextObject() {
-          final int type = readByte() & 0xff;
-          final int len = readLength();
-          if (len < 0 || len > available()) {
-              throw new IllegalArgumentException("Illegal len in DER object (" + len  + ")");
-          }
-          readBytes(len);
-          return type;
-      }
-
-      /**
-       * Reads a big integer value.
-       * @return The value of the integer.
-       */
-      public BigInteger readInt() {
-          final int type = readByte() & 0xff;
-          if (type != 0x02) {
-              throw new IllegalArgumentException("Expected DER Integer, but found type " + type);
-          }
-          int len = readLength();
-          if (len < 0 || len > available()) {
-              throw new IllegalArgumentException("Illegal len in DER object (" + len  + ")");
-          }
-          final byte[] b = readBytes(len);
-          return new BigInteger(b);
-      }
-
-      /**
-       * Reads the type of an constructed (compound) DER object.
-       * @return The type of the DER constructed object.
-       */
-      public int readConstructedType() {
-          final int type = readByte() & 0xff;
-          if ((type & CONSTRUCTED) != CONSTRUCTED) {
-              throw new IllegalArgumentException("Expected constructed type, but was " + type);
-          }
-          return type & 0x1f;
-      }
-
-      /**
-       * Prepare for reading a constructed (compound) DER object.
-       * @return A new reader instance for reading the constructed DER object.
-       */
-      public SimpleDERReader readConstructed() {
-          final int len = readLength();
-          if (len < 0 || len > available()) {
-              throw new IllegalArgumentException("Illegal len in DER object (" + len  + ")");
-          }
-          SimpleDERReader cr = new SimpleDERReader(buffer, pos, len);
-          pos += len;
-          count -= len;
-          return cr;
-      }
-
-      /**
-       * Reads a DER secuence.
-       * @return A byte array, containing the sequuence content.
-       */
-      public byte[] readSequenceAsByteArray() {
-          final int type = readByte() & 0xff;
-          if (type != 0x30) {
-              throw new IllegalArgumentException("Expected DER Sequence, but found type " + type);
-          }
-          final int len = readLength();
-          if (len < 0 || len > available()) {
-              throw new IllegalArgumentException("Illegal len in DER object (" + len  + ")");
-          }
-          return readBytes(len);
-      }
-
-      /**
-       * Reads an OID.
-       * @return A String reprensentation of the OID.
-       */
-      public String readOid() {
-          final int type = readByte() & 0xff;
-          if (type != 0x06) {
-              throw new IllegalArgumentException("Expected DER OID, but found type " + type);
-          }
-          final int len = readLength();
-          if (len < 1 || len > available()) {
-              throw new IllegalArgumentException("Illegal len in DER object (" + len  + ")");
-          }
-          final byte[] b = readBytes(len);
-          long value = 0;
-          final StringBuilder sb = new StringBuilder(64);
-          switch(b[0] / 40) {
-              case 0:
-                  sb.append('0');
-                  break;
-              case 1:
-                  sb.append('1');
-                  b[0] -= 40;
-                  break;
-              default:
-                  sb.append('2');
-                  b[0] -= 80;
-                  break;
-          }
-          for (int i = 0; i < len; i++) {
-              value = value << 7 + b[i] & 0x7F;
-              if ((b[i] & 0x80) == 0) {
-                  sb.append('.');
-                  sb.append(value);
-                  value = 0;
-              }
-          }
-          return sb.toString();
-      }
-
-      /**
-       * Reads an octet string.
-       * @return The content ad byte array.
-       */
-      public byte[] readOctetString() {
-          final int type = readByte() & 0xff;
-          if (type != 0x04 && type != 0x03) {
-              throw new IllegalArgumentException("Expected DER Octetstring, but found type " + type);
-          }
-          final int len = readLength();
-          if (len < 0 || len > available()) {
-              throw new IllegalArgumentException("Illegal len in DER object (" + len  + ")");
-          }
-          return readBytes(len);
-      }
-
-  }
 }
