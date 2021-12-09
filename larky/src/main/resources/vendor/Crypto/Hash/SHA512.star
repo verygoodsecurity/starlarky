@@ -50,17 +50,17 @@ def SHA512Hash(data=None, truncate=None):
         self_['_truncate'] = truncate
 
         if truncate == None:
-            # self_['oid'] = "2.16.840.1.101.3.4.2.3"
-            # self_['digest_size'] = 64
-             self_['_state'] = _JCrypto.Hash.SHA512("512")
+            self_['oid'] = "2.16.840.1.101.3.4.2.3"
+            self_['digest_size'] = digest_size
+            self_['_state'] = _JCrypto.Hash.SHA512("512")
         elif truncate == "224":
-            # self_['oid'] = "2.16.840.1.101.3.4.2.5"
-            # self_['digest_size'] = 28
-             self_['_state'] = _JCrypto.Hash.SHA512("224")
+            self_['oid'] = "2.16.840.1.101.3.4.2.5"
+            self_['digest_size'] = 28
+            self_['_state'] = _JCrypto.Hash.SHA512("224")
         elif truncate == "256":
-            # self_['oid'] = "2.16.840.1.101.3.4.2.6"
-            # self_['digest_size'] = 32
-             self_['_state'] = _JCrypto.Hash.SHA512("256")
+            self_['oid'] = "2.16.840.1.101.3.4.2.6"
+            self_['digest_size'] = 32
+            self_['_state'] = _JCrypto.Hash.SHA512("256")
         else:
             fail('ValueError: Incorrect truncation length. It must be "224"' +
                  ' or "256".')
@@ -72,7 +72,7 @@ def SHA512Hash(data=None, truncate=None):
     self = __init__(data, truncate)
 
     # The internal block size of the hash algorithm in bytes.
-    self.block_size = 128
+    self.block_size = block_size
 
     def update(data):
         """Continue hashing of a message by consuming the next chunk of data.
