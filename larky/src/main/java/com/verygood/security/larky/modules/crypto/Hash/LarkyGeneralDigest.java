@@ -1,14 +1,12 @@
 package com.verygood.security.larky.modules.crypto.Hash;
 
-import com.verygood.security.larky.modules.crypto.CryptoHashModule;
-
 import net.starlark.java.annot.StarlarkMethod;
 
 import org.bouncycastle.crypto.ExtendedDigest;
 import org.bouncycastle.crypto.digests.GeneralDigest;
 
 public class LarkyGeneralDigest extends LarkyDigest {
-  private GeneralDigest digest;
+  private final GeneralDigest digest;
 
   public LarkyGeneralDigest(GeneralDigest digest) {
     this.digest = digest;

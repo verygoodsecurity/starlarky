@@ -26,6 +26,7 @@ import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkBytes.StarlarkByteArray;
+import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
@@ -46,6 +47,114 @@ import net.starlark.java.eval.Tuple;
  */
 @Library
 public final class PythonBuiltins {
+
+  @StarlarkMethod(
+       name = "int",
+       doc =
+           "Returns x as an int value."
+               + "<ul>"
+               + "<li>If <code>x</code> is already an int, <code>int</code> returns it unchanged." //
+               + "<li>If <code>x</code> is a bool, <code>int</code> returns 1 for True and 0 for"
+               + " False." //
+               + "<li>If <code>x</code> is a string, it must have the format "
+               + "    <code>&lt;sign&gt;&lt;prefix&gt;&lt;digits&gt;</code>. "
+               + "    <code>&lt;sign&gt;</code> is either <code>\"+\"</code>, <code>\"-\"</code>, "
+               + "    or empty (interpreted as positive). <code>&lt;digits&gt;</code> are a "
+               + "    sequence of digits from 0 up to <code>base</code> - 1, where the letters a-z "
+               + "    (or equivalently, A-Z) are used as digits for 10-35. In the case where "
+               + "    <code>base</code> is 2/8/16, <code>&lt;prefix&gt;</code> is optional and may "
+               + "    be 0b/0o/0x (or equivalently, 0B/0O/0X) respectively; if the "
+               + "    <code>base</code> is any other value besides these bases or the special value "
+               + "    0, the prefix must be empty. In the case where <code>base</code> is 0, the "
+               + "    string is interpreted as an integer literal, in the sense that one of the "
+               + "    bases 2/8/10/16 is chosen depending on which prefix if any is used. If "
+               + "    <code>base</code> is 0, no prefix is used, and there is more than one digit, "
+               + "    the leading digit cannot be 0; this is to avoid confusion between octal and "
+               + "    decimal. The magnitude of the number represented by the string must be within "
+               + "    the allowed range for the int type." //
+               + "<li>If <code>x</code> is a float, <code>int</code> returns the integer value of"
+               + "    the float, rounding towards zero. It is an error if x is non-finite (NaN or"
+               + "    infinity)."
+               + "</ul>" //
+               + "This function fails if <code>x</code> is any other type, or if the value is a "
+               + "string not satisfying the above format. Unlike Python's <code>int</code> "
+               + "function, this function does not allow zero arguments, and does "
+               + "not allow extraneous whitespace for string arguments.<p>" //
+               + "Examples:<pre class=\"language-python\">int(\"123\") == 123\n"
+               + "int(\"-123\") == -123\n"
+               + "int(\"+123\") == 123\n"
+               + "int(\"FF\", 16) == 255\n"
+               + "int(\"0xFF\", 16) == 255\n"
+               + "int(\"10\", 0) == 10\n"
+               + "int(\"-0x10\", 0) == -16\n"
+               + "int(\"-0x10\", 0) == -16\n"
+               + "int(\"123.456\") == 123\n"
+               + "</pre>",
+       parameters = {
+         @Param(name = "x", doc = "The string to convert."),
+         @Param(
+             name = "base",
+             defaultValue = "unbound",
+             doc =
+                 "The base used to interpret a string value; defaults to 10. Must be between 2 "
+                     + "and 36 (inclusive), or 0 to detect the base as if <code>x</code> were an "
+                     + "integer literal. This parameter must not be supplied if the value is not a "
+                     + "string.",
+             named = true)
+       }, useStarlarkThread = true)
+   public StarlarkInt intForStarlark(Object x, Object baseO, StarlarkThread thread) throws EvalException {
+      /*
+      Losslessly convert an object to an integer object.
+
+      If obj is an instance of int, return it directly. Otherwise call __index__()
+      and require it be a direct instance of int (raising TypeError if it isn't).
+      */
+    if (x instanceof String) {
+      int base = baseO == Starlark.UNBOUND ? 10 : Starlark.toInt(baseO, "base");
+      try {
+         return StarlarkInt.parse((String) x, base);
+       } catch (NumberFormatException ex) {
+         throw Starlark.errorf("%s", ex.getMessage());
+       }
+     }
+    else if (x instanceof LarkyObject) {
+      final LarkyObject asLarkyObj = (LarkyObject) x;
+      // first, detect __index__
+      Object coerceToIntO = asLarkyObj.getField(PyProtocols.__INDEX__);
+      // then if it doesn't exist, does it have __int__?
+      if (coerceToIntO == null) {
+        // deprecated since python 3.8
+        coerceToIntO = asLarkyObj.getField(PyProtocols.__INT__);
+      }
+      if(!StarlarkUtil.isCallable(coerceToIntO)) {
+        throw Starlark.errorf("%s object is not callable", StarlarkUtil.richType(coerceToIntO));
+      }
+      StarlarkCallable coerceToInt = (StarlarkCallable) coerceToIntO;
+      if (coerceToInt != null) {
+        Object res = asLarkyObj.invoke(thread, coerceToInt, Tuple.empty(), Dict.empty());
+        if(!(res instanceof StarlarkInt)) {
+          throw Starlark.errorf("%s returned non-int (type %s)", coerceToInt.getName(), StarlarkUtil.richType(res));
+        }
+        return (StarlarkInt)res;
+      }
+    }
+
+     if (baseO != Starlark.UNBOUND) {
+       throw Starlark.errorf("can't convert non-string with explicit base");
+     }
+     if (x instanceof Boolean) {
+       return StarlarkInt.of((boolean) x ? 1 : 0);
+     } else if (x instanceof StarlarkInt) {
+       return (StarlarkInt) x;
+     } else if (x instanceof StarlarkFloat) {
+       try {
+         return StarlarkEvalWrapper.ofFiniteDouble(((StarlarkFloat) x).toDouble());
+       } catch (IllegalArgumentException unused) {
+         throw Starlark.errorf("can't convert float %s to int", x);
+       }
+     }
+     throw Starlark.errorf("got %s, want string, int, float, or bool", Starlark.type(x));
+   }
 
   @StarlarkMethod(
       name = "pow",
@@ -197,9 +306,22 @@ public final class PythonBuiltins {
      @Param(name = "iterator"),
      @Param(name = "default", defaultValue = "unbound")
    }, useStarlarkThread = true)
-  public Object next(LarkyIterator iterator, Object defaultO, StarlarkThread thread) throws EvalException {
-    if(iterator.hasNext()) {
-      iterator.setCurrentThread(thread);
+  public Object next(Object iteratorO, Object defaultO, StarlarkThread thread) throws EvalException {
+    final LarkyIterator iterator;
+    if (iteratorO instanceof LarkyIterator) {
+      iterator = (LarkyIterator) iteratorO;
+    }
+    // there could be a delegated __next__
+    else if (iteratorO instanceof LarkyObject && LarkyIterator.isIterator((LarkyObject)iteratorO)) {
+      iterator = LarkyIterator.LarkyObjectIterator.of((LarkyObject) iteratorO, thread);
+    }
+    else {
+      throw Starlark.errorf("TypeError: '%s' object is not an iterator",
+        StarlarkUtil.richType(iteratorO));
+    }
+
+    iterator.setCurrentThread(thread);
+    if (iterator.hasNext()) {
       return iterator.next();
     }
     // If default is given and the iterator is exhausted, it is returned

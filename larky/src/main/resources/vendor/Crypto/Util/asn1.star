@@ -19,21 +19,21 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//builtins","builtins")
+load("@stdlib//codecs", "codecs")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//math", math="math")
+load("@stdlib//operator", operator="operator")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//types",types="types")
-load("@stdlib//codecs", "codecs")
-load("@stdlib//binascii", hexlify="hexlify")
 load("@vendor//Crypto/Util/py3compat",
      byte_string="byte_string", b="b", bchr="bchr", bord="bord")
-
 load("@vendor//Crypto/Util/number",
      long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")
 
-load("@stdlib//jcrypto", _JCrypto="jcrypto")
-load("@vendor//option/result", safe="safe")
+load("@vendor//option/result", Result="Result")
 
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
@@ -44,44 +44,48 @@ __all__ = ['DerObject', 'DerInteger', 'DerOctetString', 'DerNull',
 
 
 def _is_number(x, only_non_negative=False):
-
-    def _add():
-        test = 0
-        test = x + test
-    rval = safe(_add)()
+    # this is a surprisingly hard function b/c it tests if you can add
+    # a number and if it throws an exception, it is not a number
+    #
+    # but, lists (and anything w/ __add__) can overload the '+' operator
+    # so, they won't actually throw an exception.
+    #
+    # so how do we test what is a number?
+    if not types.is_int(x):
+        return False
+    test = 0
+    rval = Result.Ok(operator.index).map(lambda index: index(x) + test)
     if rval.is_err:
         return False
     return not only_non_negative or x >= 0
-
-# def _is_number(x, only_non_negative=False):
-#
-#     if not types.is_int(x) or not types.is_bytelike(x):
-#         return False
-#
-#     return (not only_non_negative) or (x >= 0)
 
 
 def BytesIO_EOF(initial_bytes):
     """This class differs from BytesIO in that a ValueError exception is
     raised whenever EOF is reached."""
 
+    self = larky.mutablestruct(__name__='BytesIO_EOF', __class__=BytesIO_EOF)
+
     def __init__(initial_bytes):
-        return larky.mutablestruct(
-            _buffer=initial_bytes,
-            _index=0,
-            _bookmark=None
-        )
+        self._buffer = initial_bytes
+        self._index = 0
+        self._bookmark  = None
+        return self
+    self = __init__(initial_bytes)
 
     def set_bookmark():
         self._bookmark = self._index
+    self.set_bookmark = set_bookmark
 
     def data_since_bookmark():
         if self._bookmark == None:
             fail("_bookmark cannot be None!")
         return self._buffer[self._bookmark:self._index]
+    self.data_since_bookmark = data_since_bookmark
 
     def remaining_data():
         return len(self._buffer) - self._index
+    self.remaining_data = remaining_data
 
     def read(length):
         new_index = self._index + length
@@ -94,15 +98,11 @@ def BytesIO_EOF(initial_bytes):
         result = self._buffer[self._index:new_index]
         self._index = new_index
         return result
+    self.read = read
 
     def read_byte():
         return bord(self.read(1)[0])
 
-    self = __init__(initial_bytes)
-    self.set_bookmark = set_bookmark
-    self.data_since_bookmark = data_since_bookmark
-    self.remaining_data = remaining_data
-    self.read = read
     self.read_byte = read_byte
     return self
 
@@ -463,7 +463,8 @@ def DerSequence(startSeq=None, implicit=None):
         derobject = DerObject(0x10, bytes(), implicit, 1)
         __dict__ = larky.to_dict(derobject)
         __dict__['derobject'] = derobject
-        __dict__['__class__'] = 'DerSequence'
+        __dict__['__name__'] = 'DerSequence'
+        __dict__['__class__'] = DerSequence
         __dict__['_seq'] = startSeq if startSeq != None else []
 
         return larky.mutablestruct(
@@ -504,6 +505,10 @@ def DerSequence(startSeq=None, implicit=None):
         self._seq.append(item)
         return self
 
+    def __add__(item):
+        self._seq.append(item)
+        return self
+
     def append(item):
         self._seq.append(item)
         return self
@@ -541,24 +546,57 @@ def DerSequence(startSeq=None, implicit=None):
           ValueError: if some elements in the sequence are neither integers
                       nor byte strings.
         """
-        i = _JCrypto.Util.ASN1.DerSequence(self._seq)
-        return i.encode()
-        # self.payload = bytearray()
-        # for item in self._seq:
-        #     if byte_string(item) or types.is_bytearray(item):
-        #         self.payload += item
-        #     elif _is_number(item):
-        #         self.payload += bytearray(DerInteger(item).encode().elems())
-        #     elif types.is_string(item):
-        #         self.payload += codecs.encode(item, encoding='utf-8')
-        #     elif hasattr(item, 'encode'):
-        #         encoded = item.encode()
-        #         if hasattr(encoded, 'elems'):
-        #             self.payload += bytearray(encoded.elems())
-        #     else:
-        #         fail("do not know how to handle: " + type(item))
+        # NOTE: We do not use bouncycastle here b/c pycryptodome has its own
+        # flavor of ASN1 encoding that removes BER tags from the encoding
+        # and I cannot for the life of me figure out how to do it from Java
         #
-        # return self.derobject.encode(self)
+        # i = _JCrypto.Util.ASN1.DerSequence(self._seq)
+        # return i.encode()
+        self.payload = b''
+
+        if not self._seq:
+            return self.derobject.encode(self)
+
+        payload = [self.payload]
+        _seq = list(self._seq)  # type: list
+
+        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            # noinspection PyTypeChecker
+            if len(_seq) == 0:
+                break
+            item = _seq.pop(0)
+            if types.is_bytelike(item):
+               payload[-1] += item
+            elif types.is_tuple(item) and item[0] == larky.SENTINEL:
+                # see the comment for type(item) == 'DerSequence'
+                # for why this is needed assign payload to the instance!
+                item[1].payload = payload.pop(-1)
+                # re-encode to previous payload
+                payload[-1] += item[1].derobject.encode(item[1])
+            elif type(item) == 'DerSequence':
+                # we do not have recursion in Larky, so if we see a nested
+                # DerSequence, then, we effectively have to push the
+                # current item on the stack and signal a sentinel to know
+                # when we need to finalize the encoding.
+                #
+                # it's important to keep track of the payload since
+                # it is used in `derobject.encode()` to add the appropriate
+                # tags
+                new_seq = list(item._seq)  # copy the list..
+                new_seq.append((larky.SENTINEL, item))   # push the sentinel
+                if _seq:
+                    new_seq.extend(_seq)   # extend if there's any _seq left
+                _seq = new_seq  # type: list
+                payload.append(b'')  # very important, reset the payload stack
+            elif _is_number(item):
+                payload[-1] += DerInteger(item).encode()
+            else:
+                payload[-1] += item.encode()
+        self.payload = payload.pop(-1)
+        if payload:
+            fail("DerSequence payload is not empty!")
+        return self.derobject.encode(self)
+
 
     def decode(der_encoded, strict=False, nr_elements=None, only_ints_expected=False,
                # TODO(Hack)...until I introduce safetywrap
@@ -664,6 +702,7 @@ def DerSequence(startSeq=None, implicit=None):
     self.__getslice__ = __getslice__
     self.__len__ = __len__
     self.__iadd__ = __iadd__
+    self.__add__ = __add__
     return self
 
 

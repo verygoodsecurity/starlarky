@@ -1,15 +1,18 @@
 package com.verygood.security.larky.modules.crypto;
 
-import static com.verygood.security.larky.modules.crypto.Util.ASN1.*;
+import static com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyDerBitString;
+import static com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyDerObjectId;
+import static com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyOctetString;
+import static com.verygood.security.larky.modules.crypto.Util.ASN1.LarkySetOf;
 
 import com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyASN1Sequence;
 import com.verygood.security.larky.modules.crypto.Util.ASN1.LarkyDerInteger;
 import com.verygood.security.larky.modules.crypto.Util.Strxor;
-import net.starlark.java.eval.StarlarkBytes;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkValue;
@@ -36,7 +39,8 @@ public class CryptoUtilModule implements StarlarkValue {
   @StarlarkMethod(name = "DerInteger", parameters = {
       @Param(name = "n")
   })
-  public LarkyDerInteger DerInteger(StarlarkInt n) {
+  public LarkyDerInteger DerInteger(Object nO) {
+    StarlarkInt n = ((StarlarkInt) nO); // we want to throw a failure if it's not an Int
     return LarkyDerInteger.fromStarlarkInt(n);
   }
 

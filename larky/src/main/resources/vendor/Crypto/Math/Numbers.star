@@ -164,22 +164,22 @@ def _Integer(value):
         return self
 
     def __iadd__(term):
-        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        term = int(term)
         self._value += term
         return self
 
     def __isub__(term):
-        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        term = int(term)
         self._value -= term
         return self
 
     def __imul__(term):
-        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        term = int(term)
         self._value *= term
         return self
 
     def __imod__(term):
-        term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        term = int(term)
         modulus = term
         if modulus == 0:
             fail('ZeroDivisionError("Division by zero")')
@@ -190,46 +190,25 @@ def _Integer(value):
 
     # Boolean/bit operations
     def __and__(term):
-        term = term.__int__() if types.is_instance(term, Integer) else int(term)
-        return Integer(self._value & term)
+        # term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        return Integer(self._value & int(term))
 
     def __or__(term):
-        term = term.__int__() if types.is_instance(term, Integer) else int(term)
-        return Integer(self._value | term)
+        # term = term.__int__() if types.is_instance(term, Integer) else int(term)
+        return Integer(self._value | int(term))
 
     def __rshift__(pos):
-        result = self._value >> pos.__int__()
-        return Integer(result)
-        # try:
-        #     return __class__()
-        # except OverflowError:
-        #     if _value >= 0:
-        #         return 0
-        #     else:
-        #         return -1
-    #
-    # def __irshift__(pos):
-    #     try:
-    #         _value >>= int(pos)
-    #     except OverflowError:
-    #         if _value >= 0:
-    #             return 0
-    #         else:
-    #             return -1
-    #     return self
-    #
-    # def __lshift__(pos):
-    #     try:
-    #         return __class__(_value << int(pos))
-    #     except OverflowError:
-    #         fail(" ValueError(\"Incorrect shift count\")")
-    #
-    # def __ilshift__(pos):
-    #     try:
-    #         _value <<= int(pos)
-    #     except OverflowError:
-    #         fail(" ValueError(\"Incorrect shift count\")")
-    #     return self
+        res = Result.Ok(self._value).map(lambda x: x >> int(pos))
+        if res.is_err:
+            if self._value >= 0:
+                return 0
+            else:
+                return -1
+        return Integer(res.unwrap())
+
+    def __lshift__(pos):
+        res = Result.Ok(self._value).map(lambda x: x << int(pos))
+        return Integer(res.unwrap_or("Incorrect shift count"))
 
     def get_bit(n):
         if self._value < 0:
@@ -290,19 +269,16 @@ def _Integer(value):
         return self._value == pow(x, 2)
 
     def fail_if_divisible_by(small_prime):
-        small_prime = (small_prime.__int__()
-                       if types.is_instance(small_prime, Integer)
-                       else int(small_prime))
-
+        small_prime = int(small_prime)
         if (self._value % small_prime) == 0:
             fail(' ValueError("Value is composite")')
 
     def multiply_accumulate(a, b):
-        self._value += a.__int__() * b.__int__()
+        self._value += (int(a) * int(b))
         return self
 
     def set(source):
-        _value = source.__int__()
+        self._value = int(source)
 
     def inplace_inverse(modulus):
         modulus = operator.index(modulus)
@@ -333,9 +309,7 @@ def _Integer(value):
         return result
 
     def gcd(term):
-        term = (term.__int__()
-                if types.is_instance(term, Integer)
-                else int(term))
+        term = int(term)
         r_p, r_n = abs(self._value), abs(term)
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if r_n <= 0:
@@ -345,17 +319,15 @@ def _Integer(value):
         return Integer(r_p)
 
     def lcm(term):
-        term = (term.__int__()
-                if types.is_instance(term, Integer)
-                else int(term))
+        term = int(term)
         if self._value == 0 or term == 0:
             return Integer(0)
         return Integer(_JCrypto.Math.lcm(self._value, term))
         # return Integer(abs((self._value * term) // self.gcd(term)._value))
 
     def jacobi_symbol(a, n):
-        a = a.__int__() if types.is_instance(a, Integer) else int(a)
-        n = n.__int__() if types.is_instance(n, Integer) else int(n)
+        a = int(a)
+        n = int(n)
 
         if n <= 0:
             fail('ValueError: n must be a positive integer')
@@ -435,6 +407,7 @@ def _Integer(value):
             __and__=__and__,
             __or__=__or__,
             __rshift__=__rshift__,
+            __lshift__=__lshift__,
             get_bit=get_bit,
             is_odd=is_odd,
             is_even=is_even,

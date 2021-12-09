@@ -151,6 +151,16 @@ def _RsaKey(**kwargs):
         return self._u.__int__()
     self.u = larky.property(u)
 
+    def _to_dict():
+        dikt = dict(n=int(self.n), e=int(self.e))
+        if self.has_private():
+            dikt.update(d=int(self.d),
+                        p=int(self.p),
+                        q=int(self.q),
+                        u=int(self.u))
+        return dikt
+    self._to_dict = _to_dict
+
     def size_in_bits():
         """Size of the RSA modulus in bits"""
         return self._n.size_in_bits()

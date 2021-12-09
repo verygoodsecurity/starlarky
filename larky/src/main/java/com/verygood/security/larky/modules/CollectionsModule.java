@@ -1,9 +1,18 @@
 package com.verygood.security.larky.modules;
 
-import com.google.common.collect.Iterables;
-import java.util.Map;
+import static java.lang.Math.min;
 
-import com.verygood.security.larky.modules.types.structs.SimpleStruct;
+import com.google.common.collect.ImmutableCollection;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.Iterables;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.NavigableMap;
+
+import com.verygood.security.larky.modules.types.LarkyIterator;
+import com.verygood.security.larky.modules.types.LarkyObject;
+import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -17,6 +26,7 @@ import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkSemantics;
@@ -24,6 +34,8 @@ import net.starlark.java.eval.StarlarkSequence;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
+
+import org.jetbrains.annotations.NotNull;
 
 
 @StarlarkBuiltin(
@@ -46,13 +58,17 @@ public class CollectionsModule implements StarlarkValue {
 
   public static final CollectionsModule INSTANCE = new CollectionsModule();
 
-  public static class LarkyNamedTuple extends SimpleStruct
-    implements StarlarkSequence<Tuple, Object> {
+  public static class LarkyNamedTuple
+    implements LarkyObject, StarlarkSequence<Tuple, Object>, Comparable<Object> {
 
+    final NavigableMap<String, Object> fields;
     final Tuple backingTuple;
-    protected LarkyNamedTuple(Map<String, Object> fields, Iterable<?> obj, StarlarkThread currentThread) {
-      super(fields, currentThread);
-      backingTuple = Tuple.copyOf(obj);
+    final StarlarkThread currentThread;
+
+    protected LarkyNamedTuple(NavigableMap<String, Object> fields, Iterable<?> obj, StarlarkThread thread) {
+      this.currentThread = thread;
+      this.fields = fields;
+      this.backingTuple = Tuple.copyOf(obj);
     }
 
     public static LarkyNamedTuple create(Dict<String, Object> cls_ns,
@@ -79,7 +95,7 @@ public class CollectionsModule implements StarlarkValue {
         );
       }
 
-      return new LarkyNamedTuple(cls_ns, values, thread);
+      return new LarkyNamedTuple(ImmutableSortedMap.copyOf(cls_ns), values, thread);
     }
 
     @Override
@@ -92,14 +108,75 @@ public class CollectionsModule implements StarlarkValue {
       return StarlarkSequence.super.containsKey(semantics, key);
     }
 
+    /**
+     * Compares two sequences of values.
+     *
+     * Sequences compare equal if corresponding elements compare equal using {@code
+     * iterator.next().equals(iterator.next())}.
+     *
+     * Otherwise, the result is the ordered comparison of the first element for which {@code
+     * !iterator.next().equals(iterator.next())}.
+     *
+     * If one sequence is a prefix of another, the result is the comparison of the sequence's sizes.
+     *
+     * @throws ClassCastException if any comparison failed.
+     */
+    // Suppress duplicated code because StarlarkSequence should be a
+    // Collection and not necessarily a *list*.
+    @SuppressWarnings("DuplicatedCode")
+    @Override
+    public int compareTo(@NotNull Object o) {
+      final Sequence<?> x;
+      try {
+        x = Sequence.cast(o, Object.class, "compareTo");
+      } catch (EvalException e) {
+        throw new RuntimeException(e);
+      }
+      for (int i = 0; i < min(this.size(), x.size()); i++) {
+        Object xelem = this.get(i);
+        Object yelem = x.get(i);
+
+        // First test for equality. This avoids an unnecessary
+        // ordered comparison, which may be unsupported despite
+        // the values being equal. Also, it is potentially more
+        // expensive. For example, list==list need not look at
+        // the elements if the lengths are unequal.
+        if (xelem == yelem || xelem.equals(yelem)) {
+          continue;
+        }
+
+        // The ordered comparison of unequal elements should
+        // always be nonzero unless compareTo is inconsistent.
+        int cmp = StarlarkEvalWrapper.compareUnchecked(xelem, yelem);
+        if (cmp == 0) {
+          throw new IllegalStateException(
+            String.format(
+              "x.equals(y) yet x.compareTo(y)==%d (x: %s, y: %s)",
+              cmp, Starlark.type(xelem), Starlark.type(yelem)));
+        }
+        return cmp;
+      }
+      return Integer.compare(this.size(), x.size());
+    }
+
     @Override
     public Object getValue(String name) throws EvalException {
       final Sequence<String> _names = namedFields();
       final int pos = _names.indexOf(name);
-      if(pos != -1) {
+      if (pos != -1) {
         return this.backingTuple.get(pos);
       }
-      return super.getValue(name);
+      return this.fields.getOrDefault(name, null);
+    }
+
+    @Override
+    public ImmutableCollection<String> getFieldNames() {
+      return ImmutableSet.copyOf(this.fields.keySet());
+    }
+
+    @Override
+    public StarlarkThread getCurrentThread() {
+      return this.currentThread;
     }
 
     @Override
@@ -112,9 +189,18 @@ public class CollectionsModule implements StarlarkValue {
       return this.backingTuple.getSlice(mu,start,stop,step);
     }
 
+    @Override
+    public @NotNull Iterator<Object> iterator() {
+      try {
+        return LarkyIterator.from(this, this.getCurrentThread());
+      } catch (EvalException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
     public Sequence<String> namedFields() throws EvalException {
       Sequence<String> _namedFields = Sequence.cast(
-        super.getValue("_fields"), String.class, "_fields"
+        this.fields.get("_fields"), String.class, "_fields"
       );
       assert _namedFields != null;
       return _namedFields;
@@ -127,23 +213,23 @@ public class CollectionsModule implements StarlarkValue {
       for (int i = 0, fieldsSize = _namedFields.size(); i < fieldsSize; i++) {
         asDictBuilder.put(_namedFields.get(i), this.get(i));
       }
-      return asDictBuilder.build(getCurrentThread().mutability());
+      return asDictBuilder.buildImmutable();
     }
 
-    @StarlarkMethod(name = "_make", parameters = {@Param(name = "iterable", allowedTypes = {@ParamType(type = StarlarkIterable.class)})})
-    public LarkyNamedTuple make(StarlarkIterable<?> iterable) throws EvalException {
+    @StarlarkMethod(name = "_make", parameters = {@Param(name = "iterable", allowedTypes = {@ParamType(type = StarlarkIterable.class)})}, useStarlarkThread = true)
+    public LarkyNamedTuple make(StarlarkIterable<?> iterable, StarlarkThread thread) throws EvalException {
       Dict<String, Object> cls_ns = Dict.<String, Object>builder()
-        .put("__name__", getField("__name__"))
+        .put("__name__", getValue("__name__"))
         .put("_fields", namedFields())
         .put("__match_args__", namedFields())
-        .put("_field_defaults", getField("_field_defaults"))
+        .put("_field_defaults", getValue("_field_defaults"))
         .buildImmutable();
       Tuple args = Tuple.copyOf(iterable);
       if (args.size() != namedFields().size()) {
         throw Starlark.errorf("TypeError: Expected %d arguments, got %d",
           namedFields().size(), args.size());
       }
-      return create(cls_ns, args, Dict.empty(), getCurrentThread());
+      return create(cls_ns, args, Dict.empty(), thread);
     }
 
     @StarlarkMethod(
@@ -157,11 +243,11 @@ public class CollectionsModule implements StarlarkValue {
         String key = fields.get(i);
         values.put(key, kwds.get2(key, this.get(i), thread));
       }
-      return make(values.buildImmutable().values0(thread));
+      return make(values.buildImmutable().values0(thread), thread);
     }
     @Override
     public void repr(Printer p) {
-      p.append(type()).append('(');
+      p.append(StarlarkUtil.richType(this)).append('(');
 
       try {
         final Sequence<String> _namedFields = namedFields();

@@ -20,6 +20,7 @@
 # SOFTWARE.
 # ===================================================================
 load("@stdlib//larky", larky="larky")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/Signature/pss", MGF1="MGF1")
@@ -117,7 +118,7 @@ def PKCS1OAEP_Cipher(key, hashAlgo, mgfunc, label, randfunc):
         # Step 1b
         ps_len = k - mLen - 2 * hLen - 2
         if ps_len < 0:
-            return Error("ValueError: Plaintext is too long.")
+            return Error("ValueError: Plaintext is too long.").unwrap()
         # Step 2a
         lHash = self._hashObj.new(self._label).digest()
         # Step 2b
@@ -170,7 +171,7 @@ def PKCS1OAEP_Cipher(key, hashAlgo, mgfunc, label, randfunc):
 
         # Step 1b and 1c
         if len(ciphertext) != k or k<hLen+2:
-            return Error("ValueError: Ciphertext with incorrect length.")
+            return Error("ValueError: Ciphertext with incorrect length.").unwrap()
         # Step 2a (O2SIP)
         ct_int = bytes_to_long(ciphertext)
         # Step 2b (RSADP)
@@ -203,7 +204,7 @@ def PKCS1OAEP_Cipher(key, hashAlgo, mgfunc, label, randfunc):
         for x in db[hLen:one_pos]:
             invalid |= bord(x)
         if invalid != 0:
-            return Error("ValueError: Incorrect decryption.")
+            return Error("ValueError: Incorrect decryption.").unwrap()
         # Step 4
         return db[one_pos + 1:]
     self.decrypt = decrypt

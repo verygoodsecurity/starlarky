@@ -1,7 +1,5 @@
 package net.starlark.java.eval;
 
-import static java.lang.Math.min;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
@@ -10,7 +8,7 @@ import java.util.ListIterator;
 
 import org.jetbrains.annotations.NotNull;
 
-public interface StarlarkSequence<K extends Collection<T>, T> extends Sequence<T>, Comparable<Sequence<T>> {
+public interface StarlarkSequence<K extends Collection<T>, T> extends StarlarkIndexable.Threaded, Sequence<T> {
 
   // interface
   //Collection<T> collection();
@@ -22,53 +20,6 @@ public interface StarlarkSequence<K extends Collection<T>, T> extends Sequence<T
   @NotNull
   @Override
   Iterator<T> iterator();
-
-
-  /**
-    * Compares two sequences of values.
-   *
-   *  Sequences compare equal if corresponding elements compare
-    * equal using {@code iterator.next().equals(iterator.next())}.
-   *
-   *  Otherwise, the result is the ordered comparison of the first
-    * element for which {@code !iterator.next().equals(iterator.next())}.
-   *
-   *  If one sequence is a prefix of another, the result is the
-    * comparison of the sequence's sizes.
-    *
-    * @throws ClassCastException if any comparison failed.
-    */
-  // Suppress duplicated code because StarlarkSequence should be a
-  // Collection and not necessarily a *list*.
-  @SuppressWarnings("DuplicatedCode")
-  @Override
-  default int compareTo(@NotNull Sequence<T> o) {
-    for (int i = 0; i < min(this.size(), o.size()); i++) {
-      Object xelem = this.get(i);
-      Object yelem = o.get(i);
-
-      // First test for equality. This avoids an unnecessary
-      // ordered comparison, which may be unsupported despite
-      // the values being equal. Also, it is potentially more
-      // expensive. For example, list==list need not look at
-      // the elements if the lengths are unequal.
-      if (xelem == yelem || xelem.equals(yelem)) {
-        continue;
-      }
-
-      // The ordered comparison of unequal elements should
-      // always be nonzero unless compareTo is inconsistent.
-      int cmp = Starlark.compareUnchecked(xelem, yelem);
-      if (cmp == 0) {
-        throw new IllegalStateException(
-            String.format(
-                "x.equals(y) yet x.compareTo(y)==%d (x: %s, y: %s)",
-                cmp, Starlark.type(xelem), Starlark.type(yelem)));
-      }
-      return cmp;
-    }
-    return Integer.compare(this.size(), o.size());
-  }
 
   // defaults
 
@@ -87,6 +38,16 @@ public interface StarlarkSequence<K extends Collection<T>, T> extends Sequence<T
       }
     }
     return true;
+  }
+
+  @Override
+  default T getIndex(StarlarkThread starlarkThread, StarlarkSemantics semantics, Object key) throws EvalException {
+    return Sequence.super.getIndex(semantics, key);
+  }
+
+  @Override
+  default boolean containsKey(StarlarkThread starlarkThread, StarlarkSemantics semantics, Object key) throws EvalException {
+    return Sequence.super.containsKey(semantics, key);
   }
 
   @Override

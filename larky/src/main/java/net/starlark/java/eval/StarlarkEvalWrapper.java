@@ -20,4 +20,16 @@ public class StarlarkEvalWrapper {
   public static <T> StarlarkList<?> zeroCopyList(Mutability mu, T[] arr) {
     return StarlarkList.wrap(mu, arr);
   }
+
+  /**
+   * Defines the strict weak ordering of Starlark values used for sorting and the comparison operators. Throws
+   * ClassCastException on failure.
+   */
+  public static int compareUnchecked(Object x, Object y) {
+    return Starlark.compareUnchecked(x, y);
+  }
+
+  public static StarlarkInt ofFiniteDouble(double x) {
+    return StarlarkFloat.finiteDoubleToIntExact(x);
+  }
 }

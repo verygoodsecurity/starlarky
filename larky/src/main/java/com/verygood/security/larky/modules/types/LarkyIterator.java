@@ -157,6 +157,15 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
     return (StarlarkCallable) getField(PyProtocols.__LENGTH_HINT__);
   }
 
+  public static boolean isIterator(LarkyObject obj) throws EvalException {
+    return obj.getField(PyProtocols.__NEXT__) != null;
+  }
+
+  // TODO(mahmoudimus): this should be moved to a LarkyIterable interface
+  public static boolean isIterable(LarkyObject obj) throws EvalException {
+    return obj.getField(PyProtocols.__ITER__) != null;
+  }
+
   private static class LarkyStringIterator extends LarkyIterator {
 
     private final String obj;
@@ -241,15 +250,29 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
 
     public static LarkyObjectIterator of(LarkyObject obj, StarlarkThread thread) throws EvalException {
       final LarkyObjectIterator larkIter;
+      // first, let's check if we have an iterable
       final Object iter_func = obj.getField(PyProtocols.__ITER__);
+      final Object next_func = obj.getField(PyProtocols.__NEXT__);
 
-      if (iter_func == null) {
+      if (iter_func == null && next_func == null) {
         // check to see if it has __getitem__ and __len__
         larkIter = LarkyGetItemIterator.of(obj, thread);
-      } else if (!StarlarkUtil.isCallable(iter_func)) {
-        throw Starlark.errorf("TypeError: '%s'.__iter__ is not callable ", obj.type());
       } else {
-        larkIter = new LarkyObjectIterator(invokable(obj, (StarlarkCallable) iter_func), obj.type());
+        boolean __iter__Callable = StarlarkUtil.isCallable(iter_func);
+        boolean __next__Callable = StarlarkUtil.isCallable(next_func);
+        if (!__iter__Callable && !__next__Callable) {
+          throw Starlark.errorf("TypeError: '%s'.%s is not callable ",
+            obj.type(),
+            iter_func == null
+              ? PyProtocols.__NEXT__
+              : PyProtocols.__ITER__);
+        }
+        larkIter = new LarkyObjectIterator(
+          invokable(
+            obj,
+            (StarlarkCallable) iter_func,
+            (StarlarkCallable) next_func
+          ), obj.type());
       }
       larkIter.setCurrentThread(thread);
       return larkIter;
@@ -257,30 +280,44 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
 
     // TODO(mahmoudimus): should larkyobject extend all the various interfaces and map them
     //                    to __dunder__ methods?
-    static Supplier<Object> invokable(LarkyObject obj, StarlarkCallable dunder_iter) throws EvalException {
-      final LarkyObject iterator = (LarkyObject) obj.invoke(dunder_iter);
-      /*
-         From the documentation (https://docs.python.org/3/reference/datamodel.html#object.__iter__):
+    static Supplier<Object> invokable(LarkyObject obj, StarlarkCallable __iter__, StarlarkCallable __next__) throws EvalException {
+      final LarkyObject iterator;
+      if(__iter__ != null) {
+        iterator = (LarkyObject) obj.invoke(__iter__);
+        /*
+           From the documentation (https://docs.python.org/3/reference/datamodel.html#object.__iter__):
 
-             Iterator objects also need to implement this method; _they are required to
-             return themselves_ (emphasis added).
+               Iterator objects also need to implement this method; _they are required to
+               return themselves_ (emphasis added).
 
-         For more information on iterator objects, see Iterator Types here:
-          (https://docs.python.org/3/library/stdtypes.html#typeiter)
-       */
+           For more information on iterator objects, see Iterator Types here:
+            (https://docs.python.org/3/library/stdtypes.html#typeiter)
+         */
 
-      if (iterator == null
-            // this is an instance identity check!
-            || iterator.invoke(iterator.getField(PyProtocols.__ITER__)) != iterator) {
-        throw Starlark.errorf(
-          "ValueError: __iter__() on iterator object (%s) are required to return " +
-            "themselves (https://docs.python.org/3/reference/datamodel.html#object.__iter__)",
-          obj.type());
+        if (iterator == null
+              // this is an instance identity check!
+              || iterator.invoke(iterator.getField(PyProtocols.__ITER__)) != iterator) {
+          throw Starlark.errorf(
+            "ValueError: __iter__() on iterator object (%s) are required to return " +
+              "themselves (https://docs.python.org/3/reference/datamodel.html#object.__iter__)",
+            obj.type());
+        }
+
+        // make sure it has __next__
+        if (iterator.getField(PyProtocols.__NEXT__) == null) {
+          throw Starlark.errorf("iter() returned non-iterator of type '%s'", obj.type());
+        }
       }
-
-      // make sure it has __next__
-      if (iterator.getField(PyProtocols.__NEXT__) == null) {
-        throw Starlark.errorf("iter() returned non-iterator of type '%s'", obj.type());
+      else if(__next__ != null) {
+        iterator = obj;
+      }
+      else {
+        throw Starlark.errorf(
+          "TypeError: '%s' is not an iterator (missing %s or %s)",
+          obj.type(),
+          PyProtocols.__ITER__,
+          PyProtocols.__NEXT__
+          );
       }
 
       return () -> {

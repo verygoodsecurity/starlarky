@@ -126,7 +126,6 @@ def new(key, mode, *args, **kwargs):
 
     :Return: a DES object, of the applicable mode.
     """
-    print("key: ", key, "mode: ", mode, "args: ", args, "kwargs: ", kwargs)
     return Cipher._create_cipher(DES, key, mode, *args, **kwargs)
 
 

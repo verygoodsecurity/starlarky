@@ -255,83 +255,92 @@ def isPrime(N, false_positive_prob=1e-6, randfunc=None):
 # careful benchmarking
 
 def long_to_bytes(n, blocksize=0):
-    r"""Convert an integer to a byte string.
+    """Convert a positive integer to a byte string using big endian encoding.
 
-    In Python 3.2+, use the native method instead::
-
-        >>> n.to_bytes(blocksize, 'big')
-
-    For instance::
-
-        >>> n = 80
-        >>> n.to_bytes(2, 'big')
-        b'\x00P'
-
-    If the optional :data:`blocksize` is provided and greater than zero,
-    the byte string is padded with binary zeros (on the front) so that
-    the total length of the output is a multiple of blocksize.
-
-    If :data:`blocksize` is zero or not provided, the byte string will
+    If :data:`blocksize` is absent or zero, the byte string will
     be of minimal length.
+
+    Otherwise, the length of the byte string is guaranteed to be a multiple
+    of :data:`blocksize`. If necessary, zeroes (``\\x00``) are added at the left.
+
+    .. note::
+        In Python 3, if you are sure that :data:`n` can fit into
+        :data:`blocksize` bytes, you can simply use the native method instead::
+
+            >>> n.to_bytes(blocksize, 'big')
+
+        For instance::
+
+            >>> n = 80
+            >>> n.to_bytes(2, 'big')
+            b'\\x00P'
+
+        However, and unlike this ``long_to_bytes()`` function,
+        an ``OverflowError`` exception is raised if :data:`n` does not fit.
     """
 
     if operator.lt(n, 0) or operator.lt(blocksize, 0):
         fail('raise ValueError("Values must be non-negative")')
 
-    result = bytearray(
-        _JCrypto.Math.int_to_bytes(operator.index(n),
-                                   blocksize,
-                                   'big',
-                                   False))
+    # uncomment this for the faster native-Java version
+    # result = bytearray(
+    #     _JCrypto.Math.int_to_bytes(operator.index(n),
+    #                                blocksize,
+    #                                'big',
+    #                                False))
+    # if operator.eq(n, 0):
+    #     if len(result) == 0:
+    #         result = bytearray([0])
+    # return result
+
+    result = []
+
+    # Fill the first block independently from the value of n
+    bsr = blocksize
+    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if bsr < 8:
+            break
+        result.insert(0, pack('>Q', int(n & 0xFFFFFFFFFFFFFFFF)))
+        n = n >> 64
+        bsr -= 8
+
+    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if bsr < 4:
+            break
+        result.insert(0, pack('>I', int(n & 0xFFFFFFFF)))
+        n = n >> 32
+        bsr -= 4
+
+    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if bsr <= 0:
+            break
+        result.insert(0, pack('>B', int(n & 0xFF)))
+        n = n >> 8
+        bsr -= 1
+
     if operator.eq(n, 0):
         if len(result) == 0:
-            result = bytearray([0])
-    return result
+            bresult = b'\x00'
+        else:
+            bresult = b''.join(result)
+    else:
+        # The encoded number may exceed the block size
+        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if n <= 0:
+                break
+            result.insert(0, pack('>Q', int(n & 0xFFFFFFFFFFFFFFFF)))
+            n = n >> 64
 
-    # Uncomment the below for the bug-for-bug compatibility version with
-    # pycryptodome. See https://github.com/Legrandin/pycryptodome/issues/519
-    # for more details.
-    #
-    # result = []
-    #
-    # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-    #     if blocksize < 8:
-    #         break
-    #     result.insert(0, pack('>Q', n & 0xFFFFFFFFFFFFFFFF))
-    #     n = n >> 64
-    #     blocksize -= 8
-    #
-    # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-    #     if blocksize < 4:
-    #         break
-    #     result.insert(0, pack('>I', n & 0xFFFFFFFF))
-    #     n = n >> 32
-    #     blocksize -= 4
-    #
-    # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-    #     if blocksize <= 0:
-    #         break
-    #     result.insert(0, pack('>B', n & 0xFF))
-    #     n = n >> 8
-    #     blocksize -= 1
-    #
-    # if n == 0:
-    #    if len(result) == 0:
-    #        result = bytearray([0])
-    #  else:
-    #     # The encoded number may exceed the block size
-    #     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
-    #         if n <= 0:
-    #             break
-    #         result.insert(0, pack('>Q', n & 0xFFFFFFFFFFFFFFFF))
-    #         n = n >> 64
-    #
-    #     result[0] = result[0].lstrip(bytes([0x00]))
-    # return bytearray(r'', encoding='utf-8').join(result)
+        result[0] = result[0].lstrip(b'\x00')
+        bresult = b''.join(result)
+        # bresult has minimum length here
+        if blocksize > 0:
+            target_len = ((len(bresult) - 1) // blocksize + 1) * blocksize
+            bresult = b'\x00' * (target_len - len(bresult)) + bresult
+    return bresult
 
 
-
-def bytes_to_long(s):
+def bytes_to_long(s,  byteorder='big', signed=False):
     r"""Convert a byte string to a long integer (big endian).
 
     In Python 3.2+, use the native method instead::
@@ -345,7 +354,7 @@ def bytes_to_long(s):
 
     This is (essentially) the inverse of :func:`long_to_bytes`.
     """
-    return _JCrypto.Math.int_from_bytes(s, 'big')
+    return _JCrypto.Math.int_from_bytes(s, byteorder)
 
 
 def long2str(n, blocksize=0):

@@ -60,66 +60,26 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//xmllib", xmllib="xmllib")
 load("@stdlib//string", string="string")
 load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
+load("@vendor//elementtree/_SimpleXMLTreeBuilderHelper",
+     _SimpleXMLTreeBuilderHelper="SimpleXMLTreeBuilderHelper")
 
 
-def fixname(name, split=None):
-    # xmllib in 2.0 and later provides limited (and slightly broken)
-    # support for XML namespaces.
-    if " " not in name:
-        return name
-    if not split:
-        split = name.split
-    return "{%s}%s" % tuple(split(" ", 1))
+fixname = _SimpleXMLTreeBuilderHelper.fixname
 
 ##
 # ElementTree builder for XML source data.
 #
 # @see elementtree.ElementTree
 
-def TreeBuilder(element_factory=None):
-
-    def __init__(element_factory):
-        self = xmllib.XMLParser()
-        self.__class__ = 'SimpleXMLTreeBuilder.TreeBuilder'
-        self.__builder = ElementTree.TreeBuilder(element_factory)
-        return self
-    self = __init__(element_factory)
-
-    ##
-    # Feeds data to the parser.
-    #
-    # @param data Encoded data.
-    XMLParser_feed = self.feed
-    def feed(data):
-        XMLParser_feed(data)
-    self.feed = feed
-
-    ##
-    # Finishes feeding data to the parser.
-    #
-    # @return An element structure.
-    # @defreturn Element
-    XMLParser_close = self.close
-    def close():
-        XMLParser_close()
-        return self.__builder.close()
-    self.close = close
-
-    def handle_data(data):
-        self.__builder.data(data)
-    self.handle_data = handle_data
-    self.handle_cdata = handle_data
-
-    def unknown_starttag(tag, attrs):
-        attrib = {}
-        for key, value in attrs.items():
-            attrib[fixname(key)] = value
-        self.__builder.start(fixname(tag), attrib)
-    self.unknown_starttag = unknown_starttag
-
-    def unknown_endtag(tag):
-        self.__builder.end(fixname(tag))
-    self.unknown_endtag = unknown_endtag
+def TreeBuilder(element_factory=None, **options):
+    self = _SimpleXMLTreeBuilderHelper.TreeBuilderHelper(
+        ElementTree.TreeBuilder,
+        element_factory=element_factory,
+        parser=options.pop('parser', xmllib.XMLParser()),
+        capture_event_queue=options.pop('capture_event_queue', False),
+        **options
+    )
+    self.__class__ = 'SimpleXMLTreeBuilder.TreeBuilder'
     return self
 
 
