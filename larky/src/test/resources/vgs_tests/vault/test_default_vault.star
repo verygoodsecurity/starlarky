@@ -2,7 +2,7 @@
 
 load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
-load("@vgs//vault", "vault")
+load("@vgs//vaultapi", "vault")
 
 def _test_default_redact():
     card_number = "4111111111111111"
