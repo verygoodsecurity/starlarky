@@ -14,11 +14,12 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(1, os.path.abspath(os.path.join('../..', 'larky/src/main/resources/stdlib')))
-
-
+sys.path.insert(2, os.path.abspath(os.path.join('../..', 'larky/src/main/resources/stdlib/io')))
+sys.path.insert(3, os.path.abspath(os.path.join('../..', 'larky/src/main/resources/stdlib/urllib')))
+sys.path.insert(4, os.path.abspath(os.path.join('../..', 'larky/src/main/resources/stdlib/xml/etree')))
 # -- Project information -----------------------------------------------------
 
-project = 'Starlark Docs POC'
+project = 'Starlark Docs'
 copyright = '2021, petya'
 author = 'petya'
 

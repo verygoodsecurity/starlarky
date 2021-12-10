@@ -3,11 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Starlark Docs
+enum
 =================
 
-.. toctree::
-   :maxdepth: 3
+.. automodule:: enum
+   :members:
 
-   vault
-   stdlib
