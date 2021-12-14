@@ -29,6 +29,7 @@ Notes:
 - There's a simple test set (see end of this file).
 """
 # TODO: Port over https://github.com/python/cpython/blob/34bbc87b2ddbaf245fbed6443c3e620f80c6a843/Lib/_pyio.py
+load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//types", types="types")
 load("@stdlib//larky", larky="larky")
 load("@vendor//option/result", Error="Error")
@@ -374,4 +375,11 @@ def BytesIO(buf=b''):
     self.empty_char = b''
     self.zero_char = b'\0'
     self.newline = b'\n'
+
+    self.super_write = self.write
+    def write(s):
+        if not types.is_bytelike(s):
+            s = codecs.encode(s, encoding='utf-8')
+        return self.super_write(s)
+    self.write = write
     return self

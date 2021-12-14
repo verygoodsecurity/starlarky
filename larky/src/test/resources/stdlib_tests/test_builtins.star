@@ -146,6 +146,23 @@ def IteratorProxyClass(i):
     return self
 
 
+def IterableProxyClassOnlyImplements__next__(i):
+    self = larky.mutablestruct(__name__='IterableProxyClassOnlyImplements__next__',
+                               __class__=IterableProxyClassOnlyImplements__next__)
+
+    def __init__(i):
+        self.i = iter(i)
+        return self
+
+    self = __init__(i)
+
+    def __next__():
+        return next(self.i)
+
+    self.__next__ = __next__
+    return self
+
+
 def SequenceClass(n):
     self = larky.mutablestruct(__name__='SequenceClass',
                                __class__=SequenceClass)
@@ -225,7 +242,8 @@ def test_iter_userdefined():
     # create a new iterator, EVERY TIME, if needed.
 
     z = SequenceClass(5)
-    asserts.assert_fails(lambda: next(z), ".*want \'LarkyIterator\'")
+    asserts.assert_fails(lambda: next(z),
+                         "TypeError: 'SequenceClass' object is not an iterator")
     for i in range(3):
        asserts.assert_that(i in z).is_true()  # in works.
     # assert that state resets
@@ -238,6 +256,13 @@ def test_iter_userdefined():
         asserts.assert_that(i).is_equal_to(next(z))
     asserts.assert_fails(lambda: next(z), ".*StopIteration")
 
+    # if we proxy an iterable and only implement __next__, we can
+    # still call next() on it.
+    z = IterableProxyClassOnlyImplements__next__(range(3))
+    asserts.assert_that(next(z)).is_equal_to(0)
+    asserts.assert_that(next(z)).is_equal_to(1)
+    asserts.assert_that(next(z)).is_equal_to(2)
+    asserts.assert_fails(lambda: next(z), ".*StopIteration")
 
 
 def test_iter_callable():

@@ -5,6 +5,12 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.FluentLogger;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
@@ -27,13 +33,7 @@ import net.starlark.java.syntax.SyntaxError;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
+import org.jetbrains.annotations.VisibleForTesting;
 
 /**
  * An utility class for traversing and evaluating the config file dependency graph.
@@ -130,6 +130,8 @@ public final class LarkyEvaluator {
     return moduleSet;
   }
 
+  @VisibleForTesting
+  static
   class LarkyLoader implements StarlarkThread.Loader {
 
     private final StarFile content;
@@ -171,7 +173,12 @@ public final class LarkyEvaluator {
         }
 
       } catch (IOException | InterruptedException | EvalException e) {
-        throw new RuntimeException(e);
+        throw new RuntimeException(
+          String.format(
+            "Encountered error (%s) while attempting to load %s from module: %s.",
+            e.getMessage(),
+            moduleToLoad,
+            this.content.path()), e);
       }
       return loadedModule;
     }
@@ -219,7 +226,8 @@ public final class LarkyEvaluator {
   }
 
   @NotNull
-  private Map<String, Module> processLoads(StarFile content, Program prog) {
+  @VisibleForTesting
+  Map<String, Module> processLoads(StarFile content, Program prog) {
     Map<String, Module> loadedModules = new HashMap<>();
     LarkyLoader larkyLoader = new LarkyLoader(content, this);
     for (String load : prog.getLoads()) {
@@ -231,7 +239,8 @@ public final class LarkyEvaluator {
   }
 
   @NotNull
-  private Program compileStarlarkProgram(Module module, ParserInput input, FileOptions options) throws EvalException {
+  @VisibleForTesting
+  Program compileStarlarkProgram(Module module, ParserInput input, FileOptions options) throws EvalException {
     Program prog;
     try {
       prog = Program.compileFile(StarlarkFile.parse(input, options), module);

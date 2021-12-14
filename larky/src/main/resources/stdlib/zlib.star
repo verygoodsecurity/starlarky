@@ -234,14 +234,26 @@ def compressobj(level=6, method=DEFLATED, wbits=MAX_WBITS, memLevel=0, strategy=
 
     self = larky.mutablestruct(__name__='compressobj', __class__=compressobj)
 
-    self.GZIP_HEADER = b"\x1f\u008B\x08\x00\x00\x00\x00\x00\x04\x03"
+    # See http://www.gzip.org/zlib/rfc-gzip.html
+    self.GZIP_HEADER = b''.join([
+        b'\x1f\x8b',             # magic header
+        b'\x08',                 # compression method
+        b'\x00',                 # flags (none)
+        b'\x00\x00\x00\x00',     # packed time use zero (leak timezone info)
+        # https://tools.ietf.org/html/rfc1952#page-5
+        b'\x00',                 # XFL: will be either 0, 2, or 4
+                                 # 0 - default, intermediate algo (-2..-8 opts)
+                                 # max compression, slowest algo (-9, --best)
+                                 # 4 - compressor, fastest algo (-1, --fast)
+        # https://bugs.java.com/bugdatabase/view_bug.do?bug_id=JDK-8244706
+        b'\xff',                 # OS: unknown
+    ])
 
     # NB: this format is little-endian, not big-endian as we might
     # expect for network oriented protocols. Both are 4 bytes unsigned
     # modulus 2^32 per RFC-1952. CRC32.getValue() returns an unsigned
     # int as a long, so cope accordingly.
     self.GZIP_TRAILER_FORMAT = "<II"  # crc32, size
-
 
     def __init__(level, method, wbits, memLevel, strategy, zdict):
         self._gzip = gzip_compression(wbits)

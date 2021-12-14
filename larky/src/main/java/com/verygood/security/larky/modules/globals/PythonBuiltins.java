@@ -306,9 +306,22 @@ public final class PythonBuiltins {
      @Param(name = "iterator"),
      @Param(name = "default", defaultValue = "unbound")
    }, useStarlarkThread = true)
-  public Object next(LarkyIterator iterator, Object defaultO, StarlarkThread thread) throws EvalException {
-    if(iterator.hasNext()) {
-      iterator.setCurrentThread(thread);
+  public Object next(Object iteratorO, Object defaultO, StarlarkThread thread) throws EvalException {
+    final LarkyIterator iterator;
+    if (iteratorO instanceof LarkyIterator) {
+      iterator = (LarkyIterator) iteratorO;
+    }
+    // there could be a delegated __next__
+    else if (iteratorO instanceof LarkyObject && LarkyIterator.isIterator((LarkyObject)iteratorO)) {
+      iterator = LarkyIterator.LarkyObjectIterator.of((LarkyObject) iteratorO, thread);
+    }
+    else {
+      throw Starlark.errorf("TypeError: '%s' object is not an iterator",
+        StarlarkUtil.richType(iteratorO));
+    }
+
+    iterator.setCurrentThread(thread);
+    if (iterator.hasNext()) {
       return iterator.next();
     }
     // If default is given and the iterator is exhausted, it is returned

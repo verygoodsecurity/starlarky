@@ -5,20 +5,17 @@ import java.io.StringWriter;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.security.KeyPair;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.security.interfaces.DSAKey;
-import java.security.interfaces.ECKey;
-import java.security.interfaces.RSAKey;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 
-import net.starlark.java.eval.StarlarkBytes;
-import net.starlark.java.eval.StarlarkBytes;
+import com.verygood.security.larky.modules.crypto.CryptoIOModule;
+import com.verygood.security.larky.modules.x509.LarkyKeyPair;
+import com.verygood.security.larky.modules.x509.LarkyX509Certificate;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
@@ -30,17 +27,15 @@ import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.Tuple;
 import net.starlark.java.lib.json.Json;
 
 import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x509.Extension;
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
-import org.bouncycastle.cert.bc.BcX509ExtensionUtils;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
@@ -49,6 +44,7 @@ import org.bouncycastle.crypto.util.PrivateKeyInfoFactory;
 import org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.DefaultAlgorithmNameFinder;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
@@ -59,68 +55,7 @@ import lombok.Data;
 
 public class OpenSSL implements StarlarkValue {
   public static final OpenSSL INSTANCE = new OpenSSL();
-
-  public static class Loaded implements StarlarkValue {
-
-    enum KEY_TYPE {
-      UNKNOWN("UNKNOWN"), RSA("RSA"), DSA("DSA"), ECKey("ECKey");
-
-      private final String val;
-
-      KEY_TYPE(String val) {
-        this.val = val;
-      }
-
-      @Override
-      public String toString() {
-        return this.val;
-      }
-    }
-
-    final private KeyPair kp;
-    final private KEY_TYPE type;
-
-    public Loaded(KeyPair kp) {
-      this.kp = kp;
-      PrivateKey key = kp.getPrivate();
-      if (key instanceof RSAKey) {
-        type = KEY_TYPE.RSA;
-      } else if (key instanceof DSAKey) {
-        type = KEY_TYPE.DSA;
-      } else if (kp.getPrivate() instanceof ECKey) {
-        type = KEY_TYPE.ECKey;
-      } else {
-        type = KEY_TYPE.UNKNOWN;
-      }
-    }
-
-    @StarlarkMethod(name = "pkey", structField = true)
-    public StarlarkBytes loadPrivateKey() throws EvalException {
-      return StarlarkBytes.immutableOf(kp.getPrivate().getEncoded());
-//      return StarlarkBytes.builder(null).setSequence(kp.getPrivate().getEncoded()).build();
-    }
-
-    @StarlarkMethod(name = "bits", structField = true)
-    public StarlarkInt bits() throws EvalException {
-      switch(type) {
-        case RSA:
-          return StarlarkInt.of(((RSAKey) kp.getPrivate()).getModulus().bitLength());
-        case DSA:
-          return StarlarkInt.of(((DSAKey) kp.getPrivate()).getParams().getP().bitLength());
-        case ECKey:
-          return StarlarkInt.of(((ECKey) kp.getPrivate()).getParams().getCurve().getField().getFieldSize());
-        default:
-          throw new EvalException("Unable to determine length in bits of specified Key instance");
-
-      }
-    }
-
-    @StarlarkMethod(name = "key_type", structField = true)
-    public String keytype() {
-      return type.toString();
-    }
-
-  }
+  public static final DefaultAlgorithmNameFinder algFinder = new DefaultAlgorithmNameFinder();
 
   @StarlarkMethod(name = "load_privatekey", parameters = {
     @Param(name = "buffer", allowedTypes = {
@@ -131,26 +66,19 @@ public class OpenSSL implements StarlarkValue {
         @ParamType(type = NoneType.class),
     })
   })
-  public Loaded loadPrivateKey(StarlarkBytes buffer, Object passPhraseO) throws EvalException {
-    final String passphrase = Starlark.isNullOrNone(passPhraseO)
-      ? ""
-      : new String(((StarlarkBytes) passPhraseO).toByteArray(), StandardCharsets.UTF_8);
-    KeyPair keyPair = new SSLUtils()
-        .decodePrivKey(
-            new String(buffer.toByteArray(), StandardCharsets.UTF_8),
-            passphrase);
-
-    return new Loaded(keyPair);
+  public LarkyKeyPair loadPrivateKey(StarlarkBytes buffer, Object passPhraseO) throws EvalException {
+    return CryptoIOModule.INSTANCE.PEM().loadPrivateKey(buffer,passPhraseO);
   }
 
   @Data
   @Builder
-  static class Payload {
+  static class LarkyX509Cert {
     BigInteger gmtime_adj_notAfter;
     BigInteger gmtime_adj_notBefore;
     String issuer_name;
     String subject_name;
   }
+
 
   @StarlarkMethod(
     name="X509_sign",
@@ -174,7 +102,7 @@ public class OpenSSL implements StarlarkValue {
           thread.mutability()),
         String.class, Object.class, "Cannot convert JSON payload");
 
-    Payload payload = Payload.builder()
+    LarkyX509Cert payload = LarkyX509Cert.builder()
                         .gmtime_adj_notAfter(((StarlarkInt) serde.get("gmtime_adj_notAfter")).toBigInteger())
                         .gmtime_adj_notBefore(((StarlarkInt) serde.get("gmtime_adj_notBefore")).toBigInteger())
                         .issuer_name((String) serde.get("issuer_name"))
@@ -249,6 +177,20 @@ public class OpenSSL implements StarlarkValue {
       @Param(name = "type", allowedTypes = {@ParamType(type = String.class)}),
   }, useStarlarkThread = true)
   public StarlarkBytes dumpCertificate(StarlarkBytes cert, String type, StarlarkThread thread) throws EvalException {
+    /*
+      > pemWriter.close();
+      > return stringWriter.toString();
+      > Files.write(new File(RESULT_FOLDER, "CA.crt").toPath(), signCert.getEncoded());
+
+      cert we sign against
+
+      > origDN = "CN=Eric H. Echidna, E=eric@bouncycastle.org, O=Bouncy Castle, C=AU";
+      > origKP = kpg.generateKeyPair();
+      > origCert = makeCertificate(origKP, origDN, signKP, signDN);
+      > Files.write(
+      ... new File(RESULT_FOLDER, "User.crt").toPath(),
+      ... origCert.getEncoded());
+     */
     StringWriter stringWriter = new StringWriter();
     switch(type) {
       case "PEM":
@@ -266,72 +208,53 @@ public class OpenSSL implements StarlarkValue {
         throw Starlark.errorf("certificate type %s not supported!", type);
     }
     return StarlarkBytes.of(thread.mutability(),stringWriter.toString().getBytes(StandardCharsets.UTF_8));
-//
-//    return StarlarkBytes.builder(thread)
-//             .setSequence(stringWriter.toString().getBytes(StandardCharsets.UTF_8))
-//             .build();
   }
 
-//
-//
-//
-//    pemWriter.close();
-//
-//    return stringWriter.toString();
-    //Files.write(new File(RESULT_FOLDER, "CA.crt").toPath(), signCert.getEncoded());
-
-    //
-    // cert we sign against
-    //
-    //origDN = "CN=Eric H. Echidna, E=eric@bouncycastle.org, O=Bouncy Castle, C=AU";
-    //origKP = kpg.generateKeyPair();
-    //origCert = makeCertificate(origKP, origDN, signKP, signDN);
-    //Files.write(new File(RESULT_FOLDER, "User.crt").toPath(), origCert.getEncoded());
-
-
-    /**
-     * create a basic X509 certificate from the given keys
-     */
-    static X509Certificate makeCertificate (
-        KeyPair subKP,
-        BigInteger serialNo,
-        String subDN,
-        KeyPair issKP,
-        String issDN)
-          throws GeneralSecurityException, IOException, OperatorCreationException {
-      PublicKey subPub = subKP.getPublic();
-      PrivateKey issPriv = issKP.getPrivate();
-      PublicKey issPub = issKP.getPublic();
-
-      X509v3CertificateBuilder v3CertGen = new JcaX509v3CertificateBuilder(
-          new X500Name(issDN),
-          serialNo,
-          new Date(System.currentTimeMillis()),
-          new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 100)),
-          new X500Name(subDN),
-          subPub);
-
-      BcX509ExtensionUtils bcXUtils = new BcX509ExtensionUtils();
-      v3CertGen.addExtension(
-          Extension.subjectKeyIdentifier,
-          false,
-          bcXUtils.createSubjectKeyIdentifier(
-              SubjectPublicKeyInfo.getInstance(subPub.getEncoded())));
-
-      v3CertGen.addExtension(
-          Extension.authorityKeyIdentifier,
-          false,
-          bcXUtils.createAuthorityKeyIdentifier(
-                  SubjectPublicKeyInfo.getInstance(issPub.getEncoded())));
-
-      return new JcaX509CertificateConverter()
-          .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-          .getCertificate(
-              v3CertGen.build(
-                  new JcaContentSignerBuilder("MD5withRSA")
-                      .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-                      .build(issPriv)));
+  @StarlarkMethod(name = "load_certificate",
+    parameters = {
+      @Param(name = "cert", allowedTypes = {@ParamType(type = String.class)}),
+      @Param(name = "type", allowedTypes = {@ParamType(type = String.class)}),
+  }, useStarlarkThread = true)
+  public LarkyX509Certificate loadCertificate(final String cert, String type, StarlarkThread thread) throws EvalException {
+    //PEM, DER, CRT, and CER: X.509
+    if(!Objects.equals(type, "PEM")) {
+      throw Starlark.errorf("Unsupported certificate type: %s", type);
     }
+    try {
+      final List<X509Certificate> x509Certificates = SSLUtils.readCertificateChain(cert);
+      return LarkyX509Certificate.of(x509Certificates.get(0));
+    } catch (GeneralSecurityException e) {
+      throw new EvalException(e);
+    }
+
+  }
+
+  @StarlarkMethod(name = "load_key_and_certificates_from_pkcs12",
+     parameters = {
+           @Param(name = "buffer", allowedTypes = {
+               @ParamType(type = StarlarkBytes.class)
+           }),
+           @Param(name = "passphrase", allowedTypes = {
+               @ParamType(type = StarlarkBytes.class),
+               @ParamType(type = NoneType.class),
+           })
+   }, useStarlarkThread = true)
+   public Tuple loadKeyAndCertsFromPKCS12(final StarlarkBytes buffer, Object passwordO, StarlarkThread thread) throws EvalException {
+    final LarkyKeyPair larkyKeyPair = loadPrivateKey(buffer, passwordO);
+    final List<X509Certificate> x509Certificates;
+    try {
+      x509Certificates = SSLUtils.readCertificateChain(buffer.decode("utf-8", "report"));
+    } catch (GeneralSecurityException e) {
+      throw new EvalException(e);
+    }
+    return Tuple.of(
+      larkyKeyPair,
+      LarkyX509Certificate.of(x509Certificates.remove(0)),
+      x509Certificates.isEmpty()
+        ? StarlarkList.empty() // avoid allocation
+        : StarlarkList.immutableCopyOf(x509Certificates)
+    );
+  }
 
 
 

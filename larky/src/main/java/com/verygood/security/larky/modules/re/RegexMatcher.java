@@ -295,6 +295,56 @@ public class RegexMatcher implements StarlarkValue {
   }
 
   @StarlarkMethod(
+        name = "search",
+        doc = "Scan through string looking for the first location where this regular expression" +
+                " produces a match, and return a corresponding match object. Return None if no" +
+                " position in the string matches the pattern; note that this is different from" +
+                " finding a zero-length match at some point in the string.\n" +
+                "\n" +
+                "The optional second parameter pos gives an index in the string where the " +
+                "search is to start; it defaults to 0. This is not completely equivalent to" +
+                " slicing the string; the '^' pattern character matches at the real beginning" +
+                " of the string and at positions just after a newline, but not necessarily at" +
+                " the index where the search is to start.\n" +
+                "\n" +
+                "The optional parameter endpos limits how far the string will be searched; it " +
+                "will be as if the string is endpos characters long, so only the characters " +
+                "from pos to endpos - 1 will be searched for a match. If endpos is less than" +
+                " pos, no match will be found; otherwise, if rx is a compiled regular expression" +
+                " object, rx.search(string, 0, 50) is equivalent to rx.search(string[:50], 0).",
+        parameters = {
+            @Param(
+                name = "start",
+                allowedTypes = {
+                    @ParamType(type = StarlarkInt.class),
+                },
+                defaultValue = "0"
+            ),
+            @Param(
+              name = "endpos",
+              allowedTypes = {
+                @ParamType(type = StarlarkInt.class),
+              },
+              defaultValue = "-1"
+            )
+        }
+    )
+    public boolean search(StarlarkInt s, StarlarkInt e) {
+      int pos = Math.max(s.toIntUnchecked(), 0);
+      int endpos = (e.toIntUnchecked() == -1) ? input.length() : e.toIntUnchecked();
+      if(pos != 0 && !parentPattern.pattern().startsWith("^")) {
+        matcher = Pattern.compile(parentPattern.pattern())
+                 .matcher(input.subSequence(pos, endpos));
+      }
+      boolean ok = matcher.find();
+      if(ok) {
+        lastMatchStart = matcher.start() + pos;
+        lastMatchEnd = matcher.end() + pos;
+      }
+      return ok;
+    }
+
+  @StarlarkMethod(
       name = "find",
       doc = "Matches the input against the pattern (unanchored), starting at a specified position." +
           " If there is a match, find sets the match state to describe it." +

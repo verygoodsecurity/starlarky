@@ -5,10 +5,10 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.verygood.security.larky.modules.types.LarkyCallable;
+import com.verygood.security.larky.modules.types.LarkyIndexable;
 import com.verygood.security.larky.modules.types.LarkyIterator;
-import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
-import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
@@ -18,20 +18,18 @@ import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
-import net.starlark.java.eval.StarlarkIndexable;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
-import net.starlark.java.spelling.SpellChecker;
 import net.starlark.java.syntax.TokenKind;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 // A trivial struct-like class with Starlark fields defined by a map.
-public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIterable<Object>, StarlarkIndexable, HasBinary, Comparable<Object> {
+public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIterable<Object>, HasBinary, Comparable<Object> {
 
   final Map<String, Object> fields;
   final StarlarkThread currentThread;
@@ -79,23 +77,6 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
     return fields.get(name);
   }
 
-  @Override
-  public String getErrorMessageForUnknownField(String name) {
-    String starlarkType = Starlark.type(this);
-    String larkyType = LarkyObject.super.type();
-    if(!larkyType.equals(starlarkType)) {
-      starlarkType += String.format(" of class '%s'",larkyType);
-    }
-
-    return String.format(
-      "%s has no field or method '%s'%s",
-      starlarkType,
-      name,
-      SpellChecker.didYouMean(name,
-        Starlark.dir(
-          getCurrentThread().mutability(),
-          getCurrentThread().getSemantics(), name)));
-  }
 
   @Override
   public void repr(Printer p) {
@@ -121,7 +102,7 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
     p.append("(");
     String sep = "";
     for (Map.Entry<String, Object> e : fields.entrySet()) {
-      p.append(sep).append(e.getKey()).append(" = ").debugPrint(e.getValue());
+      p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue());
       sep = ", ";
     }
     p.append(")");
@@ -186,22 +167,9 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
     return StructBinOp.operatorDispatch(this, op, that, thisLeft, this.getCurrentThread());
   }
 
-  // supports object[key] retrieval if `__getitem__` is implemented
   @Override
-  public Object getIndex(StarlarkSemantics semantics, Object key) throws EvalException {
-    // The __getitem__ magic method is usually used for list indexing, dictionary lookup, or
-    // accessing ranges of values.
-    final StarlarkCallable __getitem__ = (StarlarkCallable) getField(PyProtocols.__GETITEM__);
-    if(__getitem__ != null) {
-      return this.invoke(__getitem__, ImmutableList.of(key));
-    }
-    throw Starlark.errorf("TypeError: '%s' object is not subscriptable", type());
-  }
-
-  // supports `in` operator if __contains__ is implemented
-  @Override
-  public boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
-    final Object result = binaryOp(TokenKind.IN, key, false);
+  public boolean containsKey(StarlarkThread starlarkThread, StarlarkSemantics semantics, Object key) throws EvalException {
+    final Object result = StructBinOp.operatorDispatch(this, TokenKind.IN, key, false, starlarkThread);
     if(result == null) {
       throw Starlark.errorf(
               "unsupported binary operation: %s %s %s", Starlark.type(key), TokenKind.IN, type());
@@ -220,40 +188,20 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
   }
 
   @Override
-  public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) throws EvalException, InterruptedException {
-    Object callable = getField(PyProtocols.__CALL__);
-    if (callable instanceof StarlarkCallable) {
-      // we have to pass the execution thread here b/c otherwise
-      // we will pass the thread that was responsible for capturing the
-      // the closure -- which is not what we want.
-      return invoke(thread, callable, args, kwargs);
+  public Object get__call__() {
+    try {
+      return getField(PyProtocols.__CALL__);
+    } catch (EvalException e) {
+      throw new RuntimeException(e);
     }
-    //StarlarkCallable.super.call(thread, args, kwargs);
-    throw Starlark.errorf(
-      "'%s' object is not callable (either def __call__(*args, **kwargs) is not " +
-      "defined or __call__ is defined but is not callable)", getName());
   }
 
   @Override
-  public String getName() {
-    Object callable;
-    try {
-      callable = getField(PyProtocols.__CALL__);
-    } catch (EvalException ex) {
-      throw new RuntimeException(ex);
-    }
-    StringBuilder name = new StringBuilder(type());
-    if (callable instanceof StarlarkCallable) {
-      name.append(".").append(((StarlarkCallable)callable).getName());
-    } else if (callable != null) {
-      name.append(".")
-        .append("__call__<type: ")
-        .append(StarlarkUtil.richType(callable))
-        .append(", value=")
-        .append(Starlark.str(callable))
-        .append(">");
-    }
-    return name.toString();
+  public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) throws EvalException, InterruptedException {
+    // we have to pass the execution thread here b/c otherwise
+    // we will pass the thread that was responsible for capturing the
+    // the closure -- which is not what we want.
+    return invoke(thread, callable(), args, kwargs);
   }
 
   private static final TokenKind[] COMPARE_OPNAMES = new TokenKind[]{
