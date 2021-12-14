@@ -1,17 +1,20 @@
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//json", "json")
+load("@stdlib//io", io="io")
 load("@stdlib//zlib", zlib="zlib")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky",
+     WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION",
+     larky="larky")
 load("@stdlib//random", random="random")
 load("@stdlib//types", types="types")
 load("@stdlib//unittest", unittest="unittest")
 load("@vendor//asserts", asserts="asserts")
 load("@vendor//option/result", Result="Result", Error="Error")
 
-
 # Some handy shorthands. Note that these are used for byte-limits as well
 # as size-limits, in the various bigmem tests
-_1M = 1024*1024
+_1M = 1024 * 1024
 _1G = 1024 * _1M
 _2G = 2 * _1G
 _4G = 4 * _1G
@@ -23,26 +26,32 @@ def VersionTestCase_test_library_version():
     # the minor versions will match (even on the machine on which the module
     # was compiled), and the API is stable between minor versions, so
     # testing only the major versions avoids spurious failures.
-    asserts.assert_that(zlib.ZLIB_RUNTIME_VERSION[0]).is_equal_to(zlib.ZLIB_VERSION[0])
+    asserts.assert_that(zlib.ZLIB_RUNTIME_VERSION[0]).is_equal_to(
+        zlib.ZLIB_VERSION[0])
+
 
 # checksum test cases
 def ChecksumTestCase_test_crc32start():
     asserts.assert_that(zlib.crc32(b"")).is_equal_to(zlib.crc32(b"", 0))
     asserts.assert_that(zlib.crc32(b"abc", 0xffffffff)).is_true()
 
+
 def ChecksumTestCase_test_crc32empty():
     asserts.assert_that(zlib.crc32(b"", 0)).is_equal_to(0)
     asserts.assert_that(zlib.crc32(b"", 1)).is_equal_to(1)
     asserts.assert_that(zlib.crc32(b"", 432)).is_equal_to(432)
 
+
 def ChecksumTestCase_test_adler32start():
     asserts.assert_that(zlib.adler32(b"")).is_equal_to(zlib.adler32(b"", 1))
     asserts.assert_that(zlib.adler32(b"abc", 0xffffffff)).is_true()
+
 
 def ChecksumTestCase_test_adler32empty():
     asserts.assert_that(zlib.adler32(b"", 0)).is_equal_to(0)
     asserts.assert_that(zlib.adler32(b"", 1)).is_equal_to(1)
     asserts.assert_that(zlib.adler32(b"", 432)).is_equal_to(432)
+
 
 def ChecksumTestCase_test_penguins():
     asserts.assert_that(zlib.crc32(b"penguin", 0)).is_equal_to(0x0e5c1a120)
@@ -50,23 +59,29 @@ def ChecksumTestCase_test_penguins():
     asserts.assert_that(zlib.adler32(b"penguin", 0)).is_equal_to(0x0bcf02f6)
     asserts.assert_that(zlib.adler32(b"penguin", 1)).is_equal_to(0x0bd602f7)
 
-    asserts.assert_that(zlib.crc32(b"penguin")).is_equal_to(zlib.crc32(b"penguin", 0))
-    asserts.assert_that(zlib.adler32(b"penguin")).is_equal_to(zlib.adler32(b"penguin",1))
+    asserts.assert_that(zlib.crc32(b"penguin")).is_equal_to(
+        zlib.crc32(b"penguin", 0))
+    asserts.assert_that(zlib.adler32(b"penguin")).is_equal_to(
+        zlib.adler32(b"penguin", 1))
+
 
 def ChecksumTestCase_test_crc32_adler32_unsigned():
     foo = b'abcdefghijklmnop'
     # explicitly test signed behavior
     asserts.assert_that(zlib.crc32(foo)).is_equal_to(2486878355)
     asserts.assert_that(zlib.crc32(b'spam')).is_equal_to(1138425661)
-    asserts.assert_that(zlib.adler32(foo+foo)).is_equal_to(3573550353)
+    asserts.assert_that(zlib.adler32(foo + foo)).is_equal_to(3573550353)
     asserts.assert_that(zlib.adler32(b'spam')).is_equal_to(72286642)
+
 
 def ChecksumTestCase_test_same_as_binascii_crc32():
     foo = b'abcdefghijklmnop'
     crc = 2486878355
     asserts.assert_that(binascii.crc32(foo)).is_equal_to(crc)
     asserts.assert_that(zlib.crc32(foo)).is_equal_to(crc)
-    asserts.assert_that(binascii.crc32(b'spam')).is_equal_to(zlib.crc32(b'spam'))
+    asserts.assert_that(binascii.crc32(b'spam')).is_equal_to(
+        zlib.crc32(b'spam'))
+
 
 # make sure we generate some expected errors
 def ExceptionTestCase_test_badlevel():
@@ -75,16 +90,26 @@ def ExceptionTestCase_test_badlevel():
     # accepts 0 too)
     asserts.assert_fails(lambda: zlib.compress(b'ERROR', 10), ".*?")
 
+
 def ExceptionTestCase_test_badargs():
-    asserts.assert_fails(lambda: zlib.adler32(), ".*?missing 1 required positional argument")
-    asserts.assert_fails(lambda: zlib.crc32(), ".*?missing 1 required positional argument")
-    asserts.assert_fails(lambda: zlib.compress(), ".*?missing 1 required positional argument")
-    asserts.assert_fails(lambda: zlib.decompress(), ".*?missing 1 required positional argument")
+    asserts.assert_fails(lambda: zlib.adler32(),
+                         ".*?missing 1 required positional argument")
+    asserts.assert_fails(lambda: zlib.crc32(),
+                         ".*?missing 1 required positional argument")
+    asserts.assert_fails(lambda: zlib.compress(),
+                         ".*?missing 1 required positional argument")
+    asserts.assert_fails(lambda: zlib.decompress(),
+                         ".*?missing 1 required positional argument")
     for arg in (42, None, '', 'abc', (), []):
-        asserts.assert_fails(lambda: zlib.adler32(arg), r".*?TypeError: a bytes-like object is required, not '\w+'")
-        asserts.assert_fails(lambda: zlib.crc32(arg), r".*?TypeError: a bytes-like object is required, not '\w+'")
-        asserts.assert_fails(lambda: zlib.compress(arg), r".*?TypeError: a bytes-like object is required, not '\w+'")
-        asserts.assert_fails(lambda: zlib.decompress(arg), r".*?TypeError: a bytes-like object is required, not '\w+'")
+        asserts.assert_fails(lambda: zlib.adler32(arg),
+                             r".*?TypeError: a bytes-like object is required, not '\w+'")
+        asserts.assert_fails(lambda: zlib.crc32(arg),
+                             r".*?TypeError: a bytes-like object is required, not '\w+'")
+        asserts.assert_fails(lambda: zlib.compress(arg),
+                             r".*?TypeError: a bytes-like object is required, not '\w+'")
+        asserts.assert_fails(lambda: zlib.decompress(arg),
+                             r".*?TypeError: a bytes-like object is required, not '\w+'")
+
 
 def ExceptionTestCase_test_badcompressobj():
     """
@@ -97,9 +122,13 @@ def ExceptionTestCase_test_badcompressobj():
     ValueError: Invalid initialization option
     """
     # verify failure on building compress object with bad params
-    asserts.assert_fails(lambda: zlib.compressobj(1, zlib.DEFLATED, 0), ".*?ValueError")
+    asserts.assert_fails(lambda: zlib.compressobj(1, zlib.DEFLATED, 0),
+                         ".*?ValueError")
     # specifying total bits too large causes an error
-    asserts.assert_fails(lambda: zlib.compressobj(1, zlib.DEFLATED, zlib.MAX_WBITS + 1), ".*?ValueError")
+    asserts.assert_fails(
+        lambda: zlib.compressobj(1, zlib.DEFLATED, zlib.MAX_WBITS + 1),
+        ".*?ValueError")
+
 
 def ExceptionTestCase_test_baddecompressobj():
     """
@@ -114,24 +143,35 @@ def ExceptionTestCase_test_baddecompressobj():
     # verify failure on building decompress object with bad params
     asserts.assert_fails(lambda: zlib.decompressobj(-1), ".*?ValueError")
 
+
 def ExceptionTestCase_test_decompressobj_badflush():
     # verify failure on calling decompressobj.flush with bad params
     asserts.assert_fails(lambda: zlib.decompressobj().flush(0), ".*?ValueError")
-    asserts.assert_fails(lambda: zlib.decompressobj().flush(-1), ".*?ValueError")
+    asserts.assert_fails(lambda: zlib.decompressobj().flush(-1),
+                         ".*?ValueError")
 
 
 SYS_MAXSIZE = 2147483647
 
+
 def ExceptionTestCase_test_overflow():
     def _larky_1364090598():
         zlib.decompress(b'', 15, SYS_MAXSIZE + 1)
-    asserts.assert_fails(lambda: _larky_1364090598(), ".*?OverflowError.*int too large")
+
+    asserts.assert_fails(lambda: _larky_1364090598(),
+                         ".*?OverflowError.*int too large")
+
     def _larky_1185669041():
         zlib.decompressobj().decompress(b'', SYS_MAXSIZE + 1)
-    asserts.assert_fails(lambda: _larky_1185669041(), ".*?OverflowError.*int too large")
+
+    asserts.assert_fails(lambda: _larky_1185669041(),
+                         ".*?OverflowError.*int too large")
+
     def _larky_565197355():
         zlib.decompressobj().flush(SYS_MAXSIZE + 1)
-    asserts.assert_fails(lambda: _larky_565197355(), ".*?OverflowError.*int too large")
+
+    asserts.assert_fails(lambda: _larky_565197355(),
+                         ".*?OverflowError.*int too large")
 
 
 def _check_big_compress_buffer(size, compress_func):
@@ -160,7 +200,7 @@ def _decompinc(flush=False, source=None, cx=256, dcx=64):
     co = zlib.compressobj()
     bufs = []
     for i in range(0, len(data), cx):
-        bufs.append(co.compress(data[i:i+cx]))
+        bufs.append(co.compress(data[i:i + cx]))
     bufs.append(co.flush())
     combuf = b''.join(bufs)
     decombuf = zlib.decompress(combuf)
@@ -172,7 +212,7 @@ def _decompinc(flush=False, source=None, cx=256, dcx=64):
     dco = zlib.decompressobj()
     bufs = []
     for i in range(0, len(combuf), dcx):
-        bufs.append(dco.decompress(combuf[i:i+dcx]))
+        bufs.append(dco.decompress(combuf[i:i + dcx]))
         asserts.assert_that(b'').is_equal_to(dco.unconsumed_tail)
         asserts.assert_that(b'').is_equal_to(dco.unused_data)
     if flush:
@@ -191,6 +231,7 @@ def _decompinc(flush=False, source=None, cx=256, dcx=64):
     asserts.assert_that(data).is_equal_to(b''.join(bufs))
     # Failure means: "decompressobj with init options failed"
 
+
 def _decompimax(source=None, cx=256, dcx=64):
     # compress in steps, decompress in length-restricted steps
     source = source or HAMLET_SCENE
@@ -199,7 +240,7 @@ def _decompimax(source=None, cx=256, dcx=64):
     co = zlib.compressobj()
     bufs = []
     for i in range(0, len(data), cx):
-        bufs.append(co.compress(data[i:i+cx]))
+        bufs.append(co.compress(data[i:i + cx]))
     bufs.append(co.flush())
     combuf = b''.join(bufs)
     asserts.assert_that(data).is_equal_to(zlib.decompress(combuf))
@@ -210,7 +251,7 @@ def _decompimax(source=None, cx=256, dcx=64):
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if not cb:
             break
-        #max_length = 1 + len(cb)//10
+        # max_length = 1 + len(cb)//10
         chunk = dco.decompress(cb, dcx)
         asserts.assert_that(len(chunk) > dcx).is_false()
         bufs.append(chunk)
@@ -225,7 +266,7 @@ def _decompressmaxlen(flush=False):
     co = zlib.compressobj()
     bufs = []
     for i in range(0, len(data), 256):
-        bufs.append(co.compress(data[i:i+256]))
+        bufs.append(co.compress(data[i:i + 256]))
     bufs.append(co.flush())
     combuf = b''.join(bufs)
     asserts.assert_that(data).is_equal_to(zlib.decompress(combuf))
@@ -236,7 +277,7 @@ def _decompressmaxlen(flush=False):
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if not cb:
             break
-        max_length = 1 + len(cb)//10
+        max_length = 1 + len(cb) // 10
         chunk = dco.decompress(cb, max_length)
         asserts.assert_that(len(chunk) > max_length).is_false()
         bufs.append(chunk)
@@ -251,6 +292,7 @@ def _decompressmaxlen(flush=False):
             asserts.assert_that(len(chunk) > max_length).is_false()
             bufs.append(chunk)
     asserts.assert_that(data).is_equal_to(b''.join(bufs))
+
 
 # Test compression in one go (whole message compression)
 def CompressTestCase_test_speech():
@@ -276,27 +318,35 @@ def CompressTestCase_test_speech128():
     for ob in x, bytearray(x):
         asserts.assert_that(zlib.decompress(ob)).is_equal_to(data)
 
+
 def CompressTestCase_test_incomplete_stream():
     # A useful error message is given
     x = zlib.compress(HAMLET_SCENE)
-    asserts.assert_fails(lambda: zlib.decompress(x[:-1]), ".*?.*Error -5 while decompressing data: incomplete or truncated stream")
+    asserts.assert_fails(lambda: zlib.decompress(x[:-1]),
+                         ".*?.*Error -5 while decompressing data: incomplete or truncated stream")
+
 
 # Memory use of the following functions takes into account overallocation
 
 def CompressTestCase_test_big_compress_buffer(size=(_1G + 1024 * 1024)):
     compress = lambda s: zlib.compress(s, 1)
-    asserts.assert_fails(lambda: _check_big_compress_buffer(size, compress), ".*excessive repeat")
+    asserts.assert_fails(lambda: _check_big_compress_buffer(size, compress),
+                         ".*excessive repeat")
 
 
 def CompressTestCase_test_big_decompress_buffer(size=(_1G + 1024 * 1024)):
-    asserts.assert_fails(lambda: _check_big_decompress_buffer(size, zlib.decompress), ".*excessive repeat")
+    asserts.assert_fails(
+        lambda: _check_big_decompress_buffer(size, zlib.decompress),
+        ".*excessive repeat")
 
 
 def CompressTestCase_test_large_bufsize(size=_4G):
     # Test decompress(bufsize) parameter greater than the internal limit
     data = HAMLET_SCENE * 10
     compressed = zlib.compress(data, 1)
-    asserts.assert_fails(lambda: zlib.decompress(compressed, 15, size), ".*OverflowError: int too large")
+    asserts.assert_fails(lambda: zlib.decompress(compressed, 15, size),
+                         ".*OverflowError: int too large")
+
 
 # Test compression object
 def CompressObjectTestCase_test_pair():
@@ -308,7 +358,8 @@ def CompressObjectTestCase_test_pair():
         co = zlib.compressobj()
         x1 = co.compress(data)
         x2 = co.flush()
-        asserts.assert_fails(lambda: co.flush(), ".*?") # second flush should not work
+        asserts.assert_fails(lambda: co.flush(),
+                             ".*?")  # second flush should not work
         asserts.assert_that(x1 + x2).is_equal_to(datazip)
     for v1, v2 in ((x1, x2), (bytearray(x1), bytearray(x2))):
         dco = zlib.decompressobj()
@@ -362,7 +413,7 @@ def CompressObjectTestCase_test_compressincremental():
     co = zlib.compressobj()
     bufs = []
     for i in range(0, len(data), 256):
-        bufs.append(co.compress(data[i:i+256]))
+        bufs.append(co.compress(data[i:i + 256]))
     bufs.append(co.flush())
     combuf = b''.join(bufs)
 
@@ -398,16 +449,18 @@ def CompressObjectTestCase_test_maxlen_large():
         lambda: dco.decompress(compressed, SYS_MAXSIZE),
         r".*OverflowError.*int too large")
 
+
 def CompressObjectTestCase_test_maxlen():
     data = HAMLET_SCENE * 10
     compressed = zlib.compress(data, 1)
     dco = zlib.decompressobj()
     asserts.assert_that(dco.decompress(compressed, 100)).is_equal_to(data[:100])
 
+
 def CompressObjectTestCase_test_clear_unconsumed_tail():
     # Issue #12050: calling decompress() without providing max_length
     # should clear the unconsumed_tail attribute.
-    cdata = b"x\x9cKLJ\x06\x00\x02M\x01"    # "abc"
+    cdata = b"x\x9cKLJ\x06\x00\x02M\x01"  # "abc"
     dco = zlib.decompressobj()
     ddata = dco.decompress(cdata, 1)
     ddata += dco.decompress(dco.unconsumed_tail)
@@ -437,13 +490,13 @@ def CompressObjectTestCase_test_flushes():
     data = HAMLET_SCENE * 8
     for sync in sync_opt:
         for level in range(10):
-            obj = zlib.compressobj( level )
-            a = obj.compress( data[:3000] )
-            b = obj.flush( sync )
-            c = obj.compress( data[3000:] )
+            obj = zlib.compressobj(level)
+            a = obj.compress(data[:3000])
+            b = obj.flush(sync)
+            c = obj.compress(data[3000:])
             d = obj.flush()
             asserts.assert_that(
-                zlib.decompress(b''.join([a,b,c,d]))
+                zlib.decompress(b''.join([a, b, c, d]))
             ).is_equal_to(data)
 
 
@@ -466,6 +519,7 @@ def CompressObjectTestCase_test_odd_flush():
     # if decompressed data is different from the input data, choke.
     asserts.assert_that(expanded).is_equal_to(data)
 
+
 def CompressObjectTestCase_test_empty_flush():
     # Test that calling .flush() on unused objects works.
     # (Bug #1083110 -- calling .flush() on decompress objects
@@ -474,7 +528,7 @@ def CompressObjectTestCase_test_empty_flush():
     co = zlib.compressobj(zlib.Z_BEST_COMPRESSION)
     asserts.assert_that(co.flush()).is_true()  # Returns a zlib header
     dco = zlib.decompressobj()
-    asserts.assert_that(dco.flush()).is_equal_to(b"") # Returns nothing
+    asserts.assert_that(dco.flush()).is_equal_to(b"")  # Returns nothing
 
 
 def CompressObjectTestCase_test_dictionary():
@@ -559,11 +613,11 @@ def CompressObjectTestCase_test_decompress_unused_data():
                 if i < len(y):
                     asserts.assert_that(dco.unused_data).is_equal_to(b'')
                 if maxlen == 0:
-                    data += dco.decompress(x[i : i + step])
+                    data += dco.decompress(x[i: i + step])
                     asserts.assert_that(dco.unconsumed_tail).is_equal_to(b'')
                 else:
                     data += dco.decompress(
-                            dco.unconsumed_tail + x[i : i + step], maxlen)
+                        dco.unconsumed_tail + x[i: i + step], maxlen)
             data += dco.flush()
             asserts.assert_that(dco.eof).is_true()
             asserts.assert_that(data).is_equal_to(source)
@@ -592,12 +646,14 @@ def CompressObjectTestCase_test_flush_with_freed_input():
     data = zlib.compress(input2)
     asserts.assert_that(dco.flush()).is_equal_to(input1[1:])
 
+
 def CompressObjectTestCase_test_flush_custom_length():
     input = HAMLET_SCENE * 10
     data = zlib.compress(input, 1)
     dco = zlib.decompressobj()
     dco.decompress(data, 1)
     asserts.assert_that(dco.flush(100)).is_equal_to(input[1:])
+
 
 def CompressObjectTestCase_test_compresscopy():
     # Test copying a compression object
@@ -620,8 +676,9 @@ def CompressObjectTestCase_test_compresscopy():
         bufs1.append(c1.flush())
         s1 = b''.join(bufs1)
 
-        asserts.assert_that(zlib.decompress(s0)).is_equal_to(data0+data0)
-        asserts.assert_that(zlib.decompress(s1)).is_equal_to(data0+data1)
+        asserts.assert_that(zlib.decompress(s0)).is_equal_to(data0 + data0)
+        asserts.assert_that(zlib.decompress(s1)).is_equal_to(data0 + data1)
+
 
 def CompressObjectTestCase_test_badcompresscopy():
     # Test copying a compression object in an inconsistent state
@@ -676,14 +733,16 @@ def CompressObjectTestCase_test_wbits():
         v[-1] = '0'
 
     v = tuple([int(x.decode('iso-8859-1')) for x in v])
-    supports_wbits_0 = True #v >= (1, 2, 3, 5)
+    supports_wbits_0 = True  # v >= (1, 2, 3, 5)
 
     co = zlib.compressobj(level=1, wbits=15)
     zlib15 = co.compress(HAMLET_SCENE) + co.flush()
     asserts.assert_that(zlib.decompress(zlib15, 15)).is_equal_to(HAMLET_SCENE)
     if supports_wbits_0:
-        asserts.assert_that(zlib.decompress(zlib15, 0)).is_equal_to(HAMLET_SCENE)
-    asserts.assert_that(zlib.decompress(zlib15, 32 + 15)).is_equal_to(HAMLET_SCENE)
+        asserts.assert_that(zlib.decompress(zlib15, 0)).is_equal_to(
+            HAMLET_SCENE)
+    asserts.assert_that(zlib.decompress(zlib15, 32 + 15)).is_equal_to(
+        HAMLET_SCENE)
 
     # asserts.assert_fails(lambda: zlib.decompress(zlib15, 14), ".*?.*invalid window size")
     # dco = zlib.decompressobj(wbits=32 + 15)
@@ -703,25 +762,31 @@ def CompressObjectTestCase_test_wbits():
 
     co = zlib.compressobj(level=1, wbits=-15)
     deflate15 = co.compress(HAMLET_SCENE) + co.flush()
-    asserts.assert_that(zlib.decompress(deflate15, -15)).is_equal_to(HAMLET_SCENE)
+    asserts.assert_that(zlib.decompress(deflate15, -15)).is_equal_to(
+        HAMLET_SCENE)
     dco = zlib.decompressobj(wbits=-15)
     asserts.assert_that(dco.decompress(deflate15)).is_equal_to(HAMLET_SCENE)
 
     co = zlib.compressobj(level=1, wbits=-9)
     deflate9 = co.compress(HAMLET_SCENE) + co.flush()
     asserts.assert_that(zlib.decompress(deflate9, -9)).is_equal_to(HAMLET_SCENE)
-    asserts.assert_that(zlib.decompress(deflate9, -15)).is_equal_to(HAMLET_SCENE)
+    asserts.assert_that(zlib.decompress(deflate9, -15)).is_equal_to(
+        HAMLET_SCENE)
     dco = zlib.decompressobj(wbits=-9)
     asserts.assert_that(dco.decompress(deflate9)).is_equal_to(HAMLET_SCENE)
 
     co = zlib.compressobj(level=1, wbits=16 + 15)
     gzip = co.compress(HAMLET_SCENE) + co.flush()
-    asserts.assert_that(zlib.decompress(gzip, 16 + 15)).is_equal_to(HAMLET_SCENE)
-    asserts.assert_that(zlib.decompress(gzip, 32 + 15)).is_equal_to(HAMLET_SCENE)
+    asserts.assert_that(zlib.decompress(gzip, 16 + 15)).is_equal_to(
+        HAMLET_SCENE)
+    asserts.assert_that(zlib.decompress(gzip, 32 + 15)).is_equal_to(
+        HAMLET_SCENE)
     dco = zlib.decompressobj(32 + 15)
     asserts.assert_that(dco.decompress(gzip)).is_equal_to(HAMLET_SCENE)
 
-def CompressObjectTestCase_choose_lines(source, number, seed=None, generator=random):
+
+def CompressObjectTestCase_choose_lines(source, number, seed=None,
+                                        generator=random):
     """Return a list of number lines randomly chosen from the source"""
     if seed != None:
         generator.seed(seed)
@@ -794,52 +859,144 @@ LAERTES
 """
 
 
+def test_gzip_compress_and_decompress():
+    compressed = b''.join([
+        b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x13\x8dR_O\xc20\x10',
+        b'\x7f\xe7S,}$\xac[7p\x8374&\x9a\xf8\xa4h| ',
+        b'1\xa5\xbdm5\xa3\xadm1A\xc2w\xb7\x1d\xb8\x00\xc6\xc4\xbe',
+        b'\xb4w\xbf?w\xb9\xebn\x10E\x88\x9a\xda\xa2Y\xb4\xdb\x8f',
+        b'\xa2\x10r\xea\xa8\x0f\xd1n\x89\x185\xfcMn\xd6+0K4[',
+        b'\xa219?K\xb4G\x07Q%Z85\xa9\x94Y\x9f\x84\rP\x0e\xa6#\xf8',
+        b'\xd0\'\xe6\x8c\x81v\xa1\xcc0\x19\x1e<\xfal|+\x99\xe2B\xd6',
+        b'\x01\xae\xbf\x84\x1eE\x1c\xaa\x96:\xe8\x897JJ`N(',
+        b'\x198\xacU\xf6\x0cs ',
+        b']\xfc\x00\xb2vM\xc0\xf3\xf1/p\xb1\xd5\x10 ',
+        b'\xaau+\x18\rN\xc9\xbb\xf5v?\xc4;e\xbb\xf6\x805\n{',
+        b'\x96\xc5\x9f`\xb6\xb5R\x1c\xdb\xadu\xb0\xb6=\xf5\xd9\x82',
+        b'\x89\xe7\xb5\xb7\r\x02\xbdu\x8d\x92\xb1\x81\x8f\rXg\x93',
+        b'\x0cg\x13Lz\xf2Km\xe3\xc7\x03\x16\xdf\xf3\xae\xbbt\xcc!g',
+        b'\xe98#\xd3\x89\x7f\xa5e\xc5\xd2"\xe7\x0c\xd8\xd5t\xc5\xb3',
+        b'^\xfa\x1a_\xe7\xf1\x13]\xeb\x16:!\xb9@4\x95\xa2\x03\xb2',
+        b'\x15+r\xc2\xf2\x8aU%\x14Eq\xce[',
+        b'\x18\xca@\xfc\xaf\xb4\x97\x1d7\xd8\r\xa7_\xdf\xc9\xc7\x08',
+        b'>\x97\xff\xe2D\xa7\x8c\xa8E\xb7%R\xe2\x8cL\xf0\xa4\xc4',
+        b'\xf9\xd5(")\xce\xfd\\\xfcE\xcac\x83hc\xda@l\x9c\xd3v\x96$',
+        b'\x7f\x8f>\xd1a;\x83\xfd\xe0\x1b\x1b\xf9\x06\'\xc0\x02\x00',
+        b'\x00',
+    ])
+    decompressed = zlib.decompress(compressed, zlib.MAX_WBITS | 16)
+    asserts.assert_that(json.loads(decompressed.decode('utf-8'))).is_equal_to({
+            "args": {},
+            "data": "{\"card_number\":\"4111111111111111\"}",
+            "files": {}, "form": {},
+            "headers": {
+                "Accept": "*/*",
+                "Accept-Encoding": "gzip, deflate",
+                "Connection": "close", "Content-Length": "34",
+                "Content-Type": "application/json",
+                "Host": "echo.apps.verygood.systems",
+                "User-Agent": "python-requests/2.25.1",
+                "Vgs-Request-Id": "304de3c042195de308fc073dcec69bd2",
+                "X-B3-Sampled": "1",
+                "X-B3-Spanid": "2bc731c3fcf8e777",
+                "X-B3-Traceid": "304de3c042195de308fc073dcec69bd2"
+            },
+            "json": {"card_number": "4111111111111111"},
+            "origin": "18.215.58.36, 10.35.110.187",
+            "url": "https://echo.apps.verygood.systems/post"
+    })
+    compressor = zlib.compressobj(method=zlib.DEFLATED,
+                                  wbits=zlib.MAX_WBITS | 16)
+    asserts.assert_that(compressor._gzip).is_true()
+    body = compressor.compress(decompressed) + compressor.flush()
+    asserts.assert_that(type(body)).is_equal_to('bytes')
+    # headers are the same
+    asserts.assert_that(body[:8]).is_equal_to(compressed[:8])
+    # ignore the XFL + OS flags b/c they can be different
+    asserts.assert_that(body[10:]).is_equal_to(compressed[10:])
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(VersionTestCase_test_library_version))
+    _suite.addTest(
+        unittest.FunctionTestCase(VersionTestCase_test_library_version))
     _suite.addTest(unittest.FunctionTestCase(ChecksumTestCase_test_crc32start))
     _suite.addTest(unittest.FunctionTestCase(ChecksumTestCase_test_crc32empty))
-    _suite.addTest(unittest.FunctionTestCase(ChecksumTestCase_test_adler32start))
-    _suite.addTest(unittest.FunctionTestCase(ChecksumTestCase_test_adler32empty))
+    _suite.addTest(
+        unittest.FunctionTestCase(ChecksumTestCase_test_adler32start))
+    _suite.addTest(
+        unittest.FunctionTestCase(ChecksumTestCase_test_adler32empty))
     _suite.addTest(unittest.FunctionTestCase(ChecksumTestCase_test_penguins))
-    _suite.addTest(unittest.FunctionTestCase(ChecksumTestCase_test_crc32_adler32_unsigned))
-    _suite.addTest(unittest.FunctionTestCase(ChecksumTestCase_test_same_as_binascii_crc32))
+    _suite.addTest(
+        unittest.FunctionTestCase(ChecksumTestCase_test_crc32_adler32_unsigned))
+    _suite.addTest(
+        unittest.FunctionTestCase(ChecksumTestCase_test_same_as_binascii_crc32))
     _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_badlevel))
     _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_badargs))
-    _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_badcompressobj))
-    _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_baddecompressobj))
-    _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_decompressobj_badflush))
+    _suite.addTest(
+        unittest.FunctionTestCase(ExceptionTestCase_test_badcompressobj))
+    _suite.addTest(
+        unittest.FunctionTestCase(ExceptionTestCase_test_baddecompressobj))
+    _suite.addTest(unittest.FunctionTestCase(
+        ExceptionTestCase_test_decompressobj_badflush))
     _suite.addTest(unittest.FunctionTestCase(ExceptionTestCase_test_overflow))
     _suite.addTest(unittest.FunctionTestCase(CompressTestCase_test_speech))
     _suite.addTest(unittest.FunctionTestCase(CompressTestCase_test_keywords))
     _suite.addTest(unittest.FunctionTestCase(CompressTestCase_test_speech128))
-    _suite.addTest(unittest.FunctionTestCase(CompressTestCase_test_incomplete_stream))
-    _suite.addTest(unittest.FunctionTestCase(CompressTestCase_test_big_compress_buffer))
-    _suite.addTest(unittest.FunctionTestCase(CompressTestCase_test_big_decompress_buffer))
-    _suite.addTest(unittest.FunctionTestCase(CompressTestCase_test_large_bufsize))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressTestCase_test_incomplete_stream))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressTestCase_test_big_compress_buffer))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressTestCase_test_big_decompress_buffer))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressTestCase_test_large_bufsize))
     _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_pair))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_keywords))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_compressoptions))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_compressincremental))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompincflush))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompressmaxlenflush))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_maxlenmisc))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_maxlen_large))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_maxlen))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_clear_unconsumed_tail))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_flushes))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_odd_flush))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_empty_flush))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_dictionary))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_dictionary_streaming))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_incomplete_stream))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_eof))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_eof_incomplete_stream))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_unused_data))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_flush_with_freed_input))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_raw_with_dictionary))
-    _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_flush_custom_length))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressObjectTestCase_test_keywords))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressObjectTestCase_test_compressoptions))
+    _suite.addTest(unittest.FunctionTestCase(
+        CompressObjectTestCase_test_compressincremental))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressObjectTestCase_test_decompincflush))
+    _suite.addTest(unittest.FunctionTestCase(
+        CompressObjectTestCase_test_decompressmaxlenflush))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressObjectTestCase_test_maxlenmisc))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressObjectTestCase_test_maxlen_large))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressObjectTestCase_test_maxlen))
+    _suite.addTest(unittest.FunctionTestCase(
+        CompressObjectTestCase_test_clear_unconsumed_tail))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressObjectTestCase_test_flushes))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressObjectTestCase_test_odd_flush))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressObjectTestCase_test_empty_flush))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressObjectTestCase_test_dictionary))
+    _suite.addTest(unittest.FunctionTestCase(
+        CompressObjectTestCase_test_dictionary_streaming))
+    _suite.addTest(unittest.FunctionTestCase(
+        CompressObjectTestCase_test_decompress_incomplete_stream))
+    _suite.addTest(
+        unittest.FunctionTestCase(CompressObjectTestCase_test_decompress_eof))
+    _suite.addTest(unittest.FunctionTestCase(
+        CompressObjectTestCase_test_decompress_eof_incomplete_stream))
+    _suite.addTest(unittest.FunctionTestCase(
+        CompressObjectTestCase_test_decompress_unused_data))
+    _suite.addTest(unittest.FunctionTestCase(
+        CompressObjectTestCase_test_flush_with_freed_input))
+    _suite.addTest(unittest.FunctionTestCase(
+        CompressObjectTestCase_test_decompress_raw_with_dictionary))
+    _suite.addTest(unittest.FunctionTestCase(
+        CompressObjectTestCase_test_flush_custom_length))
     _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_wbits))
+    _suite.addTest(unittest.FunctionTestCase(test_gzip_compress_and_decompress))
+
     # -- is not supported by JDK java.util.Zip interface, so let us not implement
     # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_compresscopy))
     # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_badcompresscopy))
@@ -847,6 +1004,7 @@ def _testsuite():
     # _suite.addTest(unittest.FunctionTestCase(CompressObjectTestCase_test_baddecompresscopy))
 
     return _suite
+
 
 _runner = unittest.TextTestRunner()
 _runner.run(_testsuite())
