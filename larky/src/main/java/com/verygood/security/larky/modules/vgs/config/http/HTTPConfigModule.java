@@ -1,43 +1,35 @@
-package com.verygood.security.larky.modules.vgs;
+package com.verygood.security.larky.modules.vgs.config.http;
 
 import com.google.common.collect.ImmutableList;
-import com.verygood.security.larky.modules.vgs.http.NoopRouter;
-import com.verygood.security.larky.modules.vgs.http.Router;
-import com.verygood.security.larky.modules.vgs.http.Upstream;
 import java.util.List;
 import java.util.ServiceLoader;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
-import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
 
-@StarlarkBuiltin(
-    name = "http",
-    category = "BUILTIN",
-    doc = "Provides configuration for HTTP proxy")
-public class HTTPRouterModule implements StarlarkValue {
+public class HTTPConfigModule implements StarlarkValue {
 
-  public static final HTTPRouterModule INSTANCE = new HTTPRouterModule();
+  public static final HTTPConfigModule INSTANCE = new HTTPConfigModule();
 
-  private final Router router;
+  private final HTTPConfig config;
 
-  public HTTPRouterModule() {
-    ServiceLoader<Router> loader = ServiceLoader.load(Router.class);
-    List<Router> providers = ImmutableList.copyOf(loader.iterator());
+  public HTTPConfigModule() {
+    ServiceLoader<HTTPConfig> loader = ServiceLoader.load(HTTPConfig.class);
+    List<HTTPConfig> providers = ImmutableList.copyOf(loader.iterator());
 
     if (providers.size() > 1) {
       throw new IllegalArgumentException(String.format(
-          "HTTPRouterModule expecting only 1 http provider of type Router, found %d",
+          "HTTPConfigModule expecting only 1 http provider of type HTTPConfig, found %d",
           providers.size()
       ));
     }
 
-    router = providers.stream()
+    config = providers.stream()
         .findFirst()
-        .orElse(new NoopRouter());
+        .orElse(new NoopHTTPConfig());
   }
 
   @StarlarkMethod(
@@ -59,8 +51,8 @@ public class HTTPRouterModule implements StarlarkValue {
               })
       })
   public Object inbound(String host, StarlarkInt port) {
-    Upstream upstream = new Upstream(router, host, port);
-    router.inbound(upstream);
+    Upstream upstream = new Upstream(config, host, port);
+    config.inbound(upstream);
 
     return upstream;
   }
@@ -84,8 +76,8 @@ public class HTTPRouterModule implements StarlarkValue {
               })
       })
   public Object outbound(String host, StarlarkInt port) {
-    Upstream upstream = new Upstream(router, host, port);
-    router.outbound(upstream);
+    Upstream upstream = new Upstream(config, host, port);
+    config.outbound(upstream);
 
     return upstream;
   }

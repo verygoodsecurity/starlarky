@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.vgs.http;
+package com.verygood.security.larky.modules.vgs.config.http;
 
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 import java.util.HashMap;
@@ -18,20 +18,20 @@ import net.starlark.java.eval.StarlarkInt;
     doc = "The type represents HTTP Upstream")
 public class Upstream extends SimpleStruct {
 
-  private final Router router;
+  private final HTTPConfig config;
 
   @Getter
   private final String host;
   @Getter
   private final Integer port;
 
-  public Upstream(Router router, String host, StarlarkInt port) {
+  public Upstream(HTTPConfig config, String host, StarlarkInt port) {
     super(new HashMap<String, Object>() {{
       put("host", host);
       put("port", port);
     }}, null);
 
-    this.router = router;
+    this.config = config;
     this.host = host;
     this.port = port.toIntUnchecked();
   }
@@ -62,7 +62,7 @@ public class Upstream extends SimpleStruct {
               })
       })
   public void onRequest(StarlarkCallable handler, Object path, Object method) {
-    router.onRequest(this, handler, getValue(path), getValue(method));
+    config.onRequest(this, handler, getValue(path), getValue(method));
   }
 
   @StarlarkMethod(
@@ -91,7 +91,7 @@ public class Upstream extends SimpleStruct {
               })
       })
   public void onResponse(StarlarkCallable handler, Object path, Object method) {
-    router.onResponse(this, handler, getValue(path), getValue(method));
+    config.onResponse(this, handler, getValue(path), getValue(method));
   }
 
   private String getValue(Object value) {

@@ -1,9 +1,9 @@
-package com.verygood.security.larky.modules.vgs.http;
+package com.verygood.security.larky.modules.vgs.config.http;
 
 
 import net.starlark.java.eval.StarlarkCallable;
 
-public class NoopRouter implements Router {
+public class NoopHTTPConfig implements HTTPConfig {
 
     @Override
     public void inbound(Upstream upstream) {}

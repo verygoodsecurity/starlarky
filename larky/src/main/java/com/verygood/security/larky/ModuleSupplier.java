@@ -19,12 +19,12 @@ package com.verygood.security.larky;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.verygood.security.larky.modules.vgs.HTTPRouterModule;
 import java.util.Map;
 import java.util.function.Function;
 
 import com.verygood.security.larky.modules.BinasciiModule;
 import com.verygood.security.larky.modules.C99MathModule;
+import com.verygood.security.larky.modules.ConfigModule;
 import com.verygood.security.larky.modules.CerebroModule;
 import com.verygood.security.larky.modules.CodecsModule;
 import com.verygood.security.larky.modules.CollectionsModule;
@@ -75,7 +75,7 @@ public class ModuleSupplier {
   public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
     VaultModule.INSTANCE,
     CerebroModule.INSTANCE,
-    HTTPRouterModule.INSTANCE
+    ConfigModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
