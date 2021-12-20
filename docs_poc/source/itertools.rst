@@ -6,5 +6,5 @@
 itertools
 =================
 
-.. automodule:: itertools
+.. automodule:: sitertools
    :members:

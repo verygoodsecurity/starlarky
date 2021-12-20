@@ -409,6 +409,7 @@ class Documenter:
         self.retann = retann
         self.fullname = (self.modname or '') + \
                         ('.' + '.'.join(self.objpath) if self.objpath else '')
+
         return True
 
     def import_object(self, raiseerror: bool = False) -> bool:

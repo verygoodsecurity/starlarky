@@ -15,6 +15,7 @@ def chain(*iterables):
     :param iterables:
     :return:
     """
+    
     # chain('ABC', 'DEF') --> A B C D E F
     k = []
     for it in iterables:
