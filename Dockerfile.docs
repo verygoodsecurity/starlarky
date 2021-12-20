@@ -1,0 +1,11 @@
+FROM python:3.8-slim
+
+ENV PIP_VERSION 21.0
+
+COPY . .
+
+RUN apt-get update \ 
+    && apt-get install -y make \
+    && pip3 install sphinx==3.5.4
+
+WORKDIR /docs_poc

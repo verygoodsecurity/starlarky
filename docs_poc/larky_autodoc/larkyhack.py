@@ -12,9 +12,14 @@ remove_load_statement = partial(
     '',
 )
 
+remove_export_statement = partial(
+    re.compile(r'^.*larky.struct\([^)]+\)$', flags=re.MULTILINE).sub,
+    ''
+)
 
 @contextmanager
 def pythonize_larky_module(modname: str):
+
     try:
         mod_file = f'{modname}.star'
         src_mod_path = None
@@ -30,8 +35,10 @@ def pythonize_larky_module(modname: str):
         try:
             fake_import_path = tmpdir.name
             dst_mod_path = Path(fake_import_path) / f'{modname}.py'
+
             with open(src_mod_path) as src_mod_file, open(dst_mod_path, 'w') as dst_mod_file:
                 mod_content = remove_load_statement(src_mod_file.read())
+                mod_content = remove_export_statement(mod_content)
                 dst_mod_file.write(mod_content)
 
             sys.path.insert(0, fake_import_path)
