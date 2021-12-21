@@ -1,36 +1,36 @@
-package com.verygood.security.larky;
-
+package com.verygood.security.mode.repl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.google.common.annotations.VisibleForTesting;
-
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.Module;
-import net.starlark.java.eval.Mutability;
-import net.starlark.java.eval.NoneType;
-import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkSemantics;
-import net.starlark.java.eval.StarlarkThread;
-import net.starlark.java.eval.StarlarkValue;
-import net.starlark.java.syntax.FileOptions;
-import net.starlark.java.syntax.LarkyParserInputUtils;
-import net.starlark.java.syntax.ParserInput;
-import net.starlark.java.syntax.SyntaxError;
-
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.util.List;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Module;
+import net.starlark.java.eval.Mutability;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.syntax.FileOptions;
+import net.starlark.java.syntax.ParserInput;
+import net.starlark.java.syntax.StarlarkFile;
+import net.starlark.java.syntax.Statement;
+import net.starlark.java.syntax.SyntaxError;
 
-public class Larky {
-
+/**
+ * Copy of net.starlark.java.cmd.Main
+ *
+ * Main is a standalone interpreter for the core Starlark language. It does not yet support load
+ * statements.
+ *
+ * <p>The sad class name is due to the linting tool, which forbids lowercase "starlark", and Java's
+ * lack of renaming imports, which makes the name "Starlark" impractical due to conflicts with
+ * eval.Starlark.
+ */
+public class ReplRunner {
   private static final String START_PROMPT = ">> ";
   private static final String CONTINUATION_PROMPT = ".. ";
 
@@ -39,9 +39,9 @@ public class Larky {
   private static final StarlarkThread thread;
   private static final Module module = Module.create();
 
-  // TODO(adonovan): set load-binds-globally option when we support load,
-  // so that loads bound in one REPL chunk are visible in the next.
-  private static final FileOptions OPTIONS = FileOptions.DEFAULT;
+  // Variables bound by load in one REPL chunk are visible in the next.
+  private static final FileOptions OPTIONS =
+      FileOptions.DEFAULT.toBuilder().allowToplevelRebinding(true).loadBindsGlobally(true).build();
 
   static {
     Mutability mu = Mutability.create("interpreter");
@@ -49,20 +49,45 @@ public class Larky {
     thread.setPrintHandler((th, msg) -> System.out.println(msg));
   }
 
-  private static String prompt() {
+  // Prompts the user for a chunk of input, and returns it.
+  private String prompt() {
     StringBuilder input = new StringBuilder();
     System.out.print(START_PROMPT);
     try {
       String lineSeparator = "";
+      loop:
       while (true) {
         String line = reader.readLine();
         if (line == null) {
           return null;
         }
         if (line.isEmpty()) {
-          return input.toString();
+          break loop; // a blank line ends the chunk
         }
         input.append(lineSeparator).append(line);
+
+        // Read lines until input produces valid statements, unless the last is if/def/for,
+        // which can be multiline, in which case we must wait for a blank line.
+        // TODO(adonovan): parse a compound statement, like the Python and
+        //   go.starlark.net REPLs. This requires a new grammar production, and
+        //   integration with the lexer so that it consumes new
+        //   lines only until the parse is complete.
+        StarlarkFile file = StarlarkFile.parse(ParserInput.fromString(input.toString(), "<stdin>"));
+        if (file.ok()) {
+          List<Statement> stmts = file.getStatements();
+          if (!stmts.isEmpty()) {
+            Statement last = stmts.get(stmts.size() - 1);
+            switch (last.kind()) {
+              case IF:
+              case DEF:
+              case FOR:
+                break; // keep going until blank line
+              default:
+                break loop;
+            }
+          }
+        }
+
         lineSeparator = "\n";
         System.out.print(CONTINUATION_PROMPT);
       }
@@ -70,20 +95,14 @@ public class Larky {
       System.err.format("Error reading line: %s\n", e);
       return null;
     }
+    return input.toString();
   }
 
-  /**
-   * Provide a REPL evaluating Starlark code.
-   */
+  /** Provide a REPL evaluating Starlark code. */
   @SuppressWarnings("CatchAndPrintStackTrace")
-  private static void readEvalPrintLoop() {
+  private void readEvalPrintLoop() {
     System.err.println("Welcome to Starlark (java.starlark.net)");
     String line;
-
-    // TODO(adonovan): parse a compound statement, like the Python and
-    // go.starlark.net REPLs. This requires a new grammar production, and
-    // integration with the lexer so that it consumes new
-    // lines only until the parse is complete.
 
     while ((line = prompt()) != null) {
       ParserInput input = ParserInput.fromString(line, "<stdin>");
@@ -106,18 +125,10 @@ public class Larky {
     }
   }
 
-
-  static int execute(ParserInput input, String inputFile, String outputFile) {
+  /** Execute a Starlark file. */
+  private int execute(ParserInput input) {
     try {
-      if (!inputFile.equals("")) {
-        input = LarkyParserInputUtils.preAppend(
-            ParserInput.readFile(inputFile),
-            input);
-      }
-      Object returnValue = Starlark.execFile(input, OPTIONS, module, thread);
-      if (!outputFile.equals("") && !(returnValue instanceof NoneType)) {
-        writeOutput(outputFile, (StarlarkValue) returnValue);
-      }
+      Starlark.execFile(input, OPTIONS, module, thread);
       return 0;
     } catch (SyntaxError.Exception ex) {
       for (SyntaxError error : ex.errors()) {
@@ -127,39 +138,17 @@ public class Larky {
     } catch (EvalException ex) {
       System.err.println(ex.getMessageWithStack());
       return 1;
-    } catch (InterruptedException ex) {
+    } catch (InterruptedException e) {
       System.err.println("Interrupted");
       return 1;
-    } catch (IOException ex) {
-      System.err.println(ex.toString());
-      return 1;
     }
   }
 
-  /**
-   * Execute a Starlark file.
-   */
-  @VisibleForTesting
-  static int execute(ParserInput input) {
-    return execute(input, "", "");
-  }
-
-  static void writeOutput(String outputFile, StarlarkValue returnValue) throws IOException {
-    try (BufferedWriter bw = Files.newBufferedWriter(Paths.get(outputFile),
-                                                     Charset.defaultCharset(),
-                                                     StandardOpenOption.CREATE)) {
-      bw.write(returnValue.toString());
-    }
-  }
-
-  public static void main(String[] args) throws Exception {
+  public void readEvalPrintLoop(String[] args) throws IOException {
     String file = null;
     String cmd = null;
     String cpuprofile = null;
-    String inputFile = "";
-    String outputFile = "";
 
-    // TODO: do a normal argument parsing
     // parse flags
     int i;
     for (i = 0; i < args.length; i++) {
@@ -180,16 +169,6 @@ public class Larky {
           throw new IOException("-cpuprofile <file> flag needs an argument");
         }
         cpuprofile = args[++i];
-      } else if (args[i].equals("-input")) {
-        if (i + 1 == args.length) {
-          throw new IOException("-input <file> flag needs an argument");
-        }
-        inputFile = args[++i];
-      } else if (args[i].equals("-output")) {
-        if (i + 1 == args.length) {
-          throw new IOException("-output <file> flag needs an argument");
-        }
-        outputFile = args[++i];
       } else {
         throw new IOException("unknown flag: " + args[i]);
       }
@@ -217,7 +196,7 @@ public class Larky {
       }
     } else if (cmd == null) {
       try {
-        exit = execute(ParserInput.readFile(file), inputFile, outputFile);
+        exit = execute(ParserInput.readFile(file));
       } catch (IOException e) {
         // This results in such lame error messages as:
         // "Error reading a.star: java.nio.file.NoSuchFileException: a.star"

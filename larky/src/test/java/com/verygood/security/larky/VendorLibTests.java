@@ -1,6 +1,6 @@
 package com.verygood.security.larky;
 
-import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
+import static com.verygood.security.larky.modules.ModuleSupplier.CORE_MODULES;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.modules.ModuleSupplier;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
 import com.verygood.security.larky.parser.LarkyScript;

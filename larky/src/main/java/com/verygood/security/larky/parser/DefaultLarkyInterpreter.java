@@ -1,9 +1,9 @@
 package com.verygood.security.larky.parser;
 
-import static com.verygood.security.larky.ModuleSupplier.ModuleSet;
+import static com.verygood.security.larky.modules.ModuleSupplier.ModuleSet;
 import static com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 
-import com.verygood.security.larky.ModuleSupplier;
+import com.verygood.security.larky.modules.ModuleSupplier;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.StreamWriterConsole;
 

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package com.verygood.security.mode.grpc;
+option java_outer_classname = "LarkyProto";
+option java_multiple_files = true;
+
+message LarkyProcessRequest {
+  string script = 1;
+  bytes input = 2;
+  map<string, string> context = 3;
+}
+
+message LarkyProcessResponse {
+  bytes output = 1;
+  map<string, string> context = 2;
+}
+
+service LarkyProcessService {
+  rpc Process (LarkyProcessRequest) returns (LarkyProcessResponse) {
+  }
+}
