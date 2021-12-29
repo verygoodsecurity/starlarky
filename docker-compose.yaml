@@ -24,4 +24,4 @@
         dockerfile: Dockerfile.docs
       command: make html
       volumes:
-        - ./:/docs_poc
+        - ./docs_poc:/docs_poc
