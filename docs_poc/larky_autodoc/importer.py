@@ -65,6 +65,7 @@ def import_module(modname: str, warningiserror: bool = False) -> Any:
     """
     Call importlib.import_module(modname), convert exceptions to ImportError
     """
+
     with pythonize_larky_module(modname):
         try:
             with warnings.catch_warnings():

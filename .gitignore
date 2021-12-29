@@ -87,4 +87,5 @@ __pycache__
 .python-version
 pylarky/larky-runner
 
+# .vscode
 .vscode/*
