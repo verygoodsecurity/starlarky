@@ -42,11 +42,11 @@ def _test_request_get_headers():
     request = _create_simple_request()
 
 
-    urllib_headers = {      # key capitalized
-        'Header1': 'key1',
-        'Header2': 'key2',
+    headers = {      # key capitalized
+        'header1': 'key1',
+        'header2': 'key2',
     }
-    asserts.assert_that(request.headers).is_equal_to(urllib_headers)
+    asserts.assert_that(request.headers).is_equal_to(headers)
 
 
 def _test_request_remove_header():
@@ -54,10 +54,10 @@ def _test_request_remove_header():
 
     request.remove_header('header2')
 
-    urllib_headers = {      # key capitalized
-        'Header1': 'key1',
+    headers = {      # key capitalized
+        'header1': 'key1',
     }
-    asserts.assert_that(request.headers).is_equal_to(urllib_headers)
+    asserts.assert_that(request.headers).is_equal_to(headers)
 
 
 def _test_request_set_headers():
@@ -69,11 +69,11 @@ def _test_request_set_headers():
     }
     request.headers = new_headers
 
-    urllib_headers = {      # key capitalized
-        'Header3': 'key3',
-        'Header4': 'key4',
+    headers = {      # key capitalized
+        'header3': 'key3',
+        'header4': 'key4',
     }
-    asserts.assert_that(request.headers).is_equal_to(urllib_headers)
+    asserts.assert_that(request.headers).is_equal_to(headers)
 
 
 def _test_request_add_headers():
@@ -85,13 +85,13 @@ def _test_request_add_headers():
     }
     request.add_headers(new_headers)
 
-    urllib_headers = {      # key capitalized
-        'Header1': 'key1',
-        'Header2': 'key2',
-        'Header3': 'key3',
-        'Header4': 'key4',
+    headers = {      # key capitalized
+        'header1': 'key1',
+        'header2': 'key2',
+        'header3': 'key3',
+        'header4': 'key4',
     }
-    asserts.assert_that(request.headers).is_equal_to(urllib_headers)
+    asserts.assert_that(request.headers).is_equal_to(headers)
 
 
 def _test_request_get_method():

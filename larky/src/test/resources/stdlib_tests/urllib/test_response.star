@@ -40,11 +40,11 @@ def _test_response_has_headers():
 def _test_response_get_headers():
     response = _create_simple_response()
 
-    urllib_headers = {      # key capitalized
-        'Header1': 'key1',
-        'Header2': 'key2',
+    headers = {
+        'header1': 'key1',
+        'header2': 'key2',
     }
-    asserts.assert_that(response.headers).is_equal_to(urllib_headers)
+    asserts.assert_that(response.headers).is_equal_to(headers)
 
 
 def _test_response_remove_header():
@@ -52,10 +52,10 @@ def _test_response_remove_header():
 
     response.remove_header('header2')
 
-    urllib_headers = {      # key capitalized
-        'Header1': 'key1',
+    headers = {
+        'header1': 'key1',
     }
-    asserts.assert_that(response.headers).is_equal_to(urllib_headers)
+    asserts.assert_that(response.headers).is_equal_to(headers)
 
 
 def _test_response_set_headers():
@@ -67,11 +67,11 @@ def _test_response_set_headers():
     }
     response.headers = new_headers
 
-    urllib_headers = {      # key capitalized
-        'Header3': 'key3',
-        'Header4': 'key4',
+    headers = {
+        'header3': 'key3',
+        'header4': 'key4',
     }
-    asserts.assert_that(response.headers).is_equal_to(urllib_headers)
+    asserts.assert_that(response.headers).is_equal_to(headers)
 
 
 def _test_response_add_headers():
@@ -83,13 +83,13 @@ def _test_response_add_headers():
     }
     response.add_headers(new_headers)
 
-    urllib_headers = {      # key capitalized
-        'Header1': 'key1',
-        'Header2': 'key2',
-        'Header3': 'key3',
-        'Header4': 'key4',
+    headers = {
+        'header1': 'key1',
+        'header2': 'key2',
+        'header3': 'key3',
+        'header4': 'key4',
     }
-    asserts.assert_that(response.headers).is_equal_to(urllib_headers)
+    asserts.assert_that(response.headers).is_equal_to(headers)
 
 
 def _test_response_get_status():

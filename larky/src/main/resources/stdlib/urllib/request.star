@@ -36,8 +36,8 @@ def _has_proxy(self):
 
 
 def _add_header(self, key, val):
-    # useful for something like authentication
-    self._headers[key.capitalize()] = val
+    # original implementation uses key.capitalize(), however, we will not modify the keys.
+    self._headers[key] = val
 
 
 def _add_headers(self, headers):
@@ -46,27 +46,24 @@ def _add_headers(self, headers):
 
 
 def _add_unredirected_header(self, key, val):
-    # will not be added to a redirected request
-    self.unredirected_hdrs[key.capitalize()] = val
+    # original implementation uses key.capitalize(), however, we will not modify the keys.
+    self.unredirected_hdrs[key] = val
 
 
 def _has_header(self, header_name):
-    key = header_name.capitalize()
-    return (key in self._headers or
-            key in self.unredirected_hdrs)
+    return (header_name in self._headers or
+            header_name in self.unredirected_hdrs)
 
 
 def _get_header(self, header_name, default=None):
-    key = header_name.capitalize()
     return self._headers.get(
-        key,
-        self.unredirected_hdrs.get(key, default))
+        header_name,
+        self.unredirected_hdrs.get(header_name, default))
 
 
 def _remove_header(self, header_name):
-    key = header_name.capitalize()
-    self._headers.pop(key, None)
-    self.unredirected_hdrs.pop(key, None)
+    self._headers.pop(header_name, None)
+    self.unredirected_hdrs.pop(header_name, None)
 
 
 # property (setter)

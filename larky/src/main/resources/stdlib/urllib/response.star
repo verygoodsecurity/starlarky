@@ -5,8 +5,8 @@ load("@stdlib/larky", "larky")
 
 
 def _add_header(self, key, val):
-    # useful for something like authentication
-    self._headers[key.capitalize()] = val
+    # original implementation uses key.capitalize(), however, we will not modify the keys.
+    self._headers[key] = val
 
 
 def _add_headers(self, headers):
@@ -15,18 +15,15 @@ def _add_headers(self, headers):
 
 
 def _has_header(self, header_name):
-    key = header_name.capitalize()
-    return key in self._headers
+    return header_name in self._headers
 
 
 def _get_header(self, header_name, default=None):
-    key = header_name.capitalize()
-    return self._headers.get(key, default)
+    return self._headers.get(header_name, default)
 
 
 def _remove_header(self, header_name):
-    key = header_name.capitalize()
-    self._headers.pop(key, None)
+    self._headers.pop(header_name, None)
 
 
 # property (setter)
