@@ -19,6 +19,10 @@ def _get_full_url(self):
     return self.full_url
 
 
+def _set_full_url(self, url):
+    self.full_url = url
+
+
 def _set_proxy(self, host, type):
     if self.type == 'https' and not self._tunnel_host:
         self._tunnel_host = self.host
@@ -36,14 +40,6 @@ def _add_header(self, key, val):
     # useful for something like authentication
     self._headers[key.capitalize()] = val
 
-def _set_headers(self, headers):
-    """
-
-    :param list of (key, value) tuples
-    """
-    for header_tpl in headers:
-        if len(header_tpl) == 2:
-            self.add_header(header_tpl[0], header_tpl[1])
 
 def _add_unredirected_header(self, key, val):
     # will not be added to a redirected request
@@ -51,19 +47,32 @@ def _add_unredirected_header(self, key, val):
 
 
 def _has_header(self, header_name):
-    return (header_name in self._headers or
-            header_name in self.unredirected_hdrs)
+    key = header_name.capitalize()
+    return (key in self._headers or
+            key in self.unredirected_hdrs)
 
 
 def _get_header(self, header_name, default=None):
+    key = header_name.capitalize()
     return self._headers.get(
-        header_name,
-        self.unredirected_hdrs.get(header_name, default))
+        key,
+        self.unredirected_hdrs.get(key, default))
 
 
 def _remove_header(self, header_name):
     self._headers.pop(header_name, None)
     self.unredirected_hdrs.pop(header_name, None)
+
+
+# property (setter)
+def _add_headers(self, headers):
+    for k, v in headers.items():
+        self.add_header(k, v)
+
+
+# property (getter)
+def _get_headers(self):
+    return self._headers
 
 
 def _header_items(self):
@@ -77,56 +86,10 @@ def _header_items(self):
 def _get_data(self):
     return self.data
 
+
 # property (setter)
-def _set_data(self, val, charset=None, purge_headers=True):
-
-    # Check charset
-    if charset:
-        if builtins.isinstance(charset, str):
-            # Update content-type header
-            self.add_header('Content-Type', "text/plain; charset=%s" % str(charset))
-        else:
-            fail("Provided charset is not a string")
-    else:
-        # assumes charset unchanged
-        charset = self.charset
-
-    # Check data type
-    if builtins.isinstance(val, bytes):
-        self.data = val
-    elif builtins.isinstance(val, str):
-        self.data = codecs.encode(val, charset)
-    elif:
-        fail("Supported data types: [string, bytes], but received: %s" % type(val))
-
-    # Cleanup headers
-    if purge_headers:
-        if self.has_header("Content-Length"):
-            self.remove_header("Content-Length")
-
-
-# returns body as string, if possible
-def _get_body(self, charset=None):
-    charset = charset if charset else self.charset
-    return codecs.decode(self.data, charset)
-
-
-def _request_phase():
-    return "REQUEST"
-
-
-# property (getter)
-def _content_type(self):
-    """ The Content-Type header (default: empty). """
-    return self.get_header('Content-Type', '')
-
-# property (getter)
-def _charset(self):
-    """ Return the charset specified in the content-type header (default: utf8). """
-    content_type_lower = self.content_type.lower()
-    if 'charset=' in content_type_lower:
-        return content_type_lower.split('charset=')[-1].split(';')[0].strip().upper()
-    return 'UTF-8'
+def _set_data(self, val):
+    self.data = val
 
 
 def Request(url, data=None, headers={},
@@ -136,12 +99,13 @@ def Request(url, data=None, headers={},
 
     self = larky.mutablestruct(
         full_url=url,
-        _headers=headers,
+        data=data,
+        _headers={},
+        unredirected_hdrs={},
         origin_req_host=origin_req_host,
         unverifiable=unverifiable,
-        method=method,
-        unredirected_hdrs={})
-    _set_data(self, data, purge_headers=False)
+        method=method)
+    _add_headers(self, headers)
 
     # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = larky.mutablestruct(
@@ -149,26 +113,28 @@ def Request(url, data=None, headers={},
             larky.partial(_get_data, self),
             larky.partial(_set_data, self),
         ),
-        raw_body = larky.partial(_get_data, self),
-        set_body = larky.partial(_set_data, self),
-        body = larky.partial(_get_body, self),
+        body = larky.property(                  # synonymous to `self.data`
+            larky.partial(_get_data, self),
+            larky.partial(_set_data, self),
+        ),
         get_method = larky.partial(_get_method, self),
         get_full_url = larky.partial(_get_full_url, self),
+        url = larky.property(
+            larky.partial(_get_full_url, self),
+            larky.partial(_set_full_url, self),
+        ),
         set_proxy = larky.partial(_set_proxy, self),
         has_proxy = larky.partial(_has_proxy, self),
         add_header = larky.partial(_add_header, self),
-        set_headers = larky.partial(_set_headers, self),
         add_unredirected_header = larky.partial(_add_unredirected_header, self),
         has_header = larky.partial(_has_header, self),
         get_header = larky.partial(_get_header, self),
         remove_header = larky.partial(_remove_header, self),
         header_items = larky.partial(_header_items, self),
-        headers = larky.partial(_header_items, self),
-        content_type = larky.property(larky.partial(_content_type, self)),
-        charset = larky.property(
-            larky.partial(_charset, self)
+        headers = larky.property(
+            larky.partial(_get_headers, self),
+            larky.partial(_add_headers, self),
         ),
-        phase = _request_phase
     )
     return klass
 
