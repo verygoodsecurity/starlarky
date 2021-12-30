@@ -66,7 +66,7 @@ def _remove_header(self, header_name):
 # property (setter)
 def _add_headers(self, headers):
     for k, v in headers.items():
-        self.add_header(k, v)
+        _add_header(self, k, v)
 
 
 # property (getter)
