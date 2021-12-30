@@ -10,16 +10,16 @@ load("@stdlib/larky", "larky")
 
 def _get_method(self):
     """Return a string indicating the HTTP request method."""
-    default_method = "POST" if self.data != None else "GET"
+    default_method = "POST" if self._data != None else "GET"
     return getattr(self, '_method', default_method)
 
 
 def _get_full_url(self):
-    return self.full_url
+    return self._full_url
 
 
 def _set_full_url(self, url):
-    self.full_url = url
+    self._full_url = url
 
 
 def _set_proxy(self, host, type):
@@ -27,12 +27,12 @@ def _set_proxy(self, host, type):
         self._tunnel_host = self.host
     else:
         self.type= type
-        self.selector = self.full_url
+        self.selector = self._full_url
     self.host = host
 
 
 def _has_proxy(self):
-    return self.selector == self.full_url
+    return self.selector == self._full_url
 
 
 def _add_header(self, key, val):
@@ -89,12 +89,12 @@ def _header_items(self):
 
 # property (getter)
 def _get_data(self):
-    return self.data
+    return self._data
 
 
 # property (setter)
 def _set_data(self, val):
-    self.data = val
+    self._data = val
 
 
 def Request(url, data=None, headers={},
@@ -103,8 +103,8 @@ def Request(url, data=None, headers={},
 
 
     self = larky.mutablestruct(
-        full_url=url,
-        data=data,
+        _full_url=url,
+        _data=data,
         _headers={},
         unredirected_hdrs={},
         origin_req_host=origin_req_host,

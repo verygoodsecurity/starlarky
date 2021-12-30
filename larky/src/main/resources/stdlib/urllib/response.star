@@ -9,6 +9,11 @@ def _add_header(self, key, val):
     self._headers[key.capitalize()] = val
 
 
+def _add_headers(self, headers):
+    for k, v in headers.items():
+        _add_header(self, k, v)
+
+
 def _has_header(self, header_name):
     key = header_name.capitalize()
     return key in self._headers
@@ -20,13 +25,14 @@ def _get_header(self, header_name, default=None):
 
 
 def _remove_header(self, header_name):
-    self._headers.pop(header_name, None)
+    key = header_name.capitalize()
+    self._headers.pop(key, None)
 
 
 # property (setter)
-def _add_headers(self, headers):
-    for k, v in headers.items():
-        _add_header(self, k, v)
+def _set_headers(self, headers):
+    self._headers = {}
+    _add_headers(self, headers)
 
 
 # property (getter)
@@ -40,31 +46,31 @@ def _header_items(self):
 
 # property (getter)
 def _get_data(self):
-    return self.data
+    return self._data
 
 
 # property (setter)
 def _set_data(self, val):
-    self.data = val
+    self._data = val
 
 
 # property (getter)
 def _get_status(self):
-    return self.status
+    return self._status
 
 
 # property (setter)
 def _set_status(self, status):
-    self.status = status
+    self._status = status
 
 
 def Response(data=None, status=200, headers={}):
 
     self = larky.mutablestruct(
-        data=data,
-        status=status,
+        _data=data,
+        _status=status,
         _headers={})
-    _add_headers(self, headers)
+    _set_headers(self, headers)
 
     # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = larky.mutablestruct(
@@ -80,14 +86,16 @@ def Response(data=None, status=200, headers={}):
             larky.partial(_get_status, self),
             larky.partial(_set_status, self),
         ),
+        get_status = larky.partial(_get_status, self),
         add_header = larky.partial(_add_header, self),
+        add_headers = larky.partial(_add_headers, self),
         has_header = larky.partial(_has_header, self),
         get_header = larky.partial(_get_header, self),
         remove_header = larky.partial(_remove_header, self),
         header_items = larky.partial(_header_items, self),
         headers = larky.property(
             larky.partial(_get_headers, self),
-            larky.partial(_add_headers, self),
+            larky.partial(_set_headers, self),
         ),
     )
     return klass
