@@ -6,7 +6,6 @@
 #
 
 load("@stdlib/larky", "larky")
-load("@stdlib//codecs", "codecs")
 
 
 def _get_method(self):
