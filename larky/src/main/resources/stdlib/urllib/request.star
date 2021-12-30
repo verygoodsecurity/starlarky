@@ -11,7 +11,7 @@ load("@stdlib/larky", "larky")
 def _get_method(self):
     """Return a string indicating the HTTP request method."""
     default_method = "POST" if self.data != None else "GET"
-    return getattr(self, 'method', default_method)
+    return getattr(self, '_method', default_method)
 
 
 def _get_full_url(self):
@@ -40,6 +40,11 @@ def _add_header(self, key, val):
     self._headers[key.capitalize()] = val
 
 
+def _add_headers(self, headers):
+    for k, v in headers.items():
+        _add_header(self, k, v)
+
+
 def _add_unredirected_header(self, key, val):
     # will not be added to a redirected request
     self.unredirected_hdrs[key.capitalize()] = val
@@ -59,14 +64,15 @@ def _get_header(self, header_name, default=None):
 
 
 def _remove_header(self, header_name):
-    self._headers.pop(header_name, None)
-    self.unredirected_hdrs.pop(header_name, None)
+    key = header_name.capitalize()
+    self._headers.pop(key, None)
+    self.unredirected_hdrs.pop(key, None)
 
 
 # property (setter)
-def _add_headers(self, headers):
-    for k, v in headers.items():
-        _add_header(self, k, v)
+def _set_headers(self, headers):
+    self._headers = {}
+    _add_headers(self, headers)
 
 
 # property (getter)
@@ -103,8 +109,8 @@ def Request(url, data=None, headers={},
         unredirected_hdrs={},
         origin_req_host=origin_req_host,
         unverifiable=unverifiable,
-        method=method)
-    _add_headers(self, headers)
+        _method=method)
+    _set_headers(self, headers)
 
     # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = larky.mutablestruct(
@@ -116,6 +122,9 @@ def Request(url, data=None, headers={},
             larky.partial(_get_data, self),
             larky.partial(_set_data, self),
         ),
+        method = larky.property(
+            larky.partial(_get_method, self),
+        ),
         get_method = larky.partial(_get_method, self),
         get_full_url = larky.partial(_get_full_url, self),
         url = larky.property(
@@ -125,6 +134,7 @@ def Request(url, data=None, headers={},
         set_proxy = larky.partial(_set_proxy, self),
         has_proxy = larky.partial(_has_proxy, self),
         add_header = larky.partial(_add_header, self),
+        add_headers = larky.partial(_add_headers, self),
         add_unredirected_header = larky.partial(_add_unredirected_header, self),
         has_header = larky.partial(_has_header, self),
         get_header = larky.partial(_get_header, self),
@@ -132,7 +142,7 @@ def Request(url, data=None, headers={},
         header_items = larky.partial(_header_items, self),
         headers = larky.property(
             larky.partial(_get_headers, self),
-            larky.partial(_add_headers, self),
+            larky.partial(_set_headers, self),
         ),
     )
     return klass
