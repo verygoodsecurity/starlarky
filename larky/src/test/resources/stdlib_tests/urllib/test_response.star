@@ -58,7 +58,7 @@ def _test_response_remove_header():
     asserts.assert_that(response.headers).is_equal_to(headers)
 
 
-def _test_response_set_headers():
+def _test_response_headers_property_set_headers():
     response = _create_simple_response()
 
     new_headers = {
@@ -68,6 +68,22 @@ def _test_response_set_headers():
     response.headers = new_headers
 
     headers = {
+        'header3': 'key3',
+        'header4': 'key4',
+    }
+    asserts.assert_that(response.headers).is_equal_to(headers)
+
+
+def _test_response_headers_property_add_header():
+    response = _create_simple_response()
+
+    h = response.headers
+    h['header3'] = 'key3'
+    h['header4'] = 'key4'
+
+    headers = {
+        'header1': 'key1',
+        'header2': 'key2',
         'header3': 'key3',
         'header4': 'key4',
     }
@@ -114,7 +130,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_response_has_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_response_get_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_response_remove_header))
-    _suite.addTest(unittest.FunctionTestCase(_test_response_set_headers))
+    _suite.addTest(unittest.FunctionTestCase(_test_response_headers_property_set_headers))
+    _suite.addTest(unittest.FunctionTestCase(_test_response_headers_property_add_header))
     _suite.addTest(unittest.FunctionTestCase(_test_response_add_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_response_get_status))
     _suite.addTest(unittest.FunctionTestCase(_test_body_data_and_body_aliases))

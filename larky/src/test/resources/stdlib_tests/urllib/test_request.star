@@ -60,7 +60,7 @@ def _test_request_remove_header():
     asserts.assert_that(request.headers).is_equal_to(headers)
 
 
-def _test_request_set_headers():
+def _test_request_headers_property_set_headers():
     request = _create_simple_request()
 
     new_headers = {
@@ -76,6 +76,23 @@ def _test_request_set_headers():
     asserts.assert_that(request.headers).is_equal_to(headers)
 
 
+def _test_request_headers_property_add_header():
+    request = _create_simple_request()
+
+    h = request.headers
+
+    h['header3'] = 'key3'
+    h['header4'] = 'key4'
+
+    headers = {
+        'header1': 'key1',
+        'header2': 'key2',
+        'header3': 'key3',
+        'header4': 'key4',
+    }
+    asserts.assert_that(request.headers).is_equal_to(headers)
+
+
 def _test_request_add_headers():
     request = _create_simple_request()
 
@@ -85,7 +102,7 @@ def _test_request_add_headers():
     }
     request.add_headers(new_headers)
 
-    headers = {      # key capitalized
+    headers = {
         'header1': 'key1',
         'header2': 'key2',
         'header3': 'key3',
@@ -126,7 +143,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_request_has_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_remove_header))
-    _suite.addTest(unittest.FunctionTestCase(_test_request_set_headers))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_headers_property_set_headers))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_headers_property_add_header))
     _suite.addTest(unittest.FunctionTestCase(_test_request_add_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_method))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_url))
