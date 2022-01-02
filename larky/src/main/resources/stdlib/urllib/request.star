@@ -40,11 +40,6 @@ def _add_header(self, key, val):
     self._headers[key] = val
 
 
-def _add_headers(self, headers):
-    for k, v in headers.items():
-        _add_header(self, k, v)
-
-
 def _add_unredirected_header(self, key, val):
     # original implementation uses key.capitalize(), however, we will not modify the keys.
     self.unredirected_hdrs[key] = val
@@ -131,7 +126,6 @@ def Request(url, data=None, headers={},
         set_proxy = larky.partial(_set_proxy, self),
         has_proxy = larky.partial(_has_proxy, self),
         add_header = larky.partial(_add_header, self),
-        add_headers = larky.partial(_add_headers, self),
         add_unredirected_header = larky.partial(_add_unredirected_header, self),
         has_header = larky.partial(_has_header, self),
         get_header = larky.partial(_get_header, self),

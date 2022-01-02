@@ -93,24 +93,6 @@ def _test_request_headers_property_add_header():
     asserts.assert_that(request.headers).is_equal_to(headers)
 
 
-def _test_request_add_headers():
-    request = _create_simple_request()
-
-    new_headers = {
-        'header3': 'key3',
-        'header4': 'key4',
-    }
-    request.add_headers(new_headers)
-
-    headers = {
-        'header1': 'key1',
-        'header2': 'key2',
-        'header3': 'key3',
-        'header4': 'key4',
-    }
-    asserts.assert_that(request.headers).is_equal_to(headers)
-
-
 def _test_request_get_method():
     request = _create_simple_request()
     asserts.assert_that(request.method).is_equal_to('POST')
@@ -145,7 +127,6 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_request_remove_header))
     _suite.addTest(unittest.FunctionTestCase(_test_request_headers_property_set_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_headers_property_add_header))
-    _suite.addTest(unittest.FunctionTestCase(_test_request_add_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_method))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_url))
     _suite.addTest(unittest.FunctionTestCase(_test_body_data_and_body_aliases))

@@ -90,24 +90,6 @@ def _test_response_headers_property_add_header():
     asserts.assert_that(response.headers).is_equal_to(headers)
 
 
-def _test_response_add_headers():
-    response = _create_simple_response()
-
-    new_headers = {
-        'header3': 'key3',
-        'header4': 'key4',
-    }
-    response.add_headers(new_headers)
-
-    headers = {
-        'header1': 'key1',
-        'header2': 'key2',
-        'header3': 'key3',
-        'header4': 'key4',
-    }
-    asserts.assert_that(response.headers).is_equal_to(headers)
-
-
 def _test_response_get_status():
     response = _create_simple_response()
     asserts.assert_that(response.status).is_equal_to(400)
@@ -132,7 +114,6 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_response_remove_header))
     _suite.addTest(unittest.FunctionTestCase(_test_response_headers_property_set_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_response_headers_property_add_header))
-    _suite.addTest(unittest.FunctionTestCase(_test_response_add_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_response_get_status))
     _suite.addTest(unittest.FunctionTestCase(_test_body_data_and_body_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_status_and_get_status_aliases))

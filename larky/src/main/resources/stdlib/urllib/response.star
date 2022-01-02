@@ -9,11 +9,6 @@ def _add_header(self, key, val):
     self._headers[key] = val
 
 
-def _add_headers(self, headers):
-    for k, v in headers.items():
-        _add_header(self, k, v)
-
-
 def _has_header(self, header_name):
     return header_name in self._headers
 
@@ -85,7 +80,6 @@ def Response(data=None, status=200, headers={}):
         ),
         get_status = larky.partial(_get_status, self),
         add_header = larky.partial(_add_header, self),
-        add_headers = larky.partial(_add_headers, self),
         has_header = larky.partial(_has_header, self),
         get_header = larky.partial(_get_header, self),
         remove_header = larky.partial(_remove_header, self),
