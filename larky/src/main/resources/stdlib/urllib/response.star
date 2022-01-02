@@ -9,6 +9,11 @@ def _add_header(self, key, val):
     self._headers[key] = val
 
 
+def _add_headers(self, headers):
+    for k, v in headers.items():
+        _add_header(self, k, v)
+
+
 def _has_header(self, header_name):
     return header_name in self._headers
 

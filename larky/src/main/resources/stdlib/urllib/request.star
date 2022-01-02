@@ -40,6 +40,10 @@ def _add_header(self, key, val):
     self._headers[key] = val
 
 
+def _add_headers(self, headers):
+    for k, v in headers.items():
+        _add_header(self, k, v)
+
 def _add_unredirected_header(self, key, val):
     # original implementation uses key.capitalize(), however, we will not modify the keys.
     self.unredirected_hdrs[key] = val
