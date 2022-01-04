@@ -93,7 +93,16 @@ def _set_data(self, val):
     self._data = val
 
 
-def Request(url, data=None, headers={},
+def _Request(**kwargs):
+    return Request(
+        url=kwargs.get('url', None),
+        data=kwargs.get('data',None),
+        headers=kwargs.get('headers', {}),
+        method=kwargs.get('method', None)
+    )
+
+
+def Request(url=None, data=None, headers={},
                   origin_req_host=None, unverifiable=False,
                   method=None):
 
@@ -108,8 +117,9 @@ def Request(url, data=None, headers={},
         _method=method)
     _set_headers(self, headers)
 
-    # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = larky.mutablestruct(
+        __name__='Request',
+        __class__=Request,
         data = larky.property(
             larky.partial(_get_data, self),
             larky.partial(_set_data, self),
@@ -141,6 +151,12 @@ def Request(url, data=None, headers={},
         ),
     )
     return klass
+
+
+request = larky.struct(
+    Request=Request,
+    _Request=_Request
+)
 
 # class Request:
 #

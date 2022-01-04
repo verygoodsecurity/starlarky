@@ -61,6 +61,14 @@ def _set_status(self, status):
     self._status = status
 
 
+def _Response(**kwargs):
+    return Response(
+        data=kwargs.get('data', None),
+        headers=kwargs.get('headers', {}),
+        status=kwargs.get('status', 200)
+    )
+
+
 def Response(data=None, status=200, headers={}):
 
     self = larky.mutablestruct(
@@ -69,8 +77,9 @@ def Response(data=None, status=200, headers={}):
         _headers={})
     _set_headers(self, headers)
 
-    # print(_impl_function_name(_AssertionBuilder), " - ")
     klass = larky.mutablestruct(
+        __name__='Response',
+        __class__=Response,
         data = larky.property(
             larky.partial(_get_data, self),
             larky.partial(_set_data, self),
@@ -95,3 +104,9 @@ def Response(data=None, status=200, headers={}):
         ),
     )
     return klass
+
+
+response = larky.struct(
+    Response=Response,
+    _Response=_Response
+)

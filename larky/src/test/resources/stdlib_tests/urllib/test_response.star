@@ -1,7 +1,7 @@
 """Unit tests for response.star"""
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
-load("@stdlib//urllib/response", "Response")
+load("@stdlib//urllib/response", "Response", urllib_response="response")
 load("@stdlib//builtins", builtins="builtins")
 
 
@@ -105,6 +105,22 @@ def _test_status_and_get_status_aliases():
     asserts.assert_that(response.status).is_equal_to(response.get_status())
 
 
+def _test_is_instance():
+    response = _create_simple_response()
+    kwargs_response = urllib_response._Response(**response.__dict__)
+    asserts.assert_that(builtins.isinstance(response, Response)).is_true()
+    asserts.assert_that(builtins.isinstance(kwargs_response, Response)).is_true()
+
+
+def _test_create_response_with_kwargs():
+    response = _create_simple_response()
+    kwargs_response = urllib_response._Response(**response.__dict__)
+
+    asserts.assert_that(response.data).is_equal_to(kwargs_response.data)
+    asserts.assert_that(response.headers).is_equal_to(kwargs_response.headers)
+    asserts.assert_that(response.status).is_equal_to(kwargs_response.status)
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_response_get_body))
@@ -117,6 +133,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_response_get_status))
     _suite.addTest(unittest.FunctionTestCase(_test_body_data_and_body_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_status_and_get_status_aliases))
+    _suite.addTest(unittest.FunctionTestCase(_test_is_instance))
+    _suite.addTest(unittest.FunctionTestCase(_test_create_response_with_kwargs))
 
 
     return _suite
