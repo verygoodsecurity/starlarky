@@ -96,7 +96,7 @@ def _set_data(self, val):
 def _Request(**kwargs):
     return Request(
         url=kwargs.get('url', None),
-        data=kwargs.get('data',None),
+        data=kwargs.get('data', None),
         headers=kwargs.get('headers', {}),
         method=kwargs.get('method', None)
     )
