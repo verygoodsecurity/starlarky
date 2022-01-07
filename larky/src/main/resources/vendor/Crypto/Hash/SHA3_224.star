@@ -100,7 +100,7 @@ def SHA3_224_Hash(data=None, update_after_digest=False):
         return h
     self.copy = copy
 
-    def new(data=None):
+    def new(data, update_after_digest):
         """
         Create a fresh SHA3-224 hash object.
         """

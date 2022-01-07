@@ -10,7 +10,7 @@ oid = '2.16.840.1.101.3.4.2.8'
 # Input block size for HMAC
 block_size = 136
 
-def SHA3_512_Hash(data=None, update_after_digest=False)):
+def SHA3_512_Hash(data=None, update_after_digest=False):
     """
     A SHA3-512 hash object.
         Do not instantiate directly.
@@ -23,6 +23,7 @@ def SHA3_512_Hash(data=None, update_after_digest=False)):
         :vartype digest_size: integer
     
     """
+    
     def __init__(data, update_after_digest):
         """
         Error %d while instantiating SHA-3/512
@@ -56,7 +57,7 @@ def SHA3_512_Hash(data=None, update_after_digest=False)):
         self._state.update(data)
     self.update = update
 
-    def digest(self):
+    def digest():
         """
         Return the **binary** (non-printable) digest of the message that has been hashed so far.
 
@@ -69,7 +70,7 @@ def SHA3_512_Hash(data=None, update_after_digest=False)):
         return self._state.digest()
     self.digest = digest
 
-    def hexdigest(self):
+    def hexdigest():
         """
         Return the **printable** digest of the message that has been hashed so far.
 
@@ -81,7 +82,7 @@ def SHA3_512_Hash(data=None, update_after_digest=False)):
         return codecs.decode(hexlify(self.digest()), encoding='utf-8')
     self.hexdigest = hexdigest
 
-    def copy(self):
+    def copy():
         """
         Return a copy ("clone") of the hash object.
 
@@ -98,7 +99,7 @@ def SHA3_512_Hash(data=None, update_after_digest=False)):
         return h
     self.copy = copy
 
-    def new(data=None):
+    def new(data, update_after_digest):
         """
         Create a fresh SHA3-521 hash object.
         """

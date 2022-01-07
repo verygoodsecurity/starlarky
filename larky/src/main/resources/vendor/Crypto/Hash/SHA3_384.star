@@ -99,7 +99,7 @@ def SHA3_384_Hash(data=None, update_after_digest=False):
         return h
     self.copy = copy
 
-    def new(data=None):
+    def new(data, update_after_digest):
         """
         Create a fresh SHA3-384 hash object.
         """
