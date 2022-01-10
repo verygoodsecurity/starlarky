@@ -120,19 +120,7 @@ def _test_url_and_get_full_url_aliases():
 
 def _test_is_instance():
     request = _create_simple_request()
-    kwargs_request = urllib_request._Request(**request.__dict__)
     asserts.assert_that(builtins.isinstance(request, Request)).is_true()
-    asserts.assert_that(builtins.isinstance(kwargs_request, Request)).is_true()
-
-
-def _test_create_request_with_kwargs():
-    request = _create_simple_request()
-    kwargs_request = urllib_request._Request(**request.__dict__)
-
-    asserts.assert_that(request.url).is_equal_to(kwargs_request.url)
-    asserts.assert_that(request.data).is_equal_to(kwargs_request.data)
-    asserts.assert_that(request.headers).is_equal_to(kwargs_request.headers)
-    asserts.assert_that(request.method).is_equal_to(kwargs_request.method)
 
 
 def _suite():
@@ -150,7 +138,6 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_method_and_get_method_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_url_and_get_full_url_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_is_instance))
-    _suite.addTest(unittest.FunctionTestCase(_test_create_request_with_kwargs))
 
 
     return _suite
