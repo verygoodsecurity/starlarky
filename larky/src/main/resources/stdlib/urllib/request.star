@@ -166,8 +166,7 @@ def Request(
         self._full_url, self.fragment = _splittag(self._full_url)
         self._parse()
     self.full_url = larky.property(_get_full_url, _set_full_url)
-    self.url = larky.property(_get_full_url, _set_full_url)
-    self.uri = larky.property(_get_full_url, _set_full_url)
+    self.url = larky.property(_get_full_url, _set_full_url) # non standard extension (for serialization..)
 
     # data property
     def _get_data():
