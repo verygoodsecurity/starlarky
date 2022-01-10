@@ -181,7 +181,6 @@ def Request(
             if self.has_header("Content-length"):
                 self.remove_header("Content-length")
     self.data = larky.property(_get_data, _set_data)
-    self.body = larky.property(_get_data, _set_data)
 
     def _parse():
         self.type, rest = parse._splittype(self._full_url)
@@ -262,11 +261,11 @@ def Request(
 
     def __init__(
         url,
-        data,
-        headers,
-        origin_req_host,
-        unverifiable,
-        method
+        data=None,
+        headers={},
+        origin_req_host=None,
+        unverifiable=False,
+        method=None
     ):
         self.full_url = url
         self.unredirected_hdrs = {}
@@ -283,7 +282,9 @@ def Request(
         if method:
             self._method = method
         return self
-    self = __init__(url, data, headers, origin_req_host, unverifiable, method)
+    self.__init__ = __init__
+
+    self.__init__(url, data, headers, origin_req_host, unverifiable, method)
 
     return self
 

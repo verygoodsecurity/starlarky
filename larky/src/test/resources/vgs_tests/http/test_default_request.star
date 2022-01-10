@@ -1,9 +1,11 @@
 """Unit tests for request.star"""
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
-load("@stdlib//urllib/request", "Request", urllib_request="request")
+load("@vgs//http/request", "VGSHttpRequest")
 load("@stdlib//builtins", builtins="builtins")
 
+
+fake_url = "http://"
 
 def _create_simple_request():
     url = 'http://netloc/path;parameters?query=argument#fragment'
@@ -12,27 +14,27 @@ def _create_simple_request():
         'header1': 'key1',
         'header2': 'key2',
     }
-    return Request(url, data=body, headers=headers, method='POST')
+    return VGSHttpRequest(url, data=body, headers=headers, method='POST')
 
 
-def _test_request_get_data():
+def _test_request_get_body():
     request = _create_simple_request()
-    asserts.assert_that(str(request.data)).is_equal_to('request body')
+    asserts.assert_that(str(request.body)).is_equal_to('request body')
 
 
-def _test_request_set_data():
+def _test_request_set_body():
     request = _create_simple_request()
     new_body_str = 'new request body'
-    request.data = builtins.bytes(new_body_str)
-    asserts.assert_that(str(request.data)).is_equal_to(new_body_str)
+    request.body = builtins.bytes(new_body_str)
+    asserts.assert_that(str(request.body)).is_equal_to(new_body_str)
 
 
 def _test_request_has_headers():
     request = _create_simple_request()
 
-    headers = {             # urllib capitalize header keys
-        'Header1': 'key1',
-        'Header2': 'key2',
+    headers = {
+        'header1': 'key1',
+        'header2': 'key2',
     }
     for h in headers:
         asserts.assert_that(request.has_header(h)).is_true()
@@ -41,10 +43,9 @@ def _test_request_has_headers():
 def _test_request_get_headers():
     request = _create_simple_request()
 
-
-    headers = {            # urllib capitalize header keys
-        'Header1': 'key1',
-        'Header2': 'key2',
+    headers = {
+        'header1': 'key1',
+        'header2': 'key2',
     }
     asserts.assert_that(request.headers.items()).is_equal_to(headers.items())
 
@@ -52,10 +53,10 @@ def _test_request_get_headers():
 def _test_request_remove_header():
     request = _create_simple_request()
 
-    request.remove_header('Header2')
+    request.remove_header('header2')
 
-    headers = {      # urllib capitalize header keys
-        'Header1': 'key1',
+    headers = {
+        'header1': 'key1',
     }
     asserts.assert_that(request.headers.items()).is_equal_to(headers.items())
 
@@ -69,9 +70,9 @@ def _test_request_headers_property_set_headers():
     }
     request.headers = new_headers
 
-    headers = {             # urllib capitalize header keys
-        'Header3': 'key3',
-        'Header4': 'key4',
+    headers = {
+        'header3': 'key3',
+        'header4': 'key4',
     }
     asserts.assert_that(request.headers.items()).is_equal_to(headers.items())
 
@@ -84,11 +85,10 @@ def _test_request_headers_property_add_header():
     h['header3'] = 'key3'
     h['header4'] = 'key4'
 
-    headers = {             # urllib capitalize header keys
-        'Header1': 'key1',
-        'Header2': 'key2',
-
-        'header3': 'key3', # do not capitalize directly injected keys
+    headers = {
+        'header1': 'key1',
+        'header2': 'key2',
+        'header3': 'key3',
         'header4': 'key4',
     }
     asserts.assert_that(request.headers.items()).is_equal_to(headers.items())
@@ -99,9 +99,21 @@ def _test_request_get_method():
     asserts.assert_that(request.method).is_equal_to('POST')
 
 
-def _test_request_get_url():
+def _test_request_url_is_fake():
     request = _create_simple_request()
-    asserts.assert_that(request.url).is_equal_to('http://netloc/path;parameters?query=argument#fragment')
+    asserts.assert_that(request.url).is_equal_to(fake_url)
+    asserts.assert_that(request.full_url).is_equal_to(fake_url)
+
+
+def _test_request_get_relative_url():
+    url = 'http://netloc/path;parameters?query=argument#fragment'
+    request = _create_simple_request()
+    asserts.assert_that(request.relative_url).is_equal_to(url)
+
+
+def _test_body_data_and_body_aliases():
+    request = _create_simple_request()
+    asserts.assert_that(request.data).is_equal_to(request.body)
 
 
 def _test_method_and_get_method_aliases():
@@ -116,20 +128,22 @@ def _test_url_and_get_full_url_aliases():
 
 def _test_is_instance():
     request = _create_simple_request()
-    asserts.assert_that(builtins.isinstance(request, Request)).is_true()
+    asserts.assert_that(builtins.isinstance(request, VGSHttpRequest)).is_true()
 
 
 def _suite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(_test_request_get_data))
-    _suite.addTest(unittest.FunctionTestCase(_test_request_set_data))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_get_body))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_set_body))
     _suite.addTest(unittest.FunctionTestCase(_test_request_has_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_remove_header))
     _suite.addTest(unittest.FunctionTestCase(_test_request_headers_property_set_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_headers_property_add_header))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_method))
-    _suite.addTest(unittest.FunctionTestCase(_test_request_get_url))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_url_is_fake))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_get_relative_url))
+    _suite.addTest(unittest.FunctionTestCase(_test_body_data_and_body_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_method_and_get_method_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_url_and_get_full_url_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_is_instance))
