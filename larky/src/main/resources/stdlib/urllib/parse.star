@@ -11,7 +11,8 @@ load("@stdlib//codecs", "codecs")
 load("@stdlib//re", "re")
 load("@stdlib//binascii", "unhexlify")
 load("@stdlib//sets", "sets")
-load("@vendor//option/result", Error="Error", _safe="safe")
+load("@stdlib//collections", namedtuple="namedtuple")
+load("@vendor//option/result", Result="Result", Error="Error", _safe="safe")
 
 # Unsafe bytes to be removed per WHATWG spec
 _UNSAFE_URL_BYTES_TO_REMOVE = ['\t', '\r', '\n']
@@ -78,11 +79,19 @@ def _coerce_args(*args):
         return args + (_noop,)
     return _decode_args(args) + (_encode_result,)
 
+
+_SplitResultBase = namedtuple(
+    'SplitResult', 'scheme netloc path query fragment')
+
+_ParseResultBase = namedtuple(
+    'ParseResult', 'scheme netloc path params query fragment')
+
+
 def _ParseResult(**kwargs):
-    return larky.mutablestruct(__class__=_ParseResult, __name__="ParseResult", **kwargs)
+    return _ParseResultBase(**kwargs)
 
 def _SplitResult(**kwargs):
-    return larky.mutablestruct(__class__=_SplitResult, __name__="SplitResult", **kwargs)
+    return _SplitResultBase(**kwargs)
 
 def _urlparse(url, scheme='', allow_fragments=True):
     """Parse a URL into 6 components:
@@ -563,6 +572,96 @@ def unwrap(url):
     return url
 
 
+_typeprog = re.compile('([^/:]+):(.*)', re.DOTALL)
+def _splittype(url):
+    """splittype('type:opaquestring') --> 'type', 'opaquestring'."""
+    match = _typeprog.match(url)
+    if match:
+        scheme, data = match.groups()
+        return scheme.lower(), data
+    return None, url
+
+
+_hostprog = re.compile('//([^/#?]*)(.*)', re.DOTALL)
+def _splithost(url):
+    """splithost('//host[:port]/path') --> 'host[:port]', '/path'."""
+    match = _hostprog.match(url)
+    if match:
+        host_port, path = match.groups()
+        if path and path[0] != '/':
+            path = '/' + path
+        return host_port, path
+    return None, url
+
+
+def _splituser(host):
+    """splituser('user[:passwd]@host[:port]') --> 'user[:passwd]', 'host[:port]'."""
+    user, delim, host = host.rpartition('@')
+    return (user if delim else None), host
+
+
+def _splitpasswd(user):
+    """splitpasswd('user:passwd') -> 'user', 'passwd'."""
+    user, delim, passwd = user.partition(':')
+    return user, (passwd if delim else None)
+
+
+# splittag('/path#tag') --> '/path', 'tag'
+_portprog = re.compile('(.*):([0-9]*)', re.DOTALL)
+def _splitport(host):
+    """splitport('host:port') --> 'host', 'port'."""
+    match = _portprog.fullmatch(host)
+    if match:
+        host, port = match.groups()
+        if port:
+            return host, port
+    return host, None
+
+
+def _splitnport(host, defport=-1):
+    """Split host and port, returning numeric port.
+    Return given default port if no ':' found; defaults to -1.
+    Return numerical port if a valid number are found after ':'.
+    Return None if ':' but not a valid number."""
+    host, delim, port = host.rpartition(':')
+    if not delim:
+        host = port
+    elif port:
+        rval = Result.Ok(port).map(int)
+        nport = rval.unwrap_or(None)
+        return host, nport
+    return host, defport
+
+
+def _splitquery(url):
+    """splitquery('/path?query') --> '/path', 'query'."""
+    path, delim, query = url.rpartition('?')
+    if delim:
+        return path, query
+    return url, None
+
+
+def _splittag(url):
+    """splittag('/path#tag') --> '/path', 'tag'."""
+    path, delim, tag = url.rpartition('#')
+    if delim:
+        return path, tag
+    return url, None
+
+
+def _splitattr(url):
+    """splitattr('/path;attr1=value1;attr2=value2;...') ->
+        '/path', ['attr1=value1', 'attr2=value2', ...]."""
+    words = url.split(';')
+    return words[0], words[1:]
+
+
+def _splitvalue(attr):
+    """splitvalue('attr=value') --> 'attr', 'value'."""
+    attr, delim, value = attr.partition('=')
+    return attr, (value if delim else None)
+
+
 parse = larky.struct(
     urlparse = _urlparse,
     urlsplit = _urlsplit,
@@ -576,4 +675,14 @@ parse = larky.struct(
     quote_plus = quote_plus,
     urlencode = urlencode,
     unwrap = unwrap,
+    _splittype = _splittype,
+    _splithost = _splithost,
+    _splituser = _splituser,
+    _splitpasswd = _splitpasswd,
+    _splitport = _splitport,
+    _splitnport = _splitnport,
+    _splitquery = _splitquery,
+    _splittag = _splittag,
+    _splitattr = _splitattr,
+    _splitvalue = _splitvalue,
 )
