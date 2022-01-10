@@ -3,13 +3,13 @@ load("@stdlib//urllib/request", urllib_request="request")
 
 
 def VGSHttpRequest(
-    relative_url,
+    url,
+    relative_url = None,
     data=None,
     headers={},
     method=None
 ):
-    fake_url = "http://"
-    super = urllib_request.Request(fake_url)
+    super = urllib_request.Request(url)
 
     self = super
     self.__name__="VGSHttpRequest"
@@ -44,17 +44,18 @@ def VGSHttpRequest(
     self.add_unredirected_header = add_unredirected_header
 
     def __init__(
-        relative_url,
+        url,
+        relative_url = None,
         data=None,
         headers={},
         method=None
     ):
         # call super init, with overrides
-        self.__init__(fake_url, data=data, headers=headers, method=method)
+        self.__init__(url, data=data, headers=headers, method=method)
         self.relative_url = relative_url
 
         return self
 
-    self = __init__(relative_url, data, headers, method)
+    self = __init__(url, relative_url, data, headers, method)
 
     return self

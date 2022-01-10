@@ -5,16 +5,15 @@ load("@vgs//http/request", "VGSHttpRequest")
 load("@stdlib//builtins", builtins="builtins")
 
 
-fake_url = "http://"
-
 def _create_simple_request():
     url = 'http://netloc/path;parameters?query=argument#fragment'
+    relative_url = '/path;parameters?query=argument'
     body = builtins.bytes('request body')
     headers = {
         'header1': 'key1',
         'header2': 'key2',
     }
-    return VGSHttpRequest(url, data=body, headers=headers, method='POST')
+    return VGSHttpRequest(url, relative_url, data=body, headers=headers, method='POST')
 
 
 def _test_request_get_body():
@@ -100,15 +99,16 @@ def _test_request_get_method():
 
 
 def _test_request_url_is_fake():
+    url = 'http://netloc/path;parameters?query=argument#fragment'
     request = _create_simple_request()
-    asserts.assert_that(request.url).is_equal_to(fake_url)
-    asserts.assert_that(request.full_url).is_equal_to(fake_url)
+    asserts.assert_that(request.url).is_equal_to(url)
+    asserts.assert_that(request.full_url).is_equal_to(url)
 
 
 def _test_request_get_relative_url():
-    url = 'http://netloc/path;parameters?query=argument#fragment'
+    relative_url = '/path;parameters?query=argument'
     request = _create_simple_request()
-    asserts.assert_that(request.relative_url).is_equal_to(url)
+    asserts.assert_that(request.relative_url).is_equal_to(relative_url)
 
 
 def _test_body_data_and_body_aliases():
