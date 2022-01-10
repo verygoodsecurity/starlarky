@@ -1,7 +1,7 @@
 """Unit tests for response.star"""
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
-load("@stdlib//urllib/response", "Response", urllib_response="response")
+load("@stdlib//http/client", "Response", urllib_response="response")
 load("@stdlib//builtins", builtins="builtins")
 
 
