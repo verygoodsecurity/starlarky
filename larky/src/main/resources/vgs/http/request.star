@@ -33,7 +33,7 @@ def VGSHttpRequest(
     # override super
     def add_header(key, val):
         # original implementation uses key.capitalize(), however, we will not modify the keys.
-        self._headers[key] = val
+        self.headers[key] = val
     self.add_header = add_header
 
     # override super
@@ -50,7 +50,7 @@ def VGSHttpRequest(
         method=None
     ):
         # call super init, with overrides
-        self.__init__(fake_url, data, headers, method)
+        self.__init__(fake_url, data=data, headers=headers, method=method)
         self.relative_url = relative_url
 
         return self

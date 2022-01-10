@@ -194,9 +194,8 @@ def Request(
     def get_method():
         """Return a string indicating the HTTP request method."""
         default_method = "POST" if self.data != None else "GET"
-        return getattr(self, "_method", default_method)
+        return getattr(self, "method", default_method)
     self.get_method = get_method
-    self.method = larky.property(get_method)
 
     def get_full_url():
         return self.full_url
@@ -216,14 +215,13 @@ def Request(
     self.has_proxy = has_proxy
 
     def add_header(key, val):
-        # original implementation uses key.capitalize(), however, we will not modify the keys.
-        self._headers[key] = val
+        # useful for something like authentication
+        self.headers[key.capitalize()] = val
     self.add_header = add_header
 
     def add_unredirected_header(key, val):
         # will not be added to a redirected request
-        # original implementation uses key.capitalize(), however, we will not modify the keys.
-        self.unredirected_hdrs[key] = val
+        self.unredirected_hdrs[key.capitalize()] = val
     self.add_unredirected_header = add_unredirected_header
 
     def has_header(header_name):
@@ -245,18 +243,9 @@ def Request(
     def header_items():
         hdrs = {}
         hdrs.update(self.unredirected_hdrs)
-        hdrs.update(self._headers)
+        hdrs.update(self.headers)
         return list(hdrs.items())
     self.header_items = header_items
-
-    def _get_headers():
-        return self._headers
-
-    def _set_headers(headers):
-        self._headers = {}
-        for key, value in headers.items():
-            self.add_header(key, value)
-    self.headers = larky.property(_get_headers, _set_headers)
 
 
     def __init__(
@@ -269,7 +258,7 @@ def Request(
     ):
         self.full_url = url
         self.unredirected_hdrs = {}
-        self._headers = {}
+        self.headers = {}
         self._data = None
         self.data = data
         self._tunnel_host = None
@@ -280,7 +269,7 @@ def Request(
         self.origin_req_host = origin_req_host
         self.unverifiable = unverifiable
         if method:
-            self._method = method
+            self.method = method
         return self
     self.__init__ = __init__
 

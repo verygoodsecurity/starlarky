@@ -54,7 +54,7 @@ def _test_request_remove_header():
 
     request.remove_header('Header2')
 
-    headers = {      # urllib capitalize header keys
+    headers = {             # urllib capitalize header keys
         'Header1': 'key1',
     }
     asserts.assert_that(request.headers.items()).is_equal_to(headers.items())
@@ -63,9 +63,9 @@ def _test_request_remove_header():
 def _test_request_headers_property_set_headers():
     request = _create_simple_request()
 
-    new_headers = {
-        'header3': 'key3',
-        'header4': 'key4',
+    new_headers = {         # urllib capitalize header keys
+        'Header3': 'key3',
+        'Header4': 'key4',
     }
     request.headers = new_headers
 
