@@ -99,19 +99,14 @@ def _test_request_get_method():
     asserts.assert_that(request.method).is_equal_to('POST')
 
 
-def _test_request_get_url():
+def _test_request_get_full_url():
     request = _create_simple_request()
-    asserts.assert_that(request.url).is_equal_to('http://netloc/path;parameters?query=argument#fragment')
+    asserts.assert_that(request.get_full_url()).is_equal_to('http://netloc/path;parameters?query=argument#fragment')
 
 
 def _test_method_and_get_method_aliases():
     request = _create_simple_request()
     asserts.assert_that(request.method).is_equal_to(request.get_method())
-
-
-def _test_url_and_get_full_url_aliases():
-    request = _create_simple_request()
-    asserts.assert_that(request.url).is_equal_to(request.get_full_url())
 
 
 def _test_is_instance():
@@ -129,9 +124,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_request_headers_property_set_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_headers_property_add_header))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_method))
-    _suite.addTest(unittest.FunctionTestCase(_test_request_get_url))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_get_full_url))
     _suite.addTest(unittest.FunctionTestCase(_test_method_and_get_method_aliases))
-    _suite.addTest(unittest.FunctionTestCase(_test_url_and_get_full_url_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_is_instance))
 
 
