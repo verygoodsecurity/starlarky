@@ -18,6 +18,7 @@ import net.starlark.java.annot.StarlarkMethod;
 
 import org.bouncycastle.crypto.ExtendedDigest;
 import org.bouncycastle.crypto.digests.Blake2sDigest;
+import org.bouncycastle.crypto.digests.Blake2bDigest;
 import org.bouncycastle.crypto.digests.GeneralDigest;
 import org.bouncycastle.crypto.digests.LongDigest;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
@@ -123,6 +124,32 @@ public class CryptoHashModule implements StarlarkValue {
     }
 
     return new LarkyDigest() {
+      @Override
+      public ExtendedDigest getDigest() {
+        return digest;
+      }
+    };
+  }
+
+  @StarlarkMethod(name = "BLAKE2B", parameters = {
+    @Param(name = "digest_bytes",
+        allowedTypes = {@ParamType(type = StarlarkInt.class)},
+        defaultValue = "64"),
+    @Param(name = "key",
+        allowedTypes = {@ParamType(type = StarlarkBytes.class), @ParamType(type = NoneType.class)},
+        defaultValue = "None"),
+  })
+  public LarkyDigest BLAKE2B(StarlarkInt digestBytes, Object keyO) {
+    byte[] key = Starlark.isNullOrNone(keyO) ? null : ((StarlarkBytes) keyO).toByteArray();
+    Blake2bDigest digest;
+    if(key != null) {
+      digest = new Blake2bDigest(key, digestBytes.toIntUnchecked(), null, null);
+    }
+    else {
+      digest = new Blake2bDigest(digestBytes.toIntUnchecked() * Byte.SIZE);
+    }
+
+    return new LarkyDigest(){
       @Override
       public ExtendedDigest getDigest() {
         return digest;
