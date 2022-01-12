@@ -6,5 +6,5 @@
 itertools
 =================
 
-.. automodule:: itertools
+.. automodule:: example_itertools
    :members:
