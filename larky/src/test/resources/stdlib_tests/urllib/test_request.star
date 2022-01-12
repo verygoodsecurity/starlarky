@@ -4,6 +4,9 @@ load("@vendor//asserts", "asserts")
 load("@stdlib//urllib/request", "Request", urllib_request="request")
 load("@stdlib//builtins", builtins="builtins")
 
+load('@stdlib//json', 'json')
+load("@stdlib//hashlib", "hashlib")
+
 
 def _create_simple_request():
     url = 'http://netloc/path;parameters?query=argument#fragment'
@@ -114,6 +117,37 @@ def _test_is_instance():
     asserts.assert_that(builtins.isinstance(request, Request)).is_true()
 
 
+def _test_request_pylarky():
+    ## Code taken from pylarky tests
+    def process(input_message):
+        #print("start script")
+        decoded_payload = json.decode(input_message.data)
+        key=input_message.get_header("Key")
+        input_message.remove_header("Key")
+        signature = hashlib.sha512(bytes(key, encoding='utf-8')).hexdigest()
+        #print("changing payload")
+        decoded_payload["signature"] = signature
+        input_message.data = json.encode(decoded_payload)
+        #print("returning payload")
+        return input_message
+
+        ## TODO (mahmoudimus): FIX THIS BELOW!
+        #return 'url = "%s", data = "%s", headers = %s, object: %s' % (
+        #           input_message.get_full_url(),
+        #           input_message.data,
+        #           json.dumps(dict(input_message.header_items())),
+        #           input_message.__dict__)
+    request = Request(
+            url='http://httpbin.org/post',
+            data='{"credit_card": "411111111111111111", "cvv": "043", "expiration_date": "03/43"}',
+            headers={'Content-Type': 'application/json', 'Accept': 'application/json', 'Key': '1234567890'})
+    modified_request = process(request)
+
+    asserts.assert_that(modified_request.full_url).is_equal_to("http://httpbin.org/post")
+    asserts.assert_that(modified_request.data).is_equal_to('{"credit_card":"411111111111111111","cvv":"043","expiration_date":"03/43","signature":"12b03226a6d8be9c6e8cd5e55dc6c7920caaa39df14aab92d5e3ea9340d1c8a4d3d0b8e4314f1f6ef131ba4bf1ceb9186ab87c801af0d5c95b1befb8cedae2b9"}')
+    asserts.assert_that(modified_request.headers).is_equal_to({"Content-type": "application/json","Accept": "application/json"})
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_data))
@@ -127,6 +161,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_full_url))
     _suite.addTest(unittest.FunctionTestCase(_test_method_and_get_method_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_is_instance))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_pylarky))
 
 
     return _suite
