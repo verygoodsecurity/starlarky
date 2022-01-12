@@ -35,7 +35,7 @@
         <org.projectlombok.version>1.18.22</org.projectlombok.version>
         <apache.commons-text.version>1.9</apache.commons-text.version>
         <google.re2j.version>1.6</google.re2j.version>
-        <google.flogger.version>0.7.1</google.flogger.version>
+        <google.flogger.version>0.7.2</google.flogger.version>
         <org.bouncycastle.version>1.70</org.bouncycastle.version>
         <org.junit.version>4.13.2</org.junit.version>
         <google.errorprone.version>2.9.0</google.errorprone.version>
