@@ -38,4 +38,5 @@ Standard Library
    urllib/request
    xml/etree/elementPath
    xml/etree/elementTree
+   example_itertools
 
