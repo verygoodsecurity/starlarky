@@ -291,12 +291,7 @@ def countOf(a, b):
         msg %= (type(a))
         fail(msg)
     count = 0
-    iterable = a
-    if types.is_string(a):
-        iterable = a.elems()
-    elif hasattr(a, '__iter__'):
-        iterable = a.__iter__()
-    # TODO: __getitem__
+    iterable = iter(a)
     for i in iterable:
         if i == b:
             count += 1
