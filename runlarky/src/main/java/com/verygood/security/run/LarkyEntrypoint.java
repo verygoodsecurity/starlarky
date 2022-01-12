@@ -51,7 +51,7 @@ public class LarkyEntrypoint {
 
   private static void printUsage() {
     System.out.println("Usage: larky-runer -m [repl|grpc] [-d]\n" +
-        "-m, --mode - executor mode, coulbe repl or grpc\n" +
+        "-m, --mode - executor mode, could repl or grpc\n" +
         "-d, --debug - for debug mode");
   }
 

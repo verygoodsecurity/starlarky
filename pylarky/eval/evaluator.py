@@ -1,66 +1,26 @@
-import pkg_resources
-import tempfile
-import sys
-import subprocess
+from typing import Dict
 
-RUNNER_EXECUTABLE = pkg_resources.resource_filename("pylarky", "larky-runner")
-LOG_PARAM = "-l"
-INPUT_PARAM = "-i"
-OUTPUT_PARAM = "-o"
-SCRIPT_PARAM = "-s"
+import grpc
+from pylarky.eval import larky_pb2, larky_pb2_grpc
+from pylarky.model.http_message import HttpMessage
 
 
 class Evaluator:
-    def __init__(self, script_data: str):
+    def __init__(self, script_data: str, grpc_host: str = "localhost", grpc_port: int = 8080):
         self.script_data = script_data
+        self.grpc_host = grpc_host
+        self.grpc_port = grpc_port
 
-    def evaluate(self, input_data: str) -> str:
-        with tempfile.NamedTemporaryFile(mode="w+") as output_file:
-            with tempfile.NamedTemporaryFile(
-                mode="w+"
-            ) as input_file, tempfile.NamedTemporaryFile(mode="w+") as script_file:
-                script_file.write(self.script_data)
-                input_file.write(input_data)
-                script_file.flush()
-                input_file.flush()
-                self.__evaluate(script_file.name, input_file.name, output_file.name)
-            output_file.flush()
-            return output_file.read()
-
-    def __evaluate(self, script_path, input_path, output_path):
-        try:
-            with tempfile.NamedTemporaryFile(mode="w+") as log_file:
-                proc = subprocess.Popen(
-                    [
-                        RUNNER_EXECUTABLE,
-                        "-d",
-                        INPUT_PARAM,
-                        input_path,
-                        OUTPUT_PARAM,
-                        output_path,
-                        SCRIPT_PARAM,
-                        script_path,
-                        LOG_PARAM,
-                        log_file.name,
-                    ],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                )
-                output = []
-                for line in proc.stdout:
-                    line = line.decode(sys.stdout.encoding)
-                    sys.stdout.write(line)
-                    log_file.write(line)
-                    output.append(line)
-                log_file.flush()
-                if proc.wait() != 0:
-                    raise subprocess.CalledProcessError(
-                        proc.returncode, proc.args, output="".join(output)
-                    )
-        except subprocess.CalledProcessError as e:
-            raise FailedEvaluation(
-                f"Starlark evaluation failed. \nOutput: {e.output}"
-            ) from e
+    def evaluate(self, http_message, context: Dict[str, str] = None) -> HttpMessage:
+        if context is None:
+            context = {}
+        channel = grpc.insecure_channel(f'{self.grpc_host}:{self.grpc_port}')
+        stub = larky_pb2_grpc.LarkyProcessServiceStub(channel)
+        modified_data = stub.Process(larky_pb2.LarkyProcessRequest(script=self.script_data,
+                                                                   input=http_message.data.encode('utf-8'),
+                                                                   context=context))
+        print(modified_data)
+        return HttpMessage(http_message.url, modified_data, http_message.headers)
 
 
 class FailedEvaluation(Exception):

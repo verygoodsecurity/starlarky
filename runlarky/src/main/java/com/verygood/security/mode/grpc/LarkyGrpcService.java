@@ -1,13 +1,9 @@
 package com.verygood.security.mode.grpc;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.ByteString;
 
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
 import com.verygood.security.mode.grpc.LarkyProcessServiceGrpc.LarkyProcessServiceImplBase;
-
-import net.starlark.java.eval.Mutability;
-import net.starlark.java.eval.StarlarkBytes;
 
 import java.util.Map;
 import java.util.UUID;
@@ -32,8 +28,7 @@ public class LarkyGrpcService extends LarkyProcessServiceImplBase {
     String executionID = UUID.randomUUID().toString().replace("-", "_");
 
     final String inputScript = request.getScript();
-    final byte[] inputPayload = request.getInput().toByteArray();
-    final StarlarkBytes inputBytes = StarlarkBytes.of(Mutability.IMMUTABLE, inputPayload);
+    final String inputPayload = request.getInput();
     Map<String, String> inputContext = new ContextMap<>(request.getContextMap());
 
     String output = String.format(SCRIPT_OUTPUT_FORMAT, executionID);
@@ -45,23 +40,23 @@ public class LarkyGrpcService extends LarkyProcessServiceImplBase {
 
     final ImmutableMap<String, Object> scriptBindings = ImmutableMap.<String, Object>builder()
         .put(context, inputContext)
-        .put(input, inputBytes)
+        .put(input, inputPayload)
         .build();
 
     final Bindings bindings = engine.createBindings();
     bindings.putAll(scriptBindings);
 
     engine.eval(invocableScript, bindings);
-    StarlarkBytes scriptOutput = (StarlarkBytes) bindings.get(output);
+    String scriptOutput = (String) bindings.get(output);
     inputContext = (Map<String, String>) bindings.get(context);
 
-    responseObserver.onNext(successResponse(scriptOutput.toByteArray(), inputContext));
+    responseObserver.onNext(successResponse(scriptOutput, inputContext));
     responseObserver.onCompleted();
   }
 
-  private LarkyProcessResponse successResponse(byte[] payload, Map<String, String> context) {
+  private LarkyProcessResponse successResponse(String payload, Map<String, String> context) {
     return LarkyProcessResponse.newBuilder()
-        .setOutput(ByteString.copyFrom(payload))
+        .setOutput(payload)
         .putAllContext(context)
         .build();
   }

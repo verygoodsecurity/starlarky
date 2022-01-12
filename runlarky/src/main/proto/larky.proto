@@ -6,12 +6,12 @@ option java_multiple_files = true;
 
 message LarkyProcessRequest {
   string script = 1;
-  bytes input = 2;
+  string input = 2;
   map<string, string> context = 3;
 }
 
 message LarkyProcessResponse {
-  bytes output = 1;
+  string output = 1;
   map<string, string> context = 2;
 }
 
