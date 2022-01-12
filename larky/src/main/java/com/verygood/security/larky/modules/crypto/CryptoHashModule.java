@@ -24,10 +24,36 @@ import org.bouncycastle.crypto.digests.LongDigest;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
 import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.bouncycastle.crypto.util.DigestFactory;
+import org.bouncycastle.crypto.digests.MD2Digest;
+import org.bouncycastle.crypto.digests.MD4Digest;
 
 public class CryptoHashModule implements StarlarkValue {
 
   public static final CryptoHashModule INSTANCE = new CryptoHashModule();
+
+  @StarlarkMethod(name = "MD2")
+  public LarkyDigest MD2() {
+    MD2Digest digest = new MD2Digest();
+    
+    return new LarkyDigest() {
+      @Override
+      public ExtendedDigest getDigest() {
+        return digest;
+      }
+    };
+  }
+
+  @StarlarkMethod(name = "MD4")
+  public LarkyDigest MD4() {
+    MD4Digest digest = new MD4Digest();
+    
+    return new LarkyDigest() {
+      @Override
+      public ExtendedDigest getDigest() {
+        return digest;
+      }
+    };
+  }
 
   @StarlarkMethod(name = "MD5")
   public LarkyGeneralDigest MD5() {
@@ -88,9 +114,27 @@ public class CryptoHashModule implements StarlarkValue {
     return new LarkyKeccakDigest(new KeccakDigest(digest_bits.toIntUnchecked()));
   }
 
+  @StarlarkMethod(name = "SHA3_224")
+  public LarkyKeccakDigest SHA3_224() {
+    KeccakDigest digest = (KeccakDigest) DigestFactory.createSHA3_224();
+    return new LarkyKeccakDigest(digest);
+  }
+
   @StarlarkMethod(name = "SHA3_256")
   public LarkyKeccakDigest SHA3_256() {
     KeccakDigest digest = (KeccakDigest) DigestFactory.createSHA3_256();
+    return new LarkyKeccakDigest(digest);
+  }
+
+  @StarlarkMethod(name = "SHA3_384")
+  public LarkyKeccakDigest SHA3_384() {
+    KeccakDigest digest = (KeccakDigest) DigestFactory.createSHA3_384();
+    return new LarkyKeccakDigest(digest);
+  }
+
+  @StarlarkMethod(name = "SHA3_512")
+  public LarkyKeccakDigest SHA3_512() {
+    KeccakDigest digest = (KeccakDigest) DigestFactory.createSHA3_512();
     return new LarkyKeccakDigest(digest);
   }
 

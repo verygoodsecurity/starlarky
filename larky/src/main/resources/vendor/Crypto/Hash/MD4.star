@@ -1,55 +1,89 @@
-def MD4Hash(object):
+load("@stdlib//larky", larky="larky")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
+
+# The size of the resulting hash in bytes.
+digest_size = 16
+
+# The internal block size of the hash algorithm in bytes.
+block_size = 64
+
+
+def MD4Hash(data=None):
     """
-    Class that implements an MD4 hash
+    An MD2 hash object.
+        Do not instantiate directly. Use the :func:`new` function.
+
+        :ivar oid: ASN.1 Object ID
+        :vartype oid: string
+
+        :ivar block_size: the size in bytes of the internal message block,
+                          input to the compression function
+        :vartype block_size: integer
+
+        :ivar digest_size: the size in bytes of the resulting hash
+        :vartype digest_size: integer
     
     """
-    def __init__(self, data=None):
+    def __init__(data=None):
         """
-        Error %d while instantiating MD4
+        Error %d while instantiating MD2
 
         """
-    def update(self, data):
+        _state = _JCrypto.Hash.MD4()
+        if data:
+            _state.update(data)
+        return larky.mutablestruct(__class__="MD4Hash", _state=_state)
+
+    self = __init__(data)
+
+    # The size of the resulting hash in bytes.
+    self.digest_size = 16
+    # The internal block size of the hash algorithm in bytes.
+    self.block_size = 64
+    # ASN.1 Object ID
+    self.oid = "1.2.840.113549.2.4"
+
+    def update(data):
         """
         Continue hashing of a message by consuming the next chunk of data.
 
-                Repeated calls are equivalent to a single call with the concatenation
-                of all the arguments. In other words:
-
-                   >>> m.update(a); m.update(b)
-
-                is equivalent to:
-
-                   >>> m.update(a+b)
-
-                :Parameters:
-                  data : byte string/byte array/memoryview
-                    The next chunk of the message being hashed.
+                Args:
+                    data (byte string/byte array/memoryview): The next chunk of the message being hashed.
         
         """
-    def digest(self):
+        if not data:
+            fail("TypeError: object supporting the buffer API required")
+        self._state.update(data)
+
+    self.update = update
+
+    def digest():
         """
-        Return the **binary** (non-printable) digest of the message that
-                has been hashed so far.
+        Return the **binary** (non-printable) digest of the message that has been hashed so far.
 
-                This method does not change the state of the hash object.
-                You can continue updating the object after calling this function.
-
-                :Return: A byte string of `digest_size` bytes. It may contain non-ASCII
-                 characters, including null bytes.
+                :return: The hash digest, computed over the data processed so far.
+                         Binary form.
+                :rtype: byte string
         
         """
-    def hexdigest(self):
+        return self._state.digest()
+    self.digest = digest
+
+    def hexdigest():
         """
-        Return the **printable** digest of the message that has been
-                hashed so far.
+        Return the **printable** digest of the message that has been hashed so far.
 
-                This method does not change the state of the hash object.
-
-                :Return: A string of 2* `digest_size` characters. It contains only
-                 hexadecimal ASCII digits.
+                :return: The hash digest, computed over the data processed so far.
+                         Hexadecimal encoded.
+                :rtype: string
         
         """
-    def copy(self):
+        return tostr(hexlify(self.digest()))
+    self.hexdigest = hexdigest
+
+    def copy():
         """
         Return a copy ("clone") of the hash object.
 
@@ -58,19 +92,46 @@ def MD4Hash(object):
                 This can be used to efficiently compute the digests of strings that
                 share a common initial substring.
 
-                :Return: A hash object of the same type
+                :return: A hash object of the same type
         
         """
-    def new(self, data=None):
+        h = MD4Hash()
+        h._state = self._state.copy()
+        return h
+
+    self.copy = copy
+
+    def new(data=None):
         """
-        Return a fresh instance of the hash object.
+        Create a new hash object.
 
-            :Parameters:
-               data : byte string/byte array/memoryview
-                The very first chunk of the message to hash.
-                It is equivalent to an early call to `MD4Hash.update()`.
-                Optional.
+            :parameter data:
+                Optional. The very first chunk of the message to hash.
+                It is equivalent to an early call to :meth:`MD2Hash.update`.
+            :type data: bytes/bytearray/memoryview
 
-            :Return: A `MD4Hash` object
+            :Return: A :class:`MD2Hash` hash object
     
         """
+        return MD4Hash(data)
+    self.new = new
+    return self
+
+def new(data=None):
+    """Create a new hash object.
+
+    :parameter data:
+        Optional. The very first chunk of the message to hash.
+        It is equivalent to an early call to :meth:`MD2Hash.update`.
+    :type data: byte string/byte array/memoryview
+
+    :Return: A :class:`MD2Hash` hash object
+    """
+    return MD4Hash().new(data)
+
+MD4 = larky.struct(
+    digest_size=digest_size,
+    block_size=block_size,
+    new=new,
+    __name__ = 'MD4',
+)
