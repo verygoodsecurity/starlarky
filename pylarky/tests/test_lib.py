@@ -1,5 +1,4 @@
 import pytest
-from pylarky.model.http_message import HttpMessage
 from pylarky.eval.http_evaluator import HttpEvaluator
 from pylarky.eval.evaluator import Evaluator, FailedEvaluation
 
@@ -28,24 +27,16 @@ def test_request_evaluation():
 load('@stdlib//json', 'json')
 load("@stdlib//hashlib", "hashlib")
 
-def process(input_message):
+def process(input, ctx):
     print("start script")
-    decoded_payload = json.decode(input_message.data)
-    key=input_message.get_header("Key")
-    input_message.remove_header("Key")
+    decoded_payload = json.decode(input)
+    key="1234567890"
     signature = hashlib.sha512(bytes(key, encoding='utf-8')).hexdigest()
     print("changing payload")
     decoded_payload["signature"] = signature
-    input_message.data = json.encode(decoded_payload)
     print("returning payload")
-    # TODO (mahmoudimus): FIX THIS BELOW!
-    return 'url = "%s", data = "%s", headers = %s, object: %s' % (
-               input_message.get_full_url(), 
-               input_message.data, 
-               json.dumps(dict(input_message.header_items())),
-               input_message.__dict__)
+    return json.encode(decoded_payload)
 
-process(request)
     """
 
     request = HttpMessage(
@@ -61,7 +52,7 @@ process(request)
     )
 
     evaluator = HttpEvaluator(starlark_script)
-    modified_request: HttpMessage = evaluator.evaluate(request)
+    modified_request = evaluator.evaluate(request)
     assert modified_request.url == "http://httpbin.org/post"
     assert (
         modified_request.data

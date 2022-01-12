@@ -2,6 +2,7 @@ package com.verygood.security.larky;
 
 import com.google.common.base.Strings;
 import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.modules.ModuleSupplier;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.PathBasedStarFile;
 import net.starlark.java.eval.EvalException;
@@ -21,7 +22,7 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
+import static com.verygood.security.larky.modules.ModuleSupplier.CORE_MODULES;
 
 
 public class VGSLibTests {

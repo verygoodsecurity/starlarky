@@ -23,8 +23,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import com.verygood.security.larky.ModuleSupplier;
-import com.verygood.security.larky.ModuleSupplier.ModuleSet;
+import com.verygood.security.larky.modules.ModuleSupplier;
+import com.verygood.security.larky.modules.ModuleSupplier.ModuleSet;
 import com.verygood.security.larky.console.Console;
 
 import net.starlark.java.eval.EvalException;
