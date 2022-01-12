@@ -23,6 +23,7 @@ import org.bouncycastle.crypto.digests.LongDigest;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
 import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.bouncycastle.crypto.util.DigestFactory;
+import org.bouncycastle.crypto.digests.RIPEMD160Digest;
 
 public class CryptoHashModule implements StarlarkValue {
 
@@ -93,11 +94,15 @@ public class CryptoHashModule implements StarlarkValue {
     return new LarkyKeccakDigest(digest);
   }
 
-  @StarlarkMethod(name = "SHAKE128", parameters = {
+  @StarlarkMethod(name = "SHAKE", parameters = {
       @Param(name = "bit_length", allowedTypes = {@ParamType(type = StarlarkInt.class)},
           defaultValue = "128"),
   })
-  public LarkyXofDigest<?> SHAKE128(StarlarkInt bitLength) {
+  public LarkyXofDigest<?> SHAKE(StarlarkInt bitLength) throws EvalException {
+    int length = bitLength.toIntUnchecked();
+    if (length != 128 && length != 256){
+      throw Starlark.errorf("Incorrect bits length. It must be 128 or 256.");
+    }
     SHAKEDigest digest = new SHAKEDigest(bitLength.toIntUnchecked());
     return new LarkyXofDigest<>(digest);
   }
@@ -122,6 +127,18 @@ public class CryptoHashModule implements StarlarkValue {
       digest = new Blake2sDigest(digestBytes.toIntUnchecked() * Byte.SIZE);
     }
 
+    return new LarkyDigest() {
+      @Override
+      public ExtendedDigest getDigest() {
+        return digest;
+      }
+    };
+  }
+
+  @StarlarkMethod(name = "RIPEMD160")
+  public LarkyDigest RIPEMD160(){
+    RIPEMD160Digest digest = new RIPEMD160Digest();
+    
     return new LarkyDigest() {
       @Override
       public ExtendedDigest getDigest() {
