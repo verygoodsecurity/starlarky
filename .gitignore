@@ -84,3 +84,5 @@ pylarky.egg-info
 __pycache__
 .python-verison
 pylarky/larky-runner
+
+.vscode/*
