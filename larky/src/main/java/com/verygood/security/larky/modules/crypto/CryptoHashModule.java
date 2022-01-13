@@ -139,7 +139,7 @@ public class CryptoHashModule implements StarlarkValue {
     return new LarkyKeccakDigest(digest);
   }
 
-  @StarlarkMethod(name = "SHAKE128", parameters = {
+  @StarlarkMethod(name = "SHAKE", parameters = {
       @Param(name = "bit_length", allowedTypes = {@ParamType(type = StarlarkInt.class)},
           defaultValue = "128"),
   })
@@ -217,5 +217,5 @@ public LarkyDigest RIPEMD160(){
       }
     };
   }
-  
+
 }

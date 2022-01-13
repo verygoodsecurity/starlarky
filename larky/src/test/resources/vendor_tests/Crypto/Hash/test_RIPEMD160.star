@@ -27,9 +27,8 @@
 
 # This is a list of (expected_result, input[, description]) tuples.
 load("@stdlib//unittest", unittest="unittest")
-# load("./common", make_hash_tests="make_hash_tests")
+load("./common", make_hash_tests="make_hash_tests")
 load("@vendor//Crypto/Hash", RIPEMD160="RIPEMD160")
-load("@vendor//Crypto/Util/py3compat")
 
 test_data = [
     # Test vectors downloaded 2008-09-12 from
@@ -61,10 +60,7 @@ test_data = [
 ]
 
 def get_tests():
-
-    return make_hash_tests(RIPEMD160, "RIPEMD160", test_data,
-        digest_size=20,
-        oid="1.3.36.3.2.1")
+    make_hash_tests(RIPEMD160, "RIPEMD160", test_data, digest_size=20, oid="1.3.36.3.2.1")
 
 # vim:set ts=4 sw=4 sts=4 expandtab:
 
@@ -73,5 +69,5 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(get_tests))
     return _suite
 
-# _runner = unittest.TextTestRunner()
-# _runner.run(_testsuite())
+_runner = unittest.TextTestRunner()
+_runner.run(_testsuite())
