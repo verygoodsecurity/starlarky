@@ -103,7 +103,7 @@ def Poly1305_MAC(r, s, data):
 
         self._mac_tag = None 
         self.digest_size = 16
-        
+        return self
 
     self = __init__(r, s, data)
 
