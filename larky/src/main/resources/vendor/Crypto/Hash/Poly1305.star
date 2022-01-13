@@ -95,7 +95,7 @@ def Poly1305_MAC(r, s, data):
         
         """
 
-    def __init__(self, r, s, data):
+    def __init__(r, s, data):
         if len(r) != 16:
             fail("ValueError: Parameter r is not 16 bytes long")
         if len(s) != 16:
