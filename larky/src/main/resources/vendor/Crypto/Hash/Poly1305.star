@@ -105,7 +105,7 @@ def Poly1305_MAC(r, s, data):
         self.digest_size = 16
         return self
 
-    self = __init__(self, r, s, data)
+    self = __init__(r, s, data)
 
     return self
 
