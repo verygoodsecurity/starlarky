@@ -95,7 +95,7 @@ def Poly1305_MAC(r, s, data):
         
         """
 
-    def __init__(r, s, data):
+    def __init__(self, r, s, data):
         if len(r) != 16:
             fail("ValueError: Parameter r is not 16 bytes long")
         if len(s) != 16:
@@ -103,9 +103,9 @@ def Poly1305_MAC(r, s, data):
 
         self._mac_tag = None 
         self.digest_size = 16
-        
+        return self
 
-    self = __init__(r, s, data)
+    self = __init__(self, r, s, data)
 
     return self
 
