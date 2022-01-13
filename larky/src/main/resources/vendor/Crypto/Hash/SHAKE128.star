@@ -43,7 +43,7 @@ def SHAKE128_XOF(data=None):
     """
 
     def __init__(data):
-        _state = _JCrypto.Hash.SHAKE128()
+        _state = _JCrypto.Hash.SHAKE(128)
         _is_squeezing = False
         if data:
             _state.update(data)
