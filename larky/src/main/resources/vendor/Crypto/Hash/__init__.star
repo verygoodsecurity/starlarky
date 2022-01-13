@@ -2,6 +2,8 @@ load("@stdlib//larky", larky="larky")
 
 load("@vendor//Crypto/Hash/BLAKE2s", BLAKE2s="BLAKE2s")
 load("@vendor//Crypto/Hash/keccak", keccak="keccak")
+load("@vendor//Crypto/Hash/MD2", MD2="MD2")
+load("@vendor//Crypto/Hash/MD4", MD4="MD4")
 load("@vendor//Crypto/Hash/MD5", MD5="MD5")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/Hash/SHA224", SHA224="SHA224")
@@ -10,10 +12,15 @@ load("@vendor//Crypto/Hash/SHA384", SHA384="SHA384")
 load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Hash/SHAKE128", SHAKE128="SHAKE128")
 load("@vendor//Crypto/Hash/SHA3_256", SHA3_256="SHA3_256")
+load("@vendor//Crypto/Hash/SHA3_224", SHA3_224="SHA3_224")
+load("@vendor//Crypto/Hash/SHA3_384", SHA3_384="SHA3_384")
+load("@vendor//Crypto/Hash/SHA3_512", SHA3_512="SHA3_512")
 
 
 Hash = larky.struct(
     BLAKE2s=BLAKE2s,
+    MD2=MD2,
+    MD4=MD4,
     MD5=MD5,
     SHA1=SHA1,
     SHA224=SHA224,
@@ -24,4 +31,7 @@ Hash = larky.struct(
     keccak=keccak,
     KECCAK=keccak,
     SHA3_256=SHA3_256,
+    SHA3_224=SHA3_224,
+    SHA3_384=SHA3_384,
+    SHA3_512=SHA3_512,
 )

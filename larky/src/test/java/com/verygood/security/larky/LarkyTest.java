@@ -112,26 +112,4 @@ public class LarkyTest {
     config = interpreter.evaluate(starFile, new ModuleSupplier().modulesToVariableMap(true), new TestingConsole());
   }
 
-  @Test
-  public void testFCOAlternative() throws IOException, URISyntaxException, EvalException {
-
-    Path resourceDirectory = Paths.get(
-        "src",
-        "test",
-        "resources",
-        "test_fco_operation.star");
-    String absolutePath = resourceDirectory.toFile().getAbsolutePath();
-
-    LarkyScript interpreter = new LarkyScript(
-        CORE_MODULES,
-        LarkyScript.StarlarkMode.STRICT);
-
-    StarFile starFile = new PathBasedStarFile(
-            Paths.get(absolutePath),
-            null,
-            null);
-    ParsedStarFile config;
-    config = interpreter.evaluate(starFile, new ModuleSupplier().modulesToVariableMap(true), new TestingConsole());
-  }
-
 }
