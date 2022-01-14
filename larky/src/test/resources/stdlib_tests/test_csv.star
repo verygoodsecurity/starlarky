@@ -119,6 +119,32 @@ def _test_simple_dictwriter():
     asserts.assert_that(csvfile.getvalue()).is_equal_to(expected_body)
 
 
+def _test_writer_quotes_properly():
+    csvfile = StringIO()
+    rows = [
+        ["first_name", "last_name", "email"],
+        ["John", "Doe", "john-doe@bogusemail.com"],
+        ["Mary", "Smith-Robinson", "\"maryjacobs@bogusemail.com"],
+        ["Dave", "Smith", "davesmith@bogusemail.com"],
+        ["Jane", "Stuart", "janestuart@bogusemail.com"],
+        ["Tom", "Wright", "tomwright@bogusemail.com"],
+    ]
+    expected = (
+        "first_name,last_name,email\r\n" +
+        "John,Doe,john-doe@bogusemail.com\r\n" +
+        "Mary,Smith-Robinson,\"\"\"maryjacobs@bogusemail.com\"\r\n" +
+        "Dave,Smith,davesmith@bogusemail.com\r\n" +
+        "Jane,Stuart,janestuart@bogusemail.com\r\n" +
+        "Tom,Wright,tomwright@bogusemail.com\r\n"
+    )
+
+    spamwriter = csv.writer(csvfile)
+    for r in rows:
+        spamwriter.writerow(r)
+    asserts.assert_that(csvfile.getvalue()).is_equal_to(expected)
+
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_simple_testcase))
@@ -126,6 +152,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_simple_dictreader))
     _suite.addTest(unittest.FunctionTestCase(_test_simple_writer))
     _suite.addTest(unittest.FunctionTestCase(_test_simple_dictwriter))
+    _suite.addTest(unittest.FunctionTestCase(_test_writer_quotes_properly))
 
 
     return _suite
