@@ -58,6 +58,8 @@ def Poly1305_MAC(r, s, data):
                 :rtype: byte string
         
         """
+        fail("NOT IMPLEMENTED")
+
     def hexdigest():
         """
         Return the **printable** MAC tag of the message authenticated so far.

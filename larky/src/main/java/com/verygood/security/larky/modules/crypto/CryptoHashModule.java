@@ -1,10 +1,6 @@
 package com.verygood.security.larky.modules.crypto;
 
-import com.verygood.security.larky.modules.crypto.Hash.LarkyDigest;
-import com.verygood.security.larky.modules.crypto.Hash.LarkyGeneralDigest;
-import com.verygood.security.larky.modules.crypto.Hash.LarkyLongDigest;
-import com.verygood.security.larky.modules.crypto.Hash.LarkyXofDigest;
-import com.verygood.security.larky.modules.crypto.Hash.LarkyKeccakDigest;
+import com.verygood.security.larky.modules.crypto.Hash.*;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
@@ -206,16 +202,23 @@ public class CryptoHashModule implements StarlarkValue {
     };
   }
 
-@StarlarkMethod(name = "RIPEMD160")
-public LarkyDigest RIPEMD160(){
-    RIPEMD160Digest digest = new RIPEMD160Digest();
-      
-    return new LarkyDigest(){
-      @Override
-      public ExtendedDigest getDigest() {
-        return digest;
-      }
-    };
-  }
+  @StarlarkMethod(name = "RIPEMD160")
+  public LarkyDigest RIPEMD160(){
+      RIPEMD160Digest digest = new RIPEMD160Digest();
 
+      return new LarkyDigest(){
+        @Override
+        public ExtendedDigest getDigest() {
+          return digest;
+        }
+      };
+    }
+
+  @StarlarkMethod(name = "Poly1305", parameters = {
+          @Param(name = "key", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+          @Param(name = "nonce", allowedTypes = {@ParamType(type = StarlarkBytes.class)})
+  })
+  public LarkyPoly1305MAC Poly1305(StarlarkBytes key, StarlarkBytes nonce) {
+    return new LarkyPoly1305MAC(key.toByteArray(), nonce.toByteArray());
+  }
 }
