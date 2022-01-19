@@ -394,15 +394,15 @@ public class RegexMatcher implements StarlarkValue {
       name = "append_replacement",
       doc = "Appends to sb two strings: the text from the append position up to the " +
           "beginning of the most recent match, and then the replacement with submatch groups" +
-          " substituted for references of the form $n, where n is the group number in decimal" +
+          " substituted for references of the form \\n, where n is the group number in decimal" +
           ". It advances the append position to where the most recent match ended." +
           "\n" +
-          "To embed a literal $, use \\$ (actually \"\\\\$\" with string escapes). The " +
-          "escape is only necessary when $ is followed by a digit, but it is always allowed. " +
-          "Only $ and \\ need escaping, but any character can be escaped." +
+          "To embed a literal \\, use \\\\ (actually \"\\\\\" with string escapes). The " +
+          "escape is only necessary when \\ is followed by a digit, but it is always allowed. " +
+          "Only \\ needs escaping, but any character can be escaped." +
           "\n" +
           "\n" +
-          "The group number n in $n is always at least one digit and expands to use more " +
+          "The group number n in \\n is always at least one digit and expands to use more " +
           "digits as long as the resulting number is a valid group number for this pattern. " +
           "To cut it off earlier, escape the first digit that should not be used." +
           "\n" +
@@ -423,7 +423,15 @@ public class RegexMatcher implements StarlarkValue {
   )
   public RegexMatcher appendReplacement(StarlarkList<String> sb, String replacement) {
     StringBuffer builder = new StringBuffer().append(Joiner.on("").join(sb));
-    matcher.appendReplacement(builder, replacement);
+    // in python, the \digit is similar to \$digit in Java.
+    // Go through the entire replacement string and replace anything that matches
+    // \digit with \$digit.
+    final String replacedPythonRegexGroupNumbersWithJavaDialect = replacement.replaceAll(
+      // replace \1, \2, etc which are sub replacements in python
+      /* regex */ "\\\\(\\d)",
+      /* replacement */ "\\$$1"
+    );
+    matcher.appendReplacement(builder, replacedPythonRegexGroupNumbersWithJavaDialect);
     try {
       sb.clearElements();
       sb.addElements(Arrays.asList(builder.toString().split("")));
