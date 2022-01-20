@@ -1,10 +1,9 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//urllib/request", urllib_request="request")
-
+load("@stdlib//urllib/parse", "parse")
 
 def VGSHttpRequest(
     url,
-    relative_url = None,
     data=None,
     headers={},
     method=None
@@ -15,12 +14,12 @@ def VGSHttpRequest(
     self.__name__="VGSHttpRequest"
     self.__class__=VGSHttpRequest
 
-    # relative_url property
-    def _get_relative_url():
-        return self._relative_url
-    def _set_relative_url(url):
-        self._relative_url = url
-    self.relative_url = larky.property(_get_relative_url, _set_relative_url)
+    # url property
+    def _get_url():
+        return self.full_url
+    def _set_url(url):
+        self.full_url = url
+    self.url = larky.property(_get_url, _set_url)
 
     # body property
     def _get_body():
@@ -45,17 +44,19 @@ def VGSHttpRequest(
 
     def __init__(
         url,
-        relative_url = None,
         data=None,
         headers={},
         method=None
     ):
         # call super init, with overrides
         self.__init__(url, data=data, headers=headers, method=method)
-        self.relative_url = relative_url
+
+        select_split = parse.urlsplit(self.selector)
+        self.path = select_split.path
+        self.query_string = select_split.query
 
         return self
 
-    self = __init__(url, relative_url, data, headers, method)
+    self = __init__(url, data, headers, method)
 
     return self

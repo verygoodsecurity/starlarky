@@ -13,7 +13,7 @@ def _create_simple_request():
         'header1': 'key1',
         'header2': 'key2',
     }
-    return VGSHttpRequest(url, relative_url, data=body, headers=headers, method='POST')
+    return VGSHttpRequest(url, data=body, headers=headers, method='POST')
 
 
 def _test_request_get_body():
@@ -104,10 +104,28 @@ def _test_request_get_full_url():
     asserts.assert_that(request.full_url).is_equal_to(url)
 
 
-def _test_request_get_relative_url():
-    relative_url = '/path;parameters?query=argument'
+def _test_request_get_url():
+    url = 'http://netloc/path;parameters?query=argument#fragment'
     request = _create_simple_request()
-    asserts.assert_that(request.relative_url).is_equal_to(relative_url)
+    asserts.assert_that(request.url).is_equal_to(url)
+
+
+def _test_request_get_path():
+    path = '/path;parameters'
+    request = _create_simple_request()
+    asserts.assert_that(request.path).is_equal_to(path)
+
+
+def _test_request_get_query_string():
+    query_string = 'query=argument'
+    request = _create_simple_request()
+    asserts.assert_that(request.query_string).is_equal_to(query_string)
+
+
+def _test_request_get_fragment():
+    fragment = 'fragment'
+    request = _create_simple_request()
+    asserts.assert_that(request.fragment).is_equal_to(fragment)
 
 
 def _test_body_data_and_body_aliases():
@@ -123,6 +141,11 @@ def _test_method_and_get_method_aliases():
 def _test_full_url_and_get_full_url_aliases():
     request = _create_simple_request()
     asserts.assert_that(request.full_url).is_equal_to(request.get_full_url())
+
+
+def _test_full_url_and_url_aliases():
+    request = _create_simple_request()
+    asserts.assert_that(request.full_url).is_equal_to(request.url)
 
 
 def _test_is_instance():
@@ -141,10 +164,14 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_request_headers_property_add_header))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_method))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_full_url))
-    _suite.addTest(unittest.FunctionTestCase(_test_request_get_relative_url))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_get_url))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_get_path))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_get_query_string))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_get_fragment))
     _suite.addTest(unittest.FunctionTestCase(_test_body_data_and_body_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_method_and_get_method_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_full_url_and_get_full_url_aliases))
+    _suite.addTest(unittest.FunctionTestCase(_test_full_url_and_url_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_is_instance))
 
 
