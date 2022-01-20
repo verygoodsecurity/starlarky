@@ -6,8 +6,7 @@ load("@stdlib//builtins", builtins="builtins")
 
 
 def _create_simple_request():
-    url = 'http://netloc/path;parameters?query=argument#fragment'
-    relative_url = '/path;parameters?query=argument'
+    url = 'http://netloc/path;parameters?query=argument&k1=v1&k2=v2#fragment'
     body = builtins.bytes('request body')
     headers = {
         'header1': 'key1',
@@ -99,13 +98,13 @@ def _test_request_get_method():
 
 
 def _test_request_get_full_url():
-    url = 'http://netloc/path;parameters?query=argument#fragment'
+    url = 'http://netloc/path;parameters?query=argument&k1=v1&k2=v2#fragment'
     request = _create_simple_request()
     asserts.assert_that(request.full_url).is_equal_to(url)
 
 
 def _test_request_get_url():
-    url = 'http://netloc/path;parameters?query=argument#fragment'
+    url = 'http://netloc/path;parameters?query=argument&k1=v1&k2=v2#fragment'
     request = _create_simple_request()
     asserts.assert_that(request.url).is_equal_to(url)
 
@@ -117,8 +116,16 @@ def _test_request_get_path():
 
 
 def _test_request_get_query_string():
-    query_string = 'query=argument'
+    query_string = 'query=argument&k1=v1&k2=v2'
     request = _create_simple_request()
+    asserts.assert_that(request.query_string).is_equal_to(query_string)
+
+
+def _test_request_duplicate_query_param():
+    url = 'http://netloc/path;parameters?query=argument&query=argument#fragment'
+    request = VGSHttpRequest(url)
+
+    query_string = 'query=argument&query=argument'
     asserts.assert_that(request.query_string).is_equal_to(query_string)
 
 
@@ -167,6 +174,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_url))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_path))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_query_string))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_duplicate_query_param))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_fragment))
     _suite.addTest(unittest.FunctionTestCase(_test_body_data_and_body_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_method_and_get_method_aliases))
