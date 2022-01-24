@@ -160,6 +160,17 @@ def _test_is_instance():
     asserts.assert_that(builtins.isinstance(request, VGSHttpRequest)).is_true()
 
 
+def _test_url_only_type():
+    url = 'http://'
+    request = VGSHttpRequest(url)
+    asserts.assert_that(request.type).is_equal_to("http")
+    asserts.assert_that(request.url).is_equal_to(url)
+    asserts.assert_that(request.host).is_equal_to("")
+    asserts.assert_that(request.selector).is_equal_to("")
+    asserts.assert_that(request.path).is_equal_to("")
+    asserts.assert_that(request.query_string).is_equal_to("")
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_body))
@@ -181,6 +192,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_full_url_and_get_full_url_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_full_url_and_url_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_is_instance))
+    _suite.addTest(unittest.FunctionTestCase(_test_url_only_type))
 
 
     return _suite

@@ -1,6 +1,6 @@
 load("@stdlib//larky", larky="larky")
-load("@stdlib//urllib/request", urllib_request="request")
 load("@stdlib//urllib/parse", "parse")
+load("@stdlib//urllib/request", urllib_request="request")
 
 def VGSHttpRequest(
     url,
@@ -11,8 +11,8 @@ def VGSHttpRequest(
     super = urllib_request.Request(url)
 
     self = super
-    self.__name__="VGSHttpRequest"
-    self.__class__=VGSHttpRequest
+    self.__name__ = "VGSHttpRequest"
+    self.__class__ = VGSHttpRequest
 
     # url property
     def _get_url():
@@ -51,9 +51,9 @@ def VGSHttpRequest(
         # call super init, with overrides
         self.__init__(url, data=data, headers=headers, method=method)
 
-        select_split = parse.urlsplit(self.selector)
-        self.path = select_split.path
-        self.query_string = select_split.query
+        parsed_url = parse.urlsplit(url)
+        self.path = parsed_url.path
+        self.query_string = parsed_url.query
 
         return self
 
