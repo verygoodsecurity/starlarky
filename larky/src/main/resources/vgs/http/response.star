@@ -1,5 +1,4 @@
 load("@stdlib//larky", larky="larky")
-load("@stdlib//urllib/parse", "parse")
 
 def VGSHttpResponse(
     body=None,
@@ -28,9 +27,9 @@ def VGSHttpResponse(
     self.add_header = add_header
 
     def __init__(
-        body=None,
-        headers={},
-        status_code=200
+        body,
+        headers,
+        status_code
     ):
         self._body = body
 
