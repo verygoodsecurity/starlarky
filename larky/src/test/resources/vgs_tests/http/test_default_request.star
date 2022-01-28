@@ -1,4 +1,4 @@
-"""Unit tests for response.star"""
+"""Unit tests for request.star"""
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//unittest", unittest="unittest")
 load("@vendor//asserts", asserts="asserts")
