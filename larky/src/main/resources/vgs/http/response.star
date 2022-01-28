@@ -6,7 +6,7 @@ def VGSHttpResponse(
     status_code=200
 ):
 
-    self = larky.mutablestruct(__name__="VGSHttpResponse", __class__=VGSHttpResponse)
+    self = larky.mutablestruct(__name__ = "VGSHttpResponse", __class__ = VGSHttpResponse)
 
     # body property
     def _get_body():
@@ -38,7 +38,7 @@ def VGSHttpResponse(
         for key, value in headers.items():
             self.add_header(key, value)
 
-        self.status_code=status_code
+        self.status_code = status_code
 
         return self
 

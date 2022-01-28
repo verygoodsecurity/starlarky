@@ -1,5 +1,5 @@
 load("@stdlib//larky", larky="larky")
-load("@stdlib//urllib/parse", "parse")
+load("@stdlib//urllib/parse", parse="parse")
 load("@stdlib//urllib/request", urllib_request="request")
 
 def VGSHttpRequest(

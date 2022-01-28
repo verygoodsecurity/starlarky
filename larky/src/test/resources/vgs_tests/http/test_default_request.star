@@ -1,8 +1,8 @@
-"""Unit tests for request.star"""
-load("@stdlib//unittest", "unittest")
-load("@vendor//asserts", "asserts")
-load("@vgs//http/request", "VGSHttpRequest")
+"""Unit tests for response.star"""
 load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//unittest", unittest="unittest")
+load("@vendor//asserts", asserts="asserts")
+load("@vgs//http/request", "VGSHttpRequest")
 
 
 def _create_simple_request():
