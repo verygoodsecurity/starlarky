@@ -2,7 +2,7 @@ load("@stdlib//larky", larky="larky")
 
 def VGSHttpResponse(
     body=None,
-    headers={},
+    headers=None,
     status_code=200
 ):
 
@@ -33,6 +33,7 @@ def VGSHttpResponse(
     ):
         self._body = body
 
+        headers = headers or {}
         self.headers = {}
         for key, value in headers.items():
             self.add_header(key, value)
