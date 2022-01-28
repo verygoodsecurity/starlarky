@@ -1,8 +1,8 @@
 """Unit tests for request.star"""
-load("@stdlib//unittest", "unittest")
-load("@vendor//asserts", "asserts")
-load("@vgs//http/request", "VGSHttpRequest")
 load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//unittest", unittest="unittest")
+load("@vendor//asserts", asserts="asserts")
+load("@vgs//http/request", "VGSHttpRequest")
 
 
 def _create_simple_request():
@@ -160,6 +160,20 @@ def _test_is_instance():
     asserts.assert_that(builtins.isinstance(request, VGSHttpRequest)).is_true()
 
 
+def _test_url_change_updates_metadata():
+    request = VGSHttpRequest('http://')
+
+    url = 'http://netloc/path;parameters?query=argument&k1=v1&k2=v2#fragment'
+    request.url = url
+    asserts.assert_that(request.type).is_equal_to("http")
+    asserts.assert_that(request.url).is_equal_to(url)
+    asserts.assert_that(request.host).is_equal_to("netloc")
+    asserts.assert_that(request.selector).is_equal_to("/path;parameters?query=argument&k1=v1&k2=v2")
+    asserts.assert_that(request.path).is_equal_to("/path;parameters")
+    asserts.assert_that(request.query_string).is_equal_to("query=argument&k1=v1&k2=v2")
+    asserts.assert_that(request.fragment).is_equal_to("fragment")
+
+
 def _test_url_only_type():
     url = 'http://'
     request = VGSHttpRequest(url)
@@ -193,6 +207,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_full_url_and_url_aliases))
     _suite.addTest(unittest.FunctionTestCase(_test_is_instance))
     _suite.addTest(unittest.FunctionTestCase(_test_url_only_type))
+    _suite.addTest(unittest.FunctionTestCase(_test_url_change_updates_metadata))
 
 
     return _suite

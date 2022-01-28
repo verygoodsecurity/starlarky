@@ -171,7 +171,7 @@ def Request(
     unverifiable=False,
     method=None
 ):
-    self = larky.mutablestruct(__name__="Request", __class__=Request)
+    self = larky.mutablestruct(__name__ = "Request", __class__ = Request)
 
     # full_url property
     def _get_full_url():
