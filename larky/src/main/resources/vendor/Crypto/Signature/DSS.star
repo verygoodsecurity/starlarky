@@ -1,11 +1,20 @@
-def DssSigScheme(object):
+load("@stdlib//larky", larky="larky")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
+load("@vendor//Crypto/Math/Numbers", Integer="Integer")
+load("@vendor//option/result", Error="Error")
+
+def DssSigScheme(key, encoding, order):
     """
     A (EC)DSA signature object.
         Do not instantiate directly.
         Use :func:`Crypto.Signature.DSS.new`.
     
     """
-    def __init__(self, key, encoding, order):
+    self = larky.mutablestruct(__class__='DssSigScheme')
+
+    def __init__(key, encoding, order):
         """
         Create a new Digital Signature Standard (DSS) object.
 
@@ -13,20 +22,37 @@ def DssSigScheme(object):
                 use `Crypto.Signature.DSS.new` instead.
         
         """
-    def can_sign(self):
+        self._key = key
+        self._encoding = encoding
+        self._order = order
+
+        self._order_bits = self._order.size_in_bits()
+        self._order_bytes = (self._order_bits - 1) // 8 + 1
+
+        return self
+
+    self = __init__(key, encoding, order)
+
+    def can_sign():
         """
         Return ``True`` if this signature object can be used
                 for signing messages.
         """
-    def _compute_nonce(self, msg_hash):
+        return self._key.has_private()
+
+    def _compute_nonce(msg_hash):
         """
         To be provided by subclasses
         """
-    def _valid_hash(self, msg_hash):
+        fail('NotImplementedError("To be provided by subclasses")')
+
+    def _valid_hash(msg_hash):
         """
         To be provided by subclasses
         """
-    def sign(self, msg_hash):
+        fail('NotImplementedError("To be provided by subclasses")')
+
+    def sign(msg_hash):
         """
         Produce the DSA/ECDSA signature of a message.
 
@@ -46,7 +72,36 @@ def DssSigScheme(object):
                 :raise TypeError: if the (EC)DSA key has no private half
         
         """
-    def verify(self, msg_hash, signature):
+        if not self._key.has_private():
+            fail('TypeError("Private key is needed to sign")')
+        
+        if not self._valid_hash(msg_hash):
+            fail('ValueError("Hash is not sufficiently strong")')
+
+        # Generate the nonce k (critical!)
+        nonce = self._compute_nonce(msg_hash)
+
+        # Perform signature using the raw API
+        z = Integer.from_bytes(msg_hash.digest()[:self._order_bytes])
+        sig_pair = self._key._sign(z, nonce)
+        
+        # Encode the signature into a single byte string
+        if self._encoding == 'binary':
+            output = b"".join([long_to_bytes(x, self._order_bytes)] for x in sig_pair)
+        else:
+            # Dss-sig  ::=  SEQUENCE  {
+            #   r   INTEGER,
+            #   s   INTEGER
+            # }
+            # Ecdsa-Sig-Value  ::=  SEQUENCE  {
+            #   r   INTEGER,
+            #   s   INTEGER
+            # }
+            output = DerSequence(sig_pair).encode()
+        
+        return output
+
+    def verify(msg_hash, signature):
         """
         Check if a certain (EC)DSA signature is authentic.
 
@@ -68,6 +123,7 @@ def DssSigScheme(object):
                 :raise ValueError: if the signature is not authentic
         
         """
+        
 def DeterministicDsaSigScheme(DssSigScheme):
     """
      Also applicable to ECDSA
