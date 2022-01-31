@@ -77,7 +77,7 @@ This would build `larky-runner` executable in `runlarky/target` directory, that 
 
 ### Pylarky
 
-_Pylarky_ is pip lib-wrapper for runlarky to make larky calls conviniently from Python.
+_Pylarky_ is pip lib-wrapper for runlarky to make larky calls conveniently from Python.
 
 ### Building and Running Tests
 
