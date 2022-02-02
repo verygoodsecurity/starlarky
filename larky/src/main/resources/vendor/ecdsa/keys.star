@@ -1,7 +1,7 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
-load("./ecdsa")
-load("./der", der = "der")
+load("@vendor//ecdsa/ecdsa", ecdsa="ecdsa")
+load("@vendor//ecdsa/der", der="der")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 
 def VerifyingKey(_error__please_use_generate):
@@ -15,7 +15,7 @@ def VerifyingKey(_error__please_use_generate):
     :ivar pubkey: the actual public key
     :vartype pubkey: ecdsa.ecdsa.Public_key
     """
-    self = larky.mutablestruct(__class__="VerifyingKey", __name__="VerifyingKey")
+    self = larky.mutablestruct(__class__=VerifyingKey, __name__="VerifyingKey")
 
     def __init__(_error__please_use_generate=None):
         """Unsupported, please use one of the classmethods to initialise."""
@@ -50,9 +50,9 @@ def VerifyingKey(_error__please_use_generate):
         :rtype: VerifyingKey
         """
         # self = cls(_error__please_use_generate=True)
-        self = __init__(_error__please_use_generate=True)
-        if isinstance(curve.curve, CurveEdTw):
-            fail('ValueError("Method incompatible with Edwards curves")')
+        self = self.__class__(_error__please_use_generate=True)
+        # if isinstance(curve.curve, CurveEdTw):
+        #     fail('ValueError("Method incompatible with Edwards curves")')
         if not isinstance(point, ellipticcurve.PointJacobi):
             point = ellipticcurve.PointJacobi.from_affine(point)
         self.curve = curve
@@ -83,7 +83,7 @@ def SigningKey(_error__please_use_generate):
         associated with this private key
     :ivar ecdsa.ecdsa.Private_key privkey: the actual private key
     """
-    self = larky.mutablestruct(__class__="SigningKey", __name__="SigningKey")
+    self = larky.mutablestruct(__class__=SigningKey, __name__="SigningKey")
     def __init__(_error__please_use_generate=None):
         """Unsupported, please use one of the classmethods to initialise."""
         if not _error__please_use_generate:
@@ -124,6 +124,7 @@ def SigningKey(_error__please_use_generate):
         return self._weierstrass_keygen(curve, entropy, hashfunc)
     self.generate = generate
     
+    # @classmethod
     def from_secret_exponent(secexp, curve=NIST192p, hashfunc=sha1):
         """
         Create a private key from a random integer.
@@ -147,12 +148,12 @@ def SigningKey(_error__please_use_generate):
         # currently we implement ecdsa only for secp256k1 which uses weierstrass curve. 
         # if isinstance(curve.curve, CurveEdTw):
         #     fail('ValueError("Edwards keys don\'t support setting the secret scalar (exponent) directly")')
-        self = __init__(_error__please_use_generate=True)
+        self = self.__class__(_error__please_use_generate=True)
         self.curve = curve
         self.default_hashfunc = hashfunc
         self.baselen = curve.baselen
         n = curve.order
-        if not 1 <= secexp < n:
+        if not (1 <= secexp) and (secexp < n):
             fail('MalformedPointError("Invalid value for secexp, expected integer between 1 and {0}"'.format(n))
         pubkey_point = curve.generator * secexp
         if hasattr(pubkey_point, "scale"):
@@ -165,8 +166,6 @@ def SigningKey(_error__please_use_generate):
         self.privkey.order = n
         return self
     self.from_secret_exponent = from_secret_exponent
-
-    return self
 
     # @classmethod
     def from_der(string, hashfunc=sha1, valid_curve_encodings=None):
@@ -238,48 +237,43 @@ def SigningKey(_error__please_use_generate):
             sequence, s = der.remove_sequence(s)
             algorithm_oid, algorithm_identifier = der.remove_object(sequence)
 
-            if algorithm_oid in (Ed25519.oid, Ed448.oid):
-                if algorithm_identifier:
-                    raise der.UnexpectedDER(
-                        "Non NULL parameters for a EdDSA key"
-                    )
-                key_str_der, s = der.remove_octet_string(s)
+            # if algorithm_oid in (Ed25519.oid, Ed448.oid):
+            #     if algorithm_identifier:
+            #         raise der.UnexpectedDER(
+            #             "Non NULL parameters for a EdDSA key"
+            #         )
+            #     key_str_der, s = der.remove_octet_string(s)
 
-                # As RFC5958 describe, there are may be optional Attributes
-                # and Publickey. Don't raise error if something after
-                # Privatekey
+            #     # As RFC5958 describe, there are may be optional Attributes
+            #     # and Publickey. Don't raise error if something after
+            #     # Privatekey
 
-                # TODO parse attributes or validate publickey
-                # if s:
-                #     raise der.UnexpectedDER(
-                #         "trailing junk inside the privateKey"
-                #     )
-                key_str, s = der.remove_octet_string(key_str_der)
-                if s:
-                    raise der.UnexpectedDER(
-                        "trailing junk after the encoded private key"
-                    )
+            #     # TODO parse attributes or validate publickey
+            #     # if s:
+            #     #     raise der.UnexpectedDER(
+            #     #         "trailing junk inside the privateKey"
+            #     #     )
+            #     key_str, s = der.remove_octet_string(key_str_der)
+            #     if s:
+            #         raise der.UnexpectedDER(
+            #             "trailing junk after the encoded private key"
+            #         )
 
-                if algorithm_oid == Ed25519.oid:
-                    curve = Ed25519
-                else:
-                    assert algorithm_oid == Ed448.oid
-                    curve = Ed448
+            #     if algorithm_oid == Ed25519.oid:
+            #         curve = Ed25519
+            #     else:
+            #         assert algorithm_oid == Ed448.oid
+            #         curve = Ed448
 
-                return cls.from_string(key_str, curve, None)
+            #     return cls.from_string(key_str, curve, None)
 
             if algorithm_oid not in (oid_ecPublicKey, oid_ecDH, oid_ecMQV):
-                raise der.UnexpectedDER(
-                    "unexpected algorithm identifier '%s'" % (algorithm_oid,)
-                )
+                fail('der.UnexpectedDER( "unexpected algorithm identifier %s")' % (algorithm_oid,))
 
-            curve = Curve.from_der(algorithm_identifier, valid_curve_encodings)
+            curve = Curve().from_der(algorithm_identifier, valid_curve_encodings)
 
             if empty != b"":
-                raise der.UnexpectedDER(
-                    "unexpected data after algorithm identifier: %s"
-                    % binascii.hexlify(empty)
-                )
+                fail('der.UnexpectedDER("unexpected data after algorithm identifier: %s"' % hexlify(empty))
 
             # Up next is an octet string containing an ECPrivateKey. Ignore
             # the optional "attributes" and "publicKey" fields that come after.
@@ -288,30 +282,22 @@ def SigningKey(_error__please_use_generate):
             # Unpack the ECPrivateKey to get to the key data octet string,
             # and rejoin the ssleay parsing path.
             s, empty = der.remove_sequence(s)
-            if empty != b(""):
-                raise der.UnexpectedDER(
-                    "trailing junk after DER privkey: %s"
-                    % binascii.hexlify(empty)
-                )
+            if empty != b"":
+                fail('der.UnexpectedDER("trailing junk after DER privkey: %s")' % binascii.hexlify(empty))
 
             version, s = der.remove_integer(s)
 
         # The version of the ECPrivateKey must be 1.
         if version != 1:
-            raise der.UnexpectedDER(
-                "expected version '1' at start of DER privkey, got %d"
-                % version
-            )
+            fail('der.UnexpectedDER("expected version '1' at start of DER privkey, got %d")' % version)
 
         privkey_str, s = der.remove_octet_string(s)
 
         if not curve:
             tag, curve_oid_str, s = der.remove_constructed(s)
             if tag != 0:
-                raise der.UnexpectedDER(
-                    "expected tag 0 in DER privkey, got %d" % tag
-                )
-            curve = Curve.from_der(curve_oid_str, valid_curve_encodings)
+                fail('der.UnexpectedDER("expected tag 0 in DER privkey, got %d")' % tag)
+            curve = Curve().from_der(curve_oid_str, valid_curve_encodings)
 
         # we don't actually care about the following fields
         #
@@ -328,9 +314,9 @@ def SigningKey(_error__please_use_generate):
         # our from_string method likes fixed-length privkey strings
         if len(privkey_str) < curve.baselen:
             privkey_str = (
-                b("\x00") * (curve.baselen - len(privkey_str)) + privkey_str
+                b"\x00" * (curve.baselen - len(privkey_str)) + privkey_str
             )
-        return cls.from_string(privkey_str, curve, hashfunc)
+        return self.from_string(privkey_str, curve, hashfunc)
 
-
+    return self
 

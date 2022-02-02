@@ -1,6 +1,28 @@
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//larky", larky="larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION")
-load("./_compat", str_idx_as_int="str_idx_as_int")
+load("@vendor//ecdsa/_compat", str_idx_as_int="str_idx_as_int")
+
+
+def read_length(string):
+    if not string:
+        fail('UnexpectedDER("Empty string can\'t encode valid length value")')
+    num = str_idx_as_int(string, 0)
+    if not (num & 0x80):
+        # short form
+        return (num & 0x7F), 1
+    # else long-form: b0&0x7f is number of additional base256 length bytes,
+    # big-endian
+    llen = num & 0x7F
+    if not llen:
+        fail('UnexpectedDER("Invalid length encoding, length of length is 0")')
+    if llen > len(string) - 1:
+        fail('UnexpectedDER("Length of length longer than provided buffer")')
+    # verify that the encoding is minimal possible (DER requirement)
+    msb = str_idx_as_int(string, 1)
+    if not msb or llen == 1 and msb < 0x80:
+        fail('UnexpectedDER("Not minimal encoding of length")')
+    return int(hexlify(string[1 : 1 + llen]), 16), 1 + llen
+
 
 def remove_sequence(string):
     if not string:
@@ -9,10 +31,19 @@ def remove_sequence(string):
         n = str_idx_as_int(string, 0)
         fail('UnexpectedDER("wanted type sequence (0x30), got 0x%02x" % n)')
     length, lengthlength = read_length(string[1:])
-    if length > len(string) - 1 - lengthlength:
+    if length > (len(string) - 1 - lengthlength):
         fail('UnexpectedDER("Length longer than the provided buffer")')
     endseq = 1 + lengthlength + length
     return string[1 + lengthlength : endseq], string[endseq:]
+
+def remove_octet_string(string):
+    if string[:1] != b"\x04":
+        n = str_idx_as_int(string, 0)
+        fail('UnexpectedDER("wanted type \'octetstring\' (0x04), got 0x%02x")' % n)
+    length, llen = read_length(string[1:])
+    body = string[1 + llen : 1 + llen + length]
+    rest = string[1 + llen + length :]
+    return body, rest
 
 def remove_object(string):
     if not string:
@@ -52,7 +83,7 @@ def remove_integer(string):
         n = str_idx_as_int(string, 0)
         fail('UnexpectedDER("wanted type integer (0x02), got 0x%02x")' % n)
     length, llen = read_length(string[1:])
-    if length > len(string) - 1 - llen:
+    if length > (len(string) - 1 - llen):
         fail('UnexpectedDER("Length longer than provided buffer")')
     if length == 0:
         fail('UnexpectedDER("0-byte long encoding of integer")')
@@ -70,8 +101,20 @@ def remove_integer(string):
             fail('UnexpectedDER("Invalid encoding of integer, unnecessary zero padding bytes")')
     return int(hexlify(numberbytes), 16), rest
 
+def remove_constructed(string):
+    s0 = str_idx_as_int(string, 0)
+    if (s0 & 0xE0) != 0xA0:
+        fail('UnexpectedDER("wanted type constructed tag (0xa0-0xbf), got 0x%02x")' % s0)
+    tag = s0 & 0x1F
+    length, llen = read_length(string[1:])
+    body = string[1 + llen : 1 + llen + length]
+    rest = string[1 + llen + length :]
+    return tag, body, rest
 
 der = larky.struct(
     remove_sequence=remove_sequence,
-    remove_object=remove_object
+    remove_octet_string=remove_octet_string,
+    remove_object=remove_object,
+    remove_integer=remove_integer,
+    remove_constructed=remove_constructed
 )

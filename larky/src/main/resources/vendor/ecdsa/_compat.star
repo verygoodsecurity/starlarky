@@ -1,3 +1,6 @@
+"""
+Common functions for providing cross-python version compatibility.
+"""
 load("@stdlib//types", types="types")
 load("@stdlib//larky", larky="larky")
 
