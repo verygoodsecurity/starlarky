@@ -1,4 +1,5 @@
 load("@stdlib//larky", larky="larky")
+load("@vendor//ecdsa/ellipticcurve", ellipticcurve="ellipticcurve")
 
 def Private_key(public_key, secret_multiplier):
     """Private key for ECDSA."""
@@ -15,7 +16,6 @@ def Private_key(public_key, secret_multiplier):
     self = __init__(public_key, secret_multiplier)
 
     return self
-
 
 
 # Certicom secp256-k1

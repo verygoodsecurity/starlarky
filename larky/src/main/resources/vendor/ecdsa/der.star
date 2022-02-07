@@ -111,6 +111,19 @@ def remove_constructed(string):
     rest = string[1 + llen + length :]
     return tag, body, rest
 
+def unpem(pem):
+    # if isinstance(pem, text_type):  # pragma: no branch
+    pem = pem.encode()
+
+    d = b("").join(
+        [
+            l.strip()
+            for l in pem.split(b("\n"))
+            if l and not l.startswith(b("-----"))
+        ]
+    )
+    return base64.b64decode(d)
+
 der = larky.struct(
     remove_sequence=remove_sequence,
     remove_octet_string=remove_octet_string,

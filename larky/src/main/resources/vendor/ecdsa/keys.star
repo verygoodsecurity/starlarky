@@ -167,6 +167,46 @@ def SigningKey(_error__please_use_generate):
         return self
     self.from_secret_exponent = from_secret_exponent
 
+    #  @classmethod
+    def from_string(cls, string, curve=NIST192p, hashfunc=sha1):
+        """
+        Decode the private key from :term:`raw encoding`.
+        Note: the name of this method is a misnomer coming from days of
+        Python 2, when binary strings and character strings shared a type.
+        In Python 3, the expected type is `bytes`.
+        :param string: the raw encoding of the private key
+        :type string: bytes like object
+        :param curve: The curve on which the point needs to reside
+        :type curve: ecdsa.curves.Curve
+        :param hashfunc: The default hash function that will be used for
+            signing, needs to implement the same interface
+            as hashlib.sha1
+        :type hashfunc: callable
+        :raises MalformedPointError: if the length of encoding doesn't match
+            the provided curve or the encoded values is too large
+        :raises RuntimeError: if the generation of public key from private
+            key failed
+        :return: Initialised SigningKey object
+        :rtype: SigningKey
+        """
+        string = normalise_bytes(string)
+
+        if len(string) != curve.baselen:
+            fail('MalformedPointError("Invalid length of private key, received {0}, expected {1}")'.format(len(string), curve.baselen))
+        # if isinstance(curve.curve, CurveEdTw):
+        #     self = cls(_error__please_use_generate=True)
+        #     self.curve = curve
+        #     self.default_hashfunc = None  # Ignored for EdDSA
+        #     self.baselen = curve.baselen
+        #     self.privkey = eddsa.PrivateKey(curve.generator, string)
+        #     self.verifying_key = VerifyingKey.from_string(
+        #         self.privkey.public_key().public_key(), curve
+        #     )
+        #     return self
+        secexp = string_to_number(string)
+        return self.from_secret_exponent(secexp, curve, hashfunc)
+    self.from_string = from_string
+
     # @classmethod
     def from_der(string, hashfunc=sha1, valid_curve_encodings=None):
         """
@@ -320,3 +360,8 @@ def SigningKey(_error__please_use_generate):
 
     return self
 
+
+keys = larky.struct(
+    SigningKey=SigningKey,
+    VerifyingKey=VerifyingKey,
+)

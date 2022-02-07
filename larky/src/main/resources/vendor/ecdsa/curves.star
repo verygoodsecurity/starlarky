@@ -93,7 +93,7 @@ def Curve(name, curve, generator, oid, openssl_name=None):
 
         seq, empty = der.remove_sequence(data)
         if empty:
-            fail('raise der.UnexpectedDER("Unexpected data after ECParameters structure")')
+            fail('der.UnexpectedDER("Unexpected data after ECParameters structure")')
         # decode the ECParameters sequence
         version, rest = der.remove_integer(seq)
         if version != 1:
