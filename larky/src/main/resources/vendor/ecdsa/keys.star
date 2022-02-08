@@ -2,6 +2,7 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@vendor//ecdsa/ecdsa", ecdsa="ecdsa")
 load("@vendor//ecdsa/der", "der")
+load("@vendor//ecdsa/curves", "curves")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//ecdsa/util", string_to_number="string_to_number")
 load("@venfor//ecdsa/_compat", normalise_bytes="normalise_bytes", str_idx_as_int="str_idx_as_int")
@@ -273,11 +274,12 @@ def SigningKey(_error__please_use_generate):
         # an octet string containing the key data, so this is how we can
         # distinguish the two formats.
         if der.is_sequence(s):
-            if version not in (0, 1):
-                fail('der.UnexpectedDER("expected version 0 or 1 at start of privkey, got %d")' % version)
+            fail('ValueError("Only SECP256k1 supported")')
+            # if version not in (0, 1):
+            #     fail('der.UnexpectedDER("expected version 0 or 1 at start of privkey, got %d")' % version)
 
-            sequence, s = der.remove_sequence(s)
-            algorithm_oid, algorithm_identifier = der.remove_object(sequence)
+            # sequence, s = der.remove_sequence(s)
+            # algorithm_oid, algorithm_identifier = der.remove_object(sequence)
 
             # if algorithm_oid in (Ed25519.oid, Ed448.oid):
             #     if algorithm_identifier:
@@ -309,25 +311,25 @@ def SigningKey(_error__please_use_generate):
 
             #     return cls.from_string(key_str, curve, None)
 
-            if algorithm_oid not in (oid_ecPublicKey, oid_ecDH, oid_ecMQV):
-                fail('der.UnexpectedDER( "unexpected algorithm identifier %s")' % (algorithm_oid,))
+            # if algorithm_oid not in (oid_ecPublicKey, oid_ecDH, oid_ecMQV):
+            #     fail('der.UnexpectedDER( "unexpected algorithm identifier %s")' % (algorithm_oid,))
 
-            curve = Curve().from_der(algorithm_identifier, valid_curve_encodings)
+            # curve = curves.from_der(algorithm_identifier, valid_curve_encodings)
 
-            if empty != b"":
-                fail('der.UnexpectedDER("unexpected data after algorithm identifier: %s"' % hexlify(empty))
+            # if empty != b"":
+            #     fail('der.UnexpectedDER("unexpected data after algorithm identifier: %s"' % hexlify(empty))
 
-            # Up next is an octet string containing an ECPrivateKey. Ignore
-            # the optional "attributes" and "publicKey" fields that come after.
-            s, _ = der.remove_octet_string(s)
+            # # Up next is an octet string containing an ECPrivateKey. Ignore
+            # # the optional "attributes" and "publicKey" fields that come after.
+            # s, _ = der.remove_octet_string(s)
 
-            # Unpack the ECPrivateKey to get to the key data octet string,
-            # and rejoin the ssleay parsing path.
-            s, empty = der.remove_sequence(s)
-            if empty != b"":
-                fail('der.UnexpectedDER("trailing junk after DER privkey: %s")' % binascii.hexlify(empty))
+            # # Unpack the ECPrivateKey to get to the key data octet string,
+            # # and rejoin the ssleay parsing path.
+            # s, empty = der.remove_sequence(s)
+            # if empty != b"":
+            #     fail('der.UnexpectedDER("trailing junk after DER privkey: %s")' % binascii.hexlify(empty))
 
-            version, s = der.remove_integer(s)
+            # version, s = der.remove_integer(s)
 
         # The version of the ECPrivateKey must be 1.
         if version != 1:
@@ -339,7 +341,7 @@ def SigningKey(_error__please_use_generate):
             tag, curve_oid_str, s = der.remove_constructed(s)
             if tag != 0:
                 fail('der.UnexpectedDER("expected tag 0 in DER privkey, got %d")' % tag)
-            curve = Curve().from_der(curve_oid_str, valid_curve_encodings)
+            curve = curves.from_der(curve_oid_str, valid_curve_encodings)
 
         # we don't actually care about the following fields
         #

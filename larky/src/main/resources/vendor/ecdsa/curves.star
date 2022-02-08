@@ -1,41 +1,12 @@
 load("@stdlib//larky", larky="larky")
 load("@vendor//ecdsa/ecdsa", ecdsa="ecdsa")
+load("@venfor//ecdsa/_compat", normalise_bytes="normalise_bytes")
 
-
-# no order in particular, but keep previously added curves first
-curves = [
-    # NIST192p,
-    # NIST224p,
-    # NIST256p,
-    # NIST384p,
-    # NIST521p,
-    SECP256k1,
-    # BRAINPOOLP160r1,
-    # BRAINPOOLP192r1,
-    # BRAINPOOLP224r1,
-    # BRAINPOOLP256r1,
-    # BRAINPOOLP320r1,
-    # BRAINPOOLP384r1,
-    # BRAINPOOLP512r1,
-    # SECP112r1,
-    # SECP112r2,
-    # SECP128r1,
-    # SECP160r1,
-    # Ed25519,
-    # Ed448,
-]
 
 PRIME_FIELD_OID = (1, 2, 840, 10045, 1, 1)
 CHARACTERISTIC_TWO_FIELD_OID = (1, 2, 840, 10045, 1, 2)
 
-def find_curve(oid_curve):
-    for c in curves:
-        if c.oid == oid_curve:
-            return c
-    fail('UnknownCurveError("I don\'t know about the curve with oid %s. I only know about these: %s"' % (oid_curve, [c.name for c in curves]))
-
-
-def Curve(name, curve, generator, oid, openssl_name=None):
+def Curve(name=None, curve=None, generator=None, oid=None, openssl_name=None):
 
     self = larky.mutablestruct(__class__=Curve, __name__="Curve")
     
@@ -64,90 +35,7 @@ def Curve(name, curve, generator, oid, openssl_name=None):
         return self
     self = __init__(name, curve, generator, oid, openssl_name)
     
-    # @staticmethod
-    def from_der(data, valid_encodings=None):
-        """Decode the curve parameters from DER file.
-        :param data: the binary string to decode the parameters from
-        :type data: :term:`bytes-like object`
-        :param valid_encodings: set of names of allowed encodings, by default
-            all (set by passing ``None``), supported ones are ``named_curve``
-            and ``explicit``
-        :type valid_encodings: :term:`set-like object`
-        """
-        if not valid_encodings:
-            valid_encodings = set(("named_curve", "explicit"))
-        if not all(i in ["named_curve", "explicit"] for i in valid_encodings):
-            fail('ValueError("Only named_curve and explicit encodings supported")
-        # To do: cast the input into array of bytes
-        # data = normalise_bytes(data)
-        if not der.is_sequence(data):
-            if "named_curve" not in valid_encodings:
-                fail('der.UnexpectedDER("named_curve curve parameters not allowed"')
-            oid, empty = der.remove_object(data)
-            if empty:
-                fail('der.UnexpectedDER("Unexpected data after OID")')
-            return find_curve(oid)
-
-        if "explicit" not in valid_encodings:
-            fail('der.UnexpectedDER("explicit curve parameters not allowed")')
-
-        seq, empty = der.remove_sequence(data)
-        if empty:
-            fail('der.UnexpectedDER("Unexpected data after ECParameters structure")')
-        # decode the ECParameters sequence
-        version, rest = der.remove_integer(seq)
-        if version != 1:
-            fail('der.UnexpectedDER("Unknown parameter encoding format")')
-        field_id, rest = der.remove_sequence(rest)
-        curve, rest = der.remove_sequence(rest)
-        base_bytes, rest = der.remove_octet_string(rest)
-        order, rest = der.remove_integer(rest)
-        cofactor = None
-        if rest:
-            # the ASN.1 specification of ECParameters allows for future
-            # extensions of the sequence, so ignore the remaining bytes
-            cofactor, _ = der.remove_integer(rest)
-
-        # decode the ECParameters.fieldID sequence
-        field_type, rest = der.remove_object(field_id)
-        if field_type == CHARACTERISTIC_TWO_FIELD_OID:
-            fail('UnknownCurveError("Characteristic 2 curves unsupported")')
-        if field_type != PRIME_FIELD_OID:
-            fail('UnknownCurveError("Unknown field type: %s"' % field_type)
-        prime, empty = der.remove_integer(rest)
-        if empty:
-            fail('der.UnexpectedDER("Unexpected data after ECParameters.fieldID.Prime-p element"')
-
-        # decode the ECParameters.curve sequence
-        curve_a_bytes, rest = der.remove_octet_string(curve)
-        curve_b_bytes, rest = der.remove_octet_string(rest)
-        # seed can be defined here, but we don't parse it, so ignore `rest`
-
-        curve_a = string_to_number(curve_a_bytes)
-        curve_b = string_to_number(curve_b_bytes)
-
-        curve_fp = ellipticcurve.CurveFp(prime, curve_a, curve_b, cofactor)
-
-        # decode the ECParameters.base point
-
-        base = ellipticcurve.PointJacobi.from_bytes(
-            curve_fp,
-            base_bytes,
-            valid_encodings=("uncompressed", "compressed", "hybrid"),
-            order=order,
-            generator=True,
-        )
-        tmp_curve = Curve("unknown", curve_fp, base, None)
-
-        # if the curve matches one of the well-known ones, use the well-known
-        # one in preference, as it will have the OID and name associated
-        for i in curves:
-            if tmp_curve == i:
-                return i
-        return tmp_curve
-    
     return self
-
 
 SECP256k1 = Curve(
     "SECP256k1",
@@ -157,3 +45,121 @@ SECP256k1 = Curve(
     "secp256k1",
 )
 
+# no order in particular, but keep previously added curves first
+curves = [
+    # NIST192p,
+    # NIST224p,
+    # NIST256p,
+    # NIST384p,
+    # NIST521p,
+    SECP256k1,
+    # BRAINPOOLP160r1,
+    # BRAINPOOLP192r1,
+    # BRAINPOOLP224r1,
+    # BRAINPOOLP256r1,
+    # BRAINPOOLP320r1,
+    # BRAINPOOLP384r1,
+    # BRAINPOOLP512r1,
+    # SECP112r1,
+    # SECP112r2,
+    # SECP128r1,
+    # SECP160r1,
+    # Ed25519,
+    # Ed448,
+]
+
+def find_curve(oid_curve):
+    for c in curves:
+        if c.oid == oid_curve:
+            return c
+    fail('UnknownCurveError("I don\'t know about the curve with oid %s. I only know about these: %s"' % (oid_curve, [c.name for c in curves]))
+
+# @staticmethod
+def from_der(data, valid_encodings=None):
+    """Decode the curve parameters from DER file.
+    :param data: the binary string to decode the parameters from
+    :type data: :term:`bytes-like object`
+    :param valid_encodings: set of names of allowed encodings, by default
+        all (set by passing ``None``), supported ones are ``named_curve``
+        and ``explicit``
+    :type valid_encodings: :term:`set-like object`
+    """
+    if not valid_encodings:
+        valid_encodings = set(("named_curve", "explicit"))
+    if not all(i in ["named_curve", "explicit"] for i in valid_encodings):
+        fail('ValueError("Only named_curve and explicit encodings supported")')
+    # To do: cast the input into array of bytes
+    data = normalise_bytes(data)
+    if not der.is_sequence(data):
+        if "named_curve" not in valid_encodings:
+            fail('der.UnexpectedDER("named_curve curve parameters not allowed"')
+        oid, empty = der.remove_object(data)
+        if empty:
+            fail('der.UnexpectedDER("Unexpected data after OID")')
+        return find_curve(oid)
+    else:
+        fail('ValueError("Only SECP256k1 supported")')
+
+    # if "explicit" not in valid_encodings:
+    #     fail('der.UnexpectedDER("explicit curve parameters not allowed")')
+
+    # seq, empty = der.remove_sequence(data)
+    # if empty:
+    #     fail('der.UnexpectedDER("Unexpected data after ECParameters structure")')
+    # # decode the ECParameters sequence
+    # version, rest = der.remove_integer(seq)
+    # if version != 1:
+    #     fail('der.UnexpectedDER("Unknown parameter encoding format")')
+    # field_id, rest = der.remove_sequence(rest)
+    # curve, rest = der.remove_sequence(rest)
+    # base_bytes, rest = der.remove_octet_string(rest)
+    # order, rest = der.remove_integer(rest)
+    # cofactor = None
+    # if rest:
+    #     # the ASN.1 specification of ECParameters allows for future
+    #     # extensions of the sequence, so ignore the remaining bytes
+    #     cofactor, _ = der.remove_integer(rest)
+
+    # # decode the ECParameters.fieldID sequence
+    # field_type, rest = der.remove_object(field_id)
+    # if field_type == CHARACTERISTIC_TWO_FIELD_OID:
+    #     fail('UnknownCurveError("Characteristic 2 curves unsupported")')
+    # if field_type != PRIME_FIELD_OID:
+    #     fail('UnknownCurveError("Unknown field type: %s"' % field_type)
+    # prime, empty = der.remove_integer(rest)
+    # if empty:
+    #     fail('der.UnexpectedDER("Unexpected data after ECParameters.fieldID.Prime-p element"')
+
+    # # decode the ECParameters.curve sequence
+    # curve_a_bytes, rest = der.remove_octet_string(curve)
+    # curve_b_bytes, rest = der.remove_octet_string(rest)
+    # # seed can be defined here, but we don't parse it, so ignore `rest`
+
+    # curve_a = string_to_number(curve_a_bytes)
+    # curve_b = string_to_number(curve_b_bytes)
+
+    # curve_fp = ellipticcurve.CurveFp(prime, curve_a, curve_b, cofactor)
+
+    # # decode the ECParameters.base point
+
+    # base = ellipticcurve.PointJacobi.from_bytes(
+    #     curve_fp,
+    #     base_bytes,
+    #     valid_encodings=("uncompressed", "compressed", "hybrid"),
+    #     order=order,
+    #     generator=True,
+    # )
+    # tmp_curve = Curve("unknown", curve_fp, base, None)
+
+    # # if the curve matches one of the well-known ones, use the well-known
+    # # one in preference, as it will have the OID and name associated
+    # for i in curves:
+    #     if tmp_curve == i:
+    #         return i
+    # return tmp_curve
+
+
+curves = larky.struct(
+    Curve=Curve,
+    from_der=from_der
+)
