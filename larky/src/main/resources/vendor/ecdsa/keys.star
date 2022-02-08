@@ -1,8 +1,10 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@vendor//ecdsa/ecdsa", ecdsa="ecdsa")
-load("@vendor//ecdsa/der", der="der")
+load("@vendor//ecdsa/der", "der")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
+load("@vendor//ecdsa/util", string_to_number="string_to_number")
+load("@venfor//ecdsa/_compat", normalise_bytes="normalise_bytes", str_idx_as_int="str_idx_as_int")
 
 def VerifyingKey(_error__please_use_generate):
     """
@@ -357,6 +359,7 @@ def SigningKey(_error__please_use_generate):
                 b"\x00" * (curve.baselen - len(privkey_str)) + privkey_str
             )
         return self.from_string(privkey_str, curve, hashfunc)
+    self.from_der = from_der
 
     return self
 

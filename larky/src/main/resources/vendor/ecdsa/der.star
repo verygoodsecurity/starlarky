@@ -3,6 +3,9 @@ load("@stdlib//larky", larky="larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP
 load("@vendor//ecdsa/_compat", str_idx_as_int="str_idx_as_int")
 
 
+def is_sequence(string):
+    return string and string[:1] == b"\x30"
+
 def read_length(string):
     if not string:
         fail('UnexpectedDER("Empty string can\'t encode valid length value")')
@@ -23,6 +26,23 @@ def read_length(string):
         fail('UnexpectedDER("Not minimal encoding of length")')
     return int(hexlify(string[1 : 1 + llen]), 16), 1 + llen
 
+def read_number(string):
+    number = 0
+    llen = 0
+    if str_idx_as_int(string, 0) == 0x80:
+        fail('UnexpectedDER("Non minimal encoding of OID subidentifier")')
+    # base-128 big endian, with most significant bit set in all but the last
+    # byte
+    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        if llen >= len(string):
+            fail('UnexpectedDER("ran out of length bytes")')
+        number = number << 7
+        d = str_idx_as_int(string, llen)
+        number += d & 0x7F
+        llen += 1
+        if not d & 0x80:
+            break
+    return number, llen
 
 def remove_sequence(string):
     if not string:
@@ -125,9 +145,11 @@ def unpem(pem):
     return base64.b64decode(d)
 
 der = larky.struct(
+    is_sequence=is_sequence,
     remove_sequence=remove_sequence,
     remove_octet_string=remove_octet_string,
     remove_object=remove_object,
     remove_integer=remove_integer,
-    remove_constructed=remove_constructed
+    remove_constructed=remove_constructed,
+    unpem=unpem
 )
