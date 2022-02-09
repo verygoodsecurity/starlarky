@@ -4,10 +4,12 @@ load("@vendor//ecdsa/ecdsa", ecdsa="ecdsa")
 load("@vendor//ecdsa/der", "der")
 load("@vendor//ecdsa/curves", "curves")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
+load("@vendor//Crypto/Random/random", randrange="randrange")
 load("@vendor//ecdsa/util", string_to_number="string_to_number")
-load("@venfor//ecdsa/_compat", normalise_bytes="normalise_bytes", str_idx_as_int="str_idx_as_int")
+load("@vendor//ecdsa/ellipticcurve", ellipticcurve="ellipticcurve")
+load("@vendor//ecdsa/_compat", normalise_bytes="normalise_bytes", str_idx_as_int="str_idx_as_int")
 
-def VerifyingKey(_error__please_use_generate):
+def VerifyingKey(_error__please_use_generate=None):
     """
     Class for handling keys that can verify signatures (public keys).
     :ivar ecdsa.curves.Curve curve: The Curve over which all the cryptographic
@@ -31,7 +33,7 @@ def VerifyingKey(_error__please_use_generate):
     self = __init__(_error__please_use_generate)
 
     # @classmethod
-    def from_public_point(point, curve=NIST192p, hashfunc=sha1, validate_point=True):
+    def from_public_point(point, curve, hashfunc=SHA1, validate_point=True):
         """
         Initialise the object from a Point object.
         This is a low-level method, generally you will not want to use it.
@@ -53,11 +55,11 @@ def VerifyingKey(_error__please_use_generate):
         :rtype: VerifyingKey
         """
         # self = cls(_error__please_use_generate=True)
-        self = self.__class__(_error__please_use_generate=True)
+        self = __init__(True)
         # if isinstance(curve.curve, CurveEdTw):
         #     fail('ValueError("Method incompatible with Edwards curves")')
-        if not isinstance(point, ellipticcurve.PointJacobi):
-            point = ellipticcurve.PointJacobi.from_affine(point)
+        # if point.__class__ != ellipticcurve.PointJacobi:
+        #     point = ellipticcurve.PointJacobi.from_affine(point)
         self.curve = curve
         self.default_hashfunc = hashfunc
         # try:
@@ -74,7 +76,7 @@ def VerifyingKey(_error__please_use_generate):
     return self
 
 
-def SigningKey(_error__please_use_generate):
+def SigningKey(_error__please_use_generate=None):
     """
     Class for handling keys that can create signatures (private keys).
     :ivar ecdsa.curves.Curve curve: The Curve over which all the cryptographic
@@ -105,7 +107,7 @@ def SigningKey(_error__please_use_generate):
         return self.from_secret_exponent(secexp, curve, hashfunc)
     self._weierstrass_keygen = _weierstrass_keygen
 
-     def generate(curve=NIST192p, entropy=None, hashfunc=sha1):
+    def generate(curve, entropy=None, hashfunc=SHA1):
         """
         Generate a random private key.
         :param curve: The curve on which the point needs to reside, defaults
@@ -128,7 +130,7 @@ def SigningKey(_error__please_use_generate):
     self.generate = generate
     
     # @classmethod
-    def from_secret_exponent(secexp, curve=NIST192p, hashfunc=sha1):
+    def from_secret_exponent(secexp, curve, hashfunc=SHA1):
         """
         Create a private key from a random integer.
         Note: it's a low level method, it's recommended to use the
@@ -151,13 +153,13 @@ def SigningKey(_error__please_use_generate):
         # currently we implement ecdsa only for secp256k1 which uses weierstrass curve. 
         # if isinstance(curve.curve, CurveEdTw):
         #     fail('ValueError("Edwards keys don\'t support setting the secret scalar (exponent) directly")')
-        self = self.__class__(_error__please_use_generate=True)
+        self = __init__(True)
         self.curve = curve
         self.default_hashfunc = hashfunc
         self.baselen = curve.baselen
         n = curve.order
-        if not (1 <= secexp) and (secexp < n):
-            fail('MalformedPointError("Invalid value for secexp, expected integer between 1 and {0}"'.format(n))
+        if not (1 <= secexp and secexp < n):
+            fail('MalformedPointError("Invalid value for secexp, expected integer between 1 and %s"' % n)
         pubkey_point = curve.generator * secexp
         if hasattr(pubkey_point, "scale"):
             pubkey_point = pubkey_point.scale()
@@ -171,7 +173,7 @@ def SigningKey(_error__please_use_generate):
     self.from_secret_exponent = from_secret_exponent
 
     #  @classmethod
-    def from_string(cls, string, curve=NIST192p, hashfunc=sha1):
+    def from_string(string, curve, hashfunc=SHA1):
         """
         Decode the private key from :term:`raw encoding`.
         Note: the name of this method is a misnomer coming from days of
@@ -211,7 +213,7 @@ def SigningKey(_error__please_use_generate):
     self.from_string = from_string
 
     # @classmethod
-    def from_der(string, hashfunc=sha1, valid_curve_encodings=None):
+    def from_der(string, hashfunc=SHA1, valid_curve_encodings=None):
         """
         Initialise from key stored in :term:`DER` format.
         The DER formats supported are the un-encrypted RFC5915
@@ -333,7 +335,7 @@ def SigningKey(_error__please_use_generate):
 
         # The version of the ECPrivateKey must be 1.
         if version != 1:
-            fail('der.UnexpectedDER("expected version '1' at start of DER privkey, got %d")' % version)
+            fail('der.UnexpectedDER("expected version 1 at start of DER privkey, got %d")' % version)
 
         privkey_str, s = der.remove_octet_string(s)
 
@@ -368,5 +370,5 @@ def SigningKey(_error__please_use_generate):
 
 keys = larky.struct(
     SigningKey=SigningKey,
-    VerifyingKey=VerifyingKey,
+    VerifyingKey=VerifyingKey
 )

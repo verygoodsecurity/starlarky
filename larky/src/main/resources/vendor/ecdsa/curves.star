@@ -1,6 +1,9 @@
 load("@stdlib//larky", larky="larky")
 load("@vendor//ecdsa/ecdsa", ecdsa="ecdsa")
-load("@venfor//ecdsa/_compat", normalise_bytes="normalise_bytes")
+load("@vendor//ecdsa/util", orderlen="orderlen")
+load("@vendor//ecdsa/der", "der")
+load("@stdlib//sets", Set="Set")
+load("@vendor//ecdsa/_compat", normalise_bytes="normalise_bytes")
 
 
 PRIME_FIELD_OID = (1, 2, 840, 10045, 1, 1)
@@ -69,10 +72,13 @@ curves = [
 ]
 
 def find_curve(oid_curve):
-    for c in curves:
-        if c.oid == oid_curve:
-            return c
-    fail('UnknownCurveError("I don\'t know about the curve with oid %s. I only know about these: %s"' % (oid_curve, [c.name for c in curves]))
+    # for idx in range(len(curves)):
+    #     c = curves[idx]
+    #     if c.oid == oid_curve:
+    #         return c
+    if oid_curve == (1, 3, 132, 0, 10):
+        return SECP256k1
+    fail('UnknownCurveError("I don\'t know about the curve with oid %s. I only know about these: %s"' % (oid_curve, SECP256k1.name))
 
 # @staticmethod
 def from_der(data, valid_encodings=None):
@@ -85,9 +91,9 @@ def from_der(data, valid_encodings=None):
     :type valid_encodings: :term:`set-like object`
     """
     if not valid_encodings:
-        valid_encodings = set(("named_curve", "explicit"))
-    if not all(i in ["named_curve", "explicit"] for i in valid_encodings):
-        fail('ValueError("Only named_curve and explicit encodings supported")')
+        valid_encodings = Set(("named_curve", "explicit"))
+    # if not all(i in ["named_curve", "explicit"] for i in valid_encodings):
+    #     fail('ValueError("Only named_curve and explicit encodings supported")')
     # To do: cast the input into array of bytes
     data = normalise_bytes(data)
     if not der.is_sequence(data):
