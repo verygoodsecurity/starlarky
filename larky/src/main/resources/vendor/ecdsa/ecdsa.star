@@ -1,6 +1,16 @@
 load("@stdlib//larky", larky="larky")
 load("@vendor//ecdsa/ellipticcurve", ellipticcurve="ellipticcurve")
 
+def Signature(r, s):
+    """ECDSA signature."""
+    self = larky.mutablestruct(__class__ = Signature, __name__ = "Signature")
+    def __init__(r, s):
+        self.r = r
+        self.s = s
+        return self
+    self = __init__(r, s)
+    return self
+
 
 def Public_key(generator, point, verify=True):
     """Public key for ECDSA."""
@@ -56,6 +66,44 @@ def Private_key(public_key, secret_multiplier):
         self.secret_multiplier = secret_multiplier
         return self
     self = __init__(public_key, secret_multiplier)
+
+    def sign(hash, random_k):
+        """Return a signature for the provided hash, using the provided
+        random nonce.  It is absolutely vital that random_k be an unpredictable
+        number in the range [1, self.public_key.point.order()-1].  If
+        an attacker can guess random_k, he can compute our private key from a
+        single signature.  Also, if an attacker knows a few high-order
+        bits (or a few low-order bits) of random_k, he can compute our private
+        key from many signatures.  The generation of nonces with adequate
+        cryptographic strength is very difficult and far beyond the scope
+        of this comment.
+        May raise RuntimeError, in which case retrying with a new
+        random value k is in order.
+        """
+
+        G = self.public_key.generator
+        n = G.order()
+        k = random_k % n
+        # Fix the bit-length of the random nonce,
+        # so that it doesn't leak via timing.
+        # This does not change that ks = k mod n
+        ks = k + n
+        kt = ks + n
+        if bit_length(ks) == bit_length(n):
+            p1 = kt * G
+        else:
+            p1 = ks * G
+        r = p1.x() % n
+        if r == 0:
+            fail('RSZeroError("amazingly unlucky random number r")')
+        s = (
+            numbertheory.inverse_mod(k, n)
+            * (hash + (self.secret_multiplier * r) % n)
+        ) % n
+        if s == 0:
+            fail('RSZeroError("amazingly unlucky random number s")')
+        return Signature(r, s)
+    self.sign = sign
 
     return self
 

@@ -5,9 +5,39 @@ load("@vendor//ecdsa/der", "der")
 load("@vendor//ecdsa/curves", "curves")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/Random/random", randrange="randrange")
-load("@vendor//ecdsa/util", string_to_number="string_to_number")
+load("@vendor//ecdsa/util", string_to_number="string_to_number", bit_length="bit_length")
 load("@vendor//ecdsa/ellipticcurve", ellipticcurve="ellipticcurve")
 load("@vendor//ecdsa/_compat", normalise_bytes="normalise_bytes", str_idx_as_int="str_idx_as_int")
+
+def _truncate_and_convert_digest(digest, curve, allow_truncate):
+    """Truncates and converts digest to an integer."""
+    if not allow_truncate:
+        if len(digest) > curve.baselen:
+            fail("BadDigestError(
+                "this curve ({0}) is too short for the length of your digest ({1})".format(
+                    curve.name, 8 * len(digest)
+                )
+            )
+    else:
+        digest = digest[: curve.baselen]
+    number = string_to_number(digest)
+    if allow_truncate:
+        max_length = bit_length(curve.order)
+        # we don't use bit_length(number) as that truncates leading zeros
+        length = len(digest) * 8
+
+        # See NIST FIPS 186-4:
+        #
+        # When the length of the output of the hash function is greater
+        # than N (i.e., the bit length of q), then the leftmost N bits of
+        # the hash function output block shall be used in any calculation
+        # using the hash function output during the generation or
+        # verification of a digital signature.
+        #
+        # as such, we need to shift-out the low-order bits:
+        number >>= max(0, length - max_length)
+
+    return number
 
 def VerifyingKey(_error__please_use_generate=None):
     """
@@ -364,6 +394,223 @@ def SigningKey(_error__please_use_generate=None):
             )
         return self.from_string(privkey_str, curve, hashfunc)
     self.from_der = from_der
+
+    def sign_deterministic(
+        data,
+        hashfunc=None,
+        sigencode=sigencode_string,
+        extra_entropy=b"",
+    ):
+        """
+        Create signature over data.
+        For Weierstrass curves it uses the deterministic RFC6979 algorithm.
+        For Edwards curves it uses the standard EdDSA algorithm.
+        For ECDSA the data will be hashed using the `hashfunc` function before
+        signing.
+        For EdDSA the data will be hashed with the hash associated with the
+        curve (SHA-512 for Ed25519 and SHAKE-256 for Ed448).
+        This is the recommended method for performing signatures when hashing
+        of data is necessary.
+        :param data: data to be hashed and computed signature over
+        :type data: bytes like object
+        :param hashfunc: hash function to use for computing the signature,
+            if unspecified, the default hash function selected during
+            object initialisation will be used (see
+            `VerifyingKey.default_hashfunc`). The object needs to implement
+            the same interface as hashlib.sha1.
+            Ignored with EdDSA.
+        :type hashfunc: callable
+        :param sigencode: function used to encode the signature.
+            The function needs to accept three parameters: the two integers
+            that are the signature and the order of the curve over which the
+            signature was computed. It needs to return an encoded signature.
+            See `ecdsa.util.sigencode_string` and `ecdsa.util.sigencode_der`
+            as examples of such functions.
+            Ignored with EdDSA.
+        :type sigencode: callable
+        :param extra_entropy: additional data that will be fed into the random
+            number generator used in the RFC6979 process. Entirely optional.
+            Ignored with EdDSA.
+        :type extra_entropy: bytes like object
+        :return: encoded signature over `data`
+        :rtype: bytes or sigencode function dependent type
+        """
+        hashfunc = hashfunc or self.default_hashfunc
+        data = normalise_bytes(data)
+
+        # if isinstance(self.curve.curve, CurveEdTw):
+        #     return self.privkey.sign(data)
+
+        extra_entropy = normalise_bytes(extra_entropy)
+        digest = hashfunc(data).digest()
+
+        return self.sign_digest_deterministic(
+            digest,
+            hashfunc=hashfunc,
+            sigencode=sigencode,
+            extra_entropy=extra_entropy,
+            allow_truncate=True,
+        )
+    self.sign_deterministic = sign_deterministic
+
+    def sign_digest_deterministic(
+        digest,
+        hashfunc=None,
+        sigencode=sigencode_string,
+        extra_entropy=b"",
+        allow_truncate=False,
+    ):
+        """
+        Create signature for digest using the deterministic RFC6979 algorithm.
+        `digest` should be the output of cryptographically secure hash function
+        like SHA256 or SHA-3-256.
+        This is the recommended method for performing signatures when no
+        hashing of data is necessary.
+        :param digest: hash of data that will be signed
+        :type digest: bytes like object
+        :param hashfunc: hash function to use for computing the random "k"
+            value from RFC6979 process,
+            if unspecified, the default hash function selected during
+            object initialisation will be used (see
+            `VerifyingKey.default_hashfunc`). The object needs to implement
+            the same interface as hashlib.sha1.
+        :type hashfunc: callable
+        :param sigencode: function used to encode the signature.
+            The function needs to accept three parameters: the two integers
+            that are the signature and the order of the curve over which the
+            signature was computed. It needs to return an encoded signature.
+            See `ecdsa.util.sigencode_string` and `ecdsa.util.sigencode_der`
+            as examples of such functions.
+        :type sigencode: callable
+        :param extra_entropy: additional data that will be fed into the random
+            number generator used in the RFC6979 process. Entirely optional.
+        :type extra_entropy: bytes like object
+        :param bool allow_truncate: if True, the provided digest can have
+            bigger bit-size than the order of the curve, the extra bits (at
+            the end of the digest) will be truncated. Use it when signing
+            SHA-384 output using NIST256p or in similar situations.
+        :return: encoded signature for the `digest` hash
+        :rtype: bytes or sigencode function dependent type
+        """
+        # if isinstance(self.curve.curve, CurveEdTw):
+        #     raise ValueError("Method unsupported for Edwards curves")
+        secexp = self.privkey.secret_multiplier
+        hashfunc = hashfunc or self.default_hashfunc
+        digest = normalise_bytes(digest)
+        extra_entropy = normalise_bytes(extra_entropy)
+
+        def simple_r_s(r, s, order):
+            return r, s, order
+
+        retry_gen = 0
+        # TODO
+        # while True:
+        k = rfc6979.generate_k(
+            self.curve.generator.order(),
+            secexp,
+            hashfunc,
+            digest,
+            retry_gen=retry_gen,
+            extra_entropy=extra_entropy,
+        )
+            # try:
+        r, s, order = self.sign_digest(
+            digest,
+            sigencode=simple_r_s,
+            k=k,
+            allow_truncate=allow_truncate,
+        )
+            #     break
+            # except RSZeroError:
+            #     retry_gen += 1
+
+        return sigencode(r, s, order)
+    self.sign_digest_deterministic = sign_digest_deterministic
+
+    def sign_digest(
+        digest,
+        entropy=None,
+        sigencode=sigencode_string,
+        k=None,
+        allow_truncate=False,
+    ):
+        """
+        Create signature over digest using the probabilistic ECDSA algorithm.
+        This method uses the standard ECDSA algorithm that requires a
+        cryptographically secure random number generator.
+        This method does not hash the input.
+        It's recommended to use the
+        :func:`~SigningKey.sign_digest_deterministic` method
+        instead of this one.
+        :param digest: hash value that will be signed
+        :type digest: bytes like object
+        :param callable entropy: randomness source, os.urandom by default
+        :param sigencode: function used to encode the signature.
+            The function needs to accept three parameters: the two integers
+            that are the signature and the order of the curve over which the
+            signature was computed. It needs to return an encoded signature.
+            See `ecdsa.util.sigencode_string` and `ecdsa.util.sigencode_der`
+            as examples of such functions.
+        :type sigencode: callable
+        :param int k: a pre-selected nonce for calculating the signature.
+            In typical use cases, it should be set to None (the default) to
+            allow its generation from an entropy source.
+        :param bool allow_truncate: if True, the provided digest can have
+            bigger bit-size than the order of the curve, the extra bits (at
+            the end of the digest) will be truncated. Use it when signing
+            SHA-384 output using NIST256p or in similar situations.
+        :raises RSZeroError: in the unlikely event when "r" parameter or
+            "s" parameter of the created signature is equal 0, as that would
+            leak the key. Caller should try a better entropy source, retry with
+            different 'k', or use the
+            :func:`~SigningKey.sign_digest_deterministic` in such case.
+        :return: encoded signature for the `digest` hash
+        :rtype: bytes or sigencode function dependent type
+        """
+        # if isinstance(self.curve.curve, CurveEdTw):
+        #     raise ValueError("Method unsupported for Edwards curves")
+        digest = normalise_bytes(digest)
+        number = _truncate_and_convert_digest(
+            digest, self.curve, allow_truncate,
+        )
+        r, s = self.sign_number(number, entropy, k)
+        return sigencode(r, s, self.privkey.order)
+    self.sign_digest = sign_digest
+
+    def sign_number(number, entropy=None, k=None):
+        """
+        Sign an integer directly.
+        Note, this is a low level method, usually you will want to use
+        :func:`~SigningKey.sign_deterministic` or
+        :func:`~SigningKey.sign_digest_deterministic`.
+        :param int number: number to sign using the probabilistic ECDSA
+            algorithm.
+        :param callable entropy: entropy source, os.urandom by default
+        :param int k: pre-selected nonce for signature operation. If unset
+            it will be selected at random using the entropy source.
+        :raises RSZeroError: in the unlikely event when "r" parameter or
+            "s" parameter of the created signature is equal 0, as that would
+            leak the key. Caller should try a better entropy source, retry with
+            different 'k', or use the
+            :func:`~SigningKey.sign_digest_deterministic` in such case.
+        :return: the "r" and "s" parameters of the signature
+        :rtype: tuple of ints
+        # """
+        # if isinstance(self.curve.curve, CurveEdTw):
+        #     raise ValueError("Method unsupported for Edwards curves")
+        order = self.privkey.order
+
+        if k != None:
+            _k = k
+        else:
+            _k = randrange(order, entropy)
+
+        # assert 1 <= _k < order
+        if (_k >= 1) and (_k < order):
+            fail('AssertError()')
+        sig = self.privkey.sign(number, _k)
+        return sig.r, sig.s
+    self.sign_number = sign_number
 
     return self
 

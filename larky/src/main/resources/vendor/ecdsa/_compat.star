@@ -5,6 +5,9 @@ load("@stdlib//types", types="types")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//builtins", "builtins")
 
+def hmac_compat(data):
+    return data
+
 def normalise_bytes(buffer_object):
     """Cast the input into array of bytes."""
     # return memoryview(buffer_object).cast("B")
@@ -19,6 +22,7 @@ def str_idx_as_int(string, index):
 
 _compat=larky.struct(
     normalise_bytes=normalise_bytes,
-    str_idx_as_int=str_idx_as_int
+    str_idx_as_int=str_idx_as_int,
+    hmac_compat=hmac_compat
 )
 
