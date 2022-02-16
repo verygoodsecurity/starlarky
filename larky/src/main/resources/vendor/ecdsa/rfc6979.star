@@ -1,5 +1,6 @@
 load("@stdlib//larky", larky="larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION")
 load("@stdlib//binascii", hexlify="hexlify")
+load("@vendor//Crypto/Hash/HMAC", hmac="HMAC")
 load("@vendor//ecdsa/_compat", hmac_compat="hmac_compat")
 load("@vendor//ecdsa/util", number_to_string="number_to_string", number_to_string_crop="number_to_string_crop", bit_length="bit_length")
 
@@ -84,7 +85,7 @@ def generate_k(order, secexp, hash_func, data, retry_gen=0, extra_entropy=b""):
         # Step H3
         secret = bits2int(t, qlen)
 
-        if 1 <= secret < order:
+        if (secret >= 1) and (secret < order):
             if retry_gen <= 0:
                 return secret
             retry_gen -= 1

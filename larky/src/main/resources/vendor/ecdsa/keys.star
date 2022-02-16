@@ -3,9 +3,10 @@ load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@vendor//ecdsa/ecdsa", ecdsa="ecdsa")
 load("@vendor//ecdsa/der", "der")
 load("@vendor//ecdsa/curves", "curves")
+load("@vendor//ecdsa/rfc6979", "rfc6979")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/Random/random", randrange="randrange")
-load("@vendor//ecdsa/util", string_to_number="string_to_number", bit_length="bit_length")
+load("@vendor//ecdsa/util", string_to_number="string_to_number", bit_length="bit_length", sigencode_string="sigencode_string")
 load("@vendor//ecdsa/ellipticcurve", ellipticcurve="ellipticcurve")
 load("@vendor//ecdsa/_compat", normalise_bytes="normalise_bytes", str_idx_as_int="str_idx_as_int")
 
@@ -13,11 +14,7 @@ def _truncate_and_convert_digest(digest, curve, allow_truncate):
     """Truncates and converts digest to an integer."""
     if not allow_truncate:
         if len(digest) > curve.baselen:
-            fail("BadDigestError(
-                "this curve ({0}) is too short for the length of your digest ({1})".format(
-                    curve.name, 8 * len(digest)
-                )
-            )
+            fail("BadDigestError(this curve %s is too short for the length of your digest %d)" % (curve.name, 8 * len(digest)))
     else:
         digest = digest[: curve.baselen]
     number = string_to_number(digest)

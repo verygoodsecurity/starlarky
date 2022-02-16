@@ -1,5 +1,7 @@
 load("@stdlib//larky", larky="larky")
 load("@vendor//ecdsa/ellipticcurve", ellipticcurve="ellipticcurve")
+load("@vendor//ecdsa/util", bit_length="bit_length")
+load("@vendor//ecdsa/numbertheory", numbertheory="numbertheory")
 
 def Signature(r, s):
     """ECDSA signature."""
