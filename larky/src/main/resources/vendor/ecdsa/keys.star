@@ -187,6 +187,7 @@ def SigningKey(_error__please_use_generate=None):
         n = curve.order
         if not (1 <= secexp and secexp < n):
             fail('MalformedPointError("Invalid value for secexp, expected integer between 1 and %s"' % n)
+        # Frozen struct err occurs
         pubkey_point = curve.generator * secexp
         if hasattr(pubkey_point, "scale"):
             pubkey_point = pubkey_point.scale()
