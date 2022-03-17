@@ -137,7 +137,7 @@ jobs:
       - run:
           name: Maven Build/Test
           command: |
-            mvn clean install -Dtest=!LarkyQuickTests dependency:go-offline -T 2.0C -B
+            mvn clean install -Dtest=!LarkyQuickTests -DfailIfNoTests=false dependency:go-offline -T 2.0C -B
       - <<: *save-maven-cache
       - run: find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
       - run: find . -type f -regex ".*/target/surefire-reports/.*-output.txt" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
@@ -160,7 +160,7 @@ jobs:
       - run:
           name: Maven Build/Test
           command: |
-            mvn clean install -Dtest=LarkyQuickTests dependency:go-offline -T 2.0C -B
+            mvn clean install -pl larky -Dtest=LarkyQuickTests dependency:go-offline -T 2.0C -B
       - <<: *save-maven-cache
       - run: find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
       - run: find . -type f -regex ".*/target/surefire-reports/.*-output.txt" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
