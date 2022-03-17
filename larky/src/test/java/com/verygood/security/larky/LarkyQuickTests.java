@@ -1,7 +1,5 @@
 package com.verygood.security.larky;
 
-import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
-
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 
@@ -30,11 +28,15 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
+
 
 public class LarkyQuickTests {
+
   private static final String PROPERTY_NAME = "larky.quick_test";
   private static final Path QUICK_TEST_DIR = Paths.get(
-      "src","test", "resources", "quick_tests"
+//      "src", "test", "resources", "quick_tests"
+      "..", "examples"
   );
   private static final TestingConsole console = new TestingConsole();
 
@@ -64,7 +66,7 @@ public class LarkyQuickTests {
           .filter(f -> {
             String fileName = f.getFileName().toString();
 
-            if(!Strings.isNullOrEmpty(singleTestDesired)) {
+            if (!Strings.isNullOrEmpty(singleTestDesired)) {
               return fileName.equals(singleTestDesired);
             }
 
