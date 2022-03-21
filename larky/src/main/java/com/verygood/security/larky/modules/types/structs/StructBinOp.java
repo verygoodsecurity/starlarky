@@ -25,7 +25,6 @@ import static net.starlark.java.syntax.TokenKind.STAR_EQUALS;
 import static net.starlark.java.syntax.TokenKind.STAR_STAR;
 
 import com.google.common.collect.ImmutableList;
-
 import com.verygood.security.larky.modules.types.LarkyIterator;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.parser.StarlarkUtil;
@@ -53,6 +52,7 @@ public class StructBinOp {
    * or __contains__, etc.) and we expect various operations to work on that object, which is why we want to enable
    * binaryOp on SimpleStruct.
    */
+
   public static Object __contains__(SimpleStruct lhs, TokenKind op, Object rhs, boolean thisLeft) throws EvalException {
     // is this (thisLeft = true) "is this in that?" or (thisLeft = false) "is that in this?"
     // first, check to see if __contains__ exists?

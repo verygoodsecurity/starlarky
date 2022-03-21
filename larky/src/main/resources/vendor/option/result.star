@@ -538,16 +538,16 @@ def try_(func):
             return
         # at this point, we have an invalid state transition
         # (wrong try/except/else/finally order!)
-        _current_state = _enum.reverse_mapping[self._current_state]
+        _current_state = _enum._value2member_map_[self._current_state]
         _valid_transitions = ", ".join([
-            "%s => %s" % (_current_state, _enum.reverse_mapping[i])
+            "%s => %s" % (_current_state, _enum._value2member_map_[i])
             for i in _state[self._current_state]
         ])
         fail(("Invalid state transition: %s => %s. " +
               "The try builder was constructed in the wrong order. " +
               "The next valid state transitions allowed are: %s")% (
             _current_state,
-            _enum.reverse_mapping[next_state],
+            _enum._value2member_map_[next_state],
             _valid_transitions,
         ))
 
@@ -575,7 +575,8 @@ def try_(func):
     def build(*args, **kwargs):
         _assert_valid_transition(_enum.BUILD)
         self._current_state = _enum.BUILD
-        rval = safe(self._attempt)(*args, **kwargs)
+        result_func = Result.Ok(self._attempt)
+        rval = result_func.map(lambda func: func(*args, **kwargs))
         if rval.is_err and self._exc:
             for e in self._exc:
                 rval = rval.map_err(e)

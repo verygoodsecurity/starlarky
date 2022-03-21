@@ -18,15 +18,43 @@ import net.starlark.java.annot.StarlarkMethod;
 
 import org.bouncycastle.crypto.ExtendedDigest;
 import org.bouncycastle.crypto.digests.Blake2sDigest;
+import org.bouncycastle.crypto.digests.Blake2bDigest;
 import org.bouncycastle.crypto.digests.GeneralDigest;
 import org.bouncycastle.crypto.digests.LongDigest;
 import org.bouncycastle.crypto.digests.SHAKEDigest;
 import org.bouncycastle.crypto.digests.KeccakDigest;
 import org.bouncycastle.crypto.util.DigestFactory;
+import org.bouncycastle.crypto.digests.MD2Digest;
+import org.bouncycastle.crypto.digests.MD4Digest;
+import org.bouncycastle.crypto.digests.RIPEMD160Digest;
 
 public class CryptoHashModule implements StarlarkValue {
 
   public static final CryptoHashModule INSTANCE = new CryptoHashModule();
+
+  @StarlarkMethod(name = "MD2")
+  public LarkyDigest MD2() {
+    MD2Digest digest = new MD2Digest();
+    
+    return new LarkyDigest() {
+      @Override
+      public ExtendedDigest getDigest() {
+        return digest;
+      }
+    };
+  }
+
+  @StarlarkMethod(name = "MD4")
+  public LarkyDigest MD4() {
+    MD4Digest digest = new MD4Digest();
+    
+    return new LarkyDigest() {
+      @Override
+      public ExtendedDigest getDigest() {
+        return digest;
+      }
+    };
+  }
 
   @StarlarkMethod(name = "MD5")
   public LarkyGeneralDigest MD5() {
@@ -87,17 +115,39 @@ public class CryptoHashModule implements StarlarkValue {
     return new LarkyKeccakDigest(new KeccakDigest(digest_bits.toIntUnchecked()));
   }
 
+  @StarlarkMethod(name = "SHA3_224")
+  public LarkyKeccakDigest SHA3_224() {
+    KeccakDigest digest = (KeccakDigest) DigestFactory.createSHA3_224();
+    return new LarkyKeccakDigest(digest);
+  }
+
   @StarlarkMethod(name = "SHA3_256")
   public LarkyKeccakDigest SHA3_256() {
     KeccakDigest digest = (KeccakDigest) DigestFactory.createSHA3_256();
     return new LarkyKeccakDigest(digest);
   }
 
-  @StarlarkMethod(name = "SHAKE128", parameters = {
+  @StarlarkMethod(name = "SHA3_384")
+  public LarkyKeccakDigest SHA3_384() {
+    KeccakDigest digest = (KeccakDigest) DigestFactory.createSHA3_384();
+    return new LarkyKeccakDigest(digest);
+  }
+
+  @StarlarkMethod(name = "SHA3_512")
+  public LarkyKeccakDigest SHA3_512() {
+    KeccakDigest digest = (KeccakDigest) DigestFactory.createSHA3_512();
+    return new LarkyKeccakDigest(digest);
+  }
+
+  @StarlarkMethod(name = "SHAKE", parameters = {
       @Param(name = "bit_length", allowedTypes = {@ParamType(type = StarlarkInt.class)},
           defaultValue = "128"),
   })
-  public LarkyXofDigest<?> SHAKE128(StarlarkInt bitLength) {
+  public LarkyXofDigest<?> SHAKE(StarlarkInt bitLength) throws EvalException {
+    int length = bitLength.toIntUnchecked();
+    if (length != 128 && length != 256){
+      throw Starlark.errorf("Incorrect bits length. It must be 128 or 256.");
+    }
     SHAKEDigest digest = new SHAKEDigest(bitLength.toIntUnchecked());
     return new LarkyXofDigest<>(digest);
   }
@@ -129,4 +179,43 @@ public class CryptoHashModule implements StarlarkValue {
       }
     };
   }
+
+  @StarlarkMethod(name = "BLAKE2B", parameters = {
+    @Param(name = "digest_bytes",
+        allowedTypes = {@ParamType(type = StarlarkInt.class)},
+        defaultValue = "64"),
+    @Param(name = "key",
+        allowedTypes = {@ParamType(type = StarlarkBytes.class), @ParamType(type = NoneType.class)},
+        defaultValue = "None"),
+  })
+  public LarkyDigest BLAKE2B(StarlarkInt digestBytes, Object keyO) {
+    byte[] key = Starlark.isNullOrNone(keyO) ? null : ((StarlarkBytes) keyO).toByteArray();
+    Blake2bDigest digest;
+    if(key != null) {
+      digest = new Blake2bDigest(key, digestBytes.toIntUnchecked(), null, null);
+    }
+    else {
+      digest = new Blake2bDigest(digestBytes.toIntUnchecked() * Byte.SIZE);
+    }
+
+    return new LarkyDigest(){
+      @Override
+      public ExtendedDigest getDigest() {
+        return digest;
+      }
+    };
+  }
+
+@StarlarkMethod(name = "RIPEMD160")
+public LarkyDigest RIPEMD160(){
+    RIPEMD160Digest digest = new RIPEMD160Digest();
+      
+    return new LarkyDigest(){
+      @Override
+      public ExtendedDigest getDigest() {
+        return digest;
+      }
+    };
+  }
+
 }

@@ -35,8 +35,8 @@
         <org.projectlombok.version>1.18.22</org.projectlombok.version>
         <apache.commons-text.version>1.9</apache.commons-text.version>
         <google.re2j.version>1.6</google.re2j.version>
-        <google.flogger.version>0.7.1</google.flogger.version>
-        <org.bouncycastle.version>1.69</org.bouncycastle.version>
+        <google.flogger.version>0.7.2</google.flogger.version>
+        <org.bouncycastle.version>1.70</org.bouncycastle.version>
         <org.junit.version>4.13.2</org.junit.version>
         <google.errorprone.version>2.9.0</google.errorprone.version>
         <google.crypto.tink>1.6.1</google.crypto.tink>
@@ -244,6 +244,13 @@
                 <configuration>
                     <fork>true</fork>
                     <debug>false</debug>
+<!--                    uncomment this if building under jdk11 -->
+<!--                    <compilerArgs>-->
+<!--                        <arg>&#45;&#45;add-modules</arg>-->
+<!--                        <arg>ALL-SYSTEM</arg>-->
+<!--                        <arg>&#45;&#45;add-exports</arg>-->
+<!--                        <arg>java.base/sun.security.x509=ALL-UNNAMED</arg>-->
+<!--                    </compilerArgs>-->
                     <showWarnings>true</showWarnings>
                     <failOnWarning>false</failOnWarning>
                     <showDeprecation>true</showDeprecation>
