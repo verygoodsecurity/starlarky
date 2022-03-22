@@ -29,7 +29,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 // A trivial struct-like class with Starlark fields defined by a map.
-public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIterable<Object>, StarlarkIndexable, HasBinary, Comparable<Object> {
+public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIterable<Object>, HasBinary, Comparable<Object> {
 
   final Map<String, Object> fields;
   final StarlarkThread currentThread;
@@ -140,7 +140,7 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
     boolean result;
     try {
       result = StructBinOp.richComparison(
-        this, obj, PyProtocols.__EQ__, PyProtocols.__NE__, this.getCurrentThread()
+          this, obj, PyProtocols.__EQ__, PyProtocols.__NE__, this.getCurrentThread()
       );
     } catch (EvalException e) {
       result = false;
@@ -172,7 +172,7 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
     final Object result = StructBinOp.operatorDispatch(this, TokenKind.IN, key, false, starlarkThread);
     if(result == null) {
       throw Starlark.errorf(
-              "unsupported binary operation: %s %s %s", Starlark.type(key), TokenKind.IN, type());
+          "unsupported binary operation: %s %s %s", Starlark.type(key), TokenKind.IN, type());
     }
     return (boolean) result;
   }
@@ -205,67 +205,12 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
   }
 
   private static final TokenKind[] COMPARE_OPNAMES = new TokenKind[]{
-    TokenKind.LESS,
-    TokenKind.LESS_EQUALS,
-    TokenKind.EQUALS_EQUALS,
-    TokenKind.NOT_EQUALS,
-    TokenKind.GREATER,
-    TokenKind.GREATER_EQUALS
-  };
-
-  @Override
-  public int compareTo(@NotNull Object o) {
-    SimpleStruct other = (SimpleStruct) o;
-
-    try {
-      callable = getField(PyProtocols.__CALL__);
-    } catch (EvalException ex) {
-      throw new RuntimeException(ex);
-    }
-    StringBuilder name = new StringBuilder(type());
-    if (callable instanceof StarlarkCallable) {
-      name.append(".").append(((StarlarkCallable)callable).getName());
-    } else if (callable != null) {
-      name.append(".")
-        .append("__call__<type: ")
-        .append(StarlarkUtil.richType(callable))
-        .append(", value=")
-        .append(Starlark.str(callable))
-        .append(">");
-      
-      final boolean lt = (Boolean) StructBinOp.operatorDispatch(
-        this,
-        TokenKind.LESS,
-        other,
-        true,
-        this.getCurrentThread()
-      );
-      if (lt) {
-        return -1;
-      }
-      final boolean gt = (boolean) StructBinOp.operatorDispatch(
-        this,
-        TokenKind.GREATER,
-        other,
-        true,
-        this.getCurrentThread()
-      );
-      if (gt) {
-        return 1;
-      }
-    } catch (EvalException e) {
-      throw new RuntimeException(e);
-    }
-    return 0;
-  }
-
-  private static final TokenKind[] COMPARE_OPNAMES = new TokenKind[]{
-    TokenKind.LESS,
-    TokenKind.LESS_EQUALS,
-    TokenKind.EQUALS_EQUALS,
-    TokenKind.NOT_EQUALS,
-    TokenKind.GREATER,
-    TokenKind.GREATER_EQUALS
+      TokenKind.LESS,
+      TokenKind.LESS_EQUALS,
+      TokenKind.EQUALS_EQUALS,
+      TokenKind.NOT_EQUALS,
+      TokenKind.GREATER,
+      TokenKind.GREATER_EQUALS
   };
 
   @Override
@@ -274,21 +219,21 @@ public class SimpleStruct implements LarkyObject, StarlarkCallable, StarlarkIter
 
     try {
       final boolean lt = (Boolean) StructBinOp.operatorDispatch(
-        this,
-        TokenKind.LESS,
-        other,
-        true,
-        this.getCurrentThread()
+          this,
+          TokenKind.LESS,
+          other,
+          true,
+          this.getCurrentThread()
       );
       if (lt) {
         return -1;
       }
       final boolean gt = (boolean) StructBinOp.operatorDispatch(
-        this,
-        TokenKind.GREATER,
-        other,
-        true,
-        this.getCurrentThread()
+          this,
+          TokenKind.GREATER,
+          other,
+          true,
+          this.getCurrentThread()
       );
       if (gt) {
         return 1;
