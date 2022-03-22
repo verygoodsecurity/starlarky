@@ -140,7 +140,7 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
     boolean result;
     try {
       result = StructBinOp.richComparison(
-        this, obj, PyProtocols.__EQ__, PyProtocols.__NE__, this.getCurrentThread()
+          this, obj, PyProtocols.__EQ__, PyProtocols.__NE__, this.getCurrentThread()
       );
     } catch (EvalException e) {
       result = false;
@@ -172,7 +172,7 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
     final Object result = StructBinOp.operatorDispatch(this, TokenKind.IN, key, false, starlarkThread);
     if(result == null) {
       throw Starlark.errorf(
-              "unsupported binary operation: %s %s %s", Starlark.type(key), TokenKind.IN, type());
+          "unsupported binary operation: %s %s %s", Starlark.type(key), TokenKind.IN, type());
     }
     return (boolean) result;
   }
@@ -259,21 +259,21 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
 
     try {
       final boolean lt = (Boolean) StructBinOp.operatorDispatch(
-        this,
-        TokenKind.LESS,
-        other,
-        true,
-        this.getCurrentThread()
+          this,
+          TokenKind.LESS,
+          other,
+          true,
+          this.getCurrentThread()
       );
       if (lt) {
         return -1;
       }
       final boolean gt = (boolean) StructBinOp.operatorDispatch(
-        this,
-        TokenKind.GREATER,
-        other,
-        true,
-        this.getCurrentThread()
+          this,
+          TokenKind.GREATER,
+          other,
+          true,
+          this.getCurrentThread()
       );
       if (gt) {
         return 1;
