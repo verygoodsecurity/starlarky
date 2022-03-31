@@ -13,7 +13,6 @@
 // limitations under the License.
 package net.starlark.java.eval;
 
-import com.google.common.base.Strings;
 import java.util.IllegalFormatException;
 import net.starlark.java.syntax.TokenKind;
 
@@ -126,6 +125,11 @@ final class EvalUtils {
           if (y instanceof StarlarkInt) {
             // int | int
             return StarlarkInt.or((StarlarkInt) x, (StarlarkInt) y);
+          }
+        } else if (x instanceof Dict) {
+          if (y instanceof Dict) {
+            // dict | dict
+            return Dict.builder().putAll((Dict<?, ?>) x).putAll((Dict<?, ?>) y).build(mu);
           }
         }
         break;
@@ -394,11 +398,10 @@ final class EvalUtils {
     if (n <= 0) {
       return "";
     } else if ((long) s.length() * (long) n > Integer.MAX_VALUE) {
-      // Would exceed max length of a java String (and would cause an undocumented
-      // ArrayIndexOutOfBoundsException to be thrown in Strings.repeat()).
+      // Would exceed max length of a java String.
       throw Starlark.errorf("excessive repeat (%d * %d characters)", s.length(), n);
     } else {
-      return Strings.repeat(s, n);
+      return s.repeat(n);
     }
   }
 
