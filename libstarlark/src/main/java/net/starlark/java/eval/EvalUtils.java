@@ -13,6 +13,7 @@
 // limitations under the License.
 package net.starlark.java.eval;
 
+import com.google.common.base.Strings;
 import java.util.IllegalFormatException;
 import net.starlark.java.syntax.TokenKind;
 
@@ -401,7 +402,10 @@ final class EvalUtils {
       // Would exceed max length of a java String.
       throw Starlark.errorf("excessive repeat (%d * %d characters)", s.length(), n);
     } else {
-      return s.repeat(n);
+      // We currently do not support JDK11 (for now), so we will avoid this:
+      // We can remove this once we are on JDK11.
+      // return s.repeat(n);
+      return Strings.repeat(s, n);
     }
   }
 
