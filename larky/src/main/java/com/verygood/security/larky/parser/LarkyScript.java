@@ -22,6 +22,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
 
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.ModuleSupplier.ModuleSet;
@@ -30,11 +34,6 @@ import com.verygood.security.larky.console.Console;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.syntax.FileOptions;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Supplier;
 
 /**
  * Loads Larky out of Starlark files.
@@ -60,7 +59,6 @@ public class LarkyScript {
 
   public static final FileOptions STARLARK_LOOSE_FILE_OPTIONS =
       STARLARK_STRICT_FILE_OPTIONS.toBuilder()
-          .restrictStringEscapes(false)
           .requireLoadStatementsFirst(false)
           .build();
 
