@@ -26,7 +26,7 @@ import com.google.errorprone.annotations.DoNotCall;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
+import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -34,12 +34,9 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.syntax.FileOptions;
 import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.SyntaxError;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import javax.annotation.Nullable;
 
 /** Tests of Starlark evaluation. */
 // There is no clear distinction between this and EvaluationTest.
@@ -366,7 +363,7 @@ public final class StarlarkEvaluationTest {
         Object v = Starlark.getattr(thread.mutability(), thread.getSemantics(), this, name, null);
         builder.put(name, v);
       }
-      return new SimpleStruct(builder.build());
+      return new SimpleStruct(builder.buildOrThrow());
     }
 
     @StarlarkMethod(

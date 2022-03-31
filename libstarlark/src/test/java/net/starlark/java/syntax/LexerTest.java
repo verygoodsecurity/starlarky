@@ -20,7 +20,6 @@ import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -42,7 +41,7 @@ public class LexerTest {
   private Lexer createLexer(String input) {
     ParserInput inputSource = ParserInput.fromString(input, "");
     errors.clear();
-    return new Lexer(inputSource, FileOptions.DEFAULT, errors);
+    return new Lexer(inputSource, errors);
   }
 
   private static class Token {
@@ -354,19 +353,21 @@ public class LexerTest {
 
   @Test
   public void testStringEscapes() throws Exception {
-    check("'a\\tb\\nc\\rd'", "STRING(a\tb\nc\rd) NEWLINE EOF"); // \t \r \n
+    check(
+        "'a\\tb\\nc\\rd\\fe\\vf\\ag\\bh'",
+        "STRING(a\tb\nc\rd\fe\u000bf\u0007g\bh) NEWLINE EOF"); // \t \r \n \f \v \a \b
     checkErrors(
         "'x\\hx'", //
         "STRING(x\\hx) NEWLINE EOF",
-        "   ^ invalid escape sequence: \\h. You can enable unknown escape sequences by passing the"
-            + " flag --incompatible_restrict_string_escapes=false");
+        "   ^ invalid escape sequence: \\h. Use '\\\\' to insert '\\'.");
     checkErrors(
         "'\\$$'", //
         "STRING(\\$$) NEWLINE EOF",
-        "  ^ invalid escape sequence: \\$. You can enable unknown escape sequences by passing the"
-            + " flag --incompatible_restrict_string_escapes=false");
+        "  ^ invalid escape sequence: \\$. Use '\\\\' to insert '\\'.");
     check("'a\\\nb'", "STRING(ab) NEWLINE EOF"); // escape end of line
-    checkErrors("\"ab\\ucd\"", "STRING(abcd) NEWLINE EOF", "    ^ truncated escape sequence \\ucd");
+    checkErrors("\"ab\\ucd\"",
+      "STRING(abcd) NEWLINE EOF",
+      "    ^ truncated escape sequence \\ucd");
 
     // hex escapes
     check("'\\x00\\x20\\x09\\x41\\x7e\\x7f'", "STRING(\u0000 \tA~\u007F) NEWLINE EOF"); // DEL is non-printable
@@ -394,6 +395,7 @@ public class LexerTest {
     check("'\\U0001F63F'", "STRING(\uD83D\uDE3F) NEWLINE EOF");
     checkErrors("'\\U0000dc00'", "STRING(0000dc00) NEWLINE EOF", "  ^ invalid Unicode code point U+DC00"); // surrogate
   }
+
 
   @Test
   public void testEscapedCrlfInString() throws Exception {
@@ -691,10 +693,7 @@ public class LexerTest {
     assertUnquoteError("'", "unclosed string literal");
     assertUnquoteError("\"", "unclosed string literal");
     assertUnquoteError("'abc", "unclosed string literal");
-    assertUnquoteError(
-        "'\\g'",
-        "invalid escape sequence: \\g. You can enable unknown escape sequences by passing the flag"
-            + " --incompatible_restrict_string_escapes=false"); // this temporary hint is a lie
+    assertUnquoteError("'\\g'", "invalid escape sequence: \\g. Use '\\\\' to insert '\\'.");
   }
 
   private static void assertUnquoteEquals(String literal, String value) {
