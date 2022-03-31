@@ -6,12 +6,16 @@ job-defaults: &job-defaults
   dist_directory: &dist_directory
     /tmp/dist
   environment:
-    - DIST_PATH: *dist_directory
-    - TEST_RESULTS_PATH: *test_results_directory
-    - MAVEN_OPTS: -Xmx6400m
-    - GRAALVM_HOME: /home/circleci/starlarky/.graalvm
-    - HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
-    - LARKY_LIB_HOME: /home/circleci/.larky/lib
+    DIST_PATH: *dist_directory
+    TEST_RESULTS_PATH: *test_results_directory
+    MAVEN_OPTS: -Xmx6400m
+    GRAALVM_HOME: /home/circleci/starlarky/.graalvm
+    HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
+    LARKY_LIB_HOME: /home/circleci/.larky/lib
+
+machine-linux: &machine-linux
+  machine:
+      image: ubuntu-2004:202201-02
 
 install-java: &install-java
   run:
@@ -54,13 +58,13 @@ build-quarkus-runnable: &build-quarkus-runnable
 # Template to save Maven dependency cache to restore it in another jobs
 save-maven-cache: &save-maven-cache
   save_cache:
-    key: starlarky-{{ checksum "pom.xml" }}
+    key: starlarky-{{ checksum "pom.xml" }}-{{ checksum "libstarlark/pom.xml" }}-{{ checksum "larky/pom.xml" }}
     paths:
       - ~/.m2
 
 restore-maven-cache: &restore-maven-cache
   restore_cache:
-    key: starlarky-{{ checksum "pom.xml" }}
+    key: starlarky-{{ checksum "pom.xml" }}-{{ checksum "libstarlark/pom.xml" }}-{{ checksum "larky/pom.xml" }}
 
 save-graalvm-cache: &save-graalvm-cache
   save_cache:
@@ -126,8 +130,7 @@ version: 2
 jobs:
   build-and-test:
     <<: *job-defaults
-    machine:
-      image: ubuntu-1604:202007-01
+    <<: *machine-linux
     steps:
       - checkout
       - <<: *install-java
@@ -169,8 +172,7 @@ jobs:
 
   build-dist-maven:
     <<: *job-defaults
-    machine:
-      image: ubuntu-1604:202007-01
+    <<: *machine-linux
     steps:
       - checkout
       - <<: *install-java
@@ -193,8 +195,7 @@ jobs:
 
   build-dist-linux:
     <<: *job-defaults
-    machine:
-      image: ubuntu-1604:202007-01
+    <<: *machine-linux
     steps:
       - checkout
       - <<: *install-java
