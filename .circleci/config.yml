@@ -37,10 +37,10 @@ install-graalvm: &install-graalvm
     name: Install GraalVM
     command: |
       [ ! -d $GRAALVM_HOME ] \
-        && curl https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-21.1.0/graalvm-ce-java11-linux-amd64-21.1.0.tar.gz -O -J -L \
-        && tar xfz graalvm-ce-java11-linux-amd64-21.1.0.tar.gz \
-        && mv graalvm-ce-java11-21.1.0 .graalvm \
-        && rm graalvm-ce-java11-linux-amd64-21.1.0.tar.gz \
+        && curl https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-22.0.0.2/graalvm-ce-java17-linux-amd64-22.0.0.2.tar.gz -O -J -L \
+        && tar xfz graalvm-ce-java17-linux-amd64-22.0.0.2.tar.gz \
+        && mv graalvm-ce-java17-22.0.0.2 .graalvm \
+        && rm graalvm-ce-java17-linux-amd64-22.0.0.2.tar.gz \
         && $GRAALVM_HOME/bin/gu install native-image
 
 build-quarkus-runnable: &build-quarkus-runnable

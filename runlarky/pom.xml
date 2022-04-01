@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
@@ -21,33 +21,31 @@
     </repositories>
 
     <properties>
+        <java.version>11</java.version>
+
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
+
+        <maven.compiler.parameters>true</maven.compiler.parameters>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
+        <graalvm-native-maven-plugin.version>0.9.7.1</graalvm-native-maven-plugin.version>
+
+        <!-- annotationProcessorPaths requires maven-compiler-plugin version 3.5 or higher -->
         <maven.compiler.plugin.version>3.6.2</maven.compiler.plugin.version>
+
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.protobuf.plugin.version>0.6.1</maven.protobuf.plugin.version>
         <maven.surefire.plugin.version>2.22.1</maven.surefire.plugin.version>
         <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
         <starlarky.version>1.0-SNAPSHOT</starlarky.version>
-        <apache.commons-cli.version>1.4</apache.commons-cli.version>
         <org.projectlombok.version>1.18.22</org.projectlombok.version>
-        <quarkus-plugin.version>1.13.7.Final</quarkus-plugin.version>
-        <quarkus.platform.artifact-id>quarkus-universe-bom</quarkus.platform.artifact-id>
-        <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
-        <quarkus.platform.version>1.13.7.Final</quarkus.platform.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <picocli.version>4.6.3</picocli.version>
+        <graalvm.version>22.0.0.2</graalvm.version>
+
+        <main.class>com.verygood.security.run.LarkyEntrypoint</main.class>
+        <cli.name>larky-runner</cli.name>
     </properties>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>${quarkus.platform.group-id}</groupId>
-                <artifactId>${quarkus.platform.artifact-id}</artifactId>
-                <version>${quarkus.platform.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -72,18 +70,35 @@
         </dependency>
 
         <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-arc</artifactId>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>${picocli.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>commons-cli</groupId>
-            <artifactId>commons-cli</artifactId>
-            <version>${apache.commons-cli.version}</version>
+            <groupId>org.graalvm.sdk</groupId>
+            <artifactId>graal-sdk</artifactId>
+            <version>${graalvm.version}</version>
+            <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.graalvm.buildtools</groupId>
+            <artifactId>native-maven-plugin</artifactId>
+            <version>${graalvm-native-maven-plugin.version}</version>
+            <type>maven-plugin</type>
+        </dependency>
+
     </dependencies>
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${os-maven-plugin.version}</version>
+            </extension>
+        </extensions>
         <resources>
             <resource>
                 <directory>src/main/java</directory>
@@ -98,67 +113,104 @@
                 <directory>src/test/resources</directory>
             </resource>
         </resources>
-        <plugins>
-            <plugin>
-                <groupId>io.quarkus</groupId>
-                <artifactId>quarkus-maven-plugin</artifactId>
-                <version>${quarkus-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>build</goal>
-                            <goal>generate-code</goal>
-                            <goal>generate-code-tests</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven.compiler.plugin.version}</version>
-                <configuration>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${org.projectlombok.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.xolstice.maven.plugins</groupId>
-                <artifactId>protobuf-maven-plugin</artifactId>
-                <version>${maven.protobuf.plugin.version}</version>
-                <configuration>
-                    <protocArtifact>
-                        <!--
-                            See https://github.com/verygoodsecurity/starlarky/pull/58 for why
-                            ${os.detected.classifier} didn't work in some cases for my environment but
-                            ${os.detected.name}-${os.detected.arch} works better!
-                        -->
-                        com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.name}-${os.detected.arch}
-                    </protocArtifact>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>test-compile</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-        <extensions>
-            <extension>
-                <groupId>kr.motd.maven</groupId>
-                <artifactId>os-maven-plugin</artifactId>
-                <version>${os-maven-plugin.version}</version>
-            </extension>
-        </extensions>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven.compiler.plugin.version}</version>
+                    <configuration>
+                        <source>${maven.compiler.source}</source>
+                        <target>${maven.compiler.target}</target>
+                        <release>${maven.compiler.release}</release>
+                        <parameters>${maven.compiler.parameters}</parameters>
+                        <failOnError>true</failOnError>
+                        <failOnWarning>false</failOnWarning>
+                        <showDeprecation>true</showDeprecation>
+                        <showWarnings>true</showWarnings>
+                        <useIncrementalCompilation>true</useIncrementalCompilation>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${org.projectlombok.version}</version>
+                            </path>
+                            <path>
+                                <groupId>info.picocli</groupId>
+                                <artifactId>picocli-codegen</artifactId>
+                                <version>${picocli.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
+                        <compilerId>javac</compilerId>
+                        <compilerArgs>
+                            <arg>-Xlint:all</arg>
+                            <arg>-Xlint:-processing</arg>
+                            <arg>-Aproject=${project.groupId}/${project.artifactId}</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.xolstice.maven.plugins</groupId>
+                    <artifactId>protobuf-maven-plugin</artifactId>
+                    <version>${maven.protobuf.plugin.version}</version>
+                    <configuration>
+                        <protocArtifact>
+                            <!--
+                                See https://github.com/verygoodsecurity/starlarky/pull/58 for why
+                                ${os.detected.classifier} didn't work in some cases for my environment but
+                                ${os.detected.name}-${os.detected.arch} works better!
+                            -->
+                            com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.name}-${os.detected.arch}
+                        </protocArtifact>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>test-compile</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
     </build>
 
     <profiles>
+        <!--        <profile>-->
+        <!--            <id>native</id>-->
+        <!--            <activation>-->
+        <!--                <property>-->
+        <!--                    <name>native</name>-->
+        <!--                </property>-->
+        <!--            </activation>-->
+        <!--            <build>-->
+        <!--                <plugins>-->
+        <!--                    <plugin>-->
+        <!--                        <artifactId>maven-failsafe-plugin</artifactId>-->
+        <!--                        <version>${maven.surefire.plugin.version}</version>-->
+        <!--                        <executions>-->
+        <!--                            <execution>-->
+        <!--                                <goals>-->
+        <!--                                    <goal>integration-test</goal>-->
+        <!--                                    <goal>verify</goal>-->
+        <!--                                </goals>-->
+        <!--                                <configuration>-->
+        <!--                                    <systemPropertyVariables>-->
+        <!--                                        <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>-->
+        <!--                                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>-->
+        <!--                                        <maven.home>@{maven.home}</maven.home>-->
+        <!--                                    </systemPropertyVariables>-->
+        <!--                                </configuration>-->
+        <!--                            </execution>-->
+        <!--                        </executions>-->
+        <!--                    </plugin>-->
+        <!--                </plugins>-->
+        <!--            </build>-->
+        <!--            <properties>-->
+        <!--                <quarkus.package.type>native</quarkus.package.type>-->
+        <!--                <quarkus.package.output-name>larky</quarkus.package.output-name>-->
+        <!--            </properties>-->
+        <!--        </profile>-->
         <profile>
             <id>native</id>
             <activation>
@@ -169,30 +221,87 @@
             <build>
                 <plugins>
                     <plugin>
-                        <artifactId>maven-failsafe-plugin</artifactId>
-                        <version>${maven.surefire.plugin.version}</version>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <version>${graalvm-native-maven-plugin.version}</version>
+                        <extensions>true</extensions>
                         <executions>
                             <execution>
+                                <id>build-native</id>
                                 <goals>
-                                    <goal>integration-test</goal>
-                                    <goal>verify</goal>
+                                    <goal>build</goal>
                                 </goals>
-                                <configuration>
-                                    <systemPropertyVariables>
-                                        <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>
-                                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
-                                        <maven.home>@{maven.home}</maven.home>
-                                    </systemPropertyVariables>
-                                </configuration>
+                                <phase>package</phase>
                             </execution>
                         </executions>
+                        <configuration>
+                            <buildDirectory>${project.build.directory}/</buildDirectory>
+                            <imageName>${cli.name}</imageName>
+                            <mainClass>${main.class}</mainClass>
+                            <buildArgs>
+                                <buildArg>--no-fallback</buildArg>
+                                <buildArg>--allow-incomplete-classpath</buildArg>
+                                <buildArg>--initialize-at-run-time=org.apache.commons.lang3.RandomStringUtils</buildArg>
+                                <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                                <buildArg>
+                                    -H:ReflectionConfigurationFiles=../src/main/resources/META-INF/native-image/reflect-config.json
+                                </buildArg>
+                                <buildArg>
+                                    -H:ResourceConfigurationFiles=../src/main/resources/META-INF/native-image/resource-config.json
+                                </buildArg>
+                            </buildArgs>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>
-            <properties>
-                <quarkus.package.type>native</quarkus.package.type>
-                <quarkus.package.output-name>larky</quarkus.package.output-name>
-            </properties>
+        </profile>
+        <profile>
+            <id>native.linux</id>
+            <activation>
+                <property>
+                    <name>native</name>
+                </property>
+                <os>
+                    <name>Linux</name>
+                </os>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <version>${graalvm-native-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <executions>
+                            <execution>
+                                <id>build-native</id>
+                                <goals>
+                                    <goal>build</goal>
+                                </goals>
+                                <phase>package</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <buildDirectory>${project.build.directory}/</buildDirectory>
+                            <imageName>${cli.name}</imageName>
+                            <mainClass>${main.class}</mainClass>
+                            <buildArgs combine.children="append">
+                                <buildArg>--static</buildArg>
+                                <buildArg>--no-fallback</buildArg>
+                                <buildArg>--allow-incomplete-classpath</buildArg>
+                                <buildArg>--initialize-at-run-time=org.apache.commons.lang3.RandomStringUtils</buildArg>
+                                <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                                <buildArg>
+                                    -H:ReflectionConfigurationFiles=../src/main/resources/META-INF/native-image/reflect-config.json
+                                </buildArg>
+                                <buildArg>
+                                    -H:ResourceConfigurationFiles=../src/main/resources/META-INF/native-image/resource-config.json
+                                </buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>
