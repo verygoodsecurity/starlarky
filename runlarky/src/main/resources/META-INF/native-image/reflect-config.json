@@ -144,10 +144,6 @@
   "name":"java.util.Map"
 },
 {
-  "name":"javax.inject.Named",
-  "allDeclaredMethods":true
-},
-{
   "name":"javax.security.auth.x500.X500Principal",
   "fields":[{"name":"thisX500Name"}],
   "methods":[{"name":"<init>","parameterTypes":["sun.security.x509.X500Name"] }]
@@ -342,14 +338,6 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.HashModule"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.JsonModule"
   },
   {
@@ -471,14 +459,6 @@
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.crypto.CryptoIOModule"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.crypto.CryptoJWEModule"
   },
   {
       "allDeclaredFields": true,
@@ -710,46 +690,6 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.types.ByteArray"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.types.LarkyByte"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.types.LarkyByteArray"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.types.LarkyByteElems"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.types.LarkyByteLike"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.types.LarkyObject"
   },
   {
@@ -775,14 +715,6 @@
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.types.PyProtocols"
-  },
-  {
-      "allDeclaredFields": true,
-      "allDeclaredMethods": true,
-      "allPublicMethods": true,
-      "allDeclaredConstructors": true,
-      "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.types.hashing.HashObject"
   },
   {
       "allDeclaredFields": true,
@@ -1137,7 +1069,7 @@
       "allPublicConstructors": true
   },
   {
-      "name": "net.starlark.java.eval.StarlarkByte",
+      "name": "net.starlark.java.eval.StarlarkBytes",
       "allDeclaredFields": true,
       "allDeclaredMethods": true,
       "allPublicMethods": true,

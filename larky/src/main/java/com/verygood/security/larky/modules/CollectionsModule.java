@@ -185,7 +185,7 @@ public class CollectionsModule implements StarlarkValue {
     }
 
     @Override
-    public Sequence<Object> getSlice(Mutability mu, int start, int stop, int step) {
+    public Sequence<Object> getSlice(Mutability mu, int start, int stop, int step) throws EvalException {
       return this.backingTuple.getSlice(mu,start,stop,step);
     }
 

@@ -30,7 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -42,9 +43,6 @@ import net.starlark.java.syntax.Program;
 import net.starlark.java.syntax.Resolver;
 import net.starlark.java.syntax.StarlarkFile;
 import net.starlark.java.syntax.SyntaxError;
-
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.Immutable;
 
 /**
  * The Starlark class defines the most important entry points, constants, and functions needed by
@@ -949,7 +947,7 @@ public final class Starlark {
    */
   private static StarlarkFunction newExprFunction(
       ParserInput input, FileOptions options, Module module) throws SyntaxError.Exception {
-    Expression expr = Expression.parse(input, options);
+    Expression expr = Expression.parse(input);
     Program prog = Program.compileExpr(expr, module, options);
     Resolver.Function rfn = prog.getResolvedFunction();
     int[] globalIndex = module.getIndicesOfGlobals(rfn.getGlobals()); // see execFileProgram
@@ -965,8 +963,8 @@ public final class Starlark {
    * @throws IllegalStateException exception if the Starlark profiler is already running or if the
    *     operating system's profiling resources for this process are already in use.
    */
-  public static void startCpuProfile(OutputStream out, Duration period) {
-    CpuProfiler.start(out, period);
+  public static boolean startCpuProfile(OutputStream out, Duration period) {
+    return CpuProfiler.start(out, period);
   }
 
   /**

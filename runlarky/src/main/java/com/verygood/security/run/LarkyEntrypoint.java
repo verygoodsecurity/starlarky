@@ -2,6 +2,7 @@ package com.verygood.security.run;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.google.common.base.Strings;
 import java.io.BufferedReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -10,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.concurrent.Callable;
 
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.CapturingConsole;
@@ -30,18 +32,20 @@ import net.starlark.java.syntax.FileOptions;
 import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.SyntaxError;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
-
-import io.quarkus.runtime.QuarkusApplication;
-import io.quarkus.runtime.annotations.QuarkusMain;
 import lombok.SneakyThrows;
+import picocli.CommandLine;
 
-@QuarkusMain
-public class LarkyEntrypoint implements QuarkusApplication {
+
+@CommandLine.Command(
+  name = "larky-runner",
+  description = "Larky CLI Runner Application",
+  aliases = {"larky"},
+  header = "Larky Runner",
+  footer = "(c) Very Good Security",
+  mixinStandardHelpOptions = true,
+  subcommands = {}
+)
+public class LarkyEntrypoint implements Callable<Integer> {
 
   //REPL
   private static final String START_PROMPT = ">> ";
@@ -59,36 +63,55 @@ public class LarkyEntrypoint implements QuarkusApplication {
   }
   //REPL end
 
-  @SneakyThrows
-  @Override
-  public int run(String... args) {
-    if (args.length == 0) {
+  @CommandLine.Option(names = {"-s", "--script"}, arity = "1", description = "Starlark script")
+  private String filePath; // String script = readFile(commandLine.getOptionValue('s'));
+
+  @CommandLine.Option(names = {"-i", "--input"}, arity = "1", description = "Input parameters")
+  private String inputParams;
+  // String input = commandLine.hasOption('i')
+  // ? readFile(commandLine.getOptionValue('i'))
+  // : "";
+
+  @CommandLine.Option(names = {"-o", "--output"}, arity = "1", description = "Output parameters")
+  private String outputPath; //String outputPath = commandLine.getOptionValue('o');
+
+  @CommandLine.Option(names = {"-l", "--log"}, arity = "1", description = "Log output")
+  private String logPath;
+  //  String logPath = commandLine.hasOption('l') ?
+  //      commandLine.getOptionValue('l')
+  //      : "";
+  @CommandLine.Option(names = {"-d", "--debug"}, description="Verbose merged script")
+  private boolean debug; //  boolean debug = commandLine.hasOption("d");
+
+
+  public static void main(String[] args) {
+    if(args.length == 0) {
       readEvalPrintLoop();
-    } else {
-      CommandLine commandLine = parseOptions(args);
-      if (!commandLine.hasOption('s') || !commandLine.hasOption('o') || !commandLine.hasOption('l')) {
-        System.out.println("Usage: larky-runer -s script_file -o output_file -l log_file -i input_param_file");
-        return 1;
-      }
-      execute(commandLine);
+      Runtime.getRuntime().exit(0);
+    }
+    int exitCode = new CommandLine(new LarkyEntrypoint()).execute(args);
+    Runtime.getRuntime().exit(exitCode);
+  }
+
+  @Override
+  public Integer call() throws Exception {
+    if (Strings.isNullOrEmpty(filePath)
+          || Strings.isNullOrEmpty(outputPath)
+          || Strings.isNullOrEmpty(logPath)) {
+      new CommandLine(new LarkyEntrypoint()).usage(System.out);
+      return CommandLine.ExitCode.SOFTWARE;
+      //System.out.println("Usage: larky-runer -s script_file -o output_file -l log_file -i input_param_file");
     }
 
-    return 0;
+    execute();
+    return CommandLine.ExitCode.OK;
   }
 
   @SneakyThrows
-  private static void execute(CommandLine commandLine) {
-    String outputPath = commandLine.getOptionValue('o');
-    String script = readFile(commandLine.getOptionValue('s'));
-    boolean debug = commandLine.hasOption("d");
+  private void execute() {
 
-    String input = commandLine.hasOption('i') ?
-        readFile(commandLine.getOptionValue('i'))
-        : "";
-
-    String logPath = commandLine.hasOption('l') ?
-        commandLine.getOptionValue('l')
-        : "";
+    String script = readFile(filePath);
+    String input = readFile(inputParams);
 
     PrependMergedStarFile prependMergedStarFile = new PrependMergedStarFile(input, script);
 
@@ -101,10 +124,13 @@ public class LarkyEntrypoint implements QuarkusApplication {
     Console console = new FileConsole(CapturingConsole.captureAllConsole(
         LogConsole.writeOnlyConsole(System.out, true)), Path.of(logPath), Duration.ZERO);
 
-    String output = new LarkyScript(StarlarkMode.STRICT)
-        .executeSkylarkWithOutput(prependMergedStarFile,
-            new ModuleSupplier().create(), console)
-        .toString();
+    String output =
+      new LarkyScript(StarlarkMode.STRICT)
+        .executeSkylarkWithOutput(
+          prependMergedStarFile,
+          new ModuleSupplier().create(),
+          console
+        ).toString();
 
     if (debug) {
       System.err.println(output);
@@ -172,16 +198,6 @@ public class LarkyEntrypoint implements QuarkusApplication {
     }
   }
 
-  private static CommandLine parseOptions(String... args) throws ParseException {
-    Options options = new Options();
-    options.addOption("s", "script", true, "Starlark script");
-    options.addOption("i", "input", true, "Input parameters");
-    options.addOption("o", "output", true, "Output parameters");
-    options.addOption("l", "log", true, "Log output");
-    options.addOption("d", "debug", false, "Verbose merged script");
-    CommandLineParser parser = new DefaultParser();
-    return parser.parse(options, args);
-  }
 
   private static String readFile(String filePath) {
     try {

@@ -54,8 +54,6 @@ final class Lexer {
   private final char[] buffer;
   private int pos;
 
-  private final FileOptions options;
-
   // The stack of enclosing indentation levels in spaces.
   // The first (outermost) element is always zero.
   private final Stack<Integer> indentStack = new Stack<>();
@@ -89,13 +87,12 @@ final class Lexer {
           .put('^', TokenKind.CARET_EQUALS)
           .put('&', TokenKind.AMPERSAND_EQUALS)
           .put('|', TokenKind.PIPE_EQUALS)
-          .build();
+          .buildOrThrow();
 
   // Constructs a lexer which tokenizes the parser input.
   // Errors are appended to errors.
-  Lexer(ParserInput input, FileOptions options, List<SyntaxError> errors) {
+  Lexer(ParserInput input, List<SyntaxError> errors) {
     this.locs = FileLocations.create(input.getContent(), input.getFile());
-    this.options = options;
     this.buffer = input.getContent();
     this.pos = 0;
     this.errors = errors;
@@ -368,7 +365,7 @@ final class Lexer {
                   setValue(literal.toString());
                   break;
                 }
-                literal.append((char)(octal & 0xff));
+                literal.append((char) (octal & 0xff));
                 break;
               }
             case 'a':
@@ -468,14 +465,7 @@ final class Lexer {
               break;
             default:
               // unknown char escape => "\literal"
-              if (options.restrictStringEscapes()) {
-                error(
-                    "invalid escape sequence: \\"
-                        + c
-                        + ". You can enable unknown escape sequences by passing the flag"
-                        + " --incompatible_restrict_string_escapes=false",
-                    pos - 1);
-              }
+              error("invalid escape sequence: \\" + c + ". Use '\\\\' to insert '\\'.", pos - 1);
               literal.append('\\');
               literal.append(c);
               break;

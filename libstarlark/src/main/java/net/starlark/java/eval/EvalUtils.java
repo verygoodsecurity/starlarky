@@ -127,6 +127,11 @@ final class EvalUtils {
             // int | int
             return StarlarkInt.or((StarlarkInt) x, (StarlarkInt) y);
           }
+        } else if (x instanceof Dict) {
+          if (y instanceof Dict) {
+            // dict | dict
+            return Dict.builder().putAll((Dict<?, ?>) x).putAll((Dict<?, ?>) y).build(mu);
+          }
         }
         break;
 
@@ -394,10 +399,12 @@ final class EvalUtils {
     if (n <= 0) {
       return "";
     } else if ((long) s.length() * (long) n > Integer.MAX_VALUE) {
-      // Would exceed max length of a java String (and would cause an undocumented
-      // ArrayIndexOutOfBoundsException to be thrown in Strings.repeat()).
+      // Would exceed max length of a java String.
       throw Starlark.errorf("excessive repeat (%d * %d characters)", s.length(), n);
     } else {
+      // We currently do not support JDK11 (for now), so we will avoid this:
+      // We can remove this once we are on JDK11.
+      // return s.repeat(n);
       return Strings.repeat(s, n);
     }
   }
