@@ -26,7 +26,8 @@ load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Cipher/PKCS1_v1_5", PKCS="PKCS1_v1_5_Cipher")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/st_common", a2b_hex="a2b_hex")
-load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long", long_to_bytes="long_to_bytes")
+load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long",
+     long_to_bytes="long_to_bytes")
 load("@vendor//Crypto/Util/py3compat", b="b")
 load("@vendor//asserts", asserts="asserts")
 load("@vendor//option/result", Error="Error")
@@ -46,10 +47,13 @@ def t2b(t):
         return Error("ValueError: Even number of characters expected").unwrap()
     return a2b_hex(clean)
 
+
 _rng = Random.new().read
+
 
 def PKCS1_15_Tests_setUp():
     return RSA.generate(1024, _rng)
+
 
 # List of tuples with test data for PKCS#1 v1.5.
 # Each tuple is made up by:
@@ -60,10 +64,10 @@ def PKCS1_15_Tests_setUp():
 
 _testData = (
 
-        #
-        # Generated with openssl 0.9.8o
-        #
-        (
+    #
+    # Generated with openssl 0.9.8o
+    #
+    (
         # Private key
         '''-----BEGIN RSA PRIVATE KEY-----
 MIICXAIBAAKBgQDAiAnvIAOvqVwJTaYzsKnefZftgtXGE2hPJppGsWl78yz9jeXY
@@ -99,25 +103,28 @@ HKukWBcq9f/UOmS0oEhai/6g+Uf7VHJdWaeO5LzuvwU=
             04 06 33 8f ca 15 5f 52 60 8a a1 0c f5 08 b5 4c
             bb 99 b8 94 25 04 9c e6 01 75 e6 f9 63 7a 65 61
             13 8a a7 47 77 81 ae 0d b8 2c 4d 50 a5'''
-        ),
+    ),
 )
 
-def randGen_testEncrypt1():
 
+def randGen_testEncrypt1():
     def randGen(data):
         # RNG that takes its random numbers from a pool given
         # at initialization
         self = larky.mutablestruct(__name__='randGen', __class__=randGen)
+
         def __init__(data):
             self.data = data
             self.idx = 0
             return self
+
         self = __init__(data)
 
         def __call__(N):
-            r = self.data[self.idx:self.idx+N]
+            r = self.data[self.idx:self.idx + N]
             self.idx += N
             return r
+
         self.__call__ = __call__
         return self
 
@@ -133,7 +140,7 @@ def randGen_testEncrypt1():
 def randGen_testEncrypt2():
     key1024 = PKCS1_15_Tests_setUp()
     # Verify that encryption fail if plaintext is too long
-    pt = '\x00'*(128-11+1)
+    pt = '\x00' * (128 - 11 + 1)
     cipher = PKCS.new(key1024)
     asserts.assert_fails(lambda: cipher.encrypt(pt), ".*?ValueError")
 
@@ -158,14 +165,14 @@ def randGen_testVerify2():
     # RSA modulus
     key1024 = PKCS1_15_Tests_setUp()
     cipher = PKCS.new(key1024)
-    asserts.assert_fails(lambda: cipher.decrypt('\x00'*127, "---"),
+    asserts.assert_fails(lambda: cipher.decrypt('\x00' * 127, "---"),
                          ".*?ValueError")
-    asserts.assert_fails(lambda: cipher.decrypt('\x00'*129, "---"),
+    asserts.assert_fails(lambda: cipher.decrypt('\x00' * 129, "---"),
                          ".*?ValueError")
 
     # Verify that decryption fails if there are less then 8 non-zero padding
     # bytes
-    pt = b('\x00\x02' + '\u00FF'*7 + '\x00' + '\x45'*118)
+    pt = b('\x00\x02' + '\u00FF' * 7 + '\x00' + '\x45' * 118)
     pt_int = bytes_to_long(pt)
     ct_int = key1024._encrypt(pt_int)
     ct = long_to_bytes(ct_int, 128)
@@ -250,7 +257,8 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(randGen_testVerify1))
     _suite.addTest(unittest.FunctionTestCase(randGen_testVerify2))
     _suite.addTest(unittest.FunctionTestCase(randGen_testEncryptVerify1))
-    _suite.addTest(unittest.FunctionTestCase(randGen_test_encrypt_verify_exp_pt_len))
+    _suite.addTest(
+        unittest.FunctionTestCase(randGen_test_encrypt_verify_exp_pt_len))
     _suite.addTest(unittest.FunctionTestCase(randGen_testByteArray))
     _suite.addTest(unittest.FunctionTestCase(randGen_test_return_type))
     # _suite.addTest(unittest.FunctionTestCase(TestVectorsWycheproof_test_decrypt))

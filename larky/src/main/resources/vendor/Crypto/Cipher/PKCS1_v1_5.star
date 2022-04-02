@@ -191,7 +191,6 @@ def PKCS115_Cipher(key, randfunc):
     return self
 
 
-
 def new(key, randfunc=None):
     """Create a cipher for performing PKCS#1 v1.5 encryption or decryption.
 
