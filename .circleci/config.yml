@@ -140,7 +140,7 @@ jobs:
       - run:
           name: Maven Build/Test
           command: |
-            mvn clean install dependency:go-offline -T 2.0C -B
+            mvn clean install -Dtest=!LarkyQuickTests -DfailIfNoTests=false dependency:go-offline -T 2.0C -B
       - <<: *save-maven-cache
       - run: find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
       - run: find . -type f -regex ".*/target/surefire-reports/.*-output.txt" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
@@ -149,6 +149,26 @@ jobs:
           path: *test_results_directory
       - store_test_results:
           path: *test_results_directory
+
+  larky-case-tests:
+    <<: *job-defaults
+    machine:
+      image: ubuntu-1604:202007-01
+    steps:
+      - checkout
+      - <<: *install-java
+      - <<: *restore-maven-cache
+      - run: mkdir -p $TEST_RESULTS_PATH/junit/
+      - run: mkdir -p $TEST_RESULTS_PATH/coverage/
+      - run:
+          name: Maven Build/Test
+          command: |
+            mvn clean install -pl larky -Dtest=LarkyQuickTests dependency:go-offline -T 2.0C -B
+      - <<: *save-maven-cache
+      - run: find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
+      - run: find . -type f -regex ".*/target/surefire-reports/.*-output.txt" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
+      - run: find . -type f -regex ".*/target/site/.*" -exec cp --parents {} $TEST_RESULTS_PATH/coverage/ \;
+
 
   build-and-test-docker:
     <<: *job-defaults
@@ -281,6 +301,7 @@ workflows:
   build_and_tests:
     jobs:
       - build-and-test
+      - larky-case-tests
       - build-and-test-docker
       - build-dist-linux:
           requires:
