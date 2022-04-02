@@ -216,67 +216,47 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
   @Override
   public int compareTo(@NotNull Object o) {
     SimpleStruct other = (SimpleStruct) o;
+    Object result;
+    final boolean lt;
+    final boolean gt;
 
     try {
-      final boolean lt = (Boolean) StructBinOp.operatorDispatch(
+      // This code is a bit tricky. If we return null from operatorDispatch,
+      // it most likely not a proper comparison operation.
+      //
+      // To make the IDE happy, we have to do the checks below.
+      result = StructBinOp.operatorDispatch(
         this,
         TokenKind.LESS,
         other,
         true,
         this.getCurrentThread()
       );
-      if (lt) {
-        return -1;
+      if(result instanceof Boolean) {
+        lt = (boolean) result;
+        if (lt) {
+          return -1;
+        }
       }
-      final boolean gt = (boolean) StructBinOp.operatorDispatch(
+      result = StructBinOp.operatorDispatch(
         this,
         TokenKind.GREATER,
         other,
         true,
         this.getCurrentThread()
       );
-      if (gt) {
-        return 1;
+      if(result instanceof Boolean) {
+        gt = (boolean) result;
+        if (gt) {
+          return 1;
+        }
       }
-    } catch (EvalException e) {
-      throw new RuntimeException(e);
-    }
-    return 0;
-  }
-
-  private static final TokenKind[] COMPARE_OPNAMES = new TokenKind[]{
-    TokenKind.LESS,
-    TokenKind.LESS_EQUALS,
-    TokenKind.EQUALS_EQUALS,
-    TokenKind.NOT_EQUALS,
-    TokenKind.GREATER,
-    TokenKind.GREATER_EQUALS
-  };
-
-  @Override
-  public int compareTo(@NotNull Object o) {
-    SimpleStruct other = (SimpleStruct) o;
-
-    try {
-      final boolean lt = (Boolean) StructBinOp.operatorDispatch(
-          this,
-          TokenKind.LESS,
-          other,
-          true,
-          this.getCurrentThread()
-      );
-      if (lt) {
-        return -1;
-      }
-      final boolean gt = (boolean) StructBinOp.operatorDispatch(
-          this,
-          TokenKind.GREATER,
-          other,
-          true,
-          this.getCurrentThread()
-      );
-      if (gt) {
-        return 1;
+      // if result is null, let's throw an Error
+      if(result == null) {
+        throw new RuntimeException(String.format(
+          "unsupported binary operation: %s and %s",
+          this, other
+        ));
       }
     } catch (EvalException e) {
       throw new RuntimeException(e);
