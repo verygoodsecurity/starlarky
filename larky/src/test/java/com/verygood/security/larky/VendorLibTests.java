@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.Collator;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -65,7 +66,10 @@ public class VendorLibTests {
             String fileName = f.getFileName().toString();
 
             if(!Strings.isNullOrEmpty(singleTestDesired)) {
-              return fileName.equals(singleTestDesired);
+              // test_base64.star
+              return fileName.equals(singleTestDesired)
+                       // Crypto/Encodings/test_base64.star
+                       || testIdentifier(f).toString().equals(singleTestDesired);
             }
 
             return fileName.startsWith("test_") && fileName.endsWith(".star");
@@ -75,13 +79,18 @@ public class VendorLibTests {
     } catch (IOException e) {
       throw new RuntimeException(e.getMessage());
     }
-    return vendorTestFiles;
+    return Collections.unmodifiableList(vendorTestFiles);
+  }
+
+  public Path testIdentifier(Path testFile) {
+    return VENDOR_TEST_DIR.relativize(testFile);
   }
 
   @TestFactory
   public Iterator<DynamicTest> testVendorLib() {
+    // TODO(mahmoudimus): change this to dynamicContainers instead?
     return vendorTestFiles.stream().map(f -> DynamicTest.dynamicTest(
-        String.format("%s=%s", PROPERTY_NAME, f.getFileName()),
+        String.format("%s=%s", PROPERTY_NAME, testIdentifier(f)),
         () -> evaluateTest(interpreter, moduleSet, f)
     )).iterator();
   }

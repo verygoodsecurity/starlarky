@@ -1,5 +1,14 @@
-load("@stdlib/larky", "larky")
-load("@stdlib/c99math", _c99math="c99math")
+load("@stdlib//larky", "larky")
+load("@stdlib//c99math", _c99math="c99math")
+
+
+pi = _c99math.PI
+pow = _c99math.pow
+sqrt = _c99math.sqrt
+fabs = _c99math.fabs
+ceil = _c99math.ceil
+log = _c99math.log
+floor = _c99math.floor
 
 
 def gcd(x, y):
@@ -14,11 +23,13 @@ def gcd(x, y):
 
 
 math = larky.struct(
-    pi=_c99math.PI,
-    pow=_c99math.pow,
-    sqrt=_c99math.sqrt,
-    fabs=_c99math.fabs,
-    ceil=_c99math.ceil,
-    log=_c99math.log,
+    __name__='math',
+    pi=pi,
+    pow=pow,
+    sqrt=sqrt,
+    fabs=fabs,
+    ceil=ceil,
+    log=log,
+    floor=floor,
     gcd=gcd,
 )

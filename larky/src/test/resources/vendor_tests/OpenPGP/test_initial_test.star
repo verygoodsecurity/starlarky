@@ -6,8 +6,24 @@ load("@vendor//OpenPGP", OpenPGP="OpenPGP")
 load("@vendor//OpenPGP/Crypto", Crypto="Crypto")
 load("@vendor//asserts",  "asserts")
 
+load("@stdlib//base64", base64="base64")
+load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//bz2", bz2="bz2")
+load("@stdlib//codecs", codecs="codecs")
+load("@stdlib//hashlib", hashlib="hashlib")
+load("@stdlib//itertools", itertools="itertools")
+load("@stdlib//larky", larky="larky")
+load("@stdlib//math", ceil="ceil", floor="floor", log="log")
+load("@stdlib//re", re="re")
+load("@stdlib//struct", pack="pack", unpack="unpack")
+load("@stdlib//textwrap", textwrap="textwrap")
+load("@stdlib//zlib", zlib="zlib")
+load("@vendor//option/result", Error="Error")
+
+
 load("data_test_fixtures", get_file_contents="get_file_contents")
 
+WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 def PGP_test():
     # the test key below contains both private key and public key data
