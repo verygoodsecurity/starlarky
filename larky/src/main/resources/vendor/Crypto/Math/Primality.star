@@ -1,6 +1,7 @@
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 
-COMPOSITE = 1
+COMPOSITE = 0
+PROBABLY_PRIME = 1
 
 def miller_rabin_test(candidate, iterations, randfunc=None):
     r"""

@@ -203,7 +203,15 @@ def _is_range(iterz):
 
 
 def _is_iterable(iterz):
-    return _is_tuple(iterz) or _is_list(iterz) or _is_range(iterz)
+    # Checking isinstance(obj, Iterable) detects classes that are
+    # registered as Iterable or that have an __iter__() method,
+    # but it does not detect classes that iterate with the __getitem__()
+    # method. The only reliable way to determine whether an object
+    # is iterable is to call iter(obj).
+    return (_is_tuple(iterz)
+            or _is_list(iterz)
+            or _is_range(iterz)
+            or hasattr(iterz, "__iter__"))
 
 
 def _is_bytes(bobj):

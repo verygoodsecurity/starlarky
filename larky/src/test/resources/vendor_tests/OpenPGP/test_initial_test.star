@@ -27,24 +27,39 @@ WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 def PGP_test():
     # the test key below contains both private key and public key data
-    message = OpenPGP.Message().parse(get_file_contents("helloKey.gpg"))
-    print(message)
-    wkey = message[0]
-    # wkey should be of <class 'OpenPGP.SecretKeyPacket'>
-    print('parsed key:', wkey)
+    key = OpenPGP.Message.parse(get_file_contents("helloKey.gpg"))
+#     print(key)
+#     wkey = key[0]
+#     # wkey should be of <class 'OpenPGP.SecretKeyPacket'>
+#     print('parsed key:', wkey)
+#
+#     data = OpenPGP.LiteralDataPacket('This is text.', 'u', 'stuff.txt', 1000000)
+#     encrypt = Crypto.Wrapper([data])
+#     encrypted = encrypt.encrypt([wkey])
+#
+#     print('pgp encrypted:', encrypted)
+#     print('byte arr:', bytearray([21]))
+#
+# #     # Now decrypt it with the same key
+#     decryptor = Crypto.Wrapper(wkey)
+#     decrypted = decryptor.decrypt(encrypted)
+#
+#     print('pgp decrypted:', decrypted)
+    for k in key:
+        print(k._fingerprint) if hasattr(k, "_fingerprint") else print(k)
+#     data = OpenPGP.LiteralDataPacket("This is text.", "u", "stuff.txt")
+#     encrypted = Crypto.Wrapper(OpenPGP.Message([data])).encrypt(key)
+#     for k in encrypted:
+#         print(k)
+    # decryptor = Crypto.Wrapper(key)
+    # decrypted = decryptor.decrypt(encrypted)
+    # asserts.assert_that(decrypted[0].data).is_equal_to(b"This is text.")
+    data = OpenPGP.LiteralDataPacket("This is text.", "u", "stuff.txt")
+    encrypted = Crypto.Wrapper(OpenPGP.Message([data])).encrypt("secret")
+    decrypted = Crypto.Wrapper(encrypted).decrypt_symmetric("secret")
+    asserts.assert_that(decrypted[0].data).is_equal_to(b"This is text.")
 
-    data = OpenPGP.LiteralDataPacket('This is text.', 'u', 'stuff.txt', 1000000)
-    encrypt = Crypto.Wrapper(data)
-    encrypted = encrypt.encrypt([wkey])
 
-    print('pgp encrypted:', encrypted)
-    print('byte arr:', bytearray([21]))
-
-#     # Now decrypt it with the same key
-    decryptor = Crypto.Wrapper(wkey)
-    decrypted = decryptor.decrypt(encrypted)
-
-    # print('pgp decrypted:', decrypted)
 
 def _testsuite():
     _suite = unittest.TestSuite()

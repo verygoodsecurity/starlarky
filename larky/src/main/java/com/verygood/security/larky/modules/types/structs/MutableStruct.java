@@ -59,7 +59,9 @@ class MutableStruct extends SimpleStruct {
     }
 
     try {
-      ((Property) field).call(new Object[]{value, name}, null);
+      ((Property) field).call(
+        new Object[]{value, name},
+        this.getCurrentThread().mutability());
     } catch (NoSuchMethodException exception) {
       throw new EvalException(exception);
     }

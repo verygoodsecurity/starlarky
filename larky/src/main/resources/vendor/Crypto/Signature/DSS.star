@@ -1,9 +1,11 @@
+load("@stdlib//larky", larky="larky")
+
 def DssSigScheme(object):
     """
     A (EC)DSA signature object.
         Do not instantiate directly.
         Use :func:`Crypto.Signature.DSS.new`.
-    
+
     """
     def __init__(self, key, encoding, order):
         """
@@ -11,7 +13,7 @@ def DssSigScheme(object):
 
                 Do not instantiate this object directly,
                 use `Crypto.Signature.DSS.new` instead.
-        
+
         """
     def can_sign(self):
         """
@@ -44,7 +46,7 @@ def DssSigScheme(object):
                 :return: The signature as a *byte string*
                 :raise ValueError: if the hash algorithm is incompatible to the (EC)DSA key
                 :raise TypeError: if the (EC)DSA key has no private half
-        
+
         """
     def verify(self, msg_hash, signature):
         """
@@ -66,7 +68,7 @@ def DssSigScheme(object):
                 :type signature: byte string
 
                 :raise ValueError: if the signature is not authentic
-        
+
         """
 def DeterministicDsaSigScheme(DssSigScheme):
     """
@@ -185,5 +187,10 @@ def new(key, mode, encoding='binary', randfunc=None):
         .. _NIST SP 800 Part 1 Rev 4: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r4.pdf
         .. _RFC6979: http://tools.ietf.org/html/rfc6979
         .. _RFC3279: https://tools.ietf.org/html/rfc3279#section-2.2.2
-    
+
     """
+
+
+DSS = larky.struct(
+    __name__='DSS',
+)

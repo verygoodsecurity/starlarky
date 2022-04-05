@@ -21,38 +21,35 @@
 # ===================================================================
 load("@stdlib//larky", "larky")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@vendor//Crypto/Random/random", random="random")
 
 #: Function that returns a random byte string of the desired size.
 get_random_bytes = _JCrypto.Random.urandom
 
 
 def _UrandomRNG():
+    self = larky.mutablestruct(__name__='_UrandomRNG', __class__=_UrandomRNG)
 
     def read(n):
         """Return a random byte string of the desired size."""
         return get_random_bytes(n)
+    self.read = read
 
     def flush():
         """Method provided for backward compatibility only."""
         pass
+    self.flush = flush
 
     def reinit():
         """Method provided for backward compatibility only."""
         pass
+    self.reinit = reinit
 
     def close():
         """Method provided for backward compatibility only."""
         pass
-
-    self = larky.struct(
-             read=read,
-             flush=flush,
-             reinit=reinit,
-             close=close,
-             __class__='_UrandomRNG'
-         )
+    self.close = close
     return self
-
 
 
 def new(*args, **kwargs):
@@ -67,7 +64,8 @@ def atfork():
 Random = larky.struct(
     new=new,
     get_random_bytes=get_random_bytes,
-    atfork=atfork
+    atfork=atfork,
+    random=random
 )
 
 
