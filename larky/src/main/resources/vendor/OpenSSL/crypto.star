@@ -1423,7 +1423,7 @@ def X509():
 
     def _set_name(which, name):
         if not types.is_instance(name, X509Name):
-            fail('TypeError: name must be an X509Name')
+            fail('TypeError: name must be an X509Name, got type: %s' % type(name))
         self._x509[which] = name
     self._set_name = _set_name
 

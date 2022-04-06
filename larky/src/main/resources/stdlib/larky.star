@@ -28,6 +28,7 @@ WHILE_LOOP_EMULATION_ITERATION = 4096
 
 _SENTINEL = _sentinel()
 
+
 # TODO: maybe move to a testutils?
 def _parametrize(testaddr, testcase, param, args):
     """
@@ -72,8 +73,8 @@ def _parametrize(testaddr, testcase, param, args):
         else:
             for arg in args:
                 testaddr(testcase(_partial(func, **dict(zip(param, arg)))))
-    return parametrized
 
+    return parametrized
 
 
 def _impl_function_name(f):
@@ -92,37 +93,100 @@ def _impl_function_name(f):
     # that knowledge to parse the "NAME" portion out. If this behavior ever
     # changes, we'll need to update this.
     # TODO(bazel-team): Expose a ._name field on functions to avoid this.
-    return _func_name(f)
     # cls_type = str(f)
     # if 'built-in' in cls_type or '<function ' in cls_type:
     #     cls_type = cls_type.split(" ")[-1].rpartition(">")[0]
     # return cls_type
+    return _func_name(f)
 
 
-def _is_instance(instance, some_class_or_factory):
-    t = type(instance)
-    # are the types the same?
-    _hasname = None
-    for i in ('__class__', '__name__',):
-        _hasname = getattr(some_class_or_factory, i, None)
-        if _hasname:
-            break
-    if _hasname:
-        _hasname = str(_hasname)
-        if 'built-in' in _hasname or '<function ' in _hasname:
-            _hasname = _hasname.split(" ")[-1].rpartition(">")[0]
+def _is_instance(obj, cls):
+    print(cls, _func_name(cls))
+    if obj == None:
+        return cls == None
 
-    if _hasname and t == _hasname:
-        return True
-    # otherwise
-    cls_type = _impl_function_name(some_class_or_factory)
-    # TODO(Larky::Difference) this hack here is specialization for comparing
-    #  str to string when we do str(str) in larky, we get
-    #  <built-in function str>, but in python, this is <class 'str'>.
-    #  This could actually be a starlark inconsistency, but unclear.
-    if t == 'string' and cls_type == 'str':
-        return True
-    return t == cls_type
+    # we do not want to import types here so we do it this way for now
+    is_iterable = lambda x: type(x) == type(tuple()) or type(x) == type(list())
+
+    def __isinstance(_obj, _kls):
+        # // PEP 585
+        # check if generic alias? not supported in larky
+        if not _kls:
+            fail("isinstance() arg 2 must be a type or tuple of types")
+
+        # mimic python isinstance(True, int)?
+        if _kls == int and (_obj == True or _obj == False):
+            return True
+
+        if _kls == bool:
+            return {
+                "str": False,
+                "int": False,
+                "float": False,
+                "bool": True,
+            }.get(type(_obj))
+
+        for attr in ('__class__', '__name__',):
+            klass = getattr(_obj, attr, None)
+            # check if we're doing isinstance(builtin, builtin..)
+            if klass == None:
+                if type(_obj) == "string":
+                    if _kls == str:
+                        return True
+                    elif type(_kls) != "builtin_function_or_method":
+                        return False
+                elif type(_obj) == "int" and _kls == int:
+                    return True
+                elif type(_obj) == "float" and _kls == float:
+                    return True
+                klass = type(_obj)
+
+            if klass == None:
+                continue
+
+            def _check(kl, _kls):
+                """Return true if one of the parents of obj class is cls"""
+                if kl == _kls:
+                    return True
+                if type(_kls) == "builtin_function_or_method":
+                    if kl == _func_name(_kls):
+                        return True
+                # As we have built more patterns in Larky, there are
+                # various metadata annotations that we've attached to
+                # mutablestructs that are able to identify classes.
+                #
+                # One is __class__ or __name__ and sometimes they're just
+                # plain functions.
+                #
+                # We check to see if these annotations are there or
+                # if the function name was passed in.
+                for attr in ('__class__', '__name__',):
+                    if kl == getattr(_kls, attr, None):
+                        return True
+                # FWIW, this might be a problem if we pass in two diff
+                # functions from different modules but with the same name.
+                if kl == _func_name(kls):
+                    return True
+
+            if _check(klass, _kls):
+                return True
+
+            # start of support of "inheritance"...
+            mro = getattr(klass, '__mro__', [])
+            for mro_kl in mro:
+                if _check(mro_kl, _kls):
+                    return True
+            # do not support __instancecheck__ yet
+
+        return False
+
+    if not is_iterable(cls):
+        cls = [cls]
+
+    for kls in cls:
+        if __isinstance(obj, kls):
+            return True
+    return False
 
 
 def translate_bytes(s, original, replace):
@@ -194,6 +258,7 @@ def _DeterministicGenerator(func, *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
         return self
+
     self = __init__(func, *args, **kwargs)
 
     def __getitem__(i):
@@ -206,13 +271,13 @@ def _DeterministicGenerator(func, *args, **kwargs):
     return iter(self)
 
 
-
 def _fromkeys(iterable, value=None):
     """dict.fromkeys(S[, v]) ->
 
     Create a new dictionary with keys from iterable and values set to value.
     """
     return {key: value for key in iterable}
+
 
 #
 # def _with(ctx):
@@ -246,10 +311,12 @@ def _Peekable(iterator, retain_max_elems=5):
         else:
             self.iterator = iterator
         return self
+
     self = __init__(iterator, retain_max_elems)
 
     def __iter__():
         return self
+
     self.__iter__ = __iter__
 
     def __bool__():
@@ -257,6 +324,7 @@ def _Peekable(iterator, retain_max_elems=5):
         if rv == StopIteration:
             return False
         return True
+
     self.__bool__ = __bool__
 
     def __next__():
@@ -265,6 +333,7 @@ def _Peekable(iterator, retain_max_elems=5):
         self.cache.append(i)
         self._ensure_size()
         return i
+
     self.__next__ = __next__
     self.next = __next__
 
@@ -281,6 +350,7 @@ def _Peekable(iterator, retain_max_elems=5):
 
         self.peeked.append(i)
         return i
+
     self.peek = peek
 
     def rewind(n):
@@ -289,6 +359,7 @@ def _Peekable(iterator, retain_max_elems=5):
 
         for _ in range(n):
             self.peeked.append(self.cache.pop())
+
     self.rewind = rewind
 
     def putback(*items):
@@ -296,15 +367,18 @@ def _Peekable(iterator, retain_max_elems=5):
             self.cache.append(item)
         self._ensure_size()
         self.rewind(len(items))
+
     self.putback = putback
 
     def flush():
         self.cache.clear()
+
     self.flush = flush
 
     def _ensure_size():
         if len(self.cache) >= self._retain_max_elems:
-            self.cache = self.cache[-self._retain_max_elems :]
+            self.cache = self.cache[-self._retain_max_elems:]
+
     self._ensure_size = _ensure_size
     return self
 
@@ -326,7 +400,7 @@ larky = _struct(
         zfill=_zfill,
     ),
     dicts=_struct(
-      fromkeys=_fromkeys,
+        fromkeys=_fromkeys,
     ),
     utils=_struct(
         Counter=_Counter,

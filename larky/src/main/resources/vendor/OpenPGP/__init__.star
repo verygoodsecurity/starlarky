@@ -178,6 +178,10 @@ def bitlength(data):
     """http://tools.ietf.org/html/rfc4880#section-12.2"""
     if ord(data[0:1]) == 0:
         fail("OpenPGPException: Tried to get bitlength of string with leading 0")
+    print("bitlength data - ord: ", ord(data[0:1]))
+    print("bitlength data - log: ", log(ord(data[0:1]), 2))
+    print("bitlength data - floor: ", floor(log(ord(data[0:1]), 2)))
+    print("bitlength data - int: ", int(floor(log(ord(data[0:1]), 2))))
     return (len(data) - 1) * 8 + int(floor(log(ord(data[0:1]), 2))) + 1
 
 
@@ -633,13 +637,17 @@ def _Packet():
         packet = None
         # If there is not even one byte, then there is no packet at all
         chunk = _ensure_bytes(1, next(g), g)
+        print(chunk.hex(":"))
 
         # Parse header
         if ord(chunk[0:1]) & 64:
+            print("we are in new format")
             tag, data_length = Packet.parse_new_format(chunk, g)
         else:
+            print("we are in old format")
             tag, data_length = Packet.parse_old_format(chunk, g)
 
+        print("tag:", tag, "data_length:", data_length)
         if not data_length:
             rval = Result.Ok(g).map(_slurp)
             if rval == StopIteration():
@@ -651,6 +659,7 @@ def _Packet():
 
         if tag:
             packet_class = Packet.tags.get(tag, Packet)
+            print("packet_class:", packet_class, "tag:", tag)
             packet = packet_class()
             packet.tag = tag
             packet.input = g
@@ -830,6 +839,7 @@ def AsymmetricSessionKeyPacket(key_algorithm="", keyid="", encrypted_data="", ve
     cls = _Packet()
     cls.__name__ = 'AsymmetricSessionKeyPacket'
     cls.__class__ = AsymmetricSessionKeyPacket
+    cls.__mro__ = [cls, Packet]
 
     def __init__(key_algorithm, keyid, encrypted_data, version):
         self = Packet()
@@ -881,6 +891,7 @@ def _SignaturePacket():
     cls = _Packet()
     cls.__name__ = 'SignaturePacket'
     cls.__class__ = _SignaturePacket
+    cls.__mro__ = [cls, Packet]
 
     cls.hash_algorithms = {
         1: "MD5",
@@ -919,7 +930,7 @@ def _SignaturePacket():
                 self.signature_type = data.format != "b" and 0x01 or 0x00
                 data.normalize()
                 data = data.data
-            elif hasattr(data, "encode"):
+            elif types.is_string(data):
                 data = codecs.encode(data, encoding="utf-8")
             elif builtins.isinstance(data, Message) and builtins.isinstance(data[0], PublicKeyPacket):
                 # data is a message with PublicKey first, UserID second
@@ -1152,7 +1163,8 @@ def _SignaturePacket():
         cls = _Packet()
         cls.__name__ = 'Subpacket'
         cls.__class__ = Subpacket
-        self = larky.mutablestruct(__name__='Subpacket', __class__=Subpacket)
+        cls.__mro__ = [cls, Packet]
+        self = larky.mutablestruct(__name__='Subpacket', __class__=cls)
 
         def __init__(data):
             self = Packet(data)
@@ -1180,6 +1192,8 @@ def _SignaturePacket():
     def SignatureCreationTimePacket(time=time()):
         """http://tools.ietf.org/html/rfc4880#section-5.2.3.4"""
         self = Subpacket()
+        cls = self.__class__
+        self.__class__.__mro__.insert(SignatureCreationTimePacket, 0)
         self.__name__ = 'SignatureCreationTimePacket'
         self.__class__ = SignatureCreationTimePacket
 
@@ -1767,6 +1781,8 @@ def _PublicKeyPacket():
                     material += pack("!H", bitlength(self.key[i]))
                     material += self.key[i]
                 head[1] = pack("!H", 6 + len(material))
+                print([h.hex() for h in head])
+                print(material.hex())
                 return head + [material]
         self.fingerprint_material = fingerprint_material
 
@@ -2027,7 +2043,7 @@ def LiteralDataPacket(data=None, format="b", filename="data", timestamp=time()):
         self = cls(data)
         self.__name__  = cls.__name__
         self.__class__ = cls
-        if hasattr(data, "encode"):
+        if types.is_string(data):
             data = codecs.encode(data, encoding="utf-8")
         self.data = data
         self.format = format

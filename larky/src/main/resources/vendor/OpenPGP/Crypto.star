@@ -415,15 +415,16 @@ def _Wrapper():
                 )
             ]
 
-            if not types.is_iterable(passphrases_and_keys) or hasattr(
-                passphrases_and_keys, "encode"
-            ):
+            if not types.is_iterable(passphrases_and_keys) or types.is_string(passphrases_and_keys):
                 passphrases_and_keys = [passphrases_and_keys]
 
             for psswd in passphrases_and_keys:
+                print(psswd)
                 if builtins.isinstance(psswd, OpenPGP.PublicKeyPacket):
+                    print("psswd isinstance OpenPGP.PublicKeyPacket")
                     if not psswd.key_algorithm in [1, 2, 3]:
                         fail("Exception: Only RSA keys are supported.")
+                    print(self.__class__)
                     rsa = self.__class__(psswd).public_key()
                     pkcs1 = PKCS1_v1_5_Cipher.new(rsa)
                     esk = pkcs1.encrypt(
@@ -437,7 +438,7 @@ def _Wrapper():
                             psswd.key_algorithm, psswd.fingerprint(), esk
                         )
                     ] + encrypted
-                elif hasattr(psswd, "encode"):
+                elif types.is_string(psswd):
                     psswd = codecs.encode(psswd, encoding="utf-8")
                     s2k = OpenPGP.S2K(Random.new().read(10))
                     packet_cipher = cipher(s2k.make_key(psswd, key_bytes))(None)

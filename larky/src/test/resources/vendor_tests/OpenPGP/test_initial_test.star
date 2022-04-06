@@ -45,8 +45,8 @@ def PGP_test():
 #     decrypted = decryptor.decrypt(encrypted)
 #
 #     print('pgp decrypted:', decrypted)
-    for k in key:
-        print(k._fingerprint) if hasattr(k, "_fingerprint") else print(k)
+#     k = next(iter(key))
+#     print(k.key)
 #     data = OpenPGP.LiteralDataPacket("This is text.", "u", "stuff.txt")
 #     encrypted = Crypto.Wrapper(OpenPGP.Message([data])).encrypt(key)
 #     for k in encrypted:
@@ -55,10 +55,14 @@ def PGP_test():
     # decrypted = decryptor.decrypt(encrypted)
     # asserts.assert_that(decrypted[0].data).is_equal_to(b"This is text.")
     data = OpenPGP.LiteralDataPacket("This is text.", "u", "stuff.txt")
-    encrypted = Crypto.Wrapper(OpenPGP.Message([data])).encrypt("secret")
-    decrypted = Crypto.Wrapper(encrypted).decrypt_symmetric("secret")
+    message = OpenPGP.Message([data])
+    print(message)
+    wrapper = Crypto.Wrapper(message)
+    print(wrapper)
+    encrypted = wrapper.encrypt(key)
+    decryptor = Crypto.Wrapper(key)
+    decrypted = decryptor.decrypt(encrypted)
     asserts.assert_that(decrypted[0].data).is_equal_to(b"This is text.")
-
 
 
 def _testsuite():
