@@ -20,6 +20,9 @@ load("@stdlib//types", "types")
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
 
+load("@stdlib//types", "make_class", "new", "get", "set_", "del_")
+
+
 
 assert_true = asserts.assert_true
 assert_false = asserts.assert_false
@@ -235,7 +238,6 @@ def test_new_class_basics():
     asserts.assert_that(type(o)).is_equal_to("LarkyObject")
 
 
-
 def test_create_with_fields():
     # ns updates schema with cls_dict
     # stock.py
@@ -268,6 +270,195 @@ def test_create_with_fields():
     print(s.cost())
 
 
+def test_class_dont_require_attributes():
+    TestClass = make_class('TestClass')
+    instance = TestClass()
+    print(instance)
+    asserts.assert_that(larky.is_instance(instance, TestClass)).is_true()
+
+
+def test_class_instances_have_a_name():
+    OtherTestClass = make_class('OtherTestClass')
+    asserts.assert_that(OtherTestClass.__name__).is_equal_to('OtherTestClass')
+
+
+def test_init_is_called_upon_new():
+    val = [False]
+
+    def initializer(*args, **kwargs):
+        val.clear()
+        val.append(True)
+
+    TestClass = make_class('TestClass', cls_dict={
+        '__init__': initializer
+    })
+
+    instance = TestClass()
+    asserts.assert_that(val[0]).is_true()
+    asserts.assert_that(larky.is_instance(instance, TestClass)).is_true()
+    print(type(TestClass))
+    print(type(instance))
+    # print(type.int2("1"))
+    # print(type("1") == "string")
+    # print(type(type))
+
+
+def test_init_is_passed_arguments():
+    _self = []
+    _args = []
+    _kwargs = {}
+
+    def initializer(self, *args, **kwargs):
+        _self.append(self)
+        _args.extend(args)
+        _kwargs.update(kwargs)
+
+    TestClass = make_class('TestClass', cls_dict={
+        '__init__': initializer
+    })
+
+    instance = TestClass(1, 2, a='b')
+    asserts.assert_that(larky.is_instance(instance, TestClass)).is_true()
+    asserts.assert_that(_self[0]).is_equal_to(instance)
+    asserts.assert_that(_args).is_equal_to([1, 2])
+    asserts.assert_that(_kwargs).is_equal_to({'a': 'b'})
+
+
+def test_instances_can_set_and_get_attributes():
+    TestClass = make_class('TestClass', cls_dict={
+        '__init__': lambda self: set_(self, 'val', 1)
+    })
+
+    instance = TestClass()
+
+    asserts.assert_that(get(instance, 'val')).is_equal_to(1)
+    asserts.assert_that(instance.val).is_equal_to(1)
+
+
+def test_attributes_can_exist_on_the_class():
+    TestClass = make_class('TestClass', cls_dict={
+        'x': 1
+    })
+
+    instance = TestClass()
+    asserts.assert_that(get(instance, 'x')).is_equal_to(1)
+    asserts.assert_that(instance.x).is_equal_to(1)
+
+
+def test_setting_an_attribute_shadows_the_class_attribute():
+    TestClass = make_class('TestClass', cls_dict={
+        'x': 1
+    })
+
+    instance = TestClass()
+    set_(instance, 'x', 2)
+    asserts.assert_that(get(instance, 'x')).is_equal_to(2)
+    instance.x = 3
+    asserts.assert_that(instance.x).is_equal_to(3)
+
+
+def test_missing_attributes_raise_attribute_error():
+    TestClass = make_class('TestClass')
+
+    instance = TestClass()
+
+    asserts.assert_fails(lambda: get(instance, 'missing_value'), ".*AttributeError")
+
+
+def test_methods_receive_the_instance_as_the_first_param():
+    _args = []
+
+    def method(self, arg1, arg2):
+        _args.extend([self, arg1, arg2])
+
+    TestClass = make_class('TestClass', cls_dict={
+        'method': method
+    })
+
+    instance = new(TestClass,)
+    get(instance, 'method')(1, 2)
+
+    asserts.assert_that(len(_args)).is_equal_to(3)
+    asserts.assert_that(_args).is_equal_to([instance, 1, 2])
+
+
+# def test_setting_an_instance_callable_does_not_receive_the_instance():
+#     args = []
+#
+#     def method(arg1, arg2):
+#         args.extend([arg1, arg2])
+#
+#     TestClass = make_class('TestClass')
+#
+#     instance = TestClass()
+#     set_(instance, 'method', method)
+#     get(instance, 'method')(1, 2)
+#
+#     asserts.assert_that(args).is_equal_to([1, 2])
+
+
+# @raises(AttributeError)
+# def test_can_delete_instance_attributes():
+#     TestClass = make_class('TestClass')
+#
+#     instance = new(TestClass)
+#     set_(instance, 'x', 1)
+#     get(instance, 'x')
+#
+#     del_(instance, 'x')
+#     get(instance, 'x')
+#
+#
+# @raises(AttributeError)
+# def test_cannot_delete_class_attributes():
+#     TestClass = make_class('TestClass', cls_dict={
+#         'x': 1
+#     })
+#
+#     instance = new(TestClass)
+#
+#     del_(instance, 'x')
+#
+#
+# def test_static_methods_do_not_get_instance_as_first_param():
+#     method = Mock()
+#
+#     TestClass = make_class('TestClass', cls_dict={
+#         'method': staticmethod(method)
+#     })
+#
+#     instance = new(TestClass)
+#
+#     get(instance, 'method')(1)
+#
+#     method.assert_called_once_with(1)
+#
+#
+# def test_class_methods_get_class_as_first_param():
+#     method = Mock()
+#
+#     TestClass = make_class('TestClass', cls_dict={
+#         'method': classmethod(method)
+#     })
+#
+#     instance = new(TestClass)
+#
+#     get(instance, 'method')(1)
+#
+#     method.assert_called_once_with(TestClass, 1)
+#
+#
+# def test_attribute_lookups_will_use_inheritance():
+#     BaseClass = make_class('BaseClass', cls_dict={
+#         'x': 1
+#     })
+#     TestClass = make_class('TestClass', bases=(BaseClass,))
+#
+#     instance = new(TestClass)
+#
+#     eq_(get(instance, 'x'), 1)
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_is_string_test))
@@ -286,6 +477,17 @@ def _testsuite():
     # TODO: uncomment when enabling basic OO
     # _suite.addTest(unittest.FunctionTestCase(test_new_class_basics))
     # _suite.addTest(unittest.FunctionTestCase(test_create_with_fields))
+    # OBJECTS?
+    _suite.addTest(unittest.FunctionTestCase(test_class_dont_require_attributes))
+    _suite.addTest(unittest.FunctionTestCase(test_class_instances_have_a_name))
+    _suite.addTest(unittest.FunctionTestCase(test_init_is_called_upon_new))
+    _suite.addTest(unittest.FunctionTestCase(test_init_is_passed_arguments))
+    _suite.addTest(unittest.FunctionTestCase(test_instances_can_set_and_get_attributes))
+    _suite.addTest(unittest.FunctionTestCase(test_attributes_can_exist_on_the_class))
+    _suite.addTest(unittest.FunctionTestCase(test_setting_an_attribute_shadows_the_class_attribute))
+    _suite.addTest(unittest.FunctionTestCase(test_missing_attributes_raise_attribute_error))
+    _suite.addTest(unittest.FunctionTestCase(test_methods_receive_the_instance_as_the_first_param))
+    # _suite.addTest(unittest.FunctionTestCase(test_setting_an_instance_callable_does_not_receive_the_instance))
     return _suite
 
 

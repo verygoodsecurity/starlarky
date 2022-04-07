@@ -626,7 +626,10 @@ def _Packet():
     http://tools.ietf.org/html/rfc4880#section-4.1
     http://tools.ietf.org/html/rfc4880#section-4.3
     """
-    cls = larky.mutablestruct(__name__='Packet')
+    cls = larky.mutablestruct(
+        __name__='Packet',
+        __mro__=[]
+    )
 
     def parse(input_data):
         if hasattr(input_data, "next") or hasattr(input_data, "__next__"):
@@ -832,53 +835,59 @@ def _Packet():
 Packet = _Packet()
 
 
-def AsymmetricSessionKeyPacket(key_algorithm="", keyid="", encrypted_data="", version=3):
+def _AsymmetricSessionKeyPacket():
     """OpenPGP Public-Key Encrypted Session Key packet (tag 1).
     http://tools.ietf.org/html/rfc4880#section-5.1
     """
     cls = _Packet()
     cls.__name__ = 'AsymmetricSessionKeyPacket'
-    cls.__class__ = AsymmetricSessionKeyPacket
     cls.__mro__ = [cls, Packet]
 
-    def __init__(key_algorithm, keyid, encrypted_data, version):
-        self = Packet()
-        self.__name__  = cls.__name__
-        self.__class__ = cls
-        self.version = version
-        self.keyid = keyid[-16:]
-        self.key_algorithm = key_algorithm
-        self.encrypted_data = encrypted_data
+    def __new__(key_algorithm="", keyid="", encrypted_data="", version=3):
+        def __init__(key_algorithm, keyid, encrypted_data, version):
+            self = Packet()
+            self.__name__  = cls.__name__
+            self.__class__ = cls
+            self.version = version
+            self.keyid = keyid[-16:]
+            self.key_algorithm = key_algorithm
+            self.encrypted_data = encrypted_data
+            return self
+        self = __init__(key_algorithm, keyid, encrypted_data, version)
+
+        def read():
+            self.version = ord(self.read_byte())
+            if self.version == 3:
+                rawkeyid = self.read_bytes(8)
+                self.keyid = ""
+                for i in range(0, len(rawkeyid)):  # Store KeyID in Hex
+                    self.keyid += "%X" % ord(rawkeyid[i : i + 1])
+
+                self.key_algorithm = ord(self.read_byte())
+                self.encrypted_data = self.read_bytes(self.length)
+            else:
+                fail("OpenPGPException: " +
+                     "Unsupported AsymmetricSessionKeyPacket version: " +
+                     self.version)
+        self.read = read
+
+        def body():
+            b = pack("!B", self.version)
+
+            for i in range(0, len(self.keyid), 2):
+                b += pack("!B", int(self.keyid[i] + self.keyid[i + 1], 16))
+
+            b += pack("!B", self.key_algorithm)
+            b += self.encrypted_data
+            return b
+        self.body = body
         return self
-    cls.__call__ = __init__
-    self = cls(key_algorithm, keyid, encrypted_data, version)
+    cls.__call__ = __new__
 
-    def read():
-        self.version = ord(self.read_byte())
-        if self.version == 3:
-            rawkeyid = self.read_bytes(8)
-            self.keyid = ""
-            for i in range(0, len(rawkeyid)):  # Store KeyID in Hex
-                self.keyid += "%X" % ord(rawkeyid[i : i + 1])
+    return cls
 
-            self.key_algorithm = ord(self.read_byte())
-            self.encrypted_data = self.read_bytes(self.length)
-        else:
-            fail("OpenPGPException: " + "Unsupported AsymmetricSessionKeyPacket version: " + self.version
-            )
-    self.read = read
 
-    def body():
-        b = pack("!B", self.version)
-
-        for i in range(0, len(self.keyid), 2):
-            b += pack("!B", int(self.keyid[i] + self.keyid[i + 1], 16))
-
-        b += pack("!B", self.key_algorithm)
-        b += self.encrypted_data
-        return b
-    self.body = body
-    return self
+AsymmetricSessionKeyPacket = _AsymmetricSessionKeyPacket()
 
 
 SUBPACKET_TYPES = {}
@@ -1193,9 +1202,10 @@ def _SignaturePacket():
         """http://tools.ietf.org/html/rfc4880#section-5.2.3.4"""
         self = Subpacket()
         cls = self.__class__
-        self.__class__.__mro__.insert(SignatureCreationTimePacket, 0)
-        self.__name__ = 'SignatureCreationTimePacket'
-        self.__class__ = SignatureCreationTimePacket
+        cls.__mro__.insert(0, SignatureCreationTimePacket)
+        cls.__name__ = 'SignatureCreationTimePacket'
+        self.__class__ = cls
+        self.__name__ = cls.__name__
 
         def __init__(time):
             self.data = time
@@ -1554,8 +1564,11 @@ SignaturePacket = _SignaturePacket()
 
 def EmbeddedSignaturePacket(data=None, key_algorithm=None, hash_algorithm=None):
     self = SignaturePacket(data=data, key_algorithm=key_algorithm, hash_algorithm=hash_algorithm)
-    self.__class__ = EmbeddedSignaturePacket
-    self.__name__ = 'EmbeddedSignaturePacket'
+    cls = self.__class__
+    cls.__mro__.insert(0, EmbeddedSignaturePacket)
+    cls.__name__ = 'EmbeddedSignaturePacket'
+    self.__class__ = cls
+    self.__name__ = cls.__name__
 
     for tag in SignaturePacket.subpacket_types:
         if larky.impl_function_name(SignaturePacket.subpacket_types[tag]) == self.__name__:
@@ -1583,6 +1596,7 @@ def SymmetricSessionKeyPacket(s2k=None, encrypted_data=b"", symmetric_algorithm=
     cls = _Packet()
     cls.__name__ = 'SymmetricSessionKeyPacket'
     cls.__class__ = SymmetricSessionKeyPacket
+    cls.__mro__ = [cls, Packet]
 
     def __init__(s2k, encrypted_data, symmetric_algorithm, version):
         self = Packet()
@@ -1621,11 +1635,13 @@ def OnePassSignaturePacket(data=None):
     cls = _Packet()
     cls.__name__ = 'OnePassSignaturePacket'
     cls.__class__ = OnePassSignaturePacket
+    cls.__mro__ = [cls, Packet]
 
     def __init__(data):
         self = Packet(data)
         self.__name__  = cls.__name__
         self.__class__ = cls
+
         return self
     cls.__call__ = __init__
     self = cls(data)
@@ -1664,7 +1680,6 @@ def _PublicKeyPacket():
     """
     cls = _Packet()
     cls.__name__ = 'PublicKeyPacket'
-    cls.__class__ = _PublicKeyPacket
 
     cls.key_fields = {
         1: ["n", "e"],  # RSA
@@ -1684,11 +1699,11 @@ def _PublicKeyPacket():
     }
 
     def __new__(keydata=None, version=4, algorithm=1, timestamp=time()):
-        self = Packet()
-        self.__name__  = cls.__name__
-        self.__class__ = cls
 
         def __init__(keydata, version, algorithm, timestamp):
+            self = Packet()
+            self.__name__  = cls.__name__
+            self.__class__ = cls
             self._fingerprint = None
             self.version = version
             self.key_algorithm = algorithm
@@ -1819,10 +1834,12 @@ def _PublicKeyPacket():
         self.body = body
         return self
     cls.__call__ = __new__
+    cls.__mro__.insert(0, cls)
     return cls
 
 
 PublicKeyPacket = _PublicKeyPacket()
+
 
 
 def PublicSubkeyPacket(keydata=None, version=4, algorithm=1, timestamp=time()):
@@ -1833,13 +1850,15 @@ def PublicSubkeyPacket(keydata=None, version=4, algorithm=1, timestamp=time()):
     http://tools.ietf.org/html/rfc4880#section-12
     """
     self = PublicKeyPacket(keydata, version, algorithm, timestamp)
-    self.__name__ = 'PublicSubkeyPacket'
-    self.__class__.__name__ = 'PublicSubkeyPacket'
-    self.__class__.__class__ = PublicSubkeyPacket
+    cls = self.__class__
+    cls.__mro__.insert(0, PublicSubkeyPacket)
+    cls.__name__ = 'PublicSubkeyPacket'
+    self.__class__ = cls
+    self.__name__ = cls.__name__
     return self
 
 
-def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=time()):
+def _SecretKeyPacket():
     """OpenPGP Secret-Key packet (tag 5).
     http://tools.ietf.org/html/rfc4880#section-5.5.1.3
     http://tools.ietf.org/html/rfc4880#section-5.5.3
@@ -1849,7 +1868,6 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=time()):
 
     cls = _PublicKeyPacket()
     cls.__name__ = 'SecretKeyPacket'
-    cls.__class__ = SecretKeyPacket
 
     cls.secret_key_fields = {
         1: ["d", "p", "q", "u"],  # RSA
@@ -1865,75 +1883,80 @@ def SecretKeyPacket(keydata=None, version=4, algorithm=1, timestamp=time()):
     # self.__class__ = cls
 
     super__init__ = cls.__call__
-    def __init__(keydata, version, algorithm, timestamp):
-        self = super__init__(keydata, version, algorithm, timestamp)
-        self.__class__ = cls
-        self.__name__ =  'SecretKeyPacket'
-        self.s2k_useage = 0
-        if builtins.isinstance(keydata, tuple) or builtins.isinstance(keydata, list):
-            public_len = len(cls.key_fields[self.key_algorithm])
-            for i in range(public_len, len(keydata)):
-                self.key[
-                    cls.secret_key_fields[self.key_algorithm][i - public_len]
-                ] = keydata[i]
+    def __new__(keydata=None, version=4, algorithm=1, timestamp=time()):
+        def __init__(keydata, version, algorithm, timestamp):
+            self = super__init__(keydata, version, algorithm, timestamp)
+            self.__class__ = cls
+            self.__name__ =  'SecretKeyPacket'
+            self.s2k_useage = 0
+            if builtins.isinstance(keydata, tuple) or builtins.isinstance(keydata, list):
+                public_len = len(cls.key_fields[self.key_algorithm])
+                for i in range(public_len, len(keydata)):
+                    self.key[
+                        cls.secret_key_fields[self.key_algorithm][i - public_len]
+                    ] = keydata[i]
+            return self
+        self = __init__(keydata, version, algorithm, timestamp)
+        super_read = self.read
+        def read():
+            super_read()  # All the fields from PublicKey
+            self.s2k_useage = ord(self.read_byte())
+            if self.s2k_useage == 255 or self.s2k_useage == 254:
+                self.symmetric_algorithm = ord(self.read_byte())
+                self.s2k, s2k_bytes = S2K.parse(self.input)
+                self.length -= s2k_bytes
+            elif self.s2k_useage > 0:
+                self.symmetric_algorithm = self.s2k_useage
+            if self.s2k_useage > 0:
+                # Rest of input is MPIs and checksum (encrypted)
+                self.encrypted_data = self.read_bytes(self.length)
+            else:
+                material = self.read_bytes(self.length - 2)
+                self.input.push(material)
+                self.key_from_input()
+                chk = self.read_unpacked(2, "!H")
+                if chk != checksum(material):
+                    fail("OpenPGPException: Checksum verification failed when parsing SecretKeyPacket"
+                    )
+        self.read = read
+
+        def key_from_input():
+            for field in cls.secret_key_fields[self.key_algorithm]:
+                self.key[field] = self.read_mpi()
+        self.key_from_input = key_from_input
+
+        super_body = self.body
+        def body():
+            b = super_body() + pack("!B", self.s2k_useage)
+            secret_material = b""
+            if self.s2k_useage == 255 or self.s2k_useage == 254:
+                b += pack("!B", self.symmetric_algorithm)
+                b += self.s2k.to_bytes()
+            if self.s2k_useage > 0:
+                b += self.encrypted_data
+            else:
+                for f in cls.secret_key_fields[self.key_algorithm]:
+                    f = self.key[f]
+                    secret_material += pack("!H", bitlength(f))
+                    secret_material += f
+                b += secret_material
+
+                # 2-octet checksum
+                chk = 0
+                for i in range(0, len(secret_material)):
+                    chk = (chk + ord(secret_material[i : i + 1])) % 65536
+                b += pack("!H", chk)
+
+            return b
+        self.body = body
         return self
-    cls.__call__ = __init__
-    self = __init__(keydata, version, algorithm, timestamp)
+    cls.__call__ = __new__
+    cls.__class__ = cls
+    cls.__mro__.insert(0, cls)
+    return cls
 
-    super_read = self.read
-    def read():
-        super_read()  # All the fields from PublicKey
-        self.s2k_useage = ord(self.read_byte())
-        if self.s2k_useage == 255 or self.s2k_useage == 254:
-            self.symmetric_algorithm = ord(self.read_byte())
-            self.s2k, s2k_bytes = S2K.parse(self.input)
-            self.length -= s2k_bytes
-        elif self.s2k_useage > 0:
-            self.symmetric_algorithm = self.s2k_useage
-        if self.s2k_useage > 0:
-            # Rest of input is MPIs and checksum (encrypted)
-            self.encrypted_data = self.read_bytes(self.length)
-        else:
-            material = self.read_bytes(self.length - 2)
-            self.input.push(material)
-            self.key_from_input()
-            chk = self.read_unpacked(2, "!H")
-            if chk != checksum(material):
-                fail("OpenPGPException: Checksum verification failed when parsing SecretKeyPacket"
-                )
-    self.read = read
 
-    def key_from_input():
-        for field in cls.secret_key_fields[self.key_algorithm]:
-            self.key[field] = self.read_mpi()
-    self.key_from_input = key_from_input
-
-    super_body = self.body
-    def body():
-        b = super_body() + pack("!B", self.s2k_useage)
-        secret_material = b""
-        if self.s2k_useage == 255 or self.s2k_useage == 254:
-            b += pack("!B", self.symmetric_algorithm)
-            b += self.s2k.to_bytes()
-        if self.s2k_useage > 0:
-            b += self.encrypted_data
-        else:
-            for f in cls.secret_key_fields[self.key_algorithm]:
-                f = self.key[f]
-                secret_material += pack("!H", bitlength(f))
-                secret_material += f
-            b += secret_material
-
-            # 2-octet checksum
-            chk = 0
-            for i in range(0, len(secret_material)):
-                chk = (chk + ord(secret_material[i : i + 1])) % 65536
-            b += pack("!H", chk)
-
-        return b
-    self.body = body
-
-    return self
+SecretKeyPacket = _SecretKeyPacket()
 
 
 def SecretSubkeyPacket(keydata=None, version=4, algorithm=1, timestamp=time()):
@@ -1945,6 +1968,7 @@ def SecretSubkeyPacket(keydata=None, version=4, algorithm=1, timestamp=time()):
     """
     self = SecretKeyPacket(keydata, version, algorithm, timestamp)
     cls = self.__class__
+    cls.__mro__ = [SecretSubkeyPacket] + cls.__mro__
     cls.__name__ = 'SecretSubkeyPacket'
     cls.__class__ = SecretSubkeyPacket
     self.__name__ = 'SecretSubkeyPacket'
@@ -2007,7 +2031,7 @@ def EncryptedDataPacket():
     """
     cls = _Packet()
     cls.__name__ = 'EncryptedDataPacket'
-
+    cls.__mro__.insert(0, EncryptedDataPacket)
     def __init__():
         self = cls()
         self.__name__  = cls.__name__
@@ -2022,6 +2046,7 @@ def MarkerPacket():
     """
     cls = _Packet()
     cls.__name__ = 'MarkerPacket'
+    cls.__mro__.insert(0, MarkerPacket)
 
     def __init__():
         self = cls()
@@ -2037,6 +2062,7 @@ def LiteralDataPacket(data=None, format="b", filename="data", timestamp=time()):
     http://tools.ietf.org/html/rfc4880#section-5.9
     """
     cls = _Packet()
+    cls.__mro__.insert(0, LiteralDataPacket)
     cls.__name__ = 'LiteralDataPacket'
 
     def __init__(data, format, filename, timestamp):
@@ -2090,6 +2116,7 @@ def TrustPacket():
     """
     cls = _Packet()
     cls.__name__ = 'TrustPacket'
+    cls.__mro__.insert(0, TrustPacket)
 
     def __init__():
         self = cls()
@@ -2105,6 +2132,7 @@ def UserIDPacket(name="", comment=None, email=None):
     """
     cls = _Packet()
     cls.__name__ = 'UserIDPacket'
+    cls.__mro__.insert(0, UserIDPacket)
 
     def __init__(name, comment, email):
         self = cls()
@@ -2176,6 +2204,7 @@ def UserAttributePacket():
     """
     cls = _Packet()
     cls.__name__ = 'UserAttributePacket'
+    cls.__mro__.insert(0, UserAttributePacket)
 
     def __init__():
         self = cls()
@@ -2190,8 +2219,11 @@ def IntegrityProtectedDataPacket(data=b"", version=1):
     http://tools.ietf.org/html/rfc4880#section-5.13
     """
     self = EncryptedDataPacket()
+    cls = self.__class__
+    cls.__mro__.insert(0, IntegrityProtectedDataPacket)
+    cls.__name__ = 'IntegrityProtectedDataPacket'
     self.__name__ = 'IntegrityProtectedDataPacket'
-    self.__class__ = IntegrityProtectedDataPacket
+    self.__class__ = cls
     self.version = version
     self.data = data
 
@@ -2211,6 +2243,7 @@ def ModificationDetectionCodePacket(sha1=""):
     """
     cls = _Packet()
     cls.__name__ = 'ModificationDetectionCodePacket'
+    cls.__mro__.insert(0, ModificationDetectionCodePacket)
 
     def __init__(sha1):
         self = cls(sha1)
@@ -2245,6 +2278,7 @@ def ExperimentalPacket():
     """
     cls = _Packet()
     cls.__name__ = 'ExperimentalPacket'
+    cls.__mro__.insert(0, ExperimentalPacket)
 
     def __init__():
         self = cls()

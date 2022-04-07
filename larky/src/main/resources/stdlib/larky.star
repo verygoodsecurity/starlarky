@@ -101,7 +101,6 @@ def _impl_function_name(f):
 
 
 def _is_instance(obj, cls):
-    print(cls, _func_name(cls))
     if obj == None:
         return cls == None
 
@@ -187,6 +186,28 @@ def _is_instance(obj, cls):
         if __isinstance(obj, kls):
             return True
     return False
+
+
+def _is_subclass(klass, classinfo):
+
+    if not getattr(klass, "__class__", None):
+        fail("is_subclass() arg 1 must be a class")
+
+    def __issubclass(_kls, _klsinfo):
+        # no support for genericalias in larky
+        if _kls == _klsinfo or _klsinfo in _kls.__mro__:
+            return True
+
+        # ignore __subclasscheck__ for now
+        return False
+
+    if _is_instance(classinfo, tuple):
+        for klsinfo in classinfo:
+            if __issubclass(klass, klsinfo):
+                return True
+        return False
+
+    return __issubclass(klass, klsinfo)
 
 
 def translate_bytes(s, original, replace):
@@ -393,6 +414,7 @@ larky = _struct(
     SENTINEL=_SENTINEL,
     parametrize=_parametrize,
     is_instance=_is_instance,
+    is_subclass=_is_subclass,
     impl_function_name=_impl_function_name,
     translate_bytes=translate_bytes,
     DeterministicGenerator=_DeterministicGenerator,
