@@ -45,13 +45,20 @@ def _sign_header_and_claims(encoded_header, encoded_claims, algorithm, key):
         return encoded_string
     elif algorithm == 'ES256':
         signing_input = bytes([0x2e]).join([encoded_header, encoded_claims])
-        k = ECC.import_key(key)
+        # k = ECC.import_key(key)
+        k = jwk.construct(key, algorithm)
+        print(k)
+
 
 
 
 def sign(payload, key, headers=None, algorithm=ALGORITHMS.HS256):
     encoded_header = _encode_header(algorithm, additional_headers=headers)
     encoded_payload = _encode_payload(payload)
+    print("======================")
+    print(encoded_header)
+    print(encoded_payload)
+    print("======================")
     signed_output = _sign_header_and_claims(encoded_header, encoded_payload, algorithm, key)
     return signed_output
 

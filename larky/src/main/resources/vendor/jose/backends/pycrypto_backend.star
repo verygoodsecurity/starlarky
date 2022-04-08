@@ -17,11 +17,17 @@ load("@vendor//Crypto/Hash/SHA384", SHA384="SHA384")
 load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
+load("@vendor//Crypto/PublicKey/ECC", EccKey="ECC")
 load("@vendor//Crypto/Signature/PKCS1_v1_5", PKCS1_v1_5_Signature="PKCS1_v1_5")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", tostr="tostr")
+load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long")
 
 
+load("@vendor//cryptography/hazmat/primitives/serialization/base", load_pem_public_key="load_pem_public_key")
+load("@vendor//cryptography/hazmat/primitives/asymmetric/utils", decode_dss_signature="decode_dss_signature",
+     encode_dss_signature="encode_dss_signature")
+load("@vendor//cryptography/utils", int_to_bytes="int_to_bytes")
 # load("@vendor//jose/backends/_asn1", rsa_public_key_pkcs8_to_pkcs1="rsa_public_key_pkcs8_to_pkcs1")
 load("@vendor//jose/backends/base", Key="Key")
 load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS")
@@ -60,6 +66,95 @@ def _der_to_pem(der_key, marker):
 
     return b'\n'.join(pem_key_chunks)
 
+
+def ECKey(key, algorithm):
+    self = larky.mutablestruct(__class__=ECKey, __name__='ECKey',
+                               SHA256=SHA256,
+                               SHA384=SHA384,
+                               SHA512=SHA512)
+    self.SHA256 = SHA256
+    self.SHA384 = SHA384
+    self.SHA512 = SHA512
+
+    def __init__(key, algorithm):
+        if not operator.contains(ALGORITHMS.EC, algorithm):
+            return Error("JWKError: %s is not a valid hash algorithm" % algorithm)
+        self.hash_alg = {
+            ALGORITHMS.ES256: self.SHA256,
+            ALGORITHMS.ES384: self.SHA384,
+            ALGORITHMS.ES512: self.SHA512,
+        }.get(algorithm)
+        self._algorithm = algorithm
+        if hasattr(key, "public_bytes") or hasattr(key, "private_bytes"):
+            self.prepared_key = key
+            return Ok(self)
+        if hasattr(key, "to_pem"):
+            # convert to PEM and let cryptography below load it as PEM
+            # key = key.to_pem().decode("utf-8")
+            return Error("To difficult to explain")
+        if isinstance(key, dict):
+            self.prepared_key = self._process_jwk(key)
+        if isinstance(key, str):
+            key = key.encode("utf-8")
+        if isinstance(key, bytes):
+            # Attempt to load key. We don't know if it's
+            # a Public Key or a Private Key, so we try
+            # the Public Key first.
+            self.prepared_key = load_pem_public_key(key)
+            return OK(self)
+
+        return Error("Unable to parse an ECKey from key: %s" % key)
+
+    def _process_jwk(jwk_dict):
+        if not jwk_dict.get("kty") == "EC":
+            return Error("Incorrect key type. Expected: 'EC', Received: %s" % jwk_dict.get("kty"))
+        if not all(k in jwk_dict for k in ["x", "y", "crv"]):
+            return Error("Mandatory parameters are missing")
+        x = base64_to_long(jwk_dict.get("x"))
+        y = base64_to_long(jwk_dict.get("y"))
+        curve = {
+            "P-256": "secp256r1",
+            "P-384": "secp384r1",
+            "P-521": "secp521r1",
+        }[jwk_dict["crv"]]
+        if "d" in jwk_dict:
+            d = base64_to_long(jwk_dict.get("d"))
+            return ECC.construct(point_x=x, point_y=y, d=d, curve=curve())
+        else:
+            return ECC.construct(point_x=x, point_y=y, curve=curve())
+
+    def _sig_component_length():
+        """Determine the correct serialization length for an encoded signature component.
+            This is the number of bytes required to encode the maximum key value.
+        """
+        return int(ceil(self.prepared_key.key_size / 8.0))
+
+    def _der_to_raw(der_signature):
+        """Convert signature from DER encoding to RAW encoding."""
+        r, s = decode_dss_signature(der_signature)
+        component_length = self._sig_component_length()
+        return int_to_bytes(r, component_length) + int_to_bytes(s, component_length)
+
+    def _raw_to_der(raw_signature):
+        """Convert signature from RAW encoding to DER encoding."""
+        component_length = self._sig_component_length()
+        if len(raw_signature) != int(2 * component_length):
+            return Error("Invalid signature")
+
+        r_bytes = raw_signature[:component_length]
+        s_bytes = raw_signature[component_length:]
+        r = bytes_to_long(r_bytes, "big")
+        s = bytes_to_long(s_bytes, "big")
+        return encode_dss_signature(r, s)
+
+    def sign(msg):
+        if self.hash_alg.digest_size * 8 > self.prepared_key.curve.key_size:
+            return Error(
+                "this curve (%s) is too short "
+                "for your digest (%d)" % (self.prepared_key.curve.name, 8 * self.hash_alg.digest_size)
+            )
+        signature = self.prepared_key.sign(msg, ec.ECDSA(self.hash_alg()))
+        # return self._der_to_raw(signature)
 
 def RSAKey(key, algorithm):
     """
