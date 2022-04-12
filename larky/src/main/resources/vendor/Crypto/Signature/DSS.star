@@ -35,7 +35,7 @@
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
-load("@vendor//Crypto/Hash", HMAC="HMAC")
+load("@vendor//Crypto/Hash/HMAC", HMAC="HMAC")
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/PublicKey/DSA", DsaKey="DsaKey")
 load("@vendor//Crypto/PublicKey/ECC", EccKey="EccKey")

@@ -36,18 +36,17 @@
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
 load("@stdlib//sets", sets="sets")
-load("@stdlib/types", types="types")
+load("@stdlib//types", types="types")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/Util/number", _sieve_base_large="sieve_base")
 load("@vendor//Crypto/Util/py3compat", iter_range="iter_range")
-load("@vendor//option/result", Error="Error")
+load("@vendor//option/result", safe="safe", Error="Error")
 
 COMPOSITE = 0
 PROBABLY_PRIME = 1
 
 map = builtins.map
-filter = types.filter
 
 
 def miller_rabin_test(candidate, iterations, randfunc=None):
@@ -264,9 +263,9 @@ def test_probable_prime(candidate, randfunc=None):
     if int(candidate) in _sieve_base:
         return PROBABLY_PRIME
     # try:
-    map(candidate.fail_if_divisible_by, _sieve_base)
-    # except ValueError:
-    #     return COMPOSITE
+    noncomp = safe(lambda: map(candidate.fail_if_divisible_by, _sieve_base))(0)
+    if noncomp.is_err:
+        return COMPOSITE
 
     # These are the number of Miller-Rabin iterations s.t. p(k, t) < 1E-30,
     # with p(k, t) being the probability that a randomly chosen k-bit number
@@ -277,7 +276,7 @@ def test_probable_prime(candidate, randfunc=None):
 
     bit_size = candidate.size_in_bits()
     # try:
-    mr_iterations = list(filter(lambda x: bit_size < x[0],
+    mr_iterations = list(types.filter(lambda x: bit_size < x[0],
                                     mr_ranges))[0][1]
     # except IndexError:
     #     mr_iterations = 1
