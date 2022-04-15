@@ -2,6 +2,8 @@ package net.starlark.java.eval;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 
+import org.jetbrains.annotations.Nullable;
+
 public class StarlarkEvalWrapper {
 
   private StarlarkEvalWrapper() {
@@ -36,9 +38,12 @@ public class StarlarkEvalWrapper {
   }
 
   public interface Exc {
-    static String createUncheckedEvalMessage(Throwable cause, StarlarkThread thread) {
+    static String createUncheckedEvalMessage(Throwable cause, @Nullable StarlarkThread thread) {
       String msg = cause.getClass().getSimpleName() + " thrown during Starlark evaluation";
-      String context = thread.getContextForUncheckedException();
+      String context = null;
+      if (thread != null) {
+        context = thread.getContextForUncheckedException();
+      }
       return isNullOrEmpty(context) ? msg : msg + " (" + context + ")";
     }
 
@@ -49,9 +54,18 @@ public class StarlarkEvalWrapper {
      * <p>The original exception can be retrieved using {@link #getCause}.
      */
     final class RuntimeEvalException extends RuntimeException {
-      public RuntimeEvalException(Throwable cause, StarlarkThread thread) {
+      public RuntimeEvalException(Throwable cause, @Nullable StarlarkThread thread) {
         super(createUncheckedEvalMessage(cause, thread), cause);
-        thread.fillInStackTrace(this);
+        if (thread != null) {
+          thread.fillInStackTrace(this);
+        }
+      }
+
+      public RuntimeEvalException(String message, Throwable cause, @Nullable StarlarkThread thread) {
+        super(message, cause);
+        if(thread != null) {
+          thread.fillInStackTrace(this);
+        }
       }
     }
   }

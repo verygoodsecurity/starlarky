@@ -8,7 +8,10 @@ import com.verygood.security.larky.modules.types.PyProtocols;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
+
+import org.jetbrains.annotations.Nullable;
 
 import lombok.SneakyThrows;
 
@@ -25,8 +28,8 @@ class MutableStruct extends SimpleStruct {
   }
 
   @Override
-  public Object getValue(String name) throws EvalException {
-    Object field = super.getValue(name);
+  public Object getField(String name, @Nullable StarlarkThread thread) {
+    Object field = super.getField(name);
     /* if we have assigned a field that is a descriptor, we can invoke it */
     if (field == null
         || !Property.class.isAssignableFrom(field.getClass())) {
@@ -40,7 +43,7 @@ class MutableStruct extends SimpleStruct {
         "Exception encountered for property '%s' pointing to: '%s': %s",
         name, field, exception
       );
-      throw new EvalException(s, exception);
+      throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(s, exception, thread);
     }
   }
 

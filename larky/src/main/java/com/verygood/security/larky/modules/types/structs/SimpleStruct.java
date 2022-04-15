@@ -71,7 +71,7 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
   }
 
   @Override
-  public Object getValue(String name) throws EvalException {
+  public Object getField(String name, StarlarkThread thread) {
     if (name == null
           || !fields.containsKey(name)
           || fields.getOrDefault(name, null) == null) {
@@ -198,11 +198,7 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
 
   @Override
   public Object get__call__() {
-    try {
-      return getField(PyProtocols.__CALL__);
-    } catch (EvalException e) {
-      throw new RuntimeException(e);
-    }
+    return getField(PyProtocols.__CALL__);
   }
 
   @Override

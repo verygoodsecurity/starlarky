@@ -14,20 +14,12 @@ import net.starlark.java.syntax.TokenKind;
 public interface LarkyIndexable extends LarkyObject, StarlarkIndexable.Threaded {
 
   default Object get__getitem__() {
-    try {
-      return getField(PyProtocols.__GETITEM__);
-    } catch (EvalException e) {
-      throw new RuntimeException(e);
-    }
+    return getField(PyProtocols.__GETITEM__);
   }
 
 
   default Object get__contains__() {
-    try {
-      return getField(PyProtocols.__CONTAINS__);
-    } catch (EvalException e) {
-      throw new RuntimeException(e);
-    }
+    return getField(PyProtocols.__CONTAINS__);
   }
 
   @Override

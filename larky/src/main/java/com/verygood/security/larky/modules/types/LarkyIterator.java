@@ -88,7 +88,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
 
   @Nullable
   @Override
-  public Object getValue(String name) throws EvalException {
+  public Object getField(String name, @Nullable StarlarkThread thread) {
     return fields.getOrDefault(name, null);
   }
 
@@ -149,11 +149,11 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
     }
   }
 
-  public boolean hasLengthHintMethod() throws EvalException {
+  public boolean hasLengthHintMethod() {
     return getField(PyProtocols.__LENGTH_HINT__) != null;
   }
 
-  public StarlarkCallable getLengthHintMethod() throws EvalException {
+  public StarlarkCallable getLengthHintMethod() {
     return (StarlarkCallable) getField(PyProtocols.__LENGTH_HINT__);
   }
 
