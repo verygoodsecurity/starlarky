@@ -47,10 +47,6 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
     this.fields = fields;
   }
 
-  public static SimpleStruct create(Map<String, Object> kwargs) {
-    return new SimpleStruct(kwargs, null);
-  }
-
   public static SimpleStruct immutable(Dict<String, Object> kwargs, StarlarkThread thread) {
     return new ImmutableStruct(ImmutableMap.copyOf(kwargs), thread);
   }
