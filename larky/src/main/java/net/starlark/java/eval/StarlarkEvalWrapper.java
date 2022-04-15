@@ -1,5 +1,7 @@
 package net.starlark.java.eval;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 public class StarlarkEvalWrapper {
 
   private StarlarkEvalWrapper() {
@@ -31,5 +33,26 @@ public class StarlarkEvalWrapper {
 
   public static StarlarkInt ofFiniteDouble(double x) {
     return StarlarkFloat.finiteDoubleToIntExact(x);
+  }
+
+  public interface Exc {
+    static String createUncheckedEvalMessage(Throwable cause, StarlarkThread thread) {
+      String msg = cause.getClass().getSimpleName() + " thrown during Starlark evaluation";
+      String context = thread.getContextForUncheckedException();
+      return isNullOrEmpty(context) ? msg : msg + " (" + context + ")";
+    }
+
+    /**
+     * Decorates a {@link RuntimeException} with its Starlark stack, to help maintainers locate problematic source
+     * expressions.
+     *
+     * <p>The original exception can be retrieved using {@link #getCause}.
+     */
+    final class RuntimeEvalException extends RuntimeException {
+      public RuntimeEvalException(Throwable cause, StarlarkThread thread) {
+        super(createUncheckedEvalMessage(cause, thread), cause);
+        thread.fillInStackTrace(this);
+      }
+    }
   }
 }
