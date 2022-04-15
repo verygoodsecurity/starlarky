@@ -28,7 +28,7 @@ class MutableStruct extends SimpleStruct {
 
   @Override
   public Object getField(String name, @Nullable StarlarkThread thread) {
-    Object field = super.getField(name);
+    Object field = super.getField(name, thread);
     /* if we have assigned a field that is a descriptor, we can invoke it */
     if (field == null
         || !Property.class.isAssignableFrom(field.getClass())) {
@@ -48,14 +48,14 @@ class MutableStruct extends SimpleStruct {
 
   @Override
   public void setField(String name, Object value) throws EvalException {
-    if(this.currentThread.mutability().isFrozen()) {
+    if (this.currentThread.mutability().isFrozen()) {
       throw new EvalException("Attempting to update a frozen structure");
     }
     Object field = this.fields.get(name);
     /* if we have assigned a field that is a descriptor, we can invoke it */
     if (field == null
-        || !Property.class.isAssignableFrom(field.getClass())
-         || Property.class.isAssignableFrom(value.getClass())) {
+          || !Property.class.isAssignableFrom(field.getClass())
+          || Property.class.isAssignableFrom(value.getClass())) {
       ((Dict<String, Object>) fields).putEntry(name, value);
       return;
     }

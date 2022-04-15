@@ -88,7 +88,7 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
         final StarlarkCallable reprCallable = (StarlarkCallable) getField(PyProtocols.__REPR__);
         if (reprCallable != null) {
           try {
-            p.append((String) invoke(reprCallable));
+            p.append(invoke(reprCallable).toString());
             return;
           } catch (EvalException ex) {
             if (!ex.getMessage().contains("'__repr__' called recursively")) {
