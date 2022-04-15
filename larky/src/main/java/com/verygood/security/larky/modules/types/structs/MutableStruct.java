@@ -1,13 +1,12 @@
 package com.verygood.security.larky.modules.types.structs;
 
-import com.google.common.base.Joiner;
-
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.PyProtocols;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 
@@ -73,9 +72,14 @@ class MutableStruct extends SimpleStruct {
   @SneakyThrows
   @Override
   public String toString() {
-    return this.fields.containsKey("data") ?
-        this.fields.get("data").toString():
-        Joiner.on(",").withKeyValueSeparator(":").join(this.fields);
+    String result;
+    if (this.fields.containsKey("data")) {
+      result = this.fields.get("data").toString();
+    } else {
+      Dict<String, Object> d = Dict.cast(this.fields, String.class, Object.class, "cast");
+      result = Starlark.repr(d);
+    }
+    return result;
   }
 
 }
