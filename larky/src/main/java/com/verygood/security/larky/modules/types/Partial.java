@@ -1,9 +1,5 @@
 package com.verygood.security.larky.modules.types;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
-
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
@@ -82,24 +78,11 @@ public class Partial implements StarlarkCallable {
     return sb.toString();
   }
 
-
   @Override
   @SuppressWarnings("unchecked")
   public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) throws EvalException, InterruptedException {
-    final ImmutableList<String> intersection = ImmutableList.copyOf(Sets.intersection(
-      ImmutableSet.copyOf(this.method.getParameterNames()),
-      this.func_kwargs.keySet()));
-
-    final Tuple joinedArgs;
-    if(intersection.isEmpty()) {
-      kwargs.update(Dict.empty(), this.func_kwargs, thread);
-      joinedArgs = Tuple.concat(this.func_args, args);
-    } else {
-      joinedArgs = Tuple.concat(
-        Tuple.of(this.func_kwargs.get(intersection.get(0))),
-        args
-      );
-    }
+    kwargs.update(Dict.empty(), this.func_kwargs, thread);
+    Tuple joinedArgs = Tuple.concat(this.func_args, args);
     return Starlark.call(thread, this.method, joinedArgs, kwargs);
   }
 
