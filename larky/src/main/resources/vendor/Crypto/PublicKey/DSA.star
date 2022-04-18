@@ -45,7 +45,6 @@ __all__ = ['generate', 'construct', 'DsaKey', 'import_key']
 map = builtins.map
 sum = builtins.sum
 
-
 def DsaKey(key_dict):
     r"""Class defining an actual DSA key.
     Do not instantiate directly.
@@ -74,14 +73,15 @@ def DsaKey(key_dict):
 
     def __init__(key_dict):
         input_set = sets.Set(key_dict.keys())
-        public_set = sets.Set('y', 'g', 'p', 'q')
-        if not public_set.issubset(input_set):
+        public_set = sets.Set(['y', 'g', 'p', 'q'])
+        print(public_set.is_subset(input_set))
+        if not public_set.is_subset(input_set):
             fail("ValueError: " + "Some DSA components are missing = %s" %
                              str(public_set - input_set))
         extra_set = input_set - public_set
-        if extra_set and extra_set != sets.Set('x',):
+        if extra_set and extra_set != sets.Set(['x',]):
             fail("ValueError: " + "Unknown DSA components = %s" %
-                             str(extra_set - sets.Set('x',)))
+                             str(extra_set - sets.Set(['x',])))
         self._key = dict(key_dict)
         return self
     self = __init__(key_dict)
@@ -391,15 +391,16 @@ def _generate_domain(L, randfunc):
 
     # Generate p (A.1.1.2)
     offset = 1
-    upper_bit = 1 << (L - 1)
+    # upper_bit = 1 << (L - 1)
+    upper_bit = pow(2, L - 1)
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if not True:
             break
         V = [ SHA256.new(seed + Integer(offset + j).to_bytes()).digest()
               for j in iter_range(n + 1) ]
         V = [ Integer.from_bytes(v) for v in V ]
-        W = sum([V[i] * (1 << (i * outlen)) for i in iter_range(n)],
-                (V[n] & ((1 << b_) - 1)) * (1 << (n * outlen)))
+        W = sum([V[i] * pow(1, i * outlen) for i in iter_range(n)],
+                (V[n] & (pow(2, b_) - 1)) * pow(2, n * outlen))
 
         X = Integer(W + upper_bit) # 2^{L-1} < X < 2^{L}
         if not (X.size_in_bits() == L):
@@ -414,10 +415,14 @@ def _generate_domain(L, randfunc):
 
     # Generate g (A.2.3, index=1)
     e = (p - 1) // q
-    for count in itertools.count(1):
+
+    counter = larky.utils.Counter()
+
+    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        count = counter.add_and_get()
         U = seed + b"ggen" + bchr(1) + Integer(count).to_bytes()
         W = Integer.from_bytes(SHA256.new(U).digest())
-        g = pow(W, e, p)
+        g = pow(W._value, e._value, p._value)
         if g != 1:
             break
 
@@ -491,7 +496,7 @@ def generate(bits, randfunc=None, domain=None):
     # B.1.1
     c = Integer.random(exact_bits=N + 64, randfunc=randfunc)
     x = c % (q - 1) + 1 # 1 <= x <= q-1
-    y = pow(g, x, p)
+    y = pow(g, x._value, p._value)
 
     key_dict = { 'y':y, 'g':g, 'p':p, 'q':q, 'x':x }
     return DsaKey(key_dict)
