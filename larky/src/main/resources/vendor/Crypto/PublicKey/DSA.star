@@ -68,13 +68,12 @@ def DsaKey(key_dict):
     :undocumented: exportKey, publickey
     """
 
-    _keydata = ['y', 'g', 'p', 'q', 'x']
     self = larky.mutablestruct(__name__='DsaKey', __class__=DsaKey)
+    self._keydata = ['y', 'g', 'p', 'q', 'x']
 
     def __init__(key_dict):
         input_set = sets.Set(key_dict.keys())
         public_set = sets.Set(['y', 'g', 'p', 'q'])
-        print(public_set.is_subset(input_set))
         if not public_set.is_subset(input_set):
             fail("ValueError: " + "Some DSA components are missing = %s" %
                              str(public_set - input_set))
@@ -89,7 +88,7 @@ def DsaKey(key_dict):
     def _sign(m, k):
         if not self.has_private():
             fail("TypeError: DSA public key cannot be used for signing")
-        if not (1 < k) and (k < self.q):
+        if not (1 < k._value) and (k < self._key["q"]):
             fail("ValueError: k is not between 2 and q-1")
 
         x, q, p, g = [self._key[comp] for comp in ['x', 'q', 'p', 'g']]
@@ -99,7 +98,7 @@ def DsaKey(key_dict):
         inv_blind_k = (blind_factor * k).inverse(q)
         blind_x = x * blind_factor
 
-        r = pow(g, k, p) % q  # r = (g**k mod p) mod q
+        r = pow(g, k._value, p._value) % q._value  # r = (g**k mod p) mod q
         s = (inv_blind_k * (blind_factor * m + blind_x * r)) % q
         return map(int, (r, s))
     self._sign = _sign
@@ -178,7 +177,7 @@ def DsaKey(key_dict):
         attrs = []
         for k in self._keydata:
             if k == 'p':
-                bits = Integer(self.p).size_in_bits()
+                bits = Integer(self._key["p"]).size_in_bits()
                 attrs.append("p(%d)" % (bits,))
             elif hasattr(self, k):
                 attrs.append(k)
@@ -186,7 +185,7 @@ def DsaKey(key_dict):
             attrs.append("private")
         # PY3K: This is meant to be text, do not change to bytes (data)
         # return "<%s @0x%x %s>" % (self.__class__.__name__, id(self), ",".join(attrs))
-        return "<%s %s>" % (self.__class__.__name__, ",".join(attrs))
+        return "<%s %s>" % (self.__name__, ",".join(attrs))
     self.__repr__ = __repr__
 
     def __getattr__(item):
