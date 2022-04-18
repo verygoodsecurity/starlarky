@@ -30,6 +30,7 @@ load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITER
 load("@stdlib//struct", struct="struct")
 load("@stdlib//sets", sets="sets")
 load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//types", types="types")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Hash", SHA256="SHA256")
 load("@vendor//Crypto/IO", PKCS8="PKCS8", PEM="PEM")
@@ -106,12 +107,27 @@ def DsaKey(key_dict):
     def _verify(m, sig):
         r, s = sig
         y, q, p, g = [self._key[comp] for comp in ['y', 'q', 'p', 'g']]
-        if not (0 < r) and (r < q) or not (0 < s) and (s < q):
+        if not (0 < r._value) and (r < q) or not (0 < s._value) and (s < q):
             return False
         w = Integer(s).inverse(q)
         u1 = (w * m) % q
         u2 = (w * r) % q
-        v = (pow(g, u1, p) * pow(y, u2, p) % p) % q
+        g_san = g
+        y_san = y
+        u1_san = u1
+        u2_san = u2
+        p_san = p
+        if types.is_instance(g, Integer):
+            g_san = g._value
+        if types.is_instance(y, Integer):
+            y_san = y._value
+        if types.is_instance(u1, Integer):
+            u1_san = u1._value
+        if types.is_instance(p, Integer):
+            p_san = p._value
+        if types.is_instance(u2, Integer):
+            u2_san = u2._value
+        v = (pow(g_san, u1_san, p_san) * pow(y_san, u2_san, p_san) % p_san) % q
         return v == r
     self._verify = _verify
 

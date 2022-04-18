@@ -12,8 +12,7 @@ def test_DSS():
     hash_obj = SHA256.new(message)
     signer = DSS.new(key, 'fips-186-3')
     signature = signer.sign(hash_obj)
-    print(signature)
-    # pkey.verify(hash_obj, signature)
+    print(signer.verify(hash_obj, signature))
 
 
 def _testsuite():

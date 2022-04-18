@@ -402,7 +402,7 @@ def FipsDsaSigScheme(key, encoding, order, randfunc):
                 fail("ValueError: The signature is not authentic (DER content)")
             r_prime, s_prime = Integer(der_seq[0]), Integer(der_seq[1])
 
-        if not (0 < r_prime) and (r_prime < self._order) or not (0 < s_prime) and (s_prime < self._order):
+        if not (0 < r_prime._value) and (r_prime < self._order) or not (0 < s_prime._value) and (s_prime < self._order):
             fail("ValueError: The signature is not authentic (d)")
 
         z = Integer.from_bytes(msg_hash.digest()[:self._order_bytes])
