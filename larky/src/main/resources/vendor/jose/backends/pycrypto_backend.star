@@ -1,11 +1,13 @@
 load("@stdlib//base64", b64encode="b64encode")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
+load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//sets", sets="sets")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
+load("@stdlib//math", math="math")
 
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Cipher/PKCS1_v1_5", PKCS1_v1_5_Cipher="PKCS1_v1_5_Cipher")
@@ -17,7 +19,7 @@ load("@vendor//Crypto/Hash/SHA384", SHA384="SHA384")
 load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
-load("@vendor//Crypto/PublicKey/ECC", EccKey="ECC")
+load("@vendor//Crypto/PublicKey/ECC", ECC="ECC")
 load("@vendor//Crypto/Signature/PKCS1_v1_5", PKCS1_v1_5_Signature="PKCS1_v1_5")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", tostr="tostr")
@@ -41,6 +43,7 @@ load("@vendor//jose/utils",
 load("@vendor//option/result", Ok="Ok", Error="Error", safe="safe")
 load("@vendor//six", six="six")
 
+ceil = math.ceil
 
 # We default to using PyCryptodome, however, if PyCrypto is installed, it is
 # used instead. This is so that environments that require the use of PyCrypto
@@ -92,23 +95,24 @@ def ECKey(key, algorithm):
             # convert to PEM and let cryptography below load it as PEM
             # key = key.to_pem().decode("utf-8")
             return Error("To difficult to explain")
-        if isinstance(key, dict):
+        if builtins.isinstance(key, dict):
             self.prepared_key = self._process_jwk(key)
-        if isinstance(key, str):
-            key = key.encode("utf-8")
-        if isinstance(key, bytes):
+        if builtins.isinstance(key, str):
+            key = builtins.bytes(key, encoding="utf-8")
+        if builtins.isinstance(key, bytes):
             # Attempt to load key. We don't know if it's
             # a Public Key or a Private Key, so we try
             # the Public Key first.
             self.prepared_key = load_pem_public_key(key)
-            return OK(self)
+            return Ok(self)
 
         return Error("Unable to parse an ECKey from key: %s" % key)
+    self = __init__(key, algorithm)
 
     def _process_jwk(jwk_dict):
         if not jwk_dict.get("kty") == "EC":
             return Error("Incorrect key type. Expected: 'EC', Received: %s" % jwk_dict.get("kty"))
-        if not all(k in jwk_dict for k in ["x", "y", "crv"]):
+        if not all([k in jwk_dict for k in ["x", "y", "crv"]]):
             return Error("Mandatory parameters are missing")
         x = base64_to_long(jwk_dict.get("x"))
         y = base64_to_long(jwk_dict.get("y"))
@@ -122,18 +126,21 @@ def ECKey(key, algorithm):
             return ECC.construct(point_x=x, point_y=y, d=d, curve=curve())
         else:
             return ECC.construct(point_x=x, point_y=y, curve=curve())
+    self._process_jwk = _process_jwk
 
     def _sig_component_length():
         """Determine the correct serialization length for an encoded signature component.
             This is the number of bytes required to encode the maximum key value.
         """
         return int(ceil(self.prepared_key.key_size / 8.0))
+    self._sig_component_length = _sig_component_length
 
     def _der_to_raw(der_signature):
         """Convert signature from DER encoding to RAW encoding."""
         r, s = decode_dss_signature(der_signature)
         component_length = self._sig_component_length()
         return int_to_bytes(r, component_length) + int_to_bytes(s, component_length)
+    self._der_to_raw = _der_to_raw
 
     def _raw_to_der(raw_signature):
         """Convert signature from RAW encoding to DER encoding."""
@@ -146,15 +153,19 @@ def ECKey(key, algorithm):
         r = bytes_to_long(r_bytes, "big")
         s = bytes_to_long(s_bytes, "big")
         return encode_dss_signature(r, s)
+    self._raw_to_der = _raw_to_der
 
     def sign(msg):
         if self.hash_alg.digest_size * 8 > self.prepared_key.curve.key_size:
             return Error(
-                "this curve (%s) is too short "
-                "for your digest (%d)" % (self.prepared_key.curve.name, 8 * self.hash_alg.digest_size)
+                "this curve (%s) is too short for your digest (%d)"
+                % (self.prepared_key.curve.name, 8 * self.hash_alg.digest_size)
             )
-        signature = self.prepared_key.sign(msg, ec.ECDSA(self.hash_alg()))
-        # return self._der_to_raw(signature)
+        # signature = self.prepared_key.sign(msg, ec.ECDSA(self.hash_alg()))
+        signature = self.prepared_key.sign(msg)
+        return self._der_to_raw(signature)
+    self.sign = sign
+
 
 def RSAKey(key, algorithm):
     """
@@ -205,7 +216,6 @@ def RSAKey(key, algorithm):
             return self
 
         return Error("JWKError: Unable to parse an RSA_JWK from key: %s" % key).unwrap()
-
     self = __init__(key, algorithm)
 
     def _process_jwk(jwk_dict):
@@ -333,7 +343,6 @@ def RSAKey(key, algorithm):
 
         return data
     self.to_dict = to_dict
-
 
     def wrap(key_data, enc_alg=None, headers=None):
         return self.wrap_key(key_data)
@@ -506,7 +515,6 @@ def AESKey(key, algorithm):
     self.unwrap_key = unwrap_key
 
     return self
-
 
 
 def AESAlgorithm(key_size):
