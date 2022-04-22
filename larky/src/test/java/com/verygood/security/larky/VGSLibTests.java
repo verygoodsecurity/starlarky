@@ -1,15 +1,9 @@
 package com.verygood.security.larky;
 
-import com.google.common.base.Strings;
-import com.verygood.security.larky.console.testing.TestingConsole;
-import com.verygood.security.larky.parser.LarkyScript;
-import com.verygood.security.larky.parser.PathBasedStarFile;
-import net.starlark.java.eval.EvalException;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DynamicTest;
-import org.junit.jupiter.api.TestFactory;
+import static com.verygood.security.larky.ModuleSupplier.CORE_ENVIRONMENT;
+import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
 
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,7 +15,16 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
+import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.PathBasedStarFile;
+
+import net.starlark.java.eval.EvalException;
+
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.TestFactory;
 
 
 public class VGSLibTests {
@@ -38,7 +41,11 @@ public class VGSLibTests {
     @BeforeEach
     public void setUp() {
         moduleSet = new ModuleSupplier().modulesToVariableMap(true);
-        interpreter = new LarkyScript(CORE_MODULES, LarkyScript.StarlarkMode.STRICT);
+        interpreter = new LarkyScript(
+          CORE_MODULES,
+          LarkyScript.StarlarkMode.STRICT,
+          CORE_ENVIRONMENT
+        );
         vgsDefaultTestFiles = enumerateTests();
     }
 
