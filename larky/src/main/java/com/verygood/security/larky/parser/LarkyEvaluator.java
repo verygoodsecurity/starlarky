@@ -23,6 +23,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.syntax.FileOptions;
@@ -34,6 +35,9 @@ import net.starlark.java.syntax.SyntaxError;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
+
+import lombok.Builder;
+import lombok.Data;
 
 /**
  * An utility class for traversing and evaluating the config file dependency graph.
@@ -62,46 +66,39 @@ public final class LarkyEvaluator {
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
   }
 
-  public Module eval(StarFile content)
+
+  @Builder
+  @Data
+  static class EvaluationResult {
+    private Object output;
+    private Module module;
+
+    public boolean hasOutput() {
+      return output != null;
+    }
+
+    public boolean hasModule() {
+      return module != null;
+    }
+  }
+
+  public EvaluationResult eval(StarFile content)
       throws IOException, InterruptedException, EvalException {
     if (pending.contains(content.path())) {
       throw throwCycleError(content.path());
     }
     Module module = loaded.get(content.path());
     if (module != null) {
-      return module;
+      return EvaluationResult.builder()
+        .output(null)
+        .module(module)
+        .build();
     }
     pending.add(content.path());
 
     // Make the modules available as predeclared bindings.
     StarlarkSemantics semantics = StarlarkSemantics.DEFAULT;
     module = Module.withPredeclared(semantics, environment);
-
-    // parse & compile
-    FileOptions options = getStarlarkValidationOptions();
-    ParserInput input = ParserInput.fromUTF8(content.readContentBytes(), content.path());
-    Program prog = compileStarlarkProgram(module, input, options);
-    Map<String, Module> loadedModules = processLoads(content, prog);
-
-    // execute
-    try (Mutability mu = Mutability.create("LarkyModules")) {
-      StarlarkThread thread = new StarlarkThread(mu, semantics);
-      thread.setLoader(loadedModules::get);
-      thread.setThreadLocal(Reporter.class, reporter);
-      thread.setPrintHandler(reporter::report);
-      Starlark.execFileProgram(prog, module, thread);
-    }
-    pending.remove(content.path());
-    loaded.put(content.path(), module);
-    return module;
-  }
-
-  public Object evalWithOutput(StarFile content)
-      throws IOException, InterruptedException, EvalException {
-
-    // Make the modules available as predeclared bindings.
-    StarlarkSemantics semantics = StarlarkSemantics.DEFAULT;
-    Module module = Module.withPredeclared(semantics, environment);
 
     // parse & compile
     FileOptions options = getStarlarkValidationOptions();
@@ -117,13 +114,18 @@ public final class LarkyEvaluator {
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
-      starlarkOutput = Starlark.execFileProgram(prog, module, thread);
-    } catch (EvalException ex) {
-      throw new RuntimeException("\n" + ex.getMessageWithStack());
+      try {
+        starlarkOutput = Starlark.execFileProgram(prog, module, thread);
+      } catch(EvalException cause) {
+        throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(cause, thread);
+      }
     }
     pending.remove(content.path());
     loaded.put(content.path(), module);
-    return starlarkOutput;
+    return EvaluationResult.builder()
+      .output(starlarkOutput)
+      .module(module)
+      .build();
   }
 
   public ModuleSupplier.ModuleSet getModuleSet() {
@@ -150,7 +152,7 @@ public final class LarkyEvaluator {
       Module loadedModule = null;
       try {
         if (!ResourceContentStarFile.startsWithPrefix(moduleToLoad)) {
-          loadedModule = evaluator.eval(content.resolve(moduleToLoad + LarkyScript.STAR_EXTENSION));
+          loadedModule = evaluator.eval(content.resolve(moduleToLoad + LarkyScript.STAR_EXTENSION)).getModule();
           return loadedModule;
         }
 
@@ -169,7 +171,7 @@ public final class LarkyEvaluator {
         else {
           // try to load from directory...
           ResourceContentStarFile starFile = ResourceContentStarFile.buildStarFile(moduleToLoad);
-          loadedModule = evaluator.eval(starFile);
+          loadedModule = evaluator.eval(starFile).getModule();
         }
 
       } catch (IOException | InterruptedException | EvalException e) {
