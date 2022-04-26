@@ -43,21 +43,27 @@ import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
-import com.verygood.security.larky.modules.types.LarkyType;
+//import com.verygood.security.larky.modules.types.LarkyBuiltinObject;
+//import com.verygood.security.larky.modules.types.LarkyType;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkValue;
 
 /**
  * A supplier of modules for Larky
- */
+*/
 public class ModuleSupplier {
 
   public static final ImmutableSet<Class<?>> CORE_MODULES = ImmutableSet.of(
     LarkyGlobals.class,
-    PythonBuiltins.class,
-    LarkyType.class
+    PythonBuiltins.class
   );
+
+  public static final ImmutableMap<String, Object> CORE_ENVIRONMENT = ImmutableMap.of(
+//    "object", LarkyPyObject.getInstance(),
+//    "type", LarkyTypeClass.getInstance()
+  );
+
 
   public static final ImmutableSet<StarlarkValue> STD_MODULES = ImmutableSet.of(
     BinasciiModule.INSTANCE,
@@ -90,15 +96,15 @@ public class ModuleSupplier {
   private final Map<String, Object> environment;
 
   public ModuleSupplier() {
-    this(ImmutableMap.<String, Object>builder().build());
+    this(CORE_ENVIRONMENT);
   }
 
   public ModuleSupplier(Map<String, Object> environment) {
-    this.environment = Preconditions.checkNotNull(environment);
-  }
-
-  public ModuleSupplier(ImmutableSet<StarlarkValue> moduleSet) {
-    this.environment = moduleSetAsMap(Preconditions.checkNotNull(moduleSet));
+    Preconditions.checkNotNull(environment);
+    this.environment = ImmutableMap.<String, Object>builder()
+                         .putAll(CORE_ENVIRONMENT)
+                         .putAll(environment)
+                         .buildKeepingLast();
   }
 
   /**
@@ -127,10 +133,12 @@ public class ModuleSupplier {
   }
 
   public final ModuleSet create() {
-    return new ModuleSet(ImmutableMap.<String, Object>builder()
-                           .putAll(modulesToVariableMap())
-                           .putAll(getEnvironment())
-                           .build()); // should allow overrides ;
+    return new ModuleSet(
+      ImmutableMap.<String, Object>builder()
+        .putAll(modulesToVariableMap())
+        .buildKeepingLast(),
+      getEnvironment()
+      ); // should allow overrides
   }
 
   private ImmutableMap<String, Object> moduleSetAsMap(ImmutableSet<StarlarkValue> moduleSet) {
@@ -147,7 +155,7 @@ public class ModuleSupplier {
   }
 
   public ModuleSet modulesToVariableMap(boolean withTest) {
-    return new ModuleSet(moduleSetAsMap(getModules(withTest)));
+    return new ModuleSet(moduleSetAsMap(getModules(withTest)), getEnvironment());
   }
 
   private String findClosestStarlarkBuiltinName(Object o) {
@@ -168,9 +176,11 @@ public class ModuleSupplier {
   public static class ModuleSet {
 
     private final ImmutableMap<String, Object> modules;
+    private final Map<String, Object> environment;
 
-    ModuleSet(ImmutableMap<String, Object> modules) {
+    ModuleSet(ImmutableMap<String, Object> modules, Map<String, Object> environment) {
       this.modules = Preconditions.checkNotNull(modules);
+      this.environment = environment;
     }
 
     /**
@@ -180,5 +190,8 @@ public class ModuleSupplier {
       return modules;
     }
 
+    public Map<String, Object> getEnvironment() {
+      return environment;
+    }
   }
 }

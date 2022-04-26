@@ -3,22 +3,6 @@ package com.verygood.security.larky;
 import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
 
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableSet;
-
-import com.verygood.security.larky.console.testing.TestingConsole;
-import com.verygood.security.larky.modules.testing.AssertionsModule;
-import com.verygood.security.larky.modules.testing.UnittestModule;
-import com.verygood.security.larky.parser.LarkyScript;
-import com.verygood.security.larky.parser.PathBasedStarFile;
-
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.StarlarkValue;
-
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DynamicTest;
-import org.junit.jupiter.api.TestFactory;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,6 +13,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.PathBasedStarFile;
+
+import net.starlark.java.eval.EvalException;
+
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DynamicTest;
+import org.junit.jupiter.api.TestFactory;
 
 
 public class LarkyQuickTests {
@@ -44,10 +39,6 @@ public class LarkyQuickTests {
 
   @BeforeEach
   public void setUp() {
-    ImmutableSet<StarlarkValue> testModules = ImmutableSet.of(
-        new UnittestModule(),
-        new AssertionsModule()
-    );
     moduleSet = new ModuleSupplier().modulesToVariableMap(true);
     interpreter = new LarkyScript(CORE_MODULES, LarkyScript.StarlarkMode.STRICT);
     scratchTestFiles = enumerateTests();

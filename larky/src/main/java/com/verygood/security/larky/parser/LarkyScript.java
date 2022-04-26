@@ -24,8 +24,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.ModuleSupplier.ModuleSet;
@@ -92,8 +95,22 @@ public class LarkyScript {
         .addAll(builtinModules)
         .build();
     this.validation = validation;
-    this.globals = globals;
     this.moduleSet = moduleSet;
+    // TODO(mahmoudimus): differentiate between globals + module predeclared
+    this.globals =
+      Stream.concat(
+        // order matters because we want globals to override any
+        // environmental defaults
+        moduleSet.getEnvironment().entrySet().stream(),
+        globals.entrySet().stream()
+      )
+      .filter(Objects::nonNull)
+      .collect(Collectors.toMap(
+        Map.Entry::getKey,
+        entry -> StarlarkUtil.valueToStarlark(entry.getValue()),
+        // keep last
+        (a, b) -> b)
+      );
   }
 
   public StarlarkMode getValidation() {
@@ -112,33 +129,34 @@ public class LarkyScript {
     return moduleSet;
   }
 
+  private LarkyEvaluator.EvaluationResult executeStarlark(StarFile content, ModuleSet moduleSet, Console console)
+    throws IOException, InterruptedException, EvalException {
+    CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
+    StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
+
+    LarkyEvaluator.EvaluationResult result = new LarkyEvaluator(this, moduleSet, console).eval(content);
+    starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
+    return result;
+  }
+
   @VisibleForTesting
   public Module executeSkylark(StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException, EvalException {
-    CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
-    StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
-
-    Module module = new LarkyEvaluator(this, moduleSet, console).eval(content);
-    starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
-    return module;
+    return executeStarlark(content, moduleSet, console).getModule();
   }
 
+  @VisibleForTesting
   public Object executeSkylarkWithOutput(StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException, EvalException {
-    CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
-    StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
-
-    Object output = new LarkyEvaluator(this, moduleSet, console).evalWithOutput(content);
-    starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
-    return output;
-  }
-
-  public ParsedStarFile evaluate(StarFile content, ModuleSet moduleSet, Console console)
-      throws IOException, EvalException {
-    return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
+    return executeStarlark(content, moduleSet, console).getOutput();
   }
 
   public ParsedStarFile evaluate(StarFile content, Console console)
+      throws IOException, EvalException {
+    return evaluate(content, moduleSet, console);
+  }
+
+  public ParsedStarFile evaluate(StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, EvalException {
     return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
   }
@@ -174,7 +192,7 @@ public class LarkyScript {
       throws IOException, EvalException {
     Module module;
     try {
-      module = new LarkyEvaluator(this, moduleSet, console).eval(content);
+      module = new LarkyEvaluator(this, moduleSet, console).eval(content).getModule();
     } catch (InterruptedException e) {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
@@ -184,7 +202,7 @@ public class LarkyScript {
         ImmutableMap.<String, Object>builder()
         .putAll(module.getPredeclaredBindings())
         .putAll(module.getGlobals())
-        .build(),
+        .buildKeepingLast(),
         module);
   }
 

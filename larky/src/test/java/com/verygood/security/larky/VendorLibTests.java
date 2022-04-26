@@ -1,5 +1,6 @@
 package com.verygood.security.larky;
 
+import static com.verygood.security.larky.ModuleSupplier.CORE_ENVIRONMENT;
 import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
 
 import com.google.common.base.Strings;
@@ -49,7 +50,11 @@ public class VendorLibTests {
         new AssertionsModule()
     );
     moduleSet = new ModuleSupplier().modulesToVariableMap(true);
-    interpreter = new LarkyScript(CORE_MODULES, LarkyScript.StarlarkMode.STRICT);
+    interpreter = new LarkyScript(
+      CORE_MODULES,
+      LarkyScript.StarlarkMode.STRICT,
+      CORE_ENVIRONMENT
+    );
     vendorTestFiles = enumerateTests();
   }
 
