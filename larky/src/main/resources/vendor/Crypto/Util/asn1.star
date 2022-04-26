@@ -867,7 +867,9 @@ def DerObjectId(value='', implicit=None, explicit=None):
         Raises:
             ValueError: in case of parsing errors.
         """
-
+        if type(der_encoded) == 'string':
+            #return der_encoded
+            der_encoded = DerObjectId(der_encoded).encode()
         return self.derobject.decode(self, der_encoded, strict)
 
     def _decodeFromStream(obj, s, strict):

@@ -147,12 +147,62 @@ def _calculate_digest_and_algorithm(backend, data, algorithm):
     return (data, algorithm)
 
 def EllipticCurveOID():
+    def SECP192R1():
+        return oid("1.2.840.10045.3.1.1")
+
+    def SECP224R1():
+        return oid("1.3.132.0.33")
+
     def SECP256K1():
         return oid("1.3.132.0.10")
 
     def SECP256R1():
         return oid("1.2.840.10045.3.1.7")
 
+    def SECP384R1():
+        return oid("1.3.132.0.34")
+
+    def SECP521R1():
+        return oid("1.3.132.0.35")
+
+    def BRAINPOOLP256R1():
+        return oid("1.3.36.3.3.2.8.1.1.7")
+
+    def BRAINPOOLP384R1():
+        return oid("1.3.36.3.3.2.8.1.1.11")
+
+    def BRAINPOOLP512R1():
+        return oid("1.3.36.3.3.2.8.1.1.13")
+
+    def SECT163K1():
+        return oid("1.3.132.0.1")
+
+    def SECT163R2():
+        return oid("1.3.132.0.15")
+
+    def SECT233K1():
+        return oid("1.3.132.0.26")
+
+    def SECT233R1():
+        return oid("1.3.132.0.27")
+
+    def SECT283K1():
+        return oid("1.3.132.0.16")
+
+    def SECT283R1():
+        return oid("1.3.132.0.17")
+
+    def SECT409K1():
+        return oid("1.3.132.0.36")
+
+    def SECT409R1():
+        return oid("1.3.132.0.37")
+
+    def SECT571K1():
+        return oid("1.3.132.0.38")
+
+    def SECT571R1():
+        return oid("1.3.132.0.39")
 
 def EllipticCurve(name, key_size):
     def __init__(name, key_size):
@@ -264,6 +314,63 @@ def ECPublicKey(evp_pkey):
         Returns the key serialized as bytes
         """
     self.public_bytes = public_bytes
+
+def SECT571R1():
+    return EllipticCurve("sect571r1", 570)
+
+def SECT409R1():
+    return EllipticCurve("sect409r1", 409)
+
+def SECT283R1():
+    return EllipticCurve("sect283r1", 283)
+
+def SECT233R1():
+    return EllipticCurve("sect233r1", 233)
+
+def SECT163R2():
+    return EllipticCurve("sect163r2", 163)
+
+def SECT571K1():
+    return EllipticCurve("sect571k1", 571)
+
+def SECT409K1():
+    return EllipticCurve("sect409k1", 409)
+
+def SECT283K1():
+    return EllipticCurve("sect283k1", 283)
+
+def SECT233K1():
+    return EllipticCurve("sect233k1", 233)
+
+def SECT163K1():
+    return EllipticCurve("sect163k1", 163)
+
+def SECP521R1():
+    return EllipticCurve("secp521r1", 521)
+
+def SECP384R1():
+    return EllipticCurve("secp384r1", 384)
+
+def SECP256R1():
+    return EllipticCurve("secp256r1", 256)
+
+def SECP256K1():
+    return EllipticCurve("secp256k1", 256)
+
+def SECP224R1():
+    return EllipticCurve("secp224r1", 224)
+
+def SECP192R1():
+    return EllipticCurve("secp192r1", 192)
+
+def BrainpoolP256R1():
+    return EllipticCurve("brainpoolP256r1", 256)
+
+def BrainpoolP384R1():
+    return EllipticCurve("brainpoolP384r1", 384)
+
+def BrainpoolP512R1():
+    return EllipticCurve("brainpoolP512r1", 512)
 
 def RSAPrivateKey(backend, rsa_cdata, evp_pkey):
     self = larky.mutablestruct(__name__='RSAPrivateKey',
