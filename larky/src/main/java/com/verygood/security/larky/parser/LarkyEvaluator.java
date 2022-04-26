@@ -66,10 +66,27 @@ public final class LarkyEvaluator {
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
   }
 
+  /**
+   * The output of a Larky script is an evaluated {@link Module} that contains
+   * various attributes such as {@link Module#getGlobals()},
+   * {@link Module#getPredeclaredBindings()}, as well as other various items.
+   *
+   * Sometimes, when evaluating a Larky script, there is some output that is generated.
+   *
+   * This interface encapsulates an interface that allows the caller to introspect
+   * the result of a Larky script evaluation.
+   */
+  public interface EvaluationResult {
+      boolean hasOutput();
+      boolean hasModule();
+
+      Object getOutput();
+      Module getModule();
+  }
 
   @Builder
   @Data
-  static class EvaluationResult {
+  protected static class DefaultEvaluationResult implements EvaluationResult {
     private Object output;
     private Module module;
 
@@ -89,7 +106,7 @@ public final class LarkyEvaluator {
     }
     Module module = loaded.get(content.path());
     if (module != null) {
-      return EvaluationResult.builder()
+      return DefaultEvaluationResult.builder()
         .output(null)
         .module(module)
         .build();
@@ -122,7 +139,7 @@ public final class LarkyEvaluator {
     }
     pending.remove(content.path());
     loaded.put(content.path(), module);
-    return EvaluationResult.builder()
+    return DefaultEvaluationResult.builder()
       .output(starlarkOutput)
       .module(module)
       .build();
