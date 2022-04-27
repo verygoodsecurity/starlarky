@@ -212,6 +212,10 @@ def _is_subclass(klass, classinfo):
     return False
 
 
+def _type_cls(typ):
+    return _type_class(typ)
+
+
 def translate_bytes(s, original, replace):
     """
     Return a copy of the bytes or bytearray object where all bytes occurring
@@ -420,6 +424,7 @@ larky = _struct(
     impl_function_name=_impl_function_name,
     translate_bytes=translate_bytes,
     DeterministicGenerator=_DeterministicGenerator,
+    type_cls=_type_cls,
     strings=_struct(
         zfill=_zfill,
     ),

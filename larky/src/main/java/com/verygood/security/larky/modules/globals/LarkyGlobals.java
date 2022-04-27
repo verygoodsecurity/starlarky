@@ -6,11 +6,13 @@ import com.verygood.security.larky.modules.types.LarkyCounter;
 import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
+import com.verygood.security.larky.objects.LarkyTypeObject;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
@@ -171,6 +173,14 @@ public final class LarkyGlobals {
       return ((StarlarkCallable) obj).getName();
     }
     return Starlark.type(obj);
+  }
+
+  @StarlarkMethod(
+        name = "_type_class",
+        parameters = {@Param(name="obj")},
+        useStarlarkThread = true)
+  public Object typeClass(Object obj, StarlarkThread thread) throws EvalException {
+    return LarkyTypeObject.getInstance().type(obj, Tuple.empty(), Dict.empty(), Dict.empty(), thread);
   }
 
 }

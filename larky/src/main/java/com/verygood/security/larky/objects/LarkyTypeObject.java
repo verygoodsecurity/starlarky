@@ -9,10 +9,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
-import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.objects.type.ForwardingLarkyType;
 import com.verygood.security.larky.objects.type.LarkyProvidedTypeClass;
 import com.verygood.security.larky.objects.type.LarkyType;
+import com.verygood.security.larky.objects.type.TypeClassLookup;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
@@ -20,6 +20,7 @@ import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
@@ -152,14 +153,19 @@ final public class LarkyTypeObject implements LarkyType {
     if (kwargs.size() != 0) {
       throw Starlark.errorf("type() takes 1 or 3 arguments");
     }
+    Object result;
     if (Starlark.isNullOrNone(bases) && Starlark.isNullOrNone(ns)) {
-        // There is no 'type' type in Starlark, so we return a string with the type name.
-        if (LarkyObject.class.isAssignableFrom(objectOrName.getClass())) {
-          return ((LarkyObject) objectOrName).typeName();
-        }
-        return Starlark.type(objectOrName);
-      }
-    return Starlark.type(objectOrName); // TODO: fix.
+      result = TypeClassLookup.type(objectOrName, thread);
+    } else {
+      result = create(
+        thread,
+        StarlarkUtil.convertOptionalString(objectOrName),
+        (Tuple) Sequence.cast(bases, Object.class, "in type(), could not cast bases to Tuple"),
+        Dict.cast(ns, String.class, Object.class, "in type(), could not cast ns to Dict<String, Object>")
+      );
+    }
+
+    return result;
   }
 
   @Override
