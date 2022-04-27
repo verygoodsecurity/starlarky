@@ -5,6 +5,7 @@ import java.util.Set;
 
 import com.verygood.security.larky.objects.LarkyTypeObject;
 import com.verygood.security.larky.objects.PyObject;
+import com.verygood.security.larky.objects.mro.C3;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
@@ -22,6 +23,12 @@ public interface LarkyType extends PyObject {
   @SneakyThrows
   static void setupInheritanceHierarchy(@NotNull LarkyType cls, LarkyType[] parentClasses) {
     cls.setBaseClasses(parentClasses);
+    final List<LarkyType> mro;
+    mro = C3.calculateMRO(cls);
+    cls.setMRO(mro);
+    for (LarkyType superclass : mro) {
+      superclass.getAllSubclasses().add(cls);
+    }
     cls.getAllSubclasses().add(cls);
   }
 

@@ -7,8 +7,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 import com.verygood.security.larky.modules.types.LarkyObject;
+import com.verygood.security.larky.objects.type.ForwardingLarkyType;
+import com.verygood.security.larky.objects.type.LarkyProvidedTypeClass;
 import com.verygood.security.larky.objects.type.LarkyType;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
@@ -20,6 +23,9 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import lombok.SneakyThrows;
 
@@ -62,6 +68,46 @@ final public class LarkyTypeObject implements LarkyType {
 
   public static LarkyTypeObject getInstance() {
     return LarkyTypeSingleton.INSTANCE.get();
+  }
+
+  public static LarkyType create(
+    StarlarkThread thread,
+    String name,
+    Tuple bases,
+    Dict<String, Object> dict // Dict<? extends CharSequence, ?> dict,
+  ) {
+
+    return LarkyTypeObject.create(
+      thread,
+      name,
+      bases,
+      dict,
+      (type) -> new LarkyProvidedTypeClass(thread, type)
+    );
+  }
+
+  public static LarkyType create(
+    @NotNull StarlarkThread thread,
+    @Nullable String name,
+    @NotNull Tuple bases,
+    @NotNull Dict<String, Object> dict,
+    @NotNull Function<LarkyTypeObject, ForwardingLarkyType> constructor
+  ) {
+    LarkyType[] basesArr;
+    // Set __base__ and __bases__ for the type
+    if (bases.size() == 0) {
+      basesArr = new LarkyType[]{(LarkyType) LarkyPyObject.getInstance()};
+    } else {
+      basesArr = new LarkyType[bases.size()];
+      for (int i = 0; i < bases.size(); i++) {
+        Object b = bases.get(i);
+        basesArr[i] = (LarkyType) b;
+      }
+    }
+    final LarkyTypeObject newType = new LarkyTypeObject(Origin.LARKY, name, dict);
+    final ForwardingLarkyType result = constructor.apply(newType);
+    LarkyType.setupInheritanceHierarchy(result, basesArr);
+    return result;
   }
 
   @Override
