@@ -3,6 +3,7 @@ package com.verygood.security.larky.objects;
 import java.util.Map;
 
 import com.verygood.security.larky.modules.types.LarkyObject;
+import com.verygood.security.larky.objects.type.LarkyType;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
@@ -38,6 +39,15 @@ public interface PyObject extends LarkyObject {
    */
   Map<String, Object> getInternalDictUnsafe();
 
+  LarkyType.Origin getOrigin();
+
+  /**
+   * Return the Python type for this object.
+   */
+  LarkyType typeClass();
+
+  @StarlarkMethod(name = "__class__", structField = true)
+  LarkyType __class__();
 
   /**
    * Return the Python type name for this object.
@@ -91,6 +101,9 @@ public interface PyObject extends LarkyObject {
 
   String __str__();
 
+  default boolean isBuiltin() {
+    return getOrigin().isBuiltin();
+  }
 
   /**
    * 3.3.2. Customizing attribute access
