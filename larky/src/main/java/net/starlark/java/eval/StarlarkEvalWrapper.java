@@ -2,6 +2,7 @@ package net.starlark.java.eval;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class StarlarkEvalWrapper {
@@ -37,6 +38,30 @@ public class StarlarkEvalWrapper {
     return StarlarkFloat.finiteDoubleToIntExact(x);
   }
 
+  // StarlarkMethod-annotated field or method?
+  public static Object getAttrFromMethodAnnotations(
+    @Nullable StarlarkThread thread,
+    Object x,
+    String name
+  )  {
+    Object result = null;
+    if (thread != null) {
+      MethodDescriptor method = CallUtils.getAnnotatedMethods(thread.getSemantics(), x.getClass()).get(name);
+      if (method != null) {
+        if (method.isStructField()) {
+          try {
+            result = method.callField(x, thread.getSemantics(), thread.mutability());
+          } catch (EvalException | InterruptedException e) {
+            throw new Exc.RuntimeEvalException(e, thread);
+          }
+        } else {
+          result = new BuiltinFunction(x, name, method);
+        }
+      }
+    }
+    return result;
+  }
+
   public interface Exc {
     static String createUncheckedEvalMessage(Throwable cause, @Nullable StarlarkThread thread) {
       String msg = cause.getClass().getSimpleName() + " thrown during Starlark evaluation";
@@ -44,7 +69,10 @@ public class StarlarkEvalWrapper {
       if (thread != null) {
         context = thread.getContextForUncheckedException();
       }
-      return isNullOrEmpty(context) ? msg : msg + " (" + context + ")";
+      if (isNullOrEmpty(context)) {
+        context = cause.getMessage();
+      }
+      return msg + " (" + context + ")";
     }
 
     /**
@@ -63,10 +91,36 @@ public class StarlarkEvalWrapper {
 
       public RuntimeEvalException(String message, Throwable cause, @Nullable StarlarkThread thread) {
         super(message, cause);
-        if(thread != null) {
+        if (thread != null) {
           thread.fillInStackTrace(this);
         }
       }
+    }
+  }
+
+  public interface CallStack {
+
+    /**
+     * Returns the stack frame at the specified depth. 0 means top of stack, 1 is its caller, etc.
+     */
+    @NotNull
+    static Debug.Frame frame(@NotNull StarlarkThread thread, int depth) throws EvalException {
+      final int callstackSize = thread.getCallStackSize();
+      if(depth > callstackSize) {
+        throw Starlark.errorf("depth %d exceeds maximum call stack size", depth);
+      }
+      return thread.frame(depth);
+    }
+
+    /**
+     * Reports the current call stack depth.
+     *
+     * @return <code>0</code> - if an idle thread <br/>
+     *         <code>1</code> - if currently evaluating a function for the top-level statements of a file <br/>
+     *         <code>2+</code> - which means a function call is in progress and this is the depth of functions
+     */
+    static int depth(@NotNull StarlarkThread thread) {
+      return thread.getCallStackSize();
     }
   }
 }
