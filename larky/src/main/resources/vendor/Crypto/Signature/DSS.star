@@ -423,7 +423,12 @@ def FipsEcDsaSigScheme(key, encoding, order, randfunc):
 
     def __init__(key, encoding, order, randfunc):
         # super(FipsEcDsaSigScheme, self).__init__(key, encoding, order)
+        self._key = key
+        self._encoding = encoding
+        self._order = order
         self._randfunc = randfunc
+        self._order_bits = self._order.size_in_bits()
+        self._order_bytes = (self._order_bits - 1) // 8 + 1
         return self
     self = __init__(key, encoding, order, randfunc)
 
@@ -432,6 +437,52 @@ def FipsEcDsaSigScheme(key, encoding, order, randfunc):
                                     max_exclusive=self._key._curve.order,
                                     randfunc=self._randfunc)
     self._compute_nonce = _compute_nonce
+
+    def sign(msg_hash):
+        """Compute the ECDSA signature of a message.
+
+        Args:
+          msg_hash (hash object):
+            The hash that was carried out over the message.
+            The object belongs to the :mod:`Crypto.Hash` package.
+            Under mode ``'fips-186-3'``, the hash must be a FIPS
+            approved secure hash (SHA-2 or SHA-3).
+
+        :return: The signature as ``bytes``
+        :raise ValueError: if the hash algorithm is incompatible to the (EC)DSA key
+        :raise TypeError: if the (EC)DSA key has no private half
+        """
+
+        if not self._key.has_private():
+            fail("TypeError: Private key is needed to sign")
+
+        if not self._valid_hash(msg_hash):
+            fail("ValueError: Hash is not sufficiently strong")
+
+        # Generate the nonce k (critical!)
+        nonce = self._compute_nonce(msg_hash)
+
+        # Perform signature using the raw API
+        z = Integer.from_bytes(msg_hash.digest()[:self._order_bytes])
+        sig_pair = self._key._sign(z, nonce)
+
+        # Encode the signature into a single byte string
+        if self._encoding == 'binary':
+            output = b"".join([long_to_bytes(x, self._order_bytes)
+                               for x in sig_pair])
+        else:
+            # Dss-sig  ::=  SEQUENCE  {
+            #   r   INTEGER,
+            #   s   INTEGER
+            # }
+            # Ecdsa-Sig-Value  ::=  SEQUENCE  {
+            #   r   INTEGER,
+            #   s   INTEGER
+            # }
+            output = codecs.encode(DerSequence(sig_pair), encoding="utf-8")
+
+        return output
+    self.sign = sign
 
     def _valid_hash(msg_hash):
         """Verify that the strength of the hash matches or exceeds

@@ -11,6 +11,7 @@ load("@stdlib//re", re="re")
 load("@vendor//Crypto/Hash", Hash="Hash")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/PublicKey/ECC", ECC="ECC")
+load("@vendor//Crypto/Signature/DSS", DSS="DSS")
 load("@vendor//Crypto/Signature/pkcs1_15", pkcs1_15="pkcs1_15")
 load("@vendor//Crypto/Signature/pss", pss="pss")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes")
@@ -230,14 +231,13 @@ def ECPrivateKey(ec_cdata, evp_pkey):
     self = larky.mutablestruct(__name__='ECPrivateKey',
                                __class__=ECPrivateKey)
 
-    def __init__(backend, ec_cdata, evp_pkey):
-        self._backend = backend
+    def __init__(ec_cdata, evp_pkey):
         self._ec_cdata = ec_cdata
         self._evp_pkey = evp_pkey
-        self.curve = None
-        self.key_size = 0
+        self.curve = evp_pkey._curve
+        self.key_size = evp_pkey._curve.modulus_bits
         return self
-    self = __init__(backend, ec_cdata, evp_pkey)
+    self = __init__(ec_cdata, evp_pkey)
 
     def exchange(algorithm, peer_public_key):
         """
@@ -249,7 +249,7 @@ def ECPrivateKey(ec_cdata, evp_pkey):
         """
         The ECPublicKey object for this private key
         """
-        return ECPublicKey(self._backend, self._evp_pkey.public_key())
+        return ECPublicKey(self._evp_pkey.public_key())
     self.public_key = public_key
 
     def sign(data, # type: Bytes
@@ -258,6 +258,10 @@ def ECPrivateKey(ec_cdata, evp_pkey):
         """
         Sign one block of data which can be verified later by others using the public key.
         """
+        h = signature_algorithm.new(data)
+        signer = DSS.new(self._evp_pkey, 'fips-186-3')
+        signature = signer.sign(h)
+        return signature
     self.sign = sign
 
     def private_numbers():
@@ -276,14 +280,15 @@ def ECPrivateKey(ec_cdata, evp_pkey):
         Returns the key serialized as bytes
         """
     self.private_bytes = private_bytes
+    return self
 
 def ECPublicKey(evp_pkey):
     self = larky.mutablestruct(__name__='ECPublicKey', __class__=ECPublicKey)
 
     def __init__(evp_pkey):
         self._evp_pkey = evp_pkey
-        self._curve = None # EllipticCurve
-        self._key_size = 0
+        self._curve = evp_pkey._curve
+        self.key_size = evp_pkey._curve.modulus_bits
         return self
     self = __init__(evp_pkey)
 
@@ -314,6 +319,7 @@ def ECPublicKey(evp_pkey):
         Returns the key serialized as bytes
         """
     self.public_bytes = public_bytes
+    return self
 
 def SECT571R1():
     return EllipticCurve("sect571r1", 570)
@@ -845,7 +851,7 @@ def pycryptodome():
         if key_type == 'RSA':
             return RSAPrivateKey(self, evp_pkey, RSA.import_key(evp_pkey.private_key()))
         if key_type == 'EC':
-            return ECPrivateKey(self, evp_pkey, ECC.import_key(evp_pkey.private_key()))
+            return ECPrivateKey(evp_pkey, ECC.import_key(evp_pkey.private_key()))
 
         # elif key_type == self._lib.EVP_PKEY_DSA:
         #     dsa_cdata = self._lib.EVP_PKEY_get1_DSA(evp_pkey)
@@ -954,8 +960,7 @@ def pycryptodome():
 
     def load_pem_public_key(data):
         if(re.search(r'-----BEGIN (EC|RSA) PRIVATE KEY-----', data)):
-            privkey = load_pem_private_key(data, None)
-            print(privkey)
+            return load_pem_private_key(data, None).public_key()
 
     self.load_pem_public_key = load_pem_public_key
     return self

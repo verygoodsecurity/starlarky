@@ -269,8 +269,11 @@ def EccPoint(x, y, curve="p256"):
 
     def copy():
         """Return a copy of this point."""
+        print("Attempting to copy this point.")
         x, y = self.xy
+        print("x, y: %s, %s" % (x, y))
         np = EccPoint(x, y, self._curve_name)
+        print("copied point: %s" % np)
         return np
     self.copy = copy
 
@@ -462,7 +465,7 @@ def EccKey(**kwargs):
     self.has_private = has_private
 
     def _sign(z, k):
-        if not ((0 < k) and (k < self._curve.order)):
+        if not ((0 < int(k)) and (int(k) < int(self._curve.order))):
             fail("assert (0 < k) and (k < self._curve.order) failed!")
 
         order = self._curve.order
@@ -971,10 +974,8 @@ def _import_private_der(encoded, passphrase, curve_oid=None):
         else:
             public_key_enc = DerBitString(explicit=1).decode(private_key[3]).value
         public_key = _import_public_der(curve_oid, public_key_enc)
-        print(public_key)
-        print(public_key.pointQ)
-        #point_x = public_key.pointQ.x
-        #point_y = public_key.pointQ.y
+        point_x = public_key._val.pointQ.x
+        point_y = public_key._val.pointQ.y
     else:
         point_x = None
         point_y = point_x
@@ -1193,7 +1194,11 @@ def import_key(encoded, passphrase=None):
 
     # DER
     if len(encoded) > 0 and bord(encoded[0]) == 0x30:
-        return _import_der(encoded, passphrase).unwrap()
+        final_key = _import_der(encoded, passphrase)
+        if type(final_key) == 'EccKey':
+            return final_key
+        else:
+            return final_key.unwrap()
 
     return Error("ValueError: ECC key format is not supported").unwrap()
 

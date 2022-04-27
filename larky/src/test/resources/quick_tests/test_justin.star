@@ -48,6 +48,7 @@ def _sign_header_and_claims(encoded_header, encoded_claims, algorithm, key):
         # k = ECC.import_key(key)
         k = jwk.construct(key, algorithm)
         print(k)
+        encoded_signature = base64url_encode(k.sign(signing_input))
 
 
 

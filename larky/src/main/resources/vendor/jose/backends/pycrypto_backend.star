@@ -26,7 +26,7 @@ load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", tostr="tostr")
 load("@vendor//Crypto/Util/number", bytes_to_long="bytes_to_long")
 
 
-load("@vendor//cryptography/hazmat/primitives/serialization/base", load_pem_public_key="load_pem_public_key")
+load("@vendor//cryptography/hazmat/primitives/serialization/base", load_pem_public_key="load_pem_public_key", load_pem_private_key="load_pem_private_key")
 load("@vendor//cryptography/hazmat/primitives/asymmetric/utils", decode_dss_signature="decode_dss_signature",
      encode_dss_signature="encode_dss_signature")
 load("@vendor//cryptography/utils", int_to_bytes="int_to_bytes")
@@ -100,13 +100,24 @@ def ECKey(key, algorithm):
         if builtins.isinstance(key, str):
             key = builtins.bytes(key, encoding="utf-8")
         if builtins.isinstance(key, bytes):
-            # Attempt to load key. We don't know if it's
-            # a Public Key or a Private Key, so we try
-            # the Public Key first.
-            self.prepared_key = load_pem_public_key(key)
-            return Ok(self)
+            public_key = Ok(load_pem_public_key(key))
+            if public_key.is_err:
+                fail("Unable to parse an ECKey from key: %s" % key)
+            else:
+                self.prepared_key = public_key._val
 
-        return Error("Unable to parse an ECKey from key: %s" % key)
+            private_key = Ok(load_pem_private_key(key,None))
+            if private_key.is_err:
+                pass
+            else:
+                self.prepared_key = private_key._val
+
+            ok = Ok(self)
+            if(ok.is_err):
+                fail("Unable to parse an ECKey from key: %s" % key)
+            else:
+                return ok._val
+
     self = __init__(key, algorithm)
 
     def _process_jwk(jwk_dict):
@@ -156,15 +167,17 @@ def ECKey(key, algorithm):
     self._raw_to_der = _raw_to_der
 
     def sign(msg):
-        if self.hash_alg.digest_size * 8 > self.prepared_key.curve.key_size:
+        if self.hash_alg.digest_size * 8 > self.prepared_key.key_size:
             return Error(
                 "this curve (%s) is too short for your digest (%d)"
                 % (self.prepared_key.curve.name, 8 * self.hash_alg.digest_size)
             )
-        # signature = self.prepared_key.sign(msg, ec.ECDSA(self.hash_alg()))
-        signature = self.prepared_key.sign(msg)
+        signature = self.prepared_key.sign(msg, self.hash_alg)
+        print("Generated this signature:")
+        print(signature)
         return self._der_to_raw(signature)
     self.sign = sign
+    return self
 
 
 def RSAKey(key, algorithm):
