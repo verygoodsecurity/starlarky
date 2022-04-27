@@ -43,6 +43,7 @@ import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
+import com.verygood.security.larky.objects.LarkyPyObject;
 import com.verygood.security.larky.objects.LarkyTypeObject;
 
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -55,13 +56,12 @@ public class ModuleSupplier {
 
   public static final ImmutableSet<Class<?>> CORE_MODULES = ImmutableSet.of(
     LarkyGlobals.class,
-    PythonBuiltins.class,
-    LarkyTypeObject.class
+    PythonBuiltins.class
   );
 
   public static final ImmutableMap<String, Object> CORE_ENVIRONMENT = ImmutableMap.of(
-//    "object", LarkyPyObject.getInstance(),
-//    "type", LarkyTypeClass.getInstance()
+    "object", LarkyPyObject.getInstance(),
+    "type", LarkyTypeObject.getInstance()
   );
 
 

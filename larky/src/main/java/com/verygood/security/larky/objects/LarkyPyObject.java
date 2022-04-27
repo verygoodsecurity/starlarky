@@ -33,6 +33,10 @@ public class LarkyPyObject implements PyObject, Comparable<LarkyPyObject> {
     this.__class__ = klass;
   }
 
+  public static LarkyPyObject getInstance() {
+    return LarkyPyObjectBuiltin.LarkyPyObjectBuiltinSingleton.INSTANCE.get();
+  }
+
   @Override
   public void __init__(Tuple args, Dict<String, ?> keywords) throws EvalException {
     Object init = this.getField("__init__", thread);

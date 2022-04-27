@@ -3,6 +3,7 @@ package com.verygood.security.larky.objects.type;
 import java.util.List;
 import java.util.Set;
 
+import com.verygood.security.larky.objects.LarkyTypeObject;
 import com.verygood.security.larky.objects.PyObject;
 
 import net.starlark.java.annot.StarlarkMethod;
@@ -18,7 +19,7 @@ import lombok.SneakyThrows;
 
 public interface LarkyType extends PyObject {
 
-
+  @SneakyThrows
   static void setupInheritanceHierarchy(@NotNull LarkyType cls, LarkyType[] parentClasses) {
     cls.setBaseClasses(parentClasses);
     cls.getAllSubclasses().add(cls);
@@ -37,7 +38,7 @@ public interface LarkyType extends PyObject {
 
   @Override
   default LarkyType __class__() {
-    return this;
+    return LarkyTypeObject.getInstance();
   }
 
   @Override

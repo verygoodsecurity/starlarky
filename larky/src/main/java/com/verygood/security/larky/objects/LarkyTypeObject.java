@@ -2,6 +2,7 @@ package com.verygood.security.larky.objects;
 
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSortedSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,16 @@ final public class LarkyTypeObject implements LarkyType {
   private LarkyType[] __bases__;
   private LarkyType __base__;
 
+  LarkyTypeObject(Origin origin, String typeName, Dict<String, Object> dikt) {
+    this.origin = origin;
+    this.name = typeName;
+    this.__dict__ = new HashMap<>(dikt);
+    this.__new__(Tuple.of(this), dikt, null);
+  }
+
+  public static LarkyTypeObject getInstance() {
+    return LarkyTypeSingleton.INSTANCE.get();
+  }
 
   @Override
   public void setMRO(List<LarkyType> mro) {
@@ -227,6 +238,21 @@ final public class LarkyTypeObject implements LarkyType {
 //      "__weakrefoffset__",
       "mro"
     );
+  }
+
+  private enum LarkyTypeSingleton {
+    INSTANCE;
+
+    private final LarkyTypeObject type;
+
+    LarkyTypeSingleton() {
+      type = new LarkyTypeObject(Origin.BUILTIN, "type", Dict.empty());
+      LarkyType.setupInheritanceHierarchy(type, new LarkyType[]{LarkyPyObject.getInstance().typeClass()});
+    }
+
+    public LarkyTypeObject get() {
+      return type;
+    }
   }
 
 }
