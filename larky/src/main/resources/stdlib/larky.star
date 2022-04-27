@@ -100,12 +100,14 @@ def _impl_function_name(f):
     return _func_name(f)
 
 
+# we do not want to import types here so we do it this way for now
+def __is_iterable(x):
+    return type(x) == type(tuple()) or type(x) == type(list())
+
+
 def _is_instance(obj, cls):
     if obj == None:
         return cls == None
-
-    # we do not want to import types here so we do it this way for now
-    is_iterable = lambda x: type(x) == type(tuple()) or type(x) == type(list())
 
     def __isinstance(_obj, _kls):
         # // PEP 585
@@ -179,7 +181,7 @@ def _is_instance(obj, cls):
 
         return False
 
-    if not is_iterable(cls):
+    if not __is_iterable(cls):
         cls = [cls]
 
     for kls in cls:
@@ -201,13 +203,13 @@ def _is_subclass(klass, classinfo):
         # ignore __subclasscheck__ for now
         return False
 
-    if _is_instance(classinfo, tuple):
-        for klsinfo in classinfo:
-            if __issubclass(klass, klsinfo):
-                return True
-        return False
+    if not __is_iterable(classinfo):
+        classinfo = [classinfo]
 
-    return __issubclass(klass, klsinfo)
+    for kls in classinfo:
+        if __issubclass(kls, kls):
+            return True
+    return False
 
 
 def translate_bytes(s, original, replace):

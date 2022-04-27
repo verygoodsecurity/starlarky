@@ -100,14 +100,14 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
     } catch (EvalException ex) {
       throw new RuntimeException(ex);
     }
-    p.append("<class '").append(type()).append("'>");
+    p.append("<class '").append(typeName()).append("'>");
   }
 
   @Override
   public void debugPrint(Printer p) {
     // This repr function prints only the fields.
     // Any methods are still accessible through dir/getattr/hasattr.
-    p.append(type());
+    p.append(typeName());
     p.append("(");
     String sep = "";
     for (Map.Entry<String, Object> e : fields.entrySet()) {
@@ -181,7 +181,7 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
     final Object result = StructBinOp.operatorDispatch(this, TokenKind.IN, key, false, starlarkThread);
     if (result == null) {
       throw Starlark.errorf(
-        "unsupported binary operation: %s %s %s", Starlark.type(key), TokenKind.IN, type());
+        "unsupported binary operation: %s %s %s", Starlark.type(key), TokenKind.IN, typeName());
     }
     return (boolean) result;
   }

@@ -30,7 +30,7 @@ public interface LarkyIndexable extends LarkyObject, StarlarkIndexable.Threaded 
     if(__getitem__ != null) {
       return this.invoke(starlarkThread, __getitem__, ImmutableList.of(key), EMPTY_KWARGS);
     }
-    throw Starlark.errorf("TypeError: '%s' object is not subscriptable", type());
+    throw Starlark.errorf("TypeError: '%s' object is not subscriptable", typeName());
   }
 
   @Override
@@ -56,7 +56,7 @@ public interface LarkyIndexable extends LarkyObject, StarlarkIndexable.Threaded 
         : (StarlarkCallable) lhs.get__contains__();
     if (__contains__ == null) {
       throw Starlark.errorf(
-        "unsupported binary operation: %s %s %s", Starlark.type(rhs), TokenKind.IN, type());
+        "unsupported binary operation: %s %s %s", Starlark.type(rhs), TokenKind.IN, typeName());
     }
     return thisLeft
              ? (boolean) ((LarkyIndexable) rhs).invoke(thread, __contains__, ImmutableList.of(lhs), EMPTY_KWARGS)

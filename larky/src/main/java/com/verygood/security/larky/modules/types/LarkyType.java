@@ -43,7 +43,7 @@ public class LarkyType implements StarlarkValue {
     if (Starlark.isNullOrNone(bases) && Starlark.isNullOrNone(dict) && kwargs.size() == 0) {
       // There is no 'type' type in Starlark, so we return a string with the type name.
       if (LarkyObject.class.isAssignableFrom(object.getClass())) {
-        return ((LarkyObject) object).type();
+        return ((LarkyObject) object).typeName();
       }
       return Starlark.type(object);
     } else if (kwargs.size() != 0) {

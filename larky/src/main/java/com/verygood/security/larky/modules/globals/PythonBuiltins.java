@@ -529,14 +529,14 @@ public final class PythonBuiltins {
     final String typeString;
     if (LarkyIterator.class.isAssignableFrom(x.getClass())) {
       LarkyIterator object = ((LarkyIterator) x);
-      typeString = object.type();
+      typeString = object.typeName();
       // IF LarkyObject has a `__length_hint__()` method, invoke it. Otherwise, ...
       if (object.hasLengthHintMethod()) {
         return (StarlarkInt) object.invoke(object.getLengthHintMethod());
       }
     } else if (LarkyObject.class.isAssignableFrom(x.getClass())) {
       LarkyObject object = ((LarkyObject) x);
-      typeString = object.type();
+      typeString = object.typeName();
 
       // IF LarkyObject has a `__len__()` method, invoke it. Otherwise, ...
       // TODO(mahmoudimus): This should be a sub type of LarkyObject(?) called
@@ -586,7 +586,7 @@ public final class PythonBuiltins {
     } else {
       final String objType;
       if (x instanceof LarkyObject) {
-        objType = ((LarkyObject) x).type();
+        objType = ((LarkyObject) x).typeName();
         try {
           arr = Starlark.toArray(LarkyIterator.from(x, thread));
         } catch (EvalException ex) {
