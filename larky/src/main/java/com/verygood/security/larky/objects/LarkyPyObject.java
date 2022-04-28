@@ -188,11 +188,11 @@ public class LarkyPyObject implements PyObject, Comparable<LarkyPyObject> {
 
   @Override
   public void __setattr__(String name, Object value, StarlarkThread thread) throws EvalException {
-    this.__dict__.put(name, value);
+    SetAttribute.set(this, name, value, thread);
   }
 
   @Override
   public void __delattr__(String name, StarlarkThread thread) throws EvalException {
-    this.__dict__.remove(name);
+    DeleteAttribute.delete(this, name, thread);
   }
 }

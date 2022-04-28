@@ -3,9 +3,11 @@ package com.verygood.security.larky.objects.type;
 import java.util.List;
 import java.util.Set;
 
+import com.verygood.security.larky.objects.DeleteAttribute;
 import com.verygood.security.larky.objects.GetAttribute;
 import com.verygood.security.larky.objects.LarkyTypeObject;
 import com.verygood.security.larky.objects.PyObject;
+import com.verygood.security.larky.objects.SetAttribute;
 import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
 import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.mro.C3;
@@ -231,12 +233,12 @@ public interface LarkyType extends PyObject {
 
   @Override
   default void __setattr__(String name, Object value, StarlarkThread thread) throws EvalException {
-    this.getInternalDictUnsafe().put(name, value);
+    SetAttribute.set(this, name, value, thread);
   }
 
   @Override
   default void __delattr__(String name, StarlarkThread thread) throws EvalException {
-    this.getInternalDictUnsafe().remove(name);
+    DeleteAttribute.delete(this, name, thread);
   }
 
   /**
