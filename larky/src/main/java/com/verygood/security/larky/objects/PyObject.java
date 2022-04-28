@@ -116,7 +116,7 @@ public interface PyObject extends LarkyObject {
     try {
       getattr_ = this.__getattribute__(name, thread);
     } catch (EvalException ex) {
-      getattr_ = null;
+      getattr_ = GetAttribute.dunderGetAttr(this, name, thread, /*throwExc=*/false);
     }
     return getattr_;
   }

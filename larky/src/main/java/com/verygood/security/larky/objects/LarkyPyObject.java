@@ -9,6 +9,9 @@ import java.util.Objects;
 import com.verygood.security.larky.objects.type.LarkyType;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
+import net.starlark.java.annot.Param;
+import net.starlark.java.annot.ParamType;
+import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
@@ -155,15 +158,41 @@ public class LarkyPyObject implements PyObject, Comparable<LarkyPyObject> {
   }
 
   @Override
-  public Object __getattribute__(String name, StarlarkThread thread) throws EvalException {
-    return null;
+  @StarlarkMethod(
+    name = "__getattribute__",
+    doc = " <pre>__getattribute__</pre> provides attribute read access on the object and its type.                              " +
+            "\n" +
+            "The default instance {@code __getattribute__} slot implements dictionary look-up on the type and the instance. It" +
+            "is the starting point for activating the descriptor protocol. The following order of precedence applies when     " +
+            "looking for the value of an attribute:                                                                           " +
+            "<ol>                                                                                                             " +
+            "<li>a data descriptor from the dictionary of the type</li>                                                       " +
+            "<li>a value in the instance dictionary of {@code obj}</li>                                                       " +
+            "<li>a non-data descriptor from dictionary of the type</li>                                                       " +
+            "<li>a value from the dictionary of the type</li>                                                                 " +
+            "</ol>                                                                                                            " +
+            "If a matching entry on the type is a data descriptor (case 1),                                                   " +
+            "but throws AttributeError, the instance dictionary (if                                                           " +
+            "any) will be consulted, and the subsequent cases (3 and 4)                                                       " +
+            "skipped. A non-data descriptor that throws an                                                                    " +
+            "AttributeError (case 3) causes case 4 to be skipped.                                                             ",
+    parameters = {
+      @Param(name = "name", allowedTypes = {@ParamType(type = String.class)})
+    },
+    useStarlarkThread = true
+  )
+  public Object __getattribute__(String name, StarlarkThread thread)
+    throws EvalException {
+    return GetAttribute.get(this, name, thread);
   }
 
   @Override
   public void __setattr__(String name, Object value, StarlarkThread thread) throws EvalException {
+    this.__dict__.put(name, value);
   }
 
   @Override
   public void __delattr__(String name, StarlarkThread thread) throws EvalException {
+    this.__dict__.remove(name);
   }
 }

@@ -324,7 +324,8 @@ def prepare_class(name, bases=(), kwds=None):
         meta = kwds.pop('metaclass')
     else:
         if bases:
-            meta = type(bases[0])
+            meta = larky.type_cls(bases[0])
+            # meta = bases[0]
         else:
             meta = type
     if larky.is_instance(meta, type):
@@ -342,7 +343,7 @@ def _calculate_meta(meta, bases):
     """Calculate the most derived metaclass."""
     winner = meta
     for base in bases:
-        base_meta = type(base)
+        base_meta = larky.type_cls(base)
         if larky.is_subclass(winner, base_meta):
             continue
         if larky.is_subclass(base_meta, winner):
@@ -431,12 +432,10 @@ def make_class(name, bases=(), cls_dict=None):
     cls = {
         '__name__': name,
         '__bases__': bases,
-        # HUGE HACK
-        '__class_dict__': cls_dict or {}
     }
     cls.update(cls_dict or {})
     cls = larky.mutablestruct(**cls)
-    base_mros = [[cls]] + [b['__mro__'] for b in bases]
+    base_mros = [[cls]] + [b.__mro__ for b in bases]
     mro = tuple(merge_mro(base_mros))
     cls.mro = lambda: mro
     cls.__mro__ = mro
@@ -451,8 +450,6 @@ def new(cls, *args, **kwargs):
     instance = larky.mutablestruct(
         __class__=cls,
         __name__=cls.__name__,
-        # HUGE HACK
-        **cls.__class_dict__
     )
     init = getattr(cls, '__init__', None)
     if init:
@@ -503,11 +500,7 @@ def del_(instance, attr_name):
     """
     Delete the instance attribute
     """
-    if hasattr(instance, attr_name):
-        # TODO...impl delattr
-        instance.pop(attr_name)
-        return
-    fail("AttributeError: %s" % attr_name)
+    set_(instance, attr_name, None)
 
 
 types = larky.struct(

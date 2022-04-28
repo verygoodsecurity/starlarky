@@ -3,15 +3,21 @@ package com.verygood.security.larky.objects.type;
 import java.util.List;
 import java.util.Set;
 
+import com.verygood.security.larky.objects.GetAttribute;
 import com.verygood.security.larky.objects.LarkyTypeObject;
 import com.verygood.security.larky.objects.PyObject;
+import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
+import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.mro.C3;
 
+import net.starlark.java.annot.Param;
+import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Sequence;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
 import org.jetbrains.annotations.NotNull;
@@ -163,6 +169,88 @@ public interface LarkyType extends PyObject {
     }
 
     return result;
+  }
+  /**
+   * provides attribute read access on
+   * this type object and its metatype. This is very like
+   * {@code object.__getattribute__}
+   * ({@link PyObject#__getattribute__(String, net.starlark.java.eval.StarlarkThread)}), but the
+   * instance is replaced by a type object, and that object's type is
+   * a meta-type (which is also a {@code type}).
+   * <p>
+   * The behavioural difference is that in looking for attributes on a
+   * type:
+   * <ul>
+   * <li>we use {@link #lookup(String)} to search along along the
+   * MRO, and</li>
+   * <li>if we find a descriptor, we use it.
+   * ({@code object.__getattribute__} does not check for descriptors
+   * on the instance.)</li>
+   * </ul>
+   * <p>
+   * The following order of precedence applies when looking for the
+   * value of an attribute:
+   * <ol>
+   * <li>a data descriptor from the dictionary of the meta-type</li>
+   * <li>a descriptor or value in the dictionary of {@code type}</li>
+   * <li>a non-data descriptor or value from dictionary of the meta
+   * type</li>
+   * </ol>
+   *
+   * @param name of the attribute
+   * @return attribute value
+   * @throws EvalException if no such attribute
+   */
+  @Override
+  @StarlarkMethod(
+    name = "__getattribute__",
+    doc = "" +
+      "Slot.op_getattribute has signature Signature.GETATTR and provides attribute read " +
+            "access on this type object and its metatype. " +
+            "" +
+            "This is very like object.__getattribute__ (PyBaseObject.__getattribute__(Object, String)), " +
+            "but the instance is replaced by a type object, and that object's type is a " +
+            "meta-type (which is also a type).\n" +
+      "The behavioral difference is that in looking for attributes on a type:\n" +
+      "we use lookup(String) to search along along the MRO, and\n" +
+      "if we find a descriptor, we use it. (object.__getattribute__ does not check for descriptors " +
+            "on the instance.)\n" +
+      "The following order of precedence applies when looking for the value of an attribute:\n" +
+      "- a data descriptor from the dictionary of the meta-type\n" +
+      "- a descriptor or value in the dictionary of type\n" +
+      "- a non-data descriptor or value from dictionary of the meta type\n",
+    parameters = {
+      @Param(name = "name", allowedTypes = {@ParamType(type = String.class)})
+    },
+    useStarlarkThread = true
+  )
+  default Object __getattribute__(String name, StarlarkThread thread)
+    throws EvalException {
+    return GetAttribute.getForType(this, name, thread);
+  }
+
+  @Override
+  default void __setattr__(String name, Object value, StarlarkThread thread) throws EvalException {
+    this.getInternalDictUnsafe().put(name, value);
+  }
+
+  @Override
+  default void __delattr__(String name, StarlarkThread thread) throws EvalException {
+    this.getInternalDictUnsafe().remove(name);
+  }
+
+  /**
+   * If an object defines __set__() or __delete__(), it is considered a data descriptor.
+   *
+   * Descriptors that only define __get__() are called non-data descriptors
+   * (they are often used for methods but other uses are possible).
+   */
+  default boolean isDataDescriptor() {
+    return LarkyDataDescriptor.isDataDescriptor(this);
+  }
+
+  default boolean isNonDataDescriptor() {
+    return LarkyNonDataDescriptor.isNonDataDescriptor(this);
   }
 
   enum Origin {

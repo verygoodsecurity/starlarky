@@ -180,21 +180,6 @@ final public class LarkyTypeObject implements LarkyType {
   }
 
   @Override
-  public Object __getattribute__(String name, StarlarkThread thread) throws EvalException {
-    return null;
-  }
-
-  @Override
-  public void __setattr__(String name, Object value, StarlarkThread thread) throws EvalException {
-
-  }
-
-  @Override
-  public void __delattr__(String name, StarlarkThread thread) throws EvalException {
-
-  }
-
-  @Override
   public String toString() {
     return __repr__();
   }

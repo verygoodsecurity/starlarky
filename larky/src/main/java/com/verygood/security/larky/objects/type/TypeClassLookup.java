@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
+import com.verygood.security.larky.objects.LarkyFunction;
 import com.verygood.security.larky.objects.PyObject;
 
 import net.starlark.java.eval.EvalException;
@@ -23,7 +24,8 @@ public abstract class TypeClassLookup {
   private static final Map<String, Supplier<Object>> TYPENAMES_TO_CLASS =
     ImmutableMap.of(
       "string", Suppliers.memoize(() -> Starlark.UNIVERSE.get("str")),
-      "NoneType", Suppliers.memoize(() ->  Starlark.UNIVERSE.get("None"))
+      "NoneType", Suppliers.memoize(() ->  Starlark.UNIVERSE.get("None")),
+      "function", Suppliers.memoize(() -> LarkyFunction.TYPE)
   );
 
 

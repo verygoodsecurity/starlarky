@@ -1,5 +1,9 @@
 package com.verygood.security.larky.objects.type;
 
+import java.util.Map;
+
+import com.verygood.security.larky.objects.LarkyBindable;
+import com.verygood.security.larky.objects.LarkyFunction;
 import com.verygood.security.larky.objects.LarkyPyObject;
 import com.verygood.security.larky.objects.LarkyTypeObject;
 import com.verygood.security.larky.objects.PyObject;
@@ -7,6 +11,7 @@ import com.verygood.security.larky.objects.PyObject;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
@@ -21,8 +26,21 @@ final public class LarkyProvidedTypeClass implements ForwardingLarkyType, Starla
   }
 
   private void init(StarlarkThread thread) {
-    // coming in a future pull request
-    // ignore
+    final Map<String, Object> clsDict = this.getInternalDictUnsafe();
+    for(Map.Entry<String, Object> entry : clsDict.entrySet()) {
+      Object value = entry.getValue();
+      if(value instanceof StarlarkFunction) {
+        // We are decorating a StarlarkFunction with a LarkyFunction so
+        // that we can enable python descriptor support.
+        value = LarkyFunction.create((StarlarkFunction) value, thread);
+      }
+
+      if (value instanceof LarkyBindable) {
+        ((LarkyBindable) value).bindToOwnerIfNotBound(this);
+      }
+
+      clsDict.put(entry.getKey(), value);
+    }
   }
 
   @Override
@@ -65,21 +83,6 @@ final public class LarkyProvidedTypeClass implements ForwardingLarkyType, Starla
         __name__()
       )
       ;
-  }
-
-  @Override
-  public Object __getattribute__(String name, StarlarkThread thread) throws EvalException {
-    return null;
-  }
-
-  @Override
-  public void __setattr__(String name, Object value, StarlarkThread thread) throws EvalException {
-
-  }
-
-  @Override
-  public void __delattr__(String name, StarlarkThread thread) throws EvalException {
-
   }
 
   @Override
