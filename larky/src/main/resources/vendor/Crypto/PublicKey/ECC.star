@@ -474,7 +474,7 @@ def EccKey(**kwargs):
 
         blind_d = self._d * blind
         inv_blind_k = (blind * k).inverse(order)
-
+        print(self._curve.G)
         r = (self._curve.G * k).x % order
         s = inv_blind_k * (blind * z + blind_d * r) % order
         return (r, s)

@@ -258,6 +258,7 @@ def ECPrivateKey(ec_cdata, evp_pkey):
         """
         Sign one block of data which can be verified later by others using the public key.
         """
+        print("Signature generation")
         h = signature_algorithm.new(data)
         signer = DSS.new(self._evp_pkey, 'fips-186-3')
         signature = signer.sign(h)
