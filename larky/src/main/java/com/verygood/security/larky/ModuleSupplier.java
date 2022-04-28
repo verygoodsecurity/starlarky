@@ -43,7 +43,9 @@ import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
+import com.verygood.security.larky.objects.LarkyClassMethod;
 import com.verygood.security.larky.objects.LarkyPyObject;
+import com.verygood.security.larky.objects.LarkyStaticMethod;
 import com.verygood.security.larky.objects.LarkySuper;
 import com.verygood.security.larky.objects.LarkyTypeObject;
 
@@ -63,7 +65,9 @@ public class ModuleSupplier {
   public static final ImmutableMap<String, Object> CORE_ENVIRONMENT = ImmutableMap.of(
     "object", LarkyPyObject.getInstance(),
     "type", LarkyTypeObject.getInstance(),
-    "super", LarkySuper.getInstance()
+    "super", LarkySuper.getInstance(),
+    "classmethod", LarkyClassMethod.getInstance(),
+    "staticmethod", LarkyStaticMethod.getInstance()
   );
 
 

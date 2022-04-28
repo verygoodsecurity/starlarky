@@ -20,10 +20,7 @@ import org.jetbrains.annotations.Nullable;
 @StarlarkBuiltin(name = "super")
 public class LarkySuper implements LarkyNonDataDescriptor, ForwardingLarkyType, StarlarkCallable {
 
-  public static final LarkyTypeObject TYPE =  new LarkyTypeObject(Origin.BUILTIN, "super", Dict.empty());
-  static {
-    LarkyType.setupInheritanceHierarchy(TYPE, new LarkyType[]{(LarkyType) LarkyPyObject.getInstance()});
-  }
+  public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType("super");
 
   public static final LarkySuper INSTANCE = new LarkySuper();
 

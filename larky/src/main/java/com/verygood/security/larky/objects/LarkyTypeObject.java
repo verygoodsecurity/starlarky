@@ -1,5 +1,6 @@
 package com.verygood.security.larky.objects;
 
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSortedSet;
 import java.util.HashMap;
@@ -8,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import com.verygood.security.larky.objects.type.ForwardingLarkyType;
 import com.verygood.security.larky.objects.type.LarkyProvidedTypeClass;
@@ -52,6 +54,10 @@ import lombok.SneakyThrows;
 )
 final public class LarkyTypeObject implements LarkyType {
 
+  private static final Supplier<LarkyType[]> DEFAULT_HIERARCHY = Suppliers.memoize(
+    () -> new LarkyType[]{(LarkyType) LarkyPyObject.getInstance()}
+  );
+
   private Origin origin;
   private Map<String, Object> __dict__;
   private final Set<LarkyType> allSubclasses = new HashSet<>();
@@ -79,7 +85,6 @@ final public class LarkyTypeObject implements LarkyType {
   ) {
 
     return LarkyTypeObject.create(
-      thread,
       name,
       bases,
       dict,
@@ -88,7 +93,6 @@ final public class LarkyTypeObject implements LarkyType {
   }
 
   public static LarkyType create(
-    @NotNull StarlarkThread thread,
     @Nullable String name,
     @NotNull Tuple bases,
     @NotNull Dict<String, Object> dict,
@@ -109,6 +113,12 @@ final public class LarkyTypeObject implements LarkyType {
     final ForwardingLarkyType result = constructor.apply(newType);
     LarkyType.setupInheritanceHierarchy(result, basesArr);
     return result;
+  }
+
+  public static @NotNull LarkyType createBuiltinType(@NotNull String name) {
+    final LarkyTypeObject type = new LarkyTypeObject(Origin.BUILTIN, name, Dict.empty());
+    LarkyType.setupInheritanceHierarchy(type, DEFAULT_HIERARCHY.get());
+    return type;
   }
 
   @Override
