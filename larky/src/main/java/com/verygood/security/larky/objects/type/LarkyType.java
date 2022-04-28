@@ -1,6 +1,7 @@
 package com.verygood.security.larky.objects.type;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.verygood.security.larky.objects.DeleteAttribute;
@@ -141,6 +142,44 @@ public interface LarkyType extends PyObject {
     return null;
   }
 
+
+  /**
+   * See <br/>
+   *  <a href="https://github.com/python/cpython/blob/6969eaf4682beb01bc95eeb14f5ce6c01312e297/Objects/typeobject.c#L7314-L7704">python/cpython@Objects/typeobject.c#L7314-L7704</a><br/>
+   *  and <br/>
+   *  <a href="https://stackoverflow.com/a/44994572/133514">Martijn Pieters' answer on StackOverflow</a><br/>
+   *
+   * @param ref the first type to check before going through the MRO
+   * @param name the method name to lookup
+   * @return the method if found, or null otherwise
+   */
+  default PyObject lookupForSuper(LarkyType ref, String name) {
+    PyObject result = null;
+    //
+    Tuple mro = this.getMRO();
+    if (mro != null) {
+      int i;
+      // skip past the start type in the MRO
+      for (i = 0; i < mro.size(); i++) {
+        if (mro.get(i) == ref)
+          break;
+      }
+      i++;
+      // Search for the attribute on the remainder of the MRO
+      for (; i < mro.size(); i++) {
+        Map<String, Object> dict = ((PyObject) mro.get(i)).getInternalDictUnsafe();
+        if (dict != null) {
+          Object obj = dict.get(name);
+          if (obj != null) {
+            result = (PyObject) obj;
+            break;
+          }
+        }
+      }
+    }
+    return result;
+  }
+
   default boolean isSubtypeOf(LarkyType other) {
     boolean result = false;
     if (other == this) {
@@ -172,6 +211,7 @@ public interface LarkyType extends PyObject {
 
     return result;
   }
+
   /**
    * provides attribute read access on
    * this type object and its metatype. This is very like

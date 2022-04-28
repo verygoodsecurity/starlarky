@@ -265,17 +265,16 @@ def test_create_with_fields():
     }
 
     def ns(x):
-        print("here")
         x.update(cls_dict)
 
     Stock = types.new_class('Stock', (), {}, ns)
     # this completes making a normal class that acts as you would expect
     s = Stock(name='ACME', shares=50, price=91.1)
-    print(dir(s))
-    print(s)
-    print(type(s))
-    print(s.name)
-    print(s.cost())
+    # print(dir(s))
+    asserts.assert_that(repr(s)).is_equal_to("<'Stock' object>")
+    asserts.assert_that(larky.type_cls(s)).is_equal_to(Stock)
+    asserts.assert_that(s.name).is_equal_to("ACME")
+    asserts.assert_that(s.cost()).is_equal_to(4555.0)
 
 
 def test_class_dont_require_attributes():
