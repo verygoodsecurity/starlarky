@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.Arrays;
 
 import com.verygood.security.larky.LarkySemantics;
-import com.verygood.security.larky.objects.LarkyPyObject;
-import com.verygood.security.larky.objects.LarkyTypeObject;
+import com.verygood.security.larky.objects.type.LarkyBaseObjectType;
+import com.verygood.security.larky.objects.type.LarkyTypeObject;
 import com.verygood.security.larky.objects.type.LarkyType;
 
 import net.starlark.java.eval.Dict;
@@ -45,7 +45,7 @@ class C3Test {
   @Test
   void testMROAlwaysIncludesObjectAsDefaultBase() throws EvalException {
     LarkyType O = LarkyTypeObject.create(thread, "O", Tuple.empty(), Dict.empty());
-    assertEquals(Arrays.asList(O, LarkyPyObject.getInstance()), C3.calculateMRO(O));
+    assertEquals(Arrays.asList(O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(O));
   }
 
   @Test
@@ -58,7 +58,7 @@ class C3Test {
     LarkyType B = LarkyTypeObject.create(thread, "B", Tuple.of(D, E), Dict.empty());
     LarkyType A = LarkyTypeObject.create(thread, "B", Tuple.of(B, C), Dict.empty());
 
-    assertEquals(Arrays.asList(A, B, C, D, E, F, O, LarkyPyObject.getInstance()), C3.calculateMRO(A));
+    assertEquals(Arrays.asList(A, B, C, D, E, F, O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(A));
   }
 
 
@@ -74,7 +74,7 @@ class C3Test {
     LarkyType B = LarkyTypeObject.create(thread, "B", Tuple.of(E, D), Dict.empty());
     LarkyType A = LarkyTypeObject.create(thread, "B", Tuple.of(B, C), Dict.empty());
 
-    assertEquals(Arrays.asList(A, B, E, C, D, F, O, LarkyPyObject.getInstance()), C3.calculateMRO(A));
+    assertEquals(Arrays.asList(A, B, E, C, D, F, O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(A));
   }
 
   @Test
@@ -89,15 +89,15 @@ class C3Test {
     LarkyType K2 = LarkyTypeObject.create(thread, "K2", Tuple.of(D, B, E), Dict.empty());
     LarkyType K3 = LarkyTypeObject.create(thread, "K3", Tuple.of(D, A), Dict.empty());
     LarkyType Z = LarkyTypeObject.create(thread, "Z", Tuple.of(K1, K2, K3), Dict.empty());
-    assertEquals(Arrays.asList(A, O, LarkyPyObject.getInstance()), C3.calculateMRO(A));
-    assertEquals(Arrays.asList(B, O, LarkyPyObject.getInstance()), C3.calculateMRO(B));
-    assertEquals(Arrays.asList(C, O, LarkyPyObject.getInstance()), C3.calculateMRO(C));
-    assertEquals(Arrays.asList(D, O, LarkyPyObject.getInstance()), C3.calculateMRO(D));
-    assertEquals(Arrays.asList(E, O, LarkyPyObject.getInstance()), C3.calculateMRO(E));
-    assertEquals(Arrays.asList(K1, A, B, C, O, LarkyPyObject.getInstance()), C3.calculateMRO(K1));
-    assertEquals(Arrays.asList(K2, D, B, E, O, LarkyPyObject.getInstance()), C3.calculateMRO(K2));
-    assertEquals(Arrays.asList(K3, D, A, O, LarkyPyObject.getInstance()), C3.calculateMRO(K3));
-    assertEquals(Arrays.asList(Z, K1, K2, K3, D, A, B, C, E, O, LarkyPyObject.getInstance()), C3.calculateMRO(Z));
+    assertEquals(Arrays.asList(A, O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(A));
+    assertEquals(Arrays.asList(B, O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(B));
+    assertEquals(Arrays.asList(C, O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(C));
+    assertEquals(Arrays.asList(D, O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(D));
+    assertEquals(Arrays.asList(E, O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(E));
+    assertEquals(Arrays.asList(K1, A, B, C, O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(K1));
+    assertEquals(Arrays.asList(K2, D, B, E, O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(K2));
+    assertEquals(Arrays.asList(K3, D, A, O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(K3));
+    assertEquals(Arrays.asList(Z, K1, K2, K3, D, A, B, C, E, O, LarkyBaseObjectType.getInstance()), C3.calculateMRO(Z));
   }
 
 

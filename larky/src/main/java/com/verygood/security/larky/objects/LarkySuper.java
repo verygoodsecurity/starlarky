@@ -4,6 +4,7 @@ import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.type.ForwardingLarkyType;
 import com.verygood.security.larky.objects.type.LarkyType;
+import com.verygood.security.larky.objects.type.LarkyTypeObject;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;

@@ -1,12 +1,13 @@
 package com.verygood.security.larky.objects.type;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.verygood.security.larky.modules.types.LarkyCollection;
 import com.verygood.security.larky.objects.DeleteAttribute;
 import com.verygood.security.larky.objects.GetAttribute;
-import com.verygood.security.larky.objects.LarkyTypeObject;
 import com.verygood.security.larky.objects.PyObject;
 import com.verygood.security.larky.objects.SetAttribute;
 import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
@@ -18,6 +19,7 @@ import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.HasBinary;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.StarlarkThread;
@@ -27,7 +29,7 @@ import org.jetbrains.annotations.NotNull;
 
 import lombok.SneakyThrows;
 
-public interface LarkyType extends PyObject {
+public interface LarkyType extends PyObject, LarkyCollection, HasBinary {
 
   @SneakyThrows
   static void setupInheritanceHierarchy(@NotNull LarkyType cls, LarkyType[] parentClasses) {
@@ -294,6 +296,13 @@ public interface LarkyType extends PyObject {
   default boolean isNonDataDescriptor() {
     return LarkyNonDataDescriptor.isNonDataDescriptor(this);
   }
+
+  /**
+   * Will be used to determine if a type is eligible for a special
+   * operation / method.
+   * @return An immutable set of the type's {@link SpecialMethod}s.
+   */
+  ImmutableSet<SpecialMethod> getSpecialMethods();
 
   enum Origin {
     PLACEHOLDER,  // Dummy entry to resolve circular dependencies

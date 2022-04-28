@@ -1,8 +1,10 @@
-package com.verygood.security.larky.objects;
+package com.verygood.security.larky.objects.type;
 
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableCollection;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -11,10 +13,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import com.verygood.security.larky.objects.type.ForwardingLarkyType;
-import com.verygood.security.larky.objects.type.LarkyProvidedTypeClass;
-import com.verygood.security.larky.objects.type.LarkyType;
-import com.verygood.security.larky.objects.type.TypeClassLookup;
+import com.verygood.security.larky.objects.PyObject;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
@@ -26,6 +25,7 @@ import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.syntax.TokenKind;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -55,8 +55,17 @@ import lombok.SneakyThrows;
 final public class LarkyTypeObject implements LarkyType {
 
   private static final Supplier<LarkyType[]> DEFAULT_HIERARCHY = Suppliers.memoize(
-    () -> new LarkyType[]{(LarkyType) LarkyPyObject.getInstance()}
+    () -> new LarkyType[]{(LarkyType) LarkyBaseObjectType.getInstance()}
   );
+
+  private final Supplier<ImmutableSet<SpecialMethod>> specialMethods =
+    Suppliers.memoize(
+      () -> getFieldNames()
+            .stream()
+            .map(SpecialMethod::of)
+            .filter(p -> p != SpecialMethod.NOT_SET)
+            .collect(Sets.toImmutableEnumSet()));
+
 
   private Origin origin;
   private Map<String, Object> __dict__;
@@ -66,7 +75,7 @@ final public class LarkyTypeObject implements LarkyType {
   private LarkyType[] __bases__;
   private LarkyType __base__;
 
-  LarkyTypeObject(Origin origin, String typeName, Dict<String, Object> dikt) {
+  public LarkyTypeObject(Origin origin, String typeName, Dict<String, Object> dikt) {
     this.origin = origin;
     this.name = typeName;
     this.__dict__ = new HashMap<>(dikt);
@@ -101,7 +110,7 @@ final public class LarkyTypeObject implements LarkyType {
     LarkyType[] basesArr;
     // Set __base__ and __bases__ for the type
     if (bases.size() == 0) {
-      basesArr = new LarkyType[]{(LarkyType) LarkyPyObject.getInstance()};
+      basesArr = new LarkyType[]{(LarkyType) LarkyBaseObjectType.getInstance()};
     } else {
       basesArr = new LarkyType[bases.size()];
       for (int i = 0; i < bases.size(); i++) {
@@ -287,6 +296,18 @@ final public class LarkyTypeObject implements LarkyType {
     );
   }
 
+  @Override
+  public ImmutableSet<SpecialMethod> getSpecialMethods() {
+    return specialMethods.get();
+  }
+
+  @Nullable
+  @Override
+  public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
+    throw Starlark.errorf(
+        "unsupported binary operation: %s %s %s", Starlark.type(this), op, Starlark.type(that));
+  }
+
   private enum LarkyTypeSingleton {
     INSTANCE;
 
@@ -294,7 +315,7 @@ final public class LarkyTypeObject implements LarkyType {
 
     LarkyTypeSingleton() {
       type = new LarkyTypeObject(Origin.BUILTIN, "type", Dict.empty());
-      LarkyType.setupInheritanceHierarchy(type, new LarkyType[]{LarkyPyObject.getInstance().typeClass()});
+      LarkyType.setupInheritanceHierarchy(type, DEFAULT_HIERARCHY.get());
     }
 
     public LarkyTypeObject get() {
