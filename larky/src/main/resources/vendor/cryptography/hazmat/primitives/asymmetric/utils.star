@@ -11,15 +11,9 @@ load("@vendor//option/result", Error="Error")
 
 
 def decode_dss_signature(signature):
-    print("decode_dss_signature")
     reader = DERReader(signature)
     reader_ctx = reader.__enter__()
     seq = reader_ctx.read_single_element(SEQUENCE)
-    print("seq:")
-    print(seq)
-    print(base64.b64encode(seq.data))
-    print(binascii.hexlify(seq.data))
-    print(INTEGER)
     r = seq.read_element(INTEGER).as_integer()
     s = seq.read_element(INTEGER).as_integer()
     reader.__exit__()

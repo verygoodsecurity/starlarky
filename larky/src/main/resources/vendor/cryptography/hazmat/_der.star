@@ -64,8 +64,6 @@ def DERReader(data):
     self.read_byte = read_byte
 
     def read_bytes(n):
-        print("Reading these bytes:")
-        print(n)
         if len(self.data) < n:
             fail("ValueError: Invalid DER input: insufficient data")
         ret = self.data[:n]
