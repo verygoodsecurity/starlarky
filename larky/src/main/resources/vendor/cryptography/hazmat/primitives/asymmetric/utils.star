@@ -2,6 +2,8 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//base64", base64="base64")
+load("@stdlib//binascii", "binascii")
 load("@stdlib//larky", larky="larky")
 load("@vendor//cryptography/hazmat/_der", DERReader="DERReader", INTEGER="INTEGER", SEQUENCE="SEQUENCE", encode_der="encode_der", encode_der_integer="encode_der_integer")
 load("@vendor//cryptography/hazmat/primitives", hashes="hashes")
@@ -9,9 +11,15 @@ load("@vendor//option/result", Error="Error")
 
 
 def decode_dss_signature(signature):
+    print("decode_dss_signature")
     reader = DERReader(signature)
     reader_ctx = reader.__enter__()
     seq = reader_ctx.read_single_element(SEQUENCE)
+    print("seq:")
+    print(seq)
+    print(base64.b64encode(seq.data))
+    print(binascii.hexlify(seq.data))
+    print(INTEGER)
     r = seq.read_element(INTEGER).as_integer()
     s = seq.read_element(INTEGER).as_integer()
     reader.__exit__()

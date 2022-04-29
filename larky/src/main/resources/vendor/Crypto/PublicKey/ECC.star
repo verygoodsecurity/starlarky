@@ -269,11 +269,8 @@ def EccPoint(x, y, curve="p256"):
 
     def copy():
         """Return a copy of this point."""
-        print("Attempting to copy this point.")
         x, y = self.xy
-        print("x, y: %s, %s" % (x, y))
         np = EccPoint(x, y, self._curve_name)
-        print("copied point: %s" % np)
         return np
     self.copy = copy
 
@@ -474,8 +471,7 @@ def EccKey(**kwargs):
 
         blind_d = self._d * blind
         inv_blind_k = (blind * k).inverse(order)
-        print(self._curve.G)
-        r = (self._curve.G * k).x % order
+        r = (k * Integer(self._curve.G.x)) % order
         s = inv_blind_k * (blind * z + blind_d * r) % order
         return (r, s)
     self._sign = _sign

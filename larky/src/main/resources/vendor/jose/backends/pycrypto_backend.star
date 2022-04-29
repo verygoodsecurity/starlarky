@@ -1,4 +1,4 @@
-load("@stdlib//base64", b64encode="b64encode")
+load("@stdlib//base64", b64encode="b64encode", b64decode="b64decode")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
@@ -173,8 +173,8 @@ def ECKey(key, algorithm):
                 % (self.prepared_key.curve.name, 8 * self.hash_alg.digest_size)
             )
         signature = self.prepared_key.sign(msg, self.hash_alg)
-        print("Generated this signature:")
-        print(signature)
+        if type(signature) == 'bytes':
+            return signature
         return self._der_to_raw(signature)
     self.sign = sign
     return self
