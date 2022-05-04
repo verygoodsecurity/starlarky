@@ -12,25 +12,29 @@
     <packaging>jar</packaging>
 
     <properties>
+        <maven.compiler.plugin.version>3.10.1</maven.compiler.plugin.version>
+        <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
+
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
+        <maven.compiler.release>8</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <compiler-plugin.version>3.8.1</compiler-plugin.version>
-        <surefire-plugin.version>2.22.1</surefire-plugin.version>
-        <maven.compiler.plugin.version>3.6.2</maven.compiler.plugin.version>
-        <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
-        <google.errorprone.javac.version>9+181-r4173-1</google.errorprone.javac.version>
-        <org.projectlombok.version>1.18.22</org.projectlombok.version>
-        <google.errorprone.version>2.9.0</google.errorprone.version>
-        <google.auto.value.version>1.8.2</google.auto.value.version>
-        <google.truth.version>1.1.3</google.truth.version>
-        <google.jimfs.version>1.2</google.jimfs.version>
+
+        <google.auto.value.version>1.9</google.auto.value.version>
         <google.compile.testing.version>0.19</google.compile.testing.version>
+        <google.errorprone.javac.version>9+181-r4173-1</google.errorprone.javac.version>
+        <google.errorprone.version>2.9.0</google.errorprone.version>
+        <google.flogger.version>0.7.4</google.flogger.version>
+        <google.guava.version>31.1-jre</google.guava.version>
+        <google.jimfs.version>1.2</google.jimfs.version>
+        <google.truth.version>1.1.3</google.truth.version>
         <org.jetbrains.annotations.version>22.0.0</org.jetbrains.annotations.version>
-        <google.guava.version>31.0.1-jre</google.guava.version>
         <org.junit.version>4.13.2</org.junit.version>
+        <org.projectlombok.version>1.18.22</org.projectlombok.version>
+
+        <surefire-plugin.version>2.22.1</surefire-plugin.version>
     </properties>
 
     <dependencies>
@@ -63,6 +67,24 @@
             <groupId>com.google.auto.value</groupId>
             <artifactId>auto-value-annotations</artifactId>
             <version>${google.auto.value.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.flogger</groupId>
+            <artifactId>flogger</artifactId>
+            <version>${google.flogger.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.flogger</groupId>
+            <artifactId>flogger-system-backend</artifactId>
+            <version>${google.flogger.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.flogger</groupId>
+            <artifactId>google-extensions</artifactId>
+            <version>${google.flogger.version}</version>
         </dependency>
 
         <!--Tests-->
@@ -135,8 +157,9 @@
                     <showWarnings>true</showWarnings>
                     <failOnWarning>false</failOnWarning>
                     <showDeprecation>true</showDeprecation>
-                    <source>${maven.compiler.source}</source>
-                    <target>${maven.compiler.target}</target>
+                    <source>11</source>
+                    <target>11</target>
+                    <release>${maven.compiler.release}</release>
                     <forceJavacCompilerUse>true</forceJavacCompilerUse>
                     <compilerArgs combine.children="append">
                         <compilerArg>-Xlint:unchecked</compilerArg>

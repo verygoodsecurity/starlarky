@@ -20,7 +20,7 @@
 <!-- tocstop -->
 
 ## Description
-Starlarky is VGS in-house edition of Bazel hermetically-sealed language created by Google called [Starlark](https://github.com/bazelbuild/starlark).
+Starlarky is VGS in-house edition of [Bazel](https://bazel.build/)'s hermetically-sealed language created by Google called [Starlark](https://github.com/bazelbuild/starlark).
 This language is used to run "unsafe" user-submitted code without exposing service at whole to possible attack and/or vulnerabilities.
 Starlark has Python-like syntax and is created to support same structure of additional libraries. 
 Key differences between Starlark and Python can be found [here](https://docs.bazel.build/versions/master/skylark/language.html#differences-with-python)
@@ -77,7 +77,7 @@ This would build `larky-runner` executable in `runlarky/target` directory, that 
 
 ### Pylarky
 
-_Pylarky_ is pip lib-wrapper for runlarky to make larky calls conviniently from Python.
+_Pylarky_ is pip lib-wrapper for runlarky to make larky calls conveniently from Python.
 
 ### Building and Running Tests
 

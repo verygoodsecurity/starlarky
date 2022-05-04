@@ -1,0 +1,3 @@
+load("@vendor//Crypto/Hash/RIPEMD160", RIPEMD160="RIPEMD160")
+
+RIPEMD = RIPEMD160

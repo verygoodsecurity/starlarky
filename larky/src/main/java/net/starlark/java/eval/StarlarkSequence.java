@@ -15,7 +15,7 @@ public interface StarlarkSequence<K extends Collection<T>, T> extends StarlarkIn
   K collection();
 
   @Override
-  Sequence<T> getSlice(Mutability mu, int start, int stop, int step);
+  Sequence<T> getSlice(Mutability mu, int start, int stop, int step) throws EvalException;
 
   @NotNull
   @Override

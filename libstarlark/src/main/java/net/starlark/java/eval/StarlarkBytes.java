@@ -853,7 +853,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
   }
 
   @Override
-  public StarlarkBytes getSlice(Mutability mu, int start, int stop, int step) {
+  public StarlarkBytes getSlice(Mutability mu, int start, int stop, int step) throws EvalException {
     RangeList indices = new RangeList(start, stop, step);
     int n = indices.size();
     if (step == 1) { // common case
@@ -1350,7 +1350,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public Sequence<StarlarkInt> getSlice(Mutability mu, int start, int stop, int step) {
+    public Sequence<StarlarkInt> getSlice(Mutability mu, int start, int stop, int step) throws EvalException {
       int[] unsignedBytes = this.bytes.getSlice(mu, start, stop, step).getUnsignedBytes();
       return StarlarkList.copyOf(mu, Arrays
                                        .stream(unsignedBytes)

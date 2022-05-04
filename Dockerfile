@@ -1,4 +1,4 @@
-FROM ubuntu:bionic
+FROM ubuntu:18.04
 
 WORKDIR /build/
 ENV PYENV_ROOT="/root/.pyenv"
