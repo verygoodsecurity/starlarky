@@ -6,6 +6,7 @@ import com.google.common.collect.Maps;
 import java.util.Map;
 
 import com.verygood.security.larky.modules.types.LarkyCollection;
+import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.objects.type.BinaryOpHelper;
 import com.verygood.security.larky.objects.type.LarkyType;
 import com.verygood.security.larky.parser.StarlarkUtil;
@@ -197,7 +198,20 @@ public class LarkyPyObject implements
     if (!(obj instanceof LarkyPyObject)) {
       return false;
     }
-    return this == obj;
+    if (this == obj) {
+      return true;
+    }
+
+    boolean result;
+    try {
+      result = BinaryOpHelper.richComparison(
+        this, obj, PyProtocols.__EQ__, PyProtocols.__EQ__, this.getCurrentThread()
+      );
+    } catch (EvalException e) {
+      throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, this.getCurrentThread());
+    }
+    return result;
+
   }
 
   @Override
