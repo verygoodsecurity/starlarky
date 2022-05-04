@@ -1,6 +1,5 @@
 package com.verygood.security.larky.modules.crypto;
 
-
 import com.nimbusds.jose.crypto.RSADecrypter;
 import com.nimbusds.jwt.EncryptedJWT;
 import java.io.*;
@@ -24,8 +23,6 @@ import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
-
-
 
 @StarlarkBuiltin(
 	name="Chase",
