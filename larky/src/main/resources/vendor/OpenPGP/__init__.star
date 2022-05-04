@@ -1,19 +1,21 @@
-# Pure Python implementation of OpenPGP <http://tools.ietf.org/html/rfc4880>
-# Port of openpgp-php <http://github.com/bendiken/openpgp-php>
+# Pure Larky implementation of OpenPGP <http://tools.ietf.org/html/rfc4880>
+# Port of openpgp-python <http://github.com/mahmoudimus/openpgp-python>
 load("@stdlib//base64", base64="base64")
+load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//builtins", builtins="builtins")
-load("@stdlib//types", types="types")
 load("@stdlib//bz2", bz2="bz2")
 load("@stdlib//codecs", codecs="codecs")
+load("@stdlib//enum", enum="enum")
 load("@stdlib//hashlib", hashlib="hashlib")
 load("@stdlib//itertools", itertools="itertools")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//math", ceil="ceil", floor="floor", log="log")
+load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//struct", pack="pack", unpack="unpack")
 load("@stdlib//textwrap", textwrap="textwrap")
+load("@stdlib//types", types="types")
 load("@stdlib//zlib", zlib="zlib")
-load("@stdlib//operator", operator="operator")
 load("@vendor//option/result", Ok="Ok", Result="Result", Error="Error")
 
 WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
@@ -66,7 +68,7 @@ def unarmor(text):
     result = []
     chunks = re.findall(
         r"\n-----BEGIN [^-]+-----\n(.*?)\n-----END [^-]+-----\n",
-        "\n" + text.replace("\r\n", "\n").replace("\r", "\n") + "\n",
+        b"\n" + text.replace(b"\r\n", b"\n").replace(b"\r", b"\n") + b"\n",
         re.S,
     )
 
@@ -103,7 +105,7 @@ def crc24(data):
     return crc & 0x00FFFFFF
 
 
-def enarmor(data, marker="PUBLIC KEY BLOCK", headers=None, lineWidth=64):
+def enarmor(data, marker=b"PUBLIC KEY BLOCK", headers=None, lineWidth=64):
     """
     @see http://tools.ietf.org/html/rfc4880#section-6.2 OpenPGP Message Format / Ascii Armor
     @see http://tools.ietf.org/html/rfc2045 Base64 encoding
@@ -120,15 +122,15 @@ def enarmor(data, marker="PUBLIC KEY BLOCK", headers=None, lineWidth=64):
             - MESSAGE, PART X/Y
             - MESSAGE, PART X
             - SIGNATURE
-    @type  marker: str
+    @type  marker: bytes
 
     @param headers: key value, e.g {'Version' : 'GnuPG v2.0.22 (MingW32)'}
-    @type  headers: None | generator[(str, str)]
+    @type  headers: None | generator[(bytes, bytes)]
 
     @param lineWidth: GnuPG uses 64 bit, RFC4880 limits to 76
     @type  lineWidth: int
 
-    @rtype: str
+    @rtype: bytes
     """
 
     def _iter_enarmor(data):
@@ -142,7 +144,7 @@ def enarmor(data, marker="PUBLIC KEY BLOCK", headers=None, lineWidth=64):
             (dict keys will be sorted lexicographically)
         @type  headers: dict | [(keyString, valueString)] | None
 
-        @rtype: list[str]
+        @rtype: list[bytes]
         """
         result = ["-----BEGIN PGP " + str(marker).upper() + "-----"]
         headersDict = headers or {}
@@ -171,17 +173,13 @@ def enarmor(data, marker="PUBLIC KEY BLOCK", headers=None, lineWidth=64):
         result.append("")  # final line break
         return result
 
-    return "\n".join(_iter_enarmor(data))
+    return b"\n".join([bytes(x, encoding='utf-8') for x in _iter_enarmor(data)])
 
 
 def bitlength(data):
     """http://tools.ietf.org/html/rfc4880#section-12.2"""
     if ord(data[0:1]) == 0:
         fail("OpenPGPException: Tried to get bitlength of string with leading 0")
-    print("bitlength data - ord: ", ord(data[0:1]))
-    print("bitlength data - log: ", log(ord(data[0:1]), 2))
-    print("bitlength data - floor: ", floor(log(ord(data[0:1]), 2)))
-    print("bitlength data - int: ", int(floor(log(ord(data[0:1]), 2))))
     return (len(data) - 1) * 8 + int(floor(log(ord(data[0:1]), 2))) + 1
 
 
@@ -243,7 +241,7 @@ def _class_S2K():
         hasher.update(prefix)
         hasher.update(s)
         remaining = self.count - len(s)
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in range(self.count):
             if remaining <= 0:
                 break
             hasher.update(s[0:remaining])
@@ -270,10 +268,6 @@ def _class_S2K():
             return self.sized_hash(self.iterate, self.salt + passphrase, size)
 
     def parse(cls, input_or_g):
-        # if hasattr(input_or_g, "next") or hasattr(input_or_g, "__next__"):
-        #     g = PushbackGenerator(input_or_g)
-        # else:
-        #     g = PushbackGenerator(_gen_one(input_or_g))
         g = PushbackGenerator(input_or_g)
         chunk = _ensure_bytes(1, next(g), g)
         s2k_type = ord(chunk[0:1])
@@ -361,37 +355,6 @@ S2K = _class_S2K()
 
 
 def _class_PushbackGenerator():
-    # def __init__(self, g):
-    #     self._g = g
-    #     self._pushback = []
-    #
-    # def __iter__(self):
-    #     return self
-    #
-    # def __next__(self):
-    #     if len(self._pushback):
-    #         return self._pushback.pop(0)
-    #     # to avoid recursion
-    #     if builtins.isinstance(self._g, PushbackGenerator):
-    #         if self._g.hasNext():
-    #             return self._g._pushback.pop(0)
-    #     return next(self._g)
-    #
-    # def hasNext(self):
-    #     if len(self._pushback) > 0:
-    #         return True
-    #     chunk = next(self, larky.SENTINEL)
-    #     if chunk == larky.SENTINEL:
-    #         return False
-    #     else:
-    #         self.push(chunk)
-    #         return True
-    #
-    # def push(self, i):
-    #     if hasattr(self._g, "pushback"):
-    #         self._g.pushback.insert(0, i)
-    #     else:
-    #         self._pushback.insert(0, i)
 
     NOTHING = object()
 
@@ -446,6 +409,59 @@ def _class_PushbackGenerator():
 PushbackGenerator = _class_PushbackGenerator()
 
 
+def iteratively_evaluate_lazy_subpackets(packet, debug=False):
+
+    # take into account VERSION
+    PACKET_VERSION = getattr(packet, "version", None)
+
+    def __read(p):
+        if debug:
+            print("reading ", p)
+
+        if PACKET_VERSION != 4:
+            return
+
+        p.read()
+        p.input = None
+        p.length = None
+
+    queue = [(0, (packet, None))]
+    for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        if not queue:
+            break
+        if debug:
+            print("queue: ", queue)
+        lvl, payload = queue.pop(0)
+        p, classification = payload
+        if debug:
+            print("for classification:", classification, " received: ", p)
+
+        if lvl > 0:  # any subchildren
+            __read(p)
+
+        children = []
+        for subpacket in getattr(p, "hashed_subpackets", []):
+            if not hasattr(subpacket, "hashed_subpackets"):
+                if debug:
+                    print("no hashed_subpacket, so eagerly evaluating: ", subpacket)
+                __read(subpacket)
+            else:
+                children.append((lvl + 1, (subpacket, "hashed")))
+
+        for subpacket in getattr(p, "unhashed_subpackets", []):
+            if not hasattr(subpacket, "unhashed_subpackets"):
+                if debug:
+                    print("no unhashed_subpacket, so eagerly evaluating: ", subpacket)
+                __read(subpacket)
+            else:
+                children.append((lvl + 1, (subpacket, "unhashed")))
+
+        if children:
+            queue = children + queue
+        if debug and not children:
+            print("no children found, queue length:", len(queue))
+
+
 def _class_Message():
     """Represents an OpenPGP message (set of packets)
     http://tools.ietf.org/html/rfc4880#section-4.1
@@ -459,11 +475,6 @@ def _class_Message():
         """
         m = Message([])  # Nothing parsed yet
         m._input = PushbackGenerator(input_data)
-        # if hasattr(input_data, "next") or hasattr(input_data, "__next__"):
-        #     m._input = PushbackGenerator(input_data)
-        # else:
-        #     m._input = PushbackGenerator(_gen_one(input_data))
-
         return m
 
     parse = classmethod(parse)
@@ -472,7 +483,11 @@ def _class_Message():
         self._packets_start = packets or []
         self._packets_end = []
         self._input = None
-        self.idx = 0
+
+    def __copy__(self):
+        cls = self.__class__(packets=list(self._packets_start))
+        cls.__dict__.update(self.__dict__)
+        return cls
 
     def to_bytes(self):
         b = b""
@@ -485,6 +500,7 @@ def _class_Message():
         Recurses into CompressedDataPacket
         http://tools.ietf.org/html/rfc4880#section-11
         """
+        self.force()
         msg = self
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if not builtins.isinstance(msg[0], CompressedDataPacket):
@@ -590,6 +606,9 @@ def _class_Message():
 
     def force(self):
         packets = []
+        # print("in force for", self)
+        # stacktrace()
+        # print("input is:", self._input)
         for p in self:
             packets.append(p)
         return packets
@@ -605,32 +624,35 @@ def _class_Message():
 
         def _get(i, *args, **kwargs):
             # Already parsed packets
-            print("current index: ", self.idx)
+            # print("__iter__ for ", self, " => idx is", i)
+            # print("start", state)
+            # stacktrace()
             if (
                 state['PACKETS_START']
-                and state["START_POS"] < len(self._packets_start)
+                # and state["START_POS"] < len(self._packets_start)
                 # self._packets_start
-                # and i < len(self._packets_start)
+                and i < len(state['PACKETS_START'])
                 # and ((state["START_POS"] - i) < len(self._packets_start))
             ):
-                print("I AM HERE?")
-                print(self._packets_start)
-                self.idx += 1
-                rval = Ok(self._packets_start[state["START_POS"]])
-                state["START_POS"] = state["START_POS"] + 1
+                # print(self._packets_start)
+                # rval = Ok(self._packets_start[state["START_POS"]])
+                rval = Ok(self._packets_start[i])
+                state["START_POS"] = i
+                # print("in _packets_start, idx:", i, "current pos:", state["START_POS"])
                 return rval
 
             if self._input:
+                # print("self._input is not None for ", type(self))
                 if self._input.has_more():
                     packet = Packet.parse(self._input)
-                    print(packet)
+                    # print("in __iter__, parsed packet:", packet)
+                    # print("in __iter__, input has more?", self._input.has_more())
                     if packet:
                         self._packets_start.append(packet)
-                        self.idx += 1
                         return Ok(packet)
                     else:
                         fail("OpenPGPException: Parsing is stuck")
-            print("where did i get here?", self.idx)
+            # print("where did i get here?", self.idx)
             # self._input = None  # Parsing done
 
             # Appended packets
@@ -638,39 +660,16 @@ def _class_Message():
                 state['PACKETS_END']
                 and state["END_POS"] < len(self._packets_end)
             ):
-                self.idx += 1
                 rval = Ok(self._packets_end[state["END_POS"]])
                 state["END_POS"] = state["END_POS"] + 1
                 return rval
-            print('finished', state)
+            # print('finished', state)
             return StopIteration()
 
         return _get
 
     def __iter__(self):
         return larky.DeterministicGenerator(self.__lazyiter())
-        # results = []
-        #
-        # for p in self._packets_start:
-        #     results.append(p)   # yield p
-        #
-        # if self._input:
-        #     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-        #         if not self._input.hasNext():
-        #             break
-        #         packet = Packet.parse(self._input)
-        #         if packet:
-        #             self._packets_start.append(packet)
-        #             results.append(packet)   # yield p
-        #             # return packet
-        #         else:
-        #             fail("OpenPGPException: Parsing is stuck")
-        # self._input = None  # Parsing done
-        #
-        #
-        # for p in self._packets_end:
-        #     results.append(p)
-        # return iter(results)
 
     def __getitem__(self, item):
         i = 0
@@ -691,23 +690,26 @@ def _class_Message():
         return False
 
     def __ne__(self, other):
-        return not self.__eq__(other)
+        if type(other) != type(self):
+            return True
+        return self.force() != other.force()
 
     __ns = {
-        "parse": parse,
         "__init__": __init__,
-        "to_bytes": to_bytes,
-        "signatures": signatures,
-        "verified_signatures": verified_signatures,
-        "verify_one": verify_one,
-        "force": force,
-        "__iter__": __iter__,
-        "__getitem__": __getitem__,
-        "append": append,
+        "__copy__": __copy__,
         "__repr__": __repr__,
         "__eq__": __eq__,
         "__ne__": __ne__,
+        "__getitem__": __getitem__,
+        "__iter__": __iter__,
         "__lazyiter": __lazyiter,
+        "append": append,
+        "force": force,
+        "parse": parse,
+        "signatures": signatures,
+        "to_bytes": to_bytes,
+        "verified_signatures": verified_signatures,
+        "verify_one": verify_one,
     }
     return types.new_class("Message", (), {}, lambda x: x.update(__ns))
 
@@ -722,51 +724,37 @@ def _class_Packet():
     """
 
     def parse(cls, input_data):
-        # if hasattr(input_data, "__next__"):
         g = PushbackGenerator(input_data)
-        # else:
-        #     g = PushbackGenerator(_gen_one(input_data))
 
         packet = None
         # If there is not even one byte, then there is no packet at all
         chunk = _ensure_bytes(1, next(g), g)
-        print(chunk.hex(":"))
-        # print(codecs.decode(binascii.hexlify(chunk), encoding="utf-8"))
         # Parse header
         if ord(chunk[0:1]) & 64:
-            print("we are in new format")
             tag, data_length = Packet.parse_new_format(chunk, g)
         else:
-            print("we are in old format")
             tag, data_length = Packet.parse_old_format(chunk, g)
 
-        print("tag:", tag, "data_length:", data_length)
         if not data_length:
             rval = Result.Ok(g).map(_slurp)
             if rval == StopIteration():
                 fail("OpenPGPException: Not enough bytes")
             chunk = rval.unwrap()
-            # chunk = _slurp(g)
             data_length = len(chunk)
             g.push(chunk)
 
         if tag:
             packet_class = Packet.tags.get(tag, Packet)
-            print("packet_class:", packet_class, "tag:", tag)
             packet = packet_class()
             packet.tag = tag
             packet.input = g
             packet.length = data_length
-            packet.read()
-            # packet_read = Result.Ok(packet.read).map(lambda x: x.read())
-            # if not packet_read.is_ok:
-            #     fail("OpenPGPException: Not enough bytes")
+            packet_read = Result.Ok(packet).map(lambda x: x.read())
+            packet_read.unwrap()
             # Remove excess bytes
-            packet.read_bytes(packet.length)
-            # packet_read = Result.Ok(packet.read_bytes).map(lambda x: x(packet.length))
-            # if not packet_read.is_ok:
-            #     fail("OpenPGPException: Not enough bytes")
-            # packet.read_bytes(packet.length)
+            packet_read_bytes = Result.Ok(packet).map(lambda x: x.read_bytes(x.length))
+            packet_read_bytes.unwrap()
+            iteratively_evaluate_lazy_subpackets(packet)
             packet.input = None
             packet.length = None
         return packet
@@ -855,13 +843,16 @@ def _class_Packet():
     def body(self):
         return self.data  # Will normally be overridden by subclasses
 
-    def header_and_body(self):
-        body = self.body()  # Get body first, we will need it's length
+    def make_header(self, body):
         tag = pack("!B", self.tag | 0xC0)  # First two bits are 1 for new packet format
         size = pack("!B", 255) + pack(
             "!L", body and len(body) or 0
         )  # Use 5-octet lengths
         return {"header": tag + size, "body": body}
+
+    def header_and_body(self):
+        body = self.body()  # Get body first, we will need it's length
+        return self.make_header(body)
 
     def to_bytes(self):
         data = self.header_and_body()
@@ -900,6 +891,7 @@ def _class_Packet():
 
     def __eq__(self, other):
         if type(other) == type(self):
+            # print("in __eq__ for ", self, " => dict equal?", self.__dict__ == other.__dict__)
             return self.__dict__ == other.__dict__
         return False
 
@@ -913,6 +905,7 @@ def _class_Packet():
         "__init__": __init__,
         "read": read,
         "body": body,
+        'make_header': make_header,
         "header_and_body": header_and_body,
         "to_bytes": to_bytes,
         "read_timestamp": read_timestamp,
@@ -949,7 +942,7 @@ def _class_AsymmetricSessionKeyPacket():
             rawkeyid = self.read_bytes(8)
             self.keyid = ""
             for i in range(0, len(rawkeyid)):  # Store KeyID in Hex
-                self.keyid += "%X" % ord(rawkeyid[i : i + 1])
+                self.keyid += hexlify(rawkeyid[i : i + 1]).upper().decode('utf-8')
 
             self.key_algorithm = ord(self.read_byte())
             self.encrypted_data = self.read_bytes(self.length)
@@ -981,6 +974,199 @@ def _class_AsymmetricSessionKeyPacket():
 
 
 AsymmetricSessionKeyPacket = _class_AsymmetricSessionKeyPacket()
+
+
+_IterWalkState = enum.Enum('_IterWalkState', [
+    ('PRE', 0),
+    ('TALLY', 1),
+    ('POST', 2)
+])
+
+
+def to_bytes_iteratively(message, debug=True):
+    b = []
+    for p in message:
+        b.append(to_bytes2(p))
+    return b''.join(b)
+
+
+def _serialize_v2orv3(node):
+    body = (
+        pack("!B", node.version)
+        + pack("!B", 5)
+        + pack("!B", node.signature_type)
+    )
+
+    for p in node.unhashed_subpackets:
+        if larky.is_instance(p, SignaturePacket.SignatureCreationTimePacket):
+            body += pack("!L", p.data)
+            break
+
+    for p in node.unhashed_subpackets:
+        if larky.is_instance(p, SignaturePacket.IssuerPacket):
+            for i in range(0, len(p.data), 2):
+                body += pack("!B", int(p.data[i: i + 2], 16))
+            break
+
+    body += pack("!B", node.key_algorithm)
+    body += pack("!B", node.hash_algorithm)
+    body += pack("!H", node.hash_head)
+
+    for mpi in node.data:
+        body += pack("!H", bitlength(mpi)) + mpi
+
+    return body
+
+
+def to_bytes3(p, trailer):
+    r = []
+    q = [(_IterWalkState.PRE, (p, None))]
+    for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        if not q:
+            break
+        state, payload = q.pop(0)
+        if state == _IterWalkState.PRE:
+            (node, _parent) = payload
+            children = []
+            if larky.is_subclass(node.__class__, SignaturePacket):
+                # Get body first, we will need it's length
+                if node.version == 2 or node.version == 3:
+                    out = _serialize_v2orv3(node)
+                    r.append(out)
+                else:
+                    if not node.trailer:
+                        node.trailer = node.calculate_trailer()
+                    body = node.trailer[0:-6]
+                    r.append(body)
+                    # order matters here:
+                    # we want to do a depth first traversal for every
+                    # child first (which is what PRE does)
+                    children = [
+                        (_IterWalkState.PRE, (n, node,))
+                        for n in node.unhashed_subpackets
+                    ]
+                    # then after we've done depth first for every child,
+                    # for the next depth level, we want to sum it up
+                    children.append((_IterWalkState.TALLY, (node, body,)))
+                    # then we continue the tail part of the recursion
+                    children.append((_IterWalkState.POST, (node, body,)))
+
+                # post visit
+                q = children + q
+            else:
+                out = node.to_bytes()
+                r.append(out)
+        elif state == _IterWalkState.TALLY:
+            node, body_trailer = payload
+            _subpacket_stack = []
+            for idx, item in enumerate(reversed(r)):
+                if item == body_trailer:
+                    # only if there's an item that is to be calculated,
+                    # otherwise we leave the result list alone to be
+                    # calculated at a later state/case
+                    if _subpacket_stack:
+                        r = r[:-idx]
+                    break
+                _subpacket_stack.append(item)
+            _serialized_subpackets = b''.join(reversed(_subpacket_stack))
+            _serialized_subpackets = pack("!H", len(_serialized_subpackets)) + _serialized_subpackets
+            _serialized_subpackets += pack("!H", node.hash_head)
+            for mpi in node.data:
+                _serialized_subpackets += (pack("!H", bitlength(mpi)) + mpi)
+            r.append(_serialized_subpackets)
+        elif state == _IterWalkState.POST:
+            node, body_trailer = payload
+            _subpacket_stack = []
+            for idx, item in enumerate(reversed(r)):
+                if item == body_trailer:
+                    _subpacket_stack.append(item)
+                    r = r[:-idx - 1]
+                    break
+                _subpacket_stack.append(item)
+            _serialized_subpackets = b''.join(reversed(_subpacket_stack))
+            if larky.type_cls(node) != SignaturePacket and larky.is_subclass(node.__class__, SignaturePacket):
+                data = node.make_header(_serialized_subpackets)
+                out = data["header"] + (data["body"] and data["body"] or b"")
+                r.append(out)
+            else:
+                r.append(_serialized_subpackets)
+    return b''.join(r)
+
+
+def to_bytes2(p):
+    r = []
+    q = [(_IterWalkState.PRE, (p, None))]
+    for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        if not q:
+            break
+        state, payload = q.pop(0)
+        if state == _IterWalkState.PRE:
+            (node, _parent) = payload
+            children = []
+            if larky.is_instance(node, SignaturePacket) or larky.is_subclass(node.__class__, SignaturePacket):
+                # Get body first, we will need it's length
+                if node.version == 2 or node.version == 3:
+                    body = _serialize_v2orv3(node)
+                    out = node.make_header(body)
+                    r.append(out)
+                else:
+                    if not node.trailer:
+                        node.trailer = node.calculate_trailer()
+                    body = node.trailer[0:-6]
+                    r.append(body)
+                    # order matters here:
+                    # we want to do a depth first traversal for every
+                    # child first (which is what PRE does)
+                    children = [
+                        (_IterWalkState.PRE, (n, node,))
+                        for n in node.unhashed_subpackets
+                    ]
+                    # then after we've done depth first for every child,
+                    # for the next depth level, we want to sum it up
+                    children.append((_IterWalkState.TALLY, (node, body,)))
+                    # then we continue the tail part of the recursion
+                    children.append((_IterWalkState.POST, (node, body,)))
+
+                # post visit
+                q = children + q
+            else:
+                body = node.body() or ""
+                data = node.make_header(body)
+                out = data["header"] + (data["body"] and data["body"] or b"")
+                r.append(out)
+        elif state == _IterWalkState.TALLY:
+            node, body_trailer = payload
+            _subpacket_stack = []
+            for idx, item in enumerate(reversed(r)):
+                if item == body_trailer:
+                    # only if there's an item that is to be calculated,
+                    # otherwise we leave the result list alone to be
+                    # calculated at a later state/case
+                    if _subpacket_stack:
+                        r = r[:-idx]
+                    break
+                _subpacket_stack.append(item)
+            _serialized_subpackets = b''.join(reversed(_subpacket_stack))
+            _serialized_subpackets = pack("!H", len(_serialized_subpackets)) + _serialized_subpackets
+            _serialized_subpackets += pack("!H", node.hash_head)
+            for mpi in node.data:
+                _serialized_subpackets += (pack("!H", bitlength(mpi)) + mpi)
+            r.append(_serialized_subpackets)
+        elif state == _IterWalkState.POST:
+            node, body_trailer = payload
+            _subpacket_stack = []
+            for idx, item in enumerate(reversed(r)):
+                if item == body_trailer:
+                    _subpacket_stack.append(item)
+                    r = r[:-idx - 1]
+                    break
+                _subpacket_stack.append(item)
+            _serialized_subpackets = b''.join(reversed(_subpacket_stack))
+            data = node.make_header(_serialized_subpackets)
+            out = data["header"] + (data["body"] and data["body"] or b"")
+            r.append(out)
+
+    return b''.join(r)
 
 
 def _class_SignaturePacket():
@@ -1034,18 +1220,13 @@ def _class_SignaturePacket():
         self.data = []
         for mpi in data:
             if builtins.isinstance(mpi, int):
-                if hasattr(mpi, "to_bytes"):
-                    self.data.append(
-                        mpi.to_bytes(ceil(mpi.bit_length() / 8), byteorder="big")
-                    )
-                else:  # For python 2
-                    hex_mpi = "%X" % mpi
-                    if len(hex_mpi) % 2 != 0:
-                        hex_mpi = "0" + hex_mpi
-                    final = b""
-                    for i in range(0, len(hex_mpi), 2):
-                        final += pack("!B", int(hex_mpi[i : i + 2], 16))
-                    self.data.append(final)
+                hex_mpi = hexlify(mpi).upper().decode('utf-8')
+                if len(hex_mpi) % 2 != 0:
+                    hex_mpi = "0" + hex_mpi
+                final = b""
+                for i in range(0, len(hex_mpi), 2):
+                    final += pack("!B", int(hex_mpi[i : i + 2], 16))
+                self.data.append(final)
             else:
                 self.data.append(mpi)
         self.hash_head = unpack("!H", b"".join(self.data)[0:2])[0]
@@ -1060,7 +1241,7 @@ def _class_SignaturePacket():
             keyid = self.read_bytes(8)
             keyidHex = ""
             for i in range(0, len(keyid)):  # Store KeyID in Hex
-                keyidHex += "%X" % ord(keyid[i : i + 1])
+                keyidHex += hexlify(keyid[i : i + 1]).upper().decode('utf-8')
 
             self.hashed_subpackets = []
             self.unhashed_subpackets = [
@@ -1086,21 +1267,19 @@ def _class_SignaturePacket():
                 + pack("!B", self.key_algorithm)
                 + pack("!B", self.hash_algorithm)
             )
-
             hashed_size = self.read_unpacked(2, "!H")
             hashed_subpackets = self.read_bytes(hashed_size)
             self.trailer += pack("!H", hashed_size) + hashed_subpackets
             self.hashed_subpackets = self.get_subpackets(hashed_subpackets)
-
             self.trailer += (
-                pack("!B", 4) + pack("!B", 0xFF) + pack("!L", 6 + hashed_size)
+                pack("!B", 4)
+                + pack("!B", 0xFF)
+                + pack("!L", 6 + hashed_size)
             )
-
             unhashed_size = self.read_unpacked(2, "!H")
             self.unhashed_subpackets = self.get_subpackets(
                 self.read_bytes(unhashed_size)
             )
-
             self.hash_head = self.read_unpacked(2, "!H")
             self.data = []
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
@@ -1127,6 +1306,19 @@ def _class_SignaturePacket():
         body += pack("!H", len(hashed_subpackets)) + hashed_subpackets
 
         return body
+
+    def make_header(self, body):
+        tag = pack("!B", self.tag | 0xC0)  # First two bits are 1 for new packet format
+        size = pack("!B", 255) + pack(
+            "!L", body and len(body) or 0
+        )  # Use 5-octet lengths
+        return {"header": tag + size, "body": body}
+
+    def header_and_body(self):
+        body = to_bytes3(self, False)
+        x = self.make_header(body)
+        return x
+        # return x
 
     def body(self, trailer=False):
         if self.version == 2 or self.version == 3:
@@ -1159,7 +1351,6 @@ def _class_SignaturePacket():
             if not self.trailer:
                 self.trailer = self.calculate_trailer()
             body = self.trailer[0:-6]
-
             unhashed_subpackets = b""
             for p in self.unhashed_subpackets:
                 unhashed_subpackets += p.to_bytes()
@@ -1215,16 +1406,12 @@ def _class_SignaturePacket():
             length = unpack("!L", input_data[1:5])[0]
         input_data = input_data[length_of_length:]  # Chop off length header
         tag = ord(input_data[0:1])
-
         klass = cls.subpacket_types.get(tag, SignaturePacket.Subpacket)
 
         packet = klass()
         packet.tag = tag
         packet.input = PushbackGenerator(input_data[1:length])
         packet.length = length - 1
-        packet.read()
-        packet.input = None
-        packet.length = None
 
         input_data = input_data[length:]  # Chop off the data from this packet
         return (packet, length_of_length + length)
@@ -1239,17 +1426,36 @@ def _class_SignaturePacket():
                     self.tag = tag
                     break
 
-        def header_and_body(self):
-            body = self.body() or ""  # Get body first, we'll need its length
+        def make_header(self, body):
             size = pack("!B", 255) + pack(
                 "!L", len(body) + 1
             )  # Use 5-octet lengths + 1 for tag as first packet body octet
             tag = pack("!B", self.tag)
             return {"header": size + tag, "body": body}
 
+        def header_and_body(self):
+            body = self.body() or ""  # Get body first, we will need it's length
+            return self.make_header(body)
+
+        def to_bytes(self):
+            data = self.header_and_body()
+            return data.get("header") + data.get("body", b"")
+
+        def __eq__(self, other):
+            return larky.is_subclass(larky.type_cls(self), Subpacket) and not self.__ne__(other)
+
+        def __ne__(self, other):
+            if type(other) != type(self):
+                return True
+            return self.__dict__ != other.__dict__
+
         __ns = {
             "__init__": __init__,
+            "make_header": make_header,
             "header_and_body": header_and_body,
+            'to_bytes': to_bytes,
+            '__ne__': __ne__,
+            '__eq__': __eq__,
         }
         return types.new_class("Subpacket", (Packet,), {}, lambda x: x.update(__ns))
 
@@ -1268,10 +1474,18 @@ def _class_SignaturePacket():
         def body(self):
             return pack("!L", int(self.data))
 
+        def __eq__(self, other):
+            return larky.type_cls(self) == SignatureCreationTimePacket and self.__dict__ == other.__dict__
+
+        def __ne__(self, other):
+            return larky.type_cls(self) != SignatureCreationTimePacket or self.__dict__ != other.__dict__
+
         __ns = {
             "__init__": __init__,
             "read": read,
             "body": body,
+            '__eq__': __eq__,
+            '__ne__': __ne__,
         }
         return types.new_class(
             "SignatureCreationTimePacket", (Subpacket,), {}, lambda x: x.update(__ns)
@@ -1286,7 +1500,11 @@ def _class_SignaturePacket():
         def body(self):
             return pack("!L", self.data)
 
+        def __eq__(self, other):
+            return larky.type_cls(self) == SignatureCreationTimePacket and not self.__ne__(other)
+
         __ns = {
+            '__eq__': __eq__,
             "read": read,
             "body": body,
         }
@@ -1420,7 +1638,7 @@ def _class_SignaturePacket():
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 if self.length <= 0:
                     break
-                self.fingerprint += "%X" % ord(self.read_byte())
+                self.fingerprint += hexlify(self.read_byte()).upper().decode('utf-8')
 
         def body(self):
             body = b""
@@ -1452,18 +1670,28 @@ def _class_SignaturePacket():
         def read(self):
             self.data = ""
             for i in range(0, 8):  # Store KeyID in Hex
-                self.data += "%X" % ord(self.read_byte())
+                self.data += hexlify(self.read_byte()).upper().decode('utf-8')
 
         def body(self):
             b = b""
             for i in range(0, len(self.data), 2):
-                b += pack("!B", int(self.data[i] + self.data[i + 1], 16))
+                x = int(self.data[i] + self.data[i + 1], 16)
+                px = pack("!B", x)
+                b += px
             return b
+
+        def __eq__(self, other):
+            return larky.type_cls(self) == IssuerPacket and self.__dict__ == other.__dict__
+
+        def __ne__(self, other):
+            return larky.type_cls(self) != IssuerPacket or self.__dict__ != other.__dict__
 
         __ns = {
             "__init__": __init__,
             "read": read,
             "body": body,
+            '__eq__': __eq__,
+            '__ne__': __ne__,
         }
         return types.new_class(
             "IssuerPacket", (Subpacket,), {}, lambda x: x.update(__ns)
@@ -1756,6 +1984,8 @@ def _class_SignaturePacket():
         "read": read,
         "calculate_trailer": calculate_trailer,
         "body_start": body_start,
+        "make_header": make_header,
+        "header_and_body": header_and_body,
         "body": body,
         "key_algorithm_name": key_algorithm_name,
         "hash_algorithm_name": hash_algorithm_name,
@@ -1856,7 +2086,7 @@ def _class_OnePassSignaturePacket():
         self.key_algorithm = ord(self.read_byte())
         self.key_id = ""
         for i in range(0, 8):  # Store KeyID in Hex
-            self.key_id += "%X" % ord(self.read_byte())
+            self.key_id += hexlify(self.read_byte()).upper().decode('utf-8')
         self.nested = ord(self.read_byte())
 
     def body(self):
@@ -1980,8 +2210,6 @@ def _class_PublicKeyPacket():
                 material += pack("!H", bitlength(self.key[i]))
                 material += self.key[i]
             head[1] = pack("!H", 6 + len(material))
-            print([h.hex() for h in head])
-            print(material.hex())
             return head + [material]
 
     def fingerprint(self):
@@ -2091,12 +2319,8 @@ def _class_SecretKeyPacket():
             self.encrypted_data = self.read_bytes(self.length)
         else:
             material = self.read_bytes(self.length - 2)
-            print(material.hex(":"))
-            print(self.input)
             self.input.push(material)
             self.key_from_input()
-            for k, v in self.key.items():
-                print(k, "=", v.hex())
             chk = self.read_unpacked(2, "!H")
             if chk != checksum(material):
                 fail(
@@ -2188,12 +2412,15 @@ def _class_CompressedDataPacket():
             compressor = zlib.compressobj(
                 zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, -15
             )
-            body += compressor.compress(self.data.to_bytes())
+            body += compressor.compress(to_bytes_iteratively(self.data))
+            # body += compressor.compress(self.data.to_bytes())
             body += compressor.flush()
         elif self.algorithm == 2:
-            body += zlib.compress(self.data.to_bytes())
+            # body += zlib.compress(self.data.to_bytes())
+            body += zlib.compress(to_bytes_iteratively(self.data))
         elif self.algorithm == 3:
-            body += bz2.compress(self.data.to_bytes())
+            # body += bz2.compress(self.data.to_bytes())
+            body += bz2.compress(to_bytes_iteratively(self.data))
         else:
             pass  # TODO: error?
         return body
@@ -2204,7 +2431,15 @@ def _class_CompressedDataPacket():
     def __getitem__(self, item):
         return self.data[item]
 
+    def __eq__(self, other):
+        return larky.is_subclass(larky.type_cls(self), CompressedDataPacket) and self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not larky.is_subclass(larky.type_cls(self), CompressedDataPacket) or self.__dict__ != other.__dict__
+
     __ns = {
+        "__eq__": __eq__,
+        "__ne__": __ne__,
         "algorithms": algorithms,
         "read": read,
         "body": body,
@@ -2410,11 +2645,14 @@ def _class_ModificationDetectionCodePacket():
         if len(self.data) != 20:
             fail("Exception: Bad ModificationDetectionCodePacket")
 
-    def header_and_body(self):
-        body = self.body()  # Get body first, we will need it's length
+    def make_header(self, body):
         if len(body) != 20:
             fail("Exception: Bad ModificationDetectionCodePacket")
         return {"header": b"\xD3\x14", "body": body}
+
+    def header_and_body(self):
+        body = self.body()  # Get body first, we will need it's length
+        return self.make_header(body)
 
     def body(self):
         return self.data
@@ -2422,6 +2660,7 @@ def _class_ModificationDetectionCodePacket():
     __ns = {
         "__init__": __init__,
         "read": read,
+        "make_header": make_header,
         "header_and_body": header_and_body,
         "body": body,
     }
@@ -2462,9 +2701,11 @@ Packet.tags = {
     63: ExperimentalPacket,  # Private or Experimental Values
 }
 
+
 OpenPGP = larky.struct(
     __name__="OpenPGP",
     AsymmetricSessionKeyPacket=AsymmetricSessionKeyPacket,
+    CompressedDataPacket=CompressedDataPacket,
     EmbeddedSignaturePacket=EmbeddedSignaturePacket,
     EncryptedDataPacket=EncryptedDataPacket,
     ExperimentalPacket=ExperimentalPacket,
@@ -2477,10 +2718,12 @@ OpenPGP = larky.struct(
     Packet=Packet,
     PublicKeyPacket=PublicKeyPacket,
     PublicSubkeyPacket=PublicSubkeyPacket,
+    PushbackGenerator=PushbackGenerator,
     S2K=S2K,
     SecretKeyPacket=SecretKeyPacket,
     SecretSubkeyPacket=SecretSubkeyPacket,
     SignaturePacket=SignaturePacket,
+    SubkeyPacket=SubkeyPacket,
     SymmetricSessionKeyPacket=SymmetricSessionKeyPacket,
     TrustPacket=TrustPacket,
     UserAttributePacket=UserAttributePacket,
