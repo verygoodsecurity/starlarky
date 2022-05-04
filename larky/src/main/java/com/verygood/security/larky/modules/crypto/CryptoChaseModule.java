@@ -31,8 +31,8 @@ import net.starlark.java.eval.StarlarkValue;
 	name="Chase",
 	category="BUILTIN",
 	doc="The Chase module contains a few methods for fetching a CA Signed public JWK" +
-	    "To serve Chase Bank so they can encrypt the payloads that they send, and to" +
-	    "Fetch the subsequent private keys for decryption operations."
+		"To serve Chase Bank so they can encrypt the payloads that they send, and to" +
+		"Fetch the subsequent private keys for decryption operations."
 )
 
 public class CryptoChaseModule implements StarlarkValue {
@@ -68,30 +68,30 @@ public class CryptoChaseModule implements StarlarkValue {
 		}
 		String pkcs8Pem = pkcs8Lines.toString();
 		pkcs8Pem = pkcs8Pem.replace("-----BEGIN PRIVATE KEY-----", "");
-        pkcs8Pem = pkcs8Pem.replace("-----END PRIVATE KEY-----", "");
-        pkcs8Pem = pkcs8Pem.replaceAll("\\s+","");
+		pkcs8Pem = pkcs8Pem.replace("-----END PRIVATE KEY-----", "");
+		pkcs8Pem = pkcs8Pem.replaceAll("\\s+","");
 
-        byte [] pkcs8EncodedBytes = Base64.getDecoder().decode(pkcs8Pem);
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(pkcs8EncodedBytes);
-        KeyFactory kf = KeyFactory.getInstance("RSA");
-        PrivateKey privKey = kf.generatePrivate(keySpec);
-        String[] jwe_str = jwe_bytes.toString().split("\"");
-        String jwe_string = "";
-        if(jwe_str.length == 2 && jwe_str[0].equals("b")){
-        	jwe_string = jwe_str[1];
-    	}
+		byte [] pkcs8EncodedBytes = Base64.getDecoder().decode(pkcs8Pem);
+		PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(pkcs8EncodedBytes);
+		KeyFactory kf = KeyFactory.getInstance("RSA");
+		PrivateKey privKey = kf.generatePrivate(keySpec);
+		String[] jwe_str = jwe_bytes.toString().split("\"");
+		String jwe_string = "";
+		if(jwe_str.length == 2 && jwe_str[0].equals("b")){
+			jwe_string = jwe_str[1];
+		}
 
-        EncryptedJWT jwt = EncryptedJWT.parse(jwe_string);
-        RSADecrypter decrypter = new RSADecrypter(privKey);
-        jwt.decrypt(decrypter);
-        return jwt.getJWTClaimsSet().toJSONObject().toString();
+		EncryptedJWT jwt = EncryptedJWT.parse(jwe_string);
+		RSADecrypter decrypter = new RSADecrypter(privKey);
+		jwt.decrypt(decrypter);
+		return jwt.getJWTClaimsSet().toJSONObject().toString();
 	}
 
 	public static PrivateKey getPrivateKey(byte[] keyText) throws Exception {
-	    PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyText);
-	    KeyFactory kf =
-	            KeyFactory.getInstance("RSA");
-	    return kf.generatePrivate(spec);
+		PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyText);
+		KeyFactory kf =
+				KeyFactory.getInstance("RSA");
+		return kf.generatePrivate(spec);
 	}
 
 	private static String privateKey(){
@@ -102,10 +102,10 @@ public class CryptoChaseModule implements StarlarkValue {
 			determine the relevant private key to fetch. 
 		*/
 		String pk = "-----BEGIN PRIVATE KEY-----\n" +
-	    	/* Private key snipped */
-	    "-----END PRIVATE KEY-----";
+			/* Private key snipped */
+		"-----END PRIVATE KEY-----";
 
-    	return pk;
+		return pk;
 	}
 
 }
