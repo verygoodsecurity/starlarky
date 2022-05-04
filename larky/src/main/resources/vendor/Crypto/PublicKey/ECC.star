@@ -47,6 +47,7 @@ load("@vendor//Crypto/Util/py3compat", bord="bord", tobytes="tobytes", tostr="to
 load("@vendor//option/result", Error="Error", Ok="Ok", Result="Result")
 
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
+load("@stdlib//binascii", hexlify="hexlify", unhexlify="unhexlify")
 
 #
 # _ec_lib = load_pycryptodome_raw_lib("Crypto.PublicKey._ec_ws", """
@@ -461,7 +462,7 @@ def EccKey(**kwargs):
     self.has_private = has_private
 
     def _sign(z, k):
-        if not ((0 < k) and (k < self._curve.order)):
+        if not ((0 < int(k)) and (int(k) < int(self._curve.order))):
             fail("assert (0 < k) and (k < self._curve.order) failed!")
 
         order = self._curve.order
@@ -470,8 +471,7 @@ def EccKey(**kwargs):
 
         blind_d = self._d * blind
         inv_blind_k = (blind * k).inverse(order)
-
-        r = (self._curve.G * k).x % order
+        r = (k * Integer(self._curve.G.x)) % order
         s = inv_blind_k * (blind * z + blind_d * r) % order
         return (r, s)
     self._sign = _sign
@@ -928,7 +928,12 @@ def _import_private_der(encoded, passphrase, curve_oid=None):
     if private_key[0] != 1:
         return Error("ValueError: Incorrect ECC private key version")
 
-    parameters = DerObjectId(explicit=0).decode(private_key[2]).value
+    # This might have been passed like "[0]1.3.132.0.35" instead of 
+    # DER Encoded OID "1.3.132.0.35"
+    if type(private_key[2]) == 'string':
+        parameters = private_key[2].split(']')[-1]
+    else:
+        parameters = DerObjectId(explicit=0).decode(private_key[2]).value
     if curve_oid != None and parameters != curve_oid:
         return Error("ValueError: Curve mismatch")
     curve_oid = parameters
@@ -944,7 +949,14 @@ def _import_private_der(encoded, passphrase, curve_oid=None):
     if _larky_forelse_run_else:
         return UnsupportedEccFeature("Unsupported ECC curve (OID: %s)" % curve_oid)
 
-    scalar_bytes = DerOctetString().decode(private_key[1]).payload
+    """
+    If this was passed as a string instead of bytes, it was already parsed and 
+    begins with a '#' followed by the hexlified string of the bytes
+    """
+    if type(private_key[1]) == 'string':
+        scalar_bytes = unhexlify(''.join(private_key[1].split('#')))
+    elif type(private_key[1]) == 'bytes':
+        scalar_bytes = DerOctetString().decode(private_key[1]).payload
     modulus_bytes = curve.p.size_in_bytes()
     if len(scalar_bytes) != modulus_bytes:
         return Error("ValueError: Private key is too small")
@@ -952,10 +964,14 @@ def _import_private_der(encoded, passphrase, curve_oid=None):
 
     # Decode public key (if any)
     if len(private_key) == 4:
-        public_key_enc = DerBitString(explicit=1).decode(private_key[3]).value
+        if type(private_key[3]) == 'string':
+            pk3 = unhexlify(private_key[3].split('#')[-1])
+            public_key_enc = DerBitString().decode(pk3).value
+        else:
+            public_key_enc = DerBitString(explicit=1).decode(private_key[3]).value
         public_key = _import_public_der(curve_oid, public_key_enc)
-        point_x = public_key.pointQ.x
-        point_y = public_key.pointQ.y
+        point_x = public_key._val.pointQ.x
+        point_y = public_key._val.pointQ.y
     else:
         point_x = None
         point_y = point_x
@@ -1004,6 +1020,10 @@ def _import_der(encoded, passphrase):
     #     pass
     #
     #  ↕↕↕↕↕↕ LARKY MIGRATED ↕↕↕↕↕↕↕
+
+    # THIS TRY BLOCK NEEDS TO BE REFACTORED
+
+    """
     res = _import_subjectPublicKeyInfo(encoded, passphrase)
     if res.is_err:
         if Result.error_is("UnsupportedEccFeature", res) != None:
@@ -1025,7 +1045,7 @@ def _import_der(encoded, passphrase):
             res.unwrap()
     else:
         return res.unwrap()
-
+    """
     res = _import_pkcs8(encoded, passphrase)
     if res.is_err:
         if Result.error_is("UnsupportedEccFeature", res) != None:
@@ -1170,7 +1190,11 @@ def import_key(encoded, passphrase=None):
 
     # DER
     if len(encoded) > 0 and bord(encoded[0]) == 0x30:
-        return _import_der(encoded, passphrase).unwrap()
+        final_key = _import_der(encoded, passphrase)
+        if type(final_key) == 'EccKey':
+            return final_key
+        else:
+            return final_key.unwrap()
 
     return Error("ValueError: ECC key format is not supported").unwrap()
 

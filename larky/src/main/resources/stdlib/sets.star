@@ -317,6 +317,7 @@ def Set(iterable=None):
     def difference(b):
         return Set([e for e in self._values.keys() if e not in b._values])
     self.difference = difference
+    self.__sub__ = difference
 
     def _set_length():
         return _length(self)

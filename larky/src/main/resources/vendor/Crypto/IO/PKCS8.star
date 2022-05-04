@@ -31,6 +31,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
 load("@stdlib//larky", larky="larky")
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@vendor//Crypto/IO/_PBES", PBES1="PBES1", PBES2="PBES2", PbesError="PbesError")
 load("@vendor//Crypto/Util/asn1", DerNull="DerNull", DerSequence="DerSequence", DerObjectId="DerObjectId", DerOctetString="DerOctetString")
 load("@vendor//Crypto/Util/py3compat", bord="bord", tobytes="tobytes", _copy_bytes="copy_bytes")
@@ -187,6 +188,7 @@ def unwrap(p8_private_key, passphrase=None):
     if len(pk_info) == 2 and not passphrase:
         return Error("Not a valid clear PKCS#8 structure " +
                      "(maybe it is encrypted?)").unwrap()
+    pk_info._seq = _repack_oids(pk_info._seq)
 
     #
     #   PrivateKeyInfo ::= SEQUENCE {
@@ -217,16 +219,33 @@ def unwrap(p8_private_key, passphrase=None):
     if len(algo) == 1:
         algo_params = None
     else:
-        res = Ok(DerNull().decode).map(algo[1])
-        if res.is_ok:
+        if algo[1] == b'\x05\x00':
             algo_params = None
         else:
             algo_params = algo[1]
 
     #   EncryptedData ::= OCTET STRING
-    private_key = DerOctetString().decode(pk_info[2]).payload
+    """
+    if DerSequence._seq is returning a list containing strings, it has already been
+    parsed, and the pk_info[2] contains a string that starts with a '#', and is
+    followed by a hexlified string of the bytes that would be returned anyway. 
+    """
+    if type(pk_info[2]) == 'string':
+        private_key = bytes(unhexlify(''.join(pk_info[2].split('#'))), 'utf-8')
+    else: 
+        private_key = DerOctetString().decode(pk_info[2]).payload
+
     return (algo_oid, private_key, algo_params)
 
+def _repack_oids(sequence):
+    for index, item in enumerate(sequence):
+        if type(item) == 'list':
+            der_seq = DerSequence()
+            for thing in item:
+                der_seq.append(DerObjectId(thing).encode())
+            item = der_seq.encode()
+        sequence[index] = item
+    return sequence
 
 PKCS8 = larky.struct(
     __name__='PKCS8',
