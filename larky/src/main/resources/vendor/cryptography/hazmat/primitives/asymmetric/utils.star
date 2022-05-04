@@ -2,6 +2,8 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//base64", base64="base64")
+load("@stdlib//binascii", "binascii")
 load("@stdlib//larky", larky="larky")
 load("@vendor//cryptography/hazmat/_der", DERReader="DERReader", INTEGER="INTEGER", SEQUENCE="SEQUENCE", encode_der="encode_der", encode_der_integer="encode_der_integer")
 load("@vendor//cryptography/hazmat/primitives", hashes="hashes")

@@ -18,6 +18,7 @@
 # SOFTWARE.
 # ===================================================================
 
+load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
@@ -92,7 +93,7 @@ def SHA384Hash(data=None):
         :rtype: string
         """
 
-        return "".join(["%02x" % bord(x) for x in self.digest()])
+        return tostr(hexlify(self.digest()))
     self.hexdigest = hexdigest
 
     def copy():
