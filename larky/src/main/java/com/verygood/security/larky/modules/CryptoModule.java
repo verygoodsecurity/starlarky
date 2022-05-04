@@ -11,6 +11,7 @@ import com.verygood.security.larky.modules.crypto.CryptoPublicKeyModule;
 import com.verygood.security.larky.modules.crypto.CryptoRandomModule;
 import com.verygood.security.larky.modules.crypto.CryptoSignatureModule;
 import com.verygood.security.larky.modules.crypto.CryptoUtilModule;
+import com.verygood.security.larky.modules.crypto.CryptoChaseModule;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -79,4 +80,9 @@ public class CryptoModule implements StarlarkValue {
 
   @StarlarkMethod(name="Util", structField = true)
   public CryptoUtilModule Util()  { return CryptoUtilModule.INSTANCE; }
+
+  @StarlarkMethod(name="Chase", structField = true)
+  public CryptoChaseModule Chase()  { return CryptoChaseModule.INSTANCE; }
+
+
 }
