@@ -12,14 +12,15 @@ load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 
 def get_public_keys():
     keys = _JCrypto.Chase.get_keys()
-    print(keys)
     return keys
 
 def decrypt(jwe_bytes):
+    if type(jwe_bytes)=='string':
+        jwe_bytes = bytes(jwe_bytes, 'utf-8')
     decrypted = _JCrypto.Chase.decrypt(jwe_bytes)
     return decrypted
 
 jwk = larky.struct(
-  get_keys=get_keys,
+  get_public_keys=get_public_keys,
   decrypt=decrypt
 )

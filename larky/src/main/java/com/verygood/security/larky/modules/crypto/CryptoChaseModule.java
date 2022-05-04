@@ -84,7 +84,6 @@ public class CryptoChaseModule implements StarlarkValue {
         EncryptedJWT jwt = EncryptedJWT.parse(jwe_string);
         RSADecrypter decrypter = new RSADecrypter(privKey);
         jwt.decrypt(decrypter);
-        System.out.println("ID token header: " + jwt.getHeader().toJSONObject());
         return jwt.getJWTClaimsSet().toJSONObject().toString();
 	}
 
@@ -103,7 +102,7 @@ public class CryptoChaseModule implements StarlarkValue {
 			determine the relevant private key to fetch. 
 		*/
 		String pk = "-----BEGIN PRIVATE KEY-----\n" +
-		/* Private key snipped */ 
+	    	/* Private key snipped */
 	    "-----END PRIVATE KEY-----";
 
     	return pk;
