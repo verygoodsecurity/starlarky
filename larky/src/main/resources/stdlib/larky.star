@@ -191,8 +191,9 @@ def _is_instance(obj, cls):
 
 
 def _is_subclass(klass, classinfo):
-
-    if not getattr(klass, "__class__", None):
+    # if we have a `__class__` attribute and it's false-y
+    #   OR it does not even exist:
+    if not getattr(klass, '__class__', None):
         fail("is_subclass() arg 1 must be a class")
 
     def __issubclass(_kls, _klsinfo):
@@ -206,8 +207,8 @@ def _is_subclass(klass, classinfo):
     if not __is_iterable(classinfo):
         classinfo = [classinfo]
 
-    for kls in classinfo:
-        if __issubclass(kls, kls):
+    for classinfo_entry in classinfo:
+        if __issubclass(klass, classinfo_entry):
             return True
     return False
 
