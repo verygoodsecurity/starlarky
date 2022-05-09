@@ -7,5 +7,5 @@ public interface ChaseCrypto extends StarlarkValue {
 
   String decrypt(StarlarkBytes jwe_bytes);
 
-  String get_keys();
+  String getKeys();
 }

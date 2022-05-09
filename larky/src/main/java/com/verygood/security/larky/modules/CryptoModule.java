@@ -1,7 +1,5 @@
 package com.verygood.security.larky.modules;
 
-import java.security.Security;
-
 import com.verygood.security.larky.modules.crypto.CryptoCipherModule;
 import com.verygood.security.larky.modules.crypto.CryptoHashModule;
 import com.verygood.security.larky.modules.crypto.CryptoIOModule;
@@ -11,12 +9,10 @@ import com.verygood.security.larky.modules.crypto.CryptoPublicKeyModule;
 import com.verygood.security.larky.modules.crypto.CryptoRandomModule;
 import com.verygood.security.larky.modules.crypto.CryptoSignatureModule;
 import com.verygood.security.larky.modules.crypto.CryptoUtilModule;
-import com.verygood.security.larky.modules.crypto.CryptoChaseModule;
-
+import java.security.Security;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.StarlarkValue;
-
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 
@@ -80,9 +76,5 @@ public class CryptoModule implements StarlarkValue {
 
   @StarlarkMethod(name="Util", structField = true)
   public CryptoUtilModule Util()  { return CryptoUtilModule.INSTANCE; }
-
-  @StarlarkMethod(name="Chase", structField = true)
-  public CryptoChaseModule Chase()  { return CryptoChaseModule.INSTANCE; }
-
 
 }

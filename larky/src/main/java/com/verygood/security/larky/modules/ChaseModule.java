@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.crypto;
+package com.verygood.security.larky.modules;
 
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.vgs.crypto.ChaseCrypto;
@@ -12,20 +12,20 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.StarlarkBytes;
 
 @StarlarkBuiltin(
-    name = "Chase",
+    name = "chase",
     category = "BUILTIN",
     doc = "The Chase module contains a few methods for fetching a CA Signed public JWK" +
           "To serve Chase Bank so they can encrypt the payloads that they send, and to" +
           "Fetch the subsequent private keys for decryption operations."
 )
 
-public class CryptoChaseModule implements ChaseCrypto {
+public class ChaseModule implements ChaseCrypto {
 
-  public static final CryptoChaseModule INSTANCE = new CryptoChaseModule();
+  public static final ChaseModule INSTANCE = new ChaseModule();
 
   private final ChaseCrypto chaseCrypto;
 
-  CryptoChaseModule() {
+  ChaseModule() {
 
     ServiceLoader<ChaseCrypto> loader = ServiceLoader.load(ChaseCrypto.class);
     List<ChaseCrypto> providers = ImmutableList.copyOf(loader.iterator());
@@ -38,7 +38,7 @@ public class CryptoChaseModule implements ChaseCrypto {
         }
 
         @Override
-        public String get_keys() {
+        public String getKeys() {
           return "";
         }
       };
@@ -55,8 +55,8 @@ public class CryptoChaseModule implements ChaseCrypto {
 
 
   @StarlarkMethod(name = "get_keys", structField = false)
-  public String get_keys() {
-    return chaseCrypto.get_keys();
+  public String getKeys() {
+    return chaseCrypto.getKeys();
   }
 
   @SneakyThrows

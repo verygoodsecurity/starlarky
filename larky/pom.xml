@@ -156,12 +156,6 @@
                 </exclusions>
         </dependency>
 
-        <dependency>
-            <groupId>com.nimbusds</groupId>
-            <artifactId>nimbus-jose-jwt</artifactId>
-            <version>4.27.1</version>
-        </dependency>
-
         <!--Tests-->
         <dependency>
             <groupId>org.mockito</groupId>
