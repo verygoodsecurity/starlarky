@@ -2,7 +2,7 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//builtins", buildins="builtins")
 load("@stdlib//json", json="json")
 
-load("@vendor//chase", Chase="chase")
+load("@vgs//chase", Chase="chase")
 
 def get_public_keys():
     keys = Chase.get_keys()
