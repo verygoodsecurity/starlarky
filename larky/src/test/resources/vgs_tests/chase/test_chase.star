@@ -3,7 +3,7 @@ load("@stdlib//json", "json")
 load("@stdlib//base64", "base64")
 load("@vendor//asserts","asserts")
 
-load("@vendor//chase/jwk", get_public_keys="get_public_keys", decrypt="decrypt")
+load("@vgs//chase/jwk", get_public_keys="get_public_keys", decrypt="decrypt")
 
 def test_get_keys():
     """
