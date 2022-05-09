@@ -37,13 +37,19 @@ public class LarkyPyObject implements
 
   private final LarkyType.Origin origin;
   private final LarkyType __class__;
-  private final Map<String, Object> __dict__;
+  private final Dict<String, Object> __dict__;
   private final StarlarkThread thread;
+
+  // just a simple default to avoid re-allocation as the initial
+  // capacity size defaults to 1 which is just too small
+  private static final int INITIAL_DICT_CAPACITY = 5;
+  private static final Map<String, Object> INITIAL_DICT =
+    Maps.newLinkedHashMapWithExpectedSize(INITIAL_DICT_CAPACITY);
 
   public LarkyPyObject(LarkyType klass, StarlarkThread instanceThread) {
     this.origin = LarkyType.Origin.LARKY;
     this.thread = instanceThread;
-    this.__dict__ = Maps.newHashMap();
+    this.__dict__ = Dict.copyOf(thread.mutability(), INITIAL_DICT);
     this.__class__ = klass;
   }
 
@@ -130,15 +136,24 @@ public class LarkyPyObject implements
     );
   }
 
-
   @Override
   public StarlarkThread getCurrentThread() {
     return thread;
   }
 
-   @Override
+  @Override
+  public Dict<?, ?> __dict__() {
+    return this.__dict__;
+  }
+
+  @Override
   public Map<String, Object> getInternalDictUnsafe() {
     return this.__dict__;
+  }
+
+  @Override
+  public <K, V> void setItemUnsafe(K key, V value) throws EvalException {
+    this.__dict__.putEntry((String) key, value);
   }
 
   @Override

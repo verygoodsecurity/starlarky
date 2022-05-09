@@ -13,6 +13,7 @@ import com.verygood.security.larky.objects.SetAttribute;
 import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
 import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.mro.C3;
+import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -81,6 +82,30 @@ public interface LarkyType extends PyObject, LarkyCollection, HasBinary {
   @Override
   default String __str__() {
     return this.__repr__();
+  }
+
+  @SneakyThrows
+  @Override
+  default Dict<?, ?> __dict__() {
+    // for types, this is a mappingproxy (readonly!)
+    return Dict.cast(
+             StarlarkUtil.valueToStarlark(this.getInternalDictUnsafe()),
+             Object.class,
+             Object.class,
+             "this.__dict__()"
+           );
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")  // safe
+  default <K, V> void setItemUnsafe(K key, V value) throws EvalException {
+    final Map<K, V> dictUnsafe = (Map<K, V>) this.getInternalDictUnsafe();
+    if(dictUnsafe instanceof Dict) {
+      final Dict<K, V> starlarkDictUnsafe = Dict.cast(dictUnsafe, (Class<K>) key.getClass(), (Class<V>) value.getClass(), "LarkyType#setItemUnsafe");
+      starlarkDictUnsafe.putEntry(key, value);
+    } else {
+      dictUnsafe.put(key, value);
+    }
   }
 
   /**
