@@ -9,7 +9,7 @@ def get_public_keys():
     return keys
 
 def decrypt(jwe_bytes):
-    if type(jwe_bytes)=='string':
+    if types.is_string(jwe_bytes):
         jwe_bytes = bytes(jwe_bytes, 'utf-8')
     decrypted = Chase.decrypt(jwe_bytes)
     return decrypted
