@@ -14,7 +14,7 @@ import net.starlark.java.eval.StarlarkBytes;
 @StarlarkBuiltin(
     name = "chase",
     category = "BUILTIN",
-    doc = "The Chase module contains a few methods for fetching a CA Signed public JWK" +
+    doc = "The Chase module contains a few methods for fetching a CA signed public JWK" +
           " to serve Chase Bank so they can encrypt the payloads that they send and to" +
           " fetch the subsequent private keys for decryption operations."
 )
@@ -61,6 +61,8 @@ public class ChaseModule implements ChaseCrypto {
 
   @SneakyThrows
   @StarlarkMethod(name = "decrypt",
+      doc = "The decrypt function takes a Compact JWE from Chase, and returns the " +
+            "decrypted payload without exposing the private key used for decryption."
       parameters = {
           @Param(
               name = "jwe",
