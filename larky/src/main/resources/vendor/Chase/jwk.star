@@ -1,6 +1,5 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
-load("@stdlib//builtins", buildins="builtins")
 
 load("@vgs//chase", Chase="chase")
 
