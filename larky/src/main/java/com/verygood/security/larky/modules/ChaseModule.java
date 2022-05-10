@@ -62,7 +62,7 @@ public class ChaseModule implements ChaseCrypto {
   @SneakyThrows
   @StarlarkMethod(name = "decrypt",
       doc = "The decrypt function takes a Compact JWE from Chase, and returns the " +
-            "decrypted payload without exposing the private key used for decryption."
+            "decrypted payload without exposing the private key used for decryption.",
       parameters = {
           @Param(
               name = "jwe",
