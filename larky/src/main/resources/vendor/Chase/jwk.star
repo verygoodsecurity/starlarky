@@ -14,6 +14,7 @@ def decrypt(jwe_bytes):
     return decrypted
 
 jwk = larky.struct(
+  __name__='jwk'
   get_public_keys=get_public_keys,
   decrypt=decrypt
 )
