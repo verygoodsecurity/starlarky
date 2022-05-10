@@ -15,7 +15,7 @@ import net.starlark.java.eval.StarlarkBytes;
     name = "chase",
     category = "BUILTIN",
     doc = "The Chase module contains a few methods for fetching a CA Signed public JWK" +
-          "To serve Chase Bank so they can encrypt the payloads that they send, and to" +
+          " to serve Chase Bank so they can encrypt the payloads that they send and to" +
           "Fetch the subsequent private keys for decryption operations."
 )
 
