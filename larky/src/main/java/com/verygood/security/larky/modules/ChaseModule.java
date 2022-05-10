@@ -68,7 +68,7 @@ public class ChaseModule implements ChaseCrypto {
                   @ParamType(type = StarlarkBytes.class)
               })
       })
-  public String decrypt(StarlarkBytes jwe_bytes) {
+  public String decrypt(StarlarkBytes jweBytes) {
     return chaseCrypto.decrypt(jwe_bytes);
   }
 
