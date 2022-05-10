@@ -5,7 +5,7 @@ import net.starlark.java.eval.StarlarkValue;
 
 public interface ChaseCrypto extends StarlarkValue {
 
-  String decrypt(StarlarkBytes jwe_bytes);
+  String decrypt(StarlarkBytes jweBytes);
 
   String getKeys();
 }
