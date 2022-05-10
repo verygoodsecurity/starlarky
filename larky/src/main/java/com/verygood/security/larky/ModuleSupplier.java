@@ -19,12 +19,10 @@ package com.verygood.security.larky;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import java.util.Map;
-import java.util.function.Function;
-
 import com.verygood.security.larky.modules.BinasciiModule;
 import com.verygood.security.larky.modules.C99MathModule;
 import com.verygood.security.larky.modules.CerebroModule;
+import com.verygood.security.larky.modules.ChaseModule;
 import com.verygood.security.larky.modules.CodecsModule;
 import com.verygood.security.larky.modules.CollectionsModule;
 import com.verygood.security.larky.modules.CryptoModule;
@@ -43,7 +41,8 @@ import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
-
+import java.util.Map;
+import java.util.function.Function;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.StarlarkValue;
 
@@ -77,7 +76,8 @@ public class ModuleSupplier {
 
   public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
     VaultModule.INSTANCE,
-    CerebroModule.INSTANCE
+    CerebroModule.INSTANCE,
+    ChaseModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
