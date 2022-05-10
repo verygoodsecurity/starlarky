@@ -54,7 +54,7 @@ public class ChaseModule implements ChaseCrypto {
   }
 
 
-  @StarlarkMethod(name = "get_keys", structField = false)
+  @StarlarkMethod(name = "get_keys")
   public String getKeys() {
     return chaseCrypto.getKeys();
   }
