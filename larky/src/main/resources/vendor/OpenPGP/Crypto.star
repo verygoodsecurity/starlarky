@@ -40,7 +40,6 @@ def _class_Wrapper():
             self._message = packet
 
     def key(self, keyid=None):
-        print("self._key set?", self._key)
         if not self._key:  # No key
             return None
         if builtins.isinstance(self._key, OpenPGP.Message):
@@ -62,7 +61,6 @@ def _class_Wrapper():
         return self.convert_private_key(self.key(keyid))
 
     def encrypted_data(self):
-        print("encrypted_data", self._message)
         if not self._message:
             return None
 
@@ -167,12 +165,11 @@ def _class_Wrapper():
                 keyid = key.key().fingerprint()[-16:]
             key = key.private_key(keyid)
 
-            key_algorithm = None
-            if builtins.isinstance(key, RSA.RsaKey):
-                key_algorithm = "RSA"
-            elif builtins.isinstance(key, DSA.DsaKey):
-                key_algorithm = "DSA"
-
+        key_algorithm = None
+        if builtins.isinstance(key, RSA.RsaKey):
+            key_algorithm = "RSA"
+        elif builtins.isinstance(key, DSA.DsaKey):
+            key_algorithm = "DSA"
         sig = OpenPGP.SignaturePacket(message, key_algorithm, hash.upper())
 
         if keyid:
@@ -346,9 +343,6 @@ def _class_Wrapper():
         if not keys or not self._message:
             fail("Missing data: neither keys or message is set")
             # return None  # Missing some data
-        print(keys)
-        print(self._message)
-        print("** here **")
         if not builtins.isinstance(keys, RSA.RsaKey):
             keys = self.__class__(keys)
 
@@ -366,9 +360,6 @@ def _class_Wrapper():
                 else:
 
                     key = keys.private_key(p.keyid)
-                    print("DA KEY IS:", key)
-                    print("keyid", p.keyid)
-                    print("p.encrypted_data[2:]:", p.encrypted_data[2:].hex())
                     sk = self.try_decrypt_session(key, p.encrypted_data[2:])
 
                 if not sk:
@@ -424,9 +415,7 @@ def _class_Wrapper():
             passphrases_and_keys = [passphrases_and_keys]
 
         for psswd in passphrases_and_keys:
-            print("password: ", psswd)
             if builtins.isinstance(psswd, OpenPGP.PublicKeyPacket):
-                print("psswd isinstance OpenPGP.PublicKeyPacket")
                 if not psswd.key_algorithm in [1, 2, 3]:
                     fail("Exception: Only RSA keys are supported.")
                 rsa = self.__class__(psswd).public_key()
@@ -437,13 +426,11 @@ def _class_Wrapper():
                     + pack("!H", OpenPGP.checksum(key))
                 )
                 esk = pack("!H", OpenPGP.bitlength(esk)) + esk
-                print(esk.hex(":"))
                 encrypted = [
                     OpenPGP.AsymmetricSessionKeyPacket(
                         psswd.key_algorithm, psswd.fingerprint(), esk
                     )
                 ] + encrypted
-                print(encrypted)
             elif types.is_string(psswd):
                 psswd = bytes(psswd, encoding="utf-8")
                 s2k = OpenPGP.S2K(Random.new().read(10))
@@ -506,11 +493,12 @@ def _class_Wrapper():
         # packet = copy.copy(self._message or self._key)  # Do not mutate original
         # TODO: we need copy.copy
         if self._message:
-            packet = self._message.__class__(self._message.__dict__)
+            packet = self._message.__class__(dict(**self._message.__dict__))
         else:
             if not self._key:
                 fail("fail in decrypt_secret_key, both _message and _key are None")
-            packet = self._key.__class__(self._key.__dict__)
+            packet = self._key.__class__()
+            packet.__dict__.update(self._key.__dict__)
 
         cipher, key_bytes, key_block_bytes = self.get_cipher(packet.symmetric_algorithm)
         cipher = cipher(packet.s2k.make_key(passphrase, key_bytes))
