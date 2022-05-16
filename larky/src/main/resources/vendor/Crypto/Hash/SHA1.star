@@ -17,9 +17,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
-
-
 load("@stdlib//larky", larky="larky")
+load("@stdlib//types", types="types")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
@@ -72,7 +71,7 @@ def SHA1Hash(data=None):
             data (byte string/byte array/memoryview): The next chunk of the message being hashed.
         """
 
-        if not data:
+        if not types.is_bytelike(data):
             fail("TypeError: object supporting the buffer API required")
         self._state.update(data)
     self.update = update

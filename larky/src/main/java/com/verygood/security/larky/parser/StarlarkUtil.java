@@ -17,6 +17,7 @@
 package com.verygood.security.larky.parser;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
@@ -27,6 +28,7 @@ import java.util.Map;
 
 import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
+import com.verygood.security.larky.objects.PyObject;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -34,6 +36,7 @@ import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.Structure;
 
 import javax.annotation.Nullable;
@@ -47,8 +50,8 @@ public final class StarlarkUtil {
   }
 
   /**
-   * Converts an object that can be the NoneType to the actual object if it is not
-   * or returns the default value if none.
+   * Converts an object that can be the NoneType to the actual object if it is not or returns the default value if
+   * none.
    */
   @SuppressWarnings("unchecked")
   public static <T> T convertFromNoneable(Object obj, @Nullable T defaultValue) {
@@ -62,42 +65,45 @@ public final class StarlarkUtil {
    * Converts a string to the corresponding enum or fail if invalid value.
    *
    * @param fieldName name of the field to convert
-   * @param value value to convert
-   * @param enumType the type class of the enum to use for conversion
-   * @param <T> the enum class
+   * @param value     value to convert
+   * @param enumType  the type class of the enum to use for conversion
+   * @param <T>       the enum class
    */
   public static <T extends Enum<T>> T stringToEnum(
-      String fieldName, String value, Class<T> enumType) throws EvalException {
+    String fieldName, String value, Class<T> enumType) throws EvalException {
     try {
       return Enum.valueOf(enumType, value);
     } catch (IllegalArgumentException e) {
       throw Starlark.errorf(
-          "Invalid value '%s' for field '%s'. Valid values are: %s",
-          value, fieldName, Joiner.on(", ").join(enumType.getEnumConstants()));
+        "Invalid value '%s' for field '%s'. Valid values are: %s",
+        value, fieldName, Joiner.on(", ").join(enumType.getEnumConstants()));
     }
   }
 
-  /** Checks that a mandatory string field is not empty. */
+  /**
+   * Checks that a mandatory string field is not empty.
+   */
   public static String checkNotEmpty(@Nullable String value, String name) throws EvalException {
     check(!Strings.isNullOrEmpty(value), "Invalid empty field '%s'.", name);
     return value;
   }
 
   /** Checks a condition or throw {@link EvalException}. */
-   /** Checks a condition or throw {@link EvalException}. */
+  /**
+   * Checks a condition or throw {@link EvalException}.
+   */
   @FormatMethod
   public static void check(boolean condition, @FormatString String format, Object... args)
-      throws EvalException {
+    throws EvalException {
     if (!condition) {
       throw Starlark.errorf(format, args);
     }
   }
 
   /**
-   * convertStringList converts a Starlark sequence value (such as a list or tuple) to a Java list
-   * of strings. The result is a new, mutable copy. It throws EvalException if x is not a Starlark
-   * iterable or if any of its elements are not strings. The message argument is prefixed to any
-   * error message.
+   * convertStringList converts a Starlark sequence value (such as a list or tuple) to a Java list of strings. The
+   * result is a new, mutable copy. It throws EvalException if x is not a Starlark iterable or if any of its elements
+   * are not strings. The message argument is prefixed to any error message.
    */
   public static List<String> convertStringList(Object x, String message) throws EvalException {
     // TODO(adonovan): replace all calls to this function with:
@@ -111,7 +117,7 @@ public final class StarlarkUtil {
     for (Object elem : (Sequence<?>) x) {
       if (!(elem instanceof String)) {
         throw Starlark.errorf(
-            "%s: at index #%d, got %s, want string", message, result.size(), Starlark.type(elem));
+          "%s: at index #%d, got %s, want string", message, result.size(), Starlark.type(elem));
       }
       result.add((String) elem);
     }
@@ -119,12 +125,12 @@ public final class StarlarkUtil {
   }
 
   /**
-   * convertStringMap converts a Starlark dict value to a Java map of strings to strings. The result
-   * is a new, mutable copy. It throws EvalException if x is not a Starlark dict or if any of its
-   * keys or values are not strings. The message argument is prefixed to any error message.
+   * convertStringMap converts a Starlark dict value to a Java map of strings to strings. The result is a new, mutable
+   * copy. It throws EvalException if x is not a Starlark dict or if any of its keys or values are not strings. The
+   * message argument is prefixed to any error message.
    */
   public static Map<String, String> convertStringMap(Object x, String message)
-      throws EvalException {
+    throws EvalException {
     // TODO(adonovan): replace all calls to this function with:
     //    Dict.cast(x, String.class, String.class, message)
     // and fix up tests. Beware: its result is not to be modified.
@@ -135,12 +141,12 @@ public final class StarlarkUtil {
     for (Map.Entry<?, ?> e : ((Dict<?, ?>) x).entrySet()) {
       if (!(e.getKey() instanceof String)) {
         throw Starlark.errorf(
-            "%s: in dict key, got %s, want string", message, Starlark.type(e.getKey()));
+          "%s: in dict key, got %s, want string", message, Starlark.type(e.getKey()));
       }
       if (!(e.getValue() instanceof String)) {
         throw Starlark.errorf(
-            "%s: in value for dict key '%s', got %s, want string",
-            message, e.getKey(), Starlark.type(e.getValue()));
+          "%s: in value for dict key '%s', got %s, want string",
+          message, e.getKey(), Starlark.type(e.getValue()));
       }
       result.put((String) e.getKey(), (String) e.getValue());
     }
@@ -148,86 +154,132 @@ public final class StarlarkUtil {
   }
 
   /**
-   * convertOptionalString converts a Starlark optional string value (string or None) to a Java
-   * String reference, which may be null. It throws ClassCastException if called with any other
-   * value.
+   * convertOptionalString converts a Starlark optional string value (string or None) to a Java String reference, which
+   * may be null. It throws ClassCastException if called with any other value.
    */
   @Nullable
   public static String convertOptionalString(Object x) {
     return x == Starlark.NONE ? null : (String) x;
   }
 
+  /**
+   * Casts nested sequence type in Dict
+   */
+  public static <K, V> Dict<K, Sequence<V>> castOfSequence(
+    Object x, Class<K> keyType, Class<V> nestedValueType, String what) throws EvalException {
+    Preconditions.checkNotNull(x);
+    if (!(x instanceof Dict)) {
+      throw Starlark.errorf("got %s for '%s', want dict", Starlark.type(x), what);
+    }
+
+    for (Map.Entry<?, ?> e : ((Map<?, ?>) x).entrySet()) {
+      if (!keyType.isAssignableFrom(e.getKey().getClass())
+            && Sequence.cast(e.getValue(), nestedValueType, what) != null) {
+        throw Starlark.errorf(
+          "got dict<%s, %s> for '%s', want dict<%s, Sequence<%s>>",
+          Starlark.type(e.getKey()),
+          Starlark.type(e.getValue()),
+          what,
+          Starlark.classType(keyType),
+          Starlark.classType(nestedValueType));
+      }
+    }
+
+    @SuppressWarnings("unchecked") // safe
+    Dict<K, Sequence<V>> res = (Dict<K, Sequence<V>>) x;
+    return res;
+  }
+
   public static Object valueToStarlark(Object x) throws IllegalArgumentException {
     return valueToStarlark(x, null);
   }
 
+  /**
+   * Converts a value from internal form to Starlark form. Internal form may use any
+   * subtype of {@link List} or {@link Map} for {@code list} and {@code dict} attributes, whereas
+   * Starlark uses only immutable {@link StarlarkList} and {@link Dict}.
+   *
+   * <p>The conversion is similar to {@link Starlark#fromJava} for all types except
+   * {@code Map<String, List<String>>}, for which fromJava does not
+   * recursively convert elements. (Doing so is expensive.)
+   *
+   * <p>It is tempting to require that fields are stored internally in Starlark form. However, a
+   * number of obstacles would need to be overcome:
+   *
+   * <ol>
+   *   <li>Some obscure types are not currently legal Starlark values.
+   *   <li>ImmutableList is significantly more compact than StarlarkList for small lists (n &lt; 2).
+   *       StarlarkList would need multiple representations and a builder to achieve parity.
+   *   <li>The types used by the Type mechanism would need changing; this has extensive
+   *       ramifications.
+   * </ol>
+   */
   public static Object valueToStarlark(Object x, @Nullable Mutability mutability) throws IllegalArgumentException {
-      // Is x a non-empty string_list_dict?
-      if (x instanceof Map) {
-        Map<?, ?> map = (Map<?,?>) x;
-        if (!map.isEmpty() && map.values().iterator().next() instanceof List) {
-          // Recursively convert subelements.
-          Dict<Object, Object> dict = Dict.of(null);
-          for (Map.Entry<?, ?> e : map.entrySet()) {
-            try {
-              dict.putEntry(
-                  e.getKey(),
-                  Starlark.fromJava(e.getValue(),mutability));
-            } catch (EvalException evalException) {
-              throw new RuntimeException(evalException);
-            }
-          }
-          return dict;
+    // Is x a non-empty string_list_dict?
+    if (x instanceof Map) {
+      Map<?, ?> map = (Map<?, ?>) x;
+      if (!map.isEmpty() && map.values().iterator().next() instanceof List) {
+        // Recursively convert subelements.
+        Dict.Builder<Object, Object> dict = Dict.builder();
+        for (Map.Entry<?, ?> e : map.entrySet()) {
+          dict.put(e.getKey(), Starlark.fromJava(e.getValue(), mutability));
         }
+        return dict.buildImmutable();
       }
-      // For all other attribute values, shallow conversion is safe.
-      return Starlark.fromJava(x, mutability);
     }
 
-  /** Reports whether {@code x} is Java null or Starlark None. */
+    // For all other attribute values, shallow conversion is safe.
+    return Starlark.fromJava(x, mutability);
+  }
+
+  /**
+   * Reports whether {@code x} is Java null or Starlark None.
+   */
   public static boolean isNullOrNoneOrUnbound(Object x) {
     return x == null || x == Starlark.NONE || x == Starlark.UNBOUND;
   }
 
   public static boolean isCallable(Object x) throws EvalException {
-    if(x instanceof StarlarkCallable) {
+    if (x instanceof StarlarkCallable) {
       return true;
     }
     // if we have a user defined type and it has a __call__
-    else if(x instanceof Structure) {
-      return ((Structure)x).getValue(PyProtocols.__CALL__) != null;
+    else if (x instanceof Structure) {
+      return ((Structure) x).getValue(PyProtocols.__CALL__) != null;
     }
     return false;
   }
 
   public static StarlarkCallable toCallable(Object x) throws EvalException {
-     if(x instanceof StarlarkCallable) {
-       return (StarlarkCallable) x;
-     }
-     // if we have a user defined type and it has a __call__
-     else if(x instanceof Structure) {
-       final Object value = ((Structure) x).getValue(PyProtocols.__CALL__);
-       if(value != null) {
-         return ((StarlarkCallable) value);
-       }
-     }
-     throw Starlark.errorf("%s is not a callable", Starlark.type(x));
-   }
+    if (x instanceof StarlarkCallable) {
+      return (StarlarkCallable) x;
+    }
+    // if we have a user defined type and it has a __call__
+    else if (x instanceof Structure) {
+      final Object value = ((Structure) x).getValue(PyProtocols.__CALL__);
+      if (value != null) {
+        return ((StarlarkCallable) value);
+      }
+    }
+    throw Starlark.errorf("%s is not a callable", Starlark.type(x));
+  }
 
   /**
    * Returns the name of the type of {@code x} as if by the Starlark expression {@code type(x)}.
    *
-   * This respects the __NAME__ and __CLASS__ parameters otherwise falls back to
-   * {@code Starlark.type()}
+   * This respects the __NAME__ and __CLASS__ parameters otherwise falls back to {@code Starlark.type()}
    */
-   public static String richType(Object x) {
-    if(x instanceof LarkyObject) {
+  public static String richType(Object x) {
+    if (x instanceof PyObject) {
+      return ((PyObject)x).typeName();
+    }
+    if (x instanceof LarkyObject) {
       LarkyObject obj = ((LarkyObject) x);
       try {
         if (!obj.hasClassField() && !obj.hasNameField()) {
           return Starlark.type(obj);
         }
-        if(obj.hasNameField()) {
+        if (obj.hasNameField()) {
           return String.valueOf(obj.getField(PyProtocols.__NAME__));
         }
         // fall back to __class__ if __name__ doesn't exist
@@ -236,7 +288,7 @@ public final class StarlarkUtil {
         throw new RuntimeException(e);
       }
     }
-     // otherwise, just return Starlark.type()
-     return Starlark.type(x);
-   }
+    // otherwise, just return Starlark.type()
+    return Starlark.type(x);
+  }
 }
