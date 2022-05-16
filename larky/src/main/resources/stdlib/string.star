@@ -64,7 +64,31 @@ def maketrans(fromstr, tostr):
         L[fromstr[i]] = tostr[i]
     return ''.join(L)
 
+def translate(code, table):
+    result = []
+    for c in iter(code):
+        oc = ord(c)
+        result.append(chr(table.get(oc, oc)))
+    return ''.join(result)
 
+# Expand tabs in a string.
+# Doesn't take non-printing chars into account, but does understand \n.
+def expandtabs(s, tabsize=8):
+    """expandtabs(s [,tabsize]) -> string
+    Return a copy of the string s with all tab characters replaced
+    by the appropriate number of spaces, depending on the current
+    column, and the tabsize (default 8).
+    """
+    res = ''
+    line = ''
+    for c in iter(s):
+        if c == '\t':
+            c = ' '*(tabsize - len(line) % tabsize)
+        line = line + c
+        if c == '\n':
+            res = res + line
+            line = ''
+    return res + line
 
 # for formatters, we can port over parmatter's parser + formatter
 # (https://github.com/Ricyteach/parmatter/blob/master/src/parmatter/parmatter.py)
@@ -83,4 +107,6 @@ string = larky.struct(
     octdigits=octdigits,
     punctuation=punctuation,
     printable=printable,
+    translate=translate,
+    expandtabs=expandtabs
 )
