@@ -261,6 +261,11 @@ def translate_bytes(s, original, replace):
     # return bytes(translated)
 
 
+# >>> import operator
+# >>> operator.mod("%(z)02X", {'z': 4})
+# '04'
+# print(format({'z': 4}, "%(z)02X"))
+# print(format(4, '02x'))
 def _zfill(x, leading=4):
     if len(str(x)) < leading:
         return (('0' * leading) + str(x))[-leading:]
