@@ -2,12 +2,10 @@ package com.verygood.security.larky.modules.types.structs;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import com.verygood.security.larky.modules.types.LarkyCallable;
-import com.verygood.security.larky.modules.types.LarkyIndexable;
-import com.verygood.security.larky.modules.types.LarkyIterator;
+import com.verygood.security.larky.modules.types.LarkyCollection;
 import com.verygood.security.larky.modules.types.PyProtocols;
 
 import net.starlark.java.annot.StarlarkMethod;
@@ -18,9 +16,7 @@ import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
-import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
-import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.syntax.TokenKind;
@@ -29,7 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 // A trivial struct-like class with Starlark fields defined by a map.
-public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIterable<Object>, HasBinary, Comparable<Object> {
+public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, Comparable<Object> {
 
   private static final TokenKind[] COMPARE_OPNAMES = new TokenKind[]{
     TokenKind.LESS,
@@ -174,26 +170,6 @@ public class SimpleStruct implements LarkyIndexable, LarkyCallable, StarlarkIter
   @Override
   public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
     return StructBinOp.operatorDispatch(this, op, that, thisLeft, this.getCurrentThread());
-  }
-
-  @Override
-  public boolean containsKey(StarlarkThread starlarkThread, StarlarkSemantics semantics, Object key) throws EvalException {
-    final Object result = StructBinOp.operatorDispatch(this, TokenKind.IN, key, false, starlarkThread);
-    if (result == null) {
-      throw Starlark.errorf(
-        "unsupported binary operation: %s %s %s", Starlark.type(key), TokenKind.IN, typeName());
-    }
-    return (boolean) result;
-  }
-
-  @NotNull
-  @Override
-  public Iterator<Object> iterator() {
-    try {
-      return LarkyIterator.LarkyObjectIterator.of(this, getCurrentThread());
-    } catch (EvalException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   @Override
