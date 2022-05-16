@@ -40,7 +40,7 @@ public class C3 {
       toMerge.add(objects);
     }
     toMerge.add(new ArrayList<>(superclasses));
-    List<LarkyType> order = Lists.newArrayList(c);
+    List<LarkyType> order = Lists.<LarkyType>newArrayList(c);
     return mroMerge(order, toMerge);
   }
 

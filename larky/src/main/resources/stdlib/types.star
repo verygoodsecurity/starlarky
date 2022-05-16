@@ -388,7 +388,32 @@ def non_empty(seq):
     return _filter(bool, seq)
 
 
+# https://www.python.org/download/releases/2.3/mro/
 def merge_mro(seqs):
+    # res = []
+    # i = 0
+    #
+    # nonemptyseqs = [seq for seq in seqs if seq]
+    # for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+    #     if not nonemptyseqs:
+    #         return res
+    #
+    #     i += 1
+    #     for seq in nonemptyseqs:
+    #         cand = seq[0]
+    #         nothead = [s for s in nonemptyseqs if cand in s[1:]]
+    #
+    #         if nothead:
+    #             cand = None
+    #         else:
+    #             break
+    #
+    #     if not cand:
+    #         fail("Inconsistent hierarchy")
+    #
+    #     res.append(cand)
+    #
+    #     nonemptyseqs = [seq for seq in nonemptyseqs if seq[0] != cand]
     seqs = [list(x) for x in seqs]
     non_empty_seqs = non_empty(seqs)
     result = []
@@ -464,24 +489,21 @@ def get(instance, attr_name):
     """
     attr = getattr(instance, attr_name, larky.SENTINEL)
     if attr != larky.SENTINEL:
-        if _is_function(attr):
-            attr = larky.partial(attr, instance)
         return attr
 
     for cls in instance.__class__.__mro__:
-        # print("get:", cls, "attr", attr_name)
         attr = getattr(cls, attr_name, larky.SENTINEL)
         if attr == larky.SENTINEL:
             continue
 
         if _is_function(attr):
             attr = larky.partial(attr, instance)
-        # no support for instance or static methods..
-        # elif isinstance(attr, staticmethod):
-        #     attr = attr.__func__
-        #
-        # elif isinstance(attr, classmethod):
-        #     attr = partial(attr.__func__, cls)
+
+        elif larky.is_instance(attr, staticmethod):
+            attr = attr.__func__
+
+        elif larky.is_instance(attr, classmethod):
+            attr = larky.partial(attr.__func__, cls)
 
         return attr
 

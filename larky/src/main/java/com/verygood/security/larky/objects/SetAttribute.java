@@ -70,7 +70,7 @@ public abstract class SetAttribute {
      * If we are here, then there was no data descriptor.
      * Put the value in the object internal dictionary.
      */
-    obj.getInternalDictUnsafe().put(attr, value);
+    obj.setItemUnsafe(attr,value);
   }
 
   /**

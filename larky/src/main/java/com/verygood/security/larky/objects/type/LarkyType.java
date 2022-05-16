@@ -1,23 +1,26 @@
 package com.verygood.security.larky.objects.type;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.verygood.security.larky.modules.types.LarkyCollection;
 import com.verygood.security.larky.objects.DeleteAttribute;
 import com.verygood.security.larky.objects.GetAttribute;
-import com.verygood.security.larky.objects.LarkyTypeObject;
 import com.verygood.security.larky.objects.PyObject;
 import com.verygood.security.larky.objects.SetAttribute;
 import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
 import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.mro.C3;
+import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.HasBinary;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.StarlarkThread;
@@ -27,7 +30,7 @@ import org.jetbrains.annotations.NotNull;
 
 import lombok.SneakyThrows;
 
-public interface LarkyType extends PyObject {
+public interface LarkyType extends PyObject, LarkyCollection, HasBinary {
 
   @SneakyThrows
   static void setupInheritanceHierarchy(@NotNull LarkyType cls, LarkyType[] parentClasses) {
@@ -79,6 +82,30 @@ public interface LarkyType extends PyObject {
   @Override
   default String __str__() {
     return this.__repr__();
+  }
+
+  @SneakyThrows
+  @Override
+  default Dict<?, ?> __dict__() {
+    // for types, this is a mappingproxy (readonly!)
+    return Dict.cast(
+             StarlarkUtil.valueToStarlark(this.getInternalDictUnsafe()),
+             Object.class,
+             Object.class,
+             "this.__dict__()"
+           );
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")  // safe
+  default <K, V> void setItemUnsafe(K key, V value) throws EvalException {
+    final Map<K, V> dictUnsafe = (Map<K, V>) this.getInternalDictUnsafe();
+    if(dictUnsafe instanceof Dict) {
+      final Dict<K, V> starlarkDictUnsafe = Dict.cast(dictUnsafe, (Class<K>) key.getClass(), (Class<V>) value.getClass(), "LarkyType#setItemUnsafe");
+      starlarkDictUnsafe.putEntry(key, value);
+    } else {
+      dictUnsafe.put(key, value);
+    }
   }
 
   /**
@@ -294,6 +321,13 @@ public interface LarkyType extends PyObject {
   default boolean isNonDataDescriptor() {
     return LarkyNonDataDescriptor.isNonDataDescriptor(this);
   }
+
+  /**
+   * Will be used to determine if a type is eligible for a special
+   * operation / method.
+   * @return An immutable set of the type's {@link SpecialMethod}s.
+   */
+  ImmutableSet<SpecialMethod> getSpecialMethods();
 
   enum Origin {
     PLACEHOLDER,  // Dummy entry to resolve circular dependencies
