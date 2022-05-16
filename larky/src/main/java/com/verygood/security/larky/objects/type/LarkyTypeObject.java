@@ -30,8 +30,6 @@ import net.starlark.java.syntax.TokenKind;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import lombok.SneakyThrows;
-
 
 //override built-in type and mimic python built-in type
 @StarlarkBuiltin(
@@ -203,12 +201,6 @@ final public class LarkyTypeObject implements LarkyType {
     return __repr__();
   }
 
-
-  @SneakyThrows
-  @Override
-  public Dict<?, ?> __dict__() {
-    return Dict.cast(StarlarkUtil.valueToStarlark(this.__dict__), Object.class, Object.class, "this.__dict__()");
-  }
 
   @Override
   public Map<String, Object> getInternalDictUnsafe() {
