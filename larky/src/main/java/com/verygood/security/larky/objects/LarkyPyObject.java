@@ -2,10 +2,12 @@ package com.verygood.security.larky.objects;
 
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSortedSet;
-import java.util.HashMap;
+import com.google.common.collect.Maps;
 import java.util.Map;
-import java.util.Objects;
 
+import com.verygood.security.larky.modules.types.LarkyCollection;
+import com.verygood.security.larky.modules.types.PyProtocols;
+import com.verygood.security.larky.objects.type.BinaryOpHelper;
 import com.verygood.security.larky.objects.type.LarkyType;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
@@ -14,30 +16,41 @@ import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.HasBinary;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.syntax.TokenKind;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 
-public class LarkyPyObject implements PyObject, Comparable<LarkyPyObject> {
+public class LarkyPyObject implements
+  PyObject,
+    Comparable<LarkyPyObject>,
+    LarkyCollection,
+    HasBinary
+{
 
   private final LarkyType.Origin origin;
   private final LarkyType __class__;
-  private final Map<String, Object> __dict__;
+  private final Dict<String, Object> __dict__;
   private final StarlarkThread thread;
+
+  // just a simple default to avoid re-allocation as the initial
+  // capacity size defaults to 1 which is just too small
+  private static final int INITIAL_DICT_CAPACITY = 5;
+  private static final Map<String, Object> INITIAL_DICT =
+    Maps.newLinkedHashMapWithExpectedSize(INITIAL_DICT_CAPACITY);
 
   public LarkyPyObject(LarkyType klass, StarlarkThread instanceThread) {
     this.origin = LarkyType.Origin.LARKY;
     this.thread = instanceThread;
-    this.__dict__ = new HashMap<>();
+    this.__dict__ = Dict.copyOf(thread.mutability(), INITIAL_DICT);
     this.__class__ = klass;
-  }
-
-  public static LarkyPyObject getInstance() {
-    return LarkyPyObjectBuiltin.LarkyPyObjectBuiltinSingleton.INSTANCE.get();
   }
 
   @Override
@@ -123,28 +136,97 @@ public class LarkyPyObject implements PyObject, Comparable<LarkyPyObject> {
     );
   }
 
-
   @Override
   public StarlarkThread getCurrentThread() {
     return thread;
   }
 
-   @Override
+  @Override
+  public Dict<?, ?> __dict__() {
+    return this.__dict__;
+  }
+
+  @Override
   public Map<String, Object> getInternalDictUnsafe() {
     return this.__dict__;
   }
 
   @Override
-  public int compareTo(@NotNull LarkyPyObject o) {
-    return Objects.equals(this, o) ? 0 : -1;
+  public <K, V> void setItemUnsafe(K key, V value) throws EvalException {
+    this.__dict__.putEntry((String) key, value);
   }
+
+  @Override
+  public int compareTo(@NotNull LarkyPyObject o) {
+    Object result;
+    final boolean lt;
+    final boolean gt;
+
+    try {
+      // This code is a bit tricky. If we return null from operatorDispatch,
+      // it most likely not a proper comparison operation.
+      //
+      // To make the IDE happy, we have to do the checks below.
+      result = BinaryOpHelper.operatorDispatch(
+        this,
+        TokenKind.LESS,
+        o,
+        true,
+        this.getCurrentThread()
+      );
+      if (result instanceof Boolean) {
+        lt = (boolean) result;
+        if (lt) {
+          return -1;
+        }
+      }
+      result = BinaryOpHelper.operatorDispatch(
+        this,
+        TokenKind.GREATER,
+        o,
+        true,
+        this.getCurrentThread()
+      );
+      if (result instanceof Boolean) {
+        gt = (boolean) result;
+        if (gt) {
+          return 1;
+        }
+      }
+      // if result is null, let's throw an Error
+      if (result == null) {
+        throw Starlark.errorf(
+          String.format(
+          "unsupported binary operation: %s and %s",
+          this, o
+        ));
+      }
+    } catch (EvalException e) {
+      throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, null);
+    }
+    return 0;
+  }
+
 
   @Override
   public boolean equals(Object obj) {
     if (!(obj instanceof LarkyPyObject)) {
       return false;
     }
-    return this == obj;
+    if (this == obj) {
+      return true;
+    }
+
+    boolean result;
+    try {
+      result = BinaryOpHelper.richComparison(
+        this, obj, PyProtocols.__EQ__, PyProtocols.__EQ__, this.getCurrentThread()
+      );
+    } catch (EvalException e) {
+      throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, this.getCurrentThread());
+    }
+    return result;
+
   }
 
   @Override
@@ -195,4 +277,15 @@ public class LarkyPyObject implements PyObject, Comparable<LarkyPyObject> {
   public void __delattr__(String name, StarlarkThread thread) throws EvalException {
     DeleteAttribute.delete(this, name, thread);
   }
+
+  @Nullable
+  @Override
+  public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
+    // important to note this: https://docs.python.org/3/reference/datamodel.html#special-method-lookup
+    // special methods automatically delegate to the underlying type
+    // we should bypass the instance dictionary if it's a SpecialMethod
+    return this.typeClass().binaryOp(op, that, thisLeft);
+  }
+
+
 }
