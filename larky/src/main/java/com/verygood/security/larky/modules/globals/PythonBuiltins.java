@@ -388,7 +388,7 @@ public final class PythonBuiltins {
         } else {
           // TODO: delete all this code when merging LarkyObject into PyObject
           res = ((LarkyObject) obj).getField(name, thread);
-          if(res == null) {
+          if (res == null) {
             // if there's an object with a __getattr__, it will be invoked..
             Object getAttrMethod = ((LarkyObject) obj).getField(PyProtocols.__GETATTR__);
             if (getAttrMethod != null) {
@@ -402,7 +402,7 @@ public final class PythonBuiltins {
       result = res != null ? res : defaultValue;
     }
 
-    if(result == defaultValue) {
+    if (result == defaultValue) {
       result = Starlark.getattr(
         thread.mutability(),
         thread.getSemantics(),

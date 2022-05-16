@@ -9,6 +9,7 @@ import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
@@ -34,7 +35,7 @@ public class LarkyPKCS1 implements StarlarkValue {
   @StarlarkMethod(
     name="decode",
     parameters = {
-      @Param(name="xx"),
+      @Param(name="em"),
       @Param(name="sentinel"),
       @Param(name="expected_pt_len"),
       @Param(name="output"),
@@ -44,10 +45,11 @@ public class LarkyPKCS1 implements StarlarkValue {
     },
     useStarlarkThread = true
   )
-  public StarlarkInt decode(StarlarkBytes xx, StarlarkBytes sentinel, StarlarkInt expectedPtSize, StarlarkBytes output, Dict<String, StarlarkInt> keyParts, StarlarkThread thread) throws EvalException {
-    int len_em_output = output.size();
-    int len_sentinel = sentinel.length();
-    int expected_pt_len = expectedPtSize.toIntUnchecked();
+  public StarlarkInt decode(StarlarkBytes encryptedMessage, StarlarkBytes sentinel, StarlarkInt expectedPlainTextLen, StarlarkBytes output, Dict<String, StarlarkInt> keyParts, StarlarkThread thread) throws EvalException {
+    final int len_em_output = output.size();
+    final byte[] fallback = sentinel.toByteArray();
+    final int len_sentinel = Starlark.isNullOrNone(sentinel) ? 0 : sentinel.length();
+    final int expected_pt_len = expectedPlainTextLen.toIntUnchecked();
 
     if (len_em_output < (EM_PREFIX_LEN + 2)) {
       return FAIL;
@@ -55,35 +57,75 @@ public class LarkyPKCS1 implements StarlarkValue {
     if (len_sentinel > len_em_output) {
       return FAIL;
     }
-    if (expected_pt_len > 0 && expected_pt_len > (len_em_output - EM_PREFIX_LEN - 1)) {
-      return FAIL;
+    if (expected_pt_len != -1) {
+      if (expected_pt_len > (len_em_output - EM_PREFIX_LEN - 1)) {
+        return FAIL;
+      }
     }
 
-    final byte[] pt;
+    byte[] pt;
     try(ScopedProperty x = new ScopedProperty()) {
-//      x.setProperty(PKCS1Encoding.NOT_STRICT_LENGTH_ENABLED_PROPERTY, "true");
+      //x.setProperty(PKCS1Encoding.NOT_STRICT_LENGTH_ENABLED_PROPERTY, "true");
       AsymmetricBlockCipher eng = new RSABlindedEngine();
       CipherParameters privParameters = getRsaKeyParameters(keyParts);
 
-      if(len_sentinel != 0) {
+      if(expected_pt_len == -1) {
+        eng = new PKCS1Encoding(eng, expected_pt_len);
+      }
+      else if(len_sentinel != 0) {
         eng = new PKCS1Encoding(eng, sentinel.toByteArray());
       }
-      else if(expected_pt_len != 0) {
+      else {
         privParameters = new ParametersWithRandom(
           privParameters,
           CryptoServicesRegistrar.getSecureRandom());
         eng = new PKCS1Encoding(eng, expected_pt_len);
       }
-      else {
-        eng = new PKCS1Encoding(eng);
-      }
       eng.init(false, privParameters);
-      pt = eng.processBlock(xx.toByteArray(), 0, xx.size());
+      pt = eng.processBlock(encryptedMessage.toByteArray(), 0, encryptedMessage.size());
     } catch (Exception e) {
-      throw new EvalException(e);
+      /*
+       WARNING: 🐲 👉 THERE BE DRAGONS 👈 🐲
+
+       We are using exception for control flow here and as a result,
+       this is no longer constant time now.
+
+       That is OK though. PKCS#1 v1.5 decryption is intrinsically
+       vulnerable to timing attacks such as adaptive chosen-ciphertext attack (i.e. CCA2)
+
+       Please see:
+        - Bleichenbacher's attack (https://medium.com/@c0D3M/bleichenbacher-attack-explained-bc630f88ff25)
+        - https://en.wikipedia.org/wiki/Adaptive_chosen-ciphertext_attack
+
+       We attempt to mitigate the risk with some constant-time constructs.
+       However, they are not sufficient by themselves: the type of protocol we
+       implement and the way we handle errors make a big difference.
+
+       Specifically, we should make it very hard for the (malicious)
+       party that submitted the ciphertext to quickly understand if decryption
+       succeeded or not.
+
+       To this end, it is recommended that a protocol only encrypts
+       plaintexts of fixed length, that the sentinel is a random byte string
+       of the same length, and that processing continues for as long
+       as possible even if sentinel is returned (i.e. in case of
+       incorrect decryption).
+
+       Given that we are *catching* the exception, there is an additional flow
+       which demonstrates that the decryption has failed, because in a non-exceptional
+       flow, there is no exception that is thrown. Using exceptions for control
+       flow becomes definitively *NOT CONSTANT TIME*, but again, that's *OK* for
+       this specific type of flow that requires sentinel as we are still continuing
+       execution time and this protocol is not secure anyway, we should be using
+       PKCS#1 with OAEP padding instead.
+       */
+      if (len_sentinel == 0) {
+        throw new EvalException(e);
+      }
+      pt = fallback;
     }
 
-    if(expected_pt_len > 0 && pt.length != expected_pt_len) {
+    if(expected_pt_len != -1 && pt.length != expected_pt_len) {
       return FAIL;
     }
     output.add(StarlarkBytes.immutableOf(pt));

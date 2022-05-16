@@ -83,6 +83,7 @@ def _RsaKey(**kwargs):
 
     :undocumented: exportKey, publickey
     """
+    self = larky.mutablestruct(__name__='_RsaKey', __class__=_RsaKey)
 
     def __init__(**kwargs):
         """Build an RSA key.
@@ -110,12 +111,12 @@ def _RsaKey(**kwargs):
             fail('ValueError: Some RSA components are missing')
         __dict__ = {}
         for component, value in kwargs.items():
-            __dict__["_" + component] = Integer(value)
+            setattr(self, "_" + component, Integer(value))
         if sets.is_equal(input_set, private_set):
-            __dict__['_dp'] = __dict__['_d'].__int__() % (__dict__['_p'].__int__() - 1)  # = (e⁻¹) mod (p-1)
-            __dict__['_dq'] = __dict__['_d'].__int__() % (__dict__['_q'].__int__() - 1)  # = (e⁻¹) mod (q-1)
+            self._dp = self._d.__int__() % (self._p.__int__() - 1)  # = (e⁻¹) mod (p-1)
+            self._dq = self._d.__int__() % (self._q.__int__() - 1)  # = (e⁻¹) mod (q-1)
 
-        return larky.mutablestruct(**__dict__)
+        return self
 
     self = __init__(**kwargs)
 
