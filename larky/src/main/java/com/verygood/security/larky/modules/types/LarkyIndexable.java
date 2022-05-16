@@ -54,13 +54,13 @@ public interface LarkyIndexable extends LarkyObject, StarlarkIndexable.Threaded 
       thisLeft
         ? (StarlarkCallable) ((LarkyIndexable) rhs).get__contains__()
         : (StarlarkCallable) lhs.get__contains__();
-    if (__contains__ == null) {
-      throw Starlark.errorf(
-        "unsupported binary operation: %s %s %s", Starlark.type(rhs), TokenKind.IN, typeName());
+    if (__contains__ != null) {
+      return thisLeft
+               ? (boolean) ((LarkyIndexable) rhs).invoke(thread, __contains__, ImmutableList.of(lhs), EMPTY_KWARGS)
+               : (boolean) lhs.invoke(thread, __contains__, ImmutableList.of(rhs), EMPTY_KWARGS);
     }
-    return thisLeft
-             ? (boolean) ((LarkyIndexable) rhs).invoke(thread, __contains__, ImmutableList.of(lhs), EMPTY_KWARGS)
-             : (boolean) lhs.invoke(thread, __contains__, ImmutableList.of(rhs), EMPTY_KWARGS);
+    throw Starlark.errorf(
+      "unsupported binary operation: %s %s %s", Starlark.type(rhs), TokenKind.IN, typeName());
   }
 
 }

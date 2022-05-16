@@ -3,6 +3,7 @@ package com.verygood.security.larky.modules.globals;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
 import com.verygood.security.larky.modules.types.LarkyCounter;
+import com.verygood.security.larky.objects.type.TypeClassLookup;
 import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
@@ -171,6 +172,14 @@ public final class LarkyGlobals {
       return ((StarlarkCallable) obj).getName();
     }
     return Starlark.type(obj);
+  }
+
+  @StarlarkMethod(
+        name = "_type_class",
+        parameters = {@Param(name="obj")},
+        useStarlarkThread = true)
+  public Object typeClass(Object obj, StarlarkThread thread) {
+    return TypeClassLookup.pythonLikeBehavior(obj, thread);
   }
 
 }
