@@ -1,10 +1,13 @@
 """Text wrapping and filling.
 """
-
 load("@stdlib//builtins", builtins="builtins")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky",
+     WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION",
+     larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
+load("@stdlib//types", types="types")
+load("@stdlib//string", string="string")
 load("@vendor//option/result", Error="Error")
 
 __all__ = ['TextWrapper', 'wrap', 'fill', 'dedent', 'indent', 'shorten']
@@ -16,19 +19,9 @@ map = builtins.map
 # whitespace characters.  The main reason for doing this is that
 # some Unicode spaces (like \u00a0) are non-breaking whitespaces.
 _whitespace = '\t\n\x0b\x0c\r '
-def TextWrapper(width=70,
-             initial_indent="",
-             subsequent_indent="",
-             expand_tabs=True,
-             replace_whitespace=True,
-             fix_sentence_endings=False,
-             break_long_words=True,
-             drop_whitespace=True,
-             break_on_hyphens=True,
-             tabsize=8,
-             *,
-             max_lines=None,
-             placeholder=' [...]'):
+
+
+def _class_TextWrapper():
     """
     Object for wrapping/filling text.  The public interface consists of
     the wrap() and fill() methods; the other methods are just there for
@@ -77,7 +70,9 @@ def TextWrapper(width=70,
         Append to the last line of truncated text.
     """
 
-    unicode_whitespace_trans = dict.fromkeys(map(ord, _whitespace), ord(' '))
+    unicode_whitespace_trans = dict()
+    for key in map(ord, iter(_whitespace)):
+        unicode_whitespace_trans[key] = ord(' ')
 
     # This funky little regex is just the trick for splitting
     # text up into word-wrappable chunks.  E.g.
@@ -89,25 +84,26 @@ def TextWrapper(width=70,
     letter = r'[^\d\W]'
     whitespace = r'[%s]' % re.escape(_whitespace)
     nowhitespace = '[^' + whitespace[1:]
-    wordsep_re = re.compile(r'''
-        ( # any whitespace
-          %(ws)s+
-        | # em-dash between words
-          (?<=%(wp)s) -{2,} (?=\w)
-        | # word, possibly hyphenated
-          %(nws)s+? (?:
-            # hyphenated word
-              -(?: (?<=%(lt)s{2}-) | (?<=%(lt)s-%(lt)s-))
-              (?= %(lt)s -? %(lt)s)
-            | # end of word
-              (?=%(ws)s|\Z)
-            | # em-dash
-              (?<=%(wp)s) (?=-{2,}\w)
-            )
-        )''' % {'wp': word_punct, 'lt': letter,
-                'ws': whitespace, 'nws': nowhitespace},
-        re.VERBOSE)
-
+    # wordsep_re = re.compile(r'''
+    #     ( # any whitespace
+    #       {2}s+
+    #     | # em-dash between words
+    #       (?<={0}s) -{{2,}} (?=\w)
+    #     | # word, possibly hyphenated
+    #       {3}s+? (?:
+    #         # hyphenated word
+    #           -(?: (?<={1}s{2}-) | (?<={1}s-{1}s-))
+    #           (?= {1}s -? {1}s)
+    #         | # end of word
+    #           (?={2}s|\Z)
+    #         | # em-dash
+    #           (?<={0}s) (?=-{{2,}}\w)
+    #         )
+    #     )'''.format(word_punct, letter, whitespace, nowhitespace),
+    #     re.VERBOSE)
+    chunkSeparatorPattern = re.compile(r'((?:--+)|\s+)')
+    hyphenatedWordPattern = re.compile(r'^(\w+-)\w')
+    simpleChunkSeparatorPattern = re.compile(r'(\s+)')
     # This less funky little regex just split on recognized spaces. E.g.
     #   "Hello there -- you goof-ball, use the -b option!"
     # splits into
@@ -116,24 +112,24 @@ def TextWrapper(width=70,
 
     # XXX this is not locale- or charset-aware -- string.lowercase
     # is US-ASCII only (and therefore English-only)
-    sentence_end_re = re.compile((r'[a-z]' +             # lowercase letter
-                                 r'[\.\!\?]' +             # lowercase letter
-                                 r'[\"\']?' +             # lowercase letter
-                                 r'\Z'))               # end of chunk
-    self = larky.mutablestruct(__name__='TextWrapper', __class__=TextWrapper)
+    sentence_end_re = re.compile((r'[a-z]' +  # lowercase letter
+                                  r'[\.\!\?]' +  # lowercase letter
+                                  r'[\"\']?'))  # lowercase letter
+                                  # r'\Z'))     # end of chunk
 
-    def __init__(width,
-                 initial_indent,
-                 subsequent_indent,
-                 expand_tabs,
-                 replace_whitespace,
-                 fix_sentence_endings,
-                 break_long_words,
-                 drop_whitespace,
-                 break_on_hyphens,
-                 tabsize,
-                 max_lines,
-                 placeholder):
+    def __init__(self,
+                 width=70,
+                 initial_indent="",
+                 subsequent_indent="",
+                 expand_tabs=True,
+                 replace_whitespace=True,
+                 fix_sentence_endings=False,
+                 break_long_words=True,
+                 drop_whitespace=True,
+                 break_on_hyphens=True,
+                 tabsize=8,
+                 max_lines=None,
+                 placeholder=' [...]'):
         self.width = width
         self.initial_indent = initial_indent
         self.subsequent_indent = subsequent_indent
@@ -146,14 +142,11 @@ def TextWrapper(width=70,
         self.tabsize = tabsize
         self.max_lines = max_lines
         self.placeholder = placeholder
-        return self
-    self = __init__(width, initial_indent, subsequent_indent, expand_tabs, replace_whitespace, fix_sentence_endings, break_long_words, drop_whitespace, break_on_hyphens, tabsize, max_lines, placeholder)
-
 
     # -- Private methods -----------------------------------------------
     # (possibly useful for subclasses to override)
 
-    def _munge_whitespace(text):
+    def _munge_whitespace(self, text):
         """_munge_whitespace(text : string) -> string
 
         Munge whitespace in text: expand tabs and convert all other
@@ -161,14 +154,12 @@ def TextWrapper(width=70,
         becomes " foo    bar  baz".
         """
         if self.expand_tabs:
-            text = text.expandtabs(self.tabsize)
+            text = string.expandtabs(text, self.tabsize)
         if self.replace_whitespace:
-            text = text.translate(self.unicode_whitespace_trans)
+            text = string.translate(text, self.unicode_whitespace_trans)
         return text
-    self._munge_whitespace = _munge_whitespace
 
-
-    def _split(text):
+    def _split(self, text):
         """_split(text : string) -> [string]
 
         Split the text to wrap into indivisible chunks.  Chunks are
@@ -183,15 +174,33 @@ def TextWrapper(width=70,
           'use', ' ', 'the', ' ', '-b', ' ', option!'
         otherwise.
         """
+        # This is not particularly beautiful nor efficient, but the lack
+        # of look-ahead and -behind in the RE2 specification causes trouble
+        # for us here. This should work, though ;)
         if self.break_on_hyphens == True:
-            chunks = self.wordsep_re.split(text)
+            intermediateChunks = chunkSeparatorPattern.split(text)
+            # chunks = self.wordsep_re.split(text)
+            chunks = []
+            for c in intermediateChunks:
+                if not hyphenatedWordPattern.match(c):
+                    chunks.append(c)
+                    continue
+
+                hyphen_index = c.index('-')
+                for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                    if hyphen_index == -1 or hyphen_index == (len(c) - 1):
+                        break
+                    chunks.append(c[0:hyphen_index+1])
+                    c = c[hyphen_index+1:]
+                    hyphen_index = c.index('-')
+                if len(c) > 0:
+                    chunks.append(c)
         else:
             chunks = self.wordsep_simple_re.split(text)
         chunks = [c for c in chunks if c]
         return chunks
-    self._split = _split
 
-    def _fix_sentence_endings(chunks):
+    def _fix_sentence_endings(self, chunks):
         """_fix_sentence_endings(chunks : [string])
 
         Correct for sentence endings buried in 'chunks'.  Eg. when the
@@ -203,16 +212,15 @@ def TextWrapper(width=70,
         i = 0
         patsearch = self.sentence_end_re.search
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-            if i >= len(chunks)-1:
+            if i >= len(chunks) - 1:
                 break
-            if chunks[i+1] == " " and patsearch(chunks[i]):
-                chunks[i+1] = "  "
+            if chunks[i + 1] == " " and patsearch(chunks[i]):
+                chunks[i + 1] = "  "
                 i += 2
             else:
                 i += 1
-    self._fix_sentence_endings = _fix_sentence_endings
 
-    def _handle_long_word(reversed_chunks, cur_line, cur_len, width):
+    def _handle_long_word(self, reversed_chunks, cur_line, cur_len, width):
         """_handle_long_word(chunks : [string],
                              cur_line : [string],
                              cur_len : int, width : int)
@@ -252,9 +260,8 @@ def TextWrapper(width=70,
         # main loop of _wrap_chunks(), we'll wind up here again, but
         # cur_len will be zero, so the next line will be entirely
         # devoted to the long word that we can't handle right now.
-    self._handle_long_word = _handle_long_word
 
-    def _wrap_chunks(chunks):
+    def _wrap_chunks(self, chunks):
         """_wrap_chunks(chunks : [string]) -> [string]
 
         Wrap a sequence of text chunks and return a list of lines of
@@ -280,7 +287,7 @@ def TextWrapper(width=70,
 
         # Arrange in reverse order so items can be efficiently popped
         # from a stack of chucks.
-        chunks.reverse()
+        chunks = reversed(chunks)
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if not chunks:
                 break
@@ -326,15 +333,15 @@ def TextWrapper(width=70,
             # If the last chunk on this line is all whitespace, drop it.
             if self.drop_whitespace and cur_line and cur_line[-1].strip() == '':
                 cur_len -= len(cur_line[-1])
-                operator.delitem(cur_line, -1)
+                cur_line.pop(-1)
 
             if cur_line:
                 if (self.max_lines == None or
-                    len(lines) + 1 < self.max_lines or
-                    (not chunks or
-                     self.drop_whitespace and
-                     len(chunks) == 1 and
-                     not chunks[0].strip()) and cur_len <= width):
+                        len(lines) + 1 < self.max_lines or
+                        (not chunks or
+                         self.drop_whitespace and
+                         len(chunks) == 1 and
+                         not chunks[0].strip()) and cur_len <= width):
                     # Convert current line back to a string and store it in
                     # list of all lines (return value).
                     lines.append(indent + ''.join(cur_line))
@@ -343,25 +350,24 @@ def TextWrapper(width=70,
                         if not cur_line:
                             break
                         if (cur_line[-1].strip() and
-                            cur_len + len(self.placeholder) <= width):
+                                cur_len + len(self.placeholder) <= width):
                             cur_line.append(self.placeholder)
                             lines.append(indent + ''.join(cur_line))
                             break
                         cur_len -= len(cur_line[-1])
-                        operator.delitem(cur_line, -1)
+                        cur_line.pop(-1)
+                        # operator.delitem(cur_line, -1)
                     break
 
         return lines
-    self._wrap_chunks = _wrap_chunks
 
-    def _split_chunks(text):
+    def _split_chunks(self, text):
         text = self._munge_whitespace(text)
         return self._split(text)
-    self._split_chunks = _split_chunks
 
     # -- Public interface ----------------------------------------------
 
-    def wrap(text):
+    def wrap(self, text):
         """wrap(text : string) -> [string]
 
         Reformat the single paragraph in 'text' so it fits in lines of
@@ -374,9 +380,8 @@ def TextWrapper(width=70,
         if self.fix_sentence_endings:
             self._fix_sentence_endings(chunks)
         return self._wrap_chunks(chunks)
-    self.wrap = wrap
 
-    def fill(text):
+    def fill(self, text):
         """fill(text : string) -> string
 
         Reformat the single paragraph in 'text' to fit in lines of no
@@ -384,8 +389,30 @@ def TextWrapper(width=70,
         containing the entire wrapped paragraph.
         """
         return "\n".join(self.wrap(text))
-    self.fill = fill
-    return self
+
+    __ns = {
+        'unicode_whitespace_trans': unicode_whitespace_trans,
+        'word_punct': word_punct,
+        'letter': letter,
+        'whitespace': whitespace,
+        'nowhitespace': nowhitespace,
+        # 'wordsep_re': wordsep_re,
+        'wordsep_simple_re': wordsep_simple_re,
+        'sentence_end_re': sentence_end_re,
+        '__init__': __init__,
+        '_munge_whitespace': _munge_whitespace,
+        '_split': _split,
+        '_fix_sentence_endings': _fix_sentence_endings,
+        '_handle_long_word': _handle_long_word,
+        '_wrap_chunks': _wrap_chunks,
+        '_split_chunks': _split_chunks,
+        'wrap': wrap,
+        'fill': fill,
+    }
+    return types.new_class('TextWrapper', (), {}, lambda x: x.update(__ns))
+
+
+TextWrapper = _class_TextWrapper()
 
 
 # -- Convenience interface ---------------------------------------------
@@ -403,6 +430,7 @@ def wrap(text, width=70, **kwargs):
     w = TextWrapper(width=width, **kwargs)
     return w.wrap(text)
 
+
 def fill(text, width=70, **kwargs):
     """Fill a single paragraph of text, returning a new string.
 
@@ -414,6 +442,7 @@ def fill(text, width=70, **kwargs):
     """
     w = TextWrapper(width=width, **kwargs)
     return w.fill(text)
+
 
 def shorten(text, width, **kwargs):
     """Collapse and truncate the given text to fit in the given width.
@@ -435,6 +464,7 @@ def shorten(text, width, **kwargs):
 
 _whitespace_only_re = re.compile('^[ \t]+$', re.MULTILINE)
 _leading_whitespace_re = re.compile('(^[ \t]*)(?:[^ \t\n])', re.MULTILINE)
+
 
 def dedent(text):
     """Remove any common leading whitespace from every line in `text`.
@@ -502,6 +532,7 @@ def indent(text, prefix, predicate=None):
     def prefixed_lines():
         for line in text.splitlines(True):
             return (prefix + line if predicate(line) else line)
+
     return ''.join(prefixed_lines())
 
 

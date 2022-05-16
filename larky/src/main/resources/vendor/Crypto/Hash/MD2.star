@@ -1,4 +1,5 @@
 load("@stdlib//larky", larky="larky")
+load("@stdlib//types", types="types")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
@@ -24,7 +25,7 @@ def MD2Hash(data=None):
 
         :ivar digest_size: the size in bytes of the resulting hash
         :vartype digest_size: integer
-    
+
     """
     def __init__(data=None):
         """
@@ -51,9 +52,9 @@ def MD2Hash(data=None):
 
                 Args:
                     data (byte string/byte array/memoryview): The next chunk of the message being hashed.
-        
+
         """
-        if not data:
+        if not types.is_bytelike(data):
             fail("TypeError: object supporting the buffer API required")
         self._state.update(data)
 
@@ -66,7 +67,7 @@ def MD2Hash(data=None):
                 :return: The hash digest, computed over the data processed so far.
                          Binary form.
                 :rtype: byte string
-        
+
         """
         return self._state.digest()
     self.digest = digest
@@ -78,7 +79,7 @@ def MD2Hash(data=None):
                 :return: The hash digest, computed over the data processed so far.
                          Hexadecimal encoded.
                 :rtype: string
-        
+
         """
         return tostr(hexlify(self.digest()))
     self.hexdigest = hexdigest
@@ -93,7 +94,7 @@ def MD2Hash(data=None):
                 share a common initial substring.
 
                 :return: A hash object of the same type
-        
+
         """
         h = MD2Hash()
         h._state = self._state.copy()
@@ -111,7 +112,7 @@ def MD2Hash(data=None):
             :type data: bytes/bytearray/memoryview
 
             :Return: A :class:`MD2Hash` hash object
-    
+
         """
         return MD2Hash(data)
     self.new = new
