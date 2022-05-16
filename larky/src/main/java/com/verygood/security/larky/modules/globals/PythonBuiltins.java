@@ -14,6 +14,7 @@ import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.modules.types.results.LarkyIndexError;
 import com.verygood.security.larky.modules.types.results.LarkyStopIteration;
+import com.verygood.security.larky.objects.PyObject;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
@@ -36,6 +37,7 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.spelling.SpellChecker;
 
 
 /**
@@ -377,20 +379,48 @@ public final class PythonBuiltins {
     useStarlarkThread = true)
   public Object getattr(Object obj, String name, Object defaultValue, StarlarkThread thread)
     throws EvalException, InterruptedException {
-    if (LarkyObject.class.isAssignableFrom(obj.getClass())) {
-      // if there's an object with a __getattr__, it will be invoked..
-      Object getAttrMethod = ((LarkyObject) obj).getField(PyProtocols.__GETATTR__);
-      if (getAttrMethod != null) {
-        Object res = Starlark.call(thread, getAttrMethod, Tuple.of(name), Dict.empty());
-        return (res != null) ? res : defaultValue;
+    Object result = defaultValue;
+    if (obj instanceof LarkyObject) {
+      Object res;
+      try {
+        if (obj instanceof PyObject) {
+          res = ((PyObject) obj).getField(name, thread);
+        } else {
+          // TODO: delete all this code when merging LarkyObject into PyObject
+          res = ((LarkyObject) obj).getField(name, thread);
+          if (res == null) {
+            // if there's an object with a __getattr__, it will be invoked..
+            Object getAttrMethod = ((LarkyObject) obj).getField(PyProtocols.__GETATTR__);
+            if (getAttrMethod != null) {
+              res = Starlark.call(thread, getAttrMethod, Tuple.of(name), Dict.empty());
+            }
+          }
+        }
+      } catch (Starlark.UncheckedEvalException | StarlarkEvalWrapper.Exc.RuntimeEvalException ex) {
+        throw new EvalException(ex.getCause());
       }
+      result = res != null ? res : defaultValue;
     }
-    return Starlark.getattr(
-      thread.mutability(),
-      thread.getSemantics(),
-      obj,
-      name,
-      defaultValue == Starlark.UNBOUND ? null : defaultValue);
+
+    if (result == defaultValue) {
+      result = Starlark.getattr(
+        thread.mutability(),
+        thread.getSemantics(),
+        obj,
+        name,
+        defaultValue == Starlark.UNBOUND ? null : defaultValue);
+    }
+
+    if (result == Starlark.UNBOUND) {
+      throw Starlark.errorf(
+        "'%s' value has no field or method '%s'%s",
+        StarlarkUtil.richType(obj),
+        name,
+        SpellChecker.didYouMean(
+          name,
+          Starlark.dir(thread.mutability(), thread.getSemantics(), name)));
+    }
+    return result;
   }
 
   @StarlarkMethod(
@@ -529,14 +559,14 @@ public final class PythonBuiltins {
     final String typeString;
     if (LarkyIterator.class.isAssignableFrom(x.getClass())) {
       LarkyIterator object = ((LarkyIterator) x);
-      typeString = object.type();
+      typeString = object.typeName();
       // IF LarkyObject has a `__length_hint__()` method, invoke it. Otherwise, ...
       if (object.hasLengthHintMethod()) {
         return (StarlarkInt) object.invoke(object.getLengthHintMethod());
       }
     } else if (LarkyObject.class.isAssignableFrom(x.getClass())) {
       LarkyObject object = ((LarkyObject) x);
-      typeString = object.type();
+      typeString = object.typeName();
 
       // IF LarkyObject has a `__len__()` method, invoke it. Otherwise, ...
       // TODO(mahmoudimus): This should be a sub type of LarkyObject(?) called
@@ -586,7 +616,7 @@ public final class PythonBuiltins {
     } else {
       final String objType;
       if (x instanceof LarkyObject) {
-        objType = ((LarkyObject) x).type();
+        objType = ((LarkyObject) x).typeName();
         try {
           arr = Starlark.toArray(LarkyIterator.from(x, thread));
         } catch (EvalException ex) {

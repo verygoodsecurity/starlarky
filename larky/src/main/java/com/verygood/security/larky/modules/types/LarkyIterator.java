@@ -82,7 +82,8 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
    * Returns the name of the type of LarkyIterator as if by the Starlark expression {@code
    * type(x)}.
    */
-  public String type() {
+  @Override
+  public String typeName() {
     return "iterator";
   }
 
@@ -124,7 +125,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
   @Override
   public void repr(Printer p) {
     p.append("<")
-      .append(type()).append(" at 0x").append(System.identityHashCode(this))
+      .append(typeName()).append(" at 0x").append(System.identityHashCode(this))
       .append(">");
   }
 
@@ -197,7 +198,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
     }
 
     @Override
-    public String type() {
+    public String typeName() {
       return "str_iterator";
     }
   }
@@ -218,7 +219,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
     }
 
     @Override
-    public String type() {
+    public String typeName() {
       return this.type;
     }
 
@@ -262,7 +263,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
         boolean __next__Callable = StarlarkUtil.isCallable(next_func);
         if (!__iter__Callable && !__next__Callable) {
           throw Starlark.errorf("TypeError: '%s'.%s is not callable ",
-            obj.type(),
+            obj.typeName(),
             iter_func == null
               ? PyProtocols.__NEXT__
               : PyProtocols.__ITER__);
@@ -272,7 +273,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
             obj,
             (StarlarkCallable) iter_func,
             (StarlarkCallable) next_func
-          ), obj.type());
+          ), obj.typeName());
       }
       larkIter.setCurrentThread(thread);
       return larkIter;
@@ -300,12 +301,12 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
           throw Starlark.errorf(
             "ValueError: __iter__() on iterator object (%s) are required to return " +
               "themselves (https://docs.python.org/3/reference/datamodel.html#object.__iter__)",
-            obj.type());
+            obj.typeName());
         }
 
         // make sure it has __next__
         if (iterator.getField(PyProtocols.__NEXT__) == null) {
-          throw Starlark.errorf("iter() returned non-iterator of type '%s'", obj.type());
+          throw Starlark.errorf("iter() returned non-iterator of type '%s'", obj.typeName());
         }
       }
       else if(__next__ != null) {
@@ -314,7 +315,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
       else {
         throw Starlark.errorf(
           "TypeError: '%s' is not an iterator (missing %s or %s)",
-          obj.type(),
+          obj.typeName(),
           PyProtocols.__ITER__,
           PyProtocols.__NEXT__
           );
@@ -340,7 +341,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
     }
 
     @Override
-    public String type() {
+    public String typeName() {
       return this.type + "_iterator";
     }
 
@@ -378,20 +379,20 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
       public static LarkyGetItemIterator of(LarkyObject obj, StarlarkThread thread) throws EvalException {
         final Object gi_func = obj.getField(PyProtocols.__GETITEM__);
         if (gi_func == null) {
-          throw Starlark.errorf("TypeError: '%s' object is not iterable", obj.type());
+          throw Starlark.errorf("TypeError: '%s' object is not iterable", obj.typeName());
         } else if (!StarlarkUtil.isCallable(gi_func)) {
-          throw Starlark.errorf("TypeError: '%s'.__getitem__ is not callable ", obj.type());
+          throw Starlark.errorf("TypeError: '%s'.__getitem__ is not callable ", obj.typeName());
         }
 
         final Object len_func = obj.getField(PyProtocols.__LEN__);
         int len = -1;
         if (len_func != null) {
           if (!StarlarkUtil.isCallable(len_func)) {
-            throw Starlark.errorf("TypeError: '%s'.__len__ is not callable ", obj.type());
+            throw Starlark.errorf("TypeError: '%s'.__len__ is not callable ", obj.typeName());
           }
           len = Starlark.toInt(obj.invoke(len_func), "len_func in LarkyGetItemIterator");
         }
-        final LarkyGetItemIterator rval = new LarkyGetItemIterator(() -> gi_func, obj.type(), len);
+        final LarkyGetItemIterator rval = new LarkyGetItemIterator(() -> gi_func, obj.typeName(), len);
         rval.setCurrentThread(thread);
         return rval;
       }
@@ -403,8 +404,13 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
             nextVal = this.invoke(this.iterator_method.get(), Tuple.of(StarlarkInt.of(pos++)));
           }
           catch(EvalException e) {
-            nextVal = null;
-            throw new RuntimeException(e);
+            if (e instanceof LarkyStopIteration) {
+              // NOTE: If an error is thrown here, we will return null
+              nextVal = null;
+            } else {
+              throw new RuntimeException(e);
+            }
+//            throw new RuntimeException(e);
           }
           if (length < 0 && nextVal == LarkyIndexError.getInstance()) {
             // infinite iterator, so check to see if it's an IndexError

@@ -265,6 +265,134 @@ def test_iter_userdefined():
     asserts.assert_fails(lambda: next(z), ".*StopIteration")
 
 
+def _IteratorProxyClass2():
+
+    def __init__(self, i):
+        self.i = i
+
+    def __next__(self):
+        return next(self.i)
+
+    def __iter__(self):
+        return self
+
+    def cls_dict(ns):
+        ns.update({
+            '__init__': __init__,
+            '__next__': __next__,
+            '__iter__': __iter__
+        })
+    return types.new_class('IteratorProxyClass2', (), {}, cls_dict)
+
+
+IteratorProxyClass2 = _IteratorProxyClass2()
+
+
+def _IterableProxyClassOnlyImplements__next__2():
+
+    def __init__(self, i):
+        self.i = iter(i)
+
+    def __next__(self):
+        return next(self.i)
+
+    def cls_dict(ns):
+        ns.update({
+            '__init__': __init__,
+            '__next__': __next__,
+        })
+    return types.new_class('IterableProxyClassOnlyImplements__next__', (), {}, cls_dict)
+
+
+IterableProxyClassOnlyImplements__next__2 = _IterableProxyClassOnlyImplements__next__2()
+
+
+def _SequenceClass_2():
+
+    def __init__(self, n):
+        self.n = n
+
+    def __getitem__(self, i):
+        if (0 <= i) and (i < self.n):
+            return i
+        return IndexError()
+
+    def cls_dict(ns):
+        ns.update({
+            '__init__': __init__,
+            '__getitem__': __getitem__,
+        })
+    return types.new_class('SequenceClass_2', (), {}, cls_dict)
+
+
+SequenceClass_2 = _SequenceClass_2()
+
+
+def test_iter_userdefined2():
+
+    clz = IteratorProxyClass2(iter(range(3)))
+    s_iter = iter(clz)
+    asserts.assert_that(repr(s_iter)).matches(r"<IteratorProxyClass2_iterator at 0x")
+    asserts.assert_that(next(s_iter)).is_equal_to(0)
+    asserts.assert_that(next(s_iter)).is_equal_to(1)
+    asserts.assert_that(next(s_iter)).is_equal_to(2)
+    asserts.assert_fails(lambda: next(s_iter), ".*StopIteration")
+
+    # iter works on the class
+    asserts.assert_that(
+        [x for x in iter(IteratorProxyClass2(iter(range(3))))]
+    ).is_equal_to([0, 1, 2])
+
+    # list takes an iterable
+    asserts.assert_that(
+        list(iter(IteratorProxyClass2(iter(range(3)))))
+    ).is_equal_to([0, 1, 2])
+
+    # mutablestructs are now iterable so iter() is not necessary
+    asserts.assert_that(
+        list(IteratorProxyClass2(iter(range(3))))
+    ).is_equal_to([0, 1, 2])
+
+    z = iter(IteratorProxyClass2(iter(range(3))))
+    for i in range(3):
+        asserts.assert_that(i in z).is_true()
+    asserts.assert_fails(lambda: next(z), ".*StopIteration")
+
+    z = iter(IteratorProxyClass2(iter(range(3))))
+    for i in range(3, 5):
+        asserts.assert_that(i in z).is_false()
+    asserts.assert_fails(lambda: next(z), ".*StopIteration")
+
+    # test next(iterator[, default])
+    asserts.assert_that(next(z, larky.SENTINEL)).is_equal_to(larky.SENTINEL)
+
+    # iter() is not needed to iterate over mutablestruct, since `in` will
+    # create a new iterator, EVERY TIME, if needed.
+
+    z = SequenceClass_2(5)
+    asserts.assert_fails(lambda: next(z),
+                         "TypeError: 'SequenceClass_2' object is not an iterator")
+    for i in range(3):
+       asserts.assert_that(i in z).is_true()  # in works.
+    # assert that state resets
+    asserts.assert_that(list(z)).is_equal_to([0, 1, 2, 3, 4])
+
+    # however, if we want to maintain state, iter() *is needed* for next()
+    # as in Python.
+    z = iter(SequenceClass_2(5))
+    for i in range(5):
+        asserts.assert_that(i).is_equal_to(next(z))
+    asserts.assert_fails(lambda: next(z), ".*StopIteration")
+
+    # if we proxy an iterable and only implement __next__, we can
+    # still call next() on it.
+    z = IterableProxyClassOnlyImplements__next__2(range(3))
+    asserts.assert_that(next(z)).is_equal_to(0)
+    asserts.assert_that(next(z)).is_equal_to(1)
+    asserts.assert_that(next(z)).is_equal_to(2)
+    asserts.assert_fails(lambda: next(z), ".*StopIteration")
+
+
 def test_iter_callable():
     asserts.assert_that(
         list(iter(TwoArgumentIter(), 10))
@@ -328,6 +456,7 @@ def _add_iter_suite(suite):
     suite.addTest(unittest.FunctionTestCase(test_iter_callable))
     suite.addTest(unittest.FunctionTestCase(test_iter_function))
     suite.addTest(unittest.FunctionTestCase(test_iter_function_stop))
+    suite.addTest(unittest.FunctionTestCase(test_iter_userdefined2))
 
     return suite
 # // end test iter() //
