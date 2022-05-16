@@ -1,6 +1,8 @@
 package com.verygood.security.larky.objects;
 
+import com.verygood.security.larky.objects.type.LarkyBaseObjectType;
 import com.verygood.security.larky.objects.type.LarkyType;
+import com.verygood.security.larky.objects.type.LarkyTypeObject;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
@@ -21,7 +23,7 @@ public class LarkyMethod extends LarkyFunction {
 
   public static final LarkyTypeObject TYPE = new LarkyTypeObject(Origin.BUILTIN, "method", Dict.empty());
   static {
-    LarkyType.setupInheritanceHierarchy(TYPE, new LarkyType[]{(LarkyType) LarkyPyObject.getInstance()});
+    LarkyType.setupInheritanceHierarchy(TYPE, new LarkyType[]{(LarkyType) LarkyBaseObjectType.getInstance()});
   }
 
   PyObject im_self;

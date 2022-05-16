@@ -1,20 +1,26 @@
 package com.verygood.security.larky.objects.type;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
+import com.verygood.security.larky.modules.types.LarkyCollection;
+import com.verygood.security.larky.objects.DeleteAttribute;
 import com.verygood.security.larky.objects.GetAttribute;
-import com.verygood.security.larky.objects.LarkyTypeObject;
 import com.verygood.security.larky.objects.PyObject;
+import com.verygood.security.larky.objects.SetAttribute;
 import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
 import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.mro.C3;
+import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.HasBinary;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.StarlarkThread;
@@ -24,7 +30,7 @@ import org.jetbrains.annotations.NotNull;
 
 import lombok.SneakyThrows;
 
-public interface LarkyType extends PyObject {
+public interface LarkyType extends PyObject, LarkyCollection, HasBinary {
 
   @SneakyThrows
   static void setupInheritanceHierarchy(@NotNull LarkyType cls, LarkyType[] parentClasses) {
@@ -76,6 +82,30 @@ public interface LarkyType extends PyObject {
   @Override
   default String __str__() {
     return this.__repr__();
+  }
+
+  @SneakyThrows
+  @Override
+  default Dict<?, ?> __dict__() {
+    // for types, this is a mappingproxy (readonly!)
+    return Dict.cast(
+             StarlarkUtil.valueToStarlark(this.getInternalDictUnsafe()),
+             Object.class,
+             Object.class,
+             "this.__dict__()"
+           );
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")  // safe
+  default <K, V> void setItemUnsafe(K key, V value) throws EvalException {
+    final Map<K, V> dictUnsafe = (Map<K, V>) this.getInternalDictUnsafe();
+    if(dictUnsafe instanceof Dict) {
+      final Dict<K, V> starlarkDictUnsafe = Dict.cast(dictUnsafe, (Class<K>) key.getClass(), (Class<V>) value.getClass(), "LarkyType#setItemUnsafe");
+      starlarkDictUnsafe.putEntry(key, value);
+    } else {
+      dictUnsafe.put(key, value);
+    }
   }
 
   /**
@@ -139,6 +169,44 @@ public interface LarkyType extends PyObject {
     return null;
   }
 
+
+  /**
+   * See <br/>
+   *  <a href="https://github.com/python/cpython/blob/6969eaf4682beb01bc95eeb14f5ce6c01312e297/Objects/typeobject.c#L7314-L7704">python/cpython@Objects/typeobject.c#L7314-L7704</a><br/>
+   *  and <br/>
+   *  <a href="https://stackoverflow.com/a/44994572/133514">Martijn Pieters' answer on StackOverflow</a><br/>
+   *
+   * @param ref the first type to check before going through the MRO
+   * @param name the method name to lookup
+   * @return the method if found, or null otherwise
+   */
+  default PyObject lookupForSuper(LarkyType ref, String name) {
+    PyObject result = null;
+    //
+    Tuple mro = this.getMRO();
+    if (mro != null) {
+      int i;
+      // skip past the start type in the MRO
+      for (i = 0; i < mro.size(); i++) {
+        if (mro.get(i) == ref)
+          break;
+      }
+      i++;
+      // Search for the attribute on the remainder of the MRO
+      for (; i < mro.size(); i++) {
+        Map<String, Object> dict = ((PyObject) mro.get(i)).getInternalDictUnsafe();
+        if (dict != null) {
+          Object obj = dict.get(name);
+          if (obj != null) {
+            result = (PyObject) obj;
+            break;
+          }
+        }
+      }
+    }
+    return result;
+  }
+
   default boolean isSubtypeOf(LarkyType other) {
     boolean result = false;
     if (other == this) {
@@ -170,6 +238,7 @@ public interface LarkyType extends PyObject {
 
     return result;
   }
+
   /**
    * provides attribute read access on
    * this type object and its metatype. This is very like
@@ -231,12 +300,12 @@ public interface LarkyType extends PyObject {
 
   @Override
   default void __setattr__(String name, Object value, StarlarkThread thread) throws EvalException {
-    this.getInternalDictUnsafe().put(name, value);
+    SetAttribute.set(this, name, value, thread);
   }
 
   @Override
   default void __delattr__(String name, StarlarkThread thread) throws EvalException {
-    this.getInternalDictUnsafe().remove(name);
+    DeleteAttribute.delete(this, name, thread);
   }
 
   /**
@@ -252,6 +321,13 @@ public interface LarkyType extends PyObject {
   default boolean isNonDataDescriptor() {
     return LarkyNonDataDescriptor.isNonDataDescriptor(this);
   }
+
+  /**
+   * Will be used to determine if a type is eligible for a special
+   * operation / method.
+   * @return An immutable set of the type's {@link SpecialMethod}s.
+   */
+  ImmutableSet<SpecialMethod> getSpecialMethods();
 
   enum Origin {
     PLACEHOLDER,  // Dummy entry to resolve circular dependencies
