@@ -100,6 +100,25 @@ public final class PyProtocols {
   public static final String __NE__ = "__ne__";
   public static final String __NEXT__ = "__next__";
 
+  public static final String __FLOAT__ = "__float__";
+  public static final String __ABS__ = "__abs__";
+  public static final String __DIVMOD__ = "__divmod__";
+  public static final String __RMATMUL__ = "__rmatmul__";
+  public static final String __RTRUEDIV__ = "__rtruediv__";
+  public static final String __RDIVMOD__ = "__rdivmod__";
+  public static final String __RPOW__ = "__rpow__";
+  public static final String __RLSHIFT__ = "__rlshift__";
+  public static final String __RRSHIFT__ = "__rrshift__";
+  public static final String __RAND__ = "__rand__";
+  public static final String __RXOR__ = "__rxor__";
+  public static final String __ROR__ = "__ror__";
+  public static final String __SUBCLASSHOOK__ = "__subclasshook__";
+  public static final String __INSTANCECHECK__ = "__instancecheck__";
+  public static final String __SUBCLASSCHECK__ = "__subclasscheck__";
+  public static final String __INIT_SUBCLASS__ = "__init_subclass__";
+  public static final String __DIR__ = "__dir__";
+
+
   private PyProtocols() {
   }
 }

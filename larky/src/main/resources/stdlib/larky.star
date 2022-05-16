@@ -191,8 +191,9 @@ def _is_instance(obj, cls):
 
 
 def _is_subclass(klass, classinfo):
-
-    if not getattr(klass, "__class__", None):
+    # if we have a `__class__` attribute and it's false-y
+    #   OR it does not even exist:
+    if not getattr(klass, '__class__', None):
         fail("is_subclass() arg 1 must be a class")
 
     def __issubclass(_kls, _klsinfo):
@@ -206,10 +207,14 @@ def _is_subclass(klass, classinfo):
     if not __is_iterable(classinfo):
         classinfo = [classinfo]
 
-    for kls in classinfo:
-        if __issubclass(kls, kls):
+    for classinfo_entry in classinfo:
+        if __issubclass(klass, classinfo_entry):
             return True
     return False
+
+
+def _type_cls(typ):
+    return _type_class(typ)
 
 
 def translate_bytes(s, original, replace):
@@ -256,11 +261,40 @@ def translate_bytes(s, original, replace):
     # return bytes(translated)
 
 
+# >>> import operator
+# >>> operator.mod("%(z)02X", {'z': 4})
+# '04'
+# print(format({'z': 4}, "%(z)02X"))
+# print(format(4, '02x'))
 def _zfill(x, leading=4):
     if len(str(x)) < leading:
         return (('0' * leading) + str(x))[-leading:]
     else:
         return str(x)
+
+
+def _class_DeterministicGenerator():
+    def __init__(self, func, *args, **kwargs):
+        self.f = func
+        self.args = args
+        self.kwargs = kwargs
+
+    def __getitem__(self, i):
+        r = self.f(i, *self.args, **self.kwargs)
+        if r.is_err and r == StopIteration():
+            return IndexError()
+        return r.unwrap()
+
+    return type(
+        'DeterministicGenerator',
+        (),
+        {
+            '__init__': __init__,
+            '__getitem__': __getitem__
+        })
+
+
+_DeterministicGeneratorCls = _class_DeterministicGenerator()
 
 
 def _DeterministicGenerator(func, *args, **kwargs):
@@ -273,25 +307,7 @@ def _DeterministicGenerator(func, *args, **kwargs):
       `vendor/option/results.star`#`Result` object
     :return: an iterator that iterates over a fixed and deterministic sequence
     """
-    self = _mutablestruct(__name__='DeterministicGenerator',
-                          __class__=_DeterministicGenerator)
-
-    def __init__(func, *args, **kwargs):
-        self.f = func
-        self.args = args
-        self.kwargs = kwargs
-        return self
-
-    self = __init__(func, *args, **kwargs)
-
-    def __getitem__(i):
-        r = self.f(i, *self.args, **self.kwargs)
-        if r.is_err and r == StopIteration():
-            return IndexError()
-        return r.unwrap()
-
-    self.__getitem__ = __getitem__
-    return iter(self)
+    return iter(_DeterministicGeneratorCls(func, *args, **kwargs))
 
 
 def _fromkeys(iterable, value=None):
@@ -388,7 +404,6 @@ def _Peekable(iterator, retain_max_elems=5):
     def putback(*items):
         for item in items:
             self.cache.append(item)
-        self._ensure_size()
         self.rewind(len(items))
 
     self.putback = putback
@@ -420,6 +435,7 @@ larky = _struct(
     impl_function_name=_impl_function_name,
     translate_bytes=translate_bytes,
     DeterministicGenerator=_DeterministicGenerator,
+    type_cls=_type_cls,
     strings=_struct(
         zfill=_zfill,
     ),
