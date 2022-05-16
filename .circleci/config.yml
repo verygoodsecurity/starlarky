@@ -281,7 +281,6 @@ workflows:
   build_and_tests:
     jobs:
       - build-and-test
-      - build-and-test-docker
       - build-dist-linux:
           requires:
             - build-and-test

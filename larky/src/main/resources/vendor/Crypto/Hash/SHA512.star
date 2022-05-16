@@ -18,6 +18,7 @@
 # SOFTWARE.
 # ===================================================================
 load("@stdlib//binascii", hexlify="hexlify")
+load("@stdlib//types", types="types")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", bord="bord", tostr="tostr")
@@ -67,7 +68,7 @@ def SHA512Hash(data=None, truncate=None):
         if data:
             self_['_state'].update(data)
 
-        return larky.mutablestruct(__class__="SHA512Hash", **self_)
+        return larky.mutablestruct(__name__="SHA512Hash", __class__=SHA512Hash, **self_)
 
     self = __init__(data, truncate)
 
@@ -81,7 +82,7 @@ def SHA512Hash(data=None, truncate=None):
             data (byte string/byte array/memoryview): The next chunk of the message being hashed.
         """
 
-        if not data:
+        if not types.is_bytelike(data):
             fail("TypeError: object supporting the buffer API required")
         self._state.update(data)
     self.update = update
