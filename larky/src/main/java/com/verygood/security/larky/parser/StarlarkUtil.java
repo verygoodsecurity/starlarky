@@ -28,6 +28,7 @@ import java.util.Map;
 
 import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
+import com.verygood.security.larky.objects.PyObject;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -269,6 +270,9 @@ public final class StarlarkUtil {
    * This respects the __NAME__ and __CLASS__ parameters otherwise falls back to {@code Starlark.type()}
    */
   public static String richType(Object x) {
+    if (x instanceof PyObject) {
+      return ((PyObject)x).typeName();
+    }
     if (x instanceof LarkyObject) {
       LarkyObject obj = ((LarkyObject) x);
       try {
