@@ -101,6 +101,8 @@ public abstract class GetAttribute {
    * @throws EvalException if no such attribute
    */
   public static Object get(PyObject obj, String attr, StarlarkThread thread) throws EvalException {
+    // important to note this: https://docs.python.org/3/reference/datamodel.html#special-method-lookup
+    // we should bypass the instance dictionary if it's a SpecialMethod
     Object value;
     if ((value = StarlarkEvalWrapper.getAttrFromMethodAnnotations(thread, obj, attr)) != null) {
       return value;
@@ -160,25 +162,35 @@ public abstract class GetAttribute {
     }
     LarkyType metaClsType = obj.typeClass();
     // Look up the name in the type (null if not found).
-    Object metaAttr = metaClsType.lookup(attr);
     if ((value = onDataDescriptor(attr, obj, metaClsType, thread)) != null) {
      return value;
     }
     /*
-    * If we are here, then metaAttr is either:
+    * If we are here, then attr is either:
     *  - the value from the type, or
     *  - a non-data descriptor, or
     *  - null if the attribute was not found.
     *
-    * Is {@code attr} in the current type's instance dictionary?
+    * Is {@code attr} in the current type's instance dictionary *AND* is it a descriptor?
     */
     if ((value = onNonDataDescriptor(attr, null, obj, thread, false)) != null) {
      return value;
     }
     /*
-    * Not in the object instance dictionary.
-    * What's left now is to check to see
-    * - metaAttr is not null
+    * Ok, attr is *NOT* a descriptor, but could still be:
+    *  - the value from the type,
+    *  - null if the attribute was not found.
+    *
+    * Is {@code attr} in the current type's instance dictionary?
+    */
+    if((value = obj.lookup(attr)) != null) {
+      // we found it! return
+      return value;
+    }
+    /*
+    * Not in the current type's instance dictionary.
+    * What's left now is to check to see if attr on the metatype:
+    * - is not null
     * - it is a non-data descriptor
     * - lookup on type finds the value
     */
@@ -191,8 +203,8 @@ public abstract class GetAttribute {
     * - not a descriptor
     * Therefore, it is the return value!
     */
-    if (metaAttr != null) {
-     return metaAttr;
+    if ((value = metaClsType.lookup(attr)) != null) {
+     return value;
     }
     // The chain of checks failed, no attribute exists.
     throw Starlark.errorf("AttributeError: %s has no attribute '%s'", metaClsType, attr);

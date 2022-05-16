@@ -4,9 +4,12 @@ package com.verygood.security.larky.objects;
 import com.verygood.security.larky.objects.descriptor.LarkyDescriptor;
 import com.verygood.security.larky.objects.type.ForwardingLarkyType;
 import com.verygood.security.larky.objects.type.LarkyType;
+import com.verygood.security.larky.objects.type.LarkyTypeObject;
 
+import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
@@ -26,13 +29,9 @@ import org.jetbrains.annotations.Nullable;
  * <blockquote><pre>This means that functions are non-data descriptors that return bound methods during dotted lookup
  * from an instance</pre></blockquote>
  */
+@StarlarkBuiltin(name = "function")
 public class LarkyFunction extends LarkyDescriptor implements ForwardingLarkyType, StarlarkCallable {
-  // TODO: move this into LarkyTypeObject into a registry?
-  public static final LarkyTypeObject TYPE = new LarkyTypeObject(Origin.BUILTIN, "function", Dict.empty());
-
-  static {
-    LarkyType.setupInheritanceHierarchy(TYPE, new LarkyType[]{(LarkyType) LarkyPyObject.getInstance()});
-  }
+  public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType("function");
 
   @Nullable LarkyType im_class;
 
@@ -42,13 +41,13 @@ public class LarkyFunction extends LarkyDescriptor implements ForwardingLarkyTyp
   }
 
   @Contract("_, _ -> new")
-  public static @NotNull LarkyFunction create(@NotNull StarlarkFunction function, @NotNull StarlarkThread thread) {
+  public static @NotNull LarkyFunction create(@NotNull StarlarkCallable function, @NotNull StarlarkThread thread) {
     return new LarkyFunction(TYPE, function, thread);
   }
 
   @Override
   public LarkyType delegate() {
-    return TYPE;
+    return __class__();
   }
 
   @Override
@@ -77,6 +76,10 @@ public class LarkyFunction extends LarkyDescriptor implements ForwardingLarkyTyp
     return __repr__();
   }
 
+  @Override
+  public void debugPrint(Printer p) {
+    repr(p);
+  }
 
   @Override
   public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) throws EvalException, InterruptedException {

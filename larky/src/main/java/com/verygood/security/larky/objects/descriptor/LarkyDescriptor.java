@@ -25,8 +25,8 @@ import org.jetbrains.annotations.Nullable;
 public abstract class LarkyDescriptor extends LarkyPyObject implements LarkyBindable, LarkyNonDataDescriptor {
 
   /**
-   * Name of the object described, e.g. "__add__" or "to_bytes". This is exposed to
-   * Larky as {@code __name__} via {@link #descName()}.
+   * Name of the object described, e.g. "__add__" or "to_bytes". This is
+   * exposed to via {@link #descName()}.
    */
   final protected String name;
 
@@ -116,7 +116,6 @@ public abstract class LarkyDescriptor extends LarkyPyObject implements LarkyBind
     return ImmutableSet.of("__get__");
   }
 
-  @StarlarkMethod(name = "__name__")
   public String descName() {
     return name;
   }
