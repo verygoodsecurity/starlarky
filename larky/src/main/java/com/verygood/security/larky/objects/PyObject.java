@@ -3,7 +3,7 @@ package com.verygood.security.larky.objects;
 import java.util.Map;
 
 import com.verygood.security.larky.modules.types.LarkyObject;
-import com.verygood.security.larky.parser.StarlarkUtil;
+import com.verygood.security.larky.objects.type.LarkyType;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -15,29 +15,31 @@ import net.starlark.java.eval.Tuple;
 
 import org.jetbrains.annotations.Nullable;
 
-import lombok.SneakyThrows;
-
 /**
  * An attempt to faithfully implement https://docs.python.org/3/reference/datamodel.html
  */
 public interface PyObject extends LarkyObject {
 
-  @SneakyThrows
+
   @StarlarkMethod(name = "__dict__", structField = true)
-  default Dict<?, ?> __dict__() {
-    return Dict.cast(
-      StarlarkUtil.valueToStarlark(this.getInternalDictUnsafe()),
-      Object.class,
-      Object.class,
-      "this.__dict__()"
-    );
-  }
+  Dict<?, ?> __dict__();
 
   /**
    * @return The internal dictionary of this object
    */
   Map<String, Object> getInternalDictUnsafe();
 
+  <K, V> void setItemUnsafe(K key, V value) throws EvalException;
+
+  LarkyType.Origin getOrigin();
+
+  /**
+   * Return the Python type for this object.
+   */
+  LarkyType typeClass();
+
+  @StarlarkMethod(name = "__class__", structField = true)
+  LarkyType __class__();
 
   /**
    * Return the Python type name for this object.
@@ -91,6 +93,9 @@ public interface PyObject extends LarkyObject {
 
   String __str__();
 
+  default boolean isBuiltin() {
+    return getOrigin().isBuiltin();
+  }
 
   /**
    * 3.3.2. Customizing attribute access
@@ -103,7 +108,7 @@ public interface PyObject extends LarkyObject {
     try {
       getattr_ = this.__getattribute__(name, thread);
     } catch (EvalException ex) {
-      getattr_ = null;
+      getattr_ = GetAttribute.dunderGetAttr(this, name, thread, /*throwExc=*/false);
     }
     return getattr_;
   }
