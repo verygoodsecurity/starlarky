@@ -38,6 +38,7 @@ import org.jetbrains.annotations.VisibleForTesting;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 
 /**
  * An utility class for traversing and evaluating the config file dependency graph.
@@ -50,9 +51,14 @@ public final class LarkyEvaluator {
   private final Map<String, Module> loaded = new HashMap<>();
   private final Reporter reporter;
   // Predeclared environment shared by all files (modules) loaded.
+  @Getter
   private final ImmutableMap<String, Object> environment;
+  @Getter
   private final ModuleSupplier.ModuleSet moduleSet;
   private final LarkyScript.StarlarkMode validationMode;
+
+  @Getter
+  private final StarlarkSemantics larkySemantics;
 
   public LarkyEvaluator(LarkyScript larkyScript, Console console) {
     this(larkyScript, larkyScript.getModuleSet(), console);
@@ -62,6 +68,7 @@ public final class LarkyEvaluator {
     this.reporter = new Reporter(checkNotNull(console));
     this.moduleSet = checkNotNull(moduleSet);
     this.validationMode = larkyScript.getValidation();
+    this.larkySemantics = larkyScript.getLarkySemantics();
     //todo(mahmoudimus): convert to builder pattern
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
   }
@@ -114,8 +121,7 @@ public final class LarkyEvaluator {
     pending.add(content.path());
 
     // Make the modules available as predeclared bindings.
-    StarlarkSemantics semantics = StarlarkSemantics.DEFAULT;
-    module = Module.withPredeclared(semantics, environment);
+    module = Module.withPredeclared(getLarkySemantics(), getEnvironment());
 
     // parse & compile
     FileOptions options = getStarlarkValidationOptions();
@@ -127,7 +133,7 @@ public final class LarkyEvaluator {
 
     // execute
     try (Mutability mu = Mutability.create("LarkyModules")) {
-      StarlarkThread thread = new StarlarkThread(mu, semantics);
+      StarlarkThread thread = new StarlarkThread(mu, getLarkySemantics());
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
@@ -143,10 +149,6 @@ public final class LarkyEvaluator {
       .output(starlarkOutput)
       .module(module)
       .build();
-  }
-
-  public ModuleSupplier.ModuleSet getModuleSet() {
-    return moduleSet;
   }
 
   @VisibleForTesting
@@ -203,11 +205,11 @@ public final class LarkyEvaluator {
     }
 
     private boolean inEvaluatorEnvironment(String moduleToLoad) {
-      return evaluator.environment.containsKey(moduleToLoad);
+      return evaluator.getEnvironment().containsKey(moduleToLoad);
     }
 
     private Module fromEvaluatorEnvironment(String moduleToLoad) {
-      return (Module) evaluator.environment.get(moduleToLoad);
+      return (Module) evaluator.getEnvironment().get(moduleToLoad);
     }
 
     private boolean isNativeJavaModule(String moduleToLoad) {
@@ -218,7 +220,7 @@ public final class LarkyEvaluator {
     @NotNull
     private Module fromNativeModule(String moduleToLoad) throws IOException, InterruptedException {
       Module newModule = Module.withPredeclared(
-          StarlarkSemantics.DEFAULT,
+          evaluator.getLarkySemantics(),
           ImmutableMap.of("_" + moduleToLoad, nativeJavaModule.get(moduleToLoad)));
       newModule.setClientData(moduleToLoad);
 
@@ -229,15 +231,17 @@ public final class LarkyEvaluator {
       // to export the methods.
       // TODO(mahmoudimus): Move this to ModuleSupplier?
       try (Mutability mu = Mutability.create("InMemoryNativeModule")) {
-        StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
-        Starlark.execFile(
+        StarlarkThread thread = new StarlarkThread(mu, evaluator.getLarkySemantics());
+        try {
+          Starlark.execFile(
             ParserInput.fromString(String.format("%1$s = _%1$s", moduleToLoad), "<builtin>"),
-            this.evaluator.getStarlarkValidationOptions(),
+            evaluator.getStarlarkValidationOptions(),
             newModule,
             thread
-        );
-      } catch (InterruptedException | EvalException | SyntaxError.Exception e) {
-        throw new RuntimeException(e);
+          );
+        } catch (InterruptedException | EvalException | SyntaxError.Exception e) {
+          throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, thread);
+        }
       }
       return newModule;
     }
@@ -279,19 +283,19 @@ public final class LarkyEvaluator {
     return prog;
   }
 
-  private FileOptions getStarlarkValidationOptions() {
+  private FileOptions getStarlarkValidationOptions() throws EvalException {
     FileOptions options;
     if (validationMode == LarkyScript.StarlarkMode.STRICT) {
       options = LarkyScript.STARLARK_STRICT_FILE_OPTIONS;
     } else if (validationMode == LarkyScript.StarlarkMode.LOOSE) {
       options = LarkyScript.STARLARK_LOOSE_FILE_OPTIONS;
     } else {
-      throw new RuntimeException("Undefined StarlarkMode: " + validationMode);
+      throw new EvalException("Undefined StarlarkMode: " + validationMode);
     }
     return options;
   }
 
-  private RuntimeException throwCycleError(String cycleElement) {
+  private RuntimeException throwCycleError(String cycleElement) throws EvalException {
     StringBuilder sb = new StringBuilder();
     for (String element : pending) {
       sb.append(element.equals(cycleElement) ? "* " : "  ");
@@ -299,7 +303,7 @@ public final class LarkyEvaluator {
     }
     sb.append("* ").append(cycleElement).append("\n");
     reporter.error("Cycle was detected in the configuration: \n" + sb);
-    throw new RuntimeException("Cycle was detected");
+    throw new EvalException("Cycle was detected");
   }
 
   /**

@@ -30,13 +30,17 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import com.verygood.security.larky.console.Console;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
+import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.syntax.FileOptions;
+
+import lombok.Getter;
 
 /**
  * Loads Larky out of Starlark files.
@@ -66,11 +70,18 @@ public class LarkyScript {
           .build();
 
   // For now all the modules are namespaces. We don't use variables except for 'core'.
+  @Getter
   private final Iterable<Class<?>> builtinModules;
+  @Getter
   private final StarlarkMode validation;
+  @Getter
   private final Map<String, Object> globals;
+  @Getter
   private final ModuleSet moduleSet;
+  @Getter
+  private final StarlarkSemantics larkySemantics;
 
+  // TODO: convert to builder
   public LarkyScript(StarlarkMode validation) {
     this(validation, new ModuleSupplier().create());
   }
@@ -91,6 +102,11 @@ public class LarkyScript {
   }
 
   public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals, ModuleSet moduleSet) {
+    this(builtinModules, validation, globals, moduleSet, LarkySemantics.LARKY_SEMANTICS);
+  }
+
+  public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals, ModuleSet moduleSet, StarlarkSemantics larkySemantics) {
+
     this.builtinModules = ImmutableSet.<Class<?>>builder()
         .addAll(builtinModules)
         .build();
@@ -111,22 +127,7 @@ public class LarkyScript {
         // keep last
         (a, b) -> b)
       );
-  }
-
-  public StarlarkMode getValidation() {
-    return validation;
-  }
-
-  public Map<String, Object> getGlobals() {
-    return globals;
-  }
-
-  public Iterable<Class<?>> getBuiltinModules() {
-    return builtinModules;
-  }
-
-  public ModuleSet getModuleSet() {
-    return moduleSet;
+    this.larkySemantics = larkySemantics;
   }
 
   private LarkyEvaluator.EvaluationResult executeStarlark(StarFile content, ModuleSet moduleSet, Console console)

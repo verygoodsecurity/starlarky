@@ -404,8 +404,13 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
             nextVal = this.invoke(this.iterator_method.get(), Tuple.of(StarlarkInt.of(pos++)));
           }
           catch(EvalException e) {
-            nextVal = null;
-            throw new RuntimeException(e);
+            if (e instanceof LarkyStopIteration) {
+              // NOTE: If an error is thrown here, we will return null
+              nextVal = null;
+            } else {
+              throw new RuntimeException(e);
+            }
+//            throw new RuntimeException(e);
           }
           if (length < 0 && nextVal == LarkyIndexError.getInstance()) {
             // infinite iterator, so check to see if it's an IndexError
