@@ -4,6 +4,7 @@ load("@vendor//asserts", "asserts")
 load("@vendor//Crypto/Hash/MD5", MD5="MD5")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
+load("@vendor//Crypto/Hash/SHA384", SHA384="SHA384")
 load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Hash/SHA3_256", SHA3_256="SHA3_256")
 load("@vendor//Crypto/Hash/keccak", keccak="keccak")
@@ -36,6 +37,16 @@ def SHA512_test():
     h = SHA512.new(b('testtest'), truncate="224")
     eq(h.hexdigest(), '353f2beed3409bae708d05b8c33dc4b01ce1723194b215f9b0f2f40e')
 
+def SHA3_test():
+    h = SHA384.new()
+    h.update(b"Some data")
+    asserts.assert_that(h.hexdigest()).is_equal_to('eda5fa67268805ce0ffd8b7e9f955400b48d035096215104645d0f127353f5cb9334c2ddcba11e40bd7dada5df895ab6')
+
+def SHA256_test():
+    h = SHA256.new()
+    h.update(b"Test Data!")
+    asserts.assert_that(h.hexdigest()).is_equal_to('375990365a2852e275370f4c4250b0ae900d78cda4d8195296991616067b8402')
+
 def SHA3_256_test():
     h = SHA3_256.new()
     h.update(b("Some data"))
@@ -65,6 +76,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(SHA1_test))
     _suite.addTest(unittest.FunctionTestCase(SHA512_test))
     _suite.addTest(unittest.FunctionTestCase(SHA3_256_test))
+    _suite.addTest(unittest.FunctionTestCase(SHA3_test))
+    _suite.addTest(unittest.FunctionTestCase(SHA256_test))
     _suite.addTest(unittest.FunctionTestCase(Keccak_test))
     return _suite
 

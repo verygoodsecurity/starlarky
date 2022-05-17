@@ -39,12 +39,14 @@ import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.ASN1Sequence;
 import org.bouncycastle.asn1.ASN1Set;
 import org.bouncycastle.asn1.ASN1String;
+import org.bouncycastle.asn1.ASN1TaggedObjectParser;
 import org.bouncycastle.asn1.DERBitString;
 import org.bouncycastle.asn1.DERNull;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.DERSet;
 import org.bouncycastle.asn1.DERUTF8String;
+import org.bouncycastle.asn1.DLTaggedObject;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
 
@@ -359,6 +361,19 @@ public class ASN1 {
       return this.encodable.toString();
     }
   }
+
+  public static class LarkyDLTaggedObject extends LarkyASN1Encodable{
+
+    public LarkyDLTaggedObject(DLTaggedObject dlTaggedObject) {
+      super(dlTaggedObject);
+    }
+
+      @Override
+      Object toStarlark() {
+        return((DLTaggedObject)this.encodable).toString();
+        }
+    }
+
 
   public static class LarkyASN1Sequence extends LarkyASN1Encodable
       implements StarlarkIterable<LarkyASN1Encodable>, StarlarkIndexable {

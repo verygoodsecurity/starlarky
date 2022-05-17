@@ -18,7 +18,6 @@ import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-
 @StarlarkBuiltin(
     name = "jcrypto",
     category = "BUILTIN",
@@ -79,4 +78,5 @@ public class CryptoModule implements StarlarkValue {
 
   @StarlarkMethod(name="Util", structField = true)
   public CryptoUtilModule Util()  { return CryptoUtilModule.INSTANCE; }
+
 }

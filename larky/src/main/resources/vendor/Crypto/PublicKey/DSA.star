@@ -21,13 +21,15 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
-load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//itertools", itertools="itertools")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+# load("@stdlib//pickle", PicklingError="PicklingError")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//sets", sets="sets")
+load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//types", types="types")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Hash", SHA256="SHA256")
 load("@vendor//Crypto/IO", PKCS8="PKCS8", PEM="PEM")
@@ -36,8 +38,12 @@ load("@vendor//Crypto/Math/Primality", test_probable_prime="test_probable_prime"
 load("@vendor//Crypto/PublicKey", _expand_subject_public_key_info="expand_subject_public_key_info", _create_subject_public_key_info="create_subject_public_key_info", _extract_subject_public_key_info="extract_subject_public_key_info")
 load("@vendor//Crypto/Util/asn1", DerObject="DerObject", DerSequence="DerSequence", DerInteger="DerInteger", DerObjectId="DerObjectId", DerBitString="DerBitString")
 load("@vendor//Crypto/Util/py3compat", bchr="bchr", bord="bord", tobytes="tobytes", tostr="tostr", iter_range="iter_range")
-load("@vendor//option/result", Result="Result", Error="Error")
-__all__ = ['generate', 'construct', 'DsaKey', 'import_key' ]
+load("@vendor//option/result", Error="Error")
+
+__all__ = ['generate', 'construct', 'DsaKey', 'import_key']
+
+map = builtins.map
+sum = builtins.sum
 
 def DsaKey(key_dict):
     r"""Class defining an actual DSA key.
@@ -62,19 +68,19 @@ def DsaKey(key_dict):
     :undocumented: exportKey, publickey
     """
 
-    _keydata = ['y', 'g', 'p', 'q', 'x']
     self = larky.mutablestruct(__name__='DsaKey', __class__=DsaKey)
+    self._keydata = ['y', 'g', 'p', 'q', 'x']
 
     def __init__(key_dict):
         input_set = sets.Set(key_dict.keys())
-        public_set = sets.Set(('y' , 'g', 'p', 'q'))
-        if not public_set.issubset(input_set):
+        public_set = sets.Set(['y', 'g', 'p', 'q'])
+        if not public_set.is_subset(input_set):
             fail("ValueError: " + "Some DSA components are missing = %s" %
                              str(public_set - input_set))
         extra_set = input_set - public_set
-        if extra_set and extra_set != sets.Set(('x',)):
+        if extra_set and extra_set != sets.Set(['x',]):
             fail("ValueError: " + "Unknown DSA components = %s" %
-                             str(extra_set - sets.Set(('x',))))
+                             str(extra_set - sets.Set(['x',])))
         self._key = dict(key_dict)
         return self
     self = __init__(key_dict)
@@ -82,7 +88,7 @@ def DsaKey(key_dict):
     def _sign(m, k):
         if not self.has_private():
             fail("TypeError: DSA public key cannot be used for signing")
-        if not (1 < k) and (k < self.q):
+        if not (1 < k._value) and (k < self._key["q"]):
             fail("ValueError: k is not between 2 and q-1")
 
         x, q, p, g = [self._key[comp] for comp in ['x', 'q', 'p', 'g']]
@@ -92,20 +98,35 @@ def DsaKey(key_dict):
         inv_blind_k = (blind_factor * k).inverse(q)
         blind_x = x * blind_factor
 
-        r = pow(g, k, p) % q  # r = (g**k mod p) mod q
+        r = pow(g, k._value, p._value) % q._value  # r = (g**k mod p) mod q
         s = (inv_blind_k * (blind_factor * m + blind_x * r)) % q
-        return builtins.map(int, (r, s))
+        return map(int, (r, s))
     self._sign = _sign
 
     def _verify(m, sig):
         r, s = sig
         y, q, p, g = [self._key[comp] for comp in ['y', 'q', 'p', 'g']]
-        if not (0 < r) and (r < q) or not (0 < s) and (s < q):
+        if not (0 < r._value) and (r < q) or not (0 < s._value) and (s < q):
             return False
         w = Integer(s).inverse(q)
         u1 = (w * m) % q
         u2 = (w * r) % q
-        v = (pow(g, u1, p) * pow(y, u2, p) % p) % q
+        g_san = g
+        y_san = y
+        u1_san = u1
+        u2_san = u2
+        p_san = p
+        if types.is_instance(g, Integer):
+            g_san = g._value
+        if types.is_instance(y, Integer):
+            y_san = y._value
+        if types.is_instance(u1, Integer):
+            u1_san = u1._value
+        if types.is_instance(p, Integer):
+            p_san = p._value
+        if types.is_instance(u2, Integer):
+            u2_san = u2._value
+        v = (pow(g_san, u1_san, p_san) * pow(y_san, u2_san, p_san) % p_san) % q
         return v == r
     self._verify = _verify
 
@@ -149,6 +170,14 @@ def DsaKey(key_dict):
         return not self.__eq__(other)
     self.__ne__ = __ne__
 
+    def __getstate__():
+        # DSA key is not pickable
+        # load("@stdlib//pickle", PicklingError="PicklingError")
+        # PY2LARKY: pay attention to this!
+        # return PicklingError
+        return Error()
+    self.__getstate__ = __getstate__
+
     def domain():
         """The DSA domain parameters.
 
@@ -163,20 +192,22 @@ def DsaKey(key_dict):
         attrs = []
         for k in self._keydata:
             if k == 'p':
-                bits = Integer(self.p).size_in_bits()
+                bits = Integer(self._key["p"]).size_in_bits()
                 attrs.append("p(%d)" % (bits,))
             elif hasattr(self, k):
                 attrs.append(k)
         if self.has_private():
             attrs.append("private")
         # PY3K: This is meant to be text, do not change to bytes (data)
+        # return "<%s @0x%x %s>" % (self.__class__.__name__, id(self), ",".join(attrs))
         return "<%s %s>" % (self.__name__, ",".join(attrs))
     self.__repr__ = __repr__
 
     def __getattr__(item):
-        if item not in self._key:
-            fail("KeyError: item %s not found" % item)
+        # try:
         return int(self._key[item])
+        # except KeyError:
+        #     fail()
     self.__getattr__ = __getattr__
 
     def export_key(format='PEM', pkcs8=None, passphrase=None,
@@ -270,7 +301,7 @@ def DsaKey(key_dict):
             if pkcs8:
                 if not protection:
                     protection = 'PBKDF2WithHMAC-SHA1AndDES-EDE3-CBC'
-                private_key = DerInteger(self.x).encode()
+                private_key = codecs.encode(DerInteger(self.x), encoding="utf-8")
                 binary_key = PKCS8.wrap(
                                 private_key, oid, passphrase,
                                 protection, key_params=params,
@@ -298,17 +329,14 @@ def DsaKey(key_dict):
         if format == 'DER':
             return binary_key
         if format == 'PEM':
-            pem_str = PEM.encode(
-                                binary_key, key_type + " KEY",
-                                passphrase, randfunc
-                            )
+            pem_str = codecs.encode(PEM, encoding=binary_key)
             return tobytes(pem_str)
         fail("ValueError: " + "Unknown key format '%s'. Cannot export the DSA key." % format)
     self.export_key = export_key
 
     # Backward-compatibility
-    self.exportKey = export_key
-    self.publickey = public_key
+    exportKey = export_key
+    publickey = public_key
 
     # Methods defined in PyCrypto that we don't support anymore
 
@@ -322,27 +350,32 @@ def DsaKey(key_dict):
 
     def encrypt(plaintext, K):
         # PY2LARKY: pay attention to this!
-        fail("NotImplementedError")
+        # return NotImplementedError
+        return Error()
     self.encrypt = encrypt
 
     def decrypt(ciphertext):
         # PY2LARKY: pay attention to this!
-        fail("NotImplementedError")
+        # return NotImplementedError
+        return Error()
     self.decrypt = decrypt
 
     def blind(M, B):
         # PY2LARKY: pay attention to this!
-        fail("NotImplementedError")
+        # return NotImplementedError
+        return Error()
     self.blind = blind
 
     def unblind(M, B):
         # PY2LARKY: pay attention to this!
-        fail("NotImplementedError")
+        # return NotImplementedError
+        return Error()
     self.unblind = unblind
 
     def size():
         # PY2LARKY: pay attention to this!
-        fail("NotImplementedError")
+        # return NotImplementedError
+        return Error()
     self.size = size
     return self
 
@@ -372,15 +405,16 @@ def _generate_domain(L, randfunc):
 
     # Generate p (A.1.1.2)
     offset = 1
-    upper_bit = 1 << (L - 1)
+    # upper_bit = 1 << (L - 1)
+    upper_bit = pow(2, L - 1)
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        if not True:
+            break
         V = [ SHA256.new(seed + Integer(offset + j).to_bytes()).digest()
               for j in iter_range(n + 1) ]
         V = [ Integer.from_bytes(v) for v in V ]
-        W = builtins.sum(
-            [V[i] * (1 << (i * outlen)) for i in iter_range(n)],
-            (V[n] & ((1 << b_) - 1)) * (1 << (n * outlen))
-        )
+        W = sum([V[i] * pow(1, i * outlen) for i in iter_range(n)],
+                (V[n] & (pow(2, b_) - 1)) * pow(2, n * outlen))
 
         X = Integer(W + upper_bit) # 2^{L-1} < X < 2^{L}
         if not (X.size_in_bits() == L):
@@ -395,10 +429,13 @@ def _generate_domain(L, randfunc):
 
     # Generate g (A.2.3, index=1)
     e = (p - 1) // q
-    for count in itertools.count(1):
+    counter = larky.utils.Counter()
+
+    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        count = counter.add_and_get()
         U = seed + b"ggen" + bchr(1) + Integer(count).to_bytes()
         W = Integer.from_bytes(SHA256.new(U).digest())
-        g = pow(W, e, p)
+        g = pow(W._value, e._value, p._value)
         if g != 1:
             break
 
@@ -439,7 +476,7 @@ def generate(bits, randfunc=None, domain=None):
         randfunc = Random.get_random_bytes
 
     if domain:
-        p, q, g = builtins.map(Integer, domain)
+        p, q, g = map(Integer, domain)
 
         ## Perform consistency check on domain parameters
         # P and Q must be prime
@@ -472,7 +509,7 @@ def generate(bits, randfunc=None, domain=None):
     # B.1.1
     c = Integer.random(exact_bits=N + 64, randfunc=randfunc)
     x = c % (q - 1) + 1 # 1 <= x <= q-1
-    y = pow(g, x, p)
+    y = pow(g, x._value, p._value)
 
     key_dict = { 'y':y, 'g':g, 'p':p, 'q':q, 'x':x }
     return DsaKey(key_dict)
@@ -503,7 +540,7 @@ def construct(tup, consistency_check=True):
       :class:`DsaKey` : a DSA key object
     """
 
-    key_dict = dict(zip(('y', 'g', 'p', 'q', 'x'), builtins.map(Integer, tup)))
+    key_dict = dict(zip(('y', 'g', 'p', 'q', 'x'), map(Integer, tup)))
     key = DsaKey(key_dict)
 
     fmt_error = False
@@ -585,9 +622,10 @@ def _import_key_der(key_data, passphrase, params):
                  _import_pkcs8)
 
     for decoding in decodings:
-        rval = Result.Ok(decoding).map(lambda x: x(key_data, passphrase, params))
-        if rval.is_ok:
-            return rval.unwrap()
+        # try:
+        return decoding(key_data, passphrase, params)
+        # except ValueError:
+        #     pass
 
     fail("ValueError: DSA key format is not supported")
 

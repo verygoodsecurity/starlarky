@@ -9,12 +9,8 @@ load("@vendor//jose/backends",
      AESKey="AESKey",    # noqa: F401
      DIRKey="DIRKey",    # noqa: F401
      HMACKey="HMACKey",  # noqa: F401
-     )
-
-# try:
-#     load("@vendor//jose/backends", ECKey="ECKey")  # noqa: F401
-# except ImportError:
-#     pass
+     ECKey="ECKey",  # noqa: F401
+)
 
 
 def get_key(algorithm):
@@ -25,8 +21,8 @@ def get_key(algorithm):
     elif operator.contains(ALGORITHMS.RSA, algorithm):
         return RSAKey
     elif operator.contains(ALGORITHMS.EC, algorithm):
-        fail("ECKey is not supported!")
-        # return ECKey
+        # fail("ECKey is not supported!")
+        return ECKey
     elif operator.contains(ALGORITHMS.AES, algorithm):
         return AESKey
     elif algorithm == ALGORITHMS.DIR:
