@@ -149,7 +149,7 @@ public class ASN1Utils {
         return (ASN1.LarkyOctetString) obj;
       } else if (obj instanceof LarkyObject) {
         LarkyObject lobj = ((LarkyObject) obj);
-        switch (lobj.type()) {
+        switch (lobj.typeName()) {
           case "DerInteger":
             long value2 = Long.parseLong(String.valueOf(lobj.getField("value")));
             ASN1Integer value1 = new ASN1Integer(value2);
@@ -184,7 +184,7 @@ public class ASN1Utils {
           default:
             throw Starlark.errorf("Unknown starlark type (%s) __class__ (%s) to convert to asASN1Encodable",
                 Starlark.type(obj),
-                lobj.type()
+                lobj.typeName()
             );
         }
       }

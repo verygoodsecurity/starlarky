@@ -180,7 +180,14 @@ def PKCS115_Cipher(key, randfunc):
         size = _JCrypto.Cipher.PKCS1.decode(
             ciphertext,
             sentinel,
-            expected_pt_len,
+            # This is important. In BouncyCastle, if the expected plaintext
+            # length is -1 (as opposed to the default in PyCryptodome of 0)
+            # then it means we do not have an expected plain text length.
+            #
+            # Without this line, BouncyCastle assumes that the expected
+            # plaintext is actually 0, as opposed to what PyCryptodome
+            # intends.
+            expected_pt_len if expected_pt_len != 0 else -1,
             output,
             self._key._to_dict()
         )
@@ -189,7 +196,6 @@ def PKCS115_Cipher(key, randfunc):
         return output[-size:]
     self.decrypt = decrypt
     return self
-
 
 
 def new(key, randfunc=None):

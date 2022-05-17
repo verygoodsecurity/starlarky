@@ -21,7 +21,6 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
-
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//itertools", itertools="itertools")
@@ -430,7 +429,6 @@ def _generate_domain(L, randfunc):
 
     # Generate g (A.2.3, index=1)
     e = (p - 1) // q
-
     counter = larky.utils.Counter()
 
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
@@ -714,7 +712,12 @@ importKey = import_key
 #: .. _`Object ID`: http://www.alvestrand.no/objectid/1.2.840.10040.4.1.html
 oid = "1.2.840.10040.4.1"
 
-
 DSA = larky.struct(
+    __name__='DSA',
+    DsaKey=DsaKey,
     generate=generate,
+    construct=construct,
+    import_key=import_key,
+    importKey=importKey,
+    oid=oid,
 )

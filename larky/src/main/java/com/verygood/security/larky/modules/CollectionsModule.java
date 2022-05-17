@@ -36,6 +36,7 @@ import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 
 @StarlarkBuiltin(
@@ -160,8 +161,13 @@ public class CollectionsModule implements StarlarkValue {
     }
 
     @Override
-    public Object getValue(String name) throws EvalException {
-      final Sequence<String> _names = namedFields();
+    public Object getField(String name, @Nullable StarlarkThread thread) {
+      final Sequence<String> _names;
+      try {
+        _names = namedFields();
+      } catch(EvalException ex) {
+       throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(ex, thread);
+      }
       final int pos = _names.indexOf(name);
       if (pos != -1) {
         return this.backingTuple.get(pos);

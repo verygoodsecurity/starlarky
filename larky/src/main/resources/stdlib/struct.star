@@ -2,30 +2,30 @@ load("@stdlib//larky", "larky")
 load("@stdlib//jstruct", _jstruct="jstruct")
 
 
-def _pack(fmt, *values):
+def pack(fmt, *values):
     return _jstruct.pack(fmt, *values)
 
 
-def _pack_into(fmt, buffer, offset, *v):
+def pack_into(fmt, buffer, offset, *v):
     return _jstruct.pack_into(fmt, buffer, offset, *v)
 
 
-def _unpack(fmt, buffer):
+def unpack(fmt, buffer):
     return _jstruct.unpack(fmt, buffer)
 
 
-def _unpack_from(fmt, buffer, offset=0):
+def unpack_from(fmt, buffer, offset=0):
     return _jstruct.unpack_from(fmt, buffer, offset)
 
 
-def _calcsize(fmt):
+def calcsize(fmt):
     return _jstruct.calcsize(fmt)
 
 
 struct = larky.struct(
-    pack=_pack,
-    pack_into=_pack_into,
-    unpack=_unpack,
-    unpack_from=_unpack_from,
-    calcsize=_calcsize
+    pack=pack,
+    pack_into=pack_into,
+    unpack=unpack,
+    unpack_from=unpack_from,
+    calcsize=calcsize
 )

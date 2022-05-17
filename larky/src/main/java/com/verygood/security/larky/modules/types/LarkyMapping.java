@@ -17,11 +17,7 @@ import net.starlark.java.eval.StarlarkThread;
 public interface LarkyMapping<K, V> extends StarlarkMapping<K, V>, LarkyIndexable {
 
   default Object get__setitem__() {
-    try {
-      return getField(PyProtocols.__SETITEM__);
-    } catch (EvalException e) {
-      throw new RuntimeException(e);
-    }
+    return getField(PyProtocols.__SETITEM__);
   }
 
   /**

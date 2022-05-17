@@ -34,9 +34,18 @@ public interface LarkyObject extends Structure {
    * @throws EvalException if a user-visible error occurs (other than non-existent field).
    */
   @Nullable
-  default Object getField(String name) throws EvalException {
-    return getValue(name);
+  @Override
+  default Object getValue(String name) throws EvalException {
+    return getField(name);
   }
+
+  @Nullable
+  default Object getField(String name) {
+    return this.getField(name, null);
+  }
+
+  @Nullable
+  Object getField(String name, @Nullable StarlarkThread thread);
 
   default boolean hasStrField() throws EvalException {
     return getField(PyProtocols.__STR__) != null;
@@ -66,7 +75,7 @@ public interface LarkyObject extends Structure {
   /**
    * Returns the name of the type of a value as if by the Starlark expression {@code type(x)}.
    */
-  default String type() {
+  default String typeName() {
     return StarlarkUtil.richType(this);
   }
 
@@ -89,7 +98,7 @@ public interface LarkyObject extends Structure {
   @Override
   default String getErrorMessageForUnknownField(String field) {
     String starlarkType = Starlark.type(this);
-    String larkyType = type();
+    String larkyType = typeName();
     if(!larkyType.equals(starlarkType)) {
       starlarkType += String.format(" of class '%s'",larkyType);
     }

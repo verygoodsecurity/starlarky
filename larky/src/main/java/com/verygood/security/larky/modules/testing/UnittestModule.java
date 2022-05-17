@@ -21,6 +21,7 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
@@ -81,7 +82,6 @@ public class UnittestModule implements StarlarkValue {
     @Setter
     private StarlarkCallable function;
 
-    @SuppressWarnings("CdiInjectionPointsInspection")
     public LarkyFunctionTestCase(String name) {
       super(name);
     }
@@ -171,7 +171,6 @@ public class UnittestModule implements StarlarkValue {
   @SuppressWarnings("UnconstructableJUnitTestCase")
   static class ExpectedFailure extends LarkyFunctionTestCase {
 
-    @SuppressWarnings("CdiInjectionPointsInspection")
     public ExpectedFailure(LarkyFunctionTestCase other) {
       super(other);
     }
@@ -182,7 +181,10 @@ public class UnittestModule implements StarlarkValue {
         super.runTest();
         fail(String.format("Expected %s to fail, but it succeeded.", getName()));
       }
-      catch(EvalException|InterruptedException e) {
+      catch(EvalException
+            | InterruptedException
+            | StarlarkEvalWrapper.Exc.RuntimeEvalException
+            | Starlark.UncheckedEvalException e) {
         // expected
       }
     }

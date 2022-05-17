@@ -203,7 +203,15 @@ def _is_range(iterz):
 
 
 def _is_iterable(iterz):
-    return _is_tuple(iterz) or _is_list(iterz) or _is_range(iterz)
+    # Checking isinstance(obj, Iterable) detects classes that are
+    # registered as Iterable or that have an __iter__() method,
+    # but it does not detect classes that iterate with the __getitem__()
+    # method. The only reliable way to determine whether an object
+    # is iterable is to call iter(obj).
+    return (_is_tuple(iterz)
+            or _is_list(iterz)
+            or _is_range(iterz)
+            or hasattr(iterz, "__iter__"))
 
 
 def _is_bytes(bobj):
@@ -278,13 +286,13 @@ def resolve_bases(bases):
     updated = False
     shift = 0
     for i, base in enumerate(bases):
-        if _is_instance(base, type):
+        if larky.is_instance(base, type):
             continue
         if not hasattr(base, "__mro_entries__"):
             continue
         new_base = base.__mro_entries__(bases)
         updated = True
-        if not _is_instance(new_base, tuple):
+        if not larky.is_instance(new_base, tuple):
             fail("__mro_entries__ must return a tuple")
         else:
             _l = list(new_bases[:i + shift])
@@ -316,11 +324,11 @@ def prepare_class(name, bases=(), kwds=None):
         meta = kwds.pop('metaclass')
     else:
         if bases:
-            meta = type(bases[0])
+            meta = larky.type_cls(bases[0])
+            # meta = bases[0]
         else:
-            #meta = larky.partial(_type_maker, name)
             meta = type
-    if _is_instance(meta, type):
+    if larky.is_instance(meta, type):
         # when meta is a type, we first determine the most-derived metaclass
         # instead of invoking the initial candidate directly
         meta = _calculate_meta(meta, bases)
@@ -335,10 +343,10 @@ def _calculate_meta(meta, bases):
     """Calculate the most derived metaclass."""
     winner = meta
     for base in bases:
-        base_meta = type(base)
-        if _is_subclass(winner, base_meta):
+        base_meta = larky.type_cls(base)
+        if larky.is_subclass(winner, base_meta):
             continue
-        if _is_subclass(base_meta, winner):
+        if larky.is_subclass(base_meta, winner):
             winner = base_meta
             continue
         # else:
@@ -349,60 +357,86 @@ def _calculate_meta(meta, bases):
     return winner
 
 
-# from collections import Callable
-# from functools import partial
-# from .mro import merge_mro
-
-def head(seq):
+def _head(seq):
     return seq[0]
 
 
-def tail(seq):
+def _tail(seq):
     return seq[1:]
 
 
-def map(func, iterable):
-    return [func(x) for x in iterable]
-
-
-def filter(func, iterable):
-    return [x for x in iterable if func(x) == True]
-
-
 def not_in_tails(seq):
-    tails = map(tail, seq)
-    # return lambda c: all(c not in s for s in tails)
+    tails = [_tail(x) for x in seq]
+
+    def _not_in_tails_(c):
+        return all([c not in s for s in tails])
+
+    return _not_in_tails_
 
 
 def tail_if_not_eq(val):
-    pass
-    # return lambda s: tail(s) if head(s) == val else s
+    def _tail_if_not_eq_(s):
+        return _tail(s) if _head(s) == val else s
+    return _tail_if_not_eq_
+
+
+def _filter(func, iterable):
+    return [x for x in iterable if func(x) == True]
 
 
 def non_empty(seq):
-    return filter(bool, seq)
+    return _filter(bool, seq)
 
 
+# https://www.python.org/download/releases/2.3/mro/
 def merge_mro(seqs):
-    seqs = map(list, seqs)
-
+    # res = []
+    # i = 0
+    #
+    # nonemptyseqs = [seq for seq in seqs if seq]
+    # for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+    #     if not nonemptyseqs:
+    #         return res
+    #
+    #     i += 1
+    #     for seq in nonemptyseqs:
+    #         cand = seq[0]
+    #         nothead = [s for s in nonemptyseqs if cand in s[1:]]
+    #
+    #         if nothead:
+    #             cand = None
+    #         else:
+    #             break
+    #
+    #     if not cand:
+    #         fail("Inconsistent hierarchy")
+    #
+    #     res.append(cand)
+    #
+    #     nonemptyseqs = [seq for seq in nonemptyseqs if seq[0] != cand]
+    seqs = [list(x) for x in seqs]
     non_empty_seqs = non_empty(seqs)
+    result = []
 
-    # while True:
-    #     try:
-    #         heads = imap(head, non_empty_seqs)
-    #         cand = next(ifilter(not_in_tails(non_empty_seqs),
-    #                             heads))
-    #     except StopIteration:
-    #         raise Exception("Inconsistent hierarchy")
-    #
-    #     yield cand
-    #
-    #     non_empty_seqs = non_empty(
-    #         map(tail_if_not_eq(cand), non_empty_seqs))
-    #
-    #     if not non_empty_seqs:
-    #         return
+    for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        if not non_empty_seqs or len(non_empty_seqs) == 0:
+            break
+        cand = _filter(
+            not_in_tails(non_empty_seqs),
+            [_head(x) for x in non_empty_seqs]
+        )
+
+        if len(cand) == 0:
+            fail("Inconsistent hierarchy")
+
+        result.append(cand[0])
+
+        non_empty_seqs = non_empty(
+            [tail_if_not_eq(cand[0])(x) for x in non_empty_seqs]
+        )
+
+    return result
+
 
 def make_type(name, bases=None, attrs=None):
     """Own analog of type for instantiation.
@@ -416,7 +450,7 @@ def make_type(name, bases=None, attrs=None):
     )
 
 
-def make_class(name, bases=tuple(), cls_dict=None):
+def make_class(name, bases=(), cls_dict=None):
     """
     Construct a class dictionary
     """
@@ -425,9 +459,12 @@ def make_class(name, bases=tuple(), cls_dict=None):
         '__bases__': bases,
     }
     cls.update(cls_dict or {})
-
-    base_mros = [[cls]] + [b['mro'] for b in bases]
-    cls['mro'] = tuple(merge_mro(base_mros))
+    cls = larky.mutablestruct(**cls)
+    base_mros = [[cls]] + [b.__mro__ for b in bases]
+    mro = tuple(merge_mro(base_mros))
+    cls.mro = lambda: mro
+    cls.__mro__ = mro
+    cls.__call__ = larky.partial(new, cls)
     return cls
 
 
@@ -435,11 +472,11 @@ def new(cls, *args, **kwargs):
     """
     Construct a new instance of the given class
     """
-    instance = {
-        '__class__': cls
-    }
-
-    init = cls.get('__init__', None)
+    instance = larky.mutablestruct(
+        __class__=cls,
+        __name__=cls.__name__,
+    )
+    init = getattr(cls, '__init__', None)
     if init:
         init(instance, *args, **kwargs)
 
@@ -450,44 +487,42 @@ def get(instance, attr_name):
     """
     Retrieve the instance attribute, binding it if it is a method.
     """
-    if attr_name in instance:
-        return instance[attr_name]
+    attr = getattr(instance, attr_name, larky.SENTINEL)
+    if attr != larky.SENTINEL:
+        return attr
 
-    for cls in instance['__class__']['mro']:
-        if attr_name in cls:
-            attr = cls[attr_name]
+    for cls in instance.__class__.__mro__:
+        attr = getattr(cls, attr_name, larky.SENTINEL)
+        if attr == larky.SENTINEL:
+            continue
 
-            if _is_function(attr):
-                attr = larky.partial(attr, instance)
-            # if isinstance(attr, Callable):
-            #     attr = partial(attr, instance)
-            #
-            # elif isinstance(attr, staticmethod):
-            #     attr = attr.__func__
-            #
-            # elif isinstance(attr, classmethod):
-            #     attr = partial(attr.__func__, cls)
+        if _is_function(attr):
+            attr = larky.partial(attr, instance)
 
-            return attr
+        elif larky.is_instance(attr, staticmethod):
+            attr = attr.__func__
 
-    fail("'%s' instance has no attribute '%s'" %
-         (cls['__name__'], attr_name))
+        elif larky.is_instance(attr, classmethod):
+            attr = larky.partial(attr.__func__, cls)
+
+        return attr
+
+    fail("AttributeError: '%s' instance has no attribute '%s'" %
+         (instance.__class__.__name__, attr_name))
 
 
 def set_(instance, attr_name, val):
     """
     Set the instance attribute to the value
     """
-    instance[attr_name] = val
+    setattr(instance, attr_name, val)
 
 
 def del_(instance, attr_name):
     """
     Delete the instance attribute
     """
-    if attr_name in instance:
-        instance.pop(attr_name)
-    fail(attr_name)
+    set_(instance, attr_name, None)
 
 
 types = larky.struct(

@@ -1,3 +1,5 @@
+load("@stdlib//larky", larky="larky")
+
 def _create_base_cipher(dict_parameters):
     """
     This method instantiates and returns a handle to a low-level
@@ -62,5 +64,10 @@ def new(key, mode, *args, **kwargs):
                 the counter block. By default it is **0**.
 
         :Return: a CAST object, of the applicable mode.
-    
+
     """
+
+
+CAST = larky.struct(
+    __name__='CAST',
+)

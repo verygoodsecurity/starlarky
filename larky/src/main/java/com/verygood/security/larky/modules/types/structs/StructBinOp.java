@@ -116,7 +116,6 @@ public class StructBinOp {
     );
   }
 
-
   public static Object inplaceBinaryOperation(
     SimpleStruct lhs,
     Object rhs,
@@ -137,7 +136,6 @@ public class StructBinOp {
       StarlarkUtil.richType(rhs)
     );
   }
-
 
   public static Object binaryOperation(
     SimpleStruct lhs,
