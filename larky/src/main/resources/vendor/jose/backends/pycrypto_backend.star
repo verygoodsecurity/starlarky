@@ -282,7 +282,7 @@ def RSAKey(key, algorithm):
 
     def sign(msg):
         pkcs1_signer = safe(PKCS1_v1_5_Signature.new(self.prepared_key).sign)
-        return pkcs1_signer(self.hash_alg.new(msg))().unwrap()
+        return pkcs1_signer(self.hash_alg.new(msg)).unwrap()
     self.sign = sign
 
     def verify(msg, sig):
