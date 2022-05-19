@@ -42,13 +42,70 @@ public class BinasciiModule implements StarlarkValue {
   public static final BinasciiModule INSTANCE = new BinasciiModule();
   private static final String NON_HEX_DIGIT_FOUND = "Found non hex digit";
   private static final String ODD_LENGTH_STRING = "String has odd length";
+  private static final char BASE64_PAD = '=';
 
   private byte[] b64decode(byte[] data) throws EvalException {
+    int dataLen = data.length;
+    /*
+     * The JDK decoder behaves differently in particularly two corner cases:
+     * - It is more restrictive regarding superfluous padding.
+     * - It is more permissive regarding lack of padding.
+     *
+     * To counter this, we manually compute the expected padding to cover for these
+     * two cases.
+     */
+    // Compute the expected and real padding
+    int base64chars = 0;
+    int lastBase64Char = -1;
+    int padding = 0;
+    for (int i = 0; i < dataLen; i++) {
+        byte c = data[i];
+        if (((c >= 'a') && (c <= 'z'))
+              || ((c >= 'A') && (c <= 'Z'))
+              || ((c >= '0') && (c <= '9'))
+              || (c == '+') || (c == '/')) {
+            lastBase64Char = i;
+            base64chars++;
+            padding = 0;
+        }
+        if (c == BASE64_PAD) {
+            padding++;
+        }
+    }
+    int expectedPadding = 0;
+
+    switch(base64chars % 4) {
+      case 1:
+        throw new EvalException("Invalid base64-encoded string: number of data characters (1) cannot be 1 more than a multiple of 4");
+      case 2:
+        expectedPadding = 2;
+        break;
+      case 3:
+        expectedPadding = 1;
+        break;
+      default:
+        break;
+    }
+
+    if (padding < expectedPadding) {
+      throw new EvalException("Incorrect padding");
+    }
+
+    // Find the end of the expected padding, if any
+    int decodeLen = lastBase64Char + 1;
+    int correctedPadding = 0;
+    for (int i = decodeLen; correctedPadding < expectedPadding && i < dataLen; i++) {
+        if (data[i] == BASE64_PAD) {
+            correctedPadding++;
+            decodeLen = i + 1;
+        }
+    }
+
     try {
-        // Mimic CPython's MIME decoder and skip over anything that is not the alphabet
-        return Base64.getMimeDecoder().decode(data);
+      // Mimic CPython's MIME decoder and skip over anything that is not the alphabet
+      return Base64.getMimeDecoder().decode(Arrays.copyOf(data,decodeLen));
     } catch (IllegalArgumentException e) {
-        throw new EvalException(e);
+      throw new EvalException(e);
     }
   }
 
