@@ -281,8 +281,9 @@ def RSAKey(key, algorithm):
     self._process_cert = _process_cert
 
     def sign(msg):
-        pkcs1_signer = safe(PKCS1_v1_5_Signature.new(self.prepared_key).sign)
-        return pkcs1_signer(self.hash_alg.new(msg))().unwrap()
+        signature = PKCS1_v1_5_Signature.new(self.prepared_key)
+        res = Ok(signature.sign).map(lambda sign: sign(self.hash_alg.new(msg)))
+        return res.unwrap()
     self.sign = sign
 
     def verify(msg, sig):
