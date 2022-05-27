@@ -471,7 +471,7 @@ def EccKey(**kwargs):
 
         blind_d = self._d * blind
         inv_blind_k = (blind * k).inverse(order)
-        r = (k * Integer(self._curve.G.x)) % order
+        r = operator.mul(self._curve.G, k).x % order
         s = inv_blind_k * (blind * z + blind_d * r) % order
         return (r, s)
     self._sign = _sign
@@ -479,8 +479,8 @@ def EccKey(**kwargs):
     def _verify(z, rs):
         order = self._curve.order
         sinv = rs[1].inverse(order)
-        point1 = self._curve.G * ((sinv * z) % order)
-        point2 = self.pointQ * ((sinv * rs[0]) % order)
+        point1 = operator.mul(self._curve.G, (operator.mul(sinv, z) % order))
+        point2 = operator.mul(self.pointQ, (operator.mul(sinv, rs[0]) % order))
         return (point1 + point2).x == rs[0]
     self._verify = _verify
 
@@ -823,7 +823,7 @@ def construct(**kwargs):
     return _construct(**kwargs).unwrap()
 
 
-def _import_public_der(curve_oid, ec_point):
+def _import_public_der(curve_oid, ec_point, curve_name=None):
     """Convert an encoded EC point into an EccKey object
 
     curve_name: string with the OID of the curve
@@ -854,15 +854,15 @@ def _import_public_der(curve_oid, ec_point):
     # Uncompressed point
     if point_type == 0x04:
         if len(ec_point) != (1 + 2 * modulus_bytes):
-            return Error("ValueError: Incorrect EC point length").unwrap()
+            return Error("ValueError: Incorrect EC point length")
         x = Integer.from_bytes(ec_point[1:modulus_bytes+1])
         y = Integer.from_bytes(ec_point[modulus_bytes+1:])
     # Compressed point
     elif point_type in (0x02, 0x3):
         if len(ec_point) != (1 + modulus_bytes):
-            return Error("ValueError: Incorrect EC point length").unwrap()
+            return Error("ValueError: Incorrect EC point length")
         x = Integer.from_bytes(ec_point[1:])
-        y = (pow(x, 3) - x*3 + curve.b).sqrt(curve.p)    # Short Weierstrass
+        y = (operator.pow(x, 3) - x*3 + curve.b).sqrt(curve.p)    # Short Weierstrass
         if point_type == 0x02 and y.is_odd():
             y = curve.p - y
         if point_type == 0x03 and y.is_even():
@@ -923,17 +923,11 @@ def _import_private_der(encoded, passphrase, curve_oid=None):
     #           parameters [0] ECParameters {{ NamedCurve }} OPTIONAL,
     #           publicKey  [1] BIT STRING OPTIONAL
     #    }
-
-    private_key = DerSequence().decode(encoded)
+    private_key = DerSequence().decode(encoded, nr_elements=(3, 4))
     if private_key[0] != 1:
         return Error("ValueError: Incorrect ECC private key version")
 
-    # This might have been passed like "[0]1.3.132.0.35" instead of 
-    # DER Encoded OID "1.3.132.0.35"
-    if type(private_key[2]) == 'string':
-        parameters = private_key[2].split(']')[-1]
-    else:
-        parameters = DerObjectId(explicit=0).decode(private_key[2]).value
+    parameters = DerObjectId(explicit=0).decode(private_key[2]).value
     if curve_oid != None and parameters != curve_oid:
         return Error("ValueError: Curve mismatch")
     curve_oid = parameters
@@ -949,14 +943,7 @@ def _import_private_der(encoded, passphrase, curve_oid=None):
     if _larky_forelse_run_else:
         return UnsupportedEccFeature("Unsupported ECC curve (OID: %s)" % curve_oid)
 
-    """
-    If this was passed as a string instead of bytes, it was already parsed and 
-    begins with a '#' followed by the hexlified string of the bytes
-    """
-    if type(private_key[1]) == 'string':
-        scalar_bytes = unhexlify(''.join(private_key[1].split('#')))
-    elif type(private_key[1]) == 'bytes':
-        scalar_bytes = DerOctetString().decode(private_key[1]).payload
+    scalar_bytes = DerOctetString().decode(private_key[1]).payload
     modulus_bytes = curve.p.size_in_bytes()
     if len(scalar_bytes) != modulus_bytes:
         return Error("ValueError: Private key is too small")
@@ -964,14 +951,10 @@ def _import_private_der(encoded, passphrase, curve_oid=None):
 
     # Decode public key (if any)
     if len(private_key) == 4:
-        if type(private_key[3]) == 'string':
-            pk3 = unhexlify(private_key[3].split('#')[-1])
-            public_key_enc = DerBitString().decode(pk3).value
-        else:
-            public_key_enc = DerBitString(explicit=1).decode(private_key[3]).value
-        public_key = _import_public_der(curve_oid, public_key_enc)
-        point_x = public_key._val.pointQ.x
-        point_y = public_key._val.pointQ.y
+        public_key_enc = DerBitString(explicit=1).decode(private_key[3]).value
+        public_key = _import_public_der(curve_oid, public_key_enc).unwrap()
+        point_x = public_key.pointQ.x
+        point_y = public_key.pointQ.y
     else:
         point_x = None
         point_y = point_x
@@ -1012,48 +995,40 @@ def _import_x509_cert(encoded, *kwargs):
 
 def _import_der(encoded, passphrase):
 
-    # try:
-    #     return _import_subjectPublicKeyInfo(encoded, passphrase)
-    # except UnsupportedEccFeature as err:
-    #     raise err
-    # except (ValueError, TypeError, IndexError):
-    #     pass
-    #
-    #  ↕↕↕↕↕↕ LARKY MIGRATED ↕↕↕↕↕↕↕
-
-    # THIS TRY BLOCK NEEDS TO BE REFACTORED
-
-    """
-    res = _import_subjectPublicKeyInfo(encoded, passphrase)
+    res = (Result.Ok(_import_subjectPublicKeyInfo)
+           .map(lambda _spki: _spki(encoded, passphrase)))
     if res.is_err:
         if Result.error_is("UnsupportedEccFeature", res) != None:
-            res.unwrap()
+            return res
     else:
-        return res.unwrap()
+        return res
 
-
-    res = _import_x509_cert(encoded, passphrase)
+    res = (Result.Ok(_import_x509_cert)
+           .map(lambda _cert: _cert(encoded, passphrase)))
     if res.is_err:
         if Result.error_is("UnsupportedEccFeature", res) != None:
-            res.unwrap()
+            return res
     else:
-        return res.unwrap()
+        return res
 
-    res = _import_private_der(encoded, passphrase)
+    res = (Result.Ok(_import_private_der)
+           .map(lambda _ipd: _ipd(encoded, passphrase)))
+    # res = _import_private_der(encoded, passphrase)
     if res.is_err:
         if Result.error_is("UnsupportedEccFeature", res) != None:
-            res.unwrap()
+            return res
     else:
-        return res.unwrap()
-    """
-    res = _import_pkcs8(encoded, passphrase)
+        return res
+
+    res = (Result.Ok(_import_pkcs8)
+           .map(lambda _pkcs8: _pkcs8(encoded, passphrase)))
     if res.is_err:
         if Result.error_is("UnsupportedEccFeature", res) != None:
-            res.unwrap()
+            return res
     else:
-        return res.unwrap()
+        return res
 
-    return Error("ValueError: Not an ECC DER key").unwrap()
+    return Error("ValueError: Not an ECC DER key")
 
 
 def _import_openssh_public(encoded):
@@ -1108,23 +1083,28 @@ def _import_openssh_private_ecc(data, password):
     return Ok(EccKey(curve=name, d=d, point=point))
 
 
-def import_key(encoded, passphrase=None):
+def import_key(encoded, passphrase=None, curve_name=None):
     """Import an ECC key (public or private).
 
     Args:
       encoded (bytes or multi-line string):
         The ECC key to import.
+        The function will try to automatically detect the right format.
 
-        An ECC **public** key can be:
+        Supported formats for an ECC **public** key:
 
-        - An X.509 certificate, binary (DER) or ASCII (PEM)
-        - An X.509 ``subjectPublicKeyInfo``, binary (DER) or ASCII (PEM)
-        - An OpenSSH line (e.g. the content of ``~/.ssh/id_ecdsa``, ASCII)
+        - X.509 certificate: binary (DER) or ASCII (PEM).
+        - X.509 ``subjectPublicKeyInfo``: binary (DER) or ASCII (PEM).
+        - SEC1_ (or X9.62), as ``bytes``. NIST P curves only. You must also provide the ``curve_name``.
+        - OpenSSH line, defined in RFC5656_ and RFC8709_ (ASCII).
+          This is normally the content of files like ``~/.ssh/id_ecdsa.pub``.
 
-        An ECC **private** key can be:
+        Supported formats for an ECC **private** key:
 
-        - In binary format (DER, see section 3 of `RFC5915`_ or `PKCS#8`_)
-        - In ASCII format (PEM or `OpenSSH 6.5+`_)
+        - A binary ``ECPrivateKey`` structure, as defined in `RFC5915`_ (DER).
+          NIST P curves only.
+        - A `PKCS#8`_ structure (or the more recent Asymmetric Key Package, RFC5958_): binary (DER) or ASCII (PEM).
+        - `OpenSSH 6.5`_ and newer versions (ASCII).
 
         Private keys can be in the clear or password-protected.
 
@@ -1132,8 +1112,17 @@ def import_key(encoded, passphrase=None):
 
       passphrase (byte string):
         The passphrase to use for decrypting a private key.
-        Encryption may be applied protected at the PEM level or at the PKCS#8 level.
+        Encryption may be applied protected at the PEM level (not recommended)
+        or at the PKCS#8 level (recommended).
         This parameter is ignored if the key in input is not encrypted.
+
+      curve_name (string):
+        For a SEC1 encoding only. This is the name of the ECC curve,
+        as defined in :numref:`curve_names`.
+
+    To import EdDSA private and public keys, when encoded as raw ``bytes``,
+    use :func:`Crypto.Signature.eddsa.import_public_key`
+    and :func:`Crypto.Signature.eddsa.import_private_key`.
 
     Returns:
       :class:`EccKey` : a new ECC key object
@@ -1142,11 +1131,15 @@ def import_key(encoded, passphrase=None):
       ValueError: when the given key cannot be parsed (possibly because
         the pass phrase is wrong).
 
-    .. _RFC1421: http://www.ietf.org/rfc/rfc1421.txt
-    .. _RFC1423: http://www.ietf.org/rfc/rfc1423.txt
-    .. _RFC5915: http://www.ietf.org/rfc/rfc5915.txt
-    .. _`PKCS#8`: http://www.ietf.org/rfc/rfc5208.txt
-    .. _`OpenSSH 6.5+`: https://flak.tedunangst.com/post/new-openssh-key-format-and-bcrypt-pbkdf
+    .. _RFC1421: https://datatracker.ietf.org/doc/html/rfc1421
+    .. _RFC1423: https://datatracker.ietf.org/doc/html/rfc1423
+    .. _RFC5915: https://datatracker.ietf.org/doc/html/rfc5915
+    .. _RFC5656: https://datatracker.ietf.org/doc/html/rfc5656
+    .. _RFC8709: https://datatracker.ietf.org/doc/html/rfc8709
+    .. _RFC5958: https://datatracker.ietf.org/doc/html/rfc5958
+    .. _`PKCS#8`: https://datatracker.ietf.org/doc/html/rfc5208
+    .. _`OpenSSH 6.5`: https://flak.tedunangst.com/post/new-openssh-key-format-and-bcrypt-pbkdf
+    .. _SEC1: https://www.secg.org/sec1-v2.pdf
     """
     encoded = tobytes(encoded)
     if passphrase != None:
@@ -1180,23 +1173,27 @@ def import_key(encoded, passphrase=None):
             if Result.error_is("UnsupportedEccFeature", result) != None:
                 result.unwrap()
             if Result.error_is("ValueError", result) != None:
-                return Error("ValueError: Invalid DER encoding inside the PEM file").unwrap()
+                fail("ValueError: Invalid DER encoding inside the PEM file")
         else:
             return result.unwrap()
 
     # OpenSSH
-    if encoded.startswith(b'ecdsa-sha2-'):
+    if encoded.startswith(b'ecdsa-sha2-') or encoded.startswith(b'ssh-ed25519'):
         return _import_openssh_public(encoded).unwrap()
 
     # DER
     if len(encoded) > 0 and bord(encoded[0]) == 0x30:
-        final_key = _import_der(encoded, passphrase)
-        if type(final_key) == 'EccKey':
-            return final_key
-        else:
-            return final_key.unwrap()
+        return _import_der(encoded, passphrase).unwrap()
 
-    return Error("ValueError: ECC key format is not supported").unwrap()
+    # SEC1
+    if len(encoded) > 0 and bord(encoded[0]) in b'\x02\x03\x04':
+        if curve_name == None:
+            fail("ValueError: No curve name was provided")
+        # TODO(mahmoudimus): fix
+        fail("Currently no SEC1 support in Larky")
+        # return _import_public_der(encoded, curve_name=curve_name).unwrap()
+
+    return fail("ValueError: ECC key format is not supported")
 
 
 curves = _curves

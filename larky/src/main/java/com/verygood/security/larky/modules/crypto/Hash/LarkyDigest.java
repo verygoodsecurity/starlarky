@@ -10,7 +10,6 @@ import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.ext.ByteList;
 
 import org.bouncycastle.crypto.ExtendedDigest;
-import org.bouncycastle.crypto.digests.GeneralDigest;
 import org.bouncycastle.util.Memoable;
 
 public abstract class LarkyDigest implements StarlarkValue {
@@ -44,8 +43,8 @@ public abstract class LarkyDigest implements StarlarkValue {
   protected byte[] reuseDigestIfPossible() {
     byte[] resBuf = new byte[this.getDigest().getDigestSize()];
     final ExtendedDigest copy;
-    if(this instanceof Memoable) {
-      copy = (ExtendedDigest) ((GeneralDigest) this.getDigest()).copy();
+    if(this.getDigest() instanceof Memoable) {
+      copy = (ExtendedDigest) ((Memoable)this.getDigest()).copy();
     } else {
       copy = this.getDigest();
     }
