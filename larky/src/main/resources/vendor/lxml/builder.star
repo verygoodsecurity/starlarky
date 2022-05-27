@@ -161,7 +161,7 @@ def ElementMaker(typemap=None, namespace=None, nsmap=None, makeelement=None):
                 elem.text = (elem.text or "") + item
 
         def ElementMaker_add_cdata(elem, cdata):
-            if elem.text:
+            if elem.text != None:
                 fail("ValueError: Can't add a CDATA section. Element already has some text: %r" % elem.text)
             elem.text = cdata
 
