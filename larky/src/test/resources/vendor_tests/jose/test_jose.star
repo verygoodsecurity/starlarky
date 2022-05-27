@@ -15,7 +15,6 @@ load("@vendor//jose/jwk", jwk="jwk")
 load("@vendor//jose/utils", base64url_encode="base64url_encode")
 
 
-
 def test_encrypt_and_decrypt_jwe_with_defaults():
     key = b'b11444485bd146cc823ae1bf3fa42209'
     data = jwe.encrypt(b'533', key)
@@ -170,8 +169,9 @@ def test_sign_with_rsa():
     k = jwk.construct(rsa_private_key, 'RS256')
     sign = k.sign(signing_input)
     encoded_signature = base64url_encode(sign)
-    
+
     encoded_string = b".".join([headers, encoded_payload, encoded_signature])
+
 
 def test_sign_with_ecc():
     es_private_key = """-----BEGIN EC PRIVATE KEY-----
@@ -193,7 +193,7 @@ def test_sign_with_ecc():
     k = jwk.construct(es_private_key, 'ES256')
     sign = k.sign(signing_input)
     encoded_signature = base64url_encode(sign)
-    
+
     encoded_string = b".".join([headers, encoded_payload, encoded_signature])
 
 
