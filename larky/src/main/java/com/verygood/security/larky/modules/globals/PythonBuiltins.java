@@ -12,6 +12,7 @@ import com.verygood.security.larky.modules.codecs.TextUtil;
 import com.verygood.security.larky.modules.types.LarkyIterator;
 import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
+import com.verygood.security.larky.modules.types.results.LarkyAttributeError;
 import com.verygood.security.larky.modules.types.results.LarkyIndexError;
 import com.verygood.security.larky.modules.types.results.LarkyStopIteration;
 import com.verygood.security.larky.objects.PyObject;
@@ -27,7 +28,6 @@ import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkBytes.StarlarkByteArray;
-import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
@@ -119,25 +119,7 @@ public final class PythonBuiltins {
         throw Starlark.errorf("%s", ex.getMessage());
       }
     } else if (x instanceof LarkyObject) {
-      final LarkyObject asLarkyObj = (LarkyObject) x;
-      // first, detect __index__
-      Object coerceToIntO = asLarkyObj.getField(PyProtocols.__INDEX__);
-      // then if it doesn't exist, does it have __int__?
-      if (coerceToIntO == null) {
-        // deprecated since python 3.8
-        coerceToIntO = asLarkyObj.getField(PyProtocols.__INT__);
-      }
-      if (!StarlarkUtil.isCallable(coerceToIntO)) {
-        throw Starlark.errorf("%s object is not callable", StarlarkUtil.richType(coerceToIntO));
-      }
-      StarlarkCallable coerceToInt = (StarlarkCallable) coerceToIntO;
-      if (coerceToInt != null) {
-        Object res = asLarkyObj.invoke(thread, coerceToInt, Tuple.empty(), Dict.empty());
-        if (!(res instanceof StarlarkInt)) {
-          throw Starlark.errorf("%s returned non-int (type %s)", coerceToInt.getName(), StarlarkUtil.richType(res));
-        }
-        return (StarlarkInt) res;
-      }
+      return ((LarkyObject) x).coerceToInt(thread);
     }
 
     if (baseO != Starlark.UNBOUND) {
@@ -267,6 +249,10 @@ public final class PythonBuiltins {
     return LarkyIndexError.getInstance();
   }
 
+  @StarlarkMethod(name = "AttributeError")
+  public LarkyAttributeError attributeError() {//throws LarkyAttributeError {
+    return LarkyAttributeError.getInstance();
+  }
 
   // iter(object[, sentinel])
   /*
@@ -356,6 +342,28 @@ public final class PythonBuiltins {
     return new String(new int[]{c.toIntUnchecked()}, 0, 1);
   }
 
+  //override built-in hasattr
+  /** Returns true if the object has a field of the given name, otherwise false. */
+  @StarlarkMethod(
+      name = "hasattr",
+      doc =
+          "Returns True if the object <code>x</code> has an attribute or method of the given "
+              + "<code>name</code>, otherwise False. Example:<br>"
+              + "<pre class=\"language-python\">hasattr(ctx.attr, \"myattr\")</pre>",
+      parameters = {
+        @Param(name = "x", doc = "The object to check."),
+        @Param(name = "name", doc = "The name of the attribute.")
+      },
+      useStarlarkThread = true)
+  public boolean hasattr(Object obj, String name, StarlarkThread thread) throws EvalException {
+    try {
+      Object res = getattr(obj, name, Starlark.UNBOUND, thread);
+      return res != null && res != LarkyAttributeError.getInstance();
+    } catch(EvalException ex) {
+      return false;
+    }
+  }
+
   //override built-in getattr
 
   @StarlarkMethod(
@@ -378,7 +386,7 @@ public final class PythonBuiltins {
     },
     useStarlarkThread = true)
   public Object getattr(Object obj, String name, Object defaultValue, StarlarkThread thread)
-    throws EvalException, InterruptedException {
+    throws EvalException {
     Object result = defaultValue;
     if (obj instanceof LarkyObject) {
       Object res;
@@ -386,7 +394,7 @@ public final class PythonBuiltins {
         if (obj instanceof PyObject) {
           res = ((PyObject) obj).getField(name, thread);
         } else {
-          // TODO: delete all this code when merging LarkyObject into PyObject
+          // TODO(mahmoudimus): delete all this code when merging LarkyObject into PyObject
           res = ((LarkyObject) obj).getField(name, thread);
           if (res == null) {
             // if there's an object with a __getattr__, it will be invoked..
@@ -396,19 +404,23 @@ public final class PythonBuiltins {
             }
           }
         }
-      } catch (Starlark.UncheckedEvalException | StarlarkEvalWrapper.Exc.RuntimeEvalException ex) {
+      } catch (InterruptedException | Starlark.UncheckedEvalException | StarlarkEvalWrapper.Exc.RuntimeEvalException ex) {
         throw new EvalException(ex.getCause());
       }
       result = res != null ? res : defaultValue;
     }
 
     if (result == defaultValue) {
-      result = Starlark.getattr(
-        thread.mutability(),
-        thread.getSemantics(),
-        obj,
-        name,
-        defaultValue == Starlark.UNBOUND ? null : defaultValue);
+      try {
+        result = Starlark.getattr(
+          thread.mutability(),
+          thread.getSemantics(),
+          obj,
+          name,
+          defaultValue == Starlark.UNBOUND ? null : defaultValue);
+      } catch (InterruptedException e) {
+        throw new EvalException(e.getCause());
+      }
     }
 
     if (result == Starlark.UNBOUND) {

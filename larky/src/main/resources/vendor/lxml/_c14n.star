@@ -175,7 +175,7 @@ def _implementation(node, write, **kw):
         # Walk up and get all xml:XXX attributes we inherit.
         inherited, parent = [], node.getparent()
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-            if not (parent and parent.nodetype() not in (
+            if not (parent != None and parent.nodetype() not in (
                 "Document",
                 'ProcessingInstruction',
                 'Comment',

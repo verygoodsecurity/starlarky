@@ -213,8 +213,8 @@ def _Integer(value):
     def get_bit(n):
         if self._value < 0:
             fail('ValueError: no bit representation for negative values')
-        result = (self._value >> n._value) & 1
-        if n._value < 0:
+        result = (self._value >> int(n)) & 1
+        if operator.lt(n, 0):
             fail('ValueError: negative bit count')
 
         # result = (_value >> n) & 1
@@ -427,6 +427,18 @@ def _Integer(value):
     return self
 
 
+def _jacobi_symbol(a, n):
+    a = int(a)
+    n = int(n)
+
+    if n <= 0:
+        fail('ValueError: n must be a positive integer')
+
+    if (n & 1) == 0:
+        fail('ValueError: n must be even for the Jacobi symbol')
+    return _Integer(_JCrypto.Math.jacobi_number(a, n))
+
+
 def _from_bytes(byte_string):
     return _Integer(bytes_to_long(byte_string))
 
@@ -530,7 +542,8 @@ Numbers = larky.struct(
         __name__='Integer',
         from_bytes=_from_bytes,
         random_range=_random_range,
-        random=_random
+        random=_random,
+        jacobi_symbol=_jacobi_symbol,
     )
 )
 

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.verygood.security.larky.modules.crypto.Protocol.KDF.BCryptKDF;
+import com.verygood.security.larky.modules.crypto.PublicKey.LarkyDigitalSignatureAlgorithm;
 import com.verygood.security.larky.modules.crypto.PublicKey.LarkyEllipticCurveCryptography;
 import com.verygood.security.larky.modules.crypto.Util.CryptoUtils;
 
@@ -89,8 +90,8 @@ import org.jetbrains.annotations.VisibleForTesting;
 
 public class CryptoPublicKeyModule implements StarlarkValue {
 
-  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
   public static final CryptoPublicKeyModule INSTANCE = new CryptoPublicKeyModule();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @StarlarkMethod(name = "RSA", structField = true)
   public CryptoPublicKeyModule RSA() {
@@ -113,61 +114,61 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     /*
        n : integer
             The modulus.
-          e : integer
-            The public exponent.
-          d : integer
-            The private exponent. Only required for private keys.
-          p : integer
-            The first factor of the modulus. Only required for private keys.
-          q : integer
-            The second factor of the modulus. Only required for private keys.
-          u : integer
-            The CRT coefficient (inverse of p modulo q). Only required for
-            private keys.
+      e : integer
+        The public exponent.
+      d : integer
+        The private exponent. Only required for private keys.
+      p : integer
+        The first factor of the modulus. Only required for private keys.
+      q : integer
+        The second factor of the modulus. Only required for private keys.
+      u : integer
+        The CRT coefficient (inverse of p modulo q). Only required for
+        private keys.
      */
     RSAKeyParameters pubKey = ((RSAKeyParameters) asymKeyPair.getPublic());
     RSAPrivateCrtKeyParameters privateKey = ((RSAPrivateCrtKeyParameters) asymKeyPair.getPrivate());
     return Dict.<String, StarlarkInt>builder()
-        .put("n", StarlarkInt.of(pubKey.getModulus()))
-        .put("e", StarlarkInt.of(pubKey.getExponent()))
-        .put("d", StarlarkInt.of(privateKey.getExponent()))
-        .put("p", StarlarkInt.of(privateKey.getP()))
-        .put("q", StarlarkInt.of(privateKey.getQ()))
-        .put("u", StarlarkInt.of((privateKey.getP().modInverse(privateKey.getQ()))))
-        .build(thread.mutability());
+             .put("n", StarlarkInt.of(pubKey.getModulus()))
+             .put("e", StarlarkInt.of(pubKey.getExponent()))
+             .put("d", StarlarkInt.of(privateKey.getExponent()))
+             .put("p", StarlarkInt.of(privateKey.getP()))
+             .put("q", StarlarkInt.of(privateKey.getQ()))
+             .put("u", StarlarkInt.of((privateKey.getP().modInverse(privateKey.getQ()))))
+             .build(thread.mutability());
   }
 
 
   @StarlarkMethod(
-      name = "compute_factors", parameters = {
-      @Param(name = "n", allowedTypes = {
-          @ParamType(type = StarlarkInt.class),
-      }),
-      @Param(name = "e", allowedTypes = {
-          @ParamType(type = StarlarkInt.class)
-      }),
-      @Param(name = "d", allowedTypes = {
-          @ParamType(type = StarlarkInt.class)
-      })
+    name = "compute_factors", parameters = {
+    @Param(name = "n", allowedTypes = {
+      @ParamType(type = StarlarkInt.class),
+    }),
+    @Param(name = "e", allowedTypes = {
+      @ParamType(type = StarlarkInt.class)
+    }),
+    @Param(name = "d", allowedTypes = {
+      @ParamType(type = StarlarkInt.class)
+    })
   }
   )
   public Tuple computePrimeFactors(StarlarkInt n, StarlarkInt e, StarlarkInt d) throws EvalException {
     Map.Entry<BigInteger, BigInteger> pq = CryptoUtils.probabilisticPrimeFactorization(
-        n.toBigInteger(),
-        e.toBigInteger(),
-        d.toBigInteger());
+      n.toBigInteger(),
+      e.toBigInteger(),
+      d.toBigInteger());
     return Tuple.of(StarlarkInt.of(pq.getKey()), StarlarkInt.of(pq.getValue()));
   }
 
   @StarlarkMethod(
-      name = "import_keyDER",
-      parameters = {
-          @Param(name = "externKey", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
-          @Param(name = "passPhrase", allowedTypes = {
-              @ParamType(type = StarlarkBytes.class),
-              @ParamType(type = NoneType.class)
-          })
-      }, useStarlarkThread = true)
+    name = "import_keyDER",
+    parameters = {
+      @Param(name = "externKey", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+      @Param(name = "passPhrase", allowedTypes = {
+        @ParamType(type = StarlarkBytes.class),
+        @ParamType(type = NoneType.class)
+      })
+    }, useStarlarkThread = true)
   public StarlarkList<StarlarkInt> importKeyDER(StarlarkBytes externKey, Object passPhraseO, StarlarkThread thread) throws EvalException {
     List<BigInteger> components;
     char[] passphrase = null;
@@ -188,8 +189,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       components.remove(components.size() - 1); // remove the last item..
     }
     return StarlarkList.copyOf(
-        thread.mutability(),
-        components.stream().map(StarlarkInt::of).collect(Collectors.toList()));
+      thread.mutability(),
+      components.stream().map(StarlarkInt::of).collect(Collectors.toList()));
   }
 
   public List<BigInteger> decodeDERKey(byte[] externKey, char[] passPhrase) throws SignatureException, EvalException, NoSuchAlgorithmException, IOException {
@@ -235,13 +236,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       x = new PKCS8EncryptedPrivateKeyInfo(externKey);
       RSAPrivateCrtKey privParams = (RSAPrivateCrtKey) CryptoUtils.loadPrivateKey(x, passPhrase);
       r.addAll(ImmutableList.of(
-          privParams.getModulus(),
-          privParams.getPublicExponent(),
-          privParams.getPrivateExponent(),
-          privParams.getPrimeP(),
-          privParams.getPrimeQ(),
-          privParams.getPrimeP().modInverse(privParams.getPrimeQ()),
-          privParams.getCrtCoefficient()));
+        privParams.getModulus(),
+        privParams.getPublicExponent(),
+        privParams.getPrivateExponent(),
+        privParams.getPrimeP(),
+        privParams.getPrimeQ(),
+        privParams.getPrimeP().modInverse(privParams.getPrimeQ()),
+        privParams.getCrtCoefficient()));
     } catch (IOException e) {
       failures.add(e);
     }
@@ -256,13 +257,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       // is this a possible PKCS#8-encoded key?
       crtPrivParams = (RSAPrivateCrtKeyParameters) PrivateKeyFactory.createKey(externKey);
       r.addAll(ImmutableList.of(
-          crtPrivParams.getModulus(),
-          crtPrivParams.getPublicExponent(),
-          crtPrivParams.getExponent(),
-          crtPrivParams.getP(),
-          crtPrivParams.getQ(),
-          crtPrivParams.getP().modInverse(crtPrivParams.getQ()),
-          crtPrivParams.getQInv()));
+        crtPrivParams.getModulus(),
+        crtPrivParams.getPublicExponent(),
+        crtPrivParams.getExponent(),
+        crtPrivParams.getP(),
+        crtPrivParams.getQ(),
+        crtPrivParams.getP().modInverse(crtPrivParams.getQ()),
+        crtPrivParams.getQInv()));
     } catch (IllegalArgumentException e) {
       failures.add(e);
     }
@@ -301,7 +302,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     ASN1ObjectIdentifier algOid = pki.getAlgorithm().getAlgorithm();
     if (!RSAUtil.isRsaOid(algOid)) {
       failures.add(new EvalException(String.format(
-          "Unknown algorithm id: %s, supporting only RSA here", algOid.getId())));
+        "Unknown algorithm id: %s, supporting only RSA here", algOid.getId())));
     }
     pubKey = (RSAPublicKey) new KeyFactorySpi().generatePublic(pki);
     r.addAll(ImmutableList.of(pubKey.getModulus(), pubKey.getPublicExponent()));
@@ -346,7 +347,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     }
 
     if (!integer.getValue().equals(BigInteger.ONE)
-        && !integer.getValue().equals(BigInteger.ZERO)) {
+          && !integer.getValue().equals(BigInteger.ZERO)) {
       return r;
     }
     // ok this is a private key
@@ -359,13 +360,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     }
     RSAPrivateKey privParams = RSAPrivateKey.getInstance(sequence);
     r.addAll(ImmutableList.of(
-        privParams.getModulus(),
-        privParams.getPublicExponent(),
-        privParams.getPrivateExponent(),
-        privParams.getPrime1(),
-        privParams.getPrime2(),
-        privParams.getPrime1().modInverse(privParams.getPrime2()),
-        privParams.getCoefficient()));
+      privParams.getModulus(),
+      privParams.getPublicExponent(),
+      privParams.getPrivateExponent(),
+      privParams.getPrime1(),
+      privParams.getPrime2(),
+      privParams.getPrime1().modInverse(privParams.getPrime2()),
+      privParams.getCoefficient()));
     return r;
   }
 
@@ -383,14 +384,14 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   }
 
   @StarlarkMethod(
-      name = "PKCS8_unwrap", parameters = {
-      @Param(name = "binary_key", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
-      @Param(name = "oid", allowedTypes = {@ParamType(type = String.class)}),
-      @Param(name = "passphrase", allowedTypes = {
-          @ParamType(type = StarlarkBytes.class),
-          @ParamType(type = NoneType.class)
-      }),
-      @Param(name = "protection", allowedTypes = {@ParamType(type = String.class)})
+    name = "PKCS8_unwrap", parameters = {
+    @Param(name = "binary_key", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+    @Param(name = "oid", allowedTypes = {@ParamType(type = String.class)}),
+    @Param(name = "passphrase", allowedTypes = {
+      @ParamType(type = StarlarkBytes.class),
+      @ParamType(type = NoneType.class)
+    }),
+    @Param(name = "protection", allowedTypes = {@ParamType(type = String.class)})
   }, useStarlarkThread = true)
   public Tuple PKCS8_unwrap(StarlarkBytes binaryKey, String oid, Object passphraseO, String protection, StarlarkThread thread) throws EvalException {
     InputStreamReader r = new InputStreamReader(new ByteArrayInputStream(binaryKey.toByteArray()));
@@ -405,27 +406,27 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     }
     String algorithm = kp.getPrivate().getAlgorithm();
     return Tuple.of(
-        algorithm,
-        StarlarkBytes.of(thread.mutability(),kp.getPrivate().getEncoded())
-        //StarlarkBytes.builder(thread).setSequence(kp.getPrivate().getEncoded()).build()
+      algorithm,
+      StarlarkBytes.of(thread.mutability(), kp.getPrivate().getEncoded())
+      //StarlarkBytes.builder(thread).setSequence(kp.getPrivate().getEncoded()).build()
     );
   }
 
   @StarlarkMethod(
-      name = "PEM_decode",
-      doc = "Decode a PEM block into binary." +
-          "\n" +
-          "- pem_data (string):\n" +
-          "  The PEM block.\n" +
-          "\n" +
-          "- passphrase (byte string):\n" +
-          "  If given and the PEM block is encrypted,\n" +
-          "  the key will be derived from the passphrase.\n",
-      parameters = {
-          @Param(name = "decodeable", allowedTypes = {@ParamType(type = String.class)}),
-          @Param(name = "passphrase", allowedTypes = {
-              @ParamType(type = StarlarkBytes.class), @ParamType(type = NoneType.class)}),
-      }, useStarlarkThread = true)
+    name = "PEM_decode",
+    doc = "Decode a PEM block into binary." +
+            "\n" +
+            "- pem_data (string):\n" +
+            "  The PEM block.\n" +
+            "\n" +
+            "- passphrase (byte string):\n" +
+            "  If given and the PEM block is encrypted,\n" +
+            "  the key will be derived from the passphrase.\n",
+    parameters = {
+      @Param(name = "decodeable", allowedTypes = {@ParamType(type = String.class)}),
+      @Param(name = "passphrase", allowedTypes = {
+        @ParamType(type = StarlarkBytes.class), @ParamType(type = NoneType.class)}),
+    }, useStarlarkThread = true)
   public StarlarkList<?> PEM_decode(String decodable, Object passphrase, StarlarkThread thread) throws EvalException {
 
     Map<String, byte[]> keyParts;
@@ -433,26 +434,26 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       Object pemObj = CryptoUtils.extractPEMObject(decodable.getBytes(StandardCharsets.UTF_8));
       if (pemObj == null) throw Starlark.errorf("Could not extract PEM encoded object!");
       char[] passChars = Starlark.isNullOrNone(passphrase)
-          ? "".toCharArray()
-          : ((StarlarkBytes) passphrase).toCharArray();
+                           ? "".toCharArray()
+                           : ((StarlarkBytes) passphrase).toCharArray();
       keyParts = PEM_parse(pemObj, passChars);
     } catch (IOException | CryptoException e) {
       throw new EvalException(e.getMessage(), e);
     }
 
     Dict.Builder<String, Object> rval = Dict.<String, Object>builder()
-        .put("n", StarlarkInt.of(new BigInteger(keyParts.get("n"))))
-        .put("e", StarlarkInt.of(new BigInteger(keyParts.get("e"))));
+                                          .put("n", StarlarkInt.of(new BigInteger(keyParts.get("n"))))
+                                          .put("e", StarlarkInt.of(new BigInteger(keyParts.get("e"))));
 
     if (keyParts.containsKey("d")) {
       rval.put("d", StarlarkInt.of(new BigInteger(keyParts.get("d"))))
-          .put("p", StarlarkInt.of(new BigInteger(keyParts.get("p"))))
-          .put("q", StarlarkInt.of(new BigInteger(keyParts.get("q"))))
-          .put("u", StarlarkInt.of(new BigInteger(keyParts.get("u"))));
+        .put("p", StarlarkInt.of(new BigInteger(keyParts.get("p"))))
+        .put("q", StarlarkInt.of(new BigInteger(keyParts.get("q"))))
+        .put("u", StarlarkInt.of(new BigInteger(keyParts.get("u"))));
     }
     return StarlarkList.copyOf(
-        thread.mutability(),
-        rval.build(thread.mutability()).values());
+      thread.mutability(),
+      rval.build(thread.mutability()).values());
   }
 
   private Map<String, byte[]> PEM_parse(Object obj, char[] passChars) throws EvalException, IOException, CryptoException {
@@ -486,7 +487,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     RSAPublicKey publicKey;
     try {
       publicKey = (RSAPublicKey) KeyFactory.getInstance("RSA").generatePublic(
-          new RSAPublicKeySpec(pk.getModulus(), pk.getPublicExponent()));
+        new RSAPublicKeySpec(pk.getModulus(), pk.getPublicExponent()));
     } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
       throw new EvalException(e.getMessage(), e);
     }
@@ -524,17 +525,17 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       throw new CryptoException(gse.getMessage(), gse);
     }
     throw new CryptoException(
-        String.format("Unknown algorithm id: %s, supporting only RSA here", algOid.getId()));
+      String.format("Unknown algorithm id: %s, supporting only RSA here", algOid.getId()));
   }
 
 
   @StarlarkMethod(
-      name = "decrypt",
-      parameters = {
-          @Param(name = "rsaObj", allowedTypes = {@ParamType(type = Dict.class)}),
-          @Param(name = "ciphertext")
-      },
-      useStarlarkThread = true
+    name = "decrypt",
+    parameters = {
+      @Param(name = "rsaObj", allowedTypes = {@ParamType(type = Dict.class)}),
+      @Param(name = "ciphertext")
+    },
+    useStarlarkThread = true
   )
   public StarlarkBytes RSADecrypt(Dict<String, StarlarkInt> finalRsaObj, StarlarkBytes cT, StarlarkThread thread) throws EvalException {
     byte[] cipherText = cT.toByteArray();
@@ -551,9 +552,9 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   @VisibleForTesting
   byte[] RSA_decrypt(Dict<String, StarlarkInt> finalRsaObj, byte[] cipherText) throws InvalidCipherTextException {
     RSAKeyParameters privParams = new RSAKeyParameters(
-        true,
-        finalRsaObj.get("n").toBigInteger(),
-        finalRsaObj.get("d").toBigInteger());
+      true,
+      finalRsaObj.get("n").toBigInteger(),
+      finalRsaObj.get("d").toBigInteger());
 
     AsymmetricBlockCipher rsaEngine = new RSABlindedEngine();
     rsaEngine.init(false, privParams);
@@ -563,12 +564,12 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   }
 
   @StarlarkMethod(
-      name = "encrypt",
-      parameters = {
-          @Param(name = "rsaObj", allowedTypes = {@ParamType(type = Dict.class)}),
-          @Param(name = "plaintext")
-      },
-      useStarlarkThread = true
+    name = "encrypt",
+    parameters = {
+      @Param(name = "rsaObj", allowedTypes = {@ParamType(type = Dict.class)}),
+      @Param(name = "plaintext")
+    },
+    useStarlarkThread = true
   )
   public StarlarkBytes RSAEncrypt(Dict<String, StarlarkInt> finalRsaObj, StarlarkBytes pT, StarlarkThread thread) throws EvalException {
     byte[] plainText = pT.toByteArray();
@@ -585,9 +586,9 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   @VisibleForTesting
   byte[] RSA_encrypt(Dict<String, StarlarkInt> finalRsaObj, byte[] plainText) throws InvalidCipherTextException {
     RSAKeyParameters pubParams = new RSAKeyParameters(
-        false,
-        finalRsaObj.get("n").toBigInteger(),
-        finalRsaObj.get("e").toBigInteger());
+      false,
+      finalRsaObj.get("n").toBigInteger(),
+      finalRsaObj.get("e").toBigInteger());
     AsymmetricBlockCipher rsaEngine = new RSABlindedEngine();
 
     rsaEngine.init(true, pubParams);
@@ -598,13 +599,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
 
 
   @StarlarkMethod(
-      name = "decrypt_openssh_key", parameters = {
-      @Param(name = "encrypted", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
-      @Param(name = "password", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
-      @Param(name = "salt", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+    name = "decrypt_openssh_key", parameters = {
+    @Param(name = "encrypted", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+    @Param(name = "password", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+    @Param(name = "salt", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
   }, useStarlarkThread = true)
   public StarlarkBytes decryptOpenSSHKey(
-      StarlarkBytes encrypted, StarlarkBytes password, StarlarkBytes salt, StarlarkThread thread) throws EvalException {
+    StarlarkBytes encrypted, StarlarkBytes password, StarlarkBytes salt, StarlarkThread thread) throws EvalException {
     if (password.size() == 0) {
       throw Starlark.errorf("Password cannot have size 0 when decrypting an SSH key!");
     }
@@ -623,8 +624,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     CipherParameters keyIv = new ParametersWithIV(new KeyParameter(key, 0, 32), key, 32, 48 - 32);
     //AES256 CTR is SICBlockCipher
     BufferedBlockCipher cipher = new BufferedBlockCipher(
-        new SICBlockCipher(
-            new AESEngine()));
+      new SICBlockCipher(
+        new AESEngine()));
     cipher.init(false, keyIv);
 
     byte[] result = new byte[cipher.getOutputSize(encrypted.size())];
@@ -636,6 +637,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       throw new EvalException(e.getMessage(), e);
     }
     return StarlarkBytes.of(thread.mutability(), result);
+  }
+
+  @StarlarkMethod(
+    name = "DSA", structField = true
+  )
+  public LarkyDigitalSignatureAlgorithm DSA() throws EvalException {
+    return LarkyDigitalSignatureAlgorithm.INSTANCE;
   }
 
   @StarlarkMethod(

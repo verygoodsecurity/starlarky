@@ -449,7 +449,7 @@ def XMLNode(tag, attrib=None, **extra):
     self.prefix = larky.property(lambda: split_qname(self.qname)[0])
     self.href = larky.property(lambda: self._href)
     self.parent = larky.property(lambda: self.__parent)
-    self._index = larky.property(lambda: self.parent.index(self) if self.parent else 0)
+    self._index = larky.property(lambda: self.parent.index(self) if self.parent != None else 0)
 
     def _owner_document():
         """Document: An associated document."""
@@ -1176,7 +1176,7 @@ def XMLNode(tag, attrib=None, **extra):
         Returns the following sibling of this element or None.
         """
         ix = self._index
-        if not self.parent or ix == (self.parent.numchildren() - 1):
+        if self.parent == None or ix == (self.parent.numchildren() - 1):
             return None
         return self.__parent[ix + 1]
 
@@ -1217,7 +1217,7 @@ def XMLNode(tag, attrib=None, **extra):
         @returns tree_cls(Root node instance) or None if not found
         """
         rootnode = self.getroot()
-        if rootnode:
+        if rootnode != None:
             return XMLTree(rootnode)
 
     self.getroottree = getroottree
@@ -1226,7 +1226,7 @@ def XMLNode(tag, attrib=None, **extra):
         """
         Find the position of the child within the parent.
         """
-        if not elem:
+        if elem == None:
             return -1
 
         if stop == None and start in (None, 0):
@@ -1629,11 +1629,6 @@ def XMLNode(tag, attrib=None, **extra):
         return len(self._children)
 
     self.__len__ = __len__
-
-    def __bool__():
-        return len(self._children)
-
-    self.__bool__ = __bool__
 
     def __reversed__():
         return builtins.reversed(self._children)

@@ -623,6 +623,8 @@ def DerSequence(startSeq=None, implicit=None):
 
         self._nr_elements = nr_elements
         i = _JCrypto.Util.ASN1.DerSequence(self._seq)
+        if not byte_string(der_encoded) and not types.is_bytearray(der_encoded):
+            fail('ValueError: Input is not a byte string')
         self._seq = i.decode(der_encoded)
         # result = self.derobject.decode(self, der_encoded, strict=strict)
         #
@@ -642,8 +644,8 @@ def DerSequence(startSeq=None, implicit=None):
         if not ok:
             # TODO(Hack)...until I introduce safetywrap
             if errors:
-                err = '"Unexpected number of members (%d) in the sequence"'
-                fail('ValueError(%s)' % (err % len(self._seq)))
+                err = 'Unexpected number of members (%d) in the sequence'
+                fail('ValueError: %s' % (err % len(self._seq)))
             return
         return self
 
@@ -867,9 +869,6 @@ def DerObjectId(value='', implicit=None, explicit=None):
         Raises:
             ValueError: in case of parsing errors.
         """
-        if type(der_encoded) == 'string':
-            #return der_encoded
-            der_encoded = DerObjectId(der_encoded).encode()
         return self.derobject.decode(self, der_encoded, strict)
 
     def _decodeFromStream(obj, s, strict):

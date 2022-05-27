@@ -17,10 +17,11 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
-
+load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
+load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence", DerInteger="DerInteger", DerBitString="DerBitString", DerObjectId="DerObjectId", DerNull="DerNull")
-load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
+load("@vendor//option/result", Result="Result")
 
 def expand_subject_public_key_info(encoded):
     """Parse a SubjectPublicKeyInfo structure.
@@ -42,25 +43,22 @@ def expand_subject_public_key_info(encoded):
     #   parameters  ANY DEFINED BY algorithm OPTIONAL
     # }
     #
-
-    # TODO(mahmoudimus): should we rewrite our Larky asn1 implementation to
-    #  match pycrypto's?
     spki = DerSequence().decode(encoded, nr_elements=2)
-    algo = spki.__getitem__(0)
-    algo_oid = algo[0]
-    spk = spki.__getitem__(1)
-    #algo = DerSequence().decode(spki.__getitem__(0), nr_elements=(1,2))
-    #algo_oid = DerObjectId().decode(algo.__getitem__(0))
-    #spk = DerBitString().decode(spki.__getitem__(1)).value
+    algo = DerSequence().decode(operator.getitem(spki, 0), nr_elements=(1, 2))
+    algo_oid = DerObjectId().decode(operator.getitem(algo, 0))
+    spk = DerBitString().decode(operator.getitem(spki, 1)).value
+
     if len(algo) == 1:
         algo_params = None
     else:
-        if algo[1] == 'NULL':
+        decoder = Result.Ok(DerNull().decode)
+        res = decoder.map(lambda x: x(algo[1]))
+        if res.is_ok:
             algo_params = None
         else:
             algo_params = algo[1]
 
-    return algo_oid, spk, algo_params
+    return algo_oid.value, spk, algo_params
 
 
 def create_subject_public_key_info(algo_oid, secret_key, params=None):
@@ -79,20 +77,20 @@ def extract_subject_public_key_info(x509_certificate):
     """Extract subjectPublicKeyInfo from a DER X.509 certificate."""
 
     certificate = DerSequence().decode(x509_certificate, nr_elements=3)
-    tbs_certificate = DerSequence().decode(certificate.__getitem__(0),
+    tbs_certificate = DerSequence().decode(operator.getitem(certificate, 0),
                                            nr_elements=range(6, 11))
 
     index = 5
-    if types.is_int(tbs_certificate.__getitem__(0)):
-        tbs_certificate.__getitem__(0) + 1
+    if types.is_int(operator.getitem(tbs_certificate, 0)):
+        operator.getitem(tbs_certificate, 0) + 1
         # Version not present
         version = 1
     else:
         version = (DerInteger(explicit=0)
-                   .decode(tbs_certificate.__getitem__(0))
+                   .decode(operator.getitem(tbs_certificate, 0))
                    .value)
         if version not in (2, 3):
             fail('ValueError: Incorrect X.509 certificate version')
         index = 6
 
-    return tbs_certificate.__getitem__(index)
+    return operator.getitem(tbs_certificate, index)
