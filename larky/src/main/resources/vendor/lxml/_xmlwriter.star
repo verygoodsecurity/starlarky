@@ -236,7 +236,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
 
         Writes a document type declaration to the stream.
         """
-        if not doctype or not hasattr(doctype, '_name'):
+        if doctype == None or not hasattr(doctype, '_name'):
             return
         # Name in document type declaration must match the root element tag.
         # For XML, case sensitive match, for HTML insensitive.
@@ -453,7 +453,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
             self.write_xml_header()
 
         # comments/processing instructions before doctype declaration
-        if write_complete_document and c_doc.docinfo:
+        if write_complete_document and c_doc.docinfo != None:
             if self.options.get('debug'):
                 print("DEBUG", "comments/processing instructions before doctype")
             # for n in c_doc:
@@ -466,12 +466,12 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
             #         with_tail=self.options["with_tail"],
             #         write_complete_document=write_complete_document)
             self.write_previous_siblings(c_doc.docinfo, namespaces)
-        if self.options['doctype']:
+        if self.options['doctype'] != None:
             self.write_content(self.options['doctype'])
             self.write_content('\n')
 
         # write internal DTD subset, preceding PIs/comments, etc.
-        if write_complete_document and not self.options['doctype']:
+        if write_complete_document and self.options['doctype'] == None:
             if self.options.get('debug'):
                 print("DEBUG", "write internal DTD subset")
             self.write_dtd(c_doc.docinfo)
@@ -524,7 +524,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
     self.write = write
 
     def write_previous_siblings(c_node, namespaces):
-        if c_node.getparent() and (
+        if c_node.getparent() != None and (
                 self._nodetype(c_node.getparent()) != 'Document'
         ):
             return
@@ -533,7 +533,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             c_prev_sibling = c_sibling.previous_sibling()
             # print(repr(c_node), repr(c_sibling.previous_sibling()))
-            if not c_prev_sibling or self._nodetype(c_prev_sibling) not in (
+            if c_prev_sibling == None or self._nodetype(c_prev_sibling) not in (
                 'Comment',
                 'ProcessingInstruction',
             ):
@@ -541,7 +541,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
             c_sibling = c_prev_sibling
 
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
-            if not c_sibling or c_sibling == c_node:
+            if c_sibling == None or c_sibling == c_node:
                 break
             self.write_node(c_sibling, namespaces)
             if self.options['pretty_print']:
@@ -550,14 +550,14 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
     self.write_previous_siblings = write_previous_siblings
 
     def write_next_siblings(c_node, namespaces):
-        if c_node.getparent() and (
+        if c_node.getparent() != None and (
                 self._nodetype(c_node.getparent()) != 'Document'
         ):
             return
         # we are at a root node, so add PI and comment siblings
         c_sibling = c_node.next_sibling()
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
-            if not c_sibling or self._nodetype(c_sibling) not in (
+            if c_sibling == None or self._nodetype(c_sibling) not in (
                 'Comment',
                 'ProcessingInstruction',
             ):
@@ -596,7 +596,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                 elif tag_type == 'Comment':
                     # comments are not parsed by ElementTree!
                     self.write_comment(node)
-                    if (write_complete_document or with_tail) and node.tail:
+                    if (write_complete_document or with_tail) and node.tail != None:
                         self.write_content(node.tail)
                     continue
                 elif tag_type == 'Text':
@@ -604,21 +604,21 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                     if self.options.get('debug'):
                         print("text node:", repr(node.text), repr(node.tail))
                     self.write_content(node.text)
-                    if (write_complete_document or with_tail) and node.tail:
+                    if (write_complete_document or with_tail) and node.tail != None:
                         self.write_content(node.tail)
                     continue
                 elif tag_type == 'ProcessingInstruction':
                     # PI's are not parsed by ElementTree!
                     self.write_pi(node)
-                    if (write_complete_document or with_tail) and node.tail:
+                    if (write_complete_document or with_tail) and node.tail != None:
                         self.write_content(node.tail)
                     continue
                 elif all((
                         tag_type == 'DocumentType',
-                        not self.options['doctype']
+                        self.options['doctype'] == None
                 )):
                     self.write_dtd(node)
-                    if (write_complete_document or with_tail) and node.tail:
+                    if (write_complete_document or with_tail) and node.tail != None:
                         self.write_content(node.tail)
                     continue
                 else:
@@ -637,31 +637,31 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                         xmlns = self._add_node_namespaces_to_root(
                             node, xmlns, xmlns_items
                         )
-                    if xmlns:
+                    if xmlns != None:
                         xmlns_items.append(xmlns)
                     self.write_start_tag_open(tag)
                     # write attribute nodes
                     for attrname, value in attributes:
                         attrname, xmlns = self.add_prefix(attrname, namespaces)
-                        if xmlns:
+                        if xmlns != None:
                             xmlns_items.append(xmlns)
                         self.write_attr(attrname, value)
                     # write collected xmlns attributes
                     for attrname, value in xmlns_items:
                         self.write_attr(attrname, value)
 
-                    if not (node.text or len(node)):
+                    if node.text == None and len(node) == 0:
                         if self.options.get('short_empty_elements', True):
                             self.write_empty_tag_close()
                         else:
                             self.write_start_tag_close()
                             self.write_end_tag(tag)
 
-                        if (write_complete_document or with_tail) and node.tail:
+                        if (write_complete_document or with_tail) and node.tail != None:
                             self.write_content(node.tail)
                     else:
                         self.write_start_tag_close()
-                        if node.text:
+                        if node.text != None:
                             self.write_content(node.text)
 
                         # self.write(n, dict(**namespaces))

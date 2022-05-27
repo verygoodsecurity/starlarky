@@ -78,7 +78,6 @@ public class Partial implements StarlarkCallable {
     return sb.toString();
   }
 
-
   @Override
   @SuppressWarnings("unchecked")
   public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) throws EvalException, InterruptedException {

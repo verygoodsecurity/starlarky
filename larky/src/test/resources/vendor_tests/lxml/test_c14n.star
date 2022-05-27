@@ -232,8 +232,8 @@ def test_c14n_eg3():
     # print("--" * 50)
     actual = etree.tostring(tree, method='c14n').strip()
     expected = base64.b64decode((test_results[eg3])).decode('utf-8')
-    print(repr(actual))
-    print(repr(expected))
+    # print(repr(actual))
+    # print(repr(expected))
     asserts.assert_that(actual).is_equal_to(expected)
 
 

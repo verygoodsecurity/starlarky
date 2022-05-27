@@ -1,3 +1,5 @@
+load("@stdlib//larky", larky="larky")
+
 def _create_base_cipher(dict_parameters):
     """
     This method instantiates and returns a smart pointer to
@@ -63,5 +65,10 @@ def new(key, mode, *args, **kwargs):
                 the counter block. By default it is **0**.
 
         :Return: a Blowfish object, of the applicable mode.
-    
+
     """
+
+
+Blowfish = larky.struct(
+    __name__='Blowfish',
+)

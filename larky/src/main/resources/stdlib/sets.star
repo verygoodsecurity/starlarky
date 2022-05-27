@@ -324,6 +324,10 @@ def Set(iterable=None):
     self._length = _set_length
     self.__len__ = _set_length  # alias
 
+    def __bool__():
+        return self._length() != 0
+    self.__bool__ = __bool__
+
     def __repr__():
         return _repr(self)
     self.__repr__ = __repr__

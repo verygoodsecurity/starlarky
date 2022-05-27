@@ -1,4 +1,5 @@
 load("@stdlib//larky", larky="larky")
+load("@stdlib//types", types="types")
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", bord="bord", tostr="tostr")
@@ -8,7 +9,8 @@ load("@vendor//option/result", Error="Error")
 digest_size = 20
 # The internal block size of the hash algorithm in bytes.
 block_size = 64
-
+# oid
+oid = "1.3.36.3.2.1"
 
 
 def RIPEMD160Hash(data=None):
@@ -26,16 +28,16 @@ def RIPEMD160Hash(data=None):
 
         :ivar digest_size: the size in bytes of the resulting hash
         :vartype digest_size: integer
-    
+
     """
-    self = larky.mutablestruct(__class__='RIPEMD160Hash')
+    self = larky.mutablestruct(__class__="RIPEMD160Hash")
 
     # The size of the resulting hash in bytes.
     self.digest_size = 20
     # The internal block size of the hash algorithm in bytes.
     self.block_size = 64
     # ASN.1 Object ID
-    oid = "1.3.36.3.2.1"
+    self.oid = "1.3.36.3.2.1"
 
     def __init__(data=None):
         """
@@ -47,6 +49,7 @@ def RIPEMD160Hash(data=None):
             _state.update(data)
         self._state = _state
         return self
+
     self = __init__(data)
 
     def update(data):
@@ -55,11 +58,12 @@ def RIPEMD160Hash(data=None):
 
                 Args:
                     data (byte string/byte array/memoryview): The next chunk of the message being hashed.
-        
+
         """
-        if not data:
+        if not types.is_bytelike(data):
             fail("TypeError: object supporting the buffer API required")
         self._state.update(data)
+
     self.update = update
 
     def digest():
@@ -69,9 +73,10 @@ def RIPEMD160Hash(data=None):
                 :return: The hash digest, computed over the data processed so far.
                          Binary form.
                 :rtype: byte string
-        
+
         """
         return self._state.digest()
+
     self.digest = digest
 
     def hexdigest():
@@ -81,11 +86,12 @@ def RIPEMD160Hash(data=None):
                 :return: The hash digest, computed over the data processed so far.
                          Hexadecimal encoded.
                 :rtype: string
-        
+
         """
         return tostr(hexlify(self.digest()))
+
     self.hexdigest = hexdigest
-    
+
     def copy():
         """
         Return a copy ("clone") of the hash object.
@@ -96,20 +102,23 @@ def RIPEMD160Hash(data=None):
                 share a common initial substring.
 
                 :return: A hash object of the same type
-        
+
         """
         clone = RIPEMD160Hash()
         clone._state = self._state.copy()
         return clone
+
     self.copy = copy
-    
+
     def new(data=None):
         """
         Create a fresh RIPEMD-160 hash object.
         """
         return RIPEMD160Hash(data)
+
     self.new = new
     return self
+
 
 def new(data=None):
     """
@@ -121,13 +130,14 @@ def new(data=None):
         :type data: byte string/byte array/memoryview
 
         :Return: A :class:`RIPEMD160Hash` hash object
-    
+
     """
     return RIPEMD160Hash().new(data)
+
 
 RIPEMD160 = larky.struct(
     digest_size=digest_size,
     block_size=block_size,
     new=new,
-    __name__ = 'RIPEMD160',
+    __name__="RIPEMD160",
 )

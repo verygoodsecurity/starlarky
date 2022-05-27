@@ -1,9 +1,20 @@
 package com.verygood.security.larky;
 
+import static com.verygood.security.larky.ModuleSupplier.CORE_ENVIRONMENT;
 import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.Collator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
@@ -18,17 +29,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.text.Collator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 public class StdLibTests {
@@ -49,7 +49,11 @@ public class StdLibTests {
         new AssertionsModule()
     );
     moduleSet = new ModuleSupplier().modulesToVariableMap(true);
-    interpreter = new LarkyScript(CORE_MODULES, LarkyScript.StarlarkMode.STRICT);
+    interpreter = new LarkyScript(
+      CORE_MODULES,
+      LarkyScript.StarlarkMode.STRICT,
+      CORE_ENVIRONMENT
+    );
     stdLibTestFiles = enumerateTests();
   }
 

@@ -21,15 +21,15 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
-
 load("@stdlib//binascii", binascii="binascii")
+load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//itertools", itertools="itertools")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
-# load("@stdlib//pickle", PicklingError="PicklingError")
-load("@stdlib//struct", struct="struct")
+load("@stdlib//operator", operator="operator")
 load("@stdlib//sets", sets="sets")
-load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//struct", struct="struct")
 load("@stdlib//types", types="types")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Hash", SHA256="SHA256")
@@ -39,12 +39,40 @@ load("@vendor//Crypto/Math/Primality", test_probable_prime="test_probable_prime"
 load("@vendor//Crypto/PublicKey", _expand_subject_public_key_info="expand_subject_public_key_info", _create_subject_public_key_info="create_subject_public_key_info", _extract_subject_public_key_info="extract_subject_public_key_info")
 load("@vendor//Crypto/Util/asn1", DerObject="DerObject", DerSequence="DerSequence", DerInteger="DerInteger", DerObjectId="DerObjectId", DerBitString="DerBitString")
 load("@vendor//Crypto/Util/py3compat", bchr="bchr", bord="bord", tobytes="tobytes", tostr="tostr", iter_range="iter_range")
-load("@vendor//option/result", Error="Error")
+load("@vendor//option/result", Result="Result", Error="Error")
 
 __all__ = ['generate', 'construct', 'DsaKey', 'import_key']
 
 map = builtins.map
 sum = builtins.sum
+
+#   ; The following ASN.1 types are relevant for DSA
+#
+#   SubjectPublicKeyInfo    ::=     SEQUENCE {
+#       algorithm   AlgorithmIdentifier,
+#       subjectPublicKey BIT STRING
+#   }
+#
+#   id-dsa ID ::= { iso(1) member-body(2) us(840) x9-57(10040) x9cm(4) 1 }
+#
+#   ; See RFC3279
+#   Dss-Parms  ::=  SEQUENCE  {
+#       p INTEGER,
+#       q INTEGER,
+#       g INTEGER
+#   }
+#
+#   DSAPublicKey ::= INTEGER
+#
+#   DSSPrivatKey_OpenSSL ::= SEQUENCE
+#       version INTEGER,
+#       p INTEGER,
+#       q INTEGER,
+#       g INTEGER,
+#       y INTEGER,
+#       x INTEGER
+#   }
+#
 
 def DsaKey(key_dict):
     r"""Class defining an actual DSA key.
@@ -89,7 +117,7 @@ def DsaKey(key_dict):
     def _sign(m, k):
         if not self.has_private():
             fail("TypeError: DSA public key cannot be used for signing")
-        if not (1 < k._value) and (k < self._key["q"]):
+        if not (operator.le(1, k) and operator.le(k, self.q)):
             fail("ValueError: k is not between 2 and q-1")
 
         x, q, p, g = [self._key[comp] for comp in ['x', 'q', 'p', 'g']]
@@ -99,7 +127,7 @@ def DsaKey(key_dict):
         inv_blind_k = (blind_factor * k).inverse(q)
         blind_x = x * blind_factor
 
-        r = pow(g, k._value, p._value) % q._value  # r = (g**k mod p) mod q
+        r = pow(int(g), int(k), int(p)) % int(q)  # r = (g**k mod p) mod q
         s = (inv_blind_k * (blind_factor * m + blind_x * r)) % q
         return map(int, (r, s))
     self._sign = _sign
@@ -107,33 +135,25 @@ def DsaKey(key_dict):
     def _verify(m, sig):
         r, s = sig
         y, q, p, g = [self._key[comp] for comp in ['y', 'q', 'p', 'g']]
-        if not (0 < r._value) and (r < q) or not (0 < s._value) and (s < q):
+        if not (operator.lt(0, r) and operator.lt(r, q)) or not (operator.lt(0, s) and operator.lt(s, q)):
             return False
         w = Integer(s).inverse(q)
         u1 = (w * m) % q
         u2 = (w * r) % q
-        g_san = g
-        y_san = y
-        u1_san = u1
-        u2_san = u2
-        p_san = p
-        if types.is_instance(g, Integer):
-            g_san = g._value
-        if types.is_instance(y, Integer):
-            y_san = y._value
-        if types.is_instance(u1, Integer):
-            u1_san = u1._value
-        if types.is_instance(p, Integer):
-            p_san = p._value
-        if types.is_instance(u2, Integer):
-            u2_san = u2._value
-        v = (pow(g_san, u1_san, p_san) * pow(y_san, u2_san, p_san) % p_san) % q
-        return v == r
+        d= {
+            'g': int(g),
+            'u1': int(u1),
+            'p': int(p),
+            'y': int(y),
+            'u2': int(u2),
+            'q': int(q)
+        }
+        v = (pow(d['g'], d['u1'], d['p']) * pow(d['y'], d['u2'], d['p']) % d['p']) % d['q']
+        return operator.eq(v, r)
     self._verify = _verify
 
     def has_private():
         """Whether this is a DSA private key"""
-
         return 'x' in self._key
     self.has_private = has_private
 
@@ -157,13 +177,14 @@ def DsaKey(key_dict):
     self.public_key = public_key
 
     def __eq__(other):
+        # print(self.has_private(), other.has_private())
         if bool(self.has_private()) != bool(other.has_private()):
             return False
 
         result = True
         for comp in self._keydata:
-            result = result and (getattr(self._key, comp, None) ==
-                                 getattr(other._key, comp, None))
+            result = result and (self._key.get(comp, None) ==
+                                 other._key.get(comp, None))
         return result
     self.__eq__ = __eq__
 
@@ -173,10 +194,7 @@ def DsaKey(key_dict):
 
     def __getstate__():
         # DSA key is not pickable
-        # load("@stdlib//pickle", PicklingError="PicklingError")
-        # PY2LARKY: pay attention to this!
-        # return PicklingError
-        return Error()
+        fail("DSA key is not pickable")
     self.__getstate__ = __getstate__
 
     def domain():
@@ -200,15 +218,13 @@ def DsaKey(key_dict):
         if self.has_private():
             attrs.append("private")
         # PY3K: This is meant to be text, do not change to bytes (data)
-        # return "<%s @0x%x %s>" % (self.__class__.__name__, id(self), ",".join(attrs))
         return "<%s %s>" % (self.__name__, ",".join(attrs))
     self.__repr__ = __repr__
 
     def __getattr__(item):
-        # try:
+        if item not in self._key:
+            return AttributeError()
         return int(self._key[item])
-        # except KeyError:
-        #     fail()
     self.__getattr__ = __getattr__
 
     def export_key(format='PEM', pkcs8=None, passphrase=None,
@@ -284,7 +300,6 @@ def DsaKey(key_dict):
                     return bchr(0) + x
                 else:
                     return x
-            self.func = func
 
             tup2 = [func(x) for x in tup1]
             keyparts = [b'ssh-dss'] + tup2
@@ -302,7 +317,7 @@ def DsaKey(key_dict):
             if pkcs8:
                 if not protection:
                     protection = 'PBKDF2WithHMAC-SHA1AndDES-EDE3-CBC'
-                private_key = codecs.encode(DerInteger(self.x), encoding="utf-8")
+                private_key = DerInteger(self.x).encode()
                 binary_key = PKCS8.wrap(
                                 private_key, oid, passphrase,
                                 protection, key_params=params,
@@ -317,7 +332,7 @@ def DsaKey(key_dict):
                 if format != 'PEM' and passphrase:
                     fail("ValueError: DSA private key cannot be encrypted")
                 ints = [0, self.p, self.q, self.g, self.y, self.x]
-                binary_key = codecs.encode(DerSequence(ints), encoding="utf-8")
+                binary_key = DerSequence(ints).encode()
                 key_type = "DSA PRIVATE"
         else:
             if pkcs8:
@@ -330,14 +345,17 @@ def DsaKey(key_dict):
         if format == 'DER':
             return binary_key
         if format == 'PEM':
-            pem_str = codecs.encode(PEM, encoding=binary_key)
+            pem_str = PEM.encode(
+                                binary_key, key_type + " KEY",
+                                passphrase, randfunc
+                            )
             return tobytes(pem_str)
         fail("ValueError: " + "Unknown key format '%s'. Cannot export the DSA key." % format)
     self.export_key = export_key
 
     # Backward-compatibility
-    exportKey = export_key
-    publickey = public_key
+    self.exportKey = export_key
+    self.publickey = public_key
 
     # Methods defined in PyCrypto that we don't support anymore
 
@@ -350,37 +368,28 @@ def DsaKey(key_dict):
     self.verify = verify
 
     def encrypt(plaintext, K):
-        # PY2LARKY: pay attention to this!
-        # return NotImplementedError
-        return Error()
+        fail("NotImplementedError")
     self.encrypt = encrypt
 
     def decrypt(ciphertext):
-        # PY2LARKY: pay attention to this!
-        # return NotImplementedError
-        return Error()
+        fail("NotImplementedError")
     self.decrypt = decrypt
 
     def blind(M, B):
-        # PY2LARKY: pay attention to this!
-        # return NotImplementedError
-        return Error()
+        fail("NotImplementedError")
     self.blind = blind
 
     def unblind(M, B):
-        # PY2LARKY: pay attention to this!
-        # return NotImplementedError
-        return Error()
+        fail("NotImplementedError")
     self.unblind = unblind
 
     def size():
-        # PY2LARKY: pay attention to this!
-        # return NotImplementedError
-        return Error()
+        fail("NotImplementedError")
     self.size = size
     return self
 
 
+# Not used
 def _generate_domain(L, randfunc):
     """Generate a new set of DSA domain parameters"""
 
@@ -394,7 +403,8 @@ def _generate_domain(L, randfunc):
 
     # Generate q (A.1.1.2)
     q = Integer(4)
-    upper_bit = 1 << (N - 1)
+    # upper_bit = 1 << (N - 1)
+    upper_bit = pow(2, N - 1)
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if test_probable_prime(q, randfunc) == PROBABLY_PRIME:
             break
@@ -409,12 +419,10 @@ def _generate_domain(L, randfunc):
     # upper_bit = 1 << (L - 1)
     upper_bit = pow(2, L - 1)
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-        if not True:
-            break
         V = [ SHA256.new(seed + Integer(offset + j).to_bytes()).digest()
               for j in iter_range(n + 1) ]
         V = [ Integer.from_bytes(v) for v in V ]
-        W = sum([V[i] * pow(1, i * outlen) for i in iter_range(n)],
+        W = sum([V[i] * pow(2, i * outlen) for i in iter_range(n)],
                 (V[n] & (pow(2, b_) - 1)) * pow(2, n * outlen))
 
         X = Integer(W + upper_bit) # 2^{L-1} < X < 2^{L}
@@ -430,14 +438,11 @@ def _generate_domain(L, randfunc):
 
     # Generate g (A.2.3, index=1)
     e = (p - 1) // q
-
-    counter = larky.utils.Counter()
-
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-        count = counter.add_and_get()
+        count = _while_ + 1
         U = seed + b"ggen" + bchr(1) + Integer(count).to_bytes()
         W = Integer.from_bytes(SHA256.new(U).digest())
-        g = pow(W._value, e._value, p._value)
+        g = pow(int(W), int(e), int(p))
         if g != 1:
             break
 
@@ -478,23 +483,17 @@ def generate(bits, randfunc=None, domain=None):
         randfunc = Random.get_random_bytes
 
     if domain:
-        p, q, g = map(Integer, domain)
+        p, q, g = map(int, domain)
+        domain = (p, q, g)
 
-        ## Perform consistency check on domain parameters
-        # P and Q must be prime
-        fmt_error = test_probable_prime(p) == COMPOSITE
-        fmt_error |= test_probable_prime(q) == COMPOSITE
-        # Verify Lagrange's theorem for sub-group
-        fmt_error |= ((p - 1) % q) != 0
-        fmt_error |= g <= 1 or g >= p
-        fmt_error |= pow(g, q, p) != 1
-        if fmt_error:
-            fail("ValueError: Invalid DSA domain parameters")
-    else:
-        p, q, g, _ = _generate_domain(bits, randfunc)
+    _generated_key_dict = _JCrypto.PublicKey.DSA.generate(bits, randfunc, domain)
+    key_dict = {}
+    for __key, __key_value in _generated_key_dict.items():
+        key_dict[__key] = Integer(__key_value)
+    _generated_key_dict.clear()
 
-    L = p.size_in_bits()
-    N = q.size_in_bits()
+    L = key_dict['p'].size_in_bits()
+    N = key_dict['q'].size_in_bits()
 
     if L != bits:
         fail("ValueError: " + ("Mismatch between size of modulus (%d)" +
@@ -505,15 +504,9 @@ def generate(bits, randfunc=None, domain=None):
         fail("ValueError: " + ("Lengths of p and q (%d, %d) are not compatible" +
                          "to FIPS 186-3") % (L, N))
 
-    if not (1 < g) and (g < p):
-        fail("ValueError: Incorrent DSA generator")
+    if not (operator.lt(1, key_dict['g']) and operator.lt(key_dict['g'], key_dict['p'])):
+        fail("ValueError: Incorrect DSA generator")
 
-    # B.1.1
-    c = Integer.random(exact_bits=N + 64, randfunc=randfunc)
-    x = c % (q - 1) + 1 # 1 <= x <= q-1
-    y = pow(g, x._value, p._value)
-
-    key_dict = { 'y':y, 'g':g, 'p':p, 'q':q, 'x':x }
     return DsaKey(key_dict)
 
 
@@ -548,17 +541,17 @@ def construct(tup, consistency_check=True):
     fmt_error = False
     if consistency_check:
         # P and Q must be prime
-        fmt_error = test_probable_prime(key.p) == COMPOSITE
-        fmt_error |= test_probable_prime(key.q) == COMPOSITE
+        fmt_error = int(test_probable_prime(key.p) == COMPOSITE)
+        fmt_error |= int(test_probable_prime(key.q) == COMPOSITE)
         # Verify Lagrange's theorem for sub-group
-        fmt_error |= ((key.p - 1) % key.q) != 0
-        fmt_error |= key.g <= 1 or key.g >= key.p
-        fmt_error |= pow(key.g, key.q, key.p) != 1
+        fmt_error |= int(((key.p - 1) % key.q) != 0)
+        fmt_error |= int((int(key.g) <= 1 or int(key.g) >= int(key.p)))
+        fmt_error |= int(pow(int(key.g), int(key.q), int(key.p)) != 1)
         # Public key
-        fmt_error |= key.y <= 0 or key.y >= key.p
+        fmt_error |= int((int(key.y) <= 0) or (int(key.y) >= int(key.p)))
         if hasattr(key, 'x'):
-            fmt_error |= key.x <= 0 or key.x >= key.q
-            fmt_error |= pow(key.g, key.x, key.p) != key.y
+            fmt_error |= int((int(key.x) <= 0) or (int(key.x) >= int(key.q)))
+            fmt_error |= int(pow(int(key.g), int(key.x), int(key.p)) != int(key.y))
 
     if fmt_error:
         fail("ValueError: Invalid DSA key components")
@@ -593,7 +586,7 @@ def _import_subjectPublicKeyInfo(encoded, passphrase, params):
 
     y = DerInteger().decode(encoded_key).value
     p, q, g = list(DerSequence().decode(params or emb_params))
-    tup = (y, g, p, q)
+    tup = (int(y), int(g), int(p), int(q))
     return construct(tup)
 
 
@@ -611,23 +604,23 @@ def _import_pkcs8(encoded, passphrase, params):
         fail("ValueError: No PKCS#8 encoded DSA key")
     x = DerInteger().decode(k[1]).value
     p, q, g = list(DerSequence().decode(k[2]))
-    tup = (pow(g, x, p), g, p, q, x)
+    tup = (pow(int(g), int(x), int(p)), int(g), int(p), int(q), int(x))
     return construct(tup)
 
 
 def _import_key_der(key_data, passphrase, params):
     """Import a DSA key (public or private half), encoded in DER form."""
-
-    decodings = (_import_openssl_private,
-                 _import_subjectPublicKeyInfo,
-                 _import_x509_cert,
-                 _import_pkcs8)
+    decodings = (
+        Result.Ok(_import_openssl_private),
+        Result.Ok(_import_subjectPublicKeyInfo),
+        Result.Ok(_import_x509_cert),
+        Result.Ok(_import_pkcs8),
+    )
 
     for decoding in decodings:
-        # try:
-        return decoding(key_data, passphrase, params)
-        # except ValueError:
-        #     pass
+        rval = decoding.map(lambda x: x(key_data, passphrase, params))
+        if not rval.is_err:
+            return rval.unwrap()
 
     fail("ValueError: DSA key format is not supported")
 
@@ -714,7 +707,12 @@ importKey = import_key
 #: .. _`Object ID`: http://www.alvestrand.no/objectid/1.2.840.10040.4.1.html
 oid = "1.2.840.10040.4.1"
 
-
 DSA = larky.struct(
+    __name__='DSA',
+    DsaKey=DsaKey,
     generate=generate,
+    construct=construct,
+    import_key=import_key,
+    importKey=importKey,
+    oid=oid,
 )

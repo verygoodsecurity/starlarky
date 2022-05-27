@@ -20,6 +20,7 @@ load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/PublicKey/ECC", ECC="ECC")
+load("@vendor//Crypto/Signature/DSS", DSS="DSS")
 load("@vendor//Crypto/Signature/PKCS1_v1_5", PKCS1_v1_5_Signature="PKCS1_v1_5")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes", tostr="tostr")
@@ -88,36 +89,21 @@ def ECKey(key, algorithm):
             ALGORITHMS.ES512: self.SHA512,
         }.get(algorithm)
         self._algorithm = algorithm
-        if hasattr(key, "public_bytes") or hasattr(key, "private_bytes"):
+        if builtins.isinstance(key, ECC.EccKey):
             self.prepared_key = key
-            return Ok(self)
-        if hasattr(key, "to_pem"):
-            # convert to PEM and let cryptography below load it as PEM
-            # key = key.to_pem().decode("utf-8")
-            return Error("To difficult to explain")
-        if builtins.isinstance(key, dict):
+            return self
+
+        if types.is_dict(key):
             self.prepared_key = self._process_jwk(key)
-        if builtins.isinstance(key, str):
-            key = builtins.bytes(key, encoding="utf-8")
-        if builtins.isinstance(key, bytes):
-            public_key = Ok(load_pem_public_key(key))
-            if public_key.is_err:
-                fail("Unable to parse an ECKey from key: %s" % key)
-            else:
-                self.prepared_key = public_key._val
 
-            private_key = Ok(load_pem_private_key(key,None))
-            if private_key.is_err:
-                pass
-            else:
-                self.prepared_key = private_key._val
+        if types.is_string(key):
+            key = tobytes(key)
 
-            ok = Ok(self)
-            if(ok.is_err):
-                fail("Unable to parse an ECKey from key: %s" % key)
-            else:
-                return ok._val
+        if types.is_bytelike(key):
+            self.prepared_key = ECC.import_key(key)
+            return self
 
+        fail('JWKError: Unable to parse an ECKey from key: %s' % key)
     self = __init__(key, algorithm)
 
     def _process_jwk(jwk_dict):
@@ -133,50 +119,26 @@ def ECKey(key, algorithm):
             "P-521": "secp521r1",
         }[jwk_dict["crv"]]
         if "d" in jwk_dict:
+            # private key
             d = base64_to_long(jwk_dict.get("d"))
-            return ECC.construct(point_x=x, point_y=y, d=d, curve=curve())
+            return ECC.construct(point_x=x, point_y=y, d=d, curve=curve)
         else:
-            return ECC.construct(point_x=x, point_y=y, curve=curve())
+            return ECC.construct(point_x=x, point_y=y, curve=curve)
     self._process_jwk = _process_jwk
 
-    def _sig_component_length():
-        """Determine the correct serialization length for an encoded signature component.
-            This is the number of bytes required to encode the maximum key value.
-        """
-        return int(ceil(self.prepared_key.key_size / 8.0))
-    self._sig_component_length = _sig_component_length
-
-    def _der_to_raw(der_signature):
-        """Convert signature from DER encoding to RAW encoding."""
-        r, s = decode_dss_signature(der_signature)
-        component_length = self._sig_component_length()
-        return int_to_bytes(r, component_length) + int_to_bytes(s, component_length)
-    self._der_to_raw = _der_to_raw
-
-    def _raw_to_der(raw_signature):
-        """Convert signature from RAW encoding to DER encoding."""
-        component_length = self._sig_component_length()
-        if len(raw_signature) != int(2 * component_length):
-            return Error("Invalid signature")
-
-        r_bytes = raw_signature[:component_length]
-        s_bytes = raw_signature[component_length:]
-        r = bytes_to_long(r_bytes, "big")
-        s = bytes_to_long(s_bytes, "big")
-        return encode_dss_signature(r, s)
-    self._raw_to_der = _raw_to_der
-
     def sign(msg):
-        if self.hash_alg.digest_size * 8 > self.prepared_key.key_size:
-            return Error(
-                "this curve (%s) is too short for your digest (%d)"
-                % (self.prepared_key.curve.name, 8 * self.hash_alg.digest_size)
-            )
-        signature = self.prepared_key.sign(msg, self.hash_alg)
-        if type(signature) == 'bytes':
-            return signature
-        return self._der_to_raw(signature)
+        hashed = self.hash_alg.new(msg)
+        signer = DSS.new(self.prepared_key, 'fips-186-3')
+        return signer.sign(hashed)
     self.sign = sign
+
+    def verify(msg, sig):
+        hashed = self.hash_alg.new(msg)
+        signer = DSS.new(self.prepared_key, 'fips-186-3')
+        result = Ok(signer.verify).map(lambda v: v(hashed, sig))
+        return True if result.is_ok else False
+    self.verify = verify
+
     return self
 
 
@@ -281,8 +243,9 @@ def RSAKey(key, algorithm):
     self._process_cert = _process_cert
 
     def sign(msg):
-        pkcs1_signer = safe(PKCS1_v1_5_Signature.new(self.prepared_key).sign)
-        return pkcs1_signer(self.hash_alg.new(msg))().unwrap()
+        signature = PKCS1_v1_5_Signature.new(self.prepared_key)
+        res = Ok(signature.sign).map(lambda sign: sign(self.hash_alg.new(msg)))
+        return res.unwrap()
     self.sign = sign
 
     def verify(msg, sig):

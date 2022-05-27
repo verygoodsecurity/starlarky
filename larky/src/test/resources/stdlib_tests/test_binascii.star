@@ -36,3 +36,6 @@ asserts.assert_that(repr(bin_data)).is_equal_to("b\"Blinka\"")
 # print("Converted b64 ASCII->Binary Data: ", repr(bin_data))
 asserts.assert_that(type(bin_data)).is_equal_to("bytes")
 asserts.assert_(bin_data == data, "Expected binary data does not match.")
+
+asserts.assert_that(a2b_base64("AQAB=="), b'\x01\x00\x01')
+asserts.assert_that(a2b_base64("AQAB==="), b'\x01\x00\x01')

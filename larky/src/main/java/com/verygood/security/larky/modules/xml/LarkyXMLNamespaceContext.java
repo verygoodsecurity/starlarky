@@ -187,7 +187,7 @@ public class LarkyXMLNamespaceContext implements LarkyMapping<String, String>, N
 
   @Nullable
   @Override
-  public Object getValue(String name) throws EvalException {
+  public Object getField(String name, @Nullable StarlarkThread thread) {
     return this.namespaceMap.get(name);
   }
 
