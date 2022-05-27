@@ -31,7 +31,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
 load("@stdlib//larky", larky="larky")
-load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@vendor//Crypto/IO/_PBES", PBES1="PBES1", PBES2="PBES2", PbesError="PbesError")
 load("@vendor//Crypto/Util/asn1", DerNull="DerNull", DerSequence="DerSequence", DerObjectId="DerObjectId", DerOctetString="DerOctetString")
 load("@vendor//Crypto/Util/py3compat", bord="bord", tobytes="tobytes", _copy_bytes="copy_bytes")
@@ -184,12 +183,12 @@ def unwrap(p8_private_key, passphrase=None):
         if not found:
             return Error("ValueError: Error decoding PKCS#8 (%s)" % error_str).unwrap()
 
-    pk_info = DerSequence().decode(p8_private_key, nr_elements=(2, 3, 4))
+    pk_info = DerSequence().decode(p8_private_key, nr_elements=(2, 3, 4, 5))
     if len(pk_info) == 2 and not passphrase:
         return Error("Not a valid clear PKCS#8 structure " +
                      "(maybe it is encrypted?)").unwrap()
-    pk_info._seq = _repack_oids(pk_info._seq)
 
+    # RFC5208, PKCS#8, version is v1(0)
     #
     #   PrivateKeyInfo ::= SEQUENCE {
     #       version                 Version,
@@ -197,55 +196,46 @@ def unwrap(p8_private_key, passphrase=None):
     #       privateKey              PrivateKey,
     #       attributes              [0]  IMPLICIT Attributes OPTIONAL
     #   }
-    #   Version ::= INTEGER
-    if pk_info[0] != 0:
-        return Error("ValueError: Not a valid PrivateKeyInfo SEQUENCE").unwrap()
-
-    # PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier
     #
-    #   EncryptedPrivateKeyInfo ::= SEQUENCE {
-    #       encryptionAlgorithm  EncryptionAlgorithmIdentifier,
-    #       encryptedData        EncryptedData
+    # RFC5915, Asymmetric Key Package, version is v2(1)
+    #
+    #   OneAsymmetricKey ::= SEQUENCE {
+    #       version                   Version,
+    #       privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
+    #       privateKey                PrivateKey,
+    #       attributes            [0] Attributes OPTIONAL,
+    #       ...,
+    #       [[2: publicKey        [1] PublicKey OPTIONAL ]],
+    #       ...
     #   }
-    #   EncryptionAlgorithmIdentifier ::= AlgorithmIdentifier
 
-    #   AlgorithmIdentifier  ::=  SEQUENCE  {
-    #       algorithm   OBJECT IDENTIFIER,
-    #       parameters  ANY DEFINED BY algorithm OPTIONAL
-    #   }
+    if pk_info[0] == 0:
+        if len(pk_info) not in (3, 4):
+            fail("ValueError: Not a valid PrivateKeyInfo SEQUENCE")
+    elif pk_info[0] == 1:
+        if len(pk_info) not in (3, 4, 5):
+            fail("ValueError: Not a valid PrivateKeyInfo SEQUENCE")
+    else:
+        fail("ValueError: Not a valid PrivateKeyInfo SEQUENCE")
 
     algo = DerSequence().decode(pk_info[1], nr_elements=(1, 2))
     algo_oid = DerObjectId().decode(algo[0]).value
     if len(algo) == 1:
         algo_params = None
     else:
-        if algo[1] == b'\x05\x00':
+        res = Ok(DerNull().decode).map(lambda x: x(algo[1]))
+        if res.is_ok:
             algo_params = None
         else:
             algo_params = algo[1]
 
-    #   EncryptedData ::= OCTET STRING
-    """
-    if DerSequence._seq is returning a list containing strings, it has already been
-    parsed, and the pk_info[2] contains a string that starts with a '#', and is
-    followed by a hexlified string of the bytes that would be returned anyway. 
-    """
-    if type(pk_info[2]) == 'string':
-        private_key = bytes(unhexlify(''.join(pk_info[2].split('#'))), 'utf-8')
-    else: 
-        private_key = DerOctetString().decode(pk_info[2]).payload
+    # PrivateKey ::= OCTET STRING
+    private_key = DerOctetString().decode(pk_info[2]).payload
+
+    # We ignore attributes and (for v2 only) publickey
 
     return (algo_oid, private_key, algo_params)
 
-def _repack_oids(sequence):
-    for index, item in enumerate(sequence):
-        if type(item) == 'list':
-            der_seq = DerSequence()
-            for thing in item:
-                der_seq.append(DerObjectId(thing).encode())
-            item = der_seq.encode()
-        sequence[index] = item
-    return sequence
 
 PKCS8 = larky.struct(
     __name__='PKCS8',
