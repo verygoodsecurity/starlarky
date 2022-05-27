@@ -30,10 +30,9 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
-
-
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//binascii", hexlify="hexlify")
+load("@stdlib//operator", operator="operator")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
 load("@vendor//Crypto/Hash/HMAC", HMAC="HMAC")
@@ -42,7 +41,7 @@ load("@vendor//Crypto/PublicKey/DSA", DsaKey="DsaKey")
 load("@vendor//Crypto/PublicKey/ECC", EccKey="EccKey")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence", DerInteger="DerInteger")
 load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes")
-load("@vendor//option/result", Error="Error")
+load("@vendor//option/result", Result="Result", Error="Error")
 
 __all__ = ['DssSigScheme', 'new']
 
@@ -126,7 +125,7 @@ def DssSigScheme(key, encoding, order):
             #   r   INTEGER,
             #   s   INTEGER
             # }
-            output = codecs.encode(DerSequence(sig_pair), encoding="utf-8")
+            output = DerSequence(sig_pair).encode()
 
         return output
     self.sign = sign
@@ -157,16 +156,21 @@ def DssSigScheme(key, encoding, order):
                                 for x in (signature[:self._order_bytes],
                                           signature[self._order_bytes:])]
         else:
-            # try:
-            der_seq = DerSequence().decode(signature, strict=True)
-            # except (ValueError, IndexError):
-            #     fail("ValueError: The signature is not authentic (DER)")
+            res = Result.Ok(DerSequence().decode).map(lambda x: x(signature, strict=True))
+            der_seq = res.expect("ValueError: The signature is not authentic (DER)")
             if len(der_seq) != 2 or not der_seq.hasOnlyInts():
                 fail("ValueError: The signature is not authentic (DER content)")
             r_prime, s_prime = Integer(der_seq[0]), Integer(der_seq[1])
 
-        if not (0 < r_prime) and (r_prime < self._order) or not (0 < s_prime) and (s_prime < self._order):
-            fail("ValueError: The signature is not authentic (d)")
+        rprime_check = operator.lt(0, r_prime) and operator.lt(r_prime, self._order)
+        sprime_check = operator.lt(0, s_prime) and operator.lt(s_prime, self._order)
+        if not rprime_check or not sprime_check:
+            err = "ValueError: The signature is not authentic (d)."
+            if not rprime_check:
+                err += " rprime_check = False, expected True."
+            if not sprime_check:
+                err += " sprime_check = False, expected True."
+            fail(err)
 
         z = Integer.from_bytes(msg_hash.digest()[:self._order_bytes])
         result = self._key._verify(z, (r_prime, s_prime))
@@ -179,14 +183,15 @@ def DssSigScheme(key, encoding, order):
 
 
 def DeterministicDsaSigScheme(key, encoding, order, private_key):
-    self = larky.mutablestruct(__name__='DeterministicDsaSigScheme', __class__=DeterministicDsaSigScheme)
+    self = DssSigScheme(key, encoding, order)
+    self.__name__ = 'DeterministicDsaSigScheme'
+    self.__class__ = DeterministicDsaSigScheme
     # Also applicable to ECDSA
 
-    def __init__(key, encoding, order, private_key):
-        # super(DeterministicDsaSigScheme, self).__init__(key, encoding, order)
+    def __init__(private_key):
         self._private_key = private_key
         return self
-    self = __init__(key, encoding, order, private_key)
+    self = __init__(private_key)
 
     def _bits2int(bstr):
         """See 2.3.2 in RFC6979"""
@@ -196,13 +201,13 @@ def DeterministicDsaSigScheme(key, encoding, order, private_key):
         b_len = len(bstr) * 8
         if b_len > q_len:
             # Only keep leftmost q_len bits
-            result >>= (b_len - q_len)
+            result = result >> (b_len - q_len)
         return result
     self._bits2int = _bits2int
 
     def _int2octets(int_mod_q):
         """See 2.3.3 in RFC6979"""
-        if not ((0 < int_mod_q) and (int_mod_q < self._order)):
+        if not (operator.lt(0, int_mod_q) and operator.lt(int_mod_q, self._order)):
             fail("assert (0 < int_mod_q) and (int_mod_q < self._order) failed!")
         return long_to_bytes(int_mod_q, self._order_bytes)
     self._int2octets = _int2octets
@@ -211,7 +216,7 @@ def DeterministicDsaSigScheme(key, encoding, order, private_key):
         """See 2.3.4 in RFC6979"""
 
         z1 = self._bits2int(bstr)
-        if z1 < self._order:
+        if operator.lt(z1, self._order):
             z2 = z1
         else:
             z2 = z1 - self._order
@@ -240,7 +245,7 @@ def DeterministicDsaSigScheme(key, encoding, order, private_key):
 
         nonce = -1
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-            if not not (0 < nonce) and (nonce < self._order):
+            if operator.lt(0, nonce) and operator.lt(nonce, self._order):
                 break
             # Step h.C (second part)
             if nonce != -1:
@@ -268,40 +273,30 @@ def DeterministicDsaSigScheme(key, encoding, order, private_key):
 
 
 def FipsDsaSigScheme(key, encoding, order, randfunc):
+    self = DssSigScheme(key, encoding, order)
+    self.__name__ = 'FipsDsaSigScheme'
+    self.__class__ = FipsDsaSigScheme
 
-    self = larky.mutablestruct(__name__='FipsDsaSigScheme', __class__=FipsDsaSigScheme)
     #: List of L (bit length of p) and N (bit length of q) combinations
     #: that are allowed by FIPS 186-3. The security level is provided in
     #: Table 2 of FIPS 800-57 (rev3).
     self._fips_186_3_L_N = (
-                        (1024, 160),    # 80 bits  (SHA-1 or stronger)
-                        (2048, 224),    # 112 bits (SHA-224 or stronger)
-                        (2048, 256),    # 128 bits (SHA-256 or stronger)
-                        (3072, 256)     # 256 bits (SHA-512)
-                      )
+        (1024, 160),    # 80 bits  (SHA-1 or stronger)
+        (2048, 224),    # 112 bits (SHA-224 or stronger)
+        (2048, 256),    # 128 bits (SHA-256 or stronger)
+        (3072, 256)     # 256 bits (SHA-512)
+      )
 
-    def __init__(key, encoding, order, randfunc):
-        # super(FipsDsaSigScheme, self).__init__(key, encoding, order)
-        self._key = key
-        self._encoding = encoding
-        self._order = order
-
-        self._order_bits = self._order.size_in_bits()
-        self._order_bytes = (self._order_bits - 1) // 8 + 1
-        # super end
-
+    def __init__(randfunc):
         self._randfunc = randfunc
-
-        L = Integer(key._key["p"]).size_in_bits()
-
+        L = Integer(key.p).size_in_bits()
         if (L, self._order_bits) not in self._fips_186_3_L_N:
             error = ("L/N (%d, %d) is not compliant to FIPS 186-3"
                      % (L, self._order_bits))
-            fail()
+            fail(error)
         return self
-    self = __init__(key, encoding, order, randfunc)
+    self = __init__(randfunc)
 
-    # super def
     def _compute_nonce(msg_hash):
         # hash is not used
         return Integer.random_range(min_inclusive=1,
@@ -314,176 +309,24 @@ def FipsDsaSigScheme(key, encoding, order, randfunc):
         return (msg_hash.oid == "1.3.14.3.2.26" or
                 msg_hash.oid.startswith("2.16.840.1.101.3.4.2."))
     self._valid_hash = _valid_hash
-
-    def can_sign():
-        """Return ``True`` if this signature object can be used
-        for signing messages."""
-
-        return self._key.has_private()
-    self.can_sign = can_sign
-
-
-    def sign(msg_hash):
-        """Compute the DSA/ECDSA signature of a message.
-
-        Args:
-          msg_hash (hash object):
-            The hash that was carried out over the message.
-            The object belongs to the :mod:`Crypto.Hash` package.
-            Under mode ``'fips-186-3'``, the hash must be a FIPS
-            approved secure hash (SHA-2 or SHA-3).
-
-        :return: The signature as ``bytes``
-        :raise ValueError: if the hash algorithm is incompatible to the (EC)DSA key
-        :raise TypeError: if the (EC)DSA key has no private half
-        """
-
-        if not self._key.has_private():
-            fail("TypeError: Private key is needed to sign")
-
-        if not self._valid_hash(msg_hash):
-            fail("ValueError: Hash is not sufficiently strong")
-
-        # Generate the nonce k (critical!)
-        nonce = self._compute_nonce(msg_hash)
-
-        # Perform signature using the raw API
-        z = Integer.from_bytes(msg_hash.digest()[:self._order_bytes])
-        sig_pair = self._key._sign(z, nonce)
-
-        # Encode the signature into a single byte string
-        if self._encoding == 'binary':
-            output = b"".join([long_to_bytes(x, self._order_bytes)
-                               for x in sig_pair])
-        else:
-            # Dss-sig  ::=  SEQUENCE  {
-            #   r   INTEGER,
-            #   s   INTEGER
-            # }
-            # Ecdsa-Sig-Value  ::=  SEQUENCE  {
-            #   r   INTEGER,
-            #   s   INTEGER
-            # }
-            output = codecs.encode(DerSequence(sig_pair), encoding="utf-8")
-
-        return output
-    self.sign = sign
-
-    def verify(msg_hash, signature):
-        """Check if a certain (EC)DSA signature is authentic.
-
-        Args:
-          msg_hash (hash object):
-            The hash that was carried out over the message.
-            This is an object belonging to the :mod:`Crypto.Hash` module.
-            Under mode ``'fips-186-3'``, the hash must be a FIPS
-            approved secure hash (SHA-2 or SHA-3).
-
-          signature (``bytes``):
-            The signature that needs to be validated.
-
-        :raise ValueError: if the signature is not authentic
-        """
-
-        if not self._valid_hash(msg_hash):
-            fail("ValueError: Hash is not sufficiently strong")
-
-        if self._encoding == 'binary':
-            if len(signature) != (2 * self._order_bytes):
-                fail("ValueError: The signature is not authentic (length)")
-            r_prime, s_prime = [Integer.from_bytes(x)
-                                for x in (signature[:self._order_bytes],
-                                          signature[self._order_bytes:])]
-        else:
-            # try:
-            der_seq = DerSequence().decode(signature, strict=True)
-            # except (ValueError, IndexError):
-            #     fail("ValueError: The signature is not authentic (DER)")
-            if len(der_seq) != 2 or not der_seq.hasOnlyInts():
-                fail("ValueError: The signature is not authentic (DER content)")
-            r_prime, s_prime = Integer(der_seq[0]), Integer(der_seq[1])
-
-        if not (0 < r_prime._value) and (r_prime < self._order) or not (0 < s_prime._value) and (s_prime < self._order):
-            fail("ValueError: The signature is not authentic (d)")
-
-        z = Integer.from_bytes(msg_hash.digest()[:self._order_bytes])
-        result = self._key._verify(z, (r_prime, s_prime))
-        if not result:
-            fail("ValueError: The signature is not authentic")
-        # Make PyCrypto code to fail
-        return False
-    self.verify = verify
-    return self
-    # super def end
-
     return self
 
 
 def FipsEcDsaSigScheme(key, encoding, order, randfunc):
-    self = larky.mutablestruct(__name__='FipsEcDsaSigScheme', __class__=FipsEcDsaSigScheme)
+    self = DssSigScheme(key, encoding, order)
+    self.__name__ = 'FipsEcDsaSigScheme'
+    self.__class__ = FipsEcDsaSigScheme
 
-    def __init__(key, encoding, order, randfunc):
-        # super(FipsEcDsaSigScheme, self).__init__(key, encoding, order)
-        self._key = key
-        self._encoding = encoding
-        self._order = order
+    def __init__(randfunc):
         self._randfunc = randfunc
-        self._order_bits = self._order.size_in_bits()
-        self._order_bytes = (self._order_bits - 1) // 8 + 1
         return self
-    self = __init__(key, encoding, order, randfunc)
+    self = __init__(randfunc)
 
     def _compute_nonce(msg_hash):
         return Integer.random_range(min_inclusive=1,
                                     max_exclusive=self._key._curve.order,
                                     randfunc=self._randfunc)
     self._compute_nonce = _compute_nonce
-
-    def sign(msg_hash):
-        """Compute the ECDSA signature of a message.
-
-        Args:
-          msg_hash (hash object):
-            The hash that was carried out over the message.
-            The object belongs to the :mod:`Crypto.Hash` package.
-            Under mode ``'fips-186-3'``, the hash must be a FIPS
-            approved secure hash (SHA-2 or SHA-3).
-
-        :return: The signature as ``bytes``
-        :raise ValueError: if the hash algorithm is incompatible to the (EC)DSA key
-        :raise TypeError: if the (EC)DSA key has no private half
-        """
-
-        if not self._key.has_private():
-            fail("TypeError: Private key is needed to sign")
-
-        if not self._valid_hash(msg_hash):
-            fail("ValueError: Hash is not sufficiently strong")
-
-        # Generate the nonce k (critical!)
-        nonce = self._compute_nonce(msg_hash)
-
-        # Perform signature using the raw API
-        z = Integer.from_bytes(msg_hash.digest()[:self._order_bytes])
-        sig_pair = self._key._sign(z, nonce)
-
-        # Encode the signature into a single byte string
-        if self._encoding == 'binary':
-            output = b"".join([long_to_bytes(x, self._order_bytes)
-                               for x in sig_pair])
-        else:
-            # Dss-sig  ::=  SEQUENCE  {
-            #   r   INTEGER,
-            #   s   INTEGER
-            # }
-            # Ecdsa-Sig-Value  ::=  SEQUENCE  {
-            #   r   INTEGER,
-            #   s   INTEGER
-            # }
-            output = codecs.encode(DerSequence(sig_pair), encoding="utf-8")
-
-        return output
-    self.sign = sign
 
     def _valid_hash(msg_hash):
         """Verify that the strength of the hash matches or exceeds
@@ -497,11 +340,7 @@ def FipsEcDsaSigScheme(key, encoding, order, randfunc):
         sha384 = ("2.16.840.1.101.3.4.2.2", "2.16.840.1.101.3.4.2.9")
         sha512 = ("2.16.840.1.101.3.4.2.3", "2.16.840.1.101.3.4.2.10")
         shs = sha224 + sha256 + sha384 + sha512
-
-        # try:
-        result = msg_hash.oid in shs
-        # except AttributeError:
-        #     result = False
+        result = getattr(msg_hash, 'oid', False) in shs
         return result
     self._valid_hash = _valid_hash
     return self
@@ -580,7 +419,7 @@ def new(key, mode, encoding='binary', randfunc=None):
         order = key._curve.order
         private_key_attr = 'd'
     elif builtins.isinstance(key, DsaKey):
-        order = Integer(key._key["q"])
+        order = Integer(key.q)
         private_key_attr = 'x'
     else:
         fail("ValueError: " + "Unsupported key type " + str(type(key)))

@@ -35,13 +35,14 @@
 
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//sets", sets="sets")
 load("@stdlib//types", types="types")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/Util/number", _sieve_base_large="sieve_base")
 load("@vendor//Crypto/Util/py3compat", iter_range="iter_range")
-load("@vendor//option/result", safe="safe", Error="Error")
+load("@vendor//option/result", safe="safe", Result="Result", Error="Error")
 
 COMPOSITE = 0
 PROBABLY_PRIME = 1
@@ -68,7 +69,8 @@ def miller_rabin_test(candidate, iterations, randfunc=None):
 
     .. __: http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf
     """
-
+    # return _JCrypto.Math.is_prime(int(candidate), 1e-30)
+    return _JCrypto.Math.is_prime(int(candidate), 1e-30)
     if not builtins.isinstance(candidate, Integer):
         candidate = Integer(candidate)
 
@@ -115,14 +117,17 @@ def miller_rabin_test(candidate, iterations, randfunc=None):
             continue
 
         # Step 4.5
+        _or_else = True
         for j in iter_range(1, a):
             z = pow(z, 2, candidate)
             if z == minus_one:
+                _or_else = False
                 break
             if z == one:
                 return COMPOSITE
-        # else:
-        #     return COMPOSITE
+
+        if _or_else:
+            return COMPOSITE
 
     # Step 5
     return PROBABLY_PRIME
@@ -153,26 +158,32 @@ def lucas_test(candidate):
         return COMPOSITE
 
     # Step 2
-    def alternate():
-        value = 5
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
-            if not True:
-                break
-            return value
-            if value > 0:
-                value += 2
-            else:
-                value -= 2
-            value = -value
+    def alternate(idx, *args, **kwargs):
+        if idx == 0:
+            kwargs['memo']['value'] = 5
+            return Result.Ok(kwargs['memo']['value'])
 
-    for D in alternate():
-        if candidate in (D, -D):
+        if idx == WHILE_LOOP_EMULATION_ITERATION:
+            return StopIteration()
+
+        value = kwargs['memo']['value']
+        if value > 0:
+            value += 2
+        else:
+            value -= 2
+        kwargs['memo']['value'] = -value
+        return Result.Ok(kwargs['memo']['value'])
+
+    candidate_as_int = int(candidate)
+    for D in larky.DeterministicGenerator(alternate, memo={}):
+        if candidate_as_int in (D, -D):
             continue
         js = Integer.jacobi_symbol(D, candidate)
         if js == 0:
             return COMPOSITE
         if js == -1:
             break
+
     # Found D. P=1 and Q=(1-D)/4 (note that Q is guaranteed to be an integer)
 
     # Step 3
@@ -252,6 +263,7 @@ def test_probable_prime(candidate, randfunc=None):
       ``COMPOSITE`` if the number is a composite.
       For efficiency reasons, ``COMPOSITE`` is also returned for small primes.
     """
+    return _JCrypto.Math.is_prime(int(candidate), 1e-30)
 
     if randfunc == None:
         randfunc = Random.new().read
@@ -262,10 +274,11 @@ def test_probable_prime(candidate, randfunc=None):
     # First, check trial division by the smallest primes
     if int(candidate) in _sieve_base:
         return PROBABLY_PRIME
-    # try:
-    noncomp = safe(lambda: map(candidate.fail_if_divisible_by, _sieve_base))(0)
-    if noncomp.is_err:
-        return COMPOSITE
+
+    for sieve_base_entry in _sieve_base:
+        res = Result.Ok(sieve_base_entry).map(candidate.fail_if_divisible_by)
+        if res.is_err:
+            return COMPOSITE
 
     # These are the number of Miller-Rabin iterations s.t. p(k, t) < 1E-30,
     # with p(k, t) being the probability that a randomly chosen k-bit number
@@ -275,17 +288,17 @@ def test_probable_prime(candidate, randfunc=None):
                  (1700, 3), (3700, 2))
 
     bit_size = candidate.size_in_bits()
-    # try:
-    mr_iterations = list(types.filter(lambda x: bit_size < x[0],
-                                    mr_ranges))[0][1]
-    # except IndexError:
-    #     mr_iterations = 1
+    mr_iterations_lt_bit_sz = [mr for mr in mr_ranges if bit_size < mr[0]]
+    mr_iterations = 1
+    if mr_iterations_lt_bit_sz and len(mr_iterations_lt_bit_sz[0]) >= 2:
+        mr_iterations = mr_iterations_lt_bit_sz[0][1]
 
-    if miller_rabin_test(candidate, mr_iterations,
-                         randfunc=randfunc) == COMPOSITE:
+    if miller_rabin_test(candidate, mr_iterations, randfunc=randfunc) == COMPOSITE:
         return COMPOSITE
+
     if lucas_test(candidate) == COMPOSITE:
         return COMPOSITE
+
     return PROBABLY_PRIME
 
 
@@ -384,3 +397,14 @@ def generate_probable_safe_prime(**kwargs):
         result = test_probable_prime(candidate, randfunc=randfunc)
     return candidate
 
+
+Primality = larky.struct(
+    __name__='Primality',
+    COMPOSITE=COMPOSITE,
+    PROBABLY_PRIME=PROBABLY_PRIME,
+    generate_probable_prime=generate_probable_prime,
+    generate_probable_safe_prime=generate_probable_safe_prime,
+    lucas_test=lucas_test,
+    miller_rabin_test=miller_rabin_test,
+    test_probable_prime=test_probable_prime,
+)

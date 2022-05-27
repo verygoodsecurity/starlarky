@@ -45,7 +45,6 @@ def _sign_header_and_claims(encoded_header, encoded_claims, algorithm, key):
     return encoded_string
 
 
-
 def sign(payload, key, headers=None, algorithm=ALGORITHMS.HS256):
     encoded_header = _encode_header(algorithm, additional_headers=headers)
     encoded_payload = _encode_payload(payload)

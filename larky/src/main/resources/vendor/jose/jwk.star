@@ -21,7 +21,6 @@ def get_key(algorithm):
     elif operator.contains(ALGORITHMS.RSA, algorithm):
         return RSAKey
     elif operator.contains(ALGORITHMS.EC, algorithm):
-        # fail("ECKey is not supported!")
         return ECKey
     elif operator.contains(ALGORITHMS.AES, algorithm):
         return AESKey

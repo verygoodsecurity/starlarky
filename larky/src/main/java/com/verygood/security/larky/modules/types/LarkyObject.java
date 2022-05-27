@@ -6,12 +6,16 @@ import java.util.Map;
 
 import com.verygood.security.larky.parser.StarlarkUtil;
 
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Structure;
+import net.starlark.java.eval.Tuple;
 import net.starlark.java.spelling.SpellChecker;
 
 import javax.annotation.Nullable;
@@ -72,6 +76,34 @@ public interface LarkyObject extends Structure {
     return getField(PyProtocols.__LEN__);
   }
 
+  default boolean isCoerceableToInt() {
+    return (
+      // first, detect __index__
+      this.getField(PyProtocols.__INDEX__) != null
+        // or if it doesn't exist, does it have __int__?
+        // (deprecated since python 3.8)
+        || this.getField(PyProtocols.__INT__) != null
+    );
+  }
+
+  default StarlarkInt coerceToInt(StarlarkThread thread) throws EvalException {
+    // first, detect __index__
+    Object coerceToIntO = this.getField(PyProtocols.__INDEX__);
+    // then if it doesn't exist, does it have __int__?
+    if (coerceToIntO == null) {
+      // deprecated since python 3.8
+      coerceToIntO = this.getField(PyProtocols.__INT__);
+    }
+    if (coerceToIntO == null || !StarlarkUtil.isCallable(coerceToIntO)) {
+      throw new RuntimeException("'" + StarlarkUtil.richType(coerceToIntO) + "' object is not callable");
+    }
+    StarlarkCallable coerceToInt = (StarlarkCallable) coerceToIntO;
+    Object res = this.invoke(thread, coerceToInt, Tuple.empty(), Dict.empty());
+    if (!(res instanceof StarlarkInt)) {
+      throw Starlark.errorf("%s returned non-int (type %s)", coerceToInt.getName(), StarlarkUtil.richType(res));
+    }
+    return (StarlarkInt) res;
+  }
   /**
    * Returns the name of the type of a value as if by the Starlark expression {@code type(x)}.
    */

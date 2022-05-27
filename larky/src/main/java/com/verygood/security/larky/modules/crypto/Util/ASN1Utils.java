@@ -172,7 +172,6 @@ public class ASN1Utils {
             StarlarkBytes value3 = (StarlarkBytes) lobj.getField("payload");
             Objects.requireNonNull(value3);
             return new ASN1.LarkyOctetString(new DEROctetString(value3.toByteArray()));
-            // fall through
           case "DerUTF8String":
             String value4 = (String) lobj.getField("value");
             Objects.requireNonNull(value4);

@@ -23,7 +23,11 @@ load("data_test_fixtures", get_file_contents="get_file_contents")
 
 WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
-
+# TODO(mahmoudimus): OCCASIONALLY - THIS TEST WILL FAIL BECAUSE OF
+#  LINE 397 (key = Random.new().read(key_bytes)) in OpenPGP/Crypto.star
+#  which reads a random string.
+#  The fix requires a loop to re-generate the key that would not fail the
+#  bitlength check.
 def simple_PGP_test():
     # the test key below contains both private key and public key data
     key = OpenPGP.Message.parse(get_file_contents("helloKey.gpg"))
