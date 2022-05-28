@@ -110,6 +110,27 @@ public abstract class LarkyDescriptor extends LarkyPyObject implements LarkyBind
     return (PyObject) obj;
   }
 
+  @Override
+  public boolean equals(Object obj) {
+    if (!(obj instanceof LarkyDescriptor)) {
+      return false;
+    }
+
+    if (this == obj) {
+      return true;
+    }
+
+    if (this.getClass() == obj.getClass() && this.fget.equals(((LarkyDescriptor) obj).fget)) {
+      return true;
+    }
+
+    return super.equals(obj);
+  }
+
+  @Override
+  public int hashCode() {
+    return super.hashCode();
+  }
 
   @Override
   public ImmutableCollection<String> getFieldNames() {

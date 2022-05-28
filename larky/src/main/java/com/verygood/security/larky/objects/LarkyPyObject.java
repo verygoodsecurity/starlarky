@@ -223,7 +223,8 @@ public class LarkyPyObject implements
         this, obj, PyProtocols.__EQ__, PyProtocols.__EQ__, this.getCurrentThread()
       );
     } catch (EvalException e) {
-      throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, this.getCurrentThread());
+      result = false;
+//      throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, this.getCurrentThread());
     }
     return result;
 

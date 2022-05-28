@@ -28,7 +28,7 @@ load("@vendor//Crypto/Cipher/_mode_cfb", CfbMode="CfbMode")
 # load("@vendor//Crypto/Cipher/_mode_ofb", _create_ofb_cipher="_create_ofb_cipher")
 # load("@vendor//Crypto/Cipher/_mode_ctr", _create_ctr_cipher="_create_ctr_cipher")
 # load("@vendor//Crypto/Cipher/_mode_openpgp", _create_openpgp_cipher="_create_openpgp_cipher")
-# load("@vendor//Crypto/Cipher/_mode_ccm", _create_ccm_cipher="_create_ccm_cipher")
+load("@vendor//Crypto/Cipher/_mode_ccm", CcmMode="CcmMode")
 # load("@vendor//Crypto/Cipher/_mode_eax", _create_eax_cipher="_create_eax_cipher")
 # load("@vendor//Crypto/Cipher/_mode_siv", _create_siv_cipher="_create_siv_cipher")
 load("@vendor//Crypto/Cipher/_mode_gcm", GcmMode="GcmMode")
@@ -44,7 +44,7 @@ _modes = { 1: EcbMode._create_ecb_cipher,
            }
 
 _extra_modes = {
-    # 8:_create_ccm_cipher,
+    8: CcmMode._create_ccm_cipher,
     # 10:_create_siv_cipher,
     11: GcmMode._create_gcm_cipher,
     # 12:_create_ocb_cipher

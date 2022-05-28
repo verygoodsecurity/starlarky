@@ -28,10 +28,10 @@
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
-load("@stdlib//builtins","builtins")
+load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", larky="larky")
-load("@stdlib//unittest","unittest")
+load("@stdlib//unittest", unittest="unittest")
 load("@vendor//Crypto/Cipher/AES", AES="AES")
 load("@vendor//Crypto/Hash/SHA256", SHA256="SHA256")
 load("@vendor//Crypto/Hash/SHAKE128", SHAKE128="SHAKE128")
