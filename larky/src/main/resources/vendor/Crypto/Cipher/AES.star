@@ -191,7 +191,9 @@ def new(key, mode, *args, **kwargs):
 
     :Return: an AES object, of the applicable mode.
     """
-
+    # larky ignores
+    if "use_aesni" in kwargs:
+        kwargs.pop("use_aesni")
     kwargs["add_aes_modes"] = True
     return Cipher._create_cipher(AES, key, mode, *args, **kwargs)
 
