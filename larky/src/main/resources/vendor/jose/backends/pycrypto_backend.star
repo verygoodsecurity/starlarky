@@ -253,8 +253,10 @@ def RSAKey(key, algorithm):
             print(
                 "Attempting to verify a message with a private key. " +
                 "This is not recommended.")
-        pkcs1_vfy =  safe(PKCS1_v1_5_Signature.new(self.prepared_key).verify)
-        return pkcs1_vfy(self.hash_alg.new(msg), sig).unwrap_or(False)
+        _pkcs_inst = PKCS1_v1_5_Signature.new(self.prepared_key)
+        _res = (Ok(_pkcs_inst.verify)
+                .map(lambda v: v(self.hash_alg.new(msg), sig)))
+        return _res.unwrap_or(False)
     self.verify = verify
 
     def is_public():
