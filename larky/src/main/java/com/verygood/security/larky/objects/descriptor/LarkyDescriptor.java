@@ -110,6 +110,11 @@ public abstract class LarkyDescriptor extends LarkyPyObject implements LarkyBind
     return (PyObject) obj;
   }
 
+  /**
+   * Compare with <a href="https://github.com/python/cpython/blob/3.10/Objects/classobject.c#L245-L272">classobject.c#method_richcompare</a>
+   * @param obj
+   * @return equal
+   */
   @Override
   public boolean equals(Object obj) {
     if (!(obj instanceof LarkyDescriptor)) {
