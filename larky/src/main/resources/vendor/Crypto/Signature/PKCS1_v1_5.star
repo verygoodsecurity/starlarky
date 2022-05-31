@@ -36,11 +36,11 @@ Legacy module for PKCS#1 v1.5 signatures.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@vendor//Crypto/Signature/pkcs1_15", pkcs1_15="pkcs1_15")
-load("@vendor//option/result", safe="safe")
+load("@vendor//option/result", Result="Result")
 
 
 def _pycrypto_verify(self, hash_object, signature):
-    rval = safe(self._verify)(hash_object, signature)
+    rval = Result.Ok(self._verify).map(lambda v: v(hash_object, signature))
     return False if rval.is_err else True
 
 

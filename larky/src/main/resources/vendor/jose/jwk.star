@@ -9,7 +9,7 @@ load("@vendor//jose/backends",
      AESKey="AESKey",    # noqa: F401
      DIRKey="DIRKey",    # noqa: F401
      HMACKey="HMACKey",  # noqa: F401
-     ECKey="ECKey",  # noqa: F401
+     ECKey="ECKey",      # noqa: F401
 )
 
 
@@ -30,8 +30,6 @@ def get_key(algorithm):
 
 
 def register_key(algorithm, key_class):
-    # if not issubclass(key_class, Key):
-    #     fail(" TypeError(\"Key class is not a subclass of jwk.Key\")")
     ALGORITHMS.KEYS[algorithm] = key_class
     ALGORITHMS.SUPPORTED.add(algorithm)
     return True
@@ -57,6 +55,7 @@ def construct(key_data, algorithm=None):
 
 
 jwk = larky.struct(
+    __name__='jwk',
     construct=construct,
     register_key=register_key,
     get_key=get_key,

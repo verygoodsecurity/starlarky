@@ -9,7 +9,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -129,7 +128,7 @@ public class ASN1 {
 
     @Override
     Object toStarlark() {
-      return value();
+      return value(); // TODO: does this work? why isn't it .getEncoded()?
     }
   }
 
@@ -161,7 +160,6 @@ public class ASN1 {
 
   public static class LarkyDerBitString extends LarkyASN1Encodable implements ASN1String {
 
-
     public LarkyDerBitString(DERBitString derBitString) {
       super(derBitString);
     }
@@ -177,8 +175,13 @@ public class ASN1 {
 
     @Override
     Object toStarlark() throws EvalException {
-      return StarlarkBytes.immutableOf(((DERBitString) this.encodable).getOctets());
+      try {
+        return StarlarkBytes.immutableOf(((DERBitString) this.encodable).getEncoded());
+      } catch (IOException e) {
+        throw new EvalException(e);
+      }
     }
+
   }
 
   public static class LarkyDerUTF8String extends LarkyASN1Encodable implements ASN1String {
@@ -194,7 +197,11 @@ public class ASN1 {
 
     @Override
     Object toStarlark() throws EvalException {
-      return this.getString();
+      try {
+        return StarlarkBytes.immutableOf(((ASN1Sequence)this.encodable).getEncoded());
+      } catch (IOException e) {
+        throw new EvalException(e);
+      }
     }
   }
 
@@ -232,13 +239,11 @@ public class ASN1 {
 
     @Override
     Object toStarlark() throws EvalException {
-      // TODO: implement using hashset or ensure unique list
-      List<Object> o = new ArrayList<>();
-      for (LarkyASN1Encodable larkyASN1Encodable : this) {
-        Object next = larkyASN1Encodable.toStarlark();
-        o.add(next);
+      try {
+        return StarlarkBytes.immutableOf(((ASN1Sequence)this.encodable).getEncoded());
+      } catch (IOException e) {
+        throw new EvalException(e);
       }
-      return StarlarkList.immutableCopyOf(o);
     }
 
     @NotNull

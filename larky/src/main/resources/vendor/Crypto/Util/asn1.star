@@ -281,7 +281,9 @@ def DerObject(asn1Id=None,
         idOctet = s.read_byte()
         if obj._tag_octet != None:
             if idOctet != obj._tag_octet:
-                fail('ValueError("Unexpected DER tag")')
+                fail('ValueError: Unexpected DER tag (idOctet: %s) - expected %s' % (
+                     hex(idOctet),
+                     hex(obj._tag_octet)))
         else:
             obj._tag_octet = idOctet
         length = _decodeLen(s)
@@ -293,7 +295,9 @@ def DerObject(asn1Id=None,
             p = BytesIO_EOF(obj.payload)
             inner_octet = p.read_byte()
             if inner_octet != obj._inner_tag_octet:
-                fail('ValueError("Unexpected internal DER tag")')
+                fail('ValueError: Unexpected internal DER tag (idOctet: %s) - expected %s' % (
+                     hex(idOctet),
+                     hex(obj._tag_octet)))
             length = _decodeLen(p)
             obj.payload = p.read(length)
 
@@ -981,7 +985,6 @@ def DerBitString(value=bytes(), implicit=None, explicit=None):
         Raises:
             ValueError: in case of parsing errors.
         """
-
         return self.derobject.decode(self, der_encoded, strict)
 
     def _decodeFromStream(obj, s, strict):
@@ -995,10 +998,10 @@ def DerBitString(value=bytes(), implicit=None, explicit=None):
             fail('ValueError("Not a valid BIT STRING")')
 
         # Fill-up obj.value
-        self.value = bytearray(r'', encoding='utf-8')
+        obj.value = b''
         # Remove padding count byte
         if obj.payload:
-            self.value = obj.payload[1:]
+            obj.value = obj.payload[1:]
 
     self = __init__(value, implicit, explicit)
     self.encode = encode

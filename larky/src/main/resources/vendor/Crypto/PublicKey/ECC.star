@@ -88,6 +88,42 @@ _Curve = namedtuple("_Curve", "p b order Gx Gy G modulus_bits oid context desc o
 _curves = {}
 
 
+# The "k" in sepc256k1 stands for Koblitz and the "r" in sepc256r1
+# stands for random. A Koblitz elliptic curve has some special properties
+# that make it possible to implement the group operation more efficiently.
+#
+# Bitcoin chose to use the less popular Koblitz curve for efficiency and
+# concerns over a possible back door in the random curve.
+# Before Bitcoin, secp256k1 was not widely used.
+p256k1_names = ["secp256k1", "ansip256k1", "secg/secp256k1", "ansiX9p256k1",
+                # shorthand
+                "p256k1", "p256k"]
+def _init_p256k1():
+    p = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f # bc <-Q
+    b = 0x0000000000000000000000000000000000000000000000000000000000000007 # bc <- b
+    order = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141 # n
+    Gx = 0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798
+    Gy = 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
+
+    context = _JCrypto.PublicKey.ECC.P256K1Curve()
+    p256k1 = _Curve(Integer(p),
+                  Integer(b),
+                  Integer(order),
+                  Integer(Gx),
+                  Integer(Gy),
+                  None,
+                  256,
+                  "1.3.132.0.10",    # ANSI X9.63
+                  context,
+                  "Koblitz secp256k1",
+                  "ecdsa-sha2-1.3.132.0.10")
+
+    _curves.update({k: p256k1 for k in p256k1_names})
+
+
+_init_p256k1()
+
+
 p256_names = ["p256", "NIST P-256", "P-256", "prime256v1", "secp256r1",
               "nistp256"]
 
@@ -373,6 +409,11 @@ def EccPoint(x, y, curve="p256"):
 
 
 # Last piece of initialization
+_p256k1_G = EccPoint(_curves['secp256k1'].Gx, _curves['secp256k1'].Gy, "secp256k1")
+_p256k1 = _curves['secp256k1']._replace(G=_p256k1_G)
+_curves.update({key: _p256k1 for key in p256k1_names})
+# del p256k_G, p256k, p256k_names
+
 _p256_G = EccPoint(_curves['p256'].Gx, _curves['p256'].Gy, "p256")
 _p256 = _curves['p256']._replace(G=_p256_G)
 _curves.update({key: _p256 for key in p256_names})
@@ -1022,6 +1063,7 @@ def _import_der(encoded, passphrase):
 
     res = (Result.Ok(_import_pkcs8)
            .map(lambda _pkcs8: _pkcs8(encoded, passphrase)))
+    # res = _import_pkcs8(encoded, passphrase)
     if res.is_err:
         if Result.error_is("UnsupportedEccFeature", res) != None:
             return res

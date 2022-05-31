@@ -92,6 +92,11 @@ public class LarkyFunction extends LarkyDescriptor implements ForwardingLarkyTyp
       return this;
     } else {
       final PyObject self = check(obj, thread);
+      // A possible optimization here would be to cache the LarkyMethod
+      // creation based on the this.fget and this.im_class.
+      //
+      // This would reduce memory allocation, as this will probably be a
+      // hot codepath.
       return LarkyMethod.create(
         this.fget, self,
         thread != null ? thread : self.getCurrentThread()
