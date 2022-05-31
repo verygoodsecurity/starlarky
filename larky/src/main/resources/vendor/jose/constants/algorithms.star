@@ -64,9 +64,18 @@ PBES2_KW = sets.Set([PBES2_HS256_A128KW, PBES2_HS384_A192KW, PBES2_HS512_A256KW]
 HMAC_AUTH_TAG = sets.Set([A128CBC_HS256, A192CBC_HS384, A256CBC_HS512])
 GCM = sets.Set([A128GCM, A192GCM, A256GCM])
 
-SUPPORTED = HMAC.union(RSA_DS).union(sets.Set([DIR])).union(AES_JWE_ENC).union(RSA_KW).union(AES_KW).union(AEC_GCM_KW)
+SUPPORTED = (
+    HMAC
+     .union(RSA_DS)
+     .union(sets.Set([DIR]))
+     .union(AES_JWE_ENC)
+     .union(RSA_KW)
+     .union(AES_KW)
+     .union(AEC_GCM_KW)
+     .union(EC_DS)
+)
 
-ALL = SUPPORTED.union(sets.Set([NONE])).union(EC_DS).union(EC_KW).union(PBES2_KW)
+ALL = SUPPORTED.union(sets.Set([NONE])).union(EC_KW).union(PBES2_KW)
 
 HASHES = {
     HS256: hashlib.sha256,
