@@ -5,6 +5,7 @@ load("@stdlib//json", "json")
 load("@stdlib//hashlib", "hashlib")
 load("@vendor//Crypto/Hash", "Hash")
 load("testlib/builtinz", "setz", "collections")
+load("github.com/verygoodsecurity/larky-helpers", "mirror")
 
 
 def _assert_false(
@@ -64,3 +65,5 @@ c = json.decode(c1)
 d = json.decode(d1)
 assert_eq(json.loads('{"one": 1, "two": 2}'), c)
 assert_eq(json.loads('"\\ud83d\\ude39\\ud83d\\udc8d"'), d)
+
+assert_eq(mirror("hello world"), "dlrow olleh")
