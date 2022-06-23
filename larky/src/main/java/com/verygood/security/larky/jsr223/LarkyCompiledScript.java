@@ -1,6 +1,9 @@
 package com.verygood.security.larky.jsr223;
 
 import com.google.common.io.CharStreams;
+import java.io.IOException;
+import java.io.Reader;
+import java.util.Map;
 
 import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
@@ -9,16 +12,13 @@ import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.StarFile;
 
 import net.starlark.java.eval.EvalException;
-
-import java.io.IOException;
-import java.io.Reader;
-import java.util.Map;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 
 import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
-import javax.script.ScriptException;
 
 
 public class LarkyCompiledScript extends CompiledScript {
@@ -44,20 +44,21 @@ public class LarkyCompiledScript extends CompiledScript {
   }
 
   @Override
-  public Object eval(ScriptContext context) throws ScriptException {
-    try(Reader reader = context.getReader()) {
+  public Object eval(ScriptContext context) throws LarkyEvaluationScriptException {
+    ParsedStarFile result;
+    Bindings globalBindings = context.getBindings(ScriptContext.GLOBAL_SCOPE);
+    Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
+
+    try (Reader reader = context.getReader()) {
       final StarFile script = InMemMapBackedStarFile.createStarFile(DEFAULT_SCRIPT_NAME, CharStreams.toString(reader));
-      Bindings globalBindings = context.getBindings(ScriptContext.GLOBAL_SCOPE);
-      Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
-
       final DefaultLarkyInterpreter larkyInterpreter = new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings);
-
-      ParsedStarFile result = larkyInterpreter.evaluate(script, context.getWriter());
-      setBindingsValue(globalBindings, engineBindings, result.getGlobals());
-      return result;
-    } catch (IOException | EvalException e) {
-      throw new ScriptException(e);
+      result = larkyInterpreter.evaluate(script, context.getWriter());
+    } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
+             EvalException e) {
+      throw LarkyEvaluationScriptException.of(e);
     }
+    setBindingsValue(globalBindings, engineBindings, result.getGlobals());
+    return result;
   }
 
 
