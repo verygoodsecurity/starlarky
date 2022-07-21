@@ -2,18 +2,17 @@ package com.verygood.security.larky.objects.type;
 
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.MapMaker;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import java.util.HashSet;
+import com.verygood.security.larky.modules.types.PyProtocols;
+import com.verygood.security.larky.objects.LarkyPyObject;
+import com.verygood.security.larky.objects.PyObject;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
-
-import com.verygood.security.larky.modules.types.PyProtocols;
-import com.verygood.security.larky.objects.LarkyPyObject;
-import com.verygood.security.larky.objects.PyObject;
-
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
@@ -21,7 +20,6 @@ import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.syntax.TokenKind;
-
 import org.jetbrains.annotations.Nullable;
 
 
@@ -45,7 +43,9 @@ final public class LarkyBaseObjectType
     SpecialMethod.dunder_gt,
     SpecialMethod.dunder_ge
   );
-  private final Set<LarkyType> allSubclasses = new HashSet<>();
+  private final Set<LarkyType> allSubclasses = Collections.synchronizedSet(Collections.newSetFromMap(
+      new MapMaker().weakKeys().makeMap()));
+
   private final Map<String, Object> __dict__;
   private final LarkyType type;
 
