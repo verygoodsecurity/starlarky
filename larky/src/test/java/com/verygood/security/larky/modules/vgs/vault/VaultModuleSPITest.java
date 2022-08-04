@@ -46,7 +46,7 @@ public class VaultModuleSPITest {
         // Assert Exceptions
         Assertions.assertThrows(EvalException.class,
                 () -> {
-                    vault.redact("fail", Starlark.NONE, Starlark.NONE, null);
+                    vault.redact("fail", Starlark.NONE, Starlark.NONE, null, null);
                 },
                 "vault.redact operation must be overridden"
         );
@@ -68,7 +68,7 @@ public class VaultModuleSPITest {
 
         // Invoke Vault
         String secret = "4111111111111111";
-        String alias = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
+        String alias = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null, null);
         String result = (String) vault.reveal(alias, Starlark.NONE);
 
         // Assert OK
@@ -85,7 +85,7 @@ public class VaultModuleSPITest {
 
         // Invoke Vault
         String secret = "4111111111111111";
-        String alias = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null);
+        String alias = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null, null);
         String result = (String) vault.reveal(alias, Starlark.NONE);
 
         // Assert OK

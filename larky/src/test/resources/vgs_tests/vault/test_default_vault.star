@@ -127,6 +127,55 @@ def _luhn_mod10(digits):
     return sum%10
 
 
+def _test_alias_decorator():
+    secret = "1111111111"
+    alias = vault.redact(secret, decorator_config={
+        "nonLuhnPattern": "[0-9]{6}(?<tokenized>[0-9]{6})[0-9]{4}",
+        "patterns": [
+            {
+                "search": "(?<token>[0-9]{6})(?<lastFour>[0-9]{4})",
+                "replace": "98${token}${lastFour}",
+            }
+        ]
+    })
+
+    asserts.assert_that(alias).is_not_equal_to(secret)
+    asserts.assert_true(alias.startswith("98"))
+    asserts.assert_true(alias.endswith("1111"))
+
+def _test_alias_decorator_empty():
+    card_number = "4111111111111111"
+    redacted_card_number = vault.redact(card_number, decorator_config={})
+
+    asserts.assert_that(redacted_card_number[:4]).is_equal_to('tok_')
+
+def _test_invalid_alias_decorator_missing_patterns_search():
+    asserts.assert_fails(lambda : vault.redact("whatever", decorator_config={
+        "patterns": [
+            {
+                "replace": "98${token}${lastFour}",
+            }
+        ]
+    }),
+    """Decorator config '{"patterns": \\[{"replace": "98\\${token}\\${lastFour}"}\\]}' is invalid. 'pattern' object is invalid: 'search' and 'replace' fields are required."""
+    )
+
+def _test_invalid_alias_decorator_missing_patterns_replace():
+    asserts.assert_fails(lambda : vault.redact("whatever", decorator_config={
+        "patterns": [
+            {
+                "search": "(?<token>[0-9]{6})(?<lastFour>[0-9]{4})",
+            }
+        ]
+    }),
+    """Decorator config '{"patterns": \\[{"search": "\\(\\?<token>\\[0-9\\]\\{6\\}\\)\\(\\?<lastFour>\\[0-9\\]\\{4\\}\\)"}\\]}' is invalid. 'pattern' object is invalid: 'search' and 'replace' fields are required."""
+)
+
+def _test_invalid_alias_decorator_invalid_config_format():
+    asserts.assert_fails(lambda : vault.redact("whatever", decorator_config="invalid"),
+     """in call to redact\\(\\), parameter 'decorator_config' got value of type 'string', want 'NoneType or Map'"""
+     )
+
 def _suite():
     _suite = unittest.TestSuite()
 
@@ -150,6 +199,13 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_unsupported_format))
     _suite.addTest(unittest.FunctionTestCase(_test_valid_format_preserving))
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_format_preserving))
+
+    # Alias Decorator Tests
+    _suite.addTest(unittest.FunctionTestCase(_test_alias_decorator))
+    _suite.addTest(unittest.FunctionTestCase(_test_alias_decorator_empty))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_missing_patterns_search))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_missing_patterns_replace))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_format))
 
     return _suite
 

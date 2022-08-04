@@ -1,15 +1,19 @@
 package com.verygood.security.larky.modules.vgs.vault.defaults;
 
 import com.google.common.collect.ImmutableMap;
+import com.verygood.security.larky.modules.VaultModule;
+import com.verygood.security.larky.modules.VaultModule.DecoratorConfig;
+import com.verygood.security.larky.modules.vgs.vault.defaults.AliasDecorator.TokenizerPatterns;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
-
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.NoneType;
-import net.starlark.java.eval.Starlark;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Starlark;
 
 
 public class DefaultVault implements LarkyVault {
@@ -40,11 +44,29 @@ public class DefaultVault implements LarkyVault {
             .build();
 
     @Override
-    public Object redact(Object value, Object storage, Object format, List<Object> tags) throws EvalException {
+    public Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException {
         String sValue = getValue(value);
-        String alias = getAliasGenerator(format).generate(sValue);
+        AliasGenerator generator = getAliasGenerator(format);
+        Optional<AliasDecorator> aliasDecorator = resolveAliasDecorator(decoratorConfig, generator);
+
+        String alias = aliasDecorator.isPresent()
+            ? aliasDecorator.get().tokenize(sValue)
+            : generator.generate(sValue);
         getStorage(storage).put(alias, value);
         return alias;
+    }
+
+    private Optional<AliasDecorator> resolveAliasDecorator(Object decoratorConfig, AliasGenerator generator) {
+        DecoratorConfig config = VaultModule.DecoratorConfig.fromObject(decoratorConfig);
+        if (config!= null && config.getPatterns() != null && !config.getPatterns().isEmpty()) {
+            List<TokenizerPatterns> patterns = config.getPatterns().stream()
+                .map(pattern -> new TokenizerPatterns(Pattern.compile(pattern.getSearch()), pattern.getReplace()))
+                .collect(Collectors.toList());
+            AliasDecorator decorator = new AliasDecorator(patterns, generator::generate);
+            return Optional.of(decorator);
+        } else {
+            return Optional.empty();
+        }
     }
 
     @Override

@@ -1,9 +1,18 @@
 package com.verygood.security.larky.modules;
 
 import com.google.common.collect.ImmutableList;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.verygood.security.larky.modules.VaultModule.DecoratorConfig.InvalidDecoratorConfigException;
+import com.verygood.security.larky.modules.vgs.vault.NoopVault;
 import com.verygood.security.larky.modules.vgs.vault.defaults.DefaultVault;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
-import com.verygood.security.larky.modules.vgs.vault.NoopVault;
+import java.util.List;
+import java.util.Map;
+import java.util.ServiceLoader;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -12,15 +21,60 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 
-import java.util.List;
-import java.util.ServiceLoader;
-
 
 @StarlarkBuiltin(
         name = "vault",
         category = "BUILTIN",
         doc = "Overridable Vault API in Larky")
 public class VaultModule implements LarkyVault {
+
+    @Getter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class DecoratorConfig {
+        public static class InvalidDecoratorConfigException extends RuntimeException {
+            public InvalidDecoratorConfigException(String message) {
+                super(message);
+            }
+        }
+        @Getter
+        @AllArgsConstructor
+        public static class Pattern {
+            private String search;
+            private String replace;
+        }
+
+        private String nonLuhnPattern;
+        private String cleanUpPattern;
+        private List<Pattern> patterns;
+
+
+        public static DecoratorConfig fromObject(Object decoratorConfig) {
+            if (decoratorConfig instanceof NoneType) {
+               return new DecoratorConfig();
+            }
+            Gson gson = new Gson();
+            String serialized = gson.toJson(decoratorConfig);
+            try {
+                DecoratorConfig config = gson.fromJson(serialized, DecoratorConfig.class);
+                validate(config);
+                return config;
+            } catch (JsonSyntaxException e) {
+                throw new InvalidDecoratorConfigException(
+                    String.format("Failed to parse decorator config: %s", decoratorConfig)
+                );
+            }
+        }
+
+        private static void validate(DecoratorConfig config) throws InvalidDecoratorConfigException {
+            if (config.getPatterns()!=null && !config.getPatterns().isEmpty()) {
+                if (config.getPatterns().stream()
+                    .anyMatch(pattern -> pattern.getSearch() == null || pattern.getReplace() == null)) {
+                    throw new InvalidDecoratorConfigException("'pattern' object is invalid: 'search' and 'replace' fields are required.");
+                }
+            }
+        }
+     }
 
     public static final VaultModule INSTANCE = new VaultModule();
     public static final String ENABLE_INMEMORY_PROPERTY = "larky.modules.vgs.vault.enableInMemoryVault";
@@ -107,13 +161,23 @@ public class VaultModule implements LarkyVault {
                             allowedTypes = {
                                     @ParamType(type = List.class)
                             }),
+                    @Param(
+                            name = "decorator_config",
+                            doc = "alias decorator config",
+                            named = true,
+                            defaultValue = "None",
+                            allowedTypes = {
+                                @ParamType(type = NoneType.class),
+                                @ParamType(type = Map.class),
+                        }),
             })
     @Override
-    public Object redact(Object value, Object storage, Object format, List<Object> tags) throws EvalException {
+    public Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException {
         validateStorage(storage);
         validateFormat(format);
+        validateDecoratorConfig(decoratorConfig);
 
-        return vault.redact(value, storage, format, tags);
+        return vault.redact(value, storage, format, tags, decoratorConfig);
     }
 
     @StarlarkMethod(
@@ -173,5 +237,24 @@ public class VaultModule implements LarkyVault {
             ));
         }
     }
+
+    private void validateDecoratorConfig(Object decoratorConfig) throws EvalException {
+        if (!(decoratorConfig instanceof NoneType) && !(decoratorConfig instanceof Map)) {
+            throw Starlark.errorf(String.format(
+                "Decorator config of type %s is not supported in VAULT, expecting Map",
+                decoratorConfig.getClass().getName()
+            ));
+        } else if (decoratorConfig instanceof Map) {
+            try {
+                DecoratorConfig.fromObject(decoratorConfig);
+            } catch (InvalidDecoratorConfigException e) {
+                throw Starlark.errorf(String.format(
+                    "Decorator config '%s' is invalid. %s",
+                    decoratorConfig, e.getMessage()
+                ));
+            }
+        }
+    }
+
 
 }
