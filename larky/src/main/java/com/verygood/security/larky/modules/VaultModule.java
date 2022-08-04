@@ -50,7 +50,7 @@ public class VaultModule implements LarkyVault {
 
 
         public static DecoratorConfig fromObject(Object decoratorConfig) {
-            if (decoratorConfig instanceof NoneType) {
+            if (decoratorConfig == null || decoratorConfig instanceof NoneType) {
                return new DecoratorConfig();
             }
             Gson gson = new Gson();
@@ -67,10 +67,11 @@ public class VaultModule implements LarkyVault {
         }
 
         private static void validate(DecoratorConfig config) throws InvalidDecoratorConfigException {
-            if (config.getPatterns()!=null && !config.getPatterns().isEmpty()) {
+            if (config.getPatterns() != null && !config.getPatterns().isEmpty()) {
                 if (config.getPatterns().stream()
                     .anyMatch(pattern -> pattern.getSearch() == null || pattern.getReplace() == null)) {
-                    throw new InvalidDecoratorConfigException("'pattern' object is invalid: 'search' and 'replace' fields are required.");
+                    throw new InvalidDecoratorConfigException(
+                        "'pattern' object is invalid: 'search' and 'replace' fields are required.");
                 }
             }
         }
@@ -239,7 +240,7 @@ public class VaultModule implements LarkyVault {
     }
 
     private void validateDecoratorConfig(Object decoratorConfig) throws EvalException {
-        if (!(decoratorConfig instanceof NoneType) && !(decoratorConfig instanceof Map)) {
+        if (decoratorConfig != null && !(decoratorConfig instanceof NoneType) && !(decoratorConfig instanceof Map)) {
             throw Starlark.errorf(String.format(
                 "Decorator config of type %s is not supported in VAULT, expecting Map",
                 decoratorConfig.getClass().getName()
