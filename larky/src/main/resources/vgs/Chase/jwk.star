@@ -26,8 +26,14 @@ def decrypt(jwe_bytes):
     decrypted = Chase.decrypt(jwe_bytes)
     return decrypted
 
+def pan_decrypt(jwe_bytes):
+    if types.is_string(jwe_bytes):
+        jwe_bytes = bytes(jwe_bytes, "utf-8")
+    decrypted = Chase.pan_decrypt(jwe_bytes)
+    return decrypted
 
 jwk = larky.struct(
     __name__="jwk", 
     get_public_keys=get_public_keys, 
-    decrypt=decrypt)
+    decrypt=decrypt,
+    pan_decrypt=pan_decrypt)
