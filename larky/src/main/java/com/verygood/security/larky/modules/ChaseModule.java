@@ -74,4 +74,18 @@ public class ChaseModule implements ChaseCrypto {
     return chaseCrypto.decrypt(jweBytes);
   }
 
+  @SneakyThrows
+  @StarlarkMethod(name = "pan_decrypt",
+      doc = "The decrypt function takes a JWE Encrypted PAN from Chase, and returns the " +
+            "decrypted value without exposing the private key used for decryption.",
+      parameters = {
+          @Param(
+              name = "jwe",
+              allowedTypes = {
+                  @ParamType(type = StarlarkBytes.class)
+              })
+      })
+  public String pan_decrypt(StarlarkBytes jweBytes) {
+    return chaseCrypto.decrypt(jweBytes);
+  }
 }
