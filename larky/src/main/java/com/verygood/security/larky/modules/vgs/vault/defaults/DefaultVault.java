@@ -55,7 +55,7 @@ public class DefaultVault implements LarkyVault {
 
     private Optional<AliasDecorator> resolveAliasDecorator(Object decoratorConfig, AliasGenerator generator) {
         DecoratorConfig config = VaultModule.DecoratorConfig.fromObject(decoratorConfig);
-        if (config != null) {
+        if (config != null && config.getSearchPattern() != null && config.getReplacePattern() != null) {
             AliasDecorator decorator = new AliasDecorator(
                 generator::generate,
                 config.getSearchPattern(),

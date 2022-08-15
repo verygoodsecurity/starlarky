@@ -1,18 +1,17 @@
 package com.verygood.security.larky.modules;
 
 import com.google.common.collect.ImmutableList;
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
 import com.verygood.security.larky.modules.VaultModule.DecoratorConfig.InvalidDecoratorConfigException;
 import com.verygood.security.larky.modules.vgs.vault.NoopVault;
 import com.verygood.security.larky.modules.vgs.vault.defaults.DefaultVault;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -30,7 +29,7 @@ public class VaultModule implements LarkyVault {
 
     @Getter
     @AllArgsConstructor
-    @NoArgsConstructor
+    @Builder
     public static class DecoratorConfig {
         public static class InvalidDecoratorConfigException extends RuntimeException {
             public InvalidDecoratorConfigException(String message) {
@@ -39,37 +38,103 @@ public class VaultModule implements LarkyVault {
         }
         @Getter
         @AllArgsConstructor
+        @Builder
         public static class NonLuhnValidTransformPattern {
-            private String search;
-            private String replace;
+            private final String search;
+            private final String replace;
         }
 
         @Getter
         @AllArgsConstructor
+        @Builder
         public static class NonLuhnValidPattern {
-            private String validatePattern;
-            private List<NonLuhnValidTransformPattern> transformPatterns;
+            private final String validatePattern;
+            private final List<NonLuhnValidTransformPattern> transformPatterns;
         }
 
-        private String searchPattern;
-        private String replacePattern;
-        private NonLuhnValidPattern nonLuhnValidPattern;
+        private final String searchPattern;
+        private final String replacePattern;
+        private final NonLuhnValidPattern nonLuhnValidPattern;
 
 
         public static DecoratorConfig fromObject(Object decoratorConfig) {
-            if (decoratorConfig == null || decoratorConfig instanceof NoneType) {
+            if (!(decoratorConfig instanceof Map)) {
                return null;
             }
-            Gson gson = new Gson();
-            String serialized = gson.toJson(decoratorConfig);
-            try {
-                DecoratorConfig config = gson.fromJson(serialized, DecoratorConfig.class);
-                return config;
-            } catch (JsonSyntaxException e) {
+            Map map = (Map) decoratorConfig;
+
+            DecoratorConfig.DecoratorConfigBuilder decoratorConfigBuilder = DecoratorConfig.builder();
+
+            decoratorConfigBuilder.searchPattern(getString(map, "searchPattern"));
+            decoratorConfigBuilder.replacePattern(getString(map, "replacePattern"));
+
+            Map nonLuhnValidPattern = getMap(map, "nonLuhnValidPattern");
+            if (nonLuhnValidPattern != null) {
+                NonLuhnValidPattern.NonLuhnValidPatternBuilder nonLuhnValidPatternBuilder = NonLuhnValidPattern.builder();
+                nonLuhnValidPatternBuilder.validatePattern(getString(nonLuhnValidPattern, "validatePattern"));
+                ImmutableList.Builder<NonLuhnValidTransformPattern> transformPatterns = ImmutableList.builder();
+                for (Object transformPattern : getList(nonLuhnValidPattern, "transformPatterns")) {
+                    NonLuhnValidTransformPattern.NonLuhnValidTransformPatternBuilder transformPatternBuilder = NonLuhnValidTransformPattern.builder();
+                    Map transformPatternMap = toMap(transformPattern);
+                    transformPatternBuilder.search(getString(transformPatternMap, "search"));
+                    transformPatternBuilder.replace(getString(transformPatternMap, "replace"));
+                    transformPatterns.add(transformPatternBuilder.build());
+                }
+                nonLuhnValidPatternBuilder.transformPatterns(transformPatterns.build());
+                decoratorConfigBuilder.nonLuhnValidPattern(nonLuhnValidPatternBuilder.build());
+            }
+            return decoratorConfigBuilder.build();
+        }
+
+        private static Map toMap(Object obj) {
+            if (obj == null) {
+                return null;
+            }
+            if (!(obj instanceof Map)) {
                 throw new InvalidDecoratorConfigException(
-                    String.format("Failed to parse decorator config: %s", decoratorConfig)
+                    String.format("Invalid decorator config. %s must be dict", obj)
                 );
             }
+            return (Map) obj;
+        }
+
+        private static String getString(Map map, String field) {
+            if (!map.containsKey(field)) {
+                return null;
+            }
+            Object value = map.get(field);
+            if (!(value instanceof String)) {
+                throw new InvalidDecoratorConfigException(
+                    String.format("Invalid decorator config. %s must be string", field)
+                );
+            }
+            return (String) value;
+        }
+
+        private static Map getMap(Map map, String field) {
+            if (!map.containsKey(field)) {
+                return null;
+            }
+            Object value = map.get(field);
+            if (!(value instanceof Map)) {
+                throw new InvalidDecoratorConfigException(
+                    String.format("Invalid decorator config. %s must be dict", field)
+                );
+            }
+            return (Map) value;
+        }
+
+        private static List getList(Map map, String field) {
+            if (!map.containsKey(field)) {
+                return Collections.emptyList();
+            }
+            Object value = map.get(field);
+            if (!(value instanceof List)) {
+                throw new InvalidDecoratorConfigException(
+                    String.format("Invalid decorator config. %s must be array", field)
+                );
+            }
+            return (List) value;
         }
      }
 
@@ -241,7 +306,7 @@ public class VaultModule implements LarkyVault {
                 "Decorator config of type %s is not supported in VAULT, expecting Map",
                 decoratorConfig.getClass().getName()
             ));
-        } else if (decoratorConfig instanceof Map) {
+        } else {
             try {
                 DecoratorConfig.fromObject(decoratorConfig);
             } catch (InvalidDecoratorConfigException e) {
