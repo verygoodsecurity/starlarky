@@ -26,7 +26,6 @@ def test_ctr():
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(test_ctr))
-    #_suite.addTest(unittest.FunctionTestCase(test_oppdateringer))
     return _suite
 
 
