@@ -455,17 +455,6 @@ public final class StarlarkList<E> extends AbstractList<E>
     addElement((E) item); // unchecked
   }
 
-  @StarlarkMethod(name = "reverse", doc = "Reverses the order of the list items.")
-  public void reverse() throws EvalException {
-    Object[] revElems = new Object[size];
-    int j = size;
-    for (int i = 0 ; i < size; i++) {
-      revElems[j-1] = elems[i];
-      j = j - 1;
-    }
-    elems = revElems;
-  }
-
   @StarlarkMethod(name = "clear", doc = "Removes all the elements of the list.")
   public void clearElements() throws EvalException {
     Starlark.checkMutable(this);
