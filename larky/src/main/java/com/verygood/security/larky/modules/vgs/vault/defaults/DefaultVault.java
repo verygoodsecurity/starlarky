@@ -1,8 +1,7 @@
 package com.verygood.security.larky.modules.vgs.vault.defaults;
 
 import com.google.common.collect.ImmutableMap;
-import com.verygood.security.larky.modules.VaultModule;
-import com.verygood.security.larky.modules.VaultModule.DecoratorConfig;
+import com.verygood.security.larky.modules.DecoratorConfig;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import java.util.HashMap;
 import java.util.List;
@@ -54,7 +53,7 @@ public class DefaultVault implements LarkyVault {
     }
 
     private Optional<AliasDecorator> resolveAliasDecorator(Object decoratorConfig, AliasGenerator generator) {
-        DecoratorConfig config = VaultModule.DecoratorConfig.fromObject(decoratorConfig);
+        DecoratorConfig config = DecoratorConfig.fromObject(decoratorConfig);
         if (config != null && config.getSearchPattern() != null && config.getReplacePattern() != null) {
             AliasDecorator decorator = new AliasDecorator(
                 generator::generate,
