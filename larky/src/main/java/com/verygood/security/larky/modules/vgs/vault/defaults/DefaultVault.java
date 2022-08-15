@@ -3,14 +3,11 @@ package com.verygood.security.larky.modules.vgs.vault.defaults;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.modules.VaultModule;
 import com.verygood.security.larky.modules.VaultModule.DecoratorConfig;
-import com.verygood.security.larky.modules.vgs.vault.defaults.AliasDecorator.TokenizerPatterns;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
@@ -58,11 +55,12 @@ public class DefaultVault implements LarkyVault {
 
     private Optional<AliasDecorator> resolveAliasDecorator(Object decoratorConfig, AliasGenerator generator) {
         DecoratorConfig config = VaultModule.DecoratorConfig.fromObject(decoratorConfig);
-        if (config!= null && config.getPatterns() != null && !config.getPatterns().isEmpty()) {
-            List<TokenizerPatterns> patterns = config.getPatterns().stream()
-                .map(pattern -> new TokenizerPatterns(Pattern.compile(pattern.getSearch()), pattern.getReplace()))
-                .collect(Collectors.toList());
-            AliasDecorator decorator = new AliasDecorator(patterns, generator::generate);
+        if (config != null) {
+            AliasDecorator decorator = new AliasDecorator(
+                generator::generate,
+                config.getSearchPattern(),
+                config.getReplacePattern()
+            );
             return Optional.of(decorator);
         } else {
             return Optional.empty();

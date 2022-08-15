@@ -39,40 +39,36 @@ public class VaultModule implements LarkyVault {
         }
         @Getter
         @AllArgsConstructor
-        public static class Pattern {
+        public static class NonLuhnValidTransformPattern {
             private String search;
             private String replace;
         }
 
-        private String nonLuhnPattern;
-        private String cleanUpPattern;
-        private List<Pattern> patterns;
+        @Getter
+        @AllArgsConstructor
+        public static class NonLuhnValidPattern {
+            private String validatePattern;
+            private List<NonLuhnValidTransformPattern> transformPatterns;
+        }
+
+        private String searchPattern;
+        private String replacePattern;
+        private NonLuhnValidPattern nonLuhnValidPattern;
 
 
         public static DecoratorConfig fromObject(Object decoratorConfig) {
             if (decoratorConfig == null || decoratorConfig instanceof NoneType) {
-               return new DecoratorConfig();
+               return null;
             }
             Gson gson = new Gson();
             String serialized = gson.toJson(decoratorConfig);
             try {
                 DecoratorConfig config = gson.fromJson(serialized, DecoratorConfig.class);
-                validate(config);
                 return config;
             } catch (JsonSyntaxException e) {
                 throw new InvalidDecoratorConfigException(
                     String.format("Failed to parse decorator config: %s", decoratorConfig)
                 );
-            }
-        }
-
-        private static void validate(DecoratorConfig config) throws InvalidDecoratorConfigException {
-            if (config.getPatterns() != null && !config.getPatterns().isEmpty()) {
-                if (config.getPatterns().stream()
-                    .anyMatch(pattern -> pattern.getSearch() == null || pattern.getReplace() == null)) {
-                    throw new InvalidDecoratorConfigException(
-                        "'pattern' object is invalid: 'search' and 'replace' fields are required.");
-                }
             }
         }
      }
