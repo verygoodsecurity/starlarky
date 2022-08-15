@@ -38,6 +38,11 @@ public class ChaseModule implements ChaseCrypto {
         }
 
         @Override
+        public String pan_decrypt(StarlarkBytes jwe_bytes) {
+          return new String(jwe_bytes.toByteArray());
+        }
+
+        @Override
         public String getKeys() {
           return "";
         }
