@@ -127,6 +127,115 @@ def _luhn_mod10(digits):
     return sum%10
 
 
+def _test_alias_decorator():
+    secret = "1111111111"
+    alias = vault.redact(secret, decorator_config={
+        "searchPattern": "(?<token>[0-9]{6})(?<lastFour>[0-9]{4})",
+        "replacePattern": "98${token}${lastFour}",
+        "nonLuhnValidPattern": {
+            "validatePattern": "[0-9]{6}(?<tokenized>[0-9]{6})[0-9]{4}",
+            "transformPatterns": [
+                {
+                    "search": "(?<token>[0-9]{6})(?<lastFour>[0-9]{4})",
+                    "replace": "98${token}${lastFour}",
+                }
+        ]
+    }
+    })
+
+    asserts.assert_that(alias).is_not_equal_to(secret)
+    asserts.assert_true(alias.startswith("98"))
+    asserts.assert_true(alias.endswith("1111"))
+
+def _test_alias_decorator_empty():
+    card_number = "4111111111111111"
+    redacted_card_number = vault.redact(card_number, decorator_config={})
+
+    asserts.assert_that(redacted_card_number[:4]).is_equal_to('tok_')
+
+def _test_invalid_alias_decorator_invalid_config_format():
+    asserts.assert_fails(lambda : vault.redact("whatever", decorator_config="invalid"),
+     """in call to redact\\(\\), parameter 'decorator_config' got value of type 'string', want 'NoneType or Map'"""
+     )
+
+def _test_invalid_alias_decorator_invalid_config_search_pattern():
+    asserts.assert_fails(lambda : vault.redact("1111111111", decorator_config={
+        "searchPattern": {},
+        "replacePattern": "98${token}${lastFour}"
+    }),
+    """Decorator config '{"searchPattern": {}, "replacePattern": "98\\${token}\\${lastFour}"}' is invalid\\. 'searchPattern' field must be string"""
+    )
+
+def _test_invalid_alias_decorator_invalid_config_replace_pattern():
+    asserts.assert_fails(lambda : vault.redact("1111111111", decorator_config={
+        "searchPattern": "(?<token>[0-9]{6})(?<lastFour>[0-9]{4})",
+        "replacePattern": ["98${token}${lastFour}"]
+    }),
+ """Decorator config '{"searchPattern": "\\(\\?<token>\\[0-9]\\{6}\\)\\(\\?<lastFour>\\[0-9\\]\\{4}\\)", "replacePattern": \\["98\\${token}\\${lastFour}"]}' is invalid\\. 'replacePattern' field must be string"""
+ )
+
+def _test_invalid_alias_decorator_invalid_config_non_luhn_valid_format():
+    asserts.assert_fails(lambda : vault.redact("1111111111", decorator_config={
+        "nonLuhnValidPattern": "[0-9]+"
+    }),
+     """Decorator config '{"nonLuhnValidPattern": "\\[0-9\\]\\+"}' is invalid\\. 'nonLuhnValidPattern' field must be dict"""
+     )
+
+def _test_invalid_alias_decorator_invalid_config_non_luhn_valid_validate_pattern():
+    asserts.assert_fails(lambda : vault.redact("1111111111", decorator_config={
+        "nonLuhnValidPattern": {
+            "validatePattern": [],
+            "transformPatterns": [
+                {
+                    "search": "[0-9]{10}",
+                    "replace": "98${token}",
+                }
+            ]
+        }
+    }),
+     """Decorator config '{"nonLuhnValidPattern": {"validatePattern": \\[\\], "transformPatterns": \\[{"search": "\\[0-9\\]\\{10}", "replace": "98\\${token}"}\\]}}' is invalid\\. 'validatePattern' field must be string"""
+     )
+
+def _test_invalid_alias_decorator_invalid_config_non_luhn_valid_transform_patterns():
+    asserts.assert_fails(lambda : vault.redact("1111111111", decorator_config={
+        "nonLuhnValidPattern": {
+            "validatePattern": "[0-9]{10}",
+            "transformPatterns": "[0-9]{10}"
+        }
+    }),
+     """Decorator config '{"nonLuhnValidPattern": {"validatePattern": "\\[0-9\\]\\{10}", "transformPatterns": "\\[0-9\\]\\{10\\}"}}' is invalid\\. 'transformPatterns' field must be array"""
+     )
+
+def _test_invalid_alias_decorator_invalid_config_non_luhn_valid_search():
+    asserts.assert_fails(lambda : vault.redact("1111111111", decorator_config={
+        "nonLuhnValidPattern": {
+            "validatePattern": "[0-9]{10}",
+            "transformPatterns": [
+                {
+                    "search": {},
+                    "replace": "98${token}",
+                }
+            ]
+        }
+    }),
+     """Decorator config '{"nonLuhnValidPattern": {"validatePattern": "\\[0-9\\]\\{10}", "transformPatterns": \\[{"search": \\{}, "replace": "98\\${token}"}\\]}}' is invalid\\. 'search' field must be string"""
+     )
+
+def _test_invalid_alias_decorator_invalid_config_non_luhn_valid_replace():
+    asserts.assert_fails(lambda : vault.redact("1111111111", decorator_config={
+        "nonLuhnValidPattern": {
+            "validatePattern": "[0-9]{10}",
+            "transformPatterns": [
+                {
+                    "search": "[0-9]{10}",
+                    "replace": ["98${token}", "99${token}"],
+                }
+            ]
+        }
+    }),
+     """Decorator config '{"nonLuhnValidPattern": {"validatePattern": "\\[0-9\\]\\{10}", "transformPatterns": \\[{"search": "\\[0-9\\]\\{10}", "replace": \\["98\\${token}", "99\\${token}"\\]}\\]}}' is invalid\\. 'replace' field must be string"""
+     )
+
 def _suite():
     _suite = unittest.TestSuite()
 
@@ -150,6 +259,18 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_unsupported_format))
     _suite.addTest(unittest.FunctionTestCase(_test_valid_format_preserving))
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_format_preserving))
+
+    # Alias Decorator Tests
+    _suite.addTest(unittest.FunctionTestCase(_test_alias_decorator))
+    _suite.addTest(unittest.FunctionTestCase(_test_alias_decorator_empty))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_format))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_search_pattern))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_replace_pattern))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_format))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_validate_pattern))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_transform_patterns))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_search))
+    _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_replace))
 
     return _suite
 

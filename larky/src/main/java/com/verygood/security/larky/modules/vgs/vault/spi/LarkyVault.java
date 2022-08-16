@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface LarkyVault extends StarlarkValue {
 
-    Object redact(Object value, Object storage, Object format, List<Object> tags) throws EvalException;
+    Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException;
 
     Object reveal(Object value, Object storage) throws EvalException;
 
