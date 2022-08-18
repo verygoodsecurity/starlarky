@@ -1,7 +1,7 @@
 package com.verygood.security.larky.modules.vgs.vault.defaults;
 
 import com.google.common.collect.ImmutableMap;
-import com.verygood.security.larky.modules.DecoratorConfig;
+import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import java.util.HashMap;
 import java.util.List;
