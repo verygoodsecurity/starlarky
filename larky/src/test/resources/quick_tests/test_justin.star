@@ -41,17 +41,17 @@ def _sign_header_and_claims(encoded_header, encoded_claims, algorithm, key):
     k = jwk.construct(key, algorithm)
     encoded_signature = base64url_encode(k.sign(signing_input))
     encoded_string = b".".join([encoded_header, encoded_claims, encoded_signature])
-    print(encoded_string)
+    # print(encoded_string)
     return encoded_string
 
 
 def sign(payload, key, headers=None, algorithm=ALGORITHMS.HS256):
     encoded_header = _encode_header(algorithm, additional_headers=headers)
     encoded_payload = _encode_payload(payload)
-    print("======================")
-    print(encoded_header)
-    print(encoded_payload)
-    print("======================")
+    # print("======================")
+    # print(encoded_header)
+    # print(encoded_payload)
+    # print("======================")
     signed_output = _sign_header_and_claims(encoded_header, encoded_payload, algorithm, key)
     return signed_output
 
@@ -65,14 +65,11 @@ def test_justin_stuff():
   encoded_payload = _encode_payload({'a': 'b'})
   asserts.assert_that(encoded_payload).is_equal_to(b'eyJhIjoiYiJ9')
 
-  print("Signing HS256:")
+  # Signing HS256:
   signed = sign({'a': 'b'}, 'secret', algorithm='HS256')
-  print(signed)
   asserts.assert_that(signed).is_equal_to(b'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYiJ9.jiMyrsmD8AoHWeQgmxZ5yq8z0lXS67_QGs52AzC8Ru8')
-  print("Signed, Signing ES256:")
+  # "Signed, Signing ES256:"
   ec_signed = sign({'a': 'b'}, ec_private_key, algorithm='ES256')
-  print("#"*55)
-  print(ec_signed)
   #asserts.assert_that(ec_signed).is_equal_to('eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYiJ9.AcyhDg1kRT7Al16OsYRUd-KjfC6VcizoYKwdd0PD7oLyjbCCbO90lqnQDriSF4dOSJMZ3fCWq3LjI7oofClxW_zHARYOPtFuEfsS7PraPzr1SUI-7oYsLIUnOS27BE7jGrlBvZN4Fre2sx_XcnF7vj8nfUJMCZ6toxlqUrlsonh9Tk7j')
 
 def _testsuite():
