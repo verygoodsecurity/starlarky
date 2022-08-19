@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules;
+package com.verygood.security.larky.modules.vgs.vault;
 
 import com.google.common.collect.ImmutableList;
 import java.util.Collections;
@@ -6,11 +6,13 @@ import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode
 public class DecoratorConfig {
 
   public static class InvalidDecoratorConfigException extends RuntimeException {
@@ -23,6 +25,7 @@ public class DecoratorConfig {
   @Getter
   @AllArgsConstructor
   @Builder
+  @EqualsAndHashCode
   public static class NonLuhnValidTransformPattern {
 
     private final String search;
@@ -32,6 +35,7 @@ public class DecoratorConfig {
   @Getter
   @AllArgsConstructor
   @Builder
+  @EqualsAndHashCode
   public static class NonLuhnValidPattern {
 
     private final String validatePattern;

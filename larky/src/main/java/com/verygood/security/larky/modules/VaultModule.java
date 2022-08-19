@@ -1,7 +1,8 @@
 package com.verygood.security.larky.modules;
 
 import com.google.common.collect.ImmutableList;
-import com.verygood.security.larky.modules.DecoratorConfig.InvalidDecoratorConfigException;
+import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig;
+import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig.InvalidDecoratorConfigException;
 import com.verygood.security.larky.modules.vgs.vault.NoopVault;
 import com.verygood.security.larky.modules.vgs.vault.defaults.DefaultVault;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
