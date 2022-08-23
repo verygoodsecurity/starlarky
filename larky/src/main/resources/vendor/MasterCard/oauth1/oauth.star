@@ -28,6 +28,7 @@
 # Ported from https://github.com/Mastercard/oauth1-signer-python/blob/main/oauth1/oauth.py
 #
 
+load("@stdlib//base64", "base64")
 load("@stdlib//json", json="json")
 load("@stdlib//larky", larky="larky")
 load("@vendor//Crypto/Signature", pkcs1_15="pkcs1_15")
@@ -103,6 +104,32 @@ def OAuth():
         sign = pkcs1_15.new(key).sign(h)
         return util.base64_encode(sign)
     self.sign_message = sign_message
+
+    def vgs_legacy_signature(consumerKey=None, signingKey=None, keyHeader=None, request=None, ctx=None):
+        # Make user-friendly error messages around the VGS Wrapper warning them what the problem is
+        if (signingKey and keyHeader):
+            fail("Cannot select both `signingKey` and `keyHeader` parameters; key must be supplied in only one of them.")
+        elif signingKey:
+            sk = signingKey
+        elif keyHeader:
+            sk = request.headers[keyHeader]
+        else:
+            fail("Either `signingKey` or `keyHeader` are required parameters.")
+
+        if not consumerKey:
+            fail("The consumerKey is required in the`consumerKey` parameter.")
+
+        if not request:
+            fail("The HTTP Request Object is required in the `request` parameter.")
+
+        if not ctx:
+            fail("The ctx Object is required in the `ctx` parameter.")
+
+        url = request.url
+        body = request.body
+        header = OAuth().get_authorization_header(url, request.method, body.decode('utf-8'), base64.b64decode(consumerKey), base64.b64decode(sk), ctx['timestamp'])
+        return header
+    self.vgs_legacy_signature = vgs_legacy_signature
 
     return self
 

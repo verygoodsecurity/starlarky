@@ -28,13 +28,14 @@
 #
 # Copied from https://github.com/Mastercard/oauth1-signer-python/blob/main/tests/test_oauth.py
 
-
+load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//unittest","unittest")
 load("@stdlib//json", "json")
 load("@stdlib//base64", "base64")
 load("@vendor//asserts","asserts")
-load("@vgs//MasterCard/oauth1", OAuth="OAuth", OAuthParameters="OAuthParameters",
+load("@vendor//MasterCard/oauth1", OAuth="OAuth", OAuthParameters="OAuthParameters",
     authenticationutils="authenticationutils", util="coreutils")
+load("@vgs//http/request", "VGSHttpRequest")
 
 _signing_key = """-----BEGIN PRIVATE KEY-----
     MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCYoc5Ue4MKxHIQ
@@ -64,6 +65,7 @@ _signing_key = """-----BEGIN PRIVATE KEY-----
     22dZWKvD3xJ7HRUx/Hyk+VEkH11lsLZ/8AhcwZAr76cE/HLz1XtkKKBCnnlOLPZN
     03j+WKU3p1fzeWqfW4nyCALQ
     -----END PRIVATE KEY-----"""
+_b64_signing_key = ''.join(_signing_key.split('\n')[1:-1]).replace(' ','')
 uri = 'https://www.example.com'
 
 def test_get_authorization_header_nominal():
@@ -108,6 +110,73 @@ def test_signature_base_string2():
 
     asserts.assert_that(base_string).is_equal_to(expected)
 
+
+def test_legacy_wrapper_direct_key():
+    req = VGSHttpRequest(uri + "sample_path", builtins.bytes('{}'), {"timestamp":"1111111111"}, 'POST')
+    signature = OAuth().vgs_legacy_signature(
+            consumerKey='dummy',
+            signingKey=_b64_signing_key,
+            request=req,
+            ctx={"timestamp":"1111111111"}
+        )
+    asserts.assert_that('RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=' in signature).is_equal_to(True)
+
+def test_legacy_wrapper_key_header():
+    req = VGSHttpRequest(uri + "/sample_path", builtins.bytes('{}'), {"x-secret-key":_b64_signing_key}, 'POST')
+    signature = OAuth().vgs_legacy_signature(
+            consumerKey='dummy',
+            keyHeader='x-secret-key',
+            request=req,
+            ctx={"timestamp":"1111111111"}
+        )
+    asserts.assert_that('RBNvo1WzZ4oRRq0W9+hknpT7T8If536DEMBg9hyq/4o=' in signature).is_equal_to(True)
+
+# Make sure error handling works
+def test_legacy_missing_signing_key():
+    req = VGSHttpRequest(uri + "sample_path", builtins.bytes('{}'), {"x-secret-key":_b64_signing_key}, 'POST')
+    asserts.assert_fails(lambda: OAuth().vgs_legacy_signature(
+            consumerKey='dummy',
+            request=req,
+            ctx={"timestamp":"1111111111"}
+        ), "Either `signingKey` or `keyHeader` are required parameters.")
+
+def test_legacy_too_many_keys():
+    req = VGSHttpRequest(uri + "sample_path", builtins.bytes('{}'), {"x-secret-key":_b64_signing_key}, 'POST')
+    asserts.assert_fails(lambda: OAuth().vgs_legacy_signature(
+            consumerKey='dummy',
+            signingKey=_b64_signing_key,
+            keyHeader='x-secret-key',
+            request=req,
+            ctx={"timestamp":"1111111111"}
+        ), "Cannot select both `signingKey` and `keyHeader` parameters; key must be supplied in only one of them.")
+
+def test_legacy_no_consumer_key():
+    req = VGSHttpRequest(uri + "sample_path", builtins.bytes('{}'), {"x-secret-key":_b64_signing_key}, 'POST')
+    asserts.assert_fails(lambda: OAuth().vgs_legacy_signature(
+            signingKey=_b64_signing_key,
+            request=req,
+            ctx={"timestamp":"1111111111"}
+        ), "The consumerKey is required in the`consumerKey` parameter.")
+
+
+
+def test_legacy_no_request():
+    req = VGSHttpRequest(uri + "sample_path", builtins.bytes('{}'), {"x-secret-key":_b64_signing_key}, 'POST')
+    asserts.assert_fails(lambda: OAuth().vgs_legacy_signature(
+            consumerKey='dummy',
+            signingKey=_b64_signing_key,
+            ctx={"timestamp":"1111111111"},
+        ), "The HTTP Request Object is required in the `request` parameter.")
+
+
+def test_legacy_no_ctx():
+    req = VGSHttpRequest(uri + "sample_path", builtins.bytes('{}'), {"x-secret-key":_b64_signing_key}, 'POST')
+    asserts.assert_fails(lambda: OAuth().vgs_legacy_signature(
+            consumerKey='dummy',
+            signingKey=_b64_signing_key,
+            request=req,
+        ), "The ctx Object is required in the `ctx` parameter.")
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(test_get_authorization_header_nominal))
@@ -116,6 +185,13 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_sign_message))
     _suite.addTest(unittest.FunctionTestCase(test_get_nonce))
     _suite.addTest(unittest.FunctionTestCase(test_signature_base_string2))
+    _suite.addTest(unittest.FunctionTestCase(test_legacy_wrapper_direct_key))
+    _suite.addTest(unittest.FunctionTestCase(test_legacy_wrapper_key_header))
+    _suite.addTest(unittest.FunctionTestCase(test_legacy_no_ctx))
+    _suite.addTest(unittest.FunctionTestCase(test_legacy_no_request))
+    _suite.addTest(unittest.FunctionTestCase(test_legacy_no_consumer_key))
+    _suite.addTest(unittest.FunctionTestCase(test_legacy_too_many_keys))
+    _suite.addTest(unittest.FunctionTestCase(test_legacy_missing_signing_key))
     return _suite
 
 _runner = unittest.TextTestRunner()
