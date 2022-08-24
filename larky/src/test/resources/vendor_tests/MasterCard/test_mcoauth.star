@@ -65,7 +65,8 @@ _signing_key = """-----BEGIN PRIVATE KEY-----
     22dZWKvD3xJ7HRUx/Hyk+VEkH11lsLZ/8AhcwZAr76cE/HLz1XtkKKBCnnlOLPZN
     03j+WKU3p1fzeWqfW4nyCALQ
     -----END PRIVATE KEY-----"""
-_b64_signing_key = ''.join(_signing_key.split('\n')[1:-1]).replace(' ','')
+_b64_signing_key = bytes(''.join(_signing_key.split('\n')[1:-1]).replace(' ',''), 'utf-8')
+_b64_ck = base64.b64encode(b'dummy')
 uri = 'https://www.example.com'
 
 def test_get_authorization_header_nominal():
@@ -110,11 +111,10 @@ def test_signature_base_string2():
 
     asserts.assert_that(base_string).is_equal_to(expected)
 
-
 def test_legacy_wrapper_direct_key():
     req = VGSHttpRequest(uri + "sample_path", builtins.bytes('{}'), {"timestamp":"1111111111"}, 'POST')
     signature = OAuth().vgs_legacy_signature(
-            consumerKey='dummy',
+            consumerKey=_b64_ck,
             signingKey=_b64_signing_key,
             request=req,
             ctx={"timestamp":"1111111111"}
@@ -124,7 +124,7 @@ def test_legacy_wrapper_direct_key():
 def test_legacy_wrapper_key_header():
     req = VGSHttpRequest(uri + "/sample_path", builtins.bytes('{}'), {"x-secret-key":_b64_signing_key}, 'POST')
     signature = OAuth().vgs_legacy_signature(
-            consumerKey='dummy',
+            consumerKey=_b64_ck,
             keyHeader='x-secret-key',
             request=req,
             ctx={"timestamp":"1111111111"}
@@ -135,7 +135,7 @@ def test_legacy_wrapper_key_header():
 def test_legacy_missing_signing_key():
     req = VGSHttpRequest(uri + "sample_path", builtins.bytes('{}'), {"x-secret-key":_b64_signing_key}, 'POST')
     asserts.assert_fails(lambda: OAuth().vgs_legacy_signature(
-            consumerKey='dummy',
+            consumerKey=_b64_ck,
             request=req,
             ctx={"timestamp":"1111111111"}
         ), "Either `signingKey` or `keyHeader` are required parameters.")
@@ -143,7 +143,7 @@ def test_legacy_missing_signing_key():
 def test_legacy_too_many_keys():
     req = VGSHttpRequest(uri + "sample_path", builtins.bytes('{}'), {"x-secret-key":_b64_signing_key}, 'POST')
     asserts.assert_fails(lambda: OAuth().vgs_legacy_signature(
-            consumerKey='dummy',
+            consumerKey=_b64_ck,
             signingKey=_b64_signing_key,
             keyHeader='x-secret-key',
             request=req,
@@ -163,7 +163,7 @@ def test_legacy_no_consumer_key():
 def test_legacy_no_request():
     req = VGSHttpRequest(uri + "sample_path", builtins.bytes('{}'), {"x-secret-key":_b64_signing_key}, 'POST')
     asserts.assert_fails(lambda: OAuth().vgs_legacy_signature(
-            consumerKey='dummy',
+            consumerKey=_b64_ck,
             signingKey=_b64_signing_key,
             ctx={"timestamp":"1111111111"},
         ), "The HTTP Request Object is required in the `request` parameter.")
@@ -172,7 +172,7 @@ def test_legacy_no_request():
 def test_legacy_no_ctx():
     req = VGSHttpRequest(uri + "sample_path", builtins.bytes('{}'), {"x-secret-key":_b64_signing_key}, 'POST')
     asserts.assert_fails(lambda: OAuth().vgs_legacy_signature(
-            consumerKey='dummy',
+            consumerKey=_b64_ck,
             signingKey=_b64_signing_key,
             request=req,
         ), "The ctx Object is required in the `ctx` parameter.")
