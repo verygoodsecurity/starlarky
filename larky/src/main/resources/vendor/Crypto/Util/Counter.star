@@ -22,7 +22,7 @@
 # SOFTWARE.
 # ===================================================================
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
-
+load("@stdlib//larky", larky="larky")
 
 _empty = bytes(r"", encoding='utf-8')
 
@@ -66,7 +66,7 @@ def new(nbits, prefix=_empty, suffix=_empty, initial_value=1, little_endian=Fals
 
     """
     if (nbits % 8) != 0:
-        raise ValueError("'nbits' must be a multiple of 8")
+        fail("'nbits' must be a multiple of 8")
 
     iv_bl = _JCrypto.Math.bit_length(initial_value)
     if iv_bl > nbits:
@@ -80,3 +80,6 @@ def new(nbits, prefix=_empty, suffix=_empty, initial_value=1, little_endian=Fals
             "initial_value": initial_value,
             "little_endian": little_endian
             }
+Counter = larky.struct(
+  new = new
+)
