@@ -537,6 +537,78 @@ def T_test_indent_level():
         b" </html>"))
 
 
+# load("@stdlib//xml/etree/ElementTree", ET="ElementTree")
+# load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
+# load("@stdlib//io/StringIO", "StringIO")
+# load("@stdlib//builtins", "builtins")
+
+def test_namespace_prefix():
+    nsmap = ET._namespace_map
+    ET.register_namespace('soap', 'http://www.w3.org/2003/05/soap-envelope')
+    ET.register_namespace('xsi', 'http://www.w3.org/2001/XMLSchema-instance')
+    ET.register_namespace('xsd', 'http://www.w3.org/2001/XMLSchema')
+    ET.register_namespace('', 'https://www.sc-solutions.com/SmartTrackSE/RequestGateway')
+
+    data = """<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <soap:Body>
+        <AuthenticateAndAuthorizeTransactionResponse xmlns="https://www.sc-solutions.com/SmartTrackSE/RequestGateway">
+            <AuthenticateAndAuthorizeTransactionResult>
+                <TransactionType>BalanceInquiry</TransactionType>
+                <AccountNumber>8700561000023</AccountNumber>
+                <TransactionAmount>100</TransactionAmount>
+                <PurseBalances>
+                    <decimal>50.0000</decimal>
+                    <decimal>0.0000</decimal>
+                    <decimal>0.0000</decimal>
+                    <decimal>0.0000</decimal>
+                    <decimal>0.0000</decimal>
+                    <decimal>0.0000</decimal>
+                </PurseBalances>
+                <ReferenceNumber>1302797</ReferenceNumber>
+                <ApprovalCode>Approved</ApprovalCode>
+                <HostMessage>TransactionApproved</HostMessage>
+                <ResponseCode>Succeeded</ResponseCode>
+                <ResponseMessage>Transaction processed successfully.</ResponseMessage>
+            </AuthenticateAndAuthorizeTransactionResult>
+        </AuthenticateAndAuthorizeTransactionResponse>
+    </soap:Body>
+</soap:Envelope>"""
+    root = ET.fromstring(data)
+    acctNumber = root.find(".//{https://www.sc-solutions.com/SmartTrackSE/RequestGateway}AccountNumber")
+    acctNumber.text = "DROPPED"
+
+    ET.indent(root)
+    expected = b"""<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns="https://www.sc-solutions.com/SmartTrackSE/RequestGateway" xmlns:soap="http://www.w3.org/2003/05/soap-envelope" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <soap:Body>
+    <AuthenticateAndAuthorizeTransactionResponse>
+      <AuthenticateAndAuthorizeTransactionResult>
+        <TransactionType>BalanceInquiry</TransactionType>
+        <AccountNumber>DROPPED</AccountNumber>
+        <TransactionAmount>100</TransactionAmount>
+        <PurseBalances>
+          <decimal>50.0000</decimal>
+          <decimal>0.0000</decimal>
+          <decimal>0.0000</decimal>
+          <decimal>0.0000</decimal>
+          <decimal>0.0000</decimal>
+          <decimal>0.0000</decimal>
+        </PurseBalances>
+        <ReferenceNumber>1302797</ReferenceNumber>
+        <ApprovalCode>Approved</ApprovalCode>
+        <HostMessage>TransactionApproved</HostMessage>
+        <ResponseCode>Succeeded</ResponseCode>
+        <ResponseMessage>Transaction processed successfully.</ResponseMessage>
+      </AuthenticateAndAuthorizeTransactionResult>
+    </AuthenticateAndAuthorizeTransactionResponse>
+  </soap:Body>
+</soap:Envelope>"""
+    actual = ET.tostring(root, xml_declaration=True, encoding="UTF-8")
+    asserts.assert_that(expected).is_equal_to(actual)
+    ET._namespace_map.clear()
+    ET._namespace_map.update(nsmap)
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_elementtree))
@@ -549,6 +621,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(T_test_indent_space))
     _suite.addTest(unittest.FunctionTestCase(T_test_indent_space_caching))
     _suite.addTest(unittest.FunctionTestCase(T_test_indent_level))
+    _suite.addTest(unittest.FunctionTestCase(test_namespace_prefix))
 
     return _suite
 
