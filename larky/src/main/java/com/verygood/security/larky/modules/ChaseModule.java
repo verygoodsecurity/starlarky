@@ -91,7 +91,7 @@ public class ChaseModule implements ChaseCrypto {
                           })
           })
   public String pan_decrypt(StarlarkBytes jweBytes) {
-    return chaseCrypto.decrypt(jweBytes);
+    return chaseCrypto.pan_decrypt(jweBytes);
   }
 
 }
