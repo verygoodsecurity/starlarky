@@ -349,7 +349,7 @@ def _create_ctr_cipher(factory, **kwargs):
         initial_value >>= 8
     words += [bytes([0x00])] * max(0, counter_len - len(words))
     if not little_endian:
-        words.reverse()
+        words = reversed(words)
     initial_counter_block = prefix + bytearray(r"", encoding='utf-8').join(words) + suffix
 
     if len(initial_counter_block) != factory.block_size:

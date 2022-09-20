@@ -12,7 +12,9 @@ def test_DSS():
     hash_obj = SHA256.new(message)
     signer = DSS.new(key, 'fips-186-3')
     signature = signer.sign(hash_obj)
-    print(signer.verify(hash_obj, signature))
+    # this is correct because signer.verify() returns False to as per
+    # pycryptodome contract to keep the API identical to pycrypto.
+    asserts.assert_that(signer.verify(hash_obj, signature)).is_false()
 
 
 def _testsuite():

@@ -16,7 +16,7 @@ import org.bouncycastle.crypto.digests.KeccakDigest;
 
 public class LarkyXofDigest<T extends KeccakDigest & Xof> extends LarkyKeccakDigest {
 
-  private static final int MAX_READ_LENGTH = 2048;
+  private static final int MAX_READ_LENGTH = 65537;
   private final T digest;
 
   public LarkyXofDigest(T digest) {

@@ -14,77 +14,134 @@ import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.BlockCipher;
 import org.bouncycastle.crypto.BufferedBlockCipher;
+import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.params.ParametersWithIV;
+import org.jetbrains.annotations.NotNull;
 
-import javax.crypto.Cipher;
 
 public class LarkyBlockCipher implements StarlarkValue {
 
-  private final ParametersWithIV parametersWithIV;
-
   private static final StarlarkInt SUCCESS = StarlarkInt.of(0);
-
-  private final BlockCipher blockCipher;
-  private final Engine algo;
+  private final boolean bufferedMode;
+  private final CipherParameters cipherParams;
+  private final BufferedBlockCipher bufferedBlockCipher;
+  private boolean ENCRYPT_MODE;
+  private boolean initialized;
 
   public LarkyBlockCipher(BlockCipher blockCipher, Engine algo, byte[] initializationVector) {
-    this.blockCipher = blockCipher;
-    this.algo = algo;
-    this.parametersWithIV = initializationVector != null
-        ? new ParametersWithIV(algo.getKeyParams(), initializationVector)
-        : null;
+    this(blockCipher, algo, initializationVector, true);
   }
 
+  LarkyBlockCipher(BlockCipher blockCipher, Engine algo, byte[] initializationVector, boolean bufferedMode) {
+    this.cipherParams = initializationVector != null
+                          ? new ParametersWithIV(algo.getKeyParams(), initializationVector)
+                          : algo.getKeyParams();
+    this.bufferedMode = bufferedMode;
+    this.bufferedBlockCipher = new BufferedBlockCipher(blockCipher);
+    init(true);
+  }
+
+  private void init(boolean mode) {
+    this.ENCRYPT_MODE = mode;
+    this.bufferedBlockCipher.init(this.ENCRYPT_MODE, cipherParams);
+    this.initialized = true;
+  }
+
+  /**
+   * NOTE: padding will be done by pycryptodome (in Larky code)
+   * THIS METHOD IS DANGEROUS TO CALL DIRECTLY. DO NOT CALL DIRECTLY.
+   */
   @StarlarkMethod(
-      name = "encrypt",
-      parameters = {
-          @Param(name = "plaintext", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
-          @Param(name = "output", allowedTypes = {@ParamType(type = StarlarkByteArray.class)})
-      },
-      useStarlarkThread = true
+    name = "encrypt",
+    parameters = {
+      @Param(name = "plaintext", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+      @Param(name = "output", allowedTypes = {@ParamType(type = StarlarkByteArray.class)})
+    },
+    useStarlarkThread = true
   )
   public StarlarkInt encrypt(StarlarkBytes plaintext, StarlarkByteArray output, StarlarkThread thread) throws EvalException {
-    // padding will be done by pycryptodome, this method is dangerous to call
-    // directly. DO NOT CALL DIRECTLY.
-    BufferedBlockCipher cipher = new BufferedBlockCipher(this.blockCipher);
-    byte[] cipherText = new byte[cipher.getOutputSize(plaintext.size())];
-    operate(Cipher.ENCRYPT_MODE, plaintext, cipher, cipherText);
-    output.replaceAll(StarlarkBytes.immutableOf(cipherText));
-    Arrays.fill(cipherText, (byte) 0);
-    return SUCCESS;
+    initializeForEncryption();
+    return process(plaintext, output);
   }
 
-  private void operate(int mode, StarlarkBytes toprocess, BufferedBlockCipher cipher, byte[] out) throws EvalException {
-    if (this.parametersWithIV != null) {
-      cipher.init(mode == Cipher.ENCRYPT_MODE, this.parametersWithIV);
-    } else {
-      cipher.init(mode == Cipher.ENCRYPT_MODE, this.algo.getKeyParams());
-    }
-    byte[] bytes = toprocess.toByteArray();
-    int outputLen = cipher.processBytes(bytes, 0, bytes.length, out, 0);
-    try {
-      cipher.doFinal(out, outputLen);
-    } catch (InvalidCipherTextException e) {
-      throw new EvalException(e.getMessage(), e);
+  /**
+   * Initializes the cipher for encryption if ANY of the following holds true:
+   *   - the cipher is not initialized
+   *   - the cipher is initialized, but is in DECRYPTION mode.
+   *
+   * @see #initializeForDecryption()
+   */
+  private void initializeForEncryption() {
+    if (!initialized || !this.ENCRYPT_MODE) {
+      init(true);
     }
   }
 
+  private int getOutputSize(StarlarkBytes input) {
+    return this.bufferedMode
+             ? this.bufferedBlockCipher.getUpdateOutputSize(input.size())
+             : this.bufferedBlockCipher.getUnderlyingCipher().getBlockSize();
+  }
+
+  /**
+   * NOTE: padding will be done by pycryptodome (in Larky code)
+   * THIS METHOD IS DANGEROUS TO CALL DIRECTLY. DO NOT CALL DIRECTLY.
+   */
   @StarlarkMethod(
-      name = "decrypt",
-      parameters = {
-          @Param(name = "ciphertext", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
-          @Param(name = "output", allowedTypes = {@ParamType(type = StarlarkByteArray.class)}),
-      },
-      useStarlarkThread = true
+    name = "decrypt",
+    parameters = {
+      @Param(name = "ciphertext", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+      @Param(name = "output", allowedTypes = {@ParamType(type = StarlarkByteArray.class)}),
+    },
+    useStarlarkThread = true
   )
   public StarlarkInt decrypt(StarlarkBytes cipherText, StarlarkByteArray output, StarlarkThread thread) throws EvalException {
-    byte[] plainText = new byte[cipherText.size()];
-    BufferedBlockCipher cipher = new BufferedBlockCipher(this.blockCipher);
-    operate(Cipher.DECRYPT_MODE, cipherText, cipher, plainText);
-    output.replaceAll(StarlarkBytes.immutableOf(plainText));
-    Arrays.fill(plainText, (byte) 0);
+    initializeForDecryption();
+    return process(cipherText, output);
+  }
+
+  @NotNull
+  private StarlarkInt process(StarlarkBytes input, StarlarkByteArray result) throws EvalException {
+    byte[] outBytes = new byte[getOutputSize(input)];
+    final byte[] inBytes = input.toByteArray();
+
+    final int totalOutputLength;
+    final int outLength =
+      this.bufferedMode
+        ? this.bufferedBlockCipher.processBytes(inBytes, 0, inBytes.length, outBytes, 0)
+        : this.bufferedBlockCipher.getUnderlyingCipher().processBlock(inBytes, 0, outBytes, 0);
+
+    if (this.bufferedMode && this.bufferedBlockCipher.getUpdateOutputSize(0) != 0) {
+      final int additional;
+      try {
+        additional = this.bufferedBlockCipher.doFinal(outBytes, outLength);
+      } catch (InvalidCipherTextException e) {
+        throw new EvalException(e.getMessage(), e);
+      }
+      //noinspection UnusedAssignment
+      totalOutputLength = outLength + additional;
+    } else {
+      //noinspection UnusedAssignment
+      totalOutputLength = outLength;
+    }
+
+    result.replaceAll(StarlarkBytes.immutableOf(outBytes));
+    Arrays.fill(outBytes, (byte) 0);
     return SUCCESS;
+  }
+
+  /**
+   * Initializes the cipher for decryption if ANY of the following holds true:
+   *   - the cipher is not initialized
+   *   - the cipher is initialized, but is in ENCRYPTION mode.
+   *
+   * @see #initializeForEncryption()
+   */
+  private void initializeForDecryption() {
+    if (!initialized || this.ENCRYPT_MODE) {
+      init(false);
+    }
   }
 
 }

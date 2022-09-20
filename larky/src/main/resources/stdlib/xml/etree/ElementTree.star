@@ -1017,116 +1017,90 @@ def _get_writer(file_or_filename, encoding):
         .build()
 
 
-def add_qname(qname, qnames, namespaces, prefix_finder, default_namespace=None):
-    # calculate serialized qname representation
-    def _namespaces_add_qname_try():
+def _namespaces(elem, default_namespace=None):
+    # identify namespaces used in this tree
+
+    # maps qnames to *encoded* prefix:local names
+    qnames = {None: None}
+
+    # maps uri:s to prefixes
+    namespaces = {}
+    if default_namespace:
+        namespaces[default_namespace] = ""
+
+    # print("namespace map:", _namespace_map)
+    _nsmap = getattr(elem, '_nsmap', {})
+    # print("ns: ", namespaces)
+    # print("elem._nsmap: ", _nsmap)
+    if _nsmap:
+        namespaces.update(_nsmap)
+
+    def __add_qname(qname):
+        # calculate serialized qname representation
         if qname[:1] == "{":
             uri, tag = qname[1:].rsplit("}", 1)
-            prefix = prefix_finder(uri)
-            namespaces[uri] = prefix
-            # print("prefix %r found for %s for this tag %s" % (prefix, uri, tag))
+            prefix = namespaces.get(uri)
+            # print("uri", uri, "tag", tag, "prefix", prefix, " for qname", qname, ". current ns map: ", namespaces)
+            if prefix == None:
+                prefix = _namespace_map.get(uri)
+                if prefix == None:
+                    prefix = "ns%d" % len(namespaces)
+                if prefix != "xml":
+                    namespaces[uri] = prefix
             if prefix:
                 qnames[qname] = "%s:%s" % (prefix, tag)
             else:
                 qnames[qname] = tag  # default element
         else:
             if default_namespace:
-                # FIXME: can this be handled in XML 1.0?
-                fail("can this be handled in XML 1.0?")
+                fail((
+                    "Can this be handled in XML 1.0? " +
+                    "Cannot use non-qualified names with " +
+                    "default_namespace option"
+                    ))
             qnames[qname] = qname
 
-    def _namespaces_add_qname_error_01(val):
-        fail(
-            "TypeError: cannot serialize qname=%r (type %s), msg: %s" %
-            (qname, type(qname), val)
-        )
+    def add_qname(qname):
+        result = Result.Ok(qname).map(__add_qname)
+        if result.is_err:
+            fail(
+                "TypeError: cannot serialize qname=%r (type %s), msg: %s" %
+                (qname, type(qname), result)
+            )
 
-    return try_(_namespaces_add_qname_try)\
-            .except_(_namespaces_add_qname_error_01)\
-            .build()
-
-
-def _namespaces(elem, default_namespace=None):
-    # identify namespaces used in this tree
-
-    # maps qnames to *encoded* prefix:local names
-    qnames = {None: None}
-    # maps uri:s to prefixes
-    namespaces, new_nspaces = _collect_namespaces(
-        getattr(elem, '_nsmap', {}),
-        elem.getparent()
-    )
-    if default_namespace:
-        namespaces[default_namespace] = ""
-        new_nspaces.append(('', 'xmlns', default_namespace))
-    prefix_finder = larky.partial(_find_prefix,
-                                  flat_namespaces_map=namespaces,
-                                  new_namespaces=new_nspaces)
     # populate qname and namespaces table
     qu = [elem]
     for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if len(qu) == 0:
             break
-        current = qu.pop(0)
-        tag = current.tag
+        elem = qu.pop(0)
+        tag = elem.tag
         _qname = None
         if types.is_instance(tag, QName):
             if tag.text not in qnames:
-                _qname = tag.text
+                add_qname(tag.text)
+
         elif types.is_instance(tag, str):
             if tag not in qnames:
-                _qname = tag
+                add_qname(tag)
         elif tag != None and tag != Comment and tag != PI:
-            if not hasattr(current, 'nodetype'):
+            if not hasattr(elem, 'nodetype'):
                 _raise_serialization_error(tag)
 
-        _nsmap = getattr(current, '_nsmap', {})
-        # print("ns: ", namespaces)
-        # print("elem._nsmap: ", _nsmap)
-        # if _nsmap:
-        #     # print(_nsmap)
-        #     for _href, _prefix in _nsmap.items():
-        #         namespaces[_href] = _prefix
-        #         if _prefix == None:
-        #             # use empty bytes rather than None to allow sorting
-        #             _entry = ('', 'xmlns', _href)
-        #         else:
-        #             _entry = ('xmlns', _prefix, _href)
-        #         if _entry not in new_nspaces:
-        #             new_nspaces.append(_entry)
-        # flat_ns_map, new_nspaces = _collect_namespaces(_nsmap, None)
-        # if _nsmap:
-        # print("namespaces:", namespaces, new_nspaces)
-        # prefix_finder = larky.partial(_find_prefix,
-        #                               flat_namespaces_map=namespaces,
-        #                               new_namespaces=new_nspaces)
-        if _qname != None:
-            add_qname(_qname, qnames, namespaces,
-                      prefix_finder,
-                      default_namespace=default_namespace)
-
-        for key, value in current.items():
+        for key, value in elem.items():
             if types.is_instance(key, QName):
                 key = key.text
             if key not in qnames:
-                add_qname(key, qnames, namespaces,
-                          prefix_finder,
-                          default_namespace=default_namespace)
+                add_qname(key)
             if types.is_instance(value, QName) and value.text not in qnames:
-                add_qname(_qname, qnames, namespaces,
-                          prefix_finder,
-                          default_namespace=default_namespace)
-
-        text = current.text
+                add_qname(value.text)
+        text = elem.text
         if types.is_instance(text, QName) and text.text not in qnames:
-            add_qname(_qname, qnames, namespaces,
-                      prefix_finder,
-                      default_namespace=default_namespace)
+            add_qname(text.text)
 
-        qu.extend(current._children)
+        qu.extend(elem._children)
 
     return qnames, namespaces
-
 
 def _collect_namespaces2(nsmap, node):
     new_namespaces = []

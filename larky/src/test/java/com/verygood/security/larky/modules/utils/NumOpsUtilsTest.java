@@ -9,14 +9,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.flogger.FluentLogger;
-
-import org.junit.Test;
-
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Random;
 import java.util.UUID;
+
+import org.junit.Test;
 
 public class NumOpsUtilsTest {
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
@@ -47,7 +46,7 @@ public class NumOpsUtilsTest {
         bigIntBytes = bigIntBytesPadded;
       }
       byte[] ourBytes = NumOpsUtils.int128ToByteArray(msb, lsb);
-      System.out.println("ourBytes = " + ByteArrayUtil.toHexString(ourBytes, 1, ""));
+      /*System.out.println("ourBytes = " + ByteArrayUtil.toHexString(ourBytes, 1, ""));*/
       assertArrayEquals(bigIntBytes, ourBytes);
     }
   }

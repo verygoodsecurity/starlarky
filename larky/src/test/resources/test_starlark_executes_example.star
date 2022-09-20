@@ -20,18 +20,22 @@ def pop_ifexists(target, key):
         _value = target.pop(key)
     return target
 
+
 print(pop_ifexists(people, "Dave"))
+
 
 # Define a function
 def greet(name):
     """Return a greeting."""
     return "Hello {}!".format(name)
 
+
 greeting = greet(names)
 
 above30 = [name for name, age in people.items() if age >= 30]
 
 print("{} people are above 30.".format(len(above30)))
+
 
 def fizz_buzz(n):
     """Print Fizz Buzz numbers from 1 to n."""
@@ -42,5 +46,6 @@ def fizz_buzz(n):
         if i % 5 == 0:
             s += "Buzz"
         print(s if s else i)
+
 
 fizz_buzz(20)
