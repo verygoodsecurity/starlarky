@@ -183,10 +183,6 @@ def RSAKey(key, algorithm):
             key = codecs.encode(key, encoding='utf-8')
 
         if types.is_bytelike(key):
-            if key.startswith(b'-----BEGIN CERTIFICATE-----'):
-                safe(self._process_cert)(key).unwrap()
-                return self
-
             self.prepared_key = RSA.importKey(key)
             return self
 
