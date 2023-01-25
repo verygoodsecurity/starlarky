@@ -97,8 +97,7 @@ mvn -Dtest='StdLibTest*' -Dlarky.stdlib_test=test_bytes.star org.apache.maven.pl
 
 In addition to having Maven installed, it must be configured to retrieve artifacts from Github.
 1) Generate an access token using [Github's instructions](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).  The token needs `read:packages` scopes.
-2) If you're on Github Enterprise (which VGS employees are), follow the image below: 
-![image](https://user-images.githubusercontent.com/40820/124638546-ecad0500-de3f-11eb-9a0f-6ff1d8f35b95.png)
+2) You must enable SSO for verygoodsecurity
 
 3) Place the token in your `~/.m2/settings.xml` file.  For example (look for `github-username` and `github-api-key` to be replaced with your values):
 ```
