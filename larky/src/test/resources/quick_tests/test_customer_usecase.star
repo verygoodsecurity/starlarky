@@ -36,7 +36,6 @@ def test_customer_case():
     
     body = json.loads(larky_output._data.decode("utf-8"))
     headers = larky_output.headers
-    print(body)
     # Test that the code has executed properly on your request
     asserts.assert_that(body['BIN']).is_equal_to("411111")
     asserts.assert_that(headers['X-Custom-Header']).is_equal_to("I am a changed header")

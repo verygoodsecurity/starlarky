@@ -15,7 +15,7 @@ def LarkyECDH():
         self.public_key_type = "X509"
         self.private_pass = ""
         self.private_types = ["PEM", "PKCS8", "PKCS12"]
-        self.public_types = ["X509"]
+        self.public_types = ["X509"] # To do: Expand so it takes the raw bytes
     self.__init__ = __init__
     self.__init__()
 
