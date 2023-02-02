@@ -7,12 +7,14 @@ load("@stdlib//builtins", builtins="builtins")
 load("@vendor//asserts","asserts")
 
 load("@vgs//http/request", "VGSHttpRequest")
+load("@vgs//vault", "vault")
 
 def process(input_http, ctx):
   # Extract card BIN and add it to the body
   body = json.loads(input_http.body.decode("utf-8"))
   BIN = body['cardNumber'][:6]
   body['BIN'] = BIN
+  body['cardNumber'] = vault.redact(body['cardNumber'], "persistent")
 
   # Add the BIN to the headers and change the X-Custom-Header 
   headers = input_http.headers
@@ -34,7 +36,7 @@ def test_customer_case():
     
     body = json.loads(larky_output._data.decode("utf-8"))
     headers = larky_output.headers
-
+    print(body)
     # Test that the code has executed properly on your request
     asserts.assert_that(body['BIN']).is_equal_to("411111")
     asserts.assert_that(headers['X-Custom-Header']).is_equal_to("I am a changed header")

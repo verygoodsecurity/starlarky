@@ -1,7 +1,7 @@
 load("@stdlib//base64", base64="base64")
 load("@stdlib//unittest","unittest")
 load("@vendor//asserts","asserts")
-load("@vendor//larky_ecdh", "ecdh")
+load("@vendor//larky_ecdh", "LarkyECDH")
 
 private_key_pkcs8 = b"""-----BEGIN PRIVATE KEY-----
 MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgmz1M0Qw9vHLQlIR2
@@ -26,20 +26,22 @@ public_key_ephemeral = b"""MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMwliotf2ICjiMwREd
 
 
 def test_generated_keypair():
-    shared_secret = ecdh.exchange(
-        private_key_pkcs8, "PKCS8",
-        public_key_x509, "X509")
+    ecdh = LarkyECDH()
+    ecdh.set_private_key(private_key_pkcs8, type="PKCS8")
+    ecdh.set_public_key(public_key_x509, "X509")
+    shared_secret = ecdh.exchange()
     expected = b"yIk6UBFxABvvo1fao/V4DyZ1DX7TE66T58f05zEM0LA="
     asserts.assert_that(base64.b64encode(shared_secret)).is_equal_to(expected)
 
 
 def test_halturin_keypair():
     """
-    Test the inputs from Halturin's Apple Pay library
+    Test the inputs from Halturin's Apple Pay library that this is being imported for
     """
-    shared_secret = ecdh.exchange(
-        private_key_PEM, "PEM",
-        public_key_ephemeral, "X509")
+    ecdh = LarkyECDH()
+    ecdh.set_private_key(private_key_PEM, type="PEM")
+    ecdh.set_public_key(public_key_ephemeral, "X509")
+    shared_secret = ecdh.exchange()
     expected = b"a2pPfemSdA560FnzLSv8zfdlWdGJTonApOLq1zfgx8w="
     asserts.assert_that(base64.b64encode(shared_secret)).is_equal_to(expected)
 
@@ -48,13 +50,64 @@ def test_pkcs12_keypair():
     """
     PKCS12 Keystores require a password to be compatible.
     """
-    shared_secret = ecdh.exchange(
-        pkcs12_keystore, "PKCS12",
-        public_key_x509, "X509",
-        private_pass="vgs"
-    )
+    ecdh = LarkyECDH()
+    ecdh.set_private_key(pkcs12_keystore, type="PKCS12", passwd="vgs")
+    ecdh.set_public_key(public_key_x509, "X509")
+    shared_secret = ecdh.exchange()
     expected = b"FOc7tXpSy1xM/4hw7lVyjf8QqYfg0agsnbIdgdCn+Tk="
     asserts.assert_that(base64.b64encode(shared_secret)).is_equal_to(expected)
+
+
+def test_bad_keystore_pass():
+    ecdh = LarkyECDH()
+    ecdh.set_private_key(pkcs12_keystore, type="PKCS12", passwd="badpass")
+    ecdh.set_public_key(public_key_x509, "X509")
+    asserts.assert_fails(lambda: ecdh.exchange(), "Integrity check failed: java.security.UnrecoverableKeyException: Failed PKCS12 integrity checking")
+
+
+def test_no_public():
+    ecdh = LarkyECDH()
+    ecdh.set_private_key(private_key_pkcs8, type="PKCS8")
+    asserts.assert_fails(lambda: ecdh.exchange(), "No public key set")
+
+
+def test_no_private():
+    ecdh = LarkyECDH()
+    ecdh.set_public_key(public_key_x509, type="X509")
+    asserts.assert_fails(lambda: ecdh.exchange(), "No private key set")
+
+
+def test_no_public_type():
+    ecdh = LarkyECDH()
+    ecdh.set_private_key(private_key_pkcs8, type="PKCS8")
+    asserts.assert_fails(lambda: ecdh.set_public_key(public_key_x509, "SomethingWrong"), "Unsupported public key type")
+
+
+def test_no_private_type():
+    ecdh = LarkyECDH()
+    asserts.assert_fails(lambda: ecdh.set_private_key(private_key_pkcs8, type="SomethingWrong"), "Unsupported private key type")
+
+
+def test_bad_public_key():
+    ecdh = LarkyECDH()
+    ecdh.set_private_key(private_key_pkcs8, type="PKCS8")
+    # Corrupt a correctly structured key (ie, it is bytes, and leaves only valid base64 when stripping out
+    # key headers/footers and newlines), and it will fail when you do the exchange.
+    ecdh.set_public_key(public_key_x509.replace(b"a", b"b"), type="X509")
+    asserts.assert_fails(lambda: ecdh.exchange(), "")
+
+    # It expects bytes structured like above, not a string.
+    asserts.assert_fails(lambda: ecdh.set_public_key(public_key_x509.decode("utf-8"), "X509"), "value has no field or method 'decode'")
+    asserts.assert_fails(lambda: ecdh.set_public_key(b"A random phrase that isn't a key", "X509"), "Invalid base64-encoded string")
+
+
+def test_bad_private_key():
+    ecdh = LarkyECDH()
+    ecdh.set_private_key(private_key_pkcs8.replace(b"a",b"b"), type="PKCS8")
+    ecdh.set_public_key(public_key_x509, "X509")
+    asserts.assert_fails(lambda: ecdh.exchange(), "")
+    asserts.assert_fails(lambda: ecdh.set_private_key(private_key_pkcs8.decode("utf-8"), type="PKCS8"), "value has no field or method 'decode'")
+    asserts.assert_fails(lambda: ecdh.set_private_key(b"A random phrase that isn't a key", type="PKCS8"), "Invalid base64-encoded string")
 
 
 def _testsuite():
@@ -62,6 +115,13 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_generated_keypair))
     _suite.addTest(unittest.FunctionTestCase(test_halturin_keypair))
     _suite.addTest(unittest.FunctionTestCase(test_pkcs12_keypair))
+    _suite.addTest(unittest.FunctionTestCase(test_bad_keystore_pass))
+    _suite.addTest(unittest.FunctionTestCase(test_no_public))
+    _suite.addTest(unittest.FunctionTestCase(test_no_private))
+    _suite.addTest(unittest.FunctionTestCase(test_no_public_type))
+    _suite.addTest(unittest.FunctionTestCase(test_no_private_type))
+    _suite.addTest(unittest.FunctionTestCase(test_bad_public_key))
+    _suite.addTest(unittest.FunctionTestCase(test_bad_private_key))
     return _suite
 
 _runner = unittest.TextTestRunner()
