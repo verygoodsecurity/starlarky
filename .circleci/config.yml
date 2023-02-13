@@ -109,6 +109,7 @@ build_test_pylarky: &build_test_pylarky
   run:
     name: Build and test pylarky
     command: |
+      export PATH="/home/circleci/.local/bin:$PATH"
       poetry version ${CIRCLE_TAG}
       poetry install
       poetry run pytest pylarky/tests
