@@ -109,6 +109,7 @@ build_test_pylarky: &build_test_pylarky
   run:
     name: Build and test pylarky
     command: |
+      set -x
       poetry version ${CIRCLE_TAG}
       poetry install
       poetry run pytest pylarky/tests
