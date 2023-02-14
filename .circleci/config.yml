@@ -110,6 +110,7 @@ build_test_pylarky: &build_test_pylarky
     name: Build and test pylarky
     command: |
       export PATH="/home/circleci/.local/bin:$PATH"
+      sleep 10
       poetry version ${CIRCLE_TAG}
       env LC_ALL=C.UTF-8 LANG=C.UTF-8 LANGUAGE=C.UTF-8 poetry install -vvv
       env LC_ALL=C.UTF-8 LANG=C.UTF-8 LANGUAGE=C.UTF-8 poetry run pytest pylarky/tests -vvv
