@@ -112,9 +112,9 @@ build_test_pylarky: &build_test_pylarky
       export PATH="/home/circleci/.local/bin:$PATH"
       set -x
       poetry version ${CIRCLE_TAG}
-      env LC_ALL=C.UTF-8 LANG=C.UTF-8 LANGUAGE=C.UTF-8 poetry install -vvv > poetry_install.txt
-      env LC_ALL=C.UTF-8 LANG=C.UTF-8 LANGUAGE=C.UTF-8 poetry run pytest pylarky/tests -vvv
-      env LC_ALL=C.UTF-8 LANG=C.UTF-8 LANGUAGE=C.UTF-8 poetry build -vvv
+      poetry install -vvv >> poetry_install.txt
+      poetry run pytest pylarky/tests -vvv
+      poetry build -vvv
 
 persist-dist: &persist-dist
   persist_to_workspace:
