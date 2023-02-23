@@ -18,19 +18,18 @@ UTNRkR3gNi2lU68AJ6RoaDtBE6mBdjbuFQ==
 -----END EC PRIVATE KEY-----"""
 
 public_key_x509 = b"""-----BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAERac12qEdVcn6gMlIB44sCqW6zFZi
-Gcgl8g9+8E4S7xjTarje7g9QDcb7F5zDYkqoVFG8pWfzGHCtNCK5zv0uUA==
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEgJOZmQJwFpa4reM893yNFSxXV5/f
+aPBDWKsJNnEgfrH8hhKqPrR5f3dhxhkGLJgOB/PAk1XuUfUbZ7hz1rSX8A==
 -----END PUBLIC KEY-----"""
 
 public_key_ephemeral = b"""MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMwliotf2ICjiMwREdqyHSilqZzuV2fZey86nBIDlTY8sNMJv9CPpL5/DKg4bIEMe6qaj67mz4LWdr7Er0Ld5qA=="""
-
 
 def test_generated_keypair():
     ecdh = LarkyECDH()
     ecdh.set_private_key(private_key_pkcs8, type="PKCS8")
     ecdh.set_public_key(public_key_x509, "X509")
     shared_secret = ecdh.exchange()
-    expected = b"yIk6UBFxABvvo1fao/V4DyZ1DX7TE66T58f05zEM0LA="
+    expected = b"9/mnqq+gMfEbBiKX+pvzat+aCFLvn415Ez4NGbzLUHM="
     asserts.assert_that(base64.b64encode(shared_secret)).is_equal_to(expected)
 
 
@@ -54,7 +53,8 @@ def test_pkcs12_keypair():
     ecdh.set_private_key(pkcs12_keystore, type="PKCS12", passwd="vgs")
     ecdh.set_public_key(public_key_x509, "X509")
     shared_secret = ecdh.exchange()
-    expected = b"FOc7tXpSy1xM/4hw7lVyjf8QqYfg0agsnbIdgdCn+Tk="
+    print(base64.b64encode(shared_secret))
+    expected = b"QbflyOdxe/N3bl44eMZplnVen0RAZweSUUyG+wEpwOk="
     asserts.assert_that(base64.b64encode(shared_secret)).is_equal_to(expected)
 
 
