@@ -29,6 +29,7 @@ import net.starlark.java.eval.StarlarkThread;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.xml.crypto.dsig.XMLSignature;
 import javax.xml.namespace.NamespaceContext;
 
 
@@ -61,6 +62,7 @@ public class LarkyXMLNamespaceContext implements LarkyMapping<String, String>, N
     bakedInMappings.put("http://www.w3.org/2001/XMLSchema-instance", "xsi");
     // dublin core
     bakedInMappings.put("http://purl.org/dc/elements/1.1/", "dc");
+    bakedInMappings.put(XMLSignature.XMLNS, "ds");
     return bakedInMappings;
   }
 

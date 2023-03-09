@@ -2,18 +2,15 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//io", io="io")
 load("@stdlib//types", types="types")
 load("@vendor//asserts", asserts="asserts")
-load("@vendor//lxml/etree", etree="etree")
+load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
+load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
 
 
-def load_xml(xml, parser=None):
+def load_xml(xml, parser=SimpleXMLTreeBuilder.TreeBuilder(), tree_factory=etree.ElementTree):
     if types.is_bytelike(xml):
         xml = xml.decode('utf-8')
     f = io.StringIO(xml)
-    # remove_blank_text=True
-    # remove_comments=True
-    # resolve_entities=False
-    # lxml sends root, we match it.
-    return etree.parse(f, parser=parser).getroot()
+    return etree.parse(f, parser=parser, tree_factory=tree_factory).getroot()
 
 
 def parse_xml(name, parser=None):
@@ -35,6 +32,6 @@ def compare(name, result):
     result_text = etree.tostring(result, pretty_print=False)
     # Compare the results.
     if expected_text != result_text:
-        print("expected: ", "\n\n", expected_text)
-        print("result: ", "\n\n", result_text)
+        print("expected: ", expected_text, sep="\n")
+        print("result: ", result_text, sep="\n")
     asserts.eq(expected_text, result_text)

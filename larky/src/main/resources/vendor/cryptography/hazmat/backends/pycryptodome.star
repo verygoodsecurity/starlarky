@@ -6,6 +6,7 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//jopenssl", _JOpenSSL="jopenssl")
+load("@stdlib//jks", jks="jks")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//re", re="re")
 load("@vendor//Crypto/Hash", Hash="Hash")
@@ -944,6 +945,13 @@ def pycryptodome():
         key, cert, additional_certificates = _JOpenSSL.OpenSSL.load_key_and_certificates_from_pkcs12(tobytes(data), password)
         return RSAPrivateKey(self, key, RSA.import_key(key.private_key())), _Certificate(self, cert), [_Certificate(self, c) for c in additional_certificates]
     self.load_key_and_certificates_from_pkcs12 = load_key_and_certificates_from_pkcs12
+
+    def load_key_and_certificates_from_jks(keystore_data, keystore_password, key_alias, key_password):
+        if keystore_password != None:
+            utils._check_byteslike("keystore_password", keystore_password)
+        key, cert, additional_certificates = jks.JKS.load_key_and_certificates(tobytes(keystore_data), keystore_password, key_alias, key_password)
+        return RSAPrivateKey(self, key, RSA.import_key(key.private_key())), _Certificate(self, cert), [_Certificate(self, c) for c in additional_certificates]
+    self.load_key_and_certificates_from_jks = load_key_and_certificates_from_jks
 
     def load_rsa_private_numbers(private_numbers):
         return

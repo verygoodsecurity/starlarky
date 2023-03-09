@@ -4,14 +4,9 @@ load("@stdlib//base64", base64="base64")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//hashlib", hashlib="hashlib")
 load("@stdlib//types", types="types")
-# load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
 
-# load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
-# load("@vendor//_etreeplus/C14NParser", C14NParser="C14NParser")
-# load("@vendor//_etreeplus/xmlwriter", XMLWriter="XMLWriter")
-# load("@vendor//_etreeplus/xmltree", xmltree="xmltree")
 load("@vendor//cryptography/hazmat/primitives", serialization="serialization")
-load("@vendor//lxml/etree", etree="etree")
+load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
 
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes")
@@ -107,7 +102,7 @@ def SignatureContext():
             )
         x509_subject = x509_data.find("ds:X509SubjectName", namespaces=constants.NS_MAP)
         if x509_subject != None:
-            x509_subject.text = get_rdns_name(self.x509.subject.rdns)
+            x509_subject.text = self.x509.subject
         x509_ski = x509_data.find("ds:X509SKI", namespaces=constants.NS_MAP)
         if x509_ski != None:
             x509_ski.text = base64.b64encode(
@@ -124,6 +119,11 @@ def SignatureContext():
             )
             x509_certificate.text = b64_print(s)
             for certificate in self.ca_certificates:
+                subject_name_node = create_node(
+                    "X509SubjectName", None, constants.DSigNs, tail="\n"
+                )
+                subject_name_node.text = certificate.subject
+                x509_certificate.getparent().append(subject_name_node)
                 certificate_node = create_node(
                     "X509Certificate", None, constants.DSigNs, tail="\n"
                 )
@@ -132,7 +132,7 @@ def SignatureContext():
                         certificate.public_bytes(serialization.Encoding.DER)
                     )
                 )
-                x509_certificate.addnext(certificate_node)
+                x509_certificate.getparent().append(certificate_node)
     self.fill_x509_data = fill_x509_data
 
     def fill_x509_issuer_name(x509_issuer_serial):
@@ -211,13 +211,8 @@ def SignatureContext():
 
         # Enveloped method removes the Signature Node from the element
         if method == constants.TransformEnveloped:
-            # print("here3?", method)
-            tree = transform.getroottree()
             root = etree.fromstring(node)
-            pointer2parent = tree.getelementpath(
-                transform.getparent().getparent().getparent().getparent()
-            )
-            signature = root.find(pointer2parent)
+            signature = root.find('.//{http://www.w3.org/2000/09/xmldsig#}Signature')
             root.remove(signature)
             return self.canonicalization(constants.TransformInclC14N, root)
         if method == constants.TransformBase64:

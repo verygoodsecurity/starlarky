@@ -72,7 +72,7 @@
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//io", io="io")
 load("@stdlib//jxml", _JXML="jxml")
-load("@stdlib//larky", larky="larky")
+load("@stdlib//larky", larky="larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//sets", sets="sets")
@@ -186,7 +186,9 @@ def Element(tag, attrib=None, **extra):
         attrib = dict(**attrib)
 
         # non-std extension
-        self._nsmap = attrib.pop('nsmap', {})
+        self._nsmap = {}
+        self._nsmap.update(attrib.pop('nsmap', {}))
+        self._nsmap.update(extra.pop('nsmap', {}))
         self._parent = extra.pop('parent', None)
         # _namespace_map.update(self._nsmap)
         # print(self._nsmap)
@@ -201,7 +203,7 @@ def Element(tag, attrib=None, **extra):
 
     def __repr__():
         # non-std repr (easier for debugging)
-        _children = [c.tag for c in self.getchildren()]
+        _children = [str(c.tag) for c in self.getchildren()]
         return "<Element %r, Children: %s>" % (
             self.tag,
             ", ".join(_children) if _children else _children
@@ -547,6 +549,28 @@ def Element(tag, attrib=None, **extra):
         return s
 
     self.itertext = itertext
+
+    def getroot():
+        """ Get the root node
+        """
+        root = self
+        parent = root.getparent()
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if parent == None:
+                break
+            root = parent
+            parent = root.getparent()
+        return root
+    self.getroot = getroot
+
+    def getroottree():
+        """ Get the root node and pass it to the tree_cls
+        """
+        rootnode = self.getroot()
+        if rootnode != None:
+            return _ElementTree(rootnode)
+    self.getroottree = getroottree
+
     return self
 
 
@@ -1030,10 +1054,12 @@ def _namespaces(elem, default_namespace=None):
 
     # print("namespace map:", _namespace_map)
     _nsmap = getattr(elem, '_nsmap', {})
+    nsmap = getattr(elem, 'nsmap', {})
     # print("ns: ", namespaces)
     # print("elem._nsmap: ", _nsmap)
     if _nsmap:
         namespaces.update(_nsmap)
+        namespaces.update(nsmap)
 
     def __add_qname(qname):
         # calculate serialized qname representation
@@ -2151,14 +2177,18 @@ def XMLParser(html=0, target=None, encoding=None):
 
     def feed(data):
         """Feed encoded data to parser."""
-        rval = Result.Ok(self.parser.Parse).map(lambda f: f(data, 0))
+        # rval = Result.Ok(self.parser.Parse).map(lambda f: f(data, 0))
+        rval = Result.Ok(self.parser.feed).map(lambda f: f(data))
         if rval.is_err:
-            return self._raiseerror(rval.unwrap_err("XMLParser.feed() "))
+            err = rval.unwrap_err()
+            fail(err)
+            return self._raiseerror(err)
     self.feed = feed
 
     def close():
         """Finish feeding data to parser and return element structure."""
-        rval = Result.Ok(self.parser.Parse).map(lambda f: f("", 1))  # end of data
+        # rval = Result.Ok(self.parser.Parse).map(lambda f: f("", 1))  # end of data
+        rval = Result.Ok(self.parser.close())  # end of data
         if rval.is_err:
             return self._raiseerror(rval.unwrap_err("XMLParser.close() "))
 
@@ -2168,17 +2198,24 @@ def XMLParser(html=0, target=None, encoding=None):
             self.target = None
             self._target = None
 
-        rval = try_(lambda: self.target.close)\
-        .except_(lambda x: x)\
-        .else_(lambda x: x())\
-        .finally_(_XMLParser_close_finally)\
-        .build()
+        # target is closed by parser
+        # rval = try_(lambda: self.target.close)\
+        # .except_(lambda x: x)\
+        # .else_(lambda x: x())\
+        # .finally_(_XMLParser_close_finally)\
+        # .build()
 
         return rval.unwrap()
     self.close = close
 
     def __init__(html, target, encoding):
-        parser = larky.mutablestruct(__class__='XMLParser.parser', encoding=encoding, end="}")
+        # parser = larky.mutablestruct(__class__='XMLParser.parser', encoding=encoding, end="}")
+        parser = SimpleXMLTreeBuilderHelper.TreeBuilderHelper(
+            TreeBuilder,
+            element_factory=None,
+            parser=xmllib.XMLParser()
+        )
+        # print(parser)
         if target == None:
             target = TreeBuilder()
         # underscored names are provided for compatibility only

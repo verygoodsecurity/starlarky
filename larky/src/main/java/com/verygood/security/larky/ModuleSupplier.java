@@ -40,6 +40,7 @@ import com.verygood.security.larky.modules.XMLModule;
 import com.verygood.security.larky.modules.ZLibModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
+import com.verygood.security.larky.modules.jks.JKSModule;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
 import com.verygood.security.larky.objects.LarkyClassMethod;
@@ -79,6 +80,7 @@ public class ModuleSupplier {
       CodecsModule.INSTANCE,
       CollectionsModule.INSTANCE,
       CryptoModule.INSTANCE,
+      JKSModule.INSTANCE,
       JsonModule.INSTANCE,
       OpenSSLModule.INSTANCE,
       ProtoBufModule.INSTANCE,
