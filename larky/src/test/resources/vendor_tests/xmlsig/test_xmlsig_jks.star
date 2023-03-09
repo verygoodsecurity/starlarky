@@ -60,9 +60,13 @@ def test_xmlsig_sign_jks():
     KEYSTORE = KEYSTORE_JKS
     key_file = io.StringIO(base64.b64decode(KEYSTORE))
     password = bytearray("FOJ0g5iUiuw0", "UTF-8")
+    key_alias = bytearray("mc-ic-mtf", "UTF-8")
 
-    private_key, certificate, ca_certificates = backend()\
-        .load_key_and_certificates_from_jks(key_file.read(), password, bytearray("mc-ic-mtf", "UTF-8"), password)
+    (
+        private_key,
+        certificate,
+        ca_certificates,
+    ) = backend().load_key_and_certificates_from_jks(key_file.read(), password, key_alias, password)
 
     ctx.load_pkcs12((private_key, certificate))
     ctx.ca_certificates = ca_certificates
@@ -71,7 +75,6 @@ def test_xmlsig_sign_jks():
     ctx.sign(sign)
     ctx.verify(sign)
     # Assert the contents of the XML document against the expected result.
-    etree.indent(template)
     compare(SIGN_OUT_XML, template.getroot())
 
 

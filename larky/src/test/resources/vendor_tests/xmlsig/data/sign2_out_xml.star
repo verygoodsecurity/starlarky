@@ -1,32 +1,27 @@
 SIGN_OUT_XML = """\
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-XML Security Library example: Signed XML doc file (sign3 example).
--->
-<OrbiscomRequest IssuerId="101118" Version="15.2">
-  <OBOAuthenticateRequest>
-    <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
-      <SignedInfo>
-        <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
-        <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
-        <Reference>
-          <Transforms>
-            <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
-          </Transforms>
-          <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
-          <DigestValue>6rwcQvKosQsI3hNeFuMTSHdmZzk=</DigestValue>
-        </Reference>
-      </SignedInfo>
-      <SignatureValue>g+BMQEpbO8+FaGEiIvDX/m73vFHmDZqoWVG3Vd6AqkAwm/EhAcANfF8xirrD0uX6
-EJBJ8CNdi6lAcc/I9nMDDWAQxSisVdDWjasJC0WY6jEoVK+VJ78hI17ilzzkEBO7
-r5H3WRL0aAhVRynYm9aYXDrJ6YdRNUVOTVCzX+u0n9OZvIAzTJ0OhS6uj9cKGN5+
-rJ0N1/r4SAbMKr0QfK01wc5hM/3kH3UWiiVF44ybKPZDgIdRjquQGxSiwhhDZytN
-NuVZVYvkrb58UuD/lS5JGcjpBHU3NKL/RmKvMe166wx+6Nt+hRR9J9FwWix0rOeM
-PZyISoNn0Eg9SqRg/cAIIA==</SignatureValue>
-      <KeyInfo>
-        <X509Data>
-          <X509SubjectName>CN=Extend-Enterprises, OU=incontrolmtf-retailapi, O=inControl-Retail, ST=New York, C=US</X509SubjectName>
-          <X509Certificate>MIID3jCCAsagAwIBAgIIDzMLWm4jQMswDQYJKoZIhvcNAQELBQAwgYUxCzAJBgNV
+<OrbiscomRequest xmlns:ds="http://www.w3.org/2000/09/xmldsig#" IssuerId="101118" Version="15.2">
+  <OBOAuthenticateRequest><ds:Signature>
+<ds:SignedInfo>
+<ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
+<ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" />
+<ds:Reference>
+<ds:Transforms>
+<ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" />
+</ds:Transforms>
+<ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
+<ds:DigestValue>g/E8bcAZoXId1luVSY9Wq/n7Hws=</ds:DigestValue>
+</ds:Reference>
+</ds:SignedInfo>
+<ds:SignatureValue>ioAsTIt/DKlNeQLrG+Tn6jD+aw5oOMordiveD2JhS98gao8AmMrKd/TNfVXAbo+I
+KZIPujaV9HYlHIPtLgviIJFmVWR4n0J+8KGV+i+akPx4Y+elVAGNYKg+dtuGpJXa
+NJxVTMCnNsokhNF1FLWzgLhKPdiOAOEwAOOd0TcOfgfztooIMtHvvtsh2He7eUvS
+YDTtG8GBESrTub+gUqi0A8sMB/wpGHh3GYRqjQzNU4XZt35rs2tRBIItetXL7P1b
+iH7mmxMfCRdV6M5/vhbKMTaKNN7j7h+EK8UetM6fcI2vAuHcayD09ywmn1TUT4Da
+Ynq8pLXnAgESJDdJcWWG5w==</ds:SignatureValue>
+<ds:KeyInfo>
+<ds:X509Data>
+<ds:X509SubjectName>CN=Extend-Enterprises, OU=incontrolmtf-retailapi, O=inControl-Retail, ST=New York, C=US</ds:X509SubjectName>
+<ds:X509Certificate>MIID3jCCAsagAwIBAgIIDzMLWm4jQMswDQYJKoZIhvcNAQELBQAwgYUxCzAJBgNV
 BAYTAkJFMRwwGgYDVQQKExNNYXN0ZXJDYXJkIFdvcmx3aWRlMSQwIgYDVQQLExtH
 bG9iYWwgSW5mb3JtYXRpb24gU2VjdXJpdHkxMjAwBgNVBAMTKU1hc3RlckNhcmQg
 SVRGIE1lc3NhZ2VzIFNpZ25pbmcgU3ViIENBIEcyMB4XDTIxMDIyMzEwNDAyOFoX
@@ -46,9 +41,9 @@ f9JQCGw301QhVWAWV9ZVAwyk7p+6G83kSwdbI+SYgTP9WW0sGWtsnYvo3VxaDCnO
 /Tnj8Hl+H7vdc9TKmas/xtE05ulZ97oeY9s/NDGgEoYRm5qvCiBH917CW0tSM5Zx
 3GOwmvSwtVKSsBLrNWwgKU1SVP5Q41WrNbkTW6mCAAPWF3UtQgTjdviNpIyOIALp
 DI3mxMKJ7Fef6FiJ+R9875UhcaPZbGksHXiBeFpSN2dcv1FMhdqQh3/qMMEJH5+Y
-bgr71Xf9GIgujVYNPzJxhHs3BWORX1O4gn/BprbZ7LmmNg==</X509Certificate>
-          <X509SubjectName>CN=MasterCard ITF Messages Signing Sub CA G2, OU=Global Information Security, O=MasterCard Worlwide, C=BE</X509SubjectName>
-          <X509Certificate>MIIE/jCCAuagAwIBAgIQEnmGId5ldw6cBGHCXtcR0jANBgkqhkiG9w0BAQsFADCB
+bgr71Xf9GIgujVYNPzJxhHs3BWORX1O4gn/BprbZ7LmmNg==</ds:X509Certificate>
+<ds:X509SubjectName>CN=MasterCard ITF Messages Signing Sub CA G2, OU=Global Information Security, O=MasterCard Worlwide, C=BE</ds:X509SubjectName>
+<ds:X509Certificate>MIIE/jCCAuagAwIBAgIQEnmGId5ldw6cBGHCXtcR0jANBgkqhkiG9w0BAQsFADCB
 hzELMAkGA1UEBhMCQkUxHTAbBgNVBAoTFE1hc3RlckNhcmQgV29ybGR3aWRlMSQw
 IgYDVQQLExtHbG9iYWwgSW5mb3JtYXRpb24gU2VjdXJpdHkxMzAxBgNVBAMTKk1h
 c3RlckNhcmQgSVRGIE1lc3NhZ2VzIFNpZ25pbmcgUm9vdCBDQSBHMjAeFw0xNTAy
@@ -74,9 +69,9 @@ qhjgZ1cbC5hhVlBRSzMIz7gG1MMiU6dd3fTM1tvomy+oCxoUn5RiCxeHOXhC8Kdt
 sg0sADt24Ar5ec1o3H0pWIR2t33X+ezI1jv3bgEhLTDBaIdo2CmDuAx6AYswkcbr
 aaBhLgclKvjXHNCFsoaHHOm+H+BgTnTDyo8349xv9OuFLBJpQZjsH3cMApFzow9e
 upJLMY/cbFBxp1KuPVAtK7V5pSE7ahH118JGL8evNSDfFupFPKXVnonyxXne5aWH
-4BC9dgvwtsm8gxbie7QPx4g6qGukUHx85BhcXa/QKnZfpQ==</X509Certificate>
-          <X509SubjectName>CN=MasterCard ITF Messages Signing Root CA G2, OU=Global Information Security, O=MasterCard Worldwide, C=BE</X509SubjectName>
-          <X509Certificate>MIIGADCCA+igAwIBAgIQcb5/pa7rZnXaXeE+v7Pi4jANBgkqhkiG9w0BAQsFADCB
+4BC9dgvwtsm8gxbie7QPx4g6qGukUHx85BhcXa/QKnZfpQ==</ds:X509Certificate>
+<ds:X509SubjectName>CN=MasterCard ITF Messages Signing Root CA G2, OU=Global Information Security, O=MasterCard Worldwide, C=BE</ds:X509SubjectName>
+<ds:X509Certificate>MIIGADCCA+igAwIBAgIQcb5/pa7rZnXaXeE+v7Pi4jANBgkqhkiG9w0BAQsFADCB
 hzELMAkGA1UEBhMCQkUxHTAbBgNVBAoTFE1hc3RlckNhcmQgV29ybGR3aWRlMSQw
 IgYDVQQLExtHbG9iYWwgSW5mb3JtYXRpb24gU2VjdXJpdHkxMzAxBgNVBAMTKk1h
 c3RlckNhcmQgSVRGIE1lc3NhZ2VzIFNpZ25pbmcgUm9vdCBDQSBHMjAeFw0xNTAy
@@ -108,10 +103,9 @@ QZVlhyUjT1cACZUkIE6Mb0Gy1de6UVVGB1gfFx1oy224BkC1SpKULOVQKnbCG556
 MPmkDeG+X6lfDdzTpRJDqOQEYheoogTIS0PH4vEm1sRHxd0MU3SvE5/DDVhNC3mr
 UF8RPab5Vz/cP4LXm9wJTNhMpaGWyhRpLVlXTXM+PjotqwVFR1BEERiBl5wtVgDF
 vsKPeT+i3tAcKowZgxLfchp+84hc1PIfu+vxYtUfKll+MrYL7SmY0+CiuPZdHAgx
-Ab7QOQ==</X509Certificate>
-        </X509Data>
-      </KeyInfo>
-    </Signature>
-  </OBOAuthenticateRequest>
+Ab7QOQ==</ds:X509Certificate>
+</ds:X509Data>
+</ds:KeyInfo>
+</ds:Signature></OBOAuthenticateRequest>
 </OrbiscomRequest>\
 """
