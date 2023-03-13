@@ -15,15 +15,15 @@ job-defaults: &job-defaults
 
 machine-linux: &machine-linux
   machine:
-      image: ubuntu-2004:202201-02
+      image: ubuntu-2204:2022.10.2 
 
 install-java: &install-java
   run:
-    name: Install OpenJDK11 and Maven
+    name: Install OpenJDK17 and Maven
     command: |
-      sudo apt-get update && sudo apt-get install openjdk-11-jdk maven
-      sudo update-alternatives --set java /usr/lib/jvm/java-11-openjdk-amd64/bin/java
-      sudo update-alternatives --set javac /usr/lib/jvm/java-11-openjdk-amd64/bin/javac
+      sudo apt-get update && sudo apt-get install openjdk-17-jdk maven
+      sudo update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java
+      sudo update-alternatives --set javac /usr/lib/jvm/java-17-openjdk-amd64/bin/javac
 
 install-gh: &install-gh
   run:
@@ -109,8 +109,9 @@ build_test_pylarky: &build_test_pylarky
   run:
     name: Build and test pylarky
     command: |
+      set -x
       poetry version ${CIRCLE_TAG}
-      poetry install
+      poetry install > poetry_install.log
       poetry run pytest pylarky/tests
       poetry build
 
@@ -224,14 +225,14 @@ jobs:
       - run:
           name: Install dev
           command: |
-            brew install openjdk@11
+            brew install openjdk@17
             brew install maven
       - run:
           name: Install GRAALVM
           command: |
-            brew install --cask graalvm/tap/graalvm-ce-java11
+            brew install --cask graalvm/tap/graalvm-ce-java17
             # Brew is designed to pull latest versions for the formula
-            xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-ce-java11-*
+            xattr -r -d com.apple.quarantine /Library/Java/JavaVirtualMachines/graalvm-ce-java17-*
             # We can use java_home exe to set GRAALVM_HOME
             echo 'export GRAALVM_HOME="$(/usr/libexec/java_home)"' >> $BASH_ENV
             source $BASH_ENV
@@ -288,12 +289,14 @@ workflows:
   release:
     jobs:
       - build-dist-maven:
+          context: github-artifact-publisher
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
             branches:
               ignore: /.*/
       - build-dist-linux:
+          context: github-artifact-publisher
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
@@ -302,6 +305,7 @@ workflows:
           requires:
             - build-dist-maven
       - publish-to-gh:
+          context: github-artifact-publisher
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/

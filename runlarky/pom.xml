@@ -21,10 +21,10 @@
     </repositories>
 
     <properties>
-        <java.version>11</java.version>
+        <java.version>17</java.version>
 
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
 
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
@@ -37,7 +37,6 @@
         <maven.protobuf.plugin.version>0.6.1</maven.protobuf.plugin.version>
         <maven.surefire.plugin.version>2.22.1</maven.surefire.plugin.version>
         <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
-        <starlarky.version>1.0-SNAPSHOT</starlarky.version>
         <org.projectlombok.version>1.18.22</org.projectlombok.version>
         <picocli.version>4.6.3</picocli.version>
         <graalvm.version>22.0.0.2</graalvm.version>
@@ -51,14 +50,14 @@
         <dependency>
             <groupId>com.verygood.security</groupId>
             <artifactId>larky</artifactId>
-            <version>${starlarky.version}</version>
+            <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
 
         <dependency>
             <groupId>net.starlark.java</groupId>
             <artifactId>libstarlark</artifactId>
-            <version>${starlarky.version}</version>
+            <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
 
@@ -174,43 +173,7 @@
         </pluginManagement>
 
     </build>
-
     <profiles>
-        <!--        <profile>-->
-        <!--            <id>native</id>-->
-        <!--            <activation>-->
-        <!--                <property>-->
-        <!--                    <name>native</name>-->
-        <!--                </property>-->
-        <!--            </activation>-->
-        <!--            <build>-->
-        <!--                <plugins>-->
-        <!--                    <plugin>-->
-        <!--                        <artifactId>maven-failsafe-plugin</artifactId>-->
-        <!--                        <version>${maven.surefire.plugin.version}</version>-->
-        <!--                        <executions>-->
-        <!--                            <execution>-->
-        <!--                                <goals>-->
-        <!--                                    <goal>integration-test</goal>-->
-        <!--                                    <goal>verify</goal>-->
-        <!--                                </goals>-->
-        <!--                                <configuration>-->
-        <!--                                    <systemPropertyVariables>-->
-        <!--                                        <native.image.path>${project.build.directory}/${project.build.finalName}-runner</native.image.path>-->
-        <!--                                        <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>-->
-        <!--                                        <maven.home>@{maven.home}</maven.home>-->
-        <!--                                    </systemPropertyVariables>-->
-        <!--                                </configuration>-->
-        <!--                            </execution>-->
-        <!--                        </executions>-->
-        <!--                    </plugin>-->
-        <!--                </plugins>-->
-        <!--            </build>-->
-        <!--            <properties>-->
-        <!--                <quarkus.package.type>native</quarkus.package.type>-->
-        <!--                <quarkus.package.output-name>larky</quarkus.package.output-name>-->
-        <!--            </properties>-->
-        <!--        </profile>-->
         <profile>
             <id>native</id>
             <activation>
