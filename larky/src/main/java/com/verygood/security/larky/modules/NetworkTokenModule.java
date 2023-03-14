@@ -1,24 +1,50 @@
 package com.verygood.security.larky.modules;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import com.verygood.security.larky.modules.nts.MockNetworkTokenService;
+import com.verygood.security.larky.modules.nts.NetworkTokenService;
+import com.verygood.security.larky.modules.nts.NoopNetworkTokenService;
 import com.verygood.security.larky.modules.vgs.calm.LarkyNetworkToken;
-import com.verygood.security.messages.calm.CalmServiceGrpc;
-import com.verygood.security.messages.calm.CalmSvc;
-import io.grpc.Grpc;
-import io.grpc.InsecureChannelCredentials;
-import io.grpc.ManagedChannel;
+import java.util.List;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Starlark;
 
 @StarlarkBuiltin(name = "nts", category = "BUILTIN", doc = "Overridable Network Token API in Larky")
 public class NetworkTokenModule implements LarkyNetworkToken {
   public static final NetworkTokenModule INSTANCE = new NetworkTokenModule();
+
+  public static final String ENABLE_MOCK_PROPERTY = "larky.modules.vgs.nts.enableMockNetworkToken";
+
+  private final NetworkTokenService networkTokenService;
+
+  public NetworkTokenModule() {
+    ServiceLoader<NetworkTokenService> loader = ServiceLoader.load(NetworkTokenService.class);
+    List<NetworkTokenService> networkTokenProviders = ImmutableList.copyOf(loader.iterator());
+
+    if (Boolean.getBoolean(ENABLE_MOCK_PROPERTY)) {
+      networkTokenService = new MockNetworkTokenService();
+    } else if (networkTokenProviders.isEmpty()) {
+      networkTokenService = new NoopNetworkTokenService();
+    } else {
+      if (networkTokenProviders.size() != 1) {
+        throw new IllegalArgumentException(
+            String.format(
+                "NetworkTokenModule expecting only 1 network token provider of type NetworkTokenService, found %d",
+                networkTokenProviders.size()));
+      }
+      networkTokenService = networkTokenProviders.get(0);
+    }
+  }
 
   @StarlarkMethod(
       name = "render",
@@ -72,7 +98,8 @@ public class NetworkTokenModule implements LarkyNetworkToken {
       String expireMonth,
       String expireYear,
       String cryptogramValue,
-      String cryptogramEci) {
+      String cryptogramEci)
+      throws EvalException {
     final DocumentContext context = JsonPath.parse(input);
 
     final String panAlias = context.read(pan);
@@ -80,46 +107,34 @@ public class NetworkTokenModule implements LarkyNetworkToken {
       throw new IllegalArgumentException("Pan argument is required");
     }
 
-    // TODO:
-    final ManagedChannel channel =
-        Grpc.newChannelBuilder("localhost:9090", InsecureChannelCredentials.create()).build();
-    final CalmServiceGrpc.CalmServiceBlockingStub stub = CalmServiceGrpc.newBlockingStub(channel);
-
-    final CalmSvc.NetworkTokenRequest request =
-        CalmSvc.NetworkTokenRequest.newBuilder()
-            .setPanAlias(panAlias)
-            .setVaultId("foobar")
-            .setPaymentDetails(CalmSvc.PaymentDetails.newBuilder().build())
-            .build();
-    final CalmSvc.NetworkTokenResponse response = stub.getActiveNetworkToken(request);
-
-    final Optional<CalmSvc.NetworkToken> networkToken =
-        Optional.ofNullable(response).map(CalmSvc.NetworkTokenResponse::getToken);
-    final Optional<CalmSvc.Cryptogram> cryptogram =
-        Optional.ofNullable(response).map(CalmSvc.NetworkTokenResponse::getCryptogram);
-
+    final Optional<NetworkTokenService.NetworkToken> networkTokenOptional;
+    try {
+      networkTokenOptional = networkTokenService.getNetworkToken(panAlias);
+    } catch (UnsupportedOperationException exception) {
+      throw Starlark.errorf("nts.render's getNetworkToken operation must be overridden");
+    }
+    if (!networkTokenOptional.isPresent()) {
+      throw Starlark.errorf("network token not found");
+    }
+    final NetworkTokenService.NetworkToken networkToken = networkTokenOptional.get();
     // Map from JSON path to its corresponding value to insert into the input JSON payload
-    final ImmutableMap<Optional<String>, Optional<Object>> valuePlacements =
-        ImmutableMap.<Optional<String>, Optional<Object>>builder()
-            .put(Optional.of(pan), networkToken.map(CalmSvc.NetworkToken::getToken))
-            .put(
-                Optional.ofNullable(expireMonth),
-                networkToken.map(CalmSvc.NetworkToken::getExpMonth))
-            .put(
-                Optional.ofNullable(expireYear), networkToken.map(CalmSvc.NetworkToken::getExpYear))
-            .put(Optional.ofNullable(cryptogramValue), cryptogram.map(CalmSvc.Cryptogram::getValue))
-            .put(Optional.ofNullable(cryptogramEci), cryptogram.map(CalmSvc.Cryptogram::getEci))
+    final ImmutableMap<Optional<String>, Object> valuePlacements =
+        ImmutableMap.<Optional<String>, Object>builder()
+            .put(Optional.of(pan), networkToken.getToken())
+            .put(Optional.ofNullable(expireMonth), networkToken.getExpireMonth())
+            .put(Optional.ofNullable(expireYear), networkToken.getExpireYear())
+            .put(Optional.ofNullable(cryptogramValue), networkToken.getCryptogramValue())
+            .put(Optional.ofNullable(cryptogramEci), networkToken.getCryptogramEci())
             .build();
-
+    // Set values for each JSON path and value pairs to the output JSON payload
     valuePlacements.entrySet().stream()
         // We are only interested in making insertions for present JSONPaths
         .filter(keyValue -> keyValue.getKey().isPresent())
         .forEach(
             keyValue -> {
               final String jsonPath = keyValue.getKey().get();
-              context.set(jsonPath, keyValue.getValue().orElse(null));
+              context.set(jsonPath, keyValue.getValue());
             });
-
     return context.json();
   }
 }
