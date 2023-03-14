@@ -1,6 +1,6 @@
 SIGN_OUT_XML = """\
 <OrbiscomRequest xmlns:ds="http://www.w3.org/2000/09/xmldsig#" IssuerId="101118" Version="15.2">
-  <OBOAuthenticateRequest><ds:Signature>
+    <OBOAuthenticateRequest><ds:Signature>
 <ds:SignedInfo>
 <ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
 <ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" />
@@ -9,15 +9,15 @@ SIGN_OUT_XML = """\
 <ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" />
 </ds:Transforms>
 <ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
-<ds:DigestValue>g/E8bcAZoXId1luVSY9Wq/n7Hws=</ds:DigestValue>
+<ds:DigestValue>2aESUP7W6eikyrGrh8XAkrB0vv0=</ds:DigestValue>
 </ds:Reference>
 </ds:SignedInfo>
-<ds:SignatureValue>ioAsTIt/DKlNeQLrG+Tn6jD+aw5oOMordiveD2JhS98gao8AmMrKd/TNfVXAbo+I
-KZIPujaV9HYlHIPtLgviIJFmVWR4n0J+8KGV+i+akPx4Y+elVAGNYKg+dtuGpJXa
-NJxVTMCnNsokhNF1FLWzgLhKPdiOAOEwAOOd0TcOfgfztooIMtHvvtsh2He7eUvS
-YDTtG8GBESrTub+gUqi0A8sMB/wpGHh3GYRqjQzNU4XZt35rs2tRBIItetXL7P1b
-iH7mmxMfCRdV6M5/vhbKMTaKNN7j7h+EK8UetM6fcI2vAuHcayD09ywmn1TUT4Da
-Ynq8pLXnAgESJDdJcWWG5w==</ds:SignatureValue>
+<ds:SignatureValue>KXA4l9KbcSozcjgOMjL1mDGgHcYqUhppuDAkvwNmdquFcqGhD0hiAHs4oyHf1Gbs
+v/F/VHsL0EOB/uGYgO6CFI4csB764eiBprgTsoPf1mPV3u9tTZ9tb6BbWY9XrmtN
+Hx3opa4+4SqPUywzYT4A7svFIIi1JG7/RwR1NfIW2mWIgvYDRd5SEGJ9PRZjAQiP
+PHrx5HRmLyveN2JpZtXFP/bWLpTflaWukZIoeVg8iwd98MNID+exH/qln+wDHGYi
+ADp6VNScv3fxORN4uje6UslkhwWpa+vgkFbHZVQItyII3lSx280dAnso9RoMjZqH
+Zty0vA3jEr8kCiS1AdnsUA==</ds:SignatureValue>
 <ds:KeyInfo>
 <ds:X509Data>
 <ds:X509SubjectName>CN=Extend-Enterprises, OU=incontrolmtf-retailapi, O=inControl-Retail, ST=New York, C=US</ds:X509SubjectName>

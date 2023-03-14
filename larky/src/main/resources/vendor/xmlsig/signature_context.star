@@ -247,6 +247,7 @@ def SignatureContext():
             method=c14n_method["method"],
             with_comments=c14n_method["comments"],
             exclusive=c14n_method["exclusive"],
+            short_empty_elements=False,
         )
         if c14n_method["exclusive"] == False:
             # TODO: there must be a nicer way to do this. See also:
