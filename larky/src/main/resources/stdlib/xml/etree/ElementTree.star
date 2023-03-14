@@ -2177,7 +2177,6 @@ def XMLParser(html=0, target=None, encoding=None):
 
     def feed(data):
         """Feed encoded data to parser."""
-        # rval = Result.Ok(self.parser.Parse).map(lambda f: f(data, 0))
         rval = Result.Ok(self.parser.feed).map(lambda f: f(data))
         if rval.is_err:
             err = rval.unwrap_err()
@@ -2187,7 +2186,6 @@ def XMLParser(html=0, target=None, encoding=None):
 
     def close():
         """Finish feeding data to parser and return element structure."""
-        # rval = Result.Ok(self.parser.Parse).map(lambda f: f("", 1))  # end of data
         rval = Result.Ok(self.parser.close())  # end of data
         if rval.is_err:
             return self._raiseerror(rval.unwrap_err("XMLParser.close() "))
@@ -2198,24 +2196,15 @@ def XMLParser(html=0, target=None, encoding=None):
             self.target = None
             self._target = None
 
-        # target is closed by parser
-        # rval = try_(lambda: self.target.close)\
-        # .except_(lambda x: x)\
-        # .else_(lambda x: x())\
-        # .finally_(_XMLParser_close_finally)\
-        # .build()
-
         return rval.unwrap()
     self.close = close
 
     def __init__(html, target, encoding):
-        # parser = larky.mutablestruct(__class__='XMLParser.parser', encoding=encoding, end="}")
         parser = SimpleXMLTreeBuilderHelper.TreeBuilderHelper(
             TreeBuilder,
             element_factory=None,
             parser=xmllib.XMLParser()
         )
-        # print(parser)
         if target == None:
             target = TreeBuilder()
         # underscored names are provided for compatibility only
