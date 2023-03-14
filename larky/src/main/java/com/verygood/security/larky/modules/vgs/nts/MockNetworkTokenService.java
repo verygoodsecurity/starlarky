@@ -6,6 +6,9 @@ import java.util.Optional;
 public class MockNetworkTokenService implements NetworkTokenService {
   @Override
   public Optional<NetworkToken> getNetworkToken(String panAlias) {
+    if (panAlias.equals("NOT_FOUND")) {
+      return Optional.empty();
+    }
     return Optional.of(
         NetworkToken.builder()
             .token("4242424242424242")
