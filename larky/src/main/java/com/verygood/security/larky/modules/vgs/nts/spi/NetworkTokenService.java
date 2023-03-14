@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.nts;
+package com.verygood.security.larky.modules.vgs.nts.spi;
 
 import java.util.Optional;
 import lombok.Builder;

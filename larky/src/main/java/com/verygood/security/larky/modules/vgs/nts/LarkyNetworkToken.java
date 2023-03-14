@@ -1,6 +1,7 @@
-package com.verygood.security.larky.modules.vgs.calm;
+package com.verygood.security.larky.modules.vgs.nts;
 
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 public interface LarkyNetworkToken extends StarlarkValue {
@@ -15,13 +16,16 @@ public interface LarkyNetworkToken extends StarlarkValue {
    * @param cryptogramValue JSONPath to the cryptogram value to insert in the result JSON payload
    *     object
    * @param cryptogramEci JSONPath to the cryptogram ECI to insert in the result JSON payload object
+   * @param thread Starlark thread object
    * @return
    */
   Object render(
       Object input,
       String pan,
-      String expireMonth,
-      String expireYear,
-      String cryptogramValue,
-      String cryptogramEci) throws EvalException;
+      Object expireMonth,
+      Object expireYear,
+      Object cryptogramValue,
+      Object cryptogramEci,
+      StarlarkThread thread)
+      throws EvalException;
 }
