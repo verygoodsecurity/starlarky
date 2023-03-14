@@ -15,6 +15,7 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 
 @StarlarkBuiltin(name = "nts", category = "BUILTIN", doc = "Overridable Network Token API in Larky")
@@ -58,6 +59,9 @@ public class NetworkTokenModule implements LarkyNetworkToken {
   @Override
   public Dict<String, Object> getNetworkToken(String pan, StarlarkThread thread)
       throws EvalException {
+    if (pan.trim().isEmpty()) {
+      throw Starlark.errorf("pan argument cannot be blank");
+    }
     final Optional<NetworkTokenService.NetworkToken> networkTokenOptional;
     try {
       networkTokenOptional = networkTokenService.getNetworkToken(pan);
@@ -70,8 +74,8 @@ public class NetworkTokenModule implements LarkyNetworkToken {
     final NetworkTokenService.NetworkToken networkToken = networkTokenOptional.get();
     return Dict.<String, Object>builder()
         .put("token", networkToken.getToken())
-        .put("exp_month", networkToken.getExpireMonth())
-        .put("exp_year", networkToken.getExpireYear())
+        .put("exp_month", StarlarkInt.of(networkToken.getExpireMonth()))
+        .put("exp_year", StarlarkInt.of(networkToken.getExpireYear()))
         .put("cryptogram_value", networkToken.getCryptogramValue())
         .put("cryptogram_eci", networkToken.getCryptogramEci())
         .build(thread.mutability());

@@ -3,115 +3,37 @@ load("@stdlib//unittest", "unittest")
 load("@vgs//nts", "nts")
 
 
-def _test_render():
-    input = {
-        "merchantAccount": "YOUR_MERCHANT_ACCOUNT",
-        "reference": "YOUR_PAYMENT_REFERENCE",
-        "amount": {
-            "currency": "USD",
-            "value": 1000,
-        },
-        "paymentMethod": {
-            "type": "networkToken",
-            "holderName": "CARDHOLDER_NAME",
-            "number": "785840aLpH4nUmV9985",
-            "expiryMonth": "TO_BE_REPLACED",
-            "expiryYear": "TO_BE_REPLACED",
-        },
-        "returnUrl": "https://your-company.com/",
-        "shopperReference": "YOUR_SHOPPER_REFERENCE",
-        "recurringProcessingModel": "CardOnFile",
-        "shopperInteraction": "Ecommerce",
-        # Deep JSONPath is not supported by the JSONPath lib, so that we need to
-        # create an empty object here manually.
-        # ref: https://github.com/json-path/JsonPath/issues/83
-        "mpiData": {
-            "cavv": "TO_BE_REPLACED",
-            "eci": "TO_BE_REPLACED",
-        }
-    }
-
-    output = nts.render(
-        input,
-        pan="$.paymentMethod.number",
-        exp_month="$.paymentMethod.expiryMonth",
-        exp_year="$.paymentMethod.expiryYear",
-        cryptogram_value="$.mpiData.cavv",
-        cryptogram_eci="$.mpiData.eci",
+def _test_get_network_token():
+    output = nts.get_network_token(
+        "MOCK_PAN_ALIAS",
     )
-    asserts.assert_that(output["paymentMethod"]["number"]).is_equal_to("4242424242424242")
-    asserts.assert_that(output["paymentMethod"]["expiryMonth"]).is_equal_to(12)
-    asserts.assert_that(output["paymentMethod"]["expiryYear"]).is_equal_to(27)
-    asserts.assert_that(output["mpiData"]["cavv"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
-    asserts.assert_that(output["mpiData"]["eci"]).is_equal_to("MOCK_CRYPTOGRAM_ECI")
+    asserts.assert_that(output).is_equal_to({
+        "token": "4242424242424242",
+        "exp_month": 12,
+        "exp_year": 27,
+        "cryptogram_value": "MOCK_CRYPTOGRAM_VALUE",
+        "cryptogram_eci": "MOCK_CRYPTOGRAM_ECI"
+    })
 
 
-def _test_render_json_path_list_match():
-    input = {
-        "pan": "785840aLpH4nUmV9985",
-        "data": [
-            {"token": "TO_BE_REPLACED"},
-            {"token": "TO_BE_REPLACED"},
-            {"token": "TO_BE_REPLACED"},
-        ]
-    }
-
-    output = nts.render(
-        input,
-        pan="$.pan",
-        cryptogram_value="$.data[*].token",
-    )
-    asserts.assert_that(len(output["data"])).is_equal_to(3)
-    asserts.assert_that(output["data"][0]["token"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
-    asserts.assert_that(output["data"][1]["token"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
-    asserts.assert_that(output["data"][2]["token"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
+def _test_pan_empty_value():
+    asserts.assert_fails(lambda: nts.get_network_token(""), "pan argument cannot be blank")
 
 
-def _test_render_pan_empty_value():
-    input = {
-        "pan": "",
-    }
-    asserts.assert_fails(lambda: nts.render(input, "$.pan"),
-                         "pan argument is required")
-
-
-def _test_render_pan_non_existing_path():
-    input = {
-        "pan": "785840aLpH4nUmV9985",
-    }
-    asserts.assert_fails(lambda: nts.render(input, "$.not_exists"),
-                         'pan JSONPath "\\$\\.not_exists" does not exist')
-
-
-def _test_render_set_non_existing_path():
-    input = {
-        "pan": "785840aLpH4nUmV9985",
-    }
-    for key in ["exp_month", "exp_year", "cryptogram_value", "cryptogram_eci"]:
-        asserts.assert_fails(
-            lambda: nts.render(input, "$.pan", **{key: "$.not_exists"}),
-            (
-                    'JSONPath "\\$\\.not_exists" does not exist, if you want to insert value to a nested path, please ensure that the ' +
-                    "target value already exists at the given path in the input")
-        )
-
-
-def _test_render_not_found():
+def _test_not_found():
     input = {
         "pan": "NOT_FOUND",
     }
-    asserts.assert_fails(lambda: nts.render(input, "$.pan"), "network token does not found")
+    asserts.assert_fails(lambda: nts.get_network_token("NOT_FOUND"), "network token does not found")
 
 
 def _suite():
     _suite = unittest.TestSuite()
 
     # Redact Tests
-    _suite.addTest(unittest.FunctionTestCase(_test_render))
-    _suite.addTest(unittest.FunctionTestCase(_test_render_json_path_list_match))
-    _suite.addTest(unittest.FunctionTestCase(_test_render_pan_non_existing_path))
-    _suite.addTest(unittest.FunctionTestCase(_test_render_set_non_existing_path))
-    _suite.addTest(unittest.FunctionTestCase(_test_render_not_found))
+    _suite.addTest(unittest.FunctionTestCase(_test_get_network_token))
+    _suite.addTest(unittest.FunctionTestCase(_test_pan_empty_value))
+    _suite.addTest(unittest.FunctionTestCase(_test_not_found))
 
     return _suite
 
