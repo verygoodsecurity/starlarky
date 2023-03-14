@@ -67,12 +67,20 @@ def _test_render_json_path_list_match():
     asserts.assert_that(output["data"][2]["token"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
 
 
+def _test_render_not_found():
+    input = {
+        "pan": "NOT_FOUND",
+    }
+    asserts.assert_fails(lambda: nts.render(input, "$.pan"), "network token not found")
+
+
 def _suite():
     _suite = unittest.TestSuite()
 
     # Redact Tests
     _suite.addTest(unittest.FunctionTestCase(_test_render))
     _suite.addTest(unittest.FunctionTestCase(_test_render_json_path_list_match))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_not_found))
 
     return _suite
 
