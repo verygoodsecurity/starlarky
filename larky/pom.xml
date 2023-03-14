@@ -55,7 +55,6 @@
         <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
         <protobuf.version>3.18.1</protobuf.version>
         <surefire-plugin.version>3.0.0-M5</surefire-plugin.version>
-        <grpc.version>1.53.0</grpc.version>
     </properties>
 
     <dependencies>
@@ -109,30 +108,6 @@
             <version>${apache.commons-text.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-core</artifactId>
-            <version>${grpc.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-protobuf</artifactId>
-            <version>${grpc.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-services</artifactId>
-            <version>${grpc.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-okhttp</artifactId>
-            <version>${grpc.version}</version>
-        </dependency>
-
         <!-- cryptography -->
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
@@ -156,12 +131,6 @@
             <groupId>com.jayway.jsonpath</groupId>
             <artifactId>json-path</artifactId>
             <version>2.7.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
-            <version>4.9.1</version>
         </dependency>
 
         <!-- bouncy castle differences are:
@@ -335,27 +304,6 @@
                     <!--                    </argLine>-->
                     <trimStackTrace>false</trimStackTrace>
                 </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.xolstice.maven.plugins</groupId>
-                <artifactId>protobuf-maven-plugin</artifactId>
-                <configuration>
-                    <protocArtifact>
-                        com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
-                    </protocArtifact>
-                    <pluginId>grpc-java</pluginId>
-                    <pluginArtifact>
-                        io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}
-                    </pluginArtifact>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>compile</goal>
-                            <goal>compile-custom</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
         <extensions>
