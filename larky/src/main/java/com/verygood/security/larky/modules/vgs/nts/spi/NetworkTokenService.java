@@ -16,10 +16,10 @@ public interface NetworkTokenService {
   @Data
   @Builder
   class NetworkToken {
-    final String token;
-    final Integer expireMonth;
-    final Integer expireYear;
-    final String cryptogramValue;
-    final String cryptogramEci;
+    private final String token;
+    private final Integer expireMonth;
+    private final Integer expireYear;
+    private final String cryptogramValue;
+    private final String cryptogramEci;
   }
 }
