@@ -67,11 +67,40 @@ def _test_render_json_path_list_match():
     asserts.assert_that(output["data"][2]["token"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
 
 
+def _test_render_pan_empty_value():
+    input = {
+        "pan": "",
+    }
+    asserts.assert_fails(lambda: nts.render(input, "$.pan"),
+                         "pan argument is required")
+
+
+def _test_render_pan_non_existing_path():
+    input = {
+        "pan": "785840aLpH4nUmV9985",
+    }
+    asserts.assert_fails(lambda: nts.render(input, "$.not_exists"),
+                         'pan JSONPath "\\$\\.not_exists" does not exist')
+
+
+def _test_render_set_non_existing_path():
+    input = {
+        "pan": "785840aLpH4nUmV9985",
+    }
+    for key in ["exp_month", "exp_year", "cryptogram_value", "cryptogram_eci"]:
+        asserts.assert_fails(
+            lambda: nts.render(input, "$.pan", **{key: "$.not_exists"}),
+            (
+                    'JSONPath "\\$\\.not_exists" does not exist, if you want to insert value to a nested path, please ensure that the ' +
+                    "target value already exists at the given path in the input")
+        )
+
+
 def _test_render_not_found():
     input = {
         "pan": "NOT_FOUND",
     }
-    asserts.assert_fails(lambda: nts.render(input, "$.pan"), "network token not found")
+    asserts.assert_fails(lambda: nts.render(input, "$.pan"), "network token does not found")
 
 
 def _suite():
@@ -80,6 +109,8 @@ def _suite():
     # Redact Tests
     _suite.addTest(unittest.FunctionTestCase(_test_render))
     _suite.addTest(unittest.FunctionTestCase(_test_render_json_path_list_match))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_pan_non_existing_path))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_set_non_existing_path))
     _suite.addTest(unittest.FunctionTestCase(_test_render_not_found))
 
     return _suite

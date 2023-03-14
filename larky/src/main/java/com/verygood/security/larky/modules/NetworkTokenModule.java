@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
 import com.verygood.security.larky.modules.vgs.nts.LarkyNetworkToken;
 import com.verygood.security.larky.modules.vgs.nts.MockNetworkTokenService;
 import com.verygood.security.larky.modules.vgs.nts.NoopNetworkTokenService;
@@ -111,9 +112,14 @@ public class NetworkTokenModule implements LarkyNetworkToken {
     final Object jsonPayload = fromStarlark(input);
     final DocumentContext context = JsonPath.parse(jsonPayload);
 
-    final String panAlias = context.read(pan);
+    final String panAlias;
+    try {
+      panAlias = context.read(pan);
+    } catch (PathNotFoundException exception) {
+      throw Starlark.errorf("pan JSONPath \"%s\" does not exist", pan);
+    }
     if (panAlias == null || panAlias.trim().isEmpty()) {
-      throw new IllegalArgumentException("Pan argument is required");
+      throw Starlark.errorf("pan argument is required");
     }
 
     final Optional<NetworkTokenService.NetworkToken> networkTokenOptional;
@@ -123,7 +129,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
       throw Starlark.errorf("nts.render's getNetworkToken operation must be overridden");
     }
     if (!networkTokenOptional.isPresent()) {
-      throw Starlark.errorf("network token not found");
+      throw Starlark.errorf("network token does not found");
     }
     final NetworkTokenService.NetworkToken networkToken = networkTokenOptional.get();
 
@@ -139,14 +145,29 @@ public class NetworkTokenModule implements LarkyNetworkToken {
             .add(Maps.immutableEntry(optionalValue(cryptogramEci), networkToken.getCryptogramEci()))
             .build();
     // Set values for each JSON path and value pairs to the output JSON payload
-    valuePlacements.stream()
-        // We are only interested in making insertions for present JSONPaths
-        .filter(keyValue -> keyValue.getKey().isPresent())
-        .forEach(
-            keyValue -> {
-              final String jsonPath = keyValue.getKey().get();
-              context.set(jsonPath, keyValue.getValue());
-            });
+    try {
+      valuePlacements.stream()
+          // We are only interested in making insertions for present JSONPaths
+          .filter(keyValue -> keyValue.getKey().isPresent())
+          .forEach(
+              keyValue -> {
+                final String jsonPath = keyValue.getKey().get();
+                try {
+                  context.set(jsonPath, keyValue.getValue());
+                } catch (final PathNotFoundException exception) {
+                  throw new RuntimeException(
+                      Starlark.errorf(
+                          "JSONPath \"%s\" does not exist, if you want to insert value to a nested path, please ensure "
+                              + "that the target value already exists at the given path in the input",
+                          jsonPath));
+                }
+              });
+    } catch (final RuntimeException exception) {
+      if (exception.getCause() instanceof EvalException) {
+        throw (EvalException) exception.getCause();
+      }
+      throw exception;
+    }
     return toStarlark(thread, context.json());
   }
 
