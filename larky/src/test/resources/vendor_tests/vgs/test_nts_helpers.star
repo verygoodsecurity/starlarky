@@ -3,7 +3,6 @@ load("@vendor//vgs//nts_helpers", "nts_helpers")
 load("@stdlib//unittest", "unittest")
 
 
-
 def _test_render():
     input = {
         "merchantAccount": "YOUR_MERCHANT_ACCOUNT",
