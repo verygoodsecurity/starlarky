@@ -1,9 +1,10 @@
+load("@stdlib//larky", larky="larky")
 load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 load("@vgs//nts", "nts")
 
 
 def render(input, pan, exp_month=None, exp_year=None, cryptogram_value=None, cryptogram_eci=None):
-    pan_value = jsonpath_ng.parse(pan).find(input).value_
+    pan_value = jsonpath_ng.parse(pan).find(input).value
     network_token = nts.get_network_token(pan_value)
     placements = [
         (pan, network_token["token"]),
@@ -13,12 +14,12 @@ def render(input, pan, exp_month=None, exp_year=None, cryptogram_value=None, cry
         (cryptogram_eci, network_token["cryptogram_eci"]),
     ]
     for path, value in placements:
-        if path is None:
+        if path == None:
             continue
-        input = jsonpath_ng.parse(path).update(input, value)
+        input = jsonpath_ng.parse(path).update(input, value).value
     return input
 
 
-nts = larky.struct(
+nts_helpers = larky.struct(
     render=render
 )
