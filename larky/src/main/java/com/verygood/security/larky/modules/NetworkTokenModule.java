@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
-import net.minidev.json.JSONArray;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -23,6 +22,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 
 @StarlarkBuiltin(name = "nts", category = "BUILTIN", doc = "Overridable Network Token API in Larky")
@@ -155,8 +155,8 @@ public class NetworkTokenModule implements LarkyNetworkToken {
     if (object instanceof Dict) {
       return fromStarlarkDict((Dict) object);
     }
-    if (object instanceof JSONArray) {
-      return fromStarlarkArray((JSONArray) object);
+    if (object instanceof StarlarkList) {
+      return fromStarlarkList((StarlarkList) object);
     }
     return object;
   }
@@ -169,13 +169,16 @@ public class NetworkTokenModule implements LarkyNetworkToken {
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
-  private static List<Object> fromStarlarkArray(JSONArray list) {
+  private static List<Object> fromStarlarkList(StarlarkList<Object> list) {
     return list.stream().map(value -> fromStarlark(value)).collect(Collectors.toList());
   }
 
   private static Object toStarlark(StarlarkThread thread, Object object) {
     if (object instanceof Map) {
       return toStarlarkDict(thread, (Map<Object, Object>) object);
+    }
+    if (object instanceof List) {
+      return toStarlarkList(thread, (List<Object>) object);
     }
     if (object instanceof Integer) {
       return StarlarkInt.of((Integer) object);
@@ -185,7 +188,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
 
   private static Dict<Object, Object> toStarlarkDict(
       StarlarkThread thread, Map<Object, Object> map) {
-    Map<Object, Object> convertedMap =
+    final Map<Object, Object> convertedMap =
         map.entrySet().stream()
             .map(
                 entry ->
@@ -193,6 +196,12 @@ public class NetworkTokenModule implements LarkyNetworkToken {
                         toStarlark(thread, entry.getKey()), toStarlark(thread, entry.getValue())))
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     return Dict.copyOf(thread.mutability(), convertedMap);
+  }
+
+  private static StarlarkList<Object> toStarlarkList(StarlarkThread thread, List<Object> list) {
+    final List<Object> convertedList =
+        list.stream().map(value -> toStarlark(thread, value)).collect(Collectors.toList());
+    return StarlarkList.copyOf(thread.mutability(), convertedList);
   }
 
   private static <T> Optional<T> optionalValue(Object obj) {

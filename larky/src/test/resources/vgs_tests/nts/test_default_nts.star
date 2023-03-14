@@ -47,19 +47,24 @@ def _test_render():
 
 
 def _test_render_json_path_list_match():
-    input = [
-        {"token": "TO_BE_REPLACED"},
-        {"token": "TO_BE_REPLACED"},
-        {"token": "TO_BE_REPLACED"},
-    ]
+    input = {
+        "pan": "785840aLpH4nUmV9985",
+        "data": [
+            {"token": "TO_BE_REPLACED"},
+            {"token": "TO_BE_REPLACED"},
+            {"token": "TO_BE_REPLACED"},
+        ]
+    }
 
     output = nts.render(
         input,
-        pan="$.[*].token",
+        pan="$.pan",
+        cryptogram_value="$.data[*].token",
     )
-    asserts.assert_that(output[0]["token"]).is_equal_to("4242424242424242")
-    asserts.assert_that(output[1]["token"]).is_equal_to("4242424242424242")
-    asserts.assert_that(output[2]["token"]).is_equal_to("4242424242424242")
+    asserts.assert_that(len(output["data"])).is_equal_to(3)
+    asserts.assert_that(output["data"][0]["token"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
+    asserts.assert_that(output["data"][1]["token"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
+    asserts.assert_that(output["data"][2]["token"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
 
 
 def _suite():
