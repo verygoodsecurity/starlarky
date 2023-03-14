@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.vgs.calm;
 
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkValue;
 
 public interface LarkyNetworkToken extends StarlarkValue {
@@ -9,8 +10,8 @@ public interface LarkyNetworkToken extends StarlarkValue {
    *
    * @param input Input JSON payload object
    * @param pan JSONPath to the PAN alias value in the input JSON payload
-   * @param expireMonth JSONPath to the expire month to insert in the result JSON payload object
-   * @param expireYear JSONPath to the expire year to insert in the result JSON payload object
+   * @param expireMonth JSONPath to the expiring month to insert in the result JSON payload object
+   * @param expireYear JSONPath to the expiring year to insert in the result JSON payload object
    * @param cryptogramValue JSONPath to the cryptogram value to insert in the result JSON payload
    *     object
    * @param cryptogramEci JSONPath to the cryptogram ECI to insert in the result JSON payload object
@@ -22,5 +23,5 @@ public interface LarkyNetworkToken extends StarlarkValue {
       String expireMonth,
       String expireYear,
       String cryptogramValue,
-      String cryptogramEci);
+      String cryptogramEci) throws EvalException;
 }
