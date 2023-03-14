@@ -1,14 +1,17 @@
 package com.verygood.security.larky.modules;
 
+import com.google.common.collect.ImmutableMap;
+import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.internal.JsonFormatter;
-import com.verygood.security.larky.modules.vgs.calm.Calm;
+import com.verygood.security.larky.modules.vgs.calm.LarkyNetworkToken;
 import com.verygood.security.messages.calm.CalmServiceGrpc;
 import com.verygood.security.messages.calm.CalmSvc;
 import io.grpc.Grpc;
 import io.grpc.InsecureChannelCredentials;
 import io.grpc.ManagedChannel;
 import java.util.Map;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import net.starlark.java.annot.Param;
@@ -21,14 +24,11 @@ import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 
-@StarlarkBuiltin(name = "nts", category = "BUILTIN", doc = "Overridable Vault API in Larky")
-public class CalmModule implements Calm {
-
-  public static final CalmModule INSTANCE = new CalmModule();
+@StarlarkBuiltin(name = "nts", category = "BUILTIN", doc = "Overridable Network Token API in Larky")
+public class NetworkTokenModule implements LarkyNetworkToken {
+  public static final NetworkTokenModule INSTANCE = new NetworkTokenModule();
 
   private static final String BASE_URL = "http://localhost:8080";
-
-  //  OkHttpClient client = new OkHttpClient();
 
   @StarlarkMethod(
       name = "render",
@@ -39,7 +39,7 @@ public class CalmModule implements Calm {
             name = "input",
             doc = "Input json payload",
             named = true,
-            allowedTypes = {@ParamType(type = String.class)}),
+            allowedTypes = {@ParamType(type = Object.class)}),
         @Param(
             name = "pan",
             named = true,
@@ -76,18 +76,59 @@ public class CalmModule implements Calm {
             allowedTypes = {@ParamType(type = String.class), @ParamType(type = NoneType.class)}),
       })
   @Override
-  public String render(String input, Map<String, String> config) {
+  public Object render(
+      Object input,
+      String pan,
+      String expireMonth,
+      String expireYear,
+      String cryptogramValue,
+      String cryptogramEci) {
+    final DocumentContext context = JsonPath.parse(input);
+
+    final String panAlias = context.read(pan);
+    if (panAlias == null || panAlias.trim().isEmpty()) {
+      throw new IllegalArgumentException("Pan argument is required");
+    }
+
+    // TODO:
     final ManagedChannel channel =
         Grpc.newChannelBuilder("localhost:9090", InsecureChannelCredentials.create()).build();
     final CalmServiceGrpc.CalmServiceBlockingStub stub = CalmServiceGrpc.newBlockingStub(channel);
 
     final CalmSvc.NetworkTokenRequest request =
         CalmSvc.NetworkTokenRequest.newBuilder()
-            .setPanAlias("foo")
-            .setMerchantId("bar")
-            .setVaultId("eggs")
+            .setPanAlias(panAlias)
+            .setVaultId("foobar")
+            .setPaymentDetails(CalmSvc.PaymentDetails.newBuilder().build())
             .build();
-    //    final CalmSvc.NetworkTokenResponse response = stub.getActiveNetworkToken(request);
+    final CalmSvc.NetworkTokenResponse response = stub.getActiveNetworkToken(request);
+
+    final Optional<CalmSvc.NetworkToken> networkToken =
+        Optional.ofNullable(response).map(CalmSvc.NetworkTokenResponse::getToken);
+    final Optional<CalmSvc.Cryptogram> cryptogram =
+        Optional.ofNullable(response).map(CalmSvc.NetworkTokenResponse::getCryptogram);
+
+    // Map from JSON path to its corresponding value to insert into the input JSON payload
+    final ImmutableMap<Optional<String>, Optional<Object>> valuePlacements =
+        ImmutableMap.<Optional<String>, Optional<Object>>builder()
+            .put(Optional.of(pan), networkToken.map(CalmSvc.NetworkToken::getToken))
+            .put(
+                Optional.ofNullable(expireMonth),
+                networkToken.map(CalmSvc.NetworkToken::getExpMonth))
+            .put(
+                Optional.ofNullable(expireYear), networkToken.map(CalmSvc.NetworkToken::getExpYear))
+            .put(Optional.ofNullable(cryptogramValue), cryptogram.map(CalmSvc.Cryptogram::getValue))
+            .put(Optional.ofNullable(cryptogramEci), cryptogram.map(CalmSvc.Cryptogram::getEci))
+            .build();
+
+    valuePlacements.entrySet().stream()
+        // We are only interested in making insertions for present JSONPaths
+        .filter(keyValue -> keyValue.getKey().isPresent())
+        .forEach(
+            keyValue -> {
+              final String jsonPath = keyValue.getKey().get();
+              // TODO: insert json path
+            });
 
     final String number = JsonPath.read(input, config.get("pan"));
     //    final NetworkToken token = requestToken(isEnrolled(config), number);
