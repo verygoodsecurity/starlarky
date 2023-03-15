@@ -16,15 +16,15 @@ XML Security Library example: Signed file (sign1 example).
           <Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
         </Transforms>
         <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
-        <DigestValue>mWe97TSz4IlTlrGBw7ZMr2PJZxc=</DigestValue>
+        <DigestValue>9H/rQr2Axe9hYTV2n/tCp+3UIQQ=</DigestValue>
       </Reference>
     </SignedInfo>
-    <SignatureValue>WuEPfJS4Zc4r2pQsXSs9dvwAMJ23fKaLJI7u1aM5npIWzYtecFq2xuA2Ajy+jV0n
-L0X+/TuH9aDHpvR+bYa0h9hqWPtrsvYdmZ2lwyl4BONJJkvJUlirMJZ8oKl24fXn
-SVEC8dlSQShUSWc0Nq900DpaVgwexUhL7UIjnL1hqSHLa82qTfYCka9KjPKgskOE
-guRF1ep5rDLUbE0YJgAbslNPt9EZCLObSdTCBq5j4U+o0dXGj9PT2Eb4vPFlDWhG
-61sN/oOLM3ZQgt5SX/UnEqZniWT5JeBERzMcoKa/HzoKiUtPTQ9F6g3tw0vVkQhq
-YGDm5Fxl4Lj3PtYT7ShKPg==</SignatureValue>
+    <SignatureValue>Mx4psIy9/UY+u8QBJRDrwQWKRaCGz0WOVftyDzAe6WHAFSjMNr7qb2ojq9kdipT8
+Oub5q2OQ7mzdSLiiejkrO1VeqM/90yEIGI4En6KEB6ArEzw+iq4N1wm6EptcyxXx
+M9StAOOa9ilWYqR9Tfx3SW1urUIuKYgUitxsONiUHBVaW6HeX51bsXoTF++4ZI+D
+jiPBjN4HHmr0cbJ6BXk91S27ffZIfp1Qj5nL9onFLUGbR6EFgu2luiRzQbPuM2tP
+XxyI7GZ8AfHnRJK28ARvBC9oi+O1ej20S79CIV7gdBxbLbFprozBHAwOEC57YgJc
+x+YEjSjcO7SBIR1FiUA7pw==</SignatureValue>
     <KeyInfo>
 	<KeyName>rsakey.pem</KeyName>
     </KeyInfo>
