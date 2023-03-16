@@ -3,14 +3,17 @@ load("@stdlib//io", io="io")
 load("@stdlib//types", types="types")
 load("@vendor//asserts", asserts="asserts")
 load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
-load("@vendor//elementtree/SimpleXMLTreeBuilder", SimpleXMLTreeBuilder="SimpleXMLTreeBuilder")
 
 
-def load_xml(xml, parser=SimpleXMLTreeBuilder.TreeBuilder(), tree_factory=etree.ElementTree):
+def load_xml(xml, parser=None):
     if types.is_bytelike(xml):
         xml = xml.decode('utf-8')
     f = io.StringIO(xml)
-    return etree.parse(f, parser=parser, tree_factory=tree_factory).getroot()
+    # remove_blank_text=True
+    # remove_comments=True
+    # resolve_entities=False
+    # lxml sends root, we match it.
+    return etree.parse(f, parser=parser).getroot()
 
 
 def parse_xml(name, parser=None):
