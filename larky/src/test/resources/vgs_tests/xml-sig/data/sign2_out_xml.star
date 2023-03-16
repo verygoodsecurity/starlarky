@@ -1,27 +1,12 @@
 SIGN_OUT_XML = """\
 <OrbiscomRequest xmlns:ds="http://www.w3.org/2000/09/xmldsig#" IssuerId="101118" Version="15.2">
     <OBOAuthenticateRequest><ds:Signature>
-<ds:SignedInfo>
-<ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
-<ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" />
-<ds:Reference>
-<ds:Transforms>
-<ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature" />
-</ds:Transforms>
-<ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
-<ds:DigestValue>2aESUP7W6eikyrGrh8XAkrB0vv0=</ds:DigestValue>
-</ds:Reference>
-</ds:SignedInfo>
-<ds:SignatureValue>KXA4l9KbcSozcjgOMjL1mDGgHcYqUhppuDAkvwNmdquFcqGhD0hiAHs4oyHf1Gbs
-v/F/VHsL0EOB/uGYgO6CFI4csB764eiBprgTsoPf1mPV3u9tTZ9tb6BbWY9XrmtN
-Hx3opa4+4SqPUywzYT4A7svFIIi1JG7/RwR1NfIW2mWIgvYDRd5SEGJ9PRZjAQiP
-PHrx5HRmLyveN2JpZtXFP/bWLpTflaWukZIoeVg8iwd98MNID+exH/qln+wDHGYi
-ADp6VNScv3fxORN4uje6UslkhwWpa+vgkFbHZVQItyII3lSx280dAnso9RoMjZqH
-Zty0vA3jEr8kCiS1AdnsUA==</ds:SignatureValue>
-<ds:KeyInfo>
-<ds:X509Data>
-<ds:X509SubjectName>CN=Extend-Enterprises, OU=incontrolmtf-retailapi, O=inControl-Retail, ST=New York, C=US</ds:X509SubjectName>
-<ds:X509Certificate>MIID3jCCAsagAwIBAgIIDzMLWm4jQMswDQYJKoZIhvcNAQELBQAwgYUxCzAJBgNV
+<ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/><ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/><ds:Reference URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/><ds:DigestValue>2aESUP7W6eikyrGrh8XAkrB0vv0=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue>DMIbKnuzr7uMTwz/n8JxMWqR0SG1Q+zBwjx28MamPSWpRfsFkxOQrQ9GaTOOnSqo
+Eou2xcDHW4pcblPeTZy1nYJI6+20S1dRCmb6/XAxAAeFvdSOvVwPtiB/LBPDN2sY
+VNM9cVUWZAQe6jgJQ/fPGPreZMeVZiqAXIBCoKCbmsxEgi5xt/kXC8rW/7XoaaBv
+XL+1vnvur4yBsyqHqrTfmwl+GvarM/e9bjxDuzjsmF+g76yb+DrQbdBnrm+7t0VV
+BTmIisMDAD07ZrgrSY+VN3cymgVcnPT11jDifK7ri2MwSXTaewWfWul4zVZzX4H+
+2eePPbOzrfoax6Z+b0KnhA==</ds:SignatureValue><ds:KeyInfo><ds:X509Data><ds:X509SubjectName>CN=Extend-Enterprises, OU=incontrolmtf-retailapi, O=inControl-Retail, ST=New York, C=US</ds:X509SubjectName><ds:X509Certificate>MIID3jCCAsagAwIBAgIIDzMLWm4jQMswDQYJKoZIhvcNAQELBQAwgYUxCzAJBgNV
 BAYTAkJFMRwwGgYDVQQKExNNYXN0ZXJDYXJkIFdvcmx3aWRlMSQwIgYDVQQLExtH
 bG9iYWwgSW5mb3JtYXRpb24gU2VjdXJpdHkxMjAwBgNVBAMTKU1hc3RlckNhcmQg
 SVRGIE1lc3NhZ2VzIFNpZ25pbmcgU3ViIENBIEcyMB4XDTIxMDIyMzEwNDAyOFoX
@@ -41,8 +26,7 @@ f9JQCGw301QhVWAWV9ZVAwyk7p+6G83kSwdbI+SYgTP9WW0sGWtsnYvo3VxaDCnO
 /Tnj8Hl+H7vdc9TKmas/xtE05ulZ97oeY9s/NDGgEoYRm5qvCiBH917CW0tSM5Zx
 3GOwmvSwtVKSsBLrNWwgKU1SVP5Q41WrNbkTW6mCAAPWF3UtQgTjdviNpIyOIALp
 DI3mxMKJ7Fef6FiJ+R9875UhcaPZbGksHXiBeFpSN2dcv1FMhdqQh3/qMMEJH5+Y
-bgr71Xf9GIgujVYNPzJxhHs3BWORX1O4gn/BprbZ7LmmNg==</ds:X509Certificate>
-<ds:X509SubjectName>CN=MasterCard ITF Messages Signing Sub CA G2, OU=Global Information Security, O=MasterCard Worlwide, C=BE</ds:X509SubjectName>
+bgr71Xf9GIgujVYNPzJxhHs3BWORX1O4gn/BprbZ7LmmNg==</ds:X509Certificate><ds:X509SubjectName>CN=MasterCard ITF Messages Signing Sub CA G2, OU=Global Information Security, O=MasterCard Worlwide, C=BE</ds:X509SubjectName>
 <ds:X509Certificate>MIIE/jCCAuagAwIBAgIQEnmGId5ldw6cBGHCXtcR0jANBgkqhkiG9w0BAQsFADCB
 hzELMAkGA1UEBhMCQkUxHTAbBgNVBAoTFE1hc3RlckNhcmQgV29ybGR3aWRlMSQw
 IgYDVQQLExtHbG9iYWwgSW5mb3JtYXRpb24gU2VjdXJpdHkxMzAxBgNVBAMTKk1h
@@ -104,8 +88,6 @@ MPmkDeG+X6lfDdzTpRJDqOQEYheoogTIS0PH4vEm1sRHxd0MU3SvE5/DDVhNC3mr
 UF8RPab5Vz/cP4LXm9wJTNhMpaGWyhRpLVlXTXM+PjotqwVFR1BEERiBl5wtVgDF
 vsKPeT+i3tAcKowZgxLfchp+84hc1PIfu+vxYtUfKll+MrYL7SmY0+CiuPZdHAgx
 Ab7QOQ==</ds:X509Certificate>
-</ds:X509Data>
-</ds:KeyInfo>
-</ds:Signature></OBOAuthenticateRequest>
+</ds:X509Data></ds:KeyInfo></ds:Signature></OBOAuthenticateRequest>
 </OrbiscomRequest>\
 """

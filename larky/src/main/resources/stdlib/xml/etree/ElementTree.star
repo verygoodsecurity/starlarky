@@ -2651,5 +2651,6 @@ ElementTree = larky.struct(
     tostringlist=tostringlist,
     indent=indent,
     canonicalize=canonicalize,
-    C14NWriterTarget=C14NWriterTarget
+    C14NWriterTarget=C14NWriterTarget,
+    flatten_nested_elements=flatten_nested_elements,
 )
