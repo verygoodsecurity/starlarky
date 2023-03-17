@@ -2,7 +2,7 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//io", io="io")
 load("@stdlib//types", types="types")
 load("@vendor//asserts", asserts="asserts")
-load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
+load("@vendor//lxml/etree", etree="etree")
 
 
 def load_xml(xml, parser=None):
@@ -35,6 +35,6 @@ def compare(name, result):
     result_text = etree.tostring(result, pretty_print=False)
     # Compare the results.
     if expected_text != result_text:
-        print("expected: ", expected_text, sep="\n")
-        print("result: ", result_text, sep="\n")
+        print("expected: ", "\n\n", expected_text)
+        print("result: ", "\n\n", result_text)
     asserts.eq(expected_text, result_text)

@@ -7,7 +7,7 @@ load("@vendor//Crypto/Util/number",
      _bytes_to_long="bytes_to_long")
 load("@vendor//cryptography/x509", oid="oid")
 load("@vendor//cryptography/x509/name", name="name")
-load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
+load("@vendor//lxml/etree", etree="etree")
 load("@vendor//option/result", Result="Result", Error="Error")
 
 load("@vendor//xmlsig/ns", ns="ns")

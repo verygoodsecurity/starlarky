@@ -1,6 +1,6 @@
 load("@stdlib//larky", larky="larky")
 
-load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
+load("@vendor//lxml/etree", etree="etree")
 load("@vendor//xmlsig/constants", ID_ATTR="ID_ATTR", NS_MAP="NS_MAP", DSigNs="DSigNs")
 load("@vendor//xmlsig/utils", create_node="create_node")
 
@@ -55,7 +55,15 @@ def add_x509_data(node):
 
 
 def create(c14n_method=False, sign_method=False, name=False, ns="ds"):
-    node = etree.Element(etree.QName(DSigNs, "Signature"), nsmap={ns: DSigNs})
+    node = etree.Element(etree.QName(DSigNs, "Signature"),
+                         # PY2LARKY DIFF below:
+                         # nsmap when creating the element should be inverse
+                         # to have the prefix as the *value* instead of the
+                         # *key*.
+                         #
+                         # This is a minor but important change for:
+                         #  xml.etree.ElementTree <<>> lxml.etree.ElementTree
+                         nsmap={DSigNs: ns})
     node.text = "\n"
     if name:
         node.set(ID_ATTR, name)
