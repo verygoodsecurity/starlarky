@@ -1,27 +1,19 @@
+load("@stdlib//larky", larky="larky")
 load("@stdlib//base64", base64="base64")
 load("@stdlib//io", io="io")
-load("@stdlib//unittest", unittest="unittest")
 load("@stdlib//jks", jks="jks")
 
-load("@vendor//asserts", asserts="asserts")
 load("@vendor//cryptography/hazmat/backends/pycryptodome", backend="backend")
 load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
-load("@vendor//xmlsig", xmlsig="xmlsig")
+load("@vgs//xmlsig-java-compatible", xmlsig="xmlsig")
 
 
-# TEST START
-load("./base", parse_xml="parse_xml", compare="compare")
-load("./data/sign2_in_xml", SIGN_IN_XML="SIGN_IN_XML")
-load("./data/sign2_out_xml", SIGN_OUT_XML="SIGN_OUT_XML")
-load("./data/keystore.jks", KEYSTORE="KEYSTORE")
-
-
-def test_xmlsig_sign_jks():
+def mcInControlSignature(xml_string, sign_element_xpath, keystore_base64, keystore_password, key_alias, key_password):
 
     # Load document file.
-    tree = etree.parse(io.StringIO(SIGN_IN_XML))
-    template = tree.getroot()
-    template = template[0]
+    tree = etree.parse(io.StringIO(xml_string))
+    root = tree.getroot()
+    template = root.find(sign_element_xpath)
 
     # Create a signature template for RSA-SHA1 enveloped signature.
     sign = xmlsig.template.create(
@@ -29,8 +21,6 @@ def test_xmlsig_sign_jks():
         sign_method=xmlsig.constants.TransformRsaSha1,
         ns=None,
     )
-
-    asserts.assert_that(sign).is_not_none()
 
     # Add the <ds:Signature/> node to the document.
     template.append(sign)
@@ -57,15 +47,16 @@ def test_xmlsig_sign_jks():
 
     ctx = xmlsig.SignatureContext()
 
-    key_file = io.StringIO(base64.b64decode(KEYSTORE))
-    password = bytearray("FOJ0g5iUiuw0", "UTF-8")
-    key_alias = bytearray("mc-ic-mtf", "UTF-8")
+    key_file = io.StringIO(base64.b64decode(keystore_base64))
+    keystore_password = bytearray(keystore_password, "UTF-8")
+    key_password = bytearray(key_password, "UTF-8")
+    key_alias = bytearray(key_alias, "UTF-8")
 
     (
         private_key,
         certificate,
         ca_certificates,
-    ) = backend().load_key_and_certificates_from_jks(key_file.read(), password, key_alias, password)
+    ) = backend().load_key_and_certificates_from_jks(key_file.read(), keystore_password, key_alias, key_password)
 
     ctx.load_pkcs12((private_key, certificate))
     ctx.ca_certificates = ca_certificates
@@ -73,15 +64,10 @@ def test_xmlsig_sign_jks():
     # Sign the template.
     ctx.sign(sign)
     ctx.verify(sign)
-    # Assert the contents of the XML document against the expected result.
-    compare(SIGN_OUT_XML, template.getroot())
 
+    return etree.tostring(template.getroot())
 
-def _suite():
-    _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(test_xmlsig_sign_jks))
-    return _suite
-
-
-_runner = unittest.TextTestRunner()
-_runner.run(_suite())
+crypt = larky.struct(
+    __name__='crypt',
+    mcInControlSignature=mcInControlSignature
+)

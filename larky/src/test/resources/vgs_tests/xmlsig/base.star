@@ -1,4 +1,3 @@
-load("@stdlib//larky", larky="larky")
 load("@stdlib//io", io="io")
 load("@stdlib//types", types="types")
 load("@vendor//asserts", asserts="asserts")
