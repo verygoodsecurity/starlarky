@@ -1,5 +1,7 @@
 package com.verygood.security.larky.modules.jks;
 
+import com.verygood.security.larky.modules.vgs.jks.JKS;
+import com.verygood.security.larky.modules.vgs.jks.JKSModule;
 import com.verygood.security.larky.modules.x509.LarkyKeyPair;
 import com.verygood.security.larky.modules.x509.LarkyX509Certificate;
 import net.starlark.java.eval.EvalException;

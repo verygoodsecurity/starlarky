@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.jks;
+package com.verygood.security.larky.modules.vgs.jks;
 
 import com.verygood.security.larky.modules.x509.LarkyKeyPair;
 import com.verygood.security.larky.modules.x509.LarkyX509Certificate;

@@ -6,7 +6,6 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//jopenssl", _JOpenSSL="jopenssl")
-load("@stdlib//jks", jks="jks")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//re", re="re")
 load("@vendor//Crypto/Hash", Hash="Hash")
@@ -22,6 +21,7 @@ load("@vendor//cryptography/hazmat/primitives/_hashes", hashes="hashes")
 # load("@vendor//cryptography/hazmat/primitives/asymmetric/utils", asym_utils="utils")
 load("@vendor//cryptography/x509/_base", X509Version="Version")
 load("@vendor//cryptography/utils", utils="utils")
+load("@vgs//jks", jks="jks")
 
 # From: https://github.com/openssl/openssl/blob/master/include/openssl/obj_mac.h
 _OpenSSL_Constants = enum.Enum('OpenSSL_Constant', [

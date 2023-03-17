@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.jks;
+package com.verygood.security.larky.modules.vgs.jks;
 
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;

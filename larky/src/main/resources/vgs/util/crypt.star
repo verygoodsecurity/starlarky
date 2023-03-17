@@ -1,7 +1,7 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//base64", base64="base64")
 load("@stdlib//io", io="io")
-load("@stdlib//jks", jks="jks")
+load("@vgs//jks", jks="jks")
 
 load("@vendor//cryptography/hazmat/backends/pycryptodome", backend="backend")
 load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
