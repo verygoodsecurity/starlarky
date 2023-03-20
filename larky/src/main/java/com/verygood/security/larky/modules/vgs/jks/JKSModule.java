@@ -33,11 +33,14 @@ import java.util.List;
 @StarlarkBuiltin(
         name = "jks",
         category = "BUILTIN",
-        doc = "")
+        doc = "Module for interaction with Java KeyStore API")
 public class JKSModule implements StarlarkValue {
 
     public static final JKSModule INSTANCE =  new JKSModule();
 
+    /**
+     * @see com.verygood.security.larky.modules.openssl.OpenSSL#loadKeyAndCertsFromPKCS12(StarlarkBytes, Object, StarlarkThread)
+     */
     @StarlarkMethod(
             name = "load_key_and_certificates",
             parameters = {
@@ -55,6 +58,7 @@ public class JKSModule implements StarlarkValue {
                             @ParamType(type = StarlarkBytes.class),
                     }),
             },
+            doc = "JKS analogy of the OpenSSL module's method <code>load_key_and_certificates_from_pkcs12()</code>",
             useStarlarkThread = true
     )
     public Tuple loadKeyAndCertificates(
