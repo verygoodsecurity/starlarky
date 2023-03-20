@@ -1,6 +1,5 @@
 package com.verygood.security.larky.modules.jks;
 
-import com.verygood.security.larky.modules.vgs.jks.JKS;
 import com.verygood.security.larky.modules.vgs.jks.JKSModule;
 import com.verygood.security.larky.modules.x509.LarkyKeyPair;
 import com.verygood.security.larky.modules.x509.LarkyX509Certificate;
@@ -28,12 +27,12 @@ public class JKSTest {
     private static final String KEY_ALIAS = "mc-ic-mtf";
     @Test
     public void name() throws EvalException {
-        JKS jks = JKSModule.jks();
         StarlarkBytes larkyKeystoreBytes = StarlarkBytes.immutableOf(KEYSTORE_BYTES);
         Object larkyKeystorePassword = StarlarkBytes.immutableOf(KEYSTORE_PASSWORD.getBytes());
         StarlarkBytes larkyKeyAlias = StarlarkBytes.immutableOf(KEY_ALIAS.getBytes());
         StarlarkBytes larkyKeyPassword = StarlarkBytes.immutableOf(KEY_PASSWORD.getBytes());
 
+        JKSModule jks = JKSModule.INSTANCE;
         Tuple result = jks.loadKeyAndCertificates(larkyKeystoreBytes, larkyKeystorePassword, larkyKeyAlias, larkyKeyPassword, null);
 
         assertThat(result.get(0), CoreMatchers.instanceOf(LarkyKeyPair.class));

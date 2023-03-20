@@ -9,7 +9,7 @@ load("@vgs//jks", jks="jks")
 def load_key_and_certificates(keystore_data, keystore_password, key_alias, key_password):
     if keystore_password != None:
         utils._check_byteslike("keystore_password", keystore_password)
-    key, cert, additional_certificates = jks.JKS.load_key_and_certificates(tobytes(keystore_data), keystore_password, key_alias, key_password)
+    key, cert, additional_certificates = jks.load_key_and_certificates(tobytes(keystore_data), keystore_password, key_alias, key_password)
     b = backend()
     return RSAPrivateKey(b, key, RSA.import_key(key.private_key())), Certificate(b, cert), [Certificate(b, c) for c in additional_certificates]
 
