@@ -52,7 +52,6 @@ def test_sign_and_verify_ecc():
     algorithm = "ES256"
     payload = {"a": "b"}
     jwe = jws.sign(payload, ecc_private_key, algorithm=algorithm)
-    print(jwe)
     asserts.assert_true(re.match(JWS_PATTERN, jwe))
     verified = jws.verify(jwe, ecc_public_key, algorithms=[algorithm])
     asserts.assert_true(verified)
