@@ -19,6 +19,33 @@ def render(
     output_cryptogram_value=None,
     output_cryptogram_eci=None,
 ):
+    """Retrieves a network token for the given PAN alias, renders the cryptogram, and injects the network token values
+    into the payload.
+
+    :param input: JSON payload to inject network token into
+    :param pan: JSONPath to the PAN alias in the input payload or a raw PAN alias value if `raw_pan` is true.
+           Used to look up the corresponding network token to be rendered and injected into the payload.
+    :param cvv: JSONPath to the CVV of the credit card in the input payload or a raw CVV value if `raw_cvv` is true.
+           Used to pass to the network for retrieving the corresponding network token and cryptogram to be returned.
+    :param amount: JSONPath to the amount of payment for the transaction to be made with the network token in the input
+           payload or a raw amount value if `raw_amount` is true. Used to pass to the network for retrieving the
+           corresponding network token and cryptogram to be returned.
+    :param currency_code: JSONPath to the currency code of payment amount for the transaction to be made with the
+           network token in the input payload or a raw amount value if `raw_amount` is true. Used to pass to the
+           network for retrieving the corresponding network token and cryptogram to be returned.
+    :param raw_pan: treat `pan` value as a raw input value instead of a JSONPath value
+    :param raw_cvv: treat `raw_cvv` value as a raw input value instead of a JSONPath value
+    :param raw_amount: treat `raw_amount` value as a raw input value instead of a JSONPath value
+    :param raw_currency_code: treat `raw_currency_code` value as a raw input value instead of a JSONPath value
+    :param output_pan: JSONPath to insert the PAN value of the network token within the input payload.
+           By default, the `pan` JSONPath path value will be used if no not provided.
+    :param output_exp_month: JSONPath to insert the expiration month of the network token within the input payload
+    :param output_exp_year: JSONPath to insert the expiration year of the network token within the input payload
+    :param output_cryptogram_value: JSONPath to insert the cryptogram value of the network token within the input
+           payload
+    :param output_cryptogram_eci: JSONPath to insert the cryptogram ECI of the network token within the input payload
+    :return: JSON payload injected with network token values
+    """
     if raw_pan:
         pan_value = pan
     else:

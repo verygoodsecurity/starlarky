@@ -59,19 +59,23 @@ public class NetworkTokenModule implements LarkyNetworkToken {
             name = "cvv",
             named = true,
             doc =
-                "CVV the credit card. Used to generate cryptogram with the network token to be returned",
+                "CVV of the credit card. Used to pass to the network for retrieving the corresponding network token "
+                    + "and cryptogram to be returned",
             allowedTypes = {@ParamType(type = String.class)}),
         @Param(
             name = "amount",
             named = true,
             doc =
-                "The amount of payment of the transaction to be made with the network token. Used to generate cryptogram with the network token to be returned",
+                "The amount of payment for the transaction to be made with the network token. Used to pass to the "
+                    + "network for retrieving the corresponding network token and cryptogram to be returned",
             allowedTypes = {@ParamType(type = String.class)}),
         @Param(
             name = "currency_code",
             named = true,
             doc =
-                "The currency code of the transaction to be made with the network token. Used to generate cryptogram with the network token to be returned",
+                "The currency code of payment amount for the transaction to be made with the network token. Used to "
+                    + "pass to the network for retrieving the corresponding network token and cryptogram to be "
+                    + "returned",
             allowedTypes = {@ParamType(type = String.class)}),
       })
   @Override
