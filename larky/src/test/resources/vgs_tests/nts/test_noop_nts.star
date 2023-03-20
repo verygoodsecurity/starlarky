@@ -6,9 +6,9 @@ load("@vgs//nts", "nts")
 
 
 def _test_get_network_token():
-    pan = "4111111111111111"
-    asserts.assert_fails(lambda: nts.get_network_token({}, pan),
-                         "nts.get_network_token operation must be overridden")
+    asserts.assert_fails(
+        lambda: nts.get_network_token(pan="MOCK_PAN_ALIAS", cvv="MOCK_CVV", amount="123.45", currency_code="USD"),
+        "nts.get_network_token operation must be overridden")
 
 
 def _suite():
