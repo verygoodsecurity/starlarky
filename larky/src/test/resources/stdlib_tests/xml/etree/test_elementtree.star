@@ -609,6 +609,11 @@ def test_namespace_prefix():
     ET._namespace_map.clear()
     ET._namespace_map.update(nsmap)
 
+def test_parse_and_getroot():
+    data = """<?xml version="1.0" encoding="utf-8"?><site></site>"""
+    root = ElementTree.parse(StringIO(data)).getroot()
+    asserts.assert_that(root.tag).is_equal_to("site")
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_elementtree))
@@ -622,6 +627,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(T_test_indent_space_caching))
     _suite.addTest(unittest.FunctionTestCase(T_test_indent_level))
     _suite.addTest(unittest.FunctionTestCase(test_namespace_prefix))
+    _suite.addTest(unittest.FunctionTestCase(test_parse_and_getroot))
 
     return _suite
 
