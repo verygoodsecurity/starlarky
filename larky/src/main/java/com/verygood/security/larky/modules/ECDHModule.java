@@ -30,13 +30,6 @@ public class ECDHModule implements StarlarkValue {
 
     public static final ECDHModule INSTANCE = new ECDHModule();
 
-    @StarlarkMethod(name="test", structField = false)
-    public static String test() {
-        String str = "Hello, world!";
-        System.out.println(str);
-        return str;
-    }
-
     @StarlarkMethod(name="key_exchange",
     doc = "Load Keys and Exchange values",
         parameters = {
