@@ -22,6 +22,19 @@ def render(
     """Retrieves a network token for the given PAN alias, renders the cryptogram, and injects the network token values
     into the payload.
 
+    For the output JSONPaths, please note that inserting a value into a non-existing deep nested note is not currently
+    supported. For example, for an input payload like this::
+
+        input = {
+            "data": {}
+        }
+
+    To insert into `$.data.network_token.exp_month` JSONPath, you need to place an empty value at the exact path first
+    like this in order to make JSONPath value insertion work::
+
+        input["data"]["network_token"] = {"exp_month": "TO_BE_REPLACED"}
+        nts_helpers.render(input, ...)
+
     :param input: JSON payload to inject network token into
     :param pan: JSONPath to the PAN alias in the input payload or a raw PAN alias value if `raw_pan` is true.
            Used to look up the corresponding network token to be rendered and injected into the payload.
