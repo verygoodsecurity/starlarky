@@ -5,7 +5,10 @@ load("@vgs//nts", "nts")
 
 def _test_get_network_token():
     output = nts.get_network_token(
-        "MOCK_PAN_ALIAS",
+        pan="MOCK_PAN_ALIAS",
+        cvv="MOCK_CVV",
+        amount="123.45",
+        currency_code="USD",
     )
     asserts.assert_that(output).is_equal_to({
         "token": "4242424242424242",
@@ -17,14 +20,17 @@ def _test_get_network_token():
 
 
 def _test_pan_empty_value():
-    asserts.assert_fails(lambda: nts.get_network_token(""), "pan argument cannot be blank")
+    asserts.assert_fails(lambda: nts.get_network_token("", cvv="MOCK_CVV", amount="123.45", currency_code="USD"),
+                         "pan argument cannot be blank")
 
 
 def _test_not_found():
     input = {
         "pan": "NOT_FOUND",
     }
-    asserts.assert_fails(lambda: nts.get_network_token("NOT_FOUND"), "network token is not found")
+    asserts.assert_fails(
+        lambda: nts.get_network_token("NOT_FOUND", cvv="MOCK_CVV", amount="123.45", currency_code="USD"),
+        "network token is not found")
 
 
 def _suite():
