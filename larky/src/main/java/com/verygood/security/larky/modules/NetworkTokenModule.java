@@ -55,9 +55,28 @@ public class NetworkTokenModule implements LarkyNetworkToken {
             named = true,
             doc = "PAN alias. Used to look up the corresponding network token to be returned",
             allowedTypes = {@ParamType(type = String.class)}),
+        @Param(
+            name = "cvv",
+            named = true,
+            doc =
+                "CVV the credit card. Used to generate cryptogram with the network token to be returned",
+            allowedTypes = {@ParamType(type = String.class)}),
+        @Param(
+            name = "amount",
+            named = true,
+            doc =
+                "The amount of payment of the transaction to be made with the network token. Used to generate cryptogram with the network token to be returned",
+            allowedTypes = {@ParamType(type = String.class)}),
+        @Param(
+            name = "currency_code",
+            named = true,
+            doc =
+                "The currency code of the transaction to be made with the network token. Used to generate cryptogram with the network token to be returned",
+            allowedTypes = {@ParamType(type = String.class)}),
       })
   @Override
-  public Dict<String, Object> getNetworkToken(String pan, StarlarkThread thread)
+  public Dict<String, Object> getNetworkToken(
+      String pan, String cvv, String amount, String currencyCode, StarlarkThread thread)
       throws EvalException {
     if (pan.trim().isEmpty()) {
       throw Starlark.errorf("pan argument cannot be blank");
