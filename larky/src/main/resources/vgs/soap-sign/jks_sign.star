@@ -8,7 +8,18 @@ load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
 load("@vgs//xmlsig-java-compatible", xmlsig="xmlsig")
 
 
-def mcInControlSignature(xml_string, sign_element_xpath, keystore_base64, keystore_password, key_alias, key_password):
+def jks_sign(xml_string, sign_element_xpath, keystore_base64, keystore_password, key_alias, key_password):
+    """Facade function for simplified usage of Java compatible version of xmlsig library together with Java KeyStore API adapter.
+
+    Encapsulates XML signature template creation and signature context initialization
+
+    :param xml_string: XML payload to sign
+    :param sign_element_xpath: XML element name to put signature element after
+    :param keystore_base64: Base64 encoded bytes of Java keystore
+    :param keystore_password: the password used to check the integrity of the keystore, the password used to unlock the keystore
+    :param key_alias: key alias used for signature
+    :param key_password: password for recovering the key
+    """
 
     # Load document file.
     tree = etree.parse(io.StringIO(xml_string))
@@ -63,11 +74,10 @@ def mcInControlSignature(xml_string, sign_element_xpath, keystore_base64, keysto
 
     # Sign the template.
     ctx.sign(sign)
-    ctx.verify(sign)
 
     return etree.tostring(template.getroot())
 
-crypt = larky.struct(
-    __name__='crypt',
-    mcInControlSignature=mcInControlSignature
+jks_sign = larky.struct(
+    __name__='jks_sign',
+    jks_sign=jks_sign
 )
