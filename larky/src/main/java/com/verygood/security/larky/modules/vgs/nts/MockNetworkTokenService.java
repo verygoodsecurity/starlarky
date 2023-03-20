@@ -5,7 +5,8 @@ import java.util.Optional;
 
 public class MockNetworkTokenService implements NetworkTokenService {
   @Override
-  public Optional<NetworkToken> getNetworkToken(String panAlias) {
+  public Optional<NetworkToken> getNetworkToken(
+      String panAlias, String cvv, String amount, String currencyCode) {
     if (panAlias.equals("NOT_FOUND")) {
       return Optional.empty();
     }

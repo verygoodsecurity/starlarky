@@ -83,7 +83,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
     }
     final Optional<NetworkTokenService.NetworkToken> networkTokenOptional;
     try {
-      networkTokenOptional = networkTokenService.getNetworkToken(pan);
+      networkTokenOptional = networkTokenService.getNetworkToken(pan, cvv, amount, currencyCode);
     } catch (UnsupportedOperationException exception) {
       throw Starlark.errorf("nts.get_network_token operation must be overridden");
     }
