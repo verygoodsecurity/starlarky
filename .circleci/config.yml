@@ -53,6 +53,7 @@ build-quarkus-runnable: &build-quarkus-runnable
         mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl runlarky
       fi
       mvn package -Pnative -DskipTests
+      cp ./runlarky/target/larky-runner ./pylarky
     no_output_timeout: 30m
 
 # Template to save Maven dependency cache to restore it in another jobs
