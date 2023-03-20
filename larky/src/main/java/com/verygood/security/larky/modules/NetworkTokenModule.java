@@ -53,7 +53,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
         @Param(
             name = "pan",
             named = true,
-            doc = "then pan alias value for looking network token up",
+            doc = "PAN alias. Used to look up the corresponding network token to be returned",
             allowedTypes = {@ParamType(type = String.class)}),
       })
   @Override
