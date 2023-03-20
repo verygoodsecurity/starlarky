@@ -7,7 +7,7 @@ load("@vendor//cryptography/utils", utils="utils")
 load("@vgs//jks", jks="jks")
 
 def load_key_and_certificates(keystore_data, keystore_password, key_alias, key_password):
-    """ Copy of PyCryptodome method <code>load_key_and_certificates_from_pkcs12</code> using JKS as a backend.
+    """ Copy of PyCryptodome method *load_key_and_certificates_from_pkcs12* using Java KeyStore as a backend.
     """
     if keystore_password != None:
         utils._check_byteslike("keystore_password", keystore_password)
