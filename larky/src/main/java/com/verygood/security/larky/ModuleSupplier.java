@@ -27,6 +27,7 @@ import com.verygood.security.larky.modules.ChaseModule;
 import com.verygood.security.larky.modules.CodecsModule;
 import com.verygood.security.larky.modules.CollectionsModule;
 import com.verygood.security.larky.modules.CryptoModule;
+import com.verygood.security.larky.modules.ECDHModule;
 import com.verygood.security.larky.modules.JsonModule;
 import com.verygood.security.larky.modules.OpenSSLModule;
 import com.verygood.security.larky.modules.ProtoBufModule;
@@ -79,6 +80,7 @@ public class ModuleSupplier {
       CodecsModule.INSTANCE,
       CollectionsModule.INSTANCE,
       CryptoModule.INSTANCE,
+      ECDHModule.INSTANCE,
       JsonModule.INSTANCE,
       OpenSSLModule.INSTANCE,
       ProtoBufModule.INSTANCE,
