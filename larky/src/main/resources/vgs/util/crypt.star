@@ -1,7 +1,7 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//base64", base64="base64")
 load("@stdlib//io", io="io")
-load("@vgs//jks", jks="jks")
+load("@vgs//jks/jks2pycryptodome", jks="jks2pycryptodome")
 
 load("@vendor//cryptography/hazmat/backends/pycryptodome", backend="backend")
 load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
@@ -56,7 +56,7 @@ def mcInControlSignature(xml_string, sign_element_xpath, keystore_base64, keysto
         private_key,
         certificate,
         ca_certificates,
-    ) = backend().load_key_and_certificates_from_jks(key_file.read(), keystore_password, key_alias, key_password)
+    ) = jks.load_key_and_certificates(key_file.read(), keystore_password, key_alias, key_password)
 
     ctx.load_pkcs12((private_key, certificate))
     ctx.ca_certificates = ca_certificates

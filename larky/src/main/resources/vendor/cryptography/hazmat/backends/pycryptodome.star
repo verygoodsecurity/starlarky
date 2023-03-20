@@ -21,7 +21,6 @@ load("@vendor//cryptography/hazmat/primitives/_hashes", hashes="hashes")
 # load("@vendor//cryptography/hazmat/primitives/asymmetric/utils", asym_utils="utils")
 load("@vendor//cryptography/x509/_base", X509Version="Version")
 load("@vendor//cryptography/utils", utils="utils")
-load("@vgs//jks", jks="jks")
 
 # From: https://github.com/openssl/openssl/blob/master/include/openssl/obj_mac.h
 _OpenSSL_Constants = enum.Enum('OpenSSL_Constant', [
@@ -945,13 +944,6 @@ def pycryptodome():
         key, cert, additional_certificates = _JOpenSSL.OpenSSL.load_key_and_certificates_from_pkcs12(tobytes(data), password)
         return RSAPrivateKey(self, key, RSA.import_key(key.private_key())), Certificate(self, cert), [Certificate(self, c) for c in additional_certificates]
     self.load_key_and_certificates_from_pkcs12 = load_key_and_certificates_from_pkcs12
-
-    def load_key_and_certificates_from_jks(keystore_data, keystore_password, key_alias, key_password):
-        if keystore_password != None:
-            utils._check_byteslike("keystore_password", keystore_password)
-        key, cert, additional_certificates = jks.JKS.load_key_and_certificates(tobytes(keystore_data), keystore_password, key_alias, key_password)
-        return RSAPrivateKey(self, key, RSA.import_key(key.private_key())), Certificate(self, cert), [Certificate(self, c) for c in additional_certificates]
-    self.load_key_and_certificates_from_jks = load_key_and_certificates_from_jks
 
     def load_rsa_private_numbers(private_numbers):
         return
