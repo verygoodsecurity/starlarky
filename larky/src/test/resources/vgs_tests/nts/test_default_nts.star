@@ -24,7 +24,7 @@ def _test_not_found():
     input = {
         "pan": "NOT_FOUND",
     }
-    asserts.assert_fails(lambda: nts.get_network_token("NOT_FOUND"), "network token does not found")
+    asserts.assert_fails(lambda: nts.get_network_token("NOT_FOUND"), "network token is not found")
 
 
 def _suite():

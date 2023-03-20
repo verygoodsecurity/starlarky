@@ -47,7 +47,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
 
   @StarlarkMethod(
       name = "get_network_token",
-      doc = "Get network token and the cryptogram for given pan alias and return",
+      doc = "Retrieves a network token for the given PAN alias.",
       useStarlarkThread = true,
       parameters = {
         @Param(
@@ -69,7 +69,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
       throw Starlark.errorf("nts.get_network_token operation must be overridden");
     }
     if (!networkTokenOptional.isPresent()) {
-      throw Starlark.errorf("network token does not found");
+      throw Starlark.errorf("network token is not found");
     }
     final NetworkTokenService.NetworkToken networkToken = networkTokenOptional.get();
     return Dict.<String, Object>builder()

@@ -58,7 +58,7 @@ def _test_render_not_found():
     input = {
         "pan": "NOT_FOUND",
     }
-    asserts.assert_fails(lambda: nts_helpers.render(input, "$.pan"), "network token does not found")
+    asserts.assert_fails(lambda: nts_helpers.render(input, "$.pan"), "network token is not found")
 
 
 def _suite():
