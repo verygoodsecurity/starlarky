@@ -688,8 +688,8 @@ def _decode_x509_name(*args):
     return args[0]
 
 
-def _Certificate(backend, x509_cert):
-    self = larky.mutablestruct(__name__='Certificate', __class__=_Certificate)
+def Certificate(backend, x509_cert):
+    self = larky.mutablestruct(__name__='Certificate', __class__=Certificate)
 
     def __init__(backend, x509_cert):
         self._backend = backend
@@ -942,7 +942,7 @@ def pycryptodome():
         # key = None
         # additional_certificates = []
         key, cert, additional_certificates = _JOpenSSL.OpenSSL.load_key_and_certificates_from_pkcs12(tobytes(data), password)
-        return RSAPrivateKey(self, key, RSA.import_key(key.private_key())), _Certificate(self, cert), [_Certificate(self, c) for c in additional_certificates]
+        return RSAPrivateKey(self, key, RSA.import_key(key.private_key())), Certificate(self, cert), [Certificate(self, c) for c in additional_certificates]
     self.load_key_and_certificates_from_pkcs12 = load_key_and_certificates_from_pkcs12
 
     def load_rsa_private_numbers(private_numbers):

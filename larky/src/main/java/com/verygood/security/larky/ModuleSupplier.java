@@ -41,6 +41,7 @@ import com.verygood.security.larky.modules.XMLModule;
 import com.verygood.security.larky.modules.ZLibModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
+import com.verygood.security.larky.modules.vgs.jks.JKSModule;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
 import com.verygood.security.larky.objects.LarkyClassMethod;
@@ -96,7 +97,8 @@ public class ModuleSupplier {
   public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
       VaultModule.INSTANCE,
       CerebroModule.INSTANCE,
-      ChaseModule.INSTANCE
+      ChaseModule.INSTANCE,
+      JKSModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
