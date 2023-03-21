@@ -1,5 +1,5 @@
 load("@vendor//asserts", "asserts")
-load("@vendor//vgs//nts_helpers", "nts_helpers")
+load("@vgs//nts_helpers", "nts_helpers")
 load("@stdlib//unittest", "unittest")
 
 
