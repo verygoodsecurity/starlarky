@@ -24,7 +24,7 @@ def render(
             "data": {}
         }
 
-    To insert into `$.data.network_token.exp_month` JSONPath, you need to place an empty value at the exact path first
+    To insert into `$.data.network_token.exp_month` JSONPath, you need to place any value at the exact path first
     like this in order to make JSONPath value insertion work::
 
         input["data"]["network_token"] = {"exp_month": "TO_BE_REPLACED"}
