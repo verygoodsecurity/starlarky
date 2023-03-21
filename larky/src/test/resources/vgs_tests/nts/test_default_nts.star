@@ -49,12 +49,12 @@ def _test_get_network_token():
     })
 
 
-def _test_pan_empty_value():
+def _test_get_network_token_pan_empty_value():
     asserts.assert_fails(lambda: nts.get_network_token("", cvv="MOCK_CVV", amount="123.45", currency_code="USD"),
                          "pan argument cannot be blank")
 
 
-def _test_not_found():
+def _test_get_network_token_not_found():
     input = {
         "pan": "NOT_FOUND",
     }
@@ -113,8 +113,8 @@ def _suite():
 
     # Get network token tests
     _suite.addTest(unittest.FunctionTestCase(_test_get_network_token))
-    _suite.addTest(unittest.FunctionTestCase(_test_pan_empty_value))
-    _suite.addTest(unittest.FunctionTestCase(_test_not_found))
+    _suite.addTest(unittest.FunctionTestCase(_test_get_network_token_pan_empty_value))
+    _suite.addTest(unittest.FunctionTestCase(_test_get_network_token_not_found))
     # Render tests
     _suite.addTest(unittest.FunctionTestCase(_test_render))
     _suite.addTest(unittest.FunctionTestCase(_test_render_pan_empty_value))
