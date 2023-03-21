@@ -70,34 +70,10 @@ def _test_render():
         cvv="$.paymentMethod.cvv",
         amount="$.amount.value",
         currency_code="$.amount.currency",
-        output_exp_month="$.paymentMethod.expiryMonth",
-        output_exp_year="$.paymentMethod.expiryYear",
-        output_cryptogram_value="$.mpiData.cavv",
-        output_cryptogram_eci="$.mpiData.eci",
-    )
-    asserts.assert_that(output["paymentMethod"]["number"]).is_equal_to("4242424242424242")
-    asserts.assert_that(output["paymentMethod"]["expiryMonth"]).is_equal_to(12)
-    asserts.assert_that(output["paymentMethod"]["expiryYear"]).is_equal_to(27)
-    asserts.assert_that(output["mpiData"]["cavv"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
-    asserts.assert_that(output["mpiData"]["eci"]).is_equal_to("MOCK_CRYPTOGRAM_ECI")
-
-
-def _test_render_with_raw_values_input():
-    output = nts.render(
-        _make_fixture(),
-        pan="MOCK_PAN_ALIAS",
-        cvv="123",
-        amount="45.67",
-        currency_code="USD",
-        output_pan="$.paymentMethod.number",
-        output_exp_month="$.paymentMethod.expiryMonth",
-        output_exp_year="$.paymentMethod.expiryYear",
-        output_cryptogram_value="$.mpiData.cavv",
-        output_cryptogram_eci="$.mpiData.eci",
-        raw_pan=True,
-        raw_amount=True,
-        raw_cvv=True,
-        raw_currency_code=True
+        exp_month="$.paymentMethod.expiryMonth",
+        exp_year="$.paymentMethod.expiryYear",
+        cryptogram_value="$.mpiData.cavv",
+        cryptogram_eci="$.mpiData.eci",
     )
     asserts.assert_that(output["paymentMethod"]["number"]).is_equal_to("4242424242424242")
     asserts.assert_that(output["paymentMethod"]["expiryMonth"]).is_equal_to(12)
@@ -109,15 +85,11 @@ def _test_render_with_raw_values_input():
 def _test_render_pan_empty_value():
     asserts.assert_fails(
         lambda: nts.render(
-            {},
-            pan="",
-            cvv="MOCK_CVV",
-            amount="MOCK_AMOUNT",
-            currency_code="MOCK_CURRENCY_CODE",
-            raw_pan=True,
-            raw_amount=True,
-            raw_cvv=True,
-            raw_currency_code=True
+            {"pan": "", "cvv": "MOCK_CVV", "amount": "MOCK_AMOUNT", "currency_code": "MOCK_CURRENCY_CODE"},
+            pan="$.pan",
+            cvv="$.cvv",
+            amount="$.amount",
+            currency_code="$.currency_code",
         ),
         "pan argument cannot be blank",
     )
@@ -126,15 +98,11 @@ def _test_render_pan_empty_value():
 def _test_render_not_found():
     asserts.assert_fails(
         lambda: nts.render(
-            {},
-            pan="NOT_FOUND",
-            cvv="MOCK_CVV",
-            amount="MOCK_AMOUNT",
-            currency_code="MOCK_CURRENCY_CODE",
-            raw_pan=True,
-            raw_amount=True,
-            raw_cvv=True,
-            raw_currency_code=True
+            {"pan": "NOT_FOUND", "cvv": "MOCK_CVV", "amount": "MOCK_AMOUNT", "currency_code": "MOCK_CURRENCY_CODE"},
+            pan="$.pan",
+            cvv="$.cvv",
+            amount="$.amount",
+            currency_code="$.currency_code",
         ),
         "network token is not found",
     )
@@ -149,7 +117,6 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_not_found))
     # Render tests
     _suite.addTest(unittest.FunctionTestCase(_test_render))
-    _suite.addTest(unittest.FunctionTestCase(_test_render_with_raw_values_input))
     _suite.addTest(unittest.FunctionTestCase(_test_render_pan_empty_value))
     _suite.addTest(unittest.FunctionTestCase(_test_render_not_found))
     return _suite
