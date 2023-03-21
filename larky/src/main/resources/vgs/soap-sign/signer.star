@@ -8,7 +8,7 @@ load("@stdlib//xml/etree/ElementTree", etree="ElementTree")
 load("@vgs//xmlsig-java-compatible", xmlsig="xmlsig")
 
 
-def jks_sign(xml_string, sign_element_xpath, keystore_base64, keystore_password, key_alias, key_password):
+def sign_with_jks(xml_string, sign_element_xpath, keystore_base64, keystore_password, key_alias, key_password):
     """Facade function for simplified usage of Java compatible version of xmlsig library together with Java KeyStore API adapter.
 
     Encapsulates XML signature template creation and signature context initialization
@@ -77,7 +77,7 @@ def jks_sign(xml_string, sign_element_xpath, keystore_base64, keystore_password,
 
     return etree.tostring(template.getroot())
 
-jks_sign = larky.struct(
-    __name__='jks_sign',
-    jks_sign=jks_sign
+signer = larky.struct(
+    __name__='signer',
+    sign_with_jks=sign_with_jks
 )
