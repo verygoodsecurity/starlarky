@@ -1,6 +1,6 @@
+load("@vgs//native_nts", _nts="native_nts")
 load("@stdlib//larky", larky="larky")
 load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
-load("@vgs//nts", "nts")
 
 
 def render(
@@ -76,7 +76,7 @@ def render(
     else:
         currency_code_value = jsonpath_ng.parse(currency_code).find(input).value
 
-    network_token = nts.get_network_token(
+    network_token = _nts.get_network_token(
         pan=pan_value,
         cvv=cvv_value,
         amount=amount_value,
@@ -99,6 +99,7 @@ def render(
     return input
 
 
-nts_helpers = larky.struct(
-    render=render
+nts = larky.struct(
+    get_network_token=_nts.get_network_token,
+    render=render,
 )

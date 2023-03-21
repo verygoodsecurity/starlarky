@@ -18,7 +18,7 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 
-@StarlarkBuiltin(name = "nts", category = "BUILTIN", doc = "Overridable Network Token API in Larky")
+@StarlarkBuiltin(name = "native_nts", category = "BUILTIN", doc = "Overridable Network Token API in Larky")
 public class NetworkTokenModule implements LarkyNetworkToken {
   public static final NetworkTokenModule INSTANCE = new NetworkTokenModule();
 
