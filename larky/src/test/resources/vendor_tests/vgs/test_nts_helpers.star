@@ -2,38 +2,40 @@ load("@vendor//asserts", "asserts")
 load("@vendor//vgs//nts_helpers", "nts_helpers")
 load("@stdlib//unittest", "unittest")
 
-FIXTURE = {
-    "merchantAccount": "YOUR_MERCHANT_ACCOUNT",
-    "reference": "YOUR_PAYMENT_REFERENCE",
-    "amount": {
-        "currency": "USD",
-        "value": 1000,
-    },
-    "paymentMethod": {
-        "type": "networkToken",
-        "holderName": "CARDHOLDER_NAME",
-        "number": "785840aLpH4nUmV9985",
-        "expiryMonth": "TO_BE_REPLACED",
-        "expiryYear": "TO_BE_REPLACED",
-        "cvv": "123",
-    },
-    "returnUrl": "https://your-company.com/",
-    "shopperReference": "YOUR_SHOPPER_REFERENCE",
-    "recurringProcessingModel": "CardOnFile",
-    "shopperInteraction": "Ecommerce",
-    # Deep JSONPath is not supported by the JSONPath lib, so that we need to
-    # create an empty object here manually.
-    # ref: https://github.com/json-path/JsonPath/issues/83
-    "mpiData": {
-        "cavv": "TO_BE_REPLACED",
-        "eci": "TO_BE_REPLACED",
+
+def make_fixture():
+    return {
+        "merchantAccount": "YOUR_MERCHANT_ACCOUNT",
+        "reference": "YOUR_PAYMENT_REFERENCE",
+        "amount": {
+            "currency": "USD",
+            "value": 1000,
+        },
+        "paymentMethod": {
+            "type": "networkToken",
+            "holderName": "CARDHOLDER_NAME",
+            "number": "785840aLpH4nUmV9985",
+            "expiryMonth": "TO_BE_REPLACED",
+            "expiryYear": "TO_BE_REPLACED",
+            "cvv": "123",
+        },
+        "returnUrl": "https://your-company.com/",
+        "shopperReference": "YOUR_SHOPPER_REFERENCE",
+        "recurringProcessingModel": "CardOnFile",
+        "shopperInteraction": "Ecommerce",
+        # Deep JSONPath is not supported by the JSONPath lib, so that we need to
+        # create an empty object here manually.
+        # ref: https://github.com/json-path/JsonPath/issues/83
+        "mpiData": {
+            "cavv": "TO_BE_REPLACED",
+            "eci": "TO_BE_REPLACED",
+        }
     }
-}
 
 
 def _test_render():
     output = nts_helpers.render(
-        FIXTURE,
+        make_fixture(),
         pan="$.paymentMethod.number",
         cvv="$.paymentMethod.cvv",
         amount="$.amount.value",
@@ -52,11 +54,12 @@ def _test_render():
 
 def _test_render_with_raw_values_input():
     output = nts_helpers.render(
-        FIXTURE,
+        make_fixture(),
         pan="MOCK_PAN_ALIAS",
         cvv="123",
         amount="45.67",
         currency_code="USD",
+        output_pan="$.paymentMethod.number",
         output_exp_month="$.paymentMethod.expiryMonth",
         output_exp_year="$.paymentMethod.expiryYear",
         output_cryptogram_value="$.mpiData.cavv",
