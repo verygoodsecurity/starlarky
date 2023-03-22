@@ -22,11 +22,13 @@ import com.google.common.collect.ImmutableSet;
 
 import com.verygood.security.larky.modules.BinasciiModule;
 import com.verygood.security.larky.modules.C99MathModule;
+import com.verygood.security.larky.modules.NetworkTokenModule;
 import com.verygood.security.larky.modules.CerebroModule;
 import com.verygood.security.larky.modules.ChaseModule;
 import com.verygood.security.larky.modules.CodecsModule;
 import com.verygood.security.larky.modules.CollectionsModule;
 import com.verygood.security.larky.modules.CryptoModule;
+import com.verygood.security.larky.modules.ECDHModule;
 import com.verygood.security.larky.modules.JsonModule;
 import com.verygood.security.larky.modules.OpenSSLModule;
 import com.verygood.security.larky.modules.ProtoBufModule;
@@ -40,6 +42,7 @@ import com.verygood.security.larky.modules.XMLModule;
 import com.verygood.security.larky.modules.ZLibModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
+import com.verygood.security.larky.modules.vgs.jks.JKSModule;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
 import com.verygood.security.larky.objects.LarkyClassMethod;
@@ -79,6 +82,7 @@ public class ModuleSupplier {
       CodecsModule.INSTANCE,
       CollectionsModule.INSTANCE,
       CryptoModule.INSTANCE,
+      ECDHModule.INSTANCE,
       JsonModule.INSTANCE,
       OpenSSLModule.INSTANCE,
       ProtoBufModule.INSTANCE,
@@ -93,8 +97,10 @@ public class ModuleSupplier {
 
   public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
       VaultModule.INSTANCE,
+      NetworkTokenModule.INSTANCE,
       CerebroModule.INSTANCE,
-      ChaseModule.INSTANCE
+      ChaseModule.INSTANCE,
+      JKSModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(

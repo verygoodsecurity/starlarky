@@ -6,7 +6,10 @@ import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.security.cert.CertificateEncodingException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
@@ -220,9 +223,16 @@ public class LarkyX509Certificate implements StarlarkValue {
   */
   @StarlarkMethod(name = "subject")
   public String subject() {
-    return this.cert.getSubject().toString();
+    String subject = this.cert.getSubject().toString();
+    return Pattern.compile(",").splitAsStream(subject)
+            .collect(Collectors.collectingAndThen(
+                    Collectors.toList(),
+                    list -> {
+                      Collections.reverse(list);
+                      return String.join(", ", list);
+                    }
+            ));
   }
-
 
   /*
    Returns a HashAlgorithm corresponding to the type of the digest signed
@@ -350,7 +360,7 @@ public class LarkyX509Certificate implements StarlarkValue {
     switch (encoding.toUpperCase()) {
       case "DER":
         try {
-          return StarlarkBytes.of(thread.mutability(), this.getPublicKey().getEncoded(ASN1Encoding.DER));
+          return StarlarkBytes.of(thread.mutability(), this.cert.toASN1Structure().getEncoded(encoding));
         } catch (IOException e) {
           throw new EvalException(e);
         }
