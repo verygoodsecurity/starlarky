@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules;
 
+import com.verygood.security.larky.modules.codecs.TextUtil;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -7,9 +8,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
-
-import com.verygood.security.larky.modules.codecs.TextUtil;
-
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -61,17 +59,27 @@ public class CodecsModule implements StarlarkValue {
               },
               defaultValue = "'strict'",
               named = true
+          ),
+          @Param(
+              name = "unescape",
+              allowedTypes = {
+                  @ParamType(type = Boolean.class),
+              },
+              defaultValue = "True",
+              named = true
           )
       },
       useStarlarkThread = true
   )
-  public StarlarkBytes encode(String strToEncode, String encoding, String errors, StarlarkThread thread) throws EvalException {
+  public StarlarkBytes encode(String strToEncode, String encoding, String errors,
+      Boolean additionalUnescape, StarlarkThread thread) throws EvalException {
     CharsetEncoder encoder = Charset.forName(encoding)
         .newEncoder()
         .onMalformedInput(TextUtil.CodecHelper.convertCodingErrorAction(errors))
         .onUnmappableCharacter(TextUtil.CodecHelper.convertCodingErrorAction(errors));
     try {
-      ByteBuffer encoded = encoder.encode(CharBuffer.wrap(TextUtil.unescapeJavaString(strToEncode)));
+      String unescapedString = additionalUnescape ? TextUtil.unescapeJavaString(strToEncode) : strToEncode;
+      ByteBuffer encoded = encoder.encode(CharBuffer.wrap(unescapedString));
       return StarlarkBytes.copyOf(thread.mutability(), encoded);
 //      return (StarlarkBytes) StarlarkBytes.builder(thread).setSequence(encoded).build();
     } catch (CharacterCodingException e) {
@@ -114,7 +122,7 @@ public class CodecsModule implements StarlarkValue {
       }
   )
   public String decode(StarlarkBytes bytesToDecode, String encoding, String errors) throws EvalException {
-    if(CodecsModule.UTF8.equals(encoding.toLowerCase())) { // TODO: fix this to be a normal decoder
+    if (CodecsModule.UTF8.equals(encoding.toLowerCase())) { // TODO: fix this to be a normal decoder
       return TextUtil.starlarkDecodeUtf8(bytesToDecode.toByteArray());
     }
     CharsetDecoder decoder = Charset.forName(encoding)
