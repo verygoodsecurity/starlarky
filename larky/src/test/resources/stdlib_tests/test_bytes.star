@@ -247,6 +247,12 @@ def _test_bytes_join():
     sut = bytearray([0x2e]).join([bytes([0x61,0x62]), bytes([0x70,0x71]), bytes([0x72,0x73])])
     asserts.assert_that(sut).is_equal_to(expected)
 
+def _test_skip_unescape_encode():
+    bytes = b"{\"field\": \"\\n  function(a):\\n    a=dosomething()\\n    return a\\n\\n\",\"simple_field\":{\"input\":\"123344444\"}}"
+    text = str(bytes)
+    asserts.assert_that(codecs.encode(text,'ISO-8859-1','error')).is_not_equal_to(bytes)
+    asserts.assert_that(codecs.encode(text,'ISO-8859-1','error', False)).is_equal_to(bytes)
+
 
 # TODO(adonovan): the specification is not finalized in many areas:
 # - chr, ord functions
@@ -299,6 +305,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_slicing))
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_are_immutable))
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_join))
+    _suite.addTest(unittest.FunctionTestCase(_test_skip_unescape_encode))
 
     return _suite
 
