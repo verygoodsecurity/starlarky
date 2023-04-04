@@ -65,7 +65,7 @@ public class CodecsModule implements StarlarkValue {
               allowedTypes = {
                   @ParamType(type = Boolean.class),
               },
-              defaultValue = "False",
+              defaultValue = "True",
               named = true
           )
       },

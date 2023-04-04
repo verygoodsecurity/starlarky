@@ -250,8 +250,8 @@ def _test_bytes_join():
 def _test_skip_unescape_encode():
     bytes = b"{\"field\": \"\\n  function(a):\\n    a=dosomething()\\n    return a\\n\\n\",\"simple_field\":{\"input\":\"123344444\"}}"
     text = codecs.decode(bytes,'ISO-8859-1')
-    asserts.assert_that(codecs.encode(text,'ISO-8859-1','error', True)).is_not_equal_to(bytes)
-    asserts.assert_that(codecs.encode(text,'ISO-8859-1','error')).is_equal_to(bytes)
+    asserts.assert_that(codecs.encode(text,'ISO-8859-1','error')).is_not_equal_to(bytes)
+    asserts.assert_that(codecs.encode(text,'ISO-8859-1','error', False)).is_equal_to(bytes)
 
 
 # TODO(adonovan): the specification is not finalized in many areas:
