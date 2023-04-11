@@ -1601,7 +1601,7 @@ def ZipFile(file, mode="r", compression=ZIP_STORED, allowZip64=False):
             data = bytes(data, "utf-8")
         if not builtins.isinstance(zinfo_or_arcname, ZipInfo):
             zinfo = ZipInfo(filename=zinfo_or_arcname,
-                            date_time=(1970, 1, 1, 00, 00, 00))
+                            date_time=(1970, 1, 1, 0, 0, 0))
             zinfo.compress_type = self.compression
             zinfo._compresslevel = self.compresslevel
             if zinfo.filename[-1] == '/':
