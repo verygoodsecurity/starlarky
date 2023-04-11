@@ -1555,9 +1555,9 @@ def ZipFile(file, mode="r", compression=ZIP_STORED, allowZip64=False):
     def _open_to_write(zinfo, force_zip64=False):
         if force_zip64 and not self._allowZip64:
             fail("ValueError: force_zip64 is True, but allowZip64 was False when opening the ZIP file.")
-        #if self._writing:
-        #    fail("ValueError: Can't write to the ZIP file while there is another write handle open on it. " +
-        #                    "Close the first handle before opening another.")
+        if self._writing:
+            fail("ValueError: Can't write to the ZIP file while there is another write handle open on it. " +
+                    "Close the first handle before opening another.")
 
         # Size and CRC are overwritten with correct data after processing the file
         zinfo.compress_size = 0
@@ -1601,8 +1601,7 @@ def ZipFile(file, mode="r", compression=ZIP_STORED, allowZip64=False):
             data = bytes(data, "utf-8")
         if not builtins.isinstance(zinfo_or_arcname, ZipInfo):
             zinfo = ZipInfo(filename=zinfo_or_arcname,
-                            # date_time=time.localtime(time.time())[:6])
-                            date_time=(2023, 3, 27, 14, 44, 30))
+                            date_time=(1970, 1, 1, 00, 00, 00))
             zinfo.compress_type = self.compression
             zinfo._compresslevel = self.compresslevel
             if zinfo.filename[-1] == '/':
@@ -1657,7 +1656,6 @@ def ZipFile(file, mode="r", compression=ZIP_STORED, allowZip64=False):
         self.filename = None # Can't use `getattr()` on the bytestream
         self.metadata_encoding = None
         self._fileRefCnt = 1
-        # self._lock = threading.RLock()
         self._seekable = True
         self._writing = False
 
