@@ -1,4 +1,5 @@
 load("@vgs//native_nts", _nts="native_nts")
+load("@vgs//vault", vault="vault")
 load("@stdlib//larky", larky="larky")
 load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 
@@ -9,6 +10,7 @@ def render(
     cvv,
     amount,
     currency_code,
+    dcvv=None,
     exp_month=None,
     exp_year=None,
     cryptogram_value=None,
@@ -35,6 +37,8 @@ def render(
            rendered and injected into the payload.
     :param cvv: JSONPath to the CVV of the credit card in the input payload. Used to pass to the network for retrieving
            the corresponding network token and cryptogram to be returned.
+    :param dcvv: JSONPath to the DCVV of the credit card in the input payload. Used to pass to the network for retrieving
+               the corresponding network token and cryptogram to be returned.
     :param amount: JSONPath to the amount of payment for the transaction to be made with the network token in the input
            payload. Used to pass to the network for retrieving the corresponding network token and cryptogram to be
            returned.
@@ -50,12 +54,14 @@ def render(
     """
     pan_value = jsonpath_ng.parse(pan).find(input).value
     cvv_value = jsonpath_ng.parse(cvv).find(input).value
+    dcvv_value = jsonpath_ng.parse(dcvv).find(input).value
     amount_value = str(jsonpath_ng.parse(amount).find(input).value)
     currency_code_value = jsonpath_ng.parse(currency_code).find(input).value
 
     network_token = _nts.get_network_token(
         pan=pan_value,
         cvv=cvv_value,
+        dcvv=dcvv_value,
         amount=amount_value,
         currency_code=currency_code_value,
     )
@@ -77,3 +83,7 @@ nts = larky.struct(
     get_network_token=_nts.get_network_token,
     render=render,
 )
+
+def supports_dcvv(
+    input,
+    pan):  return vault.get(input.json_path_get(pan)).startswith(4)

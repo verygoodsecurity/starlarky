@@ -21,6 +21,7 @@ public interface NetworkTokenService {
   @Builder
   class NetworkToken {
     private final String token;
+    private final String dcvv;
     private final Integer expireMonth;
     private final Integer expireYear;
     private final String cryptogramValue;

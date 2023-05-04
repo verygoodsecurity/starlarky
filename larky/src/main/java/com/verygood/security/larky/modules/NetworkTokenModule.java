@@ -97,6 +97,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
     final NetworkTokenService.NetworkToken networkToken = networkTokenOptional.get();
     return Dict.<String, Object>builder()
         .put("token", networkToken.getToken())
+        .put("dcvv", networkToken.getDcvv())
         .put("exp_month", StarlarkInt.of(networkToken.getExpireMonth()))
         .put("exp_year", StarlarkInt.of(networkToken.getExpireYear()))
         .put("cryptogram_value", networkToken.getCryptogramValue())
