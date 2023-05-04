@@ -5,16 +5,16 @@ load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 
 
 def render(
-    input,
-    pan,
-    cvv,
-    amount,
-    currency_code,
-    dcvv=None,
-    exp_month=None,
-    exp_year=None,
-    cryptogram_value=None,
-    cryptogram_eci=None,
+        input,
+        pan,
+        cvv,
+        amount,
+        currency_code,
+        dcvv=None,
+        exp_month=None,
+        exp_year=None,
+        cryptogram_value=None,
+        cryptogram_eci=None,
 ):
     """Retrieves a network token for the given PAN alias, renders the cryptogram, and injects the network token values
     into the payload.
@@ -79,11 +79,12 @@ def render(
     return input
 
 
+def supports_dcvv(input, pan):
+    return vault.getValue(jsonpath_ng.parse(pan)).startswith(4)
+
+
 nts = larky.struct(
     get_network_token=_nts.get_network_token,
     render=render,
+    supports_dcvv=supports_dcvv
 )
-
-def supports_dcvv(
-    input,
-    pan):  return vault.get(input.json_path_get(pan)).startswith(4)
