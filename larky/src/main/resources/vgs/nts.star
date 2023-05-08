@@ -79,8 +79,8 @@ def render(
         (cryptogram_value, network_token["cryptogram_value"]),
         (cryptogram_eci, network_token["cryptogram_eci"]),
     ]
-    # If dynamic CVV is used, we need to place it into the original payload here
-    if dcvv != None:
+    # If dynamic CVV is used and provided, we need to place it into the original payload here
+    if dcvv != None and network_token.get("dcvv") != None:
         placements.append((dcvv, network_token["dcvv"]))
     for path, value in placements:
         if path == None:

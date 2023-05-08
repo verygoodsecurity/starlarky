@@ -82,6 +82,19 @@ def _test_render():
     asserts.assert_that(output["mpiData"]["eci"]).is_equal_to("MOCK_CRYPTOGRAM_ECI")
 
 
+def _test_render_with_dcvv():
+    input = _make_fixture()
+    input["paymentMethod"]["cvv"] = "USE_DYNAMIC_CVV"
+    output = nts.render(
+        input,
+        pan="$.paymentMethod.number",
+        dcvv="$.paymentMethod.cvv",
+        amount="$.amount.value",
+        currency_code="$.amount.currency",
+    )
+    asserts.assert_that(output["paymentMethod"]["cvv"]).is_equal_to("MOCK_DYNAMIC_CVV")
+
+
 def _test_render_pan_empty_value():
     asserts.assert_fails(
         lambda: nts.render(
@@ -133,6 +146,7 @@ def _test_render_without_either_cvv_or_dcvv():
         "ValueError: either one of cvv or dvcc need to be provided",
     )
 
+
 def _suite():
     _suite = unittest.TestSuite()
 
@@ -142,6 +156,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_get_network_token_not_found))
     # Render tests
     _suite.addTest(unittest.FunctionTestCase(_test_render))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_with_dcvv))
     _suite.addTest(unittest.FunctionTestCase(_test_render_pan_empty_value))
     _suite.addTest(unittest.FunctionTestCase(_test_render_not_found))
     _suite.addTest(unittest.FunctionTestCase(_test_render_with_both_cvv_and_dcvv))

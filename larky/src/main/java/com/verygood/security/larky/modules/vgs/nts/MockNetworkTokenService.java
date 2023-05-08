@@ -17,8 +17,8 @@ public class MockNetworkTokenService implements NetworkTokenService {
             .expireYear(27)
             .cryptogramValue("MOCK_CRYPTOGRAM_VALUE")
             .cryptogramEci("MOCK_CRYPTOGRAM_ECI");
-    if (panAlias.equals("DYNAMIC_CVV")) {
-      builder.dcvv("123");
+    if (cvv.equals("USE_DYNAMIC_CVV")) {
+      builder.dcvv("MOCK_DYNAMIC_CVV");
     }
     return Optional.of(builder.build());
   }
