@@ -107,19 +107,31 @@ def _test_render_not_found():
         "network token is not found",
     )
 
+
 def _test_render_with_both_cvv_and_dcvv():
     asserts.assert_fails(
         lambda: nts.render(
             _make_fixture(),
-            pan="$.pan",
-            cvv="$.cvv",
-            dcvv="$.cvv",
-            amount="$.amount",
-            currency_code="$.currency_code",
+            pan="$.paymentMethod.number",
+            cvv="$.paymentMethod.cvv",
+            dcvv="$.paymentMethod.cvv",
+            amount="$.amount.value",
+            currency_code="$.amount.currency",
         ),
         "ValueError: only either one of cvv or dvcc can be provided",
     )
 
+
+def _test_render_without_either_cvv_or_dcvv():
+    asserts.assert_fails(
+        lambda: nts.render(
+            _make_fixture(),
+            pan="$.paymentMethod.number",
+            amount="$.amount.value",
+            currency_code="$.amount.currency",
+        ),
+        "ValueError: either one of cvv or dvcc need to be provided",
+    )
 
 def _suite():
     _suite = unittest.TestSuite()
@@ -132,6 +144,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_render))
     _suite.addTest(unittest.FunctionTestCase(_test_render_pan_empty_value))
     _suite.addTest(unittest.FunctionTestCase(_test_render_not_found))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_with_both_cvv_and_dcvv))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_without_either_cvv_or_dcvv))
     return _suite
 
 

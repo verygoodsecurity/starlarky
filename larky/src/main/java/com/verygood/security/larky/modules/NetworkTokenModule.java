@@ -18,7 +18,10 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 
-@StarlarkBuiltin(name = "native_nts", category = "BUILTIN", doc = "Overridable Network Token API in Larky")
+@StarlarkBuiltin(
+    name = "native_nts",
+    category = "BUILTIN",
+    doc = "Overridable Network Token API in Larky")
 public class NetworkTokenModule implements LarkyNetworkToken {
   public static final NetworkTokenModule INSTANCE = new NetworkTokenModule();
 
@@ -95,13 +98,17 @@ public class NetworkTokenModule implements LarkyNetworkToken {
       throw Starlark.errorf("network token is not found");
     }
     final NetworkTokenService.NetworkToken networkToken = networkTokenOptional.get();
-    return Dict.<String, Object>builder()
-        .put("token", networkToken.getToken())
-        .put("dcvv", networkToken.getDcvv())
-        .put("exp_month", StarlarkInt.of(networkToken.getExpireMonth()))
-        .put("exp_year", StarlarkInt.of(networkToken.getExpireYear()))
-        .put("cryptogram_value", networkToken.getCryptogramValue())
-        .put("cryptogram_eci", networkToken.getCryptogramEci())
-        .build(thread.mutability());
+    final Dict.Builder<String, Object> resultBuilder =
+        Dict.<String, Object>builder()
+            .put("token", networkToken.getToken())
+            .put("exp_month", StarlarkInt.of(networkToken.getExpireMonth()))
+            .put("exp_year", StarlarkInt.of(networkToken.getExpireYear()))
+            .put("cryptogram_value", networkToken.getCryptogramValue())
+            .put("cryptogram_eci", networkToken.getCryptogramEci());
+
+    if (networkToken.getDcvv() != null) {
+      resultBuilder.put("dcvv", networkToken.getDcvv());
+    }
+    return resultBuilder.build(thread.mutability());
   }
 }

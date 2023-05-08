@@ -10,13 +10,16 @@ public class MockNetworkTokenService implements NetworkTokenService {
     if (panAlias.equals("NOT_FOUND")) {
       return Optional.empty();
     }
-    return Optional.of(
+    final NetworkToken.NetworkTokenBuilder builder =
         NetworkToken.builder()
             .token("4242424242424242")
             .expireMonth(12)
             .expireYear(27)
             .cryptogramValue("MOCK_CRYPTOGRAM_VALUE")
-            .cryptogramEci("MOCK_CRYPTOGRAM_ECI")
-            .build());
+            .cryptogramEci("MOCK_CRYPTOGRAM_ECI");
+    if (panAlias.equals("DYNAMIC_CVV")) {
+      builder.dcvv("123");
+    }
+    return Optional.of(builder.build());
   }
 }

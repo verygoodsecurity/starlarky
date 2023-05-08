@@ -36,9 +36,11 @@ def render(
     :param pan: JSONPath to the PAN alias in the input payload. Used to look up the corresponding network token to be
            rendered and injected into the payload.
     :param cvv: JSONPath to the CVV of the credit card in the input payload. Used to pass to the network for retrieving
-           the corresponding network token and cryptogram to be returned.
-    :param dcvv: JSONPath to the DCVV of the credit card in the input payload. Used to pass to the network for retrieving
-               the corresponding network token and cryptogram to be returned.
+           the corresponding network token and cryptogram to be returned. One of `cvv` or `dcvv` need to be provided,
+           but not both in the same time.
+    :param dcvv: JSONPath to the CVV of the credit card in the input payload. Used to pass to the network for retrieving
+           the corresponding network token and dynamic CVV to be returned. One of `cvv` or `dcvv` need to be provided,
+           but not both in the same time.
     :param amount: JSONPath to the amount of payment for the transaction to be made with the network token in the input
            payload. Used to pass to the network for retrieving the corresponding network token and cryptogram to be
            returned.
@@ -53,6 +55,8 @@ def render(
     :return: JSON payload injected with network token values
     """
     pan_value = jsonpath_ng.parse(pan).find(input).value
+    amount_value = str(jsonpath_ng.parse(amount).find(input).value)
+    currency_code_value = jsonpath_ng.parse(currency_code).find(input).value
     if cvv != None and dcvv == None:
         cvv_value = jsonpath_ng.parse(cvv).find(input).value
     elif dcvv != None and cvv == None:
@@ -61,8 +65,6 @@ def render(
         fail("ValueError: either one of cvv or dvcc need to be provided")
     else:
         fail("ValueError: only either one of cvv or dvcc can be provided")
-    amount_value = str(jsonpath_ng.parse(amount).find(input).value)
-    currency_code_value = jsonpath_ng.parse(currency_code).find(input).value
 
     network_token = _nts.get_network_token(
         pan=pan_value,
