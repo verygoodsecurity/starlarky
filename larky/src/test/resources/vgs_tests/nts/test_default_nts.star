@@ -107,6 +107,19 @@ def _test_render_not_found():
         "network token is not found",
     )
 
+def _test_render_with_both_cvv_and_dcvv():
+    asserts.assert_fails(
+        lambda: nts.render(
+            _make_fixture(),
+            pan="$.pan",
+            cvv="$.cvv",
+            dcvv="$.cvv",
+            amount="$.amount",
+            currency_code="$.currency_code",
+        ),
+        "ValueError: only either one of cvv or dvcc can be provided",
+    )
+
 
 def _suite():
     _suite = unittest.TestSuite()

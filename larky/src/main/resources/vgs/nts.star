@@ -53,14 +53,14 @@ def render(
     :return: JSON payload injected with network token values
     """
     pan_value = jsonpath_ng.parse(pan).find(input).value
-    if cvv is not None and dcvv is None:
+    if cvv != None and dcvv == None:
         cvv_value = jsonpath_ng.parse(cvv).find(input).value
-    elif dcvv is not None and cvv is None:
+    elif dcvv != None and cvv == None:
         cvv_value = jsonpath_ng.parse(dcvv).find(input).value
-    elif cvv is None and dcvv is None:
-        fail("ValueError: either one of cvv or dvcc should be provided")
+    elif cvv == None and dcvv == None:
+        fail("ValueError: either one of cvv or dvcc need to be provided")
     else:
-        fail("ValueError: either one of cvv or dvcc can be provided")
+        fail("ValueError: only either one of cvv or dvcc can be provided")
     amount_value = str(jsonpath_ng.parse(amount).find(input).value)
     currency_code_value = jsonpath_ng.parse(currency_code).find(input).value
 
@@ -78,7 +78,7 @@ def render(
         (cryptogram_eci, network_token["cryptogram_eci"]),
     ]
     # If dynamic CVV is used, we need to place it into the original payload here
-    if dcvv is not None:
+    if dcvv != None:
         placements.append((dcvv, network_token["dcvv"]))
     for path, value in placements:
         if path == None:
