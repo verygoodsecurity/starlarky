@@ -1,6 +1,7 @@
 load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
 load("@vgs//nts", "nts")
+load("@vgs//vault", vault="vault")
 
 
 def _make_fixture():
@@ -147,6 +148,24 @@ def _test_render_without_either_cvv_or_dcvv():
     )
 
 
+def _test_supports_dcvv_returns_true():
+    input = {
+        "payload": {
+            "number": vault.redact("4242424242424242")
+        }
+    }
+    asserts.assert_that(nts.supports_dcvv(input, "$.payload.number")).is_true()
+
+
+def _test_supports_dcvv_returns_false():
+    input = {
+        "payload": {
+            "number": vault.redact("5555555555554444")
+        }
+    }
+    asserts.assert_that(nts.supports_dcvv(input, "$.payload.number")).is_false()
+
+
 def _suite():
     _suite = unittest.TestSuite()
 
@@ -161,6 +180,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_render_not_found))
     _suite.addTest(unittest.FunctionTestCase(_test_render_with_both_cvv_and_dcvv))
     _suite.addTest(unittest.FunctionTestCase(_test_render_without_either_cvv_or_dcvv))
+    _suite.addTest(unittest.FunctionTestCase(_test_supports_dcvv_returns_true))
+    _suite.addTest(unittest.FunctionTestCase(_test_supports_dcvv_returns_false))
     return _suite
 
 

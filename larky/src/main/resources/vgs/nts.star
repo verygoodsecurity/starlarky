@@ -90,7 +90,7 @@ def render(
 
 
 def supports_dcvv(input, pan):
-    return vault.reveal(jsonpath_ng.parse(pan).find(input).value).startswith(4)
+    return vault.reveal(jsonpath_ng.parse(pan).find(input).value).startswith("4")
 
 
 nts = larky.struct(
