@@ -5,16 +5,16 @@ load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 
 
 def render(
-        input,
-        pan,
-        cvv,
-        amount,
-        currency_code,
-        dcvv=None,
-        exp_month=None,
-        exp_year=None,
-        cryptogram_value=None,
-        cryptogram_eci=None,
+    input,
+    pan,
+    amount,
+    currency_code,
+    cvv=None,
+    dcvv=None,
+    exp_month=None,
+    exp_year=None,
+    cryptogram_value=None,
+    cryptogram_eci=None,
 ):
     """Retrieves a network token for the given PAN alias, renders the cryptogram, and injects the network token values
     into the payload.
@@ -53,15 +53,20 @@ def render(
     :return: JSON payload injected with network token values
     """
     pan_value = jsonpath_ng.parse(pan).find(input).value
-    cvv_value = jsonpath_ng.parse(cvv).find(input).value
-    dcvv_value = jsonpath_ng.parse(dcvv).find(input).value
+    if cvv is not None and dcvv is None:
+        cvv_value = jsonpath_ng.parse(cvv).find(input).value
+    elif dcvv is not None and cvv is None:
+        cvv_value = jsonpath_ng.parse(dcvv).find(input).value
+    elif cvv is None and dcvv is None:
+        fail("ValueError: either one of cvv or dvcc should be provided")
+    else:
+        fail("ValueError: either one of cvv or dvcc can be provided")
     amount_value = str(jsonpath_ng.parse(amount).find(input).value)
     currency_code_value = jsonpath_ng.parse(currency_code).find(input).value
 
     network_token = _nts.get_network_token(
         pan=pan_value,
         cvv=cvv_value,
-        dcvv=dcvv_value,
         amount=amount_value,
         currency_code=currency_code_value,
     )
