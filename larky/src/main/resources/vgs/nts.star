@@ -90,6 +90,14 @@ def render(
 
 
 def supports_dcvv(input, pan):
+    """Check a given pan alias value at the `pan` JSON path, see if the network of actual card number in the vault
+    supports dynamic CVV or not (only Visa is supported for now).
+
+    :param input: JSON payload to get the pan alias value and check its bin number
+    :param pan: JSONPath to the PAN alias in the input payload. Used to look up the actual card number in vault and
+           determine if the network supports dynamic CVV or not.
+    :return: true if the pan value in the input payload at the given JSON path supports dynamic CVV feature
+    """
     return vault.reveal(jsonpath_ng.parse(pan).find(input).value).startswith("4")
 
 
