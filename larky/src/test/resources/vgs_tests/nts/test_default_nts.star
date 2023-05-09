@@ -46,7 +46,26 @@ def _test_get_network_token():
         "exp_month": 12,
         "exp_year": 27,
         "cryptogram_value": "MOCK_CRYPTOGRAM_VALUE",
-        "cryptogram_eci": "MOCK_CRYPTOGRAM_ECI"
+        "cryptogram_eci": "MOCK_CRYPTOGRAM_ECI",
+        "cryptogram_type": "TAVV"
+    })
+
+
+def _test_get_network_token_with_dtvv_type():
+    output = nts.get_network_token(
+        pan="MOCK_PAN_ALIAS",
+        cvv="MOCK_CVV",
+        amount="123.45",
+        currency_code="USD",
+        cryptogram_type="DTVV",
+    )
+    asserts.assert_that(output).is_equal_to({
+        "token": "4242424242424242",
+        "exp_month": 12,
+        "exp_year": 27,
+        "cryptogram_value": "MOCK_DYNAMIC_CVV",
+        "cryptogram_eci": "MOCK_CRYPTOGRAM_ECI",
+        "cryptogram_type": "DTVV",
     })
 
 
@@ -171,6 +190,7 @@ def _suite():
 
     # Get network token tests
     _suite.addTest(unittest.FunctionTestCase(_test_get_network_token))
+    _suite.addTest(unittest.FunctionTestCase(_test_get_network_token_with_dtvv_type))
     _suite.addTest(unittest.FunctionTestCase(_test_get_network_token_pan_empty_value))
     _suite.addTest(unittest.FunctionTestCase(_test_get_network_token_not_found))
     # Render tests

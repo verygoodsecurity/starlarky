@@ -81,10 +81,10 @@ public class NetworkTokenModule implements LarkyNetworkToken {
                     + "returned",
             allowedTypes = {@ParamType(type = String.class)}),
         @Param(
-            name = "cryptogramType",
+            name = "cryptogram_type",
             named = true,
             doc = "Type of cryptogram to get for the network token",
-            defaultValue = "TAVV",
+            defaultValue = "'TAVV'",
             allowedTypes = {@ParamType(type = String.class)}),
       })
   @Override
@@ -116,6 +116,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
         .put("exp_year", StarlarkInt.of(networkToken.getExpireYear()))
         .put("cryptogram_value", networkToken.getCryptogramValue())
         .put("cryptogram_eci", networkToken.getCryptogramEci())
+        .put("cryptogram_type", networkToken.getCryptogramType())
         .build(thread.mutability());
   }
 }

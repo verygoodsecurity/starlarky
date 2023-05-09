@@ -71,6 +71,7 @@ def render(
         cvv=cvv_value,
         amount=amount_value,
         currency_code=currency_code_value,
+        cryptogram_type="TAVV" if dcvv == None else "DTVV",
     )
     placements = [
         (pan, network_token["token"]),
@@ -80,8 +81,8 @@ def render(
         (cryptogram_eci, network_token["cryptogram_eci"]),
     ]
     # If dynamic CVV is used and provided, we need to place it into the original payload here
-    if dcvv != None and network_token.get("dcvv") != None:
-        placements.append((dcvv, network_token["dcvv"]))
+    if dcvv != None and network_token.get("cryptogram_type") == "DTVV":
+        placements.append((dcvv, network_token["cryptogram_value"]))
     for path, value in placements:
         if path == None:
             continue

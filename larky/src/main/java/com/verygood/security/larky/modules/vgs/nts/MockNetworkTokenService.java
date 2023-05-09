@@ -18,6 +18,7 @@ public class MockNetworkTokenService implements NetworkTokenService {
             .cryptogramValue(
                 cryptogramType.equals("DTVV") ? "MOCK_DYNAMIC_CVV" : "MOCK_CRYPTOGRAM_VALUE")
             .cryptogramEci("MOCK_CRYPTOGRAM_ECI")
+            .cryptogramType(cryptogramType)
             .build());
   }
 }
