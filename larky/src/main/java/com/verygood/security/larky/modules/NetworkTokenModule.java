@@ -80,17 +80,29 @@ public class NetworkTokenModule implements LarkyNetworkToken {
                     + "pass to the network for retrieving the corresponding network token and cryptogram to be "
                     + "returned",
             allowedTypes = {@ParamType(type = String.class)}),
+        @Param(
+            name = "cryptogramType",
+            named = true,
+            doc = "Type of cryptogram to get for the network token",
+            defaultValue = "TAVV",
+            allowedTypes = {@ParamType(type = String.class)}),
       })
   @Override
   public Dict<String, Object> getNetworkToken(
-      String pan, String cvv, String amount, String currencyCode, StarlarkThread thread)
+      String pan,
+      String cvv,
+      String amount,
+      String currencyCode,
+      String cryptogramType,
+      StarlarkThread thread)
       throws EvalException {
     if (pan.trim().isEmpty()) {
       throw Starlark.errorf("pan argument cannot be blank");
     }
     final Optional<NetworkTokenService.NetworkToken> networkTokenOptional;
     try {
-      networkTokenOptional = networkTokenService.getNetworkToken(pan, cvv, amount, currencyCode);
+      networkTokenOptional =
+          networkTokenService.getNetworkToken(pan, cvv, amount, currencyCode, cryptogramType);
     } catch (UnsupportedOperationException exception) {
       throw Starlark.errorf("nts.get_network_token operation must be overridden");
     }
@@ -98,17 +110,12 @@ public class NetworkTokenModule implements LarkyNetworkToken {
       throw Starlark.errorf("network token is not found");
     }
     final NetworkTokenService.NetworkToken networkToken = networkTokenOptional.get();
-    final Dict.Builder<String, Object> resultBuilder =
-        Dict.<String, Object>builder()
-            .put("token", networkToken.getToken())
-            .put("exp_month", StarlarkInt.of(networkToken.getExpireMonth()))
-            .put("exp_year", StarlarkInt.of(networkToken.getExpireYear()))
-            .put("cryptogram_value", networkToken.getCryptogramValue())
-            .put("cryptogram_eci", networkToken.getCryptogramEci());
-
-    if (networkToken.getDcvv() != null) {
-      resultBuilder.put("dcvv", networkToken.getDcvv());
-    }
-    return resultBuilder.build(thread.mutability());
+    return Dict.<String, Object>builder()
+        .put("token", networkToken.getToken())
+        .put("exp_month", StarlarkInt.of(networkToken.getExpireMonth()))
+        .put("exp_year", StarlarkInt.of(networkToken.getExpireYear()))
+        .put("cryptogram_value", networkToken.getCryptogramValue())
+        .put("cryptogram_eci", networkToken.getCryptogramEci())
+        .build(thread.mutability());
   }
 }
