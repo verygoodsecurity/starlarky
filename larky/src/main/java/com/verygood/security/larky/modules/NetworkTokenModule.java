@@ -18,7 +18,10 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 
-@StarlarkBuiltin(name = "native_nts", category = "BUILTIN", doc = "Overridable Network Token API in Larky")
+@StarlarkBuiltin(
+    name = "native_nts",
+    category = "BUILTIN",
+    doc = "Overridable Network Token API in Larky")
 public class NetworkTokenModule implements LarkyNetworkToken {
   public static final NetworkTokenModule INSTANCE = new NetworkTokenModule();
 
@@ -77,17 +80,29 @@ public class NetworkTokenModule implements LarkyNetworkToken {
                     + "pass to the network for retrieving the corresponding network token and cryptogram to be "
                     + "returned",
             allowedTypes = {@ParamType(type = String.class)}),
+        @Param(
+            name = "cryptogram_type",
+            named = true,
+            doc = "Type of cryptogram to get for the network token",
+            defaultValue = "'TAVV'",
+            allowedTypes = {@ParamType(type = String.class)}),
       })
   @Override
   public Dict<String, Object> getNetworkToken(
-      String pan, String cvv, String amount, String currencyCode, StarlarkThread thread)
+      String pan,
+      String cvv,
+      String amount,
+      String currencyCode,
+      String cryptogramType,
+      StarlarkThread thread)
       throws EvalException {
     if (pan.trim().isEmpty()) {
       throw Starlark.errorf("pan argument cannot be blank");
     }
     final Optional<NetworkTokenService.NetworkToken> networkTokenOptional;
     try {
-      networkTokenOptional = networkTokenService.getNetworkToken(pan, cvv, amount, currencyCode);
+      networkTokenOptional =
+          networkTokenService.getNetworkToken(pan, cvv, amount, currencyCode, cryptogramType);
     } catch (UnsupportedOperationException exception) {
       throw Starlark.errorf("nts.get_network_token operation must be overridden");
     }
@@ -101,6 +116,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
         .put("exp_year", StarlarkInt.of(networkToken.getExpireYear()))
         .put("cryptogram_value", networkToken.getCryptogramValue())
         .put("cryptogram_eci", networkToken.getCryptogramEci())
+        .put("cryptogram_type", networkToken.getCryptogramType())
         .build(thread.mutability());
   }
 }

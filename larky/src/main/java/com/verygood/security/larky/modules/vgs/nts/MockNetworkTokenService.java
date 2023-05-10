@@ -6,7 +6,7 @@ import java.util.Optional;
 public class MockNetworkTokenService implements NetworkTokenService {
   @Override
   public Optional<NetworkToken> getNetworkToken(
-      String panAlias, String cvv, String amount, String currencyCode) {
+      String panAlias, String cvv, String amount, String currencyCode, String cryptogramType) {
     if (panAlias.equals("NOT_FOUND")) {
       return Optional.empty();
     }
@@ -15,8 +15,10 @@ public class MockNetworkTokenService implements NetworkTokenService {
             .token("4242424242424242")
             .expireMonth(12)
             .expireYear(27)
-            .cryptogramValue("MOCK_CRYPTOGRAM_VALUE")
+            .cryptogramValue(
+                cryptogramType.equals("DTVV") ? "MOCK_DYNAMIC_CVV" : "MOCK_CRYPTOGRAM_VALUE")
             .cryptogramEci("MOCK_CRYPTOGRAM_ECI")
+            .cryptogramType(cryptogramType)
             .build());
   }
 }

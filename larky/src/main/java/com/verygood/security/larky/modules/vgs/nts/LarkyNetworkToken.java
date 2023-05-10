@@ -13,10 +13,16 @@ public interface LarkyNetworkToken extends StarlarkValue {
    * @param cvv cvv of card for retrieving cryptogram
    * @param amount amount of payment for retrieving cryptogram
    * @param currencyCode currency code of payment for retrieving cryptogram
+   * @param cryptogramType type of cryptogram
    * @param thread Starlark thread object
    * @return a dict contains the network token values
    */
   Dict<String, Object> getNetworkToken(
-      String pan, String cvv, String amount, String currencyCode, StarlarkThread thread)
+      String pan,
+      String cvv,
+      String amount,
+      String currencyCode,
+      String cryptogramType,
+      StarlarkThread thread)
       throws EvalException;
 }
