@@ -61,7 +61,7 @@ def render(
         cvv_value = jsonpath_ng.parse(cvv).find(input).value
     elif dcvv != None and cvv == None:
         cvv_value = jsonpath_ng.parse(dcvv).find(input).value
-    elif cvv == None and dcvv == None:
+    elif not any([cvv, dcvv]):
         fail("ValueError: either one of cvv or dvcc need to be provided")
     else:
         fail("ValueError: only either one of cvv or dvcc can be provided")
