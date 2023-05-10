@@ -40,7 +40,8 @@ def render(
            but not both in the same time.
     :param dcvv: JSONPath to the CVV of the credit card in the input payload. Used to pass to the network for retrieving
            the corresponding network token and dynamic CVV to be returned. One of `cvv` or `dcvv` need to be provided,
-           but not both in the same time.
+           but not both at the same time.
+
     :param amount: JSONPath to the amount of payment for the transaction to be made with the network token in the input
            payload. Used to pass to the network for retrieving the corresponding network token and cryptogram to be
            returned.
