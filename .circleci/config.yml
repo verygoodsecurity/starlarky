@@ -290,20 +290,14 @@ workflows:
   release:
     jobs:
       - build-dist-maven:
-          context: 
-            - circleci
-            - github-artifact-publisher
-            - github
+          context: github-artifact-publisher
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
             branches:
               ignore: /.*/
       - build-dist-linux:
-          context:
-            - circleci
-            - github-artifact-publisher
-            - github
+          context: github-artifact-publisher
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
@@ -312,10 +306,7 @@ workflows:
           requires:
             - build-dist-maven
       - publish-to-gh:
-          context:
-            - circleci
-            - github-artifact-publisher
-            - github
+          context: github-artifact-publisher
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
@@ -324,10 +315,6 @@ workflows:
           requires:
             - build-dist-linux
       - publish-to-pypi:
-          context:
-            - circleci
-            - github-artifact-publisher
-            - github
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
