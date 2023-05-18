@@ -1,17 +1,19 @@
 package com.verygood.security.larky.modules.vgs.vault;
 
-import com.verygood.security.larky.modules.VaultModule;
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.Starlark;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.verygood.security.larky.modules.VaultModule;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 // Tests that VaultModule SPI functionality works as expected
 public class VaultModuleSPITest {
@@ -44,17 +46,24 @@ public class VaultModuleSPITest {
         vault = new VaultModule();
 
         // Assert Exceptions
-        Assertions.assertThrows(EvalException.class,
+        assertThrows(EvalException.class,
                 () -> {
                     vault.redact("fail", Starlark.NONE, Starlark.NONE, null, null);
                 },
                 "vault.redact operation must be overridden"
         );
-        Assertions.assertThrows(EvalException.class,
+        assertThrows(EvalException.class,
                 () -> {
                     vault.reveal("fail", Starlark.NONE);
                 },
                 "vault.reveal operation must be overridden"
+        );
+
+        assertThrows(EvalException.class,
+            () -> {
+                vault.delete("fail", Starlark.NONE);
+            },
+            "vault.delete operation must be overridden"
         );
     }
 
@@ -70,10 +79,12 @@ public class VaultModuleSPITest {
         String secret = "4111111111111111";
         String alias = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null, null);
         String result = (String) vault.reveal(alias, Starlark.NONE);
+        String del = (String) vault.delete(alias, Starlark.NONE);
 
         // Assert OK
-        Assertions.assertTrue(alias.contains("tok_"));
-        Assertions.assertEquals(secret, result);
+        assertTrue(alias.contains("tok_"));
+        assertEquals(secret, result);
+        assertEquals(secret, del);
     }
 
     @Test
@@ -87,10 +98,12 @@ public class VaultModuleSPITest {
         String secret = "4111111111111111";
         String alias = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null, null);
         String result = (String) vault.reveal(alias, Starlark.NONE);
+        String del = (String) vault.delete(alias, Starlark.NONE);
 
         // Assert OK
-        Assertions.assertTrue(alias.contains("tok_"));
-        Assertions.assertEquals(secret, result);
+        assertTrue(alias.contains("tok_"));
+        assertEquals(secret, result);
+        assertEquals(secret, del);
     }
 
     @Test
@@ -102,7 +115,7 @@ public class VaultModuleSPITest {
         System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "false");
 
         // Assert Exception
-        Assertions.assertThrows(IllegalArgumentException.class,
+        assertThrows(IllegalArgumentException.class,
                 () -> {
                     vault = new VaultModule();
                 },

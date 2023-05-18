@@ -35,6 +35,24 @@ def _test_default_reveal():
 
     asserts.assert_that(revealed_card_number).is_equal_to(card_number)
 
+def _test_default_delete():
+    card_number = "4111111111111113"
+    redacted_card_number = vault.redact(card_number)
+    deleted = vault.delete(redacted_card_number)
+    asserts.assert_that(deleted).is_equal_to(card_number)
+    revealed_card_number = vault.reveal(redacted_card_number)
+
+    asserts.assert_that(revealed_card_number).is_equal_to(redacted_card_number)
+
+def _test_default_delete_volatile():
+    card_number = "4111111111111113"
+    redacted_card_number = vault.redact(card_number, storage='volatile')
+    deleted = vault.delete(redacted_card_number, storage='volatile')
+    asserts.assert_that(deleted).is_equal_to(card_number)
+    revealed_card_number = vault.reveal(redacted_card_number, storage='volatile')
+
+    asserts.assert_that(revealed_card_number).is_equal_to(redacted_card_number)
+
 def _test_empty_reveal():
     alias = "tok_123"
     revealed = vault.reveal(alias)
@@ -248,6 +266,10 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_default_reveal))
     _suite.addTest(unittest.FunctionTestCase(_test_empty_reveal))
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_list_reveal))
+
+    # Delete Tests
+    _suite.addTest(unittest.FunctionTestCase(_test_default_delete))
+    _suite.addTest(unittest.FunctionTestCase(_test_default_delete_volatile))
 
     # Storage Tests
     _suite.addTest(unittest.FunctionTestCase(_test_persistent_storage))
