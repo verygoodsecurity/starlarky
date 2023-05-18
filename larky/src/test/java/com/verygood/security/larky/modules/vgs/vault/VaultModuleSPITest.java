@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules.vgs.vault;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -79,12 +80,13 @@ public class VaultModuleSPITest {
         String secret = "4111111111111111";
         String alias = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null, null);
         String result = (String) vault.reveal(alias, Starlark.NONE);
-        String del = (String) vault.delete(alias, Starlark.NONE);
+        vault.delete(alias, Starlark.NONE);
+        String resultAfterDel = (String) vault.reveal(alias, Starlark.NONE);
 
         // Assert OK
         assertTrue(alias.contains("tok_"));
         assertEquals(secret, result);
-        assertEquals(secret, del);
+        assertNull(resultAfterDel);
     }
 
     @Test
@@ -98,12 +100,13 @@ public class VaultModuleSPITest {
         String secret = "4111111111111111";
         String alias = (String) vault.redact(secret, Starlark.NONE, Starlark.NONE, null, null);
         String result = (String) vault.reveal(alias, Starlark.NONE);
-        String del = (String) vault.delete(alias, Starlark.NONE);
+        vault.delete(alias, Starlark.NONE);
+        String resultAfterDel = (String) vault.reveal(alias, Starlark.NONE);
 
         // Assert OK
         assertTrue(alias.contains("tok_"));
         assertEquals(secret, result);
-        assertEquals(secret, del);
+        assertNull(resultAfterDel);
     }
 
     @Test

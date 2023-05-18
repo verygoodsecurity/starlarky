@@ -158,7 +158,7 @@ public class VaultModule implements LarkyVault {
 
     @StarlarkMethod(
         name = "delete",
-        doc = "deletes aliased value, returns revealed value",
+        doc = "deletes aliased value",
         parameters = {
             @Param(
                 name = "value",
@@ -178,10 +178,9 @@ public class VaultModule implements LarkyVault {
                 })
         })
     @Override
-    public Object delete(Object value, Object storage) throws EvalException {
+    public void delete(Object value, Object storage) throws EvalException {
         validateStorage(storage);
-
-        return vault.delete(value, storage);
+        vault.delete(value, storage);
     }
 
     private void validateStorage(Object storage) throws EvalException {

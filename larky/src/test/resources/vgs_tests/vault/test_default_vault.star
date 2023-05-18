@@ -38,8 +38,7 @@ def _test_default_reveal():
 def _test_default_delete():
     card_number = "4111111111111113"
     redacted_card_number = vault.redact(card_number)
-    deleted = vault.delete(redacted_card_number)
-    asserts.assert_that(deleted).is_equal_to(card_number)
+    vault.delete(redacted_card_number)
     revealed_card_number = vault.reveal(redacted_card_number)
 
     asserts.assert_that(revealed_card_number).is_equal_to(redacted_card_number)
@@ -47,8 +46,7 @@ def _test_default_delete():
 def _test_default_delete_volatile():
     card_number = "4111111111111113"
     redacted_card_number = vault.redact(card_number, storage='volatile')
-    deleted = vault.delete(redacted_card_number, storage='volatile')
-    asserts.assert_that(deleted).is_equal_to(card_number)
+    vault.delete(redacted_card_number, storage='volatile')
     revealed_card_number = vault.reveal(redacted_card_number, storage='volatile')
 
     asserts.assert_that(revealed_card_number).is_equal_to(redacted_card_number)
