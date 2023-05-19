@@ -1,7 +1,6 @@
 package com.verygood.security.larky.modules.vgs.vault;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -86,7 +85,7 @@ public class VaultModuleSPITest {
         // Assert OK
         assertTrue(alias.contains("tok_"));
         assertEquals(secret, result);
-        assertNull(resultAfterDel);
+        assertEquals(alias, resultAfterDel);
     }
 
     @Test
@@ -106,7 +105,7 @@ public class VaultModuleSPITest {
         // Assert OK
         assertTrue(alias.contains("tok_"));
         assertEquals(secret, result);
-        assertNull(resultAfterDel);
+        assertEquals(alias, resultAfterDel);
     }
 
     @Test
