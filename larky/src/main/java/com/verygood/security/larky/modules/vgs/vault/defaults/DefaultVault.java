@@ -73,6 +73,12 @@ public class DefaultVault implements LarkyVault {
         return secret == null ? sValue : secret; // return value of alias if secret not found
     }
 
+    @Override
+    public void delete(Object value, Object storage) throws EvalException {
+        String sValue = getValue(value);
+        getStorage(storage).remove(sValue);
+    }
+
     private String getValue(Object value) throws EvalException {
         if (!(value instanceof String)) {
             throw Starlark.errorf(String.format(

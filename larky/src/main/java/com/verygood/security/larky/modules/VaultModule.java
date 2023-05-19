@@ -156,6 +156,33 @@ public class VaultModule implements LarkyVault {
         return vault.reveal(value, storage);
     }
 
+    @StarlarkMethod(
+        name = "delete",
+        doc = "deletes aliased value",
+        parameters = {
+            @Param(
+                name = "value",
+                doc = "alias to delete",
+                allowedTypes = {
+                    @ParamType(type = String.class),
+                    @ParamType(type = List.class, generic1 = String.class)
+                }),
+            @Param(
+                name = "storage",
+                doc = "storage type ('persistent' or 'volatile')",
+                named = true,
+                defaultValue = "None",
+                allowedTypes = {
+                    @ParamType(type = NoneType.class),
+                    @ParamType(type = String.class),
+                })
+        })
+    @Override
+    public void delete(Object value, Object storage) throws EvalException {
+        validateStorage(storage);
+        vault.delete(value, storage);
+    }
+
     private void validateStorage(Object storage) throws EvalException {
         if (!(storage instanceof NoneType) && !(storage instanceof String)) {
             throw Starlark.errorf(String.format(
