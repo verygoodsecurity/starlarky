@@ -17,8 +17,8 @@ REGEX_PSP_TYPES = [
     (re.compile(r'^https:\/\/(.+)\.adyenpayments\.com'), PSPType.ADYEN),
 ]
 CRYPTOGRAM_SUPPORTING_PSP_TYPES = {
-    PSPType.STRIPE,
-    PSPType.ADYEN,
+    PSPType.STRIPE: 1,
+    PSPType.ADYEN: 1,
 }
 
 
@@ -159,6 +159,7 @@ nts = larky.struct(
     get_network_token=_nts.get_network_token,
     render=render,
     supports_dcvv=supports_dcvv,
+    supports_cryptogram=supports_cryptogram,
     get_psp_type=get_psp_type,
     use_network_token=use_network_token,
 )
