@@ -1,10 +1,21 @@
 load("@vgs//native_nts", _nts="native_nts")
 load("@vgs//vault", vault="vault")
 load("@stdlib//larky", larky="larky")
+load("@stdlib//enum", enum="enum")
+load("@stdlib//re", re="re")
 load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 
-
 VGS_NETWORK_TOKEN_HEADER = "vgs-network-token"
+PSPType = enum.Enum('PSPType', [
+    'STRIPE',
+    'ADYEN',
+    'UNKNOWN',
+])
+REGEX_PSP_TYPES = [
+    (re.compile(r'^https:\/\/api\.stripe\.com'), PSPType.STRIPE),
+    (re.compile(r'^https:\/\/(.+)\.adyen\.com'), PSPType.ADYEN),
+    (re.compile(r'^https:\/\/(.+)\.adyenpayments\.com'), PSPType.ADYEN),
+]
 
 
 def render(
@@ -106,6 +117,18 @@ def supports_dcvv(input, pan):
     return vault.reveal(jsonpath_ng.parse(pan).find(input).value).startswith("4")
 
 
+def get_psp_type(input):
+    """Determine the PSP type based on the HTTP request input
+
+    :param input: the HTTP request input
+    :return: PSP type based on request input values
+    """
+    for regex, psp_type in REGEX_PSP_TYPES:
+        if regex.match(input.url):
+            return psp_type
+    return PSPType.UNKNOWN
+
+
 def use_network_token(headers):
     """Check value in the headers and determine whether is network token should be used or not
 
@@ -117,8 +140,10 @@ def use_network_token(headers):
 
 
 nts = larky.struct(
+    PSPType=PSPType,
     get_network_token=_nts.get_network_token,
     render=render,
     supports_dcvv=supports_dcvv,
+    get_psp_type=get_psp_type,
     use_network_token=use_network_token,
 )
