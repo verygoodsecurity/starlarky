@@ -185,6 +185,17 @@ def _test_supports_dcvv_returns_false():
     asserts.assert_that(nts.supports_dcvv(input, "$.payload.number")).is_false()
 
 
+def _test_is_network_token_enabled():
+    asserts.assert_that(nts.is_network_token_enabled({})).is_false()
+    asserts.assert_that(nts.is_network_token_enabled({"vgs-network-token": ""})).is_false()
+    asserts.assert_that(nts.is_network_token_enabled({"vgs-network-token": "no"})).is_false()
+    asserts.assert_that(nts.is_network_token_enabled({"vgs-network-token": "other"})).is_false()
+    asserts.assert_that(nts.is_network_token_enabled({"vgs-network-token": "yes"})).is_true()
+    asserts.assert_that(nts.is_network_token_enabled({"Vgs-Network-Token": "yes"})).is_true()
+    asserts.assert_that(nts.is_network_token_enabled({"Vgs-Network-Token": "Yes"})).is_true()
+    asserts.assert_that(nts.is_network_token_enabled({"VGS-NETWORK-TOKEN": "YES"})).is_true()
+
+
 def _suite():
     _suite = unittest.TestSuite()
 
@@ -200,8 +211,11 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_render_not_found))
     _suite.addTest(unittest.FunctionTestCase(_test_render_with_both_cvv_and_dcvv))
     _suite.addTest(unittest.FunctionTestCase(_test_render_without_either_cvv_or_dcvv))
+    # Support DCVV tests
     _suite.addTest(unittest.FunctionTestCase(_test_supports_dcvv_returns_true))
     _suite.addTest(unittest.FunctionTestCase(_test_supports_dcvv_returns_false))
+    # Is network token enabled tests
+    _suite.addTest(unittest.FunctionTestCase(_test_is_network_token_enabled))
     return _suite
 
 
