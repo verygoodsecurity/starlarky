@@ -106,7 +106,7 @@ def supports_dcvv(input, pan):
     return vault.reveal(jsonpath_ng.parse(pan).find(input).value).startswith("4")
 
 
-def is_network_token_enabled(headers):
+def use_network_token(headers):
     """Check value in the headers and determine whether is network token should be used or not
 
     :param headers: HTTP request headers to be checked against
@@ -120,5 +120,5 @@ nts = larky.struct(
     get_network_token=_nts.get_network_token,
     render=render,
     supports_dcvv=supports_dcvv,
-    is_network_token_enabled=is_network_token_enabled,
+    use_network_token=use_network_token,
 )

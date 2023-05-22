@@ -185,15 +185,15 @@ def _test_supports_dcvv_returns_false():
     asserts.assert_that(nts.supports_dcvv(input, "$.payload.number")).is_false()
 
 
-def _test_is_network_token_enabled():
-    asserts.assert_that(nts.is_network_token_enabled({})).is_false()
-    asserts.assert_that(nts.is_network_token_enabled({"vgs-network-token": ""})).is_false()
-    asserts.assert_that(nts.is_network_token_enabled({"vgs-network-token": "no"})).is_false()
-    asserts.assert_that(nts.is_network_token_enabled({"vgs-network-token": "other"})).is_false()
-    asserts.assert_that(nts.is_network_token_enabled({"vgs-network-token": "yes"})).is_true()
-    asserts.assert_that(nts.is_network_token_enabled({"Vgs-Network-Token": "yes"})).is_true()
-    asserts.assert_that(nts.is_network_token_enabled({"Vgs-Network-Token": "Yes"})).is_true()
-    asserts.assert_that(nts.is_network_token_enabled({"VGS-NETWORK-TOKEN": "YES"})).is_true()
+def _test_use_network_token():
+    asserts.assert_that(nts.use_network_token({})).is_false()
+    asserts.assert_that(nts.use_network_token({"vgs-network-token": ""})).is_false()
+    asserts.assert_that(nts.use_network_token({"vgs-network-token": "no"})).is_false()
+    asserts.assert_that(nts.use_network_token({"vgs-network-token": "other"})).is_false()
+    asserts.assert_that(nts.use_network_token({"vgs-network-token": "yes"})).is_true()
+    asserts.assert_that(nts.use_network_token({"Vgs-Network-Token": "yes"})).is_true()
+    asserts.assert_that(nts.use_network_token({"Vgs-Network-Token": "Yes"})).is_true()
+    asserts.assert_that(nts.use_network_token({"VGS-NETWORK-TOKEN": "YES"})).is_true()
 
 
 def _suite():
@@ -215,7 +215,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_supports_dcvv_returns_true))
     _suite.addTest(unittest.FunctionTestCase(_test_supports_dcvv_returns_false))
     # Is network token enabled tests
-    _suite.addTest(unittest.FunctionTestCase(_test_is_network_token_enabled))
+    _suite.addTest(unittest.FunctionTestCase(_test_use_network_token))
     return _suite
 
 
