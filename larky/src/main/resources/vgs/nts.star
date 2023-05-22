@@ -16,6 +16,10 @@ REGEX_PSP_TYPES = [
     (re.compile(r'^https:\/\/(.+)\.adyen\.com'), PSPType.ADYEN),
     (re.compile(r'^https:\/\/(.+)\.adyenpayments\.com'), PSPType.ADYEN),
 ]
+CRYPTOGRAM_SUPPORTING_PSP_TYPES = {
+    PSPType.STRIPE,
+    PSPType.ADYEN,
+}
 
 
 def render(
@@ -115,6 +119,17 @@ def supports_dcvv(input, pan):
     :return: true if the pan value in the input payload at the given JSON path supports dynamic CVV feature
     """
     return vault.reveal(jsonpath_ng.parse(pan).find(input).value).startswith("4")
+
+
+
+def supports_cryptogram(input):
+    """Check and see if the PSP determined by given input supports cryptogram or not
+
+    :param input: the HTTP request input
+    :return: True if the PSP supports cryptogram otherwise False
+    """
+    psp_type = get_psp_type(input)
+    return psp_type in CRYPTOGRAM_SUPPORTING_PSP_TYPES
 
 
 def get_psp_type(input):
