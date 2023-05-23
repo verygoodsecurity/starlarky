@@ -15,6 +15,7 @@ REGEX_PSP_TYPES = [
     (re.compile(r'^https:\/\/api\.stripe\.com'), PSPType.STRIPE),
     (re.compile(r'^https:\/\/(.+)\.adyen\.com'), PSPType.ADYEN),
     (re.compile(r'^https:\/\/(.+)\.adyenpayments\.com'), PSPType.ADYEN),
+    # TODO: extend this list to support detecting more PSPs here
 ]
 CRYPTOGRAM_SUPPORTING_PSP_TYPES = {
     PSPType.STRIPE: 1,
