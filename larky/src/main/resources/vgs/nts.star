@@ -4,6 +4,9 @@ load("@stdlib//larky", larky="larky")
 load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 
 
+VGS_NETWORK_TOKEN_HEADER = "vgs-network-token"
+
+
 def render(
     input,
     pan,
@@ -103,8 +106,19 @@ def supports_dcvv(input, pan):
     return vault.reveal(jsonpath_ng.parse(pan).find(input).value).startswith("4")
 
 
+def use_network_token(headers):
+    """Check value in the headers and determine whether is network token should be used or not
+
+    :param headers: HTTP request headers to be checked against
+    :return: True if the network token is enabled, otherwise False
+    """
+    lower_case_headers = {key.lower(): value for key, value in headers.items()}
+    return lower_case_headers.get(VGS_NETWORK_TOKEN_HEADER, "").lower() == "yes"
+
+
 nts = larky.struct(
     get_network_token=_nts.get_network_token,
     render=render,
-    supports_dcvv=supports_dcvv
+    supports_dcvv=supports_dcvv,
+    use_network_token=use_network_token,
 )
