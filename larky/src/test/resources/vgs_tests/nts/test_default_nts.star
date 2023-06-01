@@ -1,3 +1,4 @@
+load("@stdlib//larky", "larky")
 load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
 load("@vgs//nts", "nts")
@@ -185,6 +186,17 @@ def _test_supports_dcvv_returns_false():
     asserts.assert_that(nts.supports_dcvv(input, "$.payload.number")).is_false()
 
 
+def _test_get_psp_type():
+    for url, psp_type in [
+        ("https://example.com", nts.PSPType.UNKNOWN),
+        ("https://api.stripe.com/v1/charges", nts.PSPType.STRIPE),
+        ("https://checkout-test.adyen.com/v68/payments", nts.PSPType.ADYEN),
+        ("https://checkoutshopper-test.adyen.com/v68/payments", nts.PSPType.ADYEN),
+        ("https://checkoutshopper-live.adyen.com/v68/payments", nts.PSPType.ADYEN),
+        ("https://checkoutshopper-live-us.adyen.com/v68/payments", nts.PSPType.ADYEN),
+    ]:
+        asserts.assert_that(nts.get_psp_type(larky.struct(url=url))).is_equal_to(psp_type)
+
 def _test_use_network_token():
     asserts.assert_that(nts.use_network_token({})).is_false()
     asserts.assert_that(nts.use_network_token({"vgs-network-token": ""})).is_false()
@@ -194,6 +206,15 @@ def _test_use_network_token():
     asserts.assert_that(nts.use_network_token({"Vgs-Network-Token": "yes"})).is_true()
     asserts.assert_that(nts.use_network_token({"Vgs-Network-Token": "Yes"})).is_true()
     asserts.assert_that(nts.use_network_token({"VGS-NETWORK-TOKEN": "YES"})).is_true()
+
+
+def _test_supports_cryptogram():
+    for url, result in [
+        ("https://example.com", False),
+        ("https://api.stripe.com/v1/charges", True),
+        ("https://checkout-test.adyen.com/v68/payments", True),
+    ]:
+        asserts.assert_that(nts.supports_cryptogram(larky.struct(url=url))).is_equal_to(result)
 
 
 def _suite():
@@ -214,8 +235,12 @@ def _suite():
     # Support DCVV tests
     _suite.addTest(unittest.FunctionTestCase(_test_supports_dcvv_returns_true))
     _suite.addTest(unittest.FunctionTestCase(_test_supports_dcvv_returns_false))
-    # Is network token enabled tests
+    # Use network token tests
     _suite.addTest(unittest.FunctionTestCase(_test_use_network_token))
+    # Get PSP type tests
+    _suite.addTest(unittest.FunctionTestCase(_test_get_psp_type))
+    # Support cryptogram tests
+    _suite.addTest(unittest.FunctionTestCase(_test_supports_cryptogram))
     return _suite
 
 

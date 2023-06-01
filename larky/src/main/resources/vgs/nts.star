@@ -1,10 +1,26 @@
 load("@vgs//native_nts", _nts="native_nts")
 load("@vgs//vault", vault="vault")
 load("@stdlib//larky", larky="larky")
+load("@stdlib//enum", enum="enum")
+load("@stdlib//re", re="re")
 load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 
-
 VGS_NETWORK_TOKEN_HEADER = "vgs-network-token"
+PSPType = enum.Enum('PSPType', [
+    'STRIPE',
+    'ADYEN',
+    'UNKNOWN',
+])
+REGEX_PSP_TYPES = [
+    (re.compile(r'^https:\/\/api\.stripe\.com'), PSPType.STRIPE),
+    (re.compile(r'^https:\/\/(.+)\.adyen\.com'), PSPType.ADYEN),
+    (re.compile(r'^https:\/\/(.+)\.adyenpayments\.com'), PSPType.ADYEN),
+    # TODO: extend this list to support detecting more PSPs here
+]
+CRYPTOGRAM_SUPPORTING_PSP_TYPES = {
+    PSPType.STRIPE: 1,
+    PSPType.ADYEN: 1,
+}
 
 
 def render(
@@ -106,6 +122,29 @@ def supports_dcvv(input, pan):
     return vault.reveal(jsonpath_ng.parse(pan).find(input).value).startswith("4")
 
 
+
+def supports_cryptogram(input):
+    """Check and see if the PSP determined by given input supports cryptogram or not
+
+    :param input: the HTTP request input
+    :return: True if the PSP supports cryptogram otherwise False
+    """
+    psp_type = get_psp_type(input)
+    return psp_type in CRYPTOGRAM_SUPPORTING_PSP_TYPES
+
+
+def get_psp_type(input):
+    """Determine the PSP type based on the HTTP request input
+
+    :param input: the HTTP request input
+    :return: PSP type based on request input values
+    """
+    for regex, psp_type in REGEX_PSP_TYPES:
+        if regex.match(input.url):
+            return psp_type
+    return PSPType.UNKNOWN
+
+
 def use_network_token(headers):
     """Check value in the headers and determine whether is network token should be used or not
 
@@ -117,8 +156,11 @@ def use_network_token(headers):
 
 
 nts = larky.struct(
+    PSPType=PSPType,
     get_network_token=_nts.get_network_token,
     render=render,
     supports_dcvv=supports_dcvv,
+    supports_cryptogram=supports_cryptogram,
+    get_psp_type=get_psp_type,
     use_network_token=use_network_token,
 )
