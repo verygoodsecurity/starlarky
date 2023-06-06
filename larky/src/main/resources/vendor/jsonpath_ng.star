@@ -5,7 +5,6 @@ load("@stdlib//types", types="types")
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
-
 def _read(node, keys):
     data = node
     # First key should always be $, ignore
@@ -101,6 +100,19 @@ def datum(parsed):
     return self
 
 
+def _parse_bracketed_key(text):
+    quote_char = None
+    if text.startswith('"'):
+        quote_char = '"'
+    elif text.startswith("'"):
+        quote_char = "'"
+    if quote_char != None:
+        end_quote = text.find(quote_char, 1)
+        return text[:end_quote + 1]
+    close_bracket = text.find(']')
+    return text[:close_bracket]
+
+
 def _parse(query):
     keys = []
     element = ""
@@ -119,9 +131,9 @@ def _parse(query):
                 keys.append(element)
                 element = ""
 
-            close = query.find("]", index)
-            key = query[index + 1 : close]
-            if key.startswith("'") and key.endswith("'"):
+            key = _parse_bracketed_key(query[index + 1:])
+            key_len = len(key)
+            if key.startswith("'") or key.startswith('"'):
                 key = key[1:-1]
             elif key == "*":
                 # key = key
@@ -130,7 +142,7 @@ def _parse(query):
                 key = int(key)
 
             keys.append(key)
-            index = close
+            index += key_len + 1
         elif query[index] == "*":
             fail("ParsingException('Key \"*\" is not supported, please use for loop')")
         else:

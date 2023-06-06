@@ -83,8 +83,8 @@ def _test_get_with_quoted_key():
     for path, expected in [
         ("$['card[number]']", "4242424242424242"),
         ("$['card[cvc]']", "123"),
-        ("$['card[expire_year]']", "2024"),
-        ("$['card[expire_month]']", "12"),
+        ("$['card[expire_year]'][0]", "2024"),
+        ("$['card[expire_month]'][0]", "12"),
         ("$.meta['customer[name]']", "John Doe"),
     ]:
         expr = jsonpath_ng.parse(path)
