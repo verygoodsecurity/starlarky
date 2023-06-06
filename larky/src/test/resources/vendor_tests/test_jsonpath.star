@@ -57,13 +57,39 @@ def _test_simple_jsonpath():
 
 
 def _test_get_array_leaf_jsonpath():
-    expr = jsonpath_ng.parse("$.store.staff[0]")
-    result = expr.find(FIXTURE)
-    asserts.assert_that(result.value).is_equal_to("John Doe")
-    expr = jsonpath_ng.parse("$.store.staff[1]")
-    result = expr.find(FIXTURE)
-    asserts.assert_that(result.value).is_equal_to("Jane Doe")
+    for path, expected in [
+        ("$.store.staff[0]", "John Doe"),
+        ("$.store.staff[1]", "Jane Doe"),
+    ]:
+        expr = jsonpath_ng.parse(path)
+        result = expr.find(FIXTURE)
+        asserts.assert_that(result.value).is_equal_to(expected)
 
+
+def _test_get_with_quoted_key():
+    data = {
+        "card[number]": "4242424242424242",
+        "card[cvc]": "123",
+        "card[expire_year]": ["2024"],
+        "card[expire_month]": ["12"],
+        "meta": {
+            "customer[name]": "John Doe",
+            "customer[email]": [
+                "john@doe.com",
+                "johndoe@example.com",
+            ]
+        }
+    }
+    for path, expected in [
+        ("$['card[number]']", "4242424242424242"),
+        ("$['card[cvc]']", "123"),
+        ("$['card[expire_year]']", "2024"),
+        ("$['card[expire_month]']", "12"),
+        ("$.meta['customer[name]']", "John Doe"),
+    ]:
+        expr = jsonpath_ng.parse(path)
+        result = expr.find(data)
+        asserts.assert_that(result.value).is_equal_to(expected)
 
 
 def _test_update_jsonpath():
@@ -91,6 +117,7 @@ def _testsuite():
     # test read
     _suite.addTest(unittest.FunctionTestCase(_test_simple_jsonpath))
     _suite.addTest(unittest.FunctionTestCase(_test_get_array_leaf_jsonpath))
+    _suite.addTest(unittest.FunctionTestCase(_test_get_with_quoted_key))
     # test write
     _suite.addTest(unittest.FunctionTestCase(_test_update_jsonpath))
     _suite.addTest(unittest.FunctionTestCase(_test_update_array_leaf_jsonpath))
