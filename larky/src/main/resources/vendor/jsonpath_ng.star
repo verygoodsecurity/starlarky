@@ -30,9 +30,10 @@ def _write(node, keys, value):
     data = node
     for index in range(1, len(keys)):
         key = keys[index]
+        is_last_key = index == len(keys) - 1
         if types.is_dict(data):
             # If this is the leaf node, write
-            if index == len(keys) - 1:
+            if is_last_key:
                 # print('data to update:', data)
                 data[key] = value
                 return node
@@ -44,7 +45,12 @@ def _write(node, keys, value):
                 data = data[key]
 
         elif types.is_list(data):
-            if key > -1 and key < len(data):
+            # If this is the leaf node, write
+            if is_last_key:
+                # print('data to update:', data)
+                data[key] = value
+                return node
+            elif key > -1 and key < len(data):
                 data = data[key]
             else:
                 fail("ParsingException('Key \"{%s}\" does not exist in node')" % key)
