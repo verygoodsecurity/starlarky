@@ -7,7 +7,7 @@ load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 
 
 FIXTURE = {
-    "store": {
+  "store": {
     "book": [
       { "category": "reference",
         "author": "Nigel Rees",
@@ -35,7 +35,11 @@ FIXTURE = {
     "bicycle": {
       "color": "red",
       "price": 19.95
-    }
+    },
+    "staff": [
+        "John Doe",
+        "Jane Doe"
+    ]
   }
 }
 
@@ -50,6 +54,12 @@ def _test_simple_jsonpath():
 
     expr2 = jsonpath_ng.parse("$.store.drink")
     asserts.assert_fails(lambda : expr2.find(FIXTURE), ".*?ParsingException")
+
+
+def _test_get_array_leaf_jsonpath():
+    asserts.assert_that(jsonpath_ng.parse("$.store.staff[0]").value).is_equal_to("John Doe")
+    asserts.assert_that(jsonpath_ng.parse("$.store.staff[1]").value).is_equal_to("Jane Doe")
+
 
 
 def _test_update_jsonpath():
@@ -68,6 +78,7 @@ def _test_update_jsonpath():
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_simple_jsonpath))
+    _suite.addTest(unittest.FunctionTestCase(_test_get_array_leaf_jsonpath))
     _suite.addTest(unittest.FunctionTestCase(_test_update_jsonpath))
     return _suite
 
