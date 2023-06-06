@@ -113,6 +113,34 @@ def _test_update_array_leaf_jsonpath():
     asserts.assert_that(result.value["store"]["staff"][0]).is_equal_to("William Cavendish")
 
 
+def _test_update_quoted_key_jsonpath():
+    data = {
+        "card[number]": "4242424242424242",
+        "card[cvc]": "123",
+        "card[expire_year]": ["2024"],
+        "card[expire_month]": ["12"],
+        "meta": {
+            "customer[name]": "John Doe",
+            "customer[email]": [
+                "john@doe.com",
+                "johndoe@example.com",
+            ]
+        }
+    }
+    # update field value
+    for path, value, extract in [
+        ("$['card[number]']", "4000056655665556", lambda d: d["card[number]"]),
+        ('$["card[number]"]', "4000056655665556", lambda d: d["card[number]"]),
+        ("$['card[cvc]']", "456", lambda d: d["card[cvc]"]),
+        ("$['card[expire_year]'][0]", "2036", lambda d: d["card[expire_year]"][0]),
+        ("$['card[expire_month]'][0]", "07", lambda d: d["card[expire_month]"][0]),
+        ("$.meta['customer[name]']", "Jane Doe", lambda d: d["meta"]['customer[name]']),
+    ]:
+        expr = jsonpath_ng.parse(path)
+        result = expr.update(data, value)
+        asserts.assert_that(extract(result.value)).is_equal_to(value)
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     # test read
@@ -122,6 +150,7 @@ def _testsuite():
     # test write
     _suite.addTest(unittest.FunctionTestCase(_test_update_jsonpath))
     _suite.addTest(unittest.FunctionTestCase(_test_update_array_leaf_jsonpath))
+    _suite.addTest(unittest.FunctionTestCase(_test_update_quoted_key_jsonpath))
     return _suite
 
 
