@@ -57,8 +57,12 @@ def _test_simple_jsonpath():
 
 
 def _test_get_array_leaf_jsonpath():
-    asserts.assert_that(jsonpath_ng.parse("$.store.staff[0]").value).is_equal_to("John Doe")
-    asserts.assert_that(jsonpath_ng.parse("$.store.staff[1]").value).is_equal_to("Jane Doe")
+    expr = jsonpath_ng.parse("$.store.staff[0]")
+    result = expr.find(FIXTURE)
+    asserts.assert_that(result.value).is_equal_to("John Doe")
+    expr = jsonpath_ng.parse("$.store.staff[1]")
+    result = expr.find(FIXTURE)
+    asserts.assert_that(result.value).is_equal_to("Jane Doe")
 
 
 
@@ -75,11 +79,21 @@ def _test_update_jsonpath():
     asserts.assert_that(result.value["store"]["bicycle"]["type"]).is_equal_to("Mountain Bike")
 
 
+def _test_update_array_leaf_jsonpath():
+    # update field value
+    expr = jsonpath_ng.parse("$.store.staff[0]")
+    result = expr.update(FIXTURE, "William Cavendish")
+    asserts.assert_that(result.value["store"]["staff"][0]).is_equal_to("William Cavendish")
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
+    # test read
     _suite.addTest(unittest.FunctionTestCase(_test_simple_jsonpath))
     _suite.addTest(unittest.FunctionTestCase(_test_get_array_leaf_jsonpath))
+    # test write
     _suite.addTest(unittest.FunctionTestCase(_test_update_jsonpath))
+    _suite.addTest(unittest.FunctionTestCase(_test_update_array_leaf_jsonpath))
     return _suite
 
 
