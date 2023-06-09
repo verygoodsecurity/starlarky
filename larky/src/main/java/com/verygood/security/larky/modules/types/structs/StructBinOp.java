@@ -27,7 +27,7 @@ import static net.starlark.java.syntax.TokenKind.STAR_STAR;
 import com.verygood.security.larky.modules.types.LarkyIterator;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.parser.StarlarkUtil;
-
+import lombok.extern.slf4j.Slf4j;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
@@ -35,9 +35,9 @@ import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.syntax.TokenKind;
-
 import org.jetbrains.annotations.Nullable;
 
+@Slf4j
 public class StructBinOp {
 
   private StructBinOp() {
@@ -145,7 +145,7 @@ public class StructBinOp {
     String operator,
     StarlarkThread thread
   ) throws EvalException {
-
+log.info("binaryOperation");
     String lhsType = StarlarkUtil.richType(lhs);
     String rhsType = StarlarkUtil.richType(rhs);
 

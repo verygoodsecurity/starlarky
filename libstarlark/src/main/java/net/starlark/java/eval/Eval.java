@@ -261,7 +261,8 @@ final class Eval {
     }
 
     if (++fr.thread.steps >= fr.thread.stepLimit) {
-      throw new EvalException("Starlark computation cancelled: too many steps");
+      throw new EvalException("Starlark computation cancelled: too many steps, limit is"
+                              + fr.thread.stepLimit + ", check your loops.");
     }
 
     switch (st.kind()) {
@@ -468,7 +469,7 @@ final class Eval {
       xDict.putEntries(yDict);
       return xDict;
     }
-    return EvalUtils.binaryOp(op, x, y, fr.thread);
+    return EvalUtils.binaryOp(op, x, y, fr);
   }
 
   // ---- expressions ----
@@ -542,7 +543,7 @@ final class Eval {
       default:
         Object y = eval(fr, binop.getY());
         try {
-          return EvalUtils.binaryOp(binop.getOperator(), x, y, fr.thread);
+          return EvalUtils.binaryOp(binop.getOperator(), x, y, fr);
         } catch (EvalException ex) {
           fr.setErrorLocation(binop.getOperatorLocation());
           throw ex;
