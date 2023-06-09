@@ -7,7 +7,7 @@ load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 
 
 FIXTURE = {
-    "store": {
+  "store": {
     "book": [
       { "category": "reference",
         "author": "Nigel Rees",
@@ -35,7 +35,11 @@ FIXTURE = {
     "bicycle": {
       "color": "red",
       "price": 19.95
-    }
+    },
+    "staff": [
+        "John Doe",
+        "Jane Doe"
+    ]
   }
 }
 
@@ -52,6 +56,43 @@ def _test_simple_jsonpath():
     asserts.assert_fails(lambda : expr2.find(FIXTURE), ".*?ParsingException")
 
 
+def _test_get_array_leaf_jsonpath():
+    for path, expected in [
+        ("$.store.staff[0]", "John Doe"),
+        ("$.store.staff[1]", "Jane Doe"),
+    ]:
+        expr = jsonpath_ng.parse(path)
+        result = expr.find(FIXTURE)
+        asserts.assert_that(result.value).is_equal_to(expected)
+
+
+def _test_get_with_quoted_key():
+    data = {
+        "card[number]": "4242424242424242",
+        "card[cvc]": "123",
+        "card[expire_year]": ["2024"],
+        "card[expire_month]": ["12"],
+        "meta": {
+            "customer[name]": "John Doe",
+            "customer[email]": [
+                "john@doe.com",
+                "johndoe@example.com",
+            ]
+        }
+    }
+    for path, expected in [
+        ("$['card[number]']", "4242424242424242"),
+        ('$["card[number]"]', "4242424242424242"),
+        ("$['card[cvc]']", "123"),
+        ("$['card[expire_year]'][0]", "2024"),
+        ("$['card[expire_month]'][0]", "12"),
+        ("$.meta['customer[name]']", "John Doe"),
+    ]:
+        expr = jsonpath_ng.parse(path)
+        result = expr.find(data)
+        asserts.assert_that(result.value).is_equal_to(expected)
+
+
 def _test_update_jsonpath():
     # update field value
     expr = jsonpath_ng.parse("$.store.book[0].author")
@@ -65,10 +106,51 @@ def _test_update_jsonpath():
     asserts.assert_that(result.value["store"]["bicycle"]["type"]).is_equal_to("Mountain Bike")
 
 
+def _test_update_array_leaf_jsonpath():
+    # update field value
+    expr = jsonpath_ng.parse("$.store.staff[0]")
+    result = expr.update(FIXTURE, "William Cavendish")
+    asserts.assert_that(result.value["store"]["staff"][0]).is_equal_to("William Cavendish")
+
+
+def _test_update_quoted_key_jsonpath():
+    data = {
+        "card[number]": "4242424242424242",
+        "card[cvc]": "123",
+        "card[expire_year]": ["2024"],
+        "card[expire_month]": ["12"],
+        "meta": {
+            "customer[name]": "John Doe",
+            "customer[email]": [
+                "john@doe.com",
+                "johndoe@example.com",
+            ]
+        }
+    }
+    # update field value
+    for path, value, extract in [
+        ("$['card[number]']", "4000056655665556", lambda d: d["card[number]"]),
+        ('$["card[number]"]', "4000056655665556", lambda d: d["card[number]"]),
+        ("$['card[cvc]']", "456", lambda d: d["card[cvc]"]),
+        ("$['card[expire_year]'][0]", "2036", lambda d: d["card[expire_year]"][0]),
+        ("$['card[expire_month]'][0]", "07", lambda d: d["card[expire_month]"][0]),
+        ("$.meta['customer[name]']", "Jane Doe", lambda d: d["meta"]['customer[name]']),
+    ]:
+        expr = jsonpath_ng.parse(path)
+        result = expr.update(data, value)
+        asserts.assert_that(extract(result.value)).is_equal_to(value)
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
+    # test read
     _suite.addTest(unittest.FunctionTestCase(_test_simple_jsonpath))
+    _suite.addTest(unittest.FunctionTestCase(_test_get_array_leaf_jsonpath))
+    _suite.addTest(unittest.FunctionTestCase(_test_get_with_quoted_key))
+    # test write
     _suite.addTest(unittest.FunctionTestCase(_test_update_jsonpath))
+    _suite.addTest(unittest.FunctionTestCase(_test_update_array_leaf_jsonpath))
+    _suite.addTest(unittest.FunctionTestCase(_test_update_quoted_key_jsonpath))
     return _suite
 
 

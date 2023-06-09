@@ -5,7 +5,6 @@ load("@stdlib//types", types="types")
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
-
 def _read(node, keys):
     data = node
     # First key should always be $, ignore
@@ -30,9 +29,10 @@ def _write(node, keys, value):
     data = node
     for index in range(1, len(keys)):
         key = keys[index]
+        is_last_key = index == len(keys) - 1
         if types.is_dict(data):
             # If this is the leaf node, write
-            if index == len(keys) - 1:
+            if is_last_key:
                 # print('data to update:', data)
                 data[key] = value
                 return node
@@ -44,7 +44,12 @@ def _write(node, keys, value):
                 data = data[key]
 
         elif types.is_list(data):
-            if key > -1 and key < len(data):
+            # If this is the leaf node, write
+            if is_last_key:
+                # print('data to update:', data)
+                data[key] = value
+                return node
+            elif key > -1 and key < len(data):
                 data = data[key]
             else:
                 fail("ParsingException('Key \"{%s}\" does not exist in node')" % key)
@@ -95,6 +100,19 @@ def datum(parsed):
     return self
 
 
+def _parse_bracketed_key(text):
+    quote_char = None
+    if text.startswith('"'):
+        quote_char = '"'
+    elif text.startswith("'"):
+        quote_char = "'"
+    if quote_char != None:
+        end_quote = text.find(quote_char, 1)
+        return text[:end_quote + 1]
+    close_bracket = text.find(']')
+    return text[:close_bracket]
+
+
 def _parse(query):
     keys = []
     element = ""
@@ -113,9 +131,9 @@ def _parse(query):
                 keys.append(element)
                 element = ""
 
-            close = query.find("]", index)
-            key = query[index + 1 : close]
-            if key.startswith("'") and key.endswith("'"):
+            key = _parse_bracketed_key(query[index + 1:])
+            key_len = len(key)
+            if key.startswith("'") or key.startswith('"'):
                 key = key[1:-1]
             elif key == "*":
                 # key = key
@@ -124,7 +142,7 @@ def _parse(query):
                 key = int(key)
 
             keys.append(key)
-            index = close
+            index += key_len + 1
         elif query[index] == "*":
             fail("ParsingException('Key \"*\" is not supported, please use for loop')")
         else:
