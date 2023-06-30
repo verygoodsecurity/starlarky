@@ -9,6 +9,8 @@ import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -17,7 +19,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 
-
+@Slf4j
 @StarlarkBuiltin(
         name = "vault",
         category = "BUILTIN",
@@ -27,7 +29,8 @@ public class VaultModule implements LarkyVault {
     public static final VaultModule INSTANCE = new VaultModule();
     public static final String ENABLE_INMEMORY_PROPERTY = "larky.modules.vgs.vault.enableInMemoryVault";
 
-    private LarkyVault vault;
+    @Getter
+    private final LarkyVault vault;
 
     private final ImmutableList<String> supportedStorage = ImmutableList.of(
             "persistent",
@@ -56,8 +59,10 @@ public class VaultModule implements LarkyVault {
         List<LarkyVault> vaultProviders = ImmutableList.copyOf(loader.iterator());
 
         if (Boolean.getBoolean(ENABLE_INMEMORY_PROPERTY)) {
+            log.error("Using in-memory vault, should not be used in Production");
             vault = new DefaultVault();
         } else if (vaultProviders.isEmpty()) {
+            log.error("Using Noop vault, should not be used in Production");
             vault = new NoopVault();
         } else {
             if (vaultProviders.size() != 1) {
