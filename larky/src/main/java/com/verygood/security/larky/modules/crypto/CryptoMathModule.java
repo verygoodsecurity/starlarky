@@ -1,11 +1,9 @@
 package com.verygood.security.larky.modules.crypto;
 
-import java.math.BigInteger;
-import java.security.SecureRandom;
-
 import com.verygood.security.larky.modules.utils.ByteArrayUtil;
 import com.verygood.security.larky.modules.utils.NumOpsUtils;
-
+import java.math.BigInteger;
+import java.security.SecureRandom;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
@@ -16,10 +14,10 @@ import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
-
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.math.Primes;
-import org.bouncycastle.pqc.math.linearalgebra.IntegerFunctions;
+import org.bouncycastle.pqc.legacy.math.linearalgebra.IntegerFunctions;
+
 
 public class CryptoMathModule implements StarlarkValue {
 
@@ -27,18 +25,19 @@ public class CryptoMathModule implements StarlarkValue {
   private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
 
   @StarlarkMethod(name = "jacobi_number",
-       doc = "Computes Jacobi(p,n).\n" +
-           " Assumes n positive, odd, n>=3.\n" +
-           " Compute the jacobi symbol <code>(a/n)</code>, as described in:\n" +
-           " <a href=\"http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf\">Digital signature standard (DSS). FIPS PUB 186-4, National Institute of Standards and\n" +
-           " Technology (NIST), 2013.</a>, pp. 76-77",
-       parameters = {
-           @Param(name = "a", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
-           @Param(name = "n", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
-       })
-   public StarlarkInt jacobiNumber(StarlarkInt a, StarlarkInt n) {
+      doc = "Computes Jacobi(p,n).\n" +
+            " Assumes n positive, odd, n>=3.\n" +
+            " Compute the jacobi symbol <code>(a/n)</code>, as described in:\n" +
+            " <a href=\"http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf\">Digital signature standard (DSS). FIPS PUB 186-4, National Institute of Standards and\n"
+            +
+            " Technology (NIST), 2013.</a>, pp. 76-77",
+      parameters = {
+          @Param(name = "a", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+          @Param(name = "n", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+      })
+  public StarlarkInt jacobiNumber(StarlarkInt a, StarlarkInt n) {
     return StarlarkInt.of(IntegerFunctions.jacobi(a.toBigInteger(), n.toBigInteger()));
-   }
+  }
 
   @StarlarkMethod(name = "gcd",
       doc = "greatest common divisor",
@@ -62,12 +61,12 @@ public class CryptoMathModule implements StarlarkValue {
 
   @StarlarkMethod(name = "bit_length",
       doc = "If x is nonzero, then x.bit_length() is the unique positive " +
-          "integer k such that 2**(k-1) <= abs(x) < 2**k. " +
-          "" +
-          "Equivalently, when abs(x) is small enough to have a correctly " +
-          "rounded logarithm, then k = 1 + int(log(abs(x), 2)). " +
-          "" +
-          "If x is zero, then x.bit_length() returns 0.",
+            "integer k such that 2**(k-1) <= abs(x) < 2**k. " +
+            "" +
+            "Equivalently, when abs(x) is small enough to have a correctly " +
+            "rounded logarithm, then k = 1 + int(log(abs(x), 2)). " +
+            "" +
+            "If x is zero, then x.bit_length() returns 0.",
       parameters = {
           @Param(name = "n")
       })
@@ -87,20 +86,20 @@ public class CryptoMathModule implements StarlarkValue {
 
   @StarlarkMethod(name = "int_to_bytes",
       doc = "Return an array of bytes representing an integer.\n" +
-          "\n" +
-          "length\n" +
-          "  Length of bytes object to use.  An OverflowError is raised if the\n" +
-          "  integer is not representable with the given number of bytes.\n" +
-          "byteorder\n" +
-          "  The byte order used to represent the integer.  If byteorder is 'big',\n" +
-          "  the most significant byte is at the beginning of the byte array.  If\n" +
-          "  byteorder is 'little', the most significant byte is at the end of the\n" +
-          "  byte array.  To request the native byte order of the host system, use\n" +
-          "  `sys.byteorder' as the byte order value.\n" +
-          "signed\n" +
-          "  Determines whether two's complement is used to represent the integer.\n" +
-          "  If signed is False and a negative integer is given, an OverflowError\n" +
-          "  is raised.\n",
+            "\n" +
+            "length\n" +
+            "  Length of bytes object to use.  An OverflowError is raised if the\n" +
+            "  integer is not representable with the given number of bytes.\n" +
+            "byteorder\n" +
+            "  The byte order used to represent the integer.  If byteorder is 'big',\n" +
+            "  the most significant byte is at the beginning of the byte array.  If\n" +
+            "  byteorder is 'little', the most significant byte is at the end of the\n" +
+            "  byte array.  To request the native byte order of the host system, use\n" +
+            "  `sys.byteorder' as the byte order value.\n" +
+            "signed\n" +
+            "  Determines whether two's complement is used to represent the integer.\n" +
+            "  If signed is False and a negative integer is given, an OverflowError\n" +
+            "  is raised.\n",
       parameters = {
           @Param(name = "integer"),
           @Param(name = "length"),
@@ -108,10 +107,10 @@ public class CryptoMathModule implements StarlarkValue {
           @Param(name = "signed", defaultValue = "False"),
       }, useStarlarkThread = true)
   public StarlarkBytes toBytes(StarlarkInt integer,
-                               StarlarkInt byteCount,
-                               String byteorder,
-                               boolean signed,
-                               StarlarkThread thread) throws EvalException {
+      StarlarkInt byteCount,
+      String byteorder,
+      boolean signed,
+      StarlarkThread thread) throws EvalException {
     // if we're trying to pack a very big integer..
     BigInteger value = integer.toBigInteger();
     byte[] bytes;
@@ -152,28 +151,28 @@ public class CryptoMathModule implements StarlarkValue {
   // this is just like using the struct lib..
   @StarlarkMethod(name = "int_from_bytes",
       doc = "Return the integer represented by the given array of bytes.\n" +
-          "\n" +
-          "bytes\n" +
-          "  Holds the array of bytes to convert.  The argument must either\n" +
-          "  support the buffer protocol or be an iterable object producing bytes.\n" +
-          "  Bytes and bytearray are examples of built-in objects that support the\n" +
-          "  buffer protocol.\n" +
-          "byteorder\n" +
-          "  The byte order used to represent the integer.  If byteorder is 'big',\n" +
-          "  the most significant byte is at the beginning of the byte array.  If\n" +
-          "  byteorder is 'little', the most significant byte is at the end of the\n" +
-          "  byte array.  To request the native byte order of the host system, use\n" +
-          "  `sys.byteorder' as the byte order value.\n" +
-          "signed\n" +
-          "  Indicates whether two's complement is used to represent the integer.\n",
+            "\n" +
+            "bytes\n" +
+            "  Holds the array of bytes to convert.  The argument must either\n" +
+            "  support the buffer protocol or be an iterable object producing bytes.\n" +
+            "  Bytes and bytearray are examples of built-in objects that support the\n" +
+            "  buffer protocol.\n" +
+            "byteorder\n" +
+            "  The byte order used to represent the integer.  If byteorder is 'big',\n" +
+            "  the most significant byte is at the beginning of the byte array.  If\n" +
+            "  byteorder is 'little', the most significant byte is at the end of the\n" +
+            "  byte array.  To request the native byte order of the host system, use\n" +
+            "  `sys.byteorder' as the byte order value.\n" +
+            "signed\n" +
+            "  Indicates whether two's complement is used to represent the integer.\n",
       parameters = {
           @Param(name = "bytes"),
           @Param(name = "byteorder"),
           @Param(name = "signed", defaultValue = "False"),
       })
   public StarlarkInt fromBytes(StarlarkBytes bytesObj,
-                               String byteorder,
-                               boolean signed) throws EvalException {
+      String byteorder,
+      boolean signed) throws EvalException {
 
     byte[] bytes = bytesObj.toByteArray();
     return StarlarkInt.of(NumOpsUtils.bytes2bigint(bytes, isBigEndian(byteorder), signed));
