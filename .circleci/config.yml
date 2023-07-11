@@ -317,7 +317,7 @@ workflows:
       - publish-to-pypi:
           filters:
             tags:
-              only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
+              only: IGNORED
             branches:
               ignore: /.*/
           requires:
