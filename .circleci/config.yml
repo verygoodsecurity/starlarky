@@ -278,6 +278,57 @@ jobs:
           name: Upload packages
           command: twine upload -u __token__ -p ${PYPI_TOKEN} ${DIST_PATH}/*.whl
 
+  scan-sast-pr:
+    <<: *job-defaults
+    <<: *machine-linux
+    parameters:
+      default_branch:
+        type: string
+        default: master
+    environment: 
+      SEMGREP_REPO_URL: << pipeline.project.git_url >>
+      SEMGREP_BRANCH: << pipeline.git.branch >>
+      SEMGREP_BASELINE_REF: << parameters.default_branch >>
+      SEMGREP_PR_ID: $CIRCLE_PR_NUMBER
+    steps:
+      - checkout
+      - <<: *install-java
+      - <<: *install_python
+      - <<: *restore-maven-cache
+      - <<: *setup-maven-distributions
+      - <<: *restore-maven-cache
+      - run:
+          name: "Semgrep diff scan"
+          command: |
+            export SEMGREP_REPO_NAME="$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME"
+            mvn dependency:tree -DoutputFile=maven_dep_tree.txt
+            python3 -m pip install semgrep
+            python3 -m semgrep ci
+
+  scan-sast-full:
+    <<: *job-defaults
+    <<: *machine-linux
+    parameters:
+      default_branch:
+        type: string
+        default: master
+    environment: 
+      SEMGREP_REPO_URL: << pipeline.project.git_url >>
+      SEMGREP_BRANCH: << pipeline.git.branch >>
+    steps:
+      - checkout
+      - <<: *install-java
+      - <<: *install_python
+      - <<: *restore-maven-cache
+      - <<: *setup-maven-distributions
+      - <<: *restore-maven-cache
+      - run:
+          name: "Semgrep full scan"
+          command: |
+            mvn dependency:tree -DoutputFile=maven_dep_tree.txt
+            python3 -m pip install semgrep
+            python3 -m semgrep ci
+
 workflows:
   version: 2
   build_and_tests:
@@ -286,6 +337,12 @@ workflows:
       - build-dist-linux:
           requires:
             - build-and-test
+      - scan-sast-pr:
+          requires:
+            - build-and-test
+          context:
+            - security-tools
+            - circleci
 
   release:
     jobs:
@@ -322,4 +379,25 @@ workflows:
               ignore: /.*/
           requires:
             - build-dist-linux
+      - scan-sast-full:
+          requires:
+            - build-dist-maven
+          context:
+            - security-tools
+            - circleci
+
+# Workflow for scheduled security scans
+  scheduled-security-scan:
+    triggers:
+      - schedule:
+          cron: "0 0 * * 1"
+          filters:
+            branches:
+              only:
+                - master       
+    jobs: 
+      - scan-sast-full:
+          context:
+            - security-tools
+            - circleci
 
