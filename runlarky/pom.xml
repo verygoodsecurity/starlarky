@@ -203,7 +203,8 @@
                             <mainClass>${main.class}</mainClass>
                             <buildArgs>
                                 <buildArg>--no-fallback</buildArg>
-                                <buildArg>--allow-incomplete-classpath</buildArg>
+                                <buildArg>--add-exports=org.graalvm.nativeimage.builder/com.oracle.svm.core=ALL-UNNAMED</buildArg>
+                                <buildArg>--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED</buildArg>
                                 <buildArg>--initialize-at-run-time=org.apache.commons.lang3.RandomStringUtils</buildArg>
                                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                                 <buildArg>
