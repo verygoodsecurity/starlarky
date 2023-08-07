@@ -116,6 +116,19 @@ def _test_render_with_dcvv():
     asserts.assert_that(output["paymentMethod"]["cvv"]).is_equal_to("MOCK_DYNAMIC_CVV")
 
 
+def _test_render_without_cvv_value():
+    input = _make_fixture()
+    input["paymentMethod"].pop("cvv")
+    output = nts.render(
+        input,
+        pan="$.paymentMethod.number",
+        cvv="$.paymentMethod.cvv",
+        amount="$.amount.value",
+        currency_code="$.amount.currency",
+    )
+    asserts.assert_that("cvv" in output["paymentMethod"]).is_false()
+
+
 def _test_render_pan_empty_value():
     asserts.assert_fails(
         lambda: nts.render(
@@ -227,6 +240,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_get_network_token_not_found))
     # Render tests
     _suite.addTest(unittest.FunctionTestCase(_test_render))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_without_cvv_value))
     _suite.addTest(unittest.FunctionTestCase(_test_render_with_dcvv))
     _suite.addTest(unittest.FunctionTestCase(_test_render_pan_empty_value))
     _suite.addTest(unittest.FunctionTestCase(_test_render_not_found))
