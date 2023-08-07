@@ -85,9 +85,9 @@ def render(
         cvv_result = safe(jsonpath_ng.parse(dcvv).find)(input)
     elif all([cvv, dcvv]):
         fail("ValueError: only either one of cvv or dvcc can be provided")
-    cvv_value = None
+    cvv_value = ""
     if cvv_result != None and cvv_result.is_ok:
-        cvv_value = cvv_result.unwrap()
+        cvv_value = cvv_result.unwrap().value
 
     network_token = _nts.get_network_token(
         pan=pan_value,
