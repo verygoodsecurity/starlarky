@@ -72,8 +72,6 @@ def _test_find_error_safe():
     asserts.assert_that(result.unwrap_err()).is_equal_to("ParsingException('Key \"{not_exists}\" does not exist in node')")
 
 
-
-
 def _test_get_array_leaf_jsonpath():
     for path, expected in [
         ("$.store.staff[0]", "John Doe"),
