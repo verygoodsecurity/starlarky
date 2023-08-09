@@ -56,6 +56,24 @@ def _test_simple_jsonpath():
     asserts.assert_fails(lambda : expr2.find(FIXTURE), ".*?ParsingException")
 
 
+def _test_find_error_safe():
+    expr = jsonpath_ng.parse("$.store.book[0].author")
+    result = expr.find(FIXTURE, error_safe=True)
+    asserts.assert_that(result.is_ok).is_true()
+
+    expr = jsonpath_ng.parse("$.store.book[4].author")
+    result = expr.find(FIXTURE, error_safe=True)
+    asserts.assert_that(result.is_ok).is_false()
+    asserts.assert_that(result.unwrap_err()).is_equal_to("ParsingException('Key \"{4}\" does not exist in node')")
+
+    expr = jsonpath_ng.parse("$.store.book[0].not_exists")
+    result = expr.find(FIXTURE, error_safe=True)
+    asserts.assert_that(result.is_ok).is_false()
+    asserts.assert_that(result.unwrap_err()).is_equal_to("ParsingException('Key \"{not_exists}\" does not exist in node')")
+
+
+
+
 def _test_get_array_leaf_jsonpath():
     for path, expected in [
         ("$.store.staff[0]", "John Doe"),
@@ -145,6 +163,7 @@ def _testsuite():
     _suite = unittest.TestSuite()
     # test read
     _suite.addTest(unittest.FunctionTestCase(_test_simple_jsonpath))
+    _suite.addTest(unittest.FunctionTestCase(_test_find_error_safe))
     _suite.addTest(unittest.FunctionTestCase(_test_get_array_leaf_jsonpath))
     _suite.addTest(unittest.FunctionTestCase(_test_get_with_quoted_key))
     # test write
