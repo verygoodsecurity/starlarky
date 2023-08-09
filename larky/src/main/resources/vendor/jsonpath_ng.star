@@ -1,11 +1,11 @@
 load("@stdlib//json", "json")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
-
+load("@vendor//option/result", Result="Result")
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
-def _read(node, keys):
+def _read(node, keys, error_safe=False):
     data = node
     # First key should always be $, ignore
     for index in range(1, len(keys)):
@@ -15,14 +15,25 @@ def _read(node, keys):
             if key in data:
                 data = data[key]
             else:
-                fail("ParsingException('Key \"{%s}\" does not exist in node')" % key)
+                msg = "ParsingException('Key \"{%s}\" does not exist in node')" % key
+                if error_safe:
+                    return Result.Error(msg)
+                else:
+                    fail(msg)
         elif types.is_list(data):
             if key > -1 and key < len(data):
                 data = data[key]
             else:
-                fail("ParsingException('Key \"{%s}\" does not exist in node')" % key)
+                msg = "ParsingException('Key \"{%s}\" does not exist in node')" % key
+                if error_safe:
+                    return Result.Error(msg)
+                else:
+                    fail(msg)
 
-    return data
+    if error_safe:
+        return Result.Ok(data)
+    else:
+        return data
 
 
 def _write(node, keys, value):
@@ -86,8 +97,15 @@ def datum(parsed):
         self.parsed = parsed
         return self
 
-    def find(node):
-        return _result(_read(node, self.parsed))
+    def find(node, error_safe=False):
+        value = _read(node, self.parsed, error_safe=error_safe)
+        if error_safe:
+            # for error safe, we are already wrapping the return value in
+            # result object (different one from _result).
+            # ideally, the API should be consistent, but the current result
+            # struct is widely used, so we have to keep it as is
+            return value
+        return _result(value)
 
     self.find = find
 

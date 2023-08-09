@@ -4,7 +4,6 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//enum", enum="enum")
 load("@stdlib//re", re="re")
 load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
-load("@vendor//option/result", safe="safe")
 
 VGS_NETWORK_TOKEN_HEADER = "vgs-network-token"
 PSPType = enum.Enum('PSPType', [
@@ -80,14 +79,14 @@ def render(
     currency_code_value = jsonpath_ng.parse(currency_code).find(input).value
     cvv_result = None
     if cvv != None and dcvv == None:
-        cvv_result = safe(jsonpath_ng.parse(cvv).find)(input)
+        cvv_result = jsonpath_ng.parse(cvv).find(input, error_safe=True)
     elif dcvv != None and cvv == None:
-        cvv_result = safe(jsonpath_ng.parse(dcvv).find)(input)
+        cvv_result = jsonpath_ng.parse(dcvv).find(input, error_safe=True)
     elif all([cvv, dcvv]):
         fail("ValueError: only either one of cvv or dvcc can be provided")
     cvv_value = ""
     if cvv_result != None and cvv_result.is_ok:
-        cvv_value = cvv_result.unwrap().value
+        cvv_value = cvv_result.unwrap()
 
     network_token = _nts.get_network_token(
         pan=pan_value,

@@ -3,6 +3,7 @@ load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
 load("@vgs//nts", "nts")
 load("@vgs//vault", vault="vault")
+load("@vendor//option/result", safe="safe")
 
 
 def _make_fixture():
@@ -101,6 +102,22 @@ def _test_render():
     asserts.assert_that(output["paymentMethod"]["expiryYear"]).is_equal_to(27)
     asserts.assert_that(output["mpiData"]["cavv"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
     asserts.assert_that(output["mpiData"]["eci"]).is_equal_to("MOCK_CRYPTOGRAM_ECI")
+
+
+def _test_render_with_nested_safe():
+    result = safe(nts.render)(
+        _make_fixture(),
+        pan="$.paymentMethod.number",
+        cvv="$.paymentMethod.cvv",
+        amount="$.amount.value",
+        currency_code="$.amount.currency",
+        exp_month="$.paymentMethod.expiryMonth",
+        exp_year="$.paymentMethod.expiryYear",
+        cryptogram_value="$.mpiData.cavv",
+        cryptogram_eci="$.mpiData.eci",
+    )
+    print(result.unwrap())
+    asserts.assert_that(result.is_ok).is_true()
 
 
 def _test_render_with_dcvv():
@@ -258,6 +275,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_get_network_token_not_found))
     # Render tests
     _suite.addTest(unittest.FunctionTestCase(_test_render))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_with_nested_safe))
     _suite.addTest(unittest.FunctionTestCase(_test_render_without_cvv_value))
     _suite.addTest(unittest.FunctionTestCase(_test_render_with_dcvv))
     _suite.addTest(unittest.FunctionTestCase(_test_render_without_cvv_json_path))
