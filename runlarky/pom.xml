@@ -28,7 +28,7 @@
 
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
-        <graalvm-native-maven-plugin.version>0.9.10</graalvm-native-maven-plugin.version>
+        <graalvm-native-maven-plugin.version>0.9.23</graalvm-native-maven-plugin.version>
 
         <!-- annotationProcessorPaths requires maven-compiler-plugin version 3.5 or higher -->
         <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
@@ -203,7 +203,8 @@
                             <mainClass>${main.class}</mainClass>
                             <buildArgs>
                                 <buildArg>--no-fallback</buildArg>
-                                <buildArg>--allow-incomplete-classpath</buildArg>
+                                <buildArg>--add-exports=org.graalvm.nativeimage.builder/com.oracle.svm.core=ALL-UNNAMED</buildArg>
+                                <buildArg>--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED</buildArg>
                                 <buildArg>--initialize-at-run-time=org.apache.commons.lang3.RandomStringUtils</buildArg>
                                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                                 <buildArg>
