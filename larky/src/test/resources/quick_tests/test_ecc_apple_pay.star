@@ -34,7 +34,7 @@ def test_applepay_decrypt():
           hash_binary = hashlib.new("sha256", bytes(text, 'utf-8')).digest()
           return hash_binary
 
-      def _generate_symmetric_key(shared_secret):
+      def generate_symmetric_key(shared_secret):
           sha = hashlib.new("sha256", b'\0' * 3)
           sha.update(b'\1')
           sha.update(shared_secret)
@@ -48,7 +48,7 @@ def test_applepay_decrypt():
       ecdh.set_public_key(bytes(ephemeralPublicKey, 'utf-8'), type="X509")
       shared_secret = ecdh.exchange()
 
-      symmetric_key = _generate_symmetric_key(shared_secret)
+      symmetric_key = generate_symmetric_key(shared_secret)
 
       iv = b'\0' * 16
       payload = b64decode(payload)
