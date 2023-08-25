@@ -54,7 +54,7 @@ def test_applepay_decrypt():
       payload = b64decode(payload)
       cipher = AES.new(symmetric_key, AES.MODE_GCM, iv)
       data = cipher.decrypt(bytes(payload, 'utf-8'))
-      return data 
+      return json.loads(str(data[:-16]))
 
     decrypted_json = decrypt_applepay(merchant_id, keystore, keystorePass, body["paymentData"]["header"]["ephemeralPublicKey"], body["paymentData"]["data"])
     return decrypted_json
