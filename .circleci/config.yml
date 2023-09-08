@@ -133,7 +133,7 @@ parameters:
     default: false
 
 # === JOBS ===
-version: 2
+version: 2.1
 jobs:
   build-and-test:
     <<: *job-defaults
