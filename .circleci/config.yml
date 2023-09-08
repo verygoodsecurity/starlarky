@@ -15,7 +15,8 @@ job-defaults: &job-defaults
 
 machine-linux: &machine-linux
   machine:
-      image: ubuntu-2204:2022.10.2 
+    docker_layer_caching: true
+    image: ubuntu-2204:2022.10.2
 
 install-java: &install-java
   run:
@@ -126,6 +127,10 @@ attach-dist: &attach-dist
   attach_workspace:
     at: *dist_directory
 
+parameters:
+  nightly-security-scan:
+    type: boolean
+    default: false
 
 # === JOBS ===
 version: 2
@@ -277,15 +282,54 @@ jobs:
       - run:
           name: Upload packages
           command: twine upload -u __token__ -p ${PYPI_TOKEN} ${DIST_PATH}/*.whl
+  scan-sast-pr:
+    <<: *machine-linux
+    <<: *job-defaults
+    environment:
+      SEMGREP_REPO_URL: << pipeline.project.git_url >>
+      SEMGREP_BRANCH: << pipeline.git.branch >>
+      SEMGREP_BASELINE_REF: master
+      SEMGREP_PR_ID: $CIRCLE_PR_NUMBER
+    steps:
+      - <<: *attach-dist
+      - checkout
+      - <<: *restore-maven-cache
+      - run:
+          name: Semgrep PR Scan
+          command: docker-compose run --rm semgrep
+  scan-sast-full:
+    <<: *machine-linux
+    <<: *job-defaults
+    environment:
+      SEMGREP_REPO_URL: << pipeline.project.git_url >>
+      SEMGREP_BRANCH: << pipeline.git.branch >>
+    steps:
+      - <<: *attach-dist
+      - checkout
+      - <<: *restore-maven-cache
+      - run:
+          name: Semgrep Full Scan
+          command: docker-compose run --rm semgrep
 
 workflows:
   version: 2
   build_and_tests:
+    when:
+      not: << pipeline.parameters.nightly-security-scan >>
     jobs:
       - build-and-test
       - build-dist-linux:
           requires:
             - build-and-test
+      - scan-sast-pr:
+          context:
+            - security-tools
+            - circleci
+          requires:
+            - build-and-test
+          filters:
+            tags:
+              ignore: /.*/
 
   release:
     jobs:
@@ -322,4 +366,11 @@ workflows:
               ignore: /.*/
           requires:
             - build-dist-linux
+  scheduled-security-scan:
+    when: << pipeline.parameters.nightly-security-scan >>
+    jobs:
+      - scan-sast-full:
+          context:
+            - security-tools
+            - circleci
 
