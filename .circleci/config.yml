@@ -127,13 +127,8 @@ attach-dist: &attach-dist
   attach_workspace:
     at: *dist_directory
 
-parameters:
-  nightly-security-scan:
-    type: boolean
-    default: false
-
 # === JOBS ===
-version: 2.1
+version: 2
 jobs:
   build-and-test:
     <<: *job-defaults
@@ -314,8 +309,6 @@ jobs:
 workflows:
   version: 2
   build_and_tests:
-    when:
-      not: << pipeline.parameters.nightly-security-scan >>
     jobs:
       - build-and-test
       - build-dist-linux:
@@ -367,7 +360,13 @@ workflows:
           requires:
             - build-dist-linux
   scheduled-security-scan:
-    when: << pipeline.parameters.nightly-security-scan >>
+    triggers:
+      - schedule:
+          # run at midnight (00:00) every Monday
+          cron: "0 0 * * 1"
+          filters:
+            branches:
+              only: master
     jobs:
       - scan-sast-full:
           context:
