@@ -281,8 +281,8 @@ jobs:
     <<: *machine-linux
     <<: *job-defaults
     environment:
-      SEMGREP_REPO_URL: << pipeline.project.git_url >>
-      SEMGREP_BRANCH: << pipeline.git.branch >>
+      SEMGREP_REPO_URL: ${pipeline.project.git_url}
+      SEMGREP_BRANCH: ${pipeline.git.branch}
       SEMGREP_BASELINE_REF: master
       SEMGREP_PR_ID: $CIRCLE_PR_NUMBER
     steps:
