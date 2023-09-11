@@ -281,8 +281,8 @@ jobs:
     <<: *machine-linux
     <<: *job-defaults
     environment:
-      SEMGREP_REPO_URL: ${CIRCLE_REPOSITORY_URL}
-      SEMGREP_BRANCH: ${CIRCLE_BRANCH}
+      SEMGREP_REPO_URL: $CIRCLE_REPOSITORY_URL
+      SEMGREP_BRANCH: $CIRCLE_BRANCH
       SEMGREP_BASELINE_REF: master
       SEMGREP_PR_ID: $CIRCLE_PR_NUMBER
     steps:
@@ -296,8 +296,8 @@ jobs:
     <<: *machine-linux
     <<: *job-defaults
     environment:
-      SEMGREP_REPO_URL: ${CIRCLE_REPOSITORY_URL}
-      SEMGREP_BRANCH: ${CIRCLE_BRANCH}
+      SEMGREP_REPO_URL: $CIRCLE_REPOSITORY_URL
+      SEMGREP_BRANCH: $CIRCLE_BRANCH
     steps:
       - <<: *attach-dist
       - checkout
