@@ -328,6 +328,8 @@ workflows:
               ignore: /.*/
 
   release:
+    when:
+      not: << pipeline.parameters.nightly-security-scan >>
     jobs:
       - build-dist-maven:
           context: github-artifact-publisher
