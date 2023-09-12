@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      VERSION: ${CIRCLE_TAG:-0.0.1}
+      VERSION: ${CIRCLE_TAG:-0.0.2}
       TEST_RESULTS_PATH: /tmp/test-results/
       DIST_PATH: /tmp/dist/
       MAVEN_OPTS: -Xmx6400m
