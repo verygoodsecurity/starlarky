@@ -78,7 +78,7 @@ setup-maven-distributions: &setup-maven-distributions
     name: Setup distrubution servers for larky
     command: |
       mkdir -p ~/.m2
-      cat <<EOF > ~/.m2/settings.xml
+      cat \<<EOF > ~/.m2/settings.xml
       <settings>
         <servers>
           <server>
