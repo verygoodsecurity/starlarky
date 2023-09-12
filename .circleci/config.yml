@@ -1,11 +1,9 @@
 job-defaults: &job-defaults
   working_directory: &working_directory
     ~/starlarky
-  test_results_directory: &test_results_directory
-    /tmp/test-results
   environment:
     DIST_PATH: /tmp/dist
-    TEST_RESULTS_PATH: *test_results_directory
+    TEST_RESULTS_PATH: /tmp/test-results
     MAVEN_OPTS: -Xmx6400m
     GRAALVM_HOME: /home/circleci/starlarky/.graalvm
     HOMEBREW_REQUIRED_RUBY_VERSION: 2.4.6
@@ -146,9 +144,9 @@ jobs:
       - run: find . -type f -regex ".*/target/surefire-reports/.*-output.txt" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
       - run: find . -type f -regex ".*/target/site/.*" -exec cp --parents {} $TEST_RESULTS_PATH/coverage/ \;
       - store_artifacts:
-          path: *test_results_directory
+          path: /tmp/test-results
       - store_test_results:
-          path: *test_results_directory
+          path: /tmp/test-results
 
   build-and-test-docker:
     <<: *job-defaults
@@ -166,9 +164,9 @@ jobs:
       - run: find . -type f -regex ".*/target/site/.*" -exec cp --parents {} $TEST_RESULTS_PATH/coverage/ \;
       - run: docker-compose run local bash /src/build-and-test-python.sh
       - store_artifacts:
-          path: *test_results_directory
+          path: /tmp/test-results
       - store_test_results:
-          path: *test_results_directory
+          path: /tmp/test-results
 
   build-dist-maven:
     <<: *job-defaults
