@@ -3,10 +3,8 @@ job-defaults: &job-defaults
     ~/starlarky
   test_results_directory: &test_results_directory
     /tmp/test-results
-  dist_directory: &dist_directory
-    /tmp/dist
   environment:
-    DIST_PATH: *dist_directory
+    DIST_PATH: /tmp/dist
     TEST_RESULTS_PATH: *test_results_directory
     MAVEN_OPTS: -Xmx6400m
     GRAALVM_HOME: /home/circleci/starlarky/.graalvm
@@ -118,13 +116,13 @@ build_test_pylarky: &build_test_pylarky
 
 persist-dist: &persist-dist
   persist_to_workspace:
-    root: *dist_directory
+    root: /tmp/dist
     paths:
       - "*"
 
 attach-dist: &attach-dist
   attach_workspace:
-    at: *dist_directory
+    at: /tmp/dist
 
 
 # === JOBS ===
