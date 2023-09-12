@@ -1,12 +1,11 @@
 load("@stdlib//json", "json")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
-
+load("@vendor//option/result", Result="Result")
 
 _WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
-
-def _read(node, keys):
+def _read(node, keys, error_safe=False):
     data = node
     # First key should always be $, ignore
     for index in range(1, len(keys)):
@@ -16,23 +15,35 @@ def _read(node, keys):
             if key in data:
                 data = data[key]
             else:
-                fail("ParsingException('Key \"{%s}\" does not exist in node')" % key)
+                msg = "ParsingException('Key \"{%s}\" does not exist in node')" % key
+                if error_safe:
+                    return Result.Error(msg)
+                else:
+                    fail(msg)
         elif types.is_list(data):
             if key > -1 and key < len(data):
                 data = data[key]
             else:
-                fail("ParsingException('Key \"{%s}\" does not exist in node')" % key)
+                msg = "ParsingException('Key \"{%s}\" does not exist in node')" % key
+                if error_safe:
+                    return Result.Error(msg)
+                else:
+                    fail(msg)
 
-    return data
+    if error_safe:
+        return Result.Ok(data)
+    else:
+        return data
 
 
 def _write(node, keys, value):
     data = node
     for index in range(1, len(keys)):
         key = keys[index]
+        is_last_key = index == len(keys) - 1
         if types.is_dict(data):
             # If this is the leaf node, write
-            if index == len(keys) - 1:
+            if is_last_key:
                 # print('data to update:', data)
                 data[key] = value
                 return node
@@ -44,7 +55,12 @@ def _write(node, keys, value):
                 data = data[key]
 
         elif types.is_list(data):
-            if key > -1 and key < len(data):
+            # If this is the leaf node, write
+            if is_last_key:
+                # print('data to update:', data)
+                data[key] = value
+                return node
+            elif key > -1 and key < len(data):
                 data = data[key]
             else:
                 fail("ParsingException('Key \"{%s}\" does not exist in node')" % key)
@@ -81,8 +97,15 @@ def datum(parsed):
         self.parsed = parsed
         return self
 
-    def find(node):
-        return _result(_read(node, self.parsed))
+    def find(node, error_safe=False):
+        value = _read(node, self.parsed, error_safe=error_safe)
+        if error_safe:
+            # for error safe, we are already wrapping the return value in
+            # result object (different one from _result).
+            # ideally, the API should be consistent, but the current result
+            # struct is widely used, so we have to keep it as is
+            return value
+        return _result(value)
 
     self.find = find
 
@@ -93,6 +116,19 @@ def datum(parsed):
 
     self = __init__(parsed)
     return self
+
+
+def _parse_bracketed_key(text):
+    quote_char = None
+    if text.startswith('"'):
+        quote_char = '"'
+    elif text.startswith("'"):
+        quote_char = "'"
+    if quote_char != None:
+        end_quote = text.find(quote_char, 1)
+        return text[:end_quote + 1]
+    close_bracket = text.find(']')
+    return text[:close_bracket]
 
 
 def _parse(query):
@@ -113,9 +149,9 @@ def _parse(query):
                 keys.append(element)
                 element = ""
 
-            close = query.find("]", index)
-            key = query[index + 1 : close]
-            if key.startswith("'") and key.endswith("'"):
+            key = _parse_bracketed_key(query[index + 1:])
+            key_len = len(key)
+            if key.startswith("'") or key.startswith('"'):
                 key = key[1:-1]
             elif key == "*":
                 # key = key
@@ -124,7 +160,7 @@ def _parse(query):
                 key = int(key)
 
             keys.append(key)
-            index = close
+            index += key_len + 1
         elif query[index] == "*":
             fail("ParsingException('Key \"*\" is not supported, please use for loop')")
         else:

@@ -3,6 +3,7 @@ load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
 load("@vgs//nts", "nts")
 load("@vgs//vault", vault="vault")
+load("@vendor//option/result", safe="safe")
 
 
 def _make_fixture():
@@ -103,6 +104,22 @@ def _test_render():
     asserts.assert_that(output["mpiData"]["eci"]).is_equal_to("MOCK_CRYPTOGRAM_ECI")
 
 
+def _test_render_with_nested_safe():
+    result = safe(nts.render)(
+        _make_fixture(),
+        pan="$.paymentMethod.number",
+        cvv="$.paymentMethod.cvv",
+        amount="$.amount.value",
+        currency_code="$.amount.currency",
+        exp_month="$.paymentMethod.expiryMonth",
+        exp_year="$.paymentMethod.expiryYear",
+        cryptogram_value="$.mpiData.cavv",
+        cryptogram_eci="$.mpiData.eci",
+    )
+    print(result.unwrap())
+    asserts.assert_that(result.is_ok).is_true()
+
+
 def _test_render_with_dcvv():
     input = _make_fixture()
     input["paymentMethod"]["cvv"] = "USE_DYNAMIC_CVV"
@@ -114,6 +131,49 @@ def _test_render_with_dcvv():
         currency_code="$.amount.currency",
     )
     asserts.assert_that(output["paymentMethod"]["cvv"]).is_equal_to("MOCK_DYNAMIC_CVV")
+
+
+def _test_render_without_cvv_json_path():
+    output = nts.render(
+        _make_fixture(),
+        pan="$.paymentMethod.number",
+        amount="$.amount.value",
+        currency_code="$.amount.currency",
+        exp_month="$.paymentMethod.expiryMonth",
+        exp_year="$.paymentMethod.expiryYear",
+        cryptogram_value="$.mpiData.cavv",
+        cryptogram_eci="$.mpiData.eci",
+    )
+    asserts.assert_that(output["paymentMethod"]["number"]).is_equal_to("4242424242424242")
+    asserts.assert_that(output["paymentMethod"]["expiryMonth"]).is_equal_to(12)
+    asserts.assert_that(output["paymentMethod"]["expiryYear"]).is_equal_to(27)
+    asserts.assert_that(output["mpiData"]["eci"]).is_equal_to("MOCK_CRYPTOGRAM_ECI")
+
+
+def _test_render_without_cvv_value():
+    input = _make_fixture()
+    input["paymentMethod"].pop("cvv")
+    output = nts.render(
+        input,
+        pan="$.paymentMethod.number",
+        cvv="$.paymentMethod.cvv",
+        amount="$.amount.value",
+        currency_code="$.amount.currency",
+    )
+    asserts.assert_that("cvv" in output["paymentMethod"]).is_false()
+
+
+def _test_render_without_dcvv_value():
+    input = _make_fixture()
+    input["paymentMethod"].pop("cvv")
+    output = nts.render(
+        input,
+        pan="$.paymentMethod.number",
+        dcvv="$.paymentMethod.cvv",
+        amount="$.amount.value",
+        currency_code="$.amount.currency",
+    )
+    asserts.assert_that("cvv" in output["paymentMethod"]).is_false()
 
 
 def _test_render_pan_empty_value():
@@ -153,18 +213,6 @@ def _test_render_with_both_cvv_and_dcvv():
             currency_code="$.amount.currency",
         ),
         "ValueError: only either one of cvv or dvcc can be provided",
-    )
-
-
-def _test_render_without_either_cvv_or_dcvv():
-    asserts.assert_fails(
-        lambda: nts.render(
-            _make_fixture(),
-            pan="$.paymentMethod.number",
-            amount="$.amount.value",
-            currency_code="$.amount.currency",
-        ),
-        "ValueError: either one of cvv or dvcc need to be provided",
     )
 
 
@@ -227,11 +275,13 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_get_network_token_not_found))
     # Render tests
     _suite.addTest(unittest.FunctionTestCase(_test_render))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_with_nested_safe))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_without_cvv_value))
     _suite.addTest(unittest.FunctionTestCase(_test_render_with_dcvv))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_without_cvv_json_path))
     _suite.addTest(unittest.FunctionTestCase(_test_render_pan_empty_value))
     _suite.addTest(unittest.FunctionTestCase(_test_render_not_found))
     _suite.addTest(unittest.FunctionTestCase(_test_render_with_both_cvv_and_dcvv))
-    _suite.addTest(unittest.FunctionTestCase(_test_render_without_either_cvv_or_dcvv))
     # Support DCVV tests
     _suite.addTest(unittest.FunctionTestCase(_test_supports_dcvv_returns_true))
     _suite.addTest(unittest.FunctionTestCase(_test_supports_dcvv_returns_false))

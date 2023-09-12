@@ -95,14 +95,6 @@ public class LarkyEntrypoint implements Callable<Integer> {
 
   @Override
   public Integer call() throws Exception {
-    if (Strings.isNullOrEmpty(filePath)
-          || Strings.isNullOrEmpty(outputPath)
-          || Strings.isNullOrEmpty(logPath)) {
-      new CommandLine(new LarkyEntrypoint()).usage(System.out);
-      return CommandLine.ExitCode.SOFTWARE;
-      //System.out.println("Usage: larky-runer -s script_file -o output_file -l log_file -i input_param_file");
-    }
-
     execute();
     return CommandLine.ExitCode.OK;
   }
@@ -110,8 +102,22 @@ public class LarkyEntrypoint implements Callable<Integer> {
   @SneakyThrows
   private void execute() {
 
-    String script = readFile(filePath);
-    String input = readFile(inputParams);
+    Path tempdir =  Paths.get(System.getProperty("java.io.tmpdir"), "larky-runner");
+    String timestamp = String.valueOf(System.currentTimeMillis());
+    String script = Strings.isNullOrEmpty(filePath) ? "" : readFile(filePath);
+    String input = Strings.isNullOrEmpty(inputParams) ? "" : readFile(inputParams);
+
+    if (!Files.exists(tempdir)) {
+      Files.createDirectory(tempdir);
+    }
+
+    if (Strings.isNullOrEmpty(logPath)) {
+      logPath = Files.createTempFile(tempdir, timestamp, ".log").toString();
+    }
+
+    if (Strings.isNullOrEmpty(outputPath)) {
+      outputPath = Files.createTempFile(tempdir, timestamp, ".out").toString();
+    }
 
     PrependMergedStarFile prependMergedStarFile = new PrependMergedStarFile(input, script);
 

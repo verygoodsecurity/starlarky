@@ -77,14 +77,16 @@ def render(
     pan_value = jsonpath_ng.parse(pan).find(input).value
     amount_value = str(jsonpath_ng.parse(amount).find(input).value)
     currency_code_value = jsonpath_ng.parse(currency_code).find(input).value
+    cvv_result = None
     if cvv != None and dcvv == None:
-        cvv_value = jsonpath_ng.parse(cvv).find(input).value
+        cvv_result = jsonpath_ng.parse(cvv).find(input, error_safe=True)
     elif dcvv != None and cvv == None:
-        cvv_value = jsonpath_ng.parse(dcvv).find(input).value
-    elif not any([cvv, dcvv]):
-        fail("ValueError: either one of cvv or dvcc need to be provided")
-    else:
+        cvv_result = jsonpath_ng.parse(dcvv).find(input, error_safe=True)
+    elif all([cvv, dcvv]):
         fail("ValueError: only either one of cvv or dvcc can be provided")
+    cvv_value = ""
+    if cvv_result != None and cvv_result.is_ok:
+        cvv_value = cvv_result.unwrap()
 
     network_token = _nts.get_network_token(
         pan=pan_value,
