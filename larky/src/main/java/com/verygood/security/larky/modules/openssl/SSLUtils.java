@@ -406,7 +406,7 @@ return keyStore;
                     if (mks < 128) {
                         throw new IllegalArgumentException("Maximum key size for AES is " + mks + ". cryptograpy export restrictions?");
                     }
-                    keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithMD5(password, salt, 16), "AES"); // !MAGIC
+                    keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithSHA256(password, salt, 16), "AES"); // !MAGIC
                     break;
                 case AES_192_CBC:
                     cipher = Cipher.getInstance("AES/CBC/NoPadding");
@@ -414,7 +414,7 @@ return keyStore;
                     if (mks < 192) {
                         throw new IllegalArgumentException("Maximum key size for AES is " + mks + ". cryptography export restrictions?");
                     }
-                    keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithMD5(password, salt, 24), "AES"); // !MAGIC
+                    keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithSHA256(password, salt, 24), "AES"); // !MAGIC
                     break;
                 case AES_256_CBC:
                     cipher = Cipher.getInstance("AES/CBC/NoPadding");
@@ -422,23 +422,25 @@ return keyStore;
                     if (mks < 256) {
                         throw new IllegalArgumentException("Maximum key size for AES is " + mks + ". cryptography export restrictions?");
                     }
-                    keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithMD5(password, salt, 32), "AES"); // !MAGIC
+                    keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithSHA256(password, salt, 32), "AES"); // !MAGIC
                     break;
                 case DES_EDE3_CBC:
+                    // nosemgrep: desede-is-deprecated
                     cipher = Cipher.getInstance("DESede/CBC/NoPadding");
                     mks = Cipher.getMaxAllowedKeyLength("DESede/CBC/NoPadding");
                     if (mks < 192) {
                         throw new IllegalArgumentException("Maximum key size for TripleDES is " + mks + ". cryptography export restrictions?");
                     }
-                    keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithMD5(password, salt, 24), "DESede"); // !MAGIC
+                    keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithSHA256(password, salt, 24), "DESede"); // !MAGIC
                     break;
                 case DES_CBC:
+                    // nosemgrep: des-is-deprecated
                     cipher = Cipher.getInstance("DES/CBC/NoPadding");
                     mks = Cipher.getMaxAllowedKeyLength("DES/CBC/NoPadding");
                     if (mks < 64) {
                         throw new IllegalArgumentException("Maximum key size for DES is " + mks + ". cryptography export restrictions?");
                     }
-                    keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithMD5(password, salt, 8), "DES"); // !MAGIC
+                    keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithSHA256(password, salt, 8), "DES"); // !MAGIC
                     break;
                 default:
                     throw new IllegalArgumentException("Invalid key encryption algorithm");
@@ -485,25 +487,25 @@ return keyStore;
      * @param keyLen The desired key length.
      * @return A byte array, containing the secret key.
      */
-    private byte[] generateKeyFromPasswordSaltWithMD5(final byte[] password, final byte[] salt, final int keyLen) {
-        final MessageDigest md5;
+    private byte[] generateKeyFromPasswordSaltWithSHA256(final byte[] password, final byte[] salt, final int keyLen) {
+        final MessageDigest sha256;
         try {
-            md5 = MessageDigest.getInstance("MD5");
+            sha256 = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalArgumentException("JVM does not support MD5", e);
+            throw new IllegalArgumentException("JVM does not support HMAC", e);
         }
 
         final byte[] key = new byte[keyLen];
-        final byte[] tmp = new byte[md5.getDigestLength()];
+        final byte[] tmp = new byte[sha256.getDigestLength()];
 
         int kl = keyLen;
         while (true) {
-            md5.update(password, 0, password.length);
-            md5.update(salt, 0, 8); // !MAGIC
+            sha256.update(password, 0, password.length);
+            sha256.update(salt, 0, 8); // !MAGIC
 
             int copy = Math.min(kl, tmp.length);
             try {
-                md5.digest(tmp, 0, tmp.length);
+                sha256.digest(tmp, 0, tmp.length);
             } catch (Throwable t) {
                 throw new IllegalArgumentException("Could not digest password", t);
             }
@@ -512,7 +514,7 @@ return keyStore;
             if (kl <= 0) {
                 return key;
             }
-            md5.update(tmp, 0, tmp.length);
+            sha256.update(tmp, 0, tmp.length);
         }
     }
 

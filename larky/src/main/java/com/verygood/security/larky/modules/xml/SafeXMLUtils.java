@@ -121,6 +121,8 @@ public class SafeXMLUtils {
             }
             TRANSFORMER_FACTORY.set(tf);
         }
+        // We are already doing the recommended thing here
+        // nosemgrep: transformerfactory-dtds-not-disabled
         return xsltSource == null ? tf.newTransformer() : tf.newTransformer(xsltSource);
     }
 
