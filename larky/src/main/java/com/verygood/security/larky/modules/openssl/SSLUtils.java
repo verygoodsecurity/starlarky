@@ -425,7 +425,7 @@ return keyStore;
                     keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithMD5(password, salt, 32), "AES"); // !MAGIC
                     break;
                 case DES_EDE3_CBC:
-                    cipher = Cipher.getInstance("DESede/CBC/NoPadding");
+                    cipher = Cipher.getInstance("DESede/CBC/NoPadding"); // nosemgrep: desede-is-deprecated
                     mks = Cipher.getMaxAllowedKeyLength("DESede/CBC/NoPadding");
                     if (mks < 192) {
                         throw new IllegalArgumentException("Maximum key size for TripleDES is " + mks + ". cryptography export restrictions?");
@@ -433,7 +433,7 @@ return keyStore;
                     keyspec = new SecretKeySpec(generateKeyFromPasswordSaltWithMD5(password, salt, 24), "DESede"); // !MAGIC
                     break;
                 case DES_CBC:
-                    cipher = Cipher.getInstance("DES/CBC/NoPadding");
+                    cipher = Cipher.getInstance("DES/CBC/NoPadding"); // nosemgrep: des-is-deprecated
                     mks = Cipher.getMaxAllowedKeyLength("DES/CBC/NoPadding");
                     if (mks < 64) {
                         throw new IllegalArgumentException("Maximum key size for DES is " + mks + ". cryptography export restrictions?");
@@ -488,7 +488,7 @@ return keyStore;
     private byte[] generateKeyFromPasswordSaltWithMD5(final byte[] password, final byte[] salt, final int keyLen) {
         final MessageDigest md5;
         try {
-            md5 = MessageDigest.getInstance("MD5");
+            md5 = MessageDigest.getInstance("MD5"); // nosemgrep: use-of-md5
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalArgumentException("JVM does not support MD5", e);
         }
