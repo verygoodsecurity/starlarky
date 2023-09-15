@@ -1,5 +1,7 @@
 ---
 version: "3.2"
+x-common:
+  image: &maven-jdk-image maven:3.9-eclipse-temurin-17
 services:
 
   local:
@@ -17,3 +19,29 @@ services:
       - ./:/src/
       - ./test-results:/tmp/test-results/
       - ~/.m2:/root/.m2
+
+  semgrep:
+    image: *maven-jdk-image
+    command: bash -c "mvn dependency:tree -DoutputFile=maven_dep_tree.txt &&
+      apt-get update &&
+      apt-get -y install python3 &&
+      apt-get -y install python3-pip &&
+      python3 -m pip install semgrep &&
+      git config --global --add safe.directory $$(pwd) &&
+      semgrep ci --no-suppress-errors"
+    working_dir: /app
+    environment:
+      SEMGREP_REPO_NAME: $CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
+      SEMGREP_REPO_URL: ${SEMGREP_REPO_URL}
+      SEMGREP_BRANCH: ${SEMGREP_BRANCH}
+      SEMGREP_PR_ID: $CIRCLE_PR_NUMBER
+      SEMGREP_APP_TOKEN: ${SEMGREP_APP_TOKEN}
+      AWS_ACCOUNT_ID: 883127560329
+      AWS_DEFAULT_PROFILE: dev/vault
+      AWS_DEFAULT_REGION: us-west-2
+      AWS_PROFILE: dev/vault
+      AWS_REGION: us-west-2
+    volumes:
+      - .:/app/
+      - ~/.m2/:/root/.m2/
+      - ~/.aws/:/root/.aws/

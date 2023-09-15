@@ -121,7 +121,7 @@ public class SafeXMLUtils {
             }
             TRANSFORMER_FACTORY.set(tf);
         }
-        return xsltSource == null ? tf.newTransformer() : tf.newTransformer(xsltSource);
+        return xsltSource == null ? tf.newTransformer() : tf.newTransformer(xsltSource); // nosemgrep: transformerfactory-dtds-not-disabled
     }
 
 }
