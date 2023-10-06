@@ -19,6 +19,7 @@ import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
+import javax.script.ScriptException;
 
 
 public class LarkyCompiledScript extends CompiledScript {
@@ -44,6 +45,18 @@ public class LarkyCompiledScript extends CompiledScript {
   }
 
   @Override
+  public Object eval(Bindings bindings) throws ScriptException {
+    ScriptContext ctxt = getEngine().getContext();
+
+    if (bindings != null) {
+      ctxt.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
+      ctxt.setBindings(ctxt.getBindings(ScriptContext.GLOBAL_SCOPE),
+              ScriptContext.GLOBAL_SCOPE);
+    }
+    return eval(ctxt);
+  }
+
+  @Override
   public Object eval(ScriptContext context) throws LarkyEvaluationScriptException {
     ParsedStarFile result;
     Bindings globalBindings = context.getBindings(ScriptContext.GLOBAL_SCOPE);
@@ -52,7 +65,12 @@ public class LarkyCompiledScript extends CompiledScript {
     try (Reader reader = context.getReader()) {
       final StarFile script = InMemMapBackedStarFile.createStarFile(DEFAULT_SCRIPT_NAME, CharStreams.toString(reader));
       final DefaultLarkyInterpreter larkyInterpreter = new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings);
-      result = larkyInterpreter.evaluate(script, context.getWriter());
+      if (context instanceof ConsoleScriptContext) {
+        ConsoleScriptContext consoleScriptContext = (ConsoleScriptContext) context;
+        result = larkyInterpreter.evaluate(script, consoleScriptContext.getConsole());
+      } else {
+        result = larkyInterpreter.evaluate(script, context.getWriter());
+      }
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
              EvalException e) {
       throw LarkyEvaluationScriptException.of(e);
