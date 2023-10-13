@@ -149,7 +149,7 @@ public class LarkyCompiledScriptTest {
     engine.setContext(context);
     String script = "print(message)";
     LarkyCompiledScript instance = (LarkyCompiledScript) engine.compile(script);
-    Object expResult = "Hello World!!!!!";
+    Object expResult = "larky.star:1:6: Hello World!!!!!";
     instance.eval(context);
     Object result = writer.toString().trim();
     assertEquals(expResult, result);
