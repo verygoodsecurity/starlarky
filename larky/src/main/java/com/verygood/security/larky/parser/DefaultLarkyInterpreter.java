@@ -43,7 +43,7 @@ public class DefaultLarkyInterpreter {
   }
 
   public ParsedStarFile evaluate(StarFile script, Writer writer) throws IOException, EvalException {
-    return evaluate(script, new StreamWriterConsole(writer));
+    return evaluate(script, new StreamWriterConsole(writer, true));
   }
 
   public ParsedStarFile evaluate(StarFile script, Console console) throws IOException, EvalException {
