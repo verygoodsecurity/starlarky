@@ -25,8 +25,6 @@ public class Reporter {
   }
 
   static public void report(StarlarkThread thread, String msg, Console console) {
-    // limit the size of a string to 1K (1024 characters)
-    msg = msg.length() <= 1024 ? msg : msg.substring(0, 1024);
     if (console == null) {
       console = LogConsole.writeOnlyConsole(System.err, true);
     }
