@@ -21,6 +21,7 @@ import javax.script.Bindings;
 
 public class DefaultLarkyInterpreter {
 
+  public static final String VERBOSE = "__VERBOSE__";
   private final ModuleSet moduleSet;
   private final LarkyScript interpreter;
 
@@ -43,7 +44,7 @@ public class DefaultLarkyInterpreter {
   }
 
   public ParsedStarFile evaluate(StarFile script, Writer writer) throws IOException, EvalException {
-    String verbose = interpreter.getGlobals().getOrDefault("__VERBOSE__", "false").toString();
+    String verbose = interpreter.getGlobals().getOrDefault(VERBOSE, "false").toString();
     return evaluate(script, new StreamWriterConsole(writer, Boolean.parseBoolean(verbose)));
   }
 
