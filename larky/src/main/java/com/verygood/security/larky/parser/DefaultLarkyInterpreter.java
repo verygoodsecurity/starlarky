@@ -43,7 +43,8 @@ public class DefaultLarkyInterpreter {
   }
 
   public ParsedStarFile evaluate(StarFile script, Writer writer) throws IOException, EvalException {
-    return evaluate(script, new StreamWriterConsole(writer, true));
+    String verbose = interpreter.getGlobals().getOrDefault("__VERBOSE__", "false").toString();
+    return evaluate(script, new StreamWriterConsole(writer, Boolean.parseBoolean(verbose)));
   }
 
   public ParsedStarFile evaluate(StarFile script, Console console) throws IOException, EvalException {
