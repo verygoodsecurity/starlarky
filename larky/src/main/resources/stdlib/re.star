@@ -34,7 +34,7 @@ load("@stdlib//enum", "enum")
 load("@stdlib//re2j", _re2j="re2j")
 
 
-_WHILE_LOOP_EMULATION_ITERATION = 1000
+_WHILE_LOOP_EMULATION_ITERATION = 16384
 
 __ = -1  # Alias for the invalid class
 RegexFlags = enum.enumify_iterable(iterable=[

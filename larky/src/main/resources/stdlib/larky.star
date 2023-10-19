@@ -23,8 +23,8 @@ def _to_dict(s):
     return {key: getattr(s, key) for key in attributes}
 
 
-# emulates while loop but will iterate *only* for 4096 steps.
-WHILE_LOOP_EMULATION_ITERATION = 4096
+# emulates while loop but will iterate *only* for 16384 steps.
+WHILE_LOOP_EMULATION_ITERATION = 16384
 
 _SENTINEL = _sentinel()
 
