@@ -39,7 +39,7 @@
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
         <org.projectlombok.version>1.18.30</org.projectlombok.version>
         <picocli.version>4.7.5</picocli.version>
-        <graalvm.version>23.0.1</graalvm.version>
+        <graalvm.version>23.1.1</graalvm.version>
 
         <main.class>com.verygood.security.run.LarkyEntrypoint</main.class>
         <cli.name>larky-runner</cli.name>
