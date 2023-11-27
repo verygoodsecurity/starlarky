@@ -268,6 +268,43 @@ def test_encrypt_and_decrypt_with_certificate():
     
     asserts.assert_that(decrypted).is_equal_to(payload)
 
+def test_encrypt_with_extra_headers():
+    certificate = """-----BEGIN CERTIFICATE-----
+                    MIIDazCCAlOgAwIBAgIUHX5scwWw/5q3CzXVV2fjNun9/L0wDQYJKoZIhvcNAQEL
+                    BQAwRTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
+                    GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yMjA5MTkxNTU1MzJaFw0yNTA2
+                    MTUxNTU1MzJaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
+                    HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwggEiMA0GCSqGSIb3DQEB
+                    AQUAA4IBDwAwggEKAoIBAQCsRBjGoF0D9XemfmiC+VNGRRcveDKCiQu4VEYa7J+q
+                    fUSevUQfgqTXdp0VezPtfHnU/Y7iZmrHqspvrElyq4jqCyx9nRTVGuq2/Byi9w76
+                    L1A8X5vh198sXk1cmsbQJhuct4B7vaglkPrXnE9z0yIuSP3rpVwDcTMdmrXO685O
+                    jS2BQyM9svQMsk8xgEZ+AKZ9ck3kQGL3O+M7DU5abUqIJ2VVL0MaHI16ovsWnU86
+                    r9DM/k+PCB9V6Q0rz64Ch+C0Xk25RCAJ+vTSHtoosSnKc9VpZ6A9qYZARhDeihqw
+                    kHS3nAQjiFZwWahaPSZ342EYlmLYOTOyWp78QswxCI8BAgMBAAGjUzBRMB0GA1Ud
+                    DgQWBBQccX0IKYxq5B1Z+iw5h7RZMUlg5jAfBgNVHSMEGDAWgBQccX0IKYxq5B1Z
+                    +iw5h7RZMUlg5jAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQAD
+                    ayMFSwHIEKtfgR9e7ZTc/ZleLjSKblNTFHOM5rGOXemsL8ObqH/ndKbdZ6lERxtF
+                    Lj+GkWoHNHRKSGhHYDHl7YNj5fA68k3bNwbrnf22c3kjISpgyjbGHHrhiHzLQpfS
+                    A3fVFXcNdGmjZTQbJNd1dQOvpCR6bIALOshvjZ8v239pWU1SugvciwU7NVb/0U2o
+                    FCGMKgwbq+sP25drieztv6Gr56+fjHXG0lhVtYjI9/Ig9xG33+FZMXsaG4uag0QT
+                    KeQ4gDJgCc/gGBA0OumvV5efjiAVYl4uLmSUP/2YiOUgO0eAnX3Xz8CFeVOCBq4B
+                    y3W7mjvEN6bJaR544JNF
+                    -----END CERTIFICATE-----"""
+
+    payload = b"Test JWE Payload"
+    iat = 1700546817
+    encrypted = jwe.encrypt(
+        payload,
+        certificate,
+        encryption="A256GCM",
+        algorithm="RSA-OAEP-256",
+        extra_headers={"iat": iat}
+    )
+    jwe_header = encrypted.split(b".")[0]
+    enc_header = json.loads(base64url_decode(jwe_header).decode("utf-8"))
+
+    asserts.assert_that(enc_header['iat']).is_equal_to(iat)
+
 def _testsuite():
     _suite = unittest.TestSuite()
 
@@ -297,6 +334,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_sign_with_ecc))
     _suite.addTest(unittest.FunctionTestCase(test_sign_with_rsa))
     _suite.addTest(unittest.FunctionTestCase(test_encrypt_and_decrypt_with_certificate))
+    _suite.addTest(unittest.FunctionTestCase(test_encrypt_with_extra_headers))
 
     return _suite
 
