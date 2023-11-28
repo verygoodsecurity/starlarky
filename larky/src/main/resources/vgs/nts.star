@@ -78,8 +78,7 @@ def render(
     """
     pan_value = jsonpath_ng.parse(pan).find(input).value
     amount_value = str(jsonpath_ng.parse(amount).find(input).value)
-    currency_code_value = jsonpath_ng.parse(currency_code).find(input).value
-      
+    currency_code_value = jsonpath_ng.parse(currency_code).find(input).value 
     cvv_result = None
     if cvv != None and dcvv == None:
         cvv_result = jsonpath_ng.parse(cvv).find(input, error_safe=True)
