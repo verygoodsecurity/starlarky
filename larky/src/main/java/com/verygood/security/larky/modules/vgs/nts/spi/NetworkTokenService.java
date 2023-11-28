@@ -16,7 +16,7 @@ public interface NetworkTokenService {
    * @return the network token value
    */
   Optional<NetworkToken> getNetworkToken(
-      String panAlias, String cvv, String amount, String currencyCode, String cryptogramType);
+      String panAlias, String cvv, String amount, String currencyCode, String cryptogramType, String merchantId);
 
   @Data
   @Builder
