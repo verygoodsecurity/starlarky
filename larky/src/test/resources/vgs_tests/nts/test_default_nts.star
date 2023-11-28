@@ -32,8 +32,7 @@ def _make_fixture():
         "mpiData": {
             "cavv": "TO_BE_REPLACED",
             "eci": "TO_BE_REPLACED",
-        },
-        "merchant_id": "MCdAhTydCJMZEzxgqhvVdkgo"
+        }
     }
 
 
@@ -134,7 +133,7 @@ def _test_render_for_merchant():
         exp_year="$.paymentMethod.expiryYear",
         cryptogram_value="$.mpiData.cavv",
         cryptogram_eci="$.mpiData.eci",
-        merchant_id="$.merchant_id",
+        merchant_id="MCdAhTydCJMZEzxgqhvVdkgo",
     )
     asserts.assert_that(output["paymentMethod"]["number"]).is_equal_to("4111111111111111")
     asserts.assert_that(output["paymentMethod"]["expiryMonth"]).is_equal_to(10)
@@ -144,23 +143,21 @@ def _test_render_for_merchant():
 
 
 def _test_render_for_merchant_not_found():
-    output = nts.render(
-        _make_fixture(),
-        pan="$.paymentMethod.number",
-        cvv="$.paymentMethod.cvv",
-        amount="$.amount.value",
-        currency_code="$.amount.currency",
-        exp_month="$.paymentMethod.expiryMonth",
-        exp_year="$.paymentMethod.expiryYear",
-        cryptogram_value="$.mpiData.cavv",
-        cryptogram_eci="$.mpiData.eci",
-        merchant_id="$.merchant_id_not_found",
+    asserts.assert_fails(
+        lambda: nts.render(
+            _make_fixture(),
+            pan="$.paymentMethod.number",
+            cvv="$.paymentMethod.cvv",
+            amount="$.amount.value",
+            currency_code="$.amount.currency",
+            exp_month="$.paymentMethod.expiryMonth",
+            exp_year="$.paymentMethod.expiryYear",
+            cryptogram_value="$.mpiData.cavv",
+            cryptogram_eci="$.mpiData.eci",
+            merchant_id="merchant_id_not_found",
+        ),
+        "network token is not found",
     )
-    asserts.assert_that(output["paymentMethod"]["number"]).is_equal_to("4242424242424242")
-    asserts.assert_that(output["paymentMethod"]["expiryMonth"]).is_equal_to(12)
-    asserts.assert_that(output["paymentMethod"]["expiryYear"]).is_equal_to(27)
-    asserts.assert_that(output["mpiData"]["cavv"]).is_equal_to("MOCK_CRYPTOGRAM_VALUE")
-    asserts.assert_that(output["mpiData"]["eci"]).is_equal_to("MOCK_CRYPTOGRAM_ECI")
 
 
 def _test_render_with_nested_safe():
