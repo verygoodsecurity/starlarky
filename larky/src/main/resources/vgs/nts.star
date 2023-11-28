@@ -82,7 +82,6 @@ def render(
     
     merchant_id_value = ""
     merchant_id_result = None
-
     if merchant_id != None:
         merchant_id_result = jsonpath_ng.parse(merchant_id).find(input, error_safe=True)
     if merchant_id_result != None and merchant_id_result.is_ok:
