@@ -34,6 +34,7 @@ def render(
     exp_year=None,
     cryptogram_value=None,
     cryptogram_eci=None,
+    merchant_id=None,
 ):
     """Retrieves a network token for the given PAN alias, renders the cryptogram, and injects the network token values
     into the payload.
@@ -72,11 +73,20 @@ def render(
     :param cryptogram_value: JSONPath to insert the cryptogram value of the network token within the input
            payload
     :param cryptogram_eci: JSONPath to insert the cryptogram ECI of the network token within the input payload
+    :param merchant_id: Merchant id to get a network token for
     :return: JSON payload injected with network token values
     """
     pan_value = jsonpath_ng.parse(pan).find(input).value
     amount_value = str(jsonpath_ng.parse(amount).find(input).value)
     currency_code_value = jsonpath_ng.parse(currency_code).find(input).value
+    
+    merchant_id_value = ""
+    merchant_id_result = None
+    if merchant_id != None:
+        merchant_id_result = jsonpath_ng.parse(merchant_id).find(input, error_safe=True)
+    if merchant_id_result != None and merchant_id_result.is_ok:
+        merchant_id_value = merchant_id_result.unwrap()
+      
     cvv_result = None
     if cvv != None and dcvv == None:
         cvv_result = jsonpath_ng.parse(cvv).find(input, error_safe=True)
@@ -94,6 +104,7 @@ def render(
         amount=amount_value,
         currency_code=currency_code_value,
         cryptogram_type="TAVV" if dcvv == None else "DTVV",
+        merchant_id=merchant_id_value,
     )
     placements = [
         (pan, network_token["token"]),

@@ -23,6 +23,7 @@ public interface LarkyNetworkToken extends StarlarkValue {
       String amount,
       String currencyCode,
       String cryptogramType,
+      String merchantId,
       StarlarkThread thread)
       throws EvalException;
 }

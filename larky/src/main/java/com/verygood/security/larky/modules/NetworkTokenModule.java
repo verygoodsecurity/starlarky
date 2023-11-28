@@ -86,6 +86,12 @@ public class NetworkTokenModule implements LarkyNetworkToken {
             doc = "Type of cryptogram to get for the network token",
             defaultValue = "'TAVV'",
             allowedTypes = {@ParamType(type = String.class)}),
+        @Param(
+            name = "merchant_id",
+            named = true,
+            doc = "Merchant id to get a network token for",
+            defaultValue = "''",
+            allowedTypes = {@ParamType(type = String.class)}),
       })
   @Override
   public Dict<String, Object> getNetworkToken(
@@ -94,6 +100,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
       String amount,
       String currencyCode,
       String cryptogramType,
+      String merchantId,
       StarlarkThread thread)
       throws EvalException {
     if (pan.trim().isEmpty()) {
@@ -102,7 +109,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
     final Optional<NetworkTokenService.NetworkToken> networkTokenOptional;
     try {
       networkTokenOptional =
-          networkTokenService.getNetworkToken(pan, cvv, amount, currencyCode, cryptogramType);
+          networkTokenService.getNetworkToken(pan, cvv, amount, currencyCode, cryptogramType, merchantId);
     } catch (UnsupportedOperationException exception) {
       throw Starlark.errorf("nts.get_network_token operation must be overridden");
     }
