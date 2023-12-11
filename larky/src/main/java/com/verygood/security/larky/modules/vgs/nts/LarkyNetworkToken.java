@@ -14,6 +14,7 @@ public interface LarkyNetworkToken extends StarlarkValue {
    * @param amount amount of payment for retrieving cryptogram
    * @param currencyCode currency code of payment for retrieving cryptogram
    * @param cryptogramType type of cryptogram
+   * @param vgsMerchantId vgs merchant public identifier
    * @param thread Starlark thread object
    * @return a dict contains the network token values
    */
@@ -23,7 +24,7 @@ public interface LarkyNetworkToken extends StarlarkValue {
       String amount,
       String currencyCode,
       String cryptogramType,
-      String merchantId,
+      String vgsMerchantId,
       StarlarkThread thread)
       throws EvalException;
 }
