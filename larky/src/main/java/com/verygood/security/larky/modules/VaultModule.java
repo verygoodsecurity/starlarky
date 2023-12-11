@@ -196,10 +196,10 @@ public class VaultModule implements LarkyVault {
 
     @StarlarkMethod(
         name = "sign",
-        doc = "signs a payload with given keyId",
+        doc = "signs a payload with given keyArn",
         parameters = {
             @Param(
-                name = "keyId",
+                name = "keyArn",
                 doc = "key ARN to sign with",
                 allowedTypes = {
                     @ParamType(type = String.class)
@@ -214,7 +214,8 @@ public class VaultModule implements LarkyVault {
             ),
             @Param(
                 name = "algorithm",
-                doc = "the algorith to use to sign.",
+                doc = "the algorithm to use to sign, valid choices are: RSASSA_PSS_SHA_256, RSASSA_PSS_SHA_384, " +
+                    "RSASSA_PSS_SHA_512",
                 allowedTypes = {
                     @ParamType(type = String.class)
                 }
@@ -222,9 +223,9 @@ public class VaultModule implements LarkyVault {
         }
     )
     @Override
-    public Object sign(Object keyId, Object message, Object algorithm) throws EvalException {
+    public Object sign(Object keyArn, Object message, Object algorithm) throws EvalException {
         validateSigningAlgorithm(algorithm);
-        return vault.sign(keyId, message, algorithm);
+        return vault.sign(keyArn, message, algorithm);
     }
 
     @StarlarkMethod(
@@ -232,7 +233,7 @@ public class VaultModule implements LarkyVault {
         doc = "verify that a given siganture is valid",
         parameters = {
             @Param(
-                name = "keyId",
+                name = "keyArn",
                 doc = "key ARN to sign with",
                 allowedTypes = {
                     @ParamType(type = String.class)
@@ -262,9 +263,9 @@ public class VaultModule implements LarkyVault {
         }
     )
     @Override
-    public Object verify(Object keyId, Object message, Object signature, Object algorithm) throws EvalException {
+    public Object verify(Object keyArn, Object message, Object signature, Object algorithm) throws EvalException {
         validateSigningAlgorithm(algorithm);
-        return vault.verify(keyId, message, signature, algorithm);
+        return vault.verify(keyArn, message, signature, algorithm);
     }
 
     private void validateStorage(Object storage) throws EvalException {

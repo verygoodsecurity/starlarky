@@ -22,12 +22,12 @@ public class NoopVault implements LarkyVault {
     }
 
     @Override
-    public Object sign(Object keyId, Object message, Object algorithm) throws EvalException {
+    public Object sign(Object keyArn, Object message, Object algorithm) throws EvalException {
         throw Starlark.errorf("vault.sign operation must be overridden");
     }
 
     @Override
-    public Object verify(Object keyId, Object message, Object signature, Object algorithm) throws EvalException {
+    public Object verify(Object keyArn, Object message, Object signature, Object algorithm) throws EvalException {
         throw Starlark.errorf("vault.verify operation must be overridden");
     }
 }
