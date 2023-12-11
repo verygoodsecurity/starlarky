@@ -255,7 +255,7 @@ public class VaultModule implements LarkyVault {
             ),
             @Param(
                 name = "algorithm",
-                doc = "the algorith used to sign",
+                doc = "the algorithm used to sign",
                 allowedTypes = {
                     @ParamType(type = String.class)
                 }
