@@ -80,11 +80,11 @@ public class DefaultVault implements LarkyVault {
     }
 
     // These don't make a ton of sense in memory, we could hash and return if we really wanted to.
-    public Object sign(Object keyArn, Object message, Object algorithm) throws EvalException {
+    public Object sign(String keyArn, String message, String algorithm) throws EvalException {
         return message;
     }
 
-    public Object verify(Object keyArn, Object message, Object signature, Object algorithm) throws EvalException {
+    public Object verify(String keyArn, String message, String signature, String algorithm) throws EvalException {
         return false;
     }
 

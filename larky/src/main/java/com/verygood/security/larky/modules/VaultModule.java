@@ -223,7 +223,7 @@ public class VaultModule implements LarkyVault {
         }
     )
     @Override
-    public Object sign(Object keyArn, Object message, Object algorithm) throws EvalException {
+    public Object sign(String keyArn, String message, String algorithm) throws EvalException {
         validateSigningAlgorithm(algorithm);
         return vault.sign(keyArn, message, algorithm);
     }
@@ -263,7 +263,7 @@ public class VaultModule implements LarkyVault {
         }
     )
     @Override
-    public Object verify(Object keyArn, Object message, Object signature, Object algorithm) throws EvalException {
+    public Object verify(String keyArn, String message, String signature, String algorithm) throws EvalException {
         validateSigningAlgorithm(algorithm);
         return vault.verify(keyArn, message, signature, algorithm);
     }
@@ -278,7 +278,7 @@ public class VaultModule implements LarkyVault {
             throw Starlark.errorf(String.format(
                 "Storage '%s' not found in supported storage types: %s",
                 storage,
-                supportedStorage.toString()
+                supportedStorage
             ));
         }
     }
@@ -293,7 +293,7 @@ public class VaultModule implements LarkyVault {
             throw Starlark.errorf(String.format(
                     "Format '%s' not found in supported format types: %s",
                     format,
-                    supportedFormat.toString()
+                    supportedFormat
             ));
         }
     }
@@ -316,13 +316,8 @@ public class VaultModule implements LarkyVault {
         }
     }
 
-    private void validateSigningAlgorithm(Object algorithm) throws EvalException {
-        if (!(algorithm instanceof String)) {
-            throw Starlark.errorf(String.format(
-                "Format of type %s is not supported in VAULT, expecting String",
-                algorithm.getClass().getName()
-            ));
-        } else if (!supposedSigningAlgorithms.contains(algorithm.toString())) {
+    private void validateSigningAlgorithm(String algorithm) throws EvalException {
+        if (!supposedSigningAlgorithms.contains(algorithm)) {
             throw Starlark.errorf(String.format(
                 "Algorithm '%s' not found in supported algorithms: %s",
                 algorithm,
