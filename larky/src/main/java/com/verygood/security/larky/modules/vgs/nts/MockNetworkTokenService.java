@@ -26,20 +26,20 @@ public class MockNetworkTokenService implements NetworkTokenService {
   @Override
   public Optional<NetworkToken> getNetworkToken(
       String panAlias, String cvv, String amount, String currencyCode, String cryptogramType,
-      String merchantId) {
+      String vgsMerchantId) {
     if (panAlias.equals("NOT_FOUND")) {
       return Optional.empty();
     }
-    if (StringUtils.isBlank(merchantId)) {
+    if (StringUtils.isBlank(vgsMerchantId)) {
       return Optional.of(
           getForDefaultMerchant(cryptogramType)
       ); 
     }
-    if (!NETWORK_TOKENS.containsKey(merchantId)) {
+    if (!NETWORK_TOKENS.containsKey(vgsMerchantId)) {
       return Optional.empty(); 
     }
     final NetworkToken networkToken =
-        NETWORK_TOKENS.get(merchantId)
+        NETWORK_TOKENS.get(vgsMerchantId)
             .cryptogramValue(
                 cryptogramType.equals("DTVV") ? "MOCK_DYNAMIC_CVV" : "MOCK_CRYPTOGRAM_VALUE")
             .cryptogramType(cryptogramType)
