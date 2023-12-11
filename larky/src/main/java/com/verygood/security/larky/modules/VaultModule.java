@@ -53,6 +53,12 @@ public class VaultModule implements LarkyVault {
             "VGS_FIXED_LEN_GENERIC"
     );
 
+    private final ImmutableList<String> supposedSigningAlgorithms = ImmutableList.of(
+            "RSASSA_PSS_SHA_256",
+            "RSASSA_PSS_SHA_384",
+            "RSASSA_PSS_SHA_512"
+    );
+
     public VaultModule() {
 
         ServiceLoader<LarkyVault> loader = ServiceLoader.load(LarkyVault.class);
@@ -188,17 +194,90 @@ public class VaultModule implements LarkyVault {
         vault.delete(value, storage);
     }
 
+    @StarlarkMethod(
+        name = "sign",
+        doc = "signs a payload with given keyId",
+        parameters = {
+            @Param(
+                name = "keyId",
+                doc = "key ARN to sign with",
+                allowedTypes = {
+                    @ParamType(type = String.class)
+                }
+            ),
+            @Param(
+                name = "message",
+                doc = "the payload to sign",
+                allowedTypes = {
+                    @ParamType(type = String.class)
+                }
+            ),
+            @Param(
+                name = "algorithm",
+                doc = "the algorith to use to sign.",
+                allowedTypes = {
+                    @ParamType(type = String.class)
+                }
+            )
+        }
+    )
+    @Override
+    public Object sign(Object keyId, Object message, Object algorithm) throws EvalException {
+        validateSigningAlgorithm(algorithm);
+        return vault.sign(keyId, message, algorithm);
+    }
+
+    @StarlarkMethod(
+        name = "verify",
+        doc = "verify that a given siganture is valid",
+        parameters = {
+            @Param(
+                name = "keyId",
+                doc = "key ARN to sign with",
+                allowedTypes = {
+                    @ParamType(type = String.class)
+                }
+            ),
+            @Param(
+                name = "message",
+                doc = "the raw message",
+                allowedTypes = {
+                    @ParamType(type = String.class)
+                }
+            ),
+            @Param(
+                name = "signature",
+                doc = "the signature to verify",
+                allowedTypes = {
+                    @ParamType(type = String.class)
+                }
+            ),
+            @Param(
+                name = "algorithm",
+                doc = "the algorith used to sign",
+                allowedTypes = {
+                    @ParamType(type = String.class)
+                }
+            )
+        }
+    )
+    @Override
+    public Object verify(Object keyId, Object message, Object signature, Object algorithm) throws EvalException {
+        validateSigningAlgorithm(algorithm);
+        return vault.verify(keyId, message, signature, algorithm);
+    }
+
     private void validateStorage(Object storage) throws EvalException {
         if (!(storage instanceof NoneType) && !(storage instanceof String)) {
             throw Starlark.errorf(String.format(
-                    "Storage of type %s is not supported in VAULT, expecting String",
-                    storage.getClass().getName()
+                "Storage of type %s is not supported in VAULT, expecting String",
+                storage.getClass().getName()
             ));
         } else if ((storage instanceof String) && !supportedStorage.contains(storage.toString())) {
             throw Starlark.errorf(String.format(
-                    "Storage '%s' not found in supported storage types: %s",
-                    storage,
-                    supportedStorage.toString()
+                "Storage '%s' not found in supported storage types: %s",
+                storage,
+                supportedStorage.toString()
             ));
         }
     }
@@ -233,6 +312,21 @@ public class VaultModule implements LarkyVault {
                     decoratorConfig, e.getMessage()
                 ));
             }
+        }
+    }
+
+    private void validateSigningAlgorithm(Object algorithm) throws EvalException {
+        if (!(algorithm instanceof String)) {
+            throw Starlark.errorf(String.format(
+                "Format of type %s is not supported in VAULT, expecting String",
+                algorithm.getClass().getName()
+            ));
+        } else if (!supposedSigningAlgorithms.contains(algorithm.toString())) {
+            throw Starlark.errorf(String.format(
+                "Algorithm '%s' not found in supported algorithms: %s",
+                algorithm,
+                supposedSigningAlgorithms
+            ));
         }
     }
 
