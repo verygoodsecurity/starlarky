@@ -163,6 +163,24 @@ def _test_render_for_merchant_from_jsonpath():
     asserts.assert_that(output["mpiData"]["eci"]).is_equal_to("MOCK_CRYPTOGRAM_ECI")
 
 
+def _test_render_for_merchant_from_jsonpath_not_found():
+    asserts.assert_fails(
+        lambda: nts.render(
+            _make_fixture(),
+            pan="$.paymentMethod.number",
+            cvv="$.paymentMethod.cvv",
+            amount="$.amount.value",
+            currency_code="$.amount.currency",
+            exp_month="$.paymentMethod.expiryMonth",
+            exp_year="$.paymentMethod.expiryYear",
+            cryptogram_value="$.mpiData.cavv",
+            cryptogram_eci="$.mpiData.eci",
+            vgs_merchant_id="$.unknown_vgs_merchant_id",
+        ),
+        'Key "{unknown_vgs_merchant_id}" does not exist in node',
+    )
+
+
 def _test_render_for_merchant_not_found():
     asserts.assert_fails(
         lambda: nts.render(
@@ -355,6 +373,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_render))
     _suite.addTest(unittest.FunctionTestCase(_test_render_for_merchant))
     _suite.addTest(unittest.FunctionTestCase(_test_render_for_merchant_from_jsonpath))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_for_merchant_from_jsonpath_not_found))
     _suite.addTest(unittest.FunctionTestCase(_test_render_for_merchant_not_found))
     _suite.addTest(unittest.FunctionTestCase(_test_render_with_nested_safe))
     _suite.addTest(unittest.FunctionTestCase(_test_render_without_cvv_value))

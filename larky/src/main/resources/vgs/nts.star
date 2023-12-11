@@ -90,12 +90,10 @@ def render(
     if cvv_result != None and cvv_result.is_ok:
         cvv_value = cvv_result.unwrap()
 
-    if vgs_merchant_id.startswith("$."):
-        vgs_merchant_id_result = \
-            jsonpath_ng.parse(vgs_merchant_id).find(input, error_safe=True)
-        vgs_merchant_id_value = vgs_merchant_id_result.unwrap()
-    else:
-        vgs_merchant_id_value = vgs_merchant_id 
+    vgs_merchant_id_value = \
+        jsonpath_ng.parse(vgs_merchant_id).find(input).value \
+            if vgs_merchant_id.startswith("$.") \
+            else vgs_merchant_id 
 
     network_token = _nts.get_network_token(
         pan=pan_value,
