@@ -53,7 +53,7 @@ public class VaultModule implements LarkyVault {
             "VGS_FIXED_LEN_GENERIC"
     );
 
-    private final ImmutableList<String> supposedSigningAlgorithms = ImmutableList.of(
+    private final ImmutableList<String> supportedSigningAlgorithms = ImmutableList.of(
             "RSASSA_PSS_SHA_256",
             "RSASSA_PSS_SHA_384",
             "RSASSA_PSS_SHA_512"
@@ -200,7 +200,7 @@ public class VaultModule implements LarkyVault {
         parameters = {
             @Param(
                 name = "keyId",
-                doc = "key ARN to sign with",
+                doc = "key ARN to sign with (no key aliases)",
                 allowedTypes = {
                     @ParamType(type = String.class)
                 }
@@ -230,11 +230,11 @@ public class VaultModule implements LarkyVault {
 
     @StarlarkMethod(
         name = "verify",
-        doc = "verify that a given siganture is valid",
+        doc = "verifies that a given signature is valid",
         parameters = {
             @Param(
                 name = "keyId",
-                doc = "key ARN to sign with",
+                doc = "key ARN used to sign",
                 allowedTypes = {
                     @ParamType(type = String.class)
                 }
@@ -317,11 +317,11 @@ public class VaultModule implements LarkyVault {
     }
 
     private void validateSigningAlgorithm(String algorithm) throws EvalException {
-        if (!supposedSigningAlgorithms.contains(algorithm)) {
+        if (!supportedSigningAlgorithms.contains(algorithm)) {
             throw Starlark.errorf(String.format(
                 "Algorithm '%s' not found in supported algorithms: %s",
                 algorithm,
-                supposedSigningAlgorithms
+                supportedSigningAlgorithms
             ));
         }
     }
