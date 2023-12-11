@@ -199,7 +199,7 @@ public class VaultModule implements LarkyVault {
         doc = "signs a payload with given keyArn",
         parameters = {
             @Param(
-                name = "keyArn",
+                name = "keyId",
                 doc = "key ARN to sign with",
                 allowedTypes = {
                     @ParamType(type = String.class)
@@ -223,9 +223,9 @@ public class VaultModule implements LarkyVault {
         }
     )
     @Override
-    public Object sign(String keyArn, String message, String algorithm) throws EvalException {
+    public Object sign(String keyId, String message, String algorithm) throws EvalException {
         validateSigningAlgorithm(algorithm);
-        return vault.sign(keyArn, message, algorithm);
+        return vault.sign(keyId, message, algorithm);
     }
 
     @StarlarkMethod(
@@ -233,7 +233,7 @@ public class VaultModule implements LarkyVault {
         doc = "verify that a given siganture is valid",
         parameters = {
             @Param(
-                name = "keyArn",
+                name = "keyId",
                 doc = "key ARN to sign with",
                 allowedTypes = {
                     @ParamType(type = String.class)
@@ -263,9 +263,9 @@ public class VaultModule implements LarkyVault {
         }
     )
     @Override
-    public Object verify(String keyArn, String message, String signature, String algorithm) throws EvalException {
+    public Object verify(String keyId, String message, String signature, String algorithm) throws EvalException {
         validateSigningAlgorithm(algorithm);
-        return vault.verify(keyArn, message, signature, algorithm);
+        return vault.verify(keyId, message, signature, algorithm);
     }
 
     private void validateStorage(Object storage) throws EvalException {

@@ -18,7 +18,7 @@ public interface LarkyVault extends StarlarkValue {
      */
     void delete(Object value, Object storage) throws EvalException;
 
-    Object sign(String keyArn, String message, String algorithm) throws EvalException;
+    Object sign(String keyId, String message, String algorithm) throws EvalException;
 
-    Object verify(String keyArn, String message, String signature, String algorithm) throws EvalException;
+    Object verify(String keyId, String message, String signature, String algorithm) throws EvalException;
 }
