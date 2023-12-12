@@ -257,11 +257,14 @@ def _test_default_sign():
     signature = vault.sign("keyId", message, "RSASSA_PSS_SHA_256")
     asserts.assert_that(message).is_equal_to(signature)
 
+def _test_sign_bad_algorithm():
+    assert.assert_fails(lambda: vault.sign("keyId", "message", "bad_algo"), "Algorithm 'bad_algo' not found in supported algorithms: [RSASSA_PSS_SHA_256, RSASSA_PSS_SHA_384, RSASSA_PSS_SHA_512]"
+
 def _test_default_verify():
     message = "message"
     signature = vault.sign("keyId", message, "RSASSA_PSS_SHA_256")
     valid = vault.verify("keyId", message, signature, "RSASSA_PSS_SHA_256")
-    asserts.assert_that(valid).is_equal_to(False)
+    asserts.assert_false(valid)
 
 def _suite():
     _suite = unittest.TestSuite()
@@ -305,6 +308,7 @@ def _suite():
 
     # Sign and Verify Tests
     _suite.addTest(unittest.FunctionTestCase(_test_default_sign))
+    _suite.addTest(unittest.FunctionTestCase(_test_sign_bad_algorithm))
     _suite.addTest(unittest.FunctionTestCase(_test_default_verify))
 
     return _suite
