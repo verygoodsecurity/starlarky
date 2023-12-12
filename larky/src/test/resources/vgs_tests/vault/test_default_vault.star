@@ -254,13 +254,13 @@ def _test_invalid_alias_decorator_invalid_config_non_luhn_valid_replace():
 
 def _test_default_sign():
     message = "message"
-    signature = vault.sign("keyId", message, "algo")
+    signature = vault.sign("keyId", message, "RSASSA_PSS_SHA_256")
     asserts.assert_that(message).is_equal_to(signature)
 
 def _test_default_verify():
     message = "message"
-    signature = vault.sign("keyId", message, "algo")
-    valid = vault.verify("keyId", message, signature, "algo")
+    signature = vault.sign("keyId", message, "RSASSA_PSS_SHA_256")
+    valid = vault.verify("keyId", message, signature, "RSASSA_PSS_SHA_256")
     asserts.assert_that(valid).is_equal_to(False)
 
 def _suite():

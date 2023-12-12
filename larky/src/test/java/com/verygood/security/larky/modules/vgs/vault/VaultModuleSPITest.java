@@ -105,10 +105,10 @@ public class VaultModuleSPITest {
 
         // Assert DefaultVault is noop for sign and verify
         String message = "message";
-        String signature = (String)vault.sign("keyId", message, "algo");
+        String signature = (String)vault.sign("keyId", message, "RSASSA_PSS_SHA_256");
         assertEquals(message, signature);
 
-        boolean valid = (Boolean)vault.verify("keyId", message, signature, "algo");
+        boolean valid = (Boolean)vault.verify("keyId", message, signature, "RSASSA_PSS_SHA_256");
         assertFalse(valid);
     }
 
@@ -133,10 +133,10 @@ public class VaultModuleSPITest {
 
         // Assert DefaultVault is noop for sign and verify
         String message = "message";
-        String signature = (String)vault.sign("keyId", message, "algo");
+        String signature = (String)vault.sign("keyId", message, "RSASSA_PSS_SHA_256");
         assertEquals(message, signature);
 
-        boolean valid = (Boolean)vault.verify("keyId", message, signature, "algo");
+        boolean valid = (Boolean)vault.verify("keyId", message, signature, "RSASSA_PSS_SHA_256");
         assertFalse(valid);
     }
 

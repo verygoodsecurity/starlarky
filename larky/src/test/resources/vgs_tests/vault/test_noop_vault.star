@@ -17,10 +17,10 @@ def _test_delete():
     asserts.assert_fails(lambda : vault.delete(card_number), "vault.delete operation must be overridden")
 
 def _test_sign():
-    asserts.assert_fails(lambda: vault.sign("keyId", "message", "algo"), "vault.sign operation must be overridden")
+    asserts.assert_fails(lambda: vault.sign("keyId", "message", "RSASSA_PSS_SHA_256"), "vault.sign operation must be overridden")
 
 def _test_verify():
-    asserts.assert_fails(lambda: vault.verify("keyId", "message", "signature", "algo"), "vault.verify operation must be overridden")
+    asserts.assert_fails(lambda: vault.verify("keyId", "message", "signature", "RSASSA_PSS_SHA_256"), "vault.verify operation must be overridden")
 
 def _suite():
     _suite = unittest.TestSuite()
