@@ -252,6 +252,17 @@ def _test_invalid_alias_decorator_invalid_config_non_luhn_valid_replace():
      """Decorator config '{"nonLuhnValidPattern": {"validatePattern": "\\[0-9\\]\\{10}", "transformPatterns": \\[{"search": "\\[0-9\\]\\{10}", "replace": \\["98\\${token}", "99\\${token}"\\]}\\]}}' is invalid\\. 'replace' field must be string"""
      )
 
+def _test_default_sign():
+    message = "message"
+    signature = vault.sign("keyId", message, "algo")
+    asserts.assert_that(message).is_equal_to(signature)
+
+def _test_default_verify():
+    message = "message"
+    signature = vault.sign("keyId", message, "algo")
+    valid = vault.verify("keyId", message, signature, "algo")
+    asserts.assert_that(valid).is_equal_to(False)
+
 def _suite():
     _suite = unittest.TestSuite()
 
@@ -291,6 +302,9 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_transform_patterns))
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_search))
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_replace))
+
+    # Sign and Verify Tests
+
 
     return _suite
 
