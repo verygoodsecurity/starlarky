@@ -30,7 +30,6 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_sign))
     _suite.addTest(unittest.FunctionTestCase(_test_verify))
 
-
     return _suite
 
 

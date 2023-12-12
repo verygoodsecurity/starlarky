@@ -307,7 +307,6 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_default_sign))
     _suite.addTest(unittest.FunctionTestCase(_test_default_verify))
 
-
     return _suite
 
 
