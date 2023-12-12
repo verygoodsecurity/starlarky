@@ -304,6 +304,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_replace))
 
     # Sign and Verify Tests
+    _suite.addTest(unittest.FunctionTestCase(_test_default_sign))
+    _suite.addTest(unittest.FunctionTestCase(_test_default_verify))
 
 
     return _suite
