@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules.vgs.vault;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -65,6 +66,21 @@ public class VaultModuleSPITest {
             },
             "vault.delete operation must be overridden"
         );
+
+        assertThrows(EvalException.class,
+            () -> {
+                vault.sign("fail", "fail", "fail");
+            },
+            "vault.sign operation must be overridden"
+        );
+
+        assertThrows(EvalException.class,
+            () -> {
+                vault.verify("fail", "fail", "fail", "fail");
+            },
+            "vault.verify operation must be overridden"
+        );
+
     }
 
     @Test
@@ -86,6 +102,14 @@ public class VaultModuleSPITest {
         assertTrue(alias.contains("tok_"));
         assertEquals(secret, result);
         assertEquals(alias, resultAfterDel);
+
+        // Assert DefaultVault is noop for sign and verify
+        String message = "message";
+        String signature = (String)vault.sign("keyId", message, "algo");
+        assertEquals(message, signature);
+
+        boolean valid = (Boolean)vault.verify("keyId", message, signature, "algo");
+        assertFalse(valid);
     }
 
     @Test
@@ -106,6 +130,14 @@ public class VaultModuleSPITest {
         assertTrue(alias.contains("tok_"));
         assertEquals(secret, result);
         assertEquals(alias, resultAfterDel);
+
+        // Assert DefaultVault is noop for sign and verify
+        String message = "message";
+        String signature = (String)vault.sign("keyId", message, "algo");
+        assertEquals(message, signature);
+
+        boolean valid = (Boolean)vault.verify("keyId", message, signature, "algo");
+        assertFalse(valid);
     }
 
     @Test
