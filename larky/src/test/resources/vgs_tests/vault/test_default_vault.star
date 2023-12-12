@@ -252,6 +252,20 @@ def _test_invalid_alias_decorator_invalid_config_non_luhn_valid_replace():
      """Decorator config '{"nonLuhnValidPattern": {"validatePattern": "\\[0-9\\]\\{10}", "transformPatterns": \\[{"search": "\\[0-9\\]\\{10}", "replace": \\["98\\${token}", "99\\${token}"\\]}\\]}}' is invalid\\. 'replace' field must be string"""
      )
 
+def _test_default_sign():
+    message = "message"
+    signature = vault.sign("keyId", message, "RSASSA_PSS_SHA_256")
+    asserts.assert_that(message).is_equal_to(signature)
+
+def _test_sign_bad_algorithm():
+    asserts.assert_fails(lambda: vault.sign("keyId", "message", "bad_algo"), "Algorithm 'bad_algo' not found in supported algorithms: \\[RSASSA_PSS_SHA_256, RSASSA_PSS_SHA_384, RSASSA_PSS_SHA_512\\]")
+
+def _test_default_verify():
+    message = "message"
+    signature = vault.sign("keyId", message, "RSASSA_PSS_SHA_256")
+    valid = vault.verify("keyId", message, signature, "RSASSA_PSS_SHA_256")
+    asserts.assert_false(valid)
+
 def _suite():
     _suite = unittest.TestSuite()
 
@@ -291,6 +305,11 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_transform_patterns))
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_search))
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_alias_decorator_invalid_config_non_luhn_valid_replace))
+
+    # Sign and Verify Tests
+    _suite.addTest(unittest.FunctionTestCase(_test_default_sign))
+    _suite.addTest(unittest.FunctionTestCase(_test_sign_bad_algorithm))
+    _suite.addTest(unittest.FunctionTestCase(_test_default_verify))
 
     return _suite
 

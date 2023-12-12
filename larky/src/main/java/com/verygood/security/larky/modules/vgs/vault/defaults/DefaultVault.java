@@ -79,6 +79,15 @@ public class DefaultVault implements LarkyVault {
         getStorage(storage).remove(sValue);
     }
 
+    // These don't make a ton of sense in memory, we could hash and return if we really wanted to.
+    public Object sign(String keyId, String message, String algorithm) throws EvalException {
+        return message;
+    }
+
+    public Object verify(String keyId, String message, String signature, String algorithm) throws EvalException {
+        return false;
+    }
+
     private String getValue(Object value) throws EvalException {
         if (!(value instanceof String)) {
             throw Starlark.errorf(String.format(
@@ -91,7 +100,7 @@ public class DefaultVault implements LarkyVault {
 
     private Map<String, Object> getStorage(Object storage) throws EvalException {
 
-        if (storage instanceof NoneType) { // Use 'persistent` storage by default
+        if (storage instanceof NoneType) { // Use persistent storage by default
             return persistentVaultStorage;
         } else if (storage instanceof String) {
             if (!storageConfig.containsKey(storage)) {
