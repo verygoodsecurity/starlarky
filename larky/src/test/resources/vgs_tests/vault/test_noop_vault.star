@@ -26,6 +26,11 @@ def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_put))
     _suite.addTest(unittest.FunctionTestCase(_test_get))
+    _suite.addTest(unittest.FunctionTestCase(_test_delete))
+    _suite.addTest(unittest.FunctionTestCase(_test_sign))
+    _suite.addTest(unittest.FunctionTestCase(_test_verify))
+
+
     return _suite
 
 
