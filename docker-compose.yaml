@@ -36,12 +36,6 @@ services:
       SEMGREP_BRANCH: ${SEMGREP_BRANCH}
       SEMGREP_PR_ID: $CIRCLE_PR_NUMBER
       SEMGREP_APP_TOKEN: ${SEMGREP_APP_TOKEN}
-      AWS_ACCOUNT_ID: 883127560329
-      AWS_DEFAULT_PROFILE: dev/vault
-      AWS_DEFAULT_REGION: us-west-2
-      AWS_PROFILE: dev/vault
-      AWS_REGION: us-west-2
     volumes:
       - .:/app/
       - ~/.m2/:/root/.m2/
-      - ~/.aws/:/root/.aws/
