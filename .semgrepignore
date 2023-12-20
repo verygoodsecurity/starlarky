@@ -19,6 +19,3 @@ tests/
 
 # Semgrep-action log folder
 .semgrep_logs/
-
-.circleci/config.yml
-docker-compose.yaml
