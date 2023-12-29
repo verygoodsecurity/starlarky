@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules;
 
 import com.google.common.collect.ImmutableList;
+import com.google.protobuf.ByteString;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig.InvalidDecoratorConfigException;
 import com.verygood.security.larky.modules.vgs.vault.NoopVault;
@@ -250,7 +251,8 @@ public class VaultModule implements LarkyVault {
                 name = "signature",
                 doc = "the signature to verify",
                 allowedTypes = {
-                    @ParamType(type = String.class)
+                    @ParamType(type = byte[].class),
+                    @ParamType(type = ByteString.class)
                 }
             ),
             @Param(
@@ -263,7 +265,7 @@ public class VaultModule implements LarkyVault {
         }
     )
     @Override
-    public Object verify(String keyId, String message, String signature, String algorithm) throws EvalException {
+    public Object verify(String keyId, String message, Object signature, String algorithm) throws EvalException {
         validateSigningAlgorithm(algorithm);
         return vault.verify(keyId, message, signature, algorithm);
     }

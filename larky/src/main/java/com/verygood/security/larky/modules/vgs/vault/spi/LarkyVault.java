@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.vgs.vault.spi;
 
+import com.google.protobuf.ByteString;
 import java.util.List;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkValue;
@@ -20,5 +21,5 @@ public interface LarkyVault extends StarlarkValue {
 
     Object sign(String keyId, String message, String algorithm) throws EvalException;
 
-    Object verify(String keyId, String message, String signature, String algorithm) throws EvalException;
+    Object verify(String keyId, String message, Object signature, String algorithm) throws EvalException;
 }

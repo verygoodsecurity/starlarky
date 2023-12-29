@@ -84,7 +84,7 @@ public class DefaultVault implements LarkyVault {
         return message;
     }
 
-    public Object verify(String keyId, String message, String signature, String algorithm) throws EvalException {
+    public Object verify(String keyId, String message, Object signature, String algorithm) throws EvalException {
         return false;
     }
 

@@ -27,7 +27,7 @@ public class NoopVault implements LarkyVault {
     }
 
     @Override
-    public Object verify(String keyId, String message, String signature, String algorithm) throws EvalException {
+    public Object verify(String keyId, String message, Object signature, String algorithm) throws EvalException {
         throw Starlark.errorf("vault.verify operation must be overridden");
     }
 }
