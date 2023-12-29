@@ -21,5 +21,5 @@ public interface LarkyVault extends StarlarkValue {
 
     Object sign(String keyId, String message, String algorithm) throws EvalException;
 
-    Object verify(String keyId, String message, Object signature, String algorithm) throws EvalException;
+    Object verify(String keyId, String message, ByteString signature, String algorithm) throws EvalException;
 }

@@ -251,7 +251,6 @@ public class VaultModule implements LarkyVault {
                 name = "signature",
                 doc = "the signature to verify",
                 allowedTypes = {
-                    @ParamType(type = byte[].class),
                     @ParamType(type = ByteString.class)
                 }
             ),
@@ -265,7 +264,7 @@ public class VaultModule implements LarkyVault {
         }
     )
     @Override
-    public Object verify(String keyId, String message, Object signature, String algorithm) throws EvalException {
+    public Object verify(String keyId, String message, ByteString signature, String algorithm) throws EvalException {
         validateSigningAlgorithm(algorithm);
         return vault.verify(keyId, message, signature, algorithm);
     }

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.protobuf.ByteString;
 import com.verygood.security.larky.modules.VaultModule;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -76,7 +77,7 @@ public class VaultModuleSPITest {
 
         assertThrows(EvalException.class,
             () -> {
-                vault.verify("fail", "fail", "fail", "fail");
+                vault.verify("fail", "fail", ByteString.copyFrom("fail".getBytes()), "fail");
             },
             "vault.verify operation must be overridden"
         );
@@ -105,7 +106,7 @@ public class VaultModuleSPITest {
 
         // Assert DefaultVault is noop for sign and verify
         String message = "message";
-        String signature = (String)vault.sign("keyId", message, "RSASSA_PSS_SHA_256");
+        ByteString signature = (ByteString)vault.sign("keyId", message, "RSASSA_PSS_SHA_256");
         assertEquals(message, signature);
 
         boolean valid = (Boolean)vault.verify("keyId", message, signature, "RSASSA_PSS_SHA_256");
@@ -133,7 +134,7 @@ public class VaultModuleSPITest {
 
         // Assert DefaultVault is noop for sign and verify
         String message = "message";
-        String signature = (String)vault.sign("keyId", message, "RSASSA_PSS_SHA_256");
+        ByteString signature = (ByteString)vault.sign("keyId", message, "RSASSA_PSS_SHA_256");
         assertEquals(message, signature);
 
         boolean valid = (Boolean)vault.verify("keyId", message, signature, "RSASSA_PSS_SHA_256");

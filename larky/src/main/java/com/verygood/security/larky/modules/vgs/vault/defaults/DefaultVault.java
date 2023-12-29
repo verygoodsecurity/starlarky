@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules.vgs.vault.defaults;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.ByteString;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import java.util.HashMap;
@@ -84,7 +85,7 @@ public class DefaultVault implements LarkyVault {
         return message;
     }
 
-    public Object verify(String keyId, String message, Object signature, String algorithm) throws EvalException {
+    public Object verify(String keyId, String message, ByteString signature, String algorithm) throws EvalException {
         return false;
     }
 
