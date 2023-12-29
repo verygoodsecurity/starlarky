@@ -82,7 +82,7 @@ public class DefaultVault implements LarkyVault {
 
     // These don't make a ton of sense in memory, we could hash and return if we really wanted to.
     public Object sign(String keyId, String message, String algorithm) throws EvalException {
-        return message;
+        return ByteString.copyFrom(message.getBytes());
     }
 
     public Object verify(String keyId, String message, ByteString signature, String algorithm) throws EvalException {
