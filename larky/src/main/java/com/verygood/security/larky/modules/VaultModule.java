@@ -56,7 +56,10 @@ public class VaultModule implements LarkyVault {
     private final ImmutableList<String> supportedSigningAlgorithms = ImmutableList.of(
             "RSASSA_PSS_SHA_256",
             "RSASSA_PSS_SHA_384",
-            "RSASSA_PSS_SHA_512"
+            "RSASSA_PSS_SHA_512",
+            "ECDSA_SHA_256",
+            "ECDSA_SHA_384",
+            "ECDSA_SHA_512"
     );
 
     public VaultModule() {
