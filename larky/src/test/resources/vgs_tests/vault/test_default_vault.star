@@ -258,7 +258,7 @@ def _test_default_sign():
     asserts.assert_that(message).is_equal_to(signature)
 
 def _test_sign_bad_algorithm():
-    asserts.assert_fails(lambda: vault.sign("keyId", "message", "bad_algo"), "Algorithm 'bad_algo' not found in supported algorithms: \\[RSASSA_PSS_SHA_256, RSASSA_PSS_SHA_384, RSASSA_PSS_SHA_512\\]")
+    asserts.assert_fails(lambda: vault.sign("keyId", "message", "bad_algo"), "Algorithm 'bad_algo' not found in supported algorithms: \\[RSASSA_PSS_SHA_256, RSASSA_PSS_SHA_384, RSASSA_PSS_SHA_512, ECDSA_SHA_256, ECDSA_SHA_384, ECDSA_SHA_512\\]")
 
 def _test_default_verify():
     message = "message"
