@@ -55,6 +55,11 @@ def VGSHttpRequest(
         # call super init, with overrides
         self.__init__(url, data=data, headers=headers, method=method)
         self.url = url
+        parsed_url = parse.urlsplit(url)
+        self.path = parsed_url.path
+        self.query_string = parsed_url.query
+        if method:
+            self.method = method
 
         return self
 
