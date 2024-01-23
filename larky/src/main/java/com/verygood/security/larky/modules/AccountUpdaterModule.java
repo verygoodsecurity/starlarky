@@ -98,13 +98,17 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
     if (pan.trim().isEmpty()) {
       throw Starlark.errorf("card number argument cannot be blank");
     }
+    int expireMonthValue = expireYear.toInt("invalid expireYear int range");
+    if (expireMonthValue <= 0 || expireMonthValue >= 100) {
+      throw Starlark.errorf("expireMonth needs to be a positive two digits integer");
+    }
     final AccountUpdaterService.Card card;
     try {
       card =
           AccountUpdaterService.lookupCard(
               pan,
-              expireMonth.toInt("invalid int range"),
-              expireYear.toInt("invalid int range"),
+              expireMonth.toInt("invalid expireMonth int range"),
+              expireYear.toInt("invalid expireYear int range"),
               name,
               clientId,
               clientSecret);
