@@ -25,15 +25,15 @@ public class MockAccountUpdaterService implements AccountUpdaterService {
 
   @Override
   public Card lookupCard(
-      String number,
+      String pan,
       Integer expireMonth,
       Integer expireYear,
       String name,
       String clientId,
       String clientSecret) {
-    if (!CARDS.containsKey(number)) {
+    if (!CARDS.containsKey(pan)) {
       return null;
     }
-    return CARDS.get(number);
+    return CARDS.get(pan);
   }
 }

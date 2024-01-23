@@ -52,7 +52,7 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
       useStarlarkThread = true,
       parameters = {
         @Param(
-            name = "number",
+            name = "pan",
             named = true,
             doc = "Card PAN. Used to look up the corresponding card information to be returned",
             allowedTypes = {@ParamType(type = String.class)}),
@@ -66,7 +66,7 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
             name = "exp_year",
             named = true,
             doc =
-                "Card expiration year. Used to pass to the network for retrieving the corresponding card information",
+                "Card expiration year as two digits integer. Used to pass to the network for retrieving the corresponding card information",
             allowedTypes = {@ParamType(type = StarlarkInt.class)}),
         @Param(
             name = "name",
@@ -87,7 +87,7 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
       })
   @Override
   public Object lookupCard(
-      String number,
+      String pan,
       StarlarkInt expireMonth,
       StarlarkInt expireYear,
       String name,
@@ -95,14 +95,14 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
       String clientSecret,
       StarlarkThread thread)
       throws EvalException {
-    if (number.trim().isEmpty()) {
+    if (pan.trim().isEmpty()) {
       throw Starlark.errorf("card number argument cannot be blank");
     }
     final AccountUpdaterService.Card card;
     try {
       card =
           AccountUpdaterService.lookupCard(
-              number,
+              pan,
               expireMonth.toInt("invalid int range"),
               expireYear.toInt("invalid int range"),
               name,

@@ -5,7 +5,7 @@ import com.verygood.security.larky.modules.vgs.aus.spi.AccountUpdaterService;
 public class NoopAccountUpdaterService implements AccountUpdaterService {
   @Override
   public Card lookupCard(
-      String number,
+      String pan,
       Integer expireMonth,
       Integer expireYear,
       String name,

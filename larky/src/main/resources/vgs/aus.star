@@ -3,7 +3,7 @@ load("@stdlib//larky", larky="larky")
 
 def lookup_card(pan, exp_month, exp_year, name, client_id, client_secret):
     return _au.lookup_card(
-        number=pan,
+        pan=pan,
         exp_month=exp_month,
         exp_year=exp_year,
         name=name,
