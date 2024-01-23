@@ -109,7 +109,7 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
               clientId,
               clientSecret);
     } catch (UnsupportedOperationException exception) {
-      throw Starlark.errorf("au.lookup_updates operation must be overridden");
+      throw Starlark.errorf("aus.lookup_card operation must be overridden");
     }
     if (card == null) {
       return Starlark.NONE;

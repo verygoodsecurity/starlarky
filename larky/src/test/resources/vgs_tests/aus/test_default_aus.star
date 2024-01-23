@@ -1,10 +1,10 @@
 load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
-load("@vgs//au", "lookup_card")
+load("@vgs//aus", "aus")
 
 
 def _test_lookup_card_with_exp_updates():
-    card = lookup_card(
+    card = aus.lookup_card(
         pan="4111111111111111",
         exp_year=25,
         exp_month=11,
@@ -17,7 +17,7 @@ def _test_lookup_card_with_exp_updates():
     asserts.assert_that(card["exp_month"]).is_equal_to(10)
 
 def _test_lookup_card_with_number_updates():
-    card = lookup_card(
+    card = aus.lookup_card(
         pan="4242424242424242",
         exp_year=25,
         exp_month=11,
@@ -31,7 +31,7 @@ def _test_lookup_card_with_number_updates():
 
 
 def _test_lookup_card_with_not_existing_card():
-    card = lookup_card(
+    card = aus.lookup_card(
         pan="999999999999",
         exp_year=25,
         exp_month=11,
