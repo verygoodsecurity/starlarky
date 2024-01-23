@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules;
+package com.verygood.security.larky.modules.vgs;
 
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.vgs.aus.LarkyAccountUpdater;

@@ -20,7 +20,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import com.verygood.security.larky.modules.AccountUpdaterModule;
+import com.verygood.security.larky.modules.vgs.AccountUpdaterModule;
 import com.verygood.security.larky.modules.BinasciiModule;
 import com.verygood.security.larky.modules.C99MathModule;
 import com.verygood.security.larky.modules.NetworkTokenModule;
