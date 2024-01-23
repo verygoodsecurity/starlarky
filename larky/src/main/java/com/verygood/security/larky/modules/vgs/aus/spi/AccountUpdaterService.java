@@ -12,10 +12,18 @@ public interface AccountUpdaterService {
    * @param expireYear card's expiration year
    * @param name the name on the card
    * @param vgsMerchantId vgs merchant public identifier
+   * @param clientId client id of service account to access calm API
+   * @param clientSecret client secret of service account to access calm API
    * @return the updated card
    */
   Card lookupCard(
-      String number, Integer expireMonth, Integer expireYear, String name, String vgsMerchantId);
+      String number,
+      Integer expireMonth,
+      Integer expireYear,
+      String name,
+      String vgsMerchantId,
+      String clientId,
+      String clientSecret);
 
   @Data
   @Builder
