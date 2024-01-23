@@ -42,12 +42,23 @@ def _test_lookup_card_with_not_existing_card():
     asserts.assert_that(card).is_none()
 
 
+def _test_use_account_updater():
+    asserts.assert_that(aus.use_account_updater({})).is_false()
+    asserts.assert_that(aus.use_account_updater({"vgs-account-updater": ""})).is_false()
+    asserts.assert_that(aus.use_account_updater({"vgs-account-updater": "no"})).is_false()
+    asserts.assert_that(aus.use_account_updater({"vgs-account-updater": "other"})).is_false()
+    asserts.assert_that(aus.use_account_updater({"vgs-account-updater": "yes"})).is_true()
+    asserts.assert_that(aus.use_account_updater({"Vgs-Account-Updater": "yes"})).is_true()
+    asserts.assert_that(aus.use_account_updater({"Vgs-Account-Updater": "Yes"})).is_true()
+    asserts.assert_that(aus.use_account_updater({"VGS-ACCOUNT-UPDATER": "YES"})).is_true()
+
 
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_lookup_card_with_exp_updates))
     _suite.addTest(unittest.FunctionTestCase(_test_lookup_card_with_number_updates))
     _suite.addTest(unittest.FunctionTestCase(_test_lookup_card_with_not_existing_card))
+    _suite.addTest(unittest.FunctionTestCase(_test_use_account_updater))
     return _suite
 
 
