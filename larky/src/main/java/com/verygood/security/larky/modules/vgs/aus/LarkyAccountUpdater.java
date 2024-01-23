@@ -17,7 +17,7 @@ public interface LarkyAccountUpdater extends StarlarkValue {
    * @param thread Starlark thread object
    * @return a dict contains the network token values
    */
-  Dict<String, Object> getCard(
+  Dict<String, Object> lookupUpdates(
       String number,
       Integer expireMonth,
       Integer expireYear,

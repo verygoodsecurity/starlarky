@@ -24,7 +24,7 @@ public class MockAccountUpdaterService implements AccountUpdaterService {
   );
 
   @Override
-  public Card getCard(
+  public Card lookupCard(
           String number, Integer expireMonth, Integer expireYear, String name, String vgsMerchantId) {
     if (StringUtils.isBlank(vgsMerchantId)) {
       return getForDefaultMerchant();

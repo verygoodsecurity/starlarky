@@ -5,14 +5,13 @@ import com.verygood.security.larky.modules.vgs.aus.LarkyAccountUpdater;
 import com.verygood.security.larky.modules.vgs.aus.MockAccountUpdaterService;
 import com.verygood.security.larky.modules.vgs.aus.NoopAccountUpdaterService;
 import com.verygood.security.larky.modules.vgs.aus.spi.AccountUpdaterService;
+import java.util.List;
+import java.util.ServiceLoader;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.*;
-
-import java.util.List;
-import java.util.ServiceLoader;
 
 @StarlarkBuiltin(
     name = "native_au",
@@ -21,7 +20,8 @@ import java.util.ServiceLoader;
 public class AccountUpdaterModule implements LarkyAccountUpdater {
   public static final AccountUpdaterModule INSTANCE = new AccountUpdaterModule();
 
-  public static final String ENABLE_MOCK_PROPERTY = "larky.modules.vgs.nts.enableMockAccountUpdater";
+  public static final String ENABLE_MOCK_PROPERTY =
+      "larky.modules.vgs.nts.enableMockAccountUpdater";
 
   private final AccountUpdaterService AccountUpdaterService;
 
@@ -45,8 +45,8 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
   }
 
   @StarlarkMethod(
-      name = "get_card",
-      doc = "Retrieves a newer information for the provided card.",
+      name = "lookup_updates",
+      doc = "Lookup account updates for a given PAN.",
       useStarlarkThread = true,
       parameters = {
         @Param(
@@ -80,7 +80,7 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
             allowedTypes = {@ParamType(type = String.class)}),
       })
   @Override
-  public Dict<String, Object> getCard(
+  public Dict<String, Object> lookupUpdates(
       String number,
       Integer expireMonth,
       Integer expireYear,
@@ -93,10 +93,9 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
     }
     final AccountUpdaterService.Card card;
     try {
-      card =
-          AccountUpdaterService.getCard(number, expireMonth, expireYear, name, vgsMerchantId);
+      card = AccountUpdaterService.lookupCard(number, expireMonth, expireYear, name, vgsMerchantId);
     } catch (UnsupportedOperationException exception) {
-      throw Starlark.errorf("au.get_card operation must be overridden");
+      throw Starlark.errorf("au.lookup_updates operation must be overridden");
     }
     return Dict.<String, Object>builder()
         .put("number", card.getNumber())
