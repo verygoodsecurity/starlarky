@@ -26,8 +26,10 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
   private final AccountUpdaterService AccountUpdaterService;
 
   public AccountUpdaterModule() {
-    ServiceLoader<AccountUpdaterService> loader = ServiceLoader.load(AccountUpdaterService.class);
-    List<AccountUpdaterService> AccountUpdaterProviders = ImmutableList.copyOf(loader.iterator());
+    final ServiceLoader<AccountUpdaterService> loader =
+        ServiceLoader.load(AccountUpdaterService.class);
+    final List<AccountUpdaterService> AccountUpdaterProviders =
+        ImmutableList.copyOf(loader.iterator());
 
     if (Boolean.getBoolean(ENABLE_MOCK_PROPERTY)) {
       AccountUpdaterService = new MockAccountUpdaterService();
@@ -45,7 +47,7 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
   }
 
   @StarlarkMethod(
-      name = "lookup_updates",
+      name = "lookup_card",
       doc = "Lookup account updates for a given PAN.",
       useStarlarkThread = true,
       parameters = {
@@ -59,13 +61,13 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
             named = true,
             doc =
                 "Card expiration month. Used to pass to the network for retrieving the corresponding card information",
-            allowedTypes = {@ParamType(type = String.class)}),
+            allowedTypes = {@ParamType(type = StarlarkInt.class)}),
         @Param(
             name = "exp_year",
             named = true,
             doc =
                 "Card expiration year. Used to pass to the network for retrieving the corresponding card information",
-            allowedTypes = {@ParamType(type = String.class)}),
+            allowedTypes = {@ParamType(type = StarlarkInt.class)}),
         @Param(
             name = "name",
             named = true,
@@ -86,8 +88,8 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
   @Override
   public Dict<String, Object> lookupCard(
       String number,
-      Integer expireMonth,
-      Integer expireYear,
+      StarlarkInt expireMonth,
+      StarlarkInt expireYear,
       String name,
       String clientId,
       String clientSecret,
@@ -100,7 +102,12 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
     try {
       card =
           AccountUpdaterService.lookupCard(
-              number, expireMonth, expireYear, name, clientId, clientSecret);
+              number,
+              expireMonth.toInt("invalid int range"),
+              expireYear.toInt("invalid int range"),
+              name,
+              clientId,
+              clientSecret);
     } catch (UnsupportedOperationException exception) {
       throw Starlark.errorf("au.lookup_updates operation must be overridden");
     }

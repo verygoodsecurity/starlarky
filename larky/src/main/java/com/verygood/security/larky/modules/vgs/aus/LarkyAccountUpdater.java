@@ -2,6 +2,7 @@ package com.verygood.security.larky.modules.vgs.aus;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
@@ -20,8 +21,8 @@ public interface LarkyAccountUpdater extends StarlarkValue {
    */
   Dict<String, Object> lookupCard(
       String number,
-      Integer expireMonth,
-      Integer expireYear,
+      StarlarkInt expireMonth,
+      StarlarkInt expireYear,
       String name,
       String clientId,
       String clientSecret,
