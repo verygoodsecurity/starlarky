@@ -73,12 +73,6 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
                 "Card owner name. Used to pass to the network for retrieving the corresponding card information",
             allowedTypes = {@ParamType(type = String.class)}),
         @Param(
-            name = "vgs_merchant_id",
-            named = true,
-            doc = "VGS merchant id to get a network token for",
-            defaultValue = "''",
-            allowedTypes = {@ParamType(type = String.class)}),
-        @Param(
             name = "client_id",
             named = true,
             doc = "Client ID of service account to access calm API server",
@@ -90,12 +84,11 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
             allowedTypes = {@ParamType(type = String.class)}),
       })
   @Override
-  public Dict<String, Object> lookupUpdates(
+  public Dict<String, Object> lookupCard(
       String number,
       Integer expireMonth,
       Integer expireYear,
       String name,
-      String vgsMerchantId,
       String clientId,
       String clientSecret,
       StarlarkThread thread)
@@ -107,7 +100,7 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
     try {
       card =
           AccountUpdaterService.lookupCard(
-              number, expireMonth, expireYear, name, vgsMerchantId, clientId, clientSecret);
+              number, expireMonth, expireYear, name, clientId, clientSecret);
     } catch (UnsupportedOperationException exception) {
       throw Starlark.errorf("au.lookup_updates operation must be overridden");
     }

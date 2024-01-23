@@ -13,18 +13,16 @@ public interface LarkyAccountUpdater extends StarlarkValue {
    * @param expireMonth card's expiration month
    * @param expireYear card's expiration year
    * @param name the name on the card
-   * @param vgsMerchantId vgs merchant public identifier
    * @param clientId client id of service account to access calm API
    * @param clientSecret client secret of service account to access calm API
    * @param thread Starlark thread object
    * @return a dict contains the network token values
    */
-  Dict<String, Object> lookupUpdates(
+  Dict<String, Object> lookupCard(
       String number,
       Integer expireMonth,
       Integer expireYear,
       String name,
-      String vgsMerchantId,
       String clientId,
       String clientSecret,
       StarlarkThread thread)

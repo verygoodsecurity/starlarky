@@ -9,7 +9,6 @@ public class NoopAccountUpdaterService implements AccountUpdaterService {
       Integer expireMonth,
       Integer expireYear,
       String name,
-      String vgsMerchantId,
       String clientId,
       String clientSecret) {
     throw new UnsupportedOperationException("Not implemented");
