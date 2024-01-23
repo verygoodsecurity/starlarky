@@ -31,6 +31,9 @@ public class MockAccountUpdaterService implements AccountUpdaterService {
       String name,
       String clientId,
       String clientSecret) {
+    if (!CARDS.containsKey(number)) {
+      return null;
+    }
     return CARDS.get(number);
   }
 }

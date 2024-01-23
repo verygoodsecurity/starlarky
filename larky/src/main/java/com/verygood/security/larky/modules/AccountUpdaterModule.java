@@ -86,7 +86,7 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
             allowedTypes = {@ParamType(type = String.class)}),
       })
   @Override
-  public Dict<String, Object> lookupCard(
+  public Object lookupCard(
       String number,
       StarlarkInt expireMonth,
       StarlarkInt expireYear,
@@ -111,11 +111,13 @@ public class AccountUpdaterModule implements LarkyAccountUpdater {
     } catch (UnsupportedOperationException exception) {
       throw Starlark.errorf("au.lookup_updates operation must be overridden");
     }
+    if (card == null) {
+      return Starlark.NONE;
+    }
     return Dict.<String, Object>builder()
         .put("number", card.getNumber())
-        .put("expireMonth", StarlarkInt.of(card.getExpireMonth()))
-        .put("expireYear", StarlarkInt.of(card.getExpireYear()))
-        .put("name", card.getName())
+        .put("exp_month", StarlarkInt.of(card.getExpireMonth()))
+        .put("exp_year", StarlarkInt.of(card.getExpireYear()))
         .build(thread.mutability());
   }
 }
