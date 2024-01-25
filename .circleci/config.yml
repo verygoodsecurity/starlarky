@@ -11,8 +11,8 @@ job-defaults: &job-defaults
 
 machine-linux: &machine-linux
   machine:
-    docker_layer_caching: true
-    image: ubuntu-2204:2022.10.2
+    docker_layer_caching: false
+    image: ubuntu-2204:2023.10.1
 
 install-java: &install-java
   run:
