@@ -50,7 +50,11 @@ public class VaultModule implements LarkyVault {
             "FPE_ALPHANUMERIC_ACC_NUM_T_FOUR",
             "GENERIC_T_FOUR",
             "ALPHANUMERIC_SIX_T_FOUR",
-            "VGS_FIXED_LEN_GENERIC"
+            "VGS_FIXED_LEN_GENERIC",
+            "ALPHANUMERIC_LENGTH_PRESERVING",
+            "ALPHANUMERIC_LENGTH_PRESERVING_T_FOUR",
+            "ALPHANUMERIC_LENGTH_PRESERVING_SIX_T_FOUR",
+            "ALPHANUMERIC_SSN_T_FOUR"
     );
 
     private final ImmutableList<String> supportedSigningAlgorithms = ImmutableList.of(
