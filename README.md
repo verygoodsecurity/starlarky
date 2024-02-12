@@ -5,8 +5,7 @@
 <a href="https://github.com/verygoodsecurity/starlarky/releases"><img src="https://img.shields.io/github/v/release/verygoodsecurity/starlarky"/></a>
 <a href="https://pypi.org/project/pylarky/"><img src="https://img.shields.io/pypi/v/pylarky"/></a>
 <a href="https://github.com/verygoodsecurity/starlarky/blob/master/LICENSE"><img src="https://img.shields.io/github/license/verygoodsecurity/starlarky"/></a>
-<img src="https://img.shields.io/snyk/vulnerabilities/github/verygoodsecurity/starlarky"/>
-</p>
+
 
 <!-- toc -->
 * [Description](#description)
