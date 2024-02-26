@@ -1,4 +1,4 @@
-package com.verygood.security.larky.modules.vgs.metrics.defaults;
+package com.verygood.security.larky.modules.vgs.metrics;
 
 import com.verygood.security.larky.modules.vgs.metrics.spi.LarkyMetrics;
 import lombok.extern.slf4j.Slf4j;

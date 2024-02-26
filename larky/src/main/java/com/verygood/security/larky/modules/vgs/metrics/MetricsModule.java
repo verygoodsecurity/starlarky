@@ -1,8 +1,6 @@
-package com.verygood.security.larky.modules;
+package com.verygood.security.larky.modules.vgs.metrics;
 
 import com.google.common.collect.ImmutableList;
-import com.verygood.security.larky.modules.vgs.metrics.NoopMetrics;
-import com.verygood.security.larky.modules.vgs.metrics.defaults.DefaultMetrics;
 import com.verygood.security.larky.modules.vgs.metrics.spi.LarkyMetrics;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;

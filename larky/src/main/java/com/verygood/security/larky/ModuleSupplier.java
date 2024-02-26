@@ -22,7 +22,7 @@ import com.google.common.collect.ImmutableSet;
 
 import com.verygood.security.larky.modules.BinasciiModule;
 import com.verygood.security.larky.modules.C99MathModule;
-import com.verygood.security.larky.modules.MetricsModule;
+import com.verygood.security.larky.modules.vgs.metrics.MetricsModule;
 import com.verygood.security.larky.modules.NetworkTokenModule;
 import com.verygood.security.larky.modules.CerebroModule;
 import com.verygood.security.larky.modules.ChaseModule;

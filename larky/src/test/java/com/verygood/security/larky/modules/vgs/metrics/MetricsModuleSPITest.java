@@ -1,6 +1,5 @@
 package com.verygood.security.larky.modules.vgs.metrics;
 
-import com.verygood.security.larky.modules.MetricsModule;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import org.junit.jupiter.api.AfterAll;
