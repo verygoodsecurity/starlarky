@@ -52,7 +52,6 @@ public class MetricsModule implements LarkyMetrics {
   @StarlarkMethod(
     name = "track",
     doc = "logs only selected dictionary items",
-    useStarlarkThread = true,
     parameters = {
       @Param(
         name = "dict",
