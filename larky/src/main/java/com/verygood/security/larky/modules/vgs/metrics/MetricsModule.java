@@ -24,7 +24,6 @@ import java.util.ServiceLoader;
 public class MetricsModule implements LarkyMetrics {
 
   public static final MetricsModule INSTANCE = new MetricsModule();
-  public static final String ENABLE_DEFAULT_PROPERTY = "larky.modules.vgs.metrics.enableDefaultMetrics";
 
   private final LarkyMetrics metrics;
 
@@ -32,19 +31,13 @@ public class MetricsModule implements LarkyMetrics {
     ServiceLoader<LarkyMetrics> loader = ServiceLoader.load(LarkyMetrics.class);
     List<LarkyMetrics> metricsProviders = ImmutableList.copyOf(loader.iterator());
 
-    if (Boolean.getBoolean(ENABLE_DEFAULT_PROPERTY)) {
-      metrics = new DefaultMetrics(); // Not used in production
-    } else if (metricsProviders.isEmpty()) {
-      metrics = new NoopMetrics(); // Not used in production
-    } else {
-      if (metricsProviders.size() != 1) {
-        throw new IllegalArgumentException(
-          String.format(
-            "MetricsModule expecting only 1 metrics provider of type LarkyMetrics, found %d",
-            metricsProviders.size()));
-      }
-      metrics = metricsProviders.get(0);
+    if (metricsProviders.size() != 1) {
+      throw new IllegalArgumentException(
+        String.format(
+          "MetricsModule expecting only 1 metrics provider of type LarkyMetrics, found %d",
+          metricsProviders.size()));
     }
+    metrics = metricsProviders.get(0);
   }
 
   @StarlarkMethod(

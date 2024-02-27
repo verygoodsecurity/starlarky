@@ -49,8 +49,7 @@ public class MetricsModuleSPITest {
 
   @Test
   public void testNoopModule_exception() throws Exception {
-    setMetricsImpl("");
-    System.setProperty(MetricsModule.ENABLE_DEFAULT_PROPERTY, "false");
+    setMetricsImpl(NoopMetrics.class.getName());
     metrics = new MetricsModule();
     // Assert Exceptions
     assertThrows(EvalException.class,
@@ -63,10 +62,7 @@ public class MetricsModuleSPITest {
 
   @Test
   public void testDefaultModule_ok() throws Exception {
-    setMetricsImpl("");
-    System.setProperty(MetricsModule.ENABLE_DEFAULT_PROPERTY, "true");
     metrics = new MetricsModule();
-
     PrintStream originalSystemOut = System.out;
     ByteArrayOutputStream systemOutContent = new ByteArrayOutputStream();
     System.setOut(new PrintStream(systemOutContent));
