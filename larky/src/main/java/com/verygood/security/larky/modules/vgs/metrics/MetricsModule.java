@@ -62,7 +62,7 @@ public class MetricsModule implements LarkyMetrics {
     }
   )
   @Override
-  public void track(Dict<String, String> dict) throws EvalException {
+  public void track(Dict<String, Object> dict) throws EvalException {
     metrics.track(dict);
   }
 }

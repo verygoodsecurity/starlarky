@@ -72,7 +72,7 @@ public class MetricsModuleSPITest {
     System.setOut(new PrintStream(systemOutContent));
 
     Map<String, String> map = Map.of("a", "b");
-    Dict<String, String> dict = new Dict.Builder<String, String>()
+    Dict<String, Object> dict = new Dict.Builder<String, Object>()
       .putAll(map)
       .buildImmutable();
     metrics.track(dict);

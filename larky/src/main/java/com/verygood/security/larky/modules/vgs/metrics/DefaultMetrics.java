@@ -11,7 +11,7 @@ public class DefaultMetrics implements LarkyMetrics {
    * Not used in production
    */
   @Override
-  public void track(Dict<String, String> dict) {
+  public void track(Dict<String, Object> dict) {
     System.out.println(dict);
   }
 }

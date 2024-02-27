@@ -6,7 +6,7 @@ load("@vgs//metrics", "metrics")
 
 
 def _test_default_track():
-    metrics.track({"psp":"stripe"})
+    metrics.track({"psp":"stripe","amount":123})
 
 
 def _suite():

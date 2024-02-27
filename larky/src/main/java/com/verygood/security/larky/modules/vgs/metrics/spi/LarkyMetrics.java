@@ -6,6 +6,6 @@ import net.starlark.java.eval.StarlarkValue;
 
 public interface LarkyMetrics extends StarlarkValue {
 
-  void track(Dict<String, String> dict) throws EvalException;
+  void track(Dict<String, Object> dict) throws EvalException;
 
 }
