@@ -31,13 +31,17 @@ public class MetricsModule implements LarkyMetrics {
     ServiceLoader<LarkyMetrics> loader = ServiceLoader.load(LarkyMetrics.class);
     List<LarkyMetrics> metricsProviders = ImmutableList.copyOf(loader.iterator());
 
-    if (metricsProviders.size() != 1) {
+    if (metricsProviders.isEmpty()) {
+      metrics = new NoopMetrics(); // Not used in production
+    } else if (metricsProviders.size() == 1) {
+      metrics = metricsProviders.get(0);
+    } else {
       throw new IllegalArgumentException(
         String.format(
           "MetricsModule expecting only 1 metrics provider of type LarkyMetrics, found %d",
           metricsProviders.size()));
+
     }
-    metrics = metricsProviders.get(0);
   }
 
   @StarlarkMethod(
