@@ -97,17 +97,17 @@ public class ModuleSupplier {
   );
 
   public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
-      VaultModule.INSTANCE,
-      NetworkTokenModule.INSTANCE,
       CerebroModule.INSTANCE,
       ChaseModule.INSTANCE,
       JKSModule.INSTANCE,
-      MetricsModule.INSTANCE
+      MetricsModule.INSTANCE,
+      NetworkTokenModule.INSTANCE,
+      VaultModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
-      UnittestModule.INSTANCE,
-      AssertionsModule.INSTANCE
+      AssertionsModule.INSTANCE,
+      UnittestModule.INSTANCE
   );
 
   private final Map<String, Object> environment;
