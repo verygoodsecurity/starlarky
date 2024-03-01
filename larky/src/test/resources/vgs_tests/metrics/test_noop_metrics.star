@@ -7,7 +7,7 @@ load("@vgs//metrics", "metrics")
 
 def _test_noop_track():
     asserts.assert_fails(
-        lambda: metrics.track({"psp":"stripe"}),
+        lambda: metrics.track(0, 0, "USD", "ADYEN", "SUCCESS", "AUTHORIZATION"),
         "metrics.track operation must be overridden")
 
 

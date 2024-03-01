@@ -1,5 +1,9 @@
 package com.verygood.security.larky.modules.vgs.metrics;
 
+import com.verygood.security.larky.modules.vgs.metrics.constants.Currency;
+import com.verygood.security.larky.modules.vgs.metrics.constants.PSP;
+import com.verygood.security.larky.modules.vgs.metrics.constants.TransactionResult;
+import com.verygood.security.larky.modules.vgs.metrics.constants.TransactionType;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import org.junit.jupiter.api.AfterAll;
@@ -13,6 +17,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 
+import static com.verygood.security.larky.modules.vgs.metrics.DefaultMetrics.OUTPUT_STRING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -25,6 +30,8 @@ public class MetricsModuleSPITest {
 
   private static String METRICS_SAVED_CONFIG;
   private MetricsModule metrics;
+  private int amount;
+  private int bin;
 
   @BeforeAll
   public static void setUp() throws Exception {
@@ -53,9 +60,13 @@ public class MetricsModuleSPITest {
     metrics = new MetricsModule();
     // Assert Exceptions
     assertThrows(EvalException.class,
-      () -> {
-        metrics.track(Dict.empty());
-      },
+      () -> metrics.track(
+        0,
+        0,
+        Currency.USD,
+        PSP.ADYEN,
+        TransactionResult.SUCCESS,
+        TransactionType.AUTHORIZATION),
       "metrics.track operation must be overridden"
     );
   }
@@ -71,9 +82,23 @@ public class MetricsModuleSPITest {
     Dict<String, Object> dict = new Dict.Builder<String, Object>()
       .putAll(map)
       .buildImmutable();
-    metrics.track(dict);
+    amount = 1234;
+    bin = 123456;
+    Currency usd = Currency.USD;
+    PSP adyen = PSP.ADYEN;
+    TransactionResult success = TransactionResult.SUCCESS;
+    TransactionType authorization = TransactionType.AUTHORIZATION;
+    metrics.track(
+      amount,
+      bin,
+      usd,
+      adyen,
+      success,
+      authorization);
 
-    assertEquals(systemOutContent.toString().trim(), dict.toString().trim());
+    assertEquals(
+      systemOutContent.toString(),
+      String.format(OUTPUT_STRING, amount, bin, usd, adyen, success, authorization));
 
     System.setOut(originalSystemOut);
 
