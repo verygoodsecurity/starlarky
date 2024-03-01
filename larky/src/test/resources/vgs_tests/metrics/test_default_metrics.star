@@ -41,8 +41,10 @@ def _test_default_track_interchanging_values():
 
 def _suite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(_test_default_track))
-    _suite.addTest(unittest.FunctionTestCase(_test_default_track))
+    _suite.addTest(unittest.FunctionTestCase(_test_default_track_all_values))
+    _suite.addTest(unittest.FunctionTestCase(_test_default_track_without_keys))
+    _suite.addTest(unittest.FunctionTestCase(_test_default_track_missing_values))
+    _suite.addTest(unittest.FunctionTestCase(_test_default_track_interchanging_values))
     return _suite
 
 
