@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
-
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -27,7 +26,6 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.ext.ByteList;
 import net.starlark.java.ext.ByteStringModuleApi;
 import net.starlark.java.syntax.TokenKind;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -161,8 +159,8 @@ public class StarlarkBytes implements ByteStringModuleApi,
     @Override
     public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
       try(Mutability mu = Mutability.create("StarlarkBytesBinaryOp")) {
-        StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
-        return EvalUtils.binaryOp(op, toStarlarkInt(), that, thread);
+//        StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+        return null;//EvalUtils.binaryOp(op, toStarlarkInt(), that, thread);
       }
     }
 

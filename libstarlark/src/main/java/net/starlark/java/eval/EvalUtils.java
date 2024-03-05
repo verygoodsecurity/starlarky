@@ -15,12 +15,16 @@ package net.starlark.java.eval;
 
 import com.google.common.base.Strings;
 import java.util.IllegalFormatException;
+import net.starlark.java.eval.StarlarkThread.Frame;
 import net.starlark.java.syntax.TokenKind;
 
-/** Internal declarations used by the evaluator. */
+/**
+ * Internal declarations used by the evaluator.
+ */
 final class EvalUtils {
 
-  private EvalUtils() {}
+  private EvalUtils() {
+  }
 
   static void addIterator(Object x) {
     if (x instanceof Mutability.Freezable) {
@@ -37,8 +41,8 @@ final class EvalUtils {
   // The following functions for indexing and slicing match the behavior of Python.
 
   /**
-   * Resolves a positive or negative index to an index in the range [0, length), or throws
-   * EvalException if it is out of range. If the index is negative, it counts backward from length.
+   * Resolves a positive or negative index to an index in the range [0, length), or throws EvalException if it is out of
+   * range. If the index is negative, it counts backward from length.
    */
   static int getSequenceIndex(int index, int length) throws EvalException {
     int actualIndex = index;
@@ -53,10 +57,9 @@ final class EvalUtils {
   }
 
   /**
-   * Returns the effective index denoted by a user-supplied integer. First, if the integer is
-   * negative, the length of the sequence is added to it, so an index of -1 represents the last
-   * element of the sequence. Then, the integer is "clamped" into the inclusive interval [0,
-   * length].
+   * Returns the effective index denoted by a user-supplied integer. First, if the integer is negative, the length of
+   * the sequence is added to it, so an index of -1 represents the last element of the sequence. Then, the integer is
+   * "clamped" into the inclusive interval [0, length].
    */
   static int toIndex(int index, int length) {
     if (index < 0) {
@@ -72,9 +75,12 @@ final class EvalUtils {
     }
   }
 
-  /** Evaluates an eager binary operation, {@code x op y}. (Excludes AND and OR.) */
-  static Object binaryOp(TokenKind op, Object x, Object y, StarlarkThread starlarkThread)
+  /**
+   * Evaluates an eager binary operation, {@code x op y}. (Excludes AND and OR.)
+   */
+  static Object binaryOp(TokenKind op, Object x, Object y, Frame fr)
       throws EvalException {
+    StarlarkThread starlarkThread = fr.thread;
     StarlarkSemantics semantics = starlarkThread.getSemantics();
     Mutability mu = starlarkThread.mutability();
     switch (op) {
@@ -91,6 +97,19 @@ final class EvalUtils {
 
         } else if (x instanceof String) {
           if (y instanceof String) {
+            // MEMORY ALLOCATION CHECK
+            if (((StarlarkFunction) fr.fn).getModule().getPredeclaredBindings()
+                .containsKey("MAX_STRING_LENGTH")) {
+              long maxLength = Long.parseLong(
+                  ((StarlarkFunction) fr.fn).getModule().getPredeclared("MAX_STRING_LENGTH").toString());
+              final long length = ((String) x).length() + ((String) y).length();
+              if (maxLength > 0 && length > maxLength) {
+                throw new EvalException(
+                    "Exceeded string concatenation limit, wanted "
+                    + length + ", limit is " + maxLength);
+              }
+            }
+
             // string + string
             return (String) x + (String) y;
           }
@@ -357,7 +376,7 @@ final class EvalUtils {
         break;
 
       case NOT_IN:
-        Object z = binaryOp(TokenKind.IN, x, y, starlarkThread);
+        Object z = binaryOp(TokenKind.IN, x, y, fr);
         if (z != null) {
           return !Starlark.truth(z);
         }
@@ -409,7 +428,9 @@ final class EvalUtils {
     }
   }
 
-  /** Evaluates a unary operation. */
+  /**
+   * Evaluates a unary operation.
+   */
   static Object unaryOp(TokenKind op, Object x) throws EvalException {
     switch (op) {
       case NOT:
@@ -497,7 +518,9 @@ final class EvalUtils {
     }
   }
 
-  /** Updates the named field of x as if by the Starlark statement {@code x.field = value}. */
+  /**
+   * Updates the named field of x as if by the Starlark statement {@code x.field = value}.
+   */
   static void setField(Object x, String field, Object value) throws EvalException {
     if (x instanceof Structure) {
       ((Structure) x).setField(field, value);

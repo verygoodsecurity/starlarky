@@ -5,18 +5,20 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.FluentLogger;
+import com.verygood.security.larky.ModuleSupplier;
+import com.verygood.security.larky.annot.Library;
+import com.verygood.security.larky.console.Console;
+import com.verygood.security.larky.modules.utils.Reporter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-
-import com.verygood.security.larky.ModuleSupplier;
-import com.verygood.security.larky.annot.Library;
-import com.verygood.security.larky.console.Console;
-import com.verygood.security.larky.modules.utils.Reporter;
-
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.val;
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.EvalException;
@@ -31,14 +33,9 @@ import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.Program;
 import net.starlark.java.syntax.StarlarkFile;
 import net.starlark.java.syntax.SyntaxError;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
-
-import lombok.Builder;
-import lombok.Data;
-import lombok.Getter;
 
 /**
  * An utility class for traversing and evaluating the config file dependency graph.
@@ -74,26 +71,29 @@ public final class LarkyEvaluator {
   }
 
   /**
-   * The output of a Larky script is an evaluated {@link Module} that contains
-   * various attributes such as {@link Module#getGlobals()},
-   * {@link Module#getPredeclaredBindings()}, as well as other various items.
-   *
+   * The output of a Larky script is an evaluated {@link Module} that contains various attributes such as
+   * {@link Module#getGlobals()}, {@link Module#getPredeclaredBindings()}, as well as other various items.
+   * <p>
    * Sometimes, when evaluating a Larky script, there is some output that is generated.
-   *
-   * This interface encapsulates an interface that allows the caller to introspect
-   * the result of a Larky script evaluation.
+   * <p>
+   * This interface encapsulates an interface that allows the caller to introspect the result of a Larky script
+   * evaluation.
    */
   public interface EvaluationResult {
-      boolean hasOutput();
-      boolean hasModule();
 
-      Object getOutput();
-      Module getModule();
+    boolean hasOutput();
+
+    boolean hasModule();
+
+    Object getOutput();
+
+    Module getModule();
   }
 
   @Builder
   @Data
   protected static class DefaultEvaluationResult implements EvaluationResult {
+
     private Object output;
     private Module module;
 
@@ -114,9 +114,9 @@ public final class LarkyEvaluator {
     Module module = loaded.get(content.path());
     if (module != null) {
       return DefaultEvaluationResult.builder()
-        .output(null)
-        .module(module)
-        .build();
+          .output(null)
+          .module(module)
+          .build();
     }
     pending.add(content.path());
 
@@ -137,18 +137,23 @@ public final class LarkyEvaluator {
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
+
+      if (environment.containsKey("STEP_LIMIT") && environment.get("STEP_LIMIT") != null) {
+        thread.setMaxExecutionSteps(Integer.parseInt(environment.get("STEP_LIMIT").toString()));
+      }
+
       try {
         starlarkOutput = Starlark.execFileProgram(prog, module, thread);
-      } catch(EvalException cause) {
+      } catch (EvalException cause) {
         throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(cause, thread);
       }
     }
     pending.remove(content.path());
     loaded.put(content.path(), module);
     return DefaultEvaluationResult.builder()
-      .output(starlarkOutput)
-      .module(module)
-      .build();
+        .output(starlarkOutput)
+        .module(module)
+        .build();
   }
 
   @VisibleForTesting
@@ -184,10 +189,9 @@ public final class LarkyEvaluator {
          * Check if the module is in the module set. If it is, return a module with an environment
          * of the module that was passed in via the module set.
          */
-        else if(isNativeJavaModule(targetModule)) {
+        else if (isNativeJavaModule(targetModule)) {
           loadedModule = fromNativeModule(targetModule);
-        }
-        else {
+        } else {
           // try to load from directory...
           ResourceContentStarFile starFile = ResourceContentStarFile.buildStarFile(moduleToLoad);
           loadedModule = evaluator.eval(starFile).getModule();
@@ -195,11 +199,11 @@ public final class LarkyEvaluator {
 
       } catch (IOException | InterruptedException | EvalException e) {
         throw new RuntimeException(
-          String.format(
-            "Encountered error (%s) while attempting to load %s from module: %s.",
-            e.getMessage(),
-            moduleToLoad,
-            this.content.path()), e);
+            String.format(
+                "Encountered error (%s) while attempting to load %s from module: %s.",
+                e.getMessage(),
+                moduleToLoad,
+                this.content.path()), e);
       }
       return loadedModule;
     }
@@ -232,12 +236,17 @@ public final class LarkyEvaluator {
       // TODO(mahmoudimus): Move this to ModuleSupplier?
       try (Mutability mu = Mutability.create("InMemoryNativeModule")) {
         StarlarkThread thread = new StarlarkThread(mu, evaluator.getLarkySemantics());
+        val environment1 = evaluator.getEnvironment();
+        if (environment1.containsKey("STEP_LIMIT") && environment1.get("STEP_LIMIT") != null) {
+          thread.setMaxExecutionSteps(Integer.parseInt(environment1.get("STEP_LIMIT").toString()));
+        }
+
         try {
           Starlark.execFile(
-            ParserInput.fromString(String.format("%1$s = _%1$s", moduleToLoad), "<builtin>"),
-            evaluator.getStarlarkValidationOptions(),
-            newModule,
-            thread
+              ParserInput.fromString(String.format("%1$s = _%1$s", moduleToLoad), "<builtin>"),
+              evaluator.getStarlarkValidationOptions(),
+              newModule,
+              thread
           );
         } catch (InterruptedException | EvalException | SyntaxError.Exception e) {
           throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, thread);
@@ -276,7 +285,7 @@ public final class LarkyEvaluator {
       throw new EvalException(
           String.format(
               "Error compiling Starlark program: %1$s%n" +
-                  "%2$s",
+              "%2$s",
               input.getFile(),
               String.join("\n", errs)));
     }
@@ -307,10 +316,10 @@ public final class LarkyEvaluator {
   }
 
   /**
-   * Create the environment for all evaluations (will be shared between all the dependent files
-   * loaded).
+   * Create the environment for all evaluations (will be shared between all the dependent files loaded).
    */
-  private ImmutableMap<String, Object> createEnvironment(Iterable<Class<?>> globalModules, Map<String, Object> globals) {
+  private ImmutableMap<String, Object> createEnvironment(Iterable<Class<?>> globalModules,
+      Map<String, Object> globals) {
     Map<String, Object> env = Maps.newHashMap();
 
     for (Class<?> module : globalModules) {
