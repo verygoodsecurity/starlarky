@@ -4,8 +4,10 @@ import com.verygood.security.larky.modules.vgs.metrics.constants.Currency;
 import com.verygood.security.larky.modules.vgs.metrics.constants.PSP;
 import com.verygood.security.larky.modules.vgs.metrics.constants.TransactionResult;
 import com.verygood.security.larky.modules.vgs.metrics.constants.TransactionType;
+import com.verygood.security.larky.modules.vgs.metrics.impl.NoopMetrics;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.StarlarkInt;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -15,9 +17,8 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
 
-import static com.verygood.security.larky.modules.vgs.metrics.DefaultMetrics.OUTPUT_STRING;
+import static com.verygood.security.larky.modules.vgs.metrics.impl.DefaultMetrics.OUTPUT_STRING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -30,8 +31,6 @@ public class MetricsModuleSPITest {
 
   private static String METRICS_SAVED_CONFIG;
   private MetricsModule metrics;
-  private int amount;
-  private int bin;
 
   @BeforeAll
   public static void setUp() throws Exception {
@@ -63,10 +62,11 @@ public class MetricsModuleSPITest {
       () -> metrics.track(
         0,
         0,
-        Currency.USD,
-        PSP.ADYEN,
-        TransactionResult.SUCCESS,
-        TransactionType.AUTHORIZATION),
+        Currency.USD.name(),
+        PSP.ADYEN.name(),
+        TransactionResult.SUCCESS.name(),
+        TransactionType.AUTHORIZATION.name(),
+        Dict.empty()),
       "metrics.track operation must be overridden"
     );
   }
@@ -78,12 +78,8 @@ public class MetricsModuleSPITest {
     ByteArrayOutputStream systemOutContent = new ByteArrayOutputStream();
     System.setOut(new PrintStream(systemOutContent));
 
-    Map<String, String> map = Map.of("a", "b");
-    Dict<String, Object> dict = new Dict.Builder<String, Object>()
-      .putAll(map)
-      .buildImmutable();
-    amount = 1234;
-    bin = 123456;
+    int amount = 1234;
+    int bin = 123456;
     Currency usd = Currency.USD;
     PSP adyen = PSP.ADYEN;
     TransactionResult success = TransactionResult.SUCCESS;
@@ -91,16 +87,47 @@ public class MetricsModuleSPITest {
     metrics.track(
       amount,
       bin,
-      usd,
-      adyen,
-      success,
-      authorization);
+      usd.name(),
+      adyen.name(),
+      success.name(),
+      authorization.name(),
+      Dict.empty()
+    );
 
     assertEquals(
       systemOutContent.toString(),
-      String.format(OUTPUT_STRING, amount, bin, usd, adyen, success, authorization));
+      String.format(OUTPUT_STRING, amount, bin, usd, adyen, success, authorization, Dict.empty()));
 
     System.setOut(originalSystemOut);
+  }
 
+  @Test
+  public void testDefaultModule_starlarkInt() throws Exception {
+    metrics = new MetricsModule();
+    PrintStream originalSystemOut = System.out;
+    ByteArrayOutputStream systemOutContent = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(systemOutContent));
+
+    int amount = 1234;
+    int bin = 123456;
+    Currency usd = Currency.USD;
+    PSP adyen = PSP.ADYEN;
+    TransactionResult success = TransactionResult.SUCCESS;
+    TransactionType authorization = TransactionType.AUTHORIZATION;
+    metrics.track(
+      StarlarkInt.of(amount),
+      StarlarkInt.of(bin),
+      usd.name(),
+      adyen.name(),
+      success.name(),
+      authorization.name(),
+      Dict.empty()
+    );
+
+    assertEquals(
+      systemOutContent.toString(),
+      String.format(OUTPUT_STRING, amount, bin, usd, adyen, success, authorization, Dict.empty()));
+
+    System.setOut(originalSystemOut);
   }
 }

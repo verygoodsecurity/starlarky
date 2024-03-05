@@ -2,6 +2,7 @@ package com.verygood.security.larky.modules.vgs.metrics.constants;
 
 public enum Currency {
   NOT_SPECIFIED,
+  UNKNOWN,
   AED,//United Arab Emirates dirham, decimals
   AFN,//Afghan afghani, decimals
   ALL,//Albanian lek, decimals

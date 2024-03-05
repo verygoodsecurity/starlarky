@@ -1,1 +1,1 @@
-com.verygood.security.larky.modules.vgs.metrics.DefaultMetrics
+com.verygood.security.larky.modules.vgs.metrics.impl.DefaultMetrics
