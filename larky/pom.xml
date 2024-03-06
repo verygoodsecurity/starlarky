@@ -7,7 +7,7 @@
 
     <groupId>com.verygood.security</groupId>
     <artifactId>larky</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
 
     <packaging>jar</packaging>
 
@@ -33,7 +33,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <libstarlark.version>1.0-SNAPSHOT</libstarlark.version>
+        <libstarlark.version>1.0.0-SNAPSHOT</libstarlark.version>
 
         <apache.commons-text.version>1.11.0</apache.commons-text.version>
         <google.crypto.tink>1.6.1</google.crypto.tink>
