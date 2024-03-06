@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.vgs.metrics.constants;
 
+// taken from https://en.wikipedia.org/wiki/List_of_circulating_currencies
 public enum Currency {
   NOT_SPECIFIED,
   UNKNOWN,

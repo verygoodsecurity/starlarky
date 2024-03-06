@@ -16,13 +16,16 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
-import org.apache.commons.lang3.StringUtils;
-import org.jetbrains.annotations.Nullable;
+import org.apache.commons.lang3.math.NumberUtils;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.ServiceLoader;
+
+import static com.verygood.security.larky.modules.vgs.metrics.constants.TransactionMetricsKeys.*;
 
 @Getter
 @Slf4j
@@ -40,7 +43,8 @@ public class MetricsModule implements StarlarkValue {
     List<LarkyMetrics> metricsProviders = ImmutableList.copyOf(loader.iterator());
 
     if (metricsProviders.isEmpty()) {
-      metrics = new NoopMetrics(); // Not used in production
+      log.error("Using NoopMetrics, should not be used in Production");
+      metrics = new NoopMetrics();
     } else if (metricsProviders.size() == 1) {
       metrics = metricsProviders.get(0);
     } else {
@@ -57,7 +61,7 @@ public class MetricsModule implements StarlarkValue {
     doc = "Logs the amount, bin, currency, psp, result and type",
     parameters = {
       @Param(
-        name = "amount",
+        name = KEY_AMOUNT,
         named = true,
         doc = "Amount",
         positional = false,
@@ -68,7 +72,7 @@ public class MetricsModule implements StarlarkValue {
         }
       ),
       @Param(
-        name = "bin",
+        name = KEY_BIN,
         named = true,
         positional = false,
         doc = "Bank Identification Number",
@@ -79,7 +83,7 @@ public class MetricsModule implements StarlarkValue {
         }
       ),
       @Param(
-        name = "currency",
+        name = KEY_CURRENCY,
         named = true,
         positional = false,
         doc = "Currency",
@@ -89,7 +93,7 @@ public class MetricsModule implements StarlarkValue {
         }
       ),
       @Param(
-        name = "psp",
+        name = KEY_PSP,
         named = true,
         positional = false,
         doc = "Payment Service Provider",
@@ -99,7 +103,7 @@ public class MetricsModule implements StarlarkValue {
         }
       ),
       @Param(
-        name = "result",
+        name = KEY_RESULT,
         named = true,
         positional = false,
         doc = "Transaction Result",
@@ -109,7 +113,7 @@ public class MetricsModule implements StarlarkValue {
         }
       ),
       @Param(
-        name = "type",
+        name = KEY_TYPE,
         named = true,
         positional = false,
         doc = "Transaction Type",
@@ -140,8 +144,8 @@ public class MetricsModule implements StarlarkValue {
     Dict<String, Object> dictionary
   ) throws EvalException {
     metrics.track(
-      getInt(amount),
-      getInt(bin),
+      transform(amount, KEY_AMOUNT),
+      transform(bin, KEY_BIN),
       getValue(Currency.class, currency, Currency.NOT_SPECIFIED, Currency.UNKNOWN),
       getValue(PSP.class, psp, PSP.NOT_SPECIFIED, PSP.UNKNOWN),
       getValue(TransactionResult.class, result, TransactionResult.NOT_SPECIFIED, TransactionResult.UNKNOWN),
@@ -162,16 +166,37 @@ public class MetricsModule implements StarlarkValue {
   }
 
 
-  @Nullable
-  private static Integer getInt(Object value) {
-    Integer int_value = null;
+  private static Integer transform(Object value, String key) throws EvalException {
+    Integer valueInt = null;
     if (value instanceof Integer) {
-      int_value = (Integer) value;
-    } else if (value instanceof StarlarkInt) {
-      int_value = ((StarlarkInt) value).truncateToInt();
-    } else if (value instanceof String && StringUtils.isNumeric((String) value)) {
-      int_value = Integer.valueOf((String) value);
+      valueInt = (Integer) value;
+    } else if (value instanceof StarlarkInt starlarkInt) {
+      valueInt = getInteger(key, starlarkInt.toString());
+    } else if (value instanceof String valueString) {
+      valueInt = getInteger(key, valueString);
     }
-    return int_value;
+    if (valueInt != null && valueInt < 0) {
+      throw Starlark.errorf("negative '%s' not allowed", key);
+    }
+    if (valueInt != null && key.equals(KEY_BIN)) {
+      int binLength = valueInt.toString().length();
+      if (binLength < 6 || binLength > 9) {
+        throw Starlark.errorf("parameter '%s' length must be in range [%d,%d]", key, 6, 9);
+      }
+    }
+    return valueInt == null ? 0 : valueInt;
   }
+
+  @NotNull
+  private static Integer getInteger(String key, String valueString) throws EvalException {
+    int value_int;
+    if (NumberUtils.isCreatable(valueString)
+      && NumberUtils.createNumber(valueString) instanceof Integer) {
+      value_int = Integer.parseInt(valueString);
+    } else {
+      throw Starlark.errorf("parameter '%s' invalid value, want 'int'", key);
+    }
+    return value_int;
+  }
+
 }
