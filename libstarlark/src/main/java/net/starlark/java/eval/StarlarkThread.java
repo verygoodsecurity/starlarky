@@ -20,7 +20,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import net.starlark.java.syntax.Location;
@@ -56,7 +56,7 @@ public final class StarlarkThread {
   // not in the corresponding pop, but when the last frame is popped, because
   // the profiler session might start in the middle of a call and/or run beyond
   // the lifetime of this thread.
-  final AtomicInteger cpuTicks = new AtomicInteger();
+  final AtomicLong cpuTicks = new AtomicLong();
   @Nullable private CpuProfiler profiler;
   private StarlarkThread savedThread; // saved StarlarkThread, when profiling reentrant evaluation
 
@@ -76,6 +76,8 @@ public final class StarlarkThread {
   public long getExecutedSteps() {
     return steps;
   }
+
+  public long getCpuTicks() { return cpuTicks.get();}
 
   /**
    * Sets the maximum number of Starlark computation steps that may be executed by this thread (see
@@ -258,7 +260,7 @@ public final class StarlarkThread {
     Frame fr = callstack.get(last);
 
     if (profiler != null) {
-      int ticks = cpuTicks.getAndSet(0);
+      long ticks = cpuTicks.getAndSet(0);
       if (ticks > 0) {
         profiler.addEvent(ticks, getDebugCallStack());
       }
