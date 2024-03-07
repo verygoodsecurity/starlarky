@@ -16,7 +16,7 @@ def track(
         psp=psp,
         result=result,
         type=type,
-        dictionary=kwargs
+        attributes=kwargs
     )
 
 

@@ -1,10 +1,6 @@
 package com.verygood.security.larky.modules.vgs.metrics;
 
 import com.google.common.collect.ImmutableList;
-import com.verygood.security.larky.modules.vgs.metrics.constants.Currency;
-import com.verygood.security.larky.modules.vgs.metrics.constants.PSP;
-import com.verygood.security.larky.modules.vgs.metrics.constants.TransactionResult;
-import com.verygood.security.larky.modules.vgs.metrics.constants.TransactionType;
 import com.verygood.security.larky.modules.vgs.metrics.impl.NoopMetrics;
 import com.verygood.security.larky.modules.vgs.metrics.spi.LarkyMetrics;
 import lombok.Getter;
@@ -16,11 +12,7 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
-import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkInt;
-import net.starlark.java.eval.StarlarkValue;
-import org.apache.commons.lang3.math.NumberUtils;
-import org.jetbrains.annotations.NotNull;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
 import java.util.ServiceLoader;
@@ -33,7 +25,7 @@ import static com.verygood.security.larky.modules.vgs.metrics.constants.Transact
   name = "native_metrics",
   category = "BUILTIN",
   doc = "Overridable Metrics API in Larky")
-public class MetricsModule implements StarlarkValue {
+public class MetricsModule implements LarkyMetrics {
 
   public static final MetricsModule INSTANCE = new MetricsModule();
   private final LarkyMetrics metrics;
@@ -63,70 +55,44 @@ public class MetricsModule implements StarlarkValue {
       @Param(
         name = KEY_AMOUNT,
         named = true,
-        doc = "Amount",
         positional = false,
-        allowedTypes = {
-          @ParamType(type = StarlarkInt.class),
-          @ParamType(type = String.class),
-          @ParamType(type = NoneType.class),
-        }
+        doc = "Amount"
       ),
       @Param(
         name = KEY_BIN,
         named = true,
         positional = false,
-        doc = "Bank Identification Number",
-        allowedTypes = {
-          @ParamType(type = StarlarkInt.class),
-          @ParamType(type = String.class),
-          @ParamType(type = NoneType.class),
-        }
+        doc = "Bank Identification Number"
       ),
       @Param(
         name = KEY_CURRENCY,
         named = true,
         positional = false,
-        doc = "Currency",
-        allowedTypes = {
-          @ParamType(type = String.class),
-          @ParamType(type = NoneType.class),
-        }
+        doc = "Currency"
       ),
       @Param(
         name = KEY_PSP,
         named = true,
         positional = false,
-        doc = "Payment Service Provider",
-        allowedTypes = {
-          @ParamType(type = String.class),
-          @ParamType(type = NoneType.class),
-        }
+        doc = "Payment Service Provider"
       ),
       @Param(
         name = KEY_RESULT,
         named = true,
         positional = false,
-        doc = "Transaction Result",
-        allowedTypes = {
-          @ParamType(type = String.class),
-          @ParamType(type = NoneType.class),
-        }
+        doc = "Transaction Result"
       ),
       @Param(
         name = KEY_TYPE,
         named = true,
         positional = false,
-        doc = "Transaction Type",
-        allowedTypes = {
-          @ParamType(type = String.class),
-          @ParamType(type = NoneType.class),
-        }
+        doc = "Transaction Type"
       ),
       @Param(
-        name = "dictionary",
+        name = "attributes",
         named = true,
         positional = false,
-        doc = "Dictionary",
+        doc = "kwargs",
         defaultValue = "{}",
         allowedTypes = {
           @ParamType(type = Dict.class)
@@ -141,62 +107,24 @@ public class MetricsModule implements StarlarkValue {
     Object psp,
     Object result,
     Object type,
-    Dict<String, Object> dictionary
+    Dict<String, Object> attributes
   ) throws EvalException {
     metrics.track(
-      transform(amount, KEY_AMOUNT),
-      transform(bin, KEY_BIN),
-      getValue(Currency.class, currency, Currency.NOT_SPECIFIED, Currency.UNKNOWN),
-      getValue(PSP.class, psp, PSP.NOT_SPECIFIED, PSP.UNKNOWN),
-      getValue(TransactionResult.class, result, TransactionResult.NOT_SPECIFIED, TransactionResult.UNKNOWN),
-      getValue(TransactionType.class, type, TransactionType.NOT_SPECIFIED, TransactionType.UNKNOWN),
-      dictionary
+      getNullIfNoneOrBlank(amount),
+      getNullIfNoneOrBlank(bin),
+      getNullIfNoneOrBlank(currency),
+      getNullIfNoneOrBlank(psp),
+      getNullIfNoneOrBlank(result),
+      getNullIfNoneOrBlank(type),
+      attributes
     );
   }
 
-  private static <T extends Enum<T>> T getValue(Class<T> enumClass, Object value, T notSpecified, T unknown) {
-    if (value instanceof String) {
-      try {
-        return Enum.valueOf(enumClass, (String) value);
-      } catch (Exception e) {
-        return unknown;
-      }
+  private static Object getNullIfNoneOrBlank(Object value) {
+    if (value instanceof NoneType
+      || (value instanceof String valStr && StringUtils.isBlank(valStr))) {
+      return null;
     }
-    return notSpecified;
+    return value.toString();
   }
-
-
-  private static Integer transform(Object value, String key) throws EvalException {
-    Integer valueInt = null;
-    if (value instanceof Integer) {
-      valueInt = (Integer) value;
-    } else if (value instanceof StarlarkInt starlarkInt) {
-      valueInt = getInteger(key, starlarkInt.toString());
-    } else if (value instanceof String valueString) {
-      valueInt = getInteger(key, valueString);
-    }
-    if (valueInt != null && valueInt < 0) {
-      throw Starlark.errorf("negative '%s' not allowed", key);
-    }
-    if (valueInt != null && key.equals(KEY_BIN)) {
-      int binLength = valueInt.toString().length();
-      if (binLength < 6 || binLength > 9) {
-        throw Starlark.errorf("parameter '%s' length must be in range [%d,%d]", key, 6, 9);
-      }
-    }
-    return valueInt == null ? 0 : valueInt;
-  }
-
-  @NotNull
-  private static Integer getInteger(String key, String valueString) throws EvalException {
-    int value_int;
-    if (NumberUtils.isCreatable(valueString)
-      && NumberUtils.createNumber(valueString) instanceof Integer) {
-      value_int = Integer.parseInt(valueString);
-    } else {
-      throw Starlark.errorf("parameter '%s' invalid value, want 'int'", key);
-    }
-    return value_int;
-  }
-
 }

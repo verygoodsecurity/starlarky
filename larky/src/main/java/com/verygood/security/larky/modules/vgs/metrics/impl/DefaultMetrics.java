@@ -1,9 +1,5 @@
 package com.verygood.security.larky.modules.vgs.metrics.impl;
 
-import com.verygood.security.larky.modules.vgs.metrics.constants.Currency;
-import com.verygood.security.larky.modules.vgs.metrics.constants.PSP;
-import com.verygood.security.larky.modules.vgs.metrics.constants.TransactionResult;
-import com.verygood.security.larky.modules.vgs.metrics.constants.TransactionType;
 import com.verygood.security.larky.modules.vgs.metrics.spi.LarkyMetrics;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -26,13 +22,13 @@ public class DefaultMetrics implements LarkyMetrics {
    */
   @Override
   public void track(
-    Integer amount,
-    Integer bin,
-    Currency currency,
-    PSP psp,
-    TransactionResult result,
-    TransactionType type,
-    Dict<String, Object> dictionary
+    Object amount,
+    Object bin,
+    Object currency,
+    Object psp,
+    Object result,
+    Object type,
+    Dict<String, Object> attributes
   ) throws EvalException {
     System.out.printf(
       OUTPUT_STRING,
@@ -42,7 +38,7 @@ public class DefaultMetrics implements LarkyMetrics {
       psp,
       result,
       type,
-      dictionary.toString()
+      attributes.toString()
     );
   }
 }

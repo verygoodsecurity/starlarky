@@ -1,9 +1,5 @@
 package com.verygood.security.larky.modules.vgs.metrics;
 
-import com.verygood.security.larky.modules.vgs.metrics.constants.Currency;
-import com.verygood.security.larky.modules.vgs.metrics.constants.PSP;
-import com.verygood.security.larky.modules.vgs.metrics.constants.TransactionResult;
-import com.verygood.security.larky.modules.vgs.metrics.constants.TransactionType;
 import com.verygood.security.larky.modules.vgs.metrics.impl.NoopMetrics;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -62,10 +58,10 @@ public class MetricsModuleSPITest {
       () -> metrics.track(
         0,
         0,
-        Currency.USD.name(),
-        PSP.ADYEN.name(),
-        TransactionResult.SUCCESS.name(),
-        TransactionType.AUTHORIZATION.name(),
+        "USD",
+        "ADYEN",
+        "SUCCESS",
+        "AUTHORIZATION",
         Dict.empty()),
       "metrics.track operation must be overridden"
     );
@@ -80,17 +76,17 @@ public class MetricsModuleSPITest {
 
     int amount = 1234;
     int bin = 123456;
-    Currency usd = Currency.USD;
-    PSP adyen = PSP.ADYEN;
-    TransactionResult success = TransactionResult.SUCCESS;
-    TransactionType authorization = TransactionType.AUTHORIZATION;
+    String usd = "USD";
+    String adyen = "ADYEN";
+    String success = "SUCCESS";
+    String authorization = "AUTHORIZATION";
     metrics.track(
       amount,
       bin,
-      usd.name(),
-      adyen.name(),
-      success.name(),
-      authorization.name(),
+      usd,
+      adyen,
+      success,
+      authorization,
       Dict.empty()
     );
 
@@ -110,17 +106,17 @@ public class MetricsModuleSPITest {
 
     int amount = 1234;
     int bin = 123456;
-    Currency usd = Currency.USD;
-    PSP adyen = PSP.ADYEN;
-    TransactionResult success = TransactionResult.SUCCESS;
-    TransactionType authorization = TransactionType.AUTHORIZATION;
+    String usd = "USD";
+    String adyen = "ADYEN";
+    String success = "SUCCESS";
+    String authorization = "AUTHORIZATION";
     metrics.track(
       StarlarkInt.of(amount),
       StarlarkInt.of(bin),
-      usd.name(),
-      adyen.name(),
-      success.name(),
-      authorization.name(),
+      usd,
+      adyen,
+      success,
+      authorization,
       Dict.empty()
     );
 
