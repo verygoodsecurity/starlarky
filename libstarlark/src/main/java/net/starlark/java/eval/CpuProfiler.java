@@ -163,7 +163,7 @@ final class CpuProfiler {
   }
 
   /** Records a profile event. */
-  void addEvent(long ticks, ImmutableList<Debug.Frame> stack) {
+  void addEvent(int ticks, ImmutableList<Debug.Frame> stack) {
     pprof.writeEvent(ticks, stack);
   }
 
@@ -289,7 +289,7 @@ final class CpuProfiler {
       }
     }
 
-    synchronized void writeEvent(long ticks, ImmutableList<Debug.Frame> stack) {
+    synchronized void writeEvent(int ticks, ImmutableList<Debug.Frame> stack) {
       if (this.error == null) {
         try {
           ByteArrayOutputStream sample = new ByteArrayOutputStream();

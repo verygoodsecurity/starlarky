@@ -42,7 +42,6 @@ public final class LarkyEvaluator {
 
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
   public static final String EXECUTION_STEPS = "_EXECUTION_STEPS_";
-  public static final String EXECUTION_CPU_TICKS = "_EXECUTION_CPU_TICKS_";
 
   private final LinkedHashSet<String> pending = new LinkedHashSet<>();
   private final Map<String, Module> loaded = new HashMap<>();
@@ -145,7 +144,6 @@ public final class LarkyEvaluator {
 
       // Set some statistical information
       module.setGlobal(EXECUTION_STEPS, thread.getExecutedSteps());
-      module.setGlobal(EXECUTION_CPU_TICKS, thread.getCpuTicks());
     }
     pending.remove(content.path());
     loaded.put(content.path(), module);
