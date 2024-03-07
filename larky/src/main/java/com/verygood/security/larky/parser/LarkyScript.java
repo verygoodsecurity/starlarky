@@ -22,6 +22,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.ModuleSupplier;
+import com.verygood.security.larky.ModuleSupplier.ModuleSet;
+import com.verygood.security.larky.console.Console;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
@@ -29,18 +33,11 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import com.verygood.security.larky.LarkySemantics;
-import com.verygood.security.larky.ModuleSupplier;
-import com.verygood.security.larky.ModuleSupplier.ModuleSet;
-import com.verygood.security.larky.console.Console;
-
+import lombok.Getter;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.syntax.FileOptions;
-
-import lombok.Getter;
 
 /**
  * Loads Larky out of Starlark files.
@@ -143,13 +140,13 @@ public class LarkyScript {
   @VisibleForTesting
   public Module executeSkylark(StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException, EvalException {
-    return executeStarlark(content, moduleSet, console).getModule();
+    return executeStarlark(content, moduleSet, console).module();
   }
 
   @VisibleForTesting
   public Object executeSkylarkWithOutput(StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException, EvalException {
-    return executeStarlark(content, moduleSet, console).getOutput();
+    return executeStarlark(content, moduleSet, console).output();
   }
 
   public ParsedStarFile evaluate(StarFile content, Console console)
@@ -193,7 +190,7 @@ public class LarkyScript {
       throws IOException, EvalException {
     Module module;
     try {
-      module = new LarkyEvaluator(this, moduleSet, console).eval(content).getModule();
+      module = new LarkyEvaluator(this, moduleSet, console).eval(content).module();
     } catch (InterruptedException e) {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
