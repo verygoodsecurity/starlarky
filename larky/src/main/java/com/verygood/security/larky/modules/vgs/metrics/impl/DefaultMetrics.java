@@ -28,7 +28,7 @@ public class DefaultMetrics implements LarkyMetrics {
     Object psp,
     Object result,
     Object type,
-    Dict<String, Object> attributes
+    Dict<String, String> attributes
   ) throws EvalException {
     System.out.printf(
       OUTPUT_STRING,

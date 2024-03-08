@@ -18,7 +18,7 @@ public class NoopMetrics implements LarkyMetrics {
     Object psp,
     Object result,
     Object type,
-    Dict<String, Object> attributes
+    Dict<String, String> attributes
   ) throws EvalException {
     throw Starlark.errorf("metrics.track operation must be overridden");
   }

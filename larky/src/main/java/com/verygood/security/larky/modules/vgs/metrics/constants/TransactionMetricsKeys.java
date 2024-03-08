@@ -7,5 +7,6 @@ public interface TransactionMetricsKeys {
   String KEY_PSP = "psp";
   String KEY_RESULT = "result";
   String KEY_TYPE = "type";
+  String KEY_ATTRIBUTES = "attributes";
 
 }

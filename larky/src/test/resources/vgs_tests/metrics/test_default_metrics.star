@@ -115,6 +115,10 @@ def _test_default_track_kwargs_object():
     metrics.track(amount={"1": 2}, bin={2: 1})
 
 
+def _test_default_track_kwargs_map():
+    metrics.track(foo={1: {1: 2}}, color={1: 2})
+
+
 def _test_default_track_fail_extra_params_without_keys():
     asserts.assert_fails(
         lambda: metrics.track("", "", "", "", "", "", ""),
@@ -153,6 +157,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_default_track_amount_starlark_int))
     _suite.addTest(unittest.FunctionTestCase(_test_default_track_amount_negative))
     _suite.addTest(unittest.FunctionTestCase(_test_default_track_kwargs_object))
+    _suite.addTest(unittest.FunctionTestCase(_test_default_track_kwargs_map))
     _suite.addTest(unittest.FunctionTestCase(_test_default_track_fail_extra_params_without_keys))
     _suite.addTest(unittest.FunctionTestCase(_test_default_track_fail_kwargs_key_non_string))
     _suite.addTest(unittest.FunctionTestCase(_test_default_track_fail_multiple_same_key))

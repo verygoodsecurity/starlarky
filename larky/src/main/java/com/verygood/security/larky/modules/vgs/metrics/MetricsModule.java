@@ -89,7 +89,7 @@ public class MetricsModule implements LarkyMetrics {
         doc = "Transaction Type"
       ),
       @Param(
-        name = "attributes",
+        name = KEY_ATTRIBUTES,
         named = true,
         positional = false,
         doc = "kwargs",
@@ -107,7 +107,7 @@ public class MetricsModule implements LarkyMetrics {
     Object psp,
     Object result,
     Object type,
-    Dict<String, Object> attributes
+    Dict<String, String> attributes
   ) throws EvalException {
     metrics.track(
       getNullIfNoneOrBlank(amount),

@@ -14,7 +14,7 @@ public interface LarkyMetrics extends StarlarkValue {
     Object psp,
     Object result,
     Object type,
-    Dict<String, Object> attributes
+    Dict<String, String> attributes
   ) throws EvalException;
 
 }
