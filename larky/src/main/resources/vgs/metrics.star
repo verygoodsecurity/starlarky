@@ -5,7 +5,7 @@ def track(
         amount=None,
         bin=None,
         currency=None,
-        psp=None,
+        psp="NOT_SET",
         result=None,
         type=None,
         **kwargs):
