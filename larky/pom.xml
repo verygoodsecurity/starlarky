@@ -7,7 +7,7 @@
 
     <groupId>com.verygood.security</groupId>
     <artifactId>larky</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
 
     <packaging>jar</packaging>
 
@@ -33,7 +33,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <libstarlark.version>1.0-SNAPSHOT</libstarlark.version>
+        <libstarlark.version>1.0.0-SNAPSHOT</libstarlark.version>
 
         <apache.commons-text.version>1.11.0</apache.commons-text.version>
         <google.crypto.tink>1.6.1</google.crypto.tink>
@@ -42,13 +42,13 @@
         <google.guava.version>31.1-jre</google.guava.version>
         <google.jimfs.version>1.3.0</google.jimfs.version>
         <google.re2j.version>1.7</google.re2j.version>
-        <google.truth.version>1.4.1</google.truth.version>
+        <google.truth.version>1.4.2</google.truth.version>
         <javax.xml.bind.jaxb-api.version>2.3.1</javax.xml.bind.jaxb-api.version>
         <org.bouncycastle.version>1.77</org.bouncycastle.version>
         <org.conscrypt.version>2.5.2</org.conscrypt.version>
         <org.jetbrains.annotations.version>24.0.1</org.jetbrains.annotations.version>
         <org.junit.version>4.13.2</org.junit.version>
-        <org.mockito.version>5.10.0</org.mockito.version>
+        <org.mockito.version>5.11.0</org.mockito.version>
         <org.projectlombok.version>1.18.30</org.projectlombok.version>
         <org.slf4j.version>1.7.32</org.slf4j.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
@@ -171,12 +171,6 @@
         <dependency>
             <groupId>com.google.truth</groupId>
             <artifactId>truth</artifactId>
-            <version>${google.truth.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.truth.extensions</groupId>
-            <artifactId>truth-java8-extension</artifactId>
             <version>${google.truth.version}</version>
             <scope>test</scope>
         </dependency>
