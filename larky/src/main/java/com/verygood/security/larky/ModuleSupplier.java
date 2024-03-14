@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableSet;
 
 import com.verygood.security.larky.modules.BinasciiModule;
 import com.verygood.security.larky.modules.C99MathModule;
+import com.verygood.security.larky.modules.vgs.metrics.MetricsModule;
 import com.verygood.security.larky.modules.NetworkTokenModule;
 import com.verygood.security.larky.modules.CerebroModule;
 import com.verygood.security.larky.modules.ChaseModule;
@@ -96,16 +97,17 @@ public class ModuleSupplier {
   );
 
   public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
-      VaultModule.INSTANCE,
-      NetworkTokenModule.INSTANCE,
       CerebroModule.INSTANCE,
       ChaseModule.INSTANCE,
-      JKSModule.INSTANCE
+      JKSModule.INSTANCE,
+      MetricsModule.INSTANCE,
+      NetworkTokenModule.INSTANCE,
+      VaultModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
-      UnittestModule.INSTANCE,
-      AssertionsModule.INSTANCE
+      AssertionsModule.INSTANCE,
+      UnittestModule.INSTANCE
   );
 
   private final Map<String, Object> environment;
