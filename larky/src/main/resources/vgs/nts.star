@@ -2,6 +2,8 @@ load("@vgs//native_nts", _nts="native_nts")
 load("@vgs//vault", vault="vault")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//enum", enum="enum")
+load("@stdlib//base64", base64="base64")
+load("@stdlib//json", "json")
 load("@stdlib//re", re="re")
 load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 
@@ -165,6 +167,46 @@ def use_network_token(headers):
     return lower_case_headers.get(VGS_NETWORK_TOKEN_HEADER, "").lower() == "yes"
 
 
+def is_token_connect_enrollment(body):
+    """Helper for determining whether is the payload a Mastercard Token Connect enrollment request or not
+
+    :param body: parsed JSON payload for Token Connect network token enrollment request
+    :return: True if this is a token connect enrollment payload
+    """
+    return "push_account_receipt" in body or "push_account_data" in body
+
+
+def extract_push_account_receipt(body):
+    """Helper function for extracting `PushAccountReceipt` value from Mastercard Token Connect payload
+    for network token enrollment.
+
+    :param body: parsed JSON payload for Token Connect network token enrollment request
+    :return: The push account receipt value extracted from the payload or None if invalid payload provided
+    """
+    if "push_account_receipt" in body:
+        return body["push_account_receipt"]
+    if "push_account_data" not in body:
+        fail("ValueError: push_account_data is required")
+
+    parts = body["push_account_data"].split(".")
+    if len(parts) != 3:
+        fail("ValueError: invalid JWS signature payload")
+
+    # the base64 encoding used by JWS doesn't come with padding chars, we need to add them
+    # back before decoding
+    # ref: https://datatracker.ietf.org/doc/html/rfc7515#section-2
+    b64_payload = parts[1]
+    padding_size = (4 - (len(b64_payload) % 4)) % 4
+    b64_payload += "=" * padding_size
+
+    payload = json.loads(base64.urlsafe_b64decode(b64_payload).decode("utf8"))
+    push_account_receipts = payload["pushAccountReceipts"]
+    index = body.get("index", 0)
+    if index < 0 or index >= len(push_account_receipts):
+        return
+    return push_account_receipts[index]
+
+
 nts = larky.struct(
     PSPType=PSPType,
     get_network_token=_nts.get_network_token,
@@ -173,4 +215,6 @@ nts = larky.struct(
     supports_cryptogram=supports_cryptogram,
     get_psp_type=get_psp_type,
     use_network_token=use_network_token,
+    is_token_connect_enrollment=is_token_connect_enrollment,
+    extract_push_account_receipt=extract_push_account_receipt,
 )
