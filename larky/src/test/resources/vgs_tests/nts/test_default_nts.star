@@ -360,6 +360,68 @@ def _test_supports_cryptogram():
         asserts.assert_that(nts.supports_cryptogram(larky.struct(url=url))).is_equal_to(result)
 
 
+def _test_is_token_connect_enrollment():
+    asserts.assert_that(nts.is_token_connect_enrollment({})).is_false()
+    asserts.assert_that(nts.is_token_connect_enrollment({"mock-key": "value"})).is_false()
+
+    asserts.assert_that(nts.is_token_connect_enrollment({"push_account_receipt": "MOCK_VALUE"})).is_true()
+    asserts.assert_that(nts.is_token_connect_enrollment({"push_account_data": "MOCK_VALUE"})).is_true()
+
+
+def _test_extract_push_account_receipt():
+    asserts.assert_that(nts.extract_push_account_receipt({"push_account_receipt": "MOCK_VALUE"})).is_equal_to("MOCK_VALUE")
+    # signature with just one push account receipt
+    push_account_data = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjIwMjEwOTI3MDkxMzQwLU1ERVMtdG9rZW4tY29ubmVjdC1tdGYifQ.eyJwdXNoQWNjb3VudFJlY2VpcHRzIjpbIk1DQy1TVEwtRkQxOTgwRTEtNTUwNy00N0E2LTg5OTEtOUZCRTJCMTE4N0Y5Il0sImNhbGxiYWNrVVJMIjoiaHR0cHM6Ly90b2tlbmNvbm5lY3QubWNzcmN0ZXN0c3RvcmUuY29tL3Rva2VuaXphdGlvbi1yZXN1bHRzIiwiY29tcGxldGVXZWJzaXRlQWN0aXZhdGlvbiI6dHJ1ZSwiYWNjb3VudEhvbGRlckRhdGFTdXBwbGllZCI6dHJ1ZSwibG9jYWxlIjoiZW5fVVMifQ.AbNdt-SKiOvXsB79k7Dl2_pOnSZWIN6gN9aT7uUgybhiLxA7QF59qUVoA0pzCb1aAdx6_yPzwkLCks_mhAR94LCdwdhXQl3ixD666cmai-IzBkRo7MGx3ZDykjN4qC1YbTeSREsRlO4pN0wJJfvsua3WCCH-ivcn9rEc02oDRak5OfU2qX1REtn_OHZ-6eb1uR12YpzSswJZzL2VRJArpAou_C5lyK6wy5HrdoAxUsJ1CY9KCePSqbHC1xTa-dllJoOt-pG6kTYSRKkCG2b0mHsLcYitrOD8hmqQrIwXGWs0Tc5XPQTUkYMbLXAN6KihQ3RQBW2s-ht5xmVkRwMSkg"
+    asserts.assert_that(
+        nts.extract_push_account_receipt({
+            "push_account_data": push_account_data,
+        })
+    ).is_equal_to("MCC-STL-FD1980E1-5507-47A6-8991-9FBE2B1187F9")
+    asserts.assert_that(
+        nts.extract_push_account_receipt({
+            "push_account_data": push_account_data,
+            "index": 0,
+        })
+    ).is_equal_to("MCC-STL-FD1980E1-5507-47A6-8991-9FBE2B1187F9")
+    asserts.assert_that(
+        nts.extract_push_account_receipt({
+            "push_account_data": push_account_data,
+            "index": 1,
+        })
+    ).is_none()
+    asserts.assert_that(
+        nts.extract_push_account_receipt({
+            "push_account_data": push_account_data,
+            "index": -1,
+        })
+    ).is_none()
+    # signature with multiple push account receipts
+    push_account_data = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjIwMjEwOTI3MDkxMzQwLU1ERVMtdG9rZW4tY29ubmVjdC1tdGYifQ.eyJwdXNoQWNjb3VudFJlY2VpcHRzIjpbIk1DQy1TVEwtRDBCOUM4NkMtQjRFQS00REZGLTg1NkUtMTE0MzdCOUQwNTg2IiwiTVNJLVNUTC1GRjcxQTVCQi0yM0NDLTREMDEtQUZGOC0zNzYxMThGMTREMzciLCJNQ0MtU1RMLTQ3MUUwQUQ4LUUyMzMtNDkyRC04RkZFLTA2MjgzQ0JENTAxOCJdLCJjYWxsYmFja1VSTCI6Imh0dHBzOi8vdG9rZW5jb25uZWN0Lm1jc3JjdGVzdHN0b3JlLmNvbS90b2tlbml6YXRpb24tcmVzdWx0cyIsImNvbXBsZXRlV2Vic2l0ZUFjdGl2YXRpb24iOnRydWUsImFjY291bnRIb2xkZXJEYXRhU3VwcGxpZWQiOnRydWUsImxvY2FsZSI6ImVuX1VTIn0.wurTMGRXU2Icu8kHmsndHafW-LOjd6NQBWsM8IqsSqCGDCUg9aVwAyltaa1g-7WtSY9R9A2KuRNfr6GutnVnkDN7hIM3j3MXiiiuHCnDnVt4qfe1VyfHmqlZU4WoIBjYssa7NVUA8etLvzZuJzTn0PiN3RdESZ_PXBVUggNV89UWLwFGINF7m9HW6uG3gwSg5c9SE9LXCX_aFLZHgb0D1s3G0fLkOxXxkiA81rJO9xlTJiMLrQEpIYS-iP0FT4s3rRnBd2Z2XVt8az0ybCcEMXIcAblfIsRq6yRZXPdWi8eyULx9Jpf9bhga4UP6HgfxtbW5nLHbV5BV9OYgTNfa_A"
+    asserts.assert_that(
+        nts.extract_push_account_receipt({
+            "push_account_data": push_account_data,
+            "index": 0,
+        })
+    ).is_equal_to("MCC-STL-D0B9C86C-B4EA-4DFF-856E-11437B9D0586")
+    asserts.assert_that(
+        nts.extract_push_account_receipt({
+            "push_account_data": push_account_data,
+            "index": 1,
+        })
+    ).is_equal_to("MSI-STL-FF71A5BB-23CC-4D01-AFF8-376118F14D37")
+    asserts.assert_that(
+        nts.extract_push_account_receipt({
+            "push_account_data": push_account_data,
+            "index": 2,
+        })
+    ).is_equal_to("MCC-STL-471E0AD8-E233-492D-8FFE-06283CBD5018")
+    asserts.assert_that(
+        nts.extract_push_account_receipt({
+            "push_account_data": push_account_data,
+            "index": 3,
+        })
+    ).is_none()
+
 def _suite():
     _suite = unittest.TestSuite()
 
@@ -391,6 +453,9 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_get_psp_type))
     # Support cryptogram tests
     _suite.addTest(unittest.FunctionTestCase(_test_supports_cryptogram))
+    # Token connect helper tests
+    _suite.addTest(unittest.FunctionTestCase(_test_is_token_connect_enrollment))
+    _suite.addTest(unittest.FunctionTestCase(_test_extract_push_account_receipt))
     return _suite
 
 
