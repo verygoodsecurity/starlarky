@@ -23,6 +23,8 @@ CRYPTOGRAM_SUPPORTING_PSP_TYPES = {
     PSPType.STRIPE: 1,
     PSPType.ADYEN: 1,
 }
+PUSH_ACCOUNT_RECEIPT_PAYLOAD_KEY = "push_account_receipt"
+PUSH_ACCOUNT_DATA_PAYLOAD_KEY = "push_account_data"
 
 
 def render(
@@ -173,7 +175,7 @@ def is_token_connect_enrollment(body):
     :param body: parsed JSON payload for Token Connect network token enrollment request
     :return: True if this is a token connect enrollment payload
     """
-    return "push_account_receipt" in body or "push_account_data" in body
+    return PUSH_ACCOUNT_RECEIPT_PAYLOAD_KEY in body or PUSH_ACCOUNT_DATA_PAYLOAD_KEY in body
 
 
 def extract_push_account_receipt(body):
@@ -183,12 +185,12 @@ def extract_push_account_receipt(body):
     :param body: parsed JSON payload for Token Connect network token enrollment request
     :return: The push account receipt value extracted from the payload or None if invalid payload provided
     """
-    if "push_account_receipt" in body:
-        return body["push_account_receipt"]
-    if "push_account_data" not in body:
+    if PUSH_ACCOUNT_RECEIPT_PAYLOAD_KEY in body:
+        return body[PUSH_ACCOUNT_RECEIPT_PAYLOAD_KEY]
+    if PUSH_ACCOUNT_DATA_PAYLOAD_KEY not in body:
         fail("ValueError: push_account_data is required")
 
-    parts = body["push_account_data"].split(".")
+    parts = body[PUSH_ACCOUNT_DATA_PAYLOAD_KEY].split(".")
     if len(parts) != 3:
         fail("ValueError: invalid JWS signature payload")
 
