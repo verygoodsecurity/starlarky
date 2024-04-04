@@ -15,6 +15,7 @@ package net.starlark.java.eval;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
@@ -27,7 +28,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test of evaluation behavior. (Implicitly uses lexer + parser.) */
+/**
+ * Test of evaluation behavior. (Implicitly uses lexer + parser.)
+ */
 @RunWith(JUnit4.class)
 public final class EvaluationTest {
 
@@ -136,6 +139,7 @@ public final class EvaluationTest {
     ParserInput input = ParserInput.fromLines("squares = [x*x for x in range(n)]");
 
     class C {
+
       long run(int n) throws SyntaxError.Exception, EvalException, InterruptedException {
         Module module =
             Module.withPredeclared(
@@ -154,7 +158,7 @@ public final class EvaluationTest {
       throw new AssertionError(
           String.format(
               "computation steps did not increase linearly: f(1000)=%d, f(10000)=%d, ratio=%g, want"
-                  + " ~10",
+              + " ~10",
               steps1000, steps10000, ratio));
     }
 
@@ -162,6 +166,32 @@ public final class EvaluationTest {
     thread.setMaxExecutionSteps(1000);
     EvalException ex = assertThrows(EvalException.class, () -> new C().run(1000));
     assertThat(ex).hasMessageThat().contains("Starlark computation cancelled: too many steps");
+  }
+
+  @Test
+  public void testExpiration() throws Exception {
+    Mutability mu = Mutability.create("test");
+    StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+    ParserInput input = ParserInput.fromLines("squares = [x+x for x in range(n)]");
+
+    class C {
+      long run(int n) throws SyntaxError.Exception, EvalException, InterruptedException {
+        Module module =
+            Module.withPredeclared(
+                StarlarkSemantics.DEFAULT, ImmutableMap.of("n", StarlarkInt.of(n)));
+        long steps0 = thread.getExecutedSteps();
+        Starlark.execFile(input, FileOptions.DEFAULT, module, thread);
+        return thread.getExecutedSteps() - steps0;
+      }
+    }
+
+    // Exceeding the limit causes cancellation.
+    thread.setExpirationMs(1);
+    EvalException ex = assertThrows(EvalException.class, () -> new C().run(1000));
+    assertThat(ex).hasMessageThat().contains("Starlark computation cancelled: past expiration date");
+    thread.setExpirationMs(System.currentTimeMillis() + 10000000);
+    long steps = new C().run(1000); // should not throw error
+    assertTrue(steps > 0);
   }
 
   @Test
@@ -635,7 +665,9 @@ public final class EvaluationTest {
     ev.new Scenario().update("obj", obj).testExpression("'%s' % obj", "<str marker>");
   }
 
-  private static class Dummy implements StarlarkValue {}
+  private static class Dummy implements StarlarkValue {
+
+  }
 
   @Test
   public void testStringRepresentationsOfArbitraryObjects() throws Exception {
@@ -666,7 +698,7 @@ public final class EvaluationTest {
         .testExpression(
             "'%s %s' % (unknown, unknown)",
             "<unknown object net.starlark.java.eval.EvaluationTest$Dummy> <unknown"
-                + " object net.starlark.java.eval.EvaluationTest$Dummy>");
+            + " object net.starlark.java.eval.EvaluationTest$Dummy>");
   }
 
   @Test
