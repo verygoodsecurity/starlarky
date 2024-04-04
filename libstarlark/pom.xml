@@ -12,7 +12,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <maven.compiler.plugin.version>3.12.1</maven.compiler.plugin.version>
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
         <maven.source.plugin.version>3.3.0</maven.source.plugin.version>
 
         <maven.compiler.source>17</maven.compiler.source>
@@ -32,7 +32,7 @@
         <google.truth.version>1.4.2</google.truth.version>
         <org.jetbrains.annotations.version>24.1.0</org.jetbrains.annotations.version>
         <org.junit.version>4.13.2</org.junit.version>
-        <org.projectlombok.version>1.18.30</org.projectlombok.version>
+        <org.projectlombok.version>1.18.32</org.projectlombok.version>
 
         <surefire-plugin.version>3.2.5</surefire-plugin.version>
     </properties>
