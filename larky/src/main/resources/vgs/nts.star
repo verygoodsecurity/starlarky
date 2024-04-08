@@ -25,7 +25,7 @@ CRYPTOGRAM_SUPPORTING_PSP_TYPES = {
 }
 PUSH_ACCOUNT_RECEIPT_PAYLOAD_KEY = "push_account_receipt"
 PUSH_ACCOUNT_DATA_PAYLOAD_KEY = "push_account_data"
-
+MASTERCARD_PUSH_ACCOUNT_RECEIPT_PREFIX = "MCC-STL-"
 
 def render(
     input,
@@ -209,6 +209,16 @@ def extract_push_account_receipt(body):
     return push_account_receipts[index]
 
 
+def is_mastercard_push_account_receipt(pan_alias):
+    """Helper for determining whether is the given pan_alias is actually a Mastercard Token Connect
+    PushAccountReceipt.
+
+    :param pan_alias: pan_alias value to check
+    :return: True if the pan_alias revealed value looks like a Mastercard Token Connect PushAccountReceipt value
+    """
+    return vault.reveal(pan_alias).startswith(MASTERCARD_PUSH_ACCOUNT_RECEIPT_PREFIX)
+
+
 nts = larky.struct(
     PSPType=PSPType,
     get_network_token=_nts.get_network_token,
@@ -219,4 +229,5 @@ nts = larky.struct(
     use_network_token=use_network_token,
     is_token_connect_enrollment=is_token_connect_enrollment,
     extract_push_account_receipt=extract_push_account_receipt,
+    is_mastercard_push_account_receipt=is_mastercard_push_account_receipt,
 )
