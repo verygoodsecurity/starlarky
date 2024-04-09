@@ -422,6 +422,20 @@ def _test_extract_push_account_receipt():
         })
     ).is_none()
 
+
+def _test_is_mastercard_push_account_receipt():
+    for pan, result in [
+        ("4111111111111111", False),
+        ("5555555555554444", False),
+        ("Other", False),
+        ("MCC-STL-471E0AD8-E233-492D-8FFE-06283CBD5018", True),
+    ]:
+        pan_alias = vault.redact(pan)
+        asserts.assert_that(
+            nts.is_mastercard_push_account_receipt(pan_alias)
+        ).is_equal_to(result)
+
+
 def _suite():
     _suite = unittest.TestSuite()
 
@@ -456,6 +470,8 @@ def _suite():
     # Token connect helper tests
     _suite.addTest(unittest.FunctionTestCase(_test_is_token_connect_enrollment))
     _suite.addTest(unittest.FunctionTestCase(_test_extract_push_account_receipt))
+    # is_mastercard_push_account_receipt tests
+    _suite.addTest(unittest.FunctionTestCase(_test_is_mastercard_push_account_receipt))
     return _suite
 
 
