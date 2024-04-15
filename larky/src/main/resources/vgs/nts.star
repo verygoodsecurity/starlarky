@@ -25,7 +25,7 @@ CRYPTOGRAM_SUPPORTING_PSP_TYPES = {
 }
 PUSH_ACCOUNT_RECEIPT_PAYLOAD_KEY = "push_account_receipt"
 PUSH_ACCOUNT_DATA_PAYLOAD_KEY = "push_account_data"
-MASTERCARD_PUSH_ACCOUNT_RECEIPT_PREFIX = "MCC-STL-"
+MASTERCARD_PUSH_ACCOUNT_RECEIPT_REGEX = re.compile(r'^(.+)-[A-Z]{3}-(.+)$')
 
 def render(
     input,
@@ -216,7 +216,7 @@ def is_mastercard_push_account_receipt(pan_alias):
     :param pan_alias: pan_alias value to check
     :return: True if the pan_alias revealed value looks like a Mastercard Token Connect PushAccountReceipt value
     """
-    return vault.reveal(pan_alias).startswith(MASTERCARD_PUSH_ACCOUNT_RECEIPT_PREFIX)
+    return MASTERCARD_PUSH_ACCOUNT_RECEIPT_REGEX.match(vault.reveal(pan_alias)) != None
 
 
 nts = larky.struct(

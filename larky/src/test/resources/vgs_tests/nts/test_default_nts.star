@@ -429,6 +429,13 @@ def _test_is_mastercard_push_account_receipt():
         ("5555555555554444", False),
         ("Other", False),
         ("MCC-STL-471E0AD8-E233-492D-8FFE-06283CBD5018", True),
+        ("MDC-STL-471E0AD8-E233-492D-8FFE-06283CBD5018", True),
+        ("MSI-STL-471E0AD8-E233-492D-8FFE-06283CBD5018", True),
+        ("PVL-STL-471E0AD8-E233-492D-8FFE-06283CBD5018", True),
+        ("MCC-KSC-471E0AD8-E233-492D-8FFE-06283CBD5018", True),
+        ("MDC-KSC-471E0AD8-E233-492D-8FFE-06283CBD5018", True),
+        ("MSI-KSC-471E0AD8-E233-492D-8FFE-06283CBD5018", True),
+        ("PVL-KSC-471E0AD8-E233-492D-8FFE-06283CBD5018", True),
     ]:
         pan_alias = vault.redact(pan)
         asserts.assert_that(
