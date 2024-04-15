@@ -25,6 +25,30 @@ CRYPTOGRAM_SUPPORTING_PSP_TYPES = {
 }
 PUSH_ACCOUNT_RECEIPT_PAYLOAD_KEY = "push_account_receipt"
 PUSH_ACCOUNT_DATA_PAYLOAD_KEY = "push_account_data"
+# This is for matching Token Connect PushAccountReceipt value from Mastercard.
+# An example push account receipt looks like this:
+#
+#   MCC-STL-3BD6C1C3-9E36-41F1-AB2F-67911E5BF197
+#
+# According to Mastercard, the current possible prefix could be:
+#
+#  - MCC: Mastercard Credit
+#  - DMC: Mastercard Debit
+#  - MSI: Maestro
+#  - PVL: Privote Label
+#
+# And the second part after first dash could be
+#
+#  - STL (St. Louis)
+#  - KSC (Kansas City)
+#
+# Some examples of possible combination could be found in `test_default_nts.star`
+# testing file.
+#
+# Please note that Mastercard told us not to rely on these formats because it's
+# subject to change in the future. But because we don't have much time to find
+# a better way distinguish alias for between PAN and push account receipt for now,
+# this is still a reliable solution for now before it changes.
 MASTERCARD_PUSH_ACCOUNT_RECEIPT_REGEX = re.compile(r'^(.+)-[A-Z]{3}-(.+)$')
 
 def render(
