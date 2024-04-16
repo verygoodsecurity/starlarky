@@ -56,8 +56,7 @@ import net.starlark.java.syntax.UnaryOperatorExpression;
 
 final class Eval {
 
-  private Eval() {
-  } // uninstantiable
+  private Eval() {} // uninstantiable
 
   // ---- entry point ----
 
@@ -265,10 +264,6 @@ final class Eval {
       throw new EvalException("Starlark computation cancelled: too many steps");
     }
 
-    if (fr.thread.isExpired()) {
-      throw new EvalException("Starlark computation cancelled: past expiration date");
-    }
-
     switch (st.kind()) {
       case ASSIGNMENT:
         execAssignment(fr, (AssignmentStatement) st);
@@ -297,8 +292,8 @@ final class Eval {
   }
 
   /**
-   * Updates the environment bindings, and possibly mutates objects, so as to assign the given value to the given
-   * expression. Might not set the frame location on error.
+   * Updates the environment bindings, and possibly mutates objects, so as to assign the given value
+   * to the given expression. Might not set the frame location on error.
    */
   private static void assign(StarlarkThread.Frame fr, Expression lhs, Object value)
       throws EvalException, InterruptedException {
@@ -353,8 +348,8 @@ final class Eval {
   }
 
   /**
-   * Recursively assigns an iterable value to a non-empty sequence of assignable expressions. Might not set frame
-   * location on error.
+   * Recursively assigns an iterable value to a non-empty sequence of assignable expressions. Might
+   * not set frame location on error.
    */
   private static void assignSequence(StarlarkThread.Frame fr, List<Expression> lhs, Object x)
       throws EvalException, InterruptedException {
@@ -482,9 +477,6 @@ final class Eval {
       throws EvalException, InterruptedException {
     if (++fr.thread.steps >= fr.thread.stepLimit) {
       throw new EvalException("Starlark computation cancelled: too many steps");
-    }
-    if (fr.thread.isExpired()) {
-      throw new EvalException("Starlark computation cancelled: past expiration date");
     }
 
     // The switch cases have been split into separate functions
@@ -789,7 +781,6 @@ final class Eval {
 
     // The Lambda class serves as a recursive lambda closure.
     class Lambda {
-
       // execClauses(index) recursively executes the clauses starting at index,
       // and finally evaluates the body and adds its value to the result.
       void execClauses(int index) throws EvalException, InterruptedException {
@@ -847,9 +838,9 @@ final class Eval {
   }
 
   /**
-   * Evaluates an expression to an iterable Starlark value and returns an {@code Iterable} view of it. If evaluation
-   * fails or the value is not iterable, throws {@code EvalException} and sets the error location to the expression's
-   * start.
+   * Evaluates an expression to an iterable Starlark value and returns an {@code Iterable} view of
+   * it. If evaluation fails or the value is not iterable, throws {@code EvalException} and sets the
+   * error location to the expression's start.
    */
   private static Iterable<?> evalAsIterable(StarlarkThread.Frame fr, Expression expr)
       throws EvalException, InterruptedException {

@@ -42,8 +42,6 @@ public final class LarkyEvaluator {
 
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
   public static final String EXECUTION_STEPS = "_EXECUTION_STEPS_";
-  public static final String STEP_LIMIT = "LARKY_EVAL_STEP_LIMIT";
-  public static final String EXPIRATION_MS = "LARKY_EVAL_EXPIRATION_MS";
 
   private final LinkedHashSet<String> pending = new LinkedHashSet<>();
   private final Map<String, Module> loaded = new HashMap<>();
@@ -138,15 +136,6 @@ public final class LarkyEvaluator {
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
-
-      if (environment.containsKey(STEP_LIMIT) && environment.get(STEP_LIMIT) != null) {
-        thread.setMaxExecutionSteps(Long.parseLong(environment.get(STEP_LIMIT).toString()));
-      }
-
-      if (environment.containsKey(EXPIRATION_MS) && environment.get(EXPIRATION_MS) != null) {
-        thread.setExpirationMs(Long.parseLong(environment.get(EXPIRATION_MS).toString()));
-      }
-
       try {
         starlarkOutput = Starlark.execFileProgram(prog, module, thread);
       } catch (EvalException cause) {
