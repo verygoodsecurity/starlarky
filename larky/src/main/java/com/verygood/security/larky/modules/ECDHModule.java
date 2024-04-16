@@ -4,20 +4,28 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
-import java.security.*;
+import java.security.InvalidKeyException;
+import java.security.KeyFactory;
+import java.security.KeyStore;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.stream.Collectors;
+import javax.crypto.KeyAgreement;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.*;
+import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.StarlarkValue;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
-
-import javax.crypto.KeyAgreement;
 
 @StarlarkBuiltin(
         name = "ECDH",
@@ -107,6 +115,11 @@ public class ECDHModule implements StarlarkValue {
     }
 
     private static PrivateKey loadPrivateKeySEC1(String pem) throws Exception {
+        // Trim each line
+        pem = Arrays.stream(pem.split("\n"))
+            .map(String::trim)
+            .collect(Collectors.joining("\n"));
+
         final PEMParser pemParser = new PEMParser(new StringReader(pem));
         final Object parsedPem = pemParser.readObject();
         if (!(parsedPem instanceof PEMKeyPair)) {
