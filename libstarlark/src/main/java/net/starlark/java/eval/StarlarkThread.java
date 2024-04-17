@@ -14,13 +14,16 @@
 
 package net.starlark.java.eval;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import net.starlark.java.syntax.Location;
@@ -66,6 +69,8 @@ public final class StarlarkThread {
 
   long steps; // count of logical computation steps executed so far
   long stepLimit = Long.MAX_VALUE; // limit on logical computation steps
+  long expirationMs = Long.MAX_VALUE; // time after which execution should halt
+  Clock clock = Clock.systemUTC(); // Used to check expiration. Can be set for debug purposes
 
   /**
    * Returns the number of Starlark computation steps executed by this thread according to a
@@ -84,6 +89,54 @@ public final class StarlarkThread {
    */
   public void setMaxExecutionSteps(long steps) {
     this.stepLimit = steps;
+  }
+
+  /**
+   *
+   * @return step limit
+   */
+  public long getStepLimit() {
+    return stepLimit;
+  }
+
+  /**
+   *
+   * @return expiration date in ms since 1970
+   */
+  public long getExpirationMs() {
+    return expirationMs;
+  }
+
+  /**
+   * Sets the expiration date.
+   * Will halt execution on the next evaluation after the given date.
+   * If not called, evals will not expire.
+   *
+   * @param expirationMs expiration date in ms since 1970
+   */
+  public void setExpirationMs(long expirationMs) {
+    this.expirationMs = expirationMs;
+  }
+
+  /**
+   *
+   * @return current Clock object
+   */
+  public Clock getClock() {
+    return clock;
+  }
+
+  /**
+   * Sets a specific clock object for testing purposes
+   * @param clock Clock for testing
+   */
+  @VisibleForTesting
+  public void setClock(@Nonnull Clock clock) {
+    this.clock = clock;
+  }
+
+  public boolean isExpired(){
+    return clock.millis() > expirationMs;
   }
 
   /**
