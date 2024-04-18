@@ -264,6 +264,10 @@ final class Eval {
       throw new EvalException("Starlark computation cancelled: too many steps");
     }
 
+    if (fr.thread.isExpired()) {
+      throw new EvalException("Starlark computation cancelled: past expiration date");
+    }
+
     switch (st.kind()) {
       case ASSIGNMENT:
         execAssignment(fr, (AssignmentStatement) st);
@@ -477,6 +481,9 @@ final class Eval {
       throws EvalException, InterruptedException {
     if (++fr.thread.steps >= fr.thread.stepLimit) {
       throw new EvalException("Starlark computation cancelled: too many steps");
+    }
+    if (fr.thread.isExpired()) {
+      throw new EvalException("Starlark computation cancelled: past expiration date");
     }
 
     // The switch cases have been split into separate functions
