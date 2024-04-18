@@ -155,7 +155,7 @@ public final class EvaluationTest {
       throw new AssertionError(
           String.format(
               "computation steps did not increase linearly: f(1000)=%d, f(10000)=%d, ratio=%g, want"
-              + " ~10",
+                  + " ~10",
               steps1000, steps10000, ratio));
     }
 
