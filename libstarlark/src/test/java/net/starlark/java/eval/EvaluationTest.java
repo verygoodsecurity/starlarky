@@ -28,9 +28,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Test of evaluation behavior. (Implicitly uses lexer + parser.)
- */
+/** Test of evaluation behavior. (Implicitly uses lexer + parser.) */
 @RunWith(JUnit4.class)
 public final class EvaluationTest {
 
@@ -139,7 +137,6 @@ public final class EvaluationTest {
     ParserInput input = ParserInput.fromLines("squares = [x*x for x in range(n)]");
 
     class C {
-
       long run(int n) throws SyntaxError.Exception, EvalException, InterruptedException {
         Module module =
             Module.withPredeclared(
@@ -665,9 +662,7 @@ public final class EvaluationTest {
     ev.new Scenario().update("obj", obj).testExpression("'%s' % obj", "<str marker>");
   }
 
-  private static class Dummy implements StarlarkValue {
-
-  }
+  private static class Dummy implements StarlarkValue {}
 
   @Test
   public void testStringRepresentationsOfArbitraryObjects() throws Exception {
@@ -698,7 +693,7 @@ public final class EvaluationTest {
         .testExpression(
             "'%s %s' % (unknown, unknown)",
             "<unknown object net.starlark.java.eval.EvaluationTest$Dummy> <unknown"
-            + " object net.starlark.java.eval.EvaluationTest$Dummy>");
+                + " object net.starlark.java.eval.EvaluationTest$Dummy>");
   }
 
   @Test
