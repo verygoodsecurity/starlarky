@@ -236,7 +236,7 @@
                     <showDeprecation>true</showDeprecation>
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
-                    <forceJavacCompilerUse>true</forceJavacCompilerUse>
+                    <forceLegacyJavacApi>true</forceLegacyJavacApi>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>com.google.errorprone</groupId>
