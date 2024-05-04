@@ -309,7 +309,7 @@ final class Eval {
       // x[i] = ...
       Object object = eval(fr, ((IndexExpression) lhs).getObject());
       Object key = eval(fr, ((IndexExpression) lhs).getKey());
-      EvalUtils.setIndex(object, key, value);
+      EvalUtils.setIndex(fr.thread, object, key, value);
 
     } else if (lhs instanceof ListExpression) {
       // a, b, c = ...
@@ -415,7 +415,7 @@ final class Eval {
         throw ex;
       }
       try {
-        EvalUtils.setIndex(object, key, z);
+        EvalUtils.setIndex(fr.thread, object, key, z);
       } catch (EvalException ex) {
         fr.setErrorLocation(stmt.getOperatorLocation());
         throw ex;

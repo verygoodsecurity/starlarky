@@ -477,7 +477,7 @@ final class EvalUtils {
    *
    * @throws EvalException if the object is not a list or dict.
    */
-  static void setIndex(Object object, Object key, Object value) throws EvalException {
+  static void setIndex(StarlarkThread thread, Object object, Object key, Object value) throws EvalException {
     if (object instanceof Dict) {
       @SuppressWarnings("unchecked")
       Dict<Object, Object> dict = (Dict<Object, Object>) object;
@@ -490,10 +490,15 @@ final class EvalUtils {
       index = EvalUtils.getSequenceIndex(index, list.size());
       list.setElementAt(index, value);
 
+    } else if (object instanceof StarlarkSetIndexable) {
+      ((StarlarkSetIndexable) object).setIndex(thread.getSemantics(), key, value);
+    } else if (object instanceof StarlarkSetIndexable.Threaded) {
+      ((StarlarkSetIndexable.Threaded) object).setIndex(thread, thread.getSemantics(), key, value);
     } else {
       throw Starlark.errorf(
-          "can only assign an element in a dictionary or a list, not in a '%s'",
-          Starlark.type(object));
+        "can only assign an element in a dictionary, list, or implementation of " +
+          "StarlarkSetIndexable, not in a '%s'",
+        Starlark.type(object));
     }
   }
 
