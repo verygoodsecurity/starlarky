@@ -228,9 +228,10 @@ def A_test_istr_key_add():
 def A_test_str_derived_key_add():
     def A(v):
         self = istr(v)
-        self.__class__ = A
-        self.__name__ = 'A'
-        return self
+        members = dict(**self.__dict__)
+        members['__class__'] = A
+        members['__name__'] = 'A'
+        return larky.struct(**members)
 
     d = cls()
     key = A("1")
@@ -475,7 +476,6 @@ def TestCIMutableMultiDict_test_extend_with_istr():
     asserts.assert_that([("aBc", "val")]).is_equal_to(list(d.items()))
 
 def TestCIMutableMultiDict_test_copy_istr():
-    # expecting this test to fail b/c larky structs are not hashable
     d = ci_cls({istr("Foo"): "bar"})
     d2 = d.copy()
     asserts.assert_that(d).is_equal_to(d2)
@@ -533,7 +533,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(TestCIMutableMultiDict_test_pop_default))
     _suite.addTest(unittest.FunctionTestCase(TestCIMutableMultiDict_test_pop_raises))
     _suite.addTest(unittest.expectedFailure(unittest.FunctionTestCase(TestCIMutableMultiDict_test_extend_with_istr)))
-    _suite.addTest(unittest.expectedFailure(unittest.FunctionTestCase(TestCIMutableMultiDict_test_copy_istr)))
+    _suite.addTest(unittest.FunctionTestCase(TestCIMutableMultiDict_test_copy_istr))
     _suite.addTest(unittest.FunctionTestCase(TestCIMutableMultiDict_test_eq))
     return _suite
 

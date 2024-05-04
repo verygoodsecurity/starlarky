@@ -78,7 +78,8 @@ def istr(v=""):
 
     def title(): return self.__class__(self.data.title())
     self.title = title
-    return self
+    # istr should be hashable, so we must make sure it is immutable.
+    return larky.struct(**self.__dict__)
 
 
 _version = larky.utils.Counter()
