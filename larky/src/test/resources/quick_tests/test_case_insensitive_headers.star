@@ -24,9 +24,9 @@ def test_read_case_insensitive_headers():
 def test_write_case_insensitive_headers():
     request = VGSHttpRequest("http://example.com", data=b'{"cardNumber": "4111111111111111"}', headers=headers, method='POST')
 
-    asserts.assert_that(request.headers.size()).is_equal_to(1)
+    asserts.assert_that(len(request.headers)).is_equal_to(1)
     request.headers[expected_header_key] = 'New Value'
-    asserts.assert_that(request.headers.size()).is_equal_to(1)
+    asserts.assert_that(len(request.headers)).is_equal_to(1)
 
 
 def _testsuite():
