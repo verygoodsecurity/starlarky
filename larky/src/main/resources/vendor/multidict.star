@@ -160,17 +160,17 @@ def _Base():
 
     def keys():
         """Return a new view of the dictionary's keys."""
-        return _KeysView(self._impl)
+        return list(_KeysView(self._impl))
     self.keys = keys
 
     def items():
         """Return a new view of the dictionary's items *(key, value) pairs)."""
-        return _ItemsView(self._impl)
+        return list(_ItemsView(self._impl))
     self.items = items
 
     def values():
         """Return a new view of the dictionary's values."""
-        return _ValuesView(self._impl)
+        return list(_ValuesView(self._impl))
     self.values = values
 
     def __eq__(other):
@@ -191,6 +191,10 @@ def _Base():
                 return False
         return True
     self.__eq__ = __eq__
+
+    def __ne__(other):
+        return not self.__eq__(other)
+    self.__ne__ = __ne__
 
     def __contains__(key):
         identity = self._title(key)
@@ -611,6 +615,10 @@ def _ItemsView(impl):
         return len(self) == len(other) and self.__le__(other)
     self.__eq__ = __eq__
 
+    def __ne__(other):
+        return not self.__eq__(other)
+    self.__ne__ = __ne__
+
     def __contains__(item):
         if not (types.is_instance(item, tuple) or types.is_instance(item, list)):
             fail("assert types.is_instance(item, tuple) or types.is_instance(item, list) failed!")
@@ -733,6 +741,10 @@ def _KeysView(impl):
             return Error("NotImplemented")
         return len(self) == len(other) and self.__le__(other)
     self.__eq__ = __eq__
+
+    def __ne__(other):
+        return not self.__eq__(other)
+    self.__ne__ = __ne__
 
     def __contains__(key):
         for item in self._impl._items:
