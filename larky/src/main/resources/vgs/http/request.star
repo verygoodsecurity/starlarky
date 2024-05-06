@@ -2,6 +2,8 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//urllib/parse", parse="parse")
 load("@stdlib//urllib/request", urllib_request="request")
 
+load("@vendor//multidict", CIMultiDict="CIMultiDict")
+
 def VGSHttpRequest(
     url,
     data=None,
@@ -52,8 +54,11 @@ def VGSHttpRequest(
         headers={},
         method=None
     ):
-        # call super init, with overrides
-        self.__init__(url, data=data, headers=headers, method=method)
+        # We want the "base class" to initialize headers, then after
+        # it takes care of all the initialization, we then, overwrite
+        # the headers property to make it into a Case Insensitive "MultiDict"
+        self.__init__(url, data=data, headers={}, method=method)
+        self.headers = CIMultiDict(headers)
         self.url = url
         parsed_url = parse.urlsplit(url)
         self.path = parsed_url.path
