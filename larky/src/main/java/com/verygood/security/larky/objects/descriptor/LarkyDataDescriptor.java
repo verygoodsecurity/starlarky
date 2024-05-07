@@ -7,7 +7,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Structure;
 
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 public interface LarkyDataDescriptor extends LarkyNonDataDescriptor {
   static boolean isDataDescriptor(Object obj) {

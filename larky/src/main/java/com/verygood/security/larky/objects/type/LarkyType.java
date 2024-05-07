@@ -26,14 +26,14 @@ import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 
 import lombok.SneakyThrows;
 
 public interface LarkyType extends PyObject, LarkyCollection, HasBinary {
 
   @SneakyThrows
-  static void setupInheritanceHierarchy(@NotNull LarkyType cls, LarkyType[] parentClasses) {
+  static void setupInheritanceHierarchy(@Nonnull LarkyType cls, LarkyType[] parentClasses) {
     cls.setBaseClasses(parentClasses);
     final List<LarkyType> mro;
     mro = C3.calculateMRO(cls);

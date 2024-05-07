@@ -17,7 +17,7 @@ import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 
 // https://docs.python.org/3.10/reference/datamodel.html#invoking-descriptors

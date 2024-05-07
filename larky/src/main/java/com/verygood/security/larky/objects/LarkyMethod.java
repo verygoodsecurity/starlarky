@@ -12,9 +12,8 @@ import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 /**
  * Create a bound instance method object.
@@ -29,14 +28,13 @@ public class LarkyMethod extends LarkyFunction {
   PyObject im_self;
 
 
-  private LarkyMethod(@NotNull StarlarkCallable function, @NotNull PyObject im_self, @NotNull StarlarkThread thread) {
+  private LarkyMethod(@Nonnull StarlarkCallable function, @Nonnull PyObject im_self, @Nonnull StarlarkThread thread) {
     super(TYPE, function, thread);
     this.im_self = im_self;
     bind(im_self.typeClass());
   }
 
-  @Contract("_, _, _ -> new")
-  public static @NotNull LarkyMethod create(@NotNull StarlarkCallable function, @NotNull PyObject im_self, @NotNull StarlarkThread thread) {
+  public static @Nonnull LarkyMethod create(@Nonnull StarlarkCallable function, @Nonnull PyObject im_self, @Nonnull StarlarkThread thread) {
     return new LarkyMethod(function, im_self, thread);
   }
 

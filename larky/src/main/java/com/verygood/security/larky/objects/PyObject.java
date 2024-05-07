@@ -13,7 +13,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 /**
  * An attempt to faithfully implement https://docs.python.org/3/reference/datamodel.html

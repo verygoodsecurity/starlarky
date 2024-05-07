@@ -16,9 +16,9 @@ import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 /**
  * Wraps a {@link StarlarkFunction} with a descriptor to mimic python's bound method behavior.
@@ -35,13 +35,12 @@ public class LarkyFunction extends LarkyDescriptor implements ForwardingLarkyTyp
 
   @Nullable LarkyType im_class;
 
-  LarkyFunction(@NotNull LarkyType forType, @NotNull StarlarkCallable function, @NotNull StarlarkThread thread) {
+  LarkyFunction(@Nonnull LarkyType forType, @Nonnull StarlarkCallable function, @Nonnull StarlarkThread thread) {
     super(function.getName(), function, forType, thread);
     this.im_class = null;
   }
 
-  @Contract("_, _ -> new")
-  public static @NotNull LarkyFunction create(@NotNull StarlarkCallable function, @NotNull StarlarkThread thread) {
+  public static @Nonnull LarkyFunction create(@Nonnull StarlarkCallable function, @Nonnull StarlarkThread thread) {
     return new LarkyFunction(TYPE, function, thread);
   }
 
