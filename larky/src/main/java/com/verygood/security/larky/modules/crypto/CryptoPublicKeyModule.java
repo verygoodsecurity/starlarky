@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.crypto;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.FluentLogger;
 import java.io.ByteArrayInputStream;
@@ -59,6 +60,7 @@ import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.CryptoException;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.crypto.DataLengthException;
+import org.bouncycastle.crypto.DefaultBufferedBlockCipher;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.engines.RSABlindedEngine;
@@ -84,8 +86,8 @@ import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.VisibleForTesting;
+
+import jakarta.annotation.Nonnull;
 
 
 public class CryptoPublicKeyModule implements StarlarkValue {
@@ -227,7 +229,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     throw new EvalException(sb.toString(), e);
   }
 
-  @NotNull
+  @Nonnull
   private List<BigInteger> _import_pkcs8_encrypted(byte[] externKey, char[] passPhrase, List<Throwable> failures) {
     List<BigInteger> r = new ArrayList<>();
     // TODO(mahmoudimus): explore if this can be done via PEMParser or MiscPEMGenerator
@@ -249,7 +251,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     return r;
   }
 
-  @NotNull
+  @Nonnull
   private List<BigInteger> _import_pkcs8(byte[] externKey, char[] passPhrase, List<Throwable> failures) throws IOException {
     List<BigInteger> r = new ArrayList<>();
     RSAPrivateCrtKeyParameters crtPrivParams;
@@ -270,7 +272,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     return r;
   }
 
-  @NotNull
+  @Nonnull
   private List<BigInteger> _import_subjectPublicKeyInfo(byte[] externKey, char[] passPhrase, List<Throwable> failures) throws IOException {
     List<BigInteger> r = new ArrayList<>();
     RSAKeyParameters pubKey;
@@ -284,7 +286,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     return r;
   }
 
-  @NotNull
+  @Nonnull
   private List<BigInteger> _import_x509_cert(byte[] externKey, char[] passPhrase, List<Throwable> failures) throws IOException {
     List<BigInteger> r = new ArrayList<>();
     RSAPublicKey pubKey;
@@ -309,7 +311,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     return r;
   }
 
-  @NotNull
+  @Nonnull
   private List<BigInteger> _import_pkcs1_public(byte[] externKey, char[] passPhrase, List<Throwable> failures) {
     List<BigInteger> r = new ArrayList<>();
     try {
@@ -326,7 +328,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     return r;
   }
 
-  @NotNull
+  @Nonnull
   private List<BigInteger> _importPKCS1Private(byte[] externKey, char[] passPhrase, List<Throwable> failures) {
     List<BigInteger> r = new ArrayList<>();
     ASN1Integer integer;
@@ -606,7 +608,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   }, useStarlarkThread = true)
   public StarlarkBytes decryptOpenSSHKey(
     StarlarkBytes encrypted, StarlarkBytes password, StarlarkBytes salt, StarlarkThread thread) throws EvalException {
-    if (password.size() == 0) {
+    if (password.isEmpty()) {
       throw Starlark.errorf("Password cannot have size 0 when decrypting an SSH key!");
     }
     byte[] passInBytes = password.toByteArray();
@@ -623,9 +625,7 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     }
     CipherParameters keyIv = new ParametersWithIV(new KeyParameter(key, 0, 32), key, 32, 48 - 32);
     //AES256 CTR is SICBlockCipher
-    BufferedBlockCipher cipher = new BufferedBlockCipher(
-      new SICBlockCipher(
-        new AESEngine()));
+    BufferedBlockCipher cipher = new DefaultBufferedBlockCipher(SICBlockCipher.newInstance(AESEngine.newInstance()));
     cipher.init(false, keyIv);
 
     byte[] result = new byte[cipher.getOutputSize(encrypted.size())];

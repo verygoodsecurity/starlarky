@@ -15,9 +15,11 @@ import net.starlark.java.eval.StarlarkValue;
 import org.bouncycastle.crypto.BlockCipher;
 import org.bouncycastle.crypto.BufferedBlockCipher;
 import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.DefaultBufferedBlockCipher;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.params.ParametersWithIV;
-import org.jetbrains.annotations.NotNull;
+
+import jakarta.annotation.Nonnull;
 
 
 public class LarkyBlockCipher implements StarlarkValue {
@@ -38,7 +40,7 @@ public class LarkyBlockCipher implements StarlarkValue {
                           ? new ParametersWithIV(algo.getKeyParams(), initializationVector)
                           : algo.getKeyParams();
     this.bufferedMode = bufferedMode;
-    this.bufferedBlockCipher = new BufferedBlockCipher(blockCipher);
+    this.bufferedBlockCipher = new DefaultBufferedBlockCipher(blockCipher);
     init(true);
   }
 
@@ -101,7 +103,7 @@ public class LarkyBlockCipher implements StarlarkValue {
     return process(cipherText, output);
   }
 
-  @NotNull
+  @Nonnull
   private StarlarkInt process(StarlarkBytes input, StarlarkByteArray result) throws EvalException {
     byte[] outBytes = new byte[getOutputSize(input)];
     final byte[] inBytes = input.toByteArray();
