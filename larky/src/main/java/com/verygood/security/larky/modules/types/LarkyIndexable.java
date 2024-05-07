@@ -2,16 +2,22 @@ package com.verygood.security.larky.modules.types;
 
 import com.google.common.collect.ImmutableList;
 
+import com.verygood.security.larky.parser.StarlarkUtil;
+
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
-import net.starlark.java.eval.StarlarkIndexable;
 import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.eval.StarlarkSetIndexable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.syntax.TokenKind;
 
 
-public interface LarkyIndexable extends LarkyObject, StarlarkIndexable.Threaded {
+public interface LarkyIndexable extends LarkyObject, StarlarkSetIndexable.Threaded {
+
+  default Object get__setitem__() {
+    return getField(PyProtocols.__SETITEM__);
+  }
 
   default Object get__getitem__() {
     return getField(PyProtocols.__GETITEM__);
@@ -20,6 +26,17 @@ public interface LarkyIndexable extends LarkyObject, StarlarkIndexable.Threaded 
 
   default Object get__contains__() {
     return getField(PyProtocols.__CONTAINS__);
+  }
+
+  @Override
+  default void setIndex(StarlarkThread starlarkThread, StarlarkSemantics semantics, Object key, Object value) throws EvalException {
+    final Object __setitem__ = get__setitem__();
+    if(__setitem__ != null && StarlarkUtil.isCallable(__setitem__)) {
+      Starlark.checkHashable(key);
+      this.invoke(starlarkThread, __setitem__, ImmutableList.of(key, value), EMPTY_KWARGS);
+      return;
+    }
+    throw Starlark.errorf("TypeError: '%s' object does not support item assignment", typeName());
   }
 
   @Override

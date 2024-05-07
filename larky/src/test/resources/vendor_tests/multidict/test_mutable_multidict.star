@@ -51,19 +51,12 @@ def TestMutableMultiDict_test_add():
     # TODO(mahmoudimus): Uncomment this when the above is fixed.
     # asserts.assert_that(d).is_equal_to({})
 
-    # Commenting the below because Starlark does not support `SetIndexable`
-    # even though it is part of the spec..
-    # See:
-    # - https://github.com/bazelbuild/starlark/issues/206
-    # We end up using operator.setitem() instead to mimic dict["key"] = "value"
-    # d["key"] = "one"
-    operator.setitem(d, "key", "one")
+    d["key"] = "one"
     # See comment above re: equal mappings
     # asserts.assert_that(d).is_equal_to({"key": "one"})
     asserts.assert_that(d.getall("key")).is_equal_to(["one"])
 
-    # d["key"] = "two"
-    operator.setitem(d, "key", "two")
+    d["key"] = "two"
     # See comment above re: equal mappings
     # asserts.assert_that(d).is_equal_to({"key": "two"})
     asserts.assert_that(d.getall("key")).is_equal_to(["two"])
@@ -202,22 +195,23 @@ def TestMutableMultiDict_test_replacement_order():
     d.add("key1", "val3")
     d.add("key2", "val4")
 
-    # see comment in TestMutableMultiDict_test_add about SetIndexable
-    # d["key1"] = "val"
-    operator.setitem(d, "key1", "val")
+    d["key1"] = "val"
     expected = [("key1", "val"), ("key2", "val2"), ("key2", "val4")]
     asserts.assert_that(expected).is_equal_to(list(d.items()))
 
 
 def TestMutableMultiDict_test_nonstr_key():
     d = cls()
-    asserts.assert_fails(lambda: operator.setitem(d, 1, "val"), ".*TypeError")
+
+    def ___test():
+        d[1] = "val"
+
+    asserts.assert_fails(___test, ".*TypeError")
 
 
 def TestMutableMultiDict_test_istr_key():
     d = cls()
-    # see comment in TestMutableMultiDict_test_add about SetIndexable
-    # d[istr("1")] = "val"
+    d[istr("1")] = "val"
     key = istr("1")
     operator.setitem(d, key, "val")
     asserts.assert_that(type(key)).is_equal_to("istr")
@@ -234,9 +228,10 @@ def A_test_istr_key_add():
 def A_test_str_derived_key_add():
     def A(v):
         self = istr(v)
-        self.__class__ = A
-        self.__name__ = 'A'
-        return self
+        members = dict(**self.__dict__)
+        members['__class__'] = A
+        members['__name__'] = 'A'
+        return larky.struct(**members)
 
     d = cls()
     key = A("1")
@@ -299,18 +294,14 @@ def TestCIMutableMultiDict_test_ctor():
 def TestCIMutableMultiDict_test_setitem():
     d = ci_cls()
 
-    # see comment in TestMutableMultiDict_test_add about SetIndexable
-    # d["k1"] = "v1"
-    operator.setitem(d, "k1", "v1")
+    d["k1"] = "v1"
     asserts.assert_that("v1").is_equal_to(d["K1"])
     asserts.assert_that(d.items()).contains(("k1", "v1"))
 
 
 def TestCIMutableMultiDict_test_delitem():
     d = ci_cls()
-    # see comment in TestMutableMultiDict_test_add about SetIndexable
-    # d["k1"] = "v1"
-    operator.setitem(d, "k1", "v1")
+    d["k1"] = "v1"
     asserts.assert_that(d).contains("K1")
     operator.delitem(d, "k1")
     asserts.assert_that(d).does_not_contain("K1")
@@ -337,17 +328,12 @@ def TestCIMutableMultiDict_test_add():
     d = ci_cls()
 
     asserts.assert_that(len(d)).is_equal_to(0)
-    # see comment in TestMutableMultiDict_test_add about SetIndexable
-    # d["KEY"] = "one"
-    operator.setitem(d, "KEY", "one")
+    d["KEY"] = "one"
     asserts.assert_that(d.items()).contains(("KEY", "one"))
     asserts.assert_that(d).is_equal_to(ci_cls({"Key": "one"}))
     asserts.assert_that(d.getall("key")).is_equal_to(["one"])
 
-
-    # see comment in TestMutableMultiDict_test_add about SetIndexable
-    # d["KEY"] = "two"
-    operator.setitem(d, "KEY", "two")
+    d["KEY"] = "two"
     asserts.assert_that(d.items()).contains(("KEY", "two"))
     asserts.assert_that(d).is_equal_to(ci_cls({"Key": "two"}))
     asserts.assert_that(d.getall("key")).is_equal_to(["two"])
@@ -490,7 +476,6 @@ def TestCIMutableMultiDict_test_extend_with_istr():
     asserts.assert_that([("aBc", "val")]).is_equal_to(list(d.items()))
 
 def TestCIMutableMultiDict_test_copy_istr():
-    # expecting this test to fail b/c larky structs are not hashable
     d = ci_cls({istr("Foo"): "bar"})
     d2 = d.copy()
     asserts.assert_that(d).is_equal_to(d2)
@@ -548,7 +533,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(TestCIMutableMultiDict_test_pop_default))
     _suite.addTest(unittest.FunctionTestCase(TestCIMutableMultiDict_test_pop_raises))
     _suite.addTest(unittest.expectedFailure(unittest.FunctionTestCase(TestCIMutableMultiDict_test_extend_with_istr)))
-    _suite.addTest(unittest.expectedFailure(unittest.FunctionTestCase(TestCIMutableMultiDict_test_copy_istr)))
+    _suite.addTest(unittest.FunctionTestCase(TestCIMutableMultiDict_test_copy_istr))
     _suite.addTest(unittest.FunctionTestCase(TestCIMutableMultiDict_test_eq))
     return _suite
 
