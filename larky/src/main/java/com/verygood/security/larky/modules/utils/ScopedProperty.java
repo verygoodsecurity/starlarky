@@ -3,7 +3,8 @@ package com.verygood.security.larky.modules.utils;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
+
 
 /**
  * Utility to make it easier for tests to override system properties (instead of directly using

@@ -3,8 +3,8 @@ package com.verygood.security.larky.modules.utils;
 import com.google.common.primitives.Bytes;
 
 import org.bouncycastle.util.Pack;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-import javax.annotation.Nonnull;
+
 
 /**
  * Utility functions for operating on byte arrays. Although built for the FoundationDB tuple layer,
@@ -134,7 +134,7 @@ public class ByteArrayUtil {
     return Arrays.copyOf(charBuffer.array(), charBuffer.limit());
   }
 
-  public static String toHexString(@NotNull byte[] bytes, int digitGrouping, String groupDelimiter) {
+  public static String toHexString(@Nonnull byte[] bytes, int digitGrouping, String groupDelimiter) {
     if (bytes == null || bytes.length == 0)
       return "";
     char[] hexChars = toHexString(bytes).toCharArray();
