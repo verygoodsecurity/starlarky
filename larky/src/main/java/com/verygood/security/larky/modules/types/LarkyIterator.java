@@ -26,7 +26,7 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.syntax.TokenKind;
 
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkIterator<Object> {
 

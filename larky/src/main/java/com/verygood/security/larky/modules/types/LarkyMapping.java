@@ -24,7 +24,7 @@ import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 
 
 public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutability.Freezable, StarlarkIterable<K> {
@@ -212,7 +212,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
         + "<pre class=\"language-python\">"
         + "{2: \"a\", 4: \"b\", 1: \"c\"}.values() == [\"a\", \"b\", \"c\"]</pre>\n",
     useStarlarkThread = true)
-  default StarlarkList<?> values0(@NotNull StarlarkThread thread) throws EvalException {
+  default StarlarkList<?> values0(@Nonnull StarlarkThread thread) throws EvalException {
     return StarlarkList.copyOf(thread.mutability(), values());
   }
 
@@ -373,7 +373,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
   }
 
   @Override
-  default @NotNull Iterator<K> iterator() {
+  default @Nonnull Iterator<K> iterator() {
     return contents().keySet().iterator();
   }
 
@@ -390,7 +390,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
   }
 
   @Override
-  default @NotNull Set<Entry<K, V>> entrySet() {
+  default @Nonnull Set<Entry<K, V>> entrySet() {
     return Collections.unmodifiableMap(contents()).entrySet();
   }
 
@@ -405,7 +405,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
   }
 
   @Override
-  default @NotNull Set<K> keySet() {
+  default @Nonnull Set<K> keySet() {
     return Collections.unmodifiableMap(contents()).keySet();
   }
 
@@ -415,7 +415,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
   }
 
   @Override
-  default @NotNull Collection<V> values() {
+  default @Nonnull Collection<V> values() {
     return Collections.unmodifiableMap(contents()).values();
   }
 
@@ -435,7 +435,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
 
   @Deprecated // use putEntries
   @Override
-  default void putAll(@NotNull Map<? extends K, ? extends V> map) {
+  default void putAll(@Nonnull Map<? extends K, ? extends V> map) {
     throw new UnsupportedOperationException();
   }
 
