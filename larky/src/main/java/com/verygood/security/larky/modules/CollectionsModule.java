@@ -35,8 +35,8 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 
 @StarlarkBuiltin(
@@ -126,7 +126,7 @@ public class CollectionsModule implements StarlarkValue {
     // Collection and not necessarily a *list*.
     @SuppressWarnings("DuplicatedCode")
     @Override
-    public int compareTo(@NotNull Object o) {
+    public int compareTo(@Nonnull Object o) {
       final Sequence<?> x;
       try {
         x = Sequence.cast(o, Object.class, "compareTo");
@@ -196,7 +196,7 @@ public class CollectionsModule implements StarlarkValue {
     }
 
     @Override
-    public @NotNull Iterator<Object> iterator() {
+    public @Nonnull Iterator<Object> iterator() {
       try {
         return LarkyIterator.from(this, this.getCurrentThread());
       } catch (EvalException e) {
