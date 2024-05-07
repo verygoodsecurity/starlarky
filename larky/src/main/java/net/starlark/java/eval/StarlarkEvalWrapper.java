@@ -6,8 +6,8 @@ import com.google.common.collect.ImmutableList;
 
 import net.starlark.java.syntax.Location;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 public class StarlarkEvalWrapper {
 
@@ -75,7 +75,7 @@ public class StarlarkEvalWrapper {
      * @param larkyException - The {@link EvalException} that contains the Larky stacktrace
      * @return a {@link Location} detailing the filename, line, and row where the error occurred.
      */
-    static @Nullable Location getErrorLocation(@NotNull final EvalException larkyException) {
+    static @Nullable Location getErrorLocation(@Nonnull final EvalException larkyException) {
 
       final ImmutableList<StarlarkThread.CallStackEntry> callStack = larkyException.getCallStack();
       final int n = callStack.size();
@@ -95,7 +95,7 @@ public class StarlarkEvalWrapper {
      * @param throwable      - The {@link Throwable} class to hoist the Larky stacktrace above the Java exception
      *                       callstack.
      */
-    static void fillInLarkyStackTrace(@NotNull EvalException larkyException, @NotNull Throwable throwable) {
+    static void fillInLarkyStackTrace(@Nonnull EvalException larkyException, @Nonnull Throwable throwable) {
       final ImmutableList<StarlarkThread.CallStackEntry> callStack = larkyException.getCallStack();
       final int callStackSize = callStack.size();
       StackTraceElement[] trace = new StackTraceElement[callStackSize];
@@ -150,8 +150,8 @@ public class StarlarkEvalWrapper {
     /**
      * Returns the stack frame at the specified depth. 0 means top of stack, 1 is its caller, etc.
      */
-    @NotNull
-    static Debug.Frame frame(@NotNull StarlarkThread thread, int depth) throws EvalException {
+    @Nonnull
+    static Debug.Frame frame(@Nonnull StarlarkThread thread, int depth) throws EvalException {
       final int callstackSize = thread.getCallStackSize();
       if(depth > callstackSize) {
         throw Starlark.errorf("depth %d exceeds maximum call stack size", depth);
@@ -166,7 +166,7 @@ public class StarlarkEvalWrapper {
      *         <code>1</code> - if currently evaluating a function for the top-level statements of a file <br/>
      *         <code>2+</code> - which means a function call is in progress and this is the depth of functions
      */
-    static int depth(@NotNull StarlarkThread thread) {
+    static int depth(@Nonnull StarlarkThread thread) {
       return thread.getCallStackSize();
     }
   }
