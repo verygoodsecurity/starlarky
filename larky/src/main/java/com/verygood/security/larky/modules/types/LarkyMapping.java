@@ -17,6 +17,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkDictWrapper;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
@@ -29,8 +30,22 @@ import jakarta.annotation.Nonnull;
 
 public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutability.Freezable, StarlarkIterable<K> {
 
-  void freeze(); // this.mutability = Mutability.IMMUTABLE;
+  /**
+   * Called to set the immutability object to {@code Mutability.IMMUTABLE}, but since this is an interface, this method
+   * needs to be implemented as {@code this.mutability = Mutability.IMMUTABLE} if you have a private instance variable
+   * named {@code mutability} of type {@link Mutability}
+   *
+   * This is called from {@link #unsafeShallowFreeze()}.
+   */
+  void freeze();
+
+  /**
+   * See {@link Dict#updateIteratorCount(int) for an example implementation} in the context of a Starlark map, which we
+   * will copy for {@link LarkyMapping}.
+   */
+  @Override
   boolean updateIteratorCount(int delta);
+
   NavigableMap<K, V> contents(); // deterministic
 
   @StarlarkMethod(
@@ -164,45 +179,9 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
     throws EvalException {
     Starlark.checkMutable(this);
     Dict<Object, Object> dict = Dict.copyOf(thread.mutability(), this); // see class doc comment
-    update("update", dict, pairs, kwargs);
+    StarlarkDictWrapper.update("update", dict, pairs, kwargs);
     //noinspection unchecked
     this.contents().putAll(Collections.unmodifiableMap((Map<? extends K, ? extends V>) dict));
-  }
-
-  // Common implementation of dict(pairs, **kwargs) and dict.update(pairs, **kwargs).
-  static void update(
-    String funcname, Dict<Object, Object> dict, Object pairs, Dict<String, Object> kwargs)
-    throws EvalException {
-    if (pairs instanceof Dict) { // common case
-      dict.putEntries((Dict<?, ?>) pairs);
-    } else {
-      Iterable<?> iterable;
-      try {
-        iterable = Starlark.toIterable(pairs);
-      } catch (EvalException unused) {
-        throw Starlark.errorf("in %s, got %s, want iterable", funcname, Starlark.type(pairs));
-      }
-      int pos = 0;
-      for (Object item : iterable) {
-        Object[] pair;
-        try {
-          pair = Starlark.toArray(item);
-        } catch (EvalException unused) {
-          throw Starlark.errorf(
-            "in %s, dictionary update sequence element #%d is not iterable (%s)",
-            funcname, pos, Starlark.type(item));
-        }
-        if (pair.length != 2) {
-          throw Starlark.errorf(
-            "in %s, item #%d has length %d, but exactly two elements are required",
-            funcname, pos, pair.length);
-        }
-        dict.putEntry(pair[0], pair[1]);
-        pos++;
-      }
-    }
-
-    dict.putEntries(kwargs);
   }
 
   @StarlarkMethod(
