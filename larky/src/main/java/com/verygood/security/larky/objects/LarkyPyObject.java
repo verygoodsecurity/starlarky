@@ -24,8 +24,8 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.syntax.TokenKind;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 
 public class LarkyPyObject implements
@@ -157,7 +157,7 @@ public class LarkyPyObject implements
   }
 
   @Override
-  public int compareTo(@NotNull LarkyPyObject o) {
+  public int compareTo(@Nonnull LarkyPyObject o) {
     Object result;
     final boolean lt;
     final boolean gt;

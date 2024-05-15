@@ -19,7 +19,7 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.syntax.TokenKind;
 
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 final public class LarkyProvidedTypeClass implements
   ForwardingLarkyType,

@@ -27,8 +27,8 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.syntax.TokenKind;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 
 //override built-in type and mimic python built-in type
@@ -101,9 +101,9 @@ final public class LarkyTypeObject implements LarkyType {
 
   public static LarkyType create(
     @Nullable String name,
-    @NotNull Tuple bases,
-    @NotNull Dict<String, Object> dict,
-    @NotNull Function<LarkyTypeObject, ForwardingLarkyType> constructor
+    @Nonnull Tuple bases,
+    @Nonnull Dict<String, Object> dict,
+    @Nonnull Function<LarkyTypeObject, ForwardingLarkyType> constructor
   ) {
     LarkyType[] basesArr;
     // Set __base__ and __bases__ for the type
@@ -122,7 +122,7 @@ final public class LarkyTypeObject implements LarkyType {
     return result;
   }
 
-  public static @NotNull LarkyType createBuiltinType(@NotNull String name) {
+  public static @Nonnull LarkyType createBuiltinType(@Nonnull String name) {
     final LarkyTypeObject type = new LarkyTypeObject(Origin.BUILTIN, name, Dict.empty());
     LarkyType.setupInheritanceHierarchy(type, DEFAULT_HIERARCHY.get());
     return type;

@@ -12,16 +12,6 @@
     <packaging>jar</packaging>
 
     <properties>
-        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
-        <maven.source.plugin.version>3.3.1</maven.source.plugin.version>
-
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <maven.compiler.release>17</maven.compiler.release>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-
         <google.auto.value.version>1.10.4</google.auto.value.version>
         <google.compile.testing.version>0.21.0</google.compile.testing.version>
         <google.errorprone.javac.version>9+181-r4173-1</google.errorprone.javac.version>
@@ -30,24 +20,34 @@
         <google.guava.version>33.2.0-jre</google.guava.version>
         <google.jimfs.version>1.3.0</google.jimfs.version>
         <google.truth.version>1.4.2</google.truth.version>
-        <org.jetbrains.annotations.version>24.1.0</org.jetbrains.annotations.version>
+
+        <jakarta.annotation.jakarta.annotation-api.version>3.0.0</jakarta.annotation.jakarta.annotation-api.version>
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
+        <maven.compiler.release>17</maven.compiler.release>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <maven.source.plugin.version>3.3.1</maven.source.plugin.version>
         <org.junit.version>4.13.2</org.junit.version>
         <org.projectlombok.version>1.18.32</org.projectlombok.version>
 
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <surefire-plugin.version>3.2.5</surefire-plugin.version>
     </properties>
 
     <dependencies>
         <!--
-        We use jetbrain's annotations library because of some
-        licensing concerns that occur with javax.annotations jsr305 library.
+        We use jakarta annotation library now as a standardized
+        way for annotations in starlark.
 
-        See this issue: https://github.com/google/guava/issues/2960
+        We have migrated from jetbrains' annotations due to it not
+        working outside of jetbrains systems.
         -->
         <dependency>
-            <groupId>org.jetbrains</groupId>
-            <artifactId>annotations</artifactId>
-            <version>${org.jetbrains.annotations.version}</version>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>${jakarta.annotation.jakarta.annotation-api.version}</version>
         </dependency>
 
         <dependency>
@@ -146,7 +146,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven.compiler.plugin.version}</version>
                 <configuration>
-                    <fork>true</fork>
+                    <fork>false</fork>
                     <debug>false</debug>
                     <showWarnings>true</showWarnings>
                     <failOnWarning>false</failOnWarning>

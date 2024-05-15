@@ -18,7 +18,7 @@ import net.starlark.java.eval.StarlarkBytes.StarlarkByteArray;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 
 
 @StarlarkBuiltin(
@@ -172,7 +172,7 @@ public class ZLibModule implements StarlarkValue {
       this.zdict = EMPTY_ARRAY;
     }
 
-    public static @NotNull LarkyInflater of(boolean rawInflate) {
+    public static @Nonnull LarkyInflater of(boolean rawInflate) {
       return new LarkyInflater(rawInflate);
     }
 
@@ -243,7 +243,7 @@ public class ZLibModule implements StarlarkValue {
       }
     }
 
-    @NotNull
+    @Nonnull
     private StarlarkInt _inflate(StarlarkByteArray buf, Object offsetO, Object lengthO) throws DataFormatException {
       final byte[] bytes = buf.toByteArray();
       int result;
@@ -288,7 +288,7 @@ public class ZLibModule implements StarlarkValue {
      * @param level the compression level (0-9)
      * @param nowrap if true then use GZIP compatible compression
      */
-    public static @NotNull LarkyDeflater of(int level, boolean nowrap) {
+    public static @Nonnull LarkyDeflater of(int level, boolean nowrap) {
       return new LarkyDeflater(level, nowrap);
     }
 

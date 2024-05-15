@@ -14,7 +14,7 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 
 
 @StarlarkBuiltin(
@@ -231,7 +231,7 @@ public interface Result extends StarlarkValue, Comparable<Result> {
   }
 
   @Override
-  default int compareTo(@NotNull Result o) {
+  default int compareTo(@Nonnull Result o) {
     if(isOk() && o.isError()) {
       return -1; // error is > ok according to my understanding of test_result.py
     }

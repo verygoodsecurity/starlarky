@@ -12,7 +12,7 @@ import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 
 public abstract class SetAttribute {
 
@@ -90,7 +90,7 @@ public abstract class SetAttribute {
    *                 if the attribute was unable to be set. The caller must handle the exception if
    *                 this value is set to true.
    */
-  public static void dunderSetAttr(@NotNull PyObject obj, String name, Object value, StarlarkThread thread, boolean throwExc) {
+  public static void dunderSetAttr(@Nonnull PyObject obj, String name, Object value, StarlarkThread thread, boolean throwExc) {
     final LarkyType type = obj.typeClass();
     // TODO(mahmoudimus): This needs to also support if there's a Java class for `__SETATTR__`
     final Object setattr_ = type.getInternalDictUnsafe().getOrDefault(PyProtocols.__SETATTR__, null);

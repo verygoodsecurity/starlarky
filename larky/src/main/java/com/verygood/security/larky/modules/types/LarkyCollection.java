@@ -8,10 +8,10 @@ import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.syntax.TokenKind;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 
 public interface LarkyCollection extends LarkyIndexable, StarlarkIterable<Object> {
-  @NotNull
+  @Nonnull
   @Override
   default Iterator<Object> iterator() {
     try {

@@ -15,6 +15,7 @@ import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.BlockCipher;
 import org.bouncycastle.crypto.BufferedBlockCipher;
+import org.bouncycastle.crypto.DefaultBufferedBlockCipher;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.SkippingStreamCipher;
 import org.bouncycastle.crypto.StreamCipher;
@@ -57,7 +58,7 @@ public class LarkyStreamCipher<T extends SkippingStreamCipher & StreamCipher & B
     if (this.initialized && this.processedBytes != 0) {
       this.blockCipher.skip(this.processedBytes);
     }
-    BufferedBlockCipher cipher = new BufferedBlockCipher(this.blockCipher);
+    BufferedBlockCipher cipher = new DefaultBufferedBlockCipher(this.blockCipher);
     byte[] cipherText = new byte[cipher.getOutputSize(plaintext.size())];
     operate(Cipher.ENCRYPT_MODE, plaintext, cipher, cipherText);
     output.replaceAll(StarlarkBytes.immutableOf(cipherText));
@@ -97,7 +98,7 @@ public class LarkyStreamCipher<T extends SkippingStreamCipher & StreamCipher & B
     if (this.initialized && this.processedBytes != 0) {
       this.blockCipher.skip(this.processedBytes);
     }
-    BufferedBlockCipher cipher = new BufferedBlockCipher(this.blockCipher);
+    BufferedBlockCipher cipher = new DefaultBufferedBlockCipher(this.blockCipher);
     operate(Cipher.DECRYPT_MODE, cipherText, cipher, plainText);
     output.replaceAll(StarlarkBytes.immutableOf(plainText));
     Arrays.fill(plainText, (byte) 0);

@@ -20,7 +20,7 @@ import java.util.RandomAccess;
 import java.util.function.Consumer;
 import java.util.function.IntPredicate;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 
 public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Comparable<ByteList> {
 
@@ -786,7 +786,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
 
   // comparable
   @Override
-  public int compareTo(@NotNull ByteList o) {
+  public int compareTo(@Nonnull ByteList o) {
     final int thisSize = size();
     final int oSize = o.size();
     final int minLength = Math.min(thisSize, oSize);
@@ -2018,7 +2018,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
      * some
      * number of elements forward.
      */
-    default boolean itemsEqual(@NotNull Iterator<?> o) {
+    default boolean itemsEqual(@Nonnull Iterator<?> o) {
       return itemsEqual(this, o);
     }
 
@@ -2032,7 +2032,7 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
      * some
      * number of elements forward.
      */
-    static boolean itemsEqual(@NotNull Iterator<?> iterator1, @NotNull Iterator<?> iterator2) {
+    static boolean itemsEqual(@Nonnull Iterator<?> iterator1, @Nonnull Iterator<?> iterator2) {
       while (iterator1.hasNext()) {
         if (!iterator2.hasNext()) {
           return false;

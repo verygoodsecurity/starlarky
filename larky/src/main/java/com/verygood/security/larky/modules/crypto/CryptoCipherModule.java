@@ -19,6 +19,7 @@ import org.bouncycastle.crypto.engines.DESEngine;
 import org.bouncycastle.crypto.engines.DESedeEngine;
 import org.bouncycastle.crypto.modes.CBCBlockCipher;
 import org.bouncycastle.crypto.modes.CFBBlockCipher;
+import org.bouncycastle.crypto.modes.CTRModeCipher;
 import org.bouncycastle.crypto.modes.SICBlockCipher;
 import org.bouncycastle.crypto.params.DESedeParameters;
 import org.bouncycastle.crypto.params.KeyParameter;
@@ -43,7 +44,7 @@ public class CryptoCipherModule implements StarlarkValue {
   public LarkyStreamCipher<SICBlockCipher> CTRMode(Engine engine, StarlarkBytes iv) {
     // SIC = Segmented Integer Counter
     // This mode is also known as CTR mode.
-    return new LarkyStreamCipher<>(new SICBlockCipher(engine.getEngine()), engine, iv.toByteArray());
+    return new LarkyStreamCipher<>((SICBlockCipher) SICBlockCipher.newInstance(engine.getEngine()), engine, iv.toByteArray());
   }
 
   @StarlarkMethod(name = "CBCMode", parameters = {
@@ -51,7 +52,7 @@ public class CryptoCipherModule implements StarlarkValue {
       @Param(name = "iv", allowedTypes = {@ParamType(type = StarlarkBytes.class)})
   })
   public LarkyBlockCipher CBCMode(Engine engine, StarlarkBytes iv) {
-    return new LarkyBlockCipher(new CBCBlockCipher(engine.getEngine()), engine, iv.toByteArray());
+    return new LarkyBlockCipher(CBCBlockCipher.newInstance(engine.getEngine()), engine, iv.toByteArray());
   }
 
   @StarlarkMethod(name = "ECBMode", parameters = {
@@ -67,7 +68,7 @@ public class CryptoCipherModule implements StarlarkValue {
       @Param(name = "segment_size", allowedTypes = {@ParamType(type = StarlarkInt.class)})
   })
   public LarkyBlockCipher CFBMode(Engine engine, StarlarkBytes iv, StarlarkInt segmentSize) {
-    return new LarkyBlockCipher(new CFBBlockCipher(engine.getEngine(), segmentSize.toIntUnchecked()), engine, iv.toByteArray());
+    return new LarkyBlockCipher(CFBBlockCipher.newInstance(engine.getEngine(), segmentSize.toIntUnchecked()), engine, iv.toByteArray());
   }
 
   @StarlarkMethod(name = "DES3", parameters = {
@@ -100,7 +101,7 @@ public class CryptoCipherModule implements StarlarkValue {
       @Param(name = "key", allowedTypes = {@ParamType(type = StarlarkBytes.class)})
   })
   public Engine AES(StarlarkBytes key) throws EvalException {
-    AESEngine aesEngine = new AESEngine();
+    AESEngine aesEngine = (AESEngine) AESEngine.newInstance();
     try {
       KeyParameter params = new KeyParameter(key.toByteArray());
       return new Engine(aesEngine, params);

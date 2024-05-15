@@ -26,8 +26,8 @@ import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 import javax.xml.crypto.dsig.XMLSignature;
 import javax.xml.namespace.NamespaceContext;
@@ -176,7 +176,7 @@ public class LarkyXMLNamespaceContext implements LarkyMapping<String, String>, N
    *
    * @param thread - the starlark thread in the current execution context
    */
-  public void setCurrentThread(@NotNull StarlarkThread thread) {
+  public void setCurrentThread(@Nonnull StarlarkThread thread) {
     if(getCurrentThread() == null || thread != getCurrentThread()) {
       this.currentThread = thread;
     }

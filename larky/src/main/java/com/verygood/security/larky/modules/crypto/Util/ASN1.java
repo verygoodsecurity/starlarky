@@ -45,8 +45,8 @@ import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.DERSet;
 import org.bouncycastle.asn1.DERUTF8String;
 import org.bouncycastle.asn1.DLTaggedObject;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.VisibleForTesting;
+import jakarta.annotation.Nonnull;
+import com.google.common.annotations.VisibleForTesting;;
 
 import lombok.SneakyThrows;
 
@@ -246,7 +246,7 @@ public class ASN1 {
       }
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public Iterator<LarkyASN1Encodable> iterator() {
       Iterator<ASN1Encodable> x = ((ASN1Set) this.encodable).iterator();
@@ -474,7 +474,7 @@ public class ASN1 {
       return StarlarkList.copyOf(thread.mutability(), x);
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public Iterator<LarkyASN1Encodable> iterator() {
       Iterator<ASN1Encodable> x = ((ASN1Sequence) this.encodable).iterator();

@@ -6,7 +6,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 
 public interface StarlarkSequence<K extends Collection<T>, T> extends StarlarkIndexable.Threaded, Sequence<T> {
 
@@ -17,7 +17,7 @@ public interface StarlarkSequence<K extends Collection<T>, T> extends StarlarkIn
   @Override
   Sequence<T> getSlice(Mutability mu, int start, int stop, int step) throws EvalException;
 
-  @NotNull
+  @Nonnull
   @Override
   Iterator<T> iterator();
 
@@ -128,9 +128,9 @@ public interface StarlarkSequence<K extends Collection<T>, T> extends StarlarkIn
           MAX_ARRAY_SIZE;
   }
 
-  @NotNull
+  @Nonnull
   @Override
-  default <T1> T1 @NotNull [] toArray(@NotNull T1 @NotNull [] a) {
+  default <T1> T1[] toArray(@Nonnull T1[] a) {
     //      ArrayList<Object> list = new ArrayList<>();
     //      Collections.addAll(list, positional);
     //      Iterables.addAll(list, ((Iterable<?>) value));
@@ -177,27 +177,27 @@ public interface StarlarkSequence<K extends Collection<T>, T> extends StarlarkIn
   }
 
   @Override
-  default boolean containsAll(@NotNull Collection<?> c) {
+  default boolean containsAll(@Nonnull Collection<?> c) {
     return collection().containsAll(c);
   }
 
   @Override
-  default boolean addAll(@NotNull Collection<? extends T> c) {
+  default boolean addAll(@Nonnull Collection<? extends T> c) {
     return collection().addAll(c);
   }
 
   @Override
-  default boolean addAll(int index, @NotNull Collection<? extends T> c) {
+  default boolean addAll(int index, @Nonnull Collection<? extends T> c) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  default boolean removeAll(@NotNull Collection<?> c) {
+  default boolean removeAll(@Nonnull Collection<?> c) {
     return collection().removeAll(c);
   }
 
   @Override
-  default boolean retainAll(@NotNull Collection<?> c) {
+  default boolean retainAll(@Nonnull Collection<?> c) {
     return collection().retainAll(c);
   }
 
@@ -270,19 +270,19 @@ public interface StarlarkSequence<K extends Collection<T>, T> extends StarlarkIn
     return pos;
   }
 
-  @NotNull
+  @Nonnull
   @Override
   default ListIterator<T> listIterator() {
     throw new UnsupportedOperationException();
   }
 
-  @NotNull
+  @Nonnull
   @Override
   default ListIterator<T> listIterator(int index) {
     throw new UnsupportedOperationException();
   }
 
-  @NotNull
+  @Nonnull
   @Override
   default List<T> subList(int fromIndex, int toIndex) {
     throw new UnsupportedOperationException();

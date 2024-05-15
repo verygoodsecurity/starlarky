@@ -25,8 +25,8 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.syntax.TokenKind;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 // A trivial struct-like class with Starlark fields defined by a map.
 public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, Comparable<Object> {
@@ -261,7 +261,7 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
   }
 
   @Override
-  public int compareTo(@NotNull Object o) {
+  public int compareTo(@Nonnull Object o) {
     SimpleStruct other = (SimpleStruct) o;
     Object result;
     final boolean lt;

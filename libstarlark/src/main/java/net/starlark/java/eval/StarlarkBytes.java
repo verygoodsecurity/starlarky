@@ -28,9 +28,8 @@ import net.starlark.java.ext.ByteList;
 import net.starlark.java.ext.ByteStringModuleApi;
 import net.starlark.java.syntax.TokenKind;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 public class StarlarkBytes implements ByteStringModuleApi,
                                         Sequence<StarlarkBytes>,
@@ -80,7 +79,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public int compareTo(@NotNull StarlarkBytes o) {
+    public int compareTo(@Nonnull StarlarkBytes o) {
       //a negative integer, zero, or a positive integer as this object is less than, equal to, or greater than the specified object.
       if(o.size() > 1) {
         return -1; // if size is > 1 then it's bigger
@@ -231,7 +230,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public boolean addAll(@NotNull Collection<? extends StarlarkBytes> c) {
+    public boolean addAll(@Nonnull Collection<? extends StarlarkBytes> c) {
       ensureNotFrozen();
       boolean modified = false;
       for (StarlarkBytes e : c) {
@@ -242,7 +241,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public boolean addAll(int index, @NotNull Collection<? extends StarlarkBytes> c) {
+    public boolean addAll(int index, @Nonnull Collection<? extends StarlarkBytes> c) {
       ensureNotFrozen();
       int i = index;
       for (StarlarkBytes e : c) {
@@ -609,14 +608,14 @@ public class StarlarkBytes implements ByteStringModuleApi,
     return this.delegate.lastIndexOf(((StarlarkBytes)o).delegate, 0,  this.delegate.size());
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public ListIterator<StarlarkBytes> listIterator() {
     final ByteList.ByteListIterator bListItr = this.delegate.listIterator();
     return newListIterator(bListItr);
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public ListIterator<StarlarkBytes> listIterator(int index) {
     final ByteList.ByteListIterator bListItr = this.delegate.listIterator(index);
@@ -658,7 +657,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     };
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public List<StarlarkBytes> subList(int fromIndex, int toIndex) {
     final ByteList substring = this.delegate.substring(fromIndex, toIndex);
@@ -732,7 +731,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     return this.delegate.contains(((StarlarkBytes)o).delegate);
   }
 
-  @NotNull
+  @Nonnull
   @Override
   public Iterator<StarlarkBytes> iterator() {
     ByteList.OfByte x = this.delegate.iterator();
@@ -759,7 +758,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
   }
 
   @Override
-  public <T> T[] toArray(T @NotNull [] a) {
+  public <T> T[] toArray(T[] a) {
     Arrays.fill(a, this.delegate.toArray());
     return a;
   }
@@ -779,7 +778,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
   }
 
   @Override
-  public boolean containsAll(@NotNull Collection<?> c) {
+  public boolean containsAll(@Nonnull Collection<?> c) {
     // Overridden for performance to prevent a ton of boxing
     for (Object e : c)
         if (!contains(e))
@@ -788,22 +787,22 @@ public class StarlarkBytes implements ByteStringModuleApi,
   }
 
   @Override
-  public boolean addAll(@NotNull Collection<? extends StarlarkBytes> c) {
+  public boolean addAll(@Nonnull Collection<? extends StarlarkBytes> c) {
     throw new UnsupportedOperationException("bytes are immutable. use bytearray.");
   }
 
   @Override
-  public boolean addAll(int index, @NotNull Collection<? extends StarlarkBytes> c) {
+  public boolean addAll(int index, @Nonnull Collection<? extends StarlarkBytes> c) {
     throw new UnsupportedOperationException("bytes are immutable. use bytearray.");
   }
 
   @Override
-  public boolean removeAll(@NotNull Collection<?> c) {
+  public boolean removeAll(@Nonnull Collection<?> c) {
     throw new UnsupportedOperationException("bytes are immutable. use bytearray.");
   }
 
   @Override
-  public boolean retainAll(@NotNull Collection<?> c) {
+  public boolean retainAll(@Nonnull Collection<?> c) {
     throw new UnsupportedOperationException("bytes are immutable. use bytearray.");
   }
 
@@ -813,7 +812,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
   }
 
   @Override
-  public int compareTo(@NotNull StarlarkBytes o) {
+  public int compareTo(@Nonnull StarlarkBytes o) {
     return this.delegate.compareTo(o.delegate);
   }
 

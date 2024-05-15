@@ -2,21 +2,22 @@ package com.verygood.security.larky.parser;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.FluentLogger;
-import com.verygood.security.larky.ModuleSupplier;
-import com.verygood.security.larky.annot.Library;
-import com.verygood.security.larky.console.Console;
-import com.verygood.security.larky.modules.utils.Reporter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import lombok.Builder;
-import lombok.Getter;
+
+import com.verygood.security.larky.ModuleSupplier;
+import com.verygood.security.larky.annot.Library;
+import com.verygood.security.larky.console.Console;
+import com.verygood.security.larky.modules.utils.Reporter;
+
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.EvalException;
@@ -31,9 +32,11 @@ import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.Program;
 import net.starlark.java.syntax.StarlarkFile;
 import net.starlark.java.syntax.SyntaxError;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.VisibleForTesting;
+
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
+import lombok.Builder;
+import lombok.Getter;
 
 /**
  * An utility class for traversing and evaluating the config file dependency graph.
@@ -229,7 +232,7 @@ public final class LarkyEvaluator {
     }
 
 
-    @NotNull
+    @Nonnull
     private Module fromNativeModule(String moduleToLoad) throws IOException, InterruptedException {
       Module newModule = Module.withPredeclared(
           evaluator.getLarkySemantics(),
@@ -260,7 +263,7 @@ public final class LarkyEvaluator {
 
   }
 
-  @NotNull
+  @Nonnull
   @VisibleForTesting
   Map<String, Module> processLoads(StarFile content, Program prog) {
     Map<String, Module> loadedModules = new HashMap<>();
@@ -273,7 +276,7 @@ public final class LarkyEvaluator {
     return loadedModules;
   }
 
-  @NotNull
+  @Nonnull
   @VisibleForTesting
   Program compileStarlarkProgram(Module module, ParserInput input, FileOptions options) throws EvalException {
     Program prog;

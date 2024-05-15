@@ -11,7 +11,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 
 public class C3 {
 
@@ -44,7 +44,7 @@ public class C3 {
     return mroMerge(order, toMerge);
   }
 
-  @NotNull
+  @Nonnull
   private static List<LarkyType> mroMerge(List<LarkyType> order, List<List<LarkyType>> toMerge) throws EvalException {
 
     // C3 linearization algorithm

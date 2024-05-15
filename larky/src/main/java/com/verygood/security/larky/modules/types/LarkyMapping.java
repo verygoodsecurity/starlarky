@@ -17,6 +17,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkDictWrapper;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
@@ -24,13 +25,27 @@ import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 
 
 public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutability.Freezable, StarlarkIterable<K> {
 
-  void freeze(); // this.mutability = Mutability.IMMUTABLE;
+  /**
+   * Called to set the immutability object to {@code Mutability.IMMUTABLE}, but since this is an interface, this method
+   * needs to be implemented as {@code this.mutability = Mutability.IMMUTABLE} if you have a private instance variable
+   * named {@code mutability} of type {@link Mutability}
+   *
+   * This is called from {@link #unsafeShallowFreeze()}.
+   */
+  void freeze();
+
+  /**
+   * See {@link Dict#updateIteratorCount(int) for an example implementation} in the context of a Starlark map, which we
+   * will copy for {@link LarkyMapping}.
+   */
+  @Override
   boolean updateIteratorCount(int delta);
+
   NavigableMap<K, V> contents(); // deterministic
 
   @StarlarkMethod(
@@ -164,45 +179,9 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
     throws EvalException {
     Starlark.checkMutable(this);
     Dict<Object, Object> dict = Dict.copyOf(thread.mutability(), this); // see class doc comment
-    update("update", dict, pairs, kwargs);
+    StarlarkDictWrapper.update("update", dict, pairs, kwargs);
     //noinspection unchecked
     this.contents().putAll(Collections.unmodifiableMap((Map<? extends K, ? extends V>) dict));
-  }
-
-  // Common implementation of dict(pairs, **kwargs) and dict.update(pairs, **kwargs).
-  static void update(
-    String funcname, Dict<Object, Object> dict, Object pairs, Dict<String, Object> kwargs)
-    throws EvalException {
-    if (pairs instanceof Dict) { // common case
-      dict.putEntries((Dict<?, ?>) pairs);
-    } else {
-      Iterable<?> iterable;
-      try {
-        iterable = Starlark.toIterable(pairs);
-      } catch (EvalException unused) {
-        throw Starlark.errorf("in %s, got %s, want iterable", funcname, Starlark.type(pairs));
-      }
-      int pos = 0;
-      for (Object item : iterable) {
-        Object[] pair;
-        try {
-          pair = Starlark.toArray(item);
-        } catch (EvalException unused) {
-          throw Starlark.errorf(
-            "in %s, dictionary update sequence element #%d is not iterable (%s)",
-            funcname, pos, Starlark.type(item));
-        }
-        if (pair.length != 2) {
-          throw Starlark.errorf(
-            "in %s, item #%d has length %d, but exactly two elements are required",
-            funcname, pos, pair.length);
-        }
-        dict.putEntry(pair[0], pair[1]);
-        pos++;
-      }
-    }
-
-    dict.putEntries(kwargs);
   }
 
   @StarlarkMethod(
@@ -212,7 +191,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
         + "<pre class=\"language-python\">"
         + "{2: \"a\", 4: \"b\", 1: \"c\"}.values() == [\"a\", \"b\", \"c\"]</pre>\n",
     useStarlarkThread = true)
-  default StarlarkList<?> values0(@NotNull StarlarkThread thread) throws EvalException {
+  default StarlarkList<?> values0(@Nonnull StarlarkThread thread) throws EvalException {
     return StarlarkList.copyOf(thread.mutability(), values());
   }
 
@@ -373,7 +352,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
   }
 
   @Override
-  default @NotNull Iterator<K> iterator() {
+  default @Nonnull Iterator<K> iterator() {
     return contents().keySet().iterator();
   }
 
@@ -390,7 +369,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
   }
 
   @Override
-  default @NotNull Set<Entry<K, V>> entrySet() {
+  default @Nonnull Set<Entry<K, V>> entrySet() {
     return Collections.unmodifiableMap(contents()).entrySet();
   }
 
@@ -405,7 +384,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
   }
 
   @Override
-  default @NotNull Set<K> keySet() {
+  default @Nonnull Set<K> keySet() {
     return Collections.unmodifiableMap(contents()).keySet();
   }
 
@@ -415,7 +394,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
   }
 
   @Override
-  default @NotNull Collection<V> values() {
+  default @Nonnull Collection<V> values() {
     return Collections.unmodifiableMap(contents()).values();
   }
 
@@ -435,7 +414,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
 
   @Deprecated // use putEntries
   @Override
-  default void putAll(@NotNull Map<? extends K, ? extends V> map) {
+  default void putAll(@Nonnull Map<? extends K, ? extends V> map) {
     throw new UnsupportedOperationException();
   }
 

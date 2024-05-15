@@ -15,7 +15,7 @@ import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 
 @StarlarkBuiltin(name = "super")

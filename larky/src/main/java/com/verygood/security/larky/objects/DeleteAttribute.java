@@ -12,7 +12,7 @@ import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 
 public abstract class DeleteAttribute {
 
@@ -84,7 +84,7 @@ public abstract class DeleteAttribute {
    *                 if the attribute was unable to be set. The caller must handle the exception if
    *                 this value is set to true.
    */
-  public static void dunderDelAttr(@NotNull PyObject obj, String name, StarlarkThread thread, boolean throwExc) {
+  public static void dunderDelAttr(@Nonnull PyObject obj, String name, StarlarkThread thread, boolean throwExc) {
     final LarkyType type = obj.typeClass();
     // TODO(mahmoudimus): This needs to also support if there's a Java class for `__DELATTR__`
     final Object __delattr__ = type.getInternalDictUnsafe().getOrDefault(PyProtocols.__DELATTR__, null);
