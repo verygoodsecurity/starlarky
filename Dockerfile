@@ -1,4 +1,4 @@
-FROM ubuntu:lunar
+FROM ubuntu:mantic
 
 WORKDIR /build/
 ENV PYENV_ROOT="/root/.pyenv"
@@ -7,9 +7,9 @@ ENV PATH="/root/.poetry/bin:$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH"
 # java
 RUN apt-get update -qq \
     && JVM_ARCH=$([ `lscpu | grep -o "aarch64"` ] && echo "arm64" || echo "amd64") \
-    && apt-get install -y curl openjdk-17-jdk maven \
-    && update-alternatives --set java /usr/lib/jvm/java-17-openjdk-${JVM_ARCH}/bin/java \
-    && update-alternatives --set javac /usr/lib/jvm/java-17-openjdk-${JVM_ARCH}/bin/javac
+    && apt-get install -y curl openjdk-21-jdk maven \
+    && update-alternatives --set java /usr/lib/jvm/java-21-openjdk-${JVM_ARCH}/bin/java \
+    && update-alternatives --set javac /usr/lib/jvm/java-21-openjdk-${JVM_ARCH}/bin/javac
 
 # ghr
 RUN apt-get install golang git -y \
@@ -17,10 +17,10 @@ RUN apt-get install golang git -y \
 
 # graalvm
 RUN GRAALVM_ARCH=$([ `lscpu | grep -o "aarch64"` ] && echo "aarch64" || echo "x64") \
-    && curl https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-17.0.9/graalvm-community-jdk-17.0.9_linux-${GRAALVM_ARCH}_bin.tar.gz  -O -J -L \
-    && tar xfz graalvm-community-jdk-17.0.9_linux-${GRAALVM_ARCH}_bin.tar.gz \
-    && mv  graalvm-community-openjdk-17.0.9+9.1 .graalvm \
-    && rm graalvm-community-jdk-17.0.9_linux-${GRAALVM_ARCH}_bin.tar.gz \
+    && curl https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-21.0.2/graalvm-community-jdk-21.0.2_linux-${GRAALVM_ARCH}_bin.tar.gz  -O -J -L \
+    && tar xfz graalvm-community-jdk-21.0.2_linux-${GRAALVM_ARCH}_bin.tar.gz \
+    && mv  graalvm-community-openjdk-21.0.2+13.1 .graalvm \
+    && rm graalvm-community-jdk-21.0.2_linux-${GRAALVM_ARCH}_bin.tar.gz \
     && /build/.graalvm/bin/gu install native-image
 
 # python
