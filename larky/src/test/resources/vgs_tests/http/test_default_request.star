@@ -223,17 +223,8 @@ def _suite():
     larky.parametrize(
         _suite.addTest, unittest.FunctionTestCase, "val", [
             {},
-            # {"": 1},
+            {"": 1},
             {"iat": 1691672844}
-            #     iat = 1691672844
-            #
-            #     headers = {}
-            #     asserts.assert_that(horrible_fixture).is_equal_to(headers)
-            #
-            #     horrible_fixture = {
-            #         "iat": int(json.loads(str(headers))["iat"])
-            #     }
-            # {1: ""}
         ]
     )(_test_str_request_headers_equivalent_to_str_dict_for)
     _suite.addTest(unittest.FunctionTestCase(_test_str_request_headers_equivalent_to_str_dict))

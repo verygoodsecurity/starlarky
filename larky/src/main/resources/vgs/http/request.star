@@ -79,7 +79,6 @@ def VGSHttpRequest(
         # it takes care of all the initialization, we then, overwrite
         # the headers property to make it into a Case Insensitive "MultiDict"
         self.__init__(url, data=data, headers={}, method=method)
-        #self.__dict__.pop('headers')
         self.headers = VGSCIMultiDict(headers)
         self.url = url
         parsed_url = parse.urlsplit(url)
