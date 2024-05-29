@@ -1,8 +1,14 @@
 """Unit tests for request.star"""
 load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//larky", larky="larky")
+load("@stdlib//json", json="json")
 load("@stdlib//unittest", unittest="unittest")
+
+
 load("@vendor//asserts", asserts="asserts")
-load("@vgs//http/request", "VGSHttpRequest")
+load("@vendor//multidict", CIMultiDict="CIMultiDict")
+
+load("@vgs//http/request", VGSHttpRequest="VGSHttpRequest", VGSCIMultiDict="VGSCIMultiDict")
 
 
 def _create_simple_request():
@@ -59,6 +65,29 @@ def _test_request_remove_header():
     asserts.assert_that(request.headers.items()).is_equal_to(headers.items())
 
 
+def _test_str_request_headers_equivalent_to_str_dict_for(val):
+    str_headers = str(val)
+    multidict = VGSCIMultiDict(val)
+    asserts.assert_that(json.loads(str_headers)).is_equal_to(json.loads(str(multidict)))
+
+def _test_str_request_headers_equivalent_to_str_dict():
+    iat = 1691672844
+
+    headers = {
+        "iat": iat
+    }
+
+    horrible_fixture1 = {
+        "iat": int(json.loads(str(headers))["iat"])
+    }
+
+    multidict = VGSCIMultiDict(headers)
+    horrible_fixture2 = {
+        "iat": int(json.loads(str(multidict))["iat"])
+    }
+    asserts.assert_that(horrible_fixture1).is_equal_to(horrible_fixture2)
+
+
 def _test_request_headers_property_set_headers():
     request = _create_simple_request()
 
@@ -67,7 +96,6 @@ def _test_request_headers_property_set_headers():
         'header4': 'key4',
     }
     request.headers = new_headers
-
     headers = {
         'header3': 'key3',
         'header4': 'key4',
@@ -192,6 +220,14 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_request_has_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_remove_header))
+    larky.parametrize(
+        _suite.addTest, unittest.FunctionTestCase, "val", [
+            {},
+            {"": 1},
+            {"iat": 1691672844}
+        ]
+    )(_test_str_request_headers_equivalent_to_str_dict_for)
+    _suite.addTest(unittest.FunctionTestCase(_test_str_request_headers_equivalent_to_str_dict))
     _suite.addTest(unittest.FunctionTestCase(_test_request_headers_property_set_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_headers_property_add_header))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_method))
