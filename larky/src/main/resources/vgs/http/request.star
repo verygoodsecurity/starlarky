@@ -4,6 +4,20 @@ load("@stdlib//urllib/request", urllib_request="request")
 
 load("@vendor//multidict", CIMultiDict="CIMultiDict")
 
+
+def VGSCIMultiDict(*args, **kwargs):
+    """VGS specific CI MultiDict with the support for duplicate case-insensitive keys."""
+    self = CIMultiDict(*args, **kwargs)
+    self.__name__ = 'VGSCIMultiDict'
+    self.__class__ = VGSCIMultiDict
+
+    def __str__():
+        body = ", ".join(["\"{}\": {}".format(k, repr(v)) for k, v in iter(self.items())])
+        return "{{{}}}".format(body)
+    self.__str__= __str__
+    return self
+
+
 def VGSHttpRequest(
     url,
     data=None,
@@ -35,6 +49,13 @@ def VGSHttpRequest(
         self.data = data
     self.body = larky.property(_get_body, _set_body)
 
+    # headers property
+    def _get_headers():
+        return self._headers
+
+    def _set_headers(headers):
+        self._headers = VGSCIMultiDict(headers)
+    self.headers = larky.property(_get_headers, _set_headers)
     # override super
     def add_header(key, val):
         # original implementation uses key.capitalize(), however, we will not modify the keys.
@@ -58,7 +79,8 @@ def VGSHttpRequest(
         # it takes care of all the initialization, we then, overwrite
         # the headers property to make it into a Case Insensitive "MultiDict"
         self.__init__(url, data=data, headers={}, method=method)
-        self.headers = CIMultiDict(headers)
+        #self.__dict__.pop('headers')
+        self.headers = VGSCIMultiDict(headers)
         self.url = url
         parsed_url = parse.urlsplit(url)
         self.path = parsed_url.path
@@ -71,3 +93,4 @@ def VGSHttpRequest(
     self = __init__(url, data, headers, method)
 
     return self
+
