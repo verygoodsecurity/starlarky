@@ -22,7 +22,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <google.auto.value.version>1.10.4</google.auto.value.version>
+        <google.auto.value.version>1.11.0</google.auto.value.version>
         <google.compile.testing.version>0.21.0</google.compile.testing.version>
         <google.errorprone.javac.version>9+181-r4173-1</google.errorprone.javac.version>
         <google.errorprone.version>2.27.1</google.errorprone.version>
