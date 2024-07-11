@@ -54,7 +54,7 @@
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
         <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
         <protobuf.version>3.18.1</protobuf.version>
-        <surefire-plugin.version>3.3.0</surefire-plugin.version>
+        <surefire-plugin.version>3.3.1</surefire-plugin.version>
     </properties>
 
     <dependencies>
