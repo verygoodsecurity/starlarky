@@ -21,6 +21,8 @@ def verify(num):
     >>> verify('534618613411236')
     False
     """
+    if not isdigit(num):
+        return False
     checksum = int(num[-1])
     cardSum = int(_luhn_summation(num,-2))
     return ((cardSum + checksum) % 10) == 0
