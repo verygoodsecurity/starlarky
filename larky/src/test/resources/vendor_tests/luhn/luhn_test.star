@@ -8,6 +8,9 @@ def test_valid():
 def test_invalid():
     asserts.assert_that(luhn.verify('4222222222222222')).is_equal_to(False)
 
+def test_nonumeric():
+    asserts.assert_that(luhn.verify('422222222x22222')).is_equal_to(False)
+
 def test_generate():
     asserts.assert_that(luhn.generate('7992739871')).is_equal_to(3)
 
