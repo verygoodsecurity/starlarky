@@ -22,6 +22,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_valid))
     _suite.addTest(unittest.FunctionTestCase(test_invalid))
     _suite.addTest(unittest.FunctionTestCase(test_generate))
+    _suite.addTest(unittest.FunctionTestCase(test_nonumeric))
     _suite.addTest(unittest.FunctionTestCase(test_append))
     return _suite
 
