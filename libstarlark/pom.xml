@@ -34,7 +34,7 @@
         <org.junit.version>4.13.2</org.junit.version>
         <org.projectlombok.version>1.18.34</org.projectlombok.version>
 
-        <surefire-plugin.version>3.4.0</surefire-plugin.version>
+        <surefire-plugin.version>3.5.0</surefire-plugin.version>
     </properties>
 
     <dependencies>
