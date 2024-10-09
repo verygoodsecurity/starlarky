@@ -58,6 +58,7 @@ public class VaultModule implements LarkyVault {
             "ALPHANUMERIC_LENGTH_PRESERVING_ONE_T_TWO"
     );
 
+
     private final ImmutableList<String> supportedSigningAlgorithms = ImmutableList.of(
             "RSASSA_PSS_SHA_256",
             "RSASSA_PSS_SHA_384",

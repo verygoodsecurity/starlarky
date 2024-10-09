@@ -92,6 +92,11 @@ public class NetworkTokenModule implements LarkyNetworkToken {
             doc = "VGS merchant id to get a network token for",
             defaultValue = "''",
             allowedTypes = {@ParamType(type = String.class)}),
+        @Param(
+            name = "transaction_type",
+            named = true,
+            doc = "Type of payment transaction for requesting cryptogram",
+            allowedTypes = {@ParamType(type = String.class)}),
       })
   @Override
   public Dict<String, Object> getNetworkToken(
@@ -101,16 +106,18 @@ public class NetworkTokenModule implements LarkyNetworkToken {
       String currencyCode,
       String cryptogramType,
       String vgsMerchantId,
+      String transactionType,
       StarlarkThread thread)
       throws EvalException {
     if (pan.trim().isEmpty()) {
       throw Starlark.errorf("pan argument cannot be blank");
     }
     final Optional<NetworkTokenService.NetworkToken> networkTokenOptional;
+    // TODO: handle txn type here
     try {
       networkTokenOptional =
-          networkTokenService.getNetworkToken(pan, cvv, amount, currencyCode, cryptogramType,
-              vgsMerchantId);
+          networkTokenService.getNetworkToken(
+              pan, cvv, amount, currencyCode, cryptogramType, vgsMerchantId, transactionType);
     } catch (UnsupportedOperationException exception) {
       throw Starlark.errorf("nts.get_network_token operation must be overridden");
     }
