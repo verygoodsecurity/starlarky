@@ -13,10 +13,17 @@ public interface NetworkTokenService {
    * @param amount amount of payment for retrieving cryptogram
    * @param currencyCode currency code of payment for retrieving cryptogram
    * @param cryptogramType type of cryptogram
+   * @param transactionType type of transaction for requesting cryptogram
    * @return the network token value
    */
   Optional<NetworkToken> getNetworkToken(
-      String panAlias, String cvv, String amount, String currencyCode, String cryptogramType, String merchantId);
+      String panAlias,
+      String cvv,
+      String amount,
+      String currencyCode,
+      String cryptogramType,
+      String transactionType,
+      String merchantId);
 
   @Data
   @Builder
