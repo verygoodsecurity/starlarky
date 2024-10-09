@@ -6,7 +6,13 @@ import java.util.Optional;
 public class NoopNetworkTokenService implements NetworkTokenService {
   @Override
   public Optional<NetworkToken> getNetworkToken(
-      String panAlias, String cvv, String amount, String currencyCode, String cryptogramType, String vgsMerchantId) {
+      String panAlias,
+      String cvv,
+      String amount,
+      String currencyCode,
+      String cryptogramType,
+      String vgsMerchantId,
+      String transactionType) {
     throw new UnsupportedOperationException("Not implemented");
   }
 }

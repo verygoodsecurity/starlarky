@@ -63,6 +63,8 @@ def render(
     cryptogram_value=None,
     cryptogram_eci=None,
     vgs_merchant_id="",
+    headers=None,
+    transaction_type=None,
 ):
     """Retrieves a network token for the given PAN alias, renders the cryptogram, and injects the network token values
     into the payload.
@@ -102,6 +104,9 @@ def render(
            payload
     :param cryptogram_eci: JSONPath to insert the cryptogram ECI of the network token within the input payload
     :param vgs_merchant_id: Merchant id to get a network token for
+    :param headers: the headers of request to get advanced parameters from, such as transaction_type.
+    :param transaction_type: the type of transaction for requesting cryptogram. such as "ECOM", "POS", "RECURRING" and
+                             "AFT"
     :return: JSON payload injected with network token values
     """
     pan_value = jsonpath_ng.parse(pan).find(input).value
@@ -122,6 +127,8 @@ def render(
         jsonpath_ng.parse(vgs_merchant_id).find(input).value \
             if vgs_merchant_id.startswith("$.") \
             else vgs_merchant_id 
+    
+    # TODO: extract txn type from header if available
 
     network_token = _nts.get_network_token(
         pan=pan_value,
@@ -130,6 +137,7 @@ def render(
         currency_code=currency_code_value,
         cryptogram_type="TAVV" if dcvv == None else "DTVV",
         vgs_merchant_id=vgs_merchant_id_value,
+        transaction_type=transaction_type,
     )
     placements = [
         (pan, network_token["token"]),
