@@ -4,6 +4,7 @@ import com.verygood.security.larky.modules.vgs.nts.spi.NetworkTokenService;
 import java.util.Optional;
 
 public class NoopNetworkTokenService implements NetworkTokenService {
+
   @Override
   public Optional<NetworkToken> getNetworkToken(
       String panAlias,
@@ -11,8 +12,12 @@ public class NoopNetworkTokenService implements NetworkTokenService {
       String amount,
       String currencyCode,
       String cryptogramType,
-      String vgsMerchantId,
-      String transactionType) {
+      String merchantId) {
+    throw new UnsupportedOperationException("Not implemented");
+  }
+
+  @Override
+  public Optional<NetworkToken> getNetworkTokenV2(GetNetworkTokenRequest request) {
     throw new UnsupportedOperationException("Not implemented");
   }
 }

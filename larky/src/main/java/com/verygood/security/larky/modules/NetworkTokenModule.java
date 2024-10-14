@@ -113,11 +113,18 @@ public class NetworkTokenModule implements LarkyNetworkToken {
       throw Starlark.errorf("pan argument cannot be blank");
     }
     final Optional<NetworkTokenService.NetworkToken> networkTokenOptional;
-    // TODO: handle txn type here
     try {
       networkTokenOptional =
-          networkTokenService.getNetworkToken(
-              pan, cvv, amount, currencyCode, cryptogramType, vgsMerchantId, transactionType);
+          networkTokenService.getNetworkTokenV2(
+              NetworkTokenService.GetNetworkTokenRequest.builder()
+                  .panAlias(pan)
+                  .cvv(cvv)
+                  .amount(amount)
+                  .currencyCode(currencyCode)
+                  .cryptogramType(cryptogramType)
+                  .merchantId(vgsMerchantId)
+                  .transactionType(transactionType)
+                  .build());
     } catch (UnsupportedOperationException exception) {
       throw Starlark.errorf("nts.get_network_token operation must be overridden");
     }

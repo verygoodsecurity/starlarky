@@ -32,23 +32,37 @@ public class MockNetworkTokenService implements NetworkTokenService {
       String amount,
       String currencyCode,
       String cryptogramType,
-      String vgsMerchantId,
-      String transactionType) {
-    if (panAlias.equals("NOT_FOUND")) {
+      String merchantId) {
+    return getNetworkTokenV2(
+        GetNetworkTokenRequest.builder()
+            .panAlias(panAlias)
+            .cvv(cvv)
+            .amount(amount)
+            .currencyCode(currencyCode)
+            .cryptogramType(cryptogramType)
+            .merchantId(merchantId)
+            .build());
+  }
+
+  @Override
+  public Optional<NetworkToken> getNetworkTokenV2(GetNetworkTokenRequest request) {
+    if (request.getPanAlias().equals("NOT_FOUND")) {
       return Optional.empty();
     }
-    if (StringUtils.isBlank(vgsMerchantId)) {
-      return Optional.of(getForDefaultMerchant(cryptogramType));
+    if (StringUtils.isBlank(request.getMerchantId())) {
+      return Optional.of(getForDefaultMerchant(request.getCryptogramType()));
     }
-    if (!NETWORK_TOKENS.containsKey(vgsMerchantId)) {
+    if (!NETWORK_TOKENS.containsKey(request.getMerchantId())) {
       return Optional.empty();
     }
     final NetworkToken networkToken =
         NETWORK_TOKENS
-            .get(vgsMerchantId)
+            .get(request.getMerchantId())
             .cryptogramValue(
-                cryptogramType.equals("DTVV") ? "MOCK_DYNAMIC_CVV" : "MOCK_CRYPTOGRAM_VALUE")
-            .cryptogramType(cryptogramType)
+                request.getCryptogramType().equals("DTVV")
+                    ? "MOCK_DYNAMIC_CVV"
+                    : "MOCK_CRYPTOGRAM_VALUE")
+            .cryptogramType(request.getCryptogramType())
             .build();
 
     return Optional.of(networkToken);
