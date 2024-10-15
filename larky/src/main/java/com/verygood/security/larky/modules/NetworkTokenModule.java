@@ -5,7 +5,6 @@ import com.verygood.security.larky.modules.vgs.nts.LarkyNetworkToken;
 import com.verygood.security.larky.modules.vgs.nts.MockNetworkTokenService;
 import com.verygood.security.larky.modules.vgs.nts.NoopNetworkTokenService;
 import com.verygood.security.larky.modules.vgs.nts.spi.NetworkTokenService;
-import com.verygood.security.larky.modules.vgs.nts.spi.NetworkTokenServiceV2;
 import java.util.List;
 import java.util.Optional;
 import java.util.ServiceLoader;
@@ -118,24 +117,18 @@ public class NetworkTokenModule implements LarkyNetworkToken {
     }
     final Optional<NetworkTokenService.NetworkToken> networkTokenOptional;
     try {
-      if (networkTokenService instanceof NetworkTokenServiceV2 v2Service) {
-        networkTokenOptional =
-            v2Service.getNetworkTokenV2(
-                NetworkTokenServiceV2.GetNetworkTokenRequest.builder()
-                    .panAlias(pan)
-                    .cvv(cvv)
-                    .amount(amount)
-                    .currencyCode(currencyCode)
-                    .cryptogramType(cryptogramType)
-                    .merchantId(vgsMerchantId)
-                    .transactionType(
-                        transactionType instanceof String ? (String) transactionType : null)
-                    .build());
-      } else {
-        networkTokenOptional =
-            networkTokenService.getNetworkToken(
-                pan, cvv, amount, currencyCode, cryptogramType, vgsMerchantId);
-      }
+      networkTokenOptional =
+          networkTokenService.getNetworkToken(
+              NetworkTokenService.GetNetworkTokenRequest.builder()
+                  .panAlias(pan)
+                  .cvv(cvv)
+                  .amount(amount)
+                  .currencyCode(currencyCode)
+                  .cryptogramType(cryptogramType)
+                  .merchantId(vgsMerchantId)
+                  .transactionType(
+                      transactionType instanceof String ? (String) transactionType : null)
+                  .build());
     } catch (UnsupportedOperationException exception) {
       throw Starlark.errorf("nts.get_network_token operation must be overridden");
     }

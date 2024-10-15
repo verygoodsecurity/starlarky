@@ -1,12 +1,12 @@
 package com.verygood.security.larky.modules.vgs.nts;
 
 import com.google.common.collect.ImmutableMap;
-import com.verygood.security.larky.modules.vgs.nts.spi.NetworkTokenServiceV2;
+import com.verygood.security.larky.modules.vgs.nts.spi.NetworkTokenService;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
 
-public class MockNetworkTokenService implements NetworkTokenServiceV2 {
+public class MockNetworkTokenService implements NetworkTokenService {
 
   private static final String DEFAULT_MERCHANT_ID = "MC8SWErAVLuooPFYz9WTx5W1";
 
@@ -33,26 +33,7 @@ public class MockNetworkTokenService implements NetworkTokenServiceV2 {
           .cryptogramEci("MOCK_CRYPTOGRAM_ECI");
 
   @Override
-  public Optional<NetworkToken> getNetworkToken(
-      String panAlias,
-      String cvv,
-      String amount,
-      String currencyCode,
-      String cryptogramType,
-      String merchantId) {
-    return getNetworkTokenV2(
-        GetNetworkTokenRequest.builder()
-            .panAlias(panAlias)
-            .cvv(cvv)
-            .amount(amount)
-            .currencyCode(currencyCode)
-            .cryptogramType(cryptogramType)
-            .merchantId(merchantId)
-            .build());
-  }
-
-  @Override
-  public Optional<NetworkToken> getNetworkTokenV2(GetNetworkTokenRequest request) {
+  public Optional<NetworkToken> getNetworkToken(GetNetworkTokenRequest request) {
     if (request.getPanAlias().equals("NOT_FOUND")) {
       return Optional.empty();
     }
