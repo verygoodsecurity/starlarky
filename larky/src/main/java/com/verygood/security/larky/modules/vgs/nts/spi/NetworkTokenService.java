@@ -46,10 +46,10 @@ public interface NetworkTokenService {
     @Nullable private final String currencyCode;
     // type of cryptogram
     @Nullable private final String cryptogramType;
-    // type of transaction for requesting cryptogram
-    @Nullable private final String transactionType;
     // id of merchant
     @Nullable private final String merchantId;
+    // type of transaction for requesting cryptogram
+    @Nullable private final String transactionType;
   }
 
   @Data
