@@ -1,12 +1,12 @@
 package com.verygood.security.larky.modules.vgs.nts;
 
 import com.google.common.collect.ImmutableMap;
-import com.verygood.security.larky.modules.vgs.nts.spi.NetworkTokenService;
+import com.verygood.security.larky.modules.vgs.nts.spi.NetworkTokenServiceV2;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
 
-public class MockNetworkTokenService implements NetworkTokenService {
+public class MockNetworkTokenService implements NetworkTokenServiceV2 {
 
   private static final String DEFAULT_MERCHANT_ID = "MC8SWErAVLuooPFYz9WTx5W1";
 

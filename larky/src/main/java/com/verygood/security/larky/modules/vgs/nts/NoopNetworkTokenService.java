@@ -1,9 +1,9 @@
 package com.verygood.security.larky.modules.vgs.nts;
 
-import com.verygood.security.larky.modules.vgs.nts.spi.NetworkTokenService;
+import com.verygood.security.larky.modules.vgs.nts.spi.NetworkTokenServiceV2;
 import java.util.Optional;
 
-public class NoopNetworkTokenService implements NetworkTokenService {
+public class NoopNetworkTokenService implements NetworkTokenServiceV2 {
 
   @Override
   public Optional<NetworkToken> getNetworkToken(
