@@ -8,6 +8,7 @@ load("@stdlib//re", re="re")
 load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 
 VGS_NETWORK_TOKEN_HEADER = "vgs-network-token"
+VGS_CRYPTOGRAM_TRANSACTION_TYPE_HEADER = "vgs-cryptogram-txn-type"
 PSPType = enum.Enum('PSPType', [
     'STRIPE',
     'ADYEN',
@@ -128,7 +129,8 @@ def render(
             if vgs_merchant_id.startswith("$.") \
             else vgs_merchant_id 
     
-    # TODO: extract txn type from header if available
+    if transaction_type == None and headers != None and VGS_CRYPTOGRAM_TRANSACTION_TYPE_HEADER in headers:
+        transaction_type = headers.pop(VGS_CRYPTOGRAM_TRANSACTION_TYPE_HEADER)
 
     network_token = _nts.get_network_token(
         pan=pan_value,

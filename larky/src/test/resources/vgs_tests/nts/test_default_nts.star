@@ -141,6 +141,64 @@ def _test_render():
     asserts.assert_that(output["mpiData"]["eci"]).is_equal_to("MOCK_CRYPTOGRAM_ECI")
 
 
+def _test_render_with_transaction_type():
+    output = nts.render(
+        _make_fixture(),
+        pan="$.paymentMethod.number",
+        cvv="$.paymentMethod.cvv",
+        amount="$.amount.value",
+        currency_code="$.amount.currency",
+        exp_month="$.paymentMethod.expiryMonth",
+        exp_year="$.paymentMethod.expiryYear",
+        cryptogram_value="$.mpiData.cavv",
+        cryptogram_eci="$.mpiData.eci",
+        transaction_type="AFT",
+    )
+    asserts.assert_that(output["paymentMethod"]["number"]).is_equal_to("5555555555554444")
+
+
+def _test_render_with_transaction_type_from_headers():
+    headers = {
+        "vgs-cryptogram-txn-type": "AFT",
+    }
+    output = nts.render(
+        _make_fixture(),
+        pan="$.paymentMethod.number",
+        cvv="$.paymentMethod.cvv",
+        amount="$.amount.value",
+        currency_code="$.amount.currency",
+        exp_month="$.paymentMethod.expiryMonth",
+        exp_year="$.paymentMethod.expiryYear",
+        cryptogram_value="$.mpiData.cavv",
+        cryptogram_eci="$.mpiData.eci",
+        headers=headers,
+    )
+    asserts.assert_that(output["paymentMethod"]["number"]).is_equal_to("5555555555554444")
+    asserts.assert_that(headers).is_equal_to({})
+
+
+def _test_render_with_transaction_type_value_override_headers():
+    headers = {
+        "vgs-cryptogram-txn-type": "ECOM",
+    }
+    output = nts.render(
+        _make_fixture(),
+        pan="$.paymentMethod.number",
+        cvv="$.paymentMethod.cvv",
+        amount="$.amount.value",
+        currency_code="$.amount.currency",
+        exp_month="$.paymentMethod.expiryMonth",
+        exp_year="$.paymentMethod.expiryYear",
+        cryptogram_value="$.mpiData.cavv",
+        cryptogram_eci="$.mpiData.eci",
+        headers=headers,
+        transaction_type="AFT",
+    )
+    asserts.assert_that(output["paymentMethod"]["number"]).is_equal_to("5555555555554444")
+    asserts.assert_that(headers).is_equal_to({
+        "vgs-cryptogram-txn-type": "ECOM",
+    })
+
 def _test_render_for_merchant():
     output = nts.render(
         _make_fixture(),
@@ -473,6 +531,9 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_get_network_token_not_found))
     # Render tests
     _suite.addTest(unittest.FunctionTestCase(_test_render))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_with_transaction_type))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_with_transaction_type_from_headers))
+    _suite.addTest(unittest.FunctionTestCase(_test_render_with_transaction_type_value_override_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_render_for_merchant))
     _suite.addTest(unittest.FunctionTestCase(_test_render_for_merchant_from_jsonpath))
     _suite.addTest(unittest.FunctionTestCase(_test_render_for_merchant_from_jsonpath_not_found))
