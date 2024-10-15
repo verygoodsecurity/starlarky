@@ -25,6 +25,13 @@ public class MockNetworkTokenService implements NetworkTokenService {
               .expireYear(27)
               .cryptogramEci("MOCK_CRYPTOGRAM_ECI"));
 
+  private static final NetworkToken.NetworkTokenBuilder AFT_NETWORK_TOKEN =
+      NetworkToken.builder()
+          .token("5555555555554444")
+          .expireMonth(12)
+          .expireYear(27)
+          .cryptogramEci("MOCK_CRYPTOGRAM_ECI");
+
   @Override
   public Optional<NetworkToken> getNetworkToken(
       String panAlias,
@@ -48,6 +55,16 @@ public class MockNetworkTokenService implements NetworkTokenService {
   public Optional<NetworkToken> getNetworkTokenV2(GetNetworkTokenRequest request) {
     if (request.getPanAlias().equals("NOT_FOUND")) {
       return Optional.empty();
+    }
+    if (request.getTransactionType() != null && request.getTransactionType().equals("AFT")) {
+      return Optional.of(
+          AFT_NETWORK_TOKEN
+              .cryptogramValue(
+                  request.getCryptogramType().equals("DTVV")
+                      ? "MOCK_DYNAMIC_CVV"
+                      : "MOCK_CRYPTOGRAM_VALUE")
+              .cryptogramType(request.getCryptogramType())
+              .build());
     }
     if (StringUtils.isBlank(request.getMerchantId())) {
       return Optional.of(getForDefaultMerchant(request.getCryptogramType()));
