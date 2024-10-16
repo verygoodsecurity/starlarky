@@ -8,12 +8,14 @@ import com.verygood.security.larky.modules.vgs.nts.spi.NetworkTokenService;
 import java.util.List;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
@@ -92,6 +94,12 @@ public class NetworkTokenModule implements LarkyNetworkToken {
             doc = "VGS merchant id to get a network token for",
             defaultValue = "''",
             allowedTypes = {@ParamType(type = String.class)}),
+        @Param(
+            name = "transaction_type",
+            named = true,
+            defaultValue = "None",
+            doc = "Type of payment transaction for requesting cryptogram",
+            allowedTypes = {@ParamType(type = NoneType.class), @ParamType(type = String.class)}),
       })
   @Override
   public Dict<String, Object> getNetworkToken(
@@ -101,6 +109,7 @@ public class NetworkTokenModule implements LarkyNetworkToken {
       String currencyCode,
       String cryptogramType,
       String vgsMerchantId,
+      @Nullable Object transactionType,
       StarlarkThread thread)
       throws EvalException {
     if (pan.trim().isEmpty()) {
@@ -109,8 +118,17 @@ public class NetworkTokenModule implements LarkyNetworkToken {
     final Optional<NetworkTokenService.NetworkToken> networkTokenOptional;
     try {
       networkTokenOptional =
-          networkTokenService.getNetworkToken(pan, cvv, amount, currencyCode, cryptogramType,
-              vgsMerchantId);
+          networkTokenService.getNetworkToken(
+              NetworkTokenService.GetNetworkTokenRequest.builder()
+                  .panAlias(pan)
+                  .cvv(cvv)
+                  .amount(amount)
+                  .currencyCode(currencyCode)
+                  .cryptogramType(cryptogramType)
+                  .merchantId(vgsMerchantId)
+                  .transactionType(
+                      transactionType instanceof String ? (String) transactionType : null)
+                  .build());
     } catch (UnsupportedOperationException exception) {
       throw Starlark.errorf("nts.get_network_token operation must be overridden");
     }

@@ -8,6 +8,7 @@ load("@stdlib//re", re="re")
 load("@vendor//jsonpath_ng", jsonpath_ng="jsonpath_ng")
 
 VGS_NETWORK_TOKEN_HEADER = "vgs-network-token"
+VGS_CRYPTOGRAM_TRANSACTION_TYPE_HEADER = "vgs-cryptogram-txn-type"
 PSPType = enum.Enum('PSPType', [
     'STRIPE',
     'ADYEN',
@@ -63,6 +64,8 @@ def render(
     cryptogram_value=None,
     cryptogram_eci=None,
     vgs_merchant_id="",
+    headers=None,
+    transaction_type=None,
 ):
     """Retrieves a network token for the given PAN alias, renders the cryptogram, and injects the network token values
     into the payload.
@@ -102,6 +105,9 @@ def render(
            payload
     :param cryptogram_eci: JSONPath to insert the cryptogram ECI of the network token within the input payload
     :param vgs_merchant_id: Merchant id to get a network token for
+    :param headers: the headers of request to get advanced parameters from, such as transaction_type.
+    :param transaction_type: the type of transaction for requesting cryptogram. such as "ECOM", "POS", "RECURRING" and
+                             "AFT"
     :return: JSON payload injected with network token values
     """
     pan_value = jsonpath_ng.parse(pan).find(input).value
@@ -122,6 +128,9 @@ def render(
         jsonpath_ng.parse(vgs_merchant_id).find(input).value \
             if vgs_merchant_id.startswith("$.") \
             else vgs_merchant_id 
+    
+    if transaction_type == None and headers != None and VGS_CRYPTOGRAM_TRANSACTION_TYPE_HEADER in headers:
+        transaction_type = headers.pop(VGS_CRYPTOGRAM_TRANSACTION_TYPE_HEADER)
 
     network_token = _nts.get_network_token(
         pan=pan_value,
@@ -130,6 +139,7 @@ def render(
         currency_code=currency_code_value,
         cryptogram_type="TAVV" if dcvv == None else "DTVV",
         vgs_merchant_id=vgs_merchant_id_value,
+        transaction_type=transaction_type,
     )
     placements = [
         (pan, network_token["token"]),
