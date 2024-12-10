@@ -7,6 +7,12 @@
 <a href="https://github.com/verygoodsecurity/starlarky/blob/master/LICENSE"><img src="https://img.shields.io/github/license/verygoodsecurity/starlarky"/></a>
 
 
+# Starlarky
+
+VGS edition of Google's safe and hermetically sealed Starlark language - a non-Turing complete subset of Python 3.
+
+All operational details are available in [Compass](https://verygoodsecurity.atlassian.net/compass/component/c212e564-257f-4cc4-a52b-a31eb2dd0ad8).
+
 <!-- toc -->
 * [Description](#description)
 * [Project overview](#project-overview)
