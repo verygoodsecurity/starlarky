@@ -1,0 +1,30 @@
+name: Starlarky
+id: 'ari:cloud:compass:83673fa7-fd28-4f4a-9738-f584064570a7:component/db43f86d-85fe-42e1-954d-457f5a4082b8/c212e564-257f-4cc4-a52b-a31eb2dd0ad8'
+description: VGS edition of Google's safe and hermetically sealed Starlark language - a non-Turing complete subset of Python 3.
+configVersion: 1
+typeId: LIBRARY
+ownerId: 'ari:cloud:identity::team/64cfeb5f-5d71-4231-9332-0519bdd112bb-48'
+fields:
+  tier: 4
+links:
+  - name: starlarky
+    type: REPOSITORY
+    url: 'https://github.com/verygoodsecurity/starlarky'
+  - name: ''
+    type: CHAT_CHANNEL
+    url: 'https://getverygood.slack.com/archives/C057XN649U5'
+  - name: ''
+    type: REPOSITORY
+    url: 'https://verygoodsecurity.atlassian.net/jira/software/c/projects/VAULT/boards/447'
+relationships: {}
+labels:
+  - faas
+  - 'language:java'
+  - secure-computation
+  - skylark
+  - 'source:github'
+  - starlark
+  - team-vault
+
+# Learn more about formatting compass.yml:
+# https://go.atlassian.com/compass-yml-format
