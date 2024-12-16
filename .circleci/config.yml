@@ -330,14 +330,14 @@ workflows:
       not: << pipeline.parameters.nightly-security-scan >>
     jobs:
       - build-dist-maven:
-          context: github-artifact-publisher
+          context: github
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
             branches:
               ignore: /.*/
       - build-dist-linux:
-          context: github-artifact-publisher
+          context: github
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
@@ -346,7 +346,7 @@ workflows:
           requires:
             - build-dist-maven
       - publish-to-gh:
-          context: github-artifact-publisher
+          context: github
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
