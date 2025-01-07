@@ -102,6 +102,7 @@ install_python: &install_python
       ~/.pyenv/bin/pyenv local 3.10.5
       curl -sSL https://install.python-poetry.org | python -
       echo 'export PATH="$HOME/.local/bin:$PATH"' >> $BASH_ENV
+      pip install setuptools
 
 build_test_pylarky: &build_test_pylarky
   run:
