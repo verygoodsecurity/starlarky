@@ -377,7 +377,7 @@ def AESKey(key, algorithm):
         ALGORITHMS.A256GCM: AES.MODE_GCM,
     }
 
-    self.IV_BYTE_LENGTH_MODE_MAP = {"CBC": ALGORITHMS.AES.block_size // 8, "GCM": 96 // 8}
+    self.IV_BYTE_LENGTH_MODE_MAP = {AES.MODE_CBC: AES.block_size // 8, AES.MODE_GCM: 96 // 8}
 
     def __init__(key, algorithm):
         if not operator.contains(ALGORITHMS.AES, algorithm):
@@ -417,7 +417,7 @@ def AESKey(key, algorithm):
     def encrypt(plain_text, aad=None):
         plain_text = six.ensure_binary(plain_text)
         def _try_encrypt(self, plain_text, aad):
-            iv_byte_length = self.IV_BYTE_LENGTH_MODE_MAP.get(self._mode.name, ALGORITHMS.AES.block_size)
+            iv_byte_length = self.IV_BYTE_LENGTH_MODE_MAP.get(self._mode, AES.block_size)
             iv = get_random_bytes(iv_byte_length)
             cipher = AES.new(self._key, self._mode, iv)
             if self._mode == AES.MODE_CBC:
