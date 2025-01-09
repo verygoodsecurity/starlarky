@@ -157,38 +157,6 @@ def RSAKey(key, algorithm):
                                SHA512=SHA512,
                                SHA1=SHA1)
 
-    def __init__(key, algorithm):
-        if not operator.contains(ALGORITHMS.RSA, algorithm):
-            return Error("JWKError: hash_alg: %s is not a valid hash algorithm" % algorithm).unwrap()
-
-        self.hash_alg = {
-            ALGORITHMS.RS256: self.SHA256,
-            ALGORITHMS.RS384: self.SHA384,
-            ALGORITHMS.RS512: self.SHA512,
-            ALGORITHMS.RSA1_5: self.SHA1,
-            ALGORITHMS.RSA_OAEP: self.SHA1,
-            ALGORITHMS.RSA_OAEP_256: self.SHA256,
-        }.get(algorithm)
-        self._algorithm = algorithm
-
-        if types.is_instance(key, _RSAKey):
-            self.prepared_key = key
-            return self
-
-        if types.is_dict(key):
-            self._process_jwk(key)
-            return self
-
-        if types.is_string(key):
-            key = codecs.encode(key, encoding='utf-8')
-
-        if types.is_bytelike(key):
-            self.prepared_key = RSA.importKey(key)
-            return self
-
-        return Error("JWKError: Unable to parse an RSA_JWK from key: %s" % key).unwrap()
-    self = __init__(key, algorithm)
-
     def _process_jwk(jwk_dict):
         if not jwk_dict.get('kty') == 'RSA':
             return Error("JWKError: Incorrect key type. Expected: 'RSA', Received: %s" % jwk_dict.get('kty'))
@@ -226,6 +194,38 @@ def RSAKey(key, algorithm):
 
         return self.prepared_key
     self._process_jwk = _process_jwk
+
+    def __init__(key, algorithm):
+        if not operator.contains(ALGORITHMS.RSA, algorithm):
+            return Error("JWKError: hash_alg: %s is not a valid hash algorithm" % algorithm).unwrap()
+
+        self.hash_alg = {
+            ALGORITHMS.RS256: self.SHA256,
+            ALGORITHMS.RS384: self.SHA384,
+            ALGORITHMS.RS512: self.SHA512,
+            ALGORITHMS.RSA1_5: self.SHA1,
+            ALGORITHMS.RSA_OAEP: self.SHA1,
+            ALGORITHMS.RSA_OAEP_256: self.SHA256,
+        }.get(algorithm)
+        self._algorithm = algorithm
+
+        if types.is_instance(key, _RSAKey):
+            self.prepared_key = key
+            return self
+
+        if types.is_dict(key):
+            self._process_jwk(key)
+            return self
+
+        if types.is_string(key):
+            key = codecs.encode(key, encoding='utf-8')
+
+        if types.is_bytelike(key):
+            self.prepared_key = RSA.importKey(key)
+            return self
+
+        return Error("JWKError: Unable to parse an RSA_JWK from key: %s" % key).unwrap()
+    self = __init__(key, algorithm)
 
     def _process_cert(key):
         pemLines = key.replace(b' ', b'').split()
@@ -377,6 +377,7 @@ def AESKey(key, algorithm):
         ALGORITHMS.A256GCM: AES.MODE_GCM,
     }
 
+    self.IV_BYTE_LENGTH_MODE_MAP = {AES.MODE_CBC: AES.block_size // 8, AES.MODE_GCM: 96 // 8}
 
     def __init__(key, algorithm):
         if not operator.contains(ALGORITHMS.AES, algorithm):
@@ -416,7 +417,8 @@ def AESKey(key, algorithm):
     def encrypt(plain_text, aad=None):
         plain_text = six.ensure_binary(plain_text)
         def _try_encrypt(self, plain_text, aad):
-            iv = get_random_bytes(AES.block_size)
+            iv_byte_length = self.IV_BYTE_LENGTH_MODE_MAP.get(self._mode, AES.block_size)
+            iv = get_random_bytes(iv_byte_length)
             cipher = AES.new(self._key, self._mode, iv)
             if self._mode == AES.MODE_CBC:
                 padded_plain_text = self._pad(AES.block_size, plain_text)

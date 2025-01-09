@@ -23,6 +23,45 @@ def test_encrypt_and_decrypt_jwe_with_defaults():
     asserts.eq(decrypted_data, b'533')
 
 
+def test_decrypt_jwk():
+    jwk_data = json.loads("""
+    {
+      "kty": "RSA",
+      "kid": "qfNlZYnIBmF_1JyVr14wlu34pDNQ9ggEjC6HiDQkDks",
+      "n": "uo80-yn_zR3vrRWFunyLTm7NFKO0aWFH1LsdkRPm62w13AA1btO89IxncW56L8qIAX7xBlCt92TB4mVnGEzWUbPLyn-OPyg5sgltsoAjFcYeFc0uvp0-iRMse4udjwk0YqrCgAOwlcL5IQu9KmqH3KdH8o1Um9QtoBxHe4ACWMdu8I2Xktm2vi076opkT2AquqLXRzD4gujAALgTMnGmBmNSqhKa2GK4iSjqUSTkYL6wF_OtPfdmlrlri_qaChRk-kK1VzIDk8jG_-I8d47_Pdln7FmADhO1O4_-4IoOiM1ESarNkO46aFV4I4xcFWvh0JnJQIoSwgPoqCPH3v7NiQ",
+      "e": "AQAB",
+      "alg": "RSA-OAEP-256",
+      "use": "enc"
+    }
+    """)
+
+    jwe_data = """
+    {
+      "user": {
+        "name": {
+          "first_name": "Test",
+          "last_name": "Test"
+        },
+        "address": {
+          "street": "Street1",
+          "street2": "Apt.#1",
+          "city": "NewYork",
+          "region": "NY",
+          "postal_code": "12345",
+          "country": "US"
+        },
+        "phone_number": "+15174242424"
+      },
+      "card": {
+        "number": "4242424242424242",
+        "expiration": "07/26",
+        "cvv": "012"
+      }
+    }
+    """
+
+    jwe.encrypt(jwe_data, jwk_data, 'A256GCM', jwk_data.get("alg"), None, None, jwk_data.get("kid"))
+
 def test_decrypt_GCM256_AES_wrapped_key_jwe():
     jweString = b"eyJlbmMiOiJBMjU2R0NNIiwidGFnIjoiazhaNnpTNjRJclllaUNpNV9JaWY5QSIsImFsZyI6IkEyNTZHQ01LVyIsIml2IjoieW9sTk8xLVFXSVg3R1poSCJ9.knPF3qV22v0pE-N6oUzlSIoBUEjr_k3sfFyYX-XuSH8.XkADjU0P2phiynPA.cvCd.Wp5oFTRAzEIFN8pImDnhmw"
     encryptionKey = b'96a18c1acc0b48beb9b24479355b70b5'
@@ -308,6 +347,7 @@ def test_encrypt_with_extra_headers():
 def _testsuite():
     _suite = unittest.TestSuite()
 
+    _suite.addTest(unittest.FunctionTestCase(test_decrypt_jwk))
     _suite.addTest(unittest.FunctionTestCase(test_encrypt_and_decrypt_jwe_with_defaults))
     _suite.addTest(unittest.FunctionTestCase(test_decrypt_GCM256_AES_wrapped_key_jwe))
     larky.parametrize(
