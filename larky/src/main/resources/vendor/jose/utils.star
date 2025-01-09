@@ -1,8 +1,10 @@
 load("@stdlib//base64", base64="base64")
+load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//types", types="types")
+load("@vendor//Crypto/Util/py3compat", tostr="tostr")
 
 # Piggyback of the backends implementation of the function that converts a long
 # to a bytes stream. Some plumbing is necessary to have the signatures match.
@@ -25,7 +27,7 @@ def long_to_base64(data, size=0):
 
 
 def int_arr_to_long(arr):
-    return int(''.join(["%02x" % byte for byte in arr]), 16)
+    return int(tostr(hexlify(arr)), 16)
 
 
 def base64_to_long(data):
@@ -34,7 +36,7 @@ def base64_to_long(data):
 
     # urlsafe_b64decode will happily convert b64encoded data
     _d = base64.urlsafe_b64decode(bytes(data) + b"==")
-    return int_arr_to_long(struct.unpack("%sB" % len(_d), _d))
+    return int_arr_to_long(_d)
 
 
 def calculate_at_hash(access_token, hash_alg):
