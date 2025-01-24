@@ -377,7 +377,7 @@ def AESKey(key, algorithm):
         ALGORITHMS.A256GCM: AES.MODE_GCM,
     }
 
-    self.IV_BYTE_LENGTH_MODE_MAP = {AES.MODE_CBC: AES.block_size // 8, AES.MODE_GCM: 96 // 8}
+    self.IV_BYTE_LENGTH_MODE_MAP = {AES.MODE_CBC: AES.block_size, AES.MODE_GCM: 96 // 8}
 
     def __init__(key, algorithm):
         if not operator.contains(ALGORITHMS.AES, algorithm):
