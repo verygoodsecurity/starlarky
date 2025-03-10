@@ -31,7 +31,7 @@
         <graalvm-native-maven-plugin.version>0.9.10</graalvm-native-maven-plugin.version>
 
         <!-- annotationProcessorPaths requires maven-compiler-plugin version 3.5 or higher -->
-        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
+        <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.protobuf.plugin.version>0.6.1</maven.protobuf.plugin.version>
@@ -39,7 +39,7 @@
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
         <org.projectlombok.version>1.18.36</org.projectlombok.version>
         <picocli.version>4.7.6</picocli.version>
-        <graalvm.version>24.1.1</graalvm.version>
+        <graalvm.version>24.1.2</graalvm.version>
 
         <main.class>com.verygood.security.run.LarkyEntrypoint</main.class>
         <cli.name>larky-runner</cli.name>
