@@ -74,6 +74,16 @@ def TestMessageVerification_testSigningMessagesRSA():
     reparsedM = OpenPGP.Message.parse(m)
     asserts.assert_that(sign.verify(reparsedM)).is_equal_to(reparsedM.signatures())
 
+def TestMessageVerification_testSigningMessagesSHA384():
+    wkey = OpenPGP.Message.parse(
+        get_file_contents("helloKey.gpg")
+    )
+    data = OpenPGP.LiteralDataPacket("This is text.", "u", "stuff.txt")
+    sign = Crypto.Wrapper(wkey)
+    m = sign.sign(data, hash="SHA384").to_bytes()
+    reparsedM = OpenPGP.Message.parse(m)
+    asserts.assert_that(sign.verify(reparsedM)).is_equal_to(reparsedM.signatures())
+
 
 def TestMessageVerification_testSigningMessagesDSA():
     wkey = OpenPGP.Message.parse(
@@ -230,6 +240,9 @@ def _testsuite():
     )
     _suite.addTest(
         unittest.FunctionTestCase(TestMessageVerification_testSigningMessagesRSA)
+    )
+    _suite.addTest(
+        unittest.FunctionTestCase(TestMessageVerification_testSigningMessagesSHA384)
     )
 
     # 👇FAILS BUT WILL PASS WITH DSA 👇
