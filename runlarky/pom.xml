@@ -28,7 +28,7 @@
 
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
-        <graalvm-native-maven-plugin.version>0.9.13</graalvm-native-maven-plugin.version>
+        <graalvm-native-maven-plugin.version>0.9.10</graalvm-native-maven-plugin.version>
 
         <!-- annotationProcessorPaths requires maven-compiler-plugin version 3.5 or higher -->
         <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
@@ -40,6 +40,7 @@
         <org.projectlombok.version>1.18.36</org.projectlombok.version>
         <picocli.version>4.7.6</picocli.version>
         <graalvm.version>24.1.2</graalvm.version>
+        <jackson-databind.version>2.14.0</jackson-databind.version>
 
         <main.class>com.verygood.security.run.LarkyEntrypoint</main.class>
         <cli.name>larky-runner</cli.name>
@@ -86,6 +87,13 @@
             <artifactId>native-maven-plugin</artifactId>
             <version>${graalvm-native-maven-plugin.version}</version>
             <type>maven-plugin</type>
+        </dependency>
+
+<!--        A transitive dependency that the graalvm-native-maven-plugin expects to be provided at runtime.-->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson-databind.version}</version>
         </dependency>
 
     </dependencies>
