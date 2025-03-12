@@ -29,17 +29,6 @@ install-gh: &install-gh
       sudo apt-get update && sudo apt-get install golang -y
       go get -u github.com/tcnksm/ghr
 
-install-graalvm: &install-graalvm
-  run:
-    name: Install GraalVM
-    command: |
-      [ ! -d $GRAALVM_HOME ] \
-        && curl https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-23.0.2/graalvm-community-jdk-23.0.2_linux-x64_bin.tar.gz -O -J -L \
-        && tar xfz graalvm-community-jdk-23.0.2_linux-x64_bin.tar.gz \
-        && mv graalvm-community-openjdk-23.0.2+7.1 .graalvm \
-        && rm graalvm-community-jdk-23.0.2_linux-x64_bin.tar.gz \
-        && $GRAALVM_HOME/bin/gu install native-image
-
 build-quarkus-runnable: &build-quarkus-runnable
   run:
     name: Build binary for runlarky
@@ -205,7 +194,6 @@ jobs:
       - <<: *setup-maven-distributions
       - <<: *restore-maven-cache
       - <<: *restore-graalvm-cache
-      - <<: *install-graalvm
       - <<: *save-graalvm-cache
       - <<: *build-quarkus-runnable
       - <<: *install_python
@@ -330,14 +318,14 @@ workflows:
       not: << pipeline.parameters.nightly-security-scan >>
     jobs:
       - build-dist-maven:
-          context: github
+          context: github-artifact-publisher
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
             branches:
               ignore: /.*/
       - build-dist-linux:
-          context: github
+          context: github-artifact-publisher
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
@@ -346,7 +334,7 @@ workflows:
           requires:
             - build-dist-maven
       - publish-to-gh:
-          context: github
+          context: github-artifact-publisher
           filters:
             tags:
               only: /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9_.]+){0,1}$/
