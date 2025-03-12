@@ -196,6 +196,51 @@
     </build>
     <profiles>
         <profile>
+            <id>native</id>
+            <activation>
+                <property>
+                    <name>native</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <version>${graalvm-native-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <executions>
+                            <execution>
+                                <id>build-native</id>
+                                <goals>
+                                    <goal>build</goal>
+                                </goals>
+                                <phase>package</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <buildDirectory>${project.build.directory}/</buildDirectory>
+                            <imageName>${cli.name}</imageName>
+                            <mainClass>${main.class}</mainClass>
+                            <buildArgs>
+                                <buildArg>--no-fallback</buildArg>
+                                <buildArg>--allow-incomplete-classpath</buildArg>
+                                <buildArg>--initialize-at-run-time=org.apache.commons.lang3.RandomStringUtils</buildArg>
+                                <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                                <buildArg>
+                                    -H:ReflectionConfigurationFiles=../src/main/resources/META-INF/native-image/reflect-config.json
+                                </buildArg>
+                                <buildArg>
+                                    -H:ResourceConfigurationFiles=../src/main/resources/META-INF/native-image/resource-config.json
+                                </buildArg>
+                                <buildArg>-H:IncludeResources=".*$"</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>native.linux</id>
             <activation>
                 <property>
