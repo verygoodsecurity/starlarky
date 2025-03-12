@@ -150,7 +150,7 @@ def enarmor(data, marker=b"PUBLIC KEY BLOCK", headers=None, lineWidth=64):
         headersDict = headers or {}
         if types.is_dict(headersDict):
             headerItems = list(headersDict.items())
-            headerItems.sort()
+            headerItems = sorted(headerItems)
         else:
             headerItems = list(headersDict)  # already list of key-value.pairs
 
