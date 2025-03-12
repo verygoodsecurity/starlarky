@@ -88,24 +88,6 @@
             <type>maven-plugin</type>
         </dependency>
 
-        <dependency> <!-- We also move from graal-sdk => polyglot -->
-            <groupId>org.graalvm.polyglot</groupId>
-            <artifactId>polyglot</artifactId>
-            <version>${graalvm.version}</version>
-        </dependency>
-        <dependency> <!-- you can also depend on org.graalvm.polyglot:languages for all languages -->
-            <groupId>org.graalvm.python</groupId>
-            <artifactId>python</artifactId>
-            <version>${graalvm.version}</version>
-            <type>pom</type>
-        </dependency>
-        <dependency> <!-- all tools we include in Oracle GraalVM -->
-            <groupId>org.graalvm.polyglot</groupId>
-            <artifactId>tools</artifactId>
-            <version>${graalvm.version}</version>
-            <type>pom</type>
-        </dependency>
-
     </dependencies>
 
     <build>
