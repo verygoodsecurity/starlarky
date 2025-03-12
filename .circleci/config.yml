@@ -38,7 +38,7 @@ build-quarkus-runnable: &build-quarkus-runnable
         mvn versions:set-property -Dproperty=starlarky.version -DnewVersion=${CIRCLE_TAG} -pl runlarky
         mvn versions:set -DnewVersion=${CIRCLE_TAG} -pl runlarky
       fi
-      mvn package -Pnative -DskipTests
+      mvn package -DskipTests
       cp ./runlarky/target/larky-runner ./pylarky
     no_output_timeout: 30m
 
