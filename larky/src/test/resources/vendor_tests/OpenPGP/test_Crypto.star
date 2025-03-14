@@ -99,6 +99,20 @@ def TestMessageVerification_testSignAndSHA384EncryptDecryptMessage():
     decrypted = decryptor.decrypt(encrypted)
     asserts.assert_that(decrypted[1].data).is_equal_to(b"This is text.")
 
+def TestMessageVerification_testSignAndSHA384Encrypt():
+    wkey = OpenPGP.Message.parse(
+            get_file_contents("starlarky-signature-issue.gpg")
+    )
+
+    data = OpenPGP.LiteralDataPacket("This is text.", "u", "stuff.txt")
+    pgp = Crypto.Wrapper(wkey)
+    signed_m = pgp.sign(data, hash="SHA384").to_bytes()
+    reparsedM = OpenPGP.Message.parse(signed_m)
+    asserts.assert_that(pgp.verify(reparsedM)).is_equal_to(reparsedM.signatures())
+    encrypted = Crypto.Wrapper(signed_m).encrypt(wkey)
+    armored_result = OpenPGP.enarmor(encrypted.to_bytes(), marker='MESSAGE')
+    print(armored_result)
+
 
 def TestMessageVerification_testSigningMessagesDSA():
     wkey = OpenPGP.Message.parse(
@@ -258,6 +272,9 @@ def _testsuite():
     )
     _suite.addTest(
         unittest.FunctionTestCase(TestMessageVerification_testSignAndSHA384EncryptDecryptMessage)
+    )
+    _suite.addTest(
+        unittest.FunctionTestCase(TestMessageVerification_testSignAndSHA384Encrypt)
     )
 
     # 👇FAILS BUT WILL PASS WITH DSA 👇
