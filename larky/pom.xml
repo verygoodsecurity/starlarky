@@ -36,7 +36,7 @@
         <libstarlark.version>1.0.0-SNAPSHOT</libstarlark.version>
 
         <apache.commons-text.version>1.13.0</apache.commons-text.version>
-        <google.crypto.tink>1.6.1</google.crypto.tink>
+        <google.crypto.tink>1.17.0</google.crypto.tink>
         <google.errorprone.version>2.36.0</google.errorprone.version>
         <google.flogger.version>0.8</google.flogger.version>
         <google.guava.version>31.1-jre</google.guava.version>
