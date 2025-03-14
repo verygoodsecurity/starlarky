@@ -30,6 +30,14 @@ def TestASCIIArmor_test_enarmor_one():
     asserts.assert_that(actual).is_equal_to(expected)
 
 
+def TestASCIIArmor_test_enarmor_headers_none():
+    expected = readLocalFile("helloKey.message")
+    messages = OpenPGP.unarmor(readLocalFile("helloKey.asc"))
+    header, data = messages[0]
+    actual = OpenPGP.enarmor(data, marker='MESSAGE', headers = None)
+    asserts.assert_that(actual).is_equal_to(expected)
+
+
 def one_serialization(path):
     inm = OpenPGP.Message.parse(
         get_file_contents(path)
@@ -480,6 +488,7 @@ def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(TestASCIIArmor_test_unarmor_one))
     _suite.addTest(unittest.FunctionTestCase(TestASCIIArmor_test_enarmor_one))
+    _suite.addTest(unittest.FunctionTestCase(TestASCIIArmor_test_enarmor_headers_none))
     _suite.addTest(unittest.FunctionTestCase(TestSerialization_test000001006public_key))
     _suite.addTest(unittest.FunctionTestCase(TestSerialization_test000002013user_id))
     _suite.addTest(unittest.FunctionTestCase(TestSerialization_test000003002sig))

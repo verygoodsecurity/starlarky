@@ -50,11 +50,11 @@ def SHA384Hash(data=None):
     self = larky.mutablestruct(__class__='SHA384Hash')
 
     # The size of the resulting hash in bytes.
-    digest_size = 48
+    self.digest_size = 48
     # The internal block size of the hash algorithm in bytes.
-    block_size = 128
+    self.block_size = 128
     # ASN.1 Object ID
-    oid = '2.16.840.1.101.3.4.2.2'
+    self.oid = '2.16.840.1.101.3.4.2.2'
 
     def __init__(data):
         _state = _JCrypto.Hash.SHA384()
