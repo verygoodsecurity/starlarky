@@ -57,7 +57,7 @@ __all__ = [
 
 
 def time():
-    return 1868034091
+    return 2057326788 # Monday, March 12, 2035 3:39:48 PM
 
 
 def unarmor(text):
