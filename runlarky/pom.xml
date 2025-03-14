@@ -89,7 +89,14 @@
             <type>maven-plugin</type>
         </dependency>
 
-<!--        A transitive dependency that the graalvm-native-maven-plugin expects to be provided at runtime.-->
+<!--        A transitive dependency that the graalvm-native-maven-plugin expects to be provided at runtime. -->
+<!--        We should normally bump the graalvm-native-maven-plugin version, -->
+<!--        as some newer versions include a Jackson version that passes Semgrep. -->
+<!--        However, newer versions of the GraalVM plugins break the build-dist-linux CI phase. -->
+<!--        Addressing build-dist-linux would likely involve refactoring the way we build it.-->
+<!--        Currently, we install languages using the GraalVM Updater tool (gu), -->
+<!--        which has been deprecated in favor of using Maven dependencies.-->
+<!--        https://github.com/oracle/graal/issues/6852#issuecomment-1667594171-->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
