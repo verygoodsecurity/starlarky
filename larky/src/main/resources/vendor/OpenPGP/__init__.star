@@ -152,7 +152,7 @@ def enarmor(data, marker=b"PUBLIC KEY BLOCK", headers=None, lineWidth=64):
             headerItems = list(headersDict.items())
             headerItems.sort()
         else:
-            headerItems = list(headersDict)  # already list of key-value.pairs
+            headerItems = list(headersDict)  # already list of key-value.pairs.
 
         for (key, value) in headerItems:
             result.append("{key}: {value}".format(key=key, value=value))
