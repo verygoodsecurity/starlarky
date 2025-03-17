@@ -1,4 +1,6 @@
 RSAKEY_PEM = b"""\
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 -----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAl7j+tD+DNXgWiQTsK2GMv8RfAIFKRebZzeniPJc7Ra2q5o0L
 d3EHAU98+X3iGardkVn08c89unhGlhGctltGOXNVI6r3ngBc5elJ7DucP4SZOpCt

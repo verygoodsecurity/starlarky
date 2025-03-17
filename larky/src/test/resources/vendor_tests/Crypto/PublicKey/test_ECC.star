@@ -55,6 +55,8 @@ def test_basic_ECC_generate():
 
 
 def test_basic_ECC_construct_example():
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
     expected = r"""-----BEGIN PRIVATE KEY-----
 MIGFAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBGswaQIBAQQg12c78JWM96fm6y5F
 ERvbYZZ2xjx+0UNGLO9qXymxeIgDQgAEi5xvAqjfAoOG2/SvXDt2t3QsJzXU0rSt

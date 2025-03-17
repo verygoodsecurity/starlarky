@@ -9,6 +9,8 @@ load("@vendor//jose/utils", base64url_encode="base64url_encode")
 load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS")
 load("@vendor//asserts","asserts")
 
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 ec_private_key = """-----BEGIN EC PRIVATE KEY-----
 MIHcAgEBBEIBzs13YUnYbLfYXTz4SG4DE4rPmsL3wBTdy34JcO+BDpI+NDZ0pqam
 UM/1sGZT+8hqUjSeQo6oz+Mx0VS6SJh31zygBwYFK4EEACOhgYkDgYYABACYencK
