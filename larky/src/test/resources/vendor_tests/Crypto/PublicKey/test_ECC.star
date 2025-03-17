@@ -984,6 +984,5 @@ def _testsuite():
         unittest.FunctionTestCase(TestEccModule_P521_test_negative_construct))
     return _suite
 
-
 _runner = unittest.TextTestRunner()
 _runner.run(_testsuite())
