@@ -46,6 +46,8 @@ def der2pem(der, text="PUBLIC"):
 
 
 # 512-bit RSA key generated with openssl
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 rsaKeyPEM = """-----BEGIN RSA PRIVATE KEY-----
 MIIBOwIBAAJBAL8eJ5AKoIsjURpcEoGubZMxLD7+kT+TLr7UkvEtFrRhDDKMtuII
 q19FrL4pUIMymPMSLBn3hJLe30Dw48GQM4UCAwEAAQJACUSDEp8RTe32ftq8IwG8
@@ -57,6 +59,8 @@ n0CnZCJ6IZYqSt0H5N7+Q+2Ro64nuwV/OSQfM6sBwQ==
 -----END RSA PRIVATE KEY-----"""
 
 # As above, but this is actually an unencrypted PKCS#8 key
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 rsaKeyPEM8 = """-----BEGIN PRIVATE KEY-----
 MIIBVQIBADANBgkqhkiG9w0BAQEFAASCAT8wggE7AgEAAkEAvx4nkAqgiyNRGlwS
 ga5tkzEsPv6RP5MuvtSS8S0WtGEMMoy24girX0WsvilQgzKY8xIsGfeEkt7fQPDj
@@ -90,6 +94,8 @@ dysKznQ6P+IoqML1WxAID4aGRMWka+uArOJ148Rbj9s=
     # PKCS8 encryption
     (
         "winter",
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
         """-----BEGIN ENCRYPTED PRIVATE KEY-----
 MIIBpjBABgkqhkiG9w0BBQ0wMzAbBgkqhkiG9w0BBQwwDgQIeZIsbW3O+JcCAggA
 MBQGCCqGSIb3DQMHBAgSM2p0D8FilgSCAWBhFyP2tiGKVpGj3mO8qIBzinU60ApR
@@ -569,6 +575,8 @@ d6:fa:d8:36:42:d4:97:29:17
     asserts.assert_that(key.has_private()).is_false()
 
 
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 rsa2048_priv_pem = """-----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAzf6A6XjM4skBCd6SBt6g8GkO6Zg6sfC+7jvrmEyERWdm2iVP
 SDyWONzKprIT8tRaDHbtkhsJnff5F0Pq/gO6lMPKcgADn/DUAW0C8C6y8ns7tkKY
@@ -604,6 +612,8 @@ rsa2048_pub_openssh = (  "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDN/oDpeMziyQ" +
 "UUIYeapqzHYxW1N07BVKUDebFeIyk3aVY9IgJtXGKigbFCJ8G4SdBdgl9ZB0YjGNa6oongvg+fg" +
 "LXqq4RWOvA7umwT4MFNlLubxFYN18v")
 
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 rsa2048_private_openssh = """-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdzc2gtcn
 NhAAAAAwEAAQAAAQEA1G7CSXDPFI6GVaKcD3XsVtmVAXYp7EXzDtNfenpL8gV7ujWzQ2R7
@@ -632,6 +642,8 @@ xqT6IUqcm3sL8zfT9CChSb42RzRWW9ywzRfUQMQSdpv7UVtRRKknXz9O/OuHGAFVsA3Tmu
 dyvAQoDc3d2nveEBAAAAHGV0dG9yZUBsb2NhbGhvc3QubG9jYWxkb21haW4BAgMEBQY=
 -----END OPENSSH PRIVATE KEY-----"""
 
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 rsa2048_private_openssh_old = """-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDUbsJJcM8UjoZV
 opwPdexW2ZUBdinsRfMO0196ekvyBXu6NbNDZHtVEz47CbDxDgBlfw7DqkrePYt9
@@ -661,6 +673,8 @@ qUzlUJj+ZgMZkFhcIhFxX/qLwLZ2lnRMdmUkT6iOpYxbxwzHWwRThj3vtsYl99nf
 vfySnQoWOsBsSPdqmIqAzPFC
 -----END PRIVATE KEY-----"""
 
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 rsa2048_private_openssh_pwd = """-----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABAiSHFwF1
 yQWybj5A23iTV1AAAAEAAAAAEAAAEXAAAAB3NzaC1yc2EAAAADAQABAAABAQDcFk6O6XGu
@@ -690,6 +704,8 @@ tlAaLHGCx0HqO4bzS0ZvMMcABulLSctWN/erHU/OK3ulyZxTTmlqsQAIHJPQ00ta6H/dnR
 r7IU3dRtY9GCbp+IlQJidrib8f7wDCaySNcYygJru6roFgzFQd
 -----END OPENSSH PRIVATE KEY-----"""
 
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 rsa2048_private_openssh_pwd_old = """-----BEGIN PRIVATE KEY-----
 MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDcFk6O6XGuNTUm
 IGWFW/pzXsola0bpaydiIOlTtl34dvZUPRZpQfD+EHTKjkS1FSFklAsKXulcT5ga
