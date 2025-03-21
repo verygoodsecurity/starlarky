@@ -57,7 +57,7 @@ __all__ = [
 
 
 def time():
-    return 1648941415
+    return 2057326788 # Monday, March 12, 2035 3:39:48 PM
 
 
 def unarmor(text):
@@ -150,7 +150,7 @@ def enarmor(data, marker=b"PUBLIC KEY BLOCK", headers=None, lineWidth=64):
         headersDict = headers or {}
         if types.is_dict(headersDict):
             headerItems = list(headersDict.items())
-            headerItems.sort()
+            headerItems = sorted(headerItems)
         else:
             headerItems = list(headersDict)  # already list of key-value.pairs
 
