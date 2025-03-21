@@ -3,6 +3,8 @@ load("@stdlib//unittest","unittest")
 load("@vendor//asserts","asserts")
 load("@vendor//larky_ecdh", "LarkyECDH")
 
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 private_key_pkcs8 = b"""-----BEGIN PRIVATE KEY-----
 MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgmz1M0Qw9vHLQlIR2
 6LK2CEUyHFARQ7KrrBSWJjqVOlmhRANCAARFpzXaoR1VyfqAyUgHjiwKpbrMVmIZ
@@ -11,6 +13,8 @@ yCXyD37wThLvGNNquN7uD1ANxvsXnMNiSqhUUbylZ/MYcK00IrnO/S5Q
 
 pkcs12_keystore = b"""MIIBmwIBAzCCAWIGCSqGSIb3DQEHAaCCAVMEggFPMIIBSzCCAUcGCSqGSIb3DQEHAaCCATgEggE0MIIBMDCCASwGCyqGSIb3DQEMCgECoIG8MIG5MBwGCiqGSIb3DQEMAQMwDgQIBUdleOxVSwkCAggABIGYuv4nS1kIU2SgJhyMh9A1oew/yGmKfm60mDnRqcnAd2hoISSOhg+ieCoWQWRjSL/4i0hph1ArhRLWaPYYPuQCHXBIE681QEMe9a4GeVrF2DFIzsOczn19RQAYb3LaXMgcdKiiCGxC58duPgIt91yes/vsfk84iHcRY86q/iV7yh87WqeqqhDe+VUFn9DoUGcQcr8p6TQ+rh0xXjA3BgkqhkiG9w0BCRQxKh4oAFYAZQByAHkARwBvAG8AZABTAGUAYwB1AHIAaQB0AHkAIABEAGUAdjAjBgkqhkiG9w0BCRUxFgQUr3uI24KVinVD+7ITCMI/HigMdWwwMDAhMAkGBSsOAwIaBQAEFEky3g45rWcjiU5+WmIZMNQ5P8kmBAjBn2X9CBPm9AIBAQ=="""
 
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 private_key_PEM = b"""-----BEGIN EC PRIVATE KEY-----
 MHcCAQEEIDqrpF0KEFW4Ncb76vyBi3StFLiT222sFC0wC3LsP1M9oAoGCCqGSM49
 AwEHoUQDQgAED44gNZExKHUk9sMuXeZEBazNA+agV/VJK8vFug/rwuzqmzKE5v7q
