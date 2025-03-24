@@ -543,7 +543,7 @@ def T_test_indent_level():
 # load("@stdlib//builtins", "builtins")
 
 def test_namespace_prefix():
-    nsmap = ET._namespace_map
+    nsmap = ET._namespace_map.items()
     ET.register_namespace('soap', 'http://www.w3.org/2003/05/soap-envelope')
     ET.register_namespace('xsi', 'http://www.w3.org/2001/XMLSchema-instance')
     ET.register_namespace('xsd', 'http://www.w3.org/2001/XMLSchema')
