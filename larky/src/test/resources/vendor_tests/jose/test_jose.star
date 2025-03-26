@@ -216,6 +216,8 @@ def test_sign_with_rsa():
 
 
 def test_sign_with_ecc():
+    # https://verygoodsecurity.atlassian.net/browse/SI-203
+    # nosemgrep: secrets.misc.generic_private_key.generic_private_key
     es_private_key = """-----BEGIN EC PRIVATE KEY-----
                         MHcCAQEEIDcv6AeZhfUH20LCzlHKr6SZyWK5LnQQrWN5TigDmTcwoAoGCCqGSM49
                         AwEHoUQDQgAEQ4+x/eCyT+7mnjPgT0iIf7PBB2W7YHDi3qvbNMZm+Its/M+6eCGk
@@ -276,6 +278,8 @@ def test_encrypt_and_decrypt_with_certificate():
     asserts.assert_that(enc_header['alg']).is_equal_to("RSA-OAEP-256")
     asserts.assert_that(enc_header['enc']).is_equal_to("A256GCM")
 
+    # https://verygoodsecurity.atlassian.net/browse/SI-203
+    # nosemgrep: secrets.misc.generic_private_key.generic_private_key
     rsa_private_key = """-----BEGIN PRIVATE KEY-----
                         MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCsRBjGoF0D9Xem
                         fmiC+VNGRRcveDKCiQu4VEYa7J+qfUSevUQfgqTXdp0VezPtfHnU/Y7iZmrHqspv
@@ -341,6 +345,8 @@ def test_encrypt_and_decrypt_with_certificate_AES_CBC():
     asserts.assert_that(enc_header['alg']).is_equal_to("RSA-OAEP")
     asserts.assert_that(enc_header['enc']).is_equal_to("A128CBC-HS256")
 
+    # https://verygoodsecurity.atlassian.net/browse/SI-203
+    # nosemgrep: secrets.misc.generic_private_key.generic_private_key
     rsa_private_key = """-----BEGIN PRIVATE KEY-----
                         MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCsRBjGoF0D9Xem
                         fmiC+VNGRRcveDKCiQu4VEYa7J+qfUSevUQfgqTXdp0VezPtfHnU/Y7iZmrHqspv
