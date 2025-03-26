@@ -168,6 +168,8 @@ def test_pbkdf2_hmac_aes_key_wrapped():
     asserts.assert_that(base64.b64encode(d)).is_equal_to(b'NTQ0Mjg4MzAxMDAxNjc5Mg==')
 
 def test_sign_with_rsa():
+    # https://verygoodsecurity.atlassian.net/browse/SI-203
+    # nosemgrep: secrets.misc.generic_private_key.generic_private_key
     rsa_private_key = """-----BEGIN RSA PRIVATE KEY-----
                         MIIEogIBAAKCAQEAnzJokBF2RIiyOIS8iCJmUKDvg1kFvs+elNeNWb9s+xfJk/ka
                         pqvs4b5wFzLGmZbmWeWWw4reGyYFk1bmfCKbC+58yciH/Iy2hwOWsvL1MLmQG0lo
