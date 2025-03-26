@@ -168,6 +168,8 @@ def test_pbkdf2_hmac_aes_key_wrapped():
     asserts.assert_that(base64.b64encode(d)).is_equal_to(b'NTQ0Mjg4MzAxMDAxNjc5Mg==')
 
 def test_sign_with_rsa():
+    # https://verygoodsecurity.atlassian.net/browse/SI-203
+    # nosemgrep: secrets.misc.generic_private_key.generic_private_key
     rsa_private_key = """-----BEGIN RSA PRIVATE KEY-----
                         MIIEogIBAAKCAQEAnzJokBF2RIiyOIS8iCJmUKDvg1kFvs+elNeNWb9s+xfJk/ka
                         pqvs4b5wFzLGmZbmWeWWw4reGyYFk1bmfCKbC+58yciH/Iy2hwOWsvL1MLmQG0lo
@@ -214,6 +216,8 @@ def test_sign_with_rsa():
 
 
 def test_sign_with_ecc():
+    # https://verygoodsecurity.atlassian.net/browse/SI-203
+    # nosemgrep: secrets.misc.generic_private_key.generic_private_key
     es_private_key = """-----BEGIN EC PRIVATE KEY-----
                         MHcCAQEEIDcv6AeZhfUH20LCzlHKr6SZyWK5LnQQrWN5TigDmTcwoAoGCCqGSM49
                         AwEHoUQDQgAEQ4+x/eCyT+7mnjPgT0iIf7PBB2W7YHDi3qvbNMZm+Its/M+6eCGk
@@ -274,6 +278,8 @@ def test_encrypt_and_decrypt_with_certificate():
     asserts.assert_that(enc_header['alg']).is_equal_to("RSA-OAEP-256")
     asserts.assert_that(enc_header['enc']).is_equal_to("A256GCM")
 
+    # https://verygoodsecurity.atlassian.net/browse/SI-203
+    # nosemgrep: secrets.misc.generic_private_key.generic_private_key
     rsa_private_key = """-----BEGIN PRIVATE KEY-----
                         MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCsRBjGoF0D9Xem
                         fmiC+VNGRRcveDKCiQu4VEYa7J+qfUSevUQfgqTXdp0VezPtfHnU/Y7iZmrHqspv
@@ -339,6 +345,8 @@ def test_encrypt_and_decrypt_with_certificate_AES_CBC():
     asserts.assert_that(enc_header['alg']).is_equal_to("RSA-OAEP")
     asserts.assert_that(enc_header['enc']).is_equal_to("A128CBC-HS256")
 
+    # https://verygoodsecurity.atlassian.net/browse/SI-203
+    # nosemgrep: secrets.misc.generic_private_key.generic_private_key
     rsa_private_key = """-----BEGIN PRIVATE KEY-----
                         MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCsRBjGoF0D9Xem
                         fmiC+VNGRRcveDKCiQu4VEYa7J+qfUSevUQfgqTXdp0VezPtfHnU/Y7iZmrHqspv
