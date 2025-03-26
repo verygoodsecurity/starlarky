@@ -37,6 +37,8 @@ load("@vendor//MasterCard/oauth1", OAuth="OAuth", OAuthParameters="OAuthParamete
     authenticationutils="authenticationutils", util="coreutils")
 load("@vgs//http/request", "VGSHttpRequest")
 
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 _signing_key = """-----BEGIN PRIVATE KEY-----
     MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCYoc5Ue4MKxHIQ
     eSESKQiIv341EFDtfAlAsXP74modJuwnSLOfSkFNgKH4y6vSKiUK7BxU2KFy7FkR
