@@ -1,7 +1,6 @@
 load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
 load("@vgs//pgp", "pgp")
-load("@vgs//vault", vault="vault")
 
 def _test_encryption_algorithms():
     """Test encryption with different algorithms"""

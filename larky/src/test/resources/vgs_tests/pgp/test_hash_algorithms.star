@@ -1,7 +1,6 @@
 load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
 load("@vgs//pgp", "pgp")
-load("@vgs//vault", vault="vault")
 
 def test_hash_algorithms():
     """Test the hash algorithm string to constant conversion"""
