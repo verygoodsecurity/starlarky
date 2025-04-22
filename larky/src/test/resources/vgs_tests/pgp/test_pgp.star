@@ -17,8 +17,7 @@ def test_pgp_module_basics():
 
 def test_pgp_encrypt_decrypt():
     """Test basic PGP encryption and decryption"""
-    pgp = setup().pgp
-    
+
     # Test with different algorithms
     algorithms = ["AES-128", "AES-192", "AES-256"]
     
@@ -65,12 +64,12 @@ def test_pgp_encrypt_decrypt():
     )
     
     # Binary output should not contain PGP header text
-    try:
-        binary_text = binary_encrypted.decode("utf-8")
-        contains_header = "-----BEGIN PGP MESSAGE-----" in binary_text
-    except UnicodeDecodeError:
-        # This is expected for binary data
-        contains_header = False
+    # try:
+    binary_text = binary_encrypted.decode("utf-8")
+    contains_header = "-----BEGIN PGP MESSAGE-----" in binary_text
+    # except UnicodeDecodeError:
+    #     # This is expected for binary data
+    #     contains_header = False
     
     asserts.assert_that(contains_header).is_equal_to(False)
     
