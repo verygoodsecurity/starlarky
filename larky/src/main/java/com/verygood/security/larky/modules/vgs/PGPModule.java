@@ -89,18 +89,18 @@ public class PGPModule implements StarlarkValue {
     public int getHashAlgorithm(String hashAlgoString) throws EvalException {
         String algoString = hashAlgoString.toUpperCase().trim();
         switch (algoString) {
-            case "SHA1":
+            case "SHA1", "SHA-1":
                 return HashAlgorithmTags.SHA1;
-            case "SHA224":
+            case "SHA224", "SHA-224":
                 return HashAlgorithmTags.SHA224;
-            case "SHA256":
+            case "SHA256", "SHA-256":
                 return HashAlgorithmTags.SHA256;
-            case "SHA384":
+            case "SHA384", "SHA-384":
                 return HashAlgorithmTags.SHA384;
-            case "SHA512":
+            case "SHA512", "SHA-512":
                 return HashAlgorithmTags.SHA512;
             default:
-                throw Starlark.errorf("Unsupported hash algorithm: %s. Supported algorithms: SHA1, SHA224, SHA256, SHA384, SHA512", algoString);
+                throw Starlark.errorf("Unsupported hash algorithm: %s. Supported algorithms: SHA1, SHA-1, SHA224, SHA-224, SHA256, SHA-256, SHA384, SHA-384, SHA512, SHA-512", algoString);
         }
     }
 
