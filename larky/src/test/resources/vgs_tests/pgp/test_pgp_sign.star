@@ -2,11 +2,8 @@ load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
 load("@vgs//pgp", "pgp")
 
-def test_pgp_sign_verify():
-    """Test basic PGP signing and verification"""
-
-    # Test key pair - do not use in production
-    public_key = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+# Test key pair - do not use in production
+public_key = """-----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mQINBGgHaqsBEACpA7KfS0umUdkB/YymlMScVzxWeZ8TMoA0AXN1uNm96XAM9/ED
 o1lJ3Itw7IjVG7oEf7vv9lKI0kFR0+UwW7Er3AYydAxl0tBc7hgADoCxzFN3xVfa
@@ -70,7 +67,7 @@ gmNtylgnstPHygBV8Qmryh+tF8bOwi0QjTsrvlA=
 =F8Ao
 -----END PGP PUBLIC KEY BLOCK-----"""
 
-    private_key = """-----BEGIN PGP PRIVATE KEY BLOCK-----
+private_key = """-----BEGIN PGP PRIVATE KEY BLOCK-----
 
 lQcYBGgHaqsBEACpA7KfS0umUdkB/YymlMScVzxWeZ8TMoA0AXN1uNm96XAM9/ED
 o1lJ3Itw7IjVG7oEf7vv9lKI0kFR0+UwW7Er3AYydAxl0tBc7hgADoCxzFN3xVfa
@@ -188,6 +185,9 @@ AFXxCavKH60Xxs7CLRCNOyu+UA==
 =obP3
 -----END PGP PRIVATE KEY BLOCK-----"""
 
+def test_pgp_sign_verify():
+    """Test basic PGP signing and verification"""
+
     # Test message and file name
     message = bytes("This is a test message for PGP signing", "utf-8")
     file_name = "test.txt"
@@ -196,7 +196,7 @@ AFXxCavKH60Xxs7CLRCNOyu+UA==
     signed_message = pgp.sign(
         message=message,
         private_key=private_key,
-        file_name=file_name,
+        # file_name=file_name,
         hash_algorithm="SHA-256",
         armor=True
     )
@@ -243,11 +243,6 @@ AFXxCavKH60Xxs7CLRCNOyu+UA==
 def test_sign_then_encrypt():
     """Test signing and then encrypting with PGP"""
 
-    # Test key pair - do not use in production
-    private_key = """..."""
-
-    public_key = """..."""
-
     # Test message and file name
     message = bytes("This is a test message for PGP signing and encryption", "utf-8")
     file_name = "test.txt"
@@ -259,7 +254,7 @@ def test_sign_then_encrypt():
         private_key=private_key,
         hash_algorithm="SHA-256",
         algorithm="AES-256",
-        file_name=file_name,
+        # file_name=file_name,
         armor=True
     )
     
