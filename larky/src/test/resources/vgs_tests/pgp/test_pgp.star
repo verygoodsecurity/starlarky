@@ -219,8 +219,6 @@ AFXxCavKH60Xxs7CLRCNOyu+UA==
         )
         
         # Verify it's encrypted (should start with -----BEGIN PGP MESSAGE-----)
-        print("Algo: " + algo)
-        print("qwe: " + str(len(encrypted)))
         encrypted_text = encrypted.decode("utf-8")
         asserts.assert_that(encrypted_text).contains("-----BEGIN PGP MESSAGE-----")
         
