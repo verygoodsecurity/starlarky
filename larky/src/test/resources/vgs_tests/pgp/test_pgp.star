@@ -269,7 +269,7 @@ AFXxCavKH60Xxs7CLRCNOyu+UA==
     encrypted_large = pgp.encrypt(
         message=large_message,
         public_key=public_key,
-        file_name="large.txt",
+        # file_name="large.txt",
         armor=True
     )
     
