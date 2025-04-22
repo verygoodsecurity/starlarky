@@ -6,14 +6,14 @@ def test_pgp_module_basics():
     """Test that the PGP module is properly loaded and functions are available"""
 
     # Check that module provides algorithm info
-    assert_that(pgp.get_supported_algorithms()).is_instance_of(str)
-    assert_that(pgp.get_supported_algorithms()).contains("AES-256")
-    assert_that(pgp.get_supported_algorithms()).contains("SHA-384")
+    asserts.assert_that(pgp.get_supported_algorithms()).is_instance_of(str)
+    asserts.assert_that(pgp.get_supported_algorithms()).contains("AES-256")
+    asserts.assert_that(pgp.get_supported_algorithms()).contains("SHA-384")
     
     # Test hash algorithm conversion
     sha384 = pgp.get_hash_algorithm("SHA-384")
-    assert_that(sha384).is_instance_of(int)
-    assert_that(sha384).is_not_equal_to(0)
+    asserts.assert_that(sha384).is_instance_of(int)
+    asserts.assert_that(sha384).is_not_equal_to(0)
 
 def test_pgp_encrypt_decrypt():
     """Test basic PGP encryption and decryption"""
@@ -43,7 +43,7 @@ def test_pgp_encrypt_decrypt():
         
         # Verify it's encrypted (should start with -----BEGIN PGP MESSAGE-----)
         encrypted_text = encrypted.decode("utf-8")
-        assert_that(encrypted_text).contains("-----BEGIN PGP MESSAGE-----")
+        asserts.assert_that(encrypted_text).contains("-----BEGIN PGP MESSAGE-----")
         
         # Decrypt with the private key
         decrypted = pgp.decrypt(
@@ -53,7 +53,7 @@ def test_pgp_encrypt_decrypt():
         )
         
         # Verify the decryption worked
-        assert_that(decrypted).is_equal_to(message)
+        asserts.assert_that(decrypted).is_equal_to(message)
         
     # Test non-armored output
     binary_encrypted = pgp.encrypt(
@@ -72,7 +72,7 @@ def test_pgp_encrypt_decrypt():
         # This is expected for binary data
         contains_header = False
     
-    assert_that(contains_header).is_equal_to(False)
+    asserts.assert_that(contains_header).is_equal_to(False)
     
     # But we should still be able to decrypt it
     decrypted_binary = pgp.decrypt(
@@ -81,7 +81,7 @@ def test_pgp_encrypt_decrypt():
         passphrase=None
     )
     
-    assert_that(decrypted_binary).is_equal_to(message)
+    asserts.assert_that(decrypted_binary).is_equal_to(message)
     
     # Test with different message sizes
     large_message = bytes("A" * 10000, "utf-8")
@@ -99,7 +99,7 @@ def test_pgp_encrypt_decrypt():
         passphrase=None
     )
     
-    assert_that(decrypted_large).is_equal_to(large_message)
+    asserts.assert_that(decrypted_large).is_equal_to(large_message)
 
 def _test_all():
     test_pgp_module_basics()
