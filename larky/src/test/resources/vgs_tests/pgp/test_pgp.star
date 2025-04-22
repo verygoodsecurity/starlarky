@@ -1,5 +1,6 @@
-load("asserts", "assert_that", "eq", "truth")
-load("vgstest_utils", setup="vgs_setup", run_test="run_test")
+load("@vendor//asserts", "asserts")
+load("@stdlib//unittest", "unittest")
+load("@vgs//pgp", "pgp")
 
 def test_pgp_module_basics():
     """Test that the PGP module is properly loaded and functions are available"""
