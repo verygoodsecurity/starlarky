@@ -218,7 +218,7 @@ AFXxCavKH60Xxs7CLRCNOyu+UA==
     hash_algorithms = ["SHA-1", "SHA-256", "SHA-384", "SHA-512"]
     
     for hash_algo in hash_algorithms:
-        print(f"Testing with hash algorithm: {hash_algo}")
+        print("Testing with hash algorithm: " + hash_algo)
         
         # Sign with this algorithm
         signed = pgp.sign(
