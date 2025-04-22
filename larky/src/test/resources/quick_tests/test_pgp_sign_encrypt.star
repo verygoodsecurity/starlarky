@@ -272,8 +272,7 @@ bQ==
 -----END PGP PUBLIC KEY BLOCK-----"""
 
 
-    third_party_private_key = """
-    -----BEGIN PGP PRIVATE KEY BLOCK-----
+    third_party_private_key = """-----BEGIN PGP PRIVATE KEY BLOCK-----
 
 lQcYBGgHbUoBEADJUBqUGpblAn1af0cVrCrah061ajbmAxQTiTPJ5mpjfthQZ9A4
 i2HagXAS0qL9ZdupH2f0Q7lrPaeW95+6kI35gm/xXZDJ5oMTUT2zc1325Xzh0FXS
@@ -389,7 +388,7 @@ usNkTIob/soMGzUtCYiOEIPhfrMbggzQ890uKBXTV9Uy+VpYYwNt
     # Process the request
     signed_payload = pgp.sign(bytes(payload_str, "utf-8"),
              client_private_signing_subkey,
-             hash_algorithm = "SHA256",
+             hash_algorithm = "SHA384",
              armor = True,
              )
     
