@@ -193,8 +193,8 @@ public class PGPModule implements StarlarkValue {
         name = "verify",
         doc = "Verifies a signed message with a PGP public key",
         parameters = {
-            @Param(name = "signed_message", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
-            @Param(name = "public_key", allowedTypes = {@ParamType(type = String.class)})
+            @Param(name = "signed_message", named = true, allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+            @Param(name = "public_key", named = true, allowedTypes = {@ParamType(type = String.class)})
         },
         useStarlarkThread = true
     )
