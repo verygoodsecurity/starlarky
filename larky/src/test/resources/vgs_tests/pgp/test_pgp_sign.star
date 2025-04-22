@@ -203,7 +203,7 @@ AFXxCavKH60Xxs7CLRCNOyu+UA==
     
     # Verify it's signed (should start with -----BEGIN PGP MESSAGE-----)
     signed_text = str(signed_message, "utf-8")
-    assert_that(signed_text).contains("-----BEGIN PGP MESSAGE-----")
+    asserts.assert_that(signed_text).contains("-----BEGIN PGP MESSAGE-----")
     
     # Verify the signature
     verified = pgp.verify(
@@ -212,7 +212,7 @@ AFXxCavKH60Xxs7CLRCNOyu+UA==
     )
     
     # Verify the verification worked
-    assert_that(verified).is_equal_to(True)
+    asserts.assert_that(verified).is_equal_to(True)
     
     # Test with different hash algorithms
     hash_algorithms = ["SHA-1", "SHA-256", "SHA-384", "SHA-512"]
@@ -236,7 +236,7 @@ AFXxCavKH60Xxs7CLRCNOyu+UA==
         )
         
         # Check that validation worked
-        assert_that(is_valid).is_equal_to(True)
+        asserts.assert_that(is_valid).is_equal_to(True)
     
     print("All signature tests passed successfully!")
 
@@ -265,7 +265,7 @@ def test_sign_then_encrypt():
     
     # Should be encrypted (should start with -----BEGIN PGP MESSAGE-----)
     encrypted_text = str(encrypted_signed, "utf-8")
-    assert_that(encrypted_text).contains("-----BEGIN PGP MESSAGE-----")
+    asserts.assert_that(encrypted_text).contains("-----BEGIN PGP MESSAGE-----")
     
     # Decrypt and automatically verify with the private key
     decrypted = pgp.decrypt(
@@ -275,7 +275,7 @@ def test_sign_then_encrypt():
     )
     
     # Verify decryption worked
-    assert_that(decrypted).is_equal_to(message)
+    asserts.assert_that(decrypted).is_equal_to(message)
     
     print("Sign and encrypt test passed successfully!")
 
