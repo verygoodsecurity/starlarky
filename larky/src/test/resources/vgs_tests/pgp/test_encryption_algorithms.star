@@ -5,7 +5,7 @@ load("@vgs//vault", vault="vault")
 
 def _test_encryption_algorithms():
     """Test encryption with different algorithms"""
-    
+
     # Test key from BouncyCastle examples - do not use in production
     public_key = """..."""
 
@@ -22,13 +22,13 @@ def _test_encryption_algorithms():
         "CAMELLIA-256", "CAMELLIA256",
         "TWOFISH"
     ]
-    
+
     message = bytes("Test encryption with different algorithms", "utf-8")
-    
+
     # Test each algorithm
     for algo in algorithms:
-        print(f"Testing algorithm: {algo}")
-        
+        print("Testing algorithm: " + algo)
+
         # Encrypt with the algorithm
         encrypted = pgp.encrypt(
             message=message,
@@ -37,17 +37,17 @@ def _test_encryption_algorithms():
             armor=True,
             algorithm=algo
         )
-        
+
         # Decrypt and verify
         decrypted = pgp.decrypt(
             encrypted_message=encrypted,
             private_key=private_key,
             passphrase=None
         )
-        
+
         # Verify the decryption worked
         asserts.assert_that(decrypted).is_equal_to(message)
-    
+
     # Test invalid algorithm handling
     try:
         pgp.encrypt(
@@ -57,7 +57,7 @@ def _test_encryption_algorithms():
             armor=True,
             algorithm="UNKNOWN-ALGORITHM"
         )
-        assert_that(True).is_equal_to(False)  # Should not reach here
+        asserts.assert_that(True).is_equal_to(False)  # Should not reach here
     except Exception as e:
         # Should throw an exception with a message containing supported algorithms
         error_msg = str(e)
