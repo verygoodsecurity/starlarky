@@ -101,8 +101,12 @@ def test_sign_then_encrypt():
     
     print("Sign and encrypt test passed successfully!")
 
-def _test_all():
-    test_pgp_sign_verify()
-    test_sign_then_encrypt()
+def _suite():
+    _suite = unittest.TestSuite()
+    _suite.addTest(unittest.FunctionTestCase(test_pgp_sign_verify))
+    _suite.addTest(unittest.FunctionTestCase(test_sign_then_encrypt))
 
-run_test(_test_all)
+    return _suite
+
+_runner = unittest.TextTestRunner()
+_runner.run(_suite())
