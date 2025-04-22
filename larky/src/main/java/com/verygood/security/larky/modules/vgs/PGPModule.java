@@ -120,8 +120,8 @@ public class PGPModule implements StarlarkValue {
         name = "sign",
         doc = "Signs a message with a PGP private key",
         parameters = {
-            @Param(name = "message", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
-            @Param(name = "private_key", allowedTypes = {@ParamType(type = String.class)}),
+            @Param(name = "message", named = true, allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+            @Param(name = "private_key", named = true, allowedTypes = {@ParamType(type = String.class)}),
             @Param(name = "passphrase",
             named = true,
             allowedTypes = {
@@ -229,8 +229,8 @@ public class PGPModule implements StarlarkValue {
         name = "encrypt",
         doc = "Encrypts a message with a PGP public key",
         parameters = {
-            @Param(name = "message", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
-            @Param(name = "public_key", allowedTypes = {@ParamType(type = String.class)}),
+            @Param(name = "message", named = true, allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+            @Param(name = "public_key", named = true, allowedTypes = {@ParamType(type = String.class)}),
             @Param(name = "armor", named = true, defaultValue = "True"),
             @Param(name = "integrity_check", named = true, defaultValue = "True"),
             @Param(name = "algorithm",named = true, allowedTypes = {
@@ -368,8 +368,8 @@ public class PGPModule implements StarlarkValue {
         name = "decrypt",
         doc = "Decrypts a PGP encrypted message",
         parameters = {
-            @Param(name = "encrypted_message", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
-            @Param(name = "private_key", allowedTypes = {@ParamType(type = String.class)}),
+            @Param(name = "encrypted_message", named = true, allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+            @Param(name = "private_key", named = true, allowedTypes = {@ParamType(type = String.class)}),
             @Param(name = "passphrase", named = true, allowedTypes = {
                 @ParamType(type = String.class),
                 @ParamType(type = NoneType.class)
