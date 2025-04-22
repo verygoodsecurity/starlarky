@@ -268,32 +268,32 @@ public class PGPModule implements StarlarkValue {
         if (!Starlark.isNullOrNone(algorithmObj)) {
             String algoString = ((String) algorithmObj).toUpperCase().trim();
             switch (algoString) {
-                case "AES128":
+                case "AES128", "AES-128":
                     algorithm = SymmetricKeyAlgorithmTags.AES_128;
                     break;
-                case "AES192":
+                case "AES192", "AES-192":
                     algorithm = SymmetricKeyAlgorithmTags.AES_192;
                     break;
-                case "AES256":
+                case "AES256", "AES-256":
                     algorithm = SymmetricKeyAlgorithmTags.AES_256;
                     break;
                 case "BLOWFISH":
                     algorithm = SymmetricKeyAlgorithmTags.BLOWFISH;
                     break;
-                case "CAMELLIA128":
+                case "CAMELLIA128", "CAMELLIA-128":
                     algorithm = SymmetricKeyAlgorithmTags.CAMELLIA_128;
                     break;
-                case "CAMELLIA192":
+                case "CAMELLIA192", "CAMELLIA-192":
                     algorithm = SymmetricKeyAlgorithmTags.CAMELLIA_192;
                     break;
-                case "CAMELLIA256":
+                case "CAMELLIA256", "CAMELLIA-256":
                     algorithm = SymmetricKeyAlgorithmTags.CAMELLIA_256;
                     break;
                 case "TWOFISH":
                     algorithm = SymmetricKeyAlgorithmTags.TWOFISH;
                     break;
                 default:
-                    throw Starlark.errorf("Unsupported encryption algorithm: %s. Supported algorithms: AES128, AES192, AES256, BLOWFISH, CAMELLIA128, CAMELLIA192, CAMELLIA256, TWOFISH", algoString);
+                    throw Starlark.errorf("Unsupported encryption algorithm: %s. Supported algorithms: AES128, AES-128, AES192, AES-192, AES256, AES-256, BLOWFISH, CAMELLIA128, CAMELLIA-128, CAMELLIA192, CAMELLIA-192, CAMELLIA256, CAMELLIA-256, TWOFISH", algoString);
             }
         }
         
