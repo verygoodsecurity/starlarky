@@ -5,8 +5,7 @@ load("@vgs//vault", vault="vault")
 
 def test_hash_algorithms():
     """Test the hash algorithm string to constant conversion"""
-    pgp = setup().pgp
-    
+
     # Define test cases: algorithm name and expected output (non-zero)
     test_cases = {
         "SHA-1": "SHA1",
@@ -44,7 +43,11 @@ def test_hash_algorithms():
     #     asserts.assert_that(error_msg).contains("Unsupported hash algorithm")
     #     asserts.assert_that(error_msg).contains("SHA-384")
 
-def _test_all():
-    test_hash_algorithms()
+def _suite():
+    _suite = unittest.TestSuite()
+    _suite.addTest(unittest.FunctionTestCase(test_hash_algorithms))
 
-run_test(_test_all)
+    return _suite
+
+_runner = unittest.TextTestRunner()
+_runner.run(_suite())
