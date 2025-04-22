@@ -100,8 +100,12 @@ def test_pgp_encrypt_decrypt():
     
     asserts.assert_that(decrypted_large).is_equal_to(large_message)
 
-def _test_all():
-    test_pgp_module_basics()
-    test_pgp_encrypt_decrypt()
+def _suite():
+    _suite = unittest.TestSuite()
+    _suite.addTest(unittest.FunctionTestCase(test_pgp_module_basics))
+    _suite.addTest(unittest.FunctionTestCase(test_pgp_encrypt_decrypt))
 
-run_test(_test_all)
+    return _suite
+
+_runner = unittest.TextTestRunner()
+_runner.run(_suite())
