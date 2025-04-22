@@ -4,8 +4,7 @@ load("@vgs//pgp", "pgp")
 
 def test_pgp_sign_verify():
     """Test basic PGP signing and verification"""
-    pgp = setup().pgp
-    
+
     # Test key pair - do not use in production
     private_key = """..."""
 
@@ -65,8 +64,7 @@ def test_pgp_sign_verify():
 
 def test_sign_then_encrypt():
     """Test signing and then encrypting with PGP"""
-    pgp = setup().pgp
-    
+
     # Test key pair - do not use in production
     private_key = """..."""
 
