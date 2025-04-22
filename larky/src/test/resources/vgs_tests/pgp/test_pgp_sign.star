@@ -1,5 +1,6 @@
-load("asserts", "assert_that", "eq", "truth")
-load("vgstest_utils", setup="vgs_setup", run_test="run_test")
+load("@vendor//asserts", "asserts")
+load("@stdlib//unittest", "unittest")
+load("@vgs//pgp", "pgp")
 
 def test_pgp_sign_verify():
     """Test basic PGP signing and verification"""
