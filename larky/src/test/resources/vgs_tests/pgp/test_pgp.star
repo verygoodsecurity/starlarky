@@ -3,8 +3,7 @@ load("vgstest_utils", setup="vgs_setup", run_test="run_test")
 
 def test_pgp_module_basics():
     """Test that the PGP module is properly loaded and functions are available"""
-    pgp = setup().pgp
-    
+
     # Check that module provides algorithm info
     assert_that(pgp.get_supported_algorithms()).is_instance_of(str)
     assert_that(pgp.get_supported_algorithms()).contains("AES-256")
