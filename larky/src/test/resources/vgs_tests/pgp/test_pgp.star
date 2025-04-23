@@ -5,11 +5,6 @@ load("@vgs//pgp", "pgp")
 def test_pgp_module_basics():
     """Test that the PGP module is properly loaded and functions are available"""
 
-    # Check that module provides algorithm info
-    # asserts.assert_that(pgp.get_supported_algorithms()).is_instance_of(str)
-    # asserts.assert_that(pgp.get_supported_algorithms()).contains("AES-256")
-    # asserts.assert_that(pgp.get_supported_algorithms()).contains("SHA-384")
-    
     # Test hash algorithm conversion
     sha384 = pgp.get_hash_algorithm("SHA-384")
     asserts.assert_that(sha384).is_instance_of(int)
@@ -240,17 +235,6 @@ AFXxCavKH60Xxs7CLRCNOyu+UA==
         armor=False,
         algorithm="AES-256"
     )
-    
-    # Binary output should not contain PGP header text
-    # try:
-    # print("qwe: " + binary_encrypted)
-    # binary_text = binary_encrypted.decode("utf-8")
-    # contains_header = "-----BEGIN PGP MESSAGE-----" in binary_text
-    # except UnicodeDecodeError:
-    #     # This is expected for binary data
-    #     contains_header = False
-    
-    # asserts.assert_that(contains_header).is_equal_to(False)
     
     # But we should still be able to decrypt it
     decrypted_binary = pgp.decrypt(

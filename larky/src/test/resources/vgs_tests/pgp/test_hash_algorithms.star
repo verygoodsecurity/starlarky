@@ -32,16 +32,6 @@ def test_hash_algorithms():
             expected_id = pgp.get_hash_algorithm(expected_name)
             asserts.assert_that(algo_id).is_equal_to(expected_id)
     
-    # # Test invalid algorithm handling
-    # try:
-    #     pgp.get_hash_algorithm("UNKNOWN-HASH")
-    #     asserts.assert_that(True).is_equal_to(False)  # Should not reach here
-    # except Exception as e:
-    #     # Should throw an exception with a message containing supported algorithms
-    #     error_msg = str(e)
-    #     asserts.assert_that(error_msg).contains("Unsupported hash algorithm")
-    #     asserts.assert_that(error_msg).contains("SHA-384")
-
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(test_hash_algorithms))

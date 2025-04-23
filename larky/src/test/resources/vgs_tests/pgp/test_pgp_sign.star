@@ -383,7 +383,6 @@ def test_pgp_sign_verify():
         signed = pgp.sign(
             message=message,
             private_key=third_party_private_key,
-            # file_name=file_name,
             hash_algorithm=hash_algo,
             armor=True
         )
@@ -419,7 +418,6 @@ def test_sign_then_encrypt():
     
     # Should be encrypted (should start with -----BEGIN PGP MESSAGE-----)
     encrypted_text = encrypted_signed.decode("utf-8")
-    # print(encrypted_text)
     asserts.assert_that(encrypted_text).contains("-----BEGIN PGP MESSAGE-----")
 
 
