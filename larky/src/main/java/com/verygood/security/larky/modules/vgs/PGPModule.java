@@ -658,40 +658,31 @@ public class PGPModule implements StarlarkValue {
             }
 
             // Decrypt the data
-            InputStream clear = pbe.getDataStream(new BcPublicKeyDataDecryptorFactory(key));
+            InputStream decrypted = pbe.getDataStream(new BcPublicKeyDataDecryptorFactory(key));
 
             // We need to copy in case data is signed so we can resend it for verification
-            ByteArrayOutputStream clearOut = new ByteArrayOutputStream();
-            IOUtils.copy(clear, clearOut);
-            clear = IOUtils.copy(clearOut);
-            InputStream clearCopy = IOUtils.copy(clearOut);
+            ByteArrayOutputStream copyOutputStream = new ByteArrayOutputStream();
+            IOUtils.copy(decrypted, copyOutputStream);
+            decrypted = IOUtils.copy(copyOutputStream);
+            InputStream decryptedCopy = IOUtils.copy(copyOutputStream);
 
-            PGPObjectFactory plainFact = new BcPGPObjectFactory(clear);
+            PGPObjectFactory plainFact = new BcPGPObjectFactory(decrypted);
 
             Object message = plainFact.nextObject();
 
-            InputStream dataStream = null;
-            if (message instanceof PGPCompressedData) {
-                PGPCompressedData cData = (PGPCompressedData) message;
-                dataStream = cData.getDataStream();
-                plainFact = new BcPGPObjectFactory(dataStream);
-
+            if (message instanceof PGPCompressedData compressedData) {
+                plainFact = new BcPGPObjectFactory(compressedData.getDataStream());
                 message = plainFact.nextObject();
             }
             
-            if (message instanceof PGPLiteralData) {
-                PGPLiteralData ld = (PGPLiteralData) message;
+            if (message instanceof PGPLiteralData literalData) {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                Streams.pipeAll(ld.getInputStream(), out);
-                
+                Streams.pipeAll(literalData.getInputStream(), out);
                 return out.toByteArray();
             } else if (message instanceof PGPOnePassSignatureList) {
-                Object o1 = plainFact.nextObject();
-                PGPLiteralData literalData = (PGPLiteralData) o1;
-
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                Streams.pipeAll(clearCopy, out);
-                
+                // resend copy of decrypted signed data for verification
+                Streams.pipeAll(decryptedCopy, out);
                 return out.toByteArray();
             } else {
                 throw new PGPException("Unknown message type: " + message.getClass().getName());
