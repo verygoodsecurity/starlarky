@@ -81,6 +81,7 @@ gmNtylgnstPHygBV8Qmryh+tF8bOwi0QjTsrvlA=
 =F8Ao
 -----END PGP PUBLIC KEY BLOCK-----"""
 
+    # nosemgrep: secrets.misc.generic_private_key_pgp.generic_private_key_pgp
     private_key = """-----BEGIN PGP PRIVATE KEY BLOCK-----
 
 lQcYBGgHaqsBEACpA7KfS0umUdkB/YymlMScVzxWeZ8TMoA0AXN1uNm96XAM9/ED
