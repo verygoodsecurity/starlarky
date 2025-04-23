@@ -21,6 +21,8 @@ import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.QueueInputStream;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.CompressionAlgorithmTags;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
@@ -481,11 +483,13 @@ public class PGPModule implements StarlarkValue {
             throws PGPException, IOException {
         InputStream in = PGPUtil.getDecoderStream(new ByteArrayInputStream(signedData));
         PGPObjectFactory pgpFact = new BcPGPObjectFactory(in);
-        
+
         // Process the message
-        PGPCompressedData compressedData = (PGPCompressedData) pgpFact.nextObject();
-        pgpFact = new BcPGPObjectFactory(compressedData.getDataStream());
-        
+        Object message = pgpFact.nextObject();
+        if (message instanceof PGPCompressedData compressedData) {
+          pgpFact = new BcPGPObjectFactory(compressedData.getDataStream());
+        }
+
         // Get the signature and verify
         PGPOnePassSignatureList onePassSignatureList = (PGPOnePassSignatureList) pgpFact.nextObject();
         PGPOnePassSignature onePassSignature = onePassSignatureList.get(0);
@@ -652,18 +656,27 @@ public class PGPModule implements StarlarkValue {
             if (pbe == null) {
                 throw new PGPException("No encrypted data found for the provided key");
             }
-            
+
             // Decrypt the data
             InputStream clear = pbe.getDataStream(new BcPublicKeyDataDecryptorFactory(key));
+
+            // We need to copy in case data is signed so we can resend it for verification
+            ByteArrayOutputStream clearOut = new ByteArrayOutputStream();
+            IOUtils.copy(clear, clearOut);
+            clear = IOUtils.copy(clearOut);
+            InputStream clearCopy = IOUtils.copy(clearOut);
+
             PGPObjectFactory plainFact = new BcPGPObjectFactory(clear);
-            
+
             Object message = plainFact.nextObject();
-            
+
+            InputStream dataStream = null;
             if (message instanceof PGPCompressedData) {
                 PGPCompressedData cData = (PGPCompressedData) message;
-                PGPObjectFactory pgpFact = new BcPGPObjectFactory(cData.getDataStream());
-                
-                message = pgpFact.nextObject();
+                dataStream = cData.getDataStream();
+                plainFact = new BcPGPObjectFactory(dataStream);
+
+                message = plainFact.nextObject();
             }
             
             if (message instanceof PGPLiteralData) {
@@ -673,12 +686,11 @@ public class PGPModule implements StarlarkValue {
                 
                 return out.toByteArray();
             } else if (message instanceof PGPOnePassSignatureList) {
-                // This is a signed message - we need additional processing to extract the data
-                PGPOnePassSignatureList onePassSignatures = (PGPOnePassSignatureList) message;
-                PGPLiteralData literalData = (PGPLiteralData) plainFact.nextObject();
-                
+                Object o1 = plainFact.nextObject();
+                PGPLiteralData literalData = (PGPLiteralData) o1;
+
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                Streams.pipeAll(literalData.getInputStream(), out);
+                Streams.pipeAll(clearCopy, out);
                 
                 return out.toByteArray();
             } else {

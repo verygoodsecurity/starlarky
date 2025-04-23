@@ -3,7 +3,7 @@ load("@stdlib//unittest", "unittest")
 load("@vgs//pgp", "pgp")
 
 # Test key pair - do not use in production
-public_key = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+client_public_key = """-----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mQINBGgHaqsBEACpA7KfS0umUdkB/YymlMScVzxWeZ8TMoA0AXN1uNm96XAM9/ED
 o1lJ3Itw7IjVG7oEf7vv9lKI0kFR0+UwW7Er3AYydAxl0tBc7hgADoCxzFN3xVfa
@@ -67,7 +67,7 @@ gmNtylgnstPHygBV8Qmryh+tF8bOwi0QjTsrvlA=
 =F8Ao
 -----END PGP PUBLIC KEY BLOCK-----"""
 
-private_key = """-----BEGIN PGP PRIVATE KEY BLOCK-----
+client_private_signing_subkey = """-----BEGIN PGP PRIVATE KEY BLOCK-----
 
 lQcYBGgHaqsBEACpA7KfS0umUdkB/YymlMScVzxWeZ8TMoA0AXN1uNm96XAM9/ED
 o1lJ3Itw7IjVG7oEf7vv9lKI0kFR0+UwW7Er3AYydAxl0tBc7hgADoCxzFN3xVfa
@@ -185,59 +185,218 @@ AFXxCavKH60Xxs7CLRCNOyu+UA==
 =obP3
 -----END PGP PRIVATE KEY BLOCK-----"""
 
+third_party_public_key = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+bQ==
+=iHdS
+-----END PGP PUBLIC KEY BLOCK-----"""
+
+
+third_party_private_key = """-----BEGIN PGP PRIVATE KEY BLOCK-----
+
+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
+=Yyfm
+-----END PGP PRIVATE KEY BLOCK-----"""
+
 def test_pgp_sign_verify():
     """Test basic PGP signing and verification"""
 
     # Test message and file name
     message = bytes("This is a test message for PGP signing", "utf-8")
     file_name = "test.txt"
-    
+
     # Test sign with SHA-256
     signed_message = pgp.sign(
         message=message,
-        private_key=private_key,
-        # file_name=file_name,
+        private_key=third_party_private_key,
         hash_algorithm="SHA-256",
         armor=True
     )
-    
+
     # Verify it's signed (should start with -----BEGIN PGP MESSAGE-----)
     signed_text = signed_message.decode("utf-8")
     asserts.assert_that(signed_text).contains("-----BEGIN PGP MESSAGE-----")
-    
+
     # Verify the signature
     verified = pgp.verify(
         signed_message=signed_message,
-        public_key=public_key
+        public_key=third_party_public_key
     )
-    
+
     # Verify the verification worked
     asserts.assert_that(verified).is_equal_to(True)
-    
+
     # Test with different hash algorithms
     hash_algorithms = ["SHA-1", "SHA-256", "SHA-384", "SHA-512"]
-    
+
     for hash_algo in hash_algorithms:
         print("Testing with hash algorithm: " + hash_algo)
-        
+
         # Sign with this algorithm
         signed = pgp.sign(
             message=message,
-            private_key=private_key,
+            private_key=third_party_private_key,
             # file_name=file_name,
             hash_algorithm=hash_algo,
             armor=True
         )
-        
+
         # Verify the signature
         is_valid = pgp.verify(
             signed_message=signed,
-            public_key=public_key
+            public_key=third_party_public_key
         )
-        
+
         # Check that validation worked
         asserts.assert_that(is_valid).is_equal_to(True)
-    
+
     print("All signature tests passed successfully!")
 
 def test_sign_then_encrypt():
@@ -250,8 +409,8 @@ def test_sign_then_encrypt():
     # Test sign and encrypt with combined operation
     encrypted_signed = pgp.encrypt(
         message=message,
-        public_key=public_key,
-        private_key=private_key,
+        public_key=third_party_public_key,
+        private_key=client_private_signing_subkey,
         hash_algorithm="SHA-256",
         algorithm="AES-256",
         # file_name=file_name,
@@ -260,15 +419,21 @@ def test_sign_then_encrypt():
     
     # Should be encrypted (should start with -----BEGIN PGP MESSAGE-----)
     encrypted_text = encrypted_signed.decode("utf-8")
+    # print(encrypted_text)
     asserts.assert_that(encrypted_text).contains("-----BEGIN PGP MESSAGE-----")
-    
+
+
+    decrypted = pgp.decrypt(encrypted_signed, third_party_private_key)
+    asserts.assert_true(pgp.verify(decrypted, client_public_key))
+
     # Decrypt and automatically verify with the private key
     decrypted = pgp.decrypt(
         encrypted_message=encrypted_signed,
-        private_key=private_key,
+        public_key=client_public_key,
+        private_key=third_party_private_key,
         verify=True  # Automatically verify the signature
     )
-    
+
     # Verify decryption worked
     asserts.assert_that(decrypted).is_equal_to(message)
     

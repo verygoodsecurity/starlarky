@@ -108,6 +108,12 @@
             <version>${apache.commons-text.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.19.0</version>
+        </dependency>
+
         <!-- cryptography -->
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
