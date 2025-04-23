@@ -36,6 +36,7 @@
         <libstarlark.version>1.0.0-SNAPSHOT</libstarlark.version>
 
         <apache.commons-text.version>1.13.1</apache.commons-text.version>
+        <commons-io.version>2.19.0</commons-io.version>
         <google.crypto.tink>1.6.1</google.crypto.tink>
         <google.errorprone.version>2.36.0</google.errorprone.version>
         <google.flogger.version>0.8</google.flogger.version>
@@ -111,7 +112,7 @@
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.19.0</version>
+            <version>${commons-io.version}</version>
         </dependency>
 
         <!-- cryptography -->
