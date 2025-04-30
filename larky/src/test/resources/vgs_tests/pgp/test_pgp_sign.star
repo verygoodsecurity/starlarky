@@ -1,4 +1,5 @@
 load("@vendor//asserts", "asserts")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//unittest", "unittest")
 load("@vgs//pgp", "pgp")
 
@@ -399,7 +400,7 @@ def test_pgp_sign_verify():
 
     print("All signature tests passed successfully!")
 
-def test_sign_then_encrypt():
+def test_sign_then_encrypt(encryption_key_id, signing_key_id):
     """Test signing and then encrypting with PGP"""
 
     # Test message and file name
@@ -410,7 +411,9 @@ def test_sign_then_encrypt():
     encrypted_signed = pgp.encrypt(
         message=message,
         public_key=third_party_public_key,
+        public_key_id=encryption_key_id,
         private_key=client_private_signing_subkey,
+        private_key_id=signing_key_id,
         hash_algorithm="SHA-256",
         algorithm="AES-256",
         # file_name=file_name,
@@ -422,14 +425,16 @@ def test_sign_then_encrypt():
     asserts.assert_that(encrypted_text).contains("-----BEGIN PGP MESSAGE-----")
 
 
-    decrypted = pgp.decrypt(encrypted_signed, third_party_private_key)
-    asserts.assert_true(pgp.verify(decrypted, client_public_key))
+    decrypted = pgp.decrypt(encrypted_signed, third_party_private_key, encryption_key_id)
+    asserts.assert_true(pgp.verify(decrypted, client_public_key, signing_key_id))
 
     # Decrypt and automatically verify with the private key
     decrypted = pgp.decrypt(
         encrypted_message=encrypted_signed,
         public_key=client_public_key,
+        public_key_id=signing_key_id,
         private_key=third_party_private_key,
+        private_key_id=encryption_key_id,
         verify=True  # Automatically verify the signature
     )
 
@@ -441,7 +446,28 @@ def test_sign_then_encrypt():
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(test_pgp_sign_verify))
-    _suite.addTest(unittest.FunctionTestCase(test_sign_then_encrypt))
+    larky.parametrize(
+        _suite.addTest, unittest.FunctionTestCase, "encryption_key_id,signing_key_id", [
+            # primary implicitly + primary implicitly
+            (None, None),
+            # primary explicitly + primary implicitly
+            ("287E6DF3DDA4E52D32E4E3E1BA6635113E6939A0", None),
+            # primary implicitly + primary explicitly
+            (None, "0AD9AE85343A401153506617C4C2282E6AEDA391"),
+            # primary explicitly + primary explicitly
+            ("287E6DF3DDA4E52D32E4E3E1BA6635113E6939A0", "0AD9AE85343A401153506617C4C2282E6AEDA391"),
+            # sub explicitly + primary implicitly
+            ("9C96C84C150A4918BABAAA3AA1259B7993EBE7E7", None),
+            # primary implicitly + sub explicitly
+            (None, "067B65AD2E09DA80A3878BD7798258EC65BFB2AE"),
+            # sub explicitly + sub explicitly
+            ("9C96C84C150A4918BABAAA3AA1259B7993EBE7E7", "067B65AD2E09DA80A3878BD7798258EC65BFB2AE"),
+            # sub explicitly + primary explicitly
+            ("9C96C84C150A4918BABAAA3AA1259B7993EBE7E7", "0AD9AE85343A401153506617C4C2282E6AEDA391"),
+            # primary explicitly + sub explicitly
+            ("287E6DF3DDA4E52D32E4E3E1BA6635113E6939A0", "067B65AD2E09DA80A3878BD7798258EC65BFB2AE"),
+        ]
+    )(test_sign_then_encrypt)
 
     return _suite
 
