@@ -393,9 +393,13 @@ usNkTIob/soMGzUtCYiOEIPhfrMbggzQ890uKBXTV9Uy+VpYYwNt
              armor = True,
              )
     
-    encrypted_msg = pgp.encrypt(signed_payload, third_party_public_key)
+    encrypted_msg = pgp.encrypt(signed_payload, third_party_public_key
+                                # , "9C96C84C150A4918BABAAA3AA1259B7993EBE7E7"
+                                )
     
-    decrypted_msg = pgp.decrypt(encrypted_msg, third_party_private_key)
+    decrypted_msg = pgp.decrypt(encrypted_msg, third_party_private_key
+                                # , "9C96C84C150A4918BABAAA3AA1259B7993EBE7E7"
+                                )
     
     asserts.assert_true(pgp.verify(signed_payload, client_public_key))
     asserts.assert_that(decrypted_msg).is_equal_to(signed_payload)

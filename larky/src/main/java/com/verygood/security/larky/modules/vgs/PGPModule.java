@@ -7,13 +7,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-import java.util.ArrayList;
 import java.util.Date;
+import java.util.HexFormat;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Spliterator;
-import java.util.Spliterators;
-import java.util.stream.StreamSupport;
+import java.util.Objects;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -30,6 +27,7 @@ import org.apache.commons.io.IOUtils;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.CompressionAlgorithmTags;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
+import org.bouncycastle.bcpg.KeyIdentifier;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.openpgp.PGPCompressedData;
@@ -130,6 +128,10 @@ public class PGPModule implements StarlarkValue {
         parameters = {
             @Param(name = "message", named = true, allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
             @Param(name = "private_key", named = true, allowedTypes = {@ParamType(type = String.class)}),
+            @Param(name = "private_key_id", named = true, allowedTypes = {
+                @ParamType(type = String.class),
+                @ParamType(type = NoneType.class),
+            }, defaultValue = "None"),
             @Param(name = "passphrase",
             named = true,
             allowedTypes = {
@@ -151,6 +153,7 @@ public class PGPModule implements StarlarkValue {
     public StarlarkBytes sign(
         StarlarkBytes message,
         String privateKeyArmored,
+        Object privateKeyIdObj,
         Object passphraseObj,
         Object hashAlgorithmObj,
         boolean armor,
@@ -159,6 +162,9 @@ public class PGPModule implements StarlarkValue {
         char[] passphrase = Starlark.isNullOrNone(passphraseObj) 
             ? new char[0] 
             : ((String) passphraseObj).toCharArray();
+        String privateKeyId = Starlark.isNullOrNone(privateKeyIdObj)
+            ? ""
+            : (String) privateKeyIdObj;
         
         int hashAlgorithm = HashAlgorithmTags.SHA256; // Default
         if (!Starlark.isNullOrNone(hashAlgorithmObj)) {
@@ -168,7 +174,7 @@ public class PGPModule implements StarlarkValue {
         
         try {
             // Load the private key
-            PGPSecretKey secretKey = readSecretKey(privateKeyArmored);
+            PGPSecretKey secretKey = readSecretKey(privateKeyArmored, privateKeyId);
             PGPPrivateKey privateKey = extractPrivateKey(secretKey, passphrase);
             
             // Sign the data
@@ -202,18 +208,26 @@ public class PGPModule implements StarlarkValue {
         doc = "Verifies a signed message with a PGP public key",
         parameters = {
             @Param(name = "signed_message", named = true, allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
-            @Param(name = "public_key", named = true, allowedTypes = {@ParamType(type = String.class)})
+            @Param(name = "public_key", named = true, allowedTypes = {@ParamType(type = String.class)}),
+            @Param(name = "public_key_id", named = true, allowedTypes = {
+                @ParamType(type = String.class),
+                @ParamType(type = NoneType.class),
+            }, defaultValue = "None"),
         },
         useStarlarkThread = true
     )
     public boolean verify(
         StarlarkBytes signedMessage,
         String publicKeyArmored,
+        Object publicKeyIdObj,
         StarlarkThread thread
     ) throws EvalException {
+        String publicKeyId = Starlark.isNullOrNone(publicKeyIdObj)
+            ? ""
+            : (String) publicKeyIdObj;
         try {
             // Load the public key
-            PGPPublicKey publicKey = readPublicKey(publicKeyArmored);
+            PGPPublicKey publicKey = readPublicKey(publicKeyArmored, publicKeyId);
             
             // Verify the signature
             return verifySignature(signedMessage.toByteArray(), publicKey);
@@ -239,6 +253,10 @@ public class PGPModule implements StarlarkValue {
         parameters = {
             @Param(name = "message", named = true, allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
             @Param(name = "public_key", named = true, allowedTypes = {@ParamType(type = String.class)}),
+            @Param(name = "public_key_id", named = true, allowedTypes = {
+                @ParamType(type = String.class),
+                @ParamType(type = NoneType.class),
+            }, defaultValue = "None"),
             @Param(name = "armor", named = true, defaultValue = "True"),
             @Param(name = "integrity_check", named = true, defaultValue = "True"),
             @Param(name = "algorithm",named = true, allowedTypes = {
@@ -248,6 +266,10 @@ public class PGPModule implements StarlarkValue {
             @Param(name = "private_key", named = true, allowedTypes = {
                 @ParamType(type = String.class),
                 @ParamType(type = NoneType.class)
+            }, defaultValue = "None"),
+            @Param(name = "private_key_id", named = true, allowedTypes = {
+                @ParamType(type = String.class),
+                @ParamType(type = NoneType.class),
             }, defaultValue = "None"),
             @Param(name = "passphrase", named = true, allowedTypes = {
                 @ParamType(type = String.class),
@@ -263,14 +285,22 @@ public class PGPModule implements StarlarkValue {
     public StarlarkBytes encrypt(
         StarlarkBytes message,
         String publicKeyArmored,
+        Object publicKeyIdObj,
         boolean armor,
         boolean withIntegrityCheck,
         Object algorithmObj,
         Object privateKeyObj,
+        Object privateKeyIdObj,
         Object passphraseObj,
         Object hashAlgorithmObj,
         StarlarkThread thread
     ) throws EvalException {
+        String publicKeyId = Starlark.isNullOrNone(publicKeyIdObj)
+            ? ""
+            : (String) publicKeyIdObj;
+        String privateKeyId = Starlark.isNullOrNone(privateKeyIdObj)
+            ? ""
+            : (String) privateKeyIdObj;
         int algorithm = SymmetricKeyAlgorithmTags.AES_256; // Default
         
         if (!Starlark.isNullOrNone(algorithmObj)) {
@@ -307,7 +337,7 @@ public class PGPModule implements StarlarkValue {
         
         try {
             // Load the public key
-            PGPPublicKey publicKey = readPublicKey(publicKeyArmored);
+            PGPPublicKey publicKey = readPublicKey(publicKeyArmored, publicKeyId);
             
             // Check if we need to sign first
             if (!Starlark.isNullOrNone(privateKeyObj)) {
@@ -324,7 +354,7 @@ public class PGPModule implements StarlarkValue {
                 }
                 
                 // Load the private key for signing
-                PGPSecretKey secretKey = readSecretKey(privateKeyArmored);
+                PGPSecretKey secretKey = readSecretKey(privateKeyArmored, privateKeyId);
                 PGPPrivateKey privateKey = extractPrivateKey(secretKey, passphrase);
                 
                 // Sign and encrypt
@@ -378,12 +408,20 @@ public class PGPModule implements StarlarkValue {
         parameters = {
             @Param(name = "encrypted_message", named = true, allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
             @Param(name = "private_key", named = true, allowedTypes = {@ParamType(type = String.class)}),
+            @Param(name = "private_key_id", named = true, allowedTypes = {
+                @ParamType(type = String.class),
+                @ParamType(type = NoneType.class),
+            }, defaultValue = "None"),
             @Param(name = "passphrase", named = true, allowedTypes = {
                 @ParamType(type = String.class),
                 @ParamType(type = NoneType.class)
             }, defaultValue = "None"),
             @Param(name = "verify", named = true, defaultValue = "False"),
             @Param(name = "public_key", named = true, allowedTypes = {
+                @ParamType(type = String.class),
+                @ParamType(type = NoneType.class)
+            }, defaultValue = "None"),
+            @Param(name = "public_key_id", named = true, allowedTypes = {
                 @ParamType(type = String.class),
                 @ParamType(type = NoneType.class)
             }, defaultValue = "None")
@@ -393,18 +431,26 @@ public class PGPModule implements StarlarkValue {
     public StarlarkBytes decrypt(
         StarlarkBytes encryptedMessage,
         String privateKeyArmored,
+        Object privateKeyIdObj,
         Object passphraseObj,
         boolean verify,
         Object publicKeyObj,
+        Object publicKeyIdObj,
         StarlarkThread thread
     ) throws EvalException {
         char[] passphrase = Starlark.isNullOrNone(passphraseObj) 
             ? new char[0] 
             : ((String) passphraseObj).toCharArray();
+        String publicKeyId = Starlark.isNullOrNone(publicKeyIdObj)
+            ? ""
+            : (String) publicKeyIdObj;
+        String privateKeyId = Starlark.isNullOrNone(privateKeyIdObj)
+            ? ""
+            : (String) privateKeyIdObj;
 
         try {
             // Load the private key
-            PGPSecretKey secretKey = readSecretKey(privateKeyArmored);
+            PGPSecretKey secretKey = readSecretKey(privateKeyArmored, privateKeyId);
             PGPPrivateKey privateKey = extractPrivateKey(secretKey, passphrase);
             
             // If verify is true, we need a public key
@@ -416,7 +462,7 @@ public class PGPModule implements StarlarkValue {
                 } else {
                     // Use the provided public key
                     String publicKeyArmored = (String) publicKeyObj;
-                    publicKey = readPublicKey(publicKeyArmored);
+                    publicKey = readPublicKey(publicKeyArmored, publicKeyId);
                 }
             }
             
@@ -701,7 +747,7 @@ public class PGPModule implements StarlarkValue {
     /**
      * Read a public key from ASCII-armored format
      */
-    private PGPPublicKey readPublicKey(String armoredKey) 
+    private PGPPublicKey readPublicKey(String armoredKey, String publicKeyId)
             throws IOException, PGPException {
         InputStream keyIn = new ByteArrayInputStream(armoredKey.getBytes(StandardCharsets.UTF_8));
         InputStream in = PGPUtil.getDecoderStream(keyIn);
@@ -716,7 +762,7 @@ public class PGPModule implements StarlarkValue {
             
             while (keys.hasNext()) {
                 PGPPublicKey key = keys.next();
-                if (key.isEncryptionKey() && !key.isMasterKey() && hasEncryptionFlag(key)) {
+                if (key.isEncryptionKey() && (Objects.equals(publicKeyId, "") || key.getKeyIdentifier().matches(new KeyIdentifier(HexFormat.of().parseHex(publicKeyId))))) {
                     return key;
                 }
             }
@@ -740,7 +786,7 @@ public class PGPModule implements StarlarkValue {
     /**
      * Read a secret key from ASCII-armored format
      */
-    private PGPSecretKey readSecretKey(String armoredKey) 
+    private PGPSecretKey readSecretKey(String armoredKey, String privateKeyId)
             throws IOException, PGPException {
         InputStream keyIn = new ByteArrayInputStream(armoredKey.getBytes(StandardCharsets.UTF_8));
         InputStream in = PGPUtil.getDecoderStream(keyIn);
@@ -755,7 +801,7 @@ public class PGPModule implements StarlarkValue {
             
             while (keys.hasNext()) {
                 PGPSecretKey key = keys.next();
-                if (key.isSigningKey()) {
+                if (key.isSigningKey() && (Objects.equals(privateKeyId, "") || key.getKeyIdentifier().matches(new KeyIdentifier(HexFormat.of().parseHex(privateKeyId))))) {
                     return key;
                 }
             }
