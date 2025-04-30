@@ -445,7 +445,7 @@ def test_sign_then_encrypt(encryption_key_id, signing_key_id):
 
 def _suite():
     _suite = unittest.TestSuite()
-    # _suite.addTest(unittest.FunctionTestCase(test_pgp_sign_verify))
+    _suite.addTest(unittest.FunctionTestCase(test_pgp_sign_verify))
     larky.parametrize(
         _suite.addTest, unittest.FunctionTestCase, "encryption_key_id,signing_key_id", [
             # primary implicitly + primary implicitly
@@ -468,7 +468,6 @@ def _suite():
             ("287E6DF3DDA4E52D32E4E3E1BA6635113E6939A0", "067B65AD2E09DA80A3878BD7798258EC65BFB2AE"),
         ]
     )(test_sign_then_encrypt)
-    # _suite.addTest(unittest.FunctionTestCase(test_sign_then_encrypt))
 
     return _suite
 
