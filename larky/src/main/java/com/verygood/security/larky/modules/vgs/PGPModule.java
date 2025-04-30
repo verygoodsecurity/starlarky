@@ -760,13 +760,17 @@ public class PGPModule implements StarlarkValue {
             
             while (keys.hasNext()) {
                 PGPPublicKey key = keys.next();
-                if (key.isEncryptionKey() && (Objects.equals(publicKeyId, "") || key.getKeyIdentifier().matches(new KeyIdentifier(HexFormat.of().parseHex(publicKeyId))))) {
+                if (key.isEncryptionKey() && (Objects.equals(publicKeyId, "") || matches(key.getKeyIdentifier(), publicKeyId))) {
                     return key;
                 }
             }
         }
         
         throw new PGPException("No encryption key found in key ring");
+    }
+
+    private static boolean matches(KeyIdentifier keyIdentifier, String publicKeyId) {
+        return keyIdentifier.matches(new KeyIdentifier(HexFormat.of().parseHex(publicKeyId)));
     }
 
     /**
@@ -787,7 +791,7 @@ public class PGPModule implements StarlarkValue {
             
             while (keys.hasNext()) {
                 PGPSecretKey key = keys.next();
-                if (key.isSigningKey() && (Objects.equals(privateKeyId, "") || key.getKeyIdentifier().matches(new KeyIdentifier(HexFormat.of().parseHex(privateKeyId))))) {
+                if (key.isSigningKey() && (Objects.equals(privateKeyId, "") || matches(key.getKeyIdentifier(), privateKeyId))) {
                     return key;
                 }
             }
