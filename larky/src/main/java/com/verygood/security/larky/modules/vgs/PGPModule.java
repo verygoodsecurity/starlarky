@@ -7,8 +7,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.stream.StreamSupport;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -22,11 +27,11 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.input.QueueInputStream;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.CompressionAlgorithmTags;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
+import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.openpgp.PGPCompressedData;
 import org.bouncycastle.openpgp.PGPCompressedDataGenerator;
 import org.bouncycastle.openpgp.PGPEncryptedData;
@@ -50,6 +55,7 @@ import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureGenerator;
 import org.bouncycastle.openpgp.PGPSignatureList;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketGenerator;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
@@ -710,13 +716,25 @@ public class PGPModule implements StarlarkValue {
             
             while (keys.hasNext()) {
                 PGPPublicKey key = keys.next();
-                if (key.isEncryptionKey()) {
+                if (key.isEncryptionKey() && !key.isMasterKey() && hasEncryptionFlag(key)) {
                     return key;
                 }
             }
         }
         
         throw new PGPException("No encryption key found in key ring");
+    }
+
+    private static boolean hasEncryptionFlag(PGPPublicKey key) {
+        Iterator<PGPSignature> signatures = key.getKeySignatures();
+        while (signatures.hasNext()) {
+            PGPSignature signature = signatures.next();
+            PGPSignatureSubpacketVector subpacketVector = signature.getHashedSubPackets();
+            if (subpacketVector.getKeyFlags() == (KeyFlags.ENCRYPT_COMMS | KeyFlags.ENCRYPT_STORAGE)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
