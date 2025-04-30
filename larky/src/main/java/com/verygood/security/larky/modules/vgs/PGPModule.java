@@ -29,7 +29,6 @@ import org.bouncycastle.bcpg.CompressionAlgorithmTags;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.KeyIdentifier;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
-import org.bouncycastle.bcpg.sig.KeyFlags;
 import org.bouncycastle.openpgp.PGPCompressedData;
 import org.bouncycastle.openpgp.PGPCompressedDataGenerator;
 import org.bouncycastle.openpgp.PGPEncryptedData;
@@ -53,7 +52,6 @@ import org.bouncycastle.openpgp.PGPSignature;
 import org.bouncycastle.openpgp.PGPSignatureGenerator;
 import org.bouncycastle.openpgp.PGPSignatureList;
 import org.bouncycastle.openpgp.PGPSignatureSubpacketGenerator;
-import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.PGPUtil;
 import org.bouncycastle.openpgp.bc.BcPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.bc.BcKeyFingerprintCalculator;
@@ -769,18 +767,6 @@ public class PGPModule implements StarlarkValue {
         }
         
         throw new PGPException("No encryption key found in key ring");
-    }
-
-    private static boolean hasEncryptionFlag(PGPPublicKey key) {
-        Iterator<PGPSignature> signatures = key.getKeySignatures();
-        while (signatures.hasNext()) {
-            PGPSignature signature = signatures.next();
-            PGPSignatureSubpacketVector subpacketVector = signature.getHashedSubPackets();
-            if (subpacketVector.getKeyFlags() == (KeyFlags.ENCRYPT_COMMS | KeyFlags.ENCRYPT_STORAGE)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
