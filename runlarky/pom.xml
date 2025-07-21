@@ -40,7 +40,7 @@
         <org.projectlombok.version>1.18.38</org.projectlombok.version>
         <picocli.version>4.7.7</picocli.version>
         <graalvm.version>24.2.1</graalvm.version>
-        <jackson-databind.version>2.19.1</jackson-databind.version>
+        <jackson-databind.version>2.19.2</jackson-databind.version>
 
         <main.class>com.verygood.security.run.LarkyEntrypoint</main.class>
         <cli.name>larky-runner</cli.name>
