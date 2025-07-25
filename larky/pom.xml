@@ -35,7 +35,7 @@
 
         <libstarlark.version>1.0.0-SNAPSHOT</libstarlark.version>
 
-        <apache.commons-text.version>1.13.1</apache.commons-text.version>
+        <apache.commons-text.version>1.14.0</apache.commons-text.version>
         <commons-io.version>2.19.0</commons-io.version>
         <google.crypto.tink>1.6.1</google.crypto.tink>
         <google.errorprone.version>2.38.0</google.errorprone.version>
