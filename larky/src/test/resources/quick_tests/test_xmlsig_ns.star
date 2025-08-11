@@ -26,7 +26,8 @@ namespaces = {
 }
 
 
-soap_string = """
+
+xml_data = """
 <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
   <SOAP-ENV:Header>
     <wsse:Security xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
@@ -51,29 +52,32 @@ soap_string = """
 """
 
 def test_xmlsig_sign_case1():
+  
+  
+  # 1. Define the namespaces used in the XML
+  namespaces = {
+      'SOAP-ENV': 'http://schemas.xmlsoap.org/soap/envelope/',
+      'wsse': 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd',
+      'ds': 'http://www.w3.org/2000/09/xmldsig#'
+  }
 
-    # case 1: Create signature template
-    signature = xmlsig.template.create(
-        xmlsig.constants.TransformExclC14N,
-        xmlsig.constants.TransformRsaSha256
-    )
+  # 2. Parse the XML string
+  root =  etree.parse(io.StringIO(xml_data)).getroot()
 
-    # case 2: Parse SOAP and locate Signature element
-    tree = etree.parse(io.StringIO(soap_string))
-    root = tree.getroot()
-    sign = None
-    
-    # sign = root.find(
-    # ".//ds:" + xmlsig.constants.NodeSignature,
-    # namespaces={"ds": xmlsig.constants.DSigNs}
-    # )
-    
-    for element in root.iter():
-      if str(element.tag).endswith("Signature"):
-          sign = element
-          break
-    print(sign)
-    # asserts.assert_true(sign)
+  # 3. Define the XPath to the Signature element
+  # The path is: Envelope -> Header -> Security -> Signature
+  path = './SOAP-ENV:Header/wsse:Security/ds:Signature'
+
+  # 4. Use find() with the path and the namespaces dictionary
+  signature_element = root.find(path, namespaces)
+
+  # 5. Check the result and print its attributes
+  if signature_element != None:
+      print("Found the <Signature> element!")
+      print("Tag:" + signature_element.tag)
+      print("Attributes:" + signature_element.attrib)
+  else:
+      print("Signature element not found.")
 
 
 def _suite():
