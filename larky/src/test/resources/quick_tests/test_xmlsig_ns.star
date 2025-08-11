@@ -51,9 +51,7 @@ xml_data = """
 </SOAP-ENV:Envelope>
 """
 
-def test_xmlsig_sign_case1():
-  
-  
+def test_xmlsig_sign_find_element():
   # 1. Define the namespaces used in the XML
   namespaces = {
       'SOAP-ENV': 'http://schemas.xmlsoap.org/soap/envelope/',
@@ -80,9 +78,20 @@ def test_xmlsig_sign_case1():
       print("Signature element not found.")
 
 
+def test_xmlsig_create_sign_template():
+  # 1. Define the namespaces used in the XML
+  signature = xmlsig.template.create(
+   xmlsig.constants.TransformExclC14N,
+   xmlsig.constants.TransformRsaSha256
+  )
+  
+  asserts.assert_true(signature)
+
+
 def _suite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(test_xmlsig_sign_case1))
+    _suite.addTest(unittest.FunctionTestCase(test_xmlsig_sign_find_element))
+    _suite.addTest(unittest.FunctionTestCase(test_xmlsig_create_sign_template))
     return _suite
 
 
