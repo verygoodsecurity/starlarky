@@ -69,12 +69,7 @@ def test_xmlsig_sign_find_element():
   signature_element = root.find(path, namespaces)
 
   # 5. Check the result and print its attributes
-  if signature_element != None:
-      print("Found the <Signature> element!")
-      print("Tag:", signature_element.tag)
-      print("Attributes:", signature_element.attrib)
-  else:
-      print("Signature element not found.")
+  asserts.assert_true(signature_element != None)
 
 
 def test_xmlsig_create_sign_template():
