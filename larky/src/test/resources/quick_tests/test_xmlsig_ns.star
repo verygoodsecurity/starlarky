@@ -5,14 +5,14 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
 load("@stdlib//unittest", unittest="unittest")
-load("@stdlib//xml/etree/ElementTree", QName="QName", etree="ElementTree")
+load("@stdlib//xml/etree/ElementTree", QName="QName", ElementTree="ElementTree")
 
 load("@vendor//asserts", asserts="asserts")
 load("@vendor//cryptography/hazmat/backends", default_backend="default_backend")
 load("@vendor//cryptography/hazmat/primitives", serialization="serialization")
 load("@vendor//cryptography/hazmat/primitives/serialization", serialization="serialization")
 load("@vendor//cryptography/x509", load_pem_x509_certificate="load_pem_x509_certificate")
-
+load("@vendor//lxml/etree", etree="etree")
 load("@vendor//xmlsig", xmlsig="xmlsig")
 
 

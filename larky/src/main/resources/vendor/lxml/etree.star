@@ -367,7 +367,7 @@ def XMLNode(tag, attrib=None, **extra):
 
         self.data = None
         # self.text = None
-        self._tail = None
+        # self.tail = None
 
         self._owner_doc = None
         self._doctype = None
@@ -431,7 +431,7 @@ def XMLNode(tag, attrib=None, **extra):
         self._flags = []
 
         # self.text = None
-        self._tail = None
+        # self.tail = None
         # Raw data representing the underlying node data
         self.data = self.attrib.pop('data', None)
 
@@ -717,14 +717,18 @@ def XMLNode(tag, attrib=None, **extra):
     self.text = larky.property(gettext, self.settext)
 
     def gettail(strip=None):
-        return getattr(self, '_tail', None)
+        _txt = []
+        for text in self.gettextaslist(reverse=True):
+            # print(repr(self), repr(text))
+            if strip:
+                if strip == True:
+                    text = text.strip()
+                else:
+                    text = strip(text)
+            _txt.append(text)
+        return ''.join(_txt)
     self.gettail = gettail
-
-    def settail(data):
-        self._tail = data
-    self.settail = settail
-
-    self.tail = larky.property(gettail, settail)
+    self.tail = larky.property(gettail)
 
     def insertafterchild(afterchild, child, reparent=True):
         """ Add a child node after another child
@@ -3900,6 +3904,5 @@ etree = larky.struct(
     fromstring=fromstring,
     XML=XML,
     ElementTree=ElementTree,
-    Element=XMLNode,
     QName=QName,
 )
