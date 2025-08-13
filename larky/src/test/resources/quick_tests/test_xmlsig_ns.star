@@ -5,14 +5,13 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
 load("@stdlib//unittest", unittest="unittest")
-load("@stdlib//xml/etree/ElementTree", QName="QName", ElementTree="ElementTree")
+load("@stdlib//xml/etree/ElementTree", QName="QName", etree="ElementTree")
 
 load("@vendor//asserts", asserts="asserts")
 load("@vendor//cryptography/hazmat/backends", default_backend="default_backend")
 load("@vendor//cryptography/hazmat/primitives", serialization="serialization")
 load("@vendor//cryptography/hazmat/primitives/serialization", serialization="serialization")
 load("@vendor//cryptography/x509", load_pem_x509_certificate="load_pem_x509_certificate")
-load("@vendor//lxml/etree", etree="etree")
 
 load("@vendor//xmlsig", xmlsig="xmlsig")
 
@@ -72,8 +71,8 @@ def test_xmlsig_sign_find_element():
   # 5. Check the result and print its attributes
   if signature_element != None:
       print("Found the <Signature> element!")
-      print("Tag:" + signature_element.tag)
-      print("Attributes:" + signature_element.attrib)
+      print("Tag:", signature_element.tag)
+      print("Attributes:", signature_element.attrib)
   else:
       print("Signature element not found.")
 
