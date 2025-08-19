@@ -5,14 +5,14 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
 load("@stdlib//unittest", unittest="unittest")
-load("@stdlib//xml/etree/ElementTree", QName="QName", etree="ElementTree")
+load("@stdlib//xml/etree/ElementTree", QName="QName", ElementTree="ElementTree")
 
 load("@vendor//asserts", asserts="asserts")
 load("@vendor//cryptography/hazmat/backends", default_backend="default_backend")
 load("@vendor//cryptography/hazmat/primitives", serialization="serialization")
 load("@vendor//cryptography/hazmat/primitives/serialization", serialization="serialization")
 load("@vendor//cryptography/x509", load_pem_x509_certificate="load_pem_x509_certificate")
-
+load("@vendor//lxml/etree", etree="etree")
 load("@vendor//xmlsig", xmlsig="xmlsig")
 
 
@@ -55,21 +55,72 @@ def test_xmlsig_sign_find_element():
   namespaces = {
       'SOAP-ENV': 'http://schemas.xmlsoap.org/soap/envelope/',
       'wsse': 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd',
-      'ds': 'http://www.w3.org/2000/09/xmldsig#'
+      'wsu': 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd',
+      'ds': 'http://www.w3.org/2000/09/xmldsig#',
+      'ns2': 'urn:schemas-cybersource-com:transaction-data-0.000'
   }
 
   # 2. Parse the XML string
-  root =  etree.parse(io.StringIO(xml_data)).getroot()
+  root = etree.fromstring(xml_data)
 
-  # 3. Define the XPath to the Signature element
-  # The path is: Envelope -> Header -> Security -> Signature
-  path = './SOAP-ENV:Header/wsse:Security/ds:Signature'
-
-  # 4. Use find() with the path and the namespaces dictionary
-  signature_element = root.find(path, namespaces)
-
-  # 5. Check the result and print its attributes
+  # 3. Test finding various elements with namespace resolution
+  
+  # Test root element (Envelope)
+  envelope_element = root
+  asserts.assert_true(envelope_element != None)
+  asserts.assert_true(envelope_element.tag.endswith('}Envelope'))
+  
+  # Test Header element
+  header_element = root.find('./SOAP-ENV:Header', namespaces)
+  asserts.assert_true(header_element != None)
+  
+  # Test Security element
+  security_element = root.find('./SOAP-ENV:Header/wsse:Security', namespaces)
+  asserts.assert_true(security_element != None)
+  
+  # Test BinarySecurityToken element
+  binary_token = root.find('./SOAP-ENV:Header/wsse:Security/wsse:BinarySecurityToken', namespaces)
+  asserts.assert_true(binary_token != None)
+  
+  # Test Signature element (original test case)
+  signature_element = root.find('./SOAP-ENV:Header/wsse:Security/ds:Signature', namespaces)
   asserts.assert_true(signature_element != None)
+  
+  # Test Body element
+  body_element = root.find('./SOAP-ENV:Body', namespaces)
+  asserts.assert_true(body_element != None)
+  
+  # Test requestMessage element
+  request_message = root.find('./SOAP-ENV:Body/ns2:requestMessage', namespaces)
+  asserts.assert_true(request_message != None)
+  
+  # Test finding elements using different path styles
+  
+  # Test descendant search (//)
+  security_descendant = root.find('.//wsse:Security', namespaces)
+  asserts.assert_true(security_descendant != None)
+  
+  # Test finding from non-root elements
+  signature_from_security = security_element.find('./ds:Signature', namespaces)
+  asserts.assert_true(signature_from_security != None)
+  
+  binary_from_security = security_element.find('./wsse:BinarySecurityToken', namespaces)
+  asserts.assert_true(binary_from_security != None)
+  
+  # Test attribute access on found elements
+  asserts.assert_true(signature_element.get('Id') == 'SIG-79a699c8-8a55-4488-977c-ef7f6c31bc02')
+  asserts.assert_true(binary_token.get('wsu:Id') != None)
+  
+  # Test findall() for specific elements and ensure it works with namespaces
+  all_wsse_security = root.findall('.//wsse:Security', namespaces)
+  asserts.assert_true(len(all_wsse_security) == 1)  # Should find exactly one Security element
+  
+  all_wsse_tokens = root.findall('.//wsse:BinarySecurityToken', namespaces)
+  asserts.assert_true(len(all_wsse_tokens) == 1)  # Should find exactly one BinarySecurityToken
+  
+  # Test finding direct children
+  header_children = header_element.findall('./*')
+  asserts.assert_true(len(header_children) >= 1)  # Should find Security element
 
 
 def test_xmlsig_create_sign_template():

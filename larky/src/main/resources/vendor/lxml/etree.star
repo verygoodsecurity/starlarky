@@ -90,15 +90,32 @@ def _get_ns(element):
 
 
 # equivalent to lxml's _namespacedName
-def _namespaced_name_from_ns_name(href, name):
+def _namespaced_name_from_ns_name(href, name, context=None):
+    # Fix namespace extraction for prefixed elements
+    if href == None and ":" in name and context:
+        prefix, local_name = name.split(":", 1)
+        # Look up namespace URI for this prefix in current context
+        # _current_context maps URI -> prefix, so we need to reverse lookup
+        for uri, ctx_prefix in context._current_context.items():
+            if ctx_prefix == prefix:
+                href = uri
+                name = local_name
+                break
+
     if href == None:
         return name
+
+    # If name already contains namespace info, extract just the local name
     if type(name) == 'QName':
         ns_utf, tag_utf = _get_ns_tag(name.text)
+        local_name = tag_utf
     else:
         ns_utf, tag_utf = _get_ns_tag(name)
-    # return ("{%s}%s" % (ns_utf, tag_utf)) if ns_utf else tag_utf
-    return "{%s}%s" % (ns_utf, tag_utf)
+        # If name doesn't have namespace format, use the whole name as local name
+        local_name = tag_utf if tag_utf else name
+
+    # Use the provided href as the namespace URI
+    return "{%s}%s" % (href, local_name)
 
 
 _IterWalkState = enum.Enum('_IterWalkState', [
@@ -3363,10 +3380,29 @@ def BaseTreeBuilder(namespaceHTMLElements):
         pi_node.attach_document(self.document)
     self.insertProcessingInstruction = insertProcessingInstruction
 
+    def _resolve_namespace_for_prefixed_element(name, namespace):
+        """
+        Args:
+            name: Element name, possibly with namespace prefix (e.g., "wsse:Security")
+            namespace: Current namespace or None
+
+        Returns:
+            tuple: (resolved_namespace, local_name)
+        """
+        if namespace == None and ":" in name:
+            prefix, local_name = name.split(":", 1)
+            # Look up namespace URI for this prefix in current context
+            # _current_context maps URI -> prefix, so we need to reverse lookup
+            for uri, ctx_prefix in self._current_context.items():
+                if ctx_prefix == prefix:
+                    return uri, local_name
+        return namespace, name
+
     def createElement(**token):
         """Create an element but don't insert it anywhere"""
         name = token["tag"]
         namespace = token.get("namespace", self.defaultNamespace)
+        namespace, name = _resolve_namespace_for_prefixed_element(name, namespace)
         element = self.elementClass(
             _namespaced_name_from_ns_name(namespace, name),
             {fixname(key): value for key, value in token["attrs"].items()}
@@ -3380,6 +3416,7 @@ def BaseTreeBuilder(namespaceHTMLElements):
         if not types.is_string(name):
             fail("Element %s not string!" % name)
         namespace = token.get("namespace", self.defaultNamespace)
+        namespace, name = _resolve_namespace_for_prefixed_element(name, namespace)
         element = self.elementClass(
             _namespaced_name_from_ns_name(namespace, name),
             {fixname(key): value for key, value in token["attrs"].items()}
