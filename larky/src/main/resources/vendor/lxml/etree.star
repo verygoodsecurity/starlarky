@@ -2512,6 +2512,29 @@ def fromstring(text, parser=None, base_url=None):
     """
     return XML(text, parser, base_url)
 
+
+def SubElement(parent, tag, attrib=None, **extra):
+    """SubElement(parent, tag, attrib=None, **extra)
+    
+    Create a new element and append it as a subelement to the parent.
+    Returns the new element.
+    """
+    if attrib == None:
+        attrib = {}
+
+    # Merge extra attributes
+    for key, value in extra.items():
+        attrib[key] = value
+
+    # Create new element
+    element = XMLNode(tag, attrib)
+    # element = parent.makeelement(tag, attrib)
+
+    # Append to parent
+    parent.appendChild(element)
+
+    return element
+
 #
 # def Element(name, namespace=None):
 #     self = larky.mutablestruct(__name__='Element', __class__=Element)
@@ -3938,5 +3961,6 @@ etree = larky.struct(
     XML=XML,
     ElementTree=ElementTree,
     Element=XMLNode,
+    SubElement=SubElement,
     QName=QName,
 )
