@@ -725,10 +725,24 @@ def XMLNode(tag, attrib=None, **extra):
         """ set value of the XMLNode
         @returns None
         """
-        text = Text(data)
+        # Remove all existing Text node children first
+        text_children_to_remove = []
+        for child in self._children:
+            if hasattr(child, 'nodetype') and child.nodetype() == 'Text':
+                text_children_to_remove.append(child)
+
+        for child in text_children_to_remove:
+            self._children.remove(child)
+
+        # If data is not None or empty, create a new Text node
+        if data != None and data != "":
+            text = Text(data)
         text.attach_document(self.owner_doc)
-        self.insertText(text)
-        # self.data = data
+        # Insert at the beginning of children list
+        if len(self._children) == 0:
+            self._children.append(text)
+        else:
+            self._children.insert(0, text)
     self.settext = settext
 
     self.text = larky.property(gettext, self.settext)
