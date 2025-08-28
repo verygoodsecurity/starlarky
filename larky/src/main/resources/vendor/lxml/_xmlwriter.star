@@ -359,6 +359,13 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
         given a decorated name (of the form {uri}tag),
         return prefixed name and namespace declaration
         """
+        # Ensure name is a string
+        if not types.is_string(name):
+            if hasattr(name, 'text'):
+                name = name.text
+            else:
+                name = str(name)
+        
         if not name[:1] == "{":
             # no Namespace
             return name, None
