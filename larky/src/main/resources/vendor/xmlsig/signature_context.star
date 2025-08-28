@@ -295,7 +295,7 @@ def SignatureContext():
                 constants.TransformInclC14N, reference.getroottree()
             )
         if uri.startswith("#"):
-            query = "//*[@*[local-name() = '{}' ] = '{}']"
+            query = "//*[@*[local-name() = '{}' ]='{}']"
             node = reference.getroottree()
             results = self.check_uri_attr(node, query, uri, constants.ID_ATTR)
             if len(results) == 0:
