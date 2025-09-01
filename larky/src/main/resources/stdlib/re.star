@@ -141,10 +141,7 @@ def _pattern__init__(patternobj):
         _matcher = matcher(string)
         res = []
         cnt_rpl = 0
-        # TODO: this can sometimes limit results
-        # based only number of matches less than or equal
-        # to _WHILE_LOOP_EMULATION_ITERATION which might
-        # yield incomplete results.
+        iteration_limit_reached = False
         for _i in range(_WHILE_LOOP_EMULATION_ITERATION):
             if not _matcher.find():
                 break
@@ -157,6 +154,14 @@ def _pattern__init__(patternobj):
                 count -= 1
                 if count == 0:
                     break
+            # Check if this is the last iteration
+            if _i == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If we reached the iteration limit, check if there are still matches left
+        if iteration_limit_reached and _matcher.find():
+            fail("Matches limit exceeded: more matches available than limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+        
         return _matcher.append_tail("".join(res)), cnt_rpl
 
     def _larky_subn(repl, s, count=0):

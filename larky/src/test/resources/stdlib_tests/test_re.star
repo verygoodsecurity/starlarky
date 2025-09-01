@@ -85,6 +85,12 @@ def _test_subn():
     asserts.assert_that(re.subn("b*", "x", "xyz")).is_equal_to(('xxxyxzx', 4))
 
 
+def _test_subn_matches_limit():
+    # Test case where matches limit is exceeded and not
+    asserts.assert_that(re.subn("x", "y", "x" * 16384)).is_equal_to(('y' * 16384, 16384))
+    asserts.assert_fails(lambda: re.subn("x", "y", "x" * 16385), "Matches limit exceeded")
+
+
 # zero-length matches
 def _test_zero_length_matches():
     # currently not supported!
@@ -223,6 +229,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_groups))
     _suite.addTest(unittest.FunctionTestCase(_test_sub))
     _suite.addTest(unittest.FunctionTestCase(_test_subn))
+    _suite.addTest(unittest.FunctionTestCase(_test_subn_matches_limit))
     # currently not supported!
     # _suite.addTest(unittest.FunctionTestCase(_test_zero_length_matches))
     _suite.addTest(unittest.FunctionTestCase(_test_split))
