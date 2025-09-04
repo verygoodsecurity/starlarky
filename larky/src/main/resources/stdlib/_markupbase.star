@@ -102,6 +102,7 @@ def ParserBase():
             return j
         if decltype == "doctype":
             self._decl_otherchars = ''
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if j >= n:
                 break
@@ -143,6 +144,15 @@ def ParserBase():
                 fail("AssertionError: " + "unexpected %r char in declaration" % rawdata[j])
             if j < 0:
                 return j
+                
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If we reached iteration limit and didn't find end of declaration, fail
+        if iteration_limit_reached and j < n:
+            fail("Iteration limit exceeded: could not parse declaration within WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+            
         return -1 # incomplete
     self.parse_declaration = parse_declaration
 
@@ -192,6 +202,7 @@ def ParserBase():
         rawdata = self.rawdata
         n = len(rawdata)
         j = i
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if j >= n:
                 break
@@ -240,10 +251,20 @@ def ParserBase():
                     j = j + 1
             elif c == "]":
                 j = j + 1
+                inner_iteration_limit_reached = False
                 for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                     if not (j < n and rawdata[j].isspace()):
                         break
                     j = j + 1
+                    
+                    # Check if this is the last iteration of inner loop
+                    if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                        inner_iteration_limit_reached = True
+                
+                # If inner loop reached limit while there are still whitespace chars, fail
+                if inner_iteration_limit_reached and j < n and rawdata[j].isspace():
+                    fail("Iteration limit exceeded: too much whitespace after ']' in doctype subset, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+                
                 if j < n:
                     if rawdata[j] == ">":
                         return j
@@ -256,6 +277,15 @@ def ParserBase():
             else:
                 self.updatepos(declstartpos, j)
                 fail("AssertionError: " + "unexpected char %r in internal subset" % c)
+            
+            # Check if this is the last iteration of outer loop
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If outer loop reached limit and we're not at end of buffer, fail
+        if iteration_limit_reached and j < n:
+            fail("Iteration limit exceeded: could not parse doctype subset within WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+            
         # end of buffer reached
         return -1
     self._parse_doctype_subset = _parse_doctype_subset

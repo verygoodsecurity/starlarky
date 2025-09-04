@@ -171,6 +171,7 @@ def _pattern__init__(patternobj):
         finish = len(s)
         m = matcher(s)
 
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if pos > finish:
                 break
@@ -199,6 +200,14 @@ def _pattern__init__(patternobj):
                 if count == 0:
                     res.append(s[pos:])
                     break
+                    
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If we reached the iteration limit, check if there are still matches left
+        if iteration_limit_reached and pos <= finish and m.find():
+            fail("Iteration limit exceeded: more matches available than _WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
         return ''.join(res), cnt_rpl
 
@@ -213,6 +222,7 @@ def _pattern__init__(patternobj):
         finish = len(s)
         m = matcher(s)
 
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if pos > finish:
                 break
@@ -234,6 +244,14 @@ def _pattern__init__(patternobj):
             if beg == end:
                 # Have progress on empty matches
                 pos += 1
+            
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If we reached the iteration limit, check if there are still matches left
+        if iteration_limit_reached and pos <= finish and m.find(pos):
+            fail("Iteration limit exceeded: more matches available than _WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
         for i in range(len(res)):
             x = res[i]
@@ -252,6 +270,7 @@ def _pattern__init__(patternobj):
         finish = len(string)
         m = matcher(string)
 
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if pos > finish:
                 break
@@ -268,6 +287,15 @@ def _pattern__init__(patternobj):
             if beg == end:
                 # Have progress on empty matches
                 pos += 1
+            
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If we reached the iteration limit, check if there are still matches left
+        if iteration_limit_reached and pos <= finish and m.find(pos):
+            fail("Iteration limit exceeded: more matches available than _WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+            
         return res
 
 

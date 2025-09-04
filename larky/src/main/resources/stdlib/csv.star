@@ -464,6 +464,7 @@ def reader(fileobj, dialect="excel", **fmtparams):
 
     def __next__():
         self.parse_reset()
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             lineobj = safe(next)(self.input_iter)
             if lineobj == StopIteration():
@@ -490,6 +491,14 @@ def reader(fileobj, dialect="excel", **fmtparams):
 
             if self.state == START_RECORD:
                 break
+            
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If we reached the iteration limit, we should fail
+        if iteration_limit_reached:
+            fail("Iteration limit exceeded: more input lines available than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         fields = self.fields
         self.fields = None
@@ -775,10 +784,20 @@ def DictReader(f,
             self.fieldnames
         row = next(iter(self.reader))
         self.line_num = self.reader.line_num
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if row != []:
                 break
             row = next(self.reader)
+            
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If we reached the iteration limit and still have empty rows, fail
+        if iteration_limit_reached and row == []:
+            fail("Iteration limit exceeded: too many empty rows, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+            
         d = dict(list(zip(self.fieldnames, row)))
         lf = len(self.fieldnames)
         lr = len(row)
