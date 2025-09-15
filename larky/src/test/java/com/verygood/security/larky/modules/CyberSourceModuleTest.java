@@ -13,11 +13,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class CyberSourceToolsModuleTest {
+public class CyberSourceModuleTest {
 
     private Mutability mutability;
     private StarlarkThread thread;
-    private CyberSourceToolsModule module;
+    private CyberSourceModule module;
 
     private static final String TEST_PRIVATE_KEY = """
         -----BEGIN PRIVATE KEY-----
@@ -137,9 +137,9 @@ public class CyberSourceToolsModuleTest {
 
     @Before
     public void setUp() {
-        mutability = Mutability.create("CyberSourceToolsModuleTest");
+        mutability = Mutability.create("CyberSourceModuleTest");
         thread = new StarlarkThread(mutability, StarlarkSemantics.DEFAULT);
-        module = CyberSourceToolsModule.INSTANCE;
+        module = CyberSourceModule.INSTANCE;
     }
 
     @After

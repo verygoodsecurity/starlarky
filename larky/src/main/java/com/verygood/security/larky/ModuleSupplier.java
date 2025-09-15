@@ -29,7 +29,7 @@ import com.verygood.security.larky.modules.ChaseModule;
 import com.verygood.security.larky.modules.CodecsModule;
 import com.verygood.security.larky.modules.CollectionsModule;
 import com.verygood.security.larky.modules.CryptoModule;
-import com.verygood.security.larky.modules.CyberSourceToolsModule;
+import com.verygood.security.larky.modules.CyberSourceModule;
 import com.verygood.security.larky.modules.ECDHModule;
 import com.verygood.security.larky.modules.JsonModule;
 import com.verygood.security.larky.modules.OpenSSLModule;
@@ -101,7 +101,7 @@ public class ModuleSupplier {
   public static final ImmutableSet<StarlarkValue> VGS_MODULES = ImmutableSet.of(
       CerebroModule.INSTANCE,
       ChaseModule.INSTANCE,
-      CyberSourceToolsModule.INSTANCE,
+      CyberSourceModule.INSTANCE,
       JKSModule.INSTANCE,
       MetricsModule.INSTANCE,
       NetworkTokenModule.INSTANCE,

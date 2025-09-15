@@ -1,6 +1,6 @@
 load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
-load("@vgs//cybersource_tools", "cybersource_tools")
+load("@vgs//cybersource", "cybersource")
 
 # Test private key and certificate
 TEST_PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
@@ -112,14 +112,14 @@ TEST_SOAP_XML = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
   </soap:Body>
 </soap:Envelope>"""
 
-def test_cybersource_tools_module_exists():
-    """Test that the CyberSource Tools module is properly loaded"""
-    asserts.assert_that(cybersource_tools).is_not_none()
-    asserts.assert_that(hasattr(cybersource_tools, "sign")).is_true()
+def test_cybersource_module_exists():
+    """Test that the CyberSource module is properly loaded"""
+    asserts.assert_that(cybersource).is_not_none()
+    asserts.assert_that(hasattr(cybersource, "sign")).is_true()
 
 def test_sign_with_valid_inputs():
     """Test signing with valid SOAP XML, private key, and certificate"""
-    signed_request = cybersource_tools.sign(
+    signed_request = cybersource.sign(
         TEST_SOAP_XML,
         TEST_PRIVATE_KEY,
         TEST_CERTIFICATE
@@ -153,7 +153,7 @@ def test_sign_with_valid_inputs():
 def test_sign_with_empty_request():
     """Test signing with empty request should raise error"""
     def sign_empty():
-        cybersource_tools.sign(
+        cybersource.sign(
             "",
             TEST_PRIVATE_KEY,
             TEST_CERTIFICATE
@@ -164,7 +164,7 @@ def test_sign_with_empty_request():
 def test_sign_with_empty_private_key():
     """Test signing with empty private key should raise error"""
     def sign_empty_key():
-        cybersource_tools.sign(
+        cybersource.sign(
             TEST_SOAP_XML,
             "",
             TEST_CERTIFICATE
@@ -175,7 +175,7 @@ def test_sign_with_empty_private_key():
 def test_sign_with_empty_certificate():
     """Test signing with empty certificate should raise error"""
     def sign_empty_cert():
-        cybersource_tools.sign(
+        cybersource.sign(
             TEST_SOAP_XML,
             TEST_PRIVATE_KEY,
             ""
@@ -186,7 +186,7 @@ def test_sign_with_empty_certificate():
 def test_sign_with_invalid_xml():
     """Test signing with invalid XML should raise error"""
     def sign_invalid_xml():
-        cybersource_tools.sign(
+        cybersource.sign(
             "This is not valid XML",
             TEST_PRIVATE_KEY,
             TEST_CERTIFICATE
@@ -201,7 +201,7 @@ INVALID_KEY_DATA
 -----END PRIVATE KEY-----"""
     
     def sign_invalid_key():
-        cybersource_tools.sign(
+        cybersource.sign(
             TEST_SOAP_XML,
             invalid_key,
             TEST_CERTIFICATE
@@ -216,7 +216,7 @@ INVALID_CERT_DATA
 -----END CERTIFICATE-----"""
     
     def sign_invalid_cert():
-        cybersource_tools.sign(
+        cybersource.sign(
             TEST_SOAP_XML,
             TEST_PRIVATE_KEY,
             invalid_cert
@@ -226,7 +226,7 @@ INVALID_CERT_DATA
 
 def test_sign_preserves_xml_structure():
     """Test that signing preserves the original XML structure and content"""
-    signed_request = cybersource_tools.sign(
+    signed_request = cybersource.sign(
         TEST_SOAP_XML,
         TEST_PRIVATE_KEY,
         TEST_CERTIFICATE
@@ -262,7 +262,7 @@ def test_sign_preserves_xml_structure():
 
 def test_sign_adds_security_headers():
     """Test that signing adds proper WS-Security headers"""
-    signed_request = cybersource_tools.sign(
+    signed_request = cybersource.sign(
         TEST_SOAP_XML,
         TEST_PRIVATE_KEY,
         TEST_CERTIFICATE
@@ -282,7 +282,7 @@ def test_sign_adds_security_headers():
 
 def _suite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(test_cybersource_tools_module_exists))
+    _suite.addTest(unittest.FunctionTestCase(test_cybersource_module_exists))
     _suite.addTest(unittest.FunctionTestCase(test_sign_with_valid_inputs))
     _suite.addTest(unittest.FunctionTestCase(test_sign_with_empty_request))
     _suite.addTest(unittest.FunctionTestCase(test_sign_with_empty_private_key))

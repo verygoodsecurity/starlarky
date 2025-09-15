@@ -45,13 +45,13 @@ import org.w3c.dom.Document;
  * Module that provides tools for working with CyberSource payment gateway operations.
  */
 @StarlarkBuiltin(
-    name = "cybersource_tools",
+    name = "cybersource",
     category = "BUILTIN",
     doc = "Module providing tools for CyberSource payment gateway operations"
 )
-public class CyberSourceToolsModule implements StarlarkValue {
+public class CyberSourceModule implements StarlarkValue {
 
-    public static final CyberSourceToolsModule INSTANCE = new CyberSourceToolsModule();
+    public static final CyberSourceModule INSTANCE = new CyberSourceModule();
     
     private static final String SIGNATURE_ALGORITHM = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
     private static final String DIGEST_ALGORITHM = "http://www.w3.org/2001/04/xmlenc#sha256";
@@ -210,7 +210,7 @@ public class CyberSourceToolsModule implements StarlarkValue {
             Signs a CyberSource SOAP request with the provided private key and certificate.
             
             Example:
-              signed_request = cybersource_tools.sign(
+              signed_request = cybersource.sign(
                   '<SOAP-ENV:Envelope>...</SOAP-ENV:Envelope>',
                   '-----BEGIN RSA PRIVATE KEY-----...',
                   '-----BEGIN CERTIFICATE-----...'
