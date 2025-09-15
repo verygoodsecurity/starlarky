@@ -56,6 +56,7 @@
         <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
         <protobuf.version>3.18.1</protobuf.version>
         <surefire-plugin.version>3.5.3</surefire-plugin.version>
+        <wss4j.version>4.0.0</wss4j.version>
     </properties>
 
     <dependencies>
@@ -107,6 +108,19 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
             <version>${apache.commons-text.version}</version>
+        </dependency>
+
+        <!-- Apache WSS4J -->
+        <dependency>
+            <groupId>org.apache.wss4j</groupId>
+            <artifactId>wss4j-ws-security-dom</artifactId>
+            <version>${wss4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.wss4j</groupId>
+            <artifactId>wss4j-ws-security-common</artifactId>
+            <version>${wss4j.version}</version>
         </dependency>
 
         <dependency>
