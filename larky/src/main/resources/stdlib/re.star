@@ -34,7 +34,7 @@ load("@stdlib//enum", "enum")
 load("@stdlib//re2j", _re2j="re2j")
 
 
-_WHILE_LOOP_EMULATION_ITERATION = 16384
+_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 __ = -1  # Alias for the invalid class
 RegexFlags = enum.enumify_iterable(iterable=[
@@ -141,10 +141,7 @@ def _pattern__init__(patternobj):
         _matcher = matcher(string)
         res = []
         cnt_rpl = 0
-        # TODO: this can sometimes limit results
-        # based only number of matches less than or equal
-        # to _WHILE_LOOP_EMULATION_ITERATION which might
-        # yield incomplete results.
+        iteration_limit_reached = False
         for _i in range(_WHILE_LOOP_EMULATION_ITERATION):
             if not _matcher.find():
                 break
@@ -157,6 +154,14 @@ def _pattern__init__(patternobj):
                 count -= 1
                 if count == 0:
                     break
+            # Check if this is the last iteration
+            if _i == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If we reached the iteration limit, check if there are still matches left
+        if iteration_limit_reached and _matcher.find():
+            fail("Matches limit exceeded: more matches available than limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+        
         return _matcher.append_tail("".join(res)), cnt_rpl
 
     def _larky_subn(repl, s, count=0):
@@ -166,6 +171,7 @@ def _pattern__init__(patternobj):
         finish = len(s)
         m = matcher(s)
 
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if pos > finish:
                 break
@@ -194,6 +200,14 @@ def _pattern__init__(patternobj):
                 if count == 0:
                     res.append(s[pos:])
                     break
+                    
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If we reached the iteration limit, check if there are still matches left
+        if iteration_limit_reached and pos <= finish and m.find():
+            fail("Iteration limit exceeded: more matches available than _WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
         return ''.join(res), cnt_rpl
 
@@ -208,6 +222,7 @@ def _pattern__init__(patternobj):
         finish = len(s)
         m = matcher(s)
 
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if pos > finish:
                 break
@@ -229,6 +244,14 @@ def _pattern__init__(patternobj):
             if beg == end:
                 # Have progress on empty matches
                 pos += 1
+            
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If we reached the iteration limit, check if there are still matches left
+        if iteration_limit_reached and pos <= finish and m.find(pos):
+            fail("Iteration limit exceeded: more matches available than _WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
         for i in range(len(res)):
             x = res[i]
@@ -247,6 +270,7 @@ def _pattern__init__(patternobj):
         finish = len(string)
         m = matcher(string)
 
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if pos > finish:
                 break
@@ -263,6 +287,15 @@ def _pattern__init__(patternobj):
             if beg == end:
                 # Have progress on empty matches
                 pos += 1
+            
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        
+        # If we reached the iteration limit, check if there are still matches left
+        if iteration_limit_reached and pos <= finish and m.find(pos):
+            fail("Iteration limit exceeded: more matches available than _WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+            
         return res
 
 
