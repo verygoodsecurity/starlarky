@@ -418,6 +418,7 @@ def merge_mro(seqs):
     non_empty_seqs = non_empty(seqs)
     result = []
 
+    iteration_limit_reached = False
     for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
         if not non_empty_seqs or len(non_empty_seqs) == 0:
             break
@@ -434,6 +435,14 @@ def merge_mro(seqs):
         non_empty_seqs = non_empty(
             [tail_if_not_eq(cand[0])(x) for x in non_empty_seqs]
         )
+
+        # Check if this is the last iteration
+        if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have non-empty sequences, fail
+    if iteration_limit_reached and non_empty_seqs and len(non_empty_seqs) > 0:
+        fail("Iteration limit exceeded: hierarchy too deep, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
 
     return result
 

@@ -187,12 +187,22 @@ def _class_TextWrapper():
                     continue
 
                 hyphen_index = c.index('-')
+                iteration_limit_reached = False
                 for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                     if hyphen_index == -1 or hyphen_index == (len(c) - 1):
                         break
                     chunks.append(c[0:hyphen_index+1])
                     c = c[hyphen_index+1:]
                     hyphen_index = c.index('-')
+
+                    # Check if this is the last iteration
+                    if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                        iteration_limit_reached = True
+
+                # If we reached the iteration limit and still have hyphens, fail
+                if iteration_limit_reached and hyphen_index != -1 and hyphen_index != (len(c) - 1):
+                    fail("Iteration limit exceeded: too many hyphens in word, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
                 if len(c) > 0:
                     chunks.append(c)
         else:
@@ -211,6 +221,7 @@ def _class_TextWrapper():
         """
         i = 0
         patsearch = self.sentence_end_re.search
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if i >= len(chunks) - 1:
                 break
@@ -219,6 +230,14 @@ def _class_TextWrapper():
                 i += 2
             else:
                 i += 1
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have chunks to process, fail
+        if iteration_limit_reached and i < len(chunks) - 1:
+            fail("Iteration limit exceeded: too many sentence endings to fix, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
     def _handle_long_word(self, reversed_chunks, cur_line, cur_len, width):
         """_handle_long_word(chunks : [string],
@@ -288,7 +307,8 @@ def _class_TextWrapper():
         # Arrange in reverse order so items can be efficiently popped
         # from a stack of chucks.
         chunks = reversed(chunks)
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        outer_iteration_limit_reached = False
+        for _while_outer in range(WHILE_LOOP_EMULATION_ITERATION):
             if not chunks:
                 break
 
@@ -310,7 +330,8 @@ def _class_TextWrapper():
             # is the very beginning of the text (ie. no lines started yet).
             if self.drop_whitespace and chunks[-1].strip() == '' and lines:
                 operator.delitem(chunks, -1)
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            inner_iteration_limit_reached = False
+            for _while_inner in range(WHILE_LOOP_EMULATION_ITERATION):
                 if not chunks:
                     break
                 l = len(chunks[-1])
@@ -323,6 +344,14 @@ def _class_TextWrapper():
                 # Nope, this line is full.
                 else:
                     break
+
+                # Check if this is the last iteration of inner loop
+                if _while_inner == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    inner_iteration_limit_reached = True
+
+            # If inner loop reached limit and still have chunks, fail
+            if inner_iteration_limit_reached and chunks:
+                fail("Iteration limit exceeded: too many chunks to process in line, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
             # The current line is full, and the next chunk is too big to
             # fit on *any* line (not just this one).
@@ -346,7 +375,8 @@ def _class_TextWrapper():
                     # list of all lines (return value).
                     lines.append(indent + ''.join(cur_line))
                 else:
-                    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                    placeholder_iteration_limit_reached = False
+                    for _while_placeholder in range(WHILE_LOOP_EMULATION_ITERATION):
                         if not cur_line:
                             break
                         if (cur_line[-1].strip() and
@@ -357,7 +387,24 @@ def _class_TextWrapper():
                         cur_len -= len(cur_line[-1])
                         cur_line.pop(-1)
                         # operator.delitem(cur_line, -1)
+
+                        # Check if this is the last iteration
+                        if _while_placeholder == WHILE_LOOP_EMULATION_ITERATION - 1:
+                            placeholder_iteration_limit_reached = True
+
+                    # If we reached the iteration limit and still have current line, fail
+                    if placeholder_iteration_limit_reached and cur_line:
+                        fail("Iteration limit exceeded: too many chunks to remove for placeholder, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
                     break
+
+            # Check if this is the last iteration of outer loop
+            if _while_outer == WHILE_LOOP_EMULATION_ITERATION - 1:
+                outer_iteration_limit_reached = True
+
+        # If outer loop reached limit and still have chunks, fail
+        if outer_iteration_limit_reached and chunks:
+            fail("Iteration limit exceeded: too many lines to wrap, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         return lines
 
