@@ -370,6 +370,7 @@ def decompress(data):
     For incremental decompression, use a BZ2Decompressor object instead.
     """
     results = []
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if not data:
             break
@@ -385,6 +386,15 @@ def decompress(data):
             fail("ValueError: " + ("Compressed data ended before the " +
                              "end-of-stream marker was reached"))
         data = decomp.unused_data
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have data, fail
+    if iteration_limit_reached and data:
+        fail("Iteration limit exceeded: more compressed data blocks than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     return b"".join(results)
 
 
