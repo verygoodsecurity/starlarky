@@ -311,6 +311,7 @@ def ParserBase():
             return -1
         if c == ">":
             return j + 1
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             # scan a series of attribute descriptions; simplified:
             #   name type [value] [#constraint]
@@ -326,10 +327,19 @@ def ParserBase():
                     j = rawdata.find(")", j) + 1
                 else:
                     return -1
-                for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                inner_iteration_limit_reached = False
+                for _while_inner in range(WHILE_LOOP_EMULATION_ITERATION):
                     if not rawdata[j:j+1].isspace():
                         break
                     j = j + 1
+
+                    # Check if this is the last iteration of inner loop
+                    if _while_inner == WHILE_LOOP_EMULATION_ITERATION - 1:
+                        inner_iteration_limit_reached = True
+
+                # If inner loop reached limit while there are still whitespace chars, fail
+                if inner_iteration_limit_reached:
+                    fail("Iteration limit exceeded: too much whitespace after ')' in attlist, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
                 if not rawdata[j:]:
                     # end of buffer, incomplete
                     return -1
@@ -360,6 +370,14 @@ def ParserBase():
             if c == '>':
                 # all done
                 return j + 1
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit, fail
+        if iteration_limit_reached:
+            fail("Iteration limit exceeded: could not parse attlist within WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
     self._parse_doctype_attlist = _parse_doctype_attlist
 
     # Internal -- scan past <!NOTATION declarations
@@ -368,6 +386,7 @@ def ParserBase():
         if j < 0:
             return j
         rawdata = self.rawdata
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             c = rawdata[j:j+1]
             if not c:
@@ -384,6 +403,14 @@ def ParserBase():
                 name, j = self._scan_name(j, declstartpos)
                 if j < 0:
                     return j
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit, fail
+        if iteration_limit_reached:
+            fail("Iteration limit exceeded: could not parse notation within WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
     self._parse_doctype_notation = _parse_doctype_notation
 
     # Internal -- scan past <!ENTITY declarations
@@ -391,6 +418,7 @@ def ParserBase():
         rawdata = self.rawdata
         if rawdata[i:i+1] == "%":
             j = i + 1
+            iteration_limit_reached = False
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 c = rawdata[j:j+1]
                 if not c:
@@ -399,11 +427,20 @@ def ParserBase():
                     j = j + 1
                 else:
                     break
+
+                # Check if this is the last iteration
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit, fail
+            if iteration_limit_reached:
+                fail("Iteration limit exceeded: too much whitespace after '%' in entity, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
         else:
             j = i
         name, j = self._scan_name(j, declstartpos)
         if j < 0:
             return j
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             c = self.rawdata[j:j+1]
             if not c:
@@ -420,6 +457,14 @@ def ParserBase():
                 name, j = self._scan_name(j, declstartpos)
                 if j < 0:
                     return j
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit, fail
+        if iteration_limit_reached:
+            fail("Iteration limit exceeded: could not parse entity within WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
     self._parse_doctype_entity = _parse_doctype_entity
 
     # Internal -- scan a name token and the new position and the token, or
