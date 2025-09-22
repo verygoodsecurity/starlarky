@@ -228,12 +228,22 @@ def _modinv(e, m):
     """
     x1, x2 = 1, 0
     a, b = e, m
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if b <= 0:
             break
         q, r = divmod(a, b)
         xn = x1 - q * x2
         a, b, x1, x2 = b, r, x2, xn
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and b > 0:
+        fail("Iteration limit exceeded: modular inverse calculation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     return x1 % m
 
 
@@ -276,10 +286,20 @@ def rsa_recover_prime_factors(n, e, d):
     # The quantity d*e-1 is a multiple of phi(n), even,
     # and can be represented as t*2^s.
     t = ktot
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if t % 2 != 0:
             break
         t = t // 2
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and t % 2 == 0:
+        fail("Iteration limit exceeded: unable to factor out powers of 2, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     # Cycle through all multiplicative inverses in Zn.
     # The algorithm is non-deterministic, but there is a 50% chance
     # any candidate a leads to successful factoring.
@@ -287,12 +307,14 @@ def rsa_recover_prime_factors(n, e, d):
     # as Factorization", M. Rabin, 1979
     spotted = False
     a = 2
+    outer_iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         # not spotted and a < _MAX_RECOVERY_ATTEMPTS
         if not (not spotted and a < _MAX_RECOVERY_ATTEMPTS):
             break
         k = t
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        inner_iteration_limit_reached = False
+        for _while_inner in range(WHILE_LOOP_EMULATION_ITERATION):
             if k >= ktot:
                 break
             cand = pow(a, k, n)
@@ -304,8 +326,26 @@ def rsa_recover_prime_factors(n, e, d):
                 spotted = True
                 break
             k *= 2
+
+            # Check if this is the last iteration of inner loop
+            if _while_inner == WHILE_LOOP_EMULATION_ITERATION - 1:
+                inner_iteration_limit_reached = True
+
+        # If we reached the iteration limit in inner loop and still have work, fail
+        if inner_iteration_limit_reached and k < ktot:
+            fail("Iteration limit exceeded: RSA recovery inner loop too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         # This value was not any good... let's try another!
         a += 2
+
+        # Check if this is the last iteration of outer loop
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            outer_iteration_limit_reached = True
+
+    # If we reached the iteration limit in outer loop and still have work, fail
+    if outer_iteration_limit_reached and not spotted and a < _MAX_RECOVERY_ATTEMPTS:
+        fail("Iteration limit exceeded: RSA recovery attempts exceeded, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     if not spotted:
         fail("ValueError: Unable to compute factors p and q from exponent d.")
     # Found !
