@@ -89,11 +89,20 @@ def miller_rabin_test(candidate, iterations, randfunc=None):
     # Step 1 and 2
     m = Integer(minus_one)
     a = 0
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if not m.is_even():
             break
         m >>= 1
         a += 1
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and m is still even, fail
+    if iteration_limit_reached and m.is_even():
+        fail("Iteration limit exceeded: number too large for Miller-Rabin factorization, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
     # Skip step 3
 
@@ -102,6 +111,7 @@ def miller_rabin_test(candidate, iterations, randfunc=None):
 
         # Step 4.1-2
         base = 1
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if base not in (one, minus_one):
                 break
@@ -110,6 +120,14 @@ def miller_rabin_test(candidate, iterations, randfunc=None):
                     randfunc=randfunc)
             if not ((2 <= base) and (base <= candidate - 2)):
                 fail("assert(2 <= base) and (base <= candidate - 2) failed!")
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have invalid base, fail
+        if iteration_limit_reached and base in (one, minus_one):
+            fail("Iteration limit exceeded: unable to find suitable base for Miller-Rabin test, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         # Step 4.3-4.4
         z = pow(base, m, candidate)
@@ -351,14 +369,26 @@ def generate_probable_prime(**kwargs):
         randfunc = Random.new().read
 
     result = COMPOSITE
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if result != COMPOSITE:
             break
         candidate = Integer.random(exact_bits=exact_bits,
                                    randfunc=randfunc) | 1
         if not prime_filter(candidate):
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
             continue
         result = test_probable_prime(candidate, randfunc)
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have COMPOSITE, fail
+    if iteration_limit_reached and result == COMPOSITE:
+        fail("Iteration limit exceeded: unable to generate prime number, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
     return candidate
 
 
@@ -387,14 +417,27 @@ def generate_probable_safe_prime(**kwargs):
         randfunc = Random.new().read
 
     result = COMPOSITE
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if result != COMPOSITE:
             break
         q = generate_probable_prime(exact_bits=exact_bits - 1, randfunc=randfunc)
         candidate = q * 2 + 1
         if candidate.size_in_bits() != exact_bits:
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
             continue
         result = test_probable_prime(candidate, randfunc=randfunc)
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have COMPOSITE, fail
+    if iteration_limit_reached and result == COMPOSITE:
+        fail("Iteration limit exceeded: unable to generate safe prime number, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     return candidate
 
 
