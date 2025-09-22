@@ -195,10 +195,20 @@ def _gen_one(i):
 
 
 def _ensure_bytes(n, chunk, g):
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if len(chunk) >= n:
             break
         chunk += next(g)
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still need more bytes, fail
+    if iteration_limit_reached and len(chunk) < n:
+        fail("Iteration limit exceeded: unable to ensure required bytes, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     return chunk
 
 
@@ -251,11 +261,20 @@ def _class_S2K():
     def sized_hash(self, hasher, s, size):
         hsh = hasher(s)
         prefix = b"\0"
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if len(hsh) >= size:
                 break
             hsh += hasher(s, prefix)
             prefix += b"\0"
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still need more hash, fail
+        if iteration_limit_reached and len(hsh) < size:
+            fail("Iteration limit exceeded: unable to generate sized hash, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         return hsh[0:size]
 
@@ -308,11 +327,20 @@ def _class_S2K():
 
         count = iterations >> 6
         c = 0
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if count < 32:
                 break
             count = count >> 1
             c += 1
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and count >= 32:
+            fail("Iteration limit exceeded: s2k count encoding too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         result = (c << 4) | (count - 16)
 
@@ -426,6 +454,7 @@ def iteratively_evaluate_lazy_subpackets(packet, debug=False):
         p.length = None
 
     queue = [(0, (packet, None))]
+    iteration_limit_reached = False
     for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
         if not queue:
             break
@@ -460,6 +489,14 @@ def iteratively_evaluate_lazy_subpackets(packet, debug=False):
             queue = children + queue
         if debug and not children:
             print("no children found, queue length:", len(queue))
+
+        # Check if this is the last iteration
+        if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and queue:
+        fail("Iteration limit exceeded: packet queue too large, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
 
 
 def _class_Message():
@@ -502,10 +539,19 @@ def _class_Message():
         """
         self.force()
         msg = self
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if not builtins.isinstance(msg[0], CompressedDataPacket):
                 break
             msg = msg[0]
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have compressed data, fail
+        if iteration_limit_reached and builtins.isinstance(msg[0], CompressedDataPacket):
+            fail("Iteration limit exceeded: too many compressed data layers, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         key = None
         userid = None
@@ -1021,6 +1067,7 @@ def _serialize_v2orv3(node):
 def to_bytes3(p, trailer):
     r = []
     q = [(_IterWalkState.PRE, (p, None))]
+    iteration_limit_reached = False
     for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
         if not q:
             break
@@ -1090,12 +1137,22 @@ def to_bytes3(p, trailer):
                 r.append(out)
             else:
                 r.append(_serialized_subpackets)
+
+        # Check if this is the last iteration
+        if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and q:
+        fail("Iteration limit exceeded: serialization queue too large, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
+
     return b''.join(r)
 
 
 def to_bytes2(p):
     r = []
     q = [(_IterWalkState.PRE, (p, None))]
+    iteration_limit_reached = False
     for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
         if not q:
             break
@@ -1165,6 +1222,14 @@ def to_bytes2(p):
             data = node.make_header(_serialized_subpackets)
             out = data["header"] + (data["body"] and data["body"] or b"")
             r.append(out)
+
+        # Check if this is the last iteration
+        if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and q:
+        fail("Iteration limit exceeded: serialization queue too large, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
 
     return b''.join(r)
 
@@ -1253,10 +1318,20 @@ def _class_SignaturePacket():
             self.hash_algorithm = ord(self.read_byte())
             self.hash_head = self.read_unpacked(2, "!H")
             self.data = []
+            iteration_limit_reached = False
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 if self.length <= 0:
                     break
                 self.data += [self.read_mpi()]
+
+                # Check if this is the last iteration
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and still have data, fail
+            if iteration_limit_reached and self.length > 0:
+                fail("Iteration limit exceeded: too many signature MPIs to read, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         elif self.version == 4:
             self.signature_type = ord(self.read_byte())
             self.key_algorithm = ord(self.read_byte())
@@ -1282,10 +1357,19 @@ def _class_SignaturePacket():
             )
             self.hash_head = self.read_unpacked(2, "!H")
             self.data = []
+            iteration_limit_reached = False
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 if self.length <= 0:
                     break
                 self.data += [self.read_mpi()]
+
+                # Check if this is the last iteration
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and still have data, fail
+            if iteration_limit_reached and self.length > 0:
+                fail("Iteration limit exceeded: too many signature MPIs to read, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
     def calculate_trailer(self):
         # The trailer is just the top of the body plus some crap
@@ -1380,6 +1464,7 @@ def _class_SignaturePacket():
     def get_subpackets(cls, input_data):
         subpackets = []
         length = len(input_data)
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if length <= 0:
                 break
@@ -1390,6 +1475,15 @@ def _class_SignaturePacket():
                 length -= bytes_used
             else:  # Parsing stuck?
                 break
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and length > 0:
+            fail("Iteration limit exceeded: unable to parse all subpackets, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         return subpackets
 
     get_subpackets = classmethod(get_subpackets)
@@ -1603,10 +1697,19 @@ def _class_SignaturePacket():
     def _class_PreferredSymmetricAlgorithmsPacket():
         def read(self):
             self.data = []
+            iteration_limit_reached = False
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 if self.length <= 0:
                     break
                 self.data += [self.read_byte()]
+
+                # Check if this is the last iteration
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and still have work, fail
+            if iteration_limit_reached and self.length > 0:
+                fail("Iteration limit exceeded: unable to read all symmetric algorithms, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         def body(self):
             body = b""
@@ -1635,10 +1738,19 @@ def _class_SignaturePacket():
             self.key_algorithm = ord(self.read_byte())
 
             self.fingerprint = ""
+            iteration_limit_reached = False
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 if self.length <= 0:
                     break
                 self.fingerprint += hexlify(self.read_byte()).upper().decode('utf-8')
+
+                # Check if this is the last iteration
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and still have work, fail
+            if iteration_limit_reached and self.length > 0:
+                fail("Iteration limit exceeded: unable to read complete fingerprint, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         def body(self):
             body = b""
@@ -1737,10 +1849,19 @@ def _class_SignaturePacket():
     def _class_PreferredHashAlgorithmsPacket():
         def read(self):
             self.data = []
+            iteration_limit_reached = False
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 if self.length <= 0:
                     break
                 self.data += [self.read_byte()]
+
+                # Check if this is the last iteration
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and still have work, fail
+            if iteration_limit_reached and self.length > 0:
+                fail("Iteration limit exceeded: unable to read all hash algorithms, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         def body(self):
             body = b""
@@ -1761,10 +1882,19 @@ def _class_SignaturePacket():
     def _class_PreferredCompressionAlgorithmsPacket():
         def read(self):
             self.data = []
+            iteration_limit_reached = False
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 if self.length <= 0:
                     break
                 self.data += [self.read_byte()]
+
+                # Check if this is the last iteration
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and still have work, fail
+            if iteration_limit_reached and self.length > 0:
+                fail("Iteration limit exceeded: unable to read all compression algorithms, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         def body(self):
             body = b""
@@ -1861,10 +1991,19 @@ def _class_SignaturePacket():
 
         def read(self):
             self.flags = []
+            iteration_limit_reached = False
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 if self.length <= 0:
                     break
                 self.flags.append(ord(self.read_byte()))
+
+                # Check if this is the last iteration
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and still have work, fail
+            if iteration_limit_reached and self.length > 0:
+                fail("Iteration limit exceeded: unable to read all key flags, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         def body(self):
             b = b""
