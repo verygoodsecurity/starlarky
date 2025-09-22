@@ -564,6 +564,7 @@ def DerSequence(startSeq=None, implicit=None):
         payload = [self.payload]
         _seq = list(self._seq)  # type: list
 
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             # noinspection PyTypeChecker
             if len(_seq) == 0:
@@ -596,6 +597,15 @@ def DerSequence(startSeq=None, implicit=None):
                 payload[-1] += DerInteger(item).encode()
             else:
                 payload[-1] += item.encode()
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have items to process, fail
+        if iteration_limit_reached and len(_seq) > 0:
+            fail("Iteration limit exceeded: too many items in DerSequence encoding, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         self.payload = payload.pop(-1)
         if payload:
             fail("DerSequence payload is not empty!")
@@ -665,6 +675,7 @@ def DerSequence(startSeq=None, implicit=None):
 
         # Add one item at a time to self.seq, by scanning self.payload
         p = BytesIO_EOF(obj.payload)
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if p.remaining_data() <= 0:
                 break
@@ -681,6 +692,14 @@ def DerSequence(startSeq=None, implicit=None):
                 data = p.data_since_bookmark()
                 derInt.decode(data, strict=strict)
                 obj._seq.append(derInt.value)
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have data, fail
+        if iteration_limit_reached and p.remaining_data() > 0:
+            fail("Iteration limit exceeded: too much data in DerSequence decoding, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
         ok = True
         if obj._nr_elements != None:
@@ -887,6 +906,7 @@ def DerObjectId(value='', implicit=None, explicit=None):
 
         comps = [str(x) for x in divmod(p.read_byte(), 40)]
         v = 0
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if not p.remaining_data():
                 break
@@ -895,6 +915,15 @@ def DerObjectId(value='', implicit=None, explicit=None):
             if not (c & 0x80):
                 comps.append(str(v))
                 v = 0
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have data, fail
+        if iteration_limit_reached and p.remaining_data():
+            fail("Iteration limit exceeded: OID has too many components, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         obj.value = '.'.join(comps)
         return value
 
