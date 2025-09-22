@@ -1077,12 +1077,21 @@ def _import_openssh_public(encoded):
     keystring = binascii.a2b_base64(encoded.split(b' ')[1])
 
     keyparts = []
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if len(keystring) <= 4:
             break
         lk = struct.unpack(">I", keystring[:4])[0]
         keyparts.append(keystring[4:4 + lk])
         keystring = keystring[4 + lk:]
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have keystring to parse, fail
+    if iteration_limit_reached and len(keystring) > 4:
+        fail("Iteration limit exceeded: OpenSSH ECC key has too many parts to parse, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
     _larky_forelse_run_else = True
     for curve_name, curve in _curves.items():
