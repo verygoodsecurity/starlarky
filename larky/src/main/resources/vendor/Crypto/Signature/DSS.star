@@ -244,7 +244,8 @@ def DeterministicDsaSigScheme(key, encoding, order, private_key):
             mask_v = HMAC.new(nonce_k, mask_v, mhash).digest()
 
         nonce = -1
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        outer_iteration_limit_reached = False
+        for _while_outer in range(WHILE_LOOP_EMULATION_ITERATION):
             if operator.lt(0, nonce) and operator.lt(nonce, self._order):
                 break
             # Step h.C (second part)
@@ -255,14 +256,32 @@ def DeterministicDsaSigScheme(key, encoding, order, private_key):
 
             # Step h.A
             mask_t = b""
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            inner_iteration_limit_reached = False
+            for _while_inner in range(WHILE_LOOP_EMULATION_ITERATION):
                 if len(mask_t) >= self._order_bytes:
                     break
                 mask_v = HMAC.new(nonce_k, mask_v, mhash).digest()
                 mask_t += mask_v
 
+                # Check if this is the last iteration of inner loop
+                if _while_inner == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    inner_iteration_limit_reached = True
+
+            # If inner loop reached limit and still need more bytes, fail
+            if inner_iteration_limit_reached and len(mask_t) < self._order_bytes:
+                fail("Iteration limit exceeded: DSS mask generation requires too many iterations, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
             # Step h.C (first part)
             nonce = self._bits2int(mask_t)
+
+            # Check if this is the last iteration of outer loop
+            if _while_outer == WHILE_LOOP_EMULATION_ITERATION - 1:
+                outer_iteration_limit_reached = True
+
+        # If outer loop reached limit and nonce is still invalid, fail
+        if outer_iteration_limit_reached and not (operator.lt(0, nonce) and operator.lt(nonce, self._order)):
+            fail("Iteration limit exceeded: unable to generate valid DSS nonce, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         return nonce
     self._compute_nonce = _compute_nonce
 

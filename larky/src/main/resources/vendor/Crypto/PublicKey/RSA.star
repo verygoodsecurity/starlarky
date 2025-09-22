@@ -743,12 +743,22 @@ def _import_key(extern_key, passphrase=None):
         # This is probably an OpenSSH key
         keystring = binascii.a2b_base64(extern_key.split(bytes([0x20]))[1])
         keyparts = []
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if len(keystring) <= 4:
                 break
             length = struct.unpack(">I", keystring[:4])[0]
             keyparts.append(keystring[4:4 + length])
             keystring = keystring[4 + length:]
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have keystring to parse, fail
+        if iteration_limit_reached and len(keystring) > 4:
+            fail("Iteration limit exceeded: OpenSSH RSA key has too many parts to parse, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         e = Integer(0).from_bytes(keyparts[1])
         n = Integer(0).from_bytes(keyparts[2])
         return _construct([n, e])
