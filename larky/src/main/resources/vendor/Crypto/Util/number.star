@@ -99,10 +99,20 @@ def getRandomRange(a, b, randfunc=None):
     range_ = b - a - 1
     bits = size(range_)
     value = getRandomInteger(bits, randfunc)
+    iteration_limit_reached = False
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if value <= range_:
             break
         value = getRandomInteger(bits, randfunc)
+
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still haven't found a valid value, fail
+    if iteration_limit_reached and value > range_:
+        fail("Iteration limit exceeded: unable to find random value in range, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
     return a + value
 
 
@@ -129,10 +139,20 @@ def GCD(x, y):
 
     x = abs(x)
     y = abs(y)
+    iteration_limit_reached = False
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if x <= 0:
             break
         x, y = y % x, x
+
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and x > 0:
+        fail("Iteration limit exceeded: GCD calculation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
     return y
 
 
@@ -141,16 +161,36 @@ def inverse(u, v):
 
     u3, v3 = u, v
     u1, v1 = 1, 0
+    iteration_limit_reached = False
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if v3 <= 0:
             break
         q = u3 // v3
         u1, v1 = v1, u1 - v1 * q
         u3, v3 = v3, u3 - v3 * q
+
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and v3 > 0:
+        fail("Iteration limit exceeded: inverse calculation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
+    iteration_limit_reached = False
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if u1 >= 0:
             break
         u1 = u1 + v
+
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and u1 < 0:
+        fail("Iteration limit exceeded: inverse adjustment too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
     return u1
 
 
@@ -167,10 +207,20 @@ def getPrime(N, randfunc=None):
         randfunc = Random.get_random_bytes
 
     number = getRandomNBitInteger(N, randfunc) | 1
+    iteration_limit_reached = False
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if not (not isPrime(number, randfunc=randfunc)):
             break
         number = number + 2
+
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still haven't found a prime, fail
+    if iteration_limit_reached and not isPrime(number, randfunc=randfunc):
+        fail("Iteration limit exceeded: unable to find prime number, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
     return number
 
 
@@ -194,21 +244,40 @@ def _rabinMillerTest(n, rounds, randfunc=None):
     # determine m and b so that 2**b * m = n - 1 and b maximal
     b = 0
     m = n_1
+    iteration_limit_reached = False
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if (m & 1) != 0:
             break
         b += 1
         m >>= 1
 
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and (m & 1) == 0:
+        fail("Iteration limit exceeded: number factorization too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
     tested = []
     # we need to do at most n-2 rounds.
     for i in iter_range(min(rounds, n - 2)):
         # randomly choose a < n and make sure it hasn't been tested yet
         a = getRandomRange(2, n, randfunc)
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if a not in tested:
                 break
             a = getRandomRange(2, n, randfunc)
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have duplicates, fail
+        if iteration_limit_reached and a in tested:
+            fail("Iteration limit exceeded: unable to find unique test value, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         tested.append(a)
         # do the rabin-miller test
         z = pow(a, m, n)  # (a**m) % n
@@ -297,6 +366,7 @@ def long_to_bytes(n, blocksize=0):
 
     # Fill the first block independently from the value of n
     bsr = blocksize
+    iteration_limit_reached = False
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if bsr < 8:
             break
@@ -304,6 +374,15 @@ def long_to_bytes(n, blocksize=0):
         n = n >> 64
         bsr -= 8
 
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and bsr >= 8:
+        fail("Iteration limit exceeded: number too large to pack, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
+    iteration_limit_reached = False
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if bsr < 4:
             break
@@ -311,12 +390,29 @@ def long_to_bytes(n, blocksize=0):
         n = n >> 32
         bsr -= 4
 
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and bsr >= 4:
+        fail("Iteration limit exceeded: number too large to pack, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
+    iteration_limit_reached = False
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if bsr <= 0:
             break
         result.insert(0, pack('>B', int(n & 0xFF)))
         n = n >> 8
         bsr -= 1
+
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and bsr > 0:
+        fail("Iteration limit exceeded: number too large to pack, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
     if operator.eq(n, 0):
         if len(result) == 0:
@@ -325,11 +421,20 @@ def long_to_bytes(n, blocksize=0):
             bresult = b''.join(result)
     else:
         # The encoded number may exceed the block size
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if n <= 0:
                 break
             result.insert(0, pack('>Q', int(n & 0xFFFFFFFFFFFFFFFF)))
             n = n >> 64
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and n > 0:
+            fail("Iteration limit exceeded: number too large to encode, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
         result[0] = result[0].lstrip(b'\x00')
         bresult = b''.join(result)
