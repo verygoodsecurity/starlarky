@@ -405,12 +405,22 @@ def _generate_domain(L, randfunc):
     q = Integer(4)
     # upper_bit = 1 << (N - 1)
     upper_bit = pow(2, N - 1)
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if test_probable_prime(q, randfunc) == PROBABLY_PRIME:
             break
         seed = randfunc(64)
         U = Integer.from_bytes(SHA256.new(seed).digest()) & (upper_bit - 1)
         q = U | upper_bit | 1
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and q is not prime, fail
+    if iteration_limit_reached and test_probable_prime(q, randfunc) != PROBABLY_PRIME:
+        fail("Iteration limit exceeded: unable to generate prime q for DSA, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     if not (q.size_in_bits() == N):
         fail("assert(q.size_in_bits() == N) failed!")
 
@@ -418,6 +428,7 @@ def _generate_domain(L, randfunc):
     offset = 1
     # upper_bit = 1 << (L - 1)
     upper_bit = pow(2, L - 1)
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         V = [ SHA256.new(seed + Integer(offset + j).to_bytes()).digest()
               for j in iter_range(n + 1) ]
@@ -436,8 +447,17 @@ def _generate_domain(L, randfunc):
             break
         offset += n + 1
 
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and p is not valid, fail
+    if iteration_limit_reached and not (p.size_in_bits() == L and test_probable_prime(p, randfunc) == PROBABLY_PRIME):
+        fail("Iteration limit exceeded: unable to generate prime p for DSA, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     # Generate g (A.2.3, index=1)
     e = (p - 1) // q
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         count = _while_ + 1
         U = seed + b"ggen" + bchr(1) + Integer(count).to_bytes()
@@ -445,6 +465,14 @@ def _generate_domain(L, randfunc):
         g = pow(int(W), int(e), int(p))
         if g != 1:
             break
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and g is still 1, fail
+    if iteration_limit_reached and g == 1:
+        fail("Iteration limit exceeded: unable to generate generator g for DSA, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
     return (p, q, g, seed)
 
@@ -680,12 +708,22 @@ def import_key(extern_key, passphrase=None):
         # This is probably a public OpenSSH key
         keystring = binascii.a2b_base64(extern_key.split(b' ')[1])
         keyparts = []
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if len(keystring) <= 4:
                 break
             length = struct.unpack(">I", keystring[:4])[0]
             keyparts.append(keystring[4:4 + length])
             keystring = keystring[4 + length:]
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have keystring to parse, fail
+        if iteration_limit_reached and len(keystring) > 4:
+            fail("Iteration limit exceeded: SSH key has too many parts to parse, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         if keyparts[0] == b"ssh-dss":
             tup = [Integer.from_bytes(keyparts[x]) for x in (4, 3, 1, 2)]
             return construct(tup)
