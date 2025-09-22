@@ -155,12 +155,21 @@ def PBKDF2(password, salt, dkLen=16, count=1000, prf=None, hmac_hash_module=None
 
         key = bytearray()
         i = 1
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if len(key) >= dkLen:
                 break
             s = [ prf(password, salt + struct.pack(">I", i)) ] * 2
             key += reduce(strxor, [link(s) for j in range(count)])
             i += 1
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still need more key material, fail
+        if iteration_limit_reached and len(key) < dkLen:
+            fail("Iteration limit exceeded: key derivation requires too many iterations, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
     else:
         # Optimized implementation
         key = _JCrypto.Protocol.PBKDF2(
@@ -327,6 +336,7 @@ def HKDF(master, key_len, salt, hashmod, num_keys=1, context=None):
     t = [ b"" ]
     n = 1
     tlen = 0
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if tlen >= output_len:
             break
@@ -334,6 +344,15 @@ def HKDF(master, key_len, salt, hashmod, num_keys=1, context=None):
         t.append(hmac.digest())
         tlen += hashmod.digest_size
         n += 1
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still need more output, fail
+    if iteration_limit_reached and tlen < output_len:
+        fail("Iteration limit exceeded: HKDF expansion requires too many iterations, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     derived_output = b"".join(t)
     if num_keys == 1:
         return derived_output[:key_len]
