@@ -110,6 +110,7 @@ _IterWalkState = enum.Enum('_IterWalkState', [
 def _iterwalk(_element, _events, _tag):
     q = [(_IterWalkState.PRE, (_element, _events, _tag,))]
     result = []
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if not q:
             break
@@ -130,6 +131,15 @@ def _iterwalk(_element, _events, _tag):
         elif state == _IterWalkState.POST:
             if include:
                 result.append(("end", element))
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have work, fail
+    if iteration_limit_reached and q:
+        fail("Iteration limit exceeded: tree walk queue too large, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     return result
 
 
@@ -455,6 +465,7 @@ def XMLNode(tag, attrib=None, **extra):
         """Document: An associated document."""
         current = self
         doc = self._owner_doc
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if current == None:
                 break
@@ -465,6 +476,15 @@ def XMLNode(tag, attrib=None, **extra):
                 break
             current = parent
             doc = current._owner_doc
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and current != None and doc == None:
+            fail("Iteration limit exceeded: document owner tree too deep, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         return None
     self.owner_doc = larky.property(_owner_document)
     # aliased
@@ -481,7 +501,8 @@ def XMLNode(tag, attrib=None, **extra):
 
         nsmap = {}
         qu = [self]
-        for _ in range(WHILE_LOOP_EMULATION_ITERATION):
+        iteration_limit_reached = False
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if not qu:
                 break
             cnode = qu.pop(0)
@@ -494,6 +515,15 @@ def XMLNode(tag, attrib=None, **extra):
                 if prefix not in nsmap:
                     nsmap[prefix] = uri
             qu.append(cnode.getparent())
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and qu:
+            fail("Iteration limit exceeded: namespace map traversal too deep, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         self.__cached_nsmap = nsmap
         return self.__cached_nsmap
     self.nsmap = larky.property(_build_nsmap)
@@ -646,7 +676,8 @@ def XMLNode(tag, attrib=None, **extra):
 
         trees = []
         qu = self._children[0:]
-        for _ in range(WHILE_LOOP_EMULATION_ITERATION):
+        iteration_limit_reached = False
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if not qu:
                 break
             child = qu.pop(0)
@@ -654,6 +685,15 @@ def XMLNode(tag, attrib=None, **extra):
                 trees.append(child)
             if child._children:
                 qu = list(child._children) + list(qu)
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and qu:
+            fail("Iteration limit exceeded: subtree search too deep, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         return trees
 
     self.get_sub_tree_nodes_by_name = get_sub_tree_nodes_by_name
@@ -668,7 +708,8 @@ def XMLNode(tag, attrib=None, **extra):
         if self.isdata(name):
             return self
         qu = self._children[0:]
-        for _ in range(WHILE_LOOP_EMULATION_ITERATION):
+        iteration_limit_reached = False
+        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if not qu:
                 break
             child = qu.pop(0)
@@ -676,6 +717,15 @@ def XMLNode(tag, attrib=None, **extra):
                 return child
             if child._children:
                 qu = list(child._children) + list(qu)
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and qu:
+            fail("Iteration limit exceeded: tree node search too deep, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         return None
 
     self.get_treenode_by_name = get_treenode_by_name
@@ -1358,13 +1408,23 @@ def XMLNode(tag, attrib=None, **extra):
             if tag == None or el.tag == tag:
                 items.append(el)
             qu = el._children[0:]
-            for _ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+            iteration_limit_reached = False
+            for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
                 if not qu:
                     break
                 current = qu.pop(0)
                 if tag == None or current.tag == tag:
                     items.append(current)
                 qu = list(current._children) + list(qu)
+
+                # Check if this is the last iteration
+                if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and still have work, fail
+            if iteration_limit_reached and qu:
+                fail("Iteration limit exceeded: element iteration too deep, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
+
         return items
 
     self.iter = iter
@@ -1375,12 +1435,22 @@ def XMLNode(tag, attrib=None, **extra):
         """
         x = self.__parent
         res = []
-        for _ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        iteration_limit_reached = False
+        for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if x == None:
                 break
             if not tags or x.tag in tags:
                 res.append(x)
             x = x.getparent()
+
+            # Check if this is the last iteration
+            if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and x != None:
+            fail("Iteration limit exceeded: ancestor tree too deep, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
+
         return res
 
     self.iterancestors = iterancestors
@@ -1413,7 +1483,8 @@ def XMLNode(tag, attrib=None, **extra):
         """
         stack = list(reversed(self._children))
         nodes = []
-        for _ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        iteration_limit_reached = False
+        for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if not stack:
                 break
             node = stack.pop()
@@ -1422,6 +1493,15 @@ def XMLNode(tag, attrib=None, **extra):
             else:
                 nodes.append(node)
             stack.extend(reversed(node))
+
+            # Check if this is the last iteration
+            if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and stack:
+            fail("Iteration limit exceeded: descendant tree too large, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
+
         return nodes
 
     self.iterdescendants = iterdescendants
@@ -1767,11 +1847,22 @@ def XMLTree(root=None):
         if not hasattr(source, "read"):
             close_src = True
 
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             data = source.read(65536)
             if not data:
                 break
             parser.feed(data)
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit, fail
+        # We assume if we hit the limit, the file is too large
+        if iteration_limit_reached:
+            fail("Iteration limit exceeded: source file too large to parse, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         tree = parser.close()
         self._setroot(tree.getroot())
         if close_src:
@@ -1901,6 +1992,7 @@ def XMLTree(root=None):
         path = []
         c_element = element
         tag = None
+        iteration_limit_reached = False
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if c_element == root:
                 break
@@ -1915,6 +2007,7 @@ def XMLTree(root=None):
 
             count = 0
             c_node = c_element.previous_sibling()
+            inner_iteration_limit_reached = False
             for _while2_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
                 if c_node == None:
                     break
@@ -1922,6 +2015,14 @@ def XMLTree(root=None):
                     if _tag_matches(c_node, c_href, c_name):
                         count += 1
                 c_node = c_node.previous_sibling()
+
+                # Check if this is the last iteration
+                if _while2_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                    inner_iteration_limit_reached = True
+
+            # If we reached the iteration limit and still have work, fail
+            if inner_iteration_limit_reached and c_node != None:
+                fail("Iteration limit exceeded: too many previous siblings, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
             # count = 0
             # loc = c_element.getparent().getchildren().index(c_element)
             # for i in range(0, loc):
@@ -1939,6 +2040,7 @@ def XMLTree(root=None):
                 #         break
                 # c_node = c_node.next
                 c_node = c_element.next_sibling()
+                inner_iteration_limit_reached2 = False
                 for _while2_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
                     if c_node == None:
                         break
@@ -1947,6 +2049,14 @@ def XMLTree(root=None):
                             tag += '[1]'
                             break
                     c_node = c_node.next_sibling()
+
+                    # Check if this is the last iteration
+                    if _while2_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                        inner_iteration_limit_reached2 = True
+
+                # If we reached the iteration limit and still have work, fail
+                if inner_iteration_limit_reached2 and c_node != None:
+                    fail("Iteration limit exceeded: too many next siblings, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
                 # end = len(c_element.getparent().getchildren())
                 # for i in range(loc, end):
                 #     c_node = c_element.getparent().getchildren()[i]
@@ -1958,6 +2068,14 @@ def XMLTree(root=None):
             c_element = c_element.getparent()
             if c_element == None or not iselement(c_element):
                 fail("ValueError: Element is not in this tree.")
+
+            # Check if this is the last iteration
+            if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and c_element != root:
+            fail("Iteration limit exceeded: element path too deep, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
 
         path.append(tag)
         c_element = c_element.getparent()
@@ -3404,12 +3522,22 @@ def BaseTreeBuilder(namespaceHTMLElements):
     self.insertText = insertText
 
     def generateImpliedEndTags(exclude=None):
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if not self.openElements:
                 break
             name = self.openElements[-1].name
             if name != exclude:
                 self.openElements.pop()
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and self.openElements:
+            fail("Iteration limit exceeded: too many implied end tags to generate, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     self.generateImpliedEndTags = generateImpliedEndTags
 
     def getDocument():
@@ -3745,6 +3873,7 @@ def ElementDepthFirstIterator(node):
     self.__iter__ = __iter__
 
     def __next__():
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if self.node:
                 ret = self.node
@@ -3758,6 +3887,15 @@ def ElementDepthFirstIterator(node):
 
             parent = self.parents.pop()
             self.node = parent.getnext()
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached:
+            fail("Iteration limit exceeded: depth-first iteration too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     self.__next__ = __next__
     return self
 
@@ -3779,6 +3917,7 @@ def ElementBreadthFirstIterator(node):
     self.__iter__ = __iter__
 
     def __next__():
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if self.node:
                 ret = self.node
@@ -3791,6 +3930,15 @@ def ElementBreadthFirstIterator(node):
             parent = self.parents.pop()
             children = parent.getchildren()
             self.node = children[0] if children else None
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached:
+            fail("Iteration limit exceeded: breadth-first iteration too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     self.__next__ = __next__
     return self
 

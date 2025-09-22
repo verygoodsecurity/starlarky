@@ -530,6 +530,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
             return
         # we are at a root node, so add PI and comment siblings
         c_sibling = c_node
+        iteration_limit_reached = False
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             c_prev_sibling = c_sibling.previous_sibling()
             # print(repr(c_node), repr(c_sibling.previous_sibling()))
@@ -540,6 +541,18 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                 break
             c_sibling = c_prev_sibling
 
+            # Check if this is the last iteration
+            if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and c_prev_sibling != None and self._nodetype(c_prev_sibling) in (
+            'Comment',
+            'ProcessingInstruction',
+        ):
+            fail("Iteration limit exceeded: too many previous siblings to process, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
+
+        iteration_limit_reached = False
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if c_sibling == None or c_sibling == c_node:
                 break
@@ -547,6 +560,15 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
             if self.options['pretty_print']:
                 self.write_content('\n')
             c_sibling = c_sibling.next_sibling()
+
+            # Check if this is the last iteration
+            if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and c_sibling != None and c_sibling != c_node:
+            fail("Iteration limit exceeded: too many siblings to write, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
+
     self.write_previous_siblings = write_previous_siblings
 
     def write_next_siblings(c_node, namespaces):
@@ -556,6 +578,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
             return
         # we are at a root node, so add PI and comment siblings
         c_sibling = c_node.next_sibling()
+        iteration_limit_reached = False
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if c_sibling == None or self._nodetype(c_sibling) not in (
                 'Comment',
@@ -567,6 +590,17 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
             self.write_node(c_sibling, namespaces)
             c_sibling = c_sibling.next_sibling()
 
+            # Check if this is the last iteration
+            if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and c_sibling != None and self._nodetype(c_sibling) in (
+            'Comment',
+            'ProcessingInstruction',
+        ):
+            fail("Iteration limit exceeded: too many next siblings to process, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
+
     self.write_next_siblings = write_next_siblings
 
     def write_node(node, namespaces, with_tail=True, write_complete_document=True):
@@ -574,6 +608,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
         if self.options.get('debug'):
             for n in node:
                 print("node:", repr(node), "child:", repr(n))
+        iteration_limit_reached = False
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if not q:
                 break
@@ -681,6 +716,14 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                 # if (write_complete_document or with_tail) and node.tail:
                 #     self.write_content(node.tail)
 
+            # Check if this is the last iteration
+            if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have work, fail
+        if iteration_limit_reached and q:
+            fail("Iteration limit exceeded: node tree too complex to serialize, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
+
     self.write_node = write_node
     return self
 
@@ -724,6 +767,7 @@ def TreeSerializer():
                 self.walk_data(root.text)
             if len(root):
                 self._queue.append((root, -1))
+                iteration_limit_reached = False
                 for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
                     if not self._queue:
                         break
@@ -753,6 +797,14 @@ def TreeSerializer():
                             self.walk_emptytag(e.tag, e.attrib)
                             if e.tail:
                                 self.walk_data(e.tail)
+
+                    # Check if this is the last iteration
+                    if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                        iteration_limit_reached = True
+
+                # If we reached the iteration limit and still have work, fail
+                if iteration_limit_reached and self._queue:
+                    fail("Iteration limit exceeded: tree serialization queue too large, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
             else:
                 self.walk_endtag(root.tag)
         else:

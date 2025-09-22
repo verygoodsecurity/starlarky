@@ -174,6 +174,7 @@ def _implementation(node, write, **kw):
 
         # Walk up and get all xml:XXX attributes we inherit.
         inherited, parent = [], node.getparent()
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if not (parent != None and parent.nodetype() not in (
                 "Document",
@@ -191,6 +192,21 @@ def _implementation(node, write, **kw):
                     xmlattrs.append(n)
                     inherited.append(a)
             parent = parent.getparent()
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have parent to process, fail
+        if iteration_limit_reached and parent != None and parent.nodetype() not in (
+            "Document",
+            'ProcessingInstruction',
+            'Comment',
+            'DocumentType',
+            'Text'
+        ):
+            fail("Iteration limit exceeded: XML tree too deep for inheritance walk, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         return inherited
 
     self._inherit_context = _inherit_context
@@ -205,6 +221,7 @@ def _implementation(node, write, **kw):
         self.documentOrder = _LesserElement
         queue = [(_SerializeState.PRE, (0, node))]
         stack = []
+        iteration_limit_reached = False
         for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
             if not queue:
                 break
@@ -260,6 +277,14 @@ def _implementation(node, write, **kw):
                 # if self.documentOrder == _Element and child.tail:
                 #     self._do_tail(child)
                 self.documentOrder = _GreaterElement  # After document element
+
+            # Check if this is the last iteration
+            if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have queue, fail
+        if iteration_limit_reached and queue:
+            fail("Iteration limit exceeded: document serialization queue too large, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
 
     self._do_document = _do_document
     handlers["Document"] = _do_document
