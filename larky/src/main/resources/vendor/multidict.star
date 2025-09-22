@@ -457,6 +457,7 @@ def MultiDict(*args, **kwargs):
 
         # drop tails
         i = 0
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if i >= len(self._impl._items):
                 break
@@ -465,11 +466,22 @@ def MultiDict(*args, **kwargs):
             pos = used_keys.get(identity)
             if pos == None:
                 i += 1
+                # Check if this is the last iteration
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
                 continue
             if i >= pos:
                 self._impl._items.pop(i)
             else:
                 i += 1
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have items to process, fail
+        if iteration_limit_reached and i < len(self._impl._items):
+            fail("Iteration limit exceeded: too many items to process in multidict update, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
         self._impl.incr_version()
     self._update_items = _update_items
@@ -495,6 +507,7 @@ def MultiDict(*args, **kwargs):
 
         # remove all tail items
         i = rgt + 1
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if i >= len(items):
                 break
@@ -503,6 +516,14 @@ def MultiDict(*args, **kwargs):
                 self._impl._items.pop(i)
             else:
                 i += 1
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have items to process, fail
+        if iteration_limit_reached and i < len(items):
+            fail("Iteration limit exceeded: too many tail items to remove in multidict replace, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
     self._replace = _replace
 
     def __init__(*args, **kwargs):

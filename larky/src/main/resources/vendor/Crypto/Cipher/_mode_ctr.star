@@ -342,11 +342,21 @@ def _create_ctr_cipher(factory, **kwargs):
 
     # Compute initial counter block
     words = []
+    iteration_limit_reached = False
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if initial_value <= 0:
             break
         words.append(struct.pack('B', initial_value & 255))
         initial_value >>= 8
+
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have value to process, fail
+    if iteration_limit_reached and initial_value > 0:
+        fail("Iteration limit exceeded: counter value too large, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
     words += [bytes([0x00])] * max(0, counter_len - len(words))
     if not little_endian:
         words = reversed(words)

@@ -99,13 +99,26 @@ def PKCS115_Cipher(key, randfunc):
             return Error("ValueError: Plaintext is too long.").unwrap()
         # Step 2a
         ps = []
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if len(ps) == k - mLen - 3:
                 break
             new_byte = self._randfunc(1)
             if bord(new_byte[0]) == 0x00:
+                # Check if this is the last iteration
+                if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
                 continue
             ps.append(new_byte)
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still need more bytes, fail
+        if iteration_limit_reached and len(ps) < k - mLen - 3:
+            fail("Iteration limit exceeded: too many attempts to generate padding, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         ps = b"".join(ps)
         if len(ps) != (k - mLen - 3):
             fail("len(ps) != (k - mLen - 3)")

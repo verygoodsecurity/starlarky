@@ -136,6 +136,7 @@ def _parse(query):
     element = ""
     index = 0
 
+    iteration_limit_reached = False
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if index >= len(query):
             break
@@ -167,6 +168,14 @@ def _parse(query):
             element += query[index]
 
         index += 1
+
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have query to parse, fail
+    if iteration_limit_reached and index < len(query):
+        fail("Iteration limit exceeded: JSONPath query too complex to parse, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
     if len(element):
         keys.append(element)

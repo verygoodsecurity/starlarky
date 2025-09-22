@@ -150,11 +150,21 @@ def _Integer(value):
             # http://stackoverflow.com/questions/15390807/integer-square-root-in-python
             x = value
             y = (x + 1) // 2
+            iteration_limit_reached = False
             for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
                 if y >= x:
                     break
                 x = y
                 y = (x + value // x) // 2
+
+                # Check if this is the last iteration
+                if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and still computing, fail
+            if iteration_limit_reached and y < x:
+                fail("Iteration limit exceeded: square root calculation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
             result = x
         else:
             if modulus <= 0:
@@ -260,11 +270,20 @@ def _Integer(value):
 
         x = self._value // 2
         square_x = pow(x, 2)
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if square_x <= self._value:
                 break
             x = (square_x + self._value) // (2 * x)
             square_x = pow(x, 2)
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still computing, fail
+        if iteration_limit_reached and square_x > self._value:
+            fail("Iteration limit exceeded: perfect square check too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
         return self._value == pow(x, 2)
 
@@ -288,18 +307,38 @@ def _Integer(value):
             fail('ValueError: Modulus cannot be negative')
         r_p, r_n = self._value, modulus
         s_p, s_n = 1, 0
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if r_n <= 0:
                 break
             q = r_p // r_n
             r_p, r_n = r_n, r_p - q * r_n
             s_p, s_n = s_n, s_p - q * s_n
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still computing, fail
+        if iteration_limit_reached and r_n > 0:
+            fail("Iteration limit exceeded: inverse calculation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         if r_p != 1:
             fail('ValueError: No inverse value can be computed: "' + str(r_p))
+
+        iteration_limit_reached2 = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if s_p >= 0:
                 break
             s_p += modulus
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached2 = True
+
+        # If we reached the iteration limit and still adjusting, fail
+        if iteration_limit_reached2 and s_p < 0:
+            fail("Iteration limit exceeded: inverse adjustment too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
         self._value = s_p
         return self
 
@@ -311,11 +350,21 @@ def _Integer(value):
     def gcd(term):
         term = int(term)
         r_p, r_n = abs(self._value), abs(term)
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if r_n <= 0:
                 break
             q = r_p // r_n
             r_p, r_n = r_n, r_p - q * r_n
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still computing, fail
+        if iteration_limit_reached and r_n > 0:
+            fail("Iteration limit exceeded: GCD calculation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         return Integer(r_p)
 
     def lcm(term):
@@ -524,6 +573,7 @@ def _random_range(**kwargs):
     bits_needed = _Integer(norm_maximum).size_in_bits()
 
     norm_candidate = -1
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if (operator.le(0, norm_candidate) and
                 operator.le(norm_candidate, norm_maximum)):
@@ -532,6 +582,15 @@ def _random_range(**kwargs):
                                 max_bits=bits_needed,
                                 randfunc=randfunc
                                 )
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still no valid candidate, fail
+    if iteration_limit_reached and not (operator.le(0, norm_candidate) and operator.le(norm_candidate, norm_maximum)):
+        fail("Iteration limit exceeded: random range generation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     return operator.add(norm_candidate, min_inclusive)
 
 

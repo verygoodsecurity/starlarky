@@ -225,6 +225,7 @@ def _strip_extra(extra, xids):
     buffer = []
     start = 0
     i = 0
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
         if i + 4 > len(extra):
             break
@@ -236,6 +237,15 @@ def _strip_extra(extra, xids):
             start = j
             modified = True
         i = j
+
+        # Check if this is the last iteration
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have data, fail
+    if iteration_limit_reached and i + 4 <= len(extra):
+        fail("Iteration limit exceeded: too many extra field entries, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
     if not modified:
         return extra
     return b''.join(buffer)
@@ -505,10 +515,20 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
             buf = self._readbuffer[self._offset:]
             self._readbuffer = b''
             self._offset = 0
+            iteration_limit_reached = False
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
                 buf += self._read1(self.MAX_N)
                 if not self._eof:
                     break
+
+                # Check if this is the last iteration
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and still not EOF, fail
+            if iteration_limit_reached and not self._eof:
+                fail("Iteration limit exceeded: file too large to read, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
             return buf
 
         end = n + self._offset
@@ -521,6 +541,7 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
         buf = self._readbuffer[self._offset:]
         self._readbuffer = b''
         self._offset = 0
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             data = self._read1(n)
             if n < len(data):
@@ -531,9 +552,17 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
             buf += data
             n -= len(data)
             if n > 0 and not self._eof:
+                # Check if this is the last iteration
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
                 continue
             else:
                 break
+
+        # If we reached the iteration limit and still have data to read, fail
+        if iteration_limit_reached and n > 0 and not self._eof:
+            fail("Iteration limit exceeded: file read operation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         return buf
     self.read = read
 
@@ -555,13 +584,18 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
             buf = self._readbuffer[self._offset:]
             self._readbuffer = b''
             self._offset = 0
+            iteration_limit_reached = False
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
                 data = self._read1(self.MAX_N)
                 if data:
                     buf += data
                     break
                 if self._eof:
                     break
+            if iteration_limit_reached and not self._eof:
+                fail("Iteration limit exceeded: read1 operation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
             return buf
 
         end = n + self._offset
@@ -575,7 +609,10 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
         self._readbuffer = b''
         self._offset = 0
         if n > 0:
+            iteration_limit_reached = False
             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
                 data = self._read1(n)
                 if n < len(data):
                     self._readbuffer = data
@@ -587,6 +624,8 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
                     break
                 if self._eof:
                     break
+            if iteration_limit_reached and not self._eof:
+                fail("Iteration limit exceeded: read1 operation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
         return buf
     self.read1 = read1
 
@@ -703,12 +742,17 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
             if self._decrypter != None:
                 self._init_decrypter()
 
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
             if read_offset <= 0:
                 break
             read_len = min(self.MAX_SEEK_READ, read_offset)
             self.read(read_len)
             read_offset -= read_len
+        if iteration_limit_reached and read_offset > 0:
+            fail("Iteration limit exceeded: seek operation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
 
         return self.tell()
@@ -1015,7 +1059,10 @@ def ZipInfo(filename="NoName", date_time=(1980,1,1,0,0,0)):
         # Try to decode the extra field.
         extra = self.extra
         unpack = struct.unpack
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
             if len(extra) < 4:
                 break
             tp, ln = unpack('<HH', extra[:4])
@@ -1037,6 +1084,8 @@ def ZipInfo(filename="NoName", date_time=(1980,1,1,0,0,0)):
                     (self.header_offset,) = unpack('<Q', data[:8])
 
             extra = extra[ln+4:]
+        if iteration_limit_reached and len(extra) >= 4:
+            fail("Iteration limit exceeded: extra field decoding too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
     self._decodeExtra = _decodeExtra
 
@@ -1214,8 +1263,11 @@ def ZipFile(file, mode="r", compression=ZIP_STORED, allowZip64=False):
         data = fp.read(size_cd)
         fp = io.BytesIO(data)
         total = 0
+        iteration_limit_reached = False
 
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
             if total >= size_cd:
                 break
             centdir = fp.read(sizeCentralDir)
@@ -1262,6 +1314,8 @@ def ZipFile(file, mode="r", compression=ZIP_STORED, allowZip64=False):
             total = (total + sizeCentralDir + centdir[_CD_FILENAME_LENGTH]
                      + centdir[_CD_EXTRA_FIELD_LENGTH]
                      + centdir[_CD_COMMENT_LENGTH])
+        if iteration_limit_reached and total < size_cd:
+            fail("Iteration limit exceeded: central directory parsing too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
 
     self._RealGetContents = _RealGetContents
 

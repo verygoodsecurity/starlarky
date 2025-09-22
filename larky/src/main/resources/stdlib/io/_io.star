@@ -189,6 +189,7 @@ def IOBase(buf = ''):
         total = 0
         lines = []
         line = self.readline()
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if not line:
                 break
@@ -197,6 +198,15 @@ def IOBase(buf = ''):
             if (0 < sizehint) and (sizehint <= total):
                 break
             line = self.readline()
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have lines to read, fail
+        if iteration_limit_reached and line:
+            fail("Iteration limit exceeded: too many lines to read, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         return lines
     self.readlines = readlines
 

@@ -418,11 +418,16 @@ def decompressobj(wbits=MAX_WBITS, zdict=None):
         # TODO: is this necessary (this might make sense in CPython, but
         #       do we need max buffer size in managed languages like Java?
         last = []
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
             if self.inflater.finished() or self.inflater.getRemaining() <= 0:
                 break
             item = _get_inflate_data(self.inflater, length)
             last.append(item)
+        if iteration_limit_reached and not self.inflater.finished() and self.inflater.getRemaining() > 0:
+            fail("Iteration limit exceeded: inflate flush operation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
         self.inflater.end()
         return b"".join(last)
     self.flush = flush
@@ -433,13 +438,18 @@ def _get_deflate_data(deflater, mode=Z_NO_FLUSH):
     buflen = 1024
     data = bytearray()
     buf = bytearray(b"\x00" * buflen)
+    iteration_limit_reached = False
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
         if deflater.finished():
             break
         l = deflater.deflate(buf, _zlib_to_deflater.get(mode, _JZLib.NO_FLUSH))
         if l == 0:
             break
         data.extend(buf[0:l])
+    if iteration_limit_reached and not deflater.finished():
+        fail("Iteration limit exceeded: deflate operation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
     buf.clear()
     return bytes(data)
 
@@ -448,8 +458,11 @@ def _get_inflate_data(inflater, max_length=0):
     buf = bytearray(b" " * 1024)
     data = bytearray()
     total = 0
+    iteration_limit_reached = False
 
     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
         if inflater.finished():
             break
 
@@ -466,6 +479,8 @@ def _get_inflate_data(inflater, max_length=0):
         data.extend(buf[0:l])
         if max_length and total == max_length:
             break
+    if iteration_limit_reached and not inflater.finished() and (not max_length or total < max_length):
+        fail("Iteration limit exceeded: inflate operation too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
     buf.clear()
     return bytes(data)
 

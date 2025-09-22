@@ -332,7 +332,8 @@ def Element(tag, attrib=None, **extra):
         # else, iteratively search through all children to find the child
         # and remove it from the node
         children = [(self, x) for x in self.getchildren()]
-        for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        iteration_limit_reached = False
+        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if not children:
                 break
             parent, child = children.pop(0)
@@ -340,6 +341,15 @@ def Element(tag, attrib=None, **extra):
                 parent._children.remove(subelement)
                 return
             children.extend([(child, c) for c in child.getchildren()])
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit, fail
+        if iteration_limit_reached:
+            fail("Iteration limit exceeded: tree too deep to search for element removal, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         fail("ValueError: unable to remove %r because it was not found" % subelement)
     self.remove = remove
 
@@ -513,13 +523,22 @@ def Element(tag, attrib=None, **extra):
             if tag == None or el.tag == tag:
                 items.append(el)
             qu = el._children[0:]
-            for _ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+            iteration_limit_reached = False
+            for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
                 if not qu:
                     break
                 current = qu.pop(0)
                 if tag == None or current.tag == tag:
                     items.append(current)
                 qu = list(current._children) + list(qu)
+
+                # Check if this is the last iteration
+                if _while_ == larky.WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and still have queue, fail
+            if iteration_limit_reached and qu:
+                fail("Iteration limit exceeded: tree too deep for iteration, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % larky.WHILE_LOOP_EMULATION_ITERATION)
         return items
     self.iter = iter
 
@@ -555,11 +574,21 @@ def Element(tag, attrib=None, **extra):
         """
         root = self
         parent = root.getparent()
+        iteration_limit_reached = False
         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
             if parent == None:
                 break
             root = parent
             parent = root.getparent()
+
+            # Check if this is the last iteration
+            if _while_ == WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have parent, fail
+        if iteration_limit_reached and parent != None:
+            fail("Iteration limit exceeded: parent hierarchy too deep, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % WHILE_LOOP_EMULATION_ITERATION)
+
         return root
     self.getroot = getroot
 
@@ -806,11 +835,23 @@ def _ElementTree(element=None, file=None):
                     # it with chunks.
                     self._setroot(parser._parse_whole(source))
                     return self._root
+            iteration_limit_reached = False
             for _i in range(_WHILE_LOOP_EMULATION_ITERATION):
                 data = source.read(65536)
                 if not data:
                     break
                 parser.feed(data)
+
+                # Check if this is the last iteration
+                if _i == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit, check if there's still data
+            if iteration_limit_reached:
+                data = source.read(1)
+                if data:
+                    fail("Iteration limit exceeded: file too large to parse, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
             self._setroot(parser.close())
             return self.getroot()
 
@@ -1096,7 +1137,8 @@ def _namespaces(elem, default_namespace=None):
 
     # populate qname and namespaces table
     qu = [elem]
-    for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    iteration_limit_reached = False
+    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if len(qu) == 0:
             break
         elem = qu.pop(0)
@@ -1126,6 +1168,14 @@ def _namespaces(elem, default_namespace=None):
 
         qu.extend(elem._children)
 
+        # Check if this is the last iteration
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+
+    # If we reached the iteration limit and still have queue, fail
+    if iteration_limit_reached and len(qu) > 0:
+        fail("Iteration limit exceeded: XML tree too deep for namespace collection, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
     return qnames, namespaces
 
 def _collect_namespaces2(nsmap, node):
@@ -1142,6 +1192,7 @@ def _collect_namespaces2(nsmap, node):
     # print(new_namespaces, flat_namespaces_map)
     if node:
         parent = node.getparent()
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if parent == None:
                 break
@@ -1151,6 +1202,10 @@ def _collect_namespaces2(nsmap, node):
                     flat_namespaces_map[ns_href_url] = prefix
             lastnode = parent
             parent = lastnode.getparent()
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        if iteration_limit_reached and parent != None:
+            fail("Iteration limit exceeded: parent hierarchy too deep for namespace collection, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
         # for elem in flatten_nested_elements(parent):
         #     print(elem.tag, getattr(elem, '_nsmap'))
     return flat_namespaces_map, new_namespaces
@@ -1186,6 +1241,7 @@ def _find_prefix(href, flat_namespaces_map, new_namespaces):
         return flat_namespaces_map[href]
     # need to create a new prefix
     prefixes = flat_namespaces_map.values()
+    iteration_limit_reached = False
     for i in range(_WHILE_LOOP_EMULATION_ITERATION):
         prefix = 'ns%d' % i
         if prefix not in prefixes:
@@ -1193,6 +1249,10 @@ def _find_prefix(href, flat_namespaces_map, new_namespaces):
             flat_namespaces_map[href] = prefix
             # print("prefix generated: ", prefix, "for ", href)
             return prefix
+        if i == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+    if iteration_limit_reached:
+        fail("Iteration limit exceeded: too many namespace prefixes needed, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
 
 def flatten_nested_elements(tops_level_elems):
@@ -1205,6 +1265,7 @@ def flatten_nested_elements(tops_level_elems):
     for el in tops_level_elems:
         new_elems.append(el)
         qu = el._children[0:]
+        iteration_limit_reached = False
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if not qu:
                 break
@@ -1212,6 +1273,10 @@ def flatten_nested_elements(tops_level_elems):
                 current = qu.pop(0)
                 new_elems.append(current)
                 qu = current._children + qu
+            if _ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        if iteration_limit_reached and qu:
+            fail("Iteration limit exceeded: XML element tree too deep for flattening, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
     return new_elems
 
 
@@ -1225,6 +1290,7 @@ def _serialize_xml(
         # print('iter elem:', tag)
         text = elem.text
         # attrib = elem.attrib
+        iteration_limit_reached = False
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if len(unclosed_elems) == 0:
                 break
@@ -1240,6 +1306,10 @@ def _serialize_xml(
             if elem_to_close.tail:
                 # print("_serialize_xml", "elem to close which has tail:", elem_to_close.tag)
                 write(_escape_cdata(elem_to_close.tail))
+            if _ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        if iteration_limit_reached and len(unclosed_elems) > 0:
+            fail("Iteration limit exceeded: too many unclosed XML elements to process, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
         if tag == Comment:
             write("<!--%s-->" % _escape_cdata(text))
@@ -1300,6 +1370,7 @@ def _serialize_xml(
                     if elem.tail:
                         # print('self closing elem which has tail:', elem.tag)
                         write(_escape_cdata(elem.tail))
+    iteration_limit_reached = False
     for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
         if len(unclosed_elems) == 0:
             break
@@ -1313,6 +1384,10 @@ def _serialize_xml(
         if elem_to_close.tail:
             # print('remaining elem to close which has tail:', elem_to_close.tag)
             write(_escape_cdata(elem_to_close.tail))
+        if _ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+    if iteration_limit_reached and len(unclosed_elems) > 0:
+        fail("Iteration limit exceeded: too many remaining unclosed XML elements, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
 HTML_EMPTY = (
     "area",
@@ -1336,6 +1411,7 @@ HTML_EMPTY = sets.Set(HTML_EMPTY)
 def _serialize_html(write, elem, qnames, namespaces, **kwargs):
     elems = [(elem, namespaces)]
 
+    iteration_limit_reached = False
     for i in range(_WHILE_LOOP_EMULATION_ITERATION):
         if not elems:
             break
@@ -1389,6 +1465,10 @@ def _serialize_html(write, elem, qnames, namespaces, **kwargs):
                     write("</" + tag + ">")
         if elem.tail:
             write(_escape_cdata(elem.tail))
+        if i == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
+    if iteration_limit_reached and elems:
+        fail("Iteration limit exceeded: HTML element tree too complex for serialization, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
 
 def _serialize_text(write, elem):
@@ -1619,6 +1699,7 @@ def indent(tree, space="  ", level=0):
     def _indent_children(root, lvl):
         element = root
         queue = [(lvl, element)]  # (level, element)
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if not queue:
                 break
@@ -1650,6 +1731,10 @@ def indent(tree, space="  ", level=0):
             # queue[0:0] = children
             for c in reversed(children):
                 queue.insert(0, c)  # prepend so children come before siblings
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+        if iteration_limit_reached and queue:
+            fail("Iteration limit exceeded: XML tree too deep for indentation, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
     _indent_children(tree, 0)
 
@@ -1756,6 +1841,7 @@ def XMLPullParser(events=None, _parser=None):
         retrieved from the iterator.
         """
         events = self._events_queue
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if len(events) == 0:
                 break
@@ -1774,9 +1860,13 @@ def XMLPullParser(events=None, _parser=None):
                 self._index = 0
             else:
                 self._index = index
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
             if hasattr(event, 'unwrap'):
                 return event.unwrap()
             return event
+        if iteration_limit_reached and len(events) > 0:
+            fail("Iteration limit exceeded: too many XML parser events to process, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
     self.read_events = read_events
     return self
 

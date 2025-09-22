@@ -185,6 +185,7 @@ def XMLParser(**kw):
     def close():
         func, arg = self.goahead, 1
         q = []
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             # if not q:
             #     break
@@ -197,11 +198,18 @@ def XMLParser(**kw):
             elif types.is_tuple(r):
                 func, arg, rawdata = r
                 q.append((arg, rawdata))
+                # Check if this is the last iteration
+                if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
                 continue
             else:
                 # error
                 r.unwrap()
                 break
+
+        # If we reached the iteration limit, fail
+        if iteration_limit_reached:
+            fail("Iteration limit exceeded: document parsing incomplete, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
         if self.__fixed:
             self.__fixed = 0
             # remove self.elements so that we don't leak
@@ -213,6 +221,7 @@ def XMLParser(**kw):
         if not self.__translate_attribute_references:
             return data
         i = 0
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             res = amp.search(data, i)
             if res == None:
@@ -222,6 +231,9 @@ def XMLParser(**kw):
             if res == None:
                 self.syntax_error("bogus `&'")
                 i = s+1
+                # Check if this is the last iteration
+                if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
                 continue
             i = res.end(0)
             str = res.group(1)
@@ -257,6 +269,16 @@ def XMLParser(**kw):
                 i = s
             else:
                 i = s + len(str)
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit, fail
+        if iteration_limit_reached:
+            fail("Iteration limit exceeded: too many attribute references to translate, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
+        return data
     self.translate_references = translate_references
 
     # Interface - return a dictionary of all namespaces currently valid
@@ -274,6 +296,7 @@ def XMLParser(**kw):
         rawdata = self.rawdata
         i = 0
         n = len(rawdata)
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if i >= n:
                 break
@@ -453,7 +476,16 @@ def XMLParser(**kw):
             # We get here only if incomplete matches but
             # nothing else
             break
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
         # end while
+        # If we reached the iteration limit and haven't processed all data, fail
+        if iteration_limit_reached and i < n:
+            fail("Iteration limit exceeded: document too complex to parse within WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         if i > 0:
             self.__at_start = 0
         if end and i < n:
@@ -476,10 +508,19 @@ def XMLParser(**kw):
                 self.syntax_error('no elements in file')
             if self.stack:
                 self.syntax_error('missing end tags')
+                iteration_limit_reached = False
                 for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
                     if not self.stack:
                         break
                     self.finish_endtag(self.stack[-1][0])
+
+                    # Check if this is the last iteration
+                    if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                        iteration_limit_reached = True
+
+                # If we reached the iteration limit and still have stack, fail
+                if iteration_limit_reached and self.stack:
+                    fail("Iteration limit exceeded: too many nested tags to close, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
     self._gohead_finish = _gohead_finish
 
     # Internal -- parse comment, return length or -1 if not terminated
@@ -543,6 +584,7 @@ def XMLParser(**kw):
             k = k+1
             dq = 0
             sq = dq
+            iteration_limit_reached = False
             for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
                 if k >= n:
                     break
@@ -583,6 +625,15 @@ def XMLParser(**kw):
                     if level < 0:
                         self.syntax_error("bogus `>' in DOCTYPE")
                 k = k+1
+
+                # Check if this is the last iteration
+                if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                    iteration_limit_reached = True
+
+            # If we reached the iteration limit and haven't found end, fail
+            if iteration_limit_reached:
+                fail("Iteration limit exceeded: DOCTYPE declaration too complex, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         res = endbracketfind.match(rawdata, k)
         # print("res = endbracketfind.match(rawdata, k)")
         if res == None:
@@ -665,6 +716,7 @@ def XMLParser(**kw):
         rawdata = self.rawdata
         attrdict = {}
         namespace = {}
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if i >= j:
                 break
@@ -702,6 +754,15 @@ def XMLParser(**kw):
             attrvalue = attrvalue.replace('\t', ' ')
             attrvalue = attrvalue.replace('\n', ' ')
             attrdict[attrname] = self.translate_references(attrvalue)
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have attributes to parse, fail
+        if iteration_limit_reached and i < j:
+            fail("Iteration limit exceeded: too many attributes to parse, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
+
         return attrdict, namespace, i
     self.parse_attributes = parse_attributes
 
@@ -850,6 +911,7 @@ def XMLParser(**kw):
                 self.syntax_error('unopened end tag')
                 return
         ns = []
+        iteration_limit_reached = False
         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
             if len(self.stack) <= found:
                 break
@@ -865,6 +927,14 @@ def XMLParser(**kw):
             if self.__use_namespaces == len(self.stack):
                 self.__use_namespaces = 0
             operator.delitem(self.stack, -1)
+
+            # Check if this is the last iteration
+            if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
+
+        # If we reached the iteration limit and still have stack to process, fail
+        if iteration_limit_reached and len(self.stack) > found:
+            fail("Iteration limit exceeded: too many nested tags to process, more than WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
         for i in ns:
             if not i:

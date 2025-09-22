@@ -134,7 +134,10 @@ def get_parent_map(context):
         #     for e in p:
         #         parent_map[e] = p
         qu = [context.root]
+        iteration_limit_reached = False
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if _ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
             if len(qu) == 0:
                 break
             parent = qu.pop(0)
@@ -144,6 +147,8 @@ def get_parent_map(context):
                 k = str(sorted(larky.to_dict(e).items()))
                 parent_map[k] = parent
             qu.extend(parent._children)
+        if iteration_limit_reached and len(qu) > 0:
+            fail("Iteration limit exceeded: parent map creation too complex, more than _WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
     return parent_map
 
 
@@ -243,13 +248,18 @@ def prepare_self(peekable, token):
 
 def traverse_descendant(e, tag, rval):
     qu = e._children[0:] # duplicate arr
+    iteration_limit_reached = False
     for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if _ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
         if len(qu) == 0:
             break
         current = qu.pop(0)
         if tag == None or tag == '*' or current.tag == tag:
             rval.append(current)
         qu.extend(current._children)
+    if iteration_limit_reached and len(qu) > 0:
+        fail("Iteration limit exceeded: descendant traversal too complex, more than _WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
 
 
 def prepare_descendant(peekable, token):
@@ -311,11 +321,14 @@ def prepare_predicate(peekable, token):
     # http://javascript.crockford.com/tdop/tdop.html
     signature = []
     predicate = []
+    iteration_limit_reached = False
     # print("old token:", token)
     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        if _while_ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+            iteration_limit_reached = True
         token = peekable.next()
         if not token or token == StopIterating:
-            return
+            break
         # print('token?', token)
         if token[0] == "]":
             peeked = peekable.peek()
@@ -337,6 +350,8 @@ def prepare_predicate(peekable, token):
         else:
             signature.append(token[0])
         predicate.append(token[1])
+    if iteration_limit_reached:
+        fail("Iteration limit exceeded: predicate parsing too complex, more than _WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
     signature = "".join(signature)
     # print("===> predicate:", predicate)
     # print("===> signature:", signature)
@@ -607,7 +622,10 @@ def iterfind(start_elem, path, namespaces=None):
         tokenizer = larky.utils.Peekable(xpath_tokenizer(path, namespaces))
         token = tokenizer.next()
         selector = []
+        iteration_limit_reached = False
         for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            if _ == _WHILE_LOOP_EMULATION_ITERATION - 1:
+                iteration_limit_reached = True
             if token == StopIterating:
                 break
             rval = ops[token[0]](tokenizer, token)
@@ -621,6 +639,8 @@ def iterfind(start_elem, path, namespaces=None):
                 token = tokenizer.next()
                 if token == StopIterating:
                     break
+        if iteration_limit_reached and token != StopIterating:
+            fail("Iteration limit exceeded: xpath parsing too complex, more than _WHILE_LOOP_EMULATION_ITERATION limit of %d" % _WHILE_LOOP_EMULATION_ITERATION)
             # _cache[cache_key] = selector
     result = [start_elem]
     context = SelectorContext(start_elem)
