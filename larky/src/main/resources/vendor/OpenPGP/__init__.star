@@ -18,7 +18,7 @@ load("@stdlib//types", types="types")
 load("@stdlib//zlib", zlib="zlib")
 load("@vendor//option/result", Ok="Ok", Result="Result", Error="Error")
 
-WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
+while_true = larky.while_true
 
 __all__ = [
     # Library start
@@ -195,12 +195,11 @@ def _gen_one(i):
 
 
 def _ensure_bytes(n, chunk, g):
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in while_true("OpenPGPException: Not enough bytes"):
         if len(chunk) >= n:
             break
         chunk += next(g)
     return chunk
-
 
 def _slurp(g):
     bs = b""
@@ -251,7 +250,7 @@ def _class_S2K():
     def sized_hash(self, hasher, s, size):
         hsh = hasher(s)
         prefix = b"\0"
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in while_true():
             if len(hsh) >= size:
                 break
             hsh += hasher(s, prefix)
@@ -308,7 +307,7 @@ def _class_S2K():
 
         count = iterations >> 6
         c = 0
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in while_true():
             if count < 32:
                 break
             count = count >> 1
@@ -502,7 +501,7 @@ def _class_Message():
         """
         self.force()
         msg = self
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in while_true():
             if not builtins.isinstance(msg[0], CompressedDataPacket):
                 break
             msg = msg[0]
@@ -1253,7 +1252,7 @@ def _class_SignaturePacket():
             self.hash_algorithm = ord(self.read_byte())
             self.hash_head = self.read_unpacked(2, "!H")
             self.data = []
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in while_true():
                 if self.length <= 0:
                     break
                 self.data += [self.read_mpi()]
@@ -1282,7 +1281,7 @@ def _class_SignaturePacket():
             )
             self.hash_head = self.read_unpacked(2, "!H")
             self.data = []
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in while_true():
                 if self.length <= 0:
                     break
                 self.data += [self.read_mpi()]
@@ -1380,7 +1379,7 @@ def _class_SignaturePacket():
     def get_subpackets(cls, input_data):
         subpackets = []
         length = len(input_data)
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in while_true():
             if length <= 0:
                 break
             subpacket, bytes_used = cls.get_subpacket(input_data)
@@ -1603,7 +1602,7 @@ def _class_SignaturePacket():
     def _class_PreferredSymmetricAlgorithmsPacket():
         def read(self):
             self.data = []
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in while_true():
                 if self.length <= 0:
                     break
                 self.data += [self.read_byte()]
@@ -1635,7 +1634,7 @@ def _class_SignaturePacket():
             self.key_algorithm = ord(self.read_byte())
 
             self.fingerprint = ""
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in while_true():
                 if self.length <= 0:
                     break
                 self.fingerprint += hexlify(self.read_byte()).upper().decode('utf-8')
@@ -1737,7 +1736,7 @@ def _class_SignaturePacket():
     def _class_PreferredHashAlgorithmsPacket():
         def read(self):
             self.data = []
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in while_true():
                 if self.length <= 0:
                     break
                 self.data += [self.read_byte()]
@@ -1761,7 +1760,7 @@ def _class_SignaturePacket():
     def _class_PreferredCompressionAlgorithmsPacket():
         def read(self):
             self.data = []
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in while_true():
                 if self.length <= 0:
                     break
                 self.data += [self.read_byte()]
@@ -1861,7 +1860,7 @@ def _class_SignaturePacket():
 
         def read(self):
             self.flags = []
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in while_true():
                 if self.length <= 0:
                     break
                 self.flags.append(ord(self.read_byte()))
