@@ -33,7 +33,7 @@ def _test_namespace_exposes_larky_builtins():
         "dicts",
         "is_subclass",
         "type_cls",
-        "while_true"  # Added this
+        "while_true"
     ]))
 
 
