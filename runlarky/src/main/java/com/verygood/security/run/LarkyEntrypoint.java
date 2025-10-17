@@ -146,6 +146,7 @@ public class LarkyEntrypoint implements Callable<Integer> {
         writer.write(output);
     }
     catch(IOException e){
+      // nosemgrep: java.lang.security.audit.active-debug-code-printstacktrace.active-debug-code-printstacktrace
       e.printStackTrace(System.err);
       throw new RuntimeException(e.getMessage(), e);
     }

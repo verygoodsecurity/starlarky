@@ -1,3 +1,4 @@
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 FIXTURE = """\
 -----BEGIN RSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
