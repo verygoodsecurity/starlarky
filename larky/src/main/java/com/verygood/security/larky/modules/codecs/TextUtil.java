@@ -225,6 +225,7 @@ public class TextUtil {
       return -1; // not found
     } catch (CharacterCodingException e) {
       // can't get here
+      // nosemgrep: java.lang.security.audit.active-debug-code-printstacktrace.active-debug-code-printstacktrace
       e.printStackTrace();
       return -1;
     }

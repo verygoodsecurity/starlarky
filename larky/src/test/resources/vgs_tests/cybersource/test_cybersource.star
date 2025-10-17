@@ -3,6 +3,7 @@ load("@stdlib//unittest", "unittest")
 load("@vgs//cybersource", "cybersource")
 
 # Test private key and certificate
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 TEST_PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCYoc5Ue4MKxHIQ
 eSESKQiIv341EFDtfAlAsXP74modJuwnSLOfSkFNgKH4y6vSKiUK7BxU2KFy7FkR

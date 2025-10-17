@@ -76,8 +76,10 @@ BX85JB8zqwHB
 rsaKeyEncryptedPEM = (
     # PEM encryption
     # With DES and passphrase 'test'
+    
     (
         "test",
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
         """-----BEGIN RSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
 DEK-Info: DES-CBC,AF8F9A40BD2FA2FC
