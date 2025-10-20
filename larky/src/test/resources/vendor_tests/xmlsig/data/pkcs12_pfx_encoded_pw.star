@@ -1,4 +1,3 @@
-# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 FIXTURE = """\
 -----BEGIN RSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
@@ -53,7 +52,7 @@ f9JQCGw301QhVWAWV9ZVAwyk7p+6G83kSwdbI+SYgTP9WW0sGWtsnYvo3VxaDCnO
 3GOwmvSwtVKSsBLrNWwgKU1SVP5Q41WrNbkTW6mCAAPWF3UtQgTjdviNpIyOIALp
 DI3mxMKJ7Fef6FiJ+R9875UhcaPZbGksHXiBeFpSN2dcv1FMhdqQh3/qMMEJH5+Y
 bgr71Xf9GIgujVYNPzJxhHs3BWORX1O4gn/BprbZ7LmmNg==
------END CERTIFICATE-----"""
+-----END CERTIFICATE-----""" # nosemgrep
 
 
 HttpHeader = {
