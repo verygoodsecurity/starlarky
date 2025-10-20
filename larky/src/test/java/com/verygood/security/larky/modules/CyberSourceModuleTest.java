@@ -13,13 +13,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-// nosemgrep: secrets.misc.generic_private_key.generic_private_key
 public class CyberSourceModuleTest {
 
     private Mutability mutability;
     private StarlarkThread thread;
     private CyberSourceModule module;
     private static final String TEST_PRIVATE_KEY = """
+        # nosemgrep: secrets.misc.generic_private_key.generic_private_key
         -----BEGIN PRIVATE KEY-----
         MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCYoc5Ue4MKxHIQ
         eSESKQiIv341EFDtfAlAsXP74modJuwnSLOfSkFNgKH4y6vSKiUK7BxU2KFy7FkR
