@@ -46,7 +46,7 @@ public class CyberSourceModuleTest {
         pJxO072xy1P9PRlyasYBJ2sNiF0TTguXJB1Ncu0TM0+FLZXIFddalPgv1hY98vNX
         22dZWKvD3xJ7HRUx/Hyk+VEkH11lsLZ/8AhcwZAr76cE/HLz1XtkKKBCnnlOLPZN
         03j+WKU3p1fzeWqfW4nyCALQ
-        -----END PRIVATE KEY-----"""; // nosemgrep
+        -----END PRIVATE KEY-----"""; // nosemgrep: secrets.misc.generic_private_key.generic_private_key
 
     /*
     Certificate:
