@@ -103,27 +103,23 @@ public class SafeXMLUtils {
     public static Transformer transformer() throws TransformerConfigurationException {
         return transformer(null);
     }
-    
-    private static void configureSecurity(TransformerFactory tf) throws TransformerConfigurationException {
-        tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        try {
-            tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-        } catch (IllegalArgumentException e) {
-            log.warn("XSL transformer implementation doesn't support {} feature", XMLConstants.ACCESS_EXTERNAL_DTD);
-        }   
-        try {
-            tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
-        } catch (IllegalArgumentException e) {
-            log.warn("XSL transformer implementation doesn't support {} feature", XMLConstants.ACCESS_EXTERNAL_STYLESHEET);
-        }
-    }
-    
+
     private static Transformer transformer(Source xsltSource) throws TransformerConfigurationException {
         TransformerFactory tf = TRANSFORMER_FACTORY.get();
         if (tf == null) {
             tf = TransformerFactory.newInstance();
         }
-        configureSecurity(tf);
+        tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        try {
+            tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        } catch (IllegalArgumentException e) {
+            log.warn("XSL transformer implementation doesn't support {} feature", XMLConstants.ACCESS_EXTERNAL_DTD);
+        }
+        try {
+            tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+        } catch (IllegalArgumentException e) {
+            log.warn("XSL transformer implementation doesn't support {} feature", XMLConstants.ACCESS_EXTERNAL_STYLESHEET);
+        }
         TRANSFORMER_FACTORY.set(tf);  // reset the factory to the new secure one
         return xsltSource == null ? tf.newTransformer() : tf.newTransformer(xsltSource); // nosemgrep: transformerfactory-dtds-not-disabled
     }
