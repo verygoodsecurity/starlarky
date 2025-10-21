@@ -103,6 +103,7 @@ public class SafeXMLUtils {
     public static Transformer transformer() throws TransformerConfigurationException {
         return transformer(null);
     }
+
     private static Transformer transformer(Source xsltSource) throws TransformerConfigurationException {
         TransformerFactory tf = TRANSFORMER_FACTORY.get();
         if (tf == null) {
