@@ -104,7 +104,7 @@ public class SafeXMLUtils {
         return transformer(null);
     }
     
-    private static TransformerFactory securify(TransformerFactory tf) throws TransformerConfigurationException {
+    private static void configureSecurity(TransformerFactory tf) throws TransformerConfigurationException {
         tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         try {
             tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
@@ -116,18 +116,14 @@ public class SafeXMLUtils {
         } catch (IllegalArgumentException e) {
             log.warn("XSL transformer implementation doesn't support {} feature", XMLConstants.ACCESS_EXTERNAL_STYLESHEET);
         }
-        return tf;
     }
     
     private static Transformer transformer(Source xsltSource) throws TransformerConfigurationException {
         TransformerFactory tf = TRANSFORMER_FACTORY.get();
         if (tf == null) {
             tf = TransformerFactory.newInstance();
-            tf = securify(tf);
-        } else {
-            // ensure secure processing is enabled
-            tf = securify(tf);
         }
+        configureSecurity(tf);
         TRANSFORMER_FACTORY.set(tf);  // reset the factory to the new secure one
         return xsltSource == null ? tf.newTransformer() : tf.newTransformer(xsltSource); // nosemgrep: transformerfactory-dtds-not-disabled
     }
