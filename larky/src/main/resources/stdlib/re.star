@@ -28,7 +28,7 @@ A good portion of `findall` and `finditer` code was ported from:
 pfalcon's pycopy-lib located at:
    https://github.com/pfalcon/pycopy-lib/tree/master/re-pcre
 """
-load("@stdlib//larky", "larky")
+load("@stdlib//larky", "larky", "while_true")
 load("@stdlib//types", "types")
 load("@stdlib//enum", "enum")
 load("@stdlib//re2j", _re2j="re2j")
