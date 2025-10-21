@@ -108,7 +108,7 @@ public class SafeXMLUtils {
         TransformerFactory tf = TRANSFORMER_FACTORY.get();
         if (tf == null) {
             tf = TransformerFactory.newInstance();
-            tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, Boolean.TRUE);
+            tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
             try {
                 tf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
             } catch (IllegalArgumentException e) {
