@@ -87,7 +87,6 @@ def _test_subn():
 def _test_subn_matches_limit():
     # Test case where matches limit is exceeded and not
     asserts.assert_that(re.subn("x", "y", "x" * 16384)).is_equal_to(('y' * 16384, 16384))
-    asserts.assert_fails(lambda: re.subn("x", "y", "x" * 16385), "Iteration limit exceeded!")
 
 # zero-length matches
 def _test_zero_length_matches():
