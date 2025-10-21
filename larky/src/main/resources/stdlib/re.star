@@ -28,7 +28,7 @@ A good portion of `findall` and `finditer` code was ported from:
 pfalcon's pycopy-lib located at:
    https://github.com/pfalcon/pycopy-lib/tree/master/re-pcre
 """
-load("@stdlib//larky", larky="larky", while_true="while_true")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//types", "types")
 load("@stdlib//enum", "enum")
 load("@stdlib//re2j", _re2j="re2j")
@@ -139,7 +139,7 @@ def _pattern__init__(patternobj):
         _matcher = matcher(string)
         res = []
         cnt_rpl = 0
-        for _i in while_true():
+        for _i in larky.while_true():
             if not _matcher.find():
                 break
             _repl = repl
@@ -160,7 +160,7 @@ def _pattern__init__(patternobj):
         finish = len(s)
         m = matcher(s)
 
-        for _while_ in while_true():
+        for _while_ in larky.while_true():
             if pos > finish:
                 break
 
@@ -202,7 +202,7 @@ def _pattern__init__(patternobj):
         finish = len(s)
         m = matcher(s)
 
-        for _while_ in while_true():
+        for _while_ in larky.while_true():
             if pos > finish:
                 break
             if not m.find(pos):
@@ -241,7 +241,7 @@ def _pattern__init__(patternobj):
         finish = len(string)
         m = matcher(string)
 
-        for _while_ in while_true():
+        for _while_ in larky.while_true():
             if pos > finish:
                 break
             if not m.find(pos):
