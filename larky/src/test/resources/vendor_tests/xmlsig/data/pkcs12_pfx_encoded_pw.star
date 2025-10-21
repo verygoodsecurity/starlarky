@@ -1,6 +1,5 @@
 # nosemgrep: secrets.misc.generic_private_key.generic_private_key
-FIXTURE = """\
------BEGIN RSA PRIVATE KEY-----
+FIXTURE = """-----BEGIN RSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
 DEK-Info: DES-EDE3-CBC,A21535C176A7846F
 
