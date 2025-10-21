@@ -39,7 +39,7 @@ def test_sign_rsa_without_jws():
     jwe = build_jwe(
         json.dumps({"a": "b"}), alg, rsa_private_key, rsa_public_key
     ).decode()
-    asserts.assert_true(re.match(r"[^-\s]+\.[^-\s]+\.[^-\s]+", jwe))
+    asserts.assert_true(re.match(r"[^\s]+\.[^\s]+\.[^\s]+", jwe))
     # Commenting out because currently breaks on load...
     # verified = jws.verify(jwe, rsa_public_key, algorithms=[alg])
     # asserts.assert_true(verified)
@@ -74,7 +74,7 @@ def test_sign_ecc_without_jws():
     jwe = build_jwe(
         json.dumps({"a": "b"}), alg, ecc_private_key, ecc_public_key
     ).decode()
-    asserts.assert_true(re.match(r"[^-\s]+\.[^-\s]+\.[^-\s]+", jwe))
+    asserts.assert_true(re.match(r"[^\s]+\.[^\s]+\.[^\s]+", jwe))
     # Commenting out because currently breaks on load...
     # verified = jws.verify(jwe, ecc_public_key, algorithms=[alg])
     # asserts.assert_true(verified)
