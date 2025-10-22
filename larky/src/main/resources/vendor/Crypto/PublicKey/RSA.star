@@ -51,8 +51,6 @@ load("@vendor//Crypto/PublicKey/_openssh",
      read_string="read_string",
      check_padding="check_padding")
 
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
-
 
 __all__ = ['generate', 'construct', 'import_key',
            'RsaKey', 'oid']
@@ -743,7 +741,7 @@ def _import_key(extern_key, passphrase=None):
         # This is probably an OpenSSH key
         keystring = binascii.a2b_base64(extern_key.split(bytes([0x20]))[1])
         keyparts = []
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if len(keystring) <= 4:
                 break
             length = struct.unpack(">I", keystring[:4])[0]

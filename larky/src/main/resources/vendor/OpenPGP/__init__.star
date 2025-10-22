@@ -425,7 +425,7 @@ def iteratively_evaluate_lazy_subpackets(packet, debug=False):
         p.length = None
 
     queue = [(0, (packet, None))]
-    for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not queue:
             break
         if debug:
@@ -1020,7 +1020,7 @@ def _serialize_v2orv3(node):
 def to_bytes3(p, trailer):
     r = []
     q = [(_IterWalkState.PRE, (p, None))]
-    for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not q:
             break
         state, payload = q.pop(0)
@@ -1095,7 +1095,7 @@ def to_bytes3(p, trailer):
 def to_bytes2(p):
     r = []
     q = [(_IterWalkState.PRE, (p, None))]
-    for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not q:
             break
         state, payload = q.pop(0)

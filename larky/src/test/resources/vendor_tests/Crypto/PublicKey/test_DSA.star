@@ -26,7 +26,7 @@ load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//types", types="types")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//unittest", unittest="unittest")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Math/Primality", Primality="Primality")
@@ -195,7 +195,7 @@ def DSADomainTest_test_domain1():
 
 def _get_weak_domain():
     p = Integer(4)
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not (p.size_in_bits() != 1024 or Primality.test_probable_prime(p) != Primality.PROBABLY_PRIME):
             break
         q1 = Integer.random(exact_bits=80)
@@ -206,7 +206,7 @@ def _get_weak_domain():
 
     h = Integer(2)
     g = 1
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if g != 1:
             break
         g = pow(int(h), int(z), int(p))

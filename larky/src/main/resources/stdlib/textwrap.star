@@ -1,9 +1,7 @@
 """Text wrapping and filling.
 """
 load("@stdlib//builtins", builtins="builtins")
-load("@stdlib//larky",
-     WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION",
-     larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//types", types="types")
@@ -187,7 +185,7 @@ def _class_TextWrapper():
                     continue
 
                 hyphen_index = c.index('-')
-                for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                for _while_ in larky.while_true():
                     if hyphen_index == -1 or hyphen_index == (len(c) - 1):
                         break
                     chunks.append(c[0:hyphen_index+1])
@@ -211,7 +209,7 @@ def _class_TextWrapper():
         """
         i = 0
         patsearch = self.sentence_end_re.search
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if i >= len(chunks) - 1:
                 break
             if chunks[i + 1] == " " and patsearch(chunks[i]):
@@ -288,7 +286,7 @@ def _class_TextWrapper():
         # Arrange in reverse order so items can be efficiently popped
         # from a stack of chucks.
         chunks = reversed(chunks)
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if not chunks:
                 break
 
@@ -310,7 +308,7 @@ def _class_TextWrapper():
             # is the very beginning of the text (ie. no lines started yet).
             if self.drop_whitespace and chunks[-1].strip() == '' and lines:
                 operator.delitem(chunks, -1)
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in larky.while_true():
                 if not chunks:
                     break
                 l = len(chunks[-1])
@@ -346,7 +344,7 @@ def _class_TextWrapper():
                     # list of all lines (return value).
                     lines.append(indent + ''.join(cur_line))
                 else:
-                    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                    for _while_ in larky.while_true():
                         if not cur_line:
                             break
                         if (cur_line[-1].strip() and

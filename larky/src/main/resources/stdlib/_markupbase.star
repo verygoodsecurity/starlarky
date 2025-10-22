@@ -4,7 +4,7 @@ This module is used as a foundation for the html.parser module.  It has no
 documented public API and should not be used directly.
 
 """
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//re", re="re")
 load("@vendor//option/result", Error="Error")
 
@@ -102,7 +102,7 @@ def ParserBase():
             return j
         if decltype == "doctype":
             self._decl_otherchars = ''
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if j >= n:
                 break
             c = rawdata[j]
@@ -192,7 +192,7 @@ def ParserBase():
         rawdata = self.rawdata
         n = len(rawdata)
         j = i
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if j >= n:
                 break
             c = rawdata[j]
@@ -240,7 +240,7 @@ def ParserBase():
                     j = j + 1
             elif c == "]":
                 j = j + 1
-                for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                for _while_ in larky.while_true():
                     if not (j < n and rawdata[j].isspace()):
                         break
                     j = j + 1
@@ -281,7 +281,7 @@ def ParserBase():
             return -1
         if c == ">":
             return j + 1
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             # scan a series of attribute descriptions; simplified:
             #   name type [value] [#constraint]
             name, j = self._scan_name(j, declstartpos)
@@ -296,7 +296,7 @@ def ParserBase():
                     j = rawdata.find(")", j) + 1
                 else:
                     return -1
-                for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+                for _while_ in larky.while_true():
                     if not rawdata[j:j+1].isspace():
                         break
                     j = j + 1
@@ -338,7 +338,7 @@ def ParserBase():
         if j < 0:
             return j
         rawdata = self.rawdata
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             c = rawdata[j:j+1]
             if not c:
                 # end of buffer; incomplete
@@ -361,7 +361,7 @@ def ParserBase():
         rawdata = self.rawdata
         if rawdata[i:i+1] == "%":
             j = i + 1
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in larky.while_true():
                 c = rawdata[j:j+1]
                 if not c:
                     return -1
@@ -374,7 +374,7 @@ def ParserBase():
         name, j = self._scan_name(j, declstartpos)
         if j < 0:
             return j
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             c = self.rawdata[j:j+1]
             if not c:
                 return -1

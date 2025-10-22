@@ -36,8 +36,6 @@ load("@vendor//Crypto/Util/number",
 load("@vendor//option/result", Result="Result")
 
 
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
-
 
 __all__ = ['DerObject', 'DerInteger', 'DerOctetString', 'DerNull',
            'DerSequence', 'DerObjectId', 'DerBitString', 'DerSetOf']
@@ -564,7 +562,7 @@ def DerSequence(startSeq=None, implicit=None):
         payload = [self.payload]
         _seq = list(self._seq)  # type: list
 
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             # noinspection PyTypeChecker
             if len(_seq) == 0:
                 break
@@ -665,7 +663,7 @@ def DerSequence(startSeq=None, implicit=None):
 
         # Add one item at a time to self.seq, by scanning self.payload
         p = BytesIO_EOF(obj.payload)
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if p.remaining_data() <= 0:
                 break
             p.set_bookmark()
@@ -887,7 +885,7 @@ def DerObjectId(value='', implicit=None, explicit=None):
 
         comps = [str(x) for x in divmod(p.read_byte(), 40)]
         v = 0
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if not p.remaining_data():
                 break
             c = p.read_byte()
