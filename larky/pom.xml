@@ -41,7 +41,7 @@
         <google.errorprone.version>2.38.0</google.errorprone.version>
         <google.flogger.version>0.9</google.flogger.version>
         <google.guava.version>31.1-jre</google.guava.version>
-        <google.jimfs.version>1.3.0</google.jimfs.version>
+        <google.jimfs.version>1.3.1</google.jimfs.version>
         <google.re2j.version>1.8</google.re2j.version>
         <google.truth.version>1.4.4</google.truth.version>
         <javax.xml.bind.jaxb-api.version>2.3.1</javax.xml.bind.jaxb-api.version>
