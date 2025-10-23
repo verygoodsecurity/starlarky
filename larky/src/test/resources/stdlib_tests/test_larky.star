@@ -72,8 +72,33 @@ def _test_while_true_interrupted_with_globally_defined_limit():
             count += 1
         fail("Should not have arrived here!")
     asserts.assert_fails(_test_loop, ".*Iteration limit exceeded! Loop bound \\(larky.WHILE_LOOP_EMULATION_ITERATION=\\d+\\)*")
-    
-       
+
+
+def _test_while_true_exception_stack_trace_is_correct():
+    """Test _while_true with custom error message"""
+    def _test_loop():
+        count = 0
+        for _while_ in larky.while_true(bound=5):
+            count += 1
+            if count >= 10:  # This should trigger the error
+                fail("Iterable failed with error message")
+
+    # a regex that matches the final line of file_context_0 (a Starlark stacktrace for _test_loop)
+    #
+    # Example: 
+    #         File ".../test_larky.star", line 81, column 40, in _test_loop
+    #                for _while_ in larky.while_true(bound=5):
+    # Error in __next__: Iteration limit exceeded! Loop bound (larky.WHILE_LOOP_EMULATION_ITERATION=16384) ...
+    #
+    # This regex will match the expected Starlark trace line, regardless of file path or line number
+    trace_regex = (
+        r'\s+File ".+test_larky\.star", line 81, column 40, in _test_loop\n' +
+        r"\s+for _while_ in larky\.while_true\(bound=5\):\n" +
+        r"Error in __next__: Iteration limit exceeded! Loop bound \(larky\.WHILE_LOOP_EMULATION_ITERATION.+$"
+    )    
+    asserts.assert_fails(_test_loop, trace_regex)
+
+
 def _suite():
     _suite = unittest.TestSuite()
     for t in [
@@ -82,6 +107,7 @@ def _suite():
         _test_while_true_interrupted_with_custom_exception,
         _test_while_true_interrupted_with_globally_defined_limit,
         _test_while_true_repr,
+        _test_while_true_exception_stack_trace_is_correct,
     ]:
         _suite.addTest(unittest.FunctionTestCase(t))
     return _suite

@@ -1,8 +1,11 @@
 package com.verygood.security.larky.modules.types;
 
+import com.google.common.collect.ImmutableList;
+
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
@@ -27,8 +30,7 @@ public class LarkyBoundedWhileTrue implements StarlarkValue {
   public static LarkyIterator of(int maxIterations, String errorMessage,
                                  StarlarkThread thread) {
     LarkyIterator iterator =
-        new LarkyBoundedWhileTrueIterator(errorMessage, maxIterations);
-    iterator.setCurrentThread(thread);
+        new LarkyBoundedWhileTrueIterator(errorMessage, maxIterations, thread);
     return iterator;
   }
 
@@ -40,51 +42,78 @@ public class LarkyBoundedWhileTrue implements StarlarkValue {
         .append(limitExceededMsg)
         .append(")");
   }
-  
-  private static class LarkyBoundedWhileTrueIterator extends LarkyIterator {
 
-    private final String errorMessage;
-    private int counter = 0;
-    private final int maxIterations;
+    private static class LarkyBoundedWhileTrueIterator extends LarkyIterator {
 
-    private LarkyBoundedWhileTrueIterator(String errorMessage, int maxIterations) {
-      this.errorMessage = errorMessage;
-      this.maxIterations = maxIterations;
-    }
+      private final String errorMessage;
+      private int counter = 0;
+      private final int maxIterations;
+      private final ImmutableList<StarlarkThread.CallStackEntry> callStack;
 
-    @Override
-    public Object __next__() throws EvalException {
-      if (counter >= maxIterations) {
-        throw Starlark.errorf("%s", errorMessage);
+      private LarkyBoundedWhileTrueIterator(String errorMessage,
+                                            int maxIterations,
+                                            StarlarkThread thread) {
+        this.setCurrentThread(thread);
+        this.errorMessage = errorMessage;
+        this.maxIterations = maxIterations;
+        this.callStack = captureLoopCallStack(thread);
       }
-      counter++;
-      return true; // Return True for each iteration
-    }
 
-    @Override
-    public boolean hasNext() {
-      try {
-        return (boolean) __next__();
-      } catch (EvalException e) {
-        throw new RuntimeException(e);
+      private ImmutableList<StarlarkThread.CallStackEntry> captureLoopCallStack(StarlarkThread thread) {
+        int depth = StarlarkEvalWrapper.CallStack.depth(thread); 
+        if (depth < 2) {
+          return thread.getCallStack();
+        }
+        // depth - 2 trims `larky.star:_while_true()` and the internal `_WhileTrue` class
+        return thread.getCallStack()
+            // subList() toIndex is inclusive, so the check above gives us the correct
+            // index to trim to
+            .subList(0, depth - 2);
       }
-    }
-    
-    @Override
-    public String typeName() {
-      return "bounded_while_true_iterator";
-    }
 
-    @Override
-    public void repr(Printer p) {
-      p.append("bounded_while_true_iterator(")
-          .append("limit_exceed_msg=")
-          .append("\"")
-          .append(errorMessage)
-          .append("\", max_iterations=")
-          .append(String.valueOf(maxIterations))
-          .append(")");
+      private EvalException loopBoundExceededException() {
+        EvalException exc = Starlark.errorf(errorMessage);
+        this.getCurrentThread()
+            .setUncheckedExceptionContext(() -> "in " + callStack.get(callStack.size() - 1).name);
+        StarlarkEvalWrapper.Exc.fillInStackTraceFromCallStack(exc, callStack);
+        return exc;
+      }
+
+      @Override
+      public Object __next__() throws EvalException {
+        if (counter >= maxIterations) {
+          // Create a new RuntimeException with the loop statement location,
+          // otherwise the stack treferencea will reference the previously
+          // executed statement location
+          throw loopBoundExceededException();
+        }
+        counter++;
+        return true; // Return True for each iteration
+      }
+
+      @Override
+      public boolean hasNext() {
+        try {
+          return (boolean)__next__();
+        } catch (EvalException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      public String typeName() {
+        return "bounded_while_true_iterator";
+      }
+
+      @Override
+      public void repr(Printer p) {
+        p.append("bounded_while_true_iterator(")
+            .append("limit_exceed_msg=")
+            .append("\"")
+            .append(errorMessage)
+            .append("\", max_iterations=")
+            .append(String.valueOf(maxIterations))
+            .append(")");
+      }
     }
   }
-}
-
