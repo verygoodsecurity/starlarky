@@ -3,7 +3,7 @@ load("@stdlib//base64", base64="base64")
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//bz2", bz2="bz2")
 load("@stdlib//io", io="io")
-load("@stdlib//larky", larky="larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//zlib", zlib="zlib")
 
@@ -225,7 +225,7 @@ def _strip_extra(extra, xids):
     buffer = []
     start = 0
     i = 0
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if i + 4 > len(extra):
             break
         xid, xlen = struct.unpack(b"<HH", extra[i : i + 4])
@@ -505,7 +505,7 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
             buf = self._readbuffer[self._offset:]
             self._readbuffer = b''
             self._offset = 0
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in larky.while_true():
                 buf += self._read1(self.MAX_N)
                 if not self._eof:
                     break
@@ -521,7 +521,7 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
         buf = self._readbuffer[self._offset:]
         self._readbuffer = b''
         self._offset = 0
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             data = self._read1(n)
             if n < len(data):
                 self._readbuffer = data
@@ -555,7 +555,7 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
             buf = self._readbuffer[self._offset:]
             self._readbuffer = b''
             self._offset = 0
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in larky.while_true():
                 data = self._read1(self.MAX_N)
                 if data:
                     buf += data
@@ -575,7 +575,7 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
         self._readbuffer = b''
         self._offset = 0
         if n > 0:
-            for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in larky.while_true():
                 data = self._read1(n)
                 if n < len(data):
                     self._readbuffer = data
@@ -703,7 +703,7 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
             if self._decrypter != None:
                 self._init_decrypter()
 
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if read_offset <= 0:
                 break
             read_len = min(self.MAX_SEEK_READ, read_offset)
@@ -1015,7 +1015,7 @@ def ZipInfo(filename="NoName", date_time=(1980,1,1,0,0,0)):
         # Try to decode the extra field.
         extra = self.extra
         unpack = struct.unpack
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if len(extra) < 4:
                 break
             tp, ln = unpack('<HH', extra[:4])
@@ -1215,7 +1215,7 @@ def ZipFile(file, mode="r", compression=ZIP_STORED, allowZip64=False):
         fp = io.BytesIO(data)
         total = 0
 
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if total >= size_cd:
                 break
             centdir = fp.read(sizeCentralDir)

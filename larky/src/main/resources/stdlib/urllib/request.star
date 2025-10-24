@@ -70,9 +70,7 @@ f = urllib.request.urlopen('https://www.python.org/')
 """
 
 load("@stdlib//builtins", builtins="builtins")
-load("@stdlib//larky", larky="larky",
-     WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION",
-)
+load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//re", re="re")

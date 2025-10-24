@@ -9,7 +9,6 @@ load("@stdlib//types", types="types")
 load("@vendor//option/result", safe="safe", try_="try_", Error="Error")
 
 version = '0.3-larky'
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 # Regular expressions used for parsing
 
@@ -185,7 +184,7 @@ def XMLParser(**kw):
     def close():
         func, arg = self.goahead, 1
         q = []
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             # if not q:
             #     break
             # func, arg = q.pop(0)
@@ -213,7 +212,7 @@ def XMLParser(**kw):
         if not self.__translate_attribute_references:
             return data
         i = 0
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             res = amp.search(data, i)
             if res == None:
                 return data
@@ -274,7 +273,7 @@ def XMLParser(**kw):
         rawdata = self.rawdata
         i = 0
         n = len(rawdata)
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if i >= n:
                 break
             if i > 0:
@@ -476,7 +475,7 @@ def XMLParser(**kw):
                 self.syntax_error('no elements in file')
             if self.stack:
                 self.syntax_error('missing end tags')
-                for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+                for _while_ in larky.while_true():
                     if not self.stack:
                         break
                     self.finish_endtag(self.stack[-1][0])
@@ -543,7 +542,7 @@ def XMLParser(**kw):
             k = k+1
             dq = 0
             sq = dq
-            for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in larky.while_true():
                 if k >= n:
                     break
                 c = rawdata[k]
@@ -665,7 +664,7 @@ def XMLParser(**kw):
         rawdata = self.rawdata
         attrdict = {}
         namespace = {}
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if i >= j:
                 break
             res = attrfind.match(rawdata, i)
@@ -850,7 +849,7 @@ def XMLParser(**kw):
                 self.syntax_error('unopened end tag')
                 return
         ns = []
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if len(self.stack) <= found:
                 break
             if found < len(self.stack) - 1:

@@ -48,7 +48,7 @@ Information about the version of the zlib library in use is available through th
 """
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//codecs", codecs="codecs")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//jzlib", _JZLib="jzlib")
@@ -418,7 +418,7 @@ def decompressobj(wbits=MAX_WBITS, zdict=None):
         # TODO: is this necessary (this might make sense in CPython, but
         #       do we need max buffer size in managed languages like Java?
         last = []
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if self.inflater.finished() or self.inflater.getRemaining() <= 0:
                 break
             item = _get_inflate_data(self.inflater, length)
@@ -433,7 +433,7 @@ def _get_deflate_data(deflater, mode=Z_NO_FLUSH):
     buflen = 1024
     data = bytearray()
     buf = bytearray(b"\x00" * buflen)
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if deflater.finished():
             break
         l = deflater.deflate(buf, _zlib_to_deflater.get(mode, _JZLib.NO_FLUSH))
@@ -449,7 +449,7 @@ def _get_inflate_data(inflater, max_length=0):
     data = bytearray()
     total = 0
 
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if inflater.finished():
             break
 

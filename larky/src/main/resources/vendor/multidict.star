@@ -1,4 +1,4 @@
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
 load("@vendor//option/result", Error="Error", Ok="Ok")
@@ -457,7 +457,7 @@ def MultiDict(*args, **kwargs):
 
         # drop tails
         i = 0
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if i >= len(self._impl._items):
                 break
             item = self._impl._items[i]
@@ -495,7 +495,7 @@ def MultiDict(*args, **kwargs):
 
         # remove all tail items
         i = rgt + 1
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if i >= len(items):
                 break
             item = items[i]
