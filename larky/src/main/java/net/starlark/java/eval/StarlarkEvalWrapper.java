@@ -4,6 +4,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.common.collect.ImmutableList;
 
+import net.starlark.java.eval.Starlark.UncheckedEvalException;
 import net.starlark.java.eval.StarlarkThread.CallStackEntry;
 import net.starlark.java.syntax.Location;
 
@@ -148,6 +149,25 @@ public class StarlarkEvalWrapper {
         if (thread != null) {
           thread.fillInStackTrace(this);
         }
+      }
+    }
+    
+    final class WrappedUncheckedEvalException extends UncheckedEvalException {
+      private WrappedUncheckedEvalException(
+          @NotNull final String cause,
+          @NotNull final StarlarkThread thread,
+          @NotNull final ImmutableList<StarlarkThread.CallStackEntry> callStack) {
+        super(new RuntimeException(cause), thread);
+        StarlarkEvalWrapper.Exc.fillInStackTraceFromCallStack(this, callStack);
+      }
+      
+      public static WrappedUncheckedEvalException of(
+          @NotNull final String cause,
+          @NotNull final StarlarkThread thread,
+          @NotNull final ImmutableList<StarlarkThread.CallStackEntry> callStack) {
+        thread.setUncheckedExceptionContext(
+            () -> "in " + callStack.get(callStack.size() - 1).name);
+        return new WrappedUncheckedEvalException(cause, thread, callStack);
       }
     }
   }

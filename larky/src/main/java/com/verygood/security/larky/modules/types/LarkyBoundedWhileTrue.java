@@ -71,21 +71,10 @@ public class LarkyBoundedWhileTrue implements StarlarkValue {
             .subList(0, depth - 2);
       }
 
-      private EvalException loopBoundExceededException() {
-        EvalException exc = Starlark.errorf(errorMessage);
-        this.getCurrentThread()
-            .setUncheckedExceptionContext(() -> "in " + callStack.get(callStack.size() - 1).name);
-        StarlarkEvalWrapper.Exc.fillInStackTraceFromCallStack(exc, callStack);
-        return exc;
-      }
-
       @Override
       public Object __next__() throws EvalException {
         if (counter >= maxIterations) {
-          // Create a new RuntimeException with the loop statement location,
-          // otherwise the stack treferencea will reference the previously
-          // executed statement location
-          throw loopBoundExceededException();
+          throw Starlark.errorf(errorMessage);
         }
         counter++;
         return true; // Return True for each iteration
@@ -96,7 +85,14 @@ public class LarkyBoundedWhileTrue implements StarlarkValue {
         try {
           return (boolean)__next__();
         } catch (EvalException e) {
-          throw new RuntimeException(e);
+          // Create a new WrappedUncheckedEvalException with the loop statement
+          // location, otherwise the stacktrace will reference the
+          // previously executed statement location, not the loop statement location.
+          throw StarlarkEvalWrapper.Exc.WrappedUncheckedEvalException.of(
+            e.getMessage(), 
+            this.getCurrentThread(), 
+            this.callStack
+          );
         }
       }
 
