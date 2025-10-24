@@ -641,9 +641,9 @@ public final class Starlark {
    *
    * <p>The original exception can be retrieved using {@link #getCause}.
    */
-  public static final class UncheckedEvalException extends RuntimeException {
+  public static class UncheckedEvalException extends RuntimeException {
 
-    private UncheckedEvalException(RuntimeException cause, StarlarkThread thread) {
+    protected UncheckedEvalException(RuntimeException cause, StarlarkThread thread) {
       super(createUncheckedEvalMessage(cause, thread), cause);
       thread.fillInStackTrace(this);
     }
