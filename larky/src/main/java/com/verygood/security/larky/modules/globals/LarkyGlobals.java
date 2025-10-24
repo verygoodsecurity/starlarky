@@ -3,6 +3,8 @@ package com.verygood.security.larky.modules.globals;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
 import com.verygood.security.larky.modules.types.LarkyCounter;
+import com.verygood.security.larky.modules.types.LarkyIterator;
+import com.verygood.security.larky.modules.types.LarkyBoundedWhileTrue;
 import com.verygood.security.larky.objects.type.TypeClassLookup;
 import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
@@ -17,6 +19,7 @@ import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
@@ -182,4 +185,27 @@ public final class LarkyGlobals {
     return TypeClassLookup.pythonLikeBehavior(obj, thread);
   }
 
+  @StarlarkMethod(
+    name = "_WhileTrue",
+    parameters = { 
+      @Param(
+        name = "bound", 
+        doc = "The bound of the loop", 
+        named = true,
+        allowedTypes = { 
+          @ParamType(type = StarlarkInt.class) 
+        }), 
+      @Param(
+        name = "limit_exceed_msg", 
+        doc = "The message to throw when the loop exceeds the bound",
+        named = true,
+        allowedTypes = { 
+          @ParamType(type = String.class) 
+        }
+      )
+    },
+    useStarlarkThread = true)
+  public LarkyIterator WhileTrue(StarlarkInt bound, String limit_exceed_msg, StarlarkThread thread) {
+    return LarkyBoundedWhileTrue.of(bound.toIntUnchecked(), limit_exceed_msg, thread);
+  }
 }

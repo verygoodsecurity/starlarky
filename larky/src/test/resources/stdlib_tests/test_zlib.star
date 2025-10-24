@@ -3,9 +3,7 @@ load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//json", "json")
 load("@stdlib//io", io="io")
 load("@stdlib//zlib", zlib="zlib")
-load("@stdlib//larky",
-     WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION",
-     larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//random", random="random")
 load("@stdlib//types", types="types")
 load("@stdlib//unittest", unittest="unittest")
@@ -218,7 +216,7 @@ def _decompinc(flush=False, source=None, cx=256, dcx=64):
     if flush:
         bufs.append(dco.flush())
     else:
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if not True:
                 break
             chunk = dco.decompress(b'')
@@ -248,7 +246,7 @@ def _decompimax(source=None, cx=256, dcx=64):
     dco = zlib.decompressobj()
     bufs = []
     cb = combuf
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not cb:
             break
         # max_length = 1 + len(cb)//10
@@ -274,7 +272,7 @@ def _decompressmaxlen(flush=False):
     dco = zlib.decompressobj()
     bufs = []
     cb = combuf
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not cb:
             break
         max_length = 1 + len(cb) // 10
@@ -285,7 +283,7 @@ def _decompressmaxlen(flush=False):
     if flush:
         bufs.append(dco.flush())
     else:
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if not chunk:
                 break
             chunk = dco.decompress(b'', max_length)

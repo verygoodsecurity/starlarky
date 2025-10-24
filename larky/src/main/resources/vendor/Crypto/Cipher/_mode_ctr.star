@@ -35,8 +35,6 @@ load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes")
 
 __all__ = ['CtrMode']
 
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
-
 
 def _CtrMode(block_cipher, initial_counter_block,
              prefix_len, counter_len, little_endian):
@@ -342,7 +340,7 @@ def _create_ctr_cipher(factory, **kwargs):
 
     # Compute initial counter block
     words = []
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if initial_value <= 0:
             break
         words.append(struct.pack('B', initial_value & 255))

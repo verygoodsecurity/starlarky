@@ -26,7 +26,7 @@ load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//itertools", itertools="itertools")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//sets", sets="sets")
 load("@stdlib//struct", struct="struct")
@@ -405,7 +405,7 @@ def _generate_domain(L, randfunc):
     q = Integer(4)
     # upper_bit = 1 << (N - 1)
     upper_bit = pow(2, N - 1)
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if test_probable_prime(q, randfunc) == PROBABLY_PRIME:
             break
         seed = randfunc(64)
@@ -418,7 +418,7 @@ def _generate_domain(L, randfunc):
     offset = 1
     # upper_bit = 1 << (L - 1)
     upper_bit = pow(2, L - 1)
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         V = [ SHA256.new(seed + Integer(offset + j).to_bytes()).digest()
               for j in iter_range(n + 1) ]
         V = [ Integer.from_bytes(v) for v in V ]
@@ -438,7 +438,7 @@ def _generate_domain(L, randfunc):
 
     # Generate g (A.2.3, index=1)
     e = (p - 1) // q
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         count = _while_ + 1
         U = seed + b"ggen" + bchr(1) + Integer(count).to_bytes()
         W = Integer.from_bytes(SHA256.new(U).digest())
@@ -680,7 +680,7 @@ def import_key(extern_key, passphrase=None):
         # This is probably a public OpenSSH key
         keystring = binascii.a2b_base64(extern_key.split(b' ')[1])
         keyparts = []
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if len(keystring) <= 4:
                 break
             length = struct.unpack(">I", keystring[:4])[0]

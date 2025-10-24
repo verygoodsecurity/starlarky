@@ -1,7 +1,7 @@
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//enum", enum="enum")
 load("@stdlib//io", io="io")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//sets", sets="sets")
@@ -110,7 +110,7 @@ _IterWalkState = enum.Enum('_IterWalkState', [
 def _iterwalk(_element, _events, _tag):
     q = [(_IterWalkState.PRE, (_element, _events, _tag,))]
     result = []
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not q:
             break
         state, (element, events, tag) = q.pop(0)
@@ -455,7 +455,7 @@ def XMLNode(tag, attrib=None, **extra):
         """Document: An associated document."""
         current = self
         doc = self._owner_doc
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if current == None:
                 break
             if doc != None:
@@ -481,7 +481,7 @@ def XMLNode(tag, attrib=None, **extra):
 
         nsmap = {}
         qu = [self]
-        for _ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _ in larky.while_true():
             if not qu:
                 break
             cnode = qu.pop(0)
@@ -646,7 +646,7 @@ def XMLNode(tag, attrib=None, **extra):
 
         trees = []
         qu = self._children[0:]
-        for _ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _ in larky.while_true():
             if not qu:
                 break
             child = qu.pop(0)
@@ -668,7 +668,7 @@ def XMLNode(tag, attrib=None, **extra):
         if self.isdata(name):
             return self
         qu = self._children[0:]
-        for _ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _ in larky.while_true():
             if not qu:
                 break
             child = qu.pop(0)
@@ -882,7 +882,7 @@ def XMLNode(tag, attrib=None, **extra):
         #
         # root = self
         # parent = root.getparent()
-        # for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        # for _while_ in larky.while_true():
         #     if parent == None:
         #         break
         #     root = parent
@@ -1358,7 +1358,7 @@ def XMLNode(tag, attrib=None, **extra):
             if tag == None or el.tag == tag:
                 items.append(el)
             qu = el._children[0:]
-            for _ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+            for _ in larky.while_true():
                 if not qu:
                     break
                 current = qu.pop(0)
@@ -1375,7 +1375,7 @@ def XMLNode(tag, attrib=None, **extra):
         """
         x = self.__parent
         res = []
-        for _ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        for _ in larky.while_true():
             if x == None:
                 break
             if not tags or x.tag in tags:
@@ -1413,7 +1413,7 @@ def XMLNode(tag, attrib=None, **extra):
         """
         stack = list(reversed(self._children))
         nodes = []
-        for _ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        for _ in larky.while_true():
             if not stack:
                 break
             node = stack.pop()
@@ -1767,7 +1767,7 @@ def XMLTree(root=None):
         if not hasattr(source, "read"):
             close_src = True
 
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             data = source.read(65536)
             if not data:
                 break
@@ -1901,7 +1901,7 @@ def XMLTree(root=None):
         path = []
         c_element = element
         tag = None
-        for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if c_element == root:
                 break
             c_name = c_element.tag
@@ -1915,7 +1915,7 @@ def XMLTree(root=None):
 
             count = 0
             c_node = c_element.previous_sibling()
-            for _while2_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+            for _while2_ in larky.while_true():
                 if c_node == None:
                     break
                 if iselement(c_node):
@@ -1939,7 +1939,7 @@ def XMLTree(root=None):
                 #         break
                 # c_node = c_node.next
                 c_node = c_element.next_sibling()
-                for _while2_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+                for _while2_ in larky.while_true():
                     if c_node == None:
                         break
                     if iselement(c_node):
@@ -3273,7 +3273,7 @@ def BaseTreeBuilder(namespaceHTMLElements):
     #     entry = self.activeFormattingElements[i]
     #     if entry == Marker or entry in self.openElements:
     #         return
-    #     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    #     for _while_ in larky.while_true():
     #         if not entry != Marker and entry not in self.openElements:
     #             break
     #         if i == 0:
@@ -3283,7 +3283,7 @@ def BaseTreeBuilder(namespaceHTMLElements):
     #         i -= 1
     #         # Step 5: let entry be one earlier in the list.
     #         entry = self.activeFormattingElements[i]
-    #     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    #     for _while_ in larky.while_true():
     #         if not True:
     #             break
     #         # Step 7
@@ -3313,7 +3313,7 @@ def BaseTreeBuilder(namespaceHTMLElements):
     #
     # def clearActiveFormattingElements():
     #     entry = self.activeFormattingElements.pop()
-    #     for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    #     for _while_ in larky.while_true():
     #         if not self.activeFormattingElements and entry != Marker:
     #             break
     #         entry = self.activeFormattingElements.pop()
@@ -3404,7 +3404,7 @@ def BaseTreeBuilder(namespaceHTMLElements):
     self.insertText = insertText
 
     def generateImpliedEndTags(exclude=None):
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if not self.openElements:
                 break
             name = self.openElements[-1].name
@@ -3745,7 +3745,7 @@ def ElementDepthFirstIterator(node):
     self.__iter__ = __iter__
 
     def __next__():
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if self.node:
                 ret = self.node
                 self.parents.append(self.node)
@@ -3779,7 +3779,7 @@ def ElementBreadthFirstIterator(node):
     self.__iter__ = __iter__
 
     def __next__():
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if self.node:
                 ret = self.node
                 self.parents.append(self.node)

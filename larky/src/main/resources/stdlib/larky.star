@@ -310,6 +310,22 @@ def _DeterministicGenerator(func, *args, **kwargs):
     return iter(_DeterministicGeneratorCls(func, *args, **kwargs))
 
 
+
+_LOOP_BOUND_ERROR_MESSAGE = (
+    "Iteration limit exceeded! Loop bound (larky.WHILE_LOOP_EMULATION_ITERATION=%d) "
+    + "has been reached. Either increase the bound "
+    + "(larky.WHILE_LOOP_EMULATION_ITERATION=$NUMBER) OR chunk the work block to "
+    + "operate within the loop bound limit.") % WHILE_LOOP_EMULATION_ITERATION
+
+
+def _while_true(limit_exceeded_msg=None, bound=WHILE_LOOP_EMULATION_ITERATION):
+    if limit_exceeded_msg == None:
+       limit_exceeded_msg = _LOOP_BOUND_ERROR_MESSAGE
+    return _WhileTrue(
+        bound=bound,
+        limit_exceed_msg=limit_exceeded_msg)
+
+
 def _fromkeys(iterable, value=None):
     """dict.fromkeys(S[, v]) ->
 
@@ -436,6 +452,7 @@ larky = _struct(
     translate_bytes=translate_bytes,
     DeterministicGenerator=_DeterministicGenerator,
     type_cls=_type_cls,
+    while_true=_while_true,
     strings=_struct(
         zfill=_zfill,
     ),
