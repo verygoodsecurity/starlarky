@@ -77,7 +77,7 @@ load("@stdlib//jcrypto", _JCrypto="jcrypto")
 #
 #         # Pick a random number in the range of possible numbers
 #         r = num_choices
-#         for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+#         for _while_ in larky.while_true():
 #             if r < num_choices:
 #                 break
 #             r = getrandbits(size(num_choices))
@@ -122,7 +122,7 @@ load("@stdlib//jcrypto", _JCrypto="jcrypto")
 #         selected = {}  # we emulate a set using a dict here
 #         for i in range(k):
 #             r = None
-#             for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+#             for _while_ in larky.while_true():
 #                 if not r == None or r in selected:
 #                     break
 #                 r = randrange(num_choices)

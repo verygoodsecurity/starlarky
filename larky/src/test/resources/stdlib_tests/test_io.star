@@ -3,7 +3,7 @@ load("@stdlib//types", types="types")
 load("@stdlib//unittest", unittest="unittest")
 load("@stdlib//codecs", codecs="codecs")
 
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@vendor//asserts", asserts="asserts")
 
 # TODO: port over https://github.com/python/cpython/blob/main/Lib/test/test_io.py
@@ -44,7 +44,7 @@ def _test_StringIO():
     s = io.StringIO('foo\n  bar\n  baz')
     index = 0
     t = []
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         line = s.readline()
         t.append(line)
         index += 1
@@ -58,7 +58,7 @@ def _test_BytesIO():
     b = io.BytesIO(b'foo\n  bar\n  baz')
     index = 0
     t = []
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         line = b.readline()
         t.append(line)
         index += 1
@@ -75,7 +75,7 @@ def _test_issue1763():
     def myreadlines(sio):
         """Read and return the list of all logical lines using readline."""
         lines = []
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             line = sio.readline()
             if not line:
                 return lines

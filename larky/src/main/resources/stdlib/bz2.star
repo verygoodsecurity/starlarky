@@ -12,8 +12,6 @@ load("@stdlib//io", io="io")
 load("@stdlib//larky", larky="larky")
 load("@vendor//option/result", Error="Error", Result="Result")
 
-WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
-
 __all__ = [
     "BZ2File",
     "BZ2Compressor",
@@ -370,7 +368,7 @@ def decompress(data):
     For incremental decompression, use a BZ2Decompressor object instead.
     """
     results = []
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not data:
             break
         decomp = BZ2Decompressor()

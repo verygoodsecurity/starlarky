@@ -25,7 +25,7 @@
 
 load("@stdlib//functools", reduce="reduce")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//re", re="re")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//types", types="types")
@@ -155,7 +155,7 @@ def PBKDF2(password, salt, dkLen=16, count=1000, prf=None, hmac_hash_module=None
 
         key = bytearray()
         i = 1
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if len(key) >= dkLen:
                 break
             s = [ prf(password, salt + struct.pack(">I", i)) ] * 2
@@ -327,7 +327,7 @@ def HKDF(master, key_len, salt, hashmod, num_keys=1, context=None):
     t = [ b"" ]
     n = 1
     tlen = 0
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if tlen >= output_len:
             break
         hmac = HMAC.new(prk, t[-1] + context + struct.pack('B', n), digestmod=hashmod)
