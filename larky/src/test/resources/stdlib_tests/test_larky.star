@@ -66,12 +66,13 @@ def _test_while_true_repr():
 
 def _test_while_true_interrupted_with_globally_defined_limit():
     """Test _while_true with custom error message"""
-    def _test_loop():
-        count = 0
+    counter_container = []
+    def _test_loop(counter_container):
         for _while_ in larky.while_true():
-            count += 1
+            counter_container.append(b'')
         fail("Should not have arrived here!")
-    asserts.assert_fails(_test_loop, ".*Iteration limit exceeded! Loop bound \\(larky.WHILE_LOOP_EMULATION_ITERATION=\\d+\\)*")
+    asserts.assert_fails(lambda: _test_loop(counter_container), ".*Iteration limit exceeded! Loop bound \\(larky.WHILE_LOOP_EMULATION_ITERATION=\\d+\\)*")
+    asserts.assert_that(len(counter_container)).is_equal_to(larky.WHILE_LOOP_EMULATION_ITERATION)
 
 
 def _test_while_true_exception_stack_trace_is_correct():
