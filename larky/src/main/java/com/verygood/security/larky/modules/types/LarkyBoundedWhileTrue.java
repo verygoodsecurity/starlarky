@@ -49,7 +49,6 @@ public class LarkyBoundedWhileTrue implements StarlarkValue {
       private int counter = 0;
       private final int maxIterations;
       private final ImmutableList<StarlarkThread.CallStackEntry> callStack;
-
       private LarkyBoundedWhileTrueIterator(String errorMessage,
                                             int maxIterations,
                                             StarlarkThread thread) {
@@ -70,30 +69,34 @@ public class LarkyBoundedWhileTrue implements StarlarkValue {
             // index to trim to
             .subList(0, depth - 2);
       }
-
+      
+      private boolean withinLoopBound() {
+        return counter < maxIterations;
+      }
+      
+      private StarlarkEvalWrapper.Exc.WrappedUncheckedEvalException limitExceededException() {
+        return StarlarkEvalWrapper.Exc.WrappedUncheckedEvalException.of(
+            errorMessage, 
+            this.getCurrentThread(), 
+            this.callStack
+          );
+      }
+      
       @Override
       public Object __next__() throws EvalException {
-        if (counter >= maxIterations) {
-          throw Starlark.errorf(errorMessage);
+        if (!withinLoopBound()) {
+          throw limitExceededException();
         }
         counter++;
-        return true; // Return True for each iteration
+        return true;
       }
 
       @Override
       public boolean hasNext() {
-        try {
-          return (boolean)__next__();
-        } catch (EvalException e) {
-          // Create a new WrappedUncheckedEvalException with the loop statement
-          // location, otherwise the stacktrace will reference the
-          // previously executed statement location, not the loop statement location.
-          throw StarlarkEvalWrapper.Exc.WrappedUncheckedEvalException.of(
-            e.getMessage(), 
-            this.getCurrentThread(), 
-            this.callStack
-          );
-        }
+        // if (!withinLoopBound()) {
+        //   throw limitExceededException();
+        // }
+        return true;
       }
 
       @Override
