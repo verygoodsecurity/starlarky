@@ -153,14 +153,39 @@ public class StarlarkEvalWrapper {
     }
     
     final class WrappedUncheckedEvalException extends UncheckedEvalException {
+      private final ImmutableList<StarlarkThread.CallStackEntry> callStack;
+      private final String errorMessage;
+
       private WrappedUncheckedEvalException(
           @NotNull final String cause,
           @NotNull final StarlarkThread thread,
           @NotNull final ImmutableList<StarlarkThread.CallStackEntry> callStack) {
         super(new RuntimeException(cause), thread);
+        this.callStack = callStack;
+        this.errorMessage = cause;
         StarlarkEvalWrapper.Exc.fillInStackTraceFromCallStack(this, callStack);
       }
-      
+
+      @Override
+      public String getMessage() {
+        // Use EvalException's formatCallStack to get nice formatting with source code lines
+        return EvalException.formatCallStack(callStack, errorMessage, EvalException.newSourceReader());
+      }
+
+      @Override
+      public String toString() {
+        // Return just the formatted message without the exception class name prefix
+        // This prevents "WrappedUncheckedEvalException: Traceback..." and just shows "Traceback..."
+        return getMessage();
+      }
+
+      @Override
+      public synchronized Throwable getCause() {
+        // Return null to prevent redundant "Caused by: RuntimeException: ..." from appearing
+        // All relevant information is already in our formatted message via getMessage()
+        return null;
+      }
+
       public static WrappedUncheckedEvalException of(
           @NotNull final String cause,
           @NotNull final StarlarkThread thread,

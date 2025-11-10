@@ -93,8 +93,10 @@ def _test_while_true_exception_stack_trace_is_correct():
     #
     # This regex will match the expected Starlark trace line, regardless of file path or line number
     trace_regex = (
-        r"Iteration limit exceeded! Loop bound \(larky\.WHILE_LOOP_EMULATION_ITERATION.+$"
-    )    
+        r'\s+File ".+test_larky\.star", line \d+, column \d+, in _test_loop\n' +
+        r"\s+for _while_ in larky\.while_true\(bound=BOUND\):\n" +
+        r"Error: Iteration limit exceeded! Loop bound \(larky\.WHILE_LOOP_EMULATION_ITERATION.+$"
+    ) 
     asserts.assert_fails(lambda: _test_loop(counter), trace_regex)
     asserts.assert_that(counter.get()).is_equal_to(BOUND)
     
@@ -107,7 +109,6 @@ def _test_while_true_exception_stack_trace_is_correct():
                 c = 1/0
     asserts.assert_fails(lambda: _loop_logical_error(counter), r".*floating-point division by zero.*")
     asserts.assert_that(counter.get()).is_equal_to(3)
-
 
 
 def _suite():

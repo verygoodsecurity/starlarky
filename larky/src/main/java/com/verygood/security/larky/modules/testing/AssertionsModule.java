@@ -84,8 +84,13 @@ public class AssertionsModule implements StarlarkValue {
       Starlark.call(thread, f, ImmutableList.of(), ImmutableMap.of());
       errorMsg = String.format("evaluation succeeded unexpectedly (want error matching %s)", wantError);
     } catch (Starlark.UncheckedEvalException ex) {
-      // Verify error matches UncheckedEvalException message (which has a nested cause).
-      String msg = ex.getCause().getMessage();
+      // Verify error matches UncheckedEvalException message.
+      // Use getMessage() directly, which may be overridden to provide formatted output,
+      // or fall back to getCause().getMessage() if available.
+      String msg = ex.getMessage();
+      if (msg == null && ex.getCause() != null) {
+        msg = ex.getCause().getMessage();
+      }
       if (pattern.matcher(msg).find()) {
         return Starlark.NONE;
       }
