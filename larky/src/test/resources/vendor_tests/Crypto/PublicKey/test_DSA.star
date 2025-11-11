@@ -216,7 +216,7 @@ def _get_weak_domain():
 
 
 def DSADomainTest_test_error_weak_domain():
-    _get_weak_domain()
+    asserts.assert_fails(lambda: _get_weak_domain(), "Iteration limit exceeded!")
 
 
 def _testsuite():
@@ -229,7 +229,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(DSATest_test_construct_bad_key5))
     _suite.addTest(unittest.FunctionTestCase(DSATest_test_repr))
     _suite.addTest(unittest.FunctionTestCase(DSADomainTest_test_domain1))
-    _suite.addTest(unittest.expectedFailure(unittest.FunctionTestCase(DSADomainTest_test_error_weak_domain)))
+    _suite.addTest(unittest.FunctionTestCase(DSADomainTest_test_error_weak_domain))
     return _suite
 
 _runner = unittest.TextTestRunner()
