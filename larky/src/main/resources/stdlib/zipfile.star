@@ -506,9 +506,9 @@ def ZipExtFile(fileobj, mode, zipinfo, pwd=None, close_fileobj=False):
             self._readbuffer = b''
             self._offset = 0
             for _while_ in larky.while_true():
-                buf += self._read1(self.MAX_N)
-                if not self._eof:
+                if self._eof:
                     break
+                buf += self._read1(self.MAX_N)
             return buf
 
         end = n + self._offset
