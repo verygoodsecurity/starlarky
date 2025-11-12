@@ -27,7 +27,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
@@ -36,7 +36,6 @@ load("@vendor//Crypto/Util/number", long_to_bytes="long_to_bytes", bytes_to_long
 load("@vendor//Crypto/Util/py3compat", bord="bord", bchr="bchr")
 load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error")
 
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 _implementation = {"library": "jdk", "api": "starlarky"}
 
 
@@ -150,7 +149,7 @@ def _Integer(value):
             # http://stackoverflow.com/questions/15390807/integer-square-root-in-python
             x = value
             y = (x + 1) // 2
-            for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+            for _while_ in larky.while_true():
                 if y >= x:
                     break
                 x = y
@@ -241,7 +240,7 @@ def _Integer(value):
         return _JCrypto.Math.bit_length(self._value)
         # bit_size = 0
         # tmp = self._value
-        # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        # for _while_ in larky.while_true():
         #     if not tmp:
         #         break
         #     tmp >>= 1
@@ -260,7 +259,7 @@ def _Integer(value):
 
         x = self._value // 2
         square_x = pow(x, 2)
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if square_x <= self._value:
                 break
             x = (square_x + self._value) // (2 * x)
@@ -288,7 +287,7 @@ def _Integer(value):
             fail('ValueError: Modulus cannot be negative')
         r_p, r_n = self._value, modulus
         s_p, s_n = 1, 0
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if r_n <= 0:
                 break
             q = r_p // r_n
@@ -296,7 +295,7 @@ def _Integer(value):
             s_p, s_n = s_n, s_p - q * s_n
         if r_p != 1:
             fail('ValueError: No inverse value can be computed: "' + str(r_p))
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if s_p >= 0:
                 break
             s_p += modulus
@@ -311,7 +310,7 @@ def _Integer(value):
     def gcd(term):
         term = int(term)
         r_p, r_n = abs(self._value), abs(term)
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if r_n <= 0:
                 break
             q = r_p // r_n
@@ -347,7 +346,7 @@ def _Integer(value):
         # # Step 4
         # e = 0
         # a1 = a
-        # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        # for _while_ in larky.while_true():
         #     if (a1 & 1) != 0:
         #         break
         #     a1 >>= 1
@@ -524,7 +523,7 @@ def _random_range(**kwargs):
     bits_needed = _Integer(norm_maximum).size_in_bits()
 
     norm_candidate = -1
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if (operator.le(0, norm_candidate) and
                 operator.le(norm_candidate, norm_maximum)):
             break

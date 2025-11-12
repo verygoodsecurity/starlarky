@@ -60,8 +60,6 @@ load("@stdlib//re", re="re")
 load("@stdlib//types", types="types")
 load("@vendor//option/result", Error="Error")
 
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
-
 
 xpath_tokenizer_re = re.compile(r"".join([
     r"(",
@@ -134,7 +132,7 @@ def get_parent_map(context):
         #     for e in p:
         #         parent_map[e] = p
         qu = [context.root]
-        for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _ in larky.while_true():
             if len(qu) == 0:
                 break
             parent = qu.pop(0)
@@ -243,7 +241,7 @@ def prepare_self(peekable, token):
 
 def traverse_descendant(e, tag, rval):
     qu = e._children[0:] # duplicate arr
-    for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _ in larky.while_true():
         if len(qu) == 0:
             break
         current = qu.pop(0)
@@ -312,7 +310,7 @@ def prepare_predicate(peekable, token):
     signature = []
     predicate = []
     # print("old token:", token)
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         token = peekable.next()
         if not token or token == StopIterating:
             return
@@ -607,7 +605,7 @@ def iterfind(start_elem, path, namespaces=None):
         tokenizer = larky.utils.Peekable(xpath_tokenizer(path, namespaces))
         token = tokenizer.next()
         selector = []
-        for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _ in larky.while_true():
             if token == StopIterating:
                 break
             rval = ops[token[0]](tokenizer, token)

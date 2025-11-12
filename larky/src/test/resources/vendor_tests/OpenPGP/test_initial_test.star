@@ -21,7 +21,6 @@ load("@vendor//option/result", Error="Error")
 
 load("data_test_fixtures", get_file_contents="get_file_contents")
 
-WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 # TODO(mahmoudimus): OCCASIONALLY - THIS TEST WILL FAIL BECAUSE OF
 #  LINE 397 (key = Random.new().read(key_bytes)) in OpenPGP/Crypto.star

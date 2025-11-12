@@ -12,8 +12,6 @@ load("@stdlib//re", re="re")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//types", types="types")
 
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
-
 
 NOT_IMPLEMENTED = 'not implemented'
 
@@ -327,13 +325,13 @@ MAXBINSIZE = (MAXLINESIZE//4)*3
 def encode(input, output):
     fail(NOT_IMPLEMENTED)
     """Encode a file; input and output are binary files."""
-    # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    # for _while_ in larky.while_true():
     #     if not True:
     #         break
     #     s = input.read(MAXBINSIZE)
     #     if not s:
     #         break
-    #     for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    #     for _while_ in larky.while_true():
     #         if len(s) >= MAXBINSIZE:
     #             break
     #         ns = input.read(MAXBINSIZE-len(s))
@@ -347,7 +345,7 @@ def encode(input, output):
 def decode(input, output):
     fail(NOT_IMPLEMENTED)
     """Decode a file; input and output are binary files."""
-    # for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    # for _while_ in larky.while_true():
     #     if not True:
     #         break
     #     line = input.readline()

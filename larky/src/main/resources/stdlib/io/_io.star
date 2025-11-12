@@ -35,7 +35,6 @@ load("@stdlib//larky", larky="larky")
 load("@vendor//option/result", Error="Error")
 
 EINVAL = 22
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 __all__ = ["StringIO"]
 
@@ -189,7 +188,7 @@ def IOBase(buf = ''):
         total = 0
         lines = []
         line = self.readline()
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if not line:
                 break
             lines.append(line)

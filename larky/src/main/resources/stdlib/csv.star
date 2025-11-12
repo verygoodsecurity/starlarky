@@ -28,7 +28,7 @@ DictWriter classes.
 """
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//io/StringIO", StringIO="StringIO")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//types", types="types")
@@ -464,7 +464,7 @@ def reader(fileobj, dialect="excel", **fmtparams):
 
     def __next__():
         self.parse_reset()
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             lineobj = safe(next)(self.input_iter)
             if lineobj == StopIteration():
                 if len(self.field) != 0 or self.state == IN_QUOTED_FIELD:
@@ -775,7 +775,7 @@ def DictReader(f,
             self.fieldnames
         row = next(iter(self.reader))
         self.line_num = self.reader.line_num
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if row != []:
                 break
             row = next(self.reader)
@@ -1006,7 +1006,7 @@ complex = float
 #         modes = {}
 #         delims = {}
 #         start, end = 0, min(chunkLength, len(data))
-#         for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+#         for _while_ in larky.while_true():
 #             if start >= len(data):
 #                 break
 #             iteration += 1
@@ -1043,7 +1043,7 @@ complex = float
 #             consistency = 1.0
 #             # minimum consistency threshold
 #             threshold = 0.9
-#             for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+#             for _while_ in larky.while_true():
 #                 if not len(delims) == 0 and consistency >= threshold:
 #                     break
 #                 for k, v in modeList:

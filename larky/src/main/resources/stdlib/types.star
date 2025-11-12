@@ -394,7 +394,7 @@ def merge_mro(seqs):
     # i = 0
     #
     # nonemptyseqs = [seq for seq in seqs if seq]
-    # for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+    # for _while_ in larky.while_true():
     #     if not nonemptyseqs:
     #         return res
     #
@@ -418,7 +418,7 @@ def merge_mro(seqs):
     non_empty_seqs = non_empty(seqs)
     result = []
 
-    for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not non_empty_seqs or len(non_empty_seqs) == 0:
             break
         cand = _filter(

@@ -28,13 +28,11 @@ A good portion of `findall` and `finditer` code was ported from:
 pfalcon's pycopy-lib located at:
    https://github.com/pfalcon/pycopy-lib/tree/master/re-pcre
 """
-load("@stdlib//larky", "larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//types", "types")
 load("@stdlib//enum", "enum")
 load("@stdlib//re2j", _re2j="re2j")
 
-
-_WHILE_LOOP_EMULATION_ITERATION = 16384
 
 __ = -1  # Alias for the invalid class
 RegexFlags = enum.enumify_iterable(iterable=[
@@ -141,11 +139,7 @@ def _pattern__init__(patternobj):
         _matcher = matcher(string)
         res = []
         cnt_rpl = 0
-        # TODO: this can sometimes limit results
-        # based only number of matches less than or equal
-        # to _WHILE_LOOP_EMULATION_ITERATION which might
-        # yield incomplete results.
-        for _i in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _i in larky.while_true():
             if not _matcher.find():
                 break
             _repl = repl
@@ -166,7 +160,7 @@ def _pattern__init__(patternobj):
         finish = len(s)
         m = matcher(s)
 
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if pos > finish:
                 break
 
@@ -208,7 +202,7 @@ def _pattern__init__(patternobj):
         finish = len(s)
         m = matcher(s)
 
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if pos > finish:
                 break
             if not m.find(pos):
@@ -247,7 +241,7 @@ def _pattern__init__(patternobj):
         finish = len(string)
         m = matcher(string)
 
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if pos > finish:
                 break
             if not m.find(pos):

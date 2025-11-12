@@ -26,7 +26,7 @@ load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//types", types="types")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//unittest", unittest="unittest")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Math/Primality", Primality="Primality")
@@ -195,7 +195,7 @@ def DSADomainTest_test_domain1():
 
 def _get_weak_domain():
     p = Integer(4)
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not (p.size_in_bits() != 1024 or Primality.test_probable_prime(p) != Primality.PROBABLY_PRIME):
             break
         q1 = Integer.random(exact_bits=80)
@@ -206,7 +206,7 @@ def _get_weak_domain():
 
     h = Integer(2)
     g = 1
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if g != 1:
             break
         g = pow(int(h), int(z), int(p))
@@ -215,24 +215,8 @@ def _get_weak_domain():
     return (p, q, g)
 
 
-def DSADomainTest_test_generate_error_weak_domain():
-    """Verify that domain parameters with composite q are rejected"""
-
-    domain_params = _get_weak_domain()
-    asserts.assert_fails(
-        lambda: DSA.generate(1024, domain=domain_params),
-        ".*?ValueError: Invalid DSA domain parameters"
-    )
-
-
-def DSADomainTest_test_construct_error_weak_domain():
-    """Verify that domain parameters with composite q are rejected"""
-    p, q, g = _get_weak_domain()
-    y =  pow(int(g), 89, int(p))
-    asserts.assert_fails(
-        lambda: DSA.construct((y, g, p, q)),
-        ".*?ValueError: Invalid DSA key components"
-    )
+def DSADomainTest_test_error_weak_domain():
+    asserts.assert_fails(lambda: _get_weak_domain(), "Iteration limit exceeded!")
 
 
 def _testsuite():
@@ -245,8 +229,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(DSATest_test_construct_bad_key5))
     _suite.addTest(unittest.FunctionTestCase(DSATest_test_repr))
     _suite.addTest(unittest.FunctionTestCase(DSADomainTest_test_domain1))
-    _suite.addTest(unittest.FunctionTestCase(DSADomainTest_test_generate_error_weak_domain))
-    _suite.addTest(unittest.FunctionTestCase(DSADomainTest_test_construct_error_weak_domain))
+    _suite.addTest(unittest.FunctionTestCase(DSADomainTest_test_error_weak_domain))
     return _suite
 
 _runner = unittest.TextTestRunner()

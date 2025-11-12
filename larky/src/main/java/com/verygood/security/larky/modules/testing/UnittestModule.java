@@ -145,7 +145,16 @@ public class UnittestModule implements StarlarkValue {
               .append(f.trace()).append("\n")
               .append(String.format(FINAL_TEST_RESULT, allTests, testCount, testCount - 1, 1, allTests - testCount));
           System.out.println(testSuiteOutput.toString());
-          throw Starlark.errorf("%s", f.trace());
+
+          // Re-throw the original exception instead of wrapping the trace string
+          Throwable thrown = f.thrownException();
+          if (thrown instanceof EvalException) {
+            throw (EvalException) thrown;
+          } else if (thrown instanceof RuntimeException) {
+            throw (RuntimeException) thrown;
+          } else {
+            throw new EvalException(thrown);
+          }
         } else {
           testSuiteOutput.append(String.format("Testing %s >>> SUCCESS", name)).append("\n");
         }
