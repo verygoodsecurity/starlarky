@@ -30,7 +30,7 @@
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//collections", namedtuple="namedtuple")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//struct", struct="struct")
@@ -1077,7 +1077,7 @@ def _import_openssh_public(encoded):
     keystring = binascii.a2b_base64(encoded.split(b' ')[1])
 
     keyparts = []
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if len(keystring) <= 4:
             break
         lk = struct.unpack(">I", keystring[:4])[0]

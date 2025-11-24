@@ -4,6 +4,8 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.common.collect.ImmutableList;
 
+import net.starlark.java.eval.Starlark.UncheckedEvalException;
+import net.starlark.java.eval.StarlarkThread.CallStackEntry;
 import net.starlark.java.syntax.Location;
 
 import org.jetbrains.annotations.NotNull;
@@ -86,17 +88,9 @@ public class StarlarkEvalWrapper {
       return leaf.location;
     }
 
-    /**
-     * Sets the given {@link Throwable}'s stack trace to a Java-style version of {@link StarlarkThread#getCallStack}.
-     * This is useful to expose the underlying larky callstack to the caller for a simpler way to identify Larky
-     * errors.
-     *
-     * @param larkyException - The {@link EvalException} that contains the Larky stacktrace
-     * @param throwable      - The {@link Throwable} class to hoist the Larky stacktrace above the Java exception
-     *                       callstack.
-     */
-    static void fillInLarkyStackTrace(@NotNull EvalException larkyException, @NotNull Throwable throwable) {
-      final ImmutableList<StarlarkThread.CallStackEntry> callStack = larkyException.getCallStack();
+    static void fillInStackTraceFromCallStack(
+        @NotNull final Throwable throwable,
+        @NotNull final ImmutableList<StarlarkThread.CallStackEntry> callStack) {
       final int callStackSize = callStack.size();
       StackTraceElement[] trace = new StackTraceElement[callStackSize];
       for (int i = 0; i < callStackSize; i++) {
@@ -108,6 +102,20 @@ public class StarlarkEvalWrapper {
           frame.location.line());
       }
       throwable.setStackTrace(trace);
+    }
+
+    /**
+     * Sets the given {@link Throwable}'s stack trace to a Java-style version of {@link StarlarkThread#getCallStack}.
+     * This is useful to expose the underlying larky callstack to the caller for a simpler way to identify Larky
+     * errors.
+     *
+     * @param larkyException - The {@link EvalException} that contains the Larky stacktrace
+     * @param throwable      - The {@link Throwable} class to hoist the Larky stacktrace above the Java exception
+     *                       callstack.
+     */
+    static void fillInLarkyStackTrace(@NotNull final EvalException larkyException, @NotNull final Throwable throwable) {
+      final ImmutableList<StarlarkThread.CallStackEntry> larkyCallStack = larkyException.getCallStack();
+      fillInStackTraceFromCallStack(throwable, larkyCallStack);
     }
 
     static String createUncheckedEvalMessage(Throwable cause, @Nullable StarlarkThread thread) {
@@ -141,6 +149,50 @@ public class StarlarkEvalWrapper {
         if (thread != null) {
           thread.fillInStackTrace(this);
         }
+      }
+    }
+    
+    final class WrappedUncheckedEvalException extends UncheckedEvalException {
+      private final ImmutableList<StarlarkThread.CallStackEntry> callStack;
+      private final String errorMessage;
+
+      private WrappedUncheckedEvalException(
+          @NotNull final String cause,
+          @NotNull final StarlarkThread thread,
+          @NotNull final ImmutableList<StarlarkThread.CallStackEntry> callStack) {
+        super(new RuntimeException(cause), thread);
+        this.callStack = callStack;
+        this.errorMessage = cause;
+        StarlarkEvalWrapper.Exc.fillInStackTraceFromCallStack(this, callStack);
+      }
+
+      @Override
+      public String getMessage() {
+        // Use EvalException's formatCallStack to get nice formatting with source code lines
+        return EvalException.formatCallStack(callStack, errorMessage, EvalException.newSourceReader());
+      }
+
+      @Override
+      public String toString() {
+        // Return just the formatted message without the exception class name prefix
+        // This prevents "WrappedUncheckedEvalException: Traceback..." and just shows "Traceback..."
+        return getMessage();
+      }
+
+      @Override
+      public synchronized Throwable getCause() {
+        // Return null to prevent redundant "Caused by: RuntimeException: ..." from appearing
+        // All relevant information is already in our formatted message via getMessage()
+        return null;
+      }
+
+      public static WrappedUncheckedEvalException of(
+          @NotNull final String cause,
+          @NotNull final StarlarkThread thread,
+          @NotNull final ImmutableList<StarlarkThread.CallStackEntry> callStack) {
+        thread.setUncheckedExceptionContext(
+            () -> "in " + callStack.get(callStack.size() - 1).name);
+        return new WrappedUncheckedEvalException(cause, thread, callStack);
       }
     }
   }

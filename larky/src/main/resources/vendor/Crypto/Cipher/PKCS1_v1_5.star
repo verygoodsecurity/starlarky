@@ -28,8 +28,6 @@ load("@vendor//Crypto/Util/py3compat", bord="bord", is_bytes="is_bytes", _copy_b
 load("@vendor//option/result", Error="Error")
 
 
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
-
 _pkcs1_decode = lambda *args: args
 
 
@@ -99,7 +97,7 @@ def PKCS115_Cipher(key, randfunc):
             return Error("ValueError: Plaintext is too long.").unwrap()
         # Step 2a
         ps = []
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if len(ps) == k - mLen - 3:
                 break
             new_byte = self._randfunc(1)

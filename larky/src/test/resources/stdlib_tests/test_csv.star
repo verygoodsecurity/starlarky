@@ -1,5 +1,5 @@
 load("@stdlib//csv", csv="csv")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//io/StringIO", StringIO="StringIO")
 load("@stdlib//types", types="types")
 load("@stdlib//unittest", unittest="unittest")

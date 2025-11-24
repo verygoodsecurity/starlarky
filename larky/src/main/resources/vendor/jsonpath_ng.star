@@ -3,7 +3,6 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@vendor//option/result", Result="Result")
 
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 
 def _read(node, keys, error_safe=False):
     data = node
@@ -136,7 +135,7 @@ def _parse(query):
     element = ""
     index = 0
 
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if index >= len(query):
             break
         if query[index] == ".":

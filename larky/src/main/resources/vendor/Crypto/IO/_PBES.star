@@ -30,7 +30,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Cipher/DES", DES="DES")

@@ -3,7 +3,7 @@
 # for complete details.
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//types", types="types")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//math", gcd="gcd")
 load("@vendor//cryptography/hazmat/backends", backends="backends")
 load("@vendor//cryptography/hazmat/primitives/hashes", hashes="hashes")
@@ -228,7 +228,7 @@ def _modinv(e, m):
     """
     x1, x2 = 1, 0
     a, b = e, m
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if b <= 0:
             break
         q, r = divmod(a, b)
@@ -276,7 +276,7 @@ def rsa_recover_prime_factors(n, e, d):
     # The quantity d*e-1 is a multiple of phi(n), even,
     # and can be represented as t*2^s.
     t = ktot
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if t % 2 != 0:
             break
         t = t // 2
@@ -287,12 +287,12 @@ def rsa_recover_prime_factors(n, e, d):
     # as Factorization", M. Rabin, 1979
     spotted = False
     a = 2
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         # not spotted and a < _MAX_RECOVERY_ATTEMPTS
         if not (not spotted and a < _MAX_RECOVERY_ATTEMPTS):
             break
         k = t
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if k >= ktot:
                 break
             cand = pow(a, k, n)

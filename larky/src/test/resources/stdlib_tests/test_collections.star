@@ -1,6 +1,6 @@
 load("@stdlib//collections", collections="collections")
 load("@stdlib//unittest", unittest="unittest")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@vendor//asserts", asserts="asserts")
 
 

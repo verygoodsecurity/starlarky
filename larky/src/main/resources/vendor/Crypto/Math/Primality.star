@@ -89,7 +89,7 @@ def miller_rabin_test(candidate, iterations, randfunc=None):
     # Step 1 and 2
     m = Integer(minus_one)
     a = 0
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not m.is_even():
             break
         m >>= 1
@@ -102,7 +102,7 @@ def miller_rabin_test(candidate, iterations, randfunc=None):
 
         # Step 4.1-2
         base = 1
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if base not in (one, minus_one):
                 break
             base = Integer.random_range(min_inclusive=2,
@@ -351,7 +351,7 @@ def generate_probable_prime(**kwargs):
         randfunc = Random.new().read
 
     result = COMPOSITE
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if result != COMPOSITE:
             break
         candidate = Integer.random(exact_bits=exact_bits,
@@ -387,7 +387,7 @@ def generate_probable_safe_prime(**kwargs):
         randfunc = Random.new().read
 
     result = COMPOSITE
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if result != COMPOSITE:
             break
         q = generate_probable_prime(exact_bits=exact_bits - 1, randfunc=randfunc)

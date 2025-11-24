@@ -36,8 +36,6 @@ load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/py3compat", iter_range="iter_range")
 
 
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
-
 pack = struct.pack
 
 # Backward compatibility
@@ -99,7 +97,7 @@ def getRandomRange(a, b, randfunc=None):
     range_ = b - a - 1
     bits = size(range_)
     value = getRandomInteger(bits, randfunc)
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if value <= range_:
             break
         value = getRandomInteger(bits, randfunc)
@@ -129,7 +127,7 @@ def GCD(x, y):
 
     x = abs(x)
     y = abs(y)
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if x <= 0:
             break
         x, y = y % x, x
@@ -141,13 +139,13 @@ def inverse(u, v):
 
     u3, v3 = u, v
     u1, v1 = 1, 0
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if v3 <= 0:
             break
         q = u3 // v3
         u1, v1 = v1, u1 - v1 * q
         u3, v3 = v3, u3 - v3 * q
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if u1 >= 0:
             break
         u1 = u1 + v
@@ -167,7 +165,7 @@ def getPrime(N, randfunc=None):
         randfunc = Random.get_random_bytes
 
     number = getRandomNBitInteger(N, randfunc) | 1
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not (not isPrime(number, randfunc=randfunc)):
             break
         number = number + 2
@@ -194,7 +192,7 @@ def _rabinMillerTest(n, rounds, randfunc=None):
     # determine m and b so that 2**b * m = n - 1 and b maximal
     b = 0
     m = n_1
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if (m & 1) != 0:
             break
         b += 1
@@ -205,7 +203,7 @@ def _rabinMillerTest(n, rounds, randfunc=None):
     for i in iter_range(min(rounds, n - 2)):
         # randomly choose a < n and make sure it hasn't been tested yet
         a = getRandomRange(2, n, randfunc)
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if a not in tested:
                 break
             a = getRandomRange(2, n, randfunc)
@@ -297,21 +295,21 @@ def long_to_bytes(n, blocksize=0):
 
     # Fill the first block independently from the value of n
     bsr = blocksize
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if bsr < 8:
             break
         result.insert(0, pack('>Q', int(n & 0xFFFFFFFFFFFFFFFF)))
         n = n >> 64
         bsr -= 8
 
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if bsr < 4:
             break
         result.insert(0, pack('>I', int(n & 0xFFFFFFFF)))
         n = n >> 32
         bsr -= 4
 
-    for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if bsr <= 0:
             break
         result.insert(0, pack('>B', int(n & 0xFF)))
@@ -325,7 +323,7 @@ def long_to_bytes(n, blocksize=0):
             bresult = b''.join(result)
     else:
         # The encoded number may exceed the block size
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if n <= 0:
                 break
             result.insert(0, pack('>Q', int(n & 0xFFFFFFFFFFFFFFFF)))

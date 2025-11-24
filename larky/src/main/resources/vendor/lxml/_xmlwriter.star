@@ -530,7 +530,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
             return
         # we are at a root node, so add PI and comment siblings
         c_sibling = c_node
-        for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             c_prev_sibling = c_sibling.previous_sibling()
             # print(repr(c_node), repr(c_sibling.previous_sibling()))
             if c_prev_sibling == None or self._nodetype(c_prev_sibling) not in (
@@ -540,7 +540,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
                 break
             c_sibling = c_prev_sibling
 
-        for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if c_sibling == None or c_sibling == c_node:
                 break
             self.write_node(c_sibling, namespaces)
@@ -556,7 +556,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
             return
         # we are at a root node, so add PI and comment siblings
         c_sibling = c_node.next_sibling()
-        for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if c_sibling == None or self._nodetype(c_sibling) not in (
                 'Comment',
                 'ProcessingInstruction',
@@ -574,7 +574,7 @@ def XMLWriter(tree, namespaces=None, encoding="utf-8"):
         if self.options.get('debug'):
             for n in node:
                 print("node:", repr(node), "child:", repr(n))
-        for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if not q:
                 break
             state, payload = q.pop(0)
@@ -724,7 +724,7 @@ def TreeSerializer():
                 self.walk_data(root.text)
             if len(root):
                 self._queue.append((root, -1))
-                for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+                for _while_ in larky.while_true():
                     if not self._queue:
                         break
                     # parent, child_index

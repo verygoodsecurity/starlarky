@@ -14,7 +14,7 @@ floor = _c99math.floor
 def gcd(x, y):
     term = int(y)
     r_p, r_n = abs(x), abs(term)
-    for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if r_n <= 0:
             break
         q = r_p // r_n

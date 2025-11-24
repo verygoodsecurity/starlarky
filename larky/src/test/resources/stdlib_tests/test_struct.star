@@ -1,6 +1,6 @@
 load("@stdlib//builtins", "builtins")
 load("@stdlib//codecs", codecs="codecs")
-load("@stdlib//larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION", larky="larky")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//math", math="math")
 load("@stdlib//struct", "struct")
 load("@stdlib//sys", sys="sys")
@@ -330,7 +330,7 @@ def StructTest_test_705836():
     for base in range(1, 33):
         # smaller <- largest representable float less than base.
         delta = 0.5
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if base - delta / 2.0 == base:
                 break
             delta /= 2.0

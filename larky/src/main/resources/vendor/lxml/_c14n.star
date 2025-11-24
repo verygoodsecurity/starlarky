@@ -28,10 +28,7 @@ load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//enum", enum="enum")
 load("@stdlib//functools", cmp_to_key="cmp_to_key")
 load("@stdlib//io", io="io")
-load("@stdlib//larky",
-    WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION",
-    larky="larky",
-)
+load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//sets", Set="Set")
 load("@stdlib//xml/etree/ElementTree", ElementTree="ElementTree")
@@ -174,7 +171,7 @@ def _implementation(node, write, **kw):
 
         # Walk up and get all xml:XXX attributes we inherit.
         inherited, parent = [], node.getparent()
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if not (parent != None and parent.nodetype() not in (
                 "Document",
                 'ProcessingInstruction',
@@ -205,7 +202,7 @@ def _implementation(node, write, **kw):
         self.documentOrder = _LesserElement
         queue = [(_SerializeState.PRE, (0, node))]
         stack = []
-        for _while_ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if not queue:
                 break
             if self.debug:

@@ -34,9 +34,6 @@ load("@vendor//option/result", Error="Error")
 load("data_test_fixtures", get_file_contents="get_file_contents")
 
 
-WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
-
-
 def oneMessage(pkey, path):
     pkeyM = OpenPGP.Message.parse(
         get_file_contents(pkey)
@@ -163,7 +160,7 @@ def oneSymmetric(pss, cnt, path):
         get_file_contents(path)
     )
     m2 = Crypto.Wrapper(m).decrypt_symmetric(pss)
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not builtins.isinstance(m2[0], OpenPGP.CompressedDataPacket):
             break
         m2 = m2[0].data
@@ -212,7 +209,7 @@ def TestDecryption_testDecryptAsymmetric():
         get_file_contents("helloKey.gpg")
     )
     m2 = Crypto.Wrapper(key).decrypt(m)
-    for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+    for _while_ in larky.while_true():
         if not builtins.isinstance(m2[0], OpenPGP.CompressedDataPacket):
             break
         m2 = m2[0].data

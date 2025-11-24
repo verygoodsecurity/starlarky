@@ -72,7 +72,7 @@
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//io", io="io")
 load("@stdlib//jxml", _JXML="jxml")
-load("@stdlib//larky", larky="larky", WHILE_LOOP_EMULATION_ITERATION="WHILE_LOOP_EMULATION_ITERATION")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//sets", sets="sets")
@@ -112,7 +112,6 @@ __all__ = [
 ]
 
 VERSION = "1.3.0"
-_WHILE_LOOP_EMULATION_ITERATION = larky.WHILE_LOOP_EMULATION_ITERATION
 StringIO = io.StringIO
 BytesIO = io.BytesIO
 Set = sets.Set
@@ -332,7 +331,7 @@ def Element(tag, attrib=None, **extra):
         # else, iteratively search through all children to find the child
         # and remove it from the node
         children = [(self, x) for x in self.getchildren()]
-        for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _ in larky.while_true():
             if not children:
                 break
             parent, child = children.pop(0)
@@ -513,7 +512,7 @@ def Element(tag, attrib=None, **extra):
             if tag == None or el.tag == tag:
                 items.append(el)
             qu = el._children[0:]
-            for _ in range(larky.WHILE_LOOP_EMULATION_ITERATION):
+            for _ in larky.while_true():
                 if not qu:
                     break
                 current = qu.pop(0)
@@ -555,7 +554,7 @@ def Element(tag, attrib=None, **extra):
         """
         root = self
         parent = root.getparent()
-        for _while_ in range(WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if parent == None:
                 break
             root = parent
@@ -806,7 +805,7 @@ def _ElementTree(element=None, file=None):
                     # it with chunks.
                     self._setroot(parser._parse_whole(source))
                     return self._root
-            for _i in range(_WHILE_LOOP_EMULATION_ITERATION):
+            for _i in larky.while_true():
                 data = source.read(65536)
                 if not data:
                     break
@@ -1096,7 +1095,7 @@ def _namespaces(elem, default_namespace=None):
 
     # populate qname and namespaces table
     qu = [elem]
-    for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _ in larky.while_true():
         if len(qu) == 0:
             break
         elem = qu.pop(0)
@@ -1142,7 +1141,7 @@ def _collect_namespaces2(nsmap, node):
     # print(new_namespaces, flat_namespaces_map)
     if node:
         parent = node.getparent()
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if parent == None:
                 break
             for ns_href_url, prefix in parent.items():
@@ -1186,7 +1185,7 @@ def _find_prefix(href, flat_namespaces_map, new_namespaces):
         return flat_namespaces_map[href]
     # need to create a new prefix
     prefixes = flat_namespaces_map.values()
-    for i in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for i in larky.while_true():
         prefix = 'ns%d' % i
         if prefix not in prefixes:
             new_namespaces.append(('xmlns', prefix, href))
@@ -1205,7 +1204,7 @@ def flatten_nested_elements(tops_level_elems):
     for el in tops_level_elems:
         new_elems.append(el)
         qu = el._children[0:]
-        for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _ in larky.while_true():
             if not qu:
                 break
             else:
@@ -1225,7 +1224,7 @@ def _serialize_xml(
         # print('iter elem:', tag)
         text = elem.text
         # attrib = elem.attrib
-        for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _ in larky.while_true():
             if len(unclosed_elems) == 0:
                 break
             if elem in unclosed_elems[-1]._children:
@@ -1300,7 +1299,7 @@ def _serialize_xml(
                     if elem.tail:
                         # print('self closing elem which has tail:', elem.tag)
                         write(_escape_cdata(elem.tail))
-    for _ in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for _ in larky.while_true():
         if len(unclosed_elems) == 0:
             break
         elem_to_close = unclosed_elems.pop()
@@ -1336,7 +1335,7 @@ HTML_EMPTY = sets.Set(HTML_EMPTY)
 def _serialize_html(write, elem, qnames, namespaces, **kwargs):
     elems = [(elem, namespaces)]
 
-    for i in range(_WHILE_LOOP_EMULATION_ITERATION):
+    for i in larky.while_true():
         if not elems:
             break
         elem, namespaces = elems.pop()
@@ -1619,7 +1618,7 @@ def indent(tree, space="  ", level=0):
     def _indent_children(root, lvl):
         element = root
         queue = [(lvl, element)]  # (level, element)
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if not queue:
                 break
             level, element = queue.pop(0)
@@ -1756,7 +1755,7 @@ def XMLPullParser(events=None, _parser=None):
         retrieved from the iterator.
         """
         events = self._events_queue
-        for _while_ in range(_WHILE_LOOP_EMULATION_ITERATION):
+        for _while_ in larky.while_true():
             if len(events) == 0:
                 break
             index = self._index
