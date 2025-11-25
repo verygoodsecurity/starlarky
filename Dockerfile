@@ -1,4 +1,4 @@
-FROM ubuntu:lunar
+FROM ubuntu:lunar@sha256:5a828e28de105c3d7821c4442f0f5d1c52dc16acf4999d5f31a3bc0f03f06edd
 
 WORKDIR /build/
 ENV PYENV_ROOT="/root/.pyenv"
