@@ -32,7 +32,7 @@
         <google.truth.version>1.4.4</google.truth.version>
         <org.jetbrains.annotations.version>26.0.2</org.jetbrains.annotations.version>
         <org.junit.version>4.13.2</org.junit.version>
-        <org.projectlombok.version>1.18.38</org.projectlombok.version>
+        <org.projectlombok.version>1.18.42</org.projectlombok.version>
 
         <surefire-plugin.version>3.5.3</surefire-plugin.version>
     </properties>
