@@ -1,25 +1,27 @@
 load("@stdlib//random", random="random")
 load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")
+load("@stdlib//larky", "larky")
 
 # randrange tests
 
-def test_randrange_basic():
-    # randrange(stop)
+def test_randrange_basic(stop):
     for _ in range(20):
-        x = random.randrange(5)
-        asserts.assert_true(0 <= x and x < 5, "randrange(stop) out of range: {}".format(x))
+        x = random.randrange(stop)
+        asserts.assert_true(0 <= x and x < stop, "randrange(stop) out of range: {}".format(x))
 
-    # randrange(start, stop)
-    for _ in range(20):
-        y = random.randrange(1, 10)
-        asserts.assert_true(1 <= y and y < 10, "randrange(start,stop) out of range: {}".format(y))
 
-    # randrange(start,stop,step)
+def test_randrange_start_stop(start, stop):
     for _ in range(20):
-        z = random.randrange(0, 10, 2)
-        asserts.assert_true(z % 2 == 0, "randrange(0,10,2) returned odd: {}".format(z))
-        asserts.assert_true(0 <= z and z < 10, "randrange(0,10,2) out of range: {}".format(z))
+        y = random.randrange(start, stop)
+        asserts.assert_true(start <= y and y < stop, "randrange(start,stop) out of range: {}".format(y))
+
+
+def test_randrange_step(start, stop, step):
+    for _ in range(20):
+        z = random.randrange(start, stop, step)
+        asserts.assert_true(z % step == 0, "randrange({}, {}, {}) returned invalid: {}".format(start, stop, step, z))
+        asserts.assert_true(start <= z and z < stop, "randrange({}, {}, {}) out of range: {}".format(start, stop, step, z))
 
 
 def test_randrange_negative_step():
@@ -53,11 +55,10 @@ def test_randrange_stop_zero_fails():
 
 # randint tests
 
-def test_randint_basic():
+def test_randint_basic(a, b):
     for _ in range(20):
-        v = random.randint(3, 7)
-        asserts.assert_true(3 <= v and v <= 7, "randint out of range: {}".format(v))
-
+        v = random.randint(a, b)
+        asserts.assert_true(a <= v and v <= b, "randint out of range: {}".format(v))
 
 def test_randint_single_value():
     asserts.assert_that(random.randint(5, 5)).is_equal_to(5)
@@ -82,9 +83,9 @@ def test_choice_empty_fails():
 
 # sample tests
 
-def test_sample_basic():
-    s = random.sample([1, 2, 3, 4], 2)
-    asserts.assert_that(len(s)).is_equal_to(2)
+def test_sample_basic(n):
+    s = random.sample([1, 2, 3, 4], n)
+    asserts.assert_that(len(s)).is_equal_to(n)
     for v in s:
         asserts.assert_true(v in [1,2,3,4], "sample invalid: {}".format(v))
 
@@ -113,10 +114,9 @@ def test_shuffle_basic():
 
 # getrandbits tests
 
-def test_getrandbits_basic():
-    v = random.getrandbits(8)
-    asserts.assert_true(0 <= v and v < (1<<8), "getrandbits(8) invalid: {}".format(v))
-
+def test_getrandbits_basic(bits):
+    v = random.getrandbits(bits)
+    asserts.assert_true(0 <= v and v < (1 << bits), "getrandbits({}) invalid: {}".format(bits, v))
 
 def test_getrandbits_zero():
     asserts.assert_that(random.getrandbits(0)).is_equal_to(0)
@@ -128,26 +128,17 @@ def test_getrandbits_negative_fails():
 
 # randbytes tests
 
-def test_randbytes_basic():
-    b = random.randbytes(16)
-    asserts.assert_that(len(b)).is_equal_to(16)
-
-
-def test_randbytes_zero():
-    b = random.randbytes(0)
-    asserts.assert_that(len(b)).is_equal_to(0)
+def test_randbytes_basic(n):
+    b = random.randbytes(n)
+    asserts.assert_that(len(b)).is_equal_to(n)
+    asserts.assert_that(b).is_instance_of(bytes)
 
 
 # urandom tests
 
-def test_urandom_basic():
-    b = random.urandom(16)
-    asserts.assert_that(len(b)).is_equal_to(16)
-
-
-def test_urandom_zero():
-    b = random.urandom(0)
-    asserts.assert_that(len(b)).is_equal_to(0)
+def test_urandom_basic(n):
+    b = random.urandom(n)
+    asserts.assert_that(len(b)).is_equal_to(n)
 
 
 # Suite
@@ -156,7 +147,10 @@ def suite():
     s = unittest.TestSuite()
 
     # randrange positive
-    s.addTest(unittest.FunctionTestCase(test_randrange_basic))
+    larky.parametrize(s.addTest, unittest.FunctionTestCase, "stop", [5])(test_randrange_basic)
+    larky.parametrize(s.addTest, unittest.FunctionTestCase, ["start","stop"], [(1,10)])(test_randrange_start_stop)
+    larky.parametrize(s.addTest, unittest.FunctionTestCase, ["start","stop","step"], [(0,10,2)])(test_randrange_step)
+
     s.addTest(unittest.FunctionTestCase(test_randrange_negative_step))
     s.addTest(unittest.FunctionTestCase(test_randrange_single_value))
 
@@ -167,7 +161,7 @@ def suite():
     s.addTest(unittest.expectedFailure(unittest.FunctionTestCase(test_randrange_stop_zero_fails)))
 
     # randint positive
-    s.addTest(unittest.FunctionTestCase(test_randint_basic))
+    larky.parametrize(s.addTest, unittest.FunctionTestCase, ["a","b"], [(3,7)])(test_randint_basic)
     s.addTest(unittest.FunctionTestCase(test_randint_single_value))
 
     # randint expected failure
@@ -180,7 +174,7 @@ def suite():
     s.addTest(unittest.expectedFailure(unittest.FunctionTestCase(test_choice_empty_fails)))
 
     # sample positive
-    s.addTest(unittest.FunctionTestCase(test_sample_basic))
+    larky.parametrize(s.addTest, unittest.FunctionTestCase, "n", [2])(test_sample_basic)
     s.addTest(unittest.FunctionTestCase(test_sample_zero))
 
     # sample expected failure
@@ -190,18 +184,16 @@ def suite():
     s.addTest(unittest.FunctionTestCase(test_shuffle_basic))
 
     # getrandbits
-    s.addTest(unittest.FunctionTestCase(test_getrandbits_basic))
+    larky.parametrize(s.addTest, unittest.FunctionTestCase, "bits", [8])(test_getrandbits_basic)
     #NEXTREV fix bug in getrandbits
     #s.addTest(unittest.FunctionTestCase(test_getrandbits_zero))
     s.addTest(unittest.expectedFailure(unittest.FunctionTestCase(test_getrandbits_negative_fails)))
 
     # randbytes
-    s.addTest(unittest.FunctionTestCase(test_randbytes_basic))
-    s.addTest(unittest.FunctionTestCase(test_randbytes_zero))
+    larky.parametrize(s.addTest, unittest.FunctionTestCase, "n", [16, 0])(test_randbytes_basic)
 
     # urandom
-    s.addTest(unittest.FunctionTestCase(test_urandom_basic))
-    s.addTest(unittest.FunctionTestCase(test_urandom_zero))
+    larky.parametrize(s.addTest, unittest.FunctionTestCase, "n", [16, 0])(test_urandom_basic)
 
     return s
 
