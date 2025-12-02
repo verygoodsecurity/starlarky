@@ -34,6 +34,7 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
 import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.eval.Tuple;
 
 // Tests at //src/test/java/net/starlark/java/eval:testdata/json.star
 
@@ -229,8 +230,8 @@ public final class JsonModule implements StarlarkValue {
         return;
       }
 
-      // e.g. tuple, list
-      if (x instanceof StarlarkIterable) {
+      // only real tuple, list JSON arrays
+      if (x instanceof StarlarkList || x instanceof Tuple) {
         out.append('[');
         String sep = "";
         int i = 0;
@@ -246,6 +247,11 @@ public final class JsonModule implements StarlarkValue {
         }
         out.append(']');
         return;
+      }
+
+      //StarlarkIterable not list, tuple
+      if (x instanceof StarlarkIterable) {
+        throw Starlark.errorf("Object of type %s is not JSON serializable", Starlark.type(x));
       }
 
       // e.g. struct
