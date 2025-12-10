@@ -37,7 +37,7 @@
 
         <apache.commons-text.version>1.13.1</apache.commons-text.version>
         <commons-io.version>2.19.0</commons-io.version>
-        <google.crypto.tink>1.6.1</google.crypto.tink>
+        <google.crypto.tink>1.20.0</google.crypto.tink>
         <google.errorprone.version>2.38.0</google.errorprone.version>
         <google.flogger.version>0.9</google.flogger.version>
         <google.guava.version>31.1-jre</google.guava.version>
