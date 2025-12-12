@@ -190,7 +190,7 @@ public final class LarkyEvaluator {
           throw new RuntimeException(
                   String.format(
                   "The module '%s' is only available in test mode.%n" +
-                  "You attempted to import a testing module in a normal Larky script.%n" +
+                  "You attempted to import a testing module in a production Larky script.%n" +
                   "Allowed only inside test scripts (mvn test).",
                   name
                   )
