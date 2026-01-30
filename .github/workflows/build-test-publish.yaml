@@ -26,7 +26,6 @@ concurrency:
 
 env:
   HOST_M2_REPO: ./root-m2
-  GRAALVM_HOME: ./.graalvm
 
 jobs:
   build:
@@ -41,7 +40,7 @@ jobs:
         id: cache-graalvm
         with:
           path: |
-            ${{ env.GRAALVM_HOME }}
+            ./.graalvm
           key: ${{ runner.os }}-graalvm-${{ hashFiles('**/install_graalvm.sh') }}
           restore-keys: |
             ${{ runner.os }}-graalvm-
