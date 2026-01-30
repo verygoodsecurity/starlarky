@@ -9,7 +9,7 @@ services:
     environment:
       GITHUB_ACTOR:
       GITHUB_TOKEN:
-      GRAALVM_HOME: ${GRAALVM_HOME:-/app/.graalvm}
+      GRAALVM_HOME: /app/.graalvm
       MAVEN_OPTS: -Xmx6400m
     volumes:
       - .:/app/
