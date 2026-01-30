@@ -53,10 +53,6 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-
-      - name: Download GraalVM
-        run: |
-          ./install_graalvm.sh
             
       - name: Package jars with tests
         run: |
