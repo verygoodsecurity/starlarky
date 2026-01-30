@@ -3,7 +3,8 @@ x-common:
 services:
 
   maven:
-    image: *maven-jdk-image
+    build:
+      context: ./.mvn
     platform: linux/amd64
     working_dir: /app
     environment:
