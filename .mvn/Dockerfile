@@ -5,8 +5,7 @@ RUN microdnf install -y \
     gcc-c++ \
     make \
     glibc-devel \
-    zlib-devel \
-    libstdc++-static && \
+    zlib-devel && \
     microdnf clean all
 
 WORKDIR /app
