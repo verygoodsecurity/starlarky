@@ -11,6 +11,13 @@
 
     <packaging>jar</packaging>
 
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/verygoodsecurity/starlarky</url>
+        </repository>
+    </distributionManagement>
+
     <repositories>
         <repository>
             <id>maven</id>
@@ -310,16 +317,4 @@
             </extension>
         </extensions>
     </build>
-
-    <profiles>
-        <profile>
-            <id>github</id>
-            <distributionManagement>
-                <repository>
-                    <id>github</id>
-                    <url>https://maven.pkg.github.com/verygoodsecurity/starlarky</url>
-                </repository>
-            </distributionManagement>
-        </profile>
-    </profiles>
 </project>
