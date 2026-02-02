@@ -56,8 +56,8 @@ jobs:
         with:
           tag_name: ${{ needs.release-please.outputs.tag_name }}
           files: |
-            java-assets/runlarky/target/larky-*-linux
-            python-assets/dist/pylarky-*.whl
+            runlarky/target/larky-linux
+            dist/pylarky-*.whl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
