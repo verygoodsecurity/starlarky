@@ -1,8 +1,7 @@
-x-common:
-  image: &maven-jdk-image maven:3.8.5-openjdk-17
 services:
 
   maven:
+    image: maven-build:latest
     build:
       context: ./.mvn
     platform: linux/amd64
@@ -15,6 +14,19 @@ services:
     volumes:
       - .:/app/
       - ${HOST_M2_REPO:-~/.m2}:/root/.m2
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  python:
+    image: python-build:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    working_dir: /app
+    environment:
+      GITHUB_ACTOR:
+      GITHUB_TOKEN:
+    volumes:
+      - .:/app/
       - /var/run/docker.sock:/var/run/docker.sock
 
   local:
