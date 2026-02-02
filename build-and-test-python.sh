@@ -13,6 +13,6 @@ chmod +x ./pylarky/larky-runner
 
 # Run tests
 poetry version ${VERSION}
-poetry install > poetry_install.log
+poetry install
 poetry run pytest pylarky/tests
 poetry build
