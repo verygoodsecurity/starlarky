@@ -9,9 +9,6 @@ on:
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
         id: app-token
@@ -26,39 +23,3 @@ jobs:
           manifest-file: .github/.release-please-manifest.json
           include-component-in-tag: false
           token: ${{ steps.app-token.outputs.token }}
-
-  attach-assets:
-    needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for Build Workflow
-        run: |
-          echo "Waiting for builds on tag ${{ needs.release-please.outputs.tag_name }} to start..."
-          sleep 30 # Give the tag-triggered workflow a moment to initialize
-
-      - name: Download Artifacts from Tag Run
-        run: |
-          # Use GH CLI to find the run ID triggered by the new tag
-          RUN_ID=$(gh run list --tag ${{ needs.release-please.outputs.tag_name }} --limit 1 --json databaseId -q '.[0].databaseId')
-          
-          # Wait until that run is completed (simplified polling)
-          gh run watch $RUN_ID
-          
-          # Download the specific artifacts you uploaded in build-test-publish
-          gh run download $RUN_ID -n maven-target -D java-assets
-          gh run download $RUN_ID -n python-target -D python-assets
-        env:
-          GITHUB_TOKEN: ${{ secrets.VERYGOODBOT_CIAPPBUILDER_PAT }}
-
-      - name: Upload to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.release-please.outputs.tag_name }}
-          files: |
-            runlarky/target/larky-linux
-            dist/pylarky-*.whl
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-
