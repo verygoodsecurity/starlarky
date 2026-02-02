@@ -3,7 +3,8 @@ services:
   maven:
     image: maven-build:latest
     build:
-      context: ./.mvn
+      context: .
+      dockerfile: Dockerfile.maven
     platform: linux/amd64
     working_dir: /app
     environment:
