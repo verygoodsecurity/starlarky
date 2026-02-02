@@ -4,7 +4,7 @@ test_and_package:
 
 publish:
 	@echo "Deploying jar"
-	docker compose run --rm maven /bin/sh -c "mvn -B -e versions:set -DnewVersion=$(VERSION) && mvn deploy -DskipTests -Pnative"
+	docker compose run --rm maven /bin/sh -c "mvn -B -e versions:set -DnewVersion=$(VERSION) && mvn deploy -DskipTests"
 
 py_test_and_package:
 	@echo "Running tests and packaging: pylarky"
