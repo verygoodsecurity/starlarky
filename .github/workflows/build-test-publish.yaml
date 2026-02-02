@@ -91,7 +91,6 @@ jobs:
 
       - name: Infos
         id: infos
-        if: ${{ github.ref_type == 'tag' }}
         run: |
           if [[ ${EXTRACT_SEMVER} == 'true' ]]; then
             VERSION=${TAG##*-v}  # remove everything up to and including -v
