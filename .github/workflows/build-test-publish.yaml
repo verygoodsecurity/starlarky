@@ -137,6 +137,21 @@ jobs:
         with:
           name: python-target
 
+      - name: Infos
+        id: infos
+        run: |
+          if [[ ${EXTRACT_SEMVER} == 'true' ]]; then
+            VERSION=${TAG##*-v}  # remove everything up to and including -v
+            VERSION=${VERSION#v} # remove initial v if it's just v1.2.3
+          else
+            VERSION=${TAG}
+          fi
+          
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+        env:
+          EXTRACT_SEMVER: ${{ github.ref_type == 'tag' }}
+          TAG: ${{ (github.ref_type == 'tag' && github.ref_name) || github.sha }}
+
       - name: Add version to distribution
         run: |
           mv runlarky/target/larky-linux runlarky/target/larky-${VERSION}-linux
