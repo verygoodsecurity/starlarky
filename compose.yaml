@@ -1,7 +1,6 @@
 services:
 
   maven:
-    image: maven-build:latest
     build:
       context: .
       dockerfile: Dockerfile.maven
@@ -18,7 +17,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
   python:
-    image: python-build:latest
     build:
       context: .
       dockerfile: Dockerfile.python
