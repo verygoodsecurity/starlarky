@@ -13,7 +13,12 @@ find . -type f -regex ".*/target/surefire-reports/.*-output.txt" -exec cp {} $TE
 find . -type f -regex ".*/target/site/.*" -exec cp --parents {} $TEST_RESULTS_PATH/coverage/ \;
 
 # package it up to deliver
-mvn package -Pnative -DskipTests
+mvn package -Pnative
+# TODO remove: when CircleCI is disabled
+DIST_PATH=${DIST_PATH:-./dist}
+mkdir ${DIST_PATH}
+cp ./runlarky/target/larky-runner ${DIST_PATH}/larky-linux
+# cp dist/*.whl ${DIST_PATH}
 
 # tag distribution
 mv ./runlarky/target/larky-runner ./runlarky/target/larky-${OS_TYPE_LOWER}
