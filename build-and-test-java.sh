@@ -1,3 +1,8 @@
+#!/usr/bin/env bash
+cd "$(dirname "$0")"
+
+OS_TYPE=${OS_TYPE:-$(uname)}
+OS_TYPE_LOWER=$(echo "$OS_TYPE" | tr '[:upper:]' '[:lower:]')
 TEST_RESULTS_PATH=${TEST_RESULTS_PATH:-/tmp/test-results}
 
 mkdir -p $TEST_RESULTS_PATH/junit/
@@ -9,6 +14,6 @@ find . -type f -regex ".*/target/site/.*" -exec cp --parents {} $TEST_RESULTS_PA
 
 # package it up to deliver
 mvn package -Pnative -DskipTests
-mkdir ${DIST_PATH}
-cp ./runlarky/target/larky-runner ${DIST_PATH}/larky-linux
-# cp dist/*.whl ${DIST_PATH}
+
+# tag distribution
+mv ./runlarky/target/larky-runner ./runlarky/target/larky-${OS_TYPE_LOWER}

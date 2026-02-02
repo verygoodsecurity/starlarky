@@ -1,6 +1,5 @@
 FROM python:3.10.5-slim-buster
 
-RUN pip install poetry
+RUN pip install poetry twine
 
 WORKDIR /app
-
