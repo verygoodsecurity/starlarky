@@ -8,4 +8,6 @@ publish:
 
 py_test_and_package:
 	@echo "Running tests and packaging: pylarky"
-	docker compose run --rm python /bin/sh -c "./build-and-test-python.sh"
+	docker compose run --rm \
+	    -e VERSION \
+	python /bin/sh -c "./build-and-test-python.sh"

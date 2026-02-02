@@ -137,12 +137,16 @@ jobs:
         with:
           name: python-target
 
+      - name: Add version to distribution
+        run: |
+          mv runlarky/target/larky-linux runlarky/target/larky-${VERSION}-linux
+
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release-please.outputs.tag_name }}
           files: |
-            runlarky/target/larky-linux
+            runlarky/target/larky-*-linux
             dist/pylarky-*.whl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
