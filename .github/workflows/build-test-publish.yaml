@@ -157,10 +157,14 @@ jobs:
           mv runlarky/target/larky-linux runlarky/target/larky-${VERSION}-linux
 
       - name: Upload to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: ${{ github.ref_name }}
-          files: |
-            runlarky/target/larky-*-linux
-            dist/pylarky-*.whl
+        run: |
+          # Check if a release exists for this tag
+          if gh release view ${{ github.ref_name }} &>/dev/null; then
+            echo "Release exists, uploading artifact..."
+            gh release upload ${{ github.ref_name }} dist/pylarky-*.whl --clobber
+            gh release upload ${{ github.ref_name }} runlarky/target/larky-*-linux --clobber
+          else
+            echo "No release found for tag ${{ github.ref_name }}"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
