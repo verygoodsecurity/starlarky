@@ -91,19 +91,14 @@ jobs:
 
       - name: Infos
         id: infos
+        if: ${{ github.ref_type == 'tag' }}
         run: |
-          if [[ ${EXTRACT_SEMVER} == 'true' ]]; then
-            VERSION=${TAG##*-v}  # remove everything up to and including -v
-            VERSION=${VERSION#v} # remove initial v if it's just v1.2.3
-          else
-            VERSION=${TAG}
-          fi
-          
+          VERSION=${TAG##*-v}  # remove everything up to and including -v
+          VERSION=${VERSION#v} # remove initial v if it's just v1.2.3
           echo "TAG=$TAG" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         env:
-          EXTRACT_SEMVER: ${{ github.ref_type == 'tag' }}
-          TAG: ${{ (github.ref_type == 'tag' && github.ref_name) || github.sha }}
+          TAG: ${{ github.ref_name }}
 
       - name: Download target directory
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7
