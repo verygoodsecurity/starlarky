@@ -140,17 +140,11 @@ jobs:
       - name: Infos
         id: infos
         run: |
-          if [[ ${EXTRACT_SEMVER} == 'true' ]]; then
-            VERSION=${TAG##*-v}  # remove everything up to and including -v
-            VERSION=${VERSION#v} # remove initial v if it's just v1.2.3
-          else
-            VERSION=${TAG}
-          fi
-          
+          VERSION=${TAG##*-v}  # remove everything up to and including -v
+          VERSION=${VERSION#v} # remove initial v if it's just v1.2.3
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         env:
-          EXTRACT_SEMVER: ${{ github.ref_type == 'tag' }}
-          TAG: ${{ (github.ref_type == 'tag' && github.ref_name) || github.sha }}
+          TAG: ${{ github.ref_name }}
 
       - name: Add version to distribution
         run: |
