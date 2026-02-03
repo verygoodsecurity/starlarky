@@ -95,7 +95,6 @@ jobs:
         run: |
           VERSION=${TAG##*-v}  # remove everything up to and including -v
           VERSION=${VERSION#v} # remove initial v if it's just v1.2.3
-          echo "TAG=$TAG" >> $GITHUB_ENV
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         env:
           TAG: ${{ github.ref_name }}
