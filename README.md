@@ -82,8 +82,8 @@ _Pylarky_ is pip lib-wrapper for runlarky to make larky calls conveniently from 
 
 ```bash
 docker-compose build
-docker-compose run local bash /src/build-and-test-java.sh
-docker-compose run local bash /src/build-and-test-python.sh
+docker compose run --rm maven /bin/sh -c "./install_graalvm.sh && ./build-and-test-java.sh"
+docker compose run --rm python /bin/sh -c "./build-and-test-python.sh"
 ```
 
 ### Run individual larky stdlib test
@@ -122,10 +122,4 @@ In addition to having Maven installed, it must be configured to retrieve artifac
 ```
 
 ## Deployment process
-
-To rollout a new verion of libstarlark/larky/larky-api create a new tag
-```
-git tag x.x.x
-git push origin x.x.x
-```
-Than, after CircleCI build, publish the draft release
+Release-please plugin manages creation of tag&release.

@@ -1,14 +1,11 @@
-TEST_RESULTS_PATH=${TEST_RESULTS_PATH:-/tmp/test-results}
+#!/usr/bin/env bash
+cd "$(dirname "$0")"
 
-mkdir -p $TEST_RESULTS_PATH/junit/
-mkdir -p $TEST_RESULTS_PATH/coverage/
-mvn clean install dependency:go-offline -T 2.0C -B
-find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
-find . -type f -regex ".*/target/surefire-reports/.*-output.txt" -exec cp {} $TEST_RESULTS_PATH/junit/ \;
-find . -type f -regex ".*/target/site/.*" -exec cp --parents {} $TEST_RESULTS_PATH/coverage/ \;
+OS_TYPE=${OS_TYPE:-$(uname)}
+OS_TYPE_LOWER=$(echo "$OS_TYPE" | tr '[:upper:]' '[:lower:]')
 
-# package it up to deliver
-mvn package -Pnative -DskipTests
-mkdir ${DIST_PATH}
-cp ./runlarky/target/larky-runner ${DIST_PATH}/larky-linux
-# cp dist/*.whl ${DIST_PATH}
+# test and package
+mvn package -Pnative
+
+# tag distribution
+mv ./runlarky/target/larky-runner ./runlarky/target/larky-${OS_TYPE_LOWER}

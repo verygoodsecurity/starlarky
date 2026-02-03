@@ -1,0 +1,29 @@
+services:
+
+  maven:
+    build:
+      context: .
+      dockerfile: Dockerfile.maven
+    platform: linux/amd64
+    working_dir: /app
+    environment:
+      GITHUB_ACTOR:
+      GITHUB_TOKEN:
+      GRAALVM_HOME: /app/.graalvm
+      MAVEN_OPTS: -Xmx6400m
+    volumes:
+      - .:/app/
+      - ${HOST_M2_REPO:-~/.m2}:/root/.m2
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  python:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    working_dir: /app
+    environment:
+      GITHUB_ACTOR:
+      GITHUB_TOKEN:
+    volumes:
+      - .:/app/
+      - /var/run/docker.sock:/var/run/docker.sock

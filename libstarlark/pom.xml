@@ -11,6 +11,13 @@
 
     <packaging>jar</packaging>
 
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/verygoodsecurity/starlarky</url>
+        </repository>
+    </distributionManagement>
+
     <properties>
         <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
         <maven.source.plugin.version>3.3.1</maven.source.plugin.version>
@@ -207,16 +214,4 @@
         </plugins>
 
     </build>
-
-    <profiles>
-        <profile>
-            <id>github</id>
-            <distributionManagement>
-                <repository>
-                    <id>github</id>
-                    <url>https://maven.pkg.github.com/verygoodsecurity/starlarky</url>
-                </repository>
-            </distributionManagement>
-        </profile>
-    </profiles>
 </project>
