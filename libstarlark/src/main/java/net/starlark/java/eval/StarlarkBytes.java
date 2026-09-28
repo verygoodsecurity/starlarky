@@ -32,6 +32,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 
+@StarlarkBuiltin(
+    name = "bytes",
+    category = "core",
+    doc = "A byte string: an immutable sequence of values in the range 0-255.")
 public class StarlarkBytes implements ByteStringModuleApi,
                                         Sequence<StarlarkBytes>,
                                         Comparable<StarlarkBytes>,
@@ -168,6 +172,10 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
   }
 
+  @StarlarkBuiltin(
+      name = "bytearray",
+      category = "core",
+      doc = "A mutable sequence of values in the range 0-255.")
   public static class StarlarkByteArray extends StarlarkBytes {
 
     private StarlarkByteArray(StarlarkBytes bytes) {
