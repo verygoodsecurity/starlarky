@@ -52,7 +52,7 @@ public class StarlarkEvalWrapper {
   )  {
     Object result = null;
     if (thread != null) {
-      MethodDescriptor method = CallUtils.getAnnotatedMethods(thread.getSemantics(), x.getClass()).get(name);
+      MethodDescriptor method = CallUtils.getBuiltinManager(thread.getSemantics()).getAnnotatedMethods(x.getClass()).get(name);
       if (method != null) {
         if (method.isStructField()) {
           try {
@@ -61,7 +61,7 @@ public class StarlarkEvalWrapper {
             throw new Exc.RuntimeEvalException(e, thread);
           }
         } else {
-          result = new BuiltinFunction(x, name, method);
+          result = BuiltinFunction.of(x, method);
         }
       }
     }
@@ -122,7 +122,7 @@ public class StarlarkEvalWrapper {
       String msg = cause.getClass().getSimpleName() + " thrown during Starlark evaluation";
       String context = null;
       if (thread != null) {
-        context = thread.getContextForUncheckedException();
+        context = thread.getContextDescription();
       }
       if (isNullOrEmpty(context)) {
         context = cause.getMessage();

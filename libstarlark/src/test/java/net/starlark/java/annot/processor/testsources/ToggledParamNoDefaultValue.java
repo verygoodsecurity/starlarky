@@ -20,15 +20,15 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
 /**
- * Test case for a StarlarkMethod method which has a parameter which may be disabled with semantic
- * flag but has no "disabled value".
+ * Test case for a StarlarkMethod method which has a parameter which may be disabled with a semantic
+ * flag but has no default value.
  */
-public class ToggledParamNoDisabledValue implements StarlarkValue {
+public class ToggledParamNoDefaultValue implements StarlarkValue {
 
   private static final String FOO = "-foo";
 
   @StarlarkMethod(
-      name = "no_disabled_value_method",
+      name = "no_default_value_method",
       documented = false,
       parameters = {
         @Param(name = "one", named = true, positional = true),

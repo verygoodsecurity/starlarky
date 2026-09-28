@@ -14,6 +14,7 @@
 package net.starlark.java.eval;
 
 import com.google.common.base.Joiner;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.IdentityHashMap;
 
 /**
@@ -171,11 +172,12 @@ public final class Mutability implements AutoCloseable {
    * Freezes this {@code Mutability}, rendering all {@link Freezable} objects that refer to it
    * immutable.
    *
-   * Note that freezing does not directly touch all the {@code Freezables}, so this operation is
+   * <p>Note that freezing does not directly touch all the {@code Freezables}, so this operation is
    * constant-time.
    *
    * @return this object, in the fluent style
    */
+  @CanIgnoreReturnValue
   public Mutability freeze() {
     this.iteratorCount = null;
     return this;
@@ -183,7 +185,10 @@ public final class Mutability implements AutoCloseable {
 
   @Override
   public void close() {
-    freeze();
+    // Avoid TSan errors due to concurrent writes to the shared IMMUTABLE instance (b/512786661).
+    if (this != IMMUTABLE) {
+      freeze();
+    }
   }
 
   /**

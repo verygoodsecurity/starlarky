@@ -23,6 +23,7 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.syntax.TokenKind;
 
 import org.jetbrains.annotations.NotNull;
@@ -94,7 +95,7 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
   }
 
   @Override
-  public void repr(Printer p) {
+  public void repr(Printer p, StarlarkSemantics semantics) {
     try {
       if (hasReprField()) {
         final StarlarkCallable reprCallable = (StarlarkCallable) getField(PyProtocols.__REPR__);
@@ -116,14 +117,14 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
   }
 
   @Override
-  public void debugPrint(Printer p) {
+  public void debugPrint(Printer p, StarlarkThread thread) {
     // This repr function prints only the fields.
     // Any methods are still accessible through dir/getattr/hasattr.
     p.append(typeName());
     p.append("(");
     String sep = "";
     for (Map.Entry<String, Object> e : fields.entrySet()) {
-      p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue());
+      p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue(), thread.getSemantics());
       sep = ", ";
     }
     p.append(")");

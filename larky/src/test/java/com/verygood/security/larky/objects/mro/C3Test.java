@@ -33,7 +33,7 @@ class C3Test {
   @BeforeAll
   static void setUp() {
     mutability = Mutability.create("C3Test::setup");
-    thread = new StarlarkThread(mutability, LarkySemantics.LARKY_SEMANTICS);
+    thread = StarlarkThread.createTransient(mutability, LarkySemantics.LARKY_SEMANTICS);
 
   }
 

@@ -70,13 +70,48 @@ public abstract class FileOptions {
    */
   public abstract boolean requireLoadStatementsFirst();
 
+  /**
+   * During lexing, whether to ban non-ASCII characters (i.e., characters with code point > U+7F) in
+   * string literals.
+   *
+   * <p>This applies to string literals' raw content as well as escape sequences.
+   */
+  public abstract boolean stringLiteralsAreAsciiOnly();
+
+  /** Whether type annotations and related syntax are allowed in the source code. */
+  public abstract boolean allowTypeSyntax();
+
+  /**
+   * Whether type names in type annotations are processed by the resolver.
+   *
+   * <p>This is required for any form of type checking, but will cause code to fail if it contains
+   * type annotations that are not understood by this version of Bazel.
+   */
+  public abstract boolean resolveTypeSyntax();
+
+  /**
+   * If true, type expressions in annotations and {@code type} declarations may be any valid
+   * expression (except for unparenthesized tuples, which are grammatically ambiguous). Otherwise
+   * type expressions must represent a valid type.
+   *
+   * <p>Enabling this boolean is helpful for backwards compatibility, but results in an AST that is
+   * not usable for type checking.
+   *
+   * <p>This has no effect if {@link #allowTypeSyntax} is false.
+   */
+  public abstract boolean tolerateInvalidTypeExpressions();
+
   public static Builder builder() {
     // These are the DEFAULT values.
     return new AutoValue_FileOptions.Builder()
         .allowLoadPrivateSymbols(false)
         .allowToplevelRebinding(false)
         .loadBindsGlobally(false)
-        .requireLoadStatementsFirst(true);
+        .requireLoadStatementsFirst(true)
+        .stringLiteralsAreAsciiOnly(false)
+        .allowTypeSyntax(false)
+        .resolveTypeSyntax(false)
+        .tolerateInvalidTypeExpressions(false);
   }
 
   public abstract Builder toBuilder();
@@ -92,6 +127,14 @@ public abstract class FileOptions {
     public abstract Builder loadBindsGlobally(boolean value);
 
     public abstract Builder requireLoadStatementsFirst(boolean value);
+
+    public abstract Builder stringLiteralsAreAsciiOnly(boolean value);
+
+    public abstract Builder allowTypeSyntax(boolean value);
+
+    public abstract Builder resolveTypeSyntax(boolean value);
+
+    public abstract Builder tolerateInvalidTypeExpressions(boolean value);
 
     public abstract FileOptions build();
   }

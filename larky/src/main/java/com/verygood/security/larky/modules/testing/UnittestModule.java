@@ -64,7 +64,7 @@ public class UnittestModule implements StarlarkValue {
       },
       useStarlarkThread = true)
   public Object addFunctionUnderTest(Object function, StarlarkThread thread) {
-    LarkyFunctionTestCase tc = new LarkyFunctionTestCase(Starlark.repr(function));
+    LarkyFunctionTestCase tc = new LarkyFunctionTestCase(Starlark.repr(function, thread.getSemantics()));
     //TODO: if this fails, we need to return a better error message.
     tc.setFunction((StarlarkCallable) function);
     tc.setThread(thread);

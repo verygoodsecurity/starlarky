@@ -8,6 +8,7 @@ import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.eval.StarlarkSemantics;
 
 import lombok.Builder;
 
@@ -49,7 +50,7 @@ public class Partial implements StarlarkCallable {
     StringBuilder sb = new StringBuilder((arg_size + kwarg_size) * 2 + 2);
     sb.append(func.getName()).append("_");
     for (i = 0; i < arg_size; i++) {
-      String str = Starlark.str(args.get(i));
+      String str = Starlark.str(args.get(i), StarlarkSemantics.DEFAULT);
       if (str.contains("built-in function")) {
         str = str
                 .replace("<built-in function ", "")
@@ -59,7 +60,7 @@ public class Partial implements StarlarkCallable {
     }
     i = 0;
     for (Object a : kwargs.values()) {
-      String str = Starlark.str(a);
+      String str = Starlark.str(a, StarlarkSemantics.DEFAULT);
       if (str.contains("built-in function")) {
         str = str
                 .replace("<built-in function ", "")
@@ -96,34 +97,34 @@ public class Partial implements StarlarkCallable {
   }
 
   @Override
-  public void repr(Printer printer) {
+  public void repr(Printer printer, StarlarkSemantics semantics) {
     printer
       .append("partial(<function ")
       .append(getName());
     if (this.func_args.size() > 0) {
       printer.append(", args=");
-      this.func_args.repr(printer);
+      this.func_args.repr(printer, semantics);
     }
     if (this.func_kwargs.size() > 0) {
       printer.append(", kwargs=");
-      this.func_kwargs.repr(printer);
+      this.func_kwargs.repr(printer, semantics);
     }
     printer
       .append(">)");
   }
 
   @Override
-  public void debugPrint(Printer printer) {
+  public void debugPrint(Printer printer, StarlarkThread thread) {
     printer
       .append("partial(<function ")
       .append(getName());
     if (this.func_args.size() > 0) {
       printer.append(", args=");
-      this.func_args.debugPrint(printer);
+      this.func_args.debugPrint(printer, thread);
     }
     if (this.func_kwargs.size() > 0) {
       printer.append(", kwargs=");
-      this.func_kwargs.debugPrint(printer);
+      this.func_kwargs.debugPrint(printer, thread);
     }
     printer
       .append(">)");

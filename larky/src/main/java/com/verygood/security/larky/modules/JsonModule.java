@@ -31,7 +31,7 @@ import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
-import net.starlark.java.lib.json.Json;
+import net.starlark.java.eval.StarlarkSemantics;
 
 // Tests at //src/test/java/net/starlark/java/eval:testdata/json.star
 
@@ -94,12 +94,10 @@ public final class JsonModule implements StarlarkValue {
   /**
    * An interface for StarlarkValue subclasses to define their own JSON encoding.
    *
-   * This extends the {@link Json.Encodable} interface that comes built-in with Starlark
-   * directly so that Larky has a shared common way to encode in json without modifying
-   * anything in {@link net.starlark.java} which we want to keep to a minimum.
+   * Larky's encoder (below) calls {@link #encodeJSON} and appends the result verbatim. Upstream
+   * Starlark's Json.Encodable, which this used to extend, was replaced by StarlarkEncodable.
    * */
-  public interface Encodable extends Json.Encodable {
-    @Override
+  public interface Encodable {
     String encodeJSON();
   }
 
@@ -216,7 +214,7 @@ public final class JsonModule implements StarlarkValue {
             encode(m.get(key));
           } catch (EvalException ex) {
             throw Starlark.errorf(
-                "in %s key %s: %s", Starlark.type(x), Starlark.repr(key), ex.getMessage());
+                "in %s key %s: %s", Starlark.type(x), Starlark.repr(key, StarlarkSemantics.DEFAULT), ex.getMessage());
           }
         }
         out.append('}');
@@ -465,7 +463,7 @@ public final class JsonModule implements StarlarkValue {
               int sz = dict.size();
               dict.putEntry((String) key, value); // can't fail
               if (dict.size() == sz) {
-                throw Starlark.errorf("object has duplicate key: %s", Starlark.repr(key));
+                throw Starlark.errorf("object has duplicate key: %s", Starlark.repr(key, StarlarkSemantics.DEFAULT));
               }
               c = next();
               if (c != ',') {
@@ -822,6 +820,6 @@ public final class JsonModule implements StarlarkValue {
 
   // Returns a Starlark string literal that denotes c.
   private static String quoteChar(char c) {
-    return Starlark.repr("" + c);
+    return Starlark.repr("" + c, StarlarkSemantics.DEFAULT);
   }
 }

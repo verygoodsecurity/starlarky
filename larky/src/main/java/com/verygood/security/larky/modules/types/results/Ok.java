@@ -3,6 +3,7 @@ package com.verygood.security.larky.modules.types.results;
 import java.util.Objects;
 
 import net.starlark.java.eval.Printer;
+import net.starlark.java.eval.StarlarkSemantics;
 
 public class Ok implements Result {
 
@@ -35,12 +36,12 @@ public class Ok implements Result {
   }
 
   @Override
-  public void repr(Printer printer) {
+  public void repr(Printer printer, StarlarkSemantics semantics) {
     printer.append(this.toString());
   }
 
   @Override
-  public void str(Printer printer) {
+  public void str(Printer printer, StarlarkSemantics semantics) {
     printer.append(String.valueOf(value));
   }
 

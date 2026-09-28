@@ -5,6 +5,8 @@ import com.google.common.collect.ImmutableMap;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.Tuple;
 
 // SimpleStructWithMethods augments SimpleStruct's fields with annotated Java methods.
 final class SimpleStructWithMethods extends SimpleStruct {
@@ -18,7 +20,7 @@ final class SimpleStructWithMethods extends SimpleStruct {
         }
 
         @Override
-        public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
+        public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) {
           return "bar";
         }
       };

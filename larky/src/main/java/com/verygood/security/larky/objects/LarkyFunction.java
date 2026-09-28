@@ -77,8 +77,8 @@ public class LarkyFunction extends LarkyDescriptor implements ForwardingLarkyTyp
   }
 
   @Override
-  public void debugPrint(Printer p) {
-    repr(p);
+  public void debugPrint(Printer p, StarlarkThread thread) {
+    repr(p, thread.getSemantics());
   }
 
   @Override

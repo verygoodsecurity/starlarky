@@ -28,7 +28,7 @@ public class CryptoCipherModuleTest {
   @Before
   public void setUp() throws Exception {
     mutability = Mutability.create("CryptoCipherModuleTest");
-    thread = new StarlarkThread(mutability, StarlarkSemantics.DEFAULT);
+    thread = StarlarkThread.createTransient(mutability, StarlarkSemantics.DEFAULT);
   }
 
   @After

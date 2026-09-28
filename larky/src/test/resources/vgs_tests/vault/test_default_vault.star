@@ -25,7 +25,7 @@ def _test_invalid_list_redact():
     card_number = ["4111111111111111"]
 
     asserts.assert_fails(lambda : vault.redact(card_number),
-        "Value of type net.starlark.java.eval.StarlarkList is not supported in DefaultVault, expecting String"
+        "Value of type net.starlark.java.eval.MutableStarlarkList is not supported in DefaultVault, expecting String"
     )
 
 def _test_default_reveal():
@@ -61,7 +61,7 @@ def _test_invalid_list_reveal():
     alias = ["tok_123"]
 
     asserts.assert_fails(lambda : vault.reveal(alias),
-        "Value of type net.starlark.java.eval.StarlarkList is not supported in DefaultVault, expecting String"
+        "Value of type net.starlark.java.eval.MutableStarlarkList is not supported in DefaultVault, expecting String"
     )
 
 def _test_persistent_storage():

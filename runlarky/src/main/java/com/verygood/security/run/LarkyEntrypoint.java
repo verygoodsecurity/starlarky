@@ -58,7 +58,7 @@ public class LarkyEntrypoint implements Callable<Integer> {
 
   static {
     Mutability mu = Mutability.create("interpreter");
-    thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+    thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
     thread.setPrintHandler((th, msg) -> System.out.println(msg));
   }
   //REPL end
@@ -166,7 +166,7 @@ public class LarkyEntrypoint implements Callable<Integer> {
       try {
         Object result = Starlark.execFile(input, OPTIONS, module, thread);
         if (result != Starlark.NONE) {
-          System.out.println(Starlark.repr(result));
+          System.out.println(Starlark.repr(result, StarlarkSemantics.DEFAULT));
         }
       } catch (SyntaxError.Exception ex) {
         for (SyntaxError error : ex.errors()) {

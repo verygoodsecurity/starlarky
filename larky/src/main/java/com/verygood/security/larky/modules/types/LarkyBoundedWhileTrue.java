@@ -8,6 +8,7 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.StarlarkSemantics;
 
 public class LarkyBoundedWhileTrue implements StarlarkValue {
 
@@ -35,7 +36,7 @@ public class LarkyBoundedWhileTrue implements StarlarkValue {
   }
 
   @Override
-  public void repr(Printer p) {
+  public void repr(Printer p, StarlarkSemantics semantics) {
     p.append("BoundedWhileTrue(bound=")
         .append(String.valueOf(bound))
         .append(", limit_exceed_msg=")
@@ -105,7 +106,7 @@ public class LarkyBoundedWhileTrue implements StarlarkValue {
       }
 
       @Override
-      public void repr(Printer p) {
+      public void repr(Printer p, StarlarkSemantics semantics) {
         p.append("bounded_while_true_iterator(")
             .append("limit_exceed_msg=")
             .append("\"")
