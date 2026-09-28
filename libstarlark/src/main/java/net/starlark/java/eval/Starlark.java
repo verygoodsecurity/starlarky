@@ -424,8 +424,6 @@ public final class Starlark {
     // Check for "direct hits" first to avoid needing to scan for annotations.
     if (c.equals(String.class)) {
       return "string";
-    } else if (c.equals(StarlarkBytes.class) || c.equals(StarlarkBytes.StarlarkByte.class)) {
-      return "bytes";
     } else if (StarlarkInt.class.isAssignableFrom(c)) {
       return "int";
     } else if (c.equals(Boolean.class)) {
@@ -439,8 +437,6 @@ public final class Starlark {
     // but `getStarlarkBuiltin` is quite expensive.
     if (StarlarkList.class.isAssignableFrom(c)) {
       return "list";
-    } else if (c.equals(StarlarkBytes.StarlarkByteArray.class)) {
-      return "bytearray";
     } else if (Tuple.class.isAssignableFrom(c)) {
       return "tuple";
     } else if (Dict.class.isAssignableFrom(c)) {
