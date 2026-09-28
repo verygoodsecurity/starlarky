@@ -53,11 +53,6 @@ public interface Sequence<E>
     return get(EvalUtils.getSequenceIndex(index, size()));
   }
 
-  @Override
-  default boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
-    return contains(key);
-  }
-
   /**
    * Compares two sequences of values. Sequences compare equal if corresponding elements compare
    * equal using {@code x[i] == y[i]}. Otherwise, the result is the ordered comparison of the first
@@ -86,12 +81,34 @@ public interface Sequence<E>
       if (cmp == 0) {
         throw new IllegalStateException(
             String.format(
-                "x.equals(y) yet x.compareTo(y)==%d (x: %s, y: %s)",
+                "!(x.equals(y)) yet x.compareTo(y)==%d (x: %s, y: %s)",
                 cmp, Starlark.type(xelem), Starlark.type(yelem)));
       }
       return cmp;
     }
     return Integer.compare(x.size(), y.size());
+  }
+
+  /**
+   * Compares two sequences of value for equality. Sequences compare equal if they are the same size
+   * and corresponding elements compare equal.
+   */
+  static boolean sameElems(List<?> x, List<?> y) {
+    if (x == y) {
+      return true;
+    }
+    if (x.size() != y.size()) {
+      return false;
+    }
+    for (int i = 0; i < x.size(); i++) {
+      Object xelem = x.get(i);
+      Object yelem = y.get(i);
+
+      if (xelem != yelem && !xelem.equals(yelem)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -120,6 +137,7 @@ public interface Sequence<E>
             "at index %d of %s, got element of type %s, want %s",
             i, what, Starlark.type(elem), Starlark.classType(elemType));
       }
+      i++;
     }
     @SuppressWarnings("unchecked") // safe
     Sequence<T> result = (Sequence) x;

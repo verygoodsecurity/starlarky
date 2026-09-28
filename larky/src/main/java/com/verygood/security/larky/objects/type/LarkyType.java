@@ -25,6 +25,7 @@ import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.eval.StarlarkSemantics;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -65,7 +66,7 @@ public interface LarkyType extends PyObject, LarkyCollection, HasBinary {
   }
 
   @Override
-  default void repr(Printer printer) {
+  default void repr(Printer printer, StarlarkSemantics semantics) {
     printer.append(this.__repr__());
   }
 
@@ -75,7 +76,7 @@ public interface LarkyType extends PyObject, LarkyCollection, HasBinary {
   }
 
   @Override
-  default void str(Printer printer) {
+  default void str(Printer printer, StarlarkSemantics semantics) {
     printer.append(this.__str__());
   }
 

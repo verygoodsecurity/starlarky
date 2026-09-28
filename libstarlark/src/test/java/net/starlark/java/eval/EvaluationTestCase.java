@@ -18,6 +18,7 @@ import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.LinkedList;
 import java.util.List;
 import net.starlark.java.syntax.FileOptions;
@@ -35,16 +36,26 @@ class EvaluationTestCase {
   private StarlarkThread thread = null; // created lazily by getStarlarkThread
   private Module module = null; // created lazily by getModule
 
+  private FileOptions fileOptions = FileOptions.DEFAULT;
+
   /**
    * Updates the semantics used to filter predeclared bindings, and carried by subsequently created
    * threads. Causes a new StarlarkThread and Module to be created when next needed.
    */
-  private final void setSemantics(StarlarkSemantics semantics) {
+  public final void setSemantics(StarlarkSemantics semantics) {
     this.semantics = semantics;
 
     // Re-initialize the thread and module with the new semantics when needed.
     this.thread = null;
     this.module = null;
+  }
+
+  public FileOptions getFileOptions() {
+    return fileOptions;
+  }
+
+  public void setFileOptions(FileOptions fileOptions) {
+    this.fileOptions = fileOptions;
   }
 
   // TODO(adonovan): don't let subclasses inherit vaguely specified "helpers".
@@ -53,6 +64,7 @@ class EvaluationTestCase {
 
   /** Updates a global binding in the module. */
   // TODO(adonovan): rename setGlobal.
+  @CanIgnoreReturnValue
   final EvaluationTestCase update(String varname, Object value) throws Exception {
     getModule().setGlobal(varname, value);
     return this;
@@ -67,28 +79,29 @@ class EvaluationTestCase {
   /** Joins the lines, parses them as an expression, and evaluates it. */
   final Object eval(String... lines) throws Exception {
     ParserInput input = ParserInput.fromLines(lines);
-    return Starlark.eval(input, FileOptions.DEFAULT, getModule(), getStarlarkThread());
+    return Starlark.eval(input, getFileOptions(), getModule(), getStarlarkThread());
   }
 
   /** Joins the lines, parses them as a file, and executes it. */
   final void exec(String... lines)
       throws SyntaxError.Exception, EvalException, InterruptedException {
     ParserInput input = ParserInput.fromLines(lines);
-    Starlark.execFile(input, FileOptions.DEFAULT, getModule(), getStarlarkThread());
+    Starlark.execFile(input, getFileOptions(), getModule(), getStarlarkThread());
   }
 
   // A hook for subclasses to alter the created module.
-  // Implementations may add to the predeclared environment,
-  // and return the module's client data value.
+  // Implementations may add to the predeclared environment.
   // TODO(adonovan): only used in StarlarkFlagGuardingTest; move there.
-  protected Object newModuleHook(ImmutableMap.Builder<String, Object> predeclared) {
-    return null; // no client data
-  }
+  protected void newModuleHook(ImmutableMap.Builder<String, Object> predeclared) {}
 
   StarlarkThread getStarlarkThread() {
     if (this.thread == null) {
       Mutability mu = Mutability.create("test");
-      this.thread = new StarlarkThread(mu, semantics);
+      this.thread =
+          StarlarkThread.create(
+              mu, semantics, /* contextDescription= */ "", SymbolGenerator.create("test"));
+      // Sets a post-assign hook to enable global export of StarlarkFunction Symbols.
+      this.thread.setPostAssignHook((unusedName, unusedLocation, unusedValue) -> {});
     }
     return this.thread;
   }
@@ -96,7 +109,7 @@ class EvaluationTestCase {
   private Module getModule() {
     if (this.module == null) {
       ImmutableMap.Builder<String, Object> predeclared = ImmutableMap.builder();
-      newModuleHook(predeclared); // see StarlarkFlagGuardingTest
+      newModuleHook(predeclared);
       this.module = Module.withPredeclared(semantics, predeclared.buildOrThrow());
     }
     return this.module;
@@ -112,7 +125,7 @@ class EvaluationTestCase {
   }
 
   /**
-   * Verifies that a piece of Starlark code fails at the specifed location with either a {@link
+   * Verifies that a piece of Starlark code fails at the specified location with either a {@link
    * SyntaxError} or an {@link EvalException} having the specified error message.
    *
    * <p>For a {@link SyntaxError}, the location checked is the first reported error's location. For
@@ -184,6 +197,7 @@ class EvaluationTestCase {
     }
 
     /** Allows the execution of several statements before each following test. */
+    @CanIgnoreReturnValue
     Scenario setUp(String... lines) {
       setup.registerExec(lines);
       return this;
@@ -196,6 +210,7 @@ class EvaluationTestCase {
      * @param value The new value of the variable
      * @return This {@code Scenario}
      */
+    @CanIgnoreReturnValue
     Scenario update(String name, Object value) {
       setup.registerUpdate(name, value);
       return this;
@@ -209,24 +224,28 @@ class EvaluationTestCase {
      * @return This {@code Scenario}
      * @throws Exception
      */
+    @CanIgnoreReturnValue
     Scenario testEval(String src, String expectedEvalString) throws Exception {
       runTest(createComparisonTestable(src, expectedEvalString, true));
       return this;
     }
 
     /** Evaluates an expression and compares its result to the expected object. */
+    @CanIgnoreReturnValue
     Scenario testExpression(String src, Object expected) throws Exception {
       runTest(createComparisonTestable(src, expected, false));
       return this;
     }
 
     /** Evaluates an expression and compares its result to the ordered list of expected objects. */
+    @CanIgnoreReturnValue
     Scenario testExactOrder(String src, Object... items) throws Exception {
       runTest(collectionTestable(src, items));
       return this;
     }
 
     /** Evaluates an expression and checks whether it fails with the expected error. */
+    @CanIgnoreReturnValue
     Scenario testIfExactError(String expectedError, String... lines) throws Exception {
       runTest(errorTestable(true, expectedError, lines));
       return this;
@@ -241,6 +260,7 @@ class EvaluationTestCase {
      * @param failingLine 1-based line where the error is expected.
      * @param failingColumn 1-based column where the error is expected.
      */
+    @CanIgnoreReturnValue
     Scenario testIfExactErrorAtLocation(
         String expectedError, int failingLine, int failingColumn, String... lines)
         throws Exception {
@@ -249,12 +269,14 @@ class EvaluationTestCase {
     }
 
     /** Evaluates the expresson and checks whether it fails with the expected error. */
+    @CanIgnoreReturnValue
     Scenario testIfErrorContains(String expectedError, String... lines) throws Exception {
       runTest(errorTestable(false, expectedError, lines));
       return this;
     }
 
     /** Looks up the value of the specified variable and compares it to the expected value. */
+    @CanIgnoreReturnValue
     Scenario testLookup(String name, Object expected) throws Exception {
       runTest(createLookUpTestable(name, expected));
       return this;

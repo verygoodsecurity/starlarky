@@ -5,6 +5,7 @@ import com.verygood.security.larky.parser.StarlarkUtil;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkSemantics;
 
 public interface LarkyCallable extends StarlarkCallable {
 
@@ -34,7 +35,7 @@ public interface LarkyCallable extends StarlarkCallable {
       String methodName;
       if(methodO != null) {
          methodType = StarlarkUtil.richType(methodO);
-         methodName = Starlark.str(methodO);
+         methodName = Starlark.str(methodO, StarlarkSemantics.DEFAULT);
       } else {
         methodType = "None";
         methodName = "None";

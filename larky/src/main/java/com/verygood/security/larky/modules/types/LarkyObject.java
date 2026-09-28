@@ -45,7 +45,10 @@ public interface LarkyObject extends Structure {
 
   @Nullable
   default Object getField(String name) {
-    return this.getField(name, null);
+    // Pass the object's thread: without one, attribute lookup cannot see @StarlarkMethod members
+    // (e.g. __class__) and falls through to the type's attributes. Starlark reaches this through
+    // Structure.getValue, which it now consults before annotated members.
+    return this.getField(name, getCurrentThread());
   }
 
   @Nullable
@@ -112,10 +115,10 @@ public interface LarkyObject extends Structure {
   }
 
   @Override
-  default void str(Printer printer) {
+  default void str(Printer printer, StarlarkSemantics semantics) {
     try {
       if (!hasStrField()) {
-        repr(printer);
+        repr(printer, semantics);
         return;
       }
       String result = (String) invoke(getField(PyProtocols.__STR__)) ;

@@ -31,7 +31,7 @@ public class LarkyByteLikeTest {
   private StarlarkList<StarlarkBytes> doSplit(byte[] bytes, Object sepB, Object maxsplit) throws EvalException {
     StarlarkList<StarlarkBytes> split;
     try (Mutability mu = Mutability.create("test")) {
-      StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
       Object sep = Starlark.isNullOrNone(sepB)
           ? null
           : makeStarlarkBytes(sepB, thread);
