@@ -197,11 +197,10 @@ public class CollectionsModule implements StarlarkValue {
 
     @Override
     public @NotNull Iterator<Object> iterator() {
-      try {
-        return LarkyIterator.from(this, this.getCurrentThread());
-      } catch (EvalException e) {
-        throw new RuntimeException(e);
-      }
+      // Return the backing tuple's iterator directly.
+      // Do NOT use LarkyIterator.from() here as it causes infinite recursion:
+      // LarkyIterator.from() -> LarkyIterableIterator constructor -> this.iterator()
+      return this.backingTuple.iterator();
     }
 
     public Sequence<String> namedFields() throws EvalException {
@@ -252,14 +251,14 @@ public class CollectionsModule implements StarlarkValue {
       return make(values.buildImmutable().values0(thread), thread);
     }
     @Override
-    public void repr(Printer p) {
+    public void repr(Printer p, StarlarkSemantics semantics) {
       p.append(StarlarkUtil.richType(this)).append('(');
 
       try {
         final Sequence<String> _namedFields = namedFields();
         for (int i = 0, fieldsSize = _namedFields.size(); i < fieldsSize; i++) {
           String field = _namedFields.get(i);
-          p.append(field).append("=").repr(this.get(i));
+          p.append(field).append("=").repr(this.get(i), semantics);
           if(i + 1 < fieldsSize) {
             p.append(", ");
           }
@@ -309,7 +308,7 @@ public class CollectionsModule implements StarlarkValue {
       }
 
       @Override
-      public void repr(Printer printer) {
+      public void repr(Printer printer, StarlarkSemantics semantics) {
         printer.append(getName());
       }
 

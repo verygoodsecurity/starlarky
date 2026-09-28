@@ -25,7 +25,7 @@ public final class ByteLiteral extends Expression {
   private final String raw;
 
   ByteLiteral(FileLocations locs, int startOffset, String value, int endOffset) {
-    super(locs);
+    super(locs, Kind.BYTE_LITERAL);
     this.startOffset = startOffset;
     this.raw = value;
     this.value = str2bytearr(value.codePoints());
@@ -119,10 +119,6 @@ public final class ByteLiteral extends Expression {
     visitor.visit(this);
   }
 
-  @Override
-  public Kind kind() {
-    return Kind.BYTE_LITERAL;
-  }
 
   // -- hooks to support Skyframe serialization without creating a dependency --
 

@@ -16,7 +16,6 @@ package net.starlark.java.syntax;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
-import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -34,14 +33,18 @@ public class LexerTest {
 
   private final List<SyntaxError> errors = new ArrayList<>();
 
+  // Reassign in test case to inject non-default options to the Lexer.
+  // Doesn't leak between test cases since each case is its own instance.
+  private FileOptions options = FileOptions.DEFAULT;
+
   /**
-   * Create a lexer which takes input from the specified string. Resets the
-   * error handler beforehand.
+   * Create a lexer which takes input from the specified string. Resets the error handler
+   * beforehand. Uses the current state of {@link #options}.
    */
   private Lexer createLexer(String input) {
     ParserInput inputSource = ParserInput.fromString(input, "");
     errors.clear();
-    return new Lexer(inputSource, errors);
+    return new Lexer(inputSource, errors, options);
   }
 
   private static class Token {
@@ -335,6 +338,17 @@ public class LexerTest {
     check("foo.123", "IDENTIFIER(foo) FLOAT(0.123) NEWLINE EOF");
     check("foo.bcd", "IDENTIFIER(foo) DOT IDENTIFIER(bcd) NEWLINE EOF"); // 'b' are hex chars
     check("foo.xyz", "IDENTIFIER(foo) DOT IDENTIFIER(xyz) NEWLINE EOF");
+
+    check("..", "DOT DOT NEWLINE EOF");
+    check("...", "ELLIPSIS NEWLINE EOF");
+    check("....", "ELLIPSIS DOT NEWLINE EOF"); // ellipsis is consumed greedily before dot
+    check(".......", "ELLIPSIS ELLIPSIS DOT NEWLINE EOF");
+    check(". . . ", "DOT DOT DOT NEWLINE EOF");
+
+    check("1...", "FLOAT(1.0) DOT DOT NEWLINE EOF");
+    check("1...1", "FLOAT(1.0) DOT FLOAT(0.1) NEWLINE EOF");
+    check("1....1", "FLOAT(1.0) ELLIPSIS INT(1) NEWLINE EOF");
+    check("foo...bcd", "IDENTIFIER(foo) ELLIPSIS IDENTIFIER(bcd) NEWLINE EOF");
   }
 
   @Test
@@ -455,6 +469,11 @@ public class LexerTest {
     check("'\\1b \\1'", "STRING(\1b \1) NEWLINE EOF");
     check("'\\037'", "STRING(\u001F) NEWLINE EOF");
     check("'\\378'", "STRING(\u001F8) NEWLINE EOF");  // = '\37' + '8'
+    // Test first digit out-of-range.
+    checkErrors(
+        "'\\800'",
+        "STRING(\\800) NEWLINE EOF",
+        "  ^ invalid escape sequence: \\8. Use '\\\\' to insert '\\'.");
   }
 
   @Test
@@ -483,6 +502,57 @@ public class LexerTest {
   public void testTripleQuotedStrings() throws Exception {
     check("\"\"\"a\"b'c \n d\"\"e\"\"\"", "STRING(a\"b'c \n d\"\"e) NEWLINE EOF");
     check("'''a\"b'c \n d\"\"e'''", "STRING(a\"b'c \n d\"\"e) NEWLINE EOF");
+  }
+
+  @Test
+  public void testStringContainingNonAsciiRawCharacter() throws Exception {
+    // Lexer is fine with U+80 to U+FF by default.
+    check("'\u0080\u00ff'", "STRING(\u0080\u00ff) NEWLINE EOF");
+    // If the ParserInput provides content greater than 8 bits wide, the Lexer tolerates it.
+    check("'\u0100\uffff'", "STRING(\u0100\uffff) NEWLINE EOF");
+
+    options = FileOptions.builder().stringLiteralsAreAsciiOnly(true).build();
+    // Ok, U+7F is ASCII.
+    check("'\u007f'", "STRING(\u007f) NEWLINE EOF");
+    // With U+80 and higher, we error but still emit the token with the original value (no masking
+    // down to ASCII).
+    checkErrors(
+        "'abc\u0080xyz'",
+        "STRING(abc\u0080xyz) NEWLINE EOF",
+        "    ^ string literal contains non-ASCII character");
+    checkErrors(
+        "'abc\u0100xyz'",
+        "STRING(abc\u0100xyz) NEWLINE EOF",
+        "    ^ string literal contains non-ASCII character");
+    // Test a case with an escape sequence to trigger the longer code path.
+    checkErrors(
+        "'abc\u0080xyz\\n'",
+        "STRING(abc\u0080xyz\n) NEWLINE EOF",
+        "    ^ string literal contains non-ASCII character");
+    // Multiple errors.
+    checkErrors(
+        "'\u0080\u0081'",
+        "STRING(\u0080\u0081) NEWLINE EOF",
+        " ^ string literal contains non-ASCII character",
+        "  ^ string literal contains non-ASCII character");
+  }
+
+  @Test
+  public void testStringContainingNonAsciiOctalEscapes() throws Exception {
+    // VGS: like starlark-go, string literals reject octal escapes above \177 (bytes literals
+    // accept \200-\377), with or without the ASCII-only option.
+    check("'\\177'", "STRING(\177) NEWLINE EOF");
+    checkErrors(
+        "'\\200'",
+        "STRING() NEWLINE EOF",
+        "    ^ non-ASCII octal escape \\200 (use \\u0080 for the UTF-8 encoding of U+0080)");
+
+    options = FileOptions.builder().stringLiteralsAreAsciiOnly(true).build();
+    check("'\\177'", "STRING(\177) NEWLINE EOF");
+    checkErrors(
+        "'\\200'",
+        "STRING() NEWLINE EOF",
+        "    ^ non-ASCII octal escape \\200 (use \\u0080 for the UTF-8 encoding of U+0080)");
   }
 
   @Test
@@ -652,27 +722,6 @@ public class LexerTest {
         "\t", //
         "NEWLINE EOF",
         " ^ Tab characters are not allowed for indentation. Use spaces instead.");
-  }
-
-  /**
-   * Returns the first error whose string form contains the specified substring, or throws an
-   * informative AssertionError if there is none.
-   *
-   * <p>Exposed for use by other frontend tests.
-   */
-  // TODO(adonovan): move to ParserTest
-  static SyntaxError assertContainsError(List<SyntaxError> errors, String substr) {
-    for (SyntaxError error : errors) {
-      if (error.toString().contains(substr)) {
-        return error;
-      }
-    }
-    if (errors.isEmpty()) {
-      throw new AssertionError("no errors, want '" + substr + "'");
-    } else {
-      throw new AssertionError(
-          "error '" + substr + "' not found, but got these:\n" + Joiner.on("\n").join(errors));
-    }
   }
 
   @Test

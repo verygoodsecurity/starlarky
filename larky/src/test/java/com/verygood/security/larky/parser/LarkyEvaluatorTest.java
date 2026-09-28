@@ -32,7 +32,7 @@ public class LarkyEvaluatorTest {
 
   @Test
   public void testErrorMessageOnFailedLoad() {
-    StarlarkThread thread = new StarlarkThread(Mutability.create(), StarlarkSemantics.DEFAULT);
+    StarlarkThread thread = StarlarkThread.createTransient(Mutability.create(), StarlarkSemantics.DEFAULT);
     LarkyEvaluator.LarkyLoader larkyLoader = new LarkyEvaluator.LarkyLoader(
       new InMemMapBackedStarFile(ImmutableMap.of(), "vendor/herp.star"),
       new LarkyEvaluator(

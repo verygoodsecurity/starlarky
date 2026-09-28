@@ -111,12 +111,12 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public void str(Printer printer) {
+    public void str(Printer printer, StarlarkSemantics semantics) {
       printer.append((char) x & 0xFF);
     }
 
     @Override
-    public void repr(Printer printer) {
+    public void repr(Printer printer, StarlarkSemantics semantics) {
       printer.append(String.format("b\"%s\"", (char) x & 0xFF));
     }
 
@@ -161,7 +161,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     @Override
     public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
       try(Mutability mu = Mutability.create("StarlarkBytesBinaryOp")) {
-        StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+        StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
         return EvalUtils.binaryOp(op, toStarlarkInt(), that, thread);
       }
     }
@@ -752,16 +752,18 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
   @Override
   public Object[] toArray() {
-    final int arraySize = size();
-    Object[] r = new Object[arraySize];
-    Arrays.fill(r, this.delegate.toArray());
+    // One element per byte, as iteration yields (Starlark.toArray, e.g. enumerate, relies on it).
+    Object[] r = new Object[size()];
+    int i = 0;
+    for (StarlarkBytes b : this) {
+      r[i++] = b;
+    }
     return r;
   }
 
   @Override
   public <T> T[] toArray(T @NotNull [] a) {
-    Arrays.fill(a, this.delegate.toArray());
-    return a;
+    return new ArrayList<>(this).toArray(a);
   }
 
   @Override
@@ -819,7 +821,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
 
   @Override
-  public void str(Printer printer) {
+  public void str(Printer printer, StarlarkSemantics semantics) {
     byte[] bytes = this.delegate.copy(); //todo
     String s;
     s = UTF8toUTF16(bytes, 0, bytes.length, /*allowMalformed*/false);
@@ -828,11 +830,11 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
   @Override
   public String toString() {
-    return Starlark.repr(this);
+    return Starlark.repr(this, StarlarkSemantics.DEFAULT);
   }
 
   @Override
-  public void repr(Printer printer) {
+  public void repr(Printer printer, StarlarkSemantics semantics) {
     byte[] bytes = this.delegate.copy(); //todo
     String s;
     try {
@@ -1327,7 +1329,12 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public void repr(Printer printer) {
+    public boolean containsKey(StarlarkSemantics semantics, Object key) {
+      return contains(key);
+    }
+
+    @Override
+    public void repr(Printer printer, StarlarkSemantics semantics) {
       byte[] bytes = this.bytes.delegate.toArray();
       printer.append(
         String.format("b\"%s\".elems()",

@@ -14,6 +14,9 @@ public final class LarkySemantics {
   public static final StarlarkSemantics LARKY_SEMANTICS = StarlarkSemantics.DEFAULT
       .toBuilder()
       .setBool(PYCOMPAT_TYPE_BUILTIN_FUNCTION, false)
+      // Starlark's fail() omits the Starlark stack trace unless asked; Larky has always
+      // reported it (callers rely on the traceback in the error message).
+      .setBool(StarlarkSemantics.FORCE_STARLARK_STACK_TRACE, true)
       .build();
 
 }

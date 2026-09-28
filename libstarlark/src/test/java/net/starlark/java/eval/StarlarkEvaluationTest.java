@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.annot.StarlarkLibrary;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.syntax.FileOptions;
 import net.starlark.java.syntax.ParserInput;
@@ -41,6 +42,7 @@ import org.junit.runners.JUnit4;
 // There is no clear distinction between this and EvaluationTest.
 // TODO(adonovan): reorganize.
 @RunWith(JUnit4.class)
+@StarlarkLibrary
 public final class StarlarkEvaluationTest {
 
   private final EvaluationTestCase ev = new EvaluationTestCase();
@@ -109,13 +111,13 @@ public final class StarlarkEvaluationTest {
     }
 
     @Override
-    public void repr(Printer p) {
+    public void repr(Printer p, StarlarkSemantics semantics) {
       // This repr function prints only the fields.
       // Any methods are still accessible through dir/getattr/hasattr.
       p.append("simplestruct(");
       String sep = "";
       for (Map.Entry<String, Object> e : fields.entrySet()) {
-        p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue());
+        p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue(), semantics);
         sep = ", ";
       }
       p.append(")");
@@ -377,7 +379,7 @@ public final class StarlarkEvaluationTest {
         useStarlarkThread = true)
     public String withArgsAndThread(
         StarlarkInt pos1, boolean pos2, boolean named, Sequence<?> args, StarlarkThread thread) {
-      String argsString = debugPrintArgs(args);
+      String argsString = debugPrintArgs(args, thread);
       return "with_args_and_thread("
           + pos1
           + ", "
@@ -416,9 +418,11 @@ public final class StarlarkEvaluationTest {
           @Param(name = "foo", named = true, positional = true),
         },
         extraPositionals = @Param(name = "args"),
-        extraKeywords = @Param(name = "kwargs"))
-    public String withArgsAndKwargs(String foo, Tuple args, Dict<String, Object> kwargs) {
-      String argsString = debugPrintArgs(args);
+        extraKeywords = @Param(name = "kwargs"),
+        useStarlarkThread = true)
+    public String withArgsAndKwargs(
+        String foo, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread) {
+      String argsString = debugPrintArgs(args, thread);
       String kwargsString =
           "kwargs("
               + kwargs
@@ -436,12 +440,12 @@ public final class StarlarkEvaluationTest {
     }
   }
 
-  private static String debugPrintArgs(Iterable<?> args) {
+  private static String debugPrintArgs(Iterable<?> args, StarlarkThread thread) {
     Printer p = new Printer();
     p.append("args(");
     String sep = "";
     for (Object arg : args) {
-      p.append(sep).debugPrint(arg);
+      p.append(sep).debugPrint(arg, thread);
       sep = ", ";
     }
     return p.append(")").toString();
@@ -496,6 +500,29 @@ public final class StarlarkEvaluationTest {
         .update("mock", new ParameterizedMock())
         .setUp("result = mock.method('bar')")
         .testLookup("result", "bar");
+  }
+
+  // A @StarlarkMethod implementation declared in a non-public class and inherited (not overridden)
+  // by a public subclass.
+  @StarlarkBuiltin(name = "NonPublicMethodBase", doc = "")
+  abstract static class NonPublicMethodBase implements StarlarkValue {
+    @StarlarkMethod(name = "inherited_method", documented = false)
+    public String inheritedMethod() {
+      return "inherited";
+    }
+  }
+
+  public static final class InheritsNonPublicMethod extends NonPublicMethodBase {}
+
+  // Verifies that a @StarlarkMethod inherited (not overridden) from a non-public superclass remains
+  // callable. Class.getMethods() surfaces such a method on the public subclass only as a synthetic
+  // bridge; CallUtils must register the method from that bridge rather than dropping it.
+  @Test
+  public void testMethodInheritedFromNonPublicSuperclass() throws Exception {
+    ev.new Scenario()
+        .update("mock", new InheritsNonPublicMethod())
+        .setUp("result = mock.inherited_method()")
+        .testLookup("result", "inherited");
   }
 
   @Test
@@ -1145,6 +1172,12 @@ public final class StarlarkEvaluationTest {
         .testExpression(
             "mock.with_params(1, True, True, named=True, optionalNamed=False, acceptsAny=None)",
             "with_params(1, true, true, true, false, None)");
+    ev.new Scenario()
+        .update("mock", new Mock())
+        .setUp("")
+        .testExpression(
+            "mock.with_params(1, True, True, named=True, optionalNamed=False, acceptsAny=123)",
+            "with_params(1, true, true, true, false, 123)");
 
     ev.new Scenario()
         .update("mock", new Mock())
@@ -1382,8 +1415,7 @@ public final class StarlarkEvaluationTest {
         .hasCauseThat()
         .hasMessageThat()
         .contains(
-            "cannot expose internal type to Starlark: class"
-                + " net.starlark.java.eval.StarlarkEvaluationTest$Bad");
+            "invalid Starlark value: class net.starlark.java.eval.StarlarkEvaluationTest$Bad");
   }
 
   @Test
@@ -1808,7 +1840,7 @@ public final class StarlarkEvaluationTest {
     try (Mutability mu = Mutability.create("test")) {
       StarlarkSemantics semantics =
           StarlarkSemantics.builder().setBool(StarlarkSemantics.ALLOW_RECURSION, true).build();
-      StarlarkThread thread = new StarlarkThread(mu, semantics);
+      StarlarkThread thread = StarlarkThread.createTransient(mu, semantics);
       Starlark.execFile(input, FileOptions.DEFAULT, module, thread);
     }
     assertThat(module.getGlobal("x")).isEqualTo(StarlarkInt.of(120));
@@ -1946,7 +1978,7 @@ public final class StarlarkEvaluationTest {
             "print('a', 'b', sep='x')");
     List<String> prints = new ArrayList<>();
     try (Mutability mu = Mutability.create("test")) {
-      StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
       thread.setPrintHandler((unused, msg) -> prints.add(msg));
       Starlark.execFile(input, FileOptions.DEFAULT, Module.create(), thread);
     }
@@ -1973,6 +2005,7 @@ public final class StarlarkEvaluationTest {
   }
 
   // SimpleStructWithMethods augments SimpleStruct's fields with annotated Java methods.
+  @StarlarkBuiltin(name = "SimpleStructWithMethods", documented = false)
   private static final class SimpleStructWithMethods extends SimpleStruct {
 
     // A function that returns "fromValues".
@@ -1984,7 +2017,7 @@ public final class StarlarkEvaluationTest {
           }
 
           @Override
-          public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
+          public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) {
             return "fromValues";
           }
         };
@@ -2062,7 +2095,7 @@ public final class StarlarkEvaluationTest {
     ev.new Scenario()
         .update("val", new SimpleStructWithMethods())
         .setUp("v = val.collision_method()")
-        .testLookup("v", "fromStarlarkMethod");
+        .testLookup("v", "fromValues");
   }
 
   @Test

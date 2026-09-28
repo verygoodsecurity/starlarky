@@ -18,6 +18,7 @@ import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.StarlarkSemantics;
 
 // java <> larky objects
 public class RegexPattern implements StarlarkValue {
@@ -59,7 +60,7 @@ public class RegexPattern implements StarlarkValue {
   }
 
   @Override
-  public void str(Printer printer) {
+  public void str(Printer printer, StarlarkSemantics semantics) {
     printer.append(pattern.toString());
   }
 

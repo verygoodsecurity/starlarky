@@ -22,6 +22,7 @@ import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.eval.StarlarkSemantics;
 
 
 @StarlarkBuiltin(
@@ -373,7 +374,7 @@ public class StructModule implements StarlarkValue {
     if (String.class.isAssignableFrom(format.getClass())) {
       strFmt = (String) format;
     } else {
-      strFmt = Starlark.str(format);
+      strFmt = Starlark.str(format, StarlarkSemantics.DEFAULT);
     }
     final FormatDef[] whichtable = whichtable(strFmt);
     final ByteStream packed = pack(strFmt, whichtable, calcsize(strFmt, whichtable), 0, args);
@@ -405,7 +406,7 @@ public class StructModule implements StarlarkValue {
     if (String.class.isAssignableFrom(format.getClass())) {
       strFmt = (String) format;
     } else {
-      strFmt = Starlark.str(format);
+      strFmt = Starlark.str(format, StarlarkSemantics.DEFAULT);
     }
     final FormatDef[] whichtable = whichtable(strFmt);
     return unpack(whichtable, calcsize(strFmt, whichtable), strFmt, new ByteStream(buffer.toByteArray()));
@@ -499,7 +500,7 @@ public class StructModule implements StarlarkValue {
     if (String.class.isAssignableFrom(format.getClass())) {
       strFmt = (String) format;
     } else {
-      strFmt = Starlark.str(format);
+      strFmt = Starlark.str(format, StarlarkSemantics.DEFAULT);
     }
     final FormatDef[] whichtable = whichtable(strFmt);
     int size = calcsize(strFmt, whichtable);
@@ -547,7 +548,7 @@ public class StructModule implements StarlarkValue {
     if (elem instanceof StarlarkInt) {
       StarlarkInt elemz = ((StarlarkInt) elem);
       if (elemz.signum() != -1) {
-        return new Long[]{Long.parseUnsignedLong(Starlark.str(elem))};
+        return new Long[]{Long.parseUnsignedLong(Starlark.str(elem, StarlarkSemantics.DEFAULT))};
 
       } else {
         return new Long[]{elemz.toLong(elemz.toString())};
@@ -603,7 +604,7 @@ public class StructModule implements StarlarkValue {
     if (String.class.isAssignableFrom(format.getClass())) {
       strFmt = (String) format;
     } else {
-      strFmt = Starlark.str(format);
+      strFmt = Starlark.str(format, StarlarkSemantics.DEFAULT);
     }
     final FormatDef[] whichtable = whichtable(strFmt);
     int size = calcsize(strFmt, whichtable);
@@ -689,7 +690,7 @@ public class StructModule implements StarlarkValue {
     if (String.class.isAssignableFrom(format.getClass())) {
       f = (String) format;
     } else {
-      f = Starlark.str(format);
+      f = Starlark.str(format, StarlarkSemantics.DEFAULT);
     }
     final int x = calcsize(f);
     return StarlarkInt.of(x);

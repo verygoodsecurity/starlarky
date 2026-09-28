@@ -47,7 +47,7 @@ public interface StarlarkSequence<K extends Collection<T>, T> extends StarlarkIn
 
   @Override
   default boolean containsKey(StarlarkThread starlarkThread, StarlarkSemantics semantics, Object key) throws EvalException {
-    return Sequence.super.containsKey(semantics, key);
+    return containsKey(semantics, key);
   }
 
   @Override
@@ -57,7 +57,13 @@ public interface StarlarkSequence<K extends Collection<T>, T> extends StarlarkIn
 
   @Override
   default boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
-    return Sequence.super.containsKey(semantics, key);
+    // Upstream Sequence no longer provides a default; same as StarlarkList.containsKey.
+    for (Object elem : this) {
+      if (Starlark.checkedEquals(key, elem)) {
+        return true;
+      }
+    }
+    return false;
   }
 
 
