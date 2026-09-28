@@ -156,6 +156,13 @@ public final class StarlarkThread {
     return clock.millis() > expirationMs;
   }
 
+  /** Throws if evaluation has run past the expiration date set by {@link #setExpirationMs}. */
+  void checkExpired() throws EvalException {
+    if (isExpired()) {
+      throw new EvalException("Starlark computation cancelled: past expiration date");
+    }
+  }
+
   /**
    * Disables polling of the {@link java.lang.Thread#interrupted} flag during Starlark evaluation.
    */
