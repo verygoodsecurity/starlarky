@@ -15,7 +15,7 @@ index bba694c4..fc28260b 100644
  
    static {
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Eval.java a/libstarlark/src/main/java/net/starlark/java/eval/Eval.java
-index bf7eeac3..cce24bcc 100644
+index bf7eeac3..a171a8e4 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/Eval.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/Eval.java
 @@ -29,6 +29,7 @@ import net.starlark.java.spelling.SpellChecker;
@@ -26,18 +26,15 @@ index bf7eeac3..cce24bcc 100644
  import net.starlark.java.syntax.CallExpression;
  import net.starlark.java.syntax.CastExpression;
  import net.starlark.java.syntax.Comprehension;
-@@ -326,6 +327,10 @@ final class Eval {
+@@ -325,6 +326,7 @@ final class Eval {
+     if (++fr.thread.steps >= fr.thread.stepLimit) {
        throw new EvalException("Starlark computation cancelled: too many steps");
      }
++    fr.thread.checkExpired();
  
-+    if (fr.thread.isExpired()) {
-+      throw new EvalException("Starlark computation cancelled: past expiration date");
-+    }
-+
      switch (st.kind()) {
        case ASSIGNMENT:
-         execAssignment(fr, (AssignmentStatement) st);
-@@ -371,7 +376,7 @@ final class Eval {
+@@ -371,7 +373,7 @@ final class Eval {
        // x[i] = ...
        Object object = eval(fr, index.getObject());
        Object key = eval(fr, index.getKey());
@@ -46,7 +43,7 @@ index bf7eeac3..cce24bcc 100644
  
      } else if (lhs instanceof ListExpression list) {
        // a, b, c = ...
-@@ -473,7 +478,7 @@ final class Eval {
+@@ -473,7 +475,7 @@ final class Eval {
          throw ex;
        }
        try {
@@ -55,17 +52,15 @@ index bf7eeac3..cce24bcc 100644
        } catch (EvalException ex) {
          fr.setErrorLocation(stmt.getOperatorLocation());
          throw ex;
-@@ -571,6 +576,9 @@ final class Eval {
+@@ -571,6 +573,7 @@ final class Eval {
      if (++fr.thread.steps >= fr.thread.stepLimit) {
        throw new EvalException("Starlark computation cancelled: too many steps");
      }
-+    if (fr.thread.isExpired()) {
-+      throw new EvalException("Starlark computation cancelled: past expiration date");
-+    }
++    fr.thread.checkExpired();
  
      // The switch cases have been split into separate functions
      // to reduce the stack usage during recursion, which is
-@@ -620,6 +628,8 @@ final class Eval {
+@@ -620,6 +623,8 @@ final class Eval {
          return evalSlice(fr, (SliceExpression) expr);
        case STRING_LITERAL:
          return ((StringLiteral) expr).getValue();
@@ -74,7 +69,7 @@ index bf7eeac3..cce24bcc 100644
        case UNARY_OPERATOR:
          return evalUnaryOperator(fr, (UnaryOperatorExpression) expr);
        case ELLIPSIS:
-@@ -876,6 +886,11 @@ final class Eval {
+@@ -876,6 +881,11 @@ final class Eval {
      return expr.isTuple() ? Tuple.wrap(array) : StarlarkList.wrap(fr.thread.mutability(), array);
    }
  
@@ -2024,7 +2019,7 @@ index 00000000..d712dd96
 +
 +}
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
-index 65cfb87a..bed95991 100644
+index 65cfb87a..5ab65207 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
 @@ -14,13 +14,16 @@
@@ -2053,7 +2048,7 @@ index 65cfb87a..bed95991 100644
  
    /**
     * Returns the number of Starlark computation steps executed by this thread according to a
-@@ -111,6 +116,46 @@ public final class StarlarkThread {
+@@ -111,6 +116,53 @@ public final class StarlarkThread {
      return stepLimit;
    }
  
@@ -2095,6 +2090,13 @@ index 65cfb87a..bed95991 100644
 +
 +  public boolean isExpired(){
 +    return clock.millis() > expirationMs;
++  }
++
++  /** Throws if evaluation has run past the expiration date set by {@link #setExpirationMs}. */
++  void checkExpired() throws EvalException {
++    if (isExpired()) {
++      throw new EvalException("Starlark computation cancelled: past expiration date");
++    }
 +  }
 +
    /**
