@@ -75,6 +75,18 @@ def _test_bytes_construction():
     asserts.assert_fails(lambda: builtins.bytes(1),
                          "want string, bytes.*or iterable")
     asserts.assert_that(builtins.bytes([65, 66, 67])).is_equal_to(b("ABC"))
+    asserts.assert_that(builtins.bytes((65, 66, 67))).is_equal_to(b("ABC"))
+    asserts.assert_that(builtins.bytes(range(65, 68))).is_equal_to(b("ABC"))
+    asserts.assert_that(builtins.bytes(b("ABC").elems())).is_equal_to(b("ABC"))
+    asserts.assert_that(builtins.bytes({65: None, 66: None})).is_equal_to(b("AB"))
+    asserts.assert_that(builtins.bytes(())).is_equal_to(b(""))
+    asserts.assert_that(builtins.bytes(builtins.bytearray(b("AB")))).is_equal_to(b("AB"))
+    asserts.assert_that(builtins.bytearray((65, 66))).is_equal_to(builtins.bytearray(b("AB")))
+    asserts.assert_that(builtins.bytearray(range(65, 67))).is_equal_to(builtins.bytearray(b("AB")))
+    asserts.assert_fails(lambda: builtins.bytes((65, "B")),
+                 "at index 1 of tuple, got element of type string, want int")
+    asserts.assert_fails(lambda: builtins.bytes(range(250, 260)),
+                 "256 out of range .+want value in unsigned 8-bit range")
     asserts.assert_that(builtins.bytes([0xf0, 0x9f, 0x98, 0xbf])).is_equal_to(b("😿"))
     asserts.assert_fails(lambda: builtins.bytes([300]),
                   "300 out of range .+want value in unsigned 8-bit range")
