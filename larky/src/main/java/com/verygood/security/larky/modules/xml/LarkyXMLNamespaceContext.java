@@ -66,27 +66,33 @@ public class LarkyXMLNamespaceContext implements LarkyMapping<String, String>, N
     return bakedInMappings;
   }
 
+  /** Never modified: each evaluation's registry starts as a copy of it. */
   private static final ConcurrentNavigableMap<String, String> WELL_KNOWN_NAMESPACE_PREFIXES = wellknownPrefixes();
-  public static final LarkyXMLNamespaceContext INSTANCE = new LarkyXMLNamespaceContext();
 
   private final ConcurrentNavigableMap<String, String> namespaceMap;
   private final Pattern internalPatternPrefix = Pattern.compile("ns\\d+$");
-  private Mutability mutability = Mutability.create(INSTANCE);
-  private StarlarkThread currentThread = null;
+  private Mutability mutability;
+  private StarlarkThread currentThread;
   private int iteratorCount; // number of active iterators (unused once frozen)
 
-  public LarkyXMLNamespaceContext() {
-    this(WELL_KNOWN_NAMESPACE_PREFIXES);
+  private LarkyXMLNamespaceContext(StarlarkThread thread) {
+    this.namespaceMap = new ConcurrentSkipListMap<>(WELL_KNOWN_NAMESPACE_PREFIXES);
+    this.mutability = thread.mutability();
+    this.currentThread = thread;
   }
 
-  public LarkyXMLNamespaceContext(ConcurrentNavigableMap<String, String> map) {
-    this.namespaceMap = map;
-  }
-
-  public static LarkyXMLNamespaceContext withThread(StarlarkThread thread) {
-    LarkyXMLNamespaceContext inst = INSTANCE;
-    inst.setCurrentThread(thread);
-    return inst;
+  /**
+   * The namespace registry of the evaluation running on {@code thread}, created from the
+   * well-known prefixes on first use. Python's registry is global to the process; here it is
+   * global to one evaluation, so what one script registers never reaches another.
+   */
+  public static LarkyXMLNamespaceContext forThread(StarlarkThread thread) {
+    LarkyXMLNamespaceContext registry = thread.getThreadLocal(LarkyXMLNamespaceContext.class);
+    if (registry == null) {
+      registry = new LarkyXMLNamespaceContext(thread);
+      thread.setThreadLocal(LarkyXMLNamespaceContext.class, registry);
+    }
+    return registry;
   }
 
   public String getNamespaceURI(String prefix) {
@@ -151,23 +157,18 @@ public class LarkyXMLNamespaceContext implements LarkyMapping<String, String>, N
       @Param(name="uri")
   }, useStarlarkThread = true)
   public void registerNamespace(String prefix, String uri, StarlarkThread thread) throws EvalException {
-    setCurrentThread(thread);
-    if(getCurrentThread() == null || getCurrentThread().mutability().isFrozen()) {
-      throw Starlark.errorf("Namespace map is frozen. Unable to mutate.");
-    }
+    Starlark.checkMutable(this);
     if(this.internalPatternPrefix.matches(prefix)) {
       throw Starlark.errorf("ValueError: Prefix format %s reserved for internal use", prefix);
     }
-    // atomic replacement
-    // If there is not already a value at K, it'll just store V
-    // Otherwise, it'll pass the new V and the old V to your function
-    /* equivalent to the below:
+    /* as in Python:
       for k, v in list(_namespace_map.items()):
           if k == uri or v == prefix:
               operator.delitem(_namespace_map, k)
       _namespace_map[uri] = prefix
      */
-    this.namespaceMap.merge(uri, prefix, (oldValue, newValue) -> newValue);
+    this.namespaceMap.entrySet().removeIf(e -> e.getKey().equals(uri) || e.getValue().equals(prefix));
+    this.namespaceMap.put(uri, prefix);
   }
 
   /**
@@ -177,9 +178,7 @@ public class LarkyXMLNamespaceContext implements LarkyMapping<String, String>, N
    * @param thread - the starlark thread in the current execution context
    */
   public void setCurrentThread(@NotNull StarlarkThread thread) {
-    if(getCurrentThread() == null || thread != getCurrentThread()) {
-      this.currentThread = thread;
-    }
+    this.currentThread = thread;
   }
 
   @Override
