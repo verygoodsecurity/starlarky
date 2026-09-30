@@ -14,6 +14,10 @@ load("@stdlib//sets", "sets")
 load("@stdlib//collections", namedtuple="namedtuple")
 load("@vendor//option/result", Result="Result", Error="Error", _safe="safe")
 
+# Leading and trailing C0 control and space to be stripped per WHATWG spec.
+# == "".join([chr(i) for i in range(0x00, 0x20 + 1)])
+_WHATWG_C0_CONTROL_OR_SPACE = "".join([chr(i) for i in range(0x00, 0x20 + 1)])
+
 # Unsafe bytes to be removed per WHATWG spec
 _UNSAFE_URL_BYTES_TO_REMOVE = ['\t', '\r', '\n']
 
@@ -159,6 +163,10 @@ def _urlsplit(url, scheme='', allow_fragments=True):
     <scheme>://<netloc>/<path>?<query>#<fragment>
     """
     url, scheme, _coerce_result = _coerce_args(url, scheme)
+    # Only lstrip url as some applications rely on preserving trailing space.
+    # (https://url.spec.whatwg.org/#concept-basic-url-parser would strip both)
+    url = url.lstrip(_WHATWG_C0_CONTROL_OR_SPACE)
+    scheme = scheme.strip(_WHATWG_C0_CONTROL_OR_SPACE)
     for b in _UNSAFE_URL_BYTES_TO_REMOVE:
         url = url.replace(b, "")
         scheme = scheme.replace(b, "")

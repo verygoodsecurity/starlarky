@@ -132,6 +132,24 @@ def _test_quote_escapes_backslashes_and_control_bytes():
     asserts.assert_that(parse.quote_from_bytes(b"\x00\x0f\x10")).is_equal_to("%00%0F%10")
 
 
+def _test_urlsplit_strips_c0_control_and_space():
+    # expected values from CPython 3's urllib.parse
+    def split(*args, **kwargs):
+        r = parse.urlsplit(*args, **kwargs)
+        return (r.scheme, r.netloc, r.path, r.query, r.fragment)
+
+    asserts.assert_that(split(" http://h/ ")).is_equal_to(("http", "h", "/ ", "", ""))
+    asserts.assert_that(split("\x00\x1f http://h/p\tq\r\nx ?a#b")).is_equal_to(
+        ("http", "h", "/pqx ", "a", "b"))
+    asserts.assert_that(split(" HTTP://h/")).is_equal_to(("http", "h", "/", "", ""))
+    asserts.assert_that(split(" \x01//h/p")).is_equal_to(("", "h", "/p", "", ""))
+    asserts.assert_that(split("h\ttp://x")).is_equal_to(("htp", "x", "", "", ""))
+    asserts.assert_that(split("//h/", scheme=" \thttp ")).is_equal_to(("http", "h", "/", "", ""))
+    r = parse.urlparse(" \x02https://h/p;x?q#f")
+    asserts.assert_that((r.scheme, r.netloc, r.path, r.params, r.query, r.fragment)).is_equal_to(
+        ("https", "h", "/p", "x", "q", "f"))
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_urlparse))
@@ -147,6 +165,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_unquote_latin1))
     _suite.addTest(unittest.FunctionTestCase(_test_parse_qs_and_unquote_plus_decode_utf8))
     _suite.addTest(unittest.FunctionTestCase(_test_quote_escapes_backslashes_and_control_bytes))
+    _suite.addTest(unittest.FunctionTestCase(_test_urlsplit_strips_c0_control_and_space))
 
     return _suite
 
