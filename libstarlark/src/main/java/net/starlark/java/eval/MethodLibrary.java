@@ -494,27 +494,32 @@ class MethodLibrary {
                allowedTypes = {
                    @ParamType(type = String.class),
                    @ParamType(type = StarlarkBytes.class),
+                   @ParamType(type = StarlarkInt.class),
                }
            )
        }
    )
    public StarlarkInt ordinal(Object c) throws EvalException {
-     int containerSize;
-     CharSequence chars;
-     if (String.class.isAssignableFrom(c.getClass())) {
-       containerSize = ((String) c).length();
-       chars = ((String) c);
-     } else {
-       containerSize = ((StarlarkBytes) c).size();
-       chars = ((StarlarkBytes) c);
+     // b[i] used to be a 1-byte bytes, so scripts wrote ord(b[i]); it is now the byte's int.
+     if (c instanceof StarlarkInt i) {
+       int v = i.toInt("ord");
+       if (v < 0 || v > 255) {
+         throw Starlark.errorf("ord: int %d out of range, want a byte (0-255)", v);
+       }
+       return i;
      }
-
-     if (containerSize != 1) {
-       throw Starlark.errorf(
-           "ord: %s has length %d, want 1", Starlark.type(c), containerSize);
+     if (c instanceof String s) {
+       // One code point, which may be a surrogate pair.
+       if (s.isEmpty() || s.length() != Character.charCount(s.codePointAt(0))) {
+         throw Starlark.errorf("ord: string has length %d, want 1", s.length());
+       }
+       return StarlarkInt.of(s.codePointAt(0));
      }
-
-    return StarlarkInt.of(Byte.toUnsignedInt((byte) chars.charAt(0)));
+     StarlarkBytes b = (StarlarkBytes) c;
+     if (b.size() != 1) {
+       throw Starlark.errorf("ord: bytes has length %d, want 1", b.size());
+     }
+     return StarlarkInt.of(Byte.toUnsignedInt(b.byteAt(0)));
   }
 
   @StarlarkMethod(
