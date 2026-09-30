@@ -144,6 +144,40 @@
             </resource>
         </resources>
         <plugins>
+            <!-- VGS additions to libstarlark live outside src/{main,test}/java, which bin/update-starlark.py
+                 replaces wholesale with upstream Bazel's tree (rsync, deleting extra files); upstream files
+                 carry only small hooks into them. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>add-vgs-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/main/vgs</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>add-vgs-test-sources</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/test/vgs</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- Make sure we generate src jars too -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
