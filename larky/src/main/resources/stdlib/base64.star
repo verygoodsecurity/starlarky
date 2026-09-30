@@ -146,19 +146,21 @@ def urlsafe_b64decode(s):
 
 # Base32 encoding/decoding must be done in Python
 _b32alphabet = {
-    0: bytes([0x41]),  9: bytes([0x4a]), 18: bytes([0x53]), 27: bytes([0x33]),
-    1: bytes([0x42]), 10: bytes([0x4b]), 19: bytes([0x54]), 28: bytes([0x34]),
-    2: bytes([0x43]), 11: bytes([0x4c]), 20: bytes([0x55]), 29: bytes([0x35]),
-    3: bytes([0x44]), 12: bytes([0x4d]), 21: bytes([0x56]), 30: bytes([0x36]),
-    4: bytes([0x45]), 13: bytes([0x4e]), 22: bytes([0x57]), 31: bytes([0x37]),
-    5: bytes([0x46]), 14: bytes([0x4f]), 23: bytes([0x58]),
-    6: bytes([0x47]), 15: bytes([0x50]), 24: bytes([0x59]),
-    7: bytes([0x48]), 16: bytes([0x51]), 25: bytes([0x5a]),
-    8: bytes([0x49]), 17: bytes([0x52]), 26: bytes([0x32]),
+    0: 0x41,  9: 0x4a, 18: 0x53, 27: 0x33,
+    1: 0x42, 10: 0x4b, 19: 0x54, 28: 0x34,
+    2: 0x43, 11: 0x4c, 20: 0x55, 29: 0x35,
+    3: 0x44, 12: 0x4d, 21: 0x56, 30: 0x36,
+    4: 0x45, 13: 0x4e, 22: 0x57, 31: 0x37,
+    5: 0x46, 14: 0x4f, 23: 0x58,
+    6: 0x47, 15: 0x50, 24: 0x59,
+    7: 0x48, 16: 0x51, 25: 0x5a,
+    8: 0x49, 17: 0x52, 26: 0x32,
     }
 
-_b32tab = [v[0] for k, v in sorted(_b32alphabet.items())]
-_b32rev = dict([(v[0], k) for k, v in _b32alphabet.items()])
+# The alphabet as ints: indexing or iterating a bytes value gives a one-byte bytes-like value
+# that neither equals-and-hashes like an int nor is accepted by bytes([...]).
+_b32tab = [v for k, v in sorted(_b32alphabet.items())]
+_b32rev = dict([(v, k) for k, v in _b32alphabet.items()])
 
 
 def b32encode(s):
@@ -204,6 +206,11 @@ def b32encode(s):
         encoded = encoded[:-1] + bytes([0x3d])
     return bytes(encoded)
 
+
+def _hex10(n):
+    # '%010x' % n, without Python's %-format flags.
+    h = '%x' % n
+    return '0' * (10 - len(h)) + h
 
 def b32decode(s, casefold=False, map01=None):
     """Decode a Base32 encoded byte string.
@@ -253,18 +260,18 @@ def b32decode(s, casefold=False, map01=None):
     parts = []
     acc = 0
     shift = 35
-    for c in s:
+    for c in s.elems():
         val = _b32rev.get(c)
         if val == None:
             fail(" binascii.Error('Non-base32 digit found')")
         acc += _b32rev[c] << shift
         shift -= 5
         if shift < 0:
-            parts.append(binascii.unhexlify(bytes('%010x' % acc, "ascii")))
+            parts.append(binascii.unhexlify(bytes(_hex10(acc), "ascii")))
             acc = 0
             shift = 35
     # Process the last, partial quanta
-    last = binascii.unhexlify(bytes('%010x' % acc, "ascii"))
+    last = binascii.unhexlify(bytes(_hex10(acc), "ascii"))
     if padchars == 0:
         last = bytes(r'', encoding='utf-8')                      # No characters
     elif padchars == 1:
