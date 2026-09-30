@@ -18,6 +18,7 @@ import com.verygood.security.larky.parser.StarlarkUtil;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.HasBinary;
@@ -301,12 +302,32 @@ public interface LarkyType extends PyObject, LarkyCollection, HasBinary {
 
   @Override
   default void __setattr__(String name, Object value, StarlarkThread thread) throws EvalException {
+    checkMutable(name);
     SetAttribute.set(this, name, value, thread);
   }
 
   @Override
   default void __delattr__(String name, StarlarkThread thread) throws EvalException {
+    checkMutable(name);
     DeleteAttribute.delete(this, name, thread);
+  }
+
+  /**
+   * Reports whether this type's attributes can no longer change: built-in types never, and types
+   * defined by a script once the module that defined them is frozen. Types are shared (built-in
+   * ones by every evaluation in the process), so this is what keeps one script from changing a
+   * type another script sees.
+   */
+  default boolean isFrozenType() {
+    return getOrigin() != Origin.LARKY;
+  }
+
+  private void checkMutable(String attr) throws EvalException {
+    if (isFrozenType()) {
+      throw getOrigin() == Origin.LARKY
+          ? Starlark.errorf("trying to mutate frozen type '%s' (setting '%s')", __name__(), attr)
+          : Starlark.errorf("cannot set attribute '%s' of built-in type '%s'", attr, __name__());
+    }
   }
 
   /**

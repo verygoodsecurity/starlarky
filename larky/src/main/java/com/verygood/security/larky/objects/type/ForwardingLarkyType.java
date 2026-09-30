@@ -47,6 +47,11 @@ public interface ForwardingLarkyType extends LarkyType {
   }
 
   @Override
+  default boolean isFrozenType() {
+    return delegate().isFrozenType();
+  }
+
+  @Override
   default Origin getOrigin() {
     return delegate().getOrigin();
   }
