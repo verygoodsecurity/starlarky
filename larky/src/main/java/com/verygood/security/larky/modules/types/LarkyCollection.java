@@ -39,10 +39,13 @@ public interface LarkyCollection extends LarkyIndexable, StarlarkIterable<Object
     boolean result = false;
     try {
       result = LarkyIndexable.super.__contains__(lhs, op, rhs, thisLeft, thread);
+      // As in Python, a __contains__ that answers is the answer: iterating the collection is the
+      // fallback for a collection without one (and, as before, for one that fails).
+      return result;
     } catch (EvalException ignored) {
     }
 
-    if(!result && !thisLeft) {
+    if(!thisLeft) {
       // it does not. ok, is thisLeft = false & it is an iterator?
       LarkyCollection lhsCollection = (LarkyCollection) lhs;
       try {
