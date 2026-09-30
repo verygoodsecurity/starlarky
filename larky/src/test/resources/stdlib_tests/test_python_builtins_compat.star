@@ -151,6 +151,12 @@ def _test_bytes_join_rejects_non_bytes():
     asserts.assert_that(joined).is_equal_to(bytearray(b"a,b"))
 
 
+def _test_hash_bytearray_unhashable():
+    asserts.assert_fails(lambda: hash(bytearray(b"a")), "^unhashable type: 'bytearray'$")
+    asserts.assert_that(hash(b"a")).is_equal_to(hash(b"a"))
+    asserts.assert_that(hash("a")).is_equal_to(97)
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_divmod_int_floors))
@@ -162,6 +168,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_pow_mod))
     _suite.addTest(unittest.FunctionTestCase(_test_chr_range))
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_join_rejects_non_bytes))
+    _suite.addTest(unittest.FunctionTestCase(_test_hash_bytearray_unhashable))
     return _suite
 
 
