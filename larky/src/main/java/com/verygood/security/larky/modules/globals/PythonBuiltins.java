@@ -821,17 +821,13 @@ public final class PythonBuiltins {
       throw Starlark.errorf("want string, bytes, or iterable of ints. got %s", Starlark.type(_obj));
     }
 
-    //bytes() -> empty bytes object
-    if (Starlark.isNullOrNone(_obj)
-          || StarlarkByteArray.class.isAssignableFrom(_obj.getClass())) {
-//           || StarlarkBytes.class.isAssignableFrom(_obj.getClass())) {
-      return StarlarkUtil.convertFromNoneable(
-        _obj,
-        StarlarkByteArray.of(thread.mutability())
-//           StarlarkBytes.builder(thread)
-//               .setSequence(new byte[]{})
-//               .build()
-      );
+    //bytearray() -> empty bytearray object
+    if (Starlark.isNullOrNone(_obj)) {
+      return StarlarkByteArray.of(thread.mutability());
+    }
+    // bytearray(bytearray) is a new, independent copy, as in Python.
+    if (_obj instanceof StarlarkByteArray) {
+      return StarlarkByteArray.of(thread.mutability(), ((StarlarkByteArray) _obj).toByteArray());
     }
 
     // handle case where string is passed in.
