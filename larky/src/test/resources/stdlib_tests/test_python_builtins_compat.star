@@ -157,6 +157,31 @@ def _test_hash_bytearray_unhashable():
     asserts.assert_that(hash("a")).is_equal_to(97)
 
 
+def _power_of_two(bits):
+    # 1 << bits, built with shifts under Starlark's 512 limit.
+    x = 1
+    for _ in range(bits // 500):
+        x = x << 500
+    return x << (bits % 500)
+
+
+def _test_pow_size_limits():
+    # Ints are limited to 65,536 bits and a modular power's modulus and exponent to 16,384 bits,
+    # checked before computing (IntLimits). Values from CPython.
+    asserts.assert_that(pow(2, 65535) % 1000003).is_equal_to(762552)  # 65,536 bits: fits
+    asserts.assert_that(pow(-2, 65535) < 0).is_true()
+    asserts.assert_fails(lambda: pow(2, 65536), "int too large: pow would make an int")
+    asserts.assert_fails(lambda: pow(3, 10000000), "int too large: pow would make an int")
+    asserts.assert_that(pow(1, 10000000)).is_equal_to(1)
+    asserts.assert_that(pow(-1, 10000001)).is_equal_to(-1)
+    m = _power_of_two(16383) + 1  # 16,384 bits
+    asserts.assert_that(pow(3, 65537, m) % 1000003).is_equal_to(342305)
+    asserts.assert_fails(lambda: pow(3, 65537, _power_of_two(16384) + 1),
+                         "int too large: pow\\(\\) with a 17-bit exponent and a 16385-bit modulus")
+    asserts.assert_fails(lambda: pow(3, _power_of_two(16384), 1000003),
+                         "int too large: pow\\(\\) with a 16385-bit exponent")
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_divmod_int_floors))
@@ -169,6 +194,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_chr_range))
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_join_rejects_non_bytes))
     _suite.addTest(unittest.FunctionTestCase(_test_hash_bytearray_unhashable))
+    _suite.addTest(unittest.FunctionTestCase(_test_pow_size_limits))
     return _suite
 
 
