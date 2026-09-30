@@ -2,8 +2,6 @@ package com.verygood.security.larky.parser;
 
 import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
-import com.google.re2j.Matcher;
-import com.google.re2j.Pattern;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -35,7 +33,6 @@ public class ResourceContentStarFile implements StarFile {
   private static final String STDLIB = "@stdlib";
   private static final String VENDOR = "@vendor//";
   private static final String VGS = "@vgs//";
-  private static final Pattern NAMESPACE_PREFIX = Pattern.compile("@(\\w+)/?/(.+)");
 
   private String resourcePath;
   private byte[] content;
@@ -84,42 +81,65 @@ public class ResourceContentStarFile implements StarFile {
     return moduleToLoad.startsWith(STDLIB) || moduleToLoad.startsWith(VENDOR) || moduleToLoad.startsWith(VGS);
   }
 
-  // Module paths by load label: matching NAMESPACE_PREFIX (re2j) on every load() was a large part
-  // of a request that loads cached modules. Labels come from scripts, so the cache is bounded.
-  private static final com.google.common.cache.Cache<String, String> MODULE_PATHS =
-      com.google.common.cache.CacheBuilder.newBuilder().maximumSize(4096).build();
-
-  public static String getModulePath(String moduleToLoad) {
-    String path = MODULE_PATHS.getIfPresent(moduleToLoad);
-    if (path == null) {
-      path = matchModulePath(moduleToLoad);
-      MODULE_PATHS.put(moduleToLoad, path);
+  /**
+   * Splits a load label {@code @namespace//path} (or {@code @namespace/path}) into namespace and
+   * path, or returns null if it has neither form.
+   *
+   * <p>Matches exactly what the regex {@code @(\w+)/?/(.+)} found (leftmost match, {@code \w} is
+   * ASCII word characters, {@code .} stops at a newline), without a regex engine on every load;
+   * ResourceContentStarFileTest compares the two.
+   */
+  @Nullable
+  static String[] splitLabel(String label) {
+    int n = label.length();
+    for (int at = label.indexOf('@'); at >= 0; at = label.indexOf('@', at + 1)) {
+      int end = at + 1;
+      while (end < n && isWordChar(label.charAt(end))) {
+        end++;
+      }
+      if (end == at + 1 || end >= n || label.charAt(end) != '/') {
+        continue; // no namespace, or not followed by a slash
+      }
+      // "/?/" takes two slashes if a path character follows them, else one.
+      int path = end + 1;
+      if (path < n && label.charAt(path) == '/' && path + 1 < n && label.charAt(path + 1) != '\n') {
+        path++;
+      }
+      if (path >= n || label.charAt(path) == '\n') {
+        continue; // empty path
+      }
+      int newline = label.indexOf('\n', path);
+      return new String[] {
+        label.substring(at + 1, end), label.substring(path, newline < 0 ? n : newline)
+      };
     }
-    return path;
+    return null;
   }
 
-  private static String matchModulePath(String moduleToLoad) {
-    Matcher m = NAMESPACE_PREFIX.matcher(moduleToLoad);
-    if(!m.find()) {
+  private static boolean isWordChar(char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+  }
+
+  public static String getModulePath(String moduleToLoad) {
+    String[] label = splitLabel(moduleToLoad);
+    if (label == null) {
       throw new RuntimeException("Could not find match for module: " + moduleToLoad);
     }
-    assert m.groupCount() == 2;
-    return m.group(2); // this is 1 --> namespace/path <-- this is 2
+    return label[1]; // namespace/path <-- the path
   }
 
   public static String resolveResourceName(String moduleToLoad) {
-    Matcher m = NAMESPACE_PREFIX.matcher(moduleToLoad);
+    String[] label = splitLabel(moduleToLoad);
     String prefix;
     String modulePath;
-    if(!m.find() || m.groupCount() != 2) {
+    if (label == null) {
       // Could not find a module match or is incorrectly constructed
       // We default to a stdlib directory (unless we do not want this behavior?)
       prefix = STDLIB.replace("@", "");
       modulePath = moduleToLoad;
-      // throw new RuntimeException("Could not find match for module: " + moduleToLoad);
     } else {
-      prefix = m.group(1);
-      modulePath = m.group(2);
+      prefix = label[0];
+      modulePath = label[1];
     }
 
     return String.format("%s/%s%s",
