@@ -296,6 +296,50 @@ def _test_skip_unescape_encode():
 # - str(int) - format number as decimal.
 
 
+def _test_bytearray_results_are_independent_bytearrays():
+    # As in Python, a bytearray method returns a new bytearray with its own bytes. They used to be
+    # bytes sharing the bytearray's buffer, so changing the bytearray changed a "bytes" value,
+    # even one already used as a dict key.
+    ba = builtins.bytearray(b("abc"))
+    sliced = ba[:]
+    stepped = ba[::2]
+    upper = ba.upper()
+    ba[0] = 120
+    asserts.assert_that(sliced).is_equal_to(b("abc"))
+    asserts.assert_that(stepped).is_equal_to(b("ac"))
+    asserts.assert_that(upper).is_equal_to(b("ABC"))
+    asserts.assert_that(type(sliced)).is_equal_to("bytearray")
+    asserts.assert_fails(lambda: {sliced: 1}, ".*unhashable type: 'bytearray'")
+
+    ba = builtins.bytearray(b("  ab  "))
+    stripped = ba.strip()
+    ba[2] = 122
+    asserts.assert_that(stripped).is_equal_to(b("ab"))
+    asserts.assert_that(type(stripped)).is_equal_to("bytearray")
+
+    ba = builtins.bytearray(b("a,b"))
+    parts = ba.split(b(","))
+    ba[0] = 90
+    asserts.assert_that(parts).is_equal_to([b("a"), b("b")])
+    asserts.assert_that([type(p) for p in parts]).is_equal_to(["bytearray", "bytearray"])
+
+    # An unchanged result is still a copy.
+    ba = builtins.bytearray(b("abc"))
+    same = ba.removeprefix(b("zz"))
+    same.append(33)
+    asserts.assert_that(ba).is_equal_to(b("abc"))
+
+    # bytearray(bytearray) copies too.
+    a = builtins.bytearray(b("ab"))
+    c = builtins.bytearray(a)
+    c.append(99)
+    asserts.assert_that(a).is_equal_to(b("ab"))
+    asserts.assert_that(c).is_equal_to(b("abc"))
+
+    # bytes results are unaffected.
+    asserts.assert_that(type(b("xyz")[:])).is_equal_to("bytes")
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
 
@@ -319,6 +363,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_are_immutable))
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_join))
     _suite.addTest(unittest.FunctionTestCase(_test_skip_unescape_encode))
+    _suite.addTest(unittest.FunctionTestCase(_test_bytearray_results_are_independent_bytearrays))
 
     return _suite
 

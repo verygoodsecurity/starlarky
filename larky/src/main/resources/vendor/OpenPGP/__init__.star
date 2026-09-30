@@ -364,7 +364,7 @@ def _class_PushbackGenerator():
         else:
             if hasattr(g, "__next__"):
                 self.iterator = g
-            elif type(g) == "bytes":
+            elif type(g) in ("bytes", "bytearray"):
                 # One chunk: iterating bytes would yield ints.
                 self.iterator = iter([g])
             else:
