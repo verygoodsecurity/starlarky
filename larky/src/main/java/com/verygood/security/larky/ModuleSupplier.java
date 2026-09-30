@@ -65,6 +65,12 @@ import net.starlark.java.eval.StarlarkValue;
  */
 public class ModuleSupplier {
 
+  static {
+    // bytes.decode uses the same codecs as codecs.decode: CPython's names and error handlers.
+    net.starlark.java.eval.StarlarkBytes.setDecoder(
+        com.verygood.security.larky.modules.codecs.TextUtil.PyCodecs::decode);
+  }
+
   public static final ImmutableSet<Class<?>> CORE_MODULES = ImmutableSet.of(
       LarkyGlobals.class,
       PythonBuiltins.class

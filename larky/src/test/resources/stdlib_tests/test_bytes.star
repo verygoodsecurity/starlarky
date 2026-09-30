@@ -351,6 +351,26 @@ def _test_bytes_and_bytearray_order_by_content():
     ).is_equal_to([b("a"), b("b"), b("c")])
 
 
+def _test_encodings_match_codecs():
+    # bytes.decode, bytes() and bytearray() use the same codecs as the codecs module, with
+    # CPython's names, error handlers and messages (expected values from CPython).
+    asserts.assert_that(bytes([0xff]).decode("latin-1")).is_equal_to(chr(255))
+    asserts.assert_that(bytes([0x63, 0xc3, 0xa9]).decode("utf-8")).is_equal_to("c" + chr(0xe9))
+    asserts.assert_fails(lambda: bytes([0xff]).decode("utf-8"),
+                         "'utf-8' codec can't decode byte 0xff in position 0: invalid start byte")
+    asserts.assert_that(bytes([0xff]).decode("utf-8", "replace")).is_equal_to(chr(0xfffd))
+    asserts.assert_fails(lambda: bytes([0xff]).decode("nope"), "unknown encoding: nope")
+    asserts.assert_that(builtins.bytes(chr(0xe9), encoding="utf-16").hex()).is_equal_to("fffee900")
+    asserts.assert_that(builtins.bytearray(chr(0xe9), encoding="utf-16").hex()).is_equal_to("fffee900")
+    asserts.assert_that(codecs.encode(chr(0xe9), "utf-16").hex()).is_equal_to("fffee900")
+    asserts.assert_fails(lambda: builtins.bytes(chr(0xe9), encoding="ascii"),
+                         "'ascii' codec can't encode character")
+    # Unlike Python, bytes() interprets escapes written as text in the string, which is how
+    # Larky scripts write arbitrary bytes.
+    raw = "\\x80\\u0141"
+    asserts.assert_that(builtins.bytes(raw, encoding="utf-8").hex()).is_equal_to("c280c581")
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
 
@@ -376,6 +396,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_skip_unescape_encode))
     _suite.addTest(unittest.FunctionTestCase(_test_bytearray_results_are_independent_bytearrays))
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_and_bytearray_order_by_content))
+    _suite.addTest(unittest.FunctionTestCase(_test_encodings_match_codecs))
 
     return _suite
 
