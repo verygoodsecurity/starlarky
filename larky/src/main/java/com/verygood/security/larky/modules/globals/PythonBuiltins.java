@@ -619,15 +619,56 @@ public final class PythonBuiltins {
             "In any case q * b + a % b is very close to a, if a % b is non-zero " +
             "it has the same sign as b, and 0 <= abs(a % b) < abs(b).",
     parameters = {
-      @Param(name = "a"),
-      @Param(name = "b"),
+      @Param(
+        name = "a",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = StarlarkFloat.class),
+        }),
+      @Param(
+        name = "b",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = StarlarkFloat.class),
+        }),
     }
   )
-  public Tuple divmod(StarlarkInt a, StarlarkInt b) throws EvalException {
-    BigInteger bigA = a.toBigInteger();
-    BigInteger bigB = b.toBigInteger();
-    BigInteger[] dm = bigA.divideAndRemainder(bigB);
-    return Tuple.of(StarlarkInt.of(dm[0]), StarlarkInt.of(dm[1]));
+  public Tuple divmod(Object a, Object b) throws EvalException {
+    if (a instanceof StarlarkInt x && b instanceof StarlarkInt y) {
+      if (y.signum() == 0) {
+        throw Starlark.errorf("integer division or modulo by zero");
+      }
+      // Floor division, as Python's // and %: the remainder takes the sign of the divisor.
+      return Tuple.of(StarlarkInt.floordiv(x, y), StarlarkInt.mod(x, y));
+    }
+    return floatDivmod(toDouble(a), toDouble(b));
+  }
+
+  /** divmod for floats, following CPython's float_divmod. */
+  private static Tuple floatDivmod(double vx, double wx) throws EvalException {
+    if (wx == 0.0) {
+      throw Starlark.errorf("floating-point division or modulo by zero");
+    }
+    double mod = vx % wx; // Java's % on doubles is C's fmod
+    double div = (vx - mod) / wx;
+    if (mod != 0.0) {
+      if ((wx < 0) != (mod < 0)) {
+        mod += wx;
+        div -= 1.0;
+      }
+    } else {
+      mod = Math.copySign(0.0, wx);
+    }
+    double floordiv;
+    if (div != 0.0) {
+      floordiv = Math.floor(div);
+      if (div - floordiv > 0.5) {
+        floordiv += 1.0;
+      }
+    } else {
+      floordiv = Math.copySign(0.0, vx / wx);
+    }
+    return Tuple.of(StarlarkFloat.of(floordiv), StarlarkFloat.of(mod));
   }
 
   @StarlarkMethod(
