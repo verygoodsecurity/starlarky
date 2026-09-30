@@ -49,218 +49,188 @@ RegexFlags = enum.enumify_iterable(iterable=[
 ], enum_dict={'__': __}, numerator=lambda x: 1 << x)
 
 
-# emulate class object
-def _matcher__init__(matchobj):
+
+def _group_text(string, spans, index, default=None):
+    start = spans[2 * index]
+    if start < 0:
+        return default
+    return string[start:spans[2 * index + 1]]
+
+
+def _expand_template(template, string, spans):
+    """Expands a template from py_template(); unmatched groups expand to ''."""
+    empty = ""
+    if len(template) == 1 and not types.is_int(template[0]):
+        return template[0]
+    return empty.join([
+        _group_text(string, spans, item, empty) if types.is_int(item) else item
+        for item in template
+    ])
+
+
+def _Match(pattern, string, pos, endpos, spans):
+    """A Python re.Match object for the flat group spans returned by the py_* methods."""
+    rx = pattern.patternobj
+    ngroups = rx.py_groups
+
+    def _index(group):
+        if group == None:  # accepted for compatibility with earlier Larky
+            return 0
+        return rx.py_group_index(group)
 
     def group(*args):
-        if len(args) <= 1:
-            return matchobj.group(*args)
-        else:
-            m = []
-            for i in args:
-                m.append(matchobj.group(i))
-            return tuple(m)
+        if len(args) == 0:
+            return _group_text(string, spans, 0)
+        if len(args) == 1:
+            return _group_text(string, spans, _index(args[0]))
+        return tuple([_group_text(string, spans, _index(g)) for g in args])
 
-    def groups():
-        m = []
-        for i in range(matchobj.group_count()):
-            m.append(matchobj.group(i + 1))
-        return tuple(m)
+    def groups(default=None):
+        return tuple([
+            _group_text(string, spans, i, default)
+            for i in range(1, ngroups + 1)
+        ])
+
+    def groupdict(default=None):
+        return {
+            name: _group_text(string, spans, index, default)
+            for name, index in rx.py_groupindex().items()
+        }
 
     def span(group=0):
-        if group == 0:
-            return matchobj.start(group), matchobj.end(group)
+        index = _index(group)
+        return (spans[2 * index], spans[2 * index + 1])
 
-        for idx, items in enumerate(matchobj.groupdict().items(), start=1):
-            groupname, groupvalue = items
-            if groupname == group:
-                return matchobj.start(idx), matchobj.end(idx)
+    def start(group=0):
+        return span(group)[0]
 
-    def __str__():
-        if matchobj == None:
-            return None
-        return '<re.Match object; span=%s, match=%r; groups=%r>' % (
-            span(), group(), groups()
-        )
+    def end(group=0):
+        return span(group)[1]
+
+    def expand(template):
+        return _expand_template(rx.py_template(template), string, spans)
+
+    def __repr__():
+        return "<re.Match object; span=%r, match=%r>" % (span(), group())
 
     return larky.struct(
+        __name__="Match",
         group=group,
         groups=groups,
-        find=matchobj.find,
-        search=matchobj.search,
-        pattern=matchobj.pattern,
-        start=matchobj.start,
-        end=matchobj.end,
+        groupdict=groupdict,
+        start=start,
+        end=end,
         span=span,
-        group_count=matchobj.group_count,
-        groupdict=matchobj.groupdict,
-        matches=matchobj.matches,
-        looking_at=matchobj.looking_at,
-        replace_first=matchobj.replace_first,
-        replace_all=matchobj.replace_all,
-        append_tail=matchobj.append_tail,
-        append_replacement=matchobj.append_replacement,
-        quote_replacement=matchobj.quote_replacement,
-        __str__=__str__,
+        expand=expand,
+        group_count=lambda: ngroups,
+        pos=pos,
+        endpos=endpos,
+        re=pattern,
+        string=string,
+        regs=tuple([(spans[2 * i], spans[2 * i + 1]) for i in range(ngroups + 1)]),
+        __repr__=__repr__,
+        __str__=__repr__,
     )
 
 
-def _pattern__init__(patternobj):
+def _pattern__init__(patternobj, flags):
+    rx = patternobj
 
-    def matcher(string):
-        return _matcher__init__(patternobj.matcher(string))
-
-    def match(string, pos=0, endpos=-1):
-        m = matcher(string)
-        if not m.looking_at(pos, endpos):
+    def _match_obj(string, pos, endpos, spans):
+        if spans == None:
             return None
-        return m
+        if endpos == None or endpos > len(string):
+            endpos = len(string)
+        return _Match(self, rx.py_text(string), pos, endpos, spans)
 
-    def fullmatch(string, pos=0, endpos=-1):
-        m = matcher(string)
-        if not m.matches():
-            return None
-        return m
+    def match(string, pos=0, endpos=None):
+        return _match_obj(string, pos, endpos, rx.py_match(string, pos, endpos))
 
-    def search(string, pos=0, endpos=-1):
-        m = matcher(string)
-        if not m.search(pos, endpos):
-            return None
-        return m
+    def fullmatch(string, pos=0, endpos=None):
+        return _match_obj(string, pos, endpos, rx.py_fullmatch(string, pos, endpos))
+
+    def search(string, pos=0, endpos=None):
+        return _match_obj(string, pos, endpos, rx.py_search(string, pos, endpos))
+
+    def _all_spans(string, pos, endpos):
+        # Successive matches as in CPython 3.7+: the search continues where the last match
+        # ended, and an empty match is not allowed right where the previous match ended empty.
+        res = []
+        must_advance = False
+        for _while_ in larky.while_true():
+            spans = rx.py_search(string, pos, endpos, must_advance)
+            if spans == None:
+                break
+            res.append(spans)
+            must_advance = spans[0] == spans[1]
+            pos = spans[1]
+        return res
+
+    def findall(string, pos=0, endpos=None):
+        ngroups = rx.py_groups
+        text = rx.py_text(string)
+        res = []
+        for spans in _all_spans(string, pos, endpos):
+            if ngroups == 0:
+                res.append(_group_text(text, spans, 0))
+            elif ngroups == 1:
+                res.append(_group_text(text, spans, 1, ""))
+            else:
+                res.append(tuple([
+                    _group_text(text, spans, i, "")
+                    for i in range(1, ngroups + 1)
+                ]))
+        return res
+
+    def finditer(string, pos=0, endpos=None):
+        # no generator/yield in starlark
+        return [
+            _match_obj(string, pos, endpos, spans)
+            for spans in _all_spans(string, pos, endpos)
+        ]
 
     def sub(repl, string, count=0):
         new_string, _number = subn(repl, string, count)
         return new_string
 
     def subn(repl, string, count=0):
-        return _native_subn(repl, string, count)
-
-    def _native_subn(repl, string, count=0):
-        _matcher = matcher(string)
+        template = None
+        text = rx.py_text(string)
+        if not types.is_callable(repl):
+            template = rx.py_template(repl)
         res = []
-        cnt_rpl = 0
-        for _i in larky.while_true():
-            if not _matcher.find():
-                break
-            _repl = repl
-            if types.is_callable(repl):
-                _repl = repl(_matcher)
-            _matcher.append_replacement(res, _repl)
-            cnt_rpl += 1
-            if count != 0:
-                count -= 1
-                if count == 0:
-                    break
-        return _matcher.append_tail("".join(res)), cnt_rpl
-
-    def _larky_subn(repl, s, count=0):
-        res = []
+        n = 0
         pos = 0
-        cnt_rpl = 0
-        finish = len(s)
-        m = matcher(s)
-
+        last = 0
+        must_advance = False
         for _while_ in larky.while_true():
-            if pos > finish:
+            if count > 0 and n >= count:
                 break
-
-            if not m.find():
-                res.append(s[pos:])
+            spans = rx.py_search(string, pos, None, must_advance)
+            if spans == None:
                 break
-            beg, end = m.start(), m.end()
-            res.append(s[pos:beg])
-            if types.is_callable(repl):
-                res.append(repl(m))
-            elif "\\" in repl:
-                res.append(m.quote_replacement(repl))
+            res.append(text[last:spans[0]])
+            if template == None:
+                res.append(repl(_match_obj(string, 0, None, spans)))
             else:
-                res.append(repl)
-            cnt_rpl += 1
+                res.append(_expand_template(template, text, spans))
+            n += 1
+            last = spans[1]
+            pos = spans[1]
+            must_advance = spans[0] == spans[1]
+        res.append(text[last:])
+        return "".join(res), n
 
-            pos = end
-            if beg == end:
-                # Have progress on empty matches
-                res.append(s[pos:pos + 1])
-                pos += 1
+    def split(string, maxsplit=0):
+        spans = rx.py_split(string, maxsplit)
+        text = rx.py_text(string)
+        return [
+            text[spans[2 * i]:spans[2 * i + 1]] if spans[2 * i] >= 0 else None
+            for i in range(len(spans) // 2)
+        ]
 
-            if count != 0:
-                count -= 1
-                if count == 0:
-                    res.append(s[pos:])
-                    break
-
-        return ''.join(res), cnt_rpl
-
-    # def split(string, maxsplit=0):
-    #     return patternobj.split(string, maxsplit)
-
-    def findall(s, pos=0, endpos=-1):
-        if endpos != -1:
-            s = s[:endpos]
-
-        res = []
-        finish = len(s)
-        m = matcher(s)
-
-        for _while_ in larky.while_true():
-            if pos > finish:
-                break
-            if not m.find(pos):
-                break
-
-            #print("---> ", m.group(), ":::", m.group_count())
-            num = m.group_count()
-            if num == 0:
-                res.append(m.group())
-            elif num == 1:
-                res.append(m.group(num))
-            else:
-                res.append(tuple([m.group(_i+1) for _i in range(num)]))
-
-            #print(res)
-            beg, end = m.start(), m.end()
-            pos = end
-            if beg == end:
-                # Have progress on empty matches
-                pos += 1
-
-        for i in range(len(res)):
-            x = res[i]
-            if types.is_tuple(x):
-                res[i] = tuple(["%s" % x1 for x1 in x])
-            else:
-                res[i] = "%s" % x
-        return res
-
-    def finditer(string, pos=0, endpos=-1):
-        # no generator/yield in starlark
-        if endpos != -1:
-            string = string[:endpos]
-
-        res = []
-        finish = len(string)
-        m = matcher(string)
-
-        for _while_ in larky.while_true():
-            if pos > finish:
-                break
-            if not m.find(pos):
-                break
-            # copy matcher + set it to the position of the match
-            clone = matcher(string)
-            clone.find(pos)
-
-            # return the matched object
-            res.append(clone)
-            beg, end = m.start(), m.end()
-            pos = end
-            if beg == end:
-                # Have progress on empty matches
-                pos += 1
-        return res
-
-
-    return larky.struct(
+    self = larky.struct(
+        __name__="Pattern",
         search=search,
         match=match,
         fullmatch=fullmatch,
@@ -268,11 +238,16 @@ def _pattern__init__(patternobj):
         subn=subn,
         findall=findall,
         finditer=finditer,
-        matcher=matcher,
-        split=patternobj.split,
+        split=split,
+        matcher=patternobj.matcher,
         patternobj=patternobj,
-        pattern=str(patternobj)
+        pattern=patternobj.pattern(),
+        flags=flags,
+        groups=patternobj.py_groups,
+        groupindex=patternobj.py_groupindex(),
+        __repr__=lambda: "re.compile(%r)" % patternobj.pattern(),
     )
+    return self
 # --------------------------------------------------------------------
 # public interface
 
@@ -307,8 +282,6 @@ def _sub(pattern, repl, string, count=0, flags=0):
     a replacement string to be used."""
     _rx_pattern = _compile(pattern, flags)
     return _rx_pattern.sub(repl, string, count)
-    # new_string, _number = _subn(pattern, repl, string, count, flags)
-    # return new_string
 
 
 def _subn(pattern, repl, string, count=0, flags=0):
@@ -320,10 +293,8 @@ def _subn(pattern, repl, string, count=0, flags=0):
     callable; if a string, backslash escapes in it are processed.
     If it is a callable, it's passed the Match object and must
     return a replacement string to be used."""
-    # print("replacing:", string, "matching:", pattern, "with:", repl)
     _rx_pattern = _compile(pattern, flags)
     return _rx_pattern.subn(repl, string, count)
-    #return _native_subn(pattern, string, repl, count, flags)
 
 
 def _split(pattern, string, maxsplit=0, flags=0):
@@ -358,8 +329,12 @@ def _finditer(pattern, string, flags=0):
 
 def _compile(pattern, flags=0):
     "Compile a regular expression pattern, returning a Pattern object."
-    pattern = _re2j.Pattern.compile(pattern, flags)
-    return _pattern__init__(pattern)
+    if not types.is_string(pattern) and hasattr(pattern, "patternobj"):
+        # already compiled
+        if flags != 0:
+            fail("ValueError: cannot process flags argument with a compiled pattern")
+        return pattern
+    return _pattern__init__(_re2j.Pattern.py_compile(pattern, flags), flags)
 
 
 def _purge():
@@ -379,6 +354,7 @@ def _template(pattern, flags=0):
 # '&', '~', (extended character set operations)
 # '#' (comment) and WHITESPACE (ignored) in verbose mode
 # _special_chars_map = {i: '\\' + chr(i) for i in bytes('()[]{}?*+-|^$\\.&~# \t\n\r')}
+
 
 def _escape(pattern):
     """

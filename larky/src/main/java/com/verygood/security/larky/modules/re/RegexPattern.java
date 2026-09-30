@@ -2,9 +2,16 @@ package com.verygood.security.larky.modules.re;
 
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
+import com.google.re2j.PatternSyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+
+import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.NoneType;
+import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.Tuple;
 
 import net.starlark.java.eval.StarlarkBytes;
 
@@ -61,7 +68,7 @@ public class RegexPattern implements StarlarkValue {
 
   @Override
   public void str(Printer printer, StarlarkSemantics semantics) {
-    printer.append(pattern.toString());
+    printer.append(py != null ? py.source : pattern.toString());
   }
 
   @StarlarkMethod(
@@ -77,9 +84,248 @@ public class RegexPattern implements StarlarkValue {
               },
               defaultValue = "0")
       })
-  public static RegexPattern compile(String regex, StarlarkInt flags) {
+  public static RegexPattern compile(String regex, StarlarkInt flags) throws EvalException {
     int flag = flags.toIntUnchecked();
-    return new RegexPattern().pattern(Pattern.compile(regex, flag));
+    try {
+      return new RegexPattern().pattern(compiled(regex, flag));
+    } catch (PatternSyntaxException | IllegalArgumentException e) {
+      throw new EvalException("re.error: " + e.getMessage());
+    }
+  }
+
+  // --- Python re semantics (used by stdlib/re.star) ---------------------------------------------
+
+  /** Set for patterns made by py_compile: the Python pattern this RE2 pattern was translated from. */
+  private PyRegex py;
+
+  private record PyKey(String regex, int flags) {}
+
+  // Translated patterns by source and flags; see COMPILED.
+  private static final com.google.common.cache.Cache<PyKey, RegexPattern> PY_COMPILED =
+      com.google.common.cache.CacheBuilder.newBuilder()
+          .maximumWeight(1 << 20)
+          .<PyKey, RegexPattern>weigher((key, pattern) -> key.regex().length() + 1)
+          .build();
+
+  @StarlarkMethod(
+      name = "py_compile",
+      doc = "Compiles a Python re pattern (translated to RE2). flags are re.star's RegexFlags.",
+      parameters = {
+          @Param(name = "regex", allowedTypes = {@ParamType(type = String.class)}),
+          @Param(name = "flags", allowedTypes = {@ParamType(type = StarlarkInt.class)},
+              defaultValue = "0")
+      })
+  public static RegexPattern pyCompile(String regex, StarlarkInt flags) throws EvalException {
+    PyKey key = new PyKey(regex, flags.toIntUnchecked());
+    RegexPattern compiled = PY_COMPILED.getIfPresent(key);
+    if (compiled == null) {
+      PyRegex py = new PyRegex(regex, key.flags());
+      compiled = new RegexPattern().pattern(py.mainPattern());
+      compiled.py = py;
+      PY_COMPILED.put(key, compiled);
+    }
+    return compiled;
+  }
+
+  private PyRegex py() throws EvalException {
+    if (py == null) {
+      throw new EvalException("re: pattern was not compiled with py_compile");
+    }
+    return py;
+  }
+
+  @StarlarkMethod(name = "py_groups", doc = "Number of capturing groups.", structField = true)
+  public StarlarkInt pyGroups() throws EvalException {
+    return StarlarkInt.of(py().groups());
+  }
+
+  @StarlarkMethod(
+      name = "py_groupindex",
+      doc = "A new dict mapping group names to group numbers.",
+      useStarlarkThread = true)
+  public Dict<String, StarlarkInt> pyGroupIndexDict(StarlarkThread thread) throws EvalException {
+    Dict<String, StarlarkInt> d = Dict.of(thread.mutability());
+    for (Map.Entry<String, Integer> e : py().groupIndex().entrySet()) {
+      d.putEntry(e.getKey(), StarlarkInt.of(e.getValue()));
+    }
+    return d;
+  }
+
+  @StarlarkMethod(
+      name = "py_group_index",
+      doc = "The group number for a group number or name; fails with IndexError if there is none.",
+      parameters = {@Param(name = "group")})
+  public StarlarkInt pyGroupIndex(Object group) throws EvalException {
+    PyRegex p = py();
+    if (group instanceof StarlarkInt) {
+      StarlarkInt g = (StarlarkInt) group;
+      int idx = g.signum() < 0 ? -1 : g.toInt("group");
+      if (idx >= 0 && idx <= p.groups()) {
+        return StarlarkInt.of(idx);
+      }
+    } else if (group instanceof String) {
+      Integer idx = p.groupIndex().get(group);
+      if (idx != null) {
+        return StarlarkInt.of(idx);
+      }
+    }
+    throw new EvalException("IndexError: no such group");
+  }
+
+  private static CharSequence pyInput(Object input) {
+    if (input instanceof StarlarkBytes) {
+      return new ByteArrayCharSequence(((StarlarkBytes) input).toByteArray());
+    }
+    return (String) input;
+  }
+
+  private Object pyRun(Object input, StarlarkInt pos, Object endpos, int kind, boolean mustAdvance)
+      throws EvalException {
+    CharSequence text = pyInput(input);
+    int len = text.length();
+    // As CPython's state_init: clamp pos and endpos to [0, len].
+    int start = Math.max(0, Math.min(pos.toInt("pos"), len));
+    int end = len;
+    if (endpos != Starlark.NONE) {
+      end = Math.max(0, Math.min(((StarlarkInt) endpos).toInt("endpos"), len));
+    }
+    if (end < start) {
+      return Starlark.NONE;
+    }
+    if (end < len) {
+      text = text.subSequence(0, end);
+    }
+    int[] spans = py().run(text, start, kind, mustAdvance, input instanceof StarlarkBytes);
+    if (spans == null) {
+      return Starlark.NONE;
+    }
+    return intTuple(spans);
+  }
+
+  private static Tuple intTuple(int[] values) {
+    Object[] out = new Object[values.length];
+    for (int i = 0; i < values.length; i++) {
+      out[i] = StarlarkInt.of(values[i]);
+    }
+    return Tuple.of(out);
+  }
+
+  @StarlarkMethod(
+      name = "py_search",
+      doc = "Python's Pattern.search: None, or the flat tuple of group spans (-1 when unmatched)."
+          + " must_advance rejects an empty match at pos (for iterating after an empty match).",
+      parameters = {
+          @Param(name = "string", allowedTypes = {
+              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)}),
+          @Param(name = "pos", allowedTypes = {@ParamType(type = StarlarkInt.class)},
+              defaultValue = "0"),
+          @Param(name = "endpos", allowedTypes = {
+              @ParamType(type = StarlarkInt.class), @ParamType(type = NoneType.class)},
+              defaultValue = "None"),
+          @Param(name = "must_advance", allowedTypes = {@ParamType(type = Boolean.class)},
+              defaultValue = "False")
+      })
+  public Object pySearch(Object string, StarlarkInt pos, Object endpos, Boolean mustAdvance)
+      throws EvalException {
+    return pyRun(string, pos, endpos, PyRegex.SEARCH, mustAdvance);
+  }
+
+  @StarlarkMethod(
+      name = "py_match",
+      doc = "Python's Pattern.match (anchored at pos); returns spans as py_search.",
+      parameters = {
+          @Param(name = "string", allowedTypes = {
+              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)}),
+          @Param(name = "pos", allowedTypes = {@ParamType(type = StarlarkInt.class)},
+              defaultValue = "0"),
+          @Param(name = "endpos", allowedTypes = {
+              @ParamType(type = StarlarkInt.class), @ParamType(type = NoneType.class)},
+              defaultValue = "None")
+      })
+  public Object pyMatch(Object string, StarlarkInt pos, Object endpos) throws EvalException {
+    return pyRun(string, pos, endpos, PyRegex.MATCH, false);
+  }
+
+  @StarlarkMethod(
+      name = "py_fullmatch",
+      doc = "Python's Pattern.fullmatch; returns spans as py_search.",
+      parameters = {
+          @Param(name = "string", allowedTypes = {
+              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)}),
+          @Param(name = "pos", allowedTypes = {@ParamType(type = StarlarkInt.class)},
+              defaultValue = "0"),
+          @Param(name = "endpos", allowedTypes = {
+              @ParamType(type = StarlarkInt.class), @ParamType(type = NoneType.class)},
+              defaultValue = "None")
+      })
+  public Object pyFullmatch(Object string, StarlarkInt pos, Object endpos) throws EvalException {
+    return pyRun(string, pos, endpos, PyRegex.FULLMATCH, false);
+  }
+
+  @StarlarkMethod(
+      name = "py_split",
+      doc = "Python's Pattern.split, as a flat tuple of (start, end) spans of the pieces and"
+          + " groups; (-1, -1) for a group that did not participate.",
+      parameters = {
+          @Param(name = "string", allowedTypes = {
+              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)}),
+          @Param(name = "maxsplit", allowedTypes = {@ParamType(type = StarlarkInt.class)},
+              defaultValue = "0")
+      })
+  public Tuple pySplit(Object string, StarlarkInt maxsplit) throws EvalException {
+    return intTuple(py().split(pyInput(string), maxsplit.toInt("maxsplit"),
+        string instanceof StarlarkBytes));
+  }
+
+  @StarlarkMethod(
+      name = "py_template",
+      doc = "Parses a replacement template (as for re.sub) into a tuple of str literals and"
+          + " group numbers. A bytes template is read as Latin-1.",
+      parameters = {
+          @Param(name = "repl", allowedTypes = {
+              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)})
+      })
+  public Tuple pyTemplate(Object repl) throws EvalException {
+    List<Object> items = py().parseTemplate(pyInput(repl).toString());
+    Object[] out = new Object[items.size()];
+    for (int i = 0; i < out.length; i++) {
+      Object item = items.get(i);
+      out[i] = item instanceof Integer ? StarlarkInt.of((Integer) item) : item;
+    }
+    return Tuple.of(out);
+  }
+
+  @StarlarkMethod(
+      name = "py_text",
+      doc = "The text matches are taken from: the string itself, or bytes read as Latin-1 (as"
+          + " earlier Larky versions did, matches on bytes are str).",
+      parameters = {
+          @Param(name = "string", allowedTypes = {
+              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)})
+      })
+  public String pyText(Object string) {
+    return pyInput(string).toString();
+  }
+
+  private record CompileKey(String regex, int flags) {}
+
+  // Compiled patterns by source and flags: re.match(pattern_string, ...) and the other
+  // module-level functions compile their pattern on every call. re2j Patterns are immutable and
+  // thread-safe; the cache is bounded by the total length of the patterns, which come from scripts.
+  private static final com.google.common.cache.Cache<CompileKey, Pattern> COMPILED =
+      com.google.common.cache.CacheBuilder.newBuilder()
+          .maximumWeight(1 << 20)
+          .<CompileKey, Pattern>weigher((key, pattern) -> key.regex().length() + 1)
+          .build();
+
+  private static Pattern compiled(String regex, int flags) {
+    CompileKey key = new CompileKey(regex, flags);
+    Pattern pattern = COMPILED.getIfPresent(key);
+    if (pattern == null) {
+      pattern = Pattern.compile(regex, flags); // throws for an invalid pattern, which is not cached
+      COMPILED.put(key, pattern);
+    }
+    return pattern;
   }
 
   @StarlarkMethod(
@@ -121,6 +367,11 @@ public class RegexPattern implements StarlarkValue {
 
   @StarlarkMethod(name = "pattern", doc = "")
   public String pattern() {
+    return py != null ? py.source : pattern.pattern();
+  }
+
+  /** The RE2 source of the compiled pattern (for py_compile patterns, the translation). */
+  String re2Source() {
     return pattern.pattern();
   }
 
