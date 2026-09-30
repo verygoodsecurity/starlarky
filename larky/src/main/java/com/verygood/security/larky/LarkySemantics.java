@@ -21,6 +21,9 @@ public final class LarkySemantics {
       // str.find/count/startswith/... match nothing when start > end, as in Python
       // ("abc".find("", 4) == -1; Starlark clamps start and finds "" at 3).
       .setBool(PythonStrings.PYTHON_STRING_BOUNDS, true)
+      // str case mapping (upper, lower, title, capitalize), classification (isalpha, isdigit,
+      // islower, ...) and strip() follow Python's Unicode rules, not ASCII only.
+      .setBool(PythonStrings.PYTHON_UNICODE_STRINGS, true)
       .build();
 
 }
