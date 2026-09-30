@@ -373,13 +373,13 @@ public final class PercentFormat {
   }
 
   /** {@code a} (finite, not negative) in fixed notation with {@code precision} decimals. */
-  private static String fixed(double a, int precision, boolean alt) {
+  static String fixed(double a, int precision, boolean alt) {
     String s = new BigDecimal(a).setScale(precision, RoundingMode.HALF_EVEN).toPlainString();
     return precision == 0 && alt ? s + "." : s;
   }
 
   /** {@code a} (finite, not negative) in scientific notation with {@code precision} decimals. */
-  private static String exponent(double a, int precision, boolean alt) {
+  static String exponent(double a, int precision, boolean alt) {
     String digits;
     int exp;
     if (a == 0) {
@@ -405,7 +405,7 @@ public final class PercentFormat {
   }
 
   /** {@code a} (finite, not negative) as Python's {@code %g} formats it. */
-  private static String general(double a, int precision, boolean alt) {
+  static String general(double a, int precision, boolean alt) {
     int p = precision == 0 ? 1 : precision;
     int exp =
         a == 0
