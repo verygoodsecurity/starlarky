@@ -434,9 +434,12 @@ public final class PythonBuiltins {
       },
       useStarlarkThread = true)
   public boolean hasattr(Object obj, String name, StarlarkThread thread) throws EvalException {
+    // Look up with a default, so that a missing attribute returns it instead of building an
+    // error message (with spelling suggestions) that would only be discarded.
+    Object missing = new Object();
     try {
-      Object res = getattr(obj, name, Starlark.UNBOUND, thread);
-      return res != null && res != LarkyAttributeError.getInstance();
+      Object res = getattr(obj, name, missing, thread);
+      return res != null && res != missing && res != LarkyAttributeError.getInstance();
     } catch(EvalException ex) {
       return false;
     }
