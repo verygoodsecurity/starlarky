@@ -35,6 +35,13 @@ import net.starlark.java.syntax.*;
  */
 public final class BytecodeCompiler {
 
+  /**
+   * Version of the code this compiler emits. Bump it whenever the meaning of compiled output
+   * changes (instruction semantics, operand encoding, constants), so that serialized modules
+   * (CompiledModule) from an older compiler are recompiled instead of run.
+   */
+  public static final int VERSION = 1;
+
   private final BytecodeChunk.Builder builder;
   private final Map<String, Integer> labelOffsets;
   private final List<PatchLocation> jumpsToPatch;

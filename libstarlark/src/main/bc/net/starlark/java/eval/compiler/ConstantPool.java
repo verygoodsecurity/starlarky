@@ -33,6 +33,17 @@ public final class ConstantPool {
   private final Map<Object, Integer> constantIndices;
   private boolean frozen;
 
+  /** Rebuilds a frozen pool with exactly these constants, in order (for deserialization). */
+  static ConstantPool restore(List<Object> values) {
+    ConstantPool pool = new ConstantPool();
+    for (Object value : values) {
+      pool.constantIndices.putIfAbsent(key(value), pool.constants.size());
+      pool.constants.add(value);
+    }
+    pool.frozen = true;
+    return pool;
+  }
+
   public ConstantPool() {
     this.constants = new ArrayList<>();
     this.constantIndices = new HashMap<>();
