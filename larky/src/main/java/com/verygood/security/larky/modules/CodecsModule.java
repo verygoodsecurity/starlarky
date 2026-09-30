@@ -1,22 +1,19 @@
 package com.verygood.security.larky.modules;
 
 import com.verygood.security.larky.modules.codecs.TextUtil;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CharsetEncoder;
 import java.nio.charset.StandardCharsets;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.Tuple;
 
 
 @StarlarkBuiltin(
@@ -73,18 +70,21 @@ public class CodecsModule implements StarlarkValue {
   )
   public StarlarkBytes encode(String strToEncode, String encoding, String errors,
       Boolean additionalUnescape, StarlarkThread thread) throws EvalException {
-    CharsetEncoder encoder = Charset.forName(encoding)
-        .newEncoder()
-        .onMalformedInput(TextUtil.CodecHelper.convertCodingErrorAction(errors))
-        .onUnmappableCharacter(TextUtil.CodecHelper.convertCodingErrorAction(errors));
+    String unescapedString = additionalUnescape ? TextUtil.unescapeJavaString(strToEncode) : strToEncode;
     try {
-      String unescapedString = additionalUnescape ? TextUtil.unescapeJavaString(strToEncode) : strToEncode;
-      ByteBuffer encoded = encoder.encode(CharBuffer.wrap(unescapedString));
-      return StarlarkBytes.copyOf(thread.mutability(), encoded);
-//      return (StarlarkBytes) StarlarkBytes.builder(thread).setSequence(encoded).build();
-    } catch (CharacterCodingException e) {
-      throw Starlark.errorf(e.getMessage());
+      return StarlarkBytes.immutableOf(TextUtil.PyCodecs.encode(unescapedString, encoding, errors));
+    } catch (EvalException e) {
+      throw wrapLookupError(e, "encoding", encoding);
     }
+  }
+
+  /** As CPython's codecs.encode/decode, which wrap a LookupError raised by the codec. */
+  private static EvalException wrapLookupError(EvalException e, String op, String encoding) {
+    if (e.getMessage().startsWith("unknown error handler name ")) {
+      return Starlark.errorf(
+          "%s with '%s' codec failed (LookupError: %s)", op, encoding, e.getMessage());
+    }
+    return e;
   }
 
   @StarlarkMethod(
@@ -125,16 +125,32 @@ public class CodecsModule implements StarlarkValue {
     if (CodecsModule.UTF8.equals(encoding.toLowerCase())) { // TODO: fix this to be a normal decoder
       return TextUtil.starlarkDecodeUtf8(bytesToDecode.toByteArray());
     }
-    CharsetDecoder decoder = Charset.forName(encoding)
-        .newDecoder()
-        .onMalformedInput(TextUtil.CodecHelper.convertCodingErrorAction(errors))
-        .onUnmappableCharacter(TextUtil.CodecHelper.convertCodingErrorAction(errors));
-    CharBuffer decoded;
     try {
-      decoded = decoder.decode(ByteBuffer.wrap(bytesToDecode.toByteArray()));
-    } catch (CharacterCodingException e) {
-      throw Starlark.errorf(e.getMessage());
+      return TextUtil.PyCodecs.decode(bytesToDecode.toByteArray(), encoding, errors);
+    } catch (EvalException e) {
+      throw wrapLookupError(e, "decoding", encoding);
     }
-    return decoded.toString();
+  }
+
+  @StarlarkMethod(
+      name = "utf_8_decode",
+      doc = "Decodes UTF-8 bytes as CPython's codecs.utf_8_decode(data, errors, final) does, "
+          + "returning a tuple (str, number of bytes consumed). Unless final is true, an "
+          + "incomplete sequence at the end of data is left unconsumed rather than being an error.",
+      parameters = {
+          @Param(name = "data", allowedTypes = {@ParamType(type = StarlarkBytes.class)}),
+          @Param(
+              name = "errors",
+              allowedTypes = {@ParamType(type = String.class), @ParamType(type = NoneType.class)},
+              defaultValue = "None"),
+          @Param(name = "final", allowedTypes = {@ParamType(type = Boolean.class)},
+              defaultValue = "False")
+      })
+  public Tuple utf8Decode(StarlarkBytes data, Object errors, Boolean last) throws EvalException {
+    TextUtil.PyCodecs.Decoded d = TextUtil.PyCodecs.utf8Decode(
+        data.toByteArray(),
+        errors == Starlark.NONE ? TextUtil.CodecHelper.STRICT : (String) errors,
+        last);
+    return Tuple.pair(d.text, StarlarkInt.of(d.consumed));
   }
 }
