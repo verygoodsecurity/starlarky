@@ -10,6 +10,7 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
@@ -55,16 +56,22 @@ public class ResultModule implements StarlarkValue {
     extraKeywords = @Param(name = "kwargs", defaultValue = "{}"),
     useStarlarkThread = true
   )
-  public static Result safe(StarlarkCallable func, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread) {
+  public static Result safe(StarlarkCallable func, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread)
+      throws InterruptedException {
+    int stackSize = StarlarkEvalWrapper.callStackSize(thread);
     try {
       return ok(Starlark.call(thread, func, args, kwargs));
     } catch(Error e) {
+      StarlarkEvalWrapper.unwindCallStack(thread, stackSize);
       return e;
     } catch (EvalException e) {
+      StarlarkEvalWrapper.unwindCallStack(thread, stackSize);
       return Error.of(e); // for the stack trace.
-    } catch (InterruptedException | RuntimeException e) {
+    } catch (RuntimeException e) {
+      StarlarkEvalWrapper.unwindCallStack(thread, stackSize);
       return error(new EvalException(e.getMessage(), e.getCause()), thread);
     }
+    // InterruptedException propagates: an interrupted evaluation must stop.
   }
 
 
