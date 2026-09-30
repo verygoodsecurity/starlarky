@@ -115,6 +115,34 @@ assert_eq(goodbye[::2], b"gobe")
 assert_eq(goodbye[3:4], b"d")  # special case: len=1
 assert_eq(goodbye[4:4], b"")  # special case: len=0
 
+# concatenation (from starlark-go's bytes.star, google/starlark-go#648)
+# The compiler folds sums of adjacent bytes literals, so each case below keeps at
+# least one operand dynamic to exercise the interpreter instead.
+def concat(x, y):
+    return x + y
+
+assert_eq(concat(b"abc", b"def"), b"abc" + b"def")  # both paths must agree
+assert_eq(goodbye + b"!", b"goodbye!")
+assert_eq(b"good" + goodbye[4:], goodbye)
+assert_eq(b"[" + goodbye + b"]", b"[goodbye]")
+assert_eq(goodbye + empty, goodbye)
+assert_eq(empty + goodbye, goodbye)
+
+# Concatenation joins bytes, not text: no UTF-8 validation or U+FFFD replacement.
+assert_eq(concat(b"\xed\xb0", b"\x80"), b"\xed\xb0\x80")
+assert_eq(concat(hello[:-1], hello[-1:]), hello)  # split mid-code-point
+
+def inplace():
+    x = goodbye
+    x += b"!"
+    return x
+
+assert_eq(inplace(), b"goodbye!")
+
+# Text and binary strings do not mix. (starlark-go says "unknown binary op".)
+assert_fails(lambda: goodbye + "!", "unsupported binary operation: bytes \\+ string")
+assert_fails(lambda: "!" + goodbye, "unsupported binary operation: string \\+ bytes")
+
 # bytes in bytes
 assert_eq(b"bc" in b"abcd", True)
 assert_eq(b"bc" in b"dcab", False)
