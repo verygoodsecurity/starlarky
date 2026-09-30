@@ -104,6 +104,22 @@ public class StarlarkBytes implements ByteStringModuleApi,
       return mutability;
     }
 
+    /**
+     * A new bytearray over a copy of {@code elems}. Its Mutability is {@code mu} when that is a
+     * live (unfrozen) one, e.g. the caller's for a slice, else this bytearray's: most methods have
+     * no thread to take the caller's from.
+     */
+    @Override
+    StarlarkBytes derived(@Nullable Mutability mu, ByteList elems) {
+      Mutability owner = mu != null && !mu.isFrozen() ? mu : mutability;
+      return wrap(owner, ByteList.wrap(elems.toArray()));
+    }
+
+    @Override
+    StarlarkBytes unchanged() {
+      return derived(mutability, delegate);
+    }
+
     /** {@code b[i] = v}: sets the byte at {@code i}, as in Python. */
     @Override
     public void setIndex(StarlarkSemantics semantics, Object key, Object value)
@@ -795,19 +811,33 @@ public class StarlarkBytes implements ByteStringModuleApi,
     printer.append(String.format("b\"%s\"", s));
   }
 
+  /**
+   * A result derived from this value's bytes by a method (slice, strip, split, ...): a bytes that
+   * may share {@code elems}. A bytearray returns a new bytearray with its own copy, as in Python,
+   * so that changing either one never changes the other or an immutable result.
+   */
+  StarlarkBytes derived(@Nullable Mutability mu, ByteList elems) {
+    return wrap(mu, elems);
+  }
+
+  /** The result of a method that leaves the bytes unchanged: this bytes, or a bytearray's copy. */
+  StarlarkBytes unchanged() {
+    return this;
+  }
+
   @Override
   public StarlarkBytes getSlice(Mutability mu, int start, int stop, int step) throws EvalException {
     RangeList indices = new RangeList(start, stop, step);
     int n = indices.size();
     if (step == 1) { // common case
       final int at = indices.at(0);
-      return wrap(mu, this.delegate.substring(at, at + n));
+      return derived(mu, this.delegate.substring(at, at + n));
     }
     byte[] res = new byte[n];
     for (int i = 0; i < n; ++i) {
       res[i] = this.delegate.get(indices.at(i));
     }
-    return wrap(mu, res);
+    return derived(mu, ByteList.wrap(res));
   }
 
   @StarlarkMethod(
@@ -875,18 +905,18 @@ public class StarlarkBytes implements ByteStringModuleApi,
   public StarlarkBytes removeprefix(StarlarkBytes prefix) {
     final ByteList prefixeRemoved = this.delegate.removeprefix(prefix.delegate);
     if(prefixeRemoved == this.delegate) {
-      return this;
+      return unchanged();
     }
-    return wrap(mutability, prefixeRemoved);
+    return derived(mutability, prefixeRemoved);
   }
 
   @Override
   public StarlarkBytes removesuffix(StarlarkBytes suffix) {
     final ByteList suffixRemoved = this.delegate.removesuffix(suffix.delegate);
     if(suffixRemoved == this.delegate) {
-      return this;
+      return unchanged();
     }
-    return wrap(mutability, suffixRemoved);
+    return derived(mutability, suffixRemoved);
    }
 
   @Override
@@ -949,7 +979,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     for (int i = 0, loopLength = elements.size(); i < loopLength; i++) {
       parts[i] = elements.get(i).delegate;
     }
-    return wrap(mutability, this.delegate.join(parts));
+    return derived(mutability, this.delegate.join(parts));
   }
 
   /** Rejects an empty separator, as Python's split and partition do. */
@@ -964,9 +994,9 @@ public class StarlarkBytes implements ByteStringModuleApi,
     checkSeparator(sep);
     final ByteList[] partitioned = this.delegate.partition(sep.delegate);
     return Tuple.of(
-      wrap(mutability, partitioned[0]),
-      wrap(mutability, partitioned[1]),
-      wrap(mutability, partitioned[2])
+      derived(mutability, partitioned[0]),
+      derived(mutability, partitioned[1]),
+      derived(mutability, partitioned[2])
     );
   }
 
@@ -979,7 +1009,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
       count = Integer.MAX_VALUE;
     }
     final ByteList replaced = this.delegate.replace(oldBytes.delegate, newBytes.delegate, count);
-    return wrap(mutability, replaced);
+    return derived(mutability, replaced);
   }
 
   @Override
@@ -1005,9 +1035,9 @@ public class StarlarkBytes implements ByteStringModuleApi,
     checkSeparator(sep);
     final ByteList[] rightPartitioned = this.delegate.rpartition(sep.delegate);
     return Tuple.of(
-      wrap(mutability, rightPartitioned[0]),
-      wrap(mutability, rightPartitioned[1]),
-      wrap(mutability, rightPartitioned[2])
+      derived(mutability, rightPartitioned[0]),
+      derived(mutability, rightPartitioned[1]),
+      derived(mutability, rightPartitioned[2])
     );
   }
 
@@ -1044,7 +1074,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
       table = ((StarlarkBytes) tableO).delegate;
     }
     try {
-      return wrap(mutability, this.delegate.translate(table, delete.delegate));
+      return derived(mutability, this.delegate.translate(table, delete.delegate));
     }catch(IllegalArgumentException ex) {
       throw new EvalException(ex.getMessage(), ex);
     }
@@ -1052,12 +1082,12 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
   @Override
   public StarlarkBytes center(StarlarkInt width, StarlarkBytes fillbyte) throws EvalException {
-    return wrap(this.mutability, this.delegate.center(width.toInt("center"),fillbyte.delegate));
+    return derived(this.mutability, this.delegate.center(width.toInt("center"),fillbyte.delegate));
   }
 
   @Override
   public StarlarkBytes ljust(StarlarkInt width, StarlarkBytes fillbyte) throws EvalException {
-    return wrap(this.mutability, this.delegate.ljust(width.toInt("ljust"), fillbyte.delegate));
+    return derived(this.mutability, this.delegate.ljust(width.toInt("ljust"), fillbyte.delegate));
   }
 
   @Override
@@ -1066,12 +1096,12 @@ public class StarlarkBytes implements ByteStringModuleApi,
     if(!Starlark.isNullOrNone(charsO)) {
       chars = ((StarlarkBytes) charsO).delegate;
     }
-    return wrap(Mutability.IMMUTABLE, this.delegate.lstrip(chars));
+    return derived(Mutability.IMMUTABLE, this.delegate.lstrip(chars));
   }
 
   @Override
   public StarlarkBytes rjust(StarlarkInt width, StarlarkBytes fillbyte)  throws EvalException {
-    return wrap(this.mutability, this.delegate.rjust(width.toInt("rjust"), fillbyte.delegate));
+    return derived(this.mutability, this.delegate.rjust(width.toInt("rjust"), fillbyte.delegate));
   }
 
   @Override
@@ -1091,7 +1121,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     StarlarkList<StarlarkBytes> res = StarlarkList.newList(thread.mutability());
     //noinspection ForLoopReplaceableByForEach
     for (int i = 0, loopLen = rsplited.length; i < loopLen; i++) {
-      res.addElement(wrap(thread.mutability(), rsplited[i]));
+      res.addElement(derived(thread.mutability(), rsplited[i]));
     }
     return res;
   }
@@ -1102,7 +1132,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     if(!Starlark.isNullOrNone(charsO)) {
       chars = ((StarlarkBytes) charsO).delegate;
     }
-    return wrap(Mutability.IMMUTABLE, this.delegate.rstrip(chars));
+    return derived(Mutability.IMMUTABLE, this.delegate.rstrip(chars));
   }
 
   @Override
@@ -1122,7 +1152,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     StarlarkList<StarlarkBytes> res = StarlarkList.newList(thread.mutability());
     //noinspection ForLoopReplaceableByForEach
     for (int i = 0, loopLen = splitted.length; i < loopLen; i++) {
-      res.addElement(wrap(thread.mutability(), splitted[i]));
+      res.addElement(derived(thread.mutability(), splitted[i]));
     }
     return res;
   }
@@ -1133,12 +1163,12 @@ public class StarlarkBytes implements ByteStringModuleApi,
     if(!Starlark.isNullOrNone(charsO)) {
       chars = ((StarlarkBytes) charsO).delegate;
     }
-    return wrap(Mutability.IMMUTABLE, this.delegate.strip(chars));
+    return derived(Mutability.IMMUTABLE, this.delegate.strip(chars));
   }
 
   @Override
   public StarlarkBytes capitalize() {
-    return wrap(mutability, this.delegate.capitalize());
+    return derived(mutability, this.delegate.capitalize());
   }
 
   @Override
@@ -1146,7 +1176,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     if(size() == 0) {
       return empty();
     }
-    return wrap(mutability, this.delegate.expandtabs(tabSize.toInt("expandTabs")));
+    return derived(mutability, this.delegate.expandtabs(tabSize.toInt("expandTabs")));
   }
 
   @Override
@@ -1191,7 +1221,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
   @Override
   public StarlarkBytes lower() {
-    return wrap(mutability, this.delegate.lower());
+    return derived(mutability, this.delegate.lower());
   }
 
   @Override
@@ -1200,29 +1230,29 @@ public class StarlarkBytes implements ByteStringModuleApi,
     StarlarkList<StarlarkBytes> res = StarlarkList.newList(mutability);
     //noinspection ForLoopReplaceableByForEach
     for (int i = 0, loopLen = splitted.length; i < loopLen; i++) {
-      res.addElement(wrap(mutability, splitted[i]));
+      res.addElement(derived(mutability, splitted[i]));
     }
     return res;
   }
 
   @Override
   public StarlarkBytes swapcase() {
-    return wrap(mutability, this.delegate.swapcase());
+    return derived(mutability, this.delegate.swapcase());
   }
 
   @Override
   public StarlarkBytes title() {
-    return wrap(mutability, this.delegate.title());
+    return derived(mutability, this.delegate.title());
   }
 
   @Override
   public StarlarkBytes upper() {
-    return wrap(mutability, this.delegate.upper());
+    return derived(mutability, this.delegate.upper());
   }
 
   @Override
   public StarlarkBytes zfill(StarlarkInt width) throws EvalException {
-    return wrap(mutability, this.delegate.zfill(width.toInt("zfill")));
+    return derived(mutability, this.delegate.zfill(width.toInt("zfill")));
   }
 
   /**
@@ -1335,7 +1365,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
    */
   public StarlarkBytes repeat(StarlarkInt n, Mutability mutability) throws EvalException {
     try {
-      return wrap(mutability, this.delegate.repeat(n.toInt("repeat")));
+      return derived(mutability, this.delegate.repeat(n.toInt("repeat")));
     } catch(IllegalArgumentException ex) {
       throw new EvalException(ex.getMessage(), ex);
     }
