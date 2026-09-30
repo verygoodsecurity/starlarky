@@ -494,11 +494,20 @@ class MethodLibrary {
                allowedTypes = {
                    @ParamType(type = String.class),
                    @ParamType(type = StarlarkBytes.class),
+                   @ParamType(type = StarlarkInt.class),
                }
            )
        }
    )
    public StarlarkInt ordinal(Object c) throws EvalException {
+     // b[i] used to be a 1-byte bytes, so scripts wrote ord(b[i]); it is now the byte's int.
+     if (c instanceof StarlarkInt i) {
+       int v = i.toInt("ord");
+       if (v < 0 || v > 255) {
+         throw Starlark.errorf("ord: int %d out of range, want a byte (0-255)", v);
+       }
+       return i;
+     }
      if (c instanceof String s) {
        // One code point, which may be a surrogate pair.
        if (s.isEmpty() || s.length() != Character.charCount(s.codePointAt(0))) {
