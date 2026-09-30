@@ -51,133 +51,11 @@ import org.jetbrains.annotations.Nullable;
     category = "core",
     doc = "A byte string: an immutable sequence of values in the range 0-255.")
 public class StarlarkBytes implements ByteStringModuleApi,
-                                        Sequence<StarlarkBytes>,
+                                        Sequence<StarlarkInt>,
                                         Comparable<StarlarkBytes>,
                                         CharSequence,
                                         HasBinary,
                                         StarlarkValue {
-
-  public static class StarlarkByte extends StarlarkBytes implements HasBinary,
-                                                                    StarlarkValue,
-                                                                    Comparable<StarlarkBytes> {
-
-    final byte x;
-    private static final int OFFSET = 128;
-
-    private StarlarkByte(byte x) {
-      super(null, ByteList.wrap(x));
-      this.x = x;
-    } // cannot instantiate publicly.
-
-
-    private static class ByteCache {
-      static final StarlarkByte[] cache = new StarlarkByte[-(-OFFSET) + 127 + 1];
-
-      static {
-        for (int i = 0; i < cache.length; i++)
-          cache[i] = new StarlarkByte((byte) (i - OFFSET));
-      }
-
-      private ByteCache() {
-      }
-    }
-
-    public static StarlarkByte of(byte b) {
-      return ByteCache.cache[(int) b + OFFSET];
-    }
-
-    public static StarlarkByte of(int b) throws EvalException {
-      if(b >> Byte.SIZE != 0) {
-        throw Starlark.errorf("int in bytes: %s out of range", b);
-      }
-      return of((byte)b);
-    }
-
-    public static StarlarkByte of(StarlarkInt b) throws EvalException {
-      return of(b.toInt("StarlarkByte::of"));
-    }
-
-    @Override
-    public int compareTo(@NotNull StarlarkBytes o) {
-      //a negative integer, zero, or a positive integer as this object is less than, equal to, or greater than the specified object.
-      if(o.size() > 1) {
-        return -1; // if size is > 1 then it's bigger
-      }
-      else if (o.size() == 0) {
-        return 1;
-      }
-      return Integer.compare(Byte.toUnsignedInt(this.x), Byte.toUnsignedInt(o.byteAt(0)));
-    }
-
-    public StarlarkInt toStarlarkInt() {
-      return StarlarkInt.of(toUnsigned());
-    }
-
-    public int toUnsigned() {
-      return Byte.toUnsignedInt(this.x);
-    }
-
-    public byte get() {
-      return this.x;
-    }
-
-    @Override
-    public void str(Printer printer, StarlarkSemantics semantics) {
-      printer.append((char) x & 0xFF);
-    }
-
-    @Override
-    public void repr(Printer printer, StarlarkSemantics semantics) {
-      printer.append(String.format("b\"%s\"", (char) x & 0xFF));
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      // this is probably a hack --> the `StarlarkByte` class is really just a
-      // specialization of a 1-element StarlarkBytes sequence
-      if (!(o instanceof StarlarkBytes || o instanceof StarlarkInt)) {
-        return false;
-      } else if (this == o) {
-        return true;
-      } else if (o instanceof StarlarkByte) {
-        return this.compareTo((StarlarkByte) o) == 0;
-      } else if (o instanceof StarlarkInt) {
-        return ((StarlarkInt)o).compareTo(toStarlarkInt()) == 0;
-      } else {
-        StarlarkBytes sbo = ((StarlarkBytes) o);
-        if (sbo.size() != 1) {
-          return false;
-        }
-        return this.compareTo(StarlarkByte.of(sbo.byteAt(0))) == 0;
-      }
-    }
-
-    @Override
-    public boolean isImmutable() {
-      return true;
-    }
-
-    /**
-     * Returns a hash code for this {@code Byte}; equal to the result of invoking {@code
-     * intValue()}.
-     *
-     * @return a hash code value for this {@code Byte}
-     */
-    @Override
-    public int hashCode() {
-      return Byte.hashCode(x);
-    }
-
-    @Nullable
-    @Override
-    public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
-      try(Mutability mu = Mutability.create("StarlarkBytesBinaryOp")) {
-        StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
-        return EvalUtils.binaryOp(op, toStarlarkInt(), that, thread);
-      }
-    }
-
-  }
 
   @StarlarkBuiltin(
       name = "bytearray",
@@ -234,38 +112,33 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public StarlarkBytes set(int index, StarlarkBytes element) {
-      if(element.size() != 1) {
-        throw new IllegalArgumentException("Expected starlark element to be of size 1!");
-      }
-      return set(index, element.byteAt(0));
+    public StarlarkInt set(int index, StarlarkInt element) {
+      return set(index, toByteUnchecked(element));
     }
 
-    public StarlarkBytes set(int index, byte element) {
+    public StarlarkInt set(int index, byte element) {
      ensureNotFrozen();
-     StarlarkBytes oldValue = get(index);
-     final byte oldValuePrimitive = this.delegate.setValue(index, element);
-     assert oldValuePrimitive== oldValue.byteAt(0);
-     return oldValue;
+     return StarlarkInt.of(Byte.toUnsignedInt(this.delegate.setValue(index, element)));
     }
 
     @Override
-    public void add(int index, StarlarkBytes element) {
+    public void add(int index, StarlarkInt element) {
       ensureNotFrozen();
-      this.delegate.addAll(index, element.delegate);
+      this.delegate.addValue(index, toByteUnchecked(element));
     }
 
     @Override
-    public boolean add(StarlarkBytes o) {
+    public boolean add(StarlarkInt o) {
       ensureNotFrozen();
-      return this.delegate.extend(o.delegate);
+      this.delegate.addValue(this.delegate.size(), toByteUnchecked(o));
+      return true;
     }
 
     @Override
-    public boolean addAll(@NotNull Collection<? extends StarlarkBytes> c) {
+    public boolean addAll(@NotNull Collection<? extends StarlarkInt> c) {
       ensureNotFrozen();
       boolean modified = false;
-      for (StarlarkBytes e : c) {
+      for (StarlarkInt e : c) {
         add(e);
         modified = true;
       }
@@ -273,14 +146,23 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public boolean addAll(int index, @NotNull Collection<? extends StarlarkBytes> c) {
+    public boolean addAll(int index, @NotNull Collection<? extends StarlarkInt> c) {
       ensureNotFrozen();
       int i = index;
-      for (StarlarkBytes e : c) {
+      for (StarlarkInt e : c) {
         add(i, e);
         i++;
       }
       return i != index;
+    }
+
+    /** The byte for {@code i}; throws IllegalArgumentException if it is not in 0-255. */
+    private static byte toByteUnchecked(StarlarkInt i) {
+      int v = i.toIntUnchecked();
+      if (v < 0 || v > 255) {
+        throw new IllegalArgumentException(v + " is not a byte (0-255)");
+      }
+      return (byte) v;
     }
 
     public boolean addAll(int index, byte[] c) {
@@ -294,7 +176,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public void replaceAll(UnaryOperator<StarlarkBytes> operator) {
+    public void replaceAll(UnaryOperator<StarlarkInt> operator) {
       ensureNotFrozen();
       for (int i = 0; i < this.delegate.size(); i++) {
           this.set(i, operator.apply(this.get(i)));
@@ -321,7 +203,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
          parameters = {@Param(name = "item", doc = "Item to add at the end.")})
     public void append(StarlarkInt item) throws EvalException {
        Starlark.checkMutable(this);
-       this.add(StarlarkBytes.immutableOf(toByte(item.toInt("append"))));
+       this.delegate.addValue(this.delegate.size(), toByte(item.toInt("append")));
      }
 
     @StarlarkMethod(name = "copy", doc = "Return a copy of bytearray.", useStarlarkThread = true)
@@ -373,9 +255,9 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public StarlarkBytes remove(int index) {
+    public StarlarkInt remove(int index) {
       ensureNotFrozen();
-      return StarlarkBytes.immutableOf(this.delegate.removeAt(index));
+      return StarlarkInt.of(Byte.toUnsignedInt(this.delegate.removeAt(index)));
     }
 
     @StarlarkMethod(
@@ -422,7 +304,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     public @Nullable Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
       Object rval;
       if (op == TokenKind.PLUS) {
-        if (that instanceof StarlarkBytes || that instanceof StarlarkList || that instanceof StarlarkByte) {
+        if (that instanceof StarlarkBytes || that instanceof StarlarkList) {
           if (thisLeft) {
             rval = BinaryOperations.add(this, that, this.mutability);
           } else {
@@ -610,71 +492,82 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
   }
 
+  /** The element at {@code index}: the byte's value, 0-255, as in Python and the spec. */
   @Override
-  public StarlarkByte get(int index) {
-    return StarlarkByte.of(this.delegate.get(index)); // can throw OutOfBounds
+  public StarlarkInt get(int index) {
+    return StarlarkInt.of(Byte.toUnsignedInt(this.delegate.get(index))); // can throw OutOfBounds
   }
 
   @Override
-  public StarlarkBytes set(int index, StarlarkBytes element) {
+  public StarlarkInt set(int index, StarlarkInt element) {
     throw new UnsupportedOperationException("bytes are immutable. use bytearray.");
   }
 
   @Override
-  public void add(int index, StarlarkBytes element) {
+  public void add(int index, StarlarkInt element) {
     throw new UnsupportedOperationException("bytes are immutable. use bytearray.");
   }
 
   @Override
-  public StarlarkBytes remove(int index) {
+  public StarlarkInt remove(int index) {
     throw new UnsupportedOperationException("bytes are immutable. use bytearray.");
+  }
+
+  /** The byte value of {@code o} if it is a StarlarkInt in 0-255, else -1. */
+  private static int byteValue(Object o) {
+    if (o instanceof StarlarkInt i) {
+      int v = i.toIntUnchecked();
+      if (v >= 0 && v <= 255 && StarlarkInt.of(v).equals(i)) {
+        return v;
+      }
+    }
+    return -1;
   }
 
   @Override
   public int indexOf(Object o) {
-    // Overridden for performance to prevent a ton of boxing
-    if (!(o instanceof StarlarkBytes)) {
-      return -1;
-    }
-
-    return this.delegate.indexOf(((StarlarkBytes)o).delegate);
+    int v = byteValue(o);
+    return v < 0 ? -1 : this.delegate.indexOf(v);
   }
 
   @Override
   public int lastIndexOf(Object o) {
-    // Overridden for performance to prevent a ton of boxing
-    if (!(o instanceof StarlarkBytes)) {
+    int v = byteValue(o);
+    if (v < 0) {
       return -1;
     }
-
-    return this.delegate.lastIndexOf(((StarlarkBytes)o).delegate, 0,  this.delegate.size());
+    for (int i = this.delegate.size() - 1; i >= 0; i--) {
+      if (Byte.toUnsignedInt(this.delegate.get(i)) == v) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   @NotNull
   @Override
-  public ListIterator<StarlarkBytes> listIterator() {
+  public ListIterator<StarlarkInt> listIterator() {
     final ByteList.ByteListIterator bListItr = this.delegate.listIterator();
     return newListIterator(bListItr);
   }
 
   @NotNull
   @Override
-  public ListIterator<StarlarkBytes> listIterator(int index) {
+  public ListIterator<StarlarkInt> listIterator(int index) {
     final ByteList.ByteListIterator bListItr = this.delegate.listIterator(index);
     return newListIterator(bListItr);
   }
 
-  private ListIterator<StarlarkBytes> newListIterator(ByteList.ByteListIterator bListItr) {
-    Mutability mu = this.mutability;
-    return new UnmodifiableListIterator<StarlarkBytes>() {
+  private ListIterator<StarlarkInt> newListIterator(ByteList.ByteListIterator bListItr) {
+    return new UnmodifiableListIterator<StarlarkInt>() {
       @Override
       public boolean hasPrevious() {
         return bListItr.hasPrevious();
       }
 
       @Override
-      public StarlarkBytes previous() {
-        return StarlarkBytes.immutableOf(bListItr.previousByte());
+      public StarlarkInt previous() {
+        return StarlarkInt.of(Byte.toUnsignedInt(bListItr.previousByte()));
       }
 
       @Override
@@ -693,19 +586,19 @@ public class StarlarkBytes implements ByteStringModuleApi,
       }
 
       @Override
-      public StarlarkBytes next() {
-        return StarlarkBytes.immutableOf(bListItr.nextByte());
+      public StarlarkInt next() {
+        return StarlarkInt.of(Byte.toUnsignedInt(bListItr.nextByte()));
       }
     };
   }
 
   @NotNull
   @Override
-  public List<StarlarkBytes> subList(int fromIndex, int toIndex) {
+  public List<StarlarkInt> subList(int fromIndex, int toIndex) {
     final ByteList substring = this.delegate.substring(fromIndex, toIndex);
-    List<StarlarkBytes> list = new ArrayList<>(substring.size());
+    List<StarlarkInt> list = new ArrayList<>(substring.size());
     for (int i = 0, loopLength = substring.size(); i < loopLength; i++) {
-      list.add(i, StarlarkBytes.immutableOf(substring.get(i)));
+      list.add(i, StarlarkInt.of(Byte.toUnsignedInt(substring.get(i))));
     }
     return list;
   }
@@ -764,20 +657,21 @@ public class StarlarkBytes implements ByteStringModuleApi,
     return this.delegate.isEmpty();
   }
 
+  /** Whether {@code o} is an element (an int), or a subsequence (a bytes), of this. */
   @Override
   public boolean contains(Object o) {
-    if (!(o instanceof StarlarkBytes)) {
-      return false;
+    if (o instanceof StarlarkBytes b) {
+      return this.delegate.contains(b.delegate);
     }
-
-    return this.delegate.contains(((StarlarkBytes)o).delegate);
+    return indexOf(o) >= 0;
   }
 
+  /** Iterates the bytes' values as ints, 0-255, as in Python. */
   @NotNull
   @Override
-  public Iterator<StarlarkBytes> iterator() {
+  public Iterator<StarlarkInt> iterator() {
     ByteList.OfByte x = this.delegate.iterator();
-    return new Iterator<StarlarkBytes>() {
+    return new Iterator<StarlarkInt>() {
 
       @Override
       public boolean hasNext() {
@@ -785,19 +679,17 @@ public class StarlarkBytes implements ByteStringModuleApi,
       }
 
       @Override
-      public StarlarkBytes next() {
-        return StarlarkBytes.immutableOf(x.next());
+      public StarlarkInt next() {
+        return StarlarkInt.of(Byte.toUnsignedInt(x.next()));
       }
     };
   }
 
   @Override
   public Object[] toArray() {
-    // One element per byte, as iteration yields (Starlark.toArray, e.g. enumerate, relies on it).
     Object[] r = new Object[size()];
-    int i = 0;
-    for (StarlarkBytes b : this) {
-      r[i++] = b;
+    for (int i = 0; i < r.length; i++) {
+      r[i] = get(i);
     }
     return r;
   }
@@ -808,7 +700,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
   }
 
   @Override
-  public boolean add(StarlarkBytes o) {
+  public boolean add(StarlarkInt o) {
     throw new UnsupportedOperationException("bytes are immutable. use bytearray.");
   }
 
@@ -831,12 +723,12 @@ public class StarlarkBytes implements ByteStringModuleApi,
   }
 
   @Override
-  public boolean addAll(@NotNull Collection<? extends StarlarkBytes> c) {
+  public boolean addAll(@NotNull Collection<? extends StarlarkInt> c) {
     throw new UnsupportedOperationException("bytes are immutable. use bytearray.");
   }
 
   @Override
-  public boolean addAll(int index, @NotNull Collection<? extends StarlarkBytes> c) {
+  public boolean addAll(int index, @NotNull Collection<? extends StarlarkInt> c) {
     throw new UnsupportedOperationException("bytes are immutable. use bytearray.");
   }
 
@@ -1442,7 +1334,11 @@ public class StarlarkBytes implements ByteStringModuleApi,
         if (that instanceof StarlarkInt) {
           return repeat((StarlarkInt) that, this.mutability);
         }
+        return null;
       case PLUS:
+        if (!(that instanceof StarlarkBytes || that instanceof StarlarkList)) {
+          return null; // unsupported binary operation
+        }
         if (thisLeft) {
           return BinaryOperations.add(this, that, this.mutability);
         } else {

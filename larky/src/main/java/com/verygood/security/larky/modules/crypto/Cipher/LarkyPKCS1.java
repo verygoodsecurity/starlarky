@@ -128,7 +128,7 @@ public class LarkyPKCS1 implements StarlarkValue {
     if(expected_pt_len != -1 && pt.length != expected_pt_len) {
       return FAIL;
     }
-    output.add(StarlarkBytes.immutableOf(pt));
+    output.addAll(StarlarkBytes.immutableOf(pt));
     return StarlarkInt.of(pt.length);
   }
 
