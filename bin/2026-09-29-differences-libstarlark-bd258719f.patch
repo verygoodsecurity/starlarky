@@ -314,7 +314,7 @@ index 1d067d6f..cb42c0cf 100644
      return StarlarkInt.of(zbig);
    }
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
-index 65cfb87a..eface7de 100644
+index 65cfb87a..69dcbd31 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
 @@ -14,13 +14,16 @@
@@ -343,7 +343,7 @@ index 65cfb87a..eface7de 100644
  
    /**
     * Returns the number of Starlark computation steps executed by this thread according to a
-@@ -111,6 +116,55 @@ public final class StarlarkThread {
+@@ -111,6 +116,77 @@ public final class StarlarkThread {
      return stepLimit;
    }
  
@@ -364,6 +364,8 @@ index 65cfb87a..eface7de 100644
 +   */
 +  public void setExpirationMs(long expirationMs) {
 +    this.expirationMs = expirationMs;
++    this.checksUntilClockRead = 0;
++    this.expired = false; // a new date re-arms the check
 +  }
 +
 +  /**
@@ -387,19 +389,39 @@ index 65cfb87a..eface7de 100644
 +    return clock.millis() > expirationMs;
 +  }
 +
++  // checkExpired reads the clock on the first check after an expiration date is set and on every
++  // EXPIRY_CHECK_INTERVAL-th check after that: it runs for every statement and expression, and
++  // reading the clock each time was a large part of evaluation. A larger interval reads the clock
++  // less often but lets more statements run past the expiration date before evaluation stops.
++  private static final int EXPIRY_CHECK_INTERVAL =
++      Math.max(1, Integer.getInteger("starlark.expiry.checkInterval", 64));
++  private int checksUntilClockRead;
++
 +  /** Throws if evaluation has run past the expiration date set by {@link #setExpirationMs}. */
 +  void checkExpired() throws EvalException {
++    // VGS: once past the expiration date, every check fails, so a script that catches the error
++    // (Larky's safe()) can't keep running: its next statement fails too.
++    if (expired) {
++      throw new EvalException("Starlark computation cancelled: past expiration date");
++    }
++    if (expirationMs == Long.MAX_VALUE || --checksUntilClockRead > 0) {
++      return;
++    }
++    checksUntilClockRead = EXPIRY_CHECK_INTERVAL;
 +    if (isExpired()) {
++      expired = true;
 +      throw new EvalException("Starlark computation cancelled: past expiration date");
 +    }
 +  }
++
++  private boolean expired;
 +
 +  private boolean interrupted;
 +
    /**
     * Disables polling of the {@link java.lang.Thread#interrupted} flag during Starlark evaluation.
     */
-@@ -122,11 +176,19 @@ public final class StarlarkThread {
+@@ -122,11 +198,19 @@ public final class StarlarkThread {
    }
  
    void checkInterrupt() throws InterruptedException {
