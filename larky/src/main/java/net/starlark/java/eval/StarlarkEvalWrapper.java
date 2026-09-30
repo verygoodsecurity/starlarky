@@ -28,6 +28,23 @@ public class StarlarkEvalWrapper {
    * @param <T> The type of elements in the array
    * @return A {@link StarlarkList} which takes ownership of the supplied {@code arr}
    */
+  /** The number of frames on {@code thread}'s call stack; see {@link #unwindCallStack}. */
+  public static int callStackSize(StarlarkThread thread) {
+    return thread.callStackSize();
+  }
+
+  /**
+   * Pops {@code thread}'s call stack back to {@code size} frames. A call that fails can leave
+   * frames pushed (e.g. an argument error reports the callee's frame); Starlark never recovers
+   * from an error, but code that does (Larky's safe()) must restore the stack, or the next call
+   * of the same function is reported as recursive.
+   */
+  public static void unwindCallStack(StarlarkThread thread, int size) {
+    while (thread.callStackSize() > size) {
+      thread.pop();
+    }
+  }
+
   public static <T> StarlarkList<?> zeroCopyList(Mutability mu, T[] arr) {
     return StarlarkList.wrap(mu, arr);
   }
