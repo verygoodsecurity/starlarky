@@ -19,6 +19,7 @@ import com.verygood.security.larky.parser.StarlarkUtil;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Sequence;
@@ -67,6 +68,9 @@ final public class LarkyTypeObject implements LarkyType {
 
   private Origin origin;
   private Map<String, Object> __dict__;
+  // The mutability of the thread that defined this type (for types defined by a script), which
+  // decides when the type becomes frozen; see isFrozenType.
+  @Nullable private Mutability mutability;
   private final Set<LarkyType> allSubclasses = new HashSet<>();
   private List<LarkyType> __mro__;
   private String name;
@@ -95,7 +99,10 @@ final public class LarkyTypeObject implements LarkyType {
       name,
       bases,
       dict,
-      (type) -> new LarkyProvidedTypeClass(thread, type)
+      (type) -> {
+        type.mutability = thread.mutability();
+        return new LarkyProvidedTypeClass(thread, type);
+      }
     );
   }
 
@@ -210,6 +217,11 @@ final public class LarkyTypeObject implements LarkyType {
   @Override
   public Origin getOrigin() {
     return this.origin;
+  }
+
+  @Override
+  public boolean isFrozenType() {
+    return origin != Origin.LARKY || (mutability != null && mutability.isFrozen());
   }
 
   @Override
