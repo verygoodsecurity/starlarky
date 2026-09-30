@@ -10,6 +10,7 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
@@ -71,15 +72,17 @@ public interface Result extends StarlarkValue, Comparable<Result> {
   @StarlarkMethod(name = "map", parameters = {
     @Param(name = "func")
   }, allowReturnNones = true, useStarlarkThread = true)
-  default <T> Result map(StarlarkCallable func, StarlarkThread thread) {
+  default <T> Result map(StarlarkCallable func, StarlarkThread thread) throws InterruptedException {
     if(!isOk()) {
       return this;
     }
 
+    int stackSize = StarlarkEvalWrapper.callStackSize(thread);
     try {
       final Object res = Starlark.call(thread, func, Tuple.of(getValue()), Dict.empty());
       return of(res, thread);
-    } catch (EvalException | Starlark.UncheckedEvalException | InterruptedException e) {
+    } catch (EvalException | Starlark.UncheckedEvalException e) {
+      StarlarkEvalWrapper.unwindCallStack(thread, stackSize);
       return error(e, thread);
     }
   }
@@ -87,11 +90,13 @@ public interface Result extends StarlarkValue, Comparable<Result> {
   @StarlarkMethod(name = "flatmap", parameters = {
     @Param(name = "func")
   }, allowReturnNones = true, useStarlarkThread = true)
-  default <T> Result flatMap(StarlarkCallable func, StarlarkThread thread) {
+  default <T> Result flatMap(StarlarkCallable func, StarlarkThread thread) throws InterruptedException {
     if(this.isOk()) {
+      int stackSize = StarlarkEvalWrapper.callStackSize(thread);
       try {
         return ok(Starlark.call(thread, func, Tuple.of(getValue()), Dict.empty()));
-      } catch (EvalException | Starlark.UncheckedEvalException | InterruptedException e) {
+      } catch (EvalException | Starlark.UncheckedEvalException e) {
+        StarlarkEvalWrapper.unwindCallStack(thread, stackSize);
         return error(e, thread);
       }
     }

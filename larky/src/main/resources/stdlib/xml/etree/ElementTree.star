@@ -1067,7 +1067,7 @@ def _namespaces(elem, default_namespace=None):
             prefix = namespaces.get(uri)
             # print("uri", uri, "tag", tag, "prefix", prefix, " for qname", qname, ". current ns map: ", namespaces)
             if prefix == None:
-                prefix = _namespace_map.get(uri)
+                prefix = _JXML._namespace_map().get(uri)
                 if prefix == None:
                     prefix = "ns%d" % len(namespaces)
                 if prefix != "xml":
@@ -1406,7 +1406,9 @@ _serialize = {
 }
 
 
-_namespace_map = _JXML._namespace_map()
+# The namespace registry: call it for this evaluation's map (Python's
+# _namespace_map is a module-level dict). Scripts don't share it.
+_namespace_map = _JXML._namespace_map
 
 
 def register_namespace(prefix, uri):
@@ -1423,7 +1425,7 @@ def register_namespace(prefix, uri):
     """
     # if re.match(r"ns\d+$", prefix):
     #     return Error("ValueError: Prefix format reserved for internal use")
-    _namespace_map.register_namespace(prefix, uri)
+    _JXML._namespace_map().register_namespace(prefix, uri)
 
 
 def _raise_serialization_error(text):
@@ -2369,7 +2371,7 @@ def C14NWriterTarget(write,
         # Stack with user declared namespace prefixes as (uri, prefix) pairs.
         self._ns_stack = []
         if not rewrite_prefixes:
-            self._ns_stack.append(list(_namespace_map.items()))
+            self._ns_stack.append(list(_JXML._namespace_map().items()))
         self._ns_stack.append([])
         self._prefix_map = {}
         self._preserve_space = [False]

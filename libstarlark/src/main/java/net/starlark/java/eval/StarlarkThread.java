@@ -163,6 +163,8 @@ public final class StarlarkThread {
     }
   }
 
+  private boolean interrupted;
+
   /**
    * Disables polling of the {@link java.lang.Thread#interrupted} flag during Starlark evaluation.
    */
@@ -174,9 +176,17 @@ public final class StarlarkThread {
   }
 
   void checkInterrupt() throws InterruptedException {
-    if (interruptible && Thread.interrupted()) {
+    // VGS: Thread.interrupted() clears the flag, so remember the interrupt; every later check
+    // fails even if a script caught the first InterruptedException.
+    if (interrupted || (interruptible && Thread.interrupted())) {
+      interrupted = true;
       throw new InterruptedException();
     }
+  }
+
+  /** VGS: the number of frames on the call stack, for callers that recover from an error. */
+  int callStackSize() {
+    return callstack.size();
   }
 
   /**
