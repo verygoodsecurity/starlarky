@@ -526,6 +526,9 @@ public final class PythonBuiltins {
         }),
     })
   public int hash(Object value) throws EvalException {
+    if (value instanceof StarlarkValue v) {
+      v.checkHashable(); // bytearray is unhashable, as in Python
+    }
     return value.hashCode();
   }
 
