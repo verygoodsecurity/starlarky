@@ -24,6 +24,7 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.eval.UserDefinedFunction;
 
 
 /**
@@ -114,14 +115,17 @@ public final class LarkyGlobals {
       parameters = {
           @Param(
               name = "function",
-              doc = "The function to invoke when the struct is called"
+              doc = "The function to invoke when the struct is called",
+              allowedTypes = {
+                  @ParamType(type = UserDefinedFunction.class),
+              }
           )
       },
       extraPositionals = @Param(name = "args"),
       extraKeywords =
       @Param(name = "kwargs", defaultValue = "{}", doc = "Dictionary of arguments.")
   )
-  public Partial partial(StarlarkFunction function, Tuple args, Dict<String, Object> kwargs) {
+  public Partial partial(UserDefinedFunction function, Tuple args, Dict<String, Object> kwargs) {
     return Partial.create(function, args, kwargs);
   }
 

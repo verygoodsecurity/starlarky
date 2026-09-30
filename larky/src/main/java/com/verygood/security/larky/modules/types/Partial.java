@@ -5,17 +5,18 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
-import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.eval.UserDefinedFunction;
 
 import lombok.Builder;
 
 @Builder
 public class Partial implements StarlarkCallable {
 
-  private final StarlarkFunction method;
+  // Support both StarlarkFunction (tree-walking) and BytecodeFunction (bytecode)
+  private final UserDefinedFunction method;
   private final Tuple func_args;
   private final Dict<String, Object> func_kwargs;
   private final String methodName;
@@ -25,7 +26,7 @@ public class Partial implements StarlarkCallable {
   private static class PartialBuilder {
   }
 
-  public static Partial create(StarlarkFunction func,
+  public static Partial create(UserDefinedFunction func,
                                Tuple args,
                                Dict<String, Object> kwargs) {
     return Partial.builder()
@@ -36,7 +37,7 @@ public class Partial implements StarlarkCallable {
              .build();
   }
 
-  private static String generateMethodName(StarlarkFunction func, Tuple args, Dict<String, Object> kwargs) {
+  private static String generateMethodName(UserDefinedFunction func, Tuple args, Dict<String, Object> kwargs) {
     // This allows us to cache the method name string so we do not calculate it
     // in getName() everytime
     int arg_size = args.size();

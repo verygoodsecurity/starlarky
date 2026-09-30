@@ -328,6 +328,8 @@ public final class StarlarkThread {
             env.put(binding.getName(), local);
           }
         }
+      } else if (fn instanceof BytecodeFunction bcfn) {
+        bcfn.addDebugLocals(env, locals, loc);
       }
       // TODO(https://github.com/bazelbuild/bazel/issues/24931): comprehension variables are stored
       // in their enclosing function's locals, and can shadow the function's proper local variables
@@ -534,6 +536,21 @@ public final class StarlarkThread {
       // We compare code, not closure values, otherwise one can defeat the
       // check by writing the Y combinator.
       if (fr.fn instanceof StarlarkFunction && ((StarlarkFunction) fr.fn).rfn.equals(fn.rfn)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Reports whether {@code fn} has been recursively reentered within this thread. */
+  boolean isRecursiveCall(BytecodeFunction fn) {
+    // Find fn buried within stack. (The top of the stack is assumed to be fn.)
+    for (int i = callstack.size() - 2; i >= 0; --i) {
+      Frame fr = callstack.get(i);
+      // We compare code (bytecode chunk), not closure values, otherwise one can defeat the
+      // check by writing the Y combinator.
+      if (fr.fn instanceof BytecodeFunction
+          && ((BytecodeFunction) fr.fn).getChunk().equals(fn.getChunk())) {
         return true;
       }
     }
