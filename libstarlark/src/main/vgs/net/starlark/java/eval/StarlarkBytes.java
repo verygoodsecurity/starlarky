@@ -61,7 +61,8 @@ public class StarlarkBytes implements ByteStringModuleApi,
       name = "bytearray",
       category = "core",
       doc = "A mutable sequence of values in the range 0-255.")
-  public static class StarlarkByteArray extends StarlarkBytes implements Mutability.Freezable {
+  public static class StarlarkByteArray extends StarlarkBytes
+      implements Mutability.Freezable, StarlarkSetIndexable {
 
     private StarlarkByteArray(StarlarkBytes bytes) {
       super(bytes.mutability, bytes.delegate);
@@ -101,6 +102,23 @@ public class StarlarkBytes implements ByteStringModuleApi,
     @Override
     public Mutability mutability() {
       return mutability;
+    }
+
+    /** {@code b[i] = v}: sets the byte at {@code i}, as in Python. */
+    @Override
+    public void setIndex(StarlarkSemantics semantics, Object key, Object value)
+        throws EvalException {
+      Starlark.checkMutable(this);
+      int index = EvalUtils.getSequenceIndex(Starlark.toInt(key, "bytearray index"), size());
+      if (!(value instanceof StarlarkInt v)) {
+        throw Starlark.errorf(
+            "bytearray item assignment: got %s, want int", Starlark.type(value));
+      }
+      int b = v.toInt("bytearray item");
+      if (b < 0 || b > 255) {
+        throw Starlark.errorf("byte must be in range(0, 256)");
+      }
+      this.delegate.setValue(index, (byte) b);
     }
 
     /** Throws unless this bytearray may be changed now: not frozen and not being iterated. */

@@ -37,7 +37,8 @@ public final class StarlarkByteArrayTest {
           "B.insert(0, b'x')",
           "B.clear()",
           "B.pop()",
-          "B.remove(65)");
+          "B.remove(65)",
+          "B[0] = 90");
 
   /** Runs {@code code} with {@code B} bound to {@code b}, on a thread with its own Mutability. */
   private static Module exec(StarlarkByteArray b, String... lines) throws Exception {
@@ -133,5 +134,22 @@ public final class StarlarkByteArrayTest {
     assertThat(repr(b)).isEqualTo("b\"B\"");
     EvalException e = assertThrows(EvalException.class, () -> exec(b, "B.pop(5)"));
     assertThat(e).hasMessageThat().contains("out of range");
+  }
+
+  @Test
+  public void itemAssignmentSetsAByte() throws Exception {
+    StarlarkByteArray b =
+        StarlarkByteArray.of(Mutability.create("m"), (byte) 'A', (byte) 'B', (byte) 'C');
+    Module module = exec(b, "B[0] = 0xff", "B[-1] = 90", "x = B[0]");
+    assertThat(b.getUnsignedBytes()).asList().containsExactly(255, 66, 90).inOrder();
+    assertThat(module.getGlobal("x")).isEqualTo(StarlarkInt.of(255));
+
+    EvalException e = assertThrows(EvalException.class, () -> exec(b, "B[3] = 1"));
+    assertThat(e).hasMessageThat().contains("out of range");
+    e = assertThrows(EvalException.class, () -> exec(b, "B[0] = 256"));
+    assertThat(e).hasMessageThat().contains("byte must be in range(0, 256)");
+    e = assertThrows(EvalException.class, () -> exec(b, "B[0] = b'x'"));
+    assertThat(e).hasMessageThat().contains("got bytes, want int");
+    assertThat(b.getUnsignedBytes()).asList().containsExactly(255, 66, 90).inOrder();
   }
 }
