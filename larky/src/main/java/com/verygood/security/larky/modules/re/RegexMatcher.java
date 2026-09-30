@@ -20,6 +20,7 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.Tuple;
 
 public class RegexMatcher implements StarlarkValue {
   // This is only non-final because match() function has to modify the pattern region matcher
@@ -211,6 +212,19 @@ public class RegexMatcher implements StarlarkValue {
   )
   public StarlarkInt groupCount() {
     return StarlarkInt.of(matcher.groupCount());
+  }
+
+  @StarlarkMethod(
+      name = "groups",
+      doc = "Returns a tuple of all the subgroups of the match (None for a group that did not "
+          + "participate in the match).")
+  public Tuple groups() {
+    Object[] groups = new Object[matcher.groupCount()];
+    for (int i = 0; i < groups.length; i++) {
+      String g = matcher.group(i + 1);
+      groups[i] = g == null ? Starlark.NONE : g;
+    }
+    return Tuple.of(groups);
   }
 
   @StarlarkMethod(

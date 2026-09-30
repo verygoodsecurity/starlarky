@@ -79,7 +79,28 @@ public class RegexPattern implements StarlarkValue {
       })
   public static RegexPattern compile(String regex, StarlarkInt flags) {
     int flag = flags.toIntUnchecked();
-    return new RegexPattern().pattern(Pattern.compile(regex, flag));
+    return new RegexPattern().pattern(compiled(regex, flag));
+  }
+
+  private record CompileKey(String regex, int flags) {}
+
+  // Compiled patterns by source and flags: re.match(pattern_string, ...) and the other
+  // module-level functions compile their pattern on every call. re2j Patterns are immutable and
+  // thread-safe; the cache is bounded by the total length of the patterns, which come from scripts.
+  private static final com.google.common.cache.Cache<CompileKey, Pattern> COMPILED =
+      com.google.common.cache.CacheBuilder.newBuilder()
+          .maximumWeight(1 << 20)
+          .<CompileKey, Pattern>weigher((key, pattern) -> key.regex().length() + 1)
+          .build();
+
+  private static Pattern compiled(String regex, int flags) {
+    CompileKey key = new CompileKey(regex, flags);
+    Pattern pattern = COMPILED.getIfPresent(key);
+    if (pattern == null) {
+      pattern = Pattern.compile(regex, flags); // throws for an invalid pattern, which is not cached
+      COMPILED.put(key, pattern);
+    }
+    return pattern;
   }
 
   @StarlarkMethod(
