@@ -188,16 +188,24 @@ final class StringModule implements StarlarkValue {
   @StarlarkMethod(
       name = "lower",
       doc = "Returns the lower case version of this string.",
-      parameters = {@Param(name = "self")})
-  public String lower(String self) {
+      parameters = {@Param(name = "self")},
+      useStarlarkThread = true)
+  public String lower(String self, StarlarkThread thread) {
+    if (PythonStrings.unicode(thread)) {
+      return PythonStrings.lower(self); // VGS: Python's Unicode rules
+    }
     return Ascii.toLowerCase(self);
   }
 
   @StarlarkMethod(
       name = "upper",
       doc = "Returns the upper case version of this string.",
-      parameters = {@Param(name = "self")})
-  public String upper(String self) {
+      parameters = {@Param(name = "self")},
+      useStarlarkThread = true)
+  public String upper(String self, StarlarkThread thread) {
+    if (PythonStrings.unicode(thread)) {
+      return PythonStrings.upper(self); // VGS: Python's Unicode rules
+    }
     return Ascii.toUpperCase(self);
   }
 
@@ -349,7 +357,9 @@ final class StringModule implements StarlarkValue {
         ? CharMatcher.anyOf((String) charsOrNone)
         : (starlarkSemantics.getBool(StarlarkSemantics.INTERNAL_BAZEL_ONLY_UTF_8_BYTE_STRINGS)
             ? ASCII_WHITESPACE
-            : LATIN1_WHITESPACE);
+            : PythonStrings.unicode(starlarkSemantics)
+                ? PythonStrings.WHITESPACE // VGS: Python's whitespace
+                : LATIN1_WHITESPACE);
   }
 
   @StarlarkMethod(
@@ -540,8 +550,12 @@ final class StringModule implements StarlarkValue {
       doc =
           "Returns a copy of the string with its first character (if any) capitalized and the rest "
               + "lowercased. This method does not support non-ascii characters. ",
-      parameters = {@Param(name = "self", doc = "This string.")})
-  public String capitalize(String self) throws EvalException {
+      parameters = {@Param(name = "self", doc = "This string.")},
+      useStarlarkThread = true)
+  public String capitalize(String self, StarlarkThread thread) throws EvalException {
+    if (PythonStrings.unicode(thread)) {
+      return PythonStrings.capitalize(self); // VGS: Python's Unicode rules
+    }
     if (self.isEmpty()) {
       return self;
     }
@@ -556,8 +570,12 @@ final class StringModule implements StarlarkValue {
               + "uppercase letter while the remaining letters are lowercase. In this "
               + "context, a word means strictly a sequence of letters. This method does "
               + "not support supplementary Unicode characters.",
-      parameters = {@Param(name = "self", doc = "This string.")})
-  public String title(String self) throws EvalException {
+      parameters = {@Param(name = "self", doc = "This string.")},
+      useStarlarkThread = true)
+  public String title(String self, StarlarkThread thread) throws EvalException {
+    if (PythonStrings.unicode(thread)) {
+      return PythonStrings.title(self); // VGS: Python's Unicode rules
+    }
     char[] data = self.toCharArray();
     boolean previousWasLetter = false;
 
@@ -627,8 +645,13 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position before which to restrict to search.")
-      })
-  public int rfind(String self, String sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public int rfind(String self, String sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
+      return -1; // VGS: Python's start > end
+    }
     return stringFind(false, self, sub, start, end);
   }
 
@@ -657,8 +680,13 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position before which to restrict to search.")
-      })
-  public int find(String self, String sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public int find(String self, String sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
+      return -1; // VGS: Python's start > end
+    }
     return stringFind(true, self, sub, start, end);
   }
 
@@ -687,8 +715,13 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position before which to restrict to search.")
-      })
-  public int rindex(String self, String sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public int rindex(String self, String sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
+      throw Starlark.errorf("substring not found"); // VGS: Python's start > end
+    }
     int res = stringFind(false, self, sub, start, end);
     if (res < 0) {
       throw Starlark.errorf("substring not found");
@@ -721,8 +754,13 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position before which to restrict to search.")
-      })
-  public int index(String self, String sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public int index(String self, String sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
+      throw Starlark.errorf("substring not found"); // VGS: Python's start > end
+    }
     int res = stringFind(true, self, sub, start, end);
     if (res < 0) {
       throw Starlark.errorf("substring not found");
@@ -771,8 +809,12 @@ final class StringModule implements StarlarkValue {
       doc =
           "Returns True if all characters in the string are alphabetic ([a-zA-Z]) and there is "
               + "at least one character.",
-      parameters = {@Param(name = "self", doc = "This string.")})
-  public boolean isAlpha(String self) throws EvalException {
+      parameters = {@Param(name = "self", doc = "This string.")},
+      useStarlarkThread = true)
+  public boolean isAlpha(String self, StarlarkThread thread) throws EvalException {
+    if (PythonStrings.unicode(thread)) {
+      return PythonStrings.isAlpha(self); // VGS: Python's Unicode rules
+    }
     return matches(self, ALPHA, false);
   }
 
@@ -781,8 +823,12 @@ final class StringModule implements StarlarkValue {
       doc =
           "Returns True if all characters in the string are alphanumeric ([a-zA-Z0-9]) and there "
               + "is at least one character.",
-      parameters = {@Param(name = "self", doc = "This string.")})
-  public boolean isAlnum(String self) throws EvalException {
+      parameters = {@Param(name = "self", doc = "This string.")},
+      useStarlarkThread = true)
+  public boolean isAlnum(String self, StarlarkThread thread) throws EvalException {
+    if (PythonStrings.unicode(thread)) {
+      return PythonStrings.isAlnum(self); // VGS: Python's Unicode rules
+    }
     return matches(self, ALNUM, false);
   }
 
@@ -791,8 +837,12 @@ final class StringModule implements StarlarkValue {
       doc =
           "Returns True if all characters in the string are digits ([0-9]) and there is "
               + "at least one character.",
-      parameters = {@Param(name = "self", doc = "This string.")})
-  public boolean isDigit(String self) throws EvalException {
+      parameters = {@Param(name = "self", doc = "This string.")},
+      useStarlarkThread = true)
+  public boolean isDigit(String self, StarlarkThread thread) throws EvalException {
+    if (PythonStrings.unicode(thread)) {
+      return PythonStrings.isDigit(self); // VGS: Python's Unicode rules
+    }
     return matches(self, DIGIT, false);
   }
 
@@ -801,8 +851,12 @@ final class StringModule implements StarlarkValue {
       doc =
           "Returns True if all characters are white space characters and the string "
               + "contains at least one character.",
-      parameters = {@Param(name = "self", doc = "This string.")})
-  public boolean isSpace(String self) throws EvalException {
+      parameters = {@Param(name = "self", doc = "This string.")},
+      useStarlarkThread = true)
+  public boolean isSpace(String self, StarlarkThread thread) throws EvalException {
+    if (PythonStrings.unicode(thread)) {
+      return PythonStrings.isSpace(self); // VGS: Python's Unicode rules
+    }
     return matches(self, SPACE, false);
   }
 
@@ -811,8 +865,12 @@ final class StringModule implements StarlarkValue {
       doc =
           "Returns True if all cased characters in the string are lowercase and there is "
               + "at least one character.",
-      parameters = {@Param(name = "self", doc = "This string.")})
-  public boolean isLower(String self) throws EvalException {
+      parameters = {@Param(name = "self", doc = "This string.")},
+      useStarlarkThread = true)
+  public boolean isLower(String self, StarlarkThread thread) throws EvalException {
+    if (PythonStrings.unicode(thread)) {
+      return PythonStrings.isLower(self); // VGS: Python's Unicode rules
+    }
     // Python also accepts non-cased characters, so we cannot use LOWER.
     return matches(self, UPPER.negate(), true);
   }
@@ -822,8 +880,12 @@ final class StringModule implements StarlarkValue {
       doc =
           "Returns True if all cased characters in the string are uppercase and there is "
               + "at least one character.",
-      parameters = {@Param(name = "self", doc = "This string.")})
-  public boolean isUpper(String self) throws EvalException {
+      parameters = {@Param(name = "self", doc = "This string.")},
+      useStarlarkThread = true)
+  public boolean isUpper(String self, StarlarkThread thread) throws EvalException {
+    if (PythonStrings.unicode(thread)) {
+      return PythonStrings.isUpper(self); // VGS: Python's Unicode rules
+    }
     // Python also accepts non-cased characters, so we cannot use UPPER.
     return matches(self, LOWER.negate(), true);
   }
@@ -835,8 +897,12 @@ final class StringModule implements StarlarkValue {
               + "This means that every uppercase character must follow an uncased one (e.g. "
               + "whitespace) and every lowercase character must follow a cased one (e.g. "
               + "uppercase or lowercase).",
-      parameters = {@Param(name = "self", doc = "This string.")})
-  public boolean isTitle(String self) throws EvalException {
+      parameters = {@Param(name = "self", doc = "This string.")},
+      useStarlarkThread = true)
+  public boolean isTitle(String self, StarlarkThread thread) throws EvalException {
+    if (PythonStrings.unicode(thread)) {
+      return PythonStrings.isTitle(self); // VGS: Python's Unicode rules
+    }
     if (self.isEmpty()) {
       return false;
     }
@@ -920,8 +986,13 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position before which to restrict to search.")
-      })
-  public int count(String self, String sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public int count(String self, String sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
+      return 0; // VGS: Python's start > end
+    }
     long indices = substringIndices(self, start, end);
     if (sub.isEmpty()) {
       return hi(indices) - lo(indices) + 1; // str.length() + 1
@@ -988,8 +1059,14 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position at which to stop comparing.")
-      })
-  public boolean endsWith(String self, Object sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public boolean endsWith(
+      String self, Object sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, sub, start, end)) {
+      return false; // VGS: Python's start > end
+    }
     long indices = substringIndices(self, start, end);
     if (sub instanceof String) {
       return substringEndsWith(self, lo(indices), hi(indices), (String) sub);
@@ -1070,9 +1147,14 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "Stop comparing at this position.")
-      })
-  public boolean startsWith(String self, Object sub, Object start, Object end)
+      },
+      useStarlarkThread = true)
+  public boolean startsWith(
+      String self, Object sub, Object start, Object end, StarlarkThread thread)
       throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, sub, start, end)) {
+      return false; // VGS: Python's start > end
+    }
     long indices = substringIndices(self, start, end);
     if (sub instanceof String) {
       return substringStartsWith(self, lo(indices), hi(indices), (String) sub);
