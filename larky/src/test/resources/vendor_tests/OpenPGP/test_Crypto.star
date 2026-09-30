@@ -97,6 +97,46 @@ def TestMessageVerification_testSignAndSHA384EncryptDecryptMessage():
     asserts.assert_that(decrypted[1].data).is_equal_to(b"This is text.")
 
 
+
+# RFC 4880 MPIs carry no leading zero bytes, but an RSA signature or encrypted
+# session key is a fixed-length string that starts with one about once in 256
+# times. OpenPGP.time() is constant, so signing is deterministic: with helloKey,
+# "This is text 144." is signed with a leading zero byte.
+def TestMessageVerification_testSignatureWithLeadingZeroByte():
+    wkey = OpenPGP.Message.parse(get_file_contents("helloKey.gpg"))
+    pgp = Crypto.Wrapper(wkey)
+    k = pgp.private_key().size_in_bytes()
+    data = OpenPGP.LiteralDataPacket("This is text 144.", "u", "stuff.txt")
+    reparsedM = OpenPGP.Message.parse(pgp.sign(data).to_bytes())
+    # the signature MPI is shorter than the modulus: the case under test
+    asserts.assert_that(len(reparsedM.signatures()[0][1][0].data[0])).is_less_than(k)
+    asserts.assert_that(pgp.verify(reparsedM)).is_equal_to(reparsedM.signatures())
+
+
+def _session_key_block(k, seed):
+    """A PKCS#1 v1.5 encryption block for a session key, with filler chosen by seed."""
+    sk = bytes([(7 * t + 3) % 256 for t in range(32)])
+    m = pack("!B", 9) + sk + pack("!H", OpenPGP.checksum(sk))
+    ps = bytes([(seed + 13 * t) % 255 + 1 for t in range(k - 3 - len(m))])
+    return b"\x00\x02" + ps + b"\x00" + m, sk
+
+
+def TestDecryption_testSessionKeyWithLeadingZeroByte():
+    pgp = Crypto.Wrapper(OpenPGP.Message.parse(get_file_contents("helloKey.gpg")))
+    key = pgp.private_key()
+    k = key.size_in_bytes()
+    # with helloKey's public key, filler seed 34 encrypts to a string starting with 0
+    em, sk = _session_key_block(k, 34)
+    c = number.long_to_bytes(pow(number.bytes_to_long(em), key.e, key.n), k)
+    asserts.assert_that(c[0]).is_equal_to(0)
+    # as an MPI (e.g. read from an AsymmetricSessionKeyPacket), without the zero
+    asserts.assert_that(pgp.try_decrypt_session(key, c[1:])).is_equal_to((9, sk))
+    # encrypting a message produces a session key packet that decrypts, whatever its first byte
+    encrypted = Crypto.Wrapper(OpenPGP.LiteralDataPacket("hi", "u", "f.txt")).encrypt(
+        OpenPGP.Message.parse(get_file_contents("helloKey.gpg")))
+    asserts.assert_that(pgp.decrypt(encrypted)[0].data).is_equal_to(b"hi")
+
+
 def TestMessageVerification_testSigningMessagesDSA():
     wkey = OpenPGP.Message.parse(
         get_file_contents("secring.gpg")
@@ -256,6 +296,8 @@ def _testsuite():
     _suite.addTest(
         unittest.FunctionTestCase(TestMessageVerification_testSignAndSHA384EncryptDecryptMessage)
     )
+    _suite.addTest(unittest.FunctionTestCase(TestMessageVerification_testSignatureWithLeadingZeroByte))
+    _suite.addTest(unittest.FunctionTestCase(TestDecryption_testSessionKeyWithLeadingZeroByte))
 
     # 👇FAILS BUT WILL PASS WITH DSA 👇
     # _suite.addTest(
