@@ -543,7 +543,7 @@ def T_test_indent_level():
 # load("@stdlib//builtins", "builtins")
 
 def test_namespace_prefix():
-    nsmap = ET._namespace_map.items()
+    nsmap = ET._namespace_map().items()
     ET.register_namespace('soap', 'http://www.w3.org/2003/05/soap-envelope')
     ET.register_namespace('xsi', 'http://www.w3.org/2001/XMLSchema-instance')
     ET.register_namespace('xsd', 'http://www.w3.org/2001/XMLSchema')
@@ -606,8 +606,8 @@ def test_namespace_prefix():
 </soap:Envelope>"""
     actual = ET.tostring(root, xml_declaration=True, encoding="UTF-8")
     asserts.assert_that(expected).is_equal_to(actual)
-    ET._namespace_map.clear()
-    ET._namespace_map.update(nsmap)
+    ET._namespace_map().clear()
+    ET._namespace_map().update(nsmap)
 
 def test_parse_and_getroot():
     data = """<?xml version="1.0" encoding="utf-8"?><site></site>"""
