@@ -100,6 +100,32 @@ public final class BytecodeChunk {
     return a;
   }
 
+  /** Rebuilds a chunk from its serialized parts (see {@link ChunkCodec}). */
+  static BytecodeChunk restore(
+      String name,
+      ConstantPool constantPool,
+      List<Instruction> instructions,
+      int localCount,
+      int parameterCount,
+      List<String> parameterNames,
+      List<String> localNames,
+      List<ComprehensionScope> localScopes,
+      List<Integer> lineNumbers,
+      List<Integer> columnNumbers) {
+    return new BytecodeChunk(
+        name,
+        constantPool,
+        instructions,
+        localCount,
+        parameterCount,
+        parameterNames,
+        localNames,
+        localScopes,
+        lineNumbers,
+        columnNumbers,
+        true);
+  }
+
   public String getName() {
     return name;
   }
