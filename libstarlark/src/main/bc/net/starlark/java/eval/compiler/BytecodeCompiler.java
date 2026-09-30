@@ -206,9 +206,13 @@ public final class BytecodeCompiler {
         visit((LoadStatement) stmt);
         break;
       case TYPE_ALIAS:
+        // Binds the alias to its type constructor if the program has a type table (Eval's
+        // execTypeAlias).
+        Identifier alias = ((TypeAliasStatement) stmt).getIdentifier();
+        emitAt(stmt.getStartLocation(), Opcode.TYPE_ALIAS, builder.addConstant(alias));
+        break;
       case VAR:
-        // Without a type table (typed programs run on the tree-walker), these have no runtime
-        // effect, as in Eval.
+        // No runtime effect, as in Eval.
         break;
       default:
         throw new UnsupportedOperationException("Unsupported statement: " + stmt.kind());
@@ -558,6 +562,7 @@ public final class BytecodeCompiler {
         localCount,
         freevarInfos,
         cellIndices);
+    descriptor.setResolvedFunction(resolvedFunc);
 
     // Store descriptor as constant and emit MAKE_FUNCTION with default count
     int descriptorIndex = builder.addConstant(descriptor);

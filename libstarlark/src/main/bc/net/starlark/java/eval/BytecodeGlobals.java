@@ -18,6 +18,7 @@ import java.util.AbstractMap;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import net.starlark.java.syntax.TypeTable;
 
 /**
  * The global namespace of a file executed by a bytecode VM: a live view of the {@link Module}'s
@@ -32,10 +33,23 @@ final class BytecodeGlobals extends AbstractMap<String, Object> {
 
   private final Module module;
   private final Map<String, Object> builtins;
+  // The type table of the program whose code runs in this namespace, or null if it is untyped.
+  @Nullable private final TypeTable typeTable;
 
   BytecodeGlobals(Module module, Map<String, Object> builtins) {
+    this(module, builtins, null);
+  }
+
+  BytecodeGlobals(Module module, Map<String, Object> builtins, @Nullable TypeTable typeTable) {
     this.module = module;
     this.builtins = builtins;
+    this.typeTable = typeTable;
+  }
+
+  /** Returns the type table of the program running in a VM globals map, or null. */
+  @Nullable
+  static TypeTable typeTableOf(Map<String, Object> globals) {
+    return globals instanceof BytecodeGlobals g ? g.typeTable : null;
   }
 
   @Override
