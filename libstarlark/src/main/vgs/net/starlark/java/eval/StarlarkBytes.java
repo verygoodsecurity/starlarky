@@ -320,17 +320,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
     @Override
     public @Nullable Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
-      Object rval;
-      if (op == TokenKind.PLUS) {
-        if (that instanceof StarlarkBytes || that instanceof StarlarkList) {
-          if (thisLeft) {
-            rval = BinaryOperations.add(this, that, this.mutability);
-          } else {
-            rval = BinaryOperations.add(that, this, this.mutability);
-          }
-        }
-      }
-      rval = super.binaryOp(op, that, thisLeft);
+      Object rval = super.binaryOp(op, that, thisLeft);
       if (rval == null) {
         return rval;
       }
@@ -1354,8 +1344,8 @@ public class StarlarkBytes implements ByteStringModuleApi,
         }
         return null;
       case PLUS:
-        if (!(that instanceof StarlarkBytes || that instanceof StarlarkList)) {
-          return null; // unsupported binary operation
+        if (!(that instanceof StarlarkBytes)) {
+          return null; // unsupported binary operation: bytes + bytes only, as in the spec
         }
         if (thisLeft) {
           return BinaryOperations.add(this, that, this.mutability);
@@ -1374,20 +1364,9 @@ public class StarlarkBytes implements ByteStringModuleApi,
      * Add right to left (i.e. [1] + [2] = [1, 2])
      */
     static public StarlarkBytes add(Object left, Object right, Mutability mutability) throws EvalException {
-      StarlarkBytes left_ = toStarlarkByte(left, mutability);
-      StarlarkBytes right_ = toStarlarkByte(right, mutability);
+      StarlarkBytes left_ = (StarlarkBytes) left;
+      StarlarkBytes right_ = (StarlarkBytes) right;
       return wrap(mutability, ByteList.copy("").join(left_.delegate, right_.delegate));
-    }
-
-    private static StarlarkBytes toStarlarkByte(Object item, Mutability mutability) throws EvalException {
-      if (item instanceof StarlarkList) {
-        Sequence<StarlarkInt> cast = Sequence.cast(
-          item,
-          StarlarkInt.class,
-          "Attempted to add list of non-Integer type to a bytearray");
-        return StarlarkBytes.copyOf(mutability, cast);
-      }
-      return (StarlarkBytes) item;
     }
   }
 
