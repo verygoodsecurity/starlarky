@@ -24,7 +24,11 @@ def VGSHttpRequest(
     headers={},
     method=None
 ):
-    super = urllib_request.Request(url)
+    # Request initializes the url (parsed once), data and method; the rest of this function only
+    # adds what differs from urllib's Request. (This used to build the Request, then run its
+    # __init__ again and re-parse the url twice; test_default_request_same_as_legacy.star checks
+    # that the object is the same.)
+    super = urllib_request.Request(url, data=data, method=method)
 
     self = super
     self.__name__ = "VGSHttpRequest"
@@ -69,27 +73,10 @@ def VGSHttpRequest(
         self.unredirected_hdrs[key] = val
     self.add_unredirected_header = add_unredirected_header
 
-    def __init__(
-        url,
-        data=None,
-        headers={},
-        method=None
-    ):
-        # We want the "base class" to initialize headers, then after
-        # it takes care of all the initialization, we then, overwrite
-        # the headers property to make it into a Case Insensitive "MultiDict"
-        self.__init__(url, data=data, headers={}, method=method)
-        self.headers = VGSCIMultiDict(headers)
-        self.url = url
-        parsed_url = parse.urlsplit(url)
-        self.path = parsed_url.path
-        self.query_string = parsed_url.query
-        if method:
-            self.method = method
-
-        return self
-
-    self = __init__(url, data, headers, method)
+    self._headers = VGSCIMultiDict(headers)
+    parsed_url = parse.urlsplit(url)
+    self.path = parsed_url.path
+    self.query_string = parsed_url.query
 
     return self
 
