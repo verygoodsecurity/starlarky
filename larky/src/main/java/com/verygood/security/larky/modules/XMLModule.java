@@ -17,6 +17,6 @@ public class XMLModule implements StarlarkValue {
 
   @StarlarkMethod(name="_namespace_map", useStarlarkThread = true)
   public LarkyXMLNamespaceContext namespaceMap(StarlarkThread thread) {
-    return LarkyXMLNamespaceContext.withThread(thread);
+    return LarkyXMLNamespaceContext.forThread(thread);
   }
 }
