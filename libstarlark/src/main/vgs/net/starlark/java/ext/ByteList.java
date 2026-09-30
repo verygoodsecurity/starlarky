@@ -87,14 +87,15 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
       "\u0009" + (char) 0x0A + "\u000B" + "\u000C" + (char) 0x0D + "\u0020"
     ).getBytes(StandardCharsets.US_ASCII);
 
+    /** Whether the byte {@code ch} (signed or unsigned) is ASCII whitespace, as in Python. */
     @Override
     public boolean test(int ch) {
-      if (ch > 0x0020) return false;
-      long isspace = 1;
-      for (byte b : PY_CTF_SPACE) {
-        isspace |= (1L << b);
+      switch (ch & 0xFF) {
+        case 0x09: case 0x0A: case 0x0B: case 0x0C: case 0x0D: case 0x20:
+          return true;
+        default:
+          return false;
       }
-      return ((isspace >> ch) & 1L) != 0;
     }
   }
 
