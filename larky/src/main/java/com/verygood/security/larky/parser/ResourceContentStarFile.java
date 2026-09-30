@@ -84,7 +84,21 @@ public class ResourceContentStarFile implements StarFile {
     return moduleToLoad.startsWith(STDLIB) || moduleToLoad.startsWith(VENDOR) || moduleToLoad.startsWith(VGS);
   }
 
+  // Module paths by load label: matching NAMESPACE_PREFIX (re2j) on every load() was a large part
+  // of a request that loads cached modules. Labels come from scripts, so the cache is bounded.
+  private static final com.google.common.cache.Cache<String, String> MODULE_PATHS =
+      com.google.common.cache.CacheBuilder.newBuilder().maximumSize(4096).build();
+
   public static String getModulePath(String moduleToLoad) {
+    String path = MODULE_PATHS.getIfPresent(moduleToLoad);
+    if (path == null) {
+      path = matchModulePath(moduleToLoad);
+      MODULE_PATHS.put(moduleToLoad, path);
+    }
+    return path;
+  }
+
+  private static String matchModulePath(String moduleToLoad) {
     Matcher m = NAMESPACE_PREFIX.matcher(moduleToLoad);
     if(!m.find()) {
       throw new RuntimeException("Could not find match for module: " + moduleToLoad);

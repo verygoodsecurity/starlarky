@@ -160,21 +160,23 @@ public class ModuleSupplier {
   }
 
   public final ModuleSet create() {
-    return new ModuleSet(
-        ImmutableMap.<String, Object>builder()
-            .putAll(modulesToVariableMap())
-            .buildKeepingLast(),
-        getEnvironment()
-    ); // should allow overrides
+    return new ModuleSet(modulesToVariableMap(), getEnvironment()); // should allow overrides
   }
 
+  // Module sets by their contents, named: the sets are the same few static ones in every
+  // evaluation, and naming them looks up annotations.
+  private static final java.util.concurrent.ConcurrentHashMap<
+          ImmutableSet<StarlarkValue>, ImmutableMap<String, Object>>
+      NAMED_MODULE_SETS = new java.util.concurrent.ConcurrentHashMap<>();
+
   private ImmutableMap<String, Object> moduleSetAsMap(ImmutableSet<StarlarkValue> moduleSet) {
-    return moduleSet
-        .stream()
-        .collect(
-            ImmutableMap.toImmutableMap(
-                this::findClosestStarlarkBuiltinName,
-                Function.identity()));
+    return NAMED_MODULE_SETS.computeIfAbsent(
+        moduleSet,
+        set -> set.stream()
+            .collect(
+                ImmutableMap.toImmutableMap(
+                    ModuleSupplier::findClosestStarlarkBuiltinName,
+                    Function.identity())));
   }
 
   public ImmutableMap<String, Object> modulesToVariableMap() {
@@ -185,7 +187,7 @@ public class ModuleSupplier {
     return new ModuleSet(moduleSetAsMap(getModules(withTest)), getEnvironment());
   }
 
-  private String findClosestStarlarkBuiltinName(Object o) {
+  private static String findClosestStarlarkBuiltinName(Object o) {
     Class<?> cls = o.getClass();
     while (cls != null && cls != Object.class) {
       StarlarkBuiltin annotation = cls.getAnnotation(StarlarkBuiltin.class);
