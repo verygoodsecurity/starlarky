@@ -68,10 +68,9 @@ def test_bytes_index_and_iterate_as_ints():
     assert_eq(bytes([b[0], b[1]]), b)
     assert_eq(bytes(list(b)), b)
     assert_fails(lambda: b[0] + b"x", "unsupported binary operation: int \\+ bytes")
-    # Only bytes + bytes concatenates, as in the spec (and Python for lists).
+    # Only bytes + bytes concatenates, as in the spec (and Python); bytes.star covers strings.
     assert_fails(lambda: [1] + b"x", "unsupported binary operation: list \\+ bytes")
     assert_fails(lambda: b"x" + [1], "unsupported binary operation: bytes \\+ list")
-    assert_fails(lambda: b"x" + "y", "unsupported binary operation: bytes \\+ string")
 
 test_bytes_index_and_iterate_as_ints()
 
