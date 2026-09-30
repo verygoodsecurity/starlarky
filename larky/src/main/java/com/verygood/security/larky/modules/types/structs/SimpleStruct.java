@@ -217,24 +217,30 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
     return fields.get(name) != null;
   }
 
+  /**
+   * Structs compare by identity unless one of them defines {@code __eq__}, which then decides, as
+   * in Python. An error raised by {@code __eq__} propagates (as an unchecked evaluation error,
+   * since {@code equals} cannot throw {@link EvalException}) instead of reading as "not equal".
+   */
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof SimpleStruct)) {
-      return false;
-    }
     if (this == obj) {
       return true;
     }
-
-    boolean result;
+    if (!(obj instanceof SimpleStruct)) {
+      return false;
+    }
+    SimpleStruct other = (SimpleStruct) obj;
+    if (!definesSpecialMethod(PyProtocols.__EQ__) && !other.definesSpecialMethod(PyProtocols.__EQ__)) {
+      return false;
+    }
     try {
-      result = StructBinOp.richComparison(
+      return StructBinOp.richComparison(
         this, obj, PyProtocols.__EQ__, PyProtocols.__EQ__, this.getCurrentThread()
       );
     } catch (EvalException e) {
-      result = false;
+      throw StructBinOp.uncheckedEvalError(e, this.getCurrentThread());
     }
-    return result;
   }
 
   /**
@@ -264,7 +270,7 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
     try {
       return callDunderHash();
     } catch (EvalException e) {
-      throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, this.getCurrentThread());
+      throw StructBinOp.uncheckedEvalError(e, this.getCurrentThread());
     }
   }
 

@@ -24,6 +24,7 @@ import static net.starlark.java.syntax.TokenKind.STAR;
 import static net.starlark.java.syntax.TokenKind.STAR_EQUALS;
 import static net.starlark.java.syntax.TokenKind.STAR_STAR;
 
+import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.types.LarkyIterator;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.parser.StarlarkUtil;
@@ -32,6 +33,7 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.syntax.TokenKind;
@@ -42,6 +44,23 @@ public class StructBinOp {
 
   private StructBinOp() {
   } // uninstantiable
+
+  /**
+   * Wraps an error raised by a special method that Java calls through a method that cannot throw
+   * {@link EvalException} ({@code equals}, {@code hashCode}), so that it still aborts evaluation
+   * and reaches {@code safe()} with the script's own message and traceback rather than a Java
+   * exception name.
+   */
+  public static RuntimeException uncheckedEvalError(EvalException e, StarlarkThread thread) {
+    ImmutableList<StarlarkThread.CallStackEntry> callStack = e.getCallStack();
+    if (callStack.isEmpty() && thread != null) {
+      callStack = thread.getCallStack();
+    }
+    if (callStack.isEmpty() || thread == null) {
+      return new StarlarkEvalWrapper.Exc.RuntimeEvalException(e.getMessage(), e, thread);
+    }
+    return StarlarkEvalWrapper.Exc.WrappedUncheckedEvalException.of(e.getMessage(), thread, callStack);
+  }
 
   /**
    * The below does not belong in LarkyObject because LarkyObject does not dictate what operations should exist on an
