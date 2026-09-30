@@ -121,6 +121,17 @@ def _test_parse_qs_and_unquote_plus_decode_utf8():
     asserts.assert_that(parse.unquote_plus("%7e/abc+def")).is_equal_to("~/abc def")
 
 
+def _test_quote_escapes_backslashes_and_control_bytes():
+    # expected values from CPython 3's urllib.parse
+    asserts.assert_that(parse.quote("\n\t\x01 ")).is_equal_to("%0A%09%01%20")
+    asserts.assert_that(parse.quote("\\n")).is_equal_to("%5Cn")
+    asserts.assert_that(parse.quote("a\\x41")).is_equal_to("a%5Cx41")
+    asserts.assert_that(parse.quote("\\u0141")).is_equal_to("%5Cu0141")
+    asserts.assert_that(parse.quote_plus("a\\nb c")).is_equal_to("a%5Cnb+c")
+    asserts.assert_that(parse.urlencode({"k": "\\n\n"})).is_equal_to("k=%5Cn%0A")
+    asserts.assert_that(parse.quote_from_bytes(b"\x00\x0f\x10")).is_equal_to("%00%0F%10")
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_urlparse))
@@ -135,6 +146,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_unquote_decodes_utf8))
     _suite.addTest(unittest.FunctionTestCase(_test_unquote_latin1))
     _suite.addTest(unittest.FunctionTestCase(_test_parse_qs_and_unquote_plus_decode_utf8))
+    _suite.addTest(unittest.FunctionTestCase(_test_quote_escapes_backslashes_and_control_bytes))
 
     return _suite
 

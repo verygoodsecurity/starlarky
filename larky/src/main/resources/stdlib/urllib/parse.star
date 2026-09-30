@@ -43,7 +43,7 @@ scheme_chars = ('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+
 
 def _encode_result(obj, encoding=_implicit_encoding,
                         errors=_implicit_errors):
-    return codecs.encode(obj, encoding, errors)
+    return codecs.encode(obj, encoding, errors, unescape=False)
 
 def _decode_args(args, encoding=_implicit_encoding,
                        errors=_implicit_errors):
@@ -400,7 +400,8 @@ def _byte_quoter_factory(safe):
     safe = _ALWAYS_SAFE.union(sets.Set(safe))
 
     def quoter(b):
-        return chr(b) if safe.contains(b) else ('%%%X' % b)
+        # '%%%02X' % b, without Python's %-format flags
+        return chr(b) if safe.contains(b) else (('%%%X' % b) if b >= 16 else ('%%0%X' % b))
 
     return quoter
 
@@ -416,7 +417,7 @@ def quote_from_bytes(bs, safe='/'):
         return ''
     if types.is_string(safe):
         # Normalize 'safe' by converting to bytes and removing non-ASCII chars
-        safe = codecs.encode(safe, encoding='ascii', errors='ignore')
+        safe = codecs.encode(safe, encoding='ascii', errors='ignore', unescape=False)
     else:
         # List comprehensions are faster than generator expressions.
         safe = bytes([c for c in safe.elems() if c < 128])
@@ -474,7 +475,8 @@ def quote(string, safe='/', encoding=None, errors=None):
             encoding = 'utf-8'
         if errors == None:
             errors = 'strict'
-        string = codecs.encode(string, encoding=encoding, errors=errors)
+        # unescape=False: a backslash in the input is data, not an escape
+        string = codecs.encode(string, encoding=encoding, errors=errors, unescape=False)
     else:
         if encoding != None:
             return Error("TypeError: quote() doesn't support 'encoding' for bytes").unwrap()
