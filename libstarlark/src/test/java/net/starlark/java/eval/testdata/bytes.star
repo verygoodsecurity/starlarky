@@ -80,6 +80,27 @@ assert_eq(repr(goodbye), 'b"goodbye"')
 assert_eq(repr(empty), 'b""')
 assert_eq(repr(nonprinting), 'b"\\t\\n\\x7f\\u200d"')
 
+# VGS: repr of bytes, checked against starlark-go: a valid UTF-8 encoding of a printable
+# character is shown as the character, other characters as escapes, invalid bytes as \xHH.
+assert_eq(repr(bytes([0xc3, 0xa9])), 'b"é"')
+assert_eq(repr(bytes([0xe9])), 'b"\\xe9"')
+assert_eq(repr(bytes([0x22])), 'b"\\""')
+assert_eq(repr(bytes([0x5c])), 'b"\\\\"')
+assert_eq(repr(bytes([0x07])), 'b"\\a"')
+assert_eq(repr(bytes([0x0b])), 'b"\\v"')
+assert_eq(repr(bytes([0x7f])), 'b"\\x7f"')
+assert_eq(repr(bytes([0xe2, 0x80, 0x8d])), 'b"\\u200d"')
+assert_eq(repr(bytes([0xc2, 0xa0])), 'b"\\u00a0"')
+assert_eq(repr(bytes([0xf0, 0x9f, 0x98, 0x80])), 'b"😀"')
+assert_eq(repr(bytes([0xed, 0xa0, 0x80])), 'b"\\xed\\xa0\\x80"')
+assert_eq(repr(bytes([0xc0, 0xaf])), 'b"\\xc0\\xaf"')
+assert_eq(repr(bytes([0xe2, 0x82])), 'b"\\xe2\\x82"')
+assert_eq(repr(bytes([0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0xe4, 0xb8, 0x96, 0xe7, 0x95, 0x8c])), 'b"hello, 世界"')
+assert_eq(repr(bytes([0x00])), 'b"\\x00"')
+assert_eq(repr(bytes([0xc2, 0x80])), 'b"\\u0080"')
+assert_eq(repr(bytes([0xef, 0xbf, 0xbd])), 'b"�"')
+assert_eq(repr(bytes([0xf4, 0x90, 0x80, 0x80])), 'b"\\xf4\\x90\\x80\\x80"')
+
 # equality
 assert_eq(hello, hello)
 assert_ne(hello, goodbye)
