@@ -230,6 +230,8 @@ public class ZLibModule implements StarlarkValue {
       @Param(name = "length", defaultValue = "unbound"),
     })
     public StarlarkInt inflate(StarlarkByteArray buf, Object offsetO, Object lengthO) throws EvalException {
+      // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
+      Starlark.checkMutable(buf);
       if(rawInflate) {
         // The docs (https://github.com/madler/zlib/blob/master/zlib.h#L828) say that in raw mode
         // setDictionary can be called right after inflateInit2, so set the dictionary before
@@ -346,6 +348,8 @@ public class ZLibModule implements StarlarkValue {
       @Param(name = "flush"),
     })
     public StarlarkInt deflate(StarlarkByteArray buf, StarlarkInt flush) throws EvalException {
+      // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
+      Starlark.checkMutable(buf);
       final int outLength = buf.size();
       final byte[] out = new byte[outLength];
       int result;

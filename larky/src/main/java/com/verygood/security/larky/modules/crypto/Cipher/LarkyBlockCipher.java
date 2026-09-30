@@ -6,6 +6,7 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkBytes.StarlarkByteArray;
 import net.starlark.java.eval.StarlarkInt;
@@ -61,6 +62,8 @@ public class LarkyBlockCipher implements StarlarkValue {
     useStarlarkThread = true
   )
   public StarlarkInt encrypt(StarlarkBytes plaintext, StarlarkByteArray output, StarlarkThread thread) throws EvalException {
+    // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
+    Starlark.checkMutable(output);
     initializeForEncryption();
     return process(plaintext, output);
   }
@@ -97,6 +100,8 @@ public class LarkyBlockCipher implements StarlarkValue {
     useStarlarkThread = true
   )
   public StarlarkInt decrypt(StarlarkBytes cipherText, StarlarkByteArray output, StarlarkThread thread) throws EvalException {
+    // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
+    Starlark.checkMutable(output);
     initializeForDecryption();
     return process(cipherText, output);
   }

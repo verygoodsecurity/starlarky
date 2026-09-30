@@ -994,6 +994,22 @@ def StructTest_test_unpack_special_floats_and_native_longs():
                          "^total struct size too long$")
 
 
+def StructTest_test_pack_into_bytearray_being_iterated():
+    # pack_into must fail like any other mutation of a bytearray under iteration
+    ba = bytearray(b"\x01\x02")
+
+    def pack_while_iterating():
+        for _ in ba:
+            struct.pack_into("B", ba, 0, 7)
+
+    asserts.assert_fails(
+        pack_while_iterating,
+        "^bytearray value is temporarily immutable due to active for-loop iteration$")
+    asserts.assert_that(ba).is_equal_to(bytearray(b"\x01\x02"))
+    struct.pack_into("B", ba, 0, 7)
+    asserts.assert_that(ba).is_equal_to(bytearray(b"\x07\x02"))
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_pack))
@@ -1021,6 +1037,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(UnpackIteratorTest_test_half_float))
     _suite.addTest(unittest.FunctionTestCase(StructTest_test_pack_range_and_type_checks))
     _suite.addTest(unittest.FunctionTestCase(StructTest_test_unpack_special_floats_and_native_longs))
+    _suite.addTest(unittest.FunctionTestCase(StructTest_test_pack_into_bytearray_being_iterated))
     return _suite
 
 _runner = unittest.TextTestRunner()
