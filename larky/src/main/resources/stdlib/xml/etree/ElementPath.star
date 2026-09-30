@@ -256,8 +256,7 @@ def prepare_descendant(peekable, token):
         return
     if token[0] == "*":
         tag = "*"
-    # elif not token[0]:
-    elif token[0] == "None":
+    elif not token[0]:
         tag = token[1]
     else:
         return Error("SyntaxError: invalid descendant").unwrap()
@@ -324,13 +323,13 @@ def prepare_predicate(peekable, token):
             if p_ttype != '=':
                 break
             # print('peeked!', peeked)
-        if token == ('None', 'None'):
+        if token == ('', ''):
             # ignore whitespace
             continue
         if token[0] and token[0][:1] in "'\"":
             token = "'", token[0][1:-1]
         # signature.append(token[0] or "-")
-        if (not token[0]) or (token[0] == "None"):
+        if not token[0]:
             signature.append("-")
         else:
             signature.append(token[0])
@@ -457,7 +456,7 @@ def prepare_predicate(peekable, token):
     if signature == "@*[-()=']='":
         # [@attribute[local-name() = 'KEY' ]='VALUE']
         xpath_function = predicate[3]
-        xpath_funcargs = [] if predicate[4] == "None" else predicate[4]
+        xpath_funcargs = [] if not predicate[4] else predicate[4]
         # print(xpath_funcargs)
         # print(signature.find("'"))
         key = predicate[signature.find("'") - 1]
@@ -546,7 +545,7 @@ def get_attribute_value(node, uri, name):
         return None
 
 ops = {
-    "None": prepare_child,
+    "": prepare_child,
     "*": prepare_star,
     ".": prepare_self,
     "..": prepare_parent,
