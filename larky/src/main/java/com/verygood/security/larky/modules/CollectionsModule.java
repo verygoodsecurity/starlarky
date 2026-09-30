@@ -1,7 +1,5 @@
 package com.verygood.security.larky.modules;
 
-import static java.lang.Math.min;
-
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
@@ -110,54 +108,40 @@ public class CollectionsModule implements StarlarkValue {
     }
 
     /**
-     * Compares two sequences of values.
+     * A namedtuple is a tuple: two namedtuples are equal when their elements are, whatever their
+     * type names or field names ({@code P(1, 2) == Q(1, 2)} in Python), and they hash like the
+     * tuple of their elements.
      *
-     * Sequences compare equal if corresponding elements compare equal using {@code
-     * iterator.next().equals(iterator.next())}.
-     *
-     * Otherwise, the result is the ordered comparison of the first element for which {@code
-     * !iterator.next().equals(iterator.next())}.
-     *
-     * If one sequence is a prefix of another, the result is the comparison of the sequence's sizes.
-     *
-     * @throws ClassCastException if any comparison failed.
+     * <p>Python also has {@code P(1, 2) == (1, 2)}, but {@link Tuple#equals} only accepts {@link
+     * Tuple}s, so treating a plain tuple as equal here would make equality asymmetric (and dict
+     * lookups depend on which of the two keys was inserted first). A namedtuple is therefore
+     * never equal to a plain tuple.
      */
-    // Suppress duplicated code because StarlarkSequence should be a
-    // Collection and not necessarily a *list*.
-    @SuppressWarnings("DuplicatedCode")
+    @Override
+    public boolean equals(Object o) {
+      return this == o
+          || (o instanceof LarkyNamedTuple && backingTuple.equals(((LarkyNamedTuple) o).backingTuple));
+    }
+
+    @Override
+    public int hashCode() {
+      return backingTuple.hashCode();
+    }
+
+    /**
+     * Orders namedtuples lexicographically by their elements, as Python orders tuples; consistent
+     * with {@link #equals}. Unequal elements that cannot be ordered, and any value that is not a
+     * namedtuple, raise Starlark's "unsupported comparison" error (a {@link ClassCastException},
+     * which {@code Starlark.compareUnchecked}'s callers report as an {@code EvalException}).
+     */
     @Override
     public int compareTo(@NotNull Object o) {
-      final Sequence<?> x;
-      try {
-        x = Sequence.cast(o, Object.class, "compareTo");
-      } catch (EvalException e) {
-        throw new RuntimeException(e);
-      }
-      for (int i = 0; i < min(this.size(), x.size()); i++) {
-        Object xelem = this.get(i);
-        Object yelem = x.get(i);
-
-        // First test for equality. This avoids an unnecessary
-        // ordered comparison, which may be unsupported despite
-        // the values being equal. Also, it is potentially more
-        // expensive. For example, list==list need not look at
-        // the elements if the lengths are unequal.
-        if (xelem == yelem || xelem.equals(yelem)) {
-          continue;
-        }
-
-        // The ordered comparison of unequal elements should
-        // always be nonzero unless compareTo is inconsistent.
-        int cmp = StarlarkEvalWrapper.compareUnchecked(xelem, yelem);
-        if (cmp == 0) {
-          throw new IllegalStateException(
+      if (!(o instanceof LarkyNamedTuple)) {
+        throw new ClassCastException(
             String.format(
-              "x.equals(y) yet x.compareTo(y)==%d (x: %s, y: %s)",
-              cmp, Starlark.type(xelem), Starlark.type(yelem)));
-        }
-        return cmp;
+                "unsupported comparison: %s <=> %s", Starlark.type(this), Starlark.type(o)));
       }
-      return Integer.compare(this.size(), x.size());
+      return backingTuple.compareTo(((LarkyNamedTuple) o).backingTuple);
     }
 
     @Override
