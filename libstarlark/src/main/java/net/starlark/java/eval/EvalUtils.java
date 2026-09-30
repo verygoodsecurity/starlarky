@@ -319,6 +319,9 @@ final class EvalUtils {
 
         } else if (x instanceof String xs) {
           // string % any
+          if (semantics.getBool(PercentFormat.PYTHON_PERCENT_FORMAT)) {
+            return PercentFormat.format(starlarkThread, xs, y); // VGS: Python's str % args
+          }
           try {
             if (y instanceof Tuple) {
               return Starlark.formatWithList(semantics, xs, (Tuple) y);

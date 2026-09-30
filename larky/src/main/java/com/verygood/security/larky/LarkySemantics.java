@@ -1,6 +1,7 @@
 package com.verygood.security.larky;
 
 import net.starlark.java.eval.PythonStrings;
+import net.starlark.java.eval.PercentFormat;
 import net.starlark.java.eval.StarlarkSemantics;
 
 public final class LarkySemantics {
@@ -24,6 +25,8 @@ public final class LarkySemantics {
       // str case mapping (upper, lower, title, capitalize), classification (isalpha, isdigit,
       // islower, ...) and strip() follow Python's Unicode rules, not ASCII only.
       .setBool(PythonStrings.PYTHON_UNICODE_STRINGS, true)
+      // str % args follows Python's printf-style formatting (flags, width, precision, %(key)s).
+      .setBool(PercentFormat.PYTHON_PERCENT_FORMAT, true)
       .build();
 
 }

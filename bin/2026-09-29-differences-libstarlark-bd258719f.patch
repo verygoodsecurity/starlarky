@@ -82,7 +82,7 @@ index bf7eeac3..a171a8e4 100644
        throws EvalException, InterruptedException {
      Object x = eval(fr, slice.getObject());
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java a/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
-index 1655e0a9..f463280b 100644
+index 1655e0a9..7c660d45 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
 @@ -13,6 +13,7 @@
@@ -101,7 +101,17 @@ index 1655e0a9..f463280b 100644
              return StarlarkInt.multiply(xi, (StarlarkInt) y);
            } else if (y instanceof String) {
              // int * string
-@@ -417,7 +419,10 @@ final class EvalUtils {
+@@ -317,6 +319,9 @@ final class EvalUtils {
+ 
+         } else if (x instanceof String xs) {
+           // string % any
++          if (semantics.getBool(PercentFormat.PYTHON_PERCENT_FORMAT)) {
++            return PercentFormat.format(starlarkThread, xs, y); // VGS: Python's str % args
++          }
+           try {
+             if (y instanceof Tuple) {
+               return Starlark.formatWithList(semantics, xs, (Tuple) y);
+@@ -417,7 +422,10 @@ final class EvalUtils {
        // Would exceed max length of a java String.
        throw Starlark.errorf("excessive repeat (%d * %d characters)", s.length(), n);
      } else {
@@ -113,7 +123,7 @@ index 1655e0a9..f463280b 100644
      }
    }
  
-@@ -489,7 +494,7 @@ final class EvalUtils {
+@@ -489,7 +497,7 @@ final class EvalUtils {
     *
     * @throws EvalException if the object is not a list or dict.
     */
@@ -122,7 +132,7 @@ index 1655e0a9..f463280b 100644
      if (object instanceof Dict) {
        @SuppressWarnings("unchecked")
        Dict<Object, Object> dict = (Dict<Object, Object>) object;
-@@ -502,10 +507,15 @@ final class EvalUtils {
+@@ -502,10 +510,15 @@ final class EvalUtils {
        index = EvalUtils.getSequenceIndex(index, list.size());
        list.setElementAt(index, value);
  
