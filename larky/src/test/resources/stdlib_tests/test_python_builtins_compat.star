@@ -49,6 +49,16 @@ def _test_divmod_errors():
     asserts.assert_fails(lambda: divmod("a", 2), "want 'int or float'")
 
 
+def _test_hex_bin_sign():
+    asserts.assert_that(hex(-255)).is_equal_to("-0xff")
+    asserts.assert_that(hex(-1)).is_equal_to("-0x1")
+    asserts.assert_that(hex(0)).is_equal_to("0x0")
+    asserts.assert_that(hex(255)).is_equal_to("0xff")
+    asserts.assert_that(hex(-(1 << 70))).is_equal_to("-0x400000000000000000")
+    asserts.assert_that(bin(-255)).is_equal_to("-0b11111111")
+    asserts.assert_that(bin(0)).is_equal_to("0b0")
+
+
 def _test_pow_int():
     asserts.assert_that(pow(0, 0)).is_equal_to(1)
     asserts.assert_that(type(pow(3, 2))).is_equal_to("int")
@@ -112,14 +122,28 @@ def _test_pow_mod():
     asserts.assert_fails(lambda: pow(2, 3, 5.0), "want 'int or NoneType'")
 
 
+def _test_chr_range():
+    asserts.assert_that(chr(97)).is_equal_to("a")
+    asserts.assert_that(ord(chr(0x10FFFF))).is_equal_to(0x10FFFF)
+    # A lone surrogate is a one-element string, as in Python.
+    asserts.assert_that(len(chr(0xD800))).is_equal_to(1)
+    asserts.assert_that(ord(chr(0xD800))).is_equal_to(0xD800)
+    msg = "^ValueError: chr\\(\\) arg not in range\\(0x110000\\)$"
+    asserts.assert_fails(lambda: chr(-1), msg)
+    asserts.assert_fails(lambda: chr(0x110000), msg)
+    asserts.assert_fails(lambda: chr(1 << 40), msg)
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_divmod_int_floors))
     _suite.addTest(unittest.FunctionTestCase(_test_divmod_float))
     _suite.addTest(unittest.FunctionTestCase(_test_divmod_errors))
+    _suite.addTest(unittest.FunctionTestCase(_test_hex_bin_sign))
     _suite.addTest(unittest.FunctionTestCase(_test_pow_int))
     _suite.addTest(unittest.FunctionTestCase(_test_pow_float))
     _suite.addTest(unittest.FunctionTestCase(_test_pow_mod))
+    _suite.addTest(unittest.FunctionTestCase(_test_chr_range))
     return _suite
 
 
