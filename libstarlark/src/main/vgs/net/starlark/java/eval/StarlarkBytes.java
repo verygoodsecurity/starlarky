@@ -977,7 +977,13 @@ public class StarlarkBytes implements ByteStringModuleApi,
   public StarlarkBytes join(Sequence<StarlarkBytes> elements) throws EvalException {
     ByteList[] parts = new ByteList[elements.size()];
     for (int i = 0, loopLength = elements.size(); i < loopLength; i++) {
-      parts[i] = elements.get(i).delegate;
+      // The parameter's element type is not checked by the caller: check each item here.
+      Object item = elements.get(i);
+      if (!(item instanceof StarlarkBytes b)) {
+        throw Starlark.errorf(
+          "sequence item %d: expected a bytes-like object, %s found", i, Starlark.type(item));
+      }
+      parts[i] = b.delegate;
     }
     return derived(mutability, this.delegate.join(parts));
   }

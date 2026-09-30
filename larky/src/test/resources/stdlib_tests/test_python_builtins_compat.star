@@ -134,6 +134,23 @@ def _test_chr_range():
     asserts.assert_fails(lambda: chr(1 << 40), msg)
 
 
+def _test_bytes_join_rejects_non_bytes():
+    asserts.assert_fails(
+        lambda: b",".join([b"a", "b"]),
+        "^sequence item 1: expected a bytes-like object, string found$")
+    asserts.assert_fails(
+        lambda: b",".join([1]),
+        "^sequence item 0: expected a bytes-like object, int found$")
+    asserts.assert_fails(
+        lambda: bytearray(b",").join([b"a", "b"]),
+        "^sequence item 1: expected a bytes-like object, string found$")
+    asserts.assert_that(b",".join([b"a", bytearray(b"b")])).is_equal_to(b"a,b")
+    asserts.assert_that(b",".join((b"a", b"b"))).is_equal_to(b"a,b")
+    joined = bytearray(b",").join([b"a", bytearray(b"b")])
+    asserts.assert_that(type(joined)).is_equal_to("bytearray")
+    asserts.assert_that(joined).is_equal_to(bytearray(b"a,b"))
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_divmod_int_floors))
@@ -144,6 +161,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_pow_float))
     _suite.addTest(unittest.FunctionTestCase(_test_pow_mod))
     _suite.addTest(unittest.FunctionTestCase(_test_chr_range))
+    _suite.addTest(unittest.FunctionTestCase(_test_bytes_join_rejects_non_bytes))
     return _suite
 
 

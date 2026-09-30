@@ -188,6 +188,14 @@ assert_fails(lambda: "!" + goodbye, "unsupported binary operation: string \\+ by
 assert_fails(lambda: [1] + goodbye, "unsupported binary operation: list \\+ bytes")
 assert_fails(lambda: goodbye + [1], "unsupported binary operation: bytes \\+ list")
 
+# join takes only bytes items, as in Python (whose TypeError names Python's type, str).
+assert_eq(b",".join([b"a", b"b"]), b"a,b")
+assert_eq(b",".join((b"a",)), b"a")
+assert_fails(lambda: b",".join([b"a", "b"]),
+             "^sequence item 1: expected a bytes-like object, string found$")
+assert_fails(lambda: b",".join([1]),
+             "^sequence item 0: expected a bytes-like object, int found$")
+
 # bytes in bytes
 assert_eq(b"bc" in b"abcd", True)
 assert_eq(b"bc" in b"dcab", False)
