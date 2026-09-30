@@ -952,8 +952,16 @@ public class StarlarkBytes implements ByteStringModuleApi,
     return wrap(mutability, this.delegate.join(parts));
   }
 
+  /** Rejects an empty separator, as Python's split and partition do. */
+  private static void checkSeparator(Object sep) throws EvalException {
+    if (sep instanceof StarlarkBytes b && b.isEmpty()) {
+      throw Starlark.errorf("empty separator");
+    }
+  }
+
   @Override
-  public Tuple partition(StarlarkBytes sep) {
+  public Tuple partition(StarlarkBytes sep) throws EvalException {
+    checkSeparator(sep);
     final ByteList[] partitioned = this.delegate.partition(sep.delegate);
     return Tuple.of(
       wrap(mutability, partitioned[0]),
@@ -994,6 +1002,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
   @Override
   public Tuple rpartition(StarlarkBytes sep) throws EvalException {
+    checkSeparator(sep);
     final ByteList[] rightPartitioned = this.delegate.rpartition(sep.delegate);
     return Tuple.of(
       wrap(mutability, rightPartitioned[0]),
@@ -1075,6 +1084,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
     ByteList splitOn = ByteList.empty();
     if (!Starlark.isNullOrNone(bytesO)) {
+      checkSeparator(bytesO);
       splitOn = ((StarlarkBytes)bytesO).delegate;
     }
     final ByteList[] rsplited = this.delegate.rsplit(splitOn, maxSplit);
@@ -1105,6 +1115,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
     ByteList splitOn = ByteList.empty();
     if (!Starlark.isNullOrNone(bytesO)) {
+      checkSeparator(bytesO);
       splitOn = ((StarlarkBytes)bytesO).delegate;
     }
     final ByteList[] splitted = this.delegate.split(splitOn, maxSplit);
