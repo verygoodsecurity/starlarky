@@ -35,16 +35,16 @@ def PKCS7_Tests_test4():
     asserts.assert_that((back == uh(b(r"1234567890")))).is_true()
 
 def PKCS7_Tests_testn1():
-    asserts.assert_fails(lambda : pad(b(uh(b(r"12"))), 4, 'pkcs8'), ".*?ValueError")
+    asserts.assert_fails(lambda : pad(b(uh(b(r"12"))), 4, 'pkcs8'), "Unknown padding style")
 
 def PKCS7_Tests_testn2():
-    asserts.assert_fails(lambda : unpad(b(r"\0\0\0"), 4), ".*?ValueError")
-    asserts.assert_fails(lambda : unpad(b(r""), 4), ".*?ValueError")
+    asserts.assert_fails(lambda : unpad(b"\0\0\0", 4), "Input data is not padded")
+    asserts.assert_fails(lambda : unpad(b"", 4), "Zero-length input cannot be unpadded")
 
 def PKCS7_Tests_testn3():
-    asserts.assert_fails(lambda : unpad(b(r"123456\x02"), 4), ".*?ValueError")
-    asserts.assert_fails(lambda : unpad(b(r"123456\x00"), 4), ".*?ValueError")
-    asserts.assert_fails(lambda : unpad(b(r"123456\x05\x05\x05\x05\x05"), 4), ".*?ValueError")
+    asserts.assert_fails(lambda : unpad(b"123456\x02", 4), "Input data is not padded")
+    asserts.assert_fails(lambda : unpad(b"123456\x00", 4), "Input data is not padded")
+    asserts.assert_fails(lambda : unpad(b"123456\x05\x05\x05\x05\x05", 4), "Input data is not padded")
 
 
 def X923_Tests_test1():
@@ -72,10 +72,10 @@ def X923_Tests_test4():
     asserts.assert_that((back == uh(b(r"1234567890")))).is_true()
 
 def X923_Tests_testn1():
-    asserts.assert_fails(lambda : unpad(b(r"123456\x02"), 4, 'x923'), ".*?ValueError")
-    asserts.assert_fails(lambda : unpad(b(r"123456\x00"), 4, 'x923'), ".*?ValueError")
-    asserts.assert_fails(lambda : unpad(b(r"123456\x00\x00\x00\x00\x05"), 4, 'x923'), ".*?ValueError")
-    asserts.assert_fails(lambda : unpad(b(r""), 4, 'x923'), ".*?ValueError")
+    asserts.assert_fails(lambda : unpad(b"123456\x02", 4, 'x923'), "Input data is not padded")
+    asserts.assert_fails(lambda : unpad(b"123456\x00", 4, 'x923'), "Input data is not padded")
+    asserts.assert_fails(lambda : unpad(b"123456\x00\x00\x00\x00\x05", 4, 'x923'), "Input data is not padded")
+    asserts.assert_fails(lambda : unpad(b"", 4, 'x923'), "Zero-length input cannot be unpadded")
 
 
 def ISO7816_Tests_test1():
@@ -104,8 +104,10 @@ def ISO7816_Tests_test4():
     asserts.assert_that((back == uh(b(r"1234567890")))).is_true()
 
 def ISO7816_Tests_testn1():
-    asserts.assert_fails(lambda : unpad(b(r"123456\x81"), 4, 'iso7816'), ".*?ValueError")
-    asserts.assert_fails(lambda : unpad(b(r""), 4, 'iso7816'), ".*?ValueError")
+    # pycryptodome's b() is latin-1, so b("123456\x81") is 7 bytes; b(r"...") made it 8 (\x81
+    # as UTF-8), which failed on the padding byte, not the length check this case tests.
+    asserts.assert_fails(lambda : unpad(b"123456\x81", 4, 'iso7816'), "Input data is not padded")
+    asserts.assert_fails(lambda : unpad(b"", 4, 'iso7816'), "Zero-length input cannot be unpadded")
 
 
 def _testsuite():
