@@ -106,14 +106,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
       else if (o.size() == 0) {
         return 1;
       }
-      byte ob = o.byteAt(0);
-
-      if (this.x == ob) {
-        return 0;
-      } else if (this.x < ob) {
-        return -1;
-      }
-      return 1;
+      return Integer.compare(Byte.toUnsignedInt(this.x), Byte.toUnsignedInt(o.byteAt(0)));
     }
 
     public StarlarkInt toStarlarkInt() {
@@ -726,7 +719,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
     int hash = -2128831035;
     for (byte b : this.delegate) {
-      hash ^= b;
+      hash ^= Byte.toUnsignedInt(b);
       hash *= (long) 16777619;
     }
     return hash;
