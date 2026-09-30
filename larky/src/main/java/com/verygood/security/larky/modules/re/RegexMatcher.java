@@ -284,7 +284,7 @@ public class RegexMatcher implements StarlarkValue {
     pos = Math.max(pos, 0);
     endpos = (endpos == -1) ? input.length() : endpos;
     //LarkyRE2Matcher.genMatch(matcher, input,pos, endpos);
-    if(pos != 0 && !parentPattern.pattern().startsWith("^")) {
+    if(pos != 0 && !parentPattern.re2Source().startsWith("^")) {
       /*
 
         var x = m.pattern();
@@ -297,7 +297,7 @@ public class RegexMatcher implements StarlarkValue {
 
       // match is like search but pattern must start with ^
       // if pos is passed in, we have to reset the pattern.
-      matcher = Pattern.compile("^" + parentPattern.pattern())
+      matcher = Pattern.compile("^" + parentPattern.re2Source())
                .matcher(input.subSequence(pos, endpos));
     }
     boolean ok = matcher.lookingAt();
@@ -346,8 +346,8 @@ public class RegexMatcher implements StarlarkValue {
     public boolean search(StarlarkInt s, StarlarkInt e) {
       int pos = Math.max(s.toIntUnchecked(), 0);
       int endpos = (e.toIntUnchecked() == -1) ? input.length() : e.toIntUnchecked();
-      if(pos != 0 && !parentPattern.pattern().startsWith("^")) {
-        matcher = Pattern.compile(parentPattern.pattern())
+      if(pos != 0 && !parentPattern.re2Source().startsWith("^")) {
+        matcher = Pattern.compile(parentPattern.re2Source())
                  .matcher(input.subSequence(pos, endpos));
       }
       boolean ok = matcher.find();
