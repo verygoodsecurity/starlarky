@@ -152,7 +152,7 @@ def namedtuple(typename, field_names, rename=False, defaults=None, module=None):
         field_defaults = dict(reversed(list(zip(reversed(field_names),
                                                 reversed(defaults)))))
 
-    result = _collections.namedtuple(typename, tuple(field_names))
+    result = _collections.namedtuple(typename, tuple(field_names), defaults=field_defaults)
     return result
 
 

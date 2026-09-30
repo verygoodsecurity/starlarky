@@ -1,10 +1,14 @@
 package com.verygood.security.larky.modules;
 
 import com.google.common.collect.ImmutableCollection;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Iterables;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.NavigableMap;
 
@@ -32,6 +36,9 @@ import net.starlark.java.eval.StarlarkSequence;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.eval.Structure;
+import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.NamedTuple;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -57,200 +64,277 @@ public class CollectionsModule implements StarlarkValue {
 
   public static final CollectionsModule INSTANCE = new CollectionsModule();
 
-  public static class LarkyNamedTuple
-    implements LarkyObject, StarlarkSequence<Tuple, Object>, Comparable<Object> {
+  /**
+   * An instance of a {@code collections.namedtuple} type. It is a {@link Tuple} ({@link
+   * NamedTuple}), so it equals, hashes like and orders against the plain tuple of its elements, as
+   * in Python, and adds access to the elements by field name.
+   */
+  public static final class LarkyNamedTuple extends NamedTuple implements LarkyObject {
 
-    final NavigableMap<String, Object> fields;
-    final Tuple backingTuple;
-    final StarlarkThread currentThread;
+    private final NamedTupleType type;
+    private final StarlarkThread currentThread;
 
-    protected LarkyNamedTuple(NavigableMap<String, Object> fields, Iterable<?> obj, StarlarkThread thread) {
+    LarkyNamedTuple(NamedTupleType type, Iterable<?> elems, StarlarkThread thread) {
+      super(elems);
+      this.type = type;
       this.currentThread = thread;
-      this.fields = fields;
-      this.backingTuple = Tuple.copyOf(obj);
-    }
-
-    public static LarkyNamedTuple create(Dict<String, Object> cls_ns,
-                                         Tuple args,
-                                         Map<String, Object> kwargs,
-                                         StarlarkThread thread) throws EvalException {
-
-      Iterable<?> values = Iterables.concat(args, kwargs.values());
-      Sequence<String> _fields = Sequence.cast(
-        cls_ns.get("_fields"), String.class, "_fields"
-      );
-      int argLength = _fields.size();
-      if(argLength < args.size() + kwargs.size()) {
-        throw Starlark.errorf(
-          "TypeError: __new__() takes %d positional arguments but %d were given",
-          argLength,
-          args.size() + kwargs.size()
-          );
-      } else if(argLength > args.size() + kwargs.size()) {
-        // TODO...
-        throw Starlark.errorf(
-          "TypeError: __new__() missing %d required positional arguments",
-          args.size() + kwargs.size() - argLength
-        );
-      }
-
-      return new LarkyNamedTuple(ImmutableSortedMap.copyOf(cls_ns), values, thread);
-    }
-
-    @Override
-    public Object getIndex(StarlarkSemantics semantics, Object key) throws EvalException {
-      return StarlarkSequence.super.getIndex(semantics, key);
-    }
-
-    @Override
-    public boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException {
-      return StarlarkSequence.super.containsKey(semantics, key);
-    }
-
-    /**
-     * A namedtuple is a tuple: two namedtuples are equal when their elements are, whatever their
-     * type names or field names ({@code P(1, 2) == Q(1, 2)} in Python), and they hash like the
-     * tuple of their elements.
-     *
-     * <p>Python also has {@code P(1, 2) == (1, 2)}, but {@link Tuple#equals} only accepts {@link
-     * Tuple}s, so treating a plain tuple as equal here would make equality asymmetric (and dict
-     * lookups depend on which of the two keys was inserted first). A namedtuple is therefore
-     * never equal to a plain tuple.
-     */
-    @Override
-    public boolean equals(Object o) {
-      return this == o
-          || (o instanceof LarkyNamedTuple && backingTuple.equals(((LarkyNamedTuple) o).backingTuple));
-    }
-
-    @Override
-    public int hashCode() {
-      return backingTuple.hashCode();
-    }
-
-    /**
-     * Orders namedtuples lexicographically by their elements, as Python orders tuples; consistent
-     * with {@link #equals}. Unequal elements that cannot be ordered, and any value that is not a
-     * namedtuple, raise Starlark's "unsupported comparison" error (a {@link ClassCastException},
-     * which {@code Starlark.compareUnchecked}'s callers report as an {@code EvalException}).
-     */
-    @Override
-    public int compareTo(@NotNull Object o) {
-      if (!(o instanceof LarkyNamedTuple)) {
-        throw new ClassCastException(
-            String.format(
-                "unsupported comparison: %s <=> %s", Starlark.type(this), Starlark.type(o)));
-      }
-      return backingTuple.compareTo(((LarkyNamedTuple) o).backingTuple);
     }
 
     @Override
     public Object getField(String name, @Nullable StarlarkThread thread) {
-      final Sequence<String> _names;
-      try {
-        _names = namedFields();
-      } catch(EvalException ex) {
-       throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(ex, thread);
-      }
-      final int pos = _names.indexOf(name);
+      int pos = type.fields.indexOf(name);
       if (pos != -1) {
-        return this.backingTuple.get(pos);
+        return get(pos);
       }
-      return this.fields.getOrDefault(name, null);
+      switch (name) {
+        case "__name__":
+          return type.typename;
+        case "_fields":
+          return type.fieldsTuple;
+        case "_field_defaults":
+          return type.fieldDefaults;
+        case "_make": // a classmethod in Python, so instances have it too
+          return type.getValue("_make");
+        default:
+          return null;
+      }
     }
 
     @Override
     public ImmutableCollection<String> getFieldNames() {
-      return ImmutableSet.copyOf(this.fields.keySet());
+      return ImmutableSet.<String>builder()
+          .addAll(type.fields)
+          .add("__name__", "_fields", "_field_defaults", "_make")
+          .build();
     }
 
     @Override
     public StarlarkThread getCurrentThread() {
-      return this.currentThread;
+      return currentThread;
     }
 
     @Override
-    public Tuple collection() {
-      return this.backingTuple;
+    public String typeName() {
+      return type.typename;
     }
 
-    @Override
-    public Sequence<Object> getSlice(Mutability mu, int start, int stop, int step) throws EvalException {
-      return this.backingTuple.getSlice(mu,start,stop,step);
-    }
-
-    @Override
-    public @NotNull Iterator<Object> iterator() {
-      // Return the backing tuple's iterator directly.
-      // Do NOT use LarkyIterator.from() here as it causes infinite recursion:
-      // LarkyIterator.from() -> LarkyIterableIterator constructor -> this.iterator()
-      return this.backingTuple.iterator();
-    }
-
-    public Sequence<String> namedFields() throws EvalException {
-      Sequence<String> _namedFields = Sequence.cast(
-        this.fields.get("_fields"), String.class, "_fields"
-      );
-      assert _namedFields != null;
-      return _namedFields;
-    }
-
-    @StarlarkMethod(name="_as_dict")
-    public Dict<String, Object> asDict() throws EvalException {
-      Dict.Builder<String, Object> asDictBuilder = Dict.<String, Object>builder();
-      final Sequence<String> _namedFields = namedFields();
-      for (int i = 0, fieldsSize = _namedFields.size(); i < fieldsSize; i++) {
-        asDictBuilder.put(_namedFields.get(i), this.get(i));
+    @StarlarkMethod(name = "_asdict", doc = "A dict mapping field names to values.")
+    public Dict<String, Object> asDict() {
+      Dict.Builder<String, Object> builder = Dict.builder();
+      for (int i = 0; i < size(); i++) {
+        builder.put(type.fields.get(i), get(i));
       }
-      return asDictBuilder.buildImmutable();
+      return builder.buildImmutable();
     }
 
-    @StarlarkMethod(name = "_make", parameters = {@Param(name = "iterable", allowedTypes = {@ParamType(type = StarlarkIterable.class)})}, useStarlarkThread = true)
-    public LarkyNamedTuple make(StarlarkIterable<?> iterable, StarlarkThread thread) throws EvalException {
-      Dict<String, Object> cls_ns = Dict.<String, Object>builder()
-        .put("__name__", getValue("__name__"))
-        .put("_fields", namedFields())
-        .put("__match_args__", namedFields())
-        .put("_field_defaults", getValue("_field_defaults"))
-        .buildImmutable();
-      Tuple args = Tuple.copyOf(iterable);
-      if (args.size() != namedFields().size()) {
-        throw Starlark.errorf("TypeError: Expected %d arguments, got %d",
-          namedFields().size(), args.size());
-      }
-      return create(cls_ns, args, Dict.empty(), thread);
+    @StarlarkMethod(name = "_as_dict", documented = false)
+    public Dict<String, Object> asDictLegacy() {
+      return asDict();
     }
 
     @StarlarkMethod(
-      name = "_replace",
-      extraKeywords =  @Param(name = "kwds"),
-      useStarlarkThread = true)
-    public LarkyNamedTuple replace(Dict<String, Object> kwds, StarlarkThread thread) throws EvalException {
-      final Sequence<String> fields = namedFields();
-      Dict.Builder<String, Object> values = Dict.builder();
-      for (int i = 0, fieldsSize = fields.size(); i < fieldsSize; i++) {
-        String key = fields.get(i);
-        values.put(key, kwds.get2(key, this.get(i), thread));
+        name = "_replace",
+        doc = "A new namedtuple with the given fields replaced.",
+        extraKeywords = @Param(name = "kwds"),
+        useStarlarkThread = true)
+    public LarkyNamedTuple replace(Dict<String, Object> kwds, StarlarkThread thread)
+        throws EvalException {
+      List<String> unknown = new ArrayList<>();
+      for (String k : kwds.keySet()) {
+        if (!type.fields.contains(k)) {
+          unknown.add(k);
+        }
       }
-      return make(values.buildImmutable().values0(thread), thread);
+      if (!unknown.isEmpty()) {
+        throw Starlark.errorf(
+            "ValueError: Got unexpected field names: %s",
+            Starlark.repr(StarlarkList.immutableCopyOf(unknown), StarlarkSemantics.DEFAULT));
+      }
+      Object[] values = toArray();
+      for (int i = 0; i < values.length; i++) {
+        String field = type.fields.get(i);
+        if (kwds.containsKey(field)) {
+          values[i] = kwds.get(field);
+        }
+      }
+      return new LarkyNamedTuple(type, Arrays.asList(values), thread);
     }
+
+    @StarlarkMethod(
+        name = "count",
+        doc = "The number of elements equal to value.",
+        parameters = {@Param(name = "value")})
+    public StarlarkInt count(Object value) throws EvalException {
+      int n = 0;
+      for (Object e : this) {
+        if (Starlark.checkedEquals(e, value)) {
+          n++;
+        }
+      }
+      return StarlarkInt.of(n);
+    }
+
+    @StarlarkMethod(
+        name = "index",
+        doc = "The index of the first element equal to value.",
+        parameters = {@Param(name = "value")})
+    public StarlarkInt index(Object value) throws EvalException {
+      for (int i = 0; i < size(); i++) {
+        if (Starlark.checkedEquals(get(i), value)) {
+          return StarlarkInt.of(i);
+        }
+      }
+      throw Starlark.errorf("ValueError: tuple.index(x): x not in tuple");
+    }
+
     @Override
     public void repr(Printer p, StarlarkSemantics semantics) {
-      p.append(StarlarkUtil.richType(this)).append('(');
-
-      try {
-        final Sequence<String> _namedFields = namedFields();
-        for (int i = 0, fieldsSize = _namedFields.size(); i < fieldsSize; i++) {
-          String field = _namedFields.get(i);
-          p.append(field).append("=").repr(this.get(i), semantics);
-          if(i + 1 < fieldsSize) {
-            p.append(", ");
-          }
+      p.append(type.typename).append('(');
+      for (int i = 0; i < size(); i++) {
+        if (i > 0) {
+          p.append(", ");
         }
-      } catch (EvalException e) {
-        throw new RuntimeException(e);
+        p.append(type.fields.get(i)).append("=").repr(get(i), semantics);
       }
       p.append(")");
+    }
+
+    @Override
+    public void str(Printer p, StarlarkSemantics semantics) {
+      repr(p, semantics);
+    }
+  }
+
+  /**
+   * A namedtuple type, as returned by {@code collections.namedtuple}: calling it makes an instance,
+   * binding arguments to fields as Python's generated {@code __new__} does.
+   */
+  public static final class NamedTupleType implements StarlarkCallable, Structure {
+
+    private final String typename;
+    private final ImmutableList<String> fields;
+    private final Tuple fieldsTuple; // _fields
+    private final Dict<String, Object> fieldDefaults;
+
+    NamedTupleType(String typename, List<String> fields, Dict<String, Object> fieldDefaults) {
+      this.typename = typename;
+      this.fields = ImmutableList.copyOf(fields);
+      this.fieldsTuple = Tuple.copyOf(fields);
+      this.fieldDefaults = fieldDefaults;
+    }
+
+    @Override
+    public String getName() {
+      return typename;
+    }
+
+    @Override
+    public void repr(Printer printer, StarlarkSemantics semantics) {
+      printer.append(typename);
+    }
+
+    @Override
+    public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs)
+        throws EvalException {
+      int n = fields.size();
+      if (args.size() > n) {
+        throw Starlark.errorf(
+            "TypeError: %s.__new__() takes %d positional arguments but %d were given",
+            typename, n + 1, args.size() + 1);
+      }
+      Object[] values = new Object[n];
+      for (int i = 0; i < args.size(); i++) {
+        values[i] = args.get(i);
+      }
+      for (Map.Entry<String, Object> e : kwargs.entrySet()) {
+        int pos = fields.indexOf(e.getKey());
+        if (pos == -1) {
+          throw Starlark.errorf(
+              "TypeError: %s.__new__() got an unexpected keyword argument '%s'",
+              typename, e.getKey());
+        }
+        if (values[pos] != null) {
+          throw Starlark.errorf(
+              "TypeError: %s.__new__() got multiple values for argument '%s'",
+              typename, e.getKey());
+        }
+        values[pos] = e.getValue();
+      }
+      List<String> missing = new ArrayList<>();
+      for (int i = 0; i < n; i++) {
+        if (values[i] == null) {
+          String field = fields.get(i);
+          if (fieldDefaults.containsKey(field)) {
+            values[i] = fieldDefaults.get(field);
+          } else {
+            missing.add("'" + field + "'");
+          }
+        }
+      }
+      if (!missing.isEmpty()) {
+        String names =
+            missing.size() == 1
+                ? missing.get(0)
+                : String.join(", ", missing.subList(0, missing.size() - 1))
+                    + " and "
+                    + missing.get(missing.size() - 1);
+        throw Starlark.errorf(
+            "TypeError: %s.__new__() missing %d required positional argument%s: %s",
+            typename, missing.size(), missing.size() == 1 ? "" : "s", names);
+      }
+      return new LarkyNamedTuple(this, Arrays.asList(values), thread);
+    }
+
+    /** {@code P._make(iterable)}: an instance from exactly as many values as fields. */
+    private LarkyNamedTuple make(Object iterable, StarlarkThread thread) throws EvalException {
+      Tuple values = Tuple.copyOf(Starlark.toIterable(iterable));
+      if (values.size() != fields.size()) {
+        throw Starlark.errorf(
+            "TypeError: Expected %d arguments, got %d", fields.size(), values.size());
+      }
+      return new LarkyNamedTuple(this, values, thread);
+    }
+
+    @Nullable
+    @Override
+    public Object getValue(String name) {
+      switch (name) {
+        case "__name__":
+          return typename;
+        case "_fields":
+          return fieldsTuple;
+        case "_field_defaults":
+          return fieldDefaults;
+        case "_make":
+          return new StarlarkCallable() {
+            @Override
+            public String getName() {
+              return "_make";
+            }
+
+            @Override
+            public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs)
+                throws EvalException {
+              if (args.size() != 1 || !kwargs.isEmpty()) {
+                throw Starlark.errorf("_make() takes exactly one argument, an iterable");
+              }
+              return make(args.get(0), thread);
+            }
+          };
+        default:
+          return null;
+      }
+    }
+
+    @Override
+    public ImmutableCollection<String> getFieldNames() {
+      return ImmutableSet.of("__name__", "_fields", "_field_defaults", "_make");
+    }
+
+    @Nullable
+    @Override
+    public String getErrorMessageForUnknownField(String field) {
+      return String.format("type object '%s' has no attribute '%s'", typename, field);
     }
   }
 
@@ -285,31 +369,12 @@ public class CollectionsModule implements StarlarkValue {
     },
     useStarlarkThread = true)
   public StarlarkCallable namedTuple(String typename, Sequence<String> fieldNames, boolean rename, Object defaultsO, Object moduleO, StarlarkThread thread) {
-    return new StarlarkCallable() {
-      @Override
-      public String getName() {
-        return typename;
-      }
-
-      @Override
-      public void repr(Printer printer, StarlarkSemantics semantics) {
-        printer.append(getName());
-      }
-
-      @Override
-      public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) throws EvalException, InterruptedException {
-        Dict.Builder<String, Object> class_namespace = Dict.<String, Object>builder()
-          .put("__name__", typename)
-          .put("_fields", fieldNames)
-          .put("__match_args__", fieldNames)
-          .put("_field_defaults", defaultsO)
-          ;
-
-        return LarkyNamedTuple.create(class_namespace.buildImmutable(), args, kwargs, thread);
-      }
-    };
-
+    @SuppressWarnings("unchecked") // field names are strings (collections.star)
+    Dict<String, Object> defaults =
+        defaultsO instanceof Dict
+            ? Dict.immutableCopyOf((Dict<String, Object>) defaultsO)
+            : Dict.empty();
+    return new NamedTupleType(typename, fieldNames, defaults);
   }
-
 
 }
