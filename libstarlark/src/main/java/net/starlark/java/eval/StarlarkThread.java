@@ -133,6 +133,8 @@ public final class StarlarkThread {
    */
   public void setExpirationMs(long expirationMs) {
     this.expirationMs = expirationMs;
+    this.checksUntilClockRead = 0;
+    this.expired = false; // a new date re-arms the check
   }
 
   /**
@@ -156,12 +158,30 @@ public final class StarlarkThread {
     return clock.millis() > expirationMs;
   }
 
+  // checkExpired reads the clock on the first check after an expiration date is set and on every
+  // EXPIRY_CHECK_INTERVAL-th check after that: it runs for every statement and expression, and
+  // reading the clock each time was a large part of evaluation.
+  private static final int EXPIRY_CHECK_INTERVAL = 64;
+  private int checksUntilClockRead;
+
   /** Throws if evaluation has run past the expiration date set by {@link #setExpirationMs}. */
   void checkExpired() throws EvalException {
+    // VGS: once past the expiration date, every check fails, so a script that catches the error
+    // (Larky's safe()) can't keep running: its next statement fails too.
+    if (expired) {
+      throw new EvalException("Starlark computation cancelled: past expiration date");
+    }
+    if (expirationMs == Long.MAX_VALUE || --checksUntilClockRead > 0) {
+      return;
+    }
+    checksUntilClockRead = EXPIRY_CHECK_INTERVAL;
     if (isExpired()) {
+      expired = true;
       throw new EvalException("Starlark computation cancelled: past expiration date");
     }
   }
+
+  private boolean expired;
 
   private boolean interrupted;
 
