@@ -340,6 +340,17 @@ def _test_bytearray_results_are_independent_bytearrays():
     asserts.assert_that(type(b("xyz")[:])).is_equal_to("bytes")
 
 
+def _test_bytes_and_bytearray_order_by_content():
+    # As in Python, bytes and bytearray compare by content, in either order.
+    asserts.assert_that(b"\x80" > builtins.bytearray(b"\x7f")).is_true()
+    asserts.assert_that(builtins.bytearray(b("a")) < b("b")).is_true()
+    asserts.assert_that(b("a") < builtins.bytearray(b("a"))).is_false()
+    asserts.assert_that(b("a") <= builtins.bytearray(b("a"))).is_true()
+    asserts.assert_that(
+        sorted([builtins.bytearray(b("b")), b("a"), builtins.bytearray(b("c"))])
+    ).is_equal_to([b("a"), b("b"), b("c")])
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
 
@@ -364,6 +375,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_join))
     _suite.addTest(unittest.FunctionTestCase(_test_skip_unescape_encode))
     _suite.addTest(unittest.FunctionTestCase(_test_bytearray_results_are_independent_bytearrays))
+    _suite.addTest(unittest.FunctionTestCase(_test_bytes_and_bytearray_order_by_content))
 
     return _suite
 
