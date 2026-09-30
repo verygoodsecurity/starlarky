@@ -792,23 +792,130 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
   @Override
   public void repr(Printer printer, StarlarkSemantics semantics) {
-    byte[] bytes = this.delegate.copy(); //todo
-    String s;
-    try {
-      s = UTF8toUTF16(bytes, 0, bytes.length, /*allowMalformed*/true);
-      StringBuilder sb = new StringBuilder();
-      for (int i = 0; i < s.length(); i++) {
-        quote(sb, s.codePointAt(i));
+    printer.append(quoteBytes(this.delegate.toArray()));
+  }
+
+  /**
+   * The repr of bytes, as starlark-go's syntax.Quote(s, true): a valid UTF-8 encoding of a
+   * printable character is written as that character, other characters as {@code \\uXXXX} (or a
+   * named escape), and each byte that is not part of a valid encoding as {@code \\xHH}. So
+   * {@code b"\\xc3\\xa9"} is {@code b"é"} while the lone byte {@code b"\\xe9"} stays escaped.
+   */
+  static String quoteBytes(byte[] b) {
+    final String hex = "0123456789abcdef";
+    StringBuilder sb = new StringBuilder(b.length + 3).append("b\"");
+    for (int i = 0; i < b.length; ) {
+      int c0 = b[i] & 0xFF;
+      int r;
+      int width;
+      if (c0 < 0x80) {
+        r = c0;
+        width = 1;
+      } else {
+        long rw = decodeUtf8(b, i);
+        r = (int) (rw >> 8);
+        width = (int) (rw & 0xFF);
+        if (width == 0) { // not a valid encoding: escape the byte
+          sb.append("\\x").append(hex.charAt(c0 >> 4)).append(hex.charAt(c0 & 0xF));
+          i++;
+          continue;
+        }
       }
-      s = sb.toString();
-    } catch(IndexOutOfBoundsException ex) {
-      StringBuilder sb = new StringBuilder();
-      for(byte b : this.delegate) {
-        quote(sb, Byte.toUnsignedInt(b));
+      i += width;
+      if (r == '"' || r == '\\') {
+        sb.append('\\').append((char) r);
+      } else if (isPrint(r)) {
+        sb.appendCodePoint(r);
+      } else {
+        switch (r) {
+          case 0x07: sb.append("\\a"); break;
+          case '\b': sb.append("\\b"); break;
+          case '\f': sb.append("\\f"); break;
+          case '\n': sb.append("\\n"); break;
+          case '\r': sb.append("\\r"); break;
+          case '\t': sb.append("\\t"); break;
+          case 0x0B: sb.append("\\v"); break;
+          default:
+            if (r < ' ' || r == 0x7f) {
+              sb.append("\\x").append(hex.charAt(r >> 4)).append(hex.charAt(r & 0xF));
+            } else if (r < 0x10000) {
+              sb.append(String.format("\\u%04x", r));
+            } else {
+              sb.append(String.format("\\U%08x", r));
+            }
+        }
       }
-      s = sb.toString();
     }
-    printer.append(String.format("b\"%s\"", s));
+    return sb.append('"').toString();
+  }
+
+  /**
+   * Decodes the UTF-8 encoding of one character at {@code b[i]} (whose first byte is >= 0x80), as
+   * Go's utf8.DecodeRune: returns {@code (codePoint << 8) | width}, with width 0 when the bytes
+   * are not a valid encoding (truncated, overlong, a surrogate, or beyond U+10FFFF).
+   */
+  private static long decodeUtf8(byte[] b, int i) {
+    int c0 = b[i] & 0xFF;
+    int n;
+    int min;
+    int r;
+    if (c0 >= 0xC2 && c0 <= 0xDF) {
+      n = 2; min = 0x80; r = c0 & 0x1F;
+    } else if (c0 >= 0xE0 && c0 <= 0xEF) {
+      n = 3; min = 0x800; r = c0 & 0x0F;
+    } else if (c0 >= 0xF0 && c0 <= 0xF4) {
+      n = 4; min = 0x10000; r = c0 & 0x07;
+    } else {
+      return 0;
+    }
+    if (i + n > b.length) {
+      return 0;
+    }
+    for (int k = 1; k < n; k++) {
+      int c = b[i + k] & 0xFF;
+      if ((c & 0xC0) != 0x80) {
+        return 0;
+      }
+      r = (r << 6) | (c & 0x3F);
+    }
+    if (r < min || r > 0x10FFFF || (r >= 0xD800 && r <= 0xDFFF)) {
+      return 0;
+    }
+    return ((long) r << 8) | n;
+  }
+
+  /** Go's strconv.IsPrint: letters, marks, numbers, punctuation, symbols, and the ASCII space. */
+  private static boolean isPrint(int r) {
+    if (r == ' ') {
+      return true;
+    }
+    switch (Character.getType(r)) {
+      case Character.UPPERCASE_LETTER:
+      case Character.LOWERCASE_LETTER:
+      case Character.TITLECASE_LETTER:
+      case Character.MODIFIER_LETTER:
+      case Character.OTHER_LETTER:
+      case Character.NON_SPACING_MARK:
+      case Character.ENCLOSING_MARK:
+      case Character.COMBINING_SPACING_MARK:
+      case Character.DECIMAL_DIGIT_NUMBER:
+      case Character.LETTER_NUMBER:
+      case Character.OTHER_NUMBER:
+      case Character.CONNECTOR_PUNCTUATION:
+      case Character.DASH_PUNCTUATION:
+      case Character.START_PUNCTUATION:
+      case Character.END_PUNCTUATION:
+      case Character.INITIAL_QUOTE_PUNCTUATION:
+      case Character.FINAL_QUOTE_PUNCTUATION:
+      case Character.OTHER_PUNCTUATION:
+      case Character.MATH_SYMBOL:
+      case Character.CURRENCY_SYMBOL:
+      case Character.MODIFIER_SYMBOL:
+      case Character.OTHER_SYMBOL:
+        return true;
+      default:
+        return false;
+    }
   }
 
   /**
@@ -919,8 +1026,27 @@ public class StarlarkBytes implements ByteStringModuleApi,
     return derived(mutability, suffixRemoved);
    }
 
+  /** Decodes bytes to a string for {@code bytes.decode}. */
+  public interface Decoder {
+    String decode(byte[] data, String encoding, String errors) throws EvalException;
+  }
+
+  @Nullable private static volatile Decoder decoder;
+
+  /**
+   * Sets how {@code bytes.decode} decodes (Larky installs CPython's codec names and error
+   * handlers). Without one, Java's charsets decode, and an unknown name is a Java error.
+   */
+  public static void setDecoder(@Nullable Decoder d) {
+    decoder = d;
+  }
+
   @Override
   public String decode(String encoding, String errors) throws EvalException {
+    Decoder d = decoder;
+    if (d != null) {
+      return d.decode(this.delegate.toArray(), encoding, errors);
+    }
     try {
       return this.delegate.decode(encoding, errors);
     } catch (CharacterCodingException e) {
