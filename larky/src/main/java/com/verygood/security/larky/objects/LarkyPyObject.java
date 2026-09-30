@@ -1,5 +1,7 @@
 package com.verygood.security.larky.objects;
 
+import com.verygood.security.larky.objects.type.LarkyClassType;
+import net.starlark.java.syntax.StarlarkType;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Maps;
@@ -23,6 +25,7 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.syntax.TokenKind;
 
@@ -86,6 +89,11 @@ public class LarkyPyObject implements
   @Override
   public LarkyType typeClass() {
     return this.__class__;
+  }
+
+  @Override
+  public StarlarkType getStarlarkType(StarlarkSemantics semantics) {
+    return LarkyClassType.of(this.__class__, this instanceof StarlarkCallable);
   }
 
   @Override

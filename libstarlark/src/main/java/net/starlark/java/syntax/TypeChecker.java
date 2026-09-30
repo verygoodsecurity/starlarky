@@ -148,6 +148,22 @@ public final class TypeChecker extends NodeVisitor {
   }
 
   /**
+   * The type of a byte literal (a VGS extension): that of the {@code bytes} type constructor in
+   * scope, or {@code Any} if there is none.
+   */
+  private StarlarkType bytesType() {
+    try {
+      TypeConstructor bytes = module.getTypeConstructor("bytes");
+      if (bytes != null) {
+        return bytes.createStarlarkType(ImmutableList.of());
+      }
+    } catch (Resolver.Module.Undefined | TypeConstructor.Failure e) {
+      // no bytes type in scope
+    }
+    return Types.ANY;
+  }
+
+  /**
    * Infers the type of an expression from a bottom-up traversal, relying on type information stored
    * in identifier bindings by the {@link TypeTagger}.
    *
@@ -157,6 +173,7 @@ public final class TypeChecker extends NodeVisitor {
     return switch (expr.kind()) {
       case IDENTIFIER -> getType((Identifier) expr);
       case STRING_LITERAL -> Types.STR;
+      case BYTE_LITERAL -> bytesType();
       case INT_LITERAL -> Types.INT;
       case FLOAT_LITERAL -> Types.FLOAT;
       case CAST -> {

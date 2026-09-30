@@ -1,5 +1,8 @@
 package com.verygood.security.larky.objects.type;
 
+import com.google.common.collect.ImmutableList;
+import net.starlark.java.syntax.StarlarkType;
+import net.starlark.java.syntax.TypeConstructor;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableSet;
@@ -51,7 +54,7 @@ import org.jetbrains.annotations.Nullable;
       "\n" +
       "Otherwise, the type will default to the default Starlark::type() method invocation"
 )
-final public class LarkyTypeObject implements LarkyType {
+final public class LarkyTypeObject implements LarkyType, TypeConstructor {
 
   private static final Supplier<LarkyType[]> DEFAULT_HIERARCHY = Suppliers.memoize(
     () -> new LarkyType[]{(LarkyType) LarkyBaseObjectType.getInstance()}
@@ -327,4 +330,11 @@ final public class LarkyTypeObject implements LarkyType {
     }
   }
 
+
+  /** A class is a type: annotating with it accepts its instances and those of its subclasses. */
+  @Override
+  public StarlarkType createStarlarkType(ImmutableList<TypeConstructor.Term> args)
+      throws TypeConstructor.Failure {
+    return LarkyClassType.create(this, args);
+  }
 }

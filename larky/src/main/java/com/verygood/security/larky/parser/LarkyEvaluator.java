@@ -125,9 +125,24 @@ public final class LarkyEvaluator {
 
     // parse & compile
     FileOptions options = getStarlarkValidationOptions();
-    ParserInput input = ParserInput.fromUTF8(content.readContentBytes(), content.path());
-    Program prog = compileStarlarkProgram(module, input, options);
-    Map<String, Module> loadedModules = processLoads(content, prog);
+    Program prog;
+    Map<String, Module> loadedModules;
+    if (typeChecking() && !(content instanceof ResourceContentStarFile)) {
+      // A typed script is tagged with the types of the modules it loads; Larky's own modules
+      // are compiled as before. Its annotations may name the classes it defines.
+      module.allowForwardTypeReferences();
+      Program program =
+          compileStarlarkProgram(
+              module,
+              ParserInput.fromUTF8(content.readContentBytes(), content.path()),
+              options.toBuilder().allowTypeSyntax(true).resolveTypeSyntax(true).build());
+      loadedModules = processLoads(content, program);
+      prog = withTypeInfo(program, module, loadedModules);
+    } else {
+      ParserInput input = ParserInput.fromUTF8(content.readContentBytes(), content.path());
+      prog = compileStarlarkProgram(module, input, options);
+      loadedModules = processLoads(content, prog);
+    }
 
     Object starlarkOutput;
 
@@ -244,12 +259,17 @@ public final class LarkyEvaluator {
       try (Mutability mu = Mutability.create("InMemoryNativeModule")) {
         StarlarkThread thread = StarlarkThread.createTransient(mu, evaluator.getLarkySemantics());
         try {
-          Starlark.execFile(
-              ParserInput.fromString(String.format("%1$s = _%1$s", moduleToLoad), "<builtin>"),
-              evaluator.getStarlarkValidationOptions(),
+          // Not Starlark.execFile, which would type-check this generated file when the
+          // semantics enable type checking (its options do not allow type syntax).
+          Starlark.execFileProgram(
+              Program.compileFile(
+                  StarlarkFile.parse(
+                      ParserInput.fromString(
+                          String.format("%1$s = _%1$s", moduleToLoad), "<builtin>"),
+                      evaluator.getStarlarkValidationOptions()),
+                  newModule),
               newModule,
-              thread
-          );
+              thread);
         } catch (InterruptedException | EvalException | SyntaxError.Exception e) {
           throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, thread);
         }
@@ -292,6 +312,29 @@ public final class LarkyEvaluator {
               String.join("\n", errs)));
     }
     return prog;
+  }
+
+  private boolean typeChecking() {
+    return larkySemantics.getBool(StarlarkSemantics.EXPERIMENTAL_STARLARK_STATIC_TYPE_CHECKING)
+        || larkySemantics.getBool(StarlarkSemantics.EXPERIMENTAL_STARLARK_DYNAMIC_TYPE_CHECKING);
+  }
+
+  /** Attaches type information to {@code program}, reporting type errors like syntax errors. */
+  private Program withTypeInfo(Program program, Module module, Map<String, Module> loadedModules)
+      throws EvalException {
+    try {
+      return Starlark.maybeWithTypeInfo(program, module, larkySemantics, loadedModules::get);
+    } catch (SyntaxError.Exception ex) {
+      List<String> errs = new ArrayList<>();
+      for (SyntaxError error : ex.errors()) {
+        reporter.error(error.toString());
+        errs.add(error.toString());
+      }
+      throw new EvalException(
+          String.format(
+              "Error type checking Starlark program: %1$s%n%2$s",
+              program.getFilename(), String.join("\n", errs)));
+    }
   }
 
   private FileOptions getStarlarkValidationOptions() throws EvalException {
