@@ -827,46 +827,13 @@ public final class PythonBuiltins {
         // if encoding is null && _obj is a string, then we have to throw an error
         throw Starlark.errorf("string argument without an encoding");
       }
-      Charset charset;
-      try {
-        charset = Charset.forName(encoding);
-      } catch (UnsupportedCharsetException e) {
-        throw Starlark.errorf("unknown encoding: %s", e.getMessage());
-      }
-      /*
-       mimic the python behavior such that if string is null, then we convert it to empty string:
-
-      >>> bytes('', 'utf-8')
-      b''
-      */
-
-      /*
-        errors
-          The error handling scheme to use for encoding errors.
-          The default is 'strict' meaning that encoding errors raise a
-          UnicodeEncodeError.  Other possible values are 'ignore', 'replace' and
-          'xmlcharrefreplace' as well as any other name registered with
-          codecs.register_error that can handle UnicodeEncodeErrors.
-       */
-
-      CodingErrorAction errs = TextUtil.CodecHelper.convertCodingErrorAction(
-        StarlarkUtil.convertFromNoneable(_errors, TextUtil.CodecHelper.STRICT)
-      );
-
-      CharsetDecoder decoder = charset.newDecoder();
-      decoder.onMalformedInput(errs);
-      decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
-      decoder.replaceWith(String.valueOf(TextUtil.REPLACEMENT_CHAR));
-      //bytes(string, encoding[, errors]) -> bytes
-      return StarlarkBytes.copyOf(
-        thread.mutability(),
-        decoder
-          .charset()
-          .encode(TextUtil.unescapeJavaString((String) _obj)));
-//      return StarlarkBytes.builder(thread)
-//          .setSequence(decoder.charset()
-//              .encode(TextUtil.unescapeJavaString((String) _obj))
-//          ).build();
+      // Encoded by the same codecs as codecs.encode (CPython's names and error handlers). Unlike
+      // Python, escapes written as text in the string (r"\x00") are interpreted first: Larky
+      // scripts write arbitrary bytes this way (bytes(r"\x80", encoding="utf-8")).
+      String errors = StarlarkUtil.convertFromNoneable(_errors, TextUtil.CodecHelper.STRICT);
+      byte[] encoded =
+          TextUtil.PyCodecs.encode(TextUtil.unescapeJavaString((String) _obj), encoding, errors);
+      return StarlarkBytes.of(thread.mutability(), encoded);
     }
 
     // here we are not null,
@@ -957,45 +924,13 @@ public final class PythonBuiltins {
         // if encoding is null && _obj is a string, then we have to throw an error
         throw Starlark.errorf("string argument without an encoding");
       }
-      Charset charset;
-      try {
-        charset = Charset.forName(encoding);
-      } catch (UnsupportedCharsetException e) {
-        throw Starlark.errorf("unknown encoding: %s", e.getMessage());
-      }
-       /*
-        mimic the python behavior such that if string is null, then we convert it to empty string:
-
-       >>> bytes('', 'utf-8')
-       b''
-       */
-
-       /*
-         errors
-           The error handling scheme to use for encoding errors.
-           The default is 'strict' meaning that encoding errors raise a
-           UnicodeEncodeError.  Other possible values are 'ignore', 'replace' and
-           'xmlcharrefreplace' as well as any other name registered with
-           codecs.register_error that can handle UnicodeEncodeErrors.
-        */
-
-      CodingErrorAction errs = TextUtil.CodecHelper.convertCodingErrorAction(
-        StarlarkUtil.convertFromNoneable(_errors, TextUtil.CodecHelper.STRICT)
-      );
-
-      CharsetDecoder decoder = charset.newDecoder();
-      decoder.onMalformedInput(errs);
-      decoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
-      decoder.replaceWith(String.valueOf(TextUtil.REPLACEMENT_CHAR));
-      //bytes(string, encoding[, errors]) -> bytes
-      return StarlarkByteArray.of(StarlarkBytes.copyOf(
-        thread.mutability(),
-        decoder.charset()
-          .encode(TextUtil.unescapeJavaString((String) _obj))));
-//       return StarlarkBytes.builder(thread)
-//           .setSequence(decoder.charset()
-//               .encode(TextUtil.unescapeJavaString((String) _obj))
-//           ).build();
+      // Encoded by the same codecs as codecs.encode (CPython's names and error handlers). Unlike
+      // Python, escapes written as text in the string (r"\x00") are interpreted first: Larky
+      // scripts write arbitrary bytes this way (bytes(r"\x80", encoding="utf-8")).
+      String errors = StarlarkUtil.convertFromNoneable(_errors, TextUtil.CodecHelper.STRICT);
+      byte[] encoded =
+          TextUtil.PyCodecs.encode(TextUtil.unescapeJavaString((String) _obj), encoding, errors);
+      return StarlarkByteArray.of(thread.mutability(), encoded);
     }
 
     // here we are not null,
