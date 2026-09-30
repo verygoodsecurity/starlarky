@@ -166,6 +166,7 @@ public abstract class StarlarkInt implements StarlarkValue, Comparable<StarlarkI
     try {
       result = StarlarkInt.of(Long.parseLong(digits, base));
     } catch (NumberFormatException unused1) {
+      IntLimits.checkDigits(digits, base); // VGS
       try {
         result = StarlarkInt.of(new BigInteger(digits, base));
       } catch (NumberFormatException unused2) {
@@ -677,6 +678,7 @@ public abstract class StarlarkInt implements StarlarkValue, Comparable<StarlarkI
     }
 
     BigInteger xbig = x.toBigInteger();
+    IntLimits.checkBits((long) xbig.bitLength() + yi, "<<"); // VGS
     BigInteger zbig = xbig.shiftLeft(yi);
     return StarlarkInt.of(zbig);
   }
