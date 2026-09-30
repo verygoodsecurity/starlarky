@@ -627,8 +627,13 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position before which to restrict to search.")
-      })
-  public int rfind(String self, String sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public int rfind(String self, String sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
+      return -1; // VGS: Python's start > end
+    }
     return stringFind(false, self, sub, start, end);
   }
 
@@ -657,8 +662,13 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position before which to restrict to search.")
-      })
-  public int find(String self, String sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public int find(String self, String sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
+      return -1; // VGS: Python's start > end
+    }
     return stringFind(true, self, sub, start, end);
   }
 
@@ -687,8 +697,13 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position before which to restrict to search.")
-      })
-  public int rindex(String self, String sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public int rindex(String self, String sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
+      throw Starlark.errorf("substring not found"); // VGS: Python's start > end
+    }
     int res = stringFind(false, self, sub, start, end);
     if (res < 0) {
       throw Starlark.errorf("substring not found");
@@ -721,8 +736,13 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position before which to restrict to search.")
-      })
-  public int index(String self, String sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public int index(String self, String sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
+      throw Starlark.errorf("substring not found"); // VGS: Python's start > end
+    }
     int res = stringFind(true, self, sub, start, end);
     if (res < 0) {
       throw Starlark.errorf("substring not found");
@@ -920,8 +940,13 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position before which to restrict to search.")
-      })
-  public int count(String self, String sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public int count(String self, String sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
+      return 0; // VGS: Python's start > end
+    }
     long indices = substringIndices(self, start, end);
     if (sub.isEmpty()) {
       return hi(indices) - lo(indices) + 1; // str.length() + 1
@@ -988,8 +1013,14 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "optional position at which to stop comparing.")
-      })
-  public boolean endsWith(String self, Object sub, Object start, Object end) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public boolean endsWith(
+      String self, Object sub, Object start, Object end, StarlarkThread thread)
+      throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, sub, start, end)) {
+      return false; // VGS: Python's start > end
+    }
     long indices = substringIndices(self, start, end);
     if (sub instanceof String) {
       return substringEndsWith(self, lo(indices), hi(indices), (String) sub);
@@ -1070,9 +1101,14 @@ final class StringModule implements StarlarkValue {
             },
             defaultValue = "None",
             doc = "Stop comparing at this position.")
-      })
-  public boolean startsWith(String self, Object sub, Object start, Object end)
+      },
+      useStarlarkThread = true)
+  public boolean startsWith(
+      String self, Object sub, Object start, Object end, StarlarkThread thread)
       throws EvalException {
+    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, sub, start, end)) {
+      return false; // VGS: Python's start > end
+    }
     long indices = substringIndices(self, start, end);
     if (sub instanceof String) {
       return substringStartsWith(self, lo(indices), hi(indices), (String) sub);
