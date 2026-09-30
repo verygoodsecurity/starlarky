@@ -124,6 +124,27 @@ def test_le_ge(o1, o2):
     asserts.assert_true(o1 >= o2)
 
 
+def test_ordering_by_value():
+    # Ok and Error values order by the wrapped values with Starlark's
+    # ordering (10 < 9 is False), not by their string forms. Values that
+    # cannot be ordered raise, as "1" <= 1 does in Python.
+    asserts.assert_that(Ok(10) < Ok(9)).is_false()
+    asserts.assert_that(Ok(9) < Ok(10)).is_true()
+    asserts.assert_that(Error(10) > Error(9)).is_true()
+    asserts.assert_that(Ok(1) <= Ok(1.0)).is_true()
+    asserts.assert_that(Ok(1) >= Ok(1.0)).is_true()
+    asserts.assert_that(Ok("1") == Ok(1)).is_false()
+    asserts.assert_fails(lambda: Ok("1") <= Ok(1), "unsupported comparison: string <=> int")
+    asserts.assert_fails(lambda: Error("1") >= Error(1), "unsupported comparison: string <=> int")
+    # Every Ok orders before every Error, whatever their values (as in the
+    # option library this module ports, and Rust's Result).
+    asserts.assert_that(Ok(10) < Error(1)).is_true()
+    asserts.assert_that(Ok("z") < Error(1)).is_true()
+    asserts.assert_that(Error(1) > Ok("z")).is_true()
+    asserts.assert_that(sorted([Error(2), Ok(3), Error(1), Ok(10)])).is_equal_to(
+        [Ok(3), Ok(10), Error(1), Error(2)])
+
+
 def test_try_statement_workaround():
 
     def foo_s_try():
@@ -445,6 +466,7 @@ def _testsuite():
             (Error(1), Error(1))
         ],
     )(test_le_ge)
+    _suite.addTest(unittest.FunctionTestCase(test_ordering_by_value))
     return _suite
 
 
