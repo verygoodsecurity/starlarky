@@ -15,6 +15,40 @@ _INF = float("inf")
 _NAN = float("nan")
 
 
+def _test_divmod_int_floors():
+    asserts.assert_that(divmod(7, 2)).is_equal_to((3, 1))
+    asserts.assert_that(divmod(-7, 2)).is_equal_to((-4, 1))
+    asserts.assert_that(divmod(7, -2)).is_equal_to((-4, -1))
+    asserts.assert_that(divmod(-7, -2)).is_equal_to((3, -1))
+    asserts.assert_that(divmod(-1, _BIG)).is_equal_to((-1, int("99999999999999999999")))
+    asserts.assert_that(divmod(_BIG, -7)).is_equal_to((int("-14285714285714285715"), -5))
+
+
+def _test_divmod_float():
+    asserts.assert_that(divmod(-7.5, 2)).is_equal_to((-4.0, 0.5))
+    asserts.assert_that(divmod(7.5, -2)).is_equal_to((-4.0, -0.5))
+    asserts.assert_that(divmod(-7, 2.0)).is_equal_to((-4.0, 1.0))
+    asserts.assert_that(divmod(7, -2.5)).is_equal_to((-3.0, -0.5))
+    asserts.assert_that(divmod(5, 0.5)).is_equal_to((10.0, 0.0))
+    asserts.assert_that(type(divmod(5, 0.5)[0])).is_equal_to("float")
+    # Python's divmod is not floor(a / b): 1 / 0.1 rounds up to 10.0.
+    asserts.assert_that(divmod(1, 0.1)).is_equal_to((9.0, 0.09999999999999995))
+    asserts.assert_that(divmod(-1, 0.1)).is_equal_to((-10.0, 5.551115123125783e-17))
+    asserts.assert_that(str(divmod(0.0, -3))).is_equal_to("(-0.0, -0.0)")
+    asserts.assert_that(str(divmod(-0.0, 3))).is_equal_to("(-0.0, 0.0)")
+    asserts.assert_that(divmod(3, _INF)).is_equal_to((0.0, 3.0))
+    asserts.assert_that(divmod(-3, _INF)).is_equal_to((-1.0, _INF))
+    asserts.assert_that(str(divmod(_INF, 3))).is_equal_to("(nan, nan)")
+
+
+def _test_divmod_errors():
+    asserts.assert_fails(lambda: divmod(1, 0), "^integer division or modulo by zero$")
+    asserts.assert_fails(lambda: divmod(1, 0.0), "^floating-point division or modulo by zero$")
+    asserts.assert_fails(lambda: divmod(1.0, 0), "^floating-point division or modulo by zero$")
+    asserts.assert_fails(lambda: divmod(_HUGE, 2.0), "^int too large to convert to float$")
+    asserts.assert_fails(lambda: divmod("a", 2), "want 'int or float'")
+
+
 def _test_pow_int():
     asserts.assert_that(pow(0, 0)).is_equal_to(1)
     asserts.assert_that(type(pow(3, 2))).is_equal_to("int")
@@ -80,6 +114,9 @@ def _test_pow_mod():
 
 def _testsuite():
     _suite = unittest.TestSuite()
+    _suite.addTest(unittest.FunctionTestCase(_test_divmod_int_floors))
+    _suite.addTest(unittest.FunctionTestCase(_test_divmod_float))
+    _suite.addTest(unittest.FunctionTestCase(_test_divmod_errors))
     _suite.addTest(unittest.FunctionTestCase(_test_pow_int))
     _suite.addTest(unittest.FunctionTestCase(_test_pow_float))
     _suite.addTest(unittest.FunctionTestCase(_test_pow_mod))
