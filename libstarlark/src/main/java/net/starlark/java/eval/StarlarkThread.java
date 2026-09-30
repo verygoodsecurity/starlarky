@@ -160,8 +160,10 @@ public final class StarlarkThread {
 
   // checkExpired reads the clock on the first check after an expiration date is set and on every
   // EXPIRY_CHECK_INTERVAL-th check after that: it runs for every statement and expression, and
-  // reading the clock each time was a large part of evaluation.
-  private static final int EXPIRY_CHECK_INTERVAL = 64;
+  // reading the clock each time was a large part of evaluation. A larger interval reads the clock
+  // less often but lets more statements run past the expiration date before evaluation stops.
+  private static final int EXPIRY_CHECK_INTERVAL =
+      Math.max(1, Integer.getInteger("starlark.expiry.checkInterval", 64));
   private int checksUntilClockRead;
 
   /** Throws if evaluation has run past the expiration date set by {@link #setExpirationMs}. */
