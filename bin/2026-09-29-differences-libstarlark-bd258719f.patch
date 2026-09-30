@@ -82,7 +82,7 @@ index bf7eeac3..a171a8e4 100644
        throws EvalException, InterruptedException {
      Object x = eval(fr, slice.getObject());
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java a/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
-index 1655e0a9..b7156f49 100644
+index 1655e0a9..f463280b 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
 @@ -13,6 +13,7 @@
@@ -93,7 +93,15 @@ index 1655e0a9..b7156f49 100644
  import java.util.IllegalFormatException;
  import java.util.LinkedHashMap;
  import java.util.Map;
-@@ -417,7 +418,10 @@ final class EvalUtils {
+@@ -209,6 +210,7 @@ final class EvalUtils {
+         if (x instanceof StarlarkInt xi) {
+           if (y instanceof StarlarkInt) {
+             // int * int
++            IntLimits.checkProduct(xi, (StarlarkInt) y); // VGS
+             return StarlarkInt.multiply(xi, (StarlarkInt) y);
+           } else if (y instanceof String) {
+             // int * string
+@@ -417,7 +419,10 @@ final class EvalUtils {
        // Would exceed max length of a java String.
        throw Starlark.errorf("excessive repeat (%d * %d characters)", s.length(), n);
      } else {
@@ -105,7 +113,7 @@ index 1655e0a9..b7156f49 100644
      }
    }
  
-@@ -489,7 +493,7 @@ final class EvalUtils {
+@@ -489,7 +494,7 @@ final class EvalUtils {
     *
     * @throws EvalException if the object is not a list or dict.
     */
@@ -114,7 +122,7 @@ index 1655e0a9..b7156f49 100644
      if (object instanceof Dict) {
        @SuppressWarnings("unchecked")
        Dict<Object, Object> dict = (Dict<Object, Object>) object;
-@@ -502,10 +506,15 @@ final class EvalUtils {
+@@ -502,10 +507,15 @@ final class EvalUtils {
        index = EvalUtils.getSequenceIndex(index, list.size());
        list.setElementAt(index, value);
  
@@ -133,10 +141,19 @@ index 1655e0a9..b7156f49 100644
    }
  
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java a/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java
-index ec4ebbfa..a369e95b 100644
+index ec4ebbfa..3efac2fc 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java
-@@ -447,6 +447,76 @@ class MethodLibrary {
+@@ -392,7 +392,7 @@ class MethodLibrary {
+       isTypeConstructor = true)
+   public Tuple tuple(StarlarkIterable<?> x) throws EvalException {
+     if (x instanceof Tuple) {
+-      return (Tuple) x;
++      return Tuple.copyOf((Tuple) x); // VGS: a namedtuple becomes a plain tuple, as in Python
+     }
+     return Tuple.wrap(Starlark.toArray(x));
+   }
+@@ -447,6 +447,81 @@ class MethodLibrary {
      return Starlark.str(x, thread.getSemantics());
    }
  
@@ -187,33 +204,38 @@ index ec4ebbfa..a369e95b 100644
 +               allowedTypes = {
 +                   @ParamType(type = String.class),
 +                   @ParamType(type = StarlarkBytes.class),
++                   @ParamType(type = StarlarkInt.class),
 +               }
 +           )
 +       }
 +   )
 +   public StarlarkInt ordinal(Object c) throws EvalException {
-+     int containerSize;
-+     CharSequence chars;
-+     if (String.class.isAssignableFrom(c.getClass())) {
-+       containerSize = ((String) c).length();
-+       chars = ((String) c);
-+     } else {
-+       containerSize = ((StarlarkBytes) c).size();
-+       chars = ((StarlarkBytes) c);
++     // b[i] used to be a 1-byte bytes, so scripts wrote ord(b[i]); it is now the byte's int.
++     if (c instanceof StarlarkInt i) {
++       int v = i.toInt("ord");
++       if (v < 0 || v > 255) {
++         throw Starlark.errorf("ord: int %d out of range, want a byte (0-255)", v);
++       }
++       return i;
 +     }
-+
-+     if (containerSize != 1) {
-+       throw Starlark.errorf(
-+           "ord: %s has length %d, want 1", Starlark.type(c), containerSize);
++     if (c instanceof String s) {
++       // One code point, which may be a surrogate pair.
++       if (s.isEmpty() || s.length() != Character.charCount(s.codePointAt(0))) {
++         throw Starlark.errorf("ord: string has length %d, want 1", s.length());
++       }
++       return StarlarkInt.of(s.codePointAt(0));
 +     }
-+
-+    return StarlarkInt.of(Byte.toUnsignedInt((byte) chars.charAt(0)));
++     StarlarkBytes b = (StarlarkBytes) c;
++     if (b.size() != 1) {
++       throw Starlark.errorf("ord: bytes has length %d, want 1", b.size());
++     }
++     return StarlarkInt.of(Byte.toUnsignedInt(b.byteAt(0)));
 +  }
 +
    @StarlarkMethod(
        name = "repr",
        doc =
-@@ -737,15 +807,24 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
+@@ -737,15 +812,27 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
    @StarlarkMethod(
        name = "hash",
        doc =
@@ -239,14 +261,27 @@ index ec4ebbfa..a369e95b 100644
 +        })
 +      })
 +  public int hash(Object value) throws EvalException {
++    if (value instanceof StarlarkBytes b) {
++      b.checkHashable(); // a bytearray is unhashable, as in Python
++    }
      return value.hashCode();
    }
  
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java a/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
-index 361556d9..90008017 100644
+index 361556d9..f3e5f66d 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
-@@ -1000,9 +1000,9 @@ public final class Starlark {
+@@ -599,6 +599,9 @@ public final class Starlark {
+     } else {
+       // different types
+ 
++      if (x instanceof StarlarkBytes xb && y instanceof StarlarkBytes yb) {
++        return xb.compareTo(yb); // VGS: bytes and bytearray order by content, as in Python
++      }
+       if (x instanceof StarlarkFloat && y instanceof StarlarkInt) {
+         // float < int
+         double xf = ((StarlarkFloat) x).toDouble();
+@@ -1000,9 +1003,9 @@ public final class Starlark {
     *
     * <p>The original exception can be retrieved using {@link #getCause}.
     */
@@ -259,21 +294,27 @@ index 361556d9..90008017 100644
        thread.fillInStackTrace(this);
      }
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkInt.java a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkInt.java
-index 1d067d6f..120325a7 100644
+index 1d067d6f..cb42c0cf 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkInt.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkInt.java
-@@ -229,7 +229,8 @@ public abstract class StarlarkInt implements StarlarkValue, Comparable<StarlarkI
-     @Override
-     public boolean equals(Object that) {
-       return (that instanceof Int32 && this.v == ((Int32) that).v)
--          || (that instanceof StarlarkFloat && intEqualsFloat(this, (StarlarkFloat) that));
-+       || (that instanceof StarlarkFloat && intEqualsFloat(this, (StarlarkFloat) that))
-+       || (that instanceof StarlarkBytes.StarlarkByte && this.v == ((StarlarkBytes.StarlarkByte) that).get());
+@@ -166,6 +166,7 @@ public abstract class StarlarkInt implements StarlarkValue, Comparable<StarlarkI
+     try {
+       result = StarlarkInt.of(Long.parseLong(digits, base));
+     } catch (NumberFormatException unused1) {
++      IntLimits.checkDigits(digits, base); // VGS
+       try {
+         result = StarlarkInt.of(new BigInteger(digits, base));
+       } catch (NumberFormatException unused2) {
+@@ -677,6 +678,7 @@ public abstract class StarlarkInt implements StarlarkValue, Comparable<StarlarkI
      }
-   }
  
+     BigInteger xbig = x.toBigInteger();
++    IntLimits.checkBits((long) xbig.bitLength() + yi, "<<"); // VGS
+     BigInteger zbig = xbig.shiftLeft(yi);
+     return StarlarkInt.of(zbig);
+   }
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
-index 65cfb87a..5ab65207 100644
+index 65cfb87a..eface7de 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
 @@ -14,13 +14,16 @@
@@ -302,7 +343,7 @@ index 65cfb87a..5ab65207 100644
  
    /**
     * Returns the number of Starlark computation steps executed by this thread according to a
-@@ -111,6 +116,53 @@ public final class StarlarkThread {
+@@ -111,6 +116,55 @@ public final class StarlarkThread {
      return stepLimit;
    }
  
@@ -353,9 +394,363 @@ index 65cfb87a..5ab65207 100644
 +    }
 +  }
 +
++  private boolean interrupted;
++
    /**
     * Disables polling of the {@link java.lang.Thread#interrupted} flag during Starlark evaluation.
     */
+@@ -122,11 +176,19 @@ public final class StarlarkThread {
+   }
+ 
+   void checkInterrupt() throws InterruptedException {
+-    if (interruptible && Thread.interrupted()) {
++    // VGS: Thread.interrupted() clears the flag, so remember the interrupt; every later check
++    // fails even if a script caught the first InterruptedException.
++    if (interrupted || (interruptible && Thread.interrupted())) {
++      interrupted = true;
+       throw new InterruptedException();
+     }
+   }
+ 
++  /** VGS: the number of frames on the call stack, for callers that recover from an error. */
++  int callStackSize() {
++    return callstack.size();
++  }
++
+   /**
+    * setThreadLocal saves {@code value} as a thread-local variable of this Starlark thread, keyed by
+    * {@code key}, so that it can later be retrieved by {@code getThreadLocal(key)}.
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java a/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java
+index 1191027e..ffad3cd0 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java
+@@ -188,16 +188,24 @@ final class StringModule implements StarlarkValue {
+   @StarlarkMethod(
+       name = "lower",
+       doc = "Returns the lower case version of this string.",
+-      parameters = {@Param(name = "self")})
+-  public String lower(String self) {
++      parameters = {@Param(name = "self")},
++      useStarlarkThread = true)
++  public String lower(String self, StarlarkThread thread) {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.lower(self); // VGS: Python's Unicode rules
++    }
+     return Ascii.toLowerCase(self);
+   }
+ 
+   @StarlarkMethod(
+       name = "upper",
+       doc = "Returns the upper case version of this string.",
+-      parameters = {@Param(name = "self")})
+-  public String upper(String self) {
++      parameters = {@Param(name = "self")},
++      useStarlarkThread = true)
++  public String upper(String self, StarlarkThread thread) {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.upper(self); // VGS: Python's Unicode rules
++    }
+     return Ascii.toUpperCase(self);
+   }
+ 
+@@ -349,7 +357,9 @@ final class StringModule implements StarlarkValue {
+         ? CharMatcher.anyOf((String) charsOrNone)
+         : (starlarkSemantics.getBool(StarlarkSemantics.INTERNAL_BAZEL_ONLY_UTF_8_BYTE_STRINGS)
+             ? ASCII_WHITESPACE
+-            : LATIN1_WHITESPACE);
++            : PythonStrings.unicode(starlarkSemantics)
++                ? PythonStrings.WHITESPACE // VGS: Python's whitespace
++                : LATIN1_WHITESPACE);
+   }
+ 
+   @StarlarkMethod(
+@@ -540,8 +550,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns a copy of the string with its first character (if any) capitalized and the rest "
+               + "lowercased. This method does not support non-ascii characters. ",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public String capitalize(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public String capitalize(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.capitalize(self); // VGS: Python's Unicode rules
++    }
+     if (self.isEmpty()) {
+       return self;
+     }
+@@ -556,8 +570,12 @@ final class StringModule implements StarlarkValue {
+               + "uppercase letter while the remaining letters are lowercase. In this "
+               + "context, a word means strictly a sequence of letters. This method does "
+               + "not support supplementary Unicode characters.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public String title(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public String title(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.title(self); // VGS: Python's Unicode rules
++    }
+     char[] data = self.toCharArray();
+     boolean previousWasLetter = false;
+ 
+@@ -627,8 +645,13 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position before which to restrict to search.")
+-      })
+-  public int rfind(String self, String sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public int rfind(String self, String sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
++      return -1; // VGS: Python's start > end
++    }
+     return stringFind(false, self, sub, start, end);
+   }
+ 
+@@ -657,8 +680,13 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position before which to restrict to search.")
+-      })
+-  public int find(String self, String sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public int find(String self, String sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
++      return -1; // VGS: Python's start > end
++    }
+     return stringFind(true, self, sub, start, end);
+   }
+ 
+@@ -687,8 +715,13 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position before which to restrict to search.")
+-      })
+-  public int rindex(String self, String sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public int rindex(String self, String sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
++      throw Starlark.errorf("substring not found"); // VGS: Python's start > end
++    }
+     int res = stringFind(false, self, sub, start, end);
+     if (res < 0) {
+       throw Starlark.errorf("substring not found");
+@@ -721,8 +754,13 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position before which to restrict to search.")
+-      })
+-  public int index(String self, String sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public int index(String self, String sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
++      throw Starlark.errorf("substring not found"); // VGS: Python's start > end
++    }
+     int res = stringFind(true, self, sub, start, end);
+     if (res < 0) {
+       throw Starlark.errorf("substring not found");
+@@ -771,8 +809,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all characters in the string are alphabetic ([a-zA-Z]) and there is "
+               + "at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isAlpha(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isAlpha(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isAlpha(self); // VGS: Python's Unicode rules
++    }
+     return matches(self, ALPHA, false);
+   }
+ 
+@@ -781,8 +823,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all characters in the string are alphanumeric ([a-zA-Z0-9]) and there "
+               + "is at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isAlnum(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isAlnum(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isAlnum(self); // VGS: Python's Unicode rules
++    }
+     return matches(self, ALNUM, false);
+   }
+ 
+@@ -791,8 +837,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all characters in the string are digits ([0-9]) and there is "
+               + "at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isDigit(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isDigit(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isDigit(self); // VGS: Python's Unicode rules
++    }
+     return matches(self, DIGIT, false);
+   }
+ 
+@@ -801,8 +851,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all characters are white space characters and the string "
+               + "contains at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isSpace(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isSpace(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isSpace(self); // VGS: Python's Unicode rules
++    }
+     return matches(self, SPACE, false);
+   }
+ 
+@@ -811,8 +865,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all cased characters in the string are lowercase and there is "
+               + "at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isLower(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isLower(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isLower(self); // VGS: Python's Unicode rules
++    }
+     // Python also accepts non-cased characters, so we cannot use LOWER.
+     return matches(self, UPPER.negate(), true);
+   }
+@@ -822,8 +880,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all cased characters in the string are uppercase and there is "
+               + "at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isUpper(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isUpper(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isUpper(self); // VGS: Python's Unicode rules
++    }
+     // Python also accepts non-cased characters, so we cannot use UPPER.
+     return matches(self, LOWER.negate(), true);
+   }
+@@ -835,8 +897,12 @@ final class StringModule implements StarlarkValue {
+               + "This means that every uppercase character must follow an uncased one (e.g. "
+               + "whitespace) and every lowercase character must follow a cased one (e.g. "
+               + "uppercase or lowercase).",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isTitle(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isTitle(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isTitle(self); // VGS: Python's Unicode rules
++    }
+     if (self.isEmpty()) {
+       return false;
+     }
+@@ -920,8 +986,13 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position before which to restrict to search.")
+-      })
+-  public int count(String self, String sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public int count(String self, String sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
++      return 0; // VGS: Python's start > end
++    }
+     long indices = substringIndices(self, start, end);
+     if (sub.isEmpty()) {
+       return hi(indices) - lo(indices) + 1; // str.length() + 1
+@@ -988,8 +1059,14 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position at which to stop comparing.")
+-      })
+-  public boolean endsWith(String self, Object sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public boolean endsWith(
++      String self, Object sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, sub, start, end)) {
++      return false; // VGS: Python's start > end
++    }
+     long indices = substringIndices(self, start, end);
+     if (sub instanceof String) {
+       return substringEndsWith(self, lo(indices), hi(indices), (String) sub);
+@@ -1070,9 +1147,14 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "Stop comparing at this position.")
+-      })
+-  public boolean startsWith(String self, Object sub, Object start, Object end)
++      },
++      useStarlarkThread = true)
++  public boolean startsWith(
++      String self, Object sub, Object start, Object end, StarlarkThread thread)
+       throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, sub, start, end)) {
++      return false; // VGS: Python's start > end
++    }
+     long indices = substringIndices(self, start, end);
+     if (sub instanceof String) {
+       return substringStartsWith(self, lo(indices), hi(indices), (String) sub);
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Tuple.java a/libstarlark/src/main/java/net/starlark/java/eval/Tuple.java
+index 2bfc4d6a..38da7df8 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/Tuple.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/Tuple.java
+@@ -73,7 +73,9 @@ public abstract class Tuple extends AbstractList<Object>
+ 
+   /** Returns a tuple containing the given elements. */
+   public static Tuple copyOf(Iterable<?> seq) {
+-    if (seq instanceof Tuple) {
++    // VGS: only a plain tuple is returned as is; a subclass (a namedtuple) is copied, as
++    // Python's tuple(p) is a plain tuple.
++    if (seq instanceof RegularTuple || seq instanceof SingletonTuple) {
+       return (Tuple) seq;
+     }
+     return wrap(Iterables.toArray(seq, Object.class));
+@@ -109,18 +111,18 @@ public abstract class Tuple extends AbstractList<Object>
+   /** Returns a tuple that is the concatenation of two tuples. */
+   public static Tuple concat(Tuple x, Tuple y) {
+     if (x.isEmpty()) {
+-      return y;
++      return copyOf(y); // VGS: copyOf makes a subclass (a namedtuple) a plain tuple
+     } else if (y.isEmpty()) {
+-      return x;
++      return copyOf(x);
+     } else {
+       Object[] xelems =
+           x instanceof SingletonTuple
+               ? new Object[] {((SingletonTuple) x).elem}
+-              : ((RegularTuple) x).elems;
++              : x instanceof RegularTuple ? ((RegularTuple) x).elems : x.toArray(); // VGS
+       Object[] yelems =
+           y instanceof SingletonTuple
+               ? new Object[] {((SingletonTuple) y).elem}
+-              : ((RegularTuple) y).elems;
++              : y instanceof RegularTuple ? ((RegularTuple) y).elems : y.toArray(); // VGS
+       return wrap(ObjectArrays.concat(xelems, yelems, Object.class));
+     }
+   }
 diff --git b/libstarlark/src/main/java/net/starlark/java/syntax/Expression.java a/libstarlark/src/main/java/net/starlark/java/syntax/Expression.java
 index d82c42aa..bc293b26 100644
 --- b/libstarlark/src/main/java/net/starlark/java/syntax/Expression.java
