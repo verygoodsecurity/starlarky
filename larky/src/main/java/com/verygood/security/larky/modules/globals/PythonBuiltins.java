@@ -406,8 +406,9 @@ public final class PythonBuiltins {
     useStarlarkThread = true
   )
   public String chr(StarlarkInt c, StarlarkThread thread) throws EvalException {
-    if (c.toIntUnchecked() > 0x10FFFF) {
-      throw Starlark.errorf("ValueError: chr(%s) arg not in range(0x110000)", c.toIntUnchecked());
+    // A lone surrogate (0xD800-0xDFFF) is returned as a one-char string, as in Python.
+    if (c.signum() < 0 || c.compareTo(StarlarkInt.of(0x10FFFF)) > 0) {
+      throw Starlark.errorf("ValueError: chr() arg not in range(0x110000)");
     }
     return new String(new int[]{c.toIntUnchecked()}, 0, 1);
   }
@@ -546,6 +547,9 @@ public final class PythonBuiltins {
     String prefix = "0x";
     StringBuilder sb = new StringBuilder();
     BigInteger value = number.toBigInteger();
+    if (value.signum() < 0) {
+      sb.append('-');
+    }
     sb.append(prefix);
     sb.append(value.abs().toString(16));
     return sb.toString();
