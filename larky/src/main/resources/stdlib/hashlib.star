@@ -52,6 +52,11 @@ load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Hash/SHAKE128", SHAKE128="SHAKE128")
 
 
+def _blake2s(data=b'', **kwargs):
+    # Crypto.Hash.BLAKE2s.new takes keyword arguments only
+    return BLAKE2s.new(data=data, **kwargs)
+
+
 __hashes = dict(
     md5=MD5.new,
     sha=SHA1.new,
@@ -60,17 +65,47 @@ __hashes = dict(
     sha256=SHA256.new,
     sha384=SHA384.new,
     sha512=SHA512.new,
-    blake2s=BLAKE2s.new,
+    blake2s=_blake2s,
     shake_128=SHAKE128.new,
 )
+
+# Other spellings CPython's hashlib.new accepts (OpenSSL's names, matched
+# case-insensitively), mapped to the constructor names above.
+_OPENSSL_NAMES = {
+    "md5": "md5",
+    "ssl3-md5": "md5",
+    "sha1": "sha1",
+    "sha-1": "sha1",
+    "ssl3-sha1": "sha1",
+    "sha224": "sha224",
+    "sha-224": "sha224",
+    "sha2-224": "sha224",
+    "sha256": "sha256",
+    "sha-256": "sha256",
+    "sha2-256": "sha256",
+    "sha384": "sha384",
+    "sha-384": "sha384",
+    "sha2-384": "sha384",
+    "sha512": "sha512",
+    "sha-512": "sha512",
+    "sha2-512": "sha512",
+    "blake2s256": "blake2s",
+    "shake128": "shake_128",
+}
+
 
 def _new(name, data=b'', **kwargs):
     """new(name, data=b'') - Return a new hashing object using the named algorithm;
     optionally initialized with data (which must be a bytes-like object).
     """
-    if name in __hashes:
-        # Prefer our builtin blake2 implementation.
-        return __hashes[name](data, **kwargs)
+    if not types.is_string(name):
+        fail("new() argument 'name' must be str, not %s" % type(name))
+    if name not in __hashes:
+        canonical = _OPENSSL_NAMES.get(name.lower())
+        if canonical == None:
+            fail("unsupported hash type %s" % name)
+        name = canonical
+    return __hashes[name](data, **kwargs)
 
 
 hashlib = larky.struct(
