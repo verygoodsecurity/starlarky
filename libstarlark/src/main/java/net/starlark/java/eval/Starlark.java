@@ -599,6 +599,9 @@ public final class Starlark {
     } else {
       // different types
 
+      if (x instanceof StarlarkBytes xb && y instanceof StarlarkBytes yb) {
+        return xb.compareTo(yb); // VGS: bytes and bytearray order by content, as in Python
+      }
       if (x instanceof StarlarkFloat && y instanceof StarlarkInt) {
         // float < int
         double xf = ((StarlarkFloat) x).toDouble();
