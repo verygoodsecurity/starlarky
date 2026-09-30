@@ -317,22 +317,39 @@ def _unquote(string, encoding='utf-8', errors='replace'):
     sequences are replaced by a placeholder character.
     unquote('abc%20def') -> 'abc def'.
     """
-    if types.is_bytes(string):
-        return _unquote_to_bytes(string).decode(encoding, errors)
-    if '%' not in string:
-        string.split
-        return string
     if encoding == None:
         encoding = 'utf-8'
     if errors == None:
         errors = 'replace'
+    if types.is_bytes(string):
+        return _decode(_unquote_to_bytes(string), encoding, errors)
+    if '%' not in string:
+        return string
     bits = _asciire.split(string)
     res = [bits[0]]
     append = res.append
     for i in range(1, len(bits), 2):
-        append(codecs.decode(_unquote_to_bytes(bits[i]), encoding, errors))
+        append(_decode(_unquote_to_bytes(bits[i]), encoding, errors))
         append(bits[i + 1])
     return ''.join(res)
+
+
+def _decode(bs, encoding, errors):
+    """bs.decode(encoding, errors), as CPython does it."""
+    if encoding.lower() == 'utf-8':
+        # codecs.decode(bs, "utf-8") escapes non-ASCII bytes instead of decoding them
+        return codecs.utf_8_decode(bs, errors, True)[0]
+    return codecs.decode(bs, encoding, errors)
+
+
+def unquote_plus(string, encoding='utf-8', errors='replace'):
+    """Like unquote(), but also replace plus signs by spaces, as required for
+    unquoting HTML form values.
+
+    unquote_plus('%7e/abc+def') -> '~/abc def'
+    """
+    string = string.replace('+', ' ')
+    return _unquote(string, encoding, errors)
 
 _hexdig = '0123456789ABCDEFabcdef'.elems()
 
@@ -345,13 +362,17 @@ def _unquote_to_bytes(string):
     # unescaped non-ASCII characters, which URIs should not.
     if not string:
         return b('')
+    # (builtins.bytes and codecs.encode's default unescape=True would turn a
+    # literal backslash-u sequence in the URL into the character it names)
     if types.is_bytes(string):
-        string = codecs.encode(string, encoding='utf-8')
-    # bits = string.split(b'%')
-    bits_str = str(string).split('%')
-    bits = [b(el) for el in bits_str]
+        # split a str holding one character per byte, then turn it back into bytes
+        bits = [codecs.encode(el, encoding='latin-1', unescape=False)
+                for el in codecs.decode(string, 'latin-1').split('%')]
+    else:
+        bits = [codecs.encode(el, encoding='utf-8', unescape=False)
+                for el in string.split('%')]
     if len(bits) == 1:
-        return string
+        return bits[0]
     res = [bits[0]]
     # global _hextobyte
     _hextobyte = {codecs.encode(a + b, encoding='utf-8'): unhexlify(a + b)
@@ -672,6 +693,7 @@ parse = larky.struct(
     quote_from_bytes = quote_from_bytes,
     quote = quote,
     unquote = _unquote,
+    unquote_plus = unquote_plus,
     quote_plus = quote_plus,
     urlencode = urlencode,
     unwrap = unwrap,
