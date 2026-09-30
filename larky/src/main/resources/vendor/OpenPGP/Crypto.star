@@ -24,6 +24,20 @@ load("@vendor//option/result", Result="Result", Error="Error")
 __all__ = ["Wrapper"]
 
 
+def _mpi(value):
+    """An RSA output as an OpenPGP MPI: without the leading zero bytes a fixed-length
+    signature or ciphertext can start with (http://tools.ietf.org/html/rfc4880#section-3.2)."""
+    for i in range(len(value)):
+        if value[i] != 0:
+            return value[i:]
+    return value[len(value):]
+
+
+def _unmpi(value, length):
+    """An MPI read from a packet as the fixed-length string RSA expects (the key's modulus length)."""
+    return b"\x00" * (length - len(value)) + value
+
+
 def _class_Wrapper():
     """A wrapper for using the classes from OpenPGP.py with PyCrypto"""
 
@@ -97,7 +111,7 @@ def _class_Wrapper():
                 return False
         else:  # RSA
             protocol = Signature.PKCS1_v1_5.new(key)
-            return protocol.verify(h.new(m), s.data[0])
+            return protocol.verify(h.new(m), _unmpi(s.data[0], key.size_in_bytes()))
 
     def verify(self, packet):
         """Pass a message to verify with this key, or a key (OpenPGP, RsaKey, or DsaKey)
@@ -184,39 +198,39 @@ def _class_Wrapper():
             {
                 "RSA": {
                     "MD5": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.MD5.new(m)
-                        )
+                        ))
                     ],
                     "RIPEMD160": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.RIPEMD.new(m)
-                        )
+                        ))
                     ],
                     "SHA1": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.SHA1.new(m)
-                        )
+                        ))
                     ],
                     "SHA224": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.SHA224.new(m)
-                        )
+                        ))
                     ],
                     "SHA256": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.SHA256.new(m)
-                        )
+                        ))
                     ],
                     "SHA384": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.SHA384.new(m)
-                        )
+                        ))
                     ],
                     "SHA512": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.SHA512.new(m)
-                        )
+                        ))
                     ],
                 },
                 "DSA": {
@@ -272,39 +286,39 @@ def _class_Wrapper():
             {
                 "RSA": {
                     "MD5": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.MD5.new(m)
-                        )
+                        ))
                     ],
                     "RIPEMD160": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.RIPEMD.new(m)
-                        )
+                        ))
                     ],
                     "SHA1": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.SHA1.new(m)
-                        )
+                        ))
                     ],
                     "SHA224": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.SHA224.new(m)
-                        )
+                        ))
                     ],
                     "SHA256": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.SHA256.new(m)
-                        )
+                        ))
                     ],
                     "SHA384": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.SHA384.new(m)
-                        )
+                        ))
                     ],
                     "SHA512": lambda m: [
-                        Signature.PKCS1_v1_5.new(key).sign(
+                        _mpi(Signature.PKCS1_v1_5.new(key).sign(
                             Hash.SHA512.new(m)
-                        )
+                        ))
                     ],
                 },
                 "DSA": {
@@ -373,6 +387,7 @@ def _class_Wrapper():
 
     def try_decrypt_session(cls, key, edata):
         pkcs15 = PKCS1_v1_5_Cipher.new(key)
+        edata = _unmpi(edata, key.size_in_bytes())
         data = pkcs15.decrypt(edata, Random.new().read(len(edata)))
         sk = data[1 : len(data) - 2]
         chk = unpack("!H", data[-2:])[0]
@@ -425,6 +440,7 @@ def _class_Wrapper():
                     + key
                     + pack("!H", OpenPGP.checksum(key))
                 )
+                esk = _mpi(esk)
                 esk = pack("!H", OpenPGP.bitlength(esk)) + esk
                 encrypted = [
                     OpenPGP.AsymmetricSessionKeyPacket(
