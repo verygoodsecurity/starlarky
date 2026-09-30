@@ -14,6 +14,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
+import javax.annotation.Nullable;
 import net.starlark.java.eval.Tuple;
 
 public abstract class GetAttribute {
@@ -101,6 +102,20 @@ public abstract class GetAttribute {
    * @throws EvalException if no such attribute
    */
   public static Object get(PyObject obj, String attr, StarlarkThread thread) throws EvalException {
+    Object value = find(obj, attr, thread);
+    if (value == null) {
+      throw Starlark.errorf("AttributeError: %s has no attribute '%s'", obj.typeClass(), attr);
+    }
+    return value;
+  }
+
+  /**
+   * Like {@link #get}, but returns null if the attribute does not exist, so that callers probing
+   * for an optional attribute (e.g. {@code __iter__}) do not create and discard an exception.
+   */
+  @Nullable
+  public static Object find(PyObject obj, String attr, StarlarkThread thread)
+      throws EvalException {
     // important to note this: https://docs.python.org/3/reference/datamodel.html#special-method-lookup
     // we should bypass the instance dictionary if it's a SpecialMethod
     Object value;
@@ -140,11 +155,8 @@ public abstract class GetAttribute {
      * - not a descriptor
      * Therefore, it is the return value!
      */
-    if (typeAttr != null) {
-      return typeAttr;
-    }
-    // The chain of checks failed, no attribute exists.
-    throw Starlark.errorf("AttributeError: %s has no attribute '%s'", objType, attr);
+    // Otherwise it is null: the chain of checks failed, no attribute exists.
+    return typeAttr;
   }
 
   public static <Super, Sub extends Super> Function<Super, Stream<Sub>> filterType(Class<Sub> clz) {
