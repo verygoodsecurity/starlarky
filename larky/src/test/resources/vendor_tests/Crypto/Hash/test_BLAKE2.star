@@ -188,8 +188,8 @@ def Blake2Test(BLAKE2, max_bits, max_bytes, digest_bits_oid, oid_variant):
 
         h1 = BLAKE2.new(data=data, key=key)
         h2 = BLAKE2.new(data=data_ba, key=key_ba)
-        key_ba = bytearray([0x0ff]) + key[1:]
-        data_ba = bytearray([0x0ff] + data_ba[1:])
+        key_ba[0] = 0xFF  # key_ba[:1] = b'\xFF'
+        data_ba[0] = 0xFF  # data_ba[:1] = b'\xFF'
 
         asserts.assert_that(h1.digest()).is_equal_to(h2.digest())
 
@@ -200,7 +200,7 @@ def Blake2Test(BLAKE2, max_bits, max_bytes, digest_bits_oid, oid_variant):
         h2 = BLAKE2.new()
         h1.update(data)
         h2.update(data_ba)
-        data_ba = bytearray([0x0ff] + data_ba[1:])
+        data_ba[0] = 0xFF  # data_ba[:1] = b'\xFF'
 
         asserts.assert_that(h1.digest()).is_equal_to(h2.digest())
 
@@ -224,8 +224,9 @@ def Blake2Test(BLAKE2, max_bits, max_bytes, digest_bits_oid, oid_variant):
 
             h1 = BLAKE2.new(data=data, key=key)
             h2 = BLAKE2.new(data=data_mv, key=key_mv)
-            key_mv = bytearray([0x0ff]) + key_mv[1:]
-            data_mv = bytearray([0x0ff] + data_mv[1:])
+            if get_mv == get_mv_rw:  # if not data_mv.readonly:
+                key_mv[0] = 0xFF  # key_mv[:1] = b'\xFF'
+                data_mv[0] = 0xFF  # data_mv[:1] = b'\xFF'
 
             asserts.assert_that(h1.digest()).is_equal_to(h2.digest())
 
@@ -236,7 +237,8 @@ def Blake2Test(BLAKE2, max_bits, max_bytes, digest_bits_oid, oid_variant):
             h2 = BLAKE2.new()
             h1.update(data)
             h2.update(data_mv)
-            data_mv = bytearray([0x0ff] + data_mv[1:])
+            if get_mv == get_mv_rw:  # if not data_mv.readonly:
+                data_mv[0] = 0xFF  # data_mv[:1] = b'\xFF'
             asserts.assert_that(h1.digest()).is_equal_to(h2.digest())
 
     # def Blake2bTest():
