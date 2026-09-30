@@ -17,6 +17,7 @@ package com.verygood.security.larky.modules.codecs;
 import com.google.common.base.Utf8;
 import com.google.common.collect.Iterators;
 import com.google.common.primitives.Bytes;
+import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.IOException;
 import java.nio.Buffer;
@@ -26,13 +27,19 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CoderResult;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.MalformedInputException;
 import java.nio.charset.StandardCharsets;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.ListIterator;
+import java.util.Locale;
+import java.util.Map;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.commons.text.translate.CharSequenceTranslator;
 import org.apache.commons.text.translate.EntityArrays;
@@ -1439,6 +1446,519 @@ public class TextUtil {
 
   }
 
+
+  /**
+   * Python codec lookup, encoding and decoding on top of Java charsets.
+   *
+   * <p>Encoding names follow CPython's {@code codecs.lookup}: they are lower-cased and normalized
+   * as {@code encodings.normalize_encoding} does, then resolved through CPython's alias table
+   * ({@code encodings.aliases}) for the codecs listed below. Names Java knows but CPython does
+   * not are still accepted, for compatibility with scripts written against earlier Larky
+   * versions. Anything else is {@code unknown encoding: <name>}, as in CPython's LookupError.
+   *
+   * <p>Error handlers: strict, ignore, replace, backslashreplace and surrogateescape (both
+   * directions), xmlcharrefreplace and namereplace (encoding only). As in CPython, an unknown
+   * handler name is only reported when an error has to be handled.
+   */
+  public static final class PyCodecs {
+    private PyCodecs() {}
+
+    /** A resolved codec. */
+    public static final class Codec {
+      /** CPython's normalized codec name, e.g. {@code utf_8} or {@code latin_1}. */
+      public final String name;
+      /** The codec name CPython puts in Unicode{En,De}codeError messages. */
+      final String errorName;
+      final Charset charset;
+
+      Codec(String name, String errorName, Charset charset) {
+        this.name = name;
+        this.errorName = errorName;
+        this.charset = charset;
+      }
+    }
+
+    private static final Map<String, Codec> CODECS = new HashMap<>();
+
+    private static void codec(String name, String javaName, String errorName, String... aliases) {
+      Charset charset;
+      try {
+        charset = Charset.forName(javaName);
+      } catch (IllegalArgumentException e) {
+        return; // not provided by this JVM: the name stays unknown
+      }
+      Codec c = new Codec(name, errorName, charset);
+      CODECS.put(name, c);
+      for (String alias : aliases) {
+        CODECS.put(alias, c);
+      }
+    }
+
+    static {
+      // Generated from CPython 3's encodings.aliases.
+      codec("ascii", "US-ASCII", "ascii", "646", "ansi_x3.4_1968", "ansi_x3.4_1986", "ansi_x3_4_1968", "cp367", "csascii", "ibm367", "iso646_us", "iso_646.irv_1991", "iso_ir_6", "us", "us_ascii");
+      codec("latin_1", "ISO-8859-1", "latin-1", "8859", "cp819", "csisolatin1", "ibm819", "iso8859", "iso8859_1", "iso_8859_1", "iso_8859_1_1987", "iso_ir_100", "l1", "latin", "latin1");
+      codec("utf_8", "UTF-8", "utf-8", "cp65001", "u8", "utf", "utf8", "utf8_ucs2", "utf8_ucs4");
+      // CPython's utf-16/utf-32 write a BOM and native (little-endian) order, and read either BOM.
+      codec("utf_16", "x-UTF-16LE-BOM", "utf-16", "u16", "utf16");
+      codec("utf_16_le", "UTF-16LE", "utf-16-le", "unicodelittleunmarked", "utf_16le");
+      codec("utf_16_be", "UTF-16BE", "utf-16-be", "unicodebigunmarked", "utf_16be");
+      codec("utf_32", "X-UTF-32LE-BOM", "utf-32", "u32", "utf32");
+      codec("utf_32_le", "UTF-32LE", "utf-32-le", "utf_32le");
+      codec("utf_32_be", "UTF-32BE", "utf-32-be", "utf_32be");
+      codec("cp1250", "windows-1250", "charmap", "1250", "windows_1250");
+      codec("cp1251", "windows-1251", "charmap", "1251", "windows_1251");
+      codec("cp1252", "windows-1252", "charmap", "1252", "windows_1252");
+      codec("cp1253", "windows-1253", "charmap", "1253", "windows_1253");
+      codec("cp1254", "windows-1254", "charmap", "1254", "windows_1254");
+      codec("cp1255", "windows-1255", "charmap", "1255", "windows_1255");
+      codec("cp1256", "windows-1256", "charmap", "1256", "windows_1256");
+      codec("cp1257", "windows-1257", "charmap", "1257", "windows_1257");
+      codec("cp1258", "windows-1258", "charmap", "1258", "windows_1258");
+      codec("iso8859_2", "ISO-8859-2", "charmap", "csisolatin2", "iso_8859_2", "iso_8859_2_1987", "iso_ir_101", "l2", "latin2");
+      codec("iso8859_3", "ISO-8859-3", "charmap", "csisolatin3", "iso_8859_3", "iso_8859_3_1988", "iso_ir_109", "l3", "latin3");
+      codec("iso8859_4", "ISO-8859-4", "charmap", "csisolatin4", "iso_8859_4", "iso_8859_4_1988", "iso_ir_110", "l4", "latin4");
+      codec("iso8859_5", "ISO-8859-5", "charmap", "csisolatincyrillic", "cyrillic", "iso_8859_5", "iso_8859_5_1988", "iso_ir_144");
+      codec("iso8859_6", "ISO-8859-6", "charmap", "arabic", "asmo_708", "csisolatinarabic", "ecma_114", "iso_8859_6", "iso_8859_6_1987", "iso_ir_127");
+      codec("iso8859_7", "ISO-8859-7", "charmap", "csisolatingreek", "ecma_118", "elot_928", "greek", "greek8", "iso_8859_7", "iso_8859_7_1987", "iso_ir_126");
+      codec("iso8859_8", "ISO-8859-8", "charmap", "csisolatinhebrew", "hebrew", "iso_8859_8", "iso_8859_8_1988", "iso_ir_138");
+      codec("iso8859_9", "ISO-8859-9", "charmap", "csisolatin5", "iso_8859_9", "iso_8859_9_1989", "iso_ir_148", "l5", "latin5");
+      codec("iso8859_13", "ISO-8859-13", "charmap", "iso_8859_13", "l7", "latin7");
+      codec("iso8859_15", "ISO-8859-15", "charmap", "iso_8859_15", "l9", "latin9");
+      codec("iso8859_16", "ISO-8859-16", "charmap", "iso_8859_16", "iso_8859_16_2001", "iso_ir_226", "l10", "latin10");
+      codec("cp037", "IBM037", "charmap", "037", "csibm037", "ebcdic_cp_ca", "ebcdic_cp_nl", "ebcdic_cp_us", "ebcdic_cp_wt", "ibm037", "ibm039");
+      codec("cp437", "IBM437", "charmap", "437", "cspc8codepage437", "ibm437");
+      codec("cp500", "IBM500", "charmap", "500", "csibm500", "ebcdic_cp_be", "ebcdic_cp_ch", "ibm500");
+      codec("cp737", "x-IBM737", "charmap");
+      codec("cp775", "IBM775", "charmap", "775", "cspc775baltic", "ibm775");
+      codec("cp850", "IBM850", "charmap", "850", "cspc850multilingual", "ibm850");
+      codec("cp852", "IBM852", "charmap", "852", "cspcp852", "ibm852");
+      codec("cp855", "IBM855", "charmap", "855", "csibm855", "ibm855");
+      codec("cp857", "IBM857", "charmap", "857", "csibm857", "ibm857");
+      codec("cp858", "IBM00858", "charmap", "858", "csibm858", "ibm858");
+      codec("cp862", "IBM862", "charmap", "862", "cspc862latinhebrew", "ibm862");
+      codec("cp866", "IBM866", "charmap", "866", "csibm866", "ibm866");
+      codec("cp874", "x-windows-874", "charmap");
+      codec("cp1026", "IBM1026", "charmap", "1026", "csibm1026", "ibm1026");
+      codec("cp1140", "IBM01140", "charmap", "1140", "ibm1140");
+      codec("koi8_r", "KOI8-R", "charmap", "cskoi8r");
+      codec("koi8_u", "KOI8-U", "charmap");
+      codec("mac_roman", "x-MacRoman", "charmap", "macintosh", "macroman");
+      codec("shift_jis", "Shift_JIS", "shift_jis", "csshiftjis", "s_jis", "shiftjis", "sjis", "x_mac_japanese");
+      codec("cp932", "windows-31j", "cp932", "932", "ms932", "ms_kanji", "mskanji");
+      codec("euc_jp", "EUC-JP", "euc_jp", "eucjp", "u_jis", "ujis");
+      codec("euc_kr", "EUC-KR", "euc_kr", "euckr", "korean", "ks_c_5601", "ks_c_5601_1987", "ks_x_1001", "ksc5601", "ksx1001", "x_mac_korean");
+      codec("cp949", "x-windows-949", "cp949", "949", "ms949", "uhc");
+      codec("gb2312", "GB2312", "gb2312", "chinese", "csiso58gb231280", "euc_cn", "euccn", "eucgb2312_cn", "gb2312_1980", "gb2312_80", "iso_ir_58", "x_mac_simp_chinese");
+      codec("gbk", "GBK", "gbk", "936", "cp936", "ms936");
+      codec("gb18030", "GB18030", "gb18030", "gb18030_2000");
+      codec("big5", "Big5", "big5", "big5_tw", "csbig5", "x_mac_trad_chinese");
+      codec("cp950", "x-windows-950", "cp950", "950", "ms950");
+      codec("iso2022_jp", "ISO-2022-JP", "iso2022_jp", "csiso2022jp", "iso2022jp", "iso_2022_jp");
+      codec("iso2022_kr", "ISO-2022-KR", "iso2022_kr", "csiso2022kr", "iso2022kr", "iso_2022_kr");
+      codec("tis_620", "TIS-620", "charmap", "iso_ir_166", "tis620", "tis_620_0", "tis_620_2529_0", "tis_620_2529_1");
+    }
+
+    /** CPython's {@code encodings.normalize_encoding} applied to the lower-cased name. */
+    static String normalize(String encoding) {
+      StringBuilder sb = new StringBuilder(encoding.length());
+      boolean punct = false;
+      for (int i = 0; i < encoding.length(); i++) {
+        char c = Character.toLowerCase(encoding.charAt(i));
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.') {
+          if (punct && sb.length() > 0) {
+            sb.append('_');
+          }
+          sb.append(c);
+          punct = false;
+        } else if (!Character.isLetterOrDigit(c)) {
+          punct = true;
+        }
+        // non-ASCII letters and digits are dropped, as in CPython
+      }
+      return sb.toString();
+    }
+
+    public static Codec lookup(String encoding) throws EvalException {
+      String n = normalize(encoding);
+      Codec c = CODECS.get(n);
+      if (c == null) {
+        c = CODECS.get(n.replace('.', '_'));
+      }
+      if (c != null) {
+        return c;
+      }
+      // Compatibility: a Java charset name Larky accepted before CPython names were supported.
+      try {
+        if (Charset.isSupported(encoding)) {
+          Charset cs = Charset.forName(encoding);
+          return new Codec(cs.name().toLowerCase(Locale.ROOT), cs.name().toLowerCase(Locale.ROOT), cs);
+        }
+      } catch (IllegalArgumentException e) {
+        // illegal charset name: unknown
+      }
+      throw Starlark.errorf("unknown encoding: %s", encoding);
+    }
+
+    private static EvalException unknownHandler(String errors) {
+      return Starlark.errorf("unknown error handler name '%s'", errors);
+    }
+
+    private static String decodeError(
+        String codec, byte[] data, int start, int end, String reason) {
+      if (end - start == 1) {
+        return String.format(
+            "'%s' codec can't decode byte 0x%02x in position %d: %s",
+            codec, data[start] & 0xFF, start, reason);
+      }
+      return String.format(
+          "'%s' codec can't decode bytes in position %d-%d: %s", codec, start, end - 1, reason);
+    }
+
+    private static String encodeError(String codec, String s, int start, int end, String reason) {
+      if (Character.codePointCount(s, start, end) == 1) {
+        return String.format(
+            "'%s' codec can't encode character '%s' in position %d: %s",
+            codec, pyEscape(s.codePointAt(start)), start, reason);
+      }
+      return String.format(
+          "'%s' codec can't encode characters in position %d-%d: %s",
+          codec, start, end - 1, reason);
+    }
+
+    /** The escape CPython's repr uses for a non-printable code point. */
+    private static String pyEscape(int cp) {
+      if (cp < 0x100) {
+        return String.format("\\x%02x", cp);
+      } else if (cp < 0x10000) {
+        return String.format("\\u%04x", cp);
+      }
+      return String.format("\\U%08x", cp);
+    }
+
+    /**
+     * Handles a decoding error over {@code data[start:end]} by appending the replacement to
+     * {@code out}; throws for strict (and unknown) handlers.
+     */
+    private static void handleDecodeError(
+        String errors, String codec, byte[] data, int start, int end, String reason,
+        StringBuilder out) throws EvalException {
+      switch (errors) {
+        case CodecHelper.IGNORE:
+          return;
+        case CodecHelper.REPLACE:
+          out.append(REPLACEMENT_CHAR);
+          return;
+        case CodecHelper.BACKSLASHREPLACE:
+          for (int i = start; i < end; i++) {
+            out.append(String.format("\\x%02x", data[i] & 0xFF));
+          }
+          return;
+        case CodecHelper.SURROGATEESCAPE:
+          for (int i = start; i < end; i++) {
+            if ((data[i] & 0xFF) < 0x80) {
+              throw Starlark.errorf("%s", decodeError(codec, data, start, end, reason));
+            }
+          }
+          for (int i = start; i < end; i++) {
+            out.append((char) (0xDC00 + (data[i] & 0xFF)));
+          }
+          return;
+        case CodecHelper.STRICT:
+        case CodecHelper.XMLCHARREFREPLACE:  // CPython: only valid for encoding
+        case CodecHelper.NAMEREPLACE:
+        case CodecHelper.SURROGATEPASS:
+          throw Starlark.errorf("%s", decodeError(codec, data, start, end, reason));
+        default:
+          throw unknownHandler(errors);
+      }
+    }
+
+    /** Result of {@link #utf8Decode}: the text and the number of bytes consumed. */
+    public static final class Decoded {
+      public final String text;
+      public final int consumed;
+
+      Decoded(String text, int consumed) {
+        this.text = text;
+        this.consumed = consumed;
+      }
+    }
+
+    /**
+     * Decodes UTF-8 exactly as CPython does, including which byte ranges are reported (and
+     * replaced) as errors. If {@code last} is false, an incomplete sequence at the end of the
+     * input is left unconsumed instead of being an error.
+     */
+    public static Decoded utf8Decode(byte[] data, String errors, boolean last)
+        throws EvalException {
+      StringBuilder out = new StringBuilder(data.length);
+      int n = data.length;
+      int i = 0;
+      while (i < n) {
+        int c = data[i] & 0xFF;
+        if (c < 0x80) {
+          out.append((char) c);
+          i++;
+          continue;
+        }
+        int need;
+        int lo = 0x80;
+        int hi = 0xBF;
+        int cp;
+        if (c >= 0xC2 && c <= 0xDF) {
+          need = 1;
+          cp = c & 0x1F;
+        } else if (c >= 0xE0 && c <= 0xEF) {
+          need = 2;
+          cp = c & 0x0F;
+          if (c == 0xE0) {
+            lo = 0xA0;
+          } else if (c == 0xED) {
+            hi = 0x9F; // no surrogates
+          }
+        } else if (c >= 0xF0 && c <= 0xF4) {
+          need = 3;
+          cp = c & 0x07;
+          if (c == 0xF0) {
+            lo = 0x90;
+          } else if (c == 0xF4) {
+            hi = 0x8F; // <= U+10FFFF
+          }
+        } else {
+          handleDecodeError(errors, "utf-8", data, i, i + 1, "invalid start byte", out);
+          i++;
+          continue;
+        }
+        int j = 1;
+        int errEnd = -1;
+        String reason = null;
+        for (; j <= need; j++) {
+          if (i + j >= n) {
+            if (!last) {
+              return new Decoded(out.toString(), i);
+            }
+            errEnd = n;
+            reason = "unexpected end of data";
+            break;
+          }
+          int cc = data[i + j] & 0xFF;
+          if (cc < (j == 1 ? lo : 0x80) || cc > (j == 1 ? hi : 0xBF)) {
+            errEnd = i + j;
+            reason = "invalid continuation byte";
+            break;
+          }
+          cp = (cp << 6) | (cc & 0x3F);
+        }
+        if (reason != null) {
+          handleDecodeError(errors, "utf-8", data, i, errEnd, reason, out);
+          i = errEnd;
+        } else {
+          out.appendCodePoint(cp);
+          i += need + 1;
+        }
+      }
+      return new Decoded(out.toString(), n);
+    }
+
+    public static String decode(byte[] data, String encoding, String errors)
+        throws EvalException {
+      Codec codec = lookup(encoding);
+      if (codec.name.equals("utf_8")) {
+        return utf8Decode(data, errors, true).text;
+      }
+      CharsetDecoder decoder = codec.charset.newDecoder()
+          .onMalformedInput(CodingErrorAction.REPORT)
+          .onUnmappableCharacter(CodingErrorAction.REPORT);
+      ByteBuffer in = ByteBuffer.wrap(data);
+      CharBuffer chunk = CharBuffer.allocate(Math.max(16, Math.min(data.length * 2, 8192)));
+      StringBuilder out = new StringBuilder(data.length);
+      boolean flushing = false;
+      while (true) {
+        CoderResult r = flushing ? decoder.flush(chunk) : decoder.decode(in, chunk, true);
+        chunk.flip();
+        out.append(chunk);
+        chunk.clear();
+        if (r.isOverflow()) {
+          continue;
+        }
+        if (r.isUnderflow()) {
+          if (flushing) {
+            break;
+          }
+          flushing = true;
+          continue;
+        }
+        int start = in.position();
+        int end = start + r.length();
+        handleDecodeError(errors, codec.errorName, data, start, end,
+            decodeReason(codec, r, end == data.length), out);
+        in.position(end);
+      }
+      return out.toString();
+    }
+
+    private static String decodeReason(Codec codec, CoderResult r, boolean atEnd) {
+      switch (codec.name) {
+        case "ascii":
+          return "ordinal not in range(128)";
+        case "utf_16":
+        case "utf_16_le":
+        case "utf_16_be":
+        case "utf_32":
+        case "utf_32_le":
+        case "utf_32_be":
+          return atEnd ? "truncated data" : "illegal encoding";
+        default:
+          if (codec.errorName.equals("charmap")) {
+            return "character maps to <undefined>";
+          }
+          return atEnd && r.isMalformed()
+              ? "incomplete multibyte sequence"
+              : "illegal multibyte sequence";
+      }
+    }
+
+    private static String encodeReason(Codec codec, String s, int pos) {
+      switch (codec.name) {
+        case "ascii":
+          return "ordinal not in range(128)";
+        case "latin_1":
+          return "ordinal not in range(256)";
+        case "utf_8":
+        case "utf_16":
+        case "utf_16_le":
+        case "utf_16_be":
+        case "utf_32":
+        case "utf_32_le":
+        case "utf_32_be":
+          return "surrogates not allowed";
+        default:
+          if (codec.errorName.equals("charmap")) {
+            return "character maps to <undefined>";
+          }
+          return "illegal multibyte sequence";
+      }
+    }
+
+    public static byte[] encode(String s, String encoding, String errors) throws EvalException {
+      Codec codec = lookup(encoding);
+      CharsetEncoder encoder = codec.charset.newEncoder()
+          .onMalformedInput(CodingErrorAction.REPORT)
+          .onUnmappableCharacter(CodingErrorAction.REPORT);
+      CharBuffer in = CharBuffer.wrap(s);
+      ByteBuffer chunk = ByteBuffer.allocate(Math.max(32, Math.min(s.length() * 4, 8192)));
+      ByteArrayOutputStream out = new ByteArrayOutputStream(s.length());
+      boolean flushing = false;
+      while (true) {
+        CoderResult r = flushing ? encoder.flush(chunk) : encoder.encode(in, chunk, true);
+        drain(chunk, out);
+        if (r.isOverflow()) {
+          continue;
+        }
+        if (r.isUnderflow()) {
+          if (flushing) {
+            break;
+          }
+          flushing = true;
+          continue;
+        }
+        int start = in.position();
+        int end = start + r.length();
+        String replacement = encodeReplacement(errors, codec, s, start, end, out);
+        if (replacement != null && !replacement.isEmpty()) {
+          // A separate encoder: the main one has already been told the input ended. For the
+          // BOM-writing codecs, encode the replacement without a second BOM.
+          Charset rcs = codec.name.equals("utf_16") ? StandardCharsets.UTF_16LE
+              : codec.name.equals("utf_32") ? Charset.forName("UTF-32LE")
+              : codec.charset;
+          ByteBuffer rb;
+          try {
+            rb = rcs.newEncoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .encode(CharBuffer.wrap(replacement));
+          } catch (CharacterCodingException e) {
+            throw Starlark.errorf("%s", encodeError(codec.errorName, s, start, end,
+                encodeReason(codec, s, start)));
+          }
+          out.write(rb.array(), rb.arrayOffset() + rb.position(), rb.remaining());
+        }
+        in.position(end);
+      }
+      return out.toByteArray();
+    }
+
+    private static void drain(ByteBuffer chunk, ByteArrayOutputStream out) {
+      chunk.flip();
+      out.write(chunk.array(), chunk.arrayOffset() + chunk.position(), chunk.remaining());
+      chunk.clear();
+    }
+
+    /**
+     * Returns the text to encode in place of {@code s[start:end]}, or null when the handler has
+     * already written raw bytes to {@code out}; throws for strict (and unknown) handlers.
+     */
+    private static String encodeReplacement(
+        String errors, Codec codec, String s, int start, int end, ByteArrayOutputStream out)
+        throws EvalException {
+      StringBuilder sb = new StringBuilder();
+      switch (errors) {
+        case CodecHelper.IGNORE:
+          return "";
+        case CodecHelper.REPLACE:
+          for (int i = start; i < end; i = s.offsetByCodePoints(i, 1)) {
+            sb.append('?');
+          }
+          return sb.toString();
+        case CodecHelper.BACKSLASHREPLACE:
+          for (int i = start; i < end; i = s.offsetByCodePoints(i, 1)) {
+            int cp = s.codePointAt(i);
+            sb.append(cp < 0x100 ? String.format("\\x%02x", cp) : pyEscape(cp));
+          }
+          return sb.toString();
+        case CodecHelper.XMLCHARREFREPLACE:
+          for (int i = start; i < end; i = s.offsetByCodePoints(i, 1)) {
+            sb.append("&#").append(s.codePointAt(i)).append(';');
+          }
+          return sb.toString();
+        case CodecHelper.NAMEREPLACE:
+          for (int i = start; i < end; i = s.offsetByCodePoints(i, 1)) {
+            int cp = s.codePointAt(i);
+            String name = Character.getName(cp);
+            sb.append(name != null ? "\\N{" + name + "}" : pyEscape(cp));
+          }
+          return sb.toString();
+        case CodecHelper.SURROGATEESCAPE:
+          for (int i = start; i < end; i++) {
+            char ch = s.charAt(i);
+            if (ch < 0xDC80 || ch > 0xDCFF) {
+              throw Starlark.errorf("%s", encodeError(codec.errorName, s, start, end,
+                  encodeReason(codec, s, start)));
+            }
+          }
+          for (int i = start; i < end; i++) {
+            out.write(s.charAt(i) - 0xDC00);
+          }
+          return null;
+        case CodecHelper.STRICT:
+        case CodecHelper.SURROGATEPASS:
+          // CPython reports the whole run of unencodable characters.
+          CharsetEncoder probe = codec.charset.newEncoder();
+          while (end < s.length()) {
+            int next = s.offsetByCodePoints(end, 1);
+            if (probe.canEncode(s.subSequence(end, next))) {
+              break;
+            }
+            end = next;
+          }
+          throw Starlark.errorf("%s", encodeError(codec.errorName, s, start, end,
+              encodeReason(codec, s, start)));
+        default:
+          throw unknownHandler(errors);
+      }
+    }
+  }
 
   public static char[] HEX_DIGITS = "0123456789ABCDEF".toCharArray();
 
