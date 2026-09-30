@@ -62,10 +62,7 @@ def _matcher__init__(matchobj):
             return tuple(m)
 
     def groups():
-        m = []
-        for i in range(matchobj.group_count()):
-            m.append(matchobj.group(i + 1))
-        return tuple(m)
+        return matchobj.groups()
 
     def span(group=0):
         if group == 0:
@@ -110,23 +107,24 @@ def _pattern__init__(patternobj):
     def matcher(string):
         return _matcher__init__(patternobj.matcher(string))
 
+    # match, fullmatch and search wrap the Java matcher only if it matched.
     def match(string, pos=0, endpos=-1):
-        m = matcher(string)
+        m = patternobj.matcher(string)
         if not m.looking_at(pos, endpos):
             return None
-        return m
+        return _matcher__init__(m)
 
     def fullmatch(string, pos=0, endpos=-1):
-        m = matcher(string)
+        m = patternobj.matcher(string)
         if not m.matches():
             return None
-        return m
+        return _matcher__init__(m)
 
     def search(string, pos=0, endpos=-1):
-        m = matcher(string)
+        m = patternobj.matcher(string)
         if not m.search(pos, endpos):
             return None
-        return m
+        return _matcher__init__(m)
 
     def sub(repl, string, count=0):
         new_string, _number = subn(repl, string, count)

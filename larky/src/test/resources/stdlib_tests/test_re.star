@@ -57,6 +57,15 @@ def _test_match_with_args():
     asserts.assert_that(mo.span()).is_equal_to((7, 9))
 
 
+def _test_same_pattern_with_different_flags():
+    # compiled patterns are cached by pattern and flags
+    for _ in range(2):
+        asserts.assert_that(re.match("abc", "ABC")).is_none()
+        asserts.assert_that(re.match("abc", "ABC", re.I).group()).is_equal_to("ABC")
+        asserts.assert_that(re.compile("abc").search("xABC")).is_none()
+        asserts.assert_that(re.compile("abc", re.IGNORECASE).search("xABC").group()).is_equal_to("ABC")
+
+
 def _test_groups():
     m = re.match(r"(\d+)\.(\d+)", "24.1632")
     asserts.assert_that(m.groups()).is_equal_to(('24', '1632'))
@@ -225,6 +234,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_match))
     _suite.addTest(unittest.FunctionTestCase(_test_match_with_args))
     _suite.addTest(unittest.FunctionTestCase(_test_groups))
+    _suite.addTest(unittest.FunctionTestCase(_test_same_pattern_with_different_flags))
     _suite.addTest(unittest.FunctionTestCase(_test_sub))
     _suite.addTest(unittest.FunctionTestCase(_test_subn))
     _suite.addTest(unittest.FunctionTestCase(_test_subn_matches_limit))
