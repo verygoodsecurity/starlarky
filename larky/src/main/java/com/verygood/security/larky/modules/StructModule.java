@@ -179,8 +179,8 @@ public class StructModule implements StarlarkValue {
     new LEUnsignedShortFormatDef().init('H', 2, 2),
     new LEIntFormatDef().init('i', 4, 4),
     new LEUnsignedIntFormatDef().init('I', 4, 4),
-    new LEIntFormatDef().init('l', 8, 8),
-    new LEUnsignedIntFormatDef().init('L', 8, 8),
+    new LELongFormatDef().init('l', 8, 8),
+    new LEUnsignedLongFormatDef().init('L', 8, 8),
     new LELongFormatDef().init('q', 8, 8),
     new LEUnsignedLongFormatDef().init('Q', 8, 8),
     new LELongFormatDef().init('n', 8, 8),
@@ -325,7 +325,7 @@ public class StructModule implements StarlarkValue {
         while (++j < len && Character.isDigit((c = format.charAt(j)))) {
           int x = num * 10 + Character.digit(c, 10);
           if (x / 10 != num) {
-            throw new UnsupportedOperationException("overflow in item count");
+            throw Starlark.errorf("total struct size too long");
           }
           num = x;
         }
@@ -340,8 +340,8 @@ public class StructModule implements StarlarkValue {
       size = align(size, e);
       int x = num * itemsize;
       size += x;
-      if (x / itemsize != num || size < 0) {
-        throw new UnsupportedOperationException("total struct size too long");
+      if ((itemsize != 0 && x / itemsize != num) || size < 0) {
+        throw Starlark.errorf("total struct size too long");
       }
     }
     return size;
@@ -789,8 +789,18 @@ public class StructModule implements StarlarkValue {
       }
 
       int cnt = count;
-      while (count-- > 0)
-        pack(buf, args.get(pos++));
+      while (count-- > 0) {
+        Object value = args.get(pos++);
+        try {
+          pack(buf, value);
+        } catch (EvalException e) {
+          // As CPython's struct: an OverflowError packing an int is reported as such.
+          if (value instanceof StarlarkInt && e.getMessage().startsWith("OverflowError:")) {
+            throw Starlark.errorf("int too large to convert");
+          }
+          throw e;
+        }
+      }
       return cnt;
     }
 
@@ -801,46 +811,43 @@ public class StructModule implements StarlarkValue {
       }
     }
 
-    int get_int(Number value) throws EvalException {
-      if(!Long.class.isAssignableFrom(value.getClass())) {
-        throw Starlark.errorf(
-          "required argument is not an integer - received type of: %s",
-          value.getClass());
-      }
-      return value.intValue();
+    /** Whether this integer format is signed (the unsigned formats override it). */
+    boolean signed() {
+      return true;
     }
 
-    long get_long(Number value) throws EvalException {
-      if(!Long.class.isAssignableFrom(value.getClass())) {
-        throw Starlark.errorf(
-          "required argument is not an integer - received type of: %s",
-          value.getClass());
+    /**
+     * The integer argument, checked as CPython's struct does: it must be an int within the
+     * range of this format's size and signedness.
+     */
+    BigInteger intArg(Object value) throws EvalException {
+      if (!(value instanceof StarlarkInt)) {
+        throw Starlark.errorf("required argument is not an integer");
       }
-      return value.longValue();
+      BigInteger v = ((StarlarkInt) value).toBigInteger();
+      int bits = size * 8;
+      BigInteger min = signed() ? BigInteger.ONE.shiftLeft(bits - 1).negate() : BigInteger.ZERO;
+      BigInteger max = signed()
+          ? BigInteger.ONE.shiftLeft(bits - 1).subtract(BigInteger.ONE)
+          : BigInteger.ONE.shiftLeft(bits).subtract(BigInteger.ONE);
+      if (v.compareTo(min) < 0 || v.compareTo(max) > 0) {
+        throw Starlark.errorf("'%c' format requires %s <= number <= %s", name, min, max);
+      }
+      return v;
     }
 
-    BigInteger get_ulong(Number value) throws EvalException {
-      if(!Long.class.isAssignableFrom(value.getClass())) {
-        throw Starlark.errorf(
-          "required argument is not an integer - received type of: %s",
-          value.getClass());
+    /** The float argument, as CPython's struct accepts it: a float or an int. */
+    static double floatArg(Object value) throws EvalException {
+      if (value instanceof StarlarkFloat) {
+        return ((StarlarkFloat) value).toDouble();
+      } else if (value instanceof StarlarkInt) {
+        double d = ((StarlarkInt) value).toDouble();
+        if (Double.isFinite(d)) {
+          return d;
+        }
       }
-      BigInteger b = BigInteger.valueOf((Long) value);
-      if(b.signum() < 0) {
-        b = b.add(TWO_64);
-      }
-      return b;
+      throw Starlark.errorf("required argument is not a float");
     }
-
-    double get_float(Number value) throws EvalException {
-      if(!Double.class.isAssignableFrom(value.getClass())) {
-        throw Starlark.errorf(
-          "required argument is not an double - received type of: %s",
-          value.getClass());
-      }
-      return value.doubleValue();
-    }
-
 
     void BEwriteInt(ByteStream buf, int v) {
       buf.writeByte((v >>> 24) & 0xFF);
@@ -954,7 +961,7 @@ public class StructModule implements StarlarkValue {
   static class ByteFormatDef extends FormatDef {
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      buf.writeByte(get_int(asList(value)[0]));
+      buf.writeByte(intArg(value).intValue());
     }
 
     @Override
@@ -967,6 +974,11 @@ public class StructModule implements StarlarkValue {
   }
 
   static class UnsignedByteFormatDef extends ByteFormatDef {
+    @Override
+    boolean signed() {
+      return false;
+    }
+
     @Override
     Object unpack(ByteStream buf) {
       return buf.readByte();
@@ -999,7 +1011,7 @@ public class StructModule implements StarlarkValue {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      int v = get_int(asList(value)[0]);
+      int v = intArg(value).intValue();
       buf.writeByte(v & 0xFF);
       buf.writeByte((v >> 8) & 0xFF);
     }
@@ -1015,6 +1027,10 @@ public class StructModule implements StarlarkValue {
   }
 
   static class LEUnsignedShortFormatDef extends LEShortFormatDef {
+    @Override
+    boolean signed() {
+      return false;
+    }
 
     @Override
     Object unpack(ByteStream buf) {
@@ -1026,7 +1042,7 @@ public class StructModule implements StarlarkValue {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      int v = get_int(asList(value)[0]);
+      int v = intArg(value).intValue();
       buf.writeByte((v >> 8) & 0xFF);
       buf.writeByte(v & 0xFF);
     }
@@ -1042,6 +1058,10 @@ public class StructModule implements StarlarkValue {
   }
 
   static class BEUnsignedShortFormatDef extends BEShortFormatDef {
+    @Override
+    boolean signed() {
+      return false;
+    }
 
     @Override
     Object unpack(ByteStream buf) {
@@ -1053,7 +1073,7 @@ public class StructModule implements StarlarkValue {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      LEwriteInt(buf, get_int(asList(value)[0]));
+      LEwriteInt(buf, intArg(value).intValue());
     }
 
     @Override
@@ -1063,10 +1083,14 @@ public class StructModule implements StarlarkValue {
   }
 
   static class LEUnsignedIntFormatDef extends FormatDef {
+    @Override
+    boolean signed() {
+      return false;
+    }
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      LEwriteInt(buf, (int) (get_long(asList(value)[0])));
+      LEwriteInt(buf, (int) intArg(value).longValue());
     }
 
     @Override
@@ -1083,7 +1107,7 @@ public class StructModule implements StarlarkValue {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      BEwriteInt(buf, get_int(asList(value)[0]));
+      BEwriteInt(buf, intArg(value).intValue());
     }
 
     @Override
@@ -1094,8 +1118,12 @@ public class StructModule implements StarlarkValue {
 
   static class BEUnsignedIntFormatDef extends FormatDef {
     @Override
+    boolean signed() {
+      return false;
+    }
+    @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      BEwriteInt(buf, (int) (get_long(asList(value)[0])));
+      BEwriteInt(buf, (int) intArg(value).longValue());
     }
 
     @Override
@@ -1109,11 +1137,13 @@ public class StructModule implements StarlarkValue {
 
   static class LEUnsignedLongFormatDef extends FormatDef {
     @Override
+    boolean signed() {
+      return false;
+    }
+
+    @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      BigInteger bi = get_ulong(asList(value)[0]);
-      if (bi.compareTo(BigInteger.valueOf(0)) < 0) {
-        throw Starlark.errorf("can't convert negative long to unsigned");
-      }
+      BigInteger bi = intArg(value);
       long lvalue = bi.longValue(); // underflow is OK -- the bits are correct
       int high = (int) ((lvalue & 0xFFFFFFFF00000000L) >> 32);
       int low = (int) (lvalue & 0x00000000FFFFFFFFL);
@@ -1133,13 +1163,14 @@ public class StructModule implements StarlarkValue {
   }
 
   static class BEUnsignedLongFormatDef extends FormatDef {
+    @Override
+    boolean signed() {
+      return false;
+    }
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      BigInteger bi = get_ulong(asList(value)[0]);
-      if (bi.compareTo(BigInteger.valueOf(0)) < 0) {
-        throw new RuntimeException("can't convert negative long to unsigned");
-      }
+      BigInteger bi = intArg(value);
       long lvalue = bi.longValue(); // underflow is OK -- the bits are correct
       int high = (int) ((lvalue & 0xFFFFFFFF00000000L) >> 32);
       int low = (int) (lvalue & 0x00000000FFFFFFFFL);
@@ -1162,7 +1193,7 @@ public class StructModule implements StarlarkValue {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      long lvalue = get_long(asList(value)[0]);
+      long lvalue = intArg(value).longValue();
       int high = (int) ((lvalue & 0xFFFFFFFF00000000L) >> 32);
       int low = (int) (lvalue & 0x00000000FFFFFFFFL);
       LEwriteInt(buf, low);
@@ -1181,7 +1212,7 @@ public class StructModule implements StarlarkValue {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      long lvalue = get_long(asList(value)[0]);
+      long lvalue = intArg(value).longValue();
       int high = (int) ((lvalue & 0xFFFFFFFF00000000L) >> 32);
       int low = (int) (lvalue & 0x00000000FFFFFFFFL);
       BEwriteInt(buf, high);
@@ -1206,6 +1237,20 @@ public class StructModule implements StarlarkValue {
       int length = dataModel.equals("64") ? 8 : 4;
       super.init(name, length, length);
       return this;
+    }
+
+    @Override
+    BigInteger intArg(Object value) throws EvalException {
+      if (!(value instanceof StarlarkInt)) {
+        throw Starlark.errorf("required argument is not an integer");
+      }
+      BigInteger v = ((StarlarkInt) value).toBigInteger();
+      int bits = size * 8;
+      if (v.compareTo(BigInteger.ONE.shiftLeft(bits - 1).negate()) < 0
+          || v.compareTo(BigInteger.ONE.shiftLeft(bits).subtract(BigInteger.ONE)) > 0) {
+        throw Starlark.errorf("int too large to convert");
+      }
+      return v;
     }
   }
 
@@ -1367,7 +1412,7 @@ public class StructModule implements StarlarkValue {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      short bits = pack(asList(value)[0].doubleValue());
+      short bits = pack(floatArg(value));
       int firstbyte = (bits >> 8) & 0xFF;
       int secondbyte = bits & 0xFF;
       /* Write out result. */
@@ -1388,7 +1433,7 @@ public class StructModule implements StarlarkValue {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      short bits = pack(asList(value)[0].doubleValue());
+      short bits = pack(floatArg(value));
       int firstbyte = (bits >> 8) & 0xFF;
       int secondbyte = bits & 0xFF;
       /* Write out result. */
@@ -1404,22 +1449,27 @@ public class StructModule implements StarlarkValue {
     }
   }
 
+  /** Rounds to a 4-byte float, failing as CPython does when a finite value overflows it. */
+  static float toFloat(double x) throws EvalException {
+    float f = (float) x;
+    if (Float.isInfinite(f) && !Double.isInfinite(x)) {
+      throw Starlark.errorf("OverflowError: float too large to pack with f format");
+    }
+    return f;
+  }
+
   static class LEFloatFormatDef extends FormatDef {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      int bits = Float.floatToIntBits((float) get_float(asList(value)[0]));
+      int bits = Float.floatToIntBits(toFloat(floatArg(value)));
       LEwriteInt(buf, bits);
     }
 
     @Override
     Object unpack(ByteStream buf) {
       int bits = LEreadInt(buf);
-      float v = Float.intBitsToFloat(bits);
-      if (Float.isInfinite(v) || Float.isNaN(v)) {
-        throw new UnsupportedOperationException("can't unpack IEEE 754 special value on non-IEEE platform");
-      }
-      return v;
+      return Float.intBitsToFloat(bits);
     }
   }
 
@@ -1427,7 +1477,7 @@ public class StructModule implements StarlarkValue {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      long bits = Double.doubleToLongBits(get_float(asList(value)[0]));
+      long bits = Double.doubleToLongBits(floatArg(value));
       LEwriteInt(buf, (int) (bits));
       LEwriteInt(buf, (int) (bits >>> 32));
     }
@@ -1435,11 +1485,7 @@ public class StructModule implements StarlarkValue {
     @Override
     Object unpack(ByteStream buf) {
       long bits = (LEreadInt(buf) & 0xFFFFFFFFL) + (((long) LEreadInt(buf)) << 32);
-      double v = Double.longBitsToDouble(bits);
-      if (Double.isInfinite(v) || Double.isNaN(v)) {
-        throw new UnsupportedOperationException("can't unpack IEEE 754 special value on non-IEEE platform");
-      }
-      return v;
+      return Double.longBitsToDouble(bits);
     }
   }
 
@@ -1447,18 +1493,14 @@ public class StructModule implements StarlarkValue {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      int bits = Float.floatToIntBits((float) get_float(asList(value)[0]));
+      int bits = Float.floatToIntBits(toFloat(floatArg(value)));
       BEwriteInt(buf, bits);
     }
 
     @Override
     Object unpack(ByteStream buf) {
       int bits = BEreadInt(buf);
-      float v = Float.intBitsToFloat(bits);
-      if (Float.isInfinite(v) || Float.isNaN(v)) {
-        throw new UnsupportedOperationException("can't unpack IEEE 754 special value on non-IEEE platform");
-      }
-      return v;
+      return Float.intBitsToFloat(bits);
     }
   }
 
@@ -1466,7 +1508,7 @@ public class StructModule implements StarlarkValue {
 
     @Override
     void pack(ByteStream buf, Object value) throws EvalException {
-      long bits = Double.doubleToLongBits(get_float(asList(value)[0]));
+      long bits = Double.doubleToLongBits(floatArg(value));
       BEwriteInt(buf, (int) (bits >>> 32));
       BEwriteInt(buf, (int) (bits));
     }
@@ -1474,11 +1516,7 @@ public class StructModule implements StarlarkValue {
     @Override
     Object unpack(ByteStream buf) {
       long bits = (((long) BEreadInt(buf)) << 32) + (BEreadInt(buf) & 0xFFFFFFFFL);
-      double v = Double.longBitsToDouble(bits);
-      if (Double.isInfinite(v) || Double.isNaN(v)) {
-        throw new UnsupportedOperationException("can't unpack IEEE 754 special value on non-IEEE platform");
-      }
-      return v;
+      return Double.longBitsToDouble(bits);
     }
   }
 }
