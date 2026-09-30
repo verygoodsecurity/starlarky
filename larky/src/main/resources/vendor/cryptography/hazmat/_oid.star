@@ -54,7 +54,9 @@ def ObjectIdentifier(dotted_string):
         if not types.is_instance(other, ObjectIdentifier):
             return NotImplemented
 
-        return self.dotted_string == other.dotted_string
+        # `self` is the mutable struct, which lacks the `dotted_string`
+        # property; the returned (hashable) struct carries `_dotted_string`.
+        return self._dotted_string == other._dotted_string
     self.__eq__ = __eq__
 
     def __ne__(other):
@@ -68,7 +70,7 @@ def ObjectIdentifier(dotted_string):
     self.__repr__ = __repr__
 
     def __hash__():
-        return hash(self.dotted_string)
+        return hash(self._dotted_string)
     self.__hash__ = __hash__
 
     self._hashable = None

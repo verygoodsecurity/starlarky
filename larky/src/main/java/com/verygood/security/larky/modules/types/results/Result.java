@@ -235,24 +235,26 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     return isOk();
   }
 
+  /**
+   * Orders results as the {@code option} library this module ports (and Rust's {@code Result}):
+   * every {@code Ok} orders before every {@code Error}; two {@code Ok}s, or two {@code Error}s,
+   * order by their wrapped values with Starlark's ordering. Values that cannot be ordered raise
+   * Starlark's "unsupported comparison" error (a {@link ClassCastException}, which the comparison
+   * operators report as an {@code EvalException}), as {@code Ok("1") <= Ok(1)} raises in Python.
+   *
+   * <p>Consistent with {@code equals}: equal results compare as 0, and results that compare as 0
+   * hold values that Starlark considers equal.
+   */
   @Override
   default int compareTo(@NotNull Result o) {
-    if(isOk() && o.isError()) {
-      return -1; // error is > ok according to my understanding of test_result.py
+    if (isOk() != o.isOk()) {
+      return isOk() ? -1 : 1;
     }
-    else if(isError() && o.isOk()) {
-      return 1;
-    }
-    else if(equals(o)) {
-      return 0;
-    }
-    else if(isOk() == o.isOk()) {
-      if(Objects.equals(Val(), o.Val())) {
-        return 0;
-      }
-      return String.valueOf(Val()).compareTo(String.valueOf(o.Val()));
-    }
-    return -1;
+    Object x = Val();
+    Object y = o.Val();
+    return StarlarkEvalWrapper.compareUnchecked(
+      x == null ? Starlark.NONE : x,
+      y == null ? Starlark.NONE : y);
   }
 
 }
