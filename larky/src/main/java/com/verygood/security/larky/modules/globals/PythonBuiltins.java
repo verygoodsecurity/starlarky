@@ -22,6 +22,8 @@ import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.IntLimits;
+import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.FormatSpec;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Sequence;
@@ -418,6 +420,46 @@ public final class PythonBuiltins {
       throw Starlark.errorf("ValueError: chr() arg not in range(0x110000)");
     }
     return new String(new int[]{c.toIntUnchecked()}, 0, 1);
+  }
+
+  @StarlarkMethod(
+      name = "format",
+      doc =
+          "Returns <code>value</code> formatted by <code>format_spec</code>, in Python's format "
+              + "specification mini-language: "
+              + "<code>[[fill]align][sign][#][0][width][grouping][.precision][type]</code>. "
+              + "Strings, ints, bools and floats support it; an object with a "
+              + "<code>__format__</code> method formats itself; any other value accepts only "
+              + "the empty specification, which formats it as <code>str()</code> does."
+              + "<pre class=\"language-python\">format(3.14159, \".2f\") == \"3.14\"\n"
+              + "format(1234567, \",\") == \"1,234,567\"\n"
+              + "format(\"x\", \"*^5\") == \"**x**\"</pre>",
+      parameters = {
+        @Param(name = "value"),
+        @Param(
+            name = "format_spec",
+            allowedTypes = {@ParamType(type = String.class)},
+            defaultValue = "''")
+      },
+      useStarlarkThread = true)
+  public String format(Object value, String formatSpec, StarlarkThread thread)
+      throws EvalException, InterruptedException {
+    if (value instanceof LarkyObject obj) {
+      Object dunder = obj.getField(PyProtocols.__FORMAT__, thread);
+      if (dunder instanceof StarlarkCallable) {
+        Object result = Starlark.call(thread, dunder, Tuple.of(formatSpec), Dict.empty());
+        if (!(result instanceof String)) {
+          throw Starlark.errorf(
+              "TypeError: __format__ must return a str, not %s", Starlark.type(result));
+        }
+        return (String) result;
+      }
+      if (!formatSpec.isEmpty()) {
+        throw Starlark.errorf(
+            "unsupported format string passed to %s.__format__", obj.typeName());
+      }
+    }
+    return FormatSpec.format(value, formatSpec, thread.getSemantics());
   }
 
   // A default no attribute lookup can return, for hasattr.
