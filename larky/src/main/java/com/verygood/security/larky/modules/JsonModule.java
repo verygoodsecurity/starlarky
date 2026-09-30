@@ -24,10 +24,12 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkSet;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
@@ -179,6 +181,12 @@ public final class JsonModule implements StarlarkValue {
         }
         out.append(x.toString()); // always contains a decimal point or exponent
         return;
+      }
+
+      // As Python's json: bytes, bytearray and sets are not JSON types, although they are
+      // iterable (and would otherwise be encoded as arrays).
+      if (x instanceof StarlarkBytes || x instanceof StarlarkSet) {
+        throw Starlark.errorf("Object of type %s is not JSON serializable", Starlark.type(x));
       }
 
       if (x instanceof Encodable) {
