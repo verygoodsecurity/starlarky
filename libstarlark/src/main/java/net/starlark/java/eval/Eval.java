@@ -326,10 +326,7 @@ final class Eval {
     if (++fr.thread.steps >= fr.thread.stepLimit) {
       throw new EvalException("Starlark computation cancelled: too many steps");
     }
-
-    if (fr.thread.isExpired()) {
-      throw new EvalException("Starlark computation cancelled: past expiration date");
-    }
+    fr.thread.checkExpired();
 
     switch (st.kind()) {
       case ASSIGNMENT:
@@ -576,9 +573,7 @@ final class Eval {
     if (++fr.thread.steps >= fr.thread.stepLimit) {
       throw new EvalException("Starlark computation cancelled: too many steps");
     }
-    if (fr.thread.isExpired()) {
-      throw new EvalException("Starlark computation cancelled: past expiration date");
-    }
+    fr.thread.checkExpired();
 
     // The switch cases have been split into separate functions
     // to reduce the stack usage during recursion, which is
