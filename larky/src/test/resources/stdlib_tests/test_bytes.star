@@ -55,7 +55,8 @@ def _test_bytes_vs_string():
         len(simplestr[0]) == 1,
     ]))
     # for bytes
-    # b[0] will be an integer in python, but in starlark, it is the first byte
+    # b[0] is the first byte's int, as in python; ord() of it still works
+    asserts.assert_that(sliced[0]).is_equal_to(104)
     asserts.assert_that(ord(sliced[0])).is_equal_to(104)
     # while b[0:1] will be a bytes object of length 1.
     asserts.assert_that(sliced[0:1]).is_equal_to(b'h')

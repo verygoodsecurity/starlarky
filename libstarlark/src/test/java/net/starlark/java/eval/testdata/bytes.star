@@ -103,8 +103,9 @@ assert_eq(hash(b"ab") & 0xffffffff, 0x4d2505ca)
 assert_eq(hash(b"abc") & 0xffffffff, 0x1a47e90b)
 
 # indexing
-assert_eq(goodbye[0], b"g")
-assert_eq(goodbye[-1], b"e")
+# VGS: indexing yields the byte's int, as the spec says (starlark-go yields a 1-byte bytes).
+assert_eq(goodbye[0], 103)
+assert_eq(goodbye[-1], 101)
 assert_fails(lambda: goodbye[100], "out of range")
 
 # slicing
