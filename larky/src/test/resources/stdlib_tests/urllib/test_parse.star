@@ -34,17 +34,15 @@ def _test_urlunsplit():
     eq(b('http://www.cwi.nl:80/%7Eguido/Python.html'), b(parse.urlunsplit(tuple_unsplit)))
 
 def _test_parse_qsl():
+    # CPython: parse_qsl('key=\\u0141%C3%A9', encoding='utf-8') == [('key', '\\u0141\xe9')]
     res_parse_qsl = parse.parse_qsl('key=\\u0141%C3%A9', encoding='utf-8')
-    # print("parse_qsl result: ", res_parse_qsl)
-    eq([('key','\\xc5\\x81\\xc3\\xa9')], res_parse_qsl)
+    eq([('key', '\\u0141\u00e9')], res_parse_qsl)
+    eq([('key', '\u0141\u00e9')], parse.parse_qsl('key=\u0141%C3%A9'))
 
 def _test_parse_qs():
-    # python test:
-    # >>> print(parse.parse_qs("key=\u0141%C3%A9", encoding="utf-8")['key'][0].encode('utf-8'))
-    # b'\xc5\x81\xc3\xa9'
+    # CPython: parse_qs("key=\\u0141%C3%A9", encoding="utf-8")['key'] == ['\\u0141\xe9']
     res_parse_qs = parse.parse_qs("key=\\u0141%C3%A9", encoding="utf-8")['key']
-    # print("parse_qs result: ", res_parse_qs)
-    eq(["\\xc5\\x81\\xc3\\xa9"], res_parse_qs)
+    eq(["\\u0141\u00e9"], res_parse_qs)
 
     URL='https://someurl.com/with/query_string?i=main&mode=front&sid=12ab&enc=+Hello'
     parsed_url = parse.urlparse(URL)
@@ -86,6 +84,43 @@ def _test_quote_from_bytes():
     asserts.assert_that(result).is_equal_to('')
 
 
+def _test_unquote_decodes_utf8():
+    # expected values from CPython 3's urllib.parse
+    asserts.assert_that(parse.unquote("caf%C3%A9")).is_equal_to("caf\u00e9")
+    asserts.assert_that(parse.unquote(parse.quote("\u00e9"))).is_equal_to("\u00e9")
+    asserts.assert_that(parse.unquote("%e2%82%ac%E2%82%AC")).is_equal_to("\u20ac\u20ac")
+    asserts.assert_that(parse.unquote("\u00e9%C3%A9")).is_equal_to("\u00e9\u00e9")
+    asserts.assert_that(parse.unquote("%41\u00e9 abc")).is_equal_to("A\u00e9 abc")
+    asserts.assert_that(parse.unquote("a%2")).is_equal_to("a%2")
+    asserts.assert_that(parse.unquote("%41%42")).is_equal_to("AB")
+    # invalid UTF-8 is replaced (errors='replace'), one U+FFFD per CPython error
+    asserts.assert_that(parse.unquote("%E2%82")).is_equal_to("\ufffd")
+    asserts.assert_that(parse.unquote("%ff")).is_equal_to("\ufffd")
+    asserts.assert_that(parse.unquote("%E2%82%ACx%ff%fe")).is_equal_to("\u20acx\ufffd\ufffd")
+    asserts.assert_that(parse.unquote("%E9", "ascii", "ignore")).is_equal_to("")
+    asserts.assert_that(parse.unquote("%E9", "ascii")).is_equal_to("\ufffd")
+    asserts.assert_fails(lambda: parse.unquote("%E9", "utf-8", "strict"),
+                         "^'utf-8' codec can't decode byte 0xe9 in position 0: unexpected end of data$")
+    asserts.assert_that(parse.unquote(b"caf%C3%A9")).is_equal_to("caf\u00e9")
+
+
+def _test_unquote_latin1():
+    asserts.assert_that(parse.unquote("%E9", encoding="latin-1")).is_equal_to("\u00e9")
+    asserts.assert_that(parse.quote("\u00e9", encoding="latin-1")).is_equal_to("%E9")
+    asserts.assert_that(parse.quote_plus("\u00e9 x", encoding="latin-1")).is_equal_to("%E9+x")
+    asserts.assert_that(parse.urlencode({"k": "\u00e9"}, encoding="latin-1")).is_equal_to("k=%E9")
+    asserts.assert_fails(lambda: parse.quote("\u20ac", encoding="latin-1"),
+                         "^'latin-1' codec can't encode character '\\\\u20ac' in position 0: ordinal not in range\\(256\\)$")
+
+
+def _test_parse_qs_and_unquote_plus_decode_utf8():
+    asserts.assert_that(parse.parse_qs("a=caf%C3%A9&b=%ff")).is_equal_to(
+        {"a": ["caf\u00e9"], "b": ["\ufffd"]})
+    asserts.assert_that(parse.parse_qsl("x=%E2%82+y")).is_equal_to([("x", "\ufffd y")])
+    asserts.assert_that(parse.unquote_plus("caf%C3%A9+%E2%82")).is_equal_to("caf\u00e9 \ufffd")
+    asserts.assert_that(parse.unquote_plus("%7e/abc+def")).is_equal_to("~/abc def")
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_urlparse))
@@ -97,6 +132,9 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_urlencode_sequences))
     _suite.addTest(unittest.FunctionTestCase(_test_urlencode_quote_via))
     _suite.addTest(unittest.FunctionTestCase(_test_quote_from_bytes))
+    _suite.addTest(unittest.FunctionTestCase(_test_unquote_decodes_utf8))
+    _suite.addTest(unittest.FunctionTestCase(_test_unquote_latin1))
+    _suite.addTest(unittest.FunctionTestCase(_test_parse_qs_and_unquote_plus_decode_utf8))
 
     return _suite
 
