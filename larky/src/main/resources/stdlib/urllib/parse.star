@@ -14,6 +14,10 @@ load("@stdlib//sets", "sets")
 load("@stdlib//collections", namedtuple="namedtuple")
 load("@vendor//option/result", Result="Result", Error="Error", _safe="safe")
 
+# Leading and trailing C0 control and space to be stripped per WHATWG spec.
+# == "".join([chr(i) for i in range(0x00, 0x20 + 1)])
+_WHATWG_C0_CONTROL_OR_SPACE = "".join([chr(i) for i in range(0x00, 0x20 + 1)])
+
 # Unsafe bytes to be removed per WHATWG spec
 _UNSAFE_URL_BYTES_TO_REMOVE = ['\t', '\r', '\n']
 
@@ -43,7 +47,7 @@ scheme_chars = ('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+
 
 def _encode_result(obj, encoding=_implicit_encoding,
                         errors=_implicit_errors):
-    return codecs.encode(obj, encoding, errors)
+    return codecs.encode(obj, encoding, errors, unescape=False)
 
 def _decode_args(args, encoding=_implicit_encoding,
                        errors=_implicit_errors):
@@ -159,6 +163,10 @@ def _urlsplit(url, scheme='', allow_fragments=True):
     <scheme>://<netloc>/<path>?<query>#<fragment>
     """
     url, scheme, _coerce_result = _coerce_args(url, scheme)
+    # Only lstrip url as some applications rely on preserving trailing space.
+    # (https://url.spec.whatwg.org/#concept-basic-url-parser would strip both)
+    url = url.lstrip(_WHATWG_C0_CONTROL_OR_SPACE)
+    scheme = scheme.strip(_WHATWG_C0_CONTROL_OR_SPACE)
     for b in _UNSAFE_URL_BYTES_TO_REMOVE:
         url = url.replace(b, "")
         scheme = scheme.replace(b, "")
@@ -317,22 +325,39 @@ def _unquote(string, encoding='utf-8', errors='replace'):
     sequences are replaced by a placeholder character.
     unquote('abc%20def') -> 'abc def'.
     """
-    if types.is_bytes(string):
-        return _unquote_to_bytes(string).decode(encoding, errors)
-    if '%' not in string:
-        string.split
-        return string
     if encoding == None:
         encoding = 'utf-8'
     if errors == None:
         errors = 'replace'
+    if types.is_bytes(string):
+        return _decode(_unquote_to_bytes(string), encoding, errors)
+    if '%' not in string:
+        return string
     bits = _asciire.split(string)
     res = [bits[0]]
     append = res.append
     for i in range(1, len(bits), 2):
-        append(codecs.decode(_unquote_to_bytes(bits[i]), encoding, errors))
+        append(_decode(_unquote_to_bytes(bits[i]), encoding, errors))
         append(bits[i + 1])
     return ''.join(res)
+
+
+def _decode(bs, encoding, errors):
+    """bs.decode(encoding, errors), as CPython does it."""
+    if encoding.lower() == 'utf-8':
+        # codecs.decode(bs, "utf-8") escapes non-ASCII bytes instead of decoding them
+        return codecs.utf_8_decode(bs, errors, True)[0]
+    return codecs.decode(bs, encoding, errors)
+
+
+def unquote_plus(string, encoding='utf-8', errors='replace'):
+    """Like unquote(), but also replace plus signs by spaces, as required for
+    unquoting HTML form values.
+
+    unquote_plus('%7e/abc+def') -> '~/abc def'
+    """
+    string = string.replace('+', ' ')
+    return _unquote(string, encoding, errors)
 
 _hexdig = '0123456789ABCDEFabcdef'.elems()
 
@@ -345,13 +370,17 @@ def _unquote_to_bytes(string):
     # unescaped non-ASCII characters, which URIs should not.
     if not string:
         return b('')
+    # (builtins.bytes and codecs.encode's default unescape=True would turn a
+    # literal backslash-u sequence in the URL into the character it names)
     if types.is_bytes(string):
-        string = codecs.encode(string, encoding='utf-8')
-    # bits = string.split(b'%')
-    bits_str = str(string).split('%')
-    bits = [b(el) for el in bits_str]
+        # split a str holding one character per byte, then turn it back into bytes
+        bits = [codecs.encode(el, encoding='latin-1', unescape=False)
+                for el in codecs.decode(string, 'latin-1').split('%')]
+    else:
+        bits = [codecs.encode(el, encoding='utf-8', unescape=False)
+                for el in string.split('%')]
     if len(bits) == 1:
-        return string
+        return bits[0]
     res = [bits[0]]
     # global _hextobyte
     _hextobyte = {codecs.encode(a + b, encoding='utf-8'): unhexlify(a + b)
@@ -379,7 +408,8 @@ def _byte_quoter_factory(safe):
     safe = _ALWAYS_SAFE.union(sets.Set(safe))
 
     def quoter(b):
-        return chr(b) if safe.contains(b) else ('%%%X' % b)
+        # '%%%02X' % b, without Python's %-format flags
+        return chr(b) if safe.contains(b) else (('%%%X' % b) if b >= 16 else ('%%0%X' % b))
 
     return quoter
 
@@ -395,7 +425,7 @@ def quote_from_bytes(bs, safe='/'):
         return ''
     if types.is_string(safe):
         # Normalize 'safe' by converting to bytes and removing non-ASCII chars
-        safe = codecs.encode(safe, encoding='ascii', errors='ignore')
+        safe = codecs.encode(safe, encoding='ascii', errors='ignore', unescape=False)
     else:
         # List comprehensions are faster than generator expressions.
         safe = bytes([c for c in safe.elems() if c < 128])
@@ -453,7 +483,8 @@ def quote(string, safe='/', encoding=None, errors=None):
             encoding = 'utf-8'
         if errors == None:
             errors = 'strict'
-        string = codecs.encode(string, encoding=encoding, errors=errors)
+        # unescape=False: a backslash in the input is data, not an escape
+        string = codecs.encode(string, encoding=encoding, errors=errors, unescape=False)
     else:
         if encoding != None:
             return Error("TypeError: quote() doesn't support 'encoding' for bytes").unwrap()
@@ -672,6 +703,7 @@ parse = larky.struct(
     quote_from_bytes = quote_from_bytes,
     quote = quote,
     unquote = _unquote,
+    unquote_plus = unquote_plus,
     quote_plus = quote_plus,
     urlencode = urlencode,
     unwrap = unwrap,
