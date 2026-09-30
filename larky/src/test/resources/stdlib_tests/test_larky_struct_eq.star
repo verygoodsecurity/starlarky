@@ -2,7 +2,7 @@
 
 A Python class that defines __eq__ without __hash__ is unhashable; one that
 defines __hash__ is hashed by it; one that defines neither compares and
-hashes by identity.
+hashes by identity. An exception raised by __eq__ propagates.
 """
 load("@stdlib//larky", larky="larky")
 load("@stdlib//unittest", unittest="unittest")
@@ -56,6 +56,27 @@ def _test_hash_error_propagates():
     asserts.assert_fails(lambda: {x: 1}, "hash boom")
 
 
+def _test_eq_error_propagates():
+    def _boom(other):
+        fail("eq boom")
+    s = larky.struct(__eq__=_boom)
+    asserts.assert_fails(lambda: s == larky.struct(v=1), "eq boom")
+    asserts.assert_fails(lambda: s != larky.struct(v=1), "eq boom")
+    # Identity short-circuits, as in CPython's containment checks.
+    asserts.assert_that(s in [s]).is_true()
+
+
+def _test_py_object_eq_error_propagates():
+    def _boom(self, other):
+        fail("object eq boom")
+    A = type("A", (), {"__eq__": _boom})
+    asserts.assert_fails(lambda: A() == A(), "object eq boom")
+    B = type("B", (), {})
+    b = B()
+    asserts.assert_that(b == b).is_true()
+    asserts.assert_that(b == B()).is_false()
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_plain_struct_is_identity_hashed))
@@ -64,6 +85,8 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_hash_without_eq_is_identity_equal))
     _suite.addTest(unittest.FunctionTestCase(_test_hash_must_return_int))
     _suite.addTest(unittest.FunctionTestCase(_test_hash_error_propagates))
+    _suite.addTest(unittest.FunctionTestCase(_test_eq_error_propagates))
+    _suite.addTest(unittest.FunctionTestCase(_test_py_object_eq_error_propagates))
     return _suite
 
 
