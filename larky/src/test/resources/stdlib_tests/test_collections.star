@@ -47,10 +47,36 @@ def _test_namedtuple_replace():
     asserts.assert_that( q.y ).is_equal_to(1)
 
 
+def _test_namedtuple_equality_and_hash():
+    # Expected values from CPython 3: a namedtuple compares and hashes by its
+    # elements, like the tuple it is.
+    P = namedtuple("P", ["x", "y"])
+    Q = namedtuple("Q", ["a", "b"])
+    asserts.assert_that(P(1, 2) == P(1, 2)).is_true()
+    asserts.assert_that(P(1, 2) != P(1, 2)).is_false()
+    asserts.assert_that(P(1, 2) == P(1, 3)).is_false()
+    asserts.assert_that(P(1, 2) != P(1, 3)).is_true()
+    asserts.assert_that(P(1, 2) == Q(1, 2)).is_true()
+    asserts.assert_that(P(1, 2) <= P(1, 2)).is_true()
+    asserts.assert_that(P(1, 2) < P(1, 2)).is_false()
+    asserts.assert_that(P(1, 2) < P(1, 3)).is_true()
+    asserts.assert_that(P(2, 0) > P(1, 3)).is_true()
+    asserts.assert_that(sorted([P(2, 1), P(1, 2)])).is_equal_to([P(1, 2), P(2, 1)])
+    asserts.assert_that({P(1, 2): 1}.get(P(1, 2))).is_equal_to(1)
+    asserts.assert_that(len(set([P(1, 2), P(1, 2)]))).is_equal_to(1)
+    d = {P(1, 2): 1}
+    d[Q(1, 2)] = 2
+    asserts.assert_that(d).is_equal_to({P(1, 2): 2})
+    asserts.assert_that(P(1, 2) in [P(1, 2)]).is_true()
+    asserts.assert_fails(lambda: {P([1], 2): 1}, "unhashable type: 'list'")
+    asserts.assert_fails(lambda: P(1, "a") < P(1, 2), "unsupported comparison")
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_namedtuple))
     _suite.addTest(unittest.FunctionTestCase(_test_namedtuple_replace))
+    _suite.addTest(unittest.FunctionTestCase(_test_namedtuple_equality_and_hash))
     return _suite
 
 
