@@ -495,6 +495,8 @@ public class StructModule implements StarlarkValue {
     extraPositionals = @Param(name = "args")
   )
   public void struct__pack_into(Object format, StarlarkByteArray buffer, StarlarkInt offset, Tuple args) throws Exception {
+    // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
+    Starlark.checkMutable(buffer);
     byte[] bytes;
     String strFmt;
     if (String.class.isAssignableFrom(format.getClass())) {
