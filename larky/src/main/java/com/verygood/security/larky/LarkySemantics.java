@@ -1,5 +1,6 @@
 package com.verygood.security.larky;
 
+import net.starlark.java.eval.PythonStrings;
 import net.starlark.java.eval.StarlarkSemantics;
 
 public final class LarkySemantics {
@@ -17,6 +18,9 @@ public final class LarkySemantics {
       // Starlark's fail() omits the Starlark stack trace unless asked; Larky has always
       // reported it (callers rely on the traceback in the error message).
       .setBool(StarlarkSemantics.FORCE_STARLARK_STACK_TRACE, true)
+      // str.find/count/startswith/... match nothing when start > end, as in Python
+      // ("abc".find("", 4) == -1; Starlark clamps start and finds "" at 3).
+      .setBool(PythonStrings.PYTHON_STRING_BOUNDS, true)
       .build();
 
 }
