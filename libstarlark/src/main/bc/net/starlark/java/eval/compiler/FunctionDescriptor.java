@@ -15,7 +15,9 @@
 package net.starlark.java.eval.compiler;
 
 import com.google.common.collect.ImmutableList;
+import javax.annotation.Nullable;
 import net.starlark.java.syntax.Location;
+import net.starlark.java.syntax.Resolver;
 
 /**
  * Descriptor for a bytecode-compiled function, containing all metadata needed to create
@@ -244,5 +246,18 @@ public final class FunctionDescriptor {
    */
   public ImmutableList<Integer> getCellIndices() {
     return cellIndices;
+  }
+
+  // The resolved function this was compiled from, whose type a program's type table records; not
+  // kept by a serialized chunk (Larky's precompiled modules are untyped).
+  @Nullable private Resolver.Function resolvedFunction;
+
+  @Nullable
+  public Resolver.Function getResolvedFunction() {
+    return resolvedFunction;
+  }
+
+  void setResolvedFunction(@Nullable Resolver.Function resolvedFunction) {
+    this.resolvedFunction = resolvedFunction;
   }
 }
