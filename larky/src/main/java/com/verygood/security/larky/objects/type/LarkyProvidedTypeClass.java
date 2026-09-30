@@ -1,5 +1,8 @@
 package com.verygood.security.larky.objects.type;
 
+import com.google.common.collect.ImmutableList;
+import net.starlark.java.syntax.StarlarkType;
+import net.starlark.java.syntax.TypeConstructor;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import java.util.Map;
@@ -23,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 
 final public class LarkyProvidedTypeClass implements
   ForwardingLarkyType,
+    TypeConstructor,
     LarkyCollection,
     HasBinary,
     StarlarkCallable
@@ -153,5 +157,12 @@ final public class LarkyProvidedTypeClass implements
   @Override
   public ImmutableSet<SpecialMethod> getSpecialMethods() {
     return operations;
+  }
+
+  /** A class is a type: annotating with it accepts its instances and those of its subclasses. */
+  @Override
+  public StarlarkType createStarlarkType(ImmutableList<TypeConstructor.Term> args)
+      throws TypeConstructor.Failure {
+    return LarkyClassType.create(this, args);
   }
 }

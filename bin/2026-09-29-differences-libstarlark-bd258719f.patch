@@ -277,6 +277,42 @@ index ec4ebbfa..3efac2fc 100644
      return value.hashCode();
    }
  
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Module.java a/libstarlark/src/main/java/net/starlark/java/eval/Module.java
+index 96c45406..2a6a82d9 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/Module.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/Module.java
+@@ -299,10 +299,30 @@ public final class Module implements Resolver.Module, TypeTagger.LoadableModule
+     throw new Undefined(String.format("name '%s' is not defined", name), candidates);
+   }
+ 
++  // VGS: whether a type expression may name a global of this module that has no value yet.
++  private boolean forwardTypeReferences;
++
++  /**
++   * Lets type expressions name globals of this module that have no value when the file is
++   * type-tagged, such as classes the file defines; see {@link ForwardGlobalType}.
++   */
++  public void allowForwardTypeReferences() {
++    forwardTypeReferences = true;
++  }
++
+   @Override
+   @Nullable
+   public TypeConstructor getTypeConstructor(String name) throws Undefined {
+-    Resolver.Scope scope = resolve(name, /* resolveTypeSyntax= */ true);
++    Resolver.Scope scope;
++    try {
++      scope = resolve(name, /* resolveTypeSyntax= */ true);
++    } catch (Undefined e) {
++      // The resolver accepted the name, so it is a global of the file, not yet assigned.
++      if (forwardTypeReferences) {
++        return ForwardGlobalType.constructor(this, name);
++      }
++      throw e;
++    }
+     Object value;
+     switch (scope) {
+       case GLOBAL -> value = getGlobal(name);
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java a/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
 index 361556d9..f3e5f66d 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
@@ -1205,6 +1241,41 @@ index 8c73cc97..f7938c68 100644
    CARET("^"),
    CARET_EQUALS("^="),
    /** Emitted only if --experimental_starlark_type_syntax is enabled. */
+diff --git b/libstarlark/src/main/java/net/starlark/java/syntax/TypeChecker.java a/libstarlark/src/main/java/net/starlark/java/syntax/TypeChecker.java
+index 2c397ecc..8104496d 100644
+--- b/libstarlark/src/main/java/net/starlark/java/syntax/TypeChecker.java
++++ a/libstarlark/src/main/java/net/starlark/java/syntax/TypeChecker.java
+@@ -147,6 +147,22 @@ public final class TypeChecker extends NodeVisitor {
+     }
+   }
+ 
++  /**
++   * The type of a byte literal (a VGS extension): that of the {@code bytes} type constructor in
++   * scope, or {@code Any} if there is none.
++   */
++  private StarlarkType bytesType() {
++    try {
++      TypeConstructor bytes = module.getTypeConstructor("bytes");
++      if (bytes != null) {
++        return bytes.createStarlarkType(ImmutableList.of());
++      }
++    } catch (Resolver.Module.Undefined | TypeConstructor.Failure e) {
++      // no bytes type in scope
++    }
++    return Types.ANY;
++  }
++
+   /**
+    * Infers the type of an expression from a bottom-up traversal, relying on type information stored
+    * in identifier bindings by the {@link TypeTagger}.
+@@ -157,6 +173,7 @@ public final class TypeChecker extends NodeVisitor {
+     return switch (expr.kind()) {
+       case IDENTIFIER -> getType((Identifier) expr);
+       case STRING_LITERAL -> Types.STR;
++      case BYTE_LITERAL -> bytesType();
+       case INT_LITERAL -> Types.INT;
+       case FLOAT_LITERAL -> Types.FLOAT;
+       case CAST -> {
 diff --git b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java
 index 7e1c3b3a..d5be296d 100644
 --- b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java
