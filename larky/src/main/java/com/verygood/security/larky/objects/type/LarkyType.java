@@ -1,5 +1,7 @@
 package com.verygood.security.larky.objects.type;
 
+import net.starlark.java.syntax.Types;
+import net.starlark.java.syntax.StarlarkType;
 import com.google.common.collect.ImmutableSet;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +57,15 @@ public interface LarkyType extends PyObject, LarkyCollection, HasBinary {
   @Override
   default String typeName() {
     return "type";
+  }
+
+  /**
+   * A class object's own type (not that of its instances, {@link LarkyClassType}). Not derived from
+   * its fields, as for other structures: some of a class's fields have no value.
+   */
+  @Override
+  default StarlarkType getStarlarkType(StarlarkSemantics semantics) {
+    return Types.ANY;
   }
 
   @Override

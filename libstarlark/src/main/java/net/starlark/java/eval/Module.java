@@ -299,10 +299,30 @@ public final class Module implements Resolver.Module, TypeTagger.LoadableModule 
     throw new Undefined(String.format("name '%s' is not defined", name), candidates);
   }
 
+  // VGS: whether a type expression may name a global of this module that has no value yet.
+  private boolean forwardTypeReferences;
+
+  /**
+   * Lets type expressions name globals of this module that have no value when the file is
+   * type-tagged, such as classes the file defines; see {@link ForwardGlobalType}.
+   */
+  public void allowForwardTypeReferences() {
+    forwardTypeReferences = true;
+  }
+
   @Override
   @Nullable
   public TypeConstructor getTypeConstructor(String name) throws Undefined {
-    Resolver.Scope scope = resolve(name, /* resolveTypeSyntax= */ true);
+    Resolver.Scope scope;
+    try {
+      scope = resolve(name, /* resolveTypeSyntax= */ true);
+    } catch (Undefined e) {
+      // The resolver accepted the name, so it is a global of the file, not yet assigned.
+      if (forwardTypeReferences) {
+        return ForwardGlobalType.constructor(this, name);
+      }
+      throw e;
+    }
     Object value;
     switch (scope) {
       case GLOBAL -> value = getGlobal(name);
