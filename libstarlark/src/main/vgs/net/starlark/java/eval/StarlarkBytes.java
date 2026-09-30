@@ -190,7 +190,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
       name = "bytearray",
       category = "core",
       doc = "A mutable sequence of values in the range 0-255.")
-  public static class StarlarkByteArray extends StarlarkBytes {
+  public static class StarlarkByteArray extends StarlarkBytes implements Mutability.Freezable {
 
     private StarlarkByteArray(StarlarkBytes bytes) {
       super(bytes.mutability, bytes.delegate);
@@ -228,6 +228,19 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
+    public Mutability mutability() {
+      return mutability;
+    }
+
+    /** Throws unless this bytearray may be changed now: not frozen and not being iterated. */
+    @Override
+    protected void ensureNotFrozen() {
+      if (mutability.isFrozen() || updateIteratorCount(0)) {
+        throw new UnsupportedOperationException("bytearray is frozen or being iterated");
+      }
+    }
+
+    @Override
     public StarlarkBytes set(int index, StarlarkBytes element) {
       if(element.size() != 1) {
         throw new IllegalArgumentException("Expected starlark element to be of size 1!");
@@ -236,6 +249,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     public StarlarkBytes set(int index, byte element) {
+     ensureNotFrozen();
      StarlarkBytes oldValue = get(index);
      final byte oldValuePrimitive = this.delegate.setValue(index, element);
      assert oldValuePrimitive== oldValue.byteAt(0);
@@ -244,11 +258,13 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
     @Override
     public void add(int index, StarlarkBytes element) {
+      ensureNotFrozen();
       this.delegate.addAll(index, element.delegate);
     }
 
     @Override
     public boolean add(StarlarkBytes o) {
+      ensureNotFrozen();
       return this.delegate.extend(o.delegate);
     }
 
@@ -286,6 +302,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
     @Override
     public void replaceAll(UnaryOperator<StarlarkBytes> operator) {
+      ensureNotFrozen();
       for (int i = 0; i < this.delegate.size(); i++) {
           this.set(i, operator.apply(this.get(i)));
       }
@@ -296,6 +313,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     public void replaceAll(StarlarkBytes bl) {
+      ensureNotFrozen();
       this.delegate.clear();
       this.delegate.extend(bl.delegate);
 //      final ListIterator<StarlarkBytes> li = this.listIterator();
@@ -309,12 +327,13 @@ public class StarlarkBytes implements ByteStringModuleApi,
          doc = "Adds an integer to the end of the byte array.",
          parameters = {@Param(name = "item", doc = "Item to add at the end.")})
     public void append(StarlarkInt item) throws EvalException {
+       Starlark.checkMutable(this);
        this.add(StarlarkBytes.immutableOf(toByte(item.toInt("append"))));
      }
 
-    @StarlarkMethod(name = "copy", doc = "Return a copy of bytearray.")
-    public StarlarkByteArray copy() throws EvalException {
-      return wrap(mutability, delegate);
+    @StarlarkMethod(name = "copy", doc = "Return a copy of bytearray.", useStarlarkThread = true)
+    public StarlarkByteArray copy(StarlarkThread thread) throws EvalException {
+      return wrap(thread.mutability(), ByteList.wrap(delegate.toArray()));
     }
 
      @StarlarkMethod(
@@ -322,6 +341,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
          doc = "Adds all items to the end of the list.",
          parameters = {@Param(name = "items", doc = "Items to add at the end.")})
      public void extend(StarlarkBytes items) throws EvalException {
+       Starlark.checkMutable(this);
        this.addAll(items);
      }
 
@@ -333,16 +353,19 @@ public class StarlarkBytes implements ByteStringModuleApi,
              @Param(name = "item", doc = "The item.")
          })
      public void insert(StarlarkInt index, StarlarkBytes item) throws EvalException {
+       Starlark.checkMutable(this);
        this.addAll(index.toInt("insert"), item);
      }
 
     @Override
     public void clear() {
+      ensureNotFrozen();
       this.delegate.clear();
     }
 
     @StarlarkMethod(name = "clear", doc = "Removes all the elements of the list.")
      public void clearElements() throws EvalException {
+       Starlark.checkMutable(this);
        this.clear();
      }
 
@@ -379,8 +402,10 @@ public class StarlarkBytes implements ByteStringModuleApi,
                  doc = "The index of the item.")
          })
      public StarlarkInt pop(Object i) throws EvalException {
+       Starlark.checkMutable(this);
        int arg = i == Starlark.NONE ? -1 : Starlark.toInt(i, "i");
-       return StarlarkInt.of(this.remove(arg).byteAt(0));
+       int index = EvalUtils.getSequenceIndex(arg, size());
+       return StarlarkInt.of(Byte.toUnsignedInt(this.delegate.removeAt(index)));
      }
 
     @StarlarkMethod(
@@ -395,6 +420,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
                 doc = "The value of the item.")
         })
     public void removeItem(Object i) throws EvalException {
+      Starlark.checkMutable(this);
       final int index = this.index(i, 0, this.size());
       this.remove(index);
     }
@@ -1342,12 +1368,23 @@ public class StarlarkBytes implements ByteStringModuleApi,
 
   @StarlarkBuiltin(name = "bytes.elems")
   public static class StarlarkByteElems extends AbstractList<StarlarkInt>
-    implements Sequence<StarlarkInt> {
+    implements Sequence<StarlarkInt>, Mutability.Freezable {
 
     final private StarlarkBytes bytes;
 
     public StarlarkByteElems(StarlarkBytes bytes) {
       this.bytes = bytes;
+    }
+
+    @Override
+    public Mutability mutability() {
+      return bytes.mutability;
+    }
+
+    /** Iterating the view locks the bytes it views, so a bytearray can't change under the loop. */
+    @Override
+    public boolean updateIteratorCount(int delta) {
+      return bytes instanceof Mutability.Freezable f && f.updateIteratorCount(delta);
     }
 
     @Override
