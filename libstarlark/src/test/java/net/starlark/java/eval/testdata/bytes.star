@@ -239,6 +239,16 @@ assert_fails(lambda: b"abc".rsplit(b""), "empty separator")
 assert_fails(lambda: b"abc".partition(b""), "empty separator")
 assert_fails(lambda: b"abc".rpartition(b""), "empty separator")
 
+# VGS: whitespace is exactly b" \t\n\r\x0b\x0c", as in Python; NUL and bytes >= 0x80
+# (e.g. \xa0) are not.
+assert_eq([i for i in range(256) if bytes([i]).isspace()], [9, 10, 11, 12, 13, 32])
+assert_eq(b"\x00ab\x80".strip(), b"\x00ab\x80")
+assert_eq(b" \t\n\x0b\x0c\rab\r\n ".strip(), b"ab")
+assert_eq(b"\xa0ab\xe0".lstrip(), b"\xa0ab\xe0")
+assert_eq(b"\xa0ab\xe0".rstrip(), b"\xa0ab\xe0")
+assert_eq(b"a\x00b \xa0c".split(), [b"a\x00b", b"\xa0c"])
+assert_eq(b"a\x85b\x0bc".rsplit(), [b"a\x85b", b"c"])
+
 # repeat (bytes * int)
 assert_eq(goodbye * 3, b"goodbyegoodbyegoodbye")
 assert_eq(3 * goodbye, b"goodbyegoodbyegoodbye")
