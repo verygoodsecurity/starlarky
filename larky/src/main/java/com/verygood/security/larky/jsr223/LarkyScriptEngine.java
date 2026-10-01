@@ -26,6 +26,21 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
   /** Engine property for script name. */
   public static final String SCRIPT_NAME = "larky.scriptName";
 
+  /**
+   * Engine property: a {@code Map<String, String>} of other files, by name, that the script may
+   * load() (e.g. {@code load("larky", "process")} for "larky.star"). Each loads into its own module, so its
+   * top-level names cannot collide with the script's.
+   */
+  public static final String MODULES = "larky.modules";
+
+  /**
+   * Engine property: a String (e.g. a tenant ID) that separates the cached compiled programs of
+   * the {@link #MODULES} files. A loaded file is only reused from the cache by evaluations with the
+   * same namespace, even when its name and source are identical. The evaluated script itself is
+   * cached without it.
+   */
+  public static final String CACHE_NAMESPACE = "larky.cacheNamespace";
+
   private ScriptContext context = new SimpleScriptContext();
   private LarkyCompiledScript.CompilationMode defaultCompilationMode =
       LarkyCompiledScript.CompilationMode.BYTECODE;
@@ -76,6 +91,14 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
   public LarkyCompiledScript compile(String script, String scriptName) throws ScriptException {
     LarkyCompiledScript.CompilationMode mode = getEffectiveCompilationMode();
     LarkyCompiledScript compiledScript = new LarkyCompiledScript(this, mode);
+    if (context.getAttribute(MODULES) instanceof java.util.Map<?, ?> modules) {
+      java.util.Map<String, String> files = new java.util.LinkedHashMap<>();
+      modules.forEach((name, text) -> files.put(String.valueOf(name), String.valueOf(text)));
+      compiledScript.setModules(files);
+    }
+    if (context.getAttribute(CACHE_NAMESPACE) instanceof String namespace) {
+      compiledScript.setCacheNamespace(namespace);
+    }
 
     try {
       compiledScript.compile(script, scriptName);

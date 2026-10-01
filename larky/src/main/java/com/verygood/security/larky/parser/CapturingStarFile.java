@@ -51,6 +51,11 @@ class CapturingStarFile implements StarFile {
   }
 
   @Override
+  public String cacheNamespace() {
+    return wrapped.cacheNamespace();
+  }
+
+  @Override
   public byte[] readContentBytes() throws IOException {
     return wrapped.readContentBytes();
   }

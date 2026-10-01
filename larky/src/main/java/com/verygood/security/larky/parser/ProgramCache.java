@@ -169,8 +169,8 @@ final class ProgramCache {
   // ---- scripts (not Larky's own modules): e.g. a customer script evaluated per request ----
 
   private record ScriptKey(
-      String path, String source, FileOptions options, StarlarkSemantics semantics,
-      boolean bytecode) {}
+      String namespace, String path, String source, FileOptions options,
+      StarlarkSemantics semantics, boolean bytecode) {}
 
   private static final int MAX_SCRIPTS = Integer.getInteger("larky.scriptCache.size", 1000);
 
@@ -183,6 +183,7 @@ final class ProgramCache {
    * Keyed by the full source text, so different scripts never share an entry.
    */
   static Executable getScript(
+      String namespace,
       String path,
       String source,
       Module module,
@@ -194,7 +195,8 @@ final class ProgramCache {
       return Executable.of(compiler.compile(new StarlarkFile[1]));
     }
     ScriptKey key =
-        new ScriptKey(path, source, options, semantics, BytecodeCompiler.enabledByDefault());
+        new ScriptKey(
+            namespace, path, source, options, semantics, BytecodeCompiler.enabledByDefault());
     Entry cached = SCRIPTS.getIfPresent(key);
     if (cached != null && cached.validity().resolvesTheSameIn(module)) {
       return cached.executable();

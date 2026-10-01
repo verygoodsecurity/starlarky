@@ -334,6 +334,7 @@ public final class LarkyEvaluator {
       throws IOException, EvalException {
     byte[] bytes = content.readContentBytes();
     return ProgramCache.getScript(
+        content.cacheNamespace(),
         content.path(),
         new String(bytes, java.nio.charset.StandardCharsets.UTF_8),
         module,

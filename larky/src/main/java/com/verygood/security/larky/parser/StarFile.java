@@ -58,6 +58,14 @@ public interface StarFile {
   String path();
 
   /**
+   * Separates cached compiled programs: a script is only reused from the cache for files with the
+   * same namespace (e.g. the same tenant), even when path and source are identical. Empty by default.
+   */
+  default String cacheNamespace() {
+    return "";
+  }
+
+  /**
    * Get the contents of the file.
    *
    * <p>Implementations of this interface should prefer to not eagerly load the content of this
