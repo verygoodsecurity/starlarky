@@ -5,6 +5,7 @@ import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.console.testing.TestingConsole;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
@@ -101,6 +102,28 @@ public class ProgramCacheTest {
     for (String source : new String[] {"x = 1\n", "x = 1\n", "x = 2\n", "x = 1\n"}) {
       newEvaluator().eval(InMemMapBackedStarFile.createStarFile("main.star", source));
     }
+    assertThat(ProgramCache.scriptCount()).isEqualTo(2);
+  }
+
+  @Test
+  public void separatesLoadedScriptsByCacheNamespace() throws Exception {
+    ImmutableMap<String, byte[]> files =
+        ImmutableMap.of(
+            "main.star", "load('lib', 'x')\n".getBytes(StandardCharsets.UTF_8),
+            "lib.star", "x = 1\n".getBytes(StandardCharsets.UTF_8));
+    for (String namespace : new String[] {"tenant-a", "tenant-b", "tenant-a", ""}) {
+      newEvaluator().eval(new InMemMapBackedStarFile(files, "main.star", namespace));
+    }
+    // main.star once (its own namespace is always ""); lib.star once per namespace.
+    assertThat(ProgramCache.scriptCount()).isEqualTo(1 + 3);
+  }
+
+  @Test
+  public void recompilesAnUpdatedScript() throws Exception {
+    // A changed script never matches the old entry, so its first evaluation compiles it.
+    newEvaluator().eval(InMemMapBackedStarFile.createStarFile("main.star", "x = 1\n"));
+    newEvaluator().eval(InMemMapBackedStarFile.createStarFile("main.star", "x = 2\n"));
+    newEvaluator().eval(InMemMapBackedStarFile.createStarFile("main.star", "x = 2\n"));
     assertThat(ProgramCache.scriptCount()).isEqualTo(2);
   }
 

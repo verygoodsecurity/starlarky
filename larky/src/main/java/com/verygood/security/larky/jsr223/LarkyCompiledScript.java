@@ -1,5 +1,6 @@
 package com.verygood.security.larky.jsr223;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.Reader;
@@ -53,6 +54,11 @@ public class LarkyCompiledScript extends CompiledScript {
   @Nullable private String cachedSource;
   @Nullable private String cachedScriptName;
   @Nullable private Program cachedProgram;
+  // Other files the script may load() by name (see LarkyScriptEngine#MODULES).
+  private ImmutableMap<String, String> modules = ImmutableMap.of();
+  // Separates this script's cached compiled programs from other namespaces' (see
+  // LarkyScriptEngine#CACHE_NAMESPACE).
+  private String cacheNamespace = "";
 
   /**
    * Construct a {@link LarkyCompiledScript}.
@@ -155,6 +161,15 @@ public class LarkyCompiledScript extends CompiledScript {
     }
   }
 
+  void setCacheNamespace(String cacheNamespace) {
+    this.cacheNamespace = cacheNamespace;
+  }
+
+  /** Makes these files available to the script's load() statements, by name. */
+  void setModules(Map<String, String> modules) {
+    this.modules = ImmutableMap.copyOf(modules);
+  }
+
   /**
    * Returns true if this script has been compiled and cached.
    */
@@ -183,7 +198,16 @@ public class LarkyCompiledScript extends CompiledScript {
       String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
       String scriptName = cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
 
-      final StarFile script = InMemMapBackedStarFile.createStarFile(scriptName, source);
+      final StarFile script;
+      if (modules.isEmpty() && cacheNamespace.isEmpty()) {
+        script = InMemMapBackedStarFile.createStarFile(scriptName, source);
+      } else {
+        ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
+        files.put(scriptName, source.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        modules.forEach(
+            (name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
+      }
       final DefaultLarkyInterpreter larkyInterpreter = new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings);
       result = larkyInterpreter.evaluate(script, context.getWriter());
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
