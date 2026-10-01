@@ -382,19 +382,26 @@ public final class LarkyEvaluator {
       prog = Program.compileFile(file, module);
       parsed[0] = file;
     } catch (SyntaxError.Exception ex) {
-      List<String> errs = new ArrayList<>();
       for (SyntaxError error : ex.errors()) {
         reporter.error(error.toString());
-        errs.add(error.toString());
       }
-      throw new EvalException(
-          String.format(
-              "Error compiling Starlark program: %1$s%n" +
-              "%2$s",
-              input.getFile(),
-              String.join("\n", errs)));
+      throw compileError(input.getFile(), ex);
     }
     return prog;
+  }
+
+  /** The error for a file that does not compile: its name, then each error with its location. */
+  public static EvalException compileError(String file, SyntaxError.Exception ex) {
+    List<String> errs = new ArrayList<>();
+    for (SyntaxError error : ex.errors()) {
+      errs.add(error.toString());
+    }
+    return new EvalException(
+        String.format(
+            "Error compiling Starlark program: %1$s%n" +
+            "%2$s",
+            file,
+            String.join("\n", errs)));
   }
 
   private boolean typeChecking() {

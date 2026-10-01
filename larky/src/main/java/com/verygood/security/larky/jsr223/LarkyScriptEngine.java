@@ -100,11 +100,7 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
       compiledScript.setCacheNamespace(namespace);
     }
 
-    try {
-      compiledScript.compile(script, scriptName);
-    } catch (LarkyEvaluationScriptException e) {
-      throw new ScriptException(e);
-    }
+    compiledScript.compile(script, scriptName);
 
     // Set reader for backward compatibility
     Reader scriptReader = getScriptReader(script);
@@ -126,11 +122,7 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
       LarkyCompiledScript.CompilationMode mode) throws ScriptException {
     LarkyCompiledScript compiledScript = new LarkyCompiledScript(this, mode);
 
-    try {
-      compiledScript.compile(script, scriptName);
-    } catch (LarkyEvaluationScriptException e) {
-      throw new ScriptException(e);
-    }
+    compiledScript.compile(script, scriptName);
 
     return compiledScript;
   }

@@ -11,6 +11,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.StarFile;
@@ -24,6 +25,7 @@ import net.starlark.java.eval.compiler.BytecodeChunk;
 import net.starlark.java.syntax.TypeContext;
 import net.starlark.java.syntax.TypeConstructor;
 import net.starlark.java.syntax.StarlarkType;
+import net.starlark.java.syntax.Identifier;
 import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.Resolver;
 import net.starlark.java.syntax.Program;
@@ -141,20 +143,24 @@ public class LarkyCompiledScript extends CompiledScript {
     StarlarkFile file =
         StarlarkFile.parse(input, LarkyScript.scriptFileOptions(LARKY_MODE, semantics));
 
-    if (!file.ok()) {
-      throw new SyntaxError.Exception(file.errors());
-    }
-
-    // Resolve and compile. Globals supplied through JSR-223 bindings are only known at
-    // eval time, so any name that is not a universal builtin resolves as predeclared here.
-    // Real resolution against the bindings happens again in eval().
+    // Resolve and compile, even if the file did not parse: compileFile then throws the parse
+    // errors along with the resolver's, as the interpreter reports them. Globals supplied
+    // through JSR-223 bindings are only known at eval time, so any name that is not a universal
+    // builtin resolves as predeclared here. Real resolution against the bindings happens again
+    // in eval().
     Module universe = Module.create();
     Resolver.Module lenient = new Resolver.Module() {
       @Override
-      public Resolver.Scope resolve(String name, boolean resolveTypeSyntax) {
+      public Resolver.Scope resolve(String name, boolean resolveTypeSyntax)
+          throws Resolver.Module.Undefined {
         try {
           return universe.resolve(name, resolveTypeSyntax);
         } catch (Resolver.Module.Undefined e) {
+          // The parser's placeholder for misparsed text is not a name a binding could supply;
+          // the resolver reports it as "contains syntax errors".
+          if (!Identifier.isValid(name)) {
+            throw e;
+          }
           return Resolver.Scope.PREDECLARED;
         }
       }
@@ -194,8 +200,13 @@ public class LarkyCompiledScript extends CompiledScript {
 
     } catch (java.util.concurrent.ExecutionException
         | com.google.common.util.concurrent.UncheckedExecutionException e) {
-      throw LarkyEvaluationScriptException.of(
-          e.getCause() instanceof Exception cause ? cause : e);
+      Exception cause = e.getCause() instanceof Exception c ? c : e;
+      // Report a script that does not parse as eval() did before it compiled first: every
+      // error, each with the script's name, line and column.
+      if (cause instanceof SyntaxError.Exception syntax) {
+        cause = LarkyEvaluator.compileError(scriptName, syntax);
+      }
+      throw LarkyEvaluationScriptException.of(cause);
     }
   }
 
