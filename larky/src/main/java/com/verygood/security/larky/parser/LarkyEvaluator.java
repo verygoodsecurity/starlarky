@@ -221,6 +221,7 @@ public final class LarkyEvaluator {
     public Module load(String moduleToLoad) {
       Module loadedModule = null;
       try {
+        checkNamespace(moduleToLoad);
         if (!ResourceContentStarFile.startsWithPrefix(moduleToLoad)) {
           loadedModule = evaluator.eval(content.resolve(moduleToLoad + LarkyScript.STAR_EXTENSION)).module();
           return loadedModule;
@@ -252,6 +253,26 @@ public final class LarkyEvaluator {
                 this.content.path()), e);
       }
       return loadedModule;
+    }
+
+    /**
+     * Fails if {@code moduleToLoad} names a native module under a namespace other than its own,
+     * e.g. {@code @vgs//json} for {@code @stdlib//json}.
+     */
+    void checkNamespace(String moduleToLoad) throws EvalException {
+      if (!ResourceContentStarFile.startsWithPrefix(moduleToLoad)) {
+        return;
+      }
+      String[] label = ResourceContentStarFile.splitLabel(moduleToLoad);
+      if (label == null || !isNativeJavaModule(label[1])) {
+        return;
+      }
+      String namespace = ModuleSupplier.namespaceOf(nativeJavaModule.get(label[1]));
+      if (!label[0].equals(namespace)) {
+        throw Starlark.errorf(
+            "cannot load '%s': %s is a @%s module; load it as '@%s//%s'",
+            moduleToLoad, label[1], namespace, namespace, label[1]);
+      }
     }
 
     private boolean inEvaluatorEnvironment(String moduleToLoad) {
@@ -349,6 +370,7 @@ public final class LarkyEvaluator {
     LarkyLoader larkyLoader = new LarkyLoader(content, this);
     for (String load : loads) {
       //Module loadedModule = eval(content.resolve(load + LarkyScript.STAR_EXTENSION));
+      larkyLoader.checkNamespace(load);
       Module loadedModule;
       try {
         loadedModule = larkyLoader.load(load);
