@@ -120,6 +120,14 @@ public class ModuleSupplier {
       UnittestModule.INSTANCE
   );
 
+  /**
+   * The namespace a script loads a native module from: {@code vgs} for {@link #VGS_MODULES},
+   * {@code stdlib} for every other module (e.g. {@code load("@stdlib//json", "json")}).
+   */
+  public static String namespaceOf(Object module) {
+    return VGS_MODULES.contains(module) ? "vgs" : "stdlib";
+  }
+
   private final Map<String, Object> environment;
 
   public ModuleSupplier() {

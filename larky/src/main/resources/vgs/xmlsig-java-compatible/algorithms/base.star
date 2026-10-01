@@ -1,7 +1,7 @@
 load("@stdlib//larky", larky="larky")
 load("@stdlib//base64", base64="base64")
 load("@stdlib//types", types="types")
-load("@vendor//jopenssl", _JOpenSSL="jopenssl")
+load("@stdlib//jopenssl", _JOpenSSL="jopenssl")
 load("@vendor//option/result", Error="Error")
 load("@vgs//xmlsig-java-compatible/ns", ns="ns")
 
