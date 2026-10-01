@@ -101,8 +101,26 @@ public class StarlarkEvalWrapper {
       if (callStack.isEmpty()) {
         return null;
       }
-      final StarlarkThread.CallStackEntry leaf = callStack.get(n - 1);
-      return leaf.location;
+      // Report where the error happened in the script being run: an error raised inside a
+      // built-in or one of Larky's own modules (stdlib/, vendor/, vgs/) would otherwise point at
+      // "<builtin>" line 0 or at a library line the script's author never wrote.
+      for (int i = n - 1; i >= 0; i--) {
+        final Location location = callStack.get(i).location;
+        if (!isLibraryLocation(location)) {
+          return location;
+        }
+      }
+      return callStack.get(n - 1).location;
+    }
+
+    /** Whether {@code location} is in a built-in or in one of Larky's own .star modules. */
+    static boolean isLibraryLocation(@NotNull final Location location) {
+      final String file = location.file();
+      return location.line() == 0
+          || file.equals("<builtin>")
+          || file.startsWith("stdlib/")
+          || file.startsWith("vendor/")
+          || file.startsWith("vgs/");
     }
 
     static void fillInStackTraceFromCallStack(
