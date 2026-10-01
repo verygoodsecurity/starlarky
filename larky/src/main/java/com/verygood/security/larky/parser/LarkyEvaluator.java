@@ -344,12 +344,23 @@ public final class LarkyEvaluator {
             module, ParserInput.fromUTF8(bytes, content.path()), options, parsed));
   }
 
-  Map<String, Module> processLoads(StarFile content, List<String> loads) {
+  Map<String, Module> processLoads(StarFile content, List<String> loads) throws EvalException {
     Map<String, Module> loadedModules = new HashMap<>();
     LarkyLoader larkyLoader = new LarkyLoader(content, this);
     for (String load : loads) {
       //Module loadedModule = eval(content.resolve(load + LarkyScript.STAR_EXTENSION));
-      Module loadedModule = larkyLoader.load(load);
+      Module loadedModule;
+      try {
+        loadedModule = larkyLoader.load(load);
+      } catch (RuntimeException e) {
+        // A file the script loads from next to itself (not one of Larky's modules) is the
+        // script author's code: report its errors (e.g. a syntax error, with its own line
+        // numbers) as they are, not wrapped in an internal load failure.
+        if (!ResourceContentStarFile.startsWithPrefix(load) && e.getCause() instanceof EvalException cause) {
+          throw cause;
+        }
+        throw e;
+      }
       loadedModules.put(load, loadedModule);
     }
     return loadedModules;
