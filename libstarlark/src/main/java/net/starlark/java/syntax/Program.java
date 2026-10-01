@@ -20,6 +20,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.HashSet;
 import javax.annotation.Nullable;
+import net.starlark.java.eval.compiler.BytecodeChunk;
+import net.starlark.java.eval.compiler.BytecodeCompiler;
 
 /**
  * An opaque, executable representation of a valid Starlark program. Programs may
@@ -37,6 +39,9 @@ public final class Program {
   // Set by withTypeTable()
   @Nullable private final TypeTable typeTable;
 
+  // Compiled bytecode representation (may be null if compilation is disabled)
+  @Nullable private final BytecodeChunk bytecode;
+
   private Program(
       FileOptions options,
       Resolver.Function body,
@@ -44,11 +49,11 @@ public final class Program {
       ImmutableList<Location> loadLocations,
       ImmutableMap<String, DocComments> docCommentsMap,
       ImmutableList<Comment> unusedDocCommentLines,
-      @Nullable TypeTable typeTable) {
+      @Nullable TypeTable typeTable,
+      @Nullable BytecodeChunk bytecode) {
     Preconditions.checkArgument(
         loads.size() == loadLocations.size(), "each load must have a corresponding location");
 
-    // TODO(adonovan): compile here.
     this.options = options;
     this.body = body;
     this.loads = loads;
@@ -56,6 +61,7 @@ public final class Program {
     this.docCommentsMap = docCommentsMap;
     this.unusedDocCommentLines = unusedDocCommentLines;
     this.typeTable = typeTable;
+    this.bytecode = bytecode;
   }
 
   /** Returns a copy of this program with the specified type table. */
@@ -67,7 +73,8 @@ public final class Program {
         this.loadLocations,
         this.docCommentsMap,
         this.unusedDocCommentLines,
-        typeTable);
+        typeTable,
+        this.bytecode);
   }
 
   /** Returns the file options under which this program was parsed and compiled. */
@@ -78,6 +85,22 @@ public final class Program {
   // TODO(adonovan): eliminate once Eval no longer needs access to syntax.
   public Resolver.Function getResolvedFunction() {
     return body;
+  }
+
+  /**
+   * Returns the compiled bytecode for this program, or null if bytecode compilation
+   * is disabled or failed.
+   */
+  @Nullable
+  public BytecodeChunk getBytecode() {
+    return bytecode;
+  }
+
+  /**
+   * Returns true if this program has compiled bytecode available.
+   */
+  public boolean hasBytecode() {
+    return bytecode != null;
   }
 
   /** Returns the file name of this compiled program. */
@@ -148,6 +171,15 @@ public final class Program {
   public static Program compileFile(
       StarlarkFile file, Resolver.Module env, @Nullable TypeTagger.Loader loader)
       throws SyntaxError.Exception {
+    return compileFile(file, env, loader, BytecodeCompiler.enabledByDefault());
+  }
+
+  private static Program compileFile(
+      StarlarkFile file,
+      Resolver.Module env,
+      @Nullable TypeTagger.Loader loader,
+      boolean enableBytecode)
+      throws SyntaxError.Exception {
     Resolver.resolveFile(file, env);
     if (!file.ok()) {
       throw new SyntaxError.Exception(file.errors());
@@ -182,12 +214,26 @@ public final class Program {
         loadLocations.build(),
         docCommentsMap,
         unusedDocCommentLines,
-        /* typeTable= */ null);
+        /* typeTable= */ null,
+        BytecodeCompiler.compileProgram(file.getResolvedFunction(), enableBytecode));
   }
 
   public static Program compileFile(StarlarkFile file, Resolver.Module env)
       throws SyntaxError.Exception {
     return compileFile(file, env, /* loader= */ null);
+  }
+
+  /**
+   * Resolves a file syntax tree and compiles it to a Program with explicit bytecode control.
+   *
+   * @param file the file to compile
+   * @param env the resolver module
+   * @param enableBytecode whether to compile to bytecode
+   * @throws SyntaxError.Exception in case of resolution error
+   */
+  public static Program compileFile(StarlarkFile file, Resolver.Module env, boolean enableBytecode)
+      throws SyntaxError.Exception {
+    return compileFile(file, env, /* loader= */ null, enableBytecode);
   }
 
   /**
@@ -207,6 +253,7 @@ public final class Program {
         /* loadLocations= */ ImmutableList.of(),
         /* docCommentsMap= */ ImmutableMap.of(),
         /* unusedDocCommentLines= */ ImmutableList.of(),
-        /* typeTable= */ null);
+        /* typeTable= */ null,
+        BytecodeCompiler.compileProgram(body, BytecodeCompiler.enabledByDefault()));
   }
 }
