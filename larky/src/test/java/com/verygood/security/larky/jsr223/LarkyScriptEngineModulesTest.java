@@ -69,6 +69,41 @@ public class LarkyScriptEngineModulesTest {
   }
 
   @Test
+  public void errorsInBuiltinsReportTheScriptsLine() {
+    // int() raises inside a built-in; the error points at the script's call, not "<builtin>" 0.
+    String customer = String.join("\n", "def process(x):", "    y = 1", "    return int('not a number')", "");
+    ScriptException e =
+        assertThrows(
+            ScriptException.class, () -> eval(HOST, Map.of("larky.star", customer), null));
+    assertThat(e.getMessage()).contains("larky.star at line number 3");
+  }
+
+  @Test
+  public void errorsInLarkyModulesReportTheScriptsLine() {
+    // b64decode raises inside stdlib/base64.star; the error points at the script's call.
+    String customer =
+        String.join(
+            "\n",
+            "load('@stdlib//base64', 'base64')",
+            "def process(x):",
+            "    return base64.b64decode(123)",
+            "");
+    ScriptException e =
+        assertThrows(
+            ScriptException.class, () -> eval(HOST, Map.of("larky.star", customer), null));
+    assertThat(e.getMessage()).contains("larky.star at line number 3");
+  }
+
+  @Test
+  public void compileErrorsInTheLoadedFileAreScriptErrorsWithItsLines() {
+    String customer = String.join("\n", "def process(x):", "    return undefined_name", "");
+    ScriptException e =
+        assertThrows(
+            ScriptException.class, () -> eval(HOST, Map.of("larky.star", customer), null));
+    assertThat(e.getMessage()).contains("larky.star:2:12: name 'undefined_name' is not defined");
+  }
+
+  @Test
   public void missingModuleFails() {
     // As for any load() of a file that does not exist, this is not wrapped in a ScriptException.
     Exception e =
