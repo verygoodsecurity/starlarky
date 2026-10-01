@@ -104,6 +104,22 @@ public class LarkyScriptEngineModulesTest {
   }
 
   @Test
+  public void syntaxErrorsListEachErrorWithItsLine() {
+    // As eval() reported them before it compiled the script first.
+    String script = String.join("\n", "def process(input, ctx)", "    return input", "");
+    ScriptException e =
+        assertThrows(
+            ScriptException.class,
+            () -> new LarkyScriptEngine().eval(script, new SimpleBindings()));
+    assertThat(e.getMessage())
+        .isEqualTo(
+            String.format(
+                "Error compiling Starlark program: larky.star%n"
+                    + "larky.star:1:24: syntax error at 'newline': expected :\n"
+                    + "larky.star:2:4: contains syntax errors"));
+  }
+
+  @Test
   public void missingModuleFails() {
     // As for any load() of a file that does not exist, this is not wrapped in a ScriptException.
     Exception e =
