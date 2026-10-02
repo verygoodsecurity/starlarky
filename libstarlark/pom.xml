@@ -32,7 +32,7 @@
         <google.auto.value.version>1.11.1</google.auto.value.version>
         <google.compile.testing.version>0.21.0</google.compile.testing.version>
         <google.errorprone.javac.version>9+181-r4173-1</google.errorprone.javac.version>
-        <google.errorprone.version>2.50.0</google.errorprone.version>
+        <google.errorprone.version>2.42.0</google.errorprone.version>
         <google.flogger.version>0.9</google.flogger.version>
         <google.guava.version>33.7.1-jre</google.guava.version>
         <google.jimfs.version>1.3.0</google.jimfs.version>
@@ -61,6 +61,16 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>${google.guava.version}</version>
+        </dependency>
+
+        <!--
+        Upstream's sources use javax.annotation (Nullable, concurrent.*), which Guava
+        brought in transitively until it replaced jsr305 with JSpecify (33.4.0 had it, 33.7.1 does not).
+        -->
+        <dependency>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+            <version>3.0.2</version>
         </dependency>
 
         <dependency>
