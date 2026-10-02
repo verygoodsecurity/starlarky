@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.2](https://github.com/verygoodsecurity/starlarky/compare/v0.17.1...v0.17.2) (2026-10-02)
+
+
+### Build System
+
+* Replace Poetry with uv for pylarky ([#759](https://github.com/verygoodsecurity/starlarky/issues/759)) ([561c00e](https://github.com/verygoodsecurity/starlarky/commit/561c00e412a2f464e1de2ff956be227f3eb69920))
+
 ## [0.17.1](https://github.com/verygoodsecurity/starlarky/compare/v0.17.0...v0.17.1) (2026-10-02)
 
 
