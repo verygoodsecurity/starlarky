@@ -22,6 +22,7 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.syntax.TokenKind;
 
 import org.jetbrains.annotations.NotNull;
@@ -97,13 +98,13 @@ public class LarkyPyObject implements
   }
 
   @Override
-  public void debugPrint(Printer p) {
+  public void debugPrint(Printer p, StarlarkThread thread) {
     // This repr function prints only the fields.
     // Any methods are still accessible through dir/getattr/hasattr.
     p.append(typeName()).append("(");
     String sep = "";
     for (Map.Entry<String, Object> e : __dict__.entrySet()) {
-      p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue());
+      p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue(), thread.getSemantics());
       sep = ", ";
     }
     p.append(")");
@@ -115,12 +116,12 @@ public class LarkyPyObject implements
   }
 
   @Override
-  public void repr(Printer printer) {
+  public void repr(Printer printer, StarlarkSemantics semantics) {
     printer.append(this.__repr__());
   }
 
   @Override
-  public void str(Printer printer) {
+  public void str(Printer printer, StarlarkSemantics semantics) {
     printer.append(this.__str__());
   }
 

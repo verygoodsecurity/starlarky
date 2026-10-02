@@ -45,7 +45,7 @@ public class Larky {
 
   static {
     Mutability mu = Mutability.create("interpreter");
-    thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+    thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
     thread.setPrintHandler((th, msg) -> System.out.println(msg));
   }
 
@@ -90,7 +90,7 @@ public class Larky {
       try {
         Object result = Starlark.execFile(input, OPTIONS, module, thread);
         if (result != Starlark.NONE) {
-          System.out.println(Starlark.repr(result));
+          System.out.println(Starlark.repr(result, StarlarkSemantics.DEFAULT));
         }
       } catch (SyntaxError.Exception ex) {
         for (SyntaxError error : ex.errors()) {

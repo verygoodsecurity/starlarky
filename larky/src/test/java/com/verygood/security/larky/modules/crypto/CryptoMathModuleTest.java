@@ -19,7 +19,7 @@ public class CryptoMathModuleTest {
   public void toBytes() {
    StarlarkBytes big = null;
     try (Mutability mu = Mutability.create("test")) {
-     StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+     StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
       big = CryptoMathModule.INSTANCE.toBytes(StarlarkInt.of(0x1122334455667788L), StarlarkInt.of(0), "big", false, thread);
     } catch (EvalException e) {
      fail(e.getMessageWithStack());

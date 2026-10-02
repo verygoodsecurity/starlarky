@@ -47,9 +47,8 @@ jobs:
         with:
           path: |
             ./.graalvm
+          # No restore-keys: a GraalVM cached for another install_graalvm.sh may be for another Java.
           key: ${{ runner.os }}-graalvm-${{ hashFiles('**/install_graalvm.sh') }}
-          restore-keys: |
-            ${{ runner.os }}-graalvm-
 
       - name: Cache M2 Repository
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6

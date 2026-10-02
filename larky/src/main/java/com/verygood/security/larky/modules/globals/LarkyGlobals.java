@@ -23,6 +23,7 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.eval.StarlarkSemantics;
 
 
 /**
@@ -77,7 +78,7 @@ public final class LarkyGlobals {
     }
 
     @Override
-    public void repr(Printer printer) {
+    public void repr(Printer printer, StarlarkSemantics semantics) {
       printer.append("<sentinel>");
     }
   }

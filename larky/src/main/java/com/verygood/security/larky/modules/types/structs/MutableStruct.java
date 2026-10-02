@@ -9,6 +9,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.StarlarkSemantics;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -77,7 +78,7 @@ class MutableStruct extends SimpleStruct {
       result = this.fields.get("data").toString();
     } else {
       Dict<String, Object> d = Dict.cast(this.fields, String.class, Object.class, "cast");
-      result = Starlark.repr(d);
+      result = Starlark.repr(d, StarlarkSemantics.DEFAULT);
     }
     return result;
   }

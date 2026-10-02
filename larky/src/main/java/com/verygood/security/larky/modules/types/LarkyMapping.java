@@ -93,7 +93,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
       return defaultValue;
     }
     // TODO(adonovan): improve error; this ain't Python.
-    throw Starlark.errorf("KeyError: %s", Starlark.repr(key));
+    throw Starlark.errorf("KeyError: %s", Starlark.repr(key, thread.getSemantics()));
   }
 
   @StarlarkMethod(
@@ -316,7 +316,7 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
     }
 
     if (v == null) {
-      throw Starlark.errorf("key %s not found in dictionary", Starlark.repr(key));
+      throw Starlark.errorf("key %s not found in dictionary", Starlark.repr(key, semantics));
     }
     return v;
   }
@@ -362,8 +362,8 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
   }
 
   @Override
-  default void repr(Printer printer) {
-    printer.printList(entrySet(), "{", ", ", "}");
+  default void repr(Printer printer, StarlarkSemantics semantics) {
+    printer.printList(entrySet(), "{", ", ", "}", semantics);
   }
 
   @Override

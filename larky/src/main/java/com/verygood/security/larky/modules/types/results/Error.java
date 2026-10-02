@@ -6,6 +6,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.StarlarkSemantics;
 
 
 public class Error extends EvalException implements Result {
@@ -26,9 +27,9 @@ public class Error extends EvalException implements Result {
   }
 
   Error(Object errorObj) {
-    super(Starlark.str(errorObj));
+    super(Starlark.str(errorObj, StarlarkSemantics.DEFAULT));
     this.errValue = errorObj;
-    this.exc = new EvalException(Starlark.str(errorObj));
+    this.exc = new EvalException(Starlark.str(errorObj, StarlarkSemantics.DEFAULT));
   }
 
   public static Error of(Object e) {
@@ -81,12 +82,12 @@ public class Error extends EvalException implements Result {
   }
 
   @Override
-  public void repr(Printer printer) {
+  public void repr(Printer printer, StarlarkSemantics semantics) {
     printer.append(this.toString());
   }
 
   @Override
-  public void str(Printer printer) {
+  public void str(Printer printer, StarlarkSemantics semantics) {
     printer.append(String.valueOf(errValue));
   }
 

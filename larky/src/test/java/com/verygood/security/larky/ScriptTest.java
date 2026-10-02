@@ -98,7 +98,7 @@ public final class ScriptTest {
       useStarlarkThread = true)
   public Object assertEq(Object x, Object y, StarlarkThread thread) throws EvalException {
     if (!x.equals(y)) {
-      String msg = String.format("assert_eq: %s != %s", Starlark.repr(x), Starlark.repr(y));
+      String msg = String.format("assert_eq: %s != %s", Starlark.repr(x, thread.getSemantics()), Starlark.repr(y, thread.getSemantics()));
       thread.getThreadLocal(Reporter.class).reportError(thread, msg);
     }
     return Starlark.NONE;
@@ -178,7 +178,7 @@ public final class ScriptTest {
         StarlarkSemantics semantics = StarlarkSemantics.DEFAULT;
         Module module = Module.withPredeclared(semantics, predeclared.build());
         try (Mutability mu = Mutability.create("test")) {
-          StarlarkThread thread = new StarlarkThread(mu, semantics);
+          StarlarkThread thread = StarlarkThread.createTransient(mu, semantics);
           thread.setThreadLocal(Reporter.class, ScriptTest::reportError);
           Starlark.execFile(input, FileOptions.DEFAULT, module, thread);
 
@@ -290,14 +290,14 @@ public final class ScriptTest {
     }
 
     @Override
-    public void repr(Printer p) {
+    public void repr(Printer p, StarlarkSemantics semantics) {
       // This repr function prints only the fields.
       // Any methods are still accessible through dir/getattr/hasattr.
       p.append(Starlark.type(this));
       p.append("(");
       String sep = "";
       for (Map.Entry<String, Object> e : fields.entrySet()) {
-        p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue());
+        p.append(sep).append(e.getKey()).append(" = ").repr(e.getValue(), semantics);
         sep = ", ";
       }
       p.append(")");

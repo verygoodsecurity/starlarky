@@ -98,7 +98,7 @@ public class OpenSSL implements StarlarkValue {
     Dict<String, Object> serde =
       Dict.cast(
         StarlarkUtil.valueToStarlark(
-          Json.INSTANCE.decode(jsonEncodedCert, thread),
+          Json.INSTANCE.decode(jsonEncodedCert, Starlark.UNBOUND, thread),
           thread.mutability()),
         String.class, Object.class, "Cannot convert JSON payload");
 
