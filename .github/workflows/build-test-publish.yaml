@@ -6,6 +6,7 @@
 ##    - package the jar with unit tests
 ##    - run integrations tests
 ##    - publish the jar with github tag if event is push.tag
+##    - deploy libstarlark and larky to GitHub Packages on a tag (or on demand for an existing tag)
 
 name: build test and publish
 
@@ -14,6 +15,11 @@ on:
     tags:
       - "**"
   pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag (e.g. v0.17.0) whose libstarlark and larky jars to publish"
+        required: true
 
 permissions:
   contents: write
@@ -159,3 +165,42 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-maven:
+    name: Publish to GitHub Packages
+    # Consumers resolve com.verygood.security:larky and net.starlark.java:libstarlark from
+    # maven.pkg.github.com/verygoodsecurity/starlarky; without this, a release only gets its
+    # binary and wheel.
+    if: ${{ github.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6  # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Infos
+        run: |
+          VERSION=${TAG##*-v}  # remove everything up to and including -v
+          VERSION=${VERSION#v} # remove initial v if it's just v1.2.3
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+
+      - name: Deploy libstarlark and larky
+        run: |
+          mvn -B -ntp versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false -pl libstarlark,larky
+          mvn -B -ntp versions:set-property -Dproperty=libstarlark.version -DnewVersion="$VERSION" -DgenerateBackupPoms=false -pl larky
+          mvn -B -ntp deploy -DskipTests -pl libstarlark,larky
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
