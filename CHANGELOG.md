@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.17.1](https://github.com/verygoodsecurity/starlarky/compare/v0.17.0...v0.17.1) (2026-10-02)
+
+
+### Miscellaneous Chores
+
+* [LARKY-1] align renovate config with card-on-file and calm ([#739](https://github.com/verygoodsecurity/starlarky/issues/739)) ([8fe7176](https://github.com/verygoodsecurity/starlarky/commit/8fe71761c1e5950f169e9f0cbfa5fadd856e0ee7))
+
+
+### Continuous Integration
+
+* Publish libstarlark and larky to GitHub Packages on release tags ([#741](https://github.com/verygoodsecurity/starlarky/issues/741)) ([ad74bc0](https://github.com/verygoodsecurity/starlarky/commit/ad74bc07b806bc2cda28b2145ec6191a8a88d251))
+
 ## [0.17.0](https://github.com/verygoodsecurity/starlarky/compare/v0.16.0...v0.17.0) (2026-10-02)
 
 
