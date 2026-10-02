@@ -69,7 +69,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.VERYGOODBOT_CIAPPBUILDER_PAT }}
 
       - name: Upload target directory
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: maven-target
           path: "**/target/"
@@ -106,7 +106,7 @@ jobs:
           TAG: ${{ github.ref_name }}
 
       - name: Download target directory
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
           name: maven-target
 
@@ -115,7 +115,7 @@ jobs:
           make py_test_and_package
 
       - name: Upload dist directory
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: python-target
           path: "**/dist/*.whl"
@@ -131,12 +131,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
       - name: Download java target directory
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
           name: maven-target
 
       - name: Download python target directory
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
           name: python-target
 
