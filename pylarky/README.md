@@ -1,3 +1,17 @@
-This package is Deprecated and will no longer be updated past this current release. We will no longer provide support for this package and will refer you to the instructions posted here to properly run and debug your Larky scripts locally (https://www.verygoodsecurity.com/docs/larky/test-larky-locally).
+# pylarky
 
-This package will be totally unavailable after October 1, 2023.
+Python wrapper for the Larky runner: evaluates a Larky (Starlark) script from Python by running the native `larky-runner` bundled in the wheel.
+
+```python
+from pylarky.eval.evaluator import Evaluator, FailedEvaluation
+
+script = """
+def modify():
+    return {"body": ctx["body"], "headers": {"accept": "json"}}
+modify()
+"""
+output = Evaluator(script).evaluate('ctx = {"body": "thisisabody", "headers": {}}')
+# output is the script's result as a JSON string; a failing script raises FailedEvaluation
+```
+
+`pylarky.eval.http_evaluator.HttpEvaluator` does the same for an `HttpMessage` (`pylarky.model.http_message`).
