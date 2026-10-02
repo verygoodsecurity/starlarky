@@ -30,8 +30,8 @@
     </repositories>
 
     <properties>
-        <maven.compiler.plugin.version>3.14.0</maven.compiler.plugin.version>
-        <maven.source.plugin.version>3.3.1</maven.source.plugin.version>
+        <maven.compiler.plugin.version>3.16.0</maven.compiler.plugin.version>
+        <maven.source.plugin.version>3.4.0</maven.source.plugin.version>
 
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
@@ -42,8 +42,8 @@
 
         <libstarlark.version>1.0.0-SNAPSHOT</libstarlark.version>
 
-        <apache.commons-text.version>1.13.1</apache.commons-text.version>
-        <commons-io.version>2.19.0</commons-io.version>
+        <apache.commons-text.version>1.15.0</apache.commons-text.version>
+        <commons-io.version>2.22.0</commons-io.version>
         <google.crypto.tink>1.6.1</google.crypto.tink>
         <google.errorprone.version>2.38.0</google.errorprone.version>
         <google.flogger.version>0.9</google.flogger.version>
@@ -57,12 +57,12 @@
         <org.jetbrains.annotations.version>24.0.1</org.jetbrains.annotations.version>
         <org.junit.version>4.13.2</org.junit.version>
         <org.mockito.version>5.15.2</org.mockito.version>
-        <org.projectlombok.version>1.18.38</org.projectlombok.version>
+        <org.projectlombok.version>1.18.48</org.projectlombok.version>
         <org.slf4j.version>1.7.32</org.slf4j.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
         <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
         <protobuf.version>3.18.1</protobuf.version>
-        <surefire-plugin.version>3.5.3</surefire-plugin.version>
+        <surefire-plugin.version>3.6.0</surefire-plugin.version>
         <wss4j.version>4.0.0</wss4j.version>
     </properties>
 
@@ -282,7 +282,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.7.1</version>
+                <version>3.8.0</version>
                 <configuration>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
