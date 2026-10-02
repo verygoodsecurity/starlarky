@@ -12,7 +12,7 @@ cp ./runlarky/target/larky-${OS_TYPE_LOWER} ./pylarky/larky-runner
 chmod +x ./pylarky/larky-runner
 
 # Run tests
-poetry version ${VERSION}
-poetry install
-poetry run pytest pylarky/tests
-poetry build
+uv version "${VERSION}"
+uv sync --locked
+uv run pytest pylarky/tests
+uv build --wheel
