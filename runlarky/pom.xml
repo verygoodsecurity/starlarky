@@ -28,7 +28,7 @@
 
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
-        <graalvm-native-maven-plugin.version>0.9.10</graalvm-native-maven-plugin.version>
+        <graalvm-native-maven-plugin.version>0.11.5</graalvm-native-maven-plugin.version>
 
         <!-- annotationProcessorPaths requires maven-compiler-plugin version 3.5 or higher -->
         <maven.compiler.plugin.version>3.16.0</maven.compiler.plugin.version>
@@ -39,7 +39,7 @@
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
         <org.projectlombok.version>1.18.48</org.projectlombok.version>
         <picocli.version>4.7.7</picocli.version>
-        <graalvm.version>24.2.1</graalvm.version>
+        <graalvm.version>24.2.2</graalvm.version>
         <jackson-databind.version>2.22.3</jackson-databind.version>
 
         <main.class>com.verygood.security.run.LarkyEntrypoint</main.class>
@@ -225,10 +225,10 @@
                                 <buildArg>--initialize-at-run-time=org.apache.commons.lang3.RandomStringUtils</buildArg>
                                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                                 <buildArg>
-                                    -H:ReflectionConfigurationFiles=../src/main/resources/META-INF/native-image/reflect-config.json
+                                    -H:ReflectionConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/reflect-config.json
                                 </buildArg>
                                 <buildArg>
-                                    -H:ResourceConfigurationFiles=../src/main/resources/META-INF/native-image/resource-config.json
+                                    -H:ResourceConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/resource-config.json
                                 </buildArg>
                                 <buildArg>-H:IncludeResources=".*$"</buildArg>
                             </buildArgs>
@@ -274,10 +274,10 @@
                                 <buildArg>--initialize-at-run-time=org.apache.commons.lang3.RandomStringUtils</buildArg>
                                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                                 <buildArg>
-                                    -H:ReflectionConfigurationFiles=../src/main/resources/META-INF/native-image/reflect-config.json
+                                    -H:ReflectionConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/reflect-config.json
                                 </buildArg>
                                 <buildArg>
-                                    -H:ResourceConfigurationFiles=../src/main/resources/META-INF/native-image/resource-config.json
+                                    -H:ResourceConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/resource-config.json
                                 </buildArg>
                             </buildArgs>
                         </configuration>
