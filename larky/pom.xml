@@ -52,7 +52,7 @@
         <google.re2j.version>1.8</google.re2j.version>
         <google.truth.version>1.4.4</google.truth.version>
         <javax.xml.bind.jaxb-api.version>2.3.1</javax.xml.bind.jaxb-api.version>
-        <org.bouncycastle.version>1.79</org.bouncycastle.version>
+        <org.bouncycastle.version>1.86</org.bouncycastle.version>
         <org.conscrypt.version>2.5.2</org.conscrypt.version>
         <org.jetbrains.annotations.version>24.0.1</org.jetbrains.annotations.version>
         <org.junit.version>4.13.2</org.junit.version>
@@ -63,7 +63,7 @@
         <protobuf-maven-plugin>0.6.1</protobuf-maven-plugin>
         <protobuf.version>3.18.1</protobuf.version>
         <surefire-plugin.version>3.6.0</surefire-plugin.version>
-        <wss4j.version>4.0.0</wss4j.version>
+        <wss4j.version>4.0.2</wss4j.version>
     </properties>
 
     <dependencies>
