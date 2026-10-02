@@ -16,7 +16,6 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.math.Primes;
-import org.bouncycastle.pqc.legacy.math.linearalgebra.IntegerFunctions;
 
 
 public class CryptoMathModule implements StarlarkValue {
@@ -36,7 +35,69 @@ public class CryptoMathModule implements StarlarkValue {
           @Param(name = "n", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
       })
   public StarlarkInt jacobiNumber(StarlarkInt a, StarlarkInt n) {
-    return StarlarkInt.of(IntegerFunctions.jacobi(a.toBigInteger(), n.toBigInteger()));
+    return StarlarkInt.of(jacobi(a.toBigInteger(), n.toBigInteger()));
+  }
+
+  private static final int[] JACOBI_TABLE = {0, 1, 0, -1, 0, -1, 0, 1};
+
+  /**
+   * The Jacobi symbol (A|B), extended as BouncyCastle's IntegerFunctions.jacobi (MIT licence) was,
+   * which later BouncyCastle releases removed along with org.bouncycastle.pqc.legacy.
+   */
+  static int jacobi(BigInteger A, BigInteger B) {
+    BigInteger a;
+    BigInteger b;
+    BigInteger v;
+    long k = 1;
+    if (B.signum() == 0) {
+      a = A.abs();
+      return a.equals(BigInteger.ONE) ? 1 : 0;
+    }
+    if (!A.testBit(0) && !B.testBit(0)) {
+      return 0;
+    }
+    a = A;
+    b = B;
+    if (b.signum() == -1) {
+      b = b.negate();
+      if (a.signum() == -1) {
+        k = -1;
+      }
+    }
+    v = BigInteger.ZERO;
+    while (!b.testBit(0)) {
+      v = v.add(BigInteger.ONE);
+      b = b.shiftRight(1);
+    }
+    if (v.testBit(0)) {
+      k = k * JACOBI_TABLE[a.intValue() & 7];
+    }
+    if (a.signum() < 0) {
+      if (b.testBit(1)) {
+        k = -k;
+      }
+      a = a.negate();
+    }
+    while (a.signum() != 0) {
+      v = BigInteger.ZERO;
+      while (!a.testBit(0)) {
+        v = v.add(BigInteger.ONE);
+        a = a.shiftRight(1);
+      }
+      if (v.testBit(0)) {
+        k = k * JACOBI_TABLE[b.intValue() & 7];
+      }
+      if (a.compareTo(b) < 0) {
+        BigInteger x = a;
+        a = b;
+        b = x;
+        if (a.testBit(1) && b.testBit(1)) {
+          k = -k;
+        }
+      }
+      a = a.subtract(b);
+    }
+    return b.equals(BigInteger.ONE) ? (int) k : 0;
   }
 
   @StarlarkMethod(name = "gcd",

@@ -315,7 +315,9 @@ public class ASN1 {
           message = "ValueError: end-of-contents marker";
         } else if (message.contains("EOF found when length expected")) {
           message = "ValueError: EOF found when length expected";
-        } else if (message.contains("object truncated by")) {
+        } else if (message.contains("object truncated by")
+            // BouncyCastle 1.86 reports the same input this way
+            || message.contains("out of bounds length found")) {
           message = "ValueError: Not all elements are of the same DER type";
         }
         throw Starlark.errorf(message);
