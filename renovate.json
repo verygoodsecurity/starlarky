@@ -1,3 +1,104 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json"
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "docker:disableMajor"
+  ],
+  "minimumReleaseAge": "7 days",
+  "prCreation": "immediate",
+  "rebaseWhen": "auto",
+  "timezone": "America/Los_Angeles",
+  "schedule": ["after 1am and before 6am"],
+  "prConcurrentLimit": 0,
+  "prHourlyLimit": 0,
+  "packageRules": [
+    {
+      "description": "VGS -- this repo's own modules (starlarky parent, larky, runlarky, libstarlark); versions are managed by release-please, not Renovate",
+      "matchManagers": ["maven"],
+      "matchPackageNames": [
+        "com.verygood.security:starlarky",
+        "com.verygood.security:larky",
+        "com.verygood.security:runlarky",
+        "net.starlark.java:libstarlark"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "VGS -- GitHub Actions: all non-major updates grouped",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "description": "VGS -- Dockerfile base images: non-major tag bumps, grouped with Maven plugins",
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Build images and Maven plugins"
+    },
+    {
+      "description": "VGS -- Dockerfile digest-only refreshes, in their own branch. A digest-pinned image (tag + @sha256) produces TWO updates sharing the same packageFile+depName+currentValue: the tag bump and a digest-only refresh. When both land in one branch, Renovate's branchify dedup drops one and logs 'Ignoring upgrade collision', so the image silently stops being updated at all. Keeping digests in a separate branch is what prevents that collision.",
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["digest"],
+      "groupName": "Dockerfile image digests"
+    },
+    {
+      "description": "Pin the Python interpreter minor version. For the python image a 'minor' bump (e.g. 3.10 -> 3.11) is effectively a language major, so disable it. Patch (3.10.x) and digest rebuilds are still allowed; major is already off via docker:disableMajor. Placed after the docker image groups so it overrides for python only.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["python", "docker.io/library/python"],
+      "matchUpdateTypes": ["minor"],
+      "enabled": false
+    },
+    {
+      "description": "VGS -- Maven plugins: grouped with build images (same groupName)",
+      "matchManagers": ["maven"],
+      "matchDepTypes": ["plugin"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Build images and Maven plugins"
+    },
+    {
+      "description": "VGS -- Python dependencies (pylarky): minor + patch grouped by language",
+      "matchManagers": ["pip_requirements", "pip-compile", "poetry", "pipenv"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Python dependencies"
+    },
+    {
+      "description": "VGS -- Java runtime minor+patch catch-all: groups all maven minor/patch updates not claimed by a namespace rule below (those ship later in the array and override this groupName)",
+      "matchManagers": ["maven"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Java runtime minor and patch updates"
+    },
+    {
+      "description": "VGS -- com.google namespace (guava, flogger, auto-value, error-prone, re2j, tink, protobuf, gson)",
+      "matchManagers": ["maven"],
+      "matchPackageNames": ["/^com\\.google\\..*/"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "com.google dependencies"
+    },
+    {
+      "description": "VGS -- org.graalvm namespace (sdk + native build tools) kept together",
+      "matchManagers": ["maven"],
+      "matchPackageNames": ["/^org\\.graalvm\\..*/"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "org.graalvm dependencies"
+    },
+    {
+      "description": "VGS -- crypto providers (bouncycastle, wss4j): security-sensitive and the backbone of Larky's crypto modules, so they ship in a dedicated PR rather than blended into the general runtime group",
+      "matchManagers": ["maven"],
+      "matchPackageNames": ["/^org\\.bouncycastle.*/", "/^org\\.apache\\.wss4j.*/"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "crypto dependencies"
+    },
+    {
+      "description": "VGS -- Test and dev dependencies: minor + patch grouped across ecosystems. Placed after the maven namespace rules so test-scoped artifacts (e.g. com.google.truth) land here instead of in their namespace group.",
+      "matchDepTypes": ["test", "devDependencies", "dev"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Test and dev dependencies"
+    },
+    {
+      "description": "VGS -- test frameworks by name, for artifacts whose scope Renovate cannot see (e.g. versions declared in dependencyManagement)",
+      "matchManagers": ["maven"],
+      "matchPackageNames": ["/^junit:.*/", "/^org\\.junit.*/", "/^org\\.mockito.*/", "com.google.truth:truth", "com.google.jimfs:jimfs", "com.google.testing.compile:compile-testing"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Test and dev dependencies"
+    }
+  ]
 }
