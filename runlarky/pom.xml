@@ -225,10 +225,10 @@
                                 <buildArg>--initialize-at-run-time=org.apache.commons.lang3.RandomStringUtils</buildArg>
                                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                                 <buildArg>
-                                    -H:ReflectionConfigurationFiles=../src/main/resources/META-INF/native-image/reflect-config.json
+                                    -H:ReflectionConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/reflect-config.json
                                 </buildArg>
                                 <buildArg>
-                                    -H:ResourceConfigurationFiles=../src/main/resources/META-INF/native-image/resource-config.json
+                                    -H:ResourceConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/resource-config.json
                                 </buildArg>
                                 <buildArg>-H:IncludeResources=".*$"</buildArg>
                             </buildArgs>
@@ -274,10 +274,10 @@
                                 <buildArg>--initialize-at-run-time=org.apache.commons.lang3.RandomStringUtils</buildArg>
                                 <buildArg>-H:+ReportExceptionStackTraces</buildArg>
                                 <buildArg>
-                                    -H:ReflectionConfigurationFiles=../src/main/resources/META-INF/native-image/reflect-config.json
+                                    -H:ReflectionConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/reflect-config.json
                                 </buildArg>
                                 <buildArg>
-                                    -H:ResourceConfigurationFiles=../src/main/resources/META-INF/native-image/resource-config.json
+                                    -H:ResourceConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/resource-config.json
                                 </buildArg>
                             </buildArgs>
                         </configuration>
