@@ -20,22 +20,120 @@ import javax.script.SimpleScriptContext;
 
 public class LarkyScriptEngine implements Compilable, ScriptEngine {
 
-  private ScriptContext context = new SimpleScriptContext();
+  /** Engine property for compilation mode. */
+  public static final String COMPILATION_MODE = "larky.compilationMode";
 
+  /** Engine property for script name. */
+  public static final String SCRIPT_NAME = "larky.scriptName";
+
+  private ScriptContext context = new SimpleScriptContext();
+  private LarkyCompiledScript.CompilationMode defaultCompilationMode =
+      LarkyCompiledScript.CompilationMode.BYTECODE;
+
+
+  /**
+   * Sets the default compilation mode for this engine.
+   *
+   * @param mode the compilation mode to use
+   */
+  public void setCompilationMode(LarkyCompiledScript.CompilationMode mode) {
+    this.defaultCompilationMode = mode;
+  }
+
+  /**
+   * Gets the current default compilation mode.
+   *
+   * @return the current compilation mode
+   */
+  public LarkyCompiledScript.CompilationMode getCompilationMode() {
+    return defaultCompilationMode;
+  }
 
   /**
    * Compiles the script (source represented as a <code>String</code>) for later execution.
    *
+   * <p>The script is compiled to bytecode and cached for efficient repeated execution.
+   *
    * @param script The source of the script, represented as a <code>String</code>.
    * @return An instance of a subclass of <code>CompiledScript</code> to be executed later using one
    * of the <code>eval</code> methods of <code>CompiledScript</code>.
+   * @throws ScriptException if compilation fails.
    * @throws NullPointerException if the argument is null.
    */
   @Override
-  public CompiledScript compile(String script) {
+  public CompiledScript compile(String script) throws ScriptException {
+    return compile(script, getScriptName());
+  }
+
+  /**
+   * Compiles the script with a specified name.
+   *
+   * @param script The source of the script.
+   * @param scriptName The name of the script for error reporting.
+   * @return A compiled script ready for execution.
+   * @throws ScriptException if compilation fails.
+   */
+  public LarkyCompiledScript compile(String script, String scriptName) throws ScriptException {
+    LarkyCompiledScript.CompilationMode mode = getEffectiveCompilationMode();
+    LarkyCompiledScript compiledScript = new LarkyCompiledScript(this, mode);
+
+    try {
+      compiledScript.compile(script, scriptName);
+    } catch (LarkyEvaluationScriptException e) {
+      throw new ScriptException(e);
+    }
+
+    // Set reader for backward compatibility
     Reader scriptReader = getScriptReader(script);
     context.setReader(scriptReader);
-    return new LarkyCompiledScript(this);
+
+    return compiledScript;
+  }
+
+  /**
+   * Compiles the script with a specific compilation mode.
+   *
+   * @param script The source of the script.
+   * @param scriptName The name of the script.
+   * @param mode The compilation mode to use.
+   * @return A compiled script ready for execution.
+   * @throws ScriptException if compilation fails.
+   */
+  public LarkyCompiledScript compile(String script, String scriptName,
+      LarkyCompiledScript.CompilationMode mode) throws ScriptException {
+    LarkyCompiledScript compiledScript = new LarkyCompiledScript(this, mode);
+
+    try {
+      compiledScript.compile(script, scriptName);
+    } catch (LarkyEvaluationScriptException e) {
+      throw new ScriptException(e);
+    }
+
+    return compiledScript;
+  }
+
+  private LarkyCompiledScript.CompilationMode getEffectiveCompilationMode() {
+    // Check if mode is set in context
+    Object modeObj = context.getAttribute(COMPILATION_MODE);
+    if (modeObj instanceof LarkyCompiledScript.CompilationMode) {
+      return (LarkyCompiledScript.CompilationMode) modeObj;
+    }
+    if (modeObj instanceof String) {
+      try {
+        return LarkyCompiledScript.CompilationMode.valueOf((String) modeObj);
+      } catch (IllegalArgumentException e) {
+        // Fall through to default
+      }
+    }
+    return defaultCompilationMode;
+  }
+
+  private String getScriptName() {
+    Object nameObj = context.getAttribute(SCRIPT_NAME);
+    if (nameObj instanceof String) {
+      return (String) nameObj;
+    }
+    return "larky.star";
   }
 
   /**

@@ -2,13 +2,17 @@ package com.verygood.security.larky.jsr223;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Throwables;
 import java.io.StringWriter;
 
+import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.parser.ParsedStarFile;
+import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.syntax.SyntaxError;
 
 import org.junit.Test;
 
@@ -33,6 +37,41 @@ public class LarkyCompiledScriptTest {
   }
 
   @Test
+  public void testCompileAcceptsWhatTheInterpreterRuns() throws ScriptException {
+    // Larky scripts may rebind top-level names and load a module twice; compile() must accept
+    // them, as eval() does.
+    LarkyScriptEngine engine = (LarkyScriptEngine) new LarkyScriptEngineFactory().getScriptEngine();
+    String script = String.join("\n",
+        "load(\"@stdlib//builtins\", builtins=\"builtins\")",
+        "load(\"@stdlib//builtins\", builtins=\"builtins\")",
+        "x = 1",
+        "x = 2",
+        "output = x");
+
+    LarkyCompiledScript instance = (LarkyCompiledScript) engine.compile(script);
+    ParsedStarFile result = (ParsedStarFile) instance.eval();
+    assertEquals(2, result.getGlobalEnvironmentVariable("output", net.starlark.java.eval.StarlarkInt.class).toIntUnchecked());
+  }
+
+  @Test
+  public void testCompileAcceptsTypeAnnotationsWhenTypeCheckingIsOn() throws Exception {
+    // compile() parses with the same options as the interpreter: type syntax exactly when the
+    // semantics enable type checking.
+    StarlarkSemantics typed =
+        LarkySemantics.LARKY_SEMANTICS.toBuilder()
+            .setBool(StarlarkSemantics.EXPERIMENTAL_STARLARK_DYNAMIC_TYPE_CHECKING, true)
+            .build();
+    String script = String.join("\n", "def f(x: int) -> int:", "    return x", "n: int = f(1)", "");
+
+    assertNotNull(LarkyCompiledScript.compileSource(script, "typed.star", typed));
+    SyntaxError.Exception e =
+        assertThrows(
+            SyntaxError.Exception.class,
+            () -> LarkyCompiledScript.compileSource(script, "typed.star", LarkySemantics.LARKY_SEMANTICS));
+    assertTrue(e.getMessage(), e.getMessage().contains("type annotations are disallowed"));
+  }
+
+  @Test
   public void testEval() throws ScriptException {
     LarkyScriptEngineFactory factory = new LarkyScriptEngineFactory();
     LarkyScriptEngine engine = (LarkyScriptEngine) factory.getScriptEngine();
@@ -51,7 +90,7 @@ public class LarkyCompiledScriptTest {
   }
 
   @Test
-  public void testEval_withUncheckedException() {
+  public void testEval_withUncheckedException() throws ScriptException {
     LarkyScriptEngineFactory factory = new LarkyScriptEngineFactory();
     LarkyScriptEngine engine = (LarkyScriptEngine) factory.getScriptEngine();
     String script = String.join("\n",
@@ -91,7 +130,7 @@ public class LarkyCompiledScriptTest {
   }
 
   @Test
-  public void testEval_withCheckedException() {
+  public void testEval_withCheckedException() throws ScriptException {
 
     class OperationException extends Exception {
 
