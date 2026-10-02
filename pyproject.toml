@@ -1,22 +1,24 @@
-[tool.poetry]
+[project]
 name = "pylarky"
 version = "0.0.1"
 description = "Python wrapper for starlarky runner"
-authors = ["Very Good Security"]
-license = "Apache License v2.0"
-packages = [{ include = "pylarky" }]
-exclude = ["pylarky/tests"]
-include = [{ path = "pylarky/larky-runner" }]
-build = 'build.py'
+authors = [{ name = "Very Good Security" }]
+license = "Apache-2.0"
 readme = "pylarky/README.md"
+requires-python = ">=3.10"
+dependencies = []
 
-[tool.poetry.dependencies]
-python = "^3.10"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^9.0.0"
-setuptools = "^84.0.0"
+[dependency-groups]
+dev = ["pytest>=9.0.0"]
 
 [build-system]
-requires = ["setuptools", "poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pylarky*"]
+exclude = ["pylarky.tests*"]
+
+[tool.setuptools.package-data]
+# The native runner, copied in by build-and-test-python.sh.
+pylarky = ["larky-runner"]

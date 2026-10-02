@@ -56,7 +56,7 @@
     },
     {
       "description": "VGS -- Python dependencies (pylarky): minor + patch grouped by language",
-      "matchManagers": ["pip_requirements", "pip-compile", "poetry", "pipenv"],
+      "matchManagers": ["pip_requirements", "pip-compile", "pep621"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Python dependencies"
     },
