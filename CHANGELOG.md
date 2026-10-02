@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.17.0](https://github.com/verygoodsecurity/starlarky/compare/v0.16.0...v0.17.0) (2026-10-02)
+
+
+### Features
+
+* add @vgs//proxy with ShortCircuitResponse ([#705](https://github.com/verygoodsecurity/starlarky/issues/705)) ([d61aa36](https://github.com/verygoodsecurity/starlarky/commit/d61aa36e9f72fecd14e99ba7c8a84363b1beaa1e))
+
+
+### Continuous Integration
+
+* add semgrep SAST workflow ([fe5260d](https://github.com/verygoodsecurity/starlarky/commit/fe5260d58512b434d2fab30a335207711a78ccdb))
+
 ## [0.16.0](https://github.com/verygoodsecurity/starlarky/compare/v0.15.2...v0.16.0) (2026-02-03)
 
 
