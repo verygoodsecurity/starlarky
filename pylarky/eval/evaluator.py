@@ -1,9 +1,9 @@
-import pkg_resources
 import tempfile
 import sys
 import subprocess
+from importlib import resources
 
-RUNNER_EXECUTABLE = pkg_resources.resource_filename("pylarky", "larky-runner")
+RUNNER_EXECUTABLE = str(resources.files("pylarky") / "larky-runner")
 LOG_PARAM = "-l"
 INPUT_PARAM = "-i"
 OUTPUT_PARAM = "-o"
