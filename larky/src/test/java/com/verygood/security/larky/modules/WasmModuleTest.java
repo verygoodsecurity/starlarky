@@ -117,16 +117,35 @@ public class WasmModuleTest {
   }
 
   @Test
-  public void fromBytesMakesAnInlineModule() throws Exception {
+  public void loadsMakesAnInlineModule() throws Exception {
     ParsedStarFile result =
-        eval("m = wasm.from_bytes(b'FAKE')\nout = m.run(b'x')\nname = m.name\nr = repr(m)");
+        eval("m = wasm.loads(b'FAKE')\nout = m.run(b'x')\nname = m.name\nr = repr(m)");
     assertThat(out(result, StarlarkBytes.class).toByteArray()).isEqualTo(new byte[] {'x'});
     assertThat(result.getGlobalEnvironmentVariable("name", String.class)).isEqualTo("<inline>");
     assertThat(result.getGlobalEnvironmentVariable("r", String.class))
         .isEqualTo("<wasm module '<inline>'>");
-    // `load` is a keyword, so wasm.load(...) does not parse; the attribute exists all the same.
-    result = eval("out = getattr(wasm, 'load')(b'FAKE').run(b'y')");
-    assertThat(out(result, StarlarkBytes.class).toByteArray()).isEqualTo(new byte[] {'y'});
+  }
+
+  @Test
+  public void dumpsReturnsTheBytesLoadsAccepts() throws Exception {
+    Map<String, Object> files = new LinkedHashMap<>();
+    files.put("a.wasm", MODULE);
+    ParsedStarFile result =
+        eval(
+            "data = wasm.dumps(wasm.module('a.wasm'))\n"
+                + "out = [data, wasm.dumps(wasm.loads(data)) == data]",
+            files,
+            null);
+    StarlarkList<?> out = out(result, StarlarkList.class);
+    assertThat(((StarlarkBytes) out.get(0)).toByteArray()).isEqualTo(MODULE);
+    assertThat(out.get(1)).isEqualTo(true);
+  }
+
+  @Test
+  public void loadsTakesBytesOnly() {
+    assertThat(error("wasm.loads('FAKE')")).contains("loads");
+    // `load` is a keyword, so the module has no load method; loads/dumps follow pickle and json.
+    assertThat(error("getattr(wasm, 'load')")).contains("has no field or method 'load'");
   }
 
   @Test
@@ -174,14 +193,14 @@ public class WasmModuleTest {
         assertThrows(ScriptException.class, () -> eval("wasm.module('bad.wasm')", files, null));
     assertThat(e.getMessage()).contains("wasm module 'bad.wasm' is not a valid WASI module");
     assertThat(e.getMessage()).doesNotContain("fake");
-    assertThat(error("wasm.from_bytes(b'nope')"))
+    assertThat(error("wasm.loads(b'nope')"))
         .contains("wasm module '<inline>' is not a valid WASI module");
   }
 
   @Test
   public void unknownRuntime() {
     System.setProperty(WasmRuntimes.PROPERTY, "nonesuch");
-    assertThat(error("wasm.from_bytes(b'FAKE')"))
+    assertThat(error("wasm.loads(b'FAKE')"))
         .contains("no WebAssembly runtime named 'nonesuch'");
   }
 
@@ -193,36 +212,36 @@ public class WasmModuleTest {
 
   @Test
   public void nonzeroExitShowsTheFirstKibOfStderr() {
-    String message = error("wasm.from_bytes(b'FAKE').run(b'bigerr')");
+    String message = error("wasm.loads(b'FAKE').run(b'bigerr')");
     assertThat(message).contains("wasm module '<inline>' exited with code 3: " + "e".repeat(1024));
     assertThat(message).doesNotContain("e".repeat(1025));
   }
 
   @Test
   public void trap() {
-    String message = error("wasm.from_bytes(b'FAKE').run(b'trap')");
+    String message = error("wasm.loads(b'FAKE').run(b'trap')");
     assertThat(message).contains("wasm module '<inline>' trapped");
     assertThat(message).doesNotContain("fake");
   }
 
   @Test
   public void memoryLimit() {
-    assertThat(error("wasm.from_bytes(b'FAKE').run(b'oom')"))
+    assertThat(error("wasm.loads(b'FAKE').run(b'oom')"))
         .contains(
             "wasm module '<inline>' needs more memory than the "
                 + WasmLimits.DEFAULT_MAX_MEMORY_BYTES
                 + " bytes allowed");
     System.setProperty(WasmModule.MAX_MEMORY_PROPERTY, "131072");
-    assertThat(error("wasm.from_bytes(b'FAKE').run(b'oom')"))
+    assertThat(error("wasm.loads(b'FAKE').run(b'oom')"))
         .contains("needs more memory than the 131072 bytes allowed");
   }
 
   @Test
   public void outputLimit() {
-    assertThat(error("wasm.from_bytes(b'FAKE').run(b'flood')"))
+    assertThat(error("wasm.loads(b'FAKE').run(b'flood')"))
         .contains("wasm module '<inline>' wrote more than 1048576 bytes");
     System.setProperty(WasmModule.MAX_OUTPUT_PROPERTY, "10");
-    assertThat(error("wasm.from_bytes(b'FAKE').run(b'flood')"))
+    assertThat(error("wasm.loads(b'FAKE').run(b'flood')"))
         .contains("wasm module '<inline>' wrote more than 10 bytes");
   }
 
@@ -231,7 +250,7 @@ public class WasmModuleTest {
     System.setProperty(WasmModule.MAX_MEMORY_PROPERTY, "65536");
     System.setProperty(WasmModule.MAX_OUTPUT_PROPERTY, "99");
     System.setProperty(WasmModule.RANDOM_SEED_PROPERTY, "42");
-    ParsedStarFile result = eval("out = wasm.from_bytes(b'FAKE').run(b'limits')");
+    ParsedStarFile result = eval("out = wasm.loads(b'FAKE').run(b'limits')");
     assertThat(new String(out(result, StarlarkBytes.class).toByteArray(), UTF_8))
         .isEqualTo("65536 99 42");
   }
@@ -242,7 +261,7 @@ public class WasmModuleTest {
     ScriptException wasm =
         assertThrows(
             ScriptException.class,
-            () -> eval("wasm.from_bytes(b'FAKE').run(b'sleep')", Map.of(), start + 200));
+            () -> eval("wasm.loads(b'FAKE').run(b'sleep')", Map.of(), start + 200));
     ScriptException starlark =
         assertThrows(
             ScriptException.class,
@@ -266,7 +285,7 @@ public class WasmModuleTest {
             () ->
                 eval(
                     "load('@vendor//option/result', safe='safe')\n"
-                        + "r = safe(lambda: wasm.from_bytes(b'FAKE').run(b'sleep'))()\n"
+                        + "r = safe(lambda: wasm.loads(b'FAKE').run(b'sleep'))()\n"
                         + "out = [x for x in range(1000)]",
                     Map.of(),
                     System.currentTimeMillis() + 200));
@@ -280,10 +299,10 @@ public class WasmModuleTest {
     eval(
         "a = wasm.module('chase/encrypt.wasm')\n"
             + "b = wasm.module('chase/encrypt.wasm')\n"
-            + "c = wasm.from_bytes(b'FAKE\\x00\\xff\\xfe\\x01')\n"
+            + "c = wasm.loads(b'FAKE\\x00\\xff\\xfe\\x01')\n"
             + "out = [a.run(b'1'), b.run(b'2'), c.run(b'3')]");
     assertThat(FakeWasmRuntime.COMPILES.get() - before).isEqualTo(1);
-    eval("wasm.from_bytes(b'FAKE another')");
+    eval("wasm.loads(b'FAKE another')");
     assertThat(FakeWasmRuntime.COMPILES.get() - before).isEqualTo(2);
   }
 
@@ -305,7 +324,7 @@ public class WasmModuleTest {
   @Test
   public void interruptionPropagatesUnwrapped() throws Exception {
     WasmModule.LoadedWasmModule m =
-        WasmModule.INSTANCE.fromBytes(StarlarkBytes.immutableOf("FAKE".getBytes(UTF_8)));
+        WasmModule.INSTANCE.loads(StarlarkBytes.immutableOf("FAKE".getBytes(UTF_8)));
     try (Mutability mu = Mutability.create("test")) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
       assertThrows(

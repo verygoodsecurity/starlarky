@@ -55,7 +55,7 @@ public final class WasmModule implements StarlarkValue {
 
   public static final WasmModule INSTANCE = new WasmModule();
 
-  /** The name of a module made by {@code wasm.from_bytes}. */
+  /** The name of a module made by {@code wasm.loads}. */
   static final String INLINE_NAME = "<inline>";
 
   static final String MAX_MEMORY_PROPERTY = "larky.wasm.maxMemoryBytes";
@@ -86,24 +86,29 @@ public final class WasmModule implements StarlarkValue {
     if (wasm == null) {
       throw Starlark.errorf("wasm.module: no file named '%s'", name);
     }
-    return new LoadedWasmModule(name, compile(name, wasm));
+    return new LoadedWasmModule(name, wasm, compile(name, wasm));
+  }
+
+  // `load` is a keyword, so loading is spelled as in Python's pickle and json: loads/dumps.
+  @StarlarkMethod(
+      name = "loads",
+      doc =
+          "Returns the WebAssembly module whose binary is <code>data</code> (as"
+              + " <code>pickle.loads</code> takes bytes).",
+      parameters = {@Param(name = "data", allowedTypes = {@ParamType(type = StarlarkBytes.class)})})
+  public LoadedWasmModule loads(StarlarkBytes data) throws EvalException {
+    byte[] wasm = data.toByteArray();
+    return new LoadedWasmModule(INLINE_NAME, wasm, compile(INLINE_NAME, wasm));
   }
 
   @StarlarkMethod(
-      name = "from_bytes",
-      doc = "Returns the WebAssembly module whose binary is <code>wasm</code>.",
-      parameters = {@Param(name = "wasm", allowedTypes = {@ParamType(type = StarlarkBytes.class)})})
-  public LoadedWasmModule fromBytes(StarlarkBytes wasm) throws EvalException {
-    return new LoadedWasmModule(INLINE_NAME, compile(INLINE_NAME, wasm.toByteArray()));
-  }
-
-  // `load` is a keyword, so `wasm.load(b)` does not parse; getattr(wasm, "load") reaches it.
-  @StarlarkMethod(
-      name = "load",
-      doc = "Same as <code>from_bytes</code>.",
-      parameters = {@Param(name = "wasm", allowedTypes = {@ParamType(type = StarlarkBytes.class)})})
-  public LoadedWasmModule load(StarlarkBytes wasm) throws EvalException {
-    return fromBytes(wasm);
+      name = "dumps",
+      doc = "Returns the binary of <code>module</code>, which <code>loads</code> accepts.",
+      parameters = {
+        @Param(name = "module", allowedTypes = {@ParamType(type = LoadedWasmModule.class)})
+      })
+  public StarlarkBytes dumps(LoadedWasmModule module) {
+    return StarlarkBytes.immutableOf(module.wasm.clone());
   }
 
   private static WasmProgram compile(String name, byte[] wasm) throws EvalException {
@@ -126,15 +131,17 @@ public final class WasmModule implements StarlarkValue {
     return program;
   }
 
-  /** A compiled module, as {@code wasm.module} and {@code wasm.from_bytes} return it. */
+  /** A compiled module, as {@code wasm.module} and {@code wasm.loads} return it. */
   @StarlarkBuiltin(name = "wasm_module", doc = "A WebAssembly module that can be run.")
   public static final class LoadedWasmModule implements StarlarkValue {
 
     private final String name;
+    private final byte[] wasm; // never modified
     private final WasmProgram program;
 
-    LoadedWasmModule(String name, WasmProgram program) {
+    LoadedWasmModule(String name, byte[] wasm, WasmProgram program) {
       this.name = name;
+      this.wasm = wasm;
       this.program = program;
     }
 

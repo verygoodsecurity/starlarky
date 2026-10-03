@@ -110,6 +110,20 @@ public class LarkyWasmEndToEndTest {
   }
 
   @Test
+  public void dumpsAndLoadsRoundTripAModule() throws Exception {
+    String script =
+        String.join(
+            "\n",
+            "load('@vgs//wasm', 'wasm')",
+            "data = wasm.dumps(wasm.module('echo.wasm'))",
+            "same = wasm.loads(data).run(b'again') == b'again'",
+            "");
+    ParsedStarFile result =
+        eval(script, Map.of("echo.wasm", Fixtures.wasm("echo")), new SimpleBindings());
+    assertThat(result.getGlobalEnvironmentVariable("same", Boolean.class)).isTrue();
+  }
+
+  @Test
   public void nonzeroExitIsAScriptErrorWithStderr() {
     String script =
         String.join("\n", "load('@vgs//wasm', 'wasm')", "wasm.module('x.wasm').run(b'')", "");

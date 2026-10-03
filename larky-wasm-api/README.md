@@ -112,6 +112,8 @@ def encrypt_pan(pan, key):
 
 - `.call(value)` writes `value` to stdin as JSON and returns stdout parsed as JSON.
 - `.run(data)` writes the bytes `data` to stdin and returns stdout as bytes.
+- `wasm.loads(data)` makes a module from its binary (bytes), and `wasm.dumps(module)` returns a
+  module's binary; the names follow Python's `pickle`/`json` (`load` itself is a Larky keyword).
 
 ## Testing locally
 
