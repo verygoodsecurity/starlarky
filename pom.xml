@@ -10,9 +10,13 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>larky-wasm-api</module>
         <module>libstarlark</module>
         <module>larky</module>
         <module>runlarky</module>
+        <module>larky-wasm-endive</module>
+        <module>larky-wasm-graal</module>
+        <module>larky-wasm-conformance</module>
     </modules>
 
     <scm>

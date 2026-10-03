@@ -170,6 +170,7 @@ public final class LarkyEvaluator {
       StarlarkThread thread = StarlarkThread.createTransient(mu, getLarkySemantics());
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
+      thread.setThreadLocal(StarFile.class, content); // wasm.module() reads its shipped files
       thread.setPrintHandler(reporter::report);
 
       if (environment.containsKey(STEP_LIMIT) && environment.get(STEP_LIMIT) != null) {
