@@ -5,6 +5,7 @@
 # (run.endive:wabt) when the tests run.
 #
 # Usage: build-fixtures.sh [path/to/javy]
+#   Builds a SIMD-free Javy plugin first (build-javy-plugin.sh; installs Rust in a temp dir).
 #   Without an argument, downloads Javy v9.1.0 for this platform into a temporary directory and
 #   checks its published SHA-256.
 set -euo pipefail
@@ -37,8 +38,11 @@ if [[ -z "$javy" ]]; then
 fi
 
 "$javy" --version
-# Static build: the module embeds QuickJS and needs no plugin at run time.
-# simd-json-builtins=n: Endive's SIMD interpreter (Java 25+) mis-runs Javy's SIMD JSON parser;
-# without it both runtimes agree. QuickJS itself still uses SIMD instructions.
-"$javy" build -J simd-json-builtins=n -o "$js_dir/sample_encrypt.wasm" "$js_dir/sample_encrypt.js"
+# Build against a QuickJS plugin compiled without WebAssembly SIMD (see build-javy-plugin.sh), so
+# both runtimes run the module on any supported JDK. The module still embeds QuickJS (a static
+# build) and needs no plugin at run time.
+plugin_dir="$(mktemp -d)"
+"$here/build-javy-plugin.sh" "$javy" "$plugin_dir/plugin-nosimd.wasm" "$plugin_dir/work"
+"$javy" build -C plugin="$plugin_dir/plugin-nosimd.wasm" \
+  -o "$js_dir/sample_encrypt.wasm" "$js_dir/sample_encrypt.js"
 ls -l "$js_dir/sample_encrypt.wasm"

@@ -79,14 +79,22 @@ write(1, JSON.stringify(result));
 
 ```sh
 cat vendor/encrypt.js wrapper.js > encrypt_bundle.js
-javy build -J simd-json-builtins=n -o encrypt.wasm encrypt_bundle.js
+javy build -C plugin=plugin-nosimd.wasm -o encrypt.wasm encrypt_bundle.js
 ```
+
+`plugin-nosimd.wasm` is Javy's QuickJS plugin built without WebAssembly SIMD
+(`larky-wasm-conformance/build-javy-plugin.sh` builds it). Javy's stock plugin is compiled with
+SIMD, and so is every module built from it; the Endive runtime runs SIMD only on Java 25+ (with
+`--add-modules jdk.incubator.vector`) and does not run Javy's SIMD JSON parser correctly.
+GraalWasm runs either build.
 
 Notes:
 
-- Use a static build (the default `javy build`); the module must not need a Javy plugin at run time.
-- Pass `-J simd-json-builtins=n`. Javy's output uses WebAssembly SIMD instructions, which the Endive runtime runs only on Java 25+ (with `--add-modules jdk.incubator.vector`), and its SIMD JSON parser does not run correctly there; GraalWasm runs either build.
-  A static module is about 1.3 MiB (`sample_encrypt.wasm` is 1,362,014 bytes).
+- Use a static build (`javy build` without `-C dynamic`); the module must not need a Javy plugin at
+  run time. `-C plugin=` only chooses which QuickJS build is embedded.
+- With `-C plugin=`, Javy does not take `-J` options; the plugin's defaults apply (stream I/O and
+  `TextEncoder`/`TextDecoder` are available, as the wrapper above needs).
+  A static module is about 1.3 MiB (`sample_encrypt.wasm` is 1,372,672 bytes).
 - Javy cannot choose an exit code, and an uncaught exception traps the module, which loses its
   output. Catch errors and report them in the JSON you write, as above.
 - The vendor script must not need `fetch`, timers, files, or Node.js modules; none of them exist

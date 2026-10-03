@@ -60,16 +60,6 @@ final class Fixtures {
           "{\"pan\": \"4111\", \"key\": \"k1\"}",
           "{\"error\":\"pan must have 12 to 19 digits; got 4\"}");
 
-  /**
-   * Skips a test of Javy's output on a runtime that cannot run it: Javy emits SIMD instructions,
-   * which Endive runs only on Java 25+.
-   */
-  static void assumeRunsJavy(WasmRuntime runtime) {
-    org.junit.Assume.assumeTrue(
-        "Endive runs SIMD instructions only on Java 25+",
-        !runtime.name().equals("endive") || Runtime.version().feature() >= 25);
-  }
-
   private static final Map<String, byte[]> CACHE = new ConcurrentHashMap<>();
 
   private Fixtures() {}

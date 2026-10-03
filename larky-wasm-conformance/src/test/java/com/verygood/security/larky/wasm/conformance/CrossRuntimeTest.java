@@ -114,9 +114,6 @@ public class CrossRuntimeTest {
     List<WasmRuntime> runtimes = WasmRuntimes.all();
     Assume.assumeTrue(
         "needs at least two WebAssembly runtimes; found " + runtimes.size(), runtimes.size() >= 2);
-    if (testCase.fixture().equals(Fixtures.SAMPLE_ENCRYPT)) {
-      runtimes.forEach(Fixtures::assumeRunsJavy);
-    }
     WasmRuntime reference = runtimes.get(0);
     String expected = outcome(reference);
     for (WasmRuntime other : runtimes.subList(1, runtimes.size())) {

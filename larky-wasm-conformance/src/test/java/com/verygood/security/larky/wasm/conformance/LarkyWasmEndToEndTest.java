@@ -30,7 +30,6 @@ import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
 import org.junit.After;
-import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -77,10 +76,6 @@ public class LarkyWasmEndToEndTest {
 
   @Test
   public void scriptCallsJavaScriptCompiledWithJavy() throws Exception {
-    // Javy's QuickJS uses SIMD instructions, which Endive runs only on Java 25+.
-    Assume.assumeTrue(
-        "Endive runs SIMD only on Java 25+",
-        runtime.equals("graal") || Runtime.version().feature() >= 25);
     String script =
         String.join(
             "\n",
