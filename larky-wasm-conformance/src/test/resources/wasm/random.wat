@@ -1,0 +1,25 @@
+;; Reads 16 bytes from random_get and writes them to stdout as 32 lowercase hex digits.
+;; Exits with random_get's errno if it fails.
+(module
+  (import "wasi_snapshot_preview1" "random_get" (func $random_get (param i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "proc_exit" (func $proc_exit (param i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 200) "0123456789abcdef")
+  (func (export "_start")
+    (local $i i32)
+    (local $b i32)
+    (local $errno i32)
+    (local.set $errno (call $random_get (i32.const 1024) (i32.const 16)))
+    (if (local.get $errno) (then (call $proc_exit (local.get $errno))))
+    (loop $hex
+      (local.set $b (i32.load8_u (i32.add (i32.const 1024) (local.get $i))))
+      (i32.store8 (i32.add (i32.const 2048) (i32.shl (local.get $i) (i32.const 1)))
+        (i32.load8_u (i32.add (i32.const 200) (i32.shr_u (local.get $b) (i32.const 4)))))
+      (i32.store8 (i32.add (i32.const 2049) (i32.shl (local.get $i) (i32.const 1)))
+        (i32.load8_u (i32.add (i32.const 200) (i32.and (local.get $b) (i32.const 15)))))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br_if $hex (i32.lt_u (local.get $i) (i32.const 16))))
+    (i32.store (i32.const 0) (i32.const 2048))
+    (i32.store (i32.const 4) (i32.const 32))
+    (drop (call $fd_write (i32.const 1) (i32.const 0) (i32.const 1) (i32.const 16)))))
