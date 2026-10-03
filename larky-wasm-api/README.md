@@ -82,11 +82,22 @@ cat vendor/encrypt.js wrapper.js > encrypt_bundle.js
 javy build -C plugin=plugin-nosimd.wasm -o encrypt.wasm encrypt_bundle.js
 ```
 
-`plugin-nosimd.wasm` is Javy's QuickJS plugin built without WebAssembly SIMD
-(`larky-wasm-conformance/build-javy-plugin.sh` builds it). Javy's stock plugin is compiled with
-SIMD, and so is every module built from it; the Endive runtime runs SIMD only on Java 25+ (with
-`--add-modules jdk.incubator.vector`) and does not run Javy's SIMD JSON parser correctly.
-GraalWasm runs either build.
+`plugin-nosimd.wasm` is Javy's QuickJS plugin built without WebAssembly SIMD. Javy's stock plugin
+is compiled with SIMD, and so is every module built from it; the Endive runtime runs SIMD only on
+Java 25+ (with `--add-modules jdk.incubator.vector`) and does not run Javy's SIMD JSON parser
+correctly. GraalWasm runs either build. Use the Javy CLI version the plugin was built for (v9.1.0).
+
+Get the plugin either way:
+
+- **Download it** from a starlarky release (each one attaches it with its SHA-256):
+  ```sh
+  gh release download --repo verygoodsecurity/starlarky --pattern 'javy-plugin-nosimd-v9.1.0.wasm*'
+  shasum -a 256 -c javy-plugin-nosimd-v9.1.0.wasm.sha256
+  mv javy-plugin-nosimd-v9.1.0.wasm plugin-nosimd.wasm
+  ```
+- **Build it** from Javy's source: `larky-wasm-conformance/build-javy-plugin.sh plugin-nosimd.wasm`.
+  It needs curl, git and clang (with libclang); it downloads the Javy CLI (checking its SHA-256)
+  and installs Rust into a temporary directory, not `~/.cargo`. It takes a few minutes.
 
 Notes:
 

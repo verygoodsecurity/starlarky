@@ -42,7 +42,7 @@ fi
 # both runtimes run the module on any supported JDK. The module still embeds QuickJS (a static
 # build) and needs no plugin at run time.
 plugin_dir="$(mktemp -d)"
-"$here/build-javy-plugin.sh" "$javy" "$plugin_dir/plugin-nosimd.wasm" "$plugin_dir/work"
+JAVY="$javy" "$here/build-javy-plugin.sh" "$plugin_dir/plugin-nosimd.wasm" "$plugin_dir/work"
 "$javy" build -C plugin="$plugin_dir/plugin-nosimd.wasm" \
   -o "$js_dir/sample_encrypt.wasm" "$js_dir/sample_encrypt.js"
 ls -l "$js_dir/sample_encrypt.wasm"
