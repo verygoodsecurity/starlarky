@@ -394,6 +394,22 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.WasmModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.WasmModule$LoadedWasmModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.codecs.TextUtil"
   },
   {

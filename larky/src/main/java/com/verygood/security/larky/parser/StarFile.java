@@ -90,4 +90,13 @@ public interface StarFile {
    * <p>Users of this method should not try to parse the string, since it is subject to change.
    */
   String getIdentifier();
+
+  /**
+   * The bytes of the file named {@code name} that was shipped with this evaluation (e.g. a
+   * WebAssembly module that {@code wasm.module(name)} reads), or null if there is none. Files on
+   * the class path or on disk are never shipped files.
+   */
+  default byte[] readShippedFile(String name) {
+    return null;
+  }
 }
