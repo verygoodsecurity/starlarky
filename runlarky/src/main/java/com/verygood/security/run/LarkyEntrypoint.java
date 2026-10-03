@@ -95,8 +95,9 @@ public class LarkyEntrypoint implements Callable<Integer> {
       names = {"--module"},
       paramLabel = "NAME=PATH",
       description =
-          "Ship the file at PATH with the evaluation under NAME, as Horizon's larky.modules do: "
-              + "the script can load() it (NAME ending in .star) or read it by name (e.g. "
+          "Ship the file at PATH with the evaluation under NAME, as a host service's"
+              + " larky.modules do: the script can load() it (NAME ending in .star) or read it by"
+              + " name (e.g. "
               + "wasm.module(NAME)). Repeatable.")
   private List<String> moduleArgs = new ArrayList<>();
 
@@ -174,7 +175,8 @@ public class LarkyEntrypoint implements Callable<Integer> {
   /**
    * The file the evaluation starts from. Without modules it is the merged script itself, as
    * before; with modules it is an in-memory file map holding the merged script under {@code
-   * scriptName} next to each module, the same map Horizon evaluates from.
+   * scriptName} next to each module, the same map a host service fills through {@code
+   * LarkyScriptEngine.MODULES}.
    */
   static StarFile rootStarFile(
       PrependMergedStarFile merged, String scriptName, ImmutableMap<String, byte[]> modules)

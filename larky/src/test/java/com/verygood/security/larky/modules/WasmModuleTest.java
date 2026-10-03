@@ -77,7 +77,7 @@ public class WasmModuleTest {
   }
 
   private static ParsedStarFile eval(String script) throws ScriptException {
-    return eval(script, Map.of("chase/encrypt.wasm", MODULE), null);
+    return eval(script, Map.of("vendor/encrypt.wasm", MODULE), null);
   }
 
   private static String error(String script) {
@@ -91,15 +91,15 @@ public class WasmModuleTest {
   @Test
   public void runReturnsStdoutAsBytes() throws Exception {
     ParsedStarFile result =
-        eval("m = wasm.module('chase/encrypt.wasm')\nout = m.run(b'raw stdin')\nname = m.name");
+        eval("m = wasm.module('vendor/encrypt.wasm')\nout = m.run(b'raw stdin')\nname = m.name");
     assertThat(out(result, StarlarkBytes.class).toByteArray()).isEqualTo("raw stdin".getBytes(UTF_8));
     assertThat(result.getGlobalEnvironmentVariable("name", String.class))
-        .isEqualTo("chase/encrypt.wasm");
+        .isEqualTo("vendor/encrypt.wasm");
   }
 
   @Test
   public void runTakesAStringAsUtf8() throws Exception {
-    ParsedStarFile result = eval("out = wasm.module('chase/encrypt.wasm').run('hé')");
+    ParsedStarFile result = eval("out = wasm.module('vendor/encrypt.wasm').run('hé')");
     assertThat(out(result, StarlarkBytes.class).toByteArray()).isEqualTo("hé".getBytes(UTF_8));
   }
 
@@ -107,7 +107,7 @@ public class WasmModuleTest {
   public void callEncodesAndDecodesJson() throws Exception {
     ParsedStarFile result =
         eval(
-            "out = wasm.module('chase/encrypt.wasm').call("
+            "out = wasm.module('vendor/encrypt.wasm').call("
                 + "{'pan': '4111', 'n': 3, 'ok': True, 'l': [1, None]})");
     Dict<?, ?> out = out(result, Dict.class);
     assertThat(out.get("pan")).isEqualTo("4111");
@@ -206,8 +206,8 @@ public class WasmModuleTest {
 
   @Test
   public void nonzeroExit() {
-    assertThat(error("wasm.module('chase/encrypt.wasm').run(b'exit:7:bad pan')"))
-        .contains("wasm module 'chase/encrypt.wasm' exited with code 7: bad pan");
+    assertThat(error("wasm.module('vendor/encrypt.wasm').run(b'exit:7:bad pan')"))
+        .contains("wasm module 'vendor/encrypt.wasm' exited with code 7: bad pan");
   }
 
   @Test
@@ -297,8 +297,8 @@ public class WasmModuleTest {
     WasmModule.clearProgramCache();
     int before = FakeWasmRuntime.COMPILES.get();
     eval(
-        "a = wasm.module('chase/encrypt.wasm')\n"
-            + "b = wasm.module('chase/encrypt.wasm')\n"
+        "a = wasm.module('vendor/encrypt.wasm')\n"
+            + "b = wasm.module('vendor/encrypt.wasm')\n"
             + "c = wasm.loads(b'FAKE\\x00\\xff\\xfe\\x01')\n"
             + "out = [a.run(b'1'), b.run(b'2'), c.run(b'3')]");
     assertThat(FakeWasmRuntime.COMPILES.get() - before).isEqualTo(1);
