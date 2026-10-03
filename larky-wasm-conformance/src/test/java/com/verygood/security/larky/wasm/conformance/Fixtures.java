@@ -41,8 +41,8 @@ final class Fixtures {
   /** The WAT fixtures, by file name without {@code .wat}. */
   static final List<String> WAT =
       List.of(
-          "echo", "exit3", "trap", "spin", "grow", "bigmem", "flood", "random", "clock", "env",
-          "fresh", "nostart", "nomemory");
+          "echo", "exit3", "trap", "spin", "grow", "bigmem", "flood", "random", "random_split",
+          "clock", "env", "fresh", "nostart", "nomemory");
 
   /** The Javy-built JavaScript fixture. */
   static final String SAMPLE_ENCRYPT = "js/sample_encrypt";

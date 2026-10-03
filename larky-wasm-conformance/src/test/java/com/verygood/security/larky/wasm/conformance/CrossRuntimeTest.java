@@ -68,6 +68,7 @@ public class CrossRuntimeTest {
     add(cases, "flood", "flood", new byte[0], () -> deadlineIn(10_000));
     add(cases, "random-seed-42", "random", new byte[0], () -> seeded(42));
     add(cases, "random-seed-7", "random", new byte[0], () -> seeded(7));
+    add(cases, "random_split-seed-7", "random_split", new byte[0], () -> seeded(7));
     add(cases, "clock", "clock", new byte[0], WasmLimits::defaults);
     add(cases, "env", "env", new byte[0], WasmLimits::defaults);
     add(cases, "fresh", "fresh", new byte[0], WasmLimits::defaults);

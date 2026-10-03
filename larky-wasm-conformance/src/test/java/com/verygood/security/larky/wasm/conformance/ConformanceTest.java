@@ -163,11 +163,16 @@ public class ConformanceTest {
   }
 
   @Test
-  public void seededRandomIsRepeatable() throws Exception {
-    String first = utf8(run("random", "", seeded(42)).stdout());
-    assertThat(first).matches("[0-9a-f]{32}");
-    assertThat(utf8(run("random", "", seeded(42)).stdout())).isEqualTo(first);
-    assertThat(utf8(run("random", "", seeded(43)).stdout())).isNotEqualTo(first);
+  public void seededRandomIsSplittableRandomLeastSignificantByteFirst() throws Exception {
+    // The bytes of new SplittableRandom(seed).nextLong(), least significant first, twice.
+    assertOutput(run("random", "", seeded(42)), 0, "956eeb2f2632d7bd03f166b233e3ef28", "");
+    assertOutput(run("random", "", seeded(42)), 0, "956eeb2f2632d7bd03f166b233e3ef28", "");
+    assertOutput(run("random", "", seeded(43)), 0, "88ef4feb90ec69ba4b03602e8598de9c", "");
+  }
+
+  @Test
+  public void seededRandomIsOneStreamAcrossCalls() throws Exception {
+    assertOutput(run("random_split", "", seeded(42)), 0, "956eeb2f2632d7bd03f166b233e3ef28", "");
   }
 
   @Test
