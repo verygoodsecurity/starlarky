@@ -85,12 +85,7 @@ public final class GraalWasmRuntime implements WasmRuntime {
   @Override
   public WasmProgram compile(byte[] wasm) throws WasmException {
     byte[] bytes = wasm.clone();
-    if (!WasmBinaries.hasExport(bytes, "_start", WasmBinaries.KIND_FUNC)) {
-      throw new WasmException(WasmException.Kind.INVALID_MODULE, "module does not export _start");
-    }
-    if (!WasmBinaries.hasExport(bytes, "memory", WasmBinaries.KIND_MEMORY)) {
-      throw new WasmException(WasmException.Kind.INVALID_MODULE, "module does not export memory");
-    }
+    WasmBinaries.checkWasiCommand(bytes);
     byte[] redirected = WasmBinaries.renameImports(bytes, WASI_MODULE, HOST_FUNCTIONS, HOST_MODULE);
     Source source = source(redirected);
     validate(source);

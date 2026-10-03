@@ -24,7 +24,7 @@ import com.verygood.security.larky.wasm.WasmResult;
 import java.io.ByteArrayInputStream;
 import java.security.SecureRandom;
 import java.util.Map;
-import java.util.Random;
+import java.util.SplittableRandom;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -44,7 +44,6 @@ final class GraalWasmProgram implements WasmProgram {
   private static final long POLL_MILLIS = 5;
 
   private static final int ERRNO_SUCCESS = 0;
-  private static final int ERRNO_INVAL = 28;
 
   private static final ScheduledExecutorService WATCHDOG =
       Executors.newSingleThreadScheduledExecutor(
@@ -83,13 +82,14 @@ final class GraalWasmProgram implements WasmProgram {
     if (Thread.interrupted()) {
       throw new InterruptedException();
     }
-    Source capped = cappedSource(limits.maxMemoryPages());
     if (limits.deadlineEpochMs() != 0 && System.currentTimeMillis() >= limits.deadlineEpochMs()) {
       throw new WasmException(WasmException.Kind.TIMEOUT, "deadline passed before the run");
     }
+    Source capped = cappedSource(limits.maxMemoryPages());
     CappedOutputStream stdout = new CappedOutputStream(limits.maxOutputBytes());
     CappedOutputStream stderr = new CappedOutputStream(limits.maxOutputBytes());
-    Random random = limits.randomSeed() != null ? new Random(limits.randomSeed()) : SECURE_RANDOM;
+    RandomSource random =
+        limits.randomSeed() != null ? new SeededRandom(limits.randomSeed()) : SECURE_RANDOM::nextBytes;
     Context context =
         GraalWasmRuntime.contextBuilder()
             .option("wasm.Builtins", GraalWasmRuntime.WASI_MODULE)
@@ -156,14 +156,11 @@ final class GraalWasmProgram implements WasmProgram {
   }
 
   /** The WASI functions whose GraalWasm versions read the host clock and random source. */
-  private static Map<String, Object> hostImports(Value[] memory, Random random) {
+  private static Map<String, Object> hostImports(Value[] memory, RandomSource random) {
     ProxyExecutable clockTimeGet =
         args -> {
-          int clockId = args[0].asInt();
+          // Every clock reads 0.
           int resultPtr = args[2].asInt();
-          if (clockId < 0 || clockId > 3) {
-            return ERRNO_INVAL;
-          }
           for (int i = 0; i < 8; i++) {
             memory[0].writeBufferByte(Integer.toUnsignedLong(resultPtr) + i, (byte) 0);
           }
@@ -174,7 +171,7 @@ final class GraalWasmProgram implements WasmProgram {
           long ptr = Integer.toUnsignedLong(args[0].asInt());
           int len = args[1].asInt();
           byte[] bytes = new byte[len];
-          random.nextBytes(bytes);
+          random.fill(bytes);
           for (int i = 0; i < len; i++) {
             memory[0].writeBufferByte(ptr + i, bytes[i]);
           }
@@ -183,6 +180,38 @@ final class GraalWasmProgram implements WasmProgram {
     return Map.of(
         GraalWasmRuntime.HOST_MODULE,
         ProxyObject.fromMap(Map.of("clock_time_get", clockTimeGet, "random_get", randomGet)));
+  }
+
+  /** Where {@code random_get} reads its bytes. */
+  private interface RandomSource {
+    void fill(byte[] bytes);
+  }
+
+  /**
+   * One stream per run: {@code new SplittableRandom(seed)}'s {@code nextLong()}s, each emitted
+   * least-significant byte first, continuing across {@code random_get} calls.
+   */
+  private static final class SeededRandom implements RandomSource {
+    private final SplittableRandom random;
+    private long word;
+    private int left;
+
+    SeededRandom(long seed) {
+      random = new SplittableRandom(seed);
+    }
+
+    @Override
+    public void fill(byte[] bytes) {
+      for (int i = 0; i < bytes.length; i++) {
+        if (left == 0) {
+          word = random.nextLong();
+          left = 8;
+        }
+        bytes[i] = (byte) word;
+        word >>>= 8;
+        left--;
+      }
+    }
   }
 
   /** Cancels a run at its deadline, when it overflows its output, or when its caller is interrupted. */

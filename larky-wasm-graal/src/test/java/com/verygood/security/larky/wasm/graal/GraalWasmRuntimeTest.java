@@ -210,12 +210,36 @@ public final class GraalWasmRuntimeTest {
     assertThat(a).hasLength(16);
     assertThat(a).isEqualTo(b);
     assertThat(a).isNotEqualTo(c);
-    byte[] expected = new byte[16];
-    new java.util.Random(42).nextBytes(expected);
-    assertThat(a).isEqualTo(expected);
+    assertThat(a).isEqualTo(splittableStream(42, 16));
     // Unseeded runs differ.
     assertThat(program.run(new byte[0], WasmLimits.defaults()).stdout())
         .isNotEqualTo(program.run(new byte[0], WasmLimits.defaults()).stdout());
+  }
+
+  static byte[] splittableStream(long seed, int n) {
+    java.util.SplittableRandom random = new java.util.SplittableRandom(seed);
+    byte[] out = new byte[n];
+    long word = 0;
+    for (int i = 0; i < n; i++) {
+      if (i % 8 == 0) {
+        word = random.nextLong();
+      }
+      out[i] = (byte) (word >>> (8 * (i % 8)));
+    }
+    return out;
+  }
+
+  @Test
+  public void seededRandomIsOneStreamAcrossCalls() throws Exception {
+    WasmProgram program =
+        start(
+            "(memory (export \"memory\") 1)",
+            "(drop (call $random_get (i32.const 1024) (i32.const 3)))"
+                + "(drop (call $random_get (i32.const 1027) (i32.const 5)))"
+                + "(drop (call $random_get (i32.const 1032) (i32.const 11)))"
+                + "(drop (call $write (i32.const 1) (i32.const 1024) (i32.const 19)))");
+    WasmLimits seeded = new WasmLimits(WasmLimits.DEFAULT_MAX_MEMORY_BYTES, 0, 1024, 7L);
+    assertThat(program.run(new byte[0], seeded).stdout()).isEqualTo(splittableStream(7, 19));
   }
 
   @Test
@@ -226,7 +250,8 @@ public final class GraalWasmRuntimeTest {
             "(call $proc_exit (i32.add"
                 + " (i32.mul (i32.const 10) (call $clock_time_get (i32.const 0) (i64.const 0) (i32.const 1024)))"
                 + " (i32.add (i32.wrap_i64 (i64.load (i32.const 1024)))"
-                + "   (call $clock_time_get (i32.const 1) (i64.const 0) (i32.const 1024)))))");
+                + "   (i32.add (call $clock_time_get (i32.const 1) (i64.const 0) (i32.const 1024))"
+                + "     (call $clock_time_get (i32.const 7) (i64.const 0) (i32.const 1024))))))");
     assertThat(program.run(new byte[0], WasmLimits.defaults()).exitCode()).isEqualTo(0);
   }
 
@@ -260,6 +285,40 @@ public final class GraalWasmRuntimeTest {
         assertThrows(
             WasmException.class, () -> compile("(module (memory 1) (func (export \"_start\")))"));
     assertThat(e.kind()).isEqualTo(WasmException.Kind.INVALID_MODULE);
+  }
+
+  @Test
+  public void rejectsNonWasiImport() {
+    WasmException e =
+        assertThrows(
+            WasmException.class,
+            () ->
+                compile(
+                    "(module (import \"env\" \"f\" (func)) (memory (export \"memory\") 1)"
+                        + " (func (export \"_start\")))"));
+    assertThat(e.kind()).isEqualTo(WasmException.Kind.INVALID_MODULE);
+  }
+
+  @Test
+  public void rejectsStartWithParameters() {
+    WasmException e =
+        assertThrows(
+            WasmException.class,
+            () ->
+                compile(
+                    "(module (memory (export \"memory\") 1) (func (export \"_start\") (param i32)))"));
+    assertThat(e.kind()).isEqualTo(WasmException.Kind.INVALID_MODULE);
+  }
+
+  @Test
+  public void rejectsPastDeadlineAndPendingInterruptWithoutRunning() throws Exception {
+    WasmProgram program = start("(memory (export \"memory\") 1)", "unreachable");
+    WasmLimits past = new WasmLimits(WasmLimits.DEFAULT_MAX_MEMORY_BYTES, 1, 1024, null);
+    assertThat(assertThrows(WasmException.class, () -> program.run(new byte[0], past)).kind())
+        .isEqualTo(WasmException.Kind.TIMEOUT);
+    Thread.currentThread().interrupt();
+    assertThrows(InterruptedException.class, () -> program.run(new byte[0], WasmLimits.defaults()));
+    assertThat(Thread.interrupted()).isFalse();
   }
 
   @Test

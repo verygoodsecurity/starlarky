@@ -35,7 +35,9 @@ public final class WasmBinaries {
   public static final int KIND_GLOBAL = 3;
   public static final int KIND_TAG = 4;
 
+  private static final int SECTION_TYPE = 1;
   private static final int SECTION_IMPORT = 2;
+  private static final int SECTION_FUNCTION = 3;
   private static final int SECTION_MEMORY = 5;
   private static final int SECTION_EXPORT = 7;
 
@@ -67,6 +69,94 @@ public final class WasmBinaries {
       r.pos = end;
     }
     return false;
+  }
+
+  /**
+   * Checks that {@code wasm} is a WASI preview 1 command as {@link WasmRuntime} defines it: it
+   * imports only functions of {@code wasi_snapshot_preview1}, exports {@code _start} of type
+   * {@code [] -> []}, and exports memory 0 as {@code memory}.
+   *
+   * @throws WasmException of kind {@link WasmException.Kind#INVALID_MODULE} if it is not
+   */
+  public static void checkWasiCommand(byte[] wasm) throws WasmException {
+    Reader r = new Reader(wasm);
+    r.header();
+    java.util.List<long[]> types = new java.util.ArrayList<>(); // {params, results}
+    java.util.List<Long> functionTypes = new java.util.ArrayList<>();
+    long start = -1;
+    long memory = -1;
+    while (!r.atEnd()) {
+      int id = r.u8();
+      int size = (int) r.u32();
+      int end = r.pos + size;
+      r.checkEnd(end);
+      switch (id) {
+        case SECTION_TYPE -> {
+          long count = r.u32();
+          for (long i = 0; i < count; i++) {
+            if (r.u8() != 0x60) {
+              throw invalid("unsupported type form");
+            }
+            long params = r.u32();
+            for (long j = 0; j < params; j++) {
+              r.valueType();
+            }
+            long results = r.u32();
+            for (long j = 0; j < results; j++) {
+              r.valueType();
+            }
+            types.add(new long[] {params, results});
+          }
+        }
+        case SECTION_IMPORT -> {
+          long count = r.u32();
+          for (long i = 0; i < count; i++) {
+            String module = r.name();
+            String name = r.name();
+            int kind = r.u8();
+            if (kind != KIND_FUNC || !module.equals("wasi_snapshot_preview1")) {
+              throw invalid(
+                  "import " + module + "." + name + " is not a wasi_snapshot_preview1 function");
+            }
+            functionTypes.add(r.u32());
+          }
+        }
+        case SECTION_FUNCTION -> {
+          long count = r.u32();
+          for (long i = 0; i < count; i++) {
+            functionTypes.add(r.u32());
+          }
+        }
+        case SECTION_EXPORT -> {
+          long count = r.u32();
+          for (long i = 0; i < count; i++) {
+            String name = r.name();
+            int kind = r.u8();
+            long index = r.u32();
+            if (kind == KIND_FUNC && name.equals("_start")) {
+              start = index;
+            } else if (kind == KIND_MEMORY && name.equals("memory")) {
+              memory = index;
+            }
+          }
+        }
+        default -> {}
+      }
+      r.pos = end;
+    }
+    if (start < 0) {
+      throw invalid("module does not export _start");
+    }
+    if (start >= functionTypes.size() || functionTypes.get((int) start) >= types.size()) {
+      throw invalid("_start is not a function of the module");
+    }
+    long[] type = types.get((int) (long) functionTypes.get((int) start));
+    if (type[0] != 0 || type[1] != 0) {
+      throw invalid("_start must have type [] -> []");
+    }
+    if (memory != 0) {
+      throw invalid(memory < 0 ? "module does not export memory" : "export memory is not memory 0");
+    }
   }
 
   /**
@@ -288,6 +378,13 @@ public final class WasmBinaries {
         }
       }
       throw invalid("integer too long");
+    }
+
+    void valueType() throws WasmException {
+      int t = u8();
+      if (t == 0x63 || t == 0x64) {
+        u64(); // heap type (s33); its LEB length is all that matters here
+      }
     }
 
     String name() throws WasmException {
