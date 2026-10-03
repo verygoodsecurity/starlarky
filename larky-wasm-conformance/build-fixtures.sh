@@ -38,5 +38,7 @@ fi
 
 "$javy" --version
 # Static build: the module embeds QuickJS and needs no plugin at run time.
-"$javy" build -o "$js_dir/sample_encrypt.wasm" "$js_dir/sample_encrypt.js"
+# simd-json-builtins=n: Endive's SIMD interpreter (Java 25+) mis-runs Javy's SIMD JSON parser;
+# without it both runtimes agree. QuickJS itself still uses SIMD instructions.
+"$javy" build -J simd-json-builtins=n -o "$js_dir/sample_encrypt.wasm" "$js_dir/sample_encrypt.js"
 ls -l "$js_dir/sample_encrypt.wasm"

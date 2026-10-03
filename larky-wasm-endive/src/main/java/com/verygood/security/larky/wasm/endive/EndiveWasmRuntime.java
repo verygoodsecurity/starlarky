@@ -111,7 +111,7 @@ public final class EndiveWasmRuntime implements WasmRuntime {
     checkImports(module);
     checkExports(module);
     MemoryLimits declared = module.memorySection().get().getMemory(0).limits();
-    Function<Instance, Machine> machineFactory = null;
+    Function<Instance, Machine> machineFactory = Simd.interpreter();
     if (mode == Mode.COMPILER) {
       try {
         machineFactory =
@@ -119,8 +119,19 @@ public final class EndiveWasmRuntime implements WasmRuntime {
                 .withInterpreterFallback(InterpreterFallback.SILENT)
                 .compile();
       } catch (RuntimeException e) {
-        throw new WasmException(
-            Kind.INVALID_MODULE, "cannot compile WebAssembly module: " + e.getMessage(), e);
+        // Endive's compiler does not translate SIMD (v128) instructions, which toolchains such as
+        // Javy emit; its SIMD interpreter runs them.
+        if (machineFactory == null) {
+          throw new WasmException(
+              Kind.INVALID_MODULE,
+              "cannot compile WebAssembly module: "
+                  + e.getMessage()
+                  + (Simd.AVAILABLE
+                      ? ""
+                      : " (SIMD instructions need Java 25+ and --add-modules"
+                          + " jdk.incubator.vector)"),
+              e);
+        }
       }
     }
     return new EndiveWasmProgram(module, machineFactory, declared);
@@ -193,5 +204,48 @@ public final class EndiveWasmRuntime implements WasmRuntime {
       }
     }
     return Map.copyOf(functions);
+  }
+
+  /**
+   * Endive's SIMD interpreter, which runs modules that use v128 instructions (e.g. Javy's output).
+   * {@code run.endive:simd} is compiled for Java 25 and uses the Vector API, so it is loaded
+   * reflectively and only on Java 25+ with {@code --add-modules jdk.incubator.vector}; otherwise
+   * modules are interpreted by the plain interpreter, which rejects SIMD instructions.
+   */
+  static final class Simd {
+    private static final Function<Instance, Machine> FACTORY = load();
+    static final boolean AVAILABLE = FACTORY != null;
+
+    private Simd() {}
+
+    /** The SIMD interpreter's machine factory, or null if it cannot run on this JVM. */
+    static Function<Instance, Machine> interpreter() {
+      return FACTORY;
+    }
+
+    private static Function<Instance, Machine> load() {
+      if (Runtime.version().feature() < 25
+          || ModuleLayer.boot().findModule("jdk.incubator.vector").isEmpty()) {
+        return null;
+      }
+      try {
+        java.lang.invoke.MethodHandle constructor =
+            java.lang.invoke.MethodHandles.publicLookup()
+                .findConstructor(
+                    Class.forName("run.endive.simd.SimdInterpreterMachine"),
+                    java.lang.invoke.MethodType.methodType(void.class, Instance.class));
+        return instance -> {
+          try {
+            return (Machine) constructor.invoke(instance);
+          } catch (RuntimeException | Error e) {
+            throw e;
+          } catch (Throwable e) {
+            throw new IllegalStateException(e);
+          }
+        };
+      } catch (ReflectiveOperationException | LinkageError e) {
+        return null;
+      }
+    }
   }
 }

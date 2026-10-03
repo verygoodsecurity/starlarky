@@ -79,12 +79,13 @@ write(1, JSON.stringify(result));
 
 ```sh
 cat vendor/encrypt.js wrapper.js > encrypt_bundle.js
-javy build -o encrypt.wasm encrypt_bundle.js
+javy build -J simd-json-builtins=n -o encrypt.wasm encrypt_bundle.js
 ```
 
 Notes:
 
 - Use a static build (the default `javy build`); the module must not need a Javy plugin at run time.
+- Pass `-J simd-json-builtins=n`. Javy's output uses WebAssembly SIMD instructions, which the Endive runtime runs only on Java 25+ (with `--add-modules jdk.incubator.vector`), and its SIMD JSON parser does not run correctly there; GraalWasm runs either build.
   A static module is about 1.3 MiB (`sample_encrypt.wasm` is 1,362,014 bytes).
 - Javy cannot choose an exit code, and an uncaught exception traps the module, which loses its
   output. Catch errors and report them in the JSON you write, as above.

@@ -290,6 +290,7 @@ public class ConformanceTest {
 
   @Test
   public void javyModuleProducesTheRecordedOutputs() throws Exception {
+    Fixtures.assumeRunsJavy(runtime);
     WasmProgram program = runtime.compile(Fixtures.wasm(Fixtures.SAMPLE_ENCRYPT));
     for (Map.Entry<String, String> c : Fixtures.SAMPLE_ENCRYPT_CASES.entrySet()) {
       WasmResult result = program.run(utf8(c.getKey()), WasmLimits.defaults());
@@ -302,6 +303,7 @@ public class ConformanceTest {
 
   @Test
   public void javyModuleReportsBadInputOnStderrAndStdout() throws Exception {
+    Fixtures.assumeRunsJavy(runtime);
     WasmResult result = run(Fixtures.SAMPLE_ENCRYPT, "not json");
     assertThat(result.exitCode()).isEqualTo(0);
     assertThat(utf8(result.stdout())).startsWith("{\"error\":\"input is not JSON: ");
@@ -310,6 +312,7 @@ public class ConformanceTest {
 
   @Test
   public void javyModuleIsDeterministicAndKeyed() throws Exception {
+    Fixtures.assumeRunsJavy(runtime);
     String a = "{\"pan\": \"4111111111111111\", \"key\": \"k1\"}";
     String b = "{\"pan\": \"4111111111111111\", \"key\": \"k2\"}";
     String first = utf8(run(Fixtures.SAMPLE_ENCRYPT, a).stdout());

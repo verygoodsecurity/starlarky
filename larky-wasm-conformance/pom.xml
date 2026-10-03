@@ -32,6 +32,19 @@
             <artifactId>larky-wasm-api</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
+        <!-- Truth brings guava-android, which would otherwise win over the -jre build Larky needs. -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.4.0-jre</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.verygood.security</groupId>
+            <artifactId>larky</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>com.verygood.security</groupId>
             <artifactId>larky-wasm-endive</artifactId>
@@ -64,4 +77,17 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.3</version>
+                <configuration>
+                    <!-- Endive's SIMD interpreter (for modules with v128 instructions, e.g. Javy's) uses the Vector API. -->
+                    <argLine>--add-modules jdk.incubator.vector</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

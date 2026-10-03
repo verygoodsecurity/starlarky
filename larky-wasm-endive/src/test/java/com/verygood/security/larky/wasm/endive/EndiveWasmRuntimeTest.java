@@ -232,9 +232,12 @@ public class EndiveWasmRuntimeTest {
     EndiveWasmProgram program = (EndiveWasmProgram) compile(SPIN);
     String machine = program.newInstanceForTest().getMachine().getClass().getName();
     if (mode == EndiveWasmRuntime.Mode.INTERPRETER) {
-      assertThat(machine).isEqualTo("run.endive.runtime.InterpreterMachine");
+      // On Java 25+ with the Vector API, the SIMD interpreter (a subclass) interprets every module.
+      assertThat(machine)
+          .isAnyOf("run.endive.runtime.InterpreterMachine", "run.endive.simd.SimdInterpreterMachine");
     } else {
-      assertThat(machine).isNotEqualTo("run.endive.runtime.InterpreterMachine");
+      assertThat(machine)
+          .isNoneOf("run.endive.runtime.InterpreterMachine", "run.endive.simd.SimdInterpreterMachine");
     }
   }
 
