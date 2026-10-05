@@ -134,7 +134,7 @@ public final class LarkyEvaluator {
 
     // execute
     try (Mutability mu = Mutability.create("LarkyModules")) {
-      StarlarkThread thread = new StarlarkThread(mu, getLarkySemantics());
+      StarlarkThread thread = StarlarkThread.createTransient(mu, getLarkySemantics());
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
@@ -231,10 +231,10 @@ public final class LarkyEvaluator {
 
     @NotNull
     private Module fromNativeModule(String moduleToLoad) throws IOException, InterruptedException {
-      Module newModule = Module.withPredeclared(
+      Module newModule = Module.withPredeclaredAndData(
           evaluator.getLarkySemantics(),
-          ImmutableMap.of("_" + moduleToLoad, nativeJavaModule.get(moduleToLoad)));
-      newModule.setClientData(moduleToLoad);
+          ImmutableMap.of("_" + moduleToLoad, nativeJavaModule.get(moduleToLoad)),
+          moduleToLoad);
 
       // We have to do this because Starlark Builtins are not actual modules, so as a result, they
       // do not export themselves to the modules.
@@ -243,7 +243,7 @@ public final class LarkyEvaluator {
       // to export the methods.
       // TODO(mahmoudimus): Move this to ModuleSupplier?
       try (Mutability mu = Mutability.create("InMemoryNativeModule")) {
-        StarlarkThread thread = new StarlarkThread(mu, evaluator.getLarkySemantics());
+        StarlarkThread thread = StarlarkThread.createTransient(mu, evaluator.getLarkySemantics());
         try {
           Starlark.execFile(
               ParserInput.fromString(String.format("%1$s = _%1$s", moduleToLoad), "<builtin>"),

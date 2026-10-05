@@ -110,7 +110,7 @@ public class CyberSourceModuleTest {
     @Before
     public void setUp() {
         mutability = Mutability.create("CyberSourceModuleTest");
-        thread = new StarlarkThread(mutability, StarlarkSemantics.DEFAULT);
+        thread = StarlarkThread.createTransient(mutability, StarlarkSemantics.DEFAULT);
         module = CyberSourceModule.INSTANCE;
     }
 

@@ -131,7 +131,7 @@ public class LarkyCompiledScriptTest {
           "Traceback (most recent call last):\n" +
             "\tFile \"larky.star\", line 5, column 17, in <toplevel>\n" +
             "\tFile \"larky.star\", line 2, column 9, in process\n" +
-            "Error in fail: boom")
+            "Error: boom")  // Starlark no longer prefixes fail() errors with "in fail"
     );
   }
 

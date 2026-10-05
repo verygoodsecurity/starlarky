@@ -96,7 +96,7 @@ public class CryptoPublicKeyModuleTest {
   public void testModule() throws SyntaxError.Exception, EvalException, InterruptedException {
     Module module = Module.create();
     try (Mutability mu = Mutability.create("test")) {
-      StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
       Starlark.execFile(ParserInput.fromLines("True = 123"), FileOptions.DEFAULT, module, thread);
     }
     Truth.assertThat(module.getGlobal("True")).isEqualTo(StarlarkInt.of(123));
@@ -112,7 +112,7 @@ public class CryptoPublicKeyModuleTest {
   public void RSA_generate() throws EvalException, InvalidCipherTextException {
     Dict<String, StarlarkInt> rsaObj = null, finalRsaObj;
     try (Mutability mu = Mutability.create("test")) {
-      StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
       rsaObj = CryptoPublicKeyModule.INSTANCE.RSA_generate(StarlarkInt.of(1024), null, thread);
     } catch (EvalException e) {
       fail(e.getMessageWithStack());
@@ -219,7 +219,7 @@ public class CryptoPublicKeyModuleTest {
         "-----END RSA PRIVATE KEY-----";
     StarlarkList<?> rsaObj = null;
     try (Mutability mu = Mutability.create("test")) {
-          StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+          StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
       rsaObj= CryptoPublicKeyModule.INSTANCE.PEM_decode(rsaKeyPEM, null, thread);
     } catch (EvalException e) {
       fail(e.getMessageWithStack());

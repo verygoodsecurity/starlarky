@@ -12,6 +12,7 @@ import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
+import net.starlark.java.eval.StarlarkSemantics;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -76,10 +77,10 @@ public class Property implements StarlarkValue {
       buf.append(
           String.format(
               "IllegalArgumentException (%s) in Starlark call of %s, obj=%s (%s), args=[",
-              ex.getMessage(), method, Starlark.repr(this), Starlark.type(this)));
+              ex.getMessage(), method, Starlark.repr(this, StarlarkSemantics.DEFAULT), Starlark.type(this)));
       String sep = "";
       for (Object arg : args) {
-        buf.append(String.format("%s%s (%s)", sep, Starlark.repr(arg), Starlark.type(arg)));
+        buf.append(String.format("%s%s (%s)", sep, Starlark.repr(arg, StarlarkSemantics.DEFAULT), Starlark.type(arg)));
         sep = ", ";
       }
       buf.append(']');

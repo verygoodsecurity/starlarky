@@ -1,4 +1,4 @@
-// Copyright 2018 The Bazel Authors. All rights reserved.
+// Copyright 2026 The Bazel Authors. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,25 +14,17 @@
 
 package net.starlark.java.annot.processor.testsources;
 
-import net.starlark.java.annot.Param;
+import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.annot.StarlarkLibrary;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
-/**
- * Test case for a StarlarkMethod method which has a parameter which has a "disabled value" set but
- * is always-on.
- */
-public class DisabledValueParamNoToggle implements StarlarkValue {
-
-  @StarlarkMethod(
-      name = "no_toggle_method",
-      documented = false,
-      parameters = {
-        @Param(name = "one", named = true, positional = true),
-        @Param(name = "two", named = true, valueWhenDisabled = "3", positional = true)
-      })
-  public Integer noToggleMethod(StarlarkInt one, StarlarkInt two) {
-    return 42;
+/** Test source file verifying that combining StarlarkBuiltin and StarlarkLibrary fails. */
+@StarlarkBuiltin(name = "combined", documented = false)
+@StarlarkLibrary
+public class StarlarkBuiltinAndLibraryCombined implements StarlarkValue {
+  @StarlarkMethod(name = "foo", documented = false)
+  public String foo() {
+    return "foo";
   }
 }

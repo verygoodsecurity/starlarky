@@ -54,7 +54,7 @@ public class AssertionsModule implements StarlarkValue {
       useStarlarkThread = true)
   public Object assertEq(Object x, Object y, StarlarkThread thread) throws EvalException {
     if (!x.equals(y)) {
-      String msg = String.format("assert_eq: %s != %s", Starlark.repr(x), Starlark.repr(y));
+      String msg = String.format("assert_eq: %s != %s", Starlark.repr(x, thread.getSemantics()), Starlark.repr(y, thread.getSemantics()));
       Objects.requireNonNull(thread.getThreadLocal(Reporter.class)).reportError(thread, msg);
     }
     return Starlark.NONE;

@@ -11,6 +11,7 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
+import net.starlark.java.eval.StarlarkSemantics;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -129,7 +130,7 @@ public final class ProtoBufModule implements StarlarkValue {
             fieldElement("value", entry.getValue());
           } catch (EvalException ex) {
             throw Starlark.errorf(
-                "in value for dict key %s: %s", Starlark.repr(key), ex.getMessage());
+                "in value for dict key %s: %s", Starlark.repr(key, StarlarkSemantics.DEFAULT), ex.getMessage());
           }
           indent--;
           emitLine("}");

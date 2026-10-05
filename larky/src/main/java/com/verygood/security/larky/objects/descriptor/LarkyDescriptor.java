@@ -94,7 +94,7 @@ public abstract class LarkyDescriptor extends LarkyPyObject implements LarkyBind
   protected PyObject check(Object obj, StarlarkThread thread) throws EvalException {
 
     if (!(obj instanceof PyObject)) {
-      throw Starlark.errorf("'%s' is not of type 'PyObject'", Starlark.repr(obj));
+      throw Starlark.errorf("'%s' is not of type 'PyObject'", Starlark.repr(obj, thread.getSemantics()));
     }
 
     final LarkyType objType = ((PyObject) obj).typeClass();
@@ -104,7 +104,7 @@ public abstract class LarkyDescriptor extends LarkyPyObject implements LarkyBind
         "descriptor '%s' for '%s' objects doesn't apply to a '%s' object",
         this.name,
         getBoundOwner(),
-        Starlark.repr(objType)
+        Starlark.repr(objType, thread.getSemantics())
       );
     }
     return (PyObject) obj;
