@@ -203,8 +203,23 @@ public final class ScriptTest {
       root = new File("."); // bazel
     }
     File testdata = new File(root, "src/test/java/net/starlark/java/eval/testdata");
+    boolean allOk = true;
     for (String name : testdata.list()) {
-      File file = new File(testdata, name);
+      allOk &= runFile(new File(testdata, name));
+    }
+    if (!allOk) {
+      System.exit(1);
+    }
+  }
+
+  /**
+   * Runs the chunks of one test file, reporting failures to stderr. Returns true if the file
+   * passed. Deeply nested cases rely on StackOverflowError, so run this on a thread with a
+   * bounded stack (as ScriptFilesTest does).
+   */
+  static boolean runFile(File file) throws Exception {
+    ok = true;
+    {
       String content = Files.asCharSource(file, UTF_8).read();
       int linenum = 1;
       for (String chunk : Splitter.on("\n---\n").split(content)) {
@@ -317,9 +332,7 @@ public final class ScriptTest {
         linenum += newlines(chunk) + 2; // for "\n---\n"
       }
     }
-    if (!ok) {
-      System.exit(1);
-    }
+    return ok;
   }
 
   // Called by assert_ and assert_eq when the test encounters an error.
