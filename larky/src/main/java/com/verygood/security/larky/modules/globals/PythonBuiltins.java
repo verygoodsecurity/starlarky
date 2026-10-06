@@ -105,7 +105,8 @@ public final class PythonBuiltins {
             + "integer literal. This parameter must not be supplied if the value is not a "
             + "string.",
         named = true)
-    }, useStarlarkThread = true)
+    }, useStarlarkThread = true,
+    isTypeConstructor = true)
   public StarlarkInt intForStarlark(Object x, Object baseO, StarlarkThread thread) throws EvalException {
       /*
       Losslessly convert an object to an integer object.
@@ -790,7 +791,8 @@ public final class PythonBuiltins {
         + "list((2, 3, 2)) == [2, 3, 2]\n"
         + "list({5: \"a\", 2: \"b\", 4: \"c\"}) == [5, 2, 4]</pre>",
     parameters = {@Param(name = "x", defaultValue = "[]", doc = "The object to convert.")},
-    useStarlarkThread = true)
+    useStarlarkThread = true,
+    isTypeConstructor = true)
   public StarlarkList<?> list(Object x, StarlarkThread thread) throws EvalException {
     final String errmsg = "Error in list: in call to list(), parameter 'x' got value of type '%s', want 'iterable'";
     final Object[] arr;
@@ -845,7 +847,8 @@ public final class PythonBuiltins {
           @ParamType(type = String.class),
         }, defaultValue = "None")
     },
-    useStarlarkThread = true
+    useStarlarkThread = true,
+    isTypeConstructor = true
   )
   public StarlarkBytes asBytes(
     Object _obj,
@@ -946,7 +949,8 @@ public final class PythonBuiltins {
           @ParamType(type = String.class),
         }, defaultValue = "None")
     },
-    useStarlarkThread = true
+    useStarlarkThread = true,
+    isTypeConstructor = true
   )
   public StarlarkByteArray asByteArray(
     Object _obj,
