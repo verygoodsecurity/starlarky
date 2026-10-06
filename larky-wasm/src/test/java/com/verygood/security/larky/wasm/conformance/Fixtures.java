@@ -39,7 +39,7 @@ public final class Fixtures {
       List.of(
           "echo", "exit3", "trap", "spin", "grow", "bigmem", "flood", "random", "random_split",
           "random_at", "random_fill", "clock", "env", "fresh", "nostart", "nomemory", "nosys",
-          "fds", "startsection", "badsig", "dataoob");
+          "fds", "startsection", "badsig", "dataoob", "clock_badid", "dupimport", "longtype");
 
   private static final Map<String, byte[]> CACHE = new ConcurrentHashMap<>();
 

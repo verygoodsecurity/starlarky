@@ -21,6 +21,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
+import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HexFormat;
@@ -318,7 +320,9 @@ public final class GraalWasmRuntimeTest {
                 + " (i32.add (i32.wrap_i64 (i64.load (i32.const 1024)))"
                 + "   (i32.add (call $clock_time_get (i32.const 1) (i64.const 0) (i32.const 1024))"
                 + "     (call $clock_time_get (i32.const 7) (i64.const 0) (i32.const 1024))))))");
-    assertThat(program.run(new byte[0], WasmRuntime.Limits.defaults()).exitCode()).isEqualTo(0);
+    // Clocks 0 and 1 read 0 with errno 0; clock 7, which WASI does not define, is EINVAL.
+    assertThat(program.run(new byte[0], WasmRuntime.Limits.defaults()).exitCode())
+        .isEqualTo(WasiHost.ERRNO_INVAL);
   }
 
   @Test
@@ -406,6 +410,49 @@ public final class GraalWasmRuntimeTest {
     }
     WasmException e = assertThrows(WasmException.class, () -> RUNTIME.compile(wasm));
     assertThat(e.kind()).isEqualTo(WasmException.Kind.INVALID_MODULE);
+  }
+
+  @Test
+  public void anInterruptAfterTheWatchdogsLastCheckIsStillAnInterrupt() {
+    Thread.currentThread().interrupt();
+    assertThrows(
+        InterruptedException.class,
+        () ->
+            GraalWasmProgram.result(
+                0,
+                null,
+                false,
+                false,
+                new CappedOutputStream("stdout", 10),
+                new CappedOutputStream("stderr", 10),
+                WasmRuntime.Limits.defaults()));
+    assertThat(Thread.interrupted()).isFalse();
+  }
+
+  @Test
+  public void withoutTheWasmLanguageGraalFailsWhenItIsLoaded() throws Exception {
+    // A JVM whose class path lacks GraalWasm's language jar (polyglot also searches the system
+    // class loader, so a class loader of the test's own cannot hide it).
+    List<String> classPath = new ArrayList<>();
+    for (String entry : System.getProperty("java.class.path").split(File.pathSeparator)) {
+      if (!entry.contains("wasm-language")) {
+        classPath.add(entry);
+      }
+    }
+    assertThat(classPath.size())
+        .isLessThan(System.getProperty("java.class.path").split(File.pathSeparator).length);
+    Process probe =
+        new ProcessBuilder(
+                Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "-cp",
+                String.join(File.pathSeparator, classPath),
+                RuntimeProbe.class.getName())
+            .redirectErrorStream(true)
+            .start();
+    String output = new String(probe.getInputStream().readAllBytes(), UTF_8);
+    assertThat(probe.waitFor()).isEqualTo(0);
+    assertThat(output).contains("byName: WasmException INVALID_MODULE\n");
+    assertThat(output).contains("all: [endive]\n");
   }
 
   @Test
