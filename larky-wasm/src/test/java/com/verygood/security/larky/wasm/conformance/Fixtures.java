@@ -73,13 +73,15 @@ public final class Fixtures {
   /**
    * Every runtime {@link WasmRuntime#all()} finds, as JUnit parameters {@code {name, runtime}}.
    *
-   * @throws IllegalStateException if there is none, so the tests fail loudly instead of passing
-   *     with zero runs
+   * @throws IllegalStateException if GraalWasm is missing, so a class path without it fails
+   *     loudly instead of testing only Endive
    */
   static List<Object[]> runtimeParameters() {
     List<WasmRuntime> runtimes = WasmRuntime.all();
-    if (runtimes.isEmpty()) {
-      throw new IllegalStateException("no WebAssembly runtime is available");
+    if (runtimes.size() < 2) {
+      throw new IllegalStateException(
+          "expected Endive and GraalWasm; found " + runtimes.size()
+              + " runtime(s). GraalWasm's optional dependencies must be on the test class path");
     }
     List<Object[]> parameters = new ArrayList<>();
     for (WasmRuntime runtime : runtimes) {

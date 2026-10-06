@@ -65,7 +65,11 @@ def encrypt_pan(pan, key):
 ## Runtimes (for services that embed Larky)
 
 `larky-wasm` runs modules on [Endive](https://github.com/bytecodealliance/endive), a pure-JVM
-runtime; `larky-wasm/src/test` holds its conformance tests. `WasmRuntime` is the whole API.
+runtime, by default. [GraalWasm](https://www.graalvm.org/webassembly/) is optional: add
+`org.graalvm.polyglot:polyglot` and `org.graalvm.polyglot:wasm-community` (25.4.4.1.1) to the
+service and set `-Dlarky.wasm.runtime=graal`. Both run Larky's WASI functions, and the
+conformance tests in `larky-wasm/src/test` require them to give the same results byte for byte.
+`WasmRuntime` is the whole API.
 
 Endive interprets modules by default. `-Dlarky.wasm.endive.mode=compiler` compiles each module to
 JVM bytecode instead, which runs faster but costs time and Metaspace in proportion to the module
@@ -76,9 +80,14 @@ Larky compiles a module the first time a script uses it and keeps the result, by
 cache of at most `-Dlarky.wasm.programCache.maxBytes` bytes of modules (16 MiB by default; least
 recently used first out). Compiling is not interrupted by the script's deadline, and a compiled
 module takes several times its size in memory: a 1.4 MB Javy module took 0.2 s to compile and
-36 MiB of heap under Endive's interpreter.
+36 MiB of heap under Endive's interpreter, 0.04 s and 4.9 MiB under GraalWasm.
 `-Dlarky.wasm.maxMemoryBytes` and `-Dlarky.wasm.maxOutputBytes` set each run's limits; a negative
 or malformed value means the default.
+
+How deeply a module can nest calls depends on the evaluating thread's stack and the runtime: on
+a 1 MiB stack, about 860 nested calls when Endive interprets it and about 500 on GraalWasm,
+which runs interpreter-only on JDK 21 (its optimizing runtime needs JDK 25). Deeper nesting
+traps.
 
 ## Choosing the host functions
 
