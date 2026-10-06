@@ -39,6 +39,15 @@ public interface WasmRuntime {
   /** The runtime used when {@link #PROPERTY} is unset. */
   String DEFAULT = "endive";
 
+  /**
+   * The largest module {@link #compile} accepts, in bytes. Preparing a module takes time in
+   * proportion to it, before any run's deadline applies.
+   */
+  int MAX_MODULE_BYTES = 8 << 20;
+
+  /** The most functions a module {@link #compile} accepts may define. */
+  int MAX_FUNCTIONS = 20_000;
+
   /** The name {@link #PROPERTY} selects it by, e.g. "endive". */
   String name();
 
@@ -46,7 +55,9 @@ public interface WasmRuntime {
    * Validates and prepares {@code wasm} for running. Callers cache the result by content.
    *
    * @throws WasmException of kind {@link WasmException.Kind#INVALID_MODULE} if the bytes are not
-   *     a valid module or it lacks the {@code _start} or {@code memory} export
+   *     a valid module, it lacks the {@code _start} or {@code memory} export, has a start
+   *     section, imports anything but WASI preview 1 functions with their standard signatures, or
+   *     is larger than {@link #MAX_MODULE_BYTES} or {@link #MAX_FUNCTIONS}
    */
   Program compile(byte[] wasm) throws WasmException;
 

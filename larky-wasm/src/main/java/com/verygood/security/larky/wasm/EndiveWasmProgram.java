@@ -18,11 +18,8 @@ package com.verygood.security.larky.wasm;
 
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException.Kind;
-import java.io.ByteArrayInputStream;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.SplittableRandom;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -35,24 +32,15 @@ import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.runtime.Memory;
 import run.endive.runtime.WasmInterruptedException;
-import run.endive.runtime.WasmRuntimeException;
-import run.endive.wasi.WasiExitException;
-import run.endive.wasi.WasiOptions;
-import run.endive.wasi.WasiPreview1;
 import run.endive.wasm.WasmModule;
+import run.endive.wasm.types.FunctionImport;
+import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.MemoryLimits;
 
 /** A parsed (and, in compiler mode, compiled) module; each run instantiates it afresh. */
 final class EndiveWasmProgram implements WasmRuntime.Program {
 
-  private static final List<String> ARGV = List.of("module");
-
-  /** WASI errno values (Endive's WasiErrno is package-private). */
-  private static final long ESUCCESS = 0;
-
   private static final long PAGE_SIZE = 65536;
-  /** random_get fills guest memory this many bytes at a time, whatever length it asks for. */
-  private static final int RANDOM_CHUNK = 65536;
 
   /** Interrupts runs at their deadlines. One daemon thread serves every run. */
   private static final ScheduledThreadPoolExecutor WATCHDOG = newWatchdog();
@@ -79,21 +67,14 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
     MemoryLimits memoryLimits = memoryLimits(limits);
     CappedOutputStream stdout = new CappedOutputStream("stdout", limits.maxOutputBytes());
     CappedOutputStream stderr = new CappedOutputStream("stderr", limits.maxOutputBytes());
-    WasiOptions options =
-        WasiOptions.builder()
-            .withStdin(new ByteArrayInputStream(stdin), false)
-            .withStdout(stdout, false)
-            .withStderr(stderr, false)
-            .withArguments(ARGV)
-            .withThrowOnExit0(true)
-            .build();
+    WasiHost wasi =
+        new WasiHost(stdin, stdout, stderr, limits.randomSeed(), limits.deadlineEpochMs());
 
     Deadline deadline = Deadline.start(Thread.currentThread(), limits.deadlineEpochMs());
-    try (WasiPreview1 wasi =
-        WasiPreview1.builder().withLogger(QuietLogger.INSTANCE).withOptions(options).build()) {
+    try {
       Instance.Builder builder =
           Instance.builder(module)
-              .withImportValues(imports(wasi, limits.randomSeed()))
+              .withImportValues(imports(wasi))
               .withMemoryLimits(memoryLimits)
               .withStart(false);
       if (machineFactory != null) {
@@ -104,8 +85,8 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
         Instance instance = builder.build();
         instance.export("_start").apply();
         exitCode = 0;
-      } catch (WasiExitException e) {
-        exitCode = e.exitCode();
+      } catch (WasiHost.ProcExit e) {
+        exitCode = e.code;
       } catch (RuntimeException | StackOverflowError e) {
         throw failure(e, deadline, stdout, stderr);
       }
@@ -123,20 +104,21 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
     }
   }
 
-  /** An instance with no WASI state, for tests to inspect. */
+  /** An instance with empty stdin and no room for output, for tests to inspect. */
   Instance newInstanceForTest() {
-    try (WasiPreview1 wasi =
-        WasiPreview1.builder()
-            .withLogger(QuietLogger.INSTANCE)
-            .withOptions(WasiOptions.builder().build())
-            .build()) {
-      Instance.Builder builder =
-          Instance.builder(module).withImportValues(imports(wasi, 0L)).withStart(false);
-      if (machineFactory != null) {
-        builder.withMachineFactory(machineFactory);
-      }
-      return builder.build();
+    WasiHost wasi =
+        new WasiHost(
+            new byte[0],
+            new CappedOutputStream("stdout", 0),
+            new CappedOutputStream("stderr", 0),
+            0L,
+            0);
+    Instance.Builder builder =
+        Instance.builder(module).withImportValues(imports(wasi)).withStart(false);
+    if (machineFactory != null) {
+      builder.withMachineFactory(machineFactory);
     }
+    return builder.build();
   }
 
   /** The module's own memory limits, with the maximum lowered to the run's cap. */
@@ -165,8 +147,11 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
         || has(e, CappedOutputStream.OutputLimitExceeded.class)) {
       return new WasmException(Kind.OUTPUT_LIMIT, String.valueOf(e.getMessage()), e);
     }
-    // Endive raises WasmInterruptedException when it sees the interrupt flag; a WASI call that
-    // sleeps (poll_oneoff) wraps the InterruptedException instead, which clears the flag.
+    if (has(e, WasiHost.Stop.class) && !Thread.currentThread().isInterrupted()) {
+      // A WASI call saw the deadline pass before the watchdog interrupted the thread.
+      return new WasmException(Kind.TIMEOUT, "WebAssembly run exceeded its deadline", e);
+    }
+    // Endive raises WasmInterruptedException when it sees the interrupt flag.
     if (Thread.interrupted()
         || e instanceof WasmInterruptedException
         || has(e, InterruptedException.class)) {
@@ -190,98 +175,48 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
     return false;
   }
 
-  /**
-   * Endive's WASI functions, with {@code clock_time_get} returning 0 and {@code random_get}
-   * reading {@link DeterministicBytes} or a {@code SecureRandom}.
-   */
-  private static ImportValues imports(WasiPreview1 wasi, Long seed) {
+  /** The module's WASI imports, each served by {@code wasi} (see {@link WasiHost}). */
+  private ImportValues imports(WasiHost wasi) {
     List<ImportFunction> functions = new ArrayList<>();
-    RandomBytes random = seed != null ? new DeterministicBytes(seed) : new SecureBytes();
-    for (HostFunction f : wasi.toHostFunctions()) {
-      switch (f.name()) {
-        case "clock_time_get" ->
-            functions.add(
-                new HostFunction(
-                    f.module(),
-                    f.name(),
-                    f.functionType(),
-                    (instance, args) -> {
-                      instance.memory().writeLong((int) args[2], 0L);
-                      return new long[] {ESUCCESS};
-                    }));
-        case "random_get" ->
-            functions.add(
-                new HostFunction(
-                    f.module(),
-                    f.name(),
-                    f.functionType(),
-                    (instance, args) -> {
-                      // ptr and len are u32s the guest chooses: check them against its memory
-                      // before allocating anything, and fill in bounded chunks.
-                      long ptr = Integer.toUnsignedLong((int) args[0]);
-                      long len = Integer.toUnsignedLong((int) args[1]);
-                      Memory memory = instance.memory();
-                      if (ptr + len > memory.pages() * PAGE_SIZE) {
-                        throw new WasmRuntimeException("out of bounds memory access");
-                      }
-                      byte[] chunk = new byte[(int) Math.min(len, RANDOM_CHUNK)];
-                      for (long done = 0; done < len; done += chunk.length) {
-                        if (Thread.currentThread().isInterrupted()) {
-                          throw new WasmInterruptedException("interrupted in random_get");
-                        }
-                        if (len - done < chunk.length) {
-                          chunk = new byte[(int) (len - done)];
-                        }
-                        random.fill(chunk);
-                        memory.write((int) (ptr + done), chunk);
-                      }
-                      return new long[] {ESUCCESS};
-                    }));
-        default -> functions.add(f);
-      }
+    var imports = module.importSection();
+    for (int i = 0; i < imports.importCount(); i++) {
+      // EndiveWasmRuntime checked that every import is a WASI function with its signature.
+      FunctionImport imp = (FunctionImport) imports.getImport(i);
+      String name = imp.name();
+      FunctionType type = module.typeSection().getType(imp.typeIndex());
+      boolean returnsErrno = !type.returns().isEmpty();
+      functions.add(
+          new HostFunction(
+              WasiHost.MODULE,
+              name,
+              type,
+              (instance, args) -> {
+                int errno = wasi.call(name, args, memory(instance));
+                return returnsErrno ? new long[] {errno} : new long[0];
+              }));
     }
     return ImportValues.builder().withFunctions(functions).build();
   }
 
-  interface RandomBytes {
-    void fill(byte[] bytes);
-  }
-
-  /**
-   * {@code random_get} with a seed: the bytes of {@code new SplittableRandom(seed).nextLong()},
-   * least significant byte first, read as one continuous stream across calls (so two calls of 4
-   * bytes return the same 8 bytes as one call of 8).
-   */
-  static final class DeterministicBytes implements RandomBytes {
-    private final SplittableRandom random;
-    private long current;
-    private int left;
-
-    DeterministicBytes(long seed) {
-      this.random = new SplittableRandom(seed);
-    }
-
-    @Override
-    public void fill(byte[] bytes) {
-      for (int i = 0; i < bytes.length; i++) {
-        if (left == 0) {
-          current = random.nextLong();
-          left = 8;
-        }
-        bytes[i] = (byte) current;
-        current >>>= 8;
-        left--;
+  /** {@code instance}'s memory as {@link WasiHost} reads and writes it. */
+  private static WasiHost.GuestMemory memory(Instance instance) {
+    Memory memory = instance.memory();
+    return new WasiHost.GuestMemory() {
+      @Override
+      public long size() {
+        return memory.pages() * PAGE_SIZE;
       }
-    }
-  }
 
-  static final class SecureBytes implements RandomBytes {
-    private static final SecureRandom RANDOM = new SecureRandom();
+      @Override
+      public void read(long address, byte[] into, int offset, int length) {
+        System.arraycopy(memory.readBytes((int) address, length), 0, into, offset, length);
+      }
 
-    @Override
-    public void fill(byte[] bytes) {
-      RANDOM.nextBytes(bytes);
-    }
+      @Override
+      public void write(long address, byte[] from, int offset, int length) {
+        memory.write((int) address, from, offset, length);
+      }
+    };
   }
 
   /**

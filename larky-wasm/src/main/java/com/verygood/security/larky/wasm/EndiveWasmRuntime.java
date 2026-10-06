@@ -18,17 +18,12 @@ package com.verygood.security.larky.wasm;
 
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException.Kind;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import run.endive.compiler.InterpreterFallback;
 import run.endive.compiler.MachineFactoryCompiler;
-import run.endive.runtime.HostFunction;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
-import run.endive.wasi.WasiOptions;
-import run.endive.wasi.WasiPreview1;
 import run.endive.wasm.Parser;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.Export;
@@ -37,13 +32,16 @@ import run.endive.wasm.types.FunctionImport;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.Import;
 import run.endive.wasm.types.MemoryLimits;
+import run.endive.wasm.types.ValType;
 
 /**
  * Runs WebAssembly with Endive, a WebAssembly runtime written in Java.
  *
- * <p>{@code -Dlarky.wasm.endive.mode=compiler} (the default) translates each module to JVM
- * bytecode once, at {@link #compile}; {@code interpreter} interprets it, which is what a GraalVM
- * native image must use since it cannot load classes generated at run time.
+ * <p>Modules are interpreted by default. {@code -Dlarky.wasm.endive.mode=compiler} translates each
+ * module to JVM bytecode once, at {@link #compile}, which runs it faster but costs time and
+ * Metaspace in proportion to the module and cannot be interrupted, so use it only for modules you
+ * trust; a GraalVM native image cannot use it, since it cannot load classes generated at run
+ * time.
  */
 final class EndiveWasmRuntime implements WasmRuntime {
 
@@ -61,10 +59,10 @@ final class EndiveWasmRuntime implements WasmRuntime {
       String value = System.getProperty(MODE_PROPERTY, "");
       switch (value) {
         case "":
-        case "compiler":
-          return COMPILER;
         case "interpreter":
           return INTERPRETER;
+        case "compiler":
+          return COMPILER;
         default:
           throw new IllegalArgumentException(
               "-D" + MODE_PROPERTY + " must be 'compiler' or 'interpreter'; got '" + value + "'");
@@ -72,10 +70,7 @@ final class EndiveWasmRuntime implements WasmRuntime {
     }
   }
 
-  static final String WASI_MODULE = "wasi_snapshot_preview1";
 
-  /** Every WASI preview 1 function Endive provides, by name, with its signature. */
-  private static final Map<String, FunctionType> WASI_FUNCTIONS = wasiFunctions();
 
   private final Mode mode;
 
@@ -99,6 +94,11 @@ final class EndiveWasmRuntime implements WasmRuntime {
 
   @Override
   public WasmRuntime.Program compile(byte[] wasm) throws WasmException {
+    if (wasm.length > MAX_MODULE_BYTES) {
+      throw new WasmException(
+          Kind.INVALID_MODULE,
+          "module is " + wasm.length + " bytes; the limit is " + MAX_MODULE_BYTES);
+    }
     WasmModule module;
     try {
       // Parser.parse also validates the module.
@@ -106,8 +106,21 @@ final class EndiveWasmRuntime implements WasmRuntime {
     } catch (RuntimeException e) {
       throw new WasmException(Kind.INVALID_MODULE, "invalid WebAssembly module: " + e.getMessage(), e);
     }
+    if (module.functionSection().functionCount() > MAX_FUNCTIONS) {
+      throw new WasmException(
+          Kind.INVALID_MODULE,
+          "module defines "
+              + module.functionSection().functionCount()
+              + " functions; the limit is "
+              + MAX_FUNCTIONS);
+    }
     checkImports(module);
     checkExports(module);
+    if (module.startSection().isPresent()) {
+      // It would run while the module is instantiated, before the host can see its memory.
+      throw new WasmException(
+          Kind.INVALID_MODULE, "module has a start section; a WASI command starts at _start");
+    }
     MemoryLimits declared = module.memorySection().get().getMemory(0).limits();
     Function<Instance, Machine> machineFactory = Simd.interpreter();
     if (mode == Mode.COMPILER) {
@@ -126,7 +139,7 @@ final class EndiveWasmRuntime implements WasmRuntime {
                   + e.getMessage()
                   + (Simd.AVAILABLE
                       ? ""
-                      : " (SIMD instructions need Java 25+ and --add-modules"
+                      : " (if it uses SIMD instructions, they need Java 25+ and --add-modules"
                           + " jdk.incubator.vector)"),
               e);
         }
@@ -141,21 +154,38 @@ final class EndiveWasmRuntime implements WasmRuntime {
     for (int i = 0; i < imports.importCount(); i++) {
       Import imp = imports.getImport(i);
       String what = "import " + imp.module() + "." + imp.name();
-      if (!(imp instanceof FunctionImport function) || !imp.module().equals(WASI_MODULE)) {
+      if (!(imp instanceof FunctionImport function) || !imp.module().equals(WasiHost.MODULE)) {
         throw new WasmException(
-            Kind.INVALID_MODULE, what + " is not a " + WASI_MODULE + " function");
+            Kind.INVALID_MODULE, what + " is not a " + WasiHost.MODULE + " function");
       }
-      FunctionType expected = WASI_FUNCTIONS.get(imp.name());
+      String expected = WasiHost.SIGNATURES.get(imp.name());
       if (expected == null) {
         throw new WasmException(Kind.INVALID_MODULE, what + " is not a WASI preview 1 function");
       }
-      if (!expected.equals(module.typeSection().getType(function.typeIndex()))) {
+      if (!expected.equals(signature(module.typeSection().getType(function.typeIndex())))) {
         throw new WasmException(Kind.INVALID_MODULE, what + " has the wrong signature");
       }
     }
   }
 
   /** A WASI command: {@code _start: [] -> []} and its own memory, exported as "memory". */
+  /** {@code type} in {@link WasiHost#SIGNATURES}' notation, e.g. "iIi:i". */
+  private static String signature(FunctionType type) {
+    StringBuilder s = new StringBuilder();
+    for (ValType param : type.params()) {
+      s.append(code(param));
+    }
+    s.append(':');
+    for (ValType result : type.returns()) {
+      s.append(code(result));
+    }
+    return s.toString();
+  }
+
+  private static char code(ValType type) {
+    return type.equals(ValType.I32) ? 'i' : type.equals(ValType.I64) ? 'I' : '?';
+  }
+
   private static void checkExports(WasmModule module) throws WasmException {
     Export start = null;
     Export memory = null;
@@ -190,19 +220,6 @@ final class EndiveWasmRuntime implements WasmRuntime {
     }
   }
 
-  private static Map<String, FunctionType> wasiFunctions() {
-    Map<String, FunctionType> functions = new HashMap<>();
-    try (WasiPreview1 wasi =
-        WasiPreview1.builder()
-            .withLogger(QuietLogger.INSTANCE)
-            .withOptions(WasiOptions.builder().build())
-            .build()) {
-      for (HostFunction f : wasi.toHostFunctions()) {
-        functions.put(f.name(), f.functionType());
-      }
-    }
-    return Map.copyOf(functions);
-  }
 
   /**
    * Endive's SIMD interpreter, which runs modules that use v128 instructions (e.g. Javy's output).
