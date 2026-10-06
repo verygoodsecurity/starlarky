@@ -245,7 +245,8 @@ def _UUID(hex=None,
     self.__ge__ = __ge__
 
     def __hash__():
-        return hash(self.int)
+        # hash() accepts only strings and bytes
+        return hash(str(self.int))
     self.__hash__ = __hash__
 
     def __int__():

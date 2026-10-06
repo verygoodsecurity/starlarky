@@ -209,29 +209,80 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
     return true;
   }
 
+  /**
+   * Whether this struct itself defines the special method {@code name}. Like Python's special
+   * method lookup, this bypasses {@code __getattr__}.
+   */
+  private boolean definesSpecialMethod(String name) {
+    return fields.get(name) != null;
+  }
+
+  /**
+   * Structs compare by identity unless one of them defines {@code __eq__}, which then decides, as
+   * in Python. An error raised by {@code __eq__} propagates (as an unchecked evaluation error,
+   * since {@code equals} cannot throw {@link EvalException}) instead of reading as "not equal".
+   */
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof SimpleStruct)) {
-      return false;
-    }
     if (this == obj) {
       return true;
     }
-
-    boolean result;
+    if (!(obj instanceof SimpleStruct)) {
+      return false;
+    }
+    SimpleStruct other = (SimpleStruct) obj;
+    if (!definesSpecialMethod(PyProtocols.__EQ__) && !other.definesSpecialMethod(PyProtocols.__EQ__)) {
+      return false;
+    }
     try {
-      result = StructBinOp.richComparison(
+      return StructBinOp.richComparison(
         this, obj, PyProtocols.__EQ__, PyProtocols.__EQ__, this.getCurrentThread()
       );
     } catch (EvalException e) {
-      result = false;
+      throw StructBinOp.uncheckedEvalError(e, this.getCurrentThread());
     }
-    return result;
+  }
+
+  /**
+   * Python's rule: a struct that defines {@code __hash__} is hashable (if immutable) and hashed by
+   * it; one that defines {@code __eq__} without {@code __hash__} is unhashable, since hashing by
+   * identity would put structs that {@code __eq__} calls equal in different buckets; one that
+   * defines neither is hashed by identity, matching its identity equality.
+   */
+  @Override
+  public void checkHashable() throws EvalException {
+    if (!isImmutable()
+          || (!definesSpecialMethod(PyProtocols.__HASH__) && definesSpecialMethod(PyProtocols.__EQ__))) {
+      throw Starlark.errorf("unhashable type: '%s'", Starlark.type(this));
+    }
+    if (definesSpecialMethod(PyProtocols.__HASH__)) {
+      // Report a failing or ill-typed __hash__ here, as an EvalException, rather than from
+      // hashCode(), which the dict calls next and which can only throw unchecked exceptions.
+      callDunderHash();
+    }
   }
 
   @Override
   public int hashCode() {
-    return super.hashCode();
+    if (!definesSpecialMethod(PyProtocols.__HASH__)) {
+      return System.identityHashCode(this);
+    }
+    try {
+      return callDunderHash();
+    } catch (EvalException e) {
+      throw StructBinOp.uncheckedEvalError(e, this.getCurrentThread());
+    }
+  }
+
+  private int callDunderHash() throws EvalException {
+    Object res = invoke(getCurrentThread(), fields.get(PyProtocols.__HASH__), Tuple.empty(), Dict.empty());
+    if (res instanceof StarlarkInt) {
+      return res.hashCode();
+    } else if (res instanceof Boolean) {
+      // bool is an int in Python: hash(True) == hash(1)
+      return StarlarkInt.of((Boolean) res ? 1 : 0).hashCode();
+    }
+    throw Starlark.errorf("TypeError: __hash__ method should return an integer");
   }
 
   /**

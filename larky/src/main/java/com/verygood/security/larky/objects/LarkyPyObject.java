@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.verygood.security.larky.modules.types.LarkyCollection;
 import com.verygood.security.larky.modules.types.PyProtocols;
+import com.verygood.security.larky.modules.types.structs.StructBinOp;
 import com.verygood.security.larky.objects.type.BinaryOpHelper;
 import com.verygood.security.larky.objects.type.LarkyType;
 import com.verygood.security.larky.parser.StarlarkUtil;
@@ -218,17 +219,19 @@ public class LarkyPyObject implements
       return true;
     }
 
-    boolean result;
-    try {
-      result = BinaryOpHelper.richComparison(
-        this, obj, PyProtocols.__EQ__, PyProtocols.__EQ__, this.getCurrentThread()
-      );
-    } catch (EvalException e) {
-      result = false;
-//      throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, this.getCurrentThread());
+    // Objects compare by identity unless one of them has an __eq__, which then decides. An error
+    // raised by __eq__ propagates (as an unchecked evaluation error, since equals() cannot throw
+    // EvalException) instead of reading as "not equal", as in Python.
+    final StarlarkThread thread = this.getCurrentThread();
+    if (this.getField(PyProtocols.__EQ__, thread) == null
+          && ((LarkyPyObject) obj).getField(PyProtocols.__EQ__, thread) == null) {
+      return false;
     }
-    return result;
-
+    try {
+      return BinaryOpHelper.richComparison(this, obj, PyProtocols.__EQ__, PyProtocols.__EQ__, thread);
+    } catch (EvalException e) {
+      throw StructBinOp.uncheckedEvalError(e, thread);
+    }
   }
 
   @Override

@@ -73,7 +73,9 @@ public abstract class Tuple extends AbstractList<Object>
 
   /** Returns a tuple containing the given elements. */
   public static Tuple copyOf(Iterable<?> seq) {
-    if (seq instanceof Tuple) {
+    // VGS: only a plain tuple is returned as is; a subclass (a namedtuple) is copied, as
+    // Python's tuple(p) is a plain tuple.
+    if (seq instanceof RegularTuple || seq instanceof SingletonTuple) {
       return (Tuple) seq;
     }
     return wrap(Iterables.toArray(seq, Object.class));
@@ -109,18 +111,18 @@ public abstract class Tuple extends AbstractList<Object>
   /** Returns a tuple that is the concatenation of two tuples. */
   public static Tuple concat(Tuple x, Tuple y) {
     if (x.isEmpty()) {
-      return y;
+      return copyOf(y); // VGS: copyOf makes a subclass (a namedtuple) a plain tuple
     } else if (y.isEmpty()) {
-      return x;
+      return copyOf(x);
     } else {
       Object[] xelems =
           x instanceof SingletonTuple
               ? new Object[] {((SingletonTuple) x).elem}
-              : ((RegularTuple) x).elems;
+              : x instanceof RegularTuple ? ((RegularTuple) x).elems : x.toArray(); // VGS
       Object[] yelems =
           y instanceof SingletonTuple
               ? new Object[] {((SingletonTuple) y).elem}
-              : ((RegularTuple) y).elems;
+              : y instanceof RegularTuple ? ((RegularTuple) y).elems : y.toArray(); // VGS
       return wrap(ObjectArrays.concat(xelems, yelems, Object.class));
     }
   }

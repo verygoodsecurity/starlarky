@@ -392,7 +392,7 @@ class MethodLibrary {
       isTypeConstructor = true)
   public Tuple tuple(StarlarkIterable<?> x) throws EvalException {
     if (x instanceof Tuple) {
-      return (Tuple) x;
+      return Tuple.copyOf((Tuple) x); // VGS: a namedtuple becomes a plain tuple, as in Python
     }
     return Tuple.wrap(Starlark.toArray(x));
   }
