@@ -56,32 +56,32 @@ public class CryptoRandomModule implements StarlarkValue {
       name = "randrange",
       doc = "randrange([start,] stop[, step]):\n" +
           "Return a randomly-selected element from range(start, stop, step).",
-      parameters = {@Param(name = "start", defaultValue = "0"), @Param(name = "stop"), @Param(name = "step", defaultValue = "1")}
+      parameters = {@Param(name = "start"), @Param(name = "stop", defaultValue = "None"), @Param(name = "step", defaultValue = "1")}
   )
-  public StarlarkInt randrange(StarlarkInt start_, StarlarkInt stop_, StarlarkInt step_) throws EvalException {
+  public StarlarkInt randrange(Object startObj, Object stopObj, StarlarkInt step_) throws EvalException {
     SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
-    int start = Starlark.isNullOrNone(start_) ? 0 : start_.toIntUnchecked();
-    int stop = 0;
-    int step = Starlark.isNullOrNone(step_) ? 1 : step_.toIntUnchecked();
+    int start, stop;
+    int step = step_.toIntUnchecked();
+
+    if (Starlark.isNullOrNone(stopObj)) {
+        stop = Starlark.toInt(startObj, "stop");
+        start = 0;
+    } else {
+        start = Starlark.toInt(startObj, "start");
+        stop = Starlark.toInt(stopObj, "stop");
+    }
+
     int width = stop - start;
+
+    if (step == 0) {
+        throw Starlark.errorf("zero step for radrange()");
+    }
+
     if ((step == 1) && (width > 0)) {
       return StarlarkInt.of(start + secureRandom.nextInt(width));
     }
 
-    if (step == 1) {
-      throw Starlark.errorf("empty range for randrange()");
-    }
-
-    int n = 0;
-    if (step > 0) {
-      n = (width + step - 1);
-    }
-    else if (step < 0) {
-      n = (width + step + 1);
-    }
-    else {
-      throw Starlark.errorf("zero step for randrange()");
-    }
+    int n = (step > 0) ? (width + step - 1) /step : (width + step + 1) /step;
 
     if (n <= 0) {
       throw Starlark.errorf("empty range for randrange()");
