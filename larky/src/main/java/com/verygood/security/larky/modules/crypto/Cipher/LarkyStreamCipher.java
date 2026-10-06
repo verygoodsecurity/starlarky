@@ -8,6 +8,7 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
@@ -52,6 +53,8 @@ public class LarkyStreamCipher<T extends SkippingStreamCipher & StreamCipher & B
       useStarlarkThread = true
   )
   public StarlarkInt encrypt(StarlarkBytes plaintext, StarlarkByteArray output, StarlarkThread thread) throws EvalException {
+    // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
+    Starlark.checkMutable(output);
     // padding will be done by pycryptodome, this method is dangerous to call
     // directly. DO NOT CALL DIRECTLY.
     if (this.initialized && this.processedBytes != 0) {
@@ -93,6 +96,8 @@ public class LarkyStreamCipher<T extends SkippingStreamCipher & StreamCipher & B
       useStarlarkThread = true
   )
   public StarlarkInt decrypt(StarlarkBytes cipherText, StarlarkByteArray output, StarlarkThread thread) throws EvalException {
+    // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
+    Starlark.checkMutable(output);
     byte[] plainText = new byte[cipherText.size()];
     if (this.initialized && this.processedBytes != 0) {
       this.blockCipher.skip(this.processedBytes);
