@@ -10,19 +10,27 @@
 #
 # Usage: build-javy-plugin.sh OUTPUT [WORKDIR]
 #   OUTPUT   where to write the initialized plugin (OUTPUT.sha256 gets its SHA-256)
-#   WORKDIR  where to install Rust, clone Javy and download the CLI (default: a temporary directory)
+#   WORKDIR  where to install Rust, clone Javy and download the CLI (default: a temporary directory,
+#            removed afterwards)
 # Set JAVY to a javy v9.1.0 CLI to use it instead of downloading one. Installs Rust into WORKDIR;
 # it does not touch ~/.cargo or ~/.rustup.
 #
-# What it downloads is pinned here: the Javy CLI and rustup-init by SHA-256, and Javy's source by
-# the commit its release tag named when this was written. A mismatch stops the build.
+# What it downloads is pinned here: the Javy CLI and rustup-init by SHA-256, Javy's source by the
+# commit its release tag named when this was written, and the Rust toolchain by version (Javy's own
+# rust-toolchain.toml says only "stable"). A mismatch stops the build.
 set -euo pipefail
 
 JAVY_VERSION=v9.1.0
 JAVY_COMMIT=d9b6139ddaefe2be95cfd758c2a8e62fdd8de861
 RUSTUP_VERSION=1.28.2
+RUST_VERSION=1.99.0
 output="$1"
-work="${2:-$(mktemp -d)}"
+if [[ -n "${2:-}" ]]; then
+  work="$2"
+else
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+fi
 mkdir -p "$work" "$(dirname "$output")"
 work="$(cd "$work" && pwd)"
 output="$(cd "$(dirname "$output")" && pwd)/$(basename "$output")"
@@ -32,6 +40,10 @@ sha256() {
 }
 
 javy="${JAVY:-}"
+if [[ "$javy" == */* ]]; then
+  # A path, not a command on PATH: make it absolute, since the build runs from Javy's checkout.
+  javy="$(cd "$(dirname "$javy")" && pwd)/$(basename "$javy")"
+fi
 if [[ -z "$javy" ]]; then
   case "$(uname -s)-$(uname -m)" in
     Darwin-arm64)
@@ -90,8 +102,12 @@ if [[ ! -x "$CARGO_HOME/bin/cargo" ]]; then
   fi
   chmod +x "$work/rustup-init"
   "$work/rustup-init" -y --no-modify-path --profile minimal \
-    --default-toolchain stable --target wasm32-wasip1 >/dev/null
+    --default-toolchain "$RUST_VERSION" --target wasm32-wasip1 >/dev/null
 fi
+# Overrides Javy's rust-toolchain.toml ("stable"), so the plugin does not change with Rust releases.
+export RUSTUP_TOOLCHAIN="$RUST_VERSION"
+rustup toolchain install "$RUST_VERSION" --profile minimal --target wasm32-wasip1 >/dev/null
+rustc --version
 
 if [[ ! -d "$work/javy" ]]; then
   git clone -q --depth 1 --branch "$JAVY_VERSION" https://github.com/bytecodealliance/javy.git \

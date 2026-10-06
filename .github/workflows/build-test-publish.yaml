@@ -211,6 +211,8 @@ jobs:
     # plugin (see larky-wasm/README.md); each release publishes it.
     if: ${{ github.ref_type == 'tag' }}
     runs-on: ubuntu-latest
+    # Downloads Rust and Javy's dependencies and compiles QuickJS; a stalled download stops here.
+    timeout-minutes: 60
     permissions:
       contents: write
     env:
@@ -224,12 +226,18 @@ jobs:
         run: larky-wasm/tools/build-javy-plugin.sh "$RUNNER_TEMP/out/$PLUGIN" "$RUNNER_TEMP/work"
 
       - name: Upload to Release
+        # release-please creates the release with its tag. Wait up to five minutes for it, then fail
+        # rather than succeed without publishing the plugin the README promises.
         run: |
-          if gh release view "$TAG" &>/dev/null; then
-            gh release upload "$TAG" "$RUNNER_TEMP/out/$PLUGIN" "$RUNNER_TEMP/out/$PLUGIN.sha256" --clobber
-          else
-            echo "No release found for tag $TAG"
-          fi
+          for attempt in $(seq 10); do
+            if gh release view "$TAG" >/dev/null; then
+              gh release upload "$TAG" "$RUNNER_TEMP/out/$PLUGIN" "$RUNNER_TEMP/out/$PLUGIN.sha256" --clobber
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::no release for tag $TAG; the Javy plugin was not published"
+          exit 1
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
