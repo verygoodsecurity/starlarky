@@ -7,8 +7,8 @@ from pylarky.model.http_message import HttpMessage
 
 class HttpEvaluator(Evaluator):
 
-    def __init__(self, script):
-        super().__init__(script)
+    def __init__(self, script, modules=None):
+        super().__init__(script, modules)
 
     def evaluate(self, http_message: HttpMessage) -> HttpMessage:
         modified_message = super().evaluate(http_message.to_starlark())
