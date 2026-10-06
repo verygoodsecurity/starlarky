@@ -75,6 +75,7 @@ public class CrossRuntimeTest {
     add(cases, "fds", "fds", new byte[0], WasmRuntime.Limits::defaults);
     add(cases, "startsection", "startsection", new byte[0], WasmRuntime.Limits::defaults);
     add(cases, "badsig", "badsig", new byte[0], WasmRuntime.Limits::defaults);
+    add(cases, "dataoob", "dataoob", new byte[0], WasmRuntime.Limits::defaults);
     return cases;
   }
 

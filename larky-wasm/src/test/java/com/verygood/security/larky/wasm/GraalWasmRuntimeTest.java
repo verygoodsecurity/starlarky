@@ -171,6 +171,20 @@ public final class GraalWasmRuntimeTest {
   }
 
   @Test
+  public void graalWasmLogOutputDoesNotReachStderr() throws Exception {
+    // On JDK 21 GraalWasm logs a warning about its fallback vector implementation for a module
+    // with SIMD instructions; it must not reach the module's stderr.
+    WasmRuntime.Program program =
+        start(
+            "(memory (export \"memory\") 1)",
+            "(drop (i32x4.extract_lane 0 (i32x4.add (v128.const i32x4 1 2 3 4)"
+                + " (v128.const i32x4 5 6 7 8))))");
+    WasmRuntime.Result result = program.run(new byte[0], WasmRuntime.Limits.defaults());
+    assertThat(result.exitCode()).isEqualTo(0);
+    assertThat(result.stderr()).isEmpty();
+  }
+
+  @Test
   public void unreachableTraps() throws Exception {
     WasmRuntime.Program program = start("(memory (export \"memory\") 1)", "unreachable");
     WasmException e =
