@@ -50,7 +50,22 @@ public class ResourceContentStarFile implements StarFile {
         .getBytes());
   }
 
+  // Resource contents by load label. Larky's own .star resources cannot change while the class
+  // loader that holds them is alive, so each is read from the jar once.
+  private static final java.util.concurrent.ConcurrentHashMap<String, ResourceContentStarFile>
+      RESOURCES = new java.util.concurrent.ConcurrentHashMap<>();
+
   public static ResourceContentStarFile buildStarFile(String resourcePath) throws EvalException {
+    ResourceContentStarFile cached = RESOURCES.get(resourcePath);
+    if (cached != null) {
+      return cached;
+    }
+    ResourceContentStarFile file = readStarFile(resourcePath);
+    RESOURCES.putIfAbsent(resourcePath, file);
+    return file;
+  }
+
+  private static ResourceContentStarFile readStarFile(String resourcePath) throws EvalException {
     String resourceName = resolveResourceName(resourcePath);
     InputStream resourceStream = ResourceContentStarFile.class.getClassLoader().getResourceAsStream(resourceName);
     if(resourceStream == null) {

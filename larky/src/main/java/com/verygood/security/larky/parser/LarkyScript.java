@@ -66,6 +66,40 @@ public class LarkyScript {
           .requireLoadStatementsFirst(false)
           .build();
 
+  /**
+   * The file options Larky's own modules (stdlib, vendor, vgs) are parsed and resolved with in
+   * {@code mode}; see {@link #scriptFileOptions} for a script that is not one of them.
+   */
+  public static FileOptions fileOptions(StarlarkMode mode) {
+    switch (mode) {
+      case STRICT:
+        return STARLARK_STRICT_FILE_OPTIONS;
+      case LOOSE:
+        return STARLARK_LOOSE_FILE_OPTIONS;
+      default:
+        throw new IllegalArgumentException("Undefined StarlarkMode: " + mode);
+    }
+  }
+
+  /** Whether {@code semantics} enables Starlark's static or dynamic type checking. */
+  public static boolean typeChecking(StarlarkSemantics semantics) {
+    return semantics.getBool(StarlarkSemantics.EXPERIMENTAL_STARLARK_STATIC_TYPE_CHECKING)
+        || semantics.getBool(StarlarkSemantics.EXPERIMENTAL_STARLARK_DYNAMIC_TYPE_CHECKING);
+  }
+
+  /**
+   * The file options a script that is not one of Larky's own modules is parsed and resolved with:
+   * {@link #fileOptions}, plus type syntax when {@code semantics} enables type checking. Every path
+   * that parses a script (LarkyEvaluator, and LarkyCompiledScript's compile()) gets them here, so
+   * they accept the same scripts.
+   */
+  public static FileOptions scriptFileOptions(StarlarkMode mode, StarlarkSemantics semantics) {
+    FileOptions options = fileOptions(mode);
+    return typeChecking(semantics)
+        ? options.toBuilder().allowTypeSyntax(true).resolveTypeSyntax(true).build()
+        : options;
+  }
+
   // For now all the modules are namespaces. We don't use variables except for 'core'.
   @Getter
   private final Iterable<Class<?>> builtinModules;
