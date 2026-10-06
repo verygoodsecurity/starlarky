@@ -76,6 +76,8 @@ public class CrossRuntimeTest {
     add(cases, "startsection", "startsection", new byte[0], WasmRuntime.Limits::defaults);
     add(cases, "badsig", "badsig", new byte[0], WasmRuntime.Limits::defaults);
     add(cases, "dataoob", "dataoob", new byte[0], WasmRuntime.Limits::defaults);
+    add(cases, "clock_badid", "clock_badid", new byte[0], WasmRuntime.Limits::defaults);
+    add(cases, "dupimport", "dupimport", new byte[0], WasmRuntime.Limits::defaults);
     return cases;
   }
 

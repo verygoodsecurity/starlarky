@@ -84,10 +84,10 @@ module takes several times its size in memory: a 1.4 MB Javy module took 0.2 s t
 `-Dlarky.wasm.maxMemoryBytes` and `-Dlarky.wasm.maxOutputBytes` set each run's limits; a negative
 or malformed value means the default.
 
-How deeply a module can nest calls depends on the evaluating thread's stack and the runtime: on
-a 1 MiB stack, about 860 nested calls when Endive interprets it and about 500 on GraalWasm,
-which runs interpreter-only on JDK 21 (its optimizing runtime needs JDK 25). Deeper nesting
-traps.
+Each run happens on a thread of its own with an 8 MiB stack, so how deeply a module can nest
+calls depends on the runtime and the JDK, not on the evaluating thread: in our measurements
+about 8,800 nested calls when Endive interprets it and 5,000 on GraalWasm on JDK 21 (where
+GraalWasm runs interpreter-only), and about 14,000 and 15,700 on JDK 25. Deeper nesting traps.
 
 ## Choosing the host functions
 
