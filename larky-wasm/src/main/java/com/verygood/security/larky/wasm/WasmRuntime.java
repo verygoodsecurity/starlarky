@@ -65,7 +65,9 @@ public interface WasmRuntime {
   interface Program {
 
     /**
-     * Instantiates the module and runs {@code _start} with {@code stdin}.
+     * Instantiates the module and runs {@code _start} with {@code stdin}, on a thread of its own
+     * with an 8 MiB stack: the deadline stops that thread, never the caller's, and how deeply the
+     * module can nest calls does not depend on the caller's stack.
      *
      * <p>A module that returns from {@code _start} exits with 0; {@code proc_exit(n)} exits with
      * n. Both are results, not exceptions.
@@ -90,8 +92,19 @@ public interface WasmRuntime {
    * @param maxOutputBytes the most bytes stdout, and separately stderr, may receive
    * @param randomSeed if not null, {@code random_get} returns a deterministic stream from this
    *     seed (for tests); otherwise it reads a {@code SecureRandom}
+   * @throws IllegalArgumentException if a limit or the deadline is negative
    */
   record Limits(long maxMemoryBytes, long deadlineEpochMs, int maxOutputBytes, Long randomSeed) {
+
+    public Limits {
+      if (maxMemoryBytes < 0 || deadlineEpochMs < 0 || maxOutputBytes < 0) {
+        throw new IllegalArgumentException(
+            String.format(
+                "WebAssembly limits must not be negative: maxMemoryBytes=%d, deadlineEpochMs=%d,"
+                    + " maxOutputBytes=%d",
+                maxMemoryBytes, deadlineEpochMs, maxOutputBytes));
+      }
+    }
 
     public static final long DEFAULT_MAX_MEMORY_BYTES = 64L << 20;
     public static final int DEFAULT_MAX_OUTPUT_BYTES = 1 << 20;

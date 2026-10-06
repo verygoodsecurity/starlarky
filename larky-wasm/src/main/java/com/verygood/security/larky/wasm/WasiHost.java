@@ -116,7 +116,13 @@ final class WasiHost {
           java.util.Map.entry("sock_send", "iiiii:i"),
           java.util.Map.entry("sock_shutdown", "ii:i"));
 
-  /** Copies of guest data go through a buffer this size, whatever length the guest asks for. */
+  /** The last of WASI's clock ids: realtime (0), monotonic (1), process (2) and thread (3). */
+  private static final long CLOCK_THREAD_CPUTIME_ID = 3;
+
+  /**
+   * Copies of guest data go through a buffer this size, whatever length the guest asks for, and
+   * check for a stop between chunks.
+   */
   private static final int CHUNK = 65536;
 
   private static final byte[] ARGV0 = "module\0".getBytes(StandardCharsets.US_ASCII);
@@ -199,6 +205,9 @@ final class WasiHost {
       case "environ_get":
         return ERRNO_SUCCESS;
       case "clock_time_get":
+        if (u32(args[0]) > CLOCK_THREAD_CPUTIME_ID) {
+          return ERRNO_INVAL; // not one of the four clocks WASI defines
+        }
         writeLong(memory, args[2], 0L);
         return ERRNO_SUCCESS;
       case "random_get":
@@ -257,9 +266,13 @@ final class WasiHost {
       long buffer = readU32(memory, iovs + 8 * i);
       long length = readU32(memory, iovs + 8 * i + 4);
       check(memory, buffer, length);
-      int n = (int) Math.min(length, stdin.length - stdinPosition);
-      memory.write(buffer, stdin, stdinPosition, n);
-      stdinPosition += n;
+      long n = Math.min(length, stdin.length - stdinPosition);
+      for (long done = 0; done < n; done += CHUNK) {
+        checkStop(0);
+        int part = (int) Math.min(CHUNK, n - done);
+        memory.write(buffer + done, stdin, stdinPosition, part);
+        stdinPosition += part;
+      }
       total += n;
     }
     writeInt(memory, nreadAddress, (int) total);
@@ -281,6 +294,7 @@ final class WasiHost {
       long length = readU32(memory, iovs + 8 * i + 4);
       check(memory, buffer, length);
       for (long done = 0; done < length; done += CHUNK) {
+        checkStop(0);
         int n = (int) Math.min(CHUNK, length - done);
         if (chunk == null) {
           chunk = new byte[CHUNK];
