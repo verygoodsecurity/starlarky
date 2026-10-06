@@ -325,6 +325,12 @@ public class ConformanceTest {
   // Failures
 
   @Test
+  public void dataSegmentOutOfBoundsTrapsWhenInstantiated() throws Exception {
+    assertThat(runFails("dataoob", new byte[0], WasmRuntime.Limits.defaults()).kind())
+        .isEqualTo(Kind.TRAP);
+  }
+
+  @Test
   public void trapIsTrap() throws Exception {
     assertThat(runFails("trap", new byte[0], WasmRuntime.Limits.defaults()).kind()).isEqualTo(Kind.TRAP);
   }
