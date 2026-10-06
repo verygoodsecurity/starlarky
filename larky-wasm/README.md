@@ -145,6 +145,16 @@ def encrypt_pan(pan, key):
 - `wasm.loads(data)` makes a module from its binary (bytes), and `wasm.dumps(module)` returns a
   module's binary; the names follow Python's `pickle`/`json` (`load` itself is a Larky keyword).
 
+## Testing locally
+
+Run your script with the module attached:
+
+```sh
+larky-runner -s script.star -i input.star --module encrypt.wasm=./encrypt.wasm
+```
+
+`--module NAME=PATH` makes `PATH` available to `wasm.module("NAME")`.
+
 ## Runtimes (for services that embed Larky)
 
 `larky-wasm` runs modules on [Endive](https://github.com/bytecodealliance/endive), a pure-JVM
