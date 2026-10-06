@@ -41,7 +41,88 @@ Returning from `_start` exits with 0; `proc_exit(n)` exits with `n`.
 | Run time | a deadline set by the caller | the call fails |
 | Module size | 8 MiB and 20,000 functions | the module is not valid |
 
-A trap (for example `unreachable` or an out-of-bounds access) also fails the call.
+A trap (for example `unreachable`, an out-of-bounds access, or an uncaught JavaScript exception)
+also fails the call.
+
+## Compiling JavaScript with Javy
+
+[Javy](https://github.com/bytecodealliance/javy) compiles JavaScript to a WASI module that embeds
+the QuickJS engine. Write a small wrapper around the vendor's script that reads JSON from stdin,
+calls the vendor function, and writes JSON to stdout:
+
+```js
+// wrapper.js: concatenate after the vendor's encrypt.js
+function readStdin() {
+  const chunks = [];
+  let total = 0;
+  for (;;) {
+    const buffer = new Uint8Array(4096);
+    const n = Javy.IO.readSync(0, buffer);
+    if (n === 0) break;
+    chunks.push(buffer.subarray(0, n));
+    total += n;
+  }
+  const all = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    all.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return new TextDecoder().decode(all);
+}
+
+function write(fd, text) {
+  Javy.IO.writeSync(fd, new TextEncoder().encode(text));
+}
+
+let result;
+try {
+  const request = JSON.parse(readStdin());
+  result = { encrypted: encrypt(request.pan, request.key) }; // the vendor's function
+} catch (e) {
+  write(2, String(e) + "\n");
+  result = { error: String(e) };
+}
+write(1, JSON.stringify(result));
+```
+
+```sh
+cat vendor/encrypt.js wrapper.js > encrypt_bundle.js
+javy build -C plugin=plugin-nosimd.wasm -o encrypt.wasm encrypt_bundle.js
+```
+
+`plugin-nosimd.wasm` is Javy's QuickJS plugin built without WebAssembly SIMD. Javy's stock plugin
+is compiled with SIMD, and so is every module built from it; the Endive runtime runs SIMD only on
+Java 25+ (with `--add-modules jdk.incubator.vector`) and does not run Javy's SIMD JSON parser
+correctly. GraalWasm runs either build. Use the Javy CLI version the plugin was built for (v9.1.0).
+
+Get the plugin either way:
+
+- **Download it** from a starlarky release (each one attaches it with its SHA-256):
+  ```sh
+  gh release download --repo verygoodsecurity/starlarky --pattern 'javy-plugin-nosimd-v9.1.0.wasm*'
+  shasum -a 256 -c javy-plugin-nosimd-v9.1.0.wasm.sha256
+  mv javy-plugin-nosimd-v9.1.0.wasm plugin-nosimd.wasm
+  ```
+- **Build it** from Javy's source: `larky-wasm/tools/build-javy-plugin.sh plugin-nosimd.wasm`.
+  It needs curl, git and clang (with libclang); it downloads the Javy CLI (checking its SHA-256)
+  and installs Rust into a temporary directory, not `~/.cargo`. It takes a few minutes.
+
+Notes:
+
+- Use a static build (`javy build` without `-C dynamic`); the module must not need a Javy plugin at
+  run time. `-C plugin=` only chooses which QuickJS build is embedded.
+- With `-C plugin=`, Javy does not take `-J` options; the plugin's defaults apply (stream I/O and
+  `TextEncoder`/`TextDecoder` are available, as the wrapper above needs).
+  A static module is about 1.3 MiB (`sample_encrypt.wasm` is 1,372,672 bytes).
+- Javy cannot choose an exit code, and an uncaught exception traps the module, which loses its
+  output. Catch errors and report them in the JSON you write, as above.
+- The vendor script must not need `fetch`, timers, files, or Node.js modules; none of them exist
+  here. The clock always reads 0.
+- If the vendor ships an ES module or uses `import`, bundle it into one script first (for example
+  with esbuild).
+- `larky-wasm/src/test/resources/wasm/js/sample_encrypt.js` is a complete example, and
+  `larky-wasm/tools/build-fixtures.sh` builds it.
 
 ## Calling a module from Larky
 

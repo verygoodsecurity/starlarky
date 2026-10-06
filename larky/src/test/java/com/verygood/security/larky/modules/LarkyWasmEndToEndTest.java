@@ -76,6 +76,23 @@ public class LarkyWasmEndToEndTest {
   }
 
   @Test
+  public void scriptCallsJavaScriptCompiledWithJavy() throws Exception {
+    String script =
+        String.join(
+            "\n",
+            "load('@vgs//wasm', 'wasm')",
+            "out = wasm.module('vendor/encrypt.wasm').call({'pan': '4111111111111111', 'key': 'k1'})",
+            "encrypted = out['encrypted']",
+            "key_id = out['keyId']",
+            "");
+    ParsedStarFile result =
+        eval(script, Map.of("vendor/encrypt.wasm", Fixtures.wasm("js/sample_encrypt")), new SimpleBindings());
+    assertThat(result.getGlobalEnvironmentVariable("encrypted", String.class))
+        .isEqualTo("5317929663681111");
+    assertThat(result.getGlobalEnvironmentVariable("key_id", String.class)).isEqualTo("983d80c1");
+  }
+
+  @Test
   public void scriptRunsAModuleOnBytes() throws Exception {
     String script =
         String.join(
