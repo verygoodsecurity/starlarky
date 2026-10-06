@@ -26,7 +26,9 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
   /**
    * Engine property: a {@code Map<String, String>} of other files, by name, that the script may
    * load() (e.g. {@code load("larky", "process")} for "larky.star"). Each loads into its own module, so its
-   * top-level names cannot collide with the script's.
+   * top-level names cannot collide with the script's. A value may also be a {@code byte[]} (a String
+   * is UTF-8 encoded), e.g. a WebAssembly module that {@code @vgs//wasm}'s {@code wasm.module(name)}
+   * reads; only the files the script load()s are parsed as Starlark.
    */
   public static final String MODULES = "larky.modules";
 
@@ -67,8 +69,14 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
   public LarkyCompiledScript compile(String script, String scriptName) throws ScriptException {
     LarkyCompiledScript compiledScript = new LarkyCompiledScript(this);
     if (context.getAttribute(MODULES) instanceof java.util.Map<?, ?> modules) {
-      java.util.Map<String, String> files = new java.util.LinkedHashMap<>();
-      modules.forEach((name, text) -> files.put(String.valueOf(name), String.valueOf(text)));
+      java.util.Map<String, byte[]> files = new java.util.LinkedHashMap<>();
+      modules.forEach(
+          (name, content) ->
+              files.put(
+                  String.valueOf(name),
+                  content instanceof byte[] bytes
+                      ? bytes.clone()
+                      : String.valueOf(content).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
       compiledScript.setModules(files);
     }
     if (context.getAttribute(CACHE_NAMESPACE) instanceof String namespace) {

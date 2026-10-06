@@ -39,6 +39,7 @@ import com.verygood.security.larky.modules.ResultModule;
 import com.verygood.security.larky.modules.StructModule;
 import com.verygood.security.larky.modules.SysModule;
 import com.verygood.security.larky.modules.VaultModule;
+import com.verygood.security.larky.modules.WasmModule;
 import com.verygood.security.larky.modules.X509Module;
 import com.verygood.security.larky.modules.XMLModule;
 import com.verygood.security.larky.modules.ZLibModule;
@@ -112,7 +113,8 @@ public class ModuleSupplier {
       MetricsModule.INSTANCE,
       NetworkTokenModule.INSTANCE,
       PGPModule.INSTANCE,
-      VaultModule.INSTANCE
+      VaultModule.INSTANCE,
+      WasmModule.INSTANCE
   );
 
   public static final ImmutableSet<StarlarkValue> TEST_MODULES = ImmutableSet.of(
