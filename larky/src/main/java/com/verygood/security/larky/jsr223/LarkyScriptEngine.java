@@ -20,22 +20,57 @@ import javax.script.SimpleScriptContext;
 
 public class LarkyScriptEngine implements Compilable, ScriptEngine {
 
-  private ScriptContext context = new SimpleScriptContext();
+  /** Engine property for script name. */
+  public static final String SCRIPT_NAME = "larky.scriptName";
 
+  private ScriptContext context = new SimpleScriptContext();
 
   /**
    * Compiles the script (source represented as a <code>String</code>) for later execution.
    *
+   * <p>The script is parsed and resolved once, and cached for efficient repeated execution.
+   *
    * @param script The source of the script, represented as a <code>String</code>.
    * @return An instance of a subclass of <code>CompiledScript</code> to be executed later using one
    * of the <code>eval</code> methods of <code>CompiledScript</code>.
+   * @throws ScriptException if compilation fails.
    * @throws NullPointerException if the argument is null.
    */
   @Override
-  public CompiledScript compile(String script) {
+  public CompiledScript compile(String script) throws ScriptException {
+    return compile(script, getScriptName());
+  }
+
+  /**
+   * Compiles the script with a specified name.
+   *
+   * @param script The source of the script.
+   * @param scriptName The name of the script for error reporting.
+   * @return A compiled script ready for execution.
+   * @throws ScriptException if compilation fails.
+   */
+  public LarkyCompiledScript compile(String script, String scriptName) throws ScriptException {
+    LarkyCompiledScript compiledScript = new LarkyCompiledScript(this);
+
+    try {
+      compiledScript.compile(script, scriptName);
+    } catch (LarkyEvaluationScriptException e) {
+      throw new ScriptException(e);
+    }
+
+    // Set reader for backward compatibility
     Reader scriptReader = getScriptReader(script);
     context.setReader(scriptReader);
-    return new LarkyCompiledScript(this);
+
+    return compiledScript;
+  }
+
+  private String getScriptName() {
+    Object nameObj = context.getAttribute(SCRIPT_NAME);
+    if (nameObj instanceof String) {
+      return (String) nameObj;
+    }
+    return "larky.star";
   }
 
   /**
