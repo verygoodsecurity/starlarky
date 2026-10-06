@@ -118,7 +118,14 @@ function main() {
   return { encrypted: encrypt(request.pan, request.key), keyId: keyId };
 }
 
-const result = main();
+// Anything main() did not expect is still reported as JSON: an uncaught exception would trap the
+// module and lose its output.
+let result;
+try {
+  result = main();
+} catch (e) {
+  result = { error: "unexpected error: " + (e && e.message ? e.message : String(e)) };
+}
 if (result.error !== undefined) {
   write(2, "sample_encrypt: " + result.error + "\n");
 }
