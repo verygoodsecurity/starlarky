@@ -78,6 +78,11 @@ public class CrossRuntimeTest {
     add(cases, "dataoob", "dataoob", new byte[0], WasmRuntime.Limits::defaults);
     add(cases, "clock_badid", "clock_badid", new byte[0], WasmRuntime.Limits::defaults);
     add(cases, "dupimport", "dupimport", new byte[0], WasmRuntime.Limits::defaults);
+    int i = 0;
+    for (String input : Fixtures.SAMPLE_ENCRYPT_CASES.keySet()) {
+      add(cases, "sample_encrypt-" + i++, Fixtures.SAMPLE_ENCRYPT, utf8(input), WasmRuntime.Limits::defaults);
+    }
+    add(cases, "sample_encrypt-bad", Fixtures.SAMPLE_ENCRYPT, utf8("not json"), WasmRuntime.Limits::defaults);
     return cases;
   }
 
