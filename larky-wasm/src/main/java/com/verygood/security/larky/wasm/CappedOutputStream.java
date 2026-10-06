@@ -45,20 +45,30 @@ final class CappedOutputStream extends OutputStream {
 
   @Override
   public void write(int b) {
-    write(new byte[] {(byte) b}, 0, 1);
+    if (count == limit) {
+      throw exceed();
+    }
+    if (count == buf.length) {
+      buf = Arrays.copyOf(buf, Math.min(limit, buf.length * 2));
+    }
+    buf[count++] = (byte) b;
   }
 
   @Override
   public void write(byte[] b, int off, int len) {
     if (len > limit - count) {
-      exceeded = true;
-      throw new OutputLimitExceeded(name + " exceeded " + limit + " bytes");
+      throw exceed();
     }
     if (count + len > buf.length) {
       buf = Arrays.copyOf(buf, Math.min(limit, Math.max(count + len, buf.length * 2)));
     }
     System.arraycopy(b, off, buf, count, len);
     count += len;
+  }
+
+  private OutputLimitExceeded exceed() {
+    exceeded = true;
+    return new OutputLimitExceeded(name + " exceeded " + limit + " bytes");
   }
 
   boolean exceeded() {

@@ -35,6 +35,7 @@ import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.runtime.Memory;
 import run.endive.runtime.WasmInterruptedException;
+import run.endive.runtime.WasmRuntimeException;
 import run.endive.wasi.WasiExitException;
 import run.endive.wasi.WasiOptions;
 import run.endive.wasi.WasiPreview1;
@@ -49,7 +50,9 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
   /** WASI errno values (Endive's WasiErrno is package-private). */
   private static final long ESUCCESS = 0;
 
-  private static final long EINVAL = 28;
+  private static final long PAGE_SIZE = 65536;
+  /** random_get fills guest memory this many bytes at a time, whatever length it asks for. */
+  private static final int RANDOM_CHUNK = 65536;
 
   /** Interrupts runs at their deadlines. One daemon thread serves every run. */
   private static final ScheduledThreadPoolExecutor WATCHDOG = newWatchdog();
@@ -109,6 +112,10 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
       if (stdout.exceeded() || stderr.exceeded()) {
         // In case a WASI call swallowed OutputLimitExceeded instead of letting it unwind.
         throw new WasmException(Kind.OUTPUT_LIMIT, "output exceeded " + limits.maxOutputBytes());
+      }
+      if (deadline.fired()) {
+        // The deadline passed before the guest saw the interrupt; a late finish is still late.
+        throw new WasmException(Kind.TIMEOUT, "WebAssembly run exceeded its deadline");
       }
       return new WasmRuntime.Result(exitCode, stdout.toByteArray(), stderr.toByteArray());
     } finally {
@@ -209,14 +216,25 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
                     f.name(),
                     f.functionType(),
                     (instance, args) -> {
-                      int len = (int) args[1];
-                      if (len < 0) {
-                        return new long[] {EINVAL};
-                      }
+                      // ptr and len are u32s the guest chooses: check them against its memory
+                      // before allocating anything, and fill in bounded chunks.
+                      long ptr = Integer.toUnsignedLong((int) args[0]);
+                      long len = Integer.toUnsignedLong((int) args[1]);
                       Memory memory = instance.memory();
-                      byte[] bytes = new byte[len];
-                      random.fill(bytes);
-                      memory.write((int) args[0], bytes);
+                      if (ptr + len > memory.pages() * PAGE_SIZE) {
+                        throw new WasmRuntimeException("out of bounds memory access");
+                      }
+                      byte[] chunk = new byte[(int) Math.min(len, RANDOM_CHUNK)];
+                      for (long done = 0; done < len; done += chunk.length) {
+                        if (Thread.currentThread().isInterrupted()) {
+                          throw new WasmInterruptedException("interrupted in random_get");
+                        }
+                        if (len - done < chunk.length) {
+                          chunk = new byte[(int) (len - done)];
+                        }
+                        random.fill(chunk);
+                        memory.write((int) (ptr + done), chunk);
+                      }
                       return new long[] {ESUCCESS};
                     }));
         default -> functions.add(f);

@@ -171,6 +171,55 @@ public class ConformanceTest {
     assertOutput(run("random_split", "", seeded(42)), 0, "956eeb2f2632d7bd03f166b233e3ef28", "");
   }
 
+  /** stdin for random_at: ptr and len as little-endian u32s. */
+  private static byte[] at(long ptr, long len) {
+    return java.nio.ByteBuffer.allocate(8)
+        .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        .putInt((int) ptr)
+        .putInt((int) len)
+        .array();
+  }
+
+  @Test
+  public void seededRandomFillsLargeBuffersFromOneStream() throws Exception {
+    // More than one 64 KiB chunk: the bytes still continue new SplittableRandom(7)'s stream.
+    int len = 150_000;
+    byte[] expected = new byte[len];
+    java.util.SplittableRandom random = new java.util.SplittableRandom(7);
+    for (int i = 0; i < len; i += 8) {
+      long word = random.nextLong();
+      for (int j = 0; j < 8 && i + j < len; j++) {
+        expected[i + j] = (byte) (word >>> (8 * j));
+      }
+    }
+    WasmRuntime.Result result =
+        runtime.compile(Fixtures.wasm("random_at")).run(at(1024, len), seeded(7));
+    assertThat(result.exitCode()).isEqualTo(0);
+    assertThat(result.stdout()).isEqualTo(expected);
+  }
+
+  @Test
+  public void randomGetUpToTheEndOfMemoryWorks() throws Exception {
+    WasmRuntime.Result result = runtime.compile(Fixtures.wasm("random_at")).run(at(4 * 65536 - 16, 16), WasmRuntime.Limits.defaults());
+    assertThat(result.exitCode()).isEqualTo(0);
+    assertThat(result.stdout()).hasLength(16);
+  }
+
+  @Test
+  public void randomGetPastTheEndOfMemoryTrapsWithoutAllocatingIt() throws Exception {
+    // A guest-chosen length must not make the host allocate it: 2^31 - 1 and 2^32 - 1 bytes.
+    for (long[] c :
+        new long[][] {
+          {4 * 65536 - 15, 16}, {0, 0x7fff_ffffL}, {0, 0xffff_ffffL}, {0xffff_ffffL, 1}
+        }) {
+      WasmException e =
+          assertThrows(
+              WasmException.class,
+              () -> runtime.compile(Fixtures.wasm("random_at")).run(at(c[0], c[1]), WasmRuntime.Limits.defaults()));
+      assertWithMessage("random_get(%s, %s)", c[0], c[1]).that(e.kind()).isEqualTo(Kind.TRAP);
+    }
+  }
+
   @Test
   public void unseededRandomDiffersBetweenRuns() throws Exception {
     WasmRuntime.Result first = run("random", "");
@@ -185,6 +234,28 @@ public class ConformanceTest {
   @Test
   public void trapIsTrap() throws Exception {
     assertThat(runFails("trap", new byte[0], WasmRuntime.Limits.defaults()).kind()).isEqualTo(Kind.TRAP);
+  }
+
+  @Test
+  public void deadlineStopsALongRandomGet() throws Exception {
+    // One random_get of 64 MiB takes longer than the deadline; the host stops filling.
+    long start = System.nanoTime();
+    WasmException e = runFails("random_fill", new byte[0], deadlineIn(50));
+    long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+    assertThat(e.kind()).isEqualTo(Kind.TIMEOUT);
+    assertWithMessage("milliseconds until TIMEOUT").that(elapsedMs).isLessThan(500L);
+  }
+
+  @Test
+  public void runPastItsDeadlineIsTimeoutEvenIfItFinishes() throws Exception {
+    // The deadline has passed before the run starts; the module would finish at once.
+    WasmRuntime.Limits passed =
+        new WasmRuntime.Limits(
+            WasmRuntime.Limits.DEFAULT_MAX_MEMORY_BYTES,
+            System.currentTimeMillis() - 1,
+            WasmRuntime.Limits.DEFAULT_MAX_OUTPUT_BYTES,
+            null);
+    assertThat(runFails("echo", new byte[0], passed).kind()).isEqualTo(Kind.TIMEOUT);
   }
 
   @Test
