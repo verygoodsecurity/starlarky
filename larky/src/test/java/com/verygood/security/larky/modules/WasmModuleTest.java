@@ -20,8 +20,12 @@ import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
+import com.google.common.cache.Cache;
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
+import com.google.common.collect.ImmutableMap;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.ParsedStarFile;
+import com.verygood.security.larky.parser.StarFile;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.script.ScriptContext;
@@ -252,6 +256,80 @@ public class WasmModuleTest {
     ParsedStarFile result = eval("out = wasm.loads(b'FAKE').run(b'limits')");
     assertThat(new String(out(result, StarlarkBytes.class).toByteArray(), UTF_8))
         .isEqualTo("65536 99 42");
+  }
+
+  @Test
+  public void negativeOrMalformedLimitPropertiesFallBackToTheDefaults() throws Exception {
+    System.setProperty(WasmModule.MAX_MEMORY_PROPERTY, "-65536");
+    System.setProperty(WasmModule.MAX_OUTPUT_PROPERTY, "lots");
+    WasmModule.randomSeedForTests = 1L;
+    ParsedStarFile result = eval("out = wasm.loads(b'FAKE').run(b'limits')");
+    assertThat(new String(out(result, StarlarkBytes.class).toByteArray(), UTF_8))
+        .isEqualTo(
+            WasmRuntime.Limits.DEFAULT_MAX_MEMORY_BYTES
+                + " "
+                + WasmRuntime.Limits.DEFAULT_MAX_OUTPUT_BYTES
+                + " 1");
+  }
+
+  @Test
+  public void propertyIgnoresNegativeAndMalformedValues() {
+    String name = "larky.wasm.test.property";
+    try {
+      assertThat(WasmModule.property(name, 7)).isEqualTo(7);
+      System.setProperty(name, "-1");
+      assertThat(WasmModule.property(name, 7)).isEqualTo(7);
+      System.setProperty(name, "x");
+      assertThat(WasmModule.property(name, 7)).isEqualTo(7);
+      System.setProperty(name, "0");
+      assertThat(WasmModule.property(name, 7)).isEqualTo(0);
+      System.setProperty(name, "12");
+      assertThat(WasmModule.property(name, 7)).isEqualTo(12);
+    } finally {
+      System.clearProperty(name);
+    }
+  }
+
+  @Test
+  public void programCacheIsBoundedByModuleBytes() {
+    Cache<String, WasmModule.Compiled> cache = WasmModule.programCache(100);
+    WasmRuntime.Program program = (stdin, limits) -> null;
+    cache.put("a", new WasmModule.Compiled(program, 60));
+    cache.put("b", new WasmModule.Compiled(program, 60));
+    assertThat(cache.asMap().keySet()).containsExactly("b");
+    // One module may use the whole budget (Guava would split it between segments otherwise).
+    cache.put("whole", new WasmModule.Compiled(program, 100));
+    assertThat(cache.asMap().keySet()).containsExactly("whole");
+    cache.put("over", new WasmModule.Compiled(program, 101));
+    assertThat(cache.getIfPresent("over")).isNull();
+  }
+
+  @Test
+  public void aModuleKeepsItsOwnCopyOfTheShippedBytes() throws Exception {
+    // A host that builds the StarFile itself (as larky-runner does) hands over its own arrays.
+    byte[] shipped = MODULE.clone();
+    StarFile script =
+        new InMemMapBackedStarFile(
+            ImmutableMap.of("host.star", new byte[0], "vendor/encrypt.wasm", shipped), "host.star");
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setThreadLocal(StarFile.class, script);
+      WasmModule.LoadedWasmModule m = WasmModule.INSTANCE.module("vendor/encrypt.wasm", thread);
+      shipped[5] = 0; // the host changes its array afterwards
+      assertThat(WasmModule.INSTANCE.dumps(m).toByteArray()).isEqualTo(MODULE);
+    }
+  }
+
+  @Test
+  public void anExpirationInThePastIsAPassedDeadlineNotNone() throws Exception {
+    WasmModule.LoadedWasmModule m =
+        WasmModule.INSTANCE.loads(StarlarkBytes.immutableOf("FAKE".getBytes(UTF_8)));
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setExpirationMs(-5);
+      StarlarkBytes out = m.run(StarlarkBytes.immutableOf("deadline".getBytes(UTF_8)), thread);
+      assertThat(new String(out.toByteArray(), UTF_8)).isEqualTo("1");
+    }
   }
 
   @Test

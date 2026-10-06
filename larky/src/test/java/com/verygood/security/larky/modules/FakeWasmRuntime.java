@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   <li>{@code trap}, {@code oom}, {@code flood}: throw TRAP, MEMORY_LIMIT, OUTPUT_LIMIT
  *   <li>{@code sleep}: waits for the deadline, then throws TIMEOUT
  *   <li>{@code limits}: writes the limits it was given
+ *   <li>{@code deadline}: writes the deadline it was given
  *   <li>{@code interrupt}: throws InterruptedException
  * </ul>
  */
@@ -93,6 +94,9 @@ public final class FakeWasmRuntime implements WasmRuntime {
         throw new WasmException(Kind.TIMEOUT, "fake: deadline");
       case "interrupt":
         throw new InterruptedException("fake");
+      case "deadline":
+        return new WasmRuntime.Result(
+            0, Long.toString(limits.deadlineEpochMs()).getBytes(UTF_8), new byte[0]);
       case "limits":
         return new WasmRuntime.Result(
             0,
