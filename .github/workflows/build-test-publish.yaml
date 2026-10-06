@@ -204,3 +204,32 @@ jobs:
           mvn -B -ntp deploy -DskipTests -pl larky-wasm,libstarlark,larky
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  javy-plugin:
+    name: Javy plugin without SIMD
+    # Customers compile JavaScript for @vgs//wasm with `javy build -C plugin=...` against this
+    # plugin (see larky-wasm/README.md); each release publishes it.
+    if: ${{ github.ref_type == 'tag' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      PLUGIN: javy-plugin-nosimd-v9.1.0.wasm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - name: Build the plugin
+        # ubuntu-latest has clang and libclang, which the QuickJS bindings need.
+        run: larky-wasm/tools/build-javy-plugin.sh "$RUNNER_TEMP/out/$PLUGIN" "$RUNNER_TEMP/work"
+
+      - name: Upload to Release
+        run: |
+          if gh release view "$TAG" &>/dev/null; then
+            gh release upload "$TAG" "$RUNNER_TEMP/out/$PLUGIN" "$RUNNER_TEMP/out/$PLUGIN.sha256" --clobber
+          else
+            echo "No release found for tag $TAG"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
