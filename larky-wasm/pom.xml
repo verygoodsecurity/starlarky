@@ -34,11 +34,6 @@
         </dependency>
         <dependency>
             <groupId>run.endive</groupId>
-            <artifactId>wasi</artifactId>
-            <version>${endive.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>run.endive</groupId>
             <artifactId>compiler</artifactId>
             <version>${endive.version}</version>
         </dependency>

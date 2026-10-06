@@ -154,6 +154,76 @@ public class ConformanceTest {
   }
 
   @Test
+  public void functionsOutsideTheAllowedSetReturnNosysAtOnce() throws Exception {
+    // poll_oneoff asks to sleep 5 s; like every function outside WasiHost.RUNTIME_FUNCTIONS it
+    // returns NOSYS (52) without doing anything.
+    long start = System.nanoTime();
+    assertOutput(run("nosys", ""), 0, "52 52 52 52 52 ", "");
+    assertWithMessage("milliseconds")
+        .that(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start))
+        .isLessThan(2000L);
+  }
+
+  @Test
+  public void allowedDescriptorFunctionsBehaveTheSame() throws Exception {
+    // For fds 0..2: fd_fdstat_get's errno and the 24 bytes it wrote (filetype unknown, rights
+    // fd_read for stdin and fd_write for stdout and stderr); then fd_fdstat_get(3), fd_seek on
+    // 0..2 (ESPIPE), fd_read(1), fd_write(0), fd_write(3) (EBADF), sched_yield, fd_close(3),
+    // fd_close(0), and fd_read(0) once closed.
+    assertOutput(
+        run("fds", ""),
+        0,
+        "0 000000000000000002000000000000000000000000000000"
+            + " 0 000000000000000040000000000000000000000000000000"
+            + " 0 000000000000000040000000000000000000000000000000"
+            + " 8 70 70 70 8 8 8 0 8 0 8 ",
+        "");
+  }
+
+  @Test
+  public void rejectsAModuleLargerThanTheLimit() throws Exception {
+    // echo, padded with a custom section to one byte over MAX_MODULE_BYTES.
+    byte[] echo = Fixtures.wasm("echo");
+    java.io.ByteArrayOutputStream big = new java.io.ByteArrayOutputStream();
+    big.write(echo);
+    int payload = WasmRuntime.MAX_MODULE_BYTES - echo.length - 8; // 8: id, size and name bytes
+    byte[] header = {0, (byte) 0x80, (byte) 0x80, (byte) 0x80, (byte) 0x80, 0, 1, 'x'};
+    int size = payload + 2; // the name's length byte and the name
+    for (int i = 0; i < 4; i++) {
+      header[1 + i] = (byte) ((size >>> (7 * i)) & 0x7f | 0x80);
+    }
+    header[5] = (byte) (size >>> 28);
+    big.write(header);
+    big.write(new byte[payload + 1]);
+    assertThat(big.size()).isEqualTo(WasmRuntime.MAX_MODULE_BYTES + 1);
+    assertThat(compileFails(big.toByteArray()).kind()).isEqualTo(Kind.INVALID_MODULE);
+  }
+
+  @Test
+  public void rejectsAModuleWithMoreFunctionsThanTheLimit() throws Exception {
+    StringBuilder wat = new StringBuilder("(module (memory (export \"memory\") 1)");
+    wat.append(" (func (export \"_start\"))");
+    for (int i = 1; i < WasmRuntime.MAX_FUNCTIONS; i++) {
+      wat.append(" (func)");
+    }
+    String atLimit = wat + ")";
+    assertThat(runtime.compile(run.endive.wabt.Wat2Wasm.parse(atLimit))).isNotNull();
+    String overLimit = wat + " (func))";
+    assertThat(compileFails(run.endive.wabt.Wat2Wasm.parse(overLimit)).kind())
+        .isEqualTo(Kind.INVALID_MODULE);
+  }
+
+  @Test
+  public void rejectsAStartSection() throws Exception {
+    assertThat(compileFails(Fixtures.wasm("startsection")).kind()).isEqualTo(Kind.INVALID_MODULE);
+  }
+
+  @Test
+  public void rejectsAWasiImportWithTheWrongSignature() throws Exception {
+    assertThat(compileFails(Fixtures.wasm("badsig")).kind()).isEqualTo(Kind.INVALID_MODULE);
+  }
+
+  @Test
   public void clocksReadZero() throws Exception {
     assertOutput(run("clock", ""), 0, "0\n0\n", "");
   }

@@ -324,7 +324,13 @@ public class EndiveWasmRuntimeTest {
     assertThat(other).isNotEqualTo(first);
     // The documented stream: SplittableRandom(seed).nextLong(), little-endian, continuous.
     byte[] expected = new byte[32];
-    new EndiveWasmProgram.DeterministicBytes(42L).fill(expected);
+    java.util.SplittableRandom stream = new java.util.SplittableRandom(42L);
+    for (int i = 0; i < 32; i += 8) {
+      long word = stream.nextLong();
+      for (int j = 0; j < 8; j++) {
+        expected[i + j] = (byte) (word >>> (8 * j));
+      }
+    }
     assertThat(first).isEqualTo(expected);
     java.util.SplittableRandom r = new java.util.SplittableRandom(42L);
     long l = r.nextLong();
