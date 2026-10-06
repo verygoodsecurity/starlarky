@@ -21,6 +21,7 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.IntLimits;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Sequence;
@@ -192,11 +193,16 @@ public final class PythonBuiltins {
       } catch (IllegalArgumentException ex) {
         throw Starlark.errorf("OverflowError: pow() exponent too large: %s", exp);
       }
+      BigInteger b = base.toBigInteger();
+      IntLimits.checkPow(b, e);
+      BigInteger z;
       try {
-        return StarlarkInt.of(base.toBigInteger().pow(e));
+        z = b.pow(e);
       } catch (ArithmeticException ex) { // result exceeds BigInteger's range
         throw Starlark.errorf("OverflowError: pow() result too large");
       }
+      IntLimits.checkBits(z.bitLength(), "pow");
+      return StarlarkInt.of(z);
     }
     // Python converts both operands to float for a float operand or a negative int exponent.
     return StarlarkFloat.of(floatPow(toDouble(baseO), toDouble(expO)));
@@ -265,6 +271,7 @@ public final class PythonBuiltins {
   private static StarlarkInt intModPow(StarlarkInt base, StarlarkInt exp, StarlarkInt mod)
       throws EvalException {
     BigInteger m = mod.toBigInteger();
+    IntLimits.checkModPow(exp.toBigInteger(), m);
     if (m.signum() == 0) {
       throw Starlark.errorf("pow() 3rd argument cannot be 0");
     }

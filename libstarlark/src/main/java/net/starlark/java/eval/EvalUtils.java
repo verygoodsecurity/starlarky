@@ -210,6 +210,7 @@ final class EvalUtils {
         if (x instanceof StarlarkInt xi) {
           if (y instanceof StarlarkInt) {
             // int * int
+            IntLimits.checkProduct(xi, (StarlarkInt) y); // VGS
             return StarlarkInt.multiply(xi, (StarlarkInt) y);
           } else if (y instanceof String) {
             // int * string
