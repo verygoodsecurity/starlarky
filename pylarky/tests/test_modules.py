@@ -74,10 +74,46 @@ def test_http_evaluator_passes_modules(popen):
     assert evaluator.modules == {"echo.wasm": WASM}
 
 
-@pytest.mark.parametrize("name", ["", "a=b.wasm", 3])
+@pytest.mark.parametrize(
+    "name", ["", "a=b.wasm", 3, "bad\0name.wasm", "x" * 256, "é" * 128]
+)
 def test_bad_module_name(name):
     with pytest.raises(ValueError):
         Evaluator("1", modules={name: WASM})
+
+
+def test_longest_module_name():
+    assert "x" * 255 in Evaluator("1", modules={"x" * 255: WASM}).modules
+
+
+def test_module_size_limits():
+    limit = evaluator_module.MAX_MODULE_BYTES
+    assert len(Evaluator("1", modules={"a.wasm": bytes(limit)}).modules["a.wasm"]) == limit
+    with pytest.raises(ValueError, match="the limit is"):
+        Evaluator("1", modules={"a.wasm": bytes(limit + 1)})
+    # str is measured as the UTF-8 it is written as: two bytes per 'é'.
+    with pytest.raises(ValueError, match="the limit is"):
+        Evaluator("1", modules={"a.star": "é" * (limit // 2 + 1)})
+    files = evaluator_module.MAX_MODULES_TOTAL_BYTES // limit + 1
+    with pytest.raises(ValueError, match="total more than"):
+        Evaluator("1", modules={f"m{i}.wasm": bytes(limit) for i in range(files)})
+
+
+def test_module_count_limit():
+    many = {f"m{i}.wasm": WASM for i in range(evaluator_module.MAX_MODULES + 1)}
+    with pytest.raises(ValueError, match="at most"):
+        Evaluator("1", modules=many)
+    many.popitem()
+    assert len(Evaluator("1", modules=many).modules) == evaluator_module.MAX_MODULES
+
+
+def test_runner_that_cannot_start_raises_failed_evaluation(monkeypatch):
+    def cannot_start(*args, **kwargs):
+        raise OSError(7, "Argument list too long")
+
+    monkeypatch.setattr(evaluator_module.subprocess, "Popen", cannot_start)
+    with pytest.raises(FailedEvaluation, match="Could not run"):
+        Evaluator("1", modules={"echo.wasm": WASM}).evaluate("")
 
 
 def test_bad_module_data():
