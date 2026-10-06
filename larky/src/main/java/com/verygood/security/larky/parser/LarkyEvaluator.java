@@ -334,6 +334,7 @@ public final class LarkyEvaluator {
       throws IOException, EvalException {
     byte[] bytes = content.readContentBytes();
     return ProgramCache.getScript(
+        content.cacheNamespace(),
         content.path(),
         new String(bytes, java.nio.charset.StandardCharsets.UTF_8),
         module,
@@ -343,12 +344,23 @@ public final class LarkyEvaluator {
             module, ParserInput.fromUTF8(bytes, content.path()), options, parsed));
   }
 
-  Map<String, Module> processLoads(StarFile content, List<String> loads) {
+  Map<String, Module> processLoads(StarFile content, List<String> loads) throws EvalException {
     Map<String, Module> loadedModules = new HashMap<>();
     LarkyLoader larkyLoader = new LarkyLoader(content, this);
     for (String load : loads) {
       //Module loadedModule = eval(content.resolve(load + LarkyScript.STAR_EXTENSION));
-      Module loadedModule = larkyLoader.load(load);
+      Module loadedModule;
+      try {
+        loadedModule = larkyLoader.load(load);
+      } catch (RuntimeException e) {
+        // A file the script loads from next to itself (not one of Larky's modules) is the
+        // script author's code: report its errors (e.g. a syntax error, with its own line
+        // numbers) as they are, not wrapped in an internal load failure.
+        if (!ResourceContentStarFile.startsWithPrefix(load) && e.getCause() instanceof EvalException cause) {
+          throw cause;
+        }
+        throw e;
+      }
       loadedModules.put(load, loadedModule);
     }
     return loadedModules;
@@ -370,19 +382,26 @@ public final class LarkyEvaluator {
       prog = Program.compileFile(file, module);
       parsed[0] = file;
     } catch (SyntaxError.Exception ex) {
-      List<String> errs = new ArrayList<>();
       for (SyntaxError error : ex.errors()) {
         reporter.error(error.toString());
-        errs.add(error.toString());
       }
-      throw new EvalException(
-          String.format(
-              "Error compiling Starlark program: %1$s%n" +
-              "%2$s",
-              input.getFile(),
-              String.join("\n", errs)));
+      throw compileError(input.getFile(), ex);
     }
     return prog;
+  }
+
+  /** The error for a file that does not compile: its name, then each error with its location. */
+  public static EvalException compileError(String file, SyntaxError.Exception ex) {
+    List<String> errs = new ArrayList<>();
+    for (SyntaxError error : ex.errors()) {
+      errs.add(error.toString());
+    }
+    return new EvalException(
+        String.format(
+            "Error compiling Starlark program: %1$s%n" +
+            "%2$s",
+            file,
+            String.join("\n", errs)));
   }
 
   private boolean typeChecking() {
