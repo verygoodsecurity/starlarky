@@ -61,7 +61,7 @@ final class WasmBinaries {
     r.header();
     java.util.List<String> types = new java.util.ArrayList<>(); // in WasiHost.SIGNATURES notation
     java.util.List<Long> functionTypes = new java.util.ArrayList<>();
-    java.util.Map<String, Long> imports = new java.util.LinkedHashMap<>(); // name -> type index
+    java.util.Set<String> imports = new java.util.LinkedHashSet<>();
     long start = -1;
     long memory = -1;
     while (!r.atEnd()) {
@@ -98,9 +98,18 @@ final class WasmBinaries {
             if (kind != KIND_FUNC || !module.equals(WasiHost.MODULE)) {
               throw invalid("import " + module + "." + name + " is not a " + WasiHost.MODULE + " function");
             }
+            // Each import is checked, so a module that imports a function twice cannot get a
+            // wrong signature past the check with a right one.
             long type = r.u32();
+            String expected = WasiHost.SIGNATURES.get(name);
+            if (expected == null) {
+              throw invalid("import " + WasiHost.MODULE + "." + name + " is not a WASI preview 1 function");
+            }
+            if (type >= types.size() || !expected.equals(types.get((int) type))) {
+              throw invalid("import " + WasiHost.MODULE + "." + name + " has the wrong signature");
+            }
             functionTypes.add(type);
-            imports.put(name, type);
+            imports.add(name);
           }
         }
         case SECTION_FUNCTION -> {
@@ -133,15 +142,6 @@ final class WasmBinaries {
       }
       r.pos = end;
     }
-    for (java.util.Map.Entry<String, Long> i : imports.entrySet()) {
-      String expected = WasiHost.SIGNATURES.get(i.getKey());
-      if (expected == null) {
-        throw invalid("import " + WasiHost.MODULE + "." + i.getKey() + " is not a WASI preview 1 function");
-      }
-      if (i.getValue() >= types.size() || !expected.equals(types.get((int) (long) i.getValue()))) {
-        throw invalid("import " + WasiHost.MODULE + "." + i.getKey() + " has the wrong signature");
-      }
-    }
     if (start < 0) {
       throw invalid("module does not export _start");
     }
@@ -154,7 +154,7 @@ final class WasmBinaries {
     if (memory != 0) {
       throw invalid(memory < 0 ? "module does not export memory" : "export memory is not memory 0");
     }
-    return imports.keySet();
+    return imports;
   }
 
   /** A value type in {@link WasiHost#SIGNATURES}' notation: i32 {@code i}, i64 {@code I}, else {@code ?}. */
@@ -364,29 +364,60 @@ final class WasmBinaries {
     }
 
     long u32() throws WasmException {
-      long v = u64();
-      if (v > 0xffffffffL || v < 0) {
-        throw invalid("integer too large");
-      }
-      return v;
+      return unsigned(32);
     }
 
     long u64() throws WasmException {
+      return unsigned(64);
+    }
+
+    /**
+     * An unsigned LEB128 integer of at most {@code bits} bits, in at most {@code ceil(bits / 7)}
+     * bytes, as the specification requires: a longer encoding, or bits set beyond {@code bits}
+     * in the last byte, is malformed (and would otherwise be rewritten into a valid module).
+     */
+    private long unsigned(int bits) throws WasmException {
       long result = 0;
-      for (int shift = 0; shift < 70; shift += 7) {
+      for (int shift = 0; ; shift += 7) {
         int x = u8();
-        result |= (long) (x & 0x7f) << shift;
+        int payload = x & 0x7f;
+        if (bits - shift < 7 && payload >>> (bits - shift) != 0) {
+          throw invalid("integer too large");
+        }
+        result |= (long) payload << shift;
         if ((x & 0x80) == 0) {
           return result;
         }
+        if (shift + 7 >= bits) {
+          throw invalid("integer representation too long");
+        }
       }
-      throw invalid("integer too long");
+    }
+
+    /** Skips a signed LEB128 integer of at most {@code bits} bits, checking its encoding. */
+    private void skipSigned(int bits) throws WasmException {
+      for (int shift = 0; ; shift += 7) {
+        int x = u8();
+        if (bits - shift < 7) {
+          // The last byte: its bits from the value's sign bit up must all be equal.
+          int high = (x & 0x7f) >> (bits - shift - 1);
+          if (high != 0 && high != 0x7f >> (bits - shift - 1)) {
+            throw invalid("integer too large");
+          }
+        }
+        if ((x & 0x80) == 0) {
+          return;
+        }
+        if (shift + 7 >= bits) {
+          throw invalid("integer representation too long");
+        }
+      }
     }
 
     int valueType() throws WasmException {
       int t = u8();
       if (t == 0x63 || t == 0x64) {
-        u64(); // heap type (s33); its LEB length is all that matters here
+        skipSigned(33); // heap type
       }
       return t;
     }

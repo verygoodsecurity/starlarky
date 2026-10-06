@@ -22,7 +22,9 @@ import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -44,6 +46,18 @@ final class GraalWasmProgram implements WasmRuntime.Program {
       Executors.newSingleThreadScheduledExecutor(
           r -> {
             Thread t = new Thread(r, "larky-wasm-graal-watchdog");
+            t.setDaemon(true);
+            return t;
+          });
+
+  /**
+   * Cancels runs for the watchdog: {@code Context.close(true)} waits for the guest to stop, and
+   * the one watchdog thread must not wait while it serves every other run.
+   */
+  private static final ExecutorService CANCELLER =
+      Executors.newCachedThreadPool(
+          r -> {
+            Thread t = new Thread(r, "larky-wasm-graal-cancel");
             t.setDaemon(true);
             return t;
           });
@@ -74,6 +88,12 @@ final class GraalWasmProgram implements WasmRuntime.Program {
 
   @Override
   public WasmRuntime.Result run(byte[] stdin, WasmRuntime.Limits limits)
+      throws WasmException, InterruptedException {
+    return GuestThreads.run(() -> runOnThisThread(stdin, limits));
+  }
+
+  /** Runs the guest on the calling thread, whose interrupt the watchdog also watches for. */
+  private WasmRuntime.Result runOnThisThread(byte[] stdin, WasmRuntime.Limits limits)
       throws WasmException, InterruptedException {
     if (Thread.interrupted()) {
       throw new InterruptedException();
@@ -114,11 +134,27 @@ final class GraalWasmProgram implements WasmRuntime.Program {
         // Closing a context that was cancelled reports that again.
       }
     }
+    return result(exitCode, failure, watch.interrupted, watch.timedOut, stdout, stderr, limits);
+  }
+
+  /**
+   * The outcome of a run once its context is closed: {@code failure} is what the guest threw (null
+   * if it returned or exited), {@code interrupted} and {@code timedOut} what the watchdog saw.
+   */
+  static WasmRuntime.Result result(
+      int exitCode,
+      PolyglotException failure,
+      boolean interrupted,
+      boolean timedOut,
+      CappedOutputStream stdout,
+      CappedOutputStream stderr,
+      WasmRuntime.Limits limits)
+      throws WasmException, InterruptedException {
     boolean stopped =
         failure != null
             && failure.isHostException()
             && failure.asHostException() instanceof WasiHost.Stop;
-    if (watch.interrupted || (stopped && Thread.currentThread().isInterrupted())) {
+    if (interrupted || (stopped && Thread.currentThread().isInterrupted())) {
       Thread.interrupted();
       throw new InterruptedException("WebAssembly run interrupted");
     }
@@ -128,7 +164,7 @@ final class GraalWasmProgram implements WasmRuntime.Program {
           "output exceeded " + limits.maxOutputBytes() + " bytes",
           failure);
     }
-    if (watch.timedOut || stopped || (failure != null && failure.isCancelled())) {
+    if (timedOut || stopped || (failure != null && failure.isCancelled())) {
       throw new WasmException(WasmException.Kind.TIMEOUT, "deadline exceeded", failure);
     }
     if (failure != null) {
@@ -140,6 +176,10 @@ final class GraalWasmProgram implements WasmRuntime.Program {
     if (limits.deadlineEpochMs() != 0 && System.currentTimeMillis() >= limits.deadlineEpochMs()) {
       // It finished after the deadline, before the watchdog's next check: still late.
       throw new WasmException(WasmException.Kind.TIMEOUT, "deadline exceeded");
+    }
+    if (Thread.interrupted()) {
+      // The guest thread was interrupted after the watchdog's last check.
+      throw new InterruptedException("WebAssembly run interrupted");
     }
     return new WasmRuntime.Result(exitCode, stdout.toByteArray(), stderr.toByteArray());
   }
@@ -195,21 +235,26 @@ final class GraalWasmProgram implements WasmRuntime.Program {
     return Map.of(GraalWasmRuntime.HOST_MODULE, ProxyObject.fromMap(functions));
   }
 
-  /** Cancels a run at its deadline, when it overflows its output, or when its caller is interrupted. */
+  /**
+   * Cancels a run at its deadline, when it overflows its output, or when its guest thread is
+   * interrupted (because its caller was).
+   */
   private static final class Watch implements Runnable {
     private final Context context;
-    private final Thread caller;
+    private final Thread guest;
     private final long deadline;
     private final CappedOutputStream stdout;
     private final CappedOutputStream stderr;
     private boolean finished;
+    /** The cancellation the watchdog started, if it started one. */
+    private CompletableFuture<Void> cancelling;
     volatile boolean timedOut;
     volatile boolean interrupted;
 
-    Watch(Context context, Thread caller, long deadline, CappedOutputStream stdout,
+    Watch(Context context, Thread guest, long deadline, CappedOutputStream stdout,
         CappedOutputStream stderr) {
       this.context = context;
-      this.caller = caller;
+      this.guest = guest;
       this.deadline = deadline;
       this.stdout = stdout;
       this.stderr = stderr;
@@ -220,7 +265,7 @@ final class GraalWasmProgram implements WasmRuntime.Program {
       if (finished) {
         return;
       }
-      if (caller.isInterrupted()) {
+      if (guest.isInterrupted()) {
         interrupted = true;
       } else if (deadline != 0 && System.currentTimeMillis() >= deadline) {
         timedOut = true;
@@ -228,15 +273,41 @@ final class GraalWasmProgram implements WasmRuntime.Program {
         return;
       }
       finished = true;
-      try {
-        context.close(true);
-      } catch (RuntimeException e) {
-        // Already closing or closed.
-      }
+      cancelling =
+          CompletableFuture.runAsync(
+              () -> {
+                try {
+                  context.close(true);
+                } catch (RuntimeException e) {
+                  // Already closing or closed.
+                }
+              },
+              CANCELLER);
     }
 
-    synchronized void finish() {
-      finished = true;
+    /** Stops watching; if the watchdog started a cancellation, waits for it to finish. */
+    void finish() {
+      CompletableFuture<Void> c;
+      synchronized (this) {
+        finished = true;
+        c = cancelling;
+      }
+      if (c != null) {
+        boolean interrupted = false;
+        while (true) {
+          try {
+            c.get();
+            break;
+          } catch (InterruptedException e) {
+            interrupted = true; // kept for run() to report
+          } catch (java.util.concurrent.ExecutionException e) {
+            break; // runAsync's task catches what close() throws
+          }
+        }
+        if (interrupted) {
+          Thread.currentThread().interrupt();
+        }
+      }
     }
   }
 }

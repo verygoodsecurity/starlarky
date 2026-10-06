@@ -58,6 +58,18 @@ final class GraalWasmRuntime implements WasmRuntime {
   }
 
   /**
+   * Checks that the shared engine has GraalWasm's language. Without it (the polyglot API but not
+   * {@code wasm-community} on the class path) the engine still starts, and every compile would
+   * throw {@link IllegalArgumentException}; failing here makes {@link WasmRuntime#byName} report a
+   * {@link WasmException} instead.
+   */
+  GraalWasmRuntime() {
+    if (!engine().getLanguages().containsKey("wasm")) {
+      throw new IllegalStateException("GraalWasm's wasm language is not on the class path");
+    }
+  }
+
+  /**
    * A context builder on the shared engine with nothing but the guest allowed. Every context on
    * one engine must use the same host access policy.
    */
