@@ -11,16 +11,24 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
+
+import com.google.common.collect.ImmutableMap;
 
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.CapturingConsole;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.FileConsole;
 import com.verygood.security.larky.console.LogConsole;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 import com.verygood.security.larky.parser.PrependMergedStarFile;
+import com.verygood.security.larky.parser.StarFile;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
@@ -83,6 +91,22 @@ public class LarkyEntrypoint implements Callable<Integer> {
   @CommandLine.Option(names = {"-d", "--debug"}, description="Verbose merged script")
   private boolean debug; //  boolean debug = commandLine.hasOption("d");
 
+  @CommandLine.Option(
+      names = {"--module"},
+      paramLabel = "NAME=PATH",
+      description =
+          "Ship the file at PATH with the evaluation under NAME, as a host service's"
+              + " larky.modules do: the script can load() it (NAME ending in .star) or read it by"
+              + " name (e.g. "
+              + "wasm.module(NAME)). Repeatable.")
+  private List<String> moduleArgs = new ArrayList<>();
+
+  @CommandLine.Spec
+  private CommandLine.Model.CommandSpec spec;
+
+  /** The name the script is evaluated under when no --script is given. */
+  static final String DEFAULT_SCRIPT_NAME = "larky.star";
+
 
   public static void main(String[] args) {
     if(args.length == 0) {
@@ -95,12 +119,79 @@ public class LarkyEntrypoint implements Callable<Integer> {
 
   @Override
   public Integer call() throws Exception {
-    execute();
+    ImmutableMap<String, byte[]> modules;
+    try {
+      modules = readModules(moduleArgs, scriptName(filePath));
+    } catch (IllegalArgumentException e) {
+      throw new CommandLine.ParameterException(spec.commandLine(), e.getMessage(), e);
+    }
+    execute(modules);
     return CommandLine.ExitCode.OK;
   }
 
+  /**
+   * Parses {@code --module NAME=PATH} arguments and reads each PATH's bytes, in argument order.
+   *
+   * @throws IllegalArgumentException if an argument is not NAME=PATH, a NAME repeats or is the
+   *     script's own name, or a file cannot be read
+   */
+  static ImmutableMap<String, byte[]> readModules(List<String> args, String scriptName) {
+    Map<String, byte[]> modules = new LinkedHashMap<>();
+    for (String arg : args) {
+      int eq = arg.indexOf('=');
+      if (eq <= 0 || eq == arg.length() - 1) {
+        throw new IllegalArgumentException(
+            String.format("--module expects NAME=PATH; got '%s'", arg));
+      }
+      String name = arg.substring(0, eq);
+      String path = arg.substring(eq + 1);
+      if (name.equals(scriptName)) {
+        throw new IllegalArgumentException(
+            String.format("--module %s: NAME is the script's own name", arg));
+      }
+      if (modules.containsKey(name)) {
+        throw new IllegalArgumentException(
+            String.format("--module %s: NAME '%s' is given more than once", arg, name));
+      }
+      try {
+        modules.put(name, Files.readAllBytes(Paths.get(path)));
+      } catch (IOException | RuntimeException e) {
+        throw new IllegalArgumentException(
+            String.format("--module %s: cannot read '%s' (%s)", arg, path, e), e);
+      }
+    }
+    return ImmutableMap.copyOf(modules);
+  }
+
+  /** The name of the script in the evaluation's file map: its file name. */
+  static String scriptName(String scriptPath) {
+    if (Strings.isNullOrEmpty(scriptPath) || scriptPath.trim().isEmpty()) {
+      return DEFAULT_SCRIPT_NAME;
+    }
+    Path fileName = Paths.get(scriptPath).getFileName();
+    return fileName == null ? DEFAULT_SCRIPT_NAME : fileName.toString();
+  }
+
+  /**
+   * The file the evaluation starts from. Without modules it is the merged script itself, as
+   * before; with modules it is an in-memory file map holding the merged script under {@code
+   * scriptName} next to each module, the same map a host service fills through {@code
+   * LarkyScriptEngine.MODULES}.
+   */
+  static StarFile rootStarFile(
+      PrependMergedStarFile merged, String scriptName, ImmutableMap<String, byte[]> modules)
+      throws IOException {
+    if (modules.isEmpty()) {
+      return merged;
+    }
+    ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
+    files.put(scriptName, merged.readContentBytes());
+    files.putAll(modules);
+    return new InMemMapBackedStarFile(files.buildOrThrow(), scriptName);
+  }
+
   @SneakyThrows
-  private void execute() {
+  private void execute(ImmutableMap<String, byte[]> modules) {
 
     Path tempdir =  Paths.get(System.getProperty("java.io.tmpdir"), "larky-runner");
     String timestamp = String.valueOf(System.currentTimeMillis());
@@ -133,7 +224,7 @@ public class LarkyEntrypoint implements Callable<Integer> {
     String output =
       new LarkyScript(StarlarkMode.STRICT)
         .executeSkylarkWithOutput(
-          prependMergedStarFile,
+          rootStarFile(prependMergedStarFile, scriptName(filePath), modules),
           new ModuleSupplier().create(),
           console
         ).toString();
