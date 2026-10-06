@@ -7,7 +7,8 @@ to WebAssembly and call it from your script.
 ## What a module is
 
 A module is a [WASI preview 1](https://github.com/WebAssembly/WASI/blob/main/legacy/preview1/docs.md)
-command: it exports `_start` and its `memory`. Every call starts a fresh instance, so nothing
+command: it exports `_start` and its `memory`, imports only WASI preview 1 functions (with their
+standard signatures), and has no start section. Every call starts a fresh instance, so nothing
 carries over from one call to the next.
 
 | What the module sees | Value |
@@ -21,6 +22,13 @@ carries over from one call to the next.
 | network | none |
 | clocks (`clock_time_get`) | always 0 |
 | `random_get` | secure random bytes |
+| every other WASI function (`poll_oneoff`, `clock_res_get`, files, sockets, ...) | returns `NOSYS` (52) without doing anything |
+
+The WASI functions that do something are `args_get`, `args_sizes_get`, `environ_get`,
+`environ_sizes_get`, `clock_time_get`, `random_get`, `fd_read` (stdin), `fd_write` (stdout and
+stderr), `fd_close`, `fd_fdstat_get`, `fd_seek` (ESPIPE), `fd_prestat_get` and
+`fd_prestat_dir_name` (EBADF: no preopens), `sched_yield` and `proc_exit`. A pointer or length
+outside the module's memory traps.
 
 Returning from `_start` exits with 0; `proc_exit(n)` exits with `n`.
 
@@ -31,6 +39,7 @@ Returning from `_start` exits with 0; `proc_exit(n)` exits with `n`.
 | Linear memory | 64 MiB (1024 pages) | a module whose initial memory is larger fails to start; `memory.grow` past the limit returns -1 |
 | stdout, and separately stderr | 1 MiB each | the call fails |
 | Run time | a deadline set by the caller | the call fails |
+| Module size | 8 MiB and 20,000 functions | the module is not valid |
 
 A trap (for example `unreachable` or an out-of-bounds access) also fails the call.
 
@@ -57,6 +66,11 @@ def encrypt_pan(pan, key):
 
 `larky-wasm` runs modules on [Endive](https://github.com/bytecodealliance/endive), a pure-JVM
 runtime; `larky-wasm/src/test` holds its conformance tests. `WasmRuntime` is the whole API.
+
+Endive interprets modules by default. `-Dlarky.wasm.endive.mode=compiler` compiles each module to
+JVM bytecode instead, which runs faster but costs time and Metaspace in proportion to the module
+before any deadline applies, and cannot be interrupted; use it only for modules you trust. A
+GraalVM native image cannot use it.
 
 ## Choosing the host functions
 

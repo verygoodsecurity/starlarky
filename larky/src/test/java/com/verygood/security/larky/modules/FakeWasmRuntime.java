@@ -25,7 +25,8 @@ import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A {@link WasmRuntime} for Larky's tests: a "module" is any bytes starting with {@code FAKE}. It
+ * A {@link WasmRuntime} for Larky's tests: a "module" is any bytes starting with {@code FAKE}
+ * (compiling one that starts with {@code FAKEslow} takes 200 ms). It
  * echoes stdin to stdout, except for the inputs below, which exit, fail or wait; its own error
  * messages are deliberately unlike Larky's.
  *
@@ -54,6 +55,13 @@ public final class FakeWasmRuntime implements WasmRuntime {
       throw new WasmException(Kind.INVALID_MODULE, "fake: bad magic");
     }
     COMPILES.incrementAndGet();
+    if (new String(wasm, UTF_8).startsWith("FAKEslow")) {
+      try {
+        Thread.sleep(200);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
     return FakeWasmRuntime::run;
   }
 

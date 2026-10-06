@@ -58,7 +58,7 @@ public class WasmModuleTest {
     System.clearProperty(WasmRuntime.PROPERTY);
     System.clearProperty(WasmModule.MAX_MEMORY_PROPERTY);
     System.clearProperty(WasmModule.MAX_OUTPUT_PROPERTY);
-    System.clearProperty(WasmModule.RANDOM_SEED_PROPERTY);
+    WasmModule.randomSeedForTests = null;
   }
 
   private static ParsedStarFile eval(String script, Map<String, Object> files, Long expirationMs)
@@ -245,13 +245,50 @@ public class WasmModuleTest {
   }
 
   @Test
-  public void limitsComeFromSystemProperties() throws Exception {
+  public void limitsComeFromSystemPropertiesAndTheSeedFromTests() throws Exception {
     System.setProperty(WasmModule.MAX_MEMORY_PROPERTY, "65536");
     System.setProperty(WasmModule.MAX_OUTPUT_PROPERTY, "99");
-    System.setProperty(WasmModule.RANDOM_SEED_PROPERTY, "42");
+    WasmModule.randomSeedForTests = 42L;
     ParsedStarFile result = eval("out = wasm.loads(b'FAKE').run(b'limits')");
     assertThat(new String(out(result, StarlarkBytes.class).toByteArray(), UTF_8))
         .isEqualTo("65536 99 42");
+  }
+
+  @Test
+  public void concurrentFirstUsesOfAModuleCompileItOnce() throws Exception {
+    int before = FakeWasmRuntime.COMPILES.get();
+    int threads = 16;
+    java.util.concurrent.ExecutorService pool =
+        java.util.concurrent.Executors.newFixedThreadPool(threads);
+    try {
+      java.util.concurrent.CountDownLatch go = new java.util.concurrent.CountDownLatch(1);
+      java.util.List<java.util.concurrent.Future<?>> runs = new java.util.ArrayList<>();
+      for (int i = 0; i < threads; i++) {
+        runs.add(
+            pool.submit(
+                () -> {
+                  go.await();
+                  eval("out = wasm.loads(b'FAKEslow-once').run(b'x')");
+                  return null;
+                }));
+      }
+      go.countDown();
+      for (java.util.concurrent.Future<?> run : runs) {
+        run.get(30, java.util.concurrent.TimeUnit.SECONDS);
+      }
+    } finally {
+      pool.shutdownNow();
+    }
+    assertThat(FakeWasmRuntime.COMPILES.get() - before).isEqualTo(1);
+  }
+
+  @Test
+  public void stderrInErrorsIsCleanedAndCutAtACharacterBoundary() {
+    assertThat(WasmModule.stderrForError("a\u0000b\u001b[31mc\n\td".getBytes(UTF_8)))
+        .isEqualTo("a\ufffdb\ufffd[31mc\n\td");
+    // 1,023 ASCII bytes and a two-byte character: the 1,024-byte cut would split it.
+    byte[] text = ("x".repeat(1023) + "\u00e9").getBytes(UTF_8);
+    assertThat(WasmModule.stderrForError(text)).isEqualTo("x".repeat(1023));
   }
 
   @Test

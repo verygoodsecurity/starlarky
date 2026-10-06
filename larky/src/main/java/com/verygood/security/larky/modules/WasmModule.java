@@ -56,8 +56,10 @@ public final class WasmModule implements StarlarkValue {
 
   static final String MAX_MEMORY_PROPERTY = "larky.wasm.maxMemoryBytes";
   static final String MAX_OUTPUT_PROPERTY = "larky.wasm.maxOutputBytes";
-  static final String RANDOM_SEED_PROPERTY = "larky.wasm.randomSeed";
   static final String PROGRAM_CACHE_SIZE_PROPERTY = "larky.wasm.programCache.size";
+
+  /** A seed for every run's random_get, for tests only; null reads a SecureRandom. */
+  @com.google.common.annotations.VisibleForTesting static volatile Long randomSeedForTests;
 
   private static final int MAX_STDERR_IN_ERROR = 1024;
 
@@ -115,16 +117,13 @@ public final class WasmModule implements StarlarkValue {
       throw new EvalException(e.getMessage()); // e.g. "no WebAssembly runtime named 'x'"
     }
     String key = runtime.name() + ":" + Hashing.sha256().hashBytes(wasm);
-    WasmRuntime.Program program = PROGRAMS.getIfPresent(key);
-    if (program == null) {
-      try {
-        program = runtime.compile(wasm);
-      } catch (WasmException e) {
-        throw new EvalException(String.format("wasm module '%s' is not a valid WASI module", name));
-      }
-      PROGRAMS.put(key, program);
+    try {
+      // One compile per module even when many evaluations ask for it at once.
+      return PROGRAMS.get(key, () -> runtime.compile(wasm));
+    } catch (java.util.concurrent.ExecutionException
+        | com.google.common.util.concurrent.UncheckedExecutionException e) {
+      throw new EvalException(String.format("wasm module '%s' is not a valid WASI module", name));
     }
-    return program;
   }
 
   /** A compiled module, as {@code wasm.module} and {@code wasm.loads} return it. */
@@ -190,7 +189,7 @@ public final class WasmModule implements StarlarkValue {
               // The thread expires once its clock is past expirationMs; a run stops at its deadline.
               expirationMs == Long.MAX_VALUE ? 0 : expirationMs + 1,
               Integer.getInteger(MAX_OUTPUT_PROPERTY, WasmRuntime.Limits.DEFAULT_MAX_OUTPUT_BYTES),
-              Long.getLong(RANDOM_SEED_PROPERTY));
+              randomSeedForTests);
       WasmRuntime.Result result;
       try {
         result = program.run(stdin, limits);
@@ -198,11 +197,9 @@ public final class WasmModule implements StarlarkValue {
         throw error(e, limits, thread);
       }
       if (result.exitCode() != 0) {
-        byte[] stderr = result.stderr();
-        String message =
-            new String(stderr, 0, Math.min(stderr.length, MAX_STDERR_IN_ERROR), UTF_8);
         throw Starlark.errorf(
-            "wasm module '%s' exited with code %d: %s", name, result.exitCode(), message);
+            "wasm module '%s' exited with code %d: %s",
+            name, result.exitCode(), stderrForError(result.stderr()));
       }
       return result.stdout();
     }
@@ -245,5 +242,30 @@ public final class WasmModule implements StarlarkValue {
   /** For tests: forgets every compiled program. */
   static void clearProgramCache() {
     PROGRAMS.invalidateAll();
+  }
+
+  /**
+   * The start of a module's stderr for an error message: at most {@link #MAX_STDERR_IN_ERROR}
+   * bytes, cut at a character boundary, with control characters other than newline and tab
+   * replaced.
+   */
+  static String stderrForError(byte[] stderr) {
+    int length = Math.min(stderr.length, MAX_STDERR_IN_ERROR);
+    // Do not cut a UTF-8 sequence: back up over continuation bytes and the lead byte.
+    if (length < stderr.length) {
+      int cut = length;
+      while (cut > 0 && (stderr[cut] & 0xc0) == 0x80) {
+        cut--;
+      }
+      length = cut;
+    }
+    String text = new String(stderr, 0, length, UTF_8);
+    StringBuilder clean = new StringBuilder(text.length());
+    text.codePoints()
+        .forEach(
+            c ->
+                clean.appendCodePoint(
+                    Character.isISOControl(c) && c != '\n' && c != '\t' ? 0xfffd : c));
+    return clean.toString();
   }
 }
