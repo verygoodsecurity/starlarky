@@ -105,8 +105,9 @@ Get the plugin either way:
   mv javy-plugin-nosimd-v9.1.0.wasm plugin-nosimd.wasm
   ```
 - **Build it** from Javy's source: `larky-wasm/tools/build-javy-plugin.sh plugin-nosimd.wasm`.
-  It needs curl, git and clang (with libclang); it downloads the Javy CLI (checking its SHA-256)
-  and installs Rust into a temporary directory, not `~/.cargo`. It takes a few minutes.
+  It needs curl, git and clang (with libclang). It downloads the Javy CLI and rustup-init,
+  checking each against a SHA-256 pinned in the script, checks out Javy's source at its pinned
+  commit, and installs Rust into a temporary directory, not `~/.cargo`. It takes a few minutes.
 
 Notes:
 
