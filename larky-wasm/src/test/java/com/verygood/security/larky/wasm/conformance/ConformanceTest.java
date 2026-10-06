@@ -229,6 +229,12 @@ public class ConformanceTest {
   }
 
   @Test
+  public void clocksWasiDoesNotDefineAreInval() throws Exception {
+    // EINVAL (28) for clock ids 4 and -1, and nothing written.
+    assertOutput(run("clock_badid", ""), 2828, "", "");
+  }
+
+  @Test
   public void seededRandomIsSplittableRandomLeastSignificantByteFirst() throws Exception {
     // The bytes of new SplittableRandom(seed).nextLong(), least significant first, twice.
     assertOutput(run("random", "", seeded(42)), 0, "956eeb2f2632d7bd03f166b233e3ef28", "");
@@ -361,6 +367,74 @@ public class ConformanceTest {
     assertThat(thread.isAlive()).isFalse();
     assertThat(thrown.get()).isInstanceOf(InterruptedException.class);
     assertWithMessage("milliseconds from interrupt to return").that(elapsedMs).isLessThan(2000L);
+  }
+
+  @Test
+  public void aCallerInterruptIsNeverLostToTheDeadline() throws Exception {
+    // The caller is interrupted around the moment the deadline passes. Whichever comes first, the
+    // caller must see its interrupt: as an InterruptedException, or still set afterwards.
+    WasmRuntime.Program program = runtime.compile(Fixtures.wasm("spin"));
+    java.util.Random random = new java.util.Random(7);
+    for (int i = 0; i < 30; i++) {
+      long deadlineMs = 20;
+      long interruptAtNanos = TimeUnit.MILLISECONDS.toNanos(deadlineMs - 5) + random.nextInt(10_000_000);
+      Thread caller = Thread.currentThread();
+      long start = System.nanoTime();
+      Thread interrupter =
+          new Thread(
+              () -> {
+                while (System.nanoTime() - start < interruptAtNanos) {
+                  Thread.onSpinWait();
+                }
+                caller.interrupt();
+              });
+      interrupter.start();
+      boolean interruptedException = false;
+      try {
+        program.run(new byte[0], deadlineIn(deadlineMs));
+      } catch (InterruptedException e) {
+        interruptedException = true;
+      } catch (WasmException e) {
+        assertThat(e.kind()).isEqualTo(Kind.TIMEOUT);
+      }
+      // The interrupt may also come after the run, while waiting here.
+      boolean interruptedAfter = false;
+      while (true) {
+        try {
+          interrupter.join();
+          break;
+        } catch (InterruptedException e) {
+          interruptedAfter = true;
+        }
+      }
+      interruptedAfter |= Thread.interrupted();
+      assertWithMessage("run %s: InterruptedException, or the interrupt after the run", i)
+          .that(interruptedException || interruptedAfter)
+          .isTrue();
+    }
+  }
+
+  @Test
+  public void deepNestingDoesNotDependOnTheCallersStack() throws Exception {
+    // 1,000 nested calls: more than a 256 KiB stack holds, on any runtime.
+    WasmRuntime.Program program = runtime.compile(Fixtures.wasm("nest"));
+    byte[] depth = java.nio.ByteBuffer.allocate(4).order(java.nio.ByteOrder.LITTLE_ENDIAN).putInt(1000).array();
+    AtomicReference<Object> outcome = new AtomicReference<>();
+    Thread small =
+        new Thread(
+            null,
+            () -> {
+              try {
+                outcome.set(program.run(depth, WasmRuntime.Limits.defaults()).exitCode());
+              } catch (Throwable t) {
+                outcome.set(t);
+              }
+            },
+            "small-stack",
+            256 << 10);
+    small.start();
+    small.join();
+    assertThat(outcome.get()).isEqualTo(0);
   }
 
   @Test

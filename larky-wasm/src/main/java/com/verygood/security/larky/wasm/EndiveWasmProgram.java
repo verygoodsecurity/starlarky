@@ -61,47 +61,68 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
   @Override
   public WasmRuntime.Result run(byte[] stdin, WasmRuntime.Limits limits)
       throws WasmException, InterruptedException {
-    if (Thread.interrupted()) {
-      throw new InterruptedException();
-    }
+    return GuestThreads.run(() -> runOnThisThread(stdin, limits));
+  }
+
+  /** Runs the guest on the calling thread, which the deadline interrupts. */
+  private WasmRuntime.Result runOnThisThread(byte[] stdin, WasmRuntime.Limits limits)
+      throws WasmException, InterruptedException {
     MemoryLimits memoryLimits = memoryLimits(limits);
     CappedOutputStream stdout = new CappedOutputStream("stdout", limits.maxOutputBytes());
     CappedOutputStream stderr = new CappedOutputStream("stderr", limits.maxOutputBytes());
     WasiHost wasi =
         new WasiHost(stdin, stdout, stderr, limits.randomSeed(), limits.deadlineEpochMs());
 
+    Instance.Builder builder =
+        Instance.builder(module)
+            .withImportValues(imports(wasi))
+            .withMemoryLimits(memoryLimits)
+            .withStart(false);
+    if (machineFactory != null) {
+      builder.withMachineFactory(machineFactory);
+    }
     Deadline deadline = Deadline.start(Thread.currentThread(), limits.deadlineEpochMs());
+    int exitCode;
     try {
-      Instance.Builder builder =
-          Instance.builder(module)
-              .withImportValues(imports(wasi))
-              .withMemoryLimits(memoryLimits)
-              .withStart(false);
-      if (machineFactory != null) {
-        builder.withMachineFactory(machineFactory);
-      }
-      int exitCode;
-      try {
-        Instance instance = builder.build();
-        instance.export("_start").apply();
-        exitCode = 0;
-      } catch (WasiHost.ProcExit e) {
-        exitCode = e.code;
-      } catch (RuntimeException | StackOverflowError e) {
-        throw failure(e, deadline, stdout, stderr);
-      }
-      if (stdout.exceeded() || stderr.exceeded()) {
-        // In case a WASI call swallowed OutputLimitExceeded instead of letting it unwind.
-        throw new WasmException(Kind.OUTPUT_LIMIT, "output exceeded " + limits.maxOutputBytes());
-      }
-      if (deadline.fired()) {
-        // The deadline passed before the guest saw the interrupt; a late finish is still late.
-        throw new WasmException(Kind.TIMEOUT, "WebAssembly run exceeded its deadline");
-      }
-      return new WasmRuntime.Result(exitCode, stdout.toByteArray(), stderr.toByteArray());
+      Instance instance = builder.build();
+      instance.export("_start").apply();
+      exitCode = 0;
+    } catch (WasiHost.ProcExit e) {
+      exitCode = e.code;
+    } catch (RuntimeException | StackOverflowError e) {
+      // Stop the watchdog first, so an interrupt seen from here on is not the deadline's.
+      deadline.finish();
+      throw failure(e, deadline, stdout, stderr);
     } finally {
       deadline.finish();
     }
+    return result(exitCode, deadline, stdout, stderr, limits.maxOutputBytes());
+  }
+
+  /**
+   * The result of a run that returned or exited, once its {@link Deadline} is finished: a run
+   * that overran its output limit or deadline still fails, and an interrupt that arrived after the
+   * guest's last interrupt check is still an {@link InterruptedException}.
+   */
+  static WasmRuntime.Result result(
+      int exitCode,
+      Deadline deadline,
+      CappedOutputStream stdout,
+      CappedOutputStream stderr,
+      int maxOutputBytes)
+      throws WasmException, InterruptedException {
+    if (stdout.exceeded() || stderr.exceeded()) {
+      // In case a WASI call swallowed OutputLimitExceeded instead of letting it unwind.
+      throw new WasmException(Kind.OUTPUT_LIMIT, "output exceeded " + maxOutputBytes);
+    }
+    if (deadline.fired() || deadline.passed()) {
+      // A late finish is still late, even if the watchdog had not fired yet.
+      throw new WasmException(Kind.TIMEOUT, "WebAssembly run exceeded its deadline");
+    }
+    if (Thread.interrupted()) {
+      throw new InterruptedException("WebAssembly run interrupted");
+    }
+    return new WasmRuntime.Result(exitCode, stdout.toByteArray(), stderr.toByteArray());
   }
 
   /** An instance with empty stdin and no room for output, for tests to inspect. */
@@ -136,6 +157,7 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
     return new MemoryLimits(declaredMemory.initialPages(), maximum, declaredMemory.shared());
   }
 
+  /** Classifies a run that threw, once its {@link Deadline} is finished. */
   private static WasmException failure(
       Throwable e, Deadline deadline, CappedOutputStream stdout, CappedOutputStream stderr)
       throws InterruptedException {
@@ -220,30 +242,35 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
   }
 
   /**
-   * Interrupts the running thread at the deadline. {@link #finish} makes sure an interrupt meant
-   * for this run never outlives it.
+   * Interrupts the running thread (a {@link GuestThreads} thread) at the deadline. {@link #finish}
+   * makes sure an interrupt meant for this run never outlives it.
    */
   static final class Deadline {
     private static final int RUNNING = 0;
     private static final int FINISHED = 1;
     private static final int FIRED = 2;
-    private static final Deadline NONE = new Deadline(null);
+    static final Deadline NONE = new Deadline(null, 0);
 
     private final Thread thread;
+    private final long epochMs;
     private final AtomicInteger state = new AtomicInteger(RUNNING);
     private volatile ScheduledFuture<?> task;
     /** Set once the watchdog has called interrupt(). */
     private volatile boolean delivered;
+    /** Set by the running thread's first {@link #finish}. */
+    private boolean finished;
 
-    private Deadline(Thread thread) {
+    /** A deadline that has not been scheduled; {@link #start} schedules one. */
+    Deadline(Thread thread, long epochMs) {
       this.thread = thread;
+      this.epochMs = epochMs;
     }
 
     static Deadline start(Thread thread, long deadlineEpochMs) {
       if (deadlineEpochMs == 0) {
         return NONE;
       }
-      Deadline deadline = new Deadline(thread);
+      Deadline deadline = new Deadline(thread, deadlineEpochMs);
       long delay = deadlineEpochMs - System.currentTimeMillis();
       if (delay <= 0) {
         deadline.fire();
@@ -260,15 +287,25 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
       }
     }
 
+    /** Whether the watchdog interrupted the thread. */
     boolean fired() {
       return thread != null && state.get() == FIRED;
     }
 
-    /** Stops the watchdog; if it fired, waits for its interrupt and clears it. */
+    /** Whether the deadline has passed, whether or not the watchdog has fired yet. */
+    boolean passed() {
+      return epochMs != 0 && System.currentTimeMillis() >= epochMs;
+    }
+
+    /**
+     * Stops the watchdog; if it fired, waits for its interrupt and clears it. Called by the
+     * running thread; later calls do nothing.
+     */
     void finish() {
-      if (thread == null) {
+      if (thread == null || finished) {
         return;
       }
+      finished = true;
       if (state.compareAndSet(RUNNING, FINISHED)) {
         ScheduledFuture<?> t = task;
         if (t != null) {
