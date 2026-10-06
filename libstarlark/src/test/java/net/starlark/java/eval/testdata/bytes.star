@@ -89,6 +89,10 @@ assert_eq(b"goodbye", goodbye)
 assert_lt(b"abc", b"abd")
 assert_lt(b"abc", b"abcd")
 assert_lt(b"\x7f", b"\x80") # bytes compare as uint8, not int8
+assert_lt(b"A"[0], b"\xe4"[0]) # and so do their elements
+assert_lt(b"\xe4"[0], b"\xff"[0])
+assert_lt(b"\x00"[0], b"A"[0])
+assert_eq(sorted([b"\xe4"[0], b"A"[0], b"\xff"[0], b"\x00"[0]]), [0, 0x41, 0xe4, 0xff])
 
 # bytes are dict-hashable
 dict = {hello: 1, goodbye: 2}
@@ -101,11 +105,50 @@ assert_eq(hash(b"") & 0xffffffff, 0x811c9dc5)
 assert_eq(hash(b"a") & 0xffffffff, 0xe40c292c)
 assert_eq(hash(b"ab") & 0xffffffff, 0x4d2505ca)
 assert_eq(hash(b"abc") & 0xffffffff, 0x1a47e90b)
+# Bytes >= 0x80 must not be sign-extended.
+assert_eq(hash(b"\xe4") & 0xffffffff, 0x610b5af3)
+assert_eq(hash(b"\xff\x00\x80") & 0xffffffff, 0xa36cd47e)
+assert_eq(hash(hello) & 0xffffffff, 0xc5f68969)
 
 # indexing
-assert_eq(goodbye[0], b"g")
-assert_eq(goodbye[-1], b"e")
+# VGS: indexing yields the byte's int, as the spec says (starlark-go yields a 1-byte bytes).
+assert_eq(goodbye[0], 103)
+assert_eq(goodbye[-1], 101)
 assert_fails(lambda: goodbye[100], "out of range")
+assert_eq(b"A\xe4"[-1], 228)
+assert_eq(type(goodbye[0]), "int")
+
+# VGS: iteration yields ints too, as in Python, so every way of reading one
+# element of a bytes yields the same int.
+ab = b"A\xe4"
+assert_eq([c for c in ab], [65, 228])
+assert_eq([type(c) for c in ab], ["int", "int"])
+assert_eq(list(ab), [65, 228])
+assert_eq(tuple(ab), (65, 228))
+assert_eq(sorted(b"BA"), [65, 66])
+assert_eq(list(enumerate(ab)), [(0, 65), (1, 228)])
+assert_eq(list(zip(ab, b"xy")), [(65, 120), (228, 121)])
+assert_eq(max(ab), 228)
+assert_eq(min(ab), 65)
+assert_eq(any(b"\x00"), False)
+assert_eq(all(b"\x01\x02"), True)
+assert_eq(list(reversed(ab)), [228, 65])
+x, y = ab
+assert_eq((x, y), (65, 228))
+assert_eq((lambda *a: a)(*ab), (65, 228))
+
+# Indexed and iterated elements are the same dict key.
+table = {v: i for i, v in enumerate(b"ABC")}
+assert_eq([table[c] for c in b"CAB"], [2, 0, 1])
+assert_eq(table[b"CAB"[0]], 2)
+assert_eq(len(set([b"A"[0], 65] + list(b"A"))), 1)
+
+# An element is an int, not a bytes.
+assert_ne(ab[0], b"A")
+assert_eq(ab[0] + 1, 66)
+assert_eq(bytes([ab[0], ab[1]]), ab)
+assert_eq(bytes(list(ab)), ab)
+assert_fails(lambda: ab[0] + b"x", "unsupported binary operation: int \\+ bytes")
 
 # slicing
 assert_eq(goodbye[:4], b"good")
@@ -113,6 +156,37 @@ assert_eq(goodbye[4:], b"bye")
 assert_eq(goodbye[::2], b"gobe")
 assert_eq(goodbye[3:4], b"d")  # special case: len=1
 assert_eq(goodbye[4:4], b"")  # special case: len=0
+
+# concatenation (from starlark-go's bytes.star, google/starlark-go#648)
+# The compiler folds sums of adjacent bytes literals, so each case below keeps at
+# least one operand dynamic to exercise the interpreter instead.
+def concat(x, y):
+    return x + y
+
+assert_eq(concat(b"abc", b"def"), b"abc" + b"def")  # both paths must agree
+assert_eq(goodbye + b"!", b"goodbye!")
+assert_eq(b"good" + goodbye[4:], goodbye)
+assert_eq(b"[" + goodbye + b"]", b"[goodbye]")
+assert_eq(goodbye + empty, goodbye)
+assert_eq(empty + goodbye, goodbye)
+
+# Concatenation joins bytes, not text: no UTF-8 validation or U+FFFD replacement.
+assert_eq(concat(b"\xed\xb0", b"\x80"), b"\xed\xb0\x80")
+assert_eq(concat(hello[:-1], hello[-1:]), hello)  # split mid-code-point
+
+def inplace():
+    x = goodbye
+    x += b"!"
+    return x
+
+assert_eq(inplace(), b"goodbye!")
+
+# Text and binary strings do not mix. (starlark-go says "unknown binary op".)
+assert_fails(lambda: goodbye + "!", "unsupported binary operation: bytes \\+ string")
+assert_fails(lambda: "!" + goodbye, "unsupported binary operation: string \\+ bytes")
+# Nor do lists (a VGS case; Python rejects these too).
+assert_fails(lambda: [1] + goodbye, "unsupported binary operation: list \\+ bytes")
+assert_fails(lambda: goodbye + [1], "unsupported binary operation: bytes \\+ list")
 
 # bytes in bytes
 assert_eq(b"bc" in b"abcd", True)
@@ -127,14 +201,59 @@ assert_fails(lambda: -1 in b"abc", "int in bytes: -1 out of range")
 
 # ord   TODO(adonovan): specify
 assert_eq(ord(b"a"), 97)
+assert_eq(ord(b"\xe4"), 228)
 assert_fails(lambda: ord(b"ab"), "ord: bytes has length 2, want 1")
 assert_fails(lambda: ord(b""), "ord: bytes has length 0, want 1")
+# VGS: ord(string) is the code point, as in Python.
+assert_eq(ord("a"), 97)
+assert_eq(ord("\x7f"), 127)
+assert_eq(ord("é"), 233)
+assert_eq(ord("€"), 8364)
+assert_eq(ord("世"), 19990)
+assert_eq(ord("😿"), 128575)  # one code point, two UTF-16 chars
+assert_fails(lambda: ord("ab"), "ord: string has length 2, want 1")
+assert_fails(lambda: ord(""), "ord: string has length 0, want 1")
+# VGS: scripts wrote ord(b[i]) when b[i] was a 1-byte bytes; that keeps working.
+assert_eq(ord(ab[0]), 65)
+assert_eq(ord(ab[1]), 228)
+assert_fails(lambda: ord(256), "ord: int 256 out of range")
+assert_fails(lambda: ord(-1), "ord: int -1 out of range")
+
+# VGS: an empty needle (these used to loop forever) and count's slice bounds, as in Python.
+assert_eq(b"abc".count(b""), 4)
+assert_eq(b"abc".count(b"", 3), 1)
+assert_eq(b"abc".count(b"", 4), 0)
+assert_eq(b"abc".count(b"", 2, 1), 0)
+assert_eq(b"abc".count(b"", -1), 2)
+assert_eq(b"abc".count(b"", -10), 4)
+assert_eq(b"abcb".count(b"b", -2), 1)
+assert_eq(b"aaaa".count(b"aa"), 2)
+assert_eq(b"abcabc".count(b"bc", 1, 5), 1)
+assert_eq(b"abc".count(b"c", 0, -1), 0)
+assert_eq(b"abc".replace(b"", b"x"), b"xaxbxcx")
+assert_eq(b"abc".replace(b"", b"x", 2), b"xaxbc")
+assert_eq(b"".replace(b"", b"x"), b"x")
+assert_eq(b"abab".replace(b"ab", b"x", 1), b"xab")
+assert_fails(lambda: b"abc".split(b""), "empty separator")
+assert_fails(lambda: b"abc".rsplit(b""), "empty separator")
+assert_fails(lambda: b"abc".partition(b""), "empty separator")
+assert_fails(lambda: b"abc".rpartition(b""), "empty separator")
+
+# VGS: whitespace is exactly b" \t\n\r\x0b\x0c", as in Python; NUL and bytes >= 0x80
+# (e.g. \xa0) are not.
+assert_eq([i for i in range(256) if bytes([i]).isspace()], [9, 10, 11, 12, 13, 32])
+assert_eq(b"\x00ab\x80".strip(), b"\x00ab\x80")
+assert_eq(b" \t\n\x0b\x0c\rab\r\n ".strip(), b"ab")
+assert_eq(b"\xa0ab\xe0".lstrip(), b"\xa0ab\xe0")
+assert_eq(b"\xa0ab\xe0".rstrip(), b"\xa0ab\xe0")
+assert_eq(b"a\x00b \xa0c".split(), [b"a\x00b", b"\xa0c"])
+assert_eq(b"a\x85b\x0bc".rsplit(), [b"a\x85b", b"c"])
 
 # repeat (bytes * int)
 assert_eq(goodbye * 3, b"goodbyegoodbyegoodbye")
 assert_eq(3 * goodbye, b"goodbyegoodbyegoodbye")
 
-# elems() returns an iterable value over 1-byte substrings.
+# elems() returns an iterable value over the bytes' ints.
 assert_eq(type(hello.elems()), "bytes.elems")
 assert_eq(str(hello.elems()), "b\"hello, 世界\".elems()")
 assert_eq(list(hello.elems()), [104, 101, 108, 108, 111, 44, 32, 228, 184, 150, 231, 149, 140])

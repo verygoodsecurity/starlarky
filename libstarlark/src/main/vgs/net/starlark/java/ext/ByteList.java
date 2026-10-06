@@ -87,14 +87,15 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
       "\u0009" + (char) 0x0A + "\u000B" + "\u000C" + (char) 0x0D + "\u0020"
     ).getBytes(StandardCharsets.US_ASCII);
 
+    /** Whether the byte {@code ch} (signed or unsigned) is ASCII whitespace, as in Python. */
     @Override
     public boolean test(int ch) {
-      if (ch > 0x0020) return false;
-      long isspace = 1;
-      for (byte b : PY_CTF_SPACE) {
-        isspace |= (1L << b);
+      switch (ch & 0xFF) {
+        case 0x09: case 0x0A: case 0x0B: case 0x0C: case 0x0D: case 0x20:
+          return true;
+        default:
+          return false;
       }
-      return ((isspace >> ch) & 1L) != 0;
     }
   }
 
@@ -931,45 +932,38 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
     return count(ByteList.wrap(sub), start, end);
   }
 
+  /**
+   * Counts non-overlapping occurrences of {@code sub} in {@code [start, end)}, where start and
+   * end are interpreted as in a Python slice (negative values count from the end).
+   */
   public int count(ByteList sub, int start, int end) {
     if (sub == null) {
       throw new IllegalArgumentException("argument should be integer or bytes-like object, not 'null'");
     }
     final int length = size();
     final int sublength = sub.size();
-
-    //If the sub string is longer than the value string a match cannot exist
-    if (length < sublength) {
+    int s = start < 0 ? Math.max(0, start + length) : start;
+    int e = end < 0 ? Math.max(0, end + length) : Math.min(end, length);
+    if (s > length || s > e) {
       return 0;
     }
-    //Clamp value to negative positive range of indices
-    int istart = Math.max(-length, Math.min(length, start));
-    int iend = Math.max(-length, Math.min(length, end));
-    //Compute wrapped index for negative values(Python modulo operation)
-    if (istart < 0) {
-      istart = ((istart % length) + length) % length;
+    if (sublength == 0) {
+      return e - s + 1; // "" occurs before each byte and at the end, as in Python
     }
-    if (iend < 0) {
-      iend = ((iend % length) + length) % length;
-    }
-
     int count = 0;
-    boolean found_match;
-    //iend-sub.length+1 accounts for the inner loop comparison to
-    //  end comparisons at (i+j)==iend
-    for (int i = istart; i < ((iend - sublength) + 1); i++) {
-      found_match = true;
+    for (int i = s; i + sublength <= e; ) {
+      boolean match = true;
       for (int j = 0; j < sublength; j++) {
         if (get(i + j) != sub.get(j)) {
-          found_match = false;
+          match = false;
           break;
         }
       }
-      if (found_match) {
+      if (match) {
         count++;
-        //skip ahead by the length of the sub_array (-1 to account for i++ in outer loop)
-        //this consumes the match from the value array
-        i += sublength - 1;
+        i += sublength; // consume the match
+      } else {
+        i++;
       }
     }
     return count;
@@ -1101,6 +1095,21 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
   }
 
   public ByteList replace(ByteList oldBytes, ByteList newBytes, int count) {
+    if (oldBytes.isEmpty()) {
+      // As in Python: insert newBytes before each byte and at the end, at most count times.
+      ByteList out = new ByteList(size());
+      int n = 0;
+      for (int k = 0; k <= size(); k++) {
+        if (n < count) {
+          out.addAll(out.size(), newBytes);
+          n++;
+        }
+        if (k < size()) {
+          out.addValue(out.size(), get(k));
+        }
+      }
+      return out;
+    }
     int i, j, pos, maxcount = count, subLen = oldBytes.size(), repLen = newBytes.size();
     final ByteList replacement = new ByteList(size() + (repLen * size()));
     int resultLen = 0;

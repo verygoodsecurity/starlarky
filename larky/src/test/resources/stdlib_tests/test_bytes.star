@@ -55,7 +55,8 @@ def _test_bytes_vs_string():
         len(simplestr[0]) == 1,
     ]))
     # for bytes
-    # b[0] will be an integer in python, but in starlark, it is the first byte
+    # b[0] is the first byte's int, as in python; ord() of it still works
+    asserts.assert_that(sliced[0]).is_equal_to(104)
     asserts.assert_that(ord(sliced[0])).is_equal_to(104)
     # while b[0:1] will be a bytes object of length 1.
     asserts.assert_that(sliced[0:1]).is_equal_to(b'h')
@@ -75,6 +76,18 @@ def _test_bytes_construction():
     asserts.assert_fails(lambda: builtins.bytes(1),
                          "want string, bytes.*or iterable")
     asserts.assert_that(builtins.bytes([65, 66, 67])).is_equal_to(b("ABC"))
+    asserts.assert_that(builtins.bytes((65, 66, 67))).is_equal_to(b("ABC"))
+    asserts.assert_that(builtins.bytes(range(65, 68))).is_equal_to(b("ABC"))
+    asserts.assert_that(builtins.bytes(b("ABC").elems())).is_equal_to(b("ABC"))
+    asserts.assert_that(builtins.bytes({65: None, 66: None})).is_equal_to(b("AB"))
+    asserts.assert_that(builtins.bytes(())).is_equal_to(b(""))
+    asserts.assert_that(builtins.bytes(builtins.bytearray(b("AB")))).is_equal_to(b("AB"))
+    asserts.assert_that(builtins.bytearray((65, 66))).is_equal_to(builtins.bytearray(b("AB")))
+    asserts.assert_that(builtins.bytearray(range(65, 67))).is_equal_to(builtins.bytearray(b("AB")))
+    asserts.assert_fails(lambda: builtins.bytes((65, "B")),
+                 "at index 1 of tuple, got element of type string, want int")
+    asserts.assert_fails(lambda: builtins.bytes(range(250, 260)),
+                 "256 out of range .+want value in unsigned 8-bit range")
     asserts.assert_that(builtins.bytes([0xf0, 0x9f, 0x98, 0xbf])).is_equal_to(b("😿"))
     asserts.assert_fails(lambda: builtins.bytes([300]),
                   "300 out of range .+want value in unsigned 8-bit range")
@@ -283,6 +296,50 @@ def _test_skip_unescape_encode():
 # - str(int) - format number as decimal.
 
 
+def _test_bytearray_results_are_independent_bytearrays():
+    # As in Python, a bytearray method returns a new bytearray with its own bytes. They used to be
+    # bytes sharing the bytearray's buffer, so changing the bytearray changed a "bytes" value,
+    # even one already used as a dict key.
+    ba = builtins.bytearray(b("abc"))
+    sliced = ba[:]
+    stepped = ba[::2]
+    upper = ba.upper()
+    ba[0] = 120
+    asserts.assert_that(sliced).is_equal_to(b("abc"))
+    asserts.assert_that(stepped).is_equal_to(b("ac"))
+    asserts.assert_that(upper).is_equal_to(b("ABC"))
+    asserts.assert_that(type(sliced)).is_equal_to("bytearray")
+    asserts.assert_fails(lambda: {sliced: 1}, ".*unhashable type: 'bytearray'")
+
+    ba = builtins.bytearray(b("  ab  "))
+    stripped = ba.strip()
+    ba[2] = 122
+    asserts.assert_that(stripped).is_equal_to(b("ab"))
+    asserts.assert_that(type(stripped)).is_equal_to("bytearray")
+
+    ba = builtins.bytearray(b("a,b"))
+    parts = ba.split(b(","))
+    ba[0] = 90
+    asserts.assert_that(parts).is_equal_to([b("a"), b("b")])
+    asserts.assert_that([type(p) for p in parts]).is_equal_to(["bytearray", "bytearray"])
+
+    # An unchanged result is still a copy.
+    ba = builtins.bytearray(b("abc"))
+    same = ba.removeprefix(b("zz"))
+    same.append(33)
+    asserts.assert_that(ba).is_equal_to(b("abc"))
+
+    # bytearray(bytearray) copies too.
+    a = builtins.bytearray(b("ab"))
+    c = builtins.bytearray(a)
+    c.append(99)
+    asserts.assert_that(a).is_equal_to(b("ab"))
+    asserts.assert_that(c).is_equal_to(b("abc"))
+
+    # bytes results are unaffected.
+    asserts.assert_that(type(b("xyz")[:])).is_equal_to("bytes")
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
 
@@ -306,6 +363,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_are_immutable))
     _suite.addTest(unittest.FunctionTestCase(_test_bytes_join))
     _suite.addTest(unittest.FunctionTestCase(_test_skip_unescape_encode))
+    _suite.addTest(unittest.FunctionTestCase(_test_bytearray_results_are_independent_bytearrays))
 
     return _suite
 

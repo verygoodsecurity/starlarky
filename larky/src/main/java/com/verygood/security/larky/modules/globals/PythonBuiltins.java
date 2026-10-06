@@ -765,15 +765,11 @@ public final class PythonBuiltins {
       switch (classType) {
         case "bytearray":
           _obj = ((StarlarkBytes) _obj).elems(); // "type safety" :D
-        case "bytes.elems":
-        case "list":
-          Sequence<StarlarkInt> seq = Sequence.cast(_obj, StarlarkInt.class, classType);
-          return StarlarkBytes.copyOf(thread.mutability(), seq);
-        //return StarlarkBytes.builder(thread).setSequence(seq).build();
+          return StarlarkBytes.copyOf(thread.mutability(), byteValues(_obj, classType));
         case "int":
-          // fallthrough
-        default:
           throw Starlark.errorf("unable to convert '%s' to bytes", classType);
+        default:
+          return StarlarkBytes.copyOf(thread.mutability(), byteValues(_obj, classType));
       }
     } catch (ClassCastException ex) {
       throw Starlark.errorf("%s", ex.getMessage());
@@ -825,17 +821,13 @@ public final class PythonBuiltins {
       throw Starlark.errorf("want string, bytes, or iterable of ints. got %s", Starlark.type(_obj));
     }
 
-    //bytes() -> empty bytes object
-    if (Starlark.isNullOrNone(_obj)
-          || StarlarkByteArray.class.isAssignableFrom(_obj.getClass())) {
-//           || StarlarkBytes.class.isAssignableFrom(_obj.getClass())) {
-      return StarlarkUtil.convertFromNoneable(
-        _obj,
-        StarlarkByteArray.of(thread.mutability())
-//           StarlarkBytes.builder(thread)
-//               .setSequence(new byte[]{})
-//               .build()
-      );
+    //bytearray() -> empty bytearray object
+    if (Starlark.isNullOrNone(_obj)) {
+      return StarlarkByteArray.of(thread.mutability());
+    }
+    // bytearray(bytearray) is a new, independent copy, as in Python.
+    if (_obj instanceof StarlarkByteArray) {
+      return StarlarkByteArray.of(thread.mutability(), ((StarlarkByteArray) _obj).toByteArray());
     }
 
     // handle case where string is passed in.
@@ -903,18 +895,26 @@ public final class PythonBuiltins {
         case "bytes":
           _obj = ((StarlarkBytes) _obj).elems();
           classType = Starlark.classType(_obj.getClass());
-          // fall through
-        case "bytes.elems":
-        case "list":
-          Sequence<StarlarkInt> seq = Sequence.cast(_obj, StarlarkInt.class, classType);
-          return StarlarkByteArray.copyOf(thread.mutability(), seq);
+          return StarlarkByteArray.copyOf(thread.mutability(), byteValues(_obj, classType));
         case "int":
-          // fallthrough
-        default:
           throw Starlark.errorf("unable to convert '%s' to bytes", classType);
+        default:
+          return StarlarkByteArray.copyOf(thread.mutability(), byteValues(_obj, classType));
       }
     } catch (ClassCastException ex) {
       throw Starlark.errorf("%s", ex.getMessage());
     }
+  }
+
+  /**
+   * The elements of {@code x}, an iterable of ints (a list, tuple, range, {@code bytes.elems},
+   * ...), as bytes() and bytearray() take them.
+   */
+  private static Sequence<StarlarkInt> byteValues(Object x, String what) throws EvalException {
+    if (x instanceof String || !(x instanceof StarlarkIterable)) {
+      throw Starlark.errorf("unable to convert '%s' to bytes", what);
+    }
+    Object seq = x instanceof Sequence ? x : StarlarkList.immutableCopyOf(Starlark.toIterable(x));
+    return Sequence.cast(seq, StarlarkInt.class, what);
   }
 }
