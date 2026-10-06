@@ -29,7 +29,7 @@ import net.starlark.java.syntax.StarlarkFile;
  * Module}, so no module values are shared between evaluations. Compiled code is not mutated by
  * execution, so one can be run by several threads at once.
  *
- * <p>When bytecode is enabled, a module is first looked for precompiled: a {@code .slbc} resource
+ * <p>When bytecode is enabled, a module is first looked for precompiled: a {@code .starc} resource
  * next to its {@code .star} ({@link CompiledModule}, written at build time by {@link
  * LarkyPrecompiler}). If there is none, or it was written by an incompatible build, the source is
  * compiled.

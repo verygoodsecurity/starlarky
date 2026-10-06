@@ -108,7 +108,7 @@ public class ProgramCacheTest {
   public void usesPrecompiledModulesWhenBytecodeIsEnabled() throws Exception {
     newEvaluator().eval(ResourceContentStarFile.buildStarFile("@stdlib//sets"));
     if (net.starlark.java.eval.compiler.BytecodeCompiler.enabledByDefault()) {
-      // stdlib/sets.slbc, written at build time by LarkyPrecompiler.
+      // stdlib/sets.starc, written at build time by LarkyPrecompiler.
       assertThat(ProgramCache.loadedPrecompiledCount()).isGreaterThan(0);
     } else {
       assertThat(ProgramCache.loadedPrecompiledCount()).isEqualTo(0);

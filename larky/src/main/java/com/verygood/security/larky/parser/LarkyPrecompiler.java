@@ -20,7 +20,7 @@ import net.starlark.java.syntax.StarlarkFile;
 /**
  * Precompiles Larky's own modules at build time: for every {@code .star} file under {@code
  * stdlib/}, {@code vendor/} and {@code vgs/} in a classes directory, writes a {@link
- * CompiledModule} next to it ({@code .slbc}). {@link ProgramCache} loads those instead of parsing
+ * CompiledModule} next to it ({@code .starc}). {@link ProgramCache} loads those instead of parsing
  * and resolving the source when bytecode is enabled.
  *
  * <p>Modules are resolved in the environment of a default {@link LarkyEvaluator}; at run time a
@@ -32,7 +32,7 @@ import net.starlark.java.syntax.StarlarkFile;
 public final class LarkyPrecompiler {
 
   static final String SOURCE_SUFFIX = ".star";
-  static final String COMPILED_SUFFIX = ".slbc";
+  static final String COMPILED_SUFFIX = ".starc";
   private static final String[] ROOTS = {"stdlib", "vendor", "vgs"};
 
   private LarkyPrecompiler() {}

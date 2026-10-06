@@ -49,7 +49,7 @@ import net.starlark.java.syntax.StarlarkFile;
  */
 public final class CompiledModule {
 
-  private static final int MAGIC = 0x534C4243; // "SLBC"
+  private static final int MAGIC = 0x53545243; // "STRC"
   private static final int FORMAT_VERSION = 1;
   private static final int OPCODE_FINGERPRINT = Arrays.toString(Opcode.values()).hashCode();
 

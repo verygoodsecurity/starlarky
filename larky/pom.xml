@@ -230,7 +230,7 @@
 
     <build>
         <plugins>
-            <!-- Precompile Larky's own .star modules (stdlib, vendor, vgs) to bytecode (.slbc files
+            <!-- Precompile Larky's own .star modules (stdlib, vendor, vgs) to bytecode (.starc files
                  next to them), which ProgramCache loads instead of parsing the source. -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
