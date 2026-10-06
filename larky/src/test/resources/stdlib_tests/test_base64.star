@@ -60,10 +60,41 @@ def _test_b64decode():
         eq(base64.b64decode(codecs.decode(data, encoding="ascii")), res)
 
 
+
+# RFC 4648 section 10 test vectors, and binary input; the encodings are CPython's.
+_B32_VECTORS = [
+    (b"", b""),
+    (b"f", b"MY======"),
+    (b"fo", b"MZXQ===="),
+    (b"foo", b"MZXW6==="),
+    (b"foob", b"MZXW6YQ="),
+    (b"fooba", b"MZXW6YTB"),
+    (b"foobar", b"MZXW6YTBOI======"),
+    (b"\x00\xff\x10 hello", b"AD7RAIDIMVWGY3Y="),
+    (bytes(list(range(20))), b"AAAQEAYEAUDAOCAJBIFQYDIOB4IBCEQT"),
+]
+
+
+def _test_b32encode():
+    for raw, encoded in _B32_VECTORS:
+        asserts.assert_that(base64.b32encode(raw)).is_equal_to(encoded)
+
+
+def _test_b32decode():
+    for raw, encoded in _B32_VECTORS:
+        asserts.assert_that(base64.b32decode(encoded)).is_equal_to(raw)
+    asserts.assert_that(base64.b32decode("MZXW6YTBOI======")).is_equal_to(b"foobar")
+    asserts.assert_that(base64.b32decode(b"mzxw6ytboi======", casefold=True)).is_equal_to(b"foobar")
+    asserts.assert_fails(lambda: base64.b32decode(b"mzxw6ytboi======"), "Non-base32 digit found")
+    asserts.assert_fails(lambda: base64.b32decode(b"MZXW6YT"), "Incorrect padding")
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_b64encode))
     _suite.addTest(unittest.FunctionTestCase(_test_b64decode))
+    _suite.addTest(unittest.FunctionTestCase(_test_b32encode))
+    _suite.addTest(unittest.FunctionTestCase(_test_b32decode))
     return _suite
 
 
