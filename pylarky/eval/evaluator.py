@@ -12,6 +12,13 @@ OUTPUT_PARAM = "-o"
 SCRIPT_PARAM = "-s"
 MODULE_PARAM = "--module"
 
+# Checked before anything is written, so a bad mapping fails here rather than in the runner, which
+# enforces the same file limits, or the operating system.
+MAX_MODULES = 64
+MAX_MODULE_NAME_BYTES = 255
+MAX_MODULE_BYTES = 8 << 20  # the runner's limit, and Larky's for a WebAssembly module
+MAX_MODULES_TOTAL_BYTES = 64 << 20
+
 ModuleData = Union[bytes, bytearray, str]
 
 
@@ -24,7 +31,9 @@ class Evaluator:
         :param modules: files shipped with the evaluation, by name, e.g.
             ``{"echo.wasm": b"\\0asm..."}``. The script reads them by name
             (``wasm.module("echo.wasm")``), or load()s a ``.star`` one. str
-            values are written as UTF-8.
+            values are written as UTF-8. At most MAX_MODULES files of at most
+            MAX_MODULE_BYTES each (MAX_MODULES_TOTAL_BYTES together), with names
+            of at most MAX_MODULE_NAME_BYTES bytes.
         """
         self.script_data = script_data
         self.modules = _check_modules(modules)
@@ -82,6 +91,9 @@ class Evaluator:
             raise FailedEvaluation(
                 f"Starlark evaluation failed. \nOutput: {e.output}"
             ) from e
+        except OSError as e:
+            # The runner could not be started (e.g. missing, or its arguments too long).
+            raise FailedEvaluation(f"Could not run the Larky runner: {e}") from e
 
 
 class FailedEvaluation(Exception):
@@ -91,13 +103,23 @@ class FailedEvaluation(Exception):
 def _check_modules(modules):
     if modules is None:
         return {}
+    if len(modules) > MAX_MODULES:
+        raise ValueError(f"at most {MAX_MODULES} modules; got {len(modules)}")
     checked = {}
+    total = 0
     for name, data in modules.items():
         if not isinstance(name, str) or not name:
             raise ValueError(f"module name must be a non-empty str; got {name!r}")
         if "=" in name:
             # The runner splits --module NAME=PATH at the first '='.
             raise ValueError(f"module name must not contain '='; got {name!r}")
+        if "\0" in name:
+            # It becomes a command-line argument, which cannot hold one.
+            raise ValueError(f"module name must not contain NUL; got {name!r}")
+        if len(name.encode("utf-8")) > MAX_MODULE_NAME_BYTES:
+            raise ValueError(
+                f"module name must be at most {MAX_MODULE_NAME_BYTES} bytes; got {name[:40]!r}..."
+            )
         if isinstance(data, str):
             data = data.encode("utf-8")
         elif isinstance(data, (bytes, bytearray)):
@@ -106,6 +128,13 @@ def _check_modules(modules):
             raise TypeError(
                 f"module {name!r} must be bytes or str; got {type(data).__name__}"
             )
+        if len(data) > MAX_MODULE_BYTES:
+            raise ValueError(
+                f"module {name!r} is {len(data)} bytes; the limit is {MAX_MODULE_BYTES}"
+            )
+        total += len(data)
+        if total > MAX_MODULES_TOTAL_BYTES:
+            raise ValueError(f"modules total more than {MAX_MODULES_TOTAL_BYTES} bytes")
         checked[name] = data
     return checked
 

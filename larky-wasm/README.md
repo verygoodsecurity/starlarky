@@ -153,7 +153,10 @@ Run your script with the module attached:
 larky-runner -s script.star -i input.star --module encrypt.wasm=./encrypt.wasm
 ```
 
-`--module NAME=PATH` makes `PATH` available to `wasm.module("NAME")`.
+`--module NAME=PATH` makes `PATH` available to `wasm.module("NAME")`. Each file may be up to
+8 MiB, and all of them 64 MiB together. The script's other `load()`s resolve as they do without
+`--module`. From Python, `pylarky`'s `Evaluator(script, modules={"encrypt.wasm": data})` does the
+same, for up to 64 files.
 
 ## Runtimes (for services that embed Larky)
 

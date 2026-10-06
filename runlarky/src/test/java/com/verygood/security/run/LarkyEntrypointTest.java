@@ -16,6 +16,7 @@
 package com.verygood.security.run;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
@@ -23,9 +24,11 @@ import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.parser.PrependMergedStarFile;
 import com.verygood.security.larky.parser.StarFile;
 import java.io.File;
+import java.io.RandomAccessFile;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
@@ -115,6 +118,90 @@ public final class LarkyEntrypointTest {
             IllegalArgumentException.class,
             () -> LarkyEntrypoint.readModules(List.of("main.star=" + f), "main.star"));
     assertThat(script).hasMessageThat().contains("script's own name");
+  }
+
+  /** A sparse file of {@code length} bytes. */
+  private File sized(String name, long length) throws Exception {
+    File f = tmp.newFile(name);
+    try (RandomAccessFile raf = new RandomAccessFile(f, "rw")) {
+      raf.setLength(length);
+    }
+    return f;
+  }
+
+  @Test
+  public void readModules_rejectsAFileOverTheLimit() throws Exception {
+    File atLimit = sized("at.wasm", LarkyEntrypoint.MAX_MODULE_FILE_BYTES);
+    File over = sized("over.wasm", LarkyEntrypoint.MAX_MODULE_FILE_BYTES + 1L);
+
+    assertThat(LarkyEntrypoint.readModules(List.of("a.wasm=" + atLimit), "main.star").get("a.wasm"))
+        .hasLength(LarkyEntrypoint.MAX_MODULE_FILE_BYTES);
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> LarkyEntrypoint.readModules(List.of("o.wasm=" + over), "main.star"));
+    assertThat(e).hasMessageThat().contains("is larger than " + LarkyEntrypoint.MAX_MODULE_FILE_BYTES);
+  }
+
+  @Test
+  public void readModules_rejectsFilesTotallingMoreThanTheLimit() throws Exception {
+    List<String> args = new ArrayList<>();
+    long files = LarkyEntrypoint.MAX_MODULE_TOTAL_BYTES / LarkyEntrypoint.MAX_MODULE_FILE_BYTES + 1;
+    for (int i = 0; i < files; i++) {
+      args.add("m" + i + ".wasm=" + sized("m" + i + ".wasm", LarkyEntrypoint.MAX_MODULE_FILE_BYTES));
+    }
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class, () -> LarkyEntrypoint.readModules(args, "main.star"));
+    assertThat(e).hasMessageThat().contains("total more than");
+  }
+
+  @Test
+  public void scriptName_rejectsAnInvalidPath() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> LarkyEntrypoint.scriptName("a\0b.star"));
+    assertThat(e).hasMessageThat().contains("not a valid path");
+  }
+
+  @Test
+  public void run_invalidScriptPath_failsWithUsageError() {
+    StringWriter err = new StringWriter();
+    CommandLine cli = new CommandLine(new LarkyEntrypoint());
+    cli.setErr(new PrintWriter(err));
+
+    int exit = cli.execute("-s", "a\0b.star");
+
+    assertThat(exit).isEqualTo(CommandLine.ExitCode.USAGE);
+    assertThat(err.toString()).contains("not a valid path");
+  }
+
+  @Test
+  public void run_shippingAFileKeepsTheScriptsOtherLoads() throws Exception {
+    // The script loads a file by absolute path, as it may without --module; shipping an unrelated
+    // file must not change how that load resolves.
+    File lib = tmp.newFile("lib.star");
+    Files.writeString(lib.toPath(), "def greet(who):\n    return 'hello ' + who\n");
+    File script = tmp.newFile("main.star");
+    String label = "/" + lib.getAbsolutePath().replaceAll("\\.star$", ""); // load() adds .star
+    Files.writeString(script.toPath(), "load('" + label + "', 'greet')\n" + "greet('disk')\n");
+    File shipped = tmp.newFile("echo.wasm");
+    Files.write(shipped.toPath(), WASM);
+
+    for (List<String> extra : List.of(List.<String>of(), List.of("--module", "echo.wasm=" + shipped))) {
+      File out = tmp.newFile();
+      List<String> args = new ArrayList<>(
+          List.of("-s", script.getPath(), "-o", out.getPath(), "-l", tmp.newFile().getPath()));
+      args.addAll(extra);
+
+      StringWriter err = new StringWriter();
+      CommandLine cli = new CommandLine(new LarkyEntrypoint());
+      cli.setErr(new PrintWriter(err));
+      int exit = cli.execute(args.toArray(String[]::new));
+
+      assertWithMessage("%s: %s", extra, err).that(exit).isEqualTo(0);
+      assertThat(Files.readString(out.toPath())).contains("hello disk");
+    }
   }
 
   @Test
