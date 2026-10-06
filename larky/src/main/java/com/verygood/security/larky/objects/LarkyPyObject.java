@@ -268,9 +268,26 @@ public class LarkyPyObject implements
     },
     useStarlarkThread = true
   )
-  public Object __getattribute__(String name, StarlarkThread thread)
+  public final Object __getattribute__(String name, StarlarkThread thread)
     throws EvalException {
     return GetAttribute.get(this, name, thread);
+  }
+
+  /**
+   * As {@link PyObject#getField}, which calls {@link #__getattribute__} and falls back to
+   * {@code __getattr__} if it throws, but without creating an AttributeError for a missing
+   * attribute: attribute probes (e.g. for {@code __iter__} or {@code __contains__}) are frequent.
+   */
+  @Nullable
+  @Override
+  public Object getField(String name, @Nullable StarlarkThread thread) {
+    Object value;
+    try {
+      value = GetAttribute.find(this, name, thread);
+    } catch (EvalException ex) {
+      value = null;
+    }
+    return value != null ? value : GetAttribute.dunderGetAttr(this, name, thread, /*throwExc=*/false);
   }
 
   @Override

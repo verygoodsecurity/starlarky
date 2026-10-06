@@ -420,6 +420,9 @@ public final class PythonBuiltins {
     return new String(new int[]{c.toIntUnchecked()}, 0, 1);
   }
 
+  // A default no attribute lookup can return, for hasattr.
+  private static final Object MISSING = new Object();
+
   //override built-in hasattr
   /** Returns true if the object has a field of the given name, otherwise false. */
   @StarlarkMethod(
@@ -434,9 +437,12 @@ public final class PythonBuiltins {
       },
       useStarlarkThread = true)
   public boolean hasattr(Object obj, String name, StarlarkThread thread) throws EvalException {
+    // Look up with a default, so that a missing attribute returns it instead of building an
+    // error message (with spelling suggestions) that would only be discarded. (Starlark.UNBOUND
+    // would not do: getattr treats it as "no default" and throws.)
     try {
-      Object res = getattr(obj, name, Starlark.UNBOUND, thread);
-      return res != null && res != LarkyAttributeError.getInstance();
+      Object res = getattr(obj, name, MISSING, thread);
+      return res != null && res != MISSING && res != LarkyAttributeError.getInstance();
     } catch(EvalException ex) {
       return false;
     }
