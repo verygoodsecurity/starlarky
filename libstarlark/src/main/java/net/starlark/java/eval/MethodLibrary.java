@@ -830,6 +830,9 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
         })
       })
   public int hash(Object value) throws EvalException {
+    if (value instanceof StarlarkBytes b) {
+      b.checkHashable(); // a bytearray is unhashable, as in Python
+    }
     return value.hashCode();
   }
 

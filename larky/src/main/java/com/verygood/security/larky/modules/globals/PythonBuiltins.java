@@ -1,6 +1,5 @@
 package com.verygood.security.larky.modules.globals;
 
-import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
@@ -143,12 +142,14 @@ public final class PythonBuiltins {
     name = "pow",
     doc = "Return base to the power exp; if mod is present, return base to " +
             "the power exp, modulo mod (computed more efficiently than pow(base, exp) % mod). " +
-            "" +
-            "The two-argument form pow(base, exp) is equivalent to using the power operator: base**exp.",
+            "The two-argument form pow(base, exp) is equivalent to Python's power operator " +
+            "base**exp: two ints give an int, or a float when exp is negative; any float " +
+            "operand gives a float. The three-argument form requires ints; a negative exp " +
+            "then uses the modular inverse of base.",
     parameters = {
       @Param(
         name = "base",
-        doc = "The function to invoke when the struct is called",
+        doc = "The base.",
         named = true,
         allowedTypes = {
           @ParamType(type = StarlarkInt.class),
@@ -157,12 +158,16 @@ public final class PythonBuiltins {
       ),
       @Param(
         name = "exp",
-        doc = "The function to invoke when the struct is called",
-        named = true
+        doc = "The exponent.",
+        named = true,
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = StarlarkFloat.class),
+        }
       ),
       @Param(
         name = "mod",
-        doc = "",
+        doc = "The modulus; requires int base and exp.",
         named = true,
         allowedTypes = {
           @ParamType(type = StarlarkInt.class),
@@ -172,45 +177,110 @@ public final class PythonBuiltins {
       )
     }
   )
-  public Object pow(Object baseO, StarlarkInt exp, Object mod) throws EvalException {
-    if (!(baseO instanceof StarlarkInt) && !(baseO instanceof StarlarkFloat)) {
-      throw Starlark.errorf("Error in pow: in call to pow(), parameter 'base' got " +
-                              "value of type '%s', want 'int' or 'float'", Starlark.type(baseO));
-    }
-    final BigDecimal bigLeft;
-    if (baseO instanceof StarlarkInt) {
-      bigLeft = new BigDecimal(((StarlarkInt) baseO).toBigInteger());
-    } else {
-      bigLeft = BigDecimal.valueOf(((StarlarkFloat) baseO).toDouble());
-    }
-
-    final BigInteger bigRight = exp.toBigInteger();
-
-    if (Starlark.isNullOrNone(mod)) {
-      if (bigRight.signum() < 0) {
-        return StarlarkFloat.of(Math.pow(bigLeft.doubleValue(), bigRight.longValueExact()));
+  public Object pow(Object baseO, Object expO, Object mod) throws EvalException {
+    if (!Starlark.isNullOrNone(mod)) {
+      if (!(baseO instanceof StarlarkInt) || !(expO instanceof StarlarkInt)) {
+        throw Starlark.errorf(
+          "TypeError: pow() 3rd argument not allowed unless all arguments are integers");
       }
-      return StarlarkInt.of(bigLeft.toBigIntegerExact().pow((bigRight.intValueExact())));
+      return intModPow((StarlarkInt) baseO, (StarlarkInt) expO, (StarlarkInt) mod);
     }
-    final BigInteger bigMod = ((StarlarkInt) mod).toBigInteger();
-    final BigInteger bigModPos = bigMod.signum() < 0 ? bigMod.abs() : bigMod;
+    if (baseO instanceof StarlarkInt base && expO instanceof StarlarkInt exp && exp.signum() >= 0) {
+      int e;
+      try {
+        e = exp.toIntUnchecked();
+      } catch (IllegalArgumentException ex) {
+        throw Starlark.errorf("OverflowError: pow() exponent too large: %s", exp);
+      }
+      try {
+        return StarlarkInt.of(base.toBigInteger().pow(e));
+      } catch (ArithmeticException ex) { // result exceeds BigInteger's range
+        throw Starlark.errorf("OverflowError: pow() result too large");
+      }
+    }
+    // Python converts both operands to float for a float operand or a negative int exponent.
+    return StarlarkFloat.of(floatPow(toDouble(baseO), toDouble(expO)));
+  }
 
-    if (bigMod.signum() == 0) {
+  private static double toDouble(Object x) throws EvalException {
+    return x instanceof StarlarkInt i ? i.toFiniteDouble() : ((StarlarkFloat) x).toDouble();
+  }
+
+  private static boolean isOddInteger(double x) {
+    return Math.abs(x) < 0x1p53 && x == Math.rint(x) && Math.abs(x % 2.0) == 1.0;
+  }
+
+  /** x ** y for floats, following CPython's float_pow (special cases before libm pow). */
+  private static double floatPow(double x, double y) throws EvalException {
+    if (y == 0.0) {
+      return 1.0; // even for a NaN base
+    }
+    if (Double.isNaN(x)) {
+      return x;
+    }
+    if (Double.isNaN(y)) {
+      return x == 1.0 ? 1.0 : y;
+    }
+    if (Double.isInfinite(y)) {
+      double ax = Math.abs(x);
+      if (ax == 1.0) {
+        return 1.0;
+      }
+      return (y > 0) == (ax > 1.0) ? Double.POSITIVE_INFINITY : 0.0;
+    }
+    if (Double.isInfinite(x)) {
+      boolean odd = isOddInteger(y);
+      if (y > 0) {
+        return odd ? x : Math.abs(x);
+      }
+      return odd ? Math.copySign(0.0, x) : 0.0;
+    }
+    if (x == 0.0) {
+      if (y < 0) {
+        throw Starlark.errorf("ZeroDivisionError: 0.0 cannot be raised to a negative power");
+      }
+      return isOddInteger(y) ? x : 0.0;
+    }
+    boolean negate = false;
+    if (x < 0) {
+      if (y != Math.floor(y)) {
+        // Python returns a complex number here; Starlark has none.
+        throw Starlark.errorf(
+          "ValueError: negative number cannot be raised to a fractional power");
+      }
+      x = -x;
+      negate = isOddInteger(y);
+    }
+    if (x == 1.0) {
+      return negate ? -1.0 : 1.0;
+    }
+    double z = Math.pow(x, y);
+    if (Double.isInfinite(z)) {
+      throw Starlark.errorf("OverflowError: pow() result too large");
+    }
+    return negate ? -z : z;
+  }
+
+  /** pow(base, exp, mod) for ints, as in Python 3.8+ (a negative exp inverts base). */
+  private static StarlarkInt intModPow(StarlarkInt base, StarlarkInt exp, StarlarkInt mod)
+      throws EvalException {
+    BigInteger m = mod.toBigInteger();
+    if (m.signum() == 0) {
       throw Starlark.errorf("pow() 3rd argument cannot be 0");
     }
-
+    BigInteger absMod = m.abs();
+    BigInteger r;
     try {
-      BigInteger pow = bigLeft.toBigIntegerExact().modPow(bigRight, bigModPos);
-      if (bigModPos.equals(bigMod) || BigInteger.ZERO.equals(pow)) {
-        return StarlarkInt.of(pow);
-      } else {
-        return StarlarkInt.of(pow.subtract(bigModPos));
-      }
+      r = base.toBigInteger().modPow(exp.toBigInteger(), absMod);
     } catch (ArithmeticException e) {
-      // a positive mod was used, so this exception must mean the exponent was
-      // negative and the base is not relatively prime to the exponent
+      // absMod is positive, so this means exp < 0 and base has no inverse modulo absMod.
       throw Starlark.errorf("base is not invertible for the given modulus");
     }
+    // r is in [0, |mod|); Python's result takes the sign of mod.
+    if (m.signum() < 0 && r.signum() != 0) {
+      r = r.subtract(absMod);
+    }
+    return StarlarkInt.of(r);
   }
 
   @StarlarkMethod(
@@ -336,8 +406,9 @@ public final class PythonBuiltins {
     useStarlarkThread = true
   )
   public String chr(StarlarkInt c, StarlarkThread thread) throws EvalException {
-    if (c.toIntUnchecked() > 0x10FFFF) {
-      throw Starlark.errorf("ValueError: chr(%s) arg not in range(0x110000)", c.toIntUnchecked());
+    // A lone surrogate (0xD800-0xDFFF) is returned as a one-char string, as in Python.
+    if (c.signum() < 0 || c.compareTo(StarlarkInt.of(0x10FFFF)) > 0) {
+      throw Starlark.errorf("ValueError: chr() arg not in range(0x110000)");
     }
     return new String(new int[]{c.toIntUnchecked()}, 0, 1);
   }
@@ -455,6 +526,9 @@ public final class PythonBuiltins {
         }),
     })
   public int hash(Object value) throws EvalException {
+    if (value instanceof StarlarkValue v) {
+      v.checkHashable(); // bytearray is unhashable, as in Python
+    }
     return value.hashCode();
   }
 
@@ -476,6 +550,9 @@ public final class PythonBuiltins {
     String prefix = "0x";
     StringBuilder sb = new StringBuilder();
     BigInteger value = number.toBigInteger();
+    if (value.signum() < 0) {
+      sb.append('-');
+    }
     sb.append(prefix);
     sb.append(value.abs().toString(16));
     return sb.toString();
@@ -549,15 +626,56 @@ public final class PythonBuiltins {
             "In any case q * b + a % b is very close to a, if a % b is non-zero " +
             "it has the same sign as b, and 0 <= abs(a % b) < abs(b).",
     parameters = {
-      @Param(name = "a"),
-      @Param(name = "b"),
+      @Param(
+        name = "a",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = StarlarkFloat.class),
+        }),
+      @Param(
+        name = "b",
+        allowedTypes = {
+          @ParamType(type = StarlarkInt.class),
+          @ParamType(type = StarlarkFloat.class),
+        }),
     }
   )
-  public Tuple divmod(StarlarkInt a, StarlarkInt b) throws EvalException {
-    BigInteger bigA = a.toBigInteger();
-    BigInteger bigB = b.toBigInteger();
-    BigInteger[] dm = bigA.divideAndRemainder(bigB);
-    return Tuple.of(StarlarkInt.of(dm[0]), StarlarkInt.of(dm[1]));
+  public Tuple divmod(Object a, Object b) throws EvalException {
+    if (a instanceof StarlarkInt x && b instanceof StarlarkInt y) {
+      if (y.signum() == 0) {
+        throw Starlark.errorf("integer division or modulo by zero");
+      }
+      // Floor division, as Python's // and %: the remainder takes the sign of the divisor.
+      return Tuple.of(StarlarkInt.floordiv(x, y), StarlarkInt.mod(x, y));
+    }
+    return floatDivmod(toDouble(a), toDouble(b));
+  }
+
+  /** divmod for floats, following CPython's float_divmod. */
+  private static Tuple floatDivmod(double vx, double wx) throws EvalException {
+    if (wx == 0.0) {
+      throw Starlark.errorf("floating-point division or modulo by zero");
+    }
+    double mod = vx % wx; // Java's % on doubles is C's fmod
+    double div = (vx - mod) / wx;
+    if (mod != 0.0) {
+      if ((wx < 0) != (mod < 0)) {
+        mod += wx;
+        div -= 1.0;
+      }
+    } else {
+      mod = Math.copySign(0.0, wx);
+    }
+    double floordiv;
+    if (div != 0.0) {
+      floordiv = Math.floor(div);
+      if (div - floordiv > 0.5) {
+        floordiv += 1.0;
+      }
+    } else {
+      floordiv = Math.copySign(0.0, vx / wx);
+    }
+    return Tuple.of(StarlarkFloat.of(floordiv), StarlarkFloat.of(mod));
   }
 
   @StarlarkMethod(
