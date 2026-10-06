@@ -9,7 +9,7 @@
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>larky-wasm</name>
-    <description>WebAssembly runtime for Larky's @vgs//wasm</description>
+    <description>WebAssembly runtimes for Larky's @vgs//wasm: Endive by default, GraalWasm optionally</description>
 
     <distributionManagement>
         <repository>
@@ -24,9 +24,11 @@
         <junit.version>4.13.2</junit.version>
         <truth.version>1.4.4</truth.version>
         <endive.version>1.1.0</endive.version>
+        <graalvm.version>25.4.4.1.1</graalvm.version>
     </properties>
 
     <dependencies>
+        <!-- Endive: the default runtime. -->
         <dependency>
             <groupId>run.endive</groupId>
             <artifactId>runtime</artifactId>
@@ -41,6 +43,20 @@
             <groupId>run.endive</groupId>
             <artifactId>simd</artifactId>
             <version>${endive.version}</version>
+        </dependency>
+        <!-- GraalWasm: optional. A consumer that sets -Dlarky.wasm.runtime=graal adds these itself. -->
+        <dependency>
+            <groupId>org.graalvm.polyglot</groupId>
+            <artifactId>polyglot</artifactId>
+            <version>${graalvm.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.graalvm.polyglot</groupId>
+            <artifactId>wasm-community</artifactId>
+            <version>${graalvm.version}</version>
+            <type>pom</type>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <!-- Compiles the WAT fixtures in src/test/resources/wasm when the tests run. -->

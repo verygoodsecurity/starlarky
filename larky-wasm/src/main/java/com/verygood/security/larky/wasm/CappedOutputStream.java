@@ -21,7 +21,8 @@ import java.util.Arrays;
 
 /**
  * Collects a guest's stdout or stderr, refusing to grow past a limit. A write that would exceed it
- * throws {@link OutputLimitExceeded} out of the WASI call, which stops the guest.
+ * throws {@link OutputLimitExceeded} out of the WASI call, which stops the guest. A watchdog may
+ * check {@link #exceeded()} from another thread.
  */
 final class CappedOutputStream extends OutputStream {
 
@@ -36,7 +37,7 @@ final class CappedOutputStream extends OutputStream {
   private final int limit;
   private byte[] buf = new byte[256];
   private int count;
-  private boolean exceeded;
+  private volatile boolean exceeded;
 
   CappedOutputStream(String name, int limit) {
     this.name = name;
@@ -44,7 +45,7 @@ final class CappedOutputStream extends OutputStream {
   }
 
   @Override
-  public void write(int b) {
+  public synchronized void write(int b) {
     if (count == limit) {
       throw exceed();
     }
@@ -55,7 +56,7 @@ final class CappedOutputStream extends OutputStream {
   }
 
   @Override
-  public void write(byte[] b, int off, int len) {
+  public synchronized void write(byte[] b, int off, int len) {
     if (len > limit - count) {
       throw exceed();
     }
@@ -75,7 +76,7 @@ final class CappedOutputStream extends OutputStream {
     return exceeded;
   }
 
-  byte[] toByteArray() {
+  synchronized byte[] toByteArray() {
     return Arrays.copyOf(buf, count);
   }
 }
