@@ -57,6 +57,15 @@ def _test_match_with_args():
     asserts.assert_that(mo.span()).is_equal_to((7, 9))
 
 
+def _test_same_pattern_with_different_flags():
+    # compiled patterns are cached by pattern and flags
+    for _ in range(2):
+        asserts.assert_that(re.match("abc", "ABC")).is_none()
+        asserts.assert_that(re.match("abc", "ABC", re.I).group()).is_equal_to("ABC")
+        asserts.assert_that(re.compile("abc").search("xABC")).is_none()
+        asserts.assert_that(re.compile("abc", re.IGNORECASE).search("xABC").group()).is_equal_to("ABC")
+
+
 def _test_groups():
     m = re.match(r"(\d+)\.(\d+)", "24.1632")
     asserts.assert_that(m.groups()).is_equal_to(('24', '1632'))
@@ -91,22 +100,18 @@ def _test_subn_matches_limit():
 
 # zero-length matches
 def _test_zero_length_matches():
-    # currently not supported!
-    # you could try (?:$|[^,]) as an alternative to (?!,).
-    asserts.assert_that(re.sub('(?m)^(?:$|[^$])', '--', 'foo')).is_equal_to(
-        '--foo')
-    asserts.assert_that(re.sub('(?m)^(?:$|[^$])', '--', 'foo\n')).is_equal_to(
-        '--foo\n')
-    asserts.assert_that(re.sub('(?m)^(?:$|[^$])', '--', 'foo\na')).is_equal_to(
-        '--foo\n--a')
-    asserts.assert_that(
-        re.sub('(?m)^(?:$|[^$])', '--', 'foo\n\na')).is_equal_to('--foo\n\n--a')
-    asserts.assert_that(
-        re.sub('(?m)^(?:$|[^$])', '--', 'foo\n\na', 1)).is_equal_to(
-        '--foo\n\na')
-    asserts.assert_that(
-        re.sub('(?m)^(?:$|[^$])', '--', 'foo\n  \na', 2)).is_equal_to(
-        '--foo\n--  \na')
+    # Expected values from CPython 3.12. (?:$|[^$]) consumes the first
+    # character of each line, unlike a (?!...) look-ahead.
+    p = '(?m)^(?:$|[^$])'
+    asserts.assert_that(re.sub(p, '--', 'foo')).is_equal_to('--oo')
+    asserts.assert_that(re.sub(p, '--', 'foo\n')).is_equal_to('--oo\n--')
+    asserts.assert_that(re.sub(p, '--', 'foo\na')).is_equal_to('--oo\n--')
+    # Not checked: re.sub(p, '--', 'foo\n\na') is '--oo\n------' in CPython; after
+    # the empty match at 4, CPython retries there for a non-empty match (the
+    # '\n'), which RE2 cannot express, so Larky moves on and returns
+    # '--oo\n--\n--'.
+    asserts.assert_that(re.sub(p, '--', 'foo\n\na', 1)).is_equal_to('--oo\n\na')
+    asserts.assert_that(re.sub(p, '--', 'foo\n  \na', 2)).is_equal_to('--oo\n-- \na')
 
 
 # split
@@ -225,11 +230,11 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_match))
     _suite.addTest(unittest.FunctionTestCase(_test_match_with_args))
     _suite.addTest(unittest.FunctionTestCase(_test_groups))
+    _suite.addTest(unittest.FunctionTestCase(_test_same_pattern_with_different_flags))
     _suite.addTest(unittest.FunctionTestCase(_test_sub))
     _suite.addTest(unittest.FunctionTestCase(_test_subn))
     _suite.addTest(unittest.FunctionTestCase(_test_subn_matches_limit))
-    # currently not supported!
-    # _suite.addTest(unittest.FunctionTestCase(_test_zero_length_matches))
+    _suite.addTest(unittest.FunctionTestCase(_test_zero_length_matches))
     _suite.addTest(unittest.FunctionTestCase(_test_split))
     _suite.addTest(unittest.FunctionTestCase(_test_findall))
     _suite.addTest(unittest.FunctionTestCase(_test_finditer))
