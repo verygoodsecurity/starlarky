@@ -1,6 +1,57 @@
-# larky-wasm
+# Running WebAssembly from Larky (`@vgs//wasm`)
 
-The WebAssembly runtime behind Larky's `@vgs//wasm`.
+`@vgs//wasm` lets a Larky script run a WebAssembly module that you provide. Use it when you need
+code that cannot be written in Larky, such as a payment processor's JavaScript library: compile it
+to WebAssembly and call it from your script.
+
+## What a module is
+
+A module is a [WASI preview 1](https://github.com/WebAssembly/WASI/blob/main/legacy/preview1/docs.md)
+command: it exports `_start` and its `memory`. Every call starts a fresh instance, so nothing
+carries over from one call to the next.
+
+| What the module sees | Value |
+| --- | --- |
+| stdin | the input you pass |
+| stdout | the result you get back |
+| stderr | captured, for diagnostics |
+| argv | `["module"]` |
+| environment variables | none |
+| files and directories | none (no preopens) |
+| network | none |
+| clocks (`clock_time_get`) | always 0 |
+| `random_get` | secure random bytes |
+
+Returning from `_start` exits with 0; `proc_exit(n)` exits with `n`.
+
+## Limits
+
+| Limit | Default | When exceeded |
+| --- | --- | --- |
+| Linear memory | 64 MiB (1024 pages) | a module whose initial memory is larger fails to start; `memory.grow` past the limit returns -1 |
+| stdout, and separately stderr | 1 MiB each | the call fails |
+| Run time | a deadline set by the caller | the call fails |
+
+A trap (for example `unreachable` or an out-of-bounds access) also fails the call.
+
+## Calling a module from Larky
+
+```python
+load("@vgs//wasm", "wasm")
+
+encrypt = wasm.module("encrypt.wasm")
+
+def encrypt_pan(pan, key):
+    result = encrypt.call({"pan": pan, "key": key})
+    if "error" in result:
+        fail(result["error"])
+    return result["encrypted"]
+```
+
+- `.call(value)` writes `value` to stdin as JSON and returns stdout parsed as JSON.
+- `.run(data)` writes the bytes `data` to stdin and returns stdout as bytes.
+- `wasm.loads(data)` makes a module from its binary (bytes), and `wasm.dumps(module)` returns a
+  module's binary; the names follow Python's `pickle`/`json` (`load` itself is a Larky keyword).
 
 ## Runtimes (for services that embed Larky)
 

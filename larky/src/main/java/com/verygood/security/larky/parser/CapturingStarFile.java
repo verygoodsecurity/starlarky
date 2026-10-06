@@ -65,6 +65,11 @@ class CapturingStarFile implements StarFile {
     return wrapped.getIdentifier();
   }
 
+  @Override
+  public byte[] readShippedFile(String name) {
+    return wrapped.readShippedFile(name);
+  }
+
   /**
    * Retrieve collected dependencies.
    * @return A Map mapping the path to the wrapped ConfigFile for each ConfigFile created by this or
