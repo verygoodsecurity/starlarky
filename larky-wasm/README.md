@@ -20,7 +20,7 @@ carries over from one call to the next.
 | environment variables | none |
 | files and directories | none (no preopens) |
 | network | none |
-| clocks (`clock_time_get`) | always 0 |
+| clocks (`clock_time_get`) | always 0; a clock id WASI does not define (above 3) returns `INVAL` (28) |
 | `random_get` | secure random bytes |
 | every other WASI function (`poll_oneoff`, `clock_res_get`, files, sockets, ...) | returns `NOSYS` (52) without doing anything |
 
@@ -71,6 +71,14 @@ Endive interprets modules by default. `-Dlarky.wasm.endive.mode=compiler` compil
 JVM bytecode instead, which runs faster but costs time and Metaspace in proportion to the module
 before any deadline applies, and cannot be interrupted; use it only for modules you trust. A
 GraalVM native image cannot use it.
+
+Larky compiles a module the first time a script uses it and keeps the result, by content, in a
+cache of at most `-Dlarky.wasm.programCache.maxBytes` bytes of modules (16 MiB by default; least
+recently used first out). Compiling is not interrupted by the script's deadline, and a compiled
+module takes several times its size in memory: a 1.4 MB Javy module took 0.2 s to compile and
+36 MiB of heap under Endive's interpreter.
+`-Dlarky.wasm.maxMemoryBytes` and `-Dlarky.wasm.maxOutputBytes` set each run's limits; a negative
+or malformed value means the default.
 
 ## Choosing the host functions
 

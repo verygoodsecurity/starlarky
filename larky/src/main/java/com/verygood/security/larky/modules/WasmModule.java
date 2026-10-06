@@ -56,18 +56,45 @@ public final class WasmModule implements StarlarkValue {
 
   static final String MAX_MEMORY_PROPERTY = "larky.wasm.maxMemoryBytes";
   static final String MAX_OUTPUT_PROPERTY = "larky.wasm.maxOutputBytes";
-  static final String PROGRAM_CACHE_SIZE_PROPERTY = "larky.wasm.programCache.size";
+  static final String PROGRAM_CACHE_BYTES_PROPERTY = "larky.wasm.programCache.maxBytes";
+
+  /**
+   * How many bytes of modules the compiled-program cache holds by default. A compiled module
+   * takes several times its size in memory: a 1.4 MB Javy module took 36 MiB under Endive's
+   * interpreter.
+   */
+  static final long DEFAULT_PROGRAM_CACHE_BYTES = 16L << 20;
 
   /** A seed for every run's random_get, for tests only; null reads a SecureRandom. */
   @com.google.common.annotations.VisibleForTesting static volatile Long randomSeedForTests;
 
   private static final int MAX_STDERR_IN_ERROR = 1024;
 
+  /** A compiled program and the size of the module it came from, its weight in the cache. */
+  record Compiled(WasmRuntime.Program program, int moduleBytes) {}
+
   // Compiled programs, by runtime name and SHA-256 of the module's bytes.
-  private static final Cache<String, WasmRuntime.Program> PROGRAMS =
-      CacheBuilder.newBuilder()
-          .maximumSize(Long.getLong(PROGRAM_CACHE_SIZE_PROPERTY, 100))
-          .build();
+  private static final Cache<String, Compiled> PROGRAMS =
+      programCache(property(PROGRAM_CACHE_BYTES_PROPERTY, DEFAULT_PROGRAM_CACHE_BYTES));
+
+  /**
+   * A cache that keeps at most {@code maxModuleBytes} bytes of modules' programs, least recently
+   * used first out. One segment, so a module may use the whole budget (Guava splits it between
+   * segments otherwise).
+   */
+  static Cache<String, Compiled> programCache(long maxModuleBytes) {
+    return CacheBuilder.newBuilder()
+        .concurrencyLevel(1)
+        .maximumWeight(maxModuleBytes)
+        .weigher((String key, Compiled compiled) -> compiled.moduleBytes())
+        .build();
+  }
+
+  /** System property {@code name}, or {@code fallback} if it is unset, malformed or negative. */
+  static long property(String name, long fallback) {
+    long value = Long.getLong(name, fallback);
+    return value < 0 ? fallback : value;
+  }
 
   private WasmModule() {}
 
@@ -80,10 +107,11 @@ public final class WasmModule implements StarlarkValue {
       useStarlarkThread = true)
   public LoadedWasmModule module(String name, StarlarkThread thread) throws EvalException {
     StarFile script = thread.getThreadLocal(StarFile.class);
-    byte[] wasm = script == null ? null : script.readShippedFile(name);
-    if (wasm == null) {
+    byte[] shipped = script == null ? null : script.readShippedFile(name);
+    if (shipped == null) {
       throw Starlark.errorf("wasm.module: no file named '%s'", name);
     }
+    byte[] wasm = shipped.clone(); // the caller may still change its array
     return new LoadedWasmModule(name, wasm, compile(name, wasm));
   }
 
@@ -119,7 +147,7 @@ public final class WasmModule implements StarlarkValue {
     String key = runtime.name() + ":" + Hashing.sha256().hashBytes(wasm);
     try {
       // One compile per module even when many evaluations ask for it at once.
-      return PROGRAMS.get(key, () -> runtime.compile(wasm));
+      return PROGRAMS.get(key, () -> new Compiled(runtime.compile(wasm), wasm.length)).program();
     } catch (java.util.concurrent.ExecutionException
         | com.google.common.util.concurrent.UncheckedExecutionException e) {
       throw new EvalException(String.format("wasm module '%s' is not a valid WASI module", name));
@@ -185,10 +213,14 @@ public final class WasmModule implements StarlarkValue {
       long expirationMs = thread.getExpirationMs();
       WasmRuntime.Limits limits =
           new WasmRuntime.Limits(
-              Long.getLong(MAX_MEMORY_PROPERTY, WasmRuntime.Limits.DEFAULT_MAX_MEMORY_BYTES),
-              // The thread expires once its clock is past expirationMs; a run stops at its deadline.
-              expirationMs == Long.MAX_VALUE ? 0 : expirationMs + 1,
-              Integer.getInteger(MAX_OUTPUT_PROPERTY, WasmRuntime.Limits.DEFAULT_MAX_OUTPUT_BYTES),
+              property(MAX_MEMORY_PROPERTY, WasmRuntime.Limits.DEFAULT_MAX_MEMORY_BYTES),
+              // The thread expires once its clock is past expirationMs; a run stops at its deadline,
+              // which is never 0 (no deadline) for an expiration in the past.
+              expirationMs == Long.MAX_VALUE ? 0 : Math.max(1, expirationMs + 1),
+              (int)
+                  Math.min(
+                      Integer.MAX_VALUE,
+                      property(MAX_OUTPUT_PROPERTY, WasmRuntime.Limits.DEFAULT_MAX_OUTPUT_BYTES)),
               randomSeedForTests);
       WasmRuntime.Result result;
       try {
