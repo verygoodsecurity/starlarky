@@ -156,7 +156,8 @@
         <plugins>
             <!-- VGS additions to libstarlark live outside src/{main,test}/java, which bin/update-starlark.py
                  replaces wholesale with upstream Bazel's tree (rsync, deleting extra files); upstream files
-                 carry only small hooks into them. -->
+                 carry only small hooks into them. src/{main,test}/vgs hold VGS changes to the language and
+                 runtime, src/{main,test}/bc the bytecode compiler and VMs. -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
@@ -171,6 +172,7 @@
                         <configuration>
                             <sources>
                                 <source>src/main/vgs</source>
+                                <source>src/main/bc</source>
                             </sources>
                         </configuration>
                     </execution>
@@ -183,6 +185,7 @@
                         <configuration>
                             <sources>
                                 <source>src/test/vgs</source>
+                                <source>src/test/bc</source>
                             </sources>
                         </configuration>
                     </execution>
