@@ -11,10 +11,13 @@ import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Getter;
 import net.starlark.java.annot.StarlarkAnnotations;
@@ -181,6 +184,19 @@ public final class LarkyEvaluator {
     @Nullable
     @Override
     public Module load(String moduleToLoad) {
+      String name = ResourceContentStarFile.getModulePath(moduleToLoad);
+
+      if (TEST_ONLY_MODULE_NAMES.contains(name)) {
+          throw new RuntimeException(
+                  String.format(
+                  "The module '%s' is only available in test mode.%n" +
+                  "You attempted to import a testing module in a production Larky script.%n" +
+                  "Allowed only inside test scripts (mvn test).",
+                  name
+                  )
+          );
+      }
+
       Module loadedModule = null;
       try {
         if (!ResourceContentStarFile.startsWithPrefix(moduleToLoad)) {
@@ -258,6 +274,14 @@ public final class LarkyEvaluator {
       return newModule;
     }
 
+    private static final Set<String> TEST_ONLY_MODULE_NAMES =
+      ModuleSupplier.TEST_MODULES.stream()
+          .map(v -> {
+              StarlarkBuiltin annot = v.getClass().getAnnotation(StarlarkBuiltin.class);
+              return annot.name();
+          })
+          .filter(Objects::nonNull)
+          .collect(Collectors.toSet());
   }
 
   @NotNull
