@@ -107,7 +107,8 @@ Get the plugin either way:
 - **Build it** from Javy's source: `larky-wasm/tools/build-javy-plugin.sh plugin-nosimd.wasm`.
   It needs curl, git and clang (with libclang). It downloads the Javy CLI and rustup-init,
   checking each against a SHA-256 pinned in the script, checks out Javy's source at its pinned
-  commit, and installs Rust into a temporary directory, not `~/.cargo`. It takes a few minutes.
+  commit, and installs the pinned Rust (1.99.0) into a temporary directory, not `~/.cargo`, which
+  it removes afterwards. It takes a few minutes.
 
 Notes:
 
@@ -115,7 +116,7 @@ Notes:
   run time. `-C plugin=` only chooses which QuickJS build is embedded.
 - With `-C plugin=`, Javy does not take `-J` options; the plugin's defaults apply (stream I/O and
   `TextEncoder`/`TextDecoder` are available, as the wrapper above needs).
-  A static module is about 1.3 MiB (`sample_encrypt.wasm` is 1,372,672 bytes).
+  A static module is about 1.3 MiB (`sample_encrypt.wasm` is 1,372,179 bytes).
 - Javy cannot choose an exit code, and an uncaught exception traps the module, which loses its
   output. Catch errors and report them in the JSON you write, as above.
 - The vendor script must not need `fetch`, timers, files, or Node.js modules; none of them exist
