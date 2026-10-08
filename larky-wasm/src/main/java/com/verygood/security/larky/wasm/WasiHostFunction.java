@@ -22,13 +22,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Declares an implemented WASI import; the host's allowlist separately authorizes its use.
+ * Declares a WASI import; the host's allowlist separately authorizes its use.
  * Methods are instance methods with GuestMemory first, then int for i32 and long for i64.
- * The result is int for errno, or void for proc_exit. Signatures use WasiHost.SIGNATURES notation.
+ * The result is int for errno, or void for proc_exit. Signatures use i for i32, I for i64,
+ * and a colon before the result.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @interface WasiHostFunction {
   String name();
   String signature();
+
+  /** False for explicit NOSYS stubs, which cannot be granted by a host policy. */
+  boolean implemented() default true;
 }

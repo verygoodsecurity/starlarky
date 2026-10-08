@@ -50,7 +50,9 @@ final class WasiHostRegistry {
 
   private static void validate(Method method, WasiHostFunction function) {
     String signature = function.signature();
-    if (!signature.equals(WasiHost.SIGNATURES.get(function.name()))) {
+    if (!function.name().matches("[a-z][a-z0-9_]*")
+        || !signature.matches("[iI]*:i?")
+        || (!function.implemented() && signature.endsWith(":"))) {
       throw new IllegalArgumentException("invalid WASI signature or name: " + function.name());
     }
     int count = signature.indexOf(':');
@@ -69,8 +71,13 @@ final class WasiHostRegistry {
 
   static final class Descriptor {
     private final MethodHandle handle;
+    private final String signature;
+    private final boolean implemented;
 
     Descriptor(Method method) {
+      WasiHostFunction function = method.getAnnotation(WasiHostFunction.class);
+      signature = function.signature();
+      implemented = function.implemented();
       try {
         MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(method.getDeclaringClass(),
             MethodHandles.lookup());
@@ -85,6 +92,14 @@ final class WasiHostRegistry {
       } catch (IllegalAccessException e) {
         throw new IllegalArgumentException("cannot bind WASI method: " + method, e);
       }
+    }
+
+    String signature() {
+      return signature;
+    }
+
+    boolean implemented() {
+      return implemented;
     }
 
     WasiHost.Function bind(Object module) {

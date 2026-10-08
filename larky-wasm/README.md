@@ -30,8 +30,11 @@ remain invalid modules.
 
 Internally, `WasiHostModule` owns fresh state for each run. Its `@WasiHostFunction` methods
 use `GuestMemory` followed by Java `int` for WASM i32 and `long` for i64, returning an `int`
-errno (`void` for `proc_exit`). The registry validates names and signatures against the complete
-WASI preview 1 ABI catalog, rejects duplicate exports, and caches unbound method handles.
+errno (`void` for `proc_exit`). These annotations declare the full WASI preview 1 catalog, including
+`implemented = false` stubs that return `NOSYS` and cannot be granted by a policy. The registry
+derives names, signatures and bindings from the declarations, validates signature syntax and
+Java types, rejects duplicate exports, and caches unbound method handles. A test-only ABI
+fixture checks names and signatures independently of the production registry.
 Endive binds imports to the permitted handlers during instantiation; guest calls use those
 handles directly. Runtime adapters must pass `limits.wasiHostPolicy()` to `WasiHost` and bind
 all WASI imports through it, including unsupported functions, to preserve the same sandbox.
