@@ -31,6 +31,7 @@ import com.verygood.security.larky.wasm.WasmRuntime.WasmException.Kind;
 import com.verygood.security.larky.wasm.WasmRuntime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -565,4 +566,35 @@ public class ConformanceTest {
     assertThat(compileFails(truncated).kind()).isEqualTo(Kind.INVALID_MODULE);
   }
 
+  // JavaScript compiled with Javy
+
+  @Test
+  public void javyModuleProducesTheRecordedOutputs() throws Exception {
+    WasmRuntime.Program program = runtime.compile(Fixtures.wasm(Fixtures.SAMPLE_ENCRYPT));
+    for (Map.Entry<String, String> c : Fixtures.SAMPLE_ENCRYPT_CASES.entrySet()) {
+      WasmRuntime.Result result = program.run(utf8(c.getKey()), WasmRuntime.Limits.defaults());
+      assertWithMessage("stdout for %s", c.getKey())
+          .that(utf8(result.stdout()))
+          .isEqualTo(c.getValue());
+      assertWithMessage("exit code for %s", c.getKey()).that(result.exitCode()).isEqualTo(0);
+    }
+  }
+
+  @Test
+  public void javyModuleReportsBadInputOnStderrAndStdout() throws Exception {
+    WasmRuntime.Result result = run(Fixtures.SAMPLE_ENCRYPT, "not json");
+    assertThat(result.exitCode()).isEqualTo(0);
+    assertThat(utf8(result.stdout())).startsWith("{\"error\":\"input is not JSON: ");
+    assertThat(utf8(result.stderr())).startsWith("sample_encrypt: input is not JSON: ");
+  }
+
+  @Test
+  public void javyModuleIsDeterministicAndKeyed() throws Exception {
+    String a = "{\"pan\": \"4111111111111111\", \"key\": \"k1\"}";
+    String b = "{\"pan\": \"4111111111111111\", \"key\": \"k2\"}";
+    String first = utf8(run(Fixtures.SAMPLE_ENCRYPT, a).stdout());
+    assertThat(utf8(run(Fixtures.SAMPLE_ENCRYPT, a).stdout())).isEqualTo(first);
+    assertThat(utf8(run(Fixtures.SAMPLE_ENCRYPT, b).stdout()))
+        .isEqualTo("{\"encrypted\":\"6481209987721111\",\"keyId\":\"953d7c08\"}");
+  }
 }
