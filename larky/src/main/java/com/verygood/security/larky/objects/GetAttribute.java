@@ -33,8 +33,11 @@ public abstract class GetAttribute {
         } else if (LarkyDataDescriptor.isDataDescriptor(typeAttr)) {
           // ok it's not a data descriptor instance, but it does contain some fields
           // that make it a data descriptor, so, let's see if it also has a __get__
-          Object __get__ = ((PyObject) typeAttr).getField(PyProtocols.__GET__, thread);
-          result = Starlark.call(thread, __get__, Tuple.of(obj, objType), Dict.empty());
+          Object __get__ = LarkyNonDataDescriptor.descriptorMethod(typeAttr, PyProtocols.__GET__, thread);
+          if (__get__ != null) {
+            result = Starlark.call(thread, __get__, Tuple.of(obj, objType), Dict.empty());
+          }
+          // Without __get__, continue to the instance dictionary before returning typeAttr.
         }
       } catch (InterruptedException | EvalException cause) {
         /*
@@ -61,7 +64,7 @@ public abstract class GetAttribute {
         } else if (LarkyNonDataDescriptor.isNonDataDescriptor(typeAttr)) {
           // ok it's not a non data descriptor instance, but it does contain some fields
           // that make it a non data descriptor, so, let's see if it also has a __get__
-          Object __get__ = ((PyObject) typeAttr).getField(PyProtocols.__GET__, thread);
+          Object __get__ = LarkyNonDataDescriptor.descriptorMethod(typeAttr, PyProtocols.__GET__, thread);
           result = Starlark.call(thread, __get__, Tuple.of(obj, objType), Dict.empty());
         }
       } catch (InterruptedException | EvalException cause) {
