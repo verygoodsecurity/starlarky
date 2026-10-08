@@ -57,7 +57,7 @@ public class LarkyCompiledScript extends CompiledScript {
   @Nullable private String cachedScriptName;
   @Nullable private Program cachedProgram;
   // Other files the script may load() by name (see LarkyScriptEngine#MODULES).
-  private ImmutableMap<String, String> modules = ImmutableMap.of();
+  private ImmutableMap<String, byte[]> modules = ImmutableMap.of();
   // Separates this script's cached compiled programs from other namespaces' (see
   // LarkyScriptEngine#CACHE_NAMESPACE).
   private String cacheNamespace = "";
@@ -177,7 +177,7 @@ public class LarkyCompiledScript extends CompiledScript {
   }
 
   /** Makes these files available to the script's load() statements, by name. */
-  void setModules(Map<String, String> modules) {
+  void setModules(Map<String, byte[]> modules) {
     this.modules = ImmutableMap.copyOf(modules);
   }
 
@@ -215,8 +215,7 @@ public class LarkyCompiledScript extends CompiledScript {
       } else {
         ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
         files.put(scriptName, source.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        modules.forEach(
-            (name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        files.putAll(modules);
         script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
       }
       final DefaultLarkyInterpreter larkyInterpreter = new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings);

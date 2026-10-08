@@ -1,11 +1,84 @@
-# larky-wasm
+# Running WebAssembly from Larky (`@vgs//wasm`)
 
-The WebAssembly runtime behind Larky's `@vgs//wasm`.
+`@vgs//wasm` lets a Larky script run a WebAssembly module that you provide. Use it when you need
+code that cannot be written in Larky, such as a payment processor's JavaScript library: compile it
+to WebAssembly and call it from your script.
+
+## What a module is
+
+A module is a [WASI preview 1](https://github.com/WebAssembly/WASI/blob/main/legacy/preview1/docs.md)
+command: it exports `_start` and its `memory`, imports only WASI preview 1 functions (with their
+standard signatures), and has no start section. Every call starts a fresh instance, so nothing
+carries over from one call to the next.
+
+| What the module sees | Value |
+| --- | --- |
+| stdin | the input you pass |
+| stdout | the result you get back |
+| stderr | captured, for diagnostics |
+| argv | `["module"]` |
+| environment variables | none |
+| files and directories | none (no preopens) |
+| network | none |
+| clocks (`clock_time_get`) | always 0; a clock id WASI does not define (above 3) returns `INVAL` (28) |
+| `random_get` | secure random bytes |
+| every other WASI function (`poll_oneoff`, `clock_res_get`, files, sockets, ...) | returns `NOSYS` (52) without doing anything |
+
+The WASI functions that do something are `args_get`, `args_sizes_get`, `environ_get`,
+`environ_sizes_get`, `clock_time_get`, `random_get`, `fd_read` (stdin), `fd_write` (stdout and
+stderr), `fd_close`, `fd_fdstat_get`, `fd_seek` (ESPIPE), `fd_prestat_get` and
+`fd_prestat_dir_name` (EBADF: no preopens), `sched_yield` and `proc_exit`. A pointer or length
+outside the module's memory traps.
+
+Returning from `_start` exits with 0; `proc_exit(n)` exits with `n`.
+
+## Limits
+
+| Limit | Default | When exceeded |
+| --- | --- | --- |
+| Linear memory | 64 MiB (1024 pages) | a module whose initial memory is larger fails to start; `memory.grow` past the limit returns -1 |
+| stdout, and separately stderr | 1 MiB each | the call fails |
+| Run time | a deadline set by the caller | the call fails |
+| Module size | 8 MiB and 20,000 functions | the module is not valid |
+
+A trap (for example `unreachable` or an out-of-bounds access) also fails the call.
+
+## Calling a module from Larky
+
+```python
+load("@vgs//wasm", "wasm")
+
+encrypt = wasm.module("encrypt.wasm")
+
+def encrypt_pan(pan, key):
+    result = encrypt.call({"pan": pan, "key": key})
+    if "error" in result:
+        fail(result["error"])
+    return result["encrypted"]
+```
+
+- `.call(value)` writes `value` to stdin as JSON and returns stdout parsed as JSON.
+- `.run(data)` writes the bytes `data` to stdin and returns stdout as bytes.
+- `wasm.loads(data)` makes a module from its binary (bytes), and `wasm.dumps(module)` returns a
+  module's binary; the names follow Python's `pickle`/`json` (`load` itself is a Larky keyword).
 
 ## Runtimes (for services that embed Larky)
 
 `larky-wasm` runs modules on [Endive](https://github.com/bytecodealliance/endive), a pure-JVM
 runtime; `larky-wasm/src/test` holds its conformance tests. `WasmRuntime` is the whole API.
+
+Endive interprets modules by default. `-Dlarky.wasm.endive.mode=compiler` compiles each module to
+JVM bytecode instead, which runs faster but costs time and Metaspace in proportion to the module
+before any deadline applies, and cannot be interrupted; use it only for modules you trust. A
+GraalVM native image cannot use it.
+
+Larky compiles a module the first time a script uses it and keeps the result, by content, in a
+cache of at most `-Dlarky.wasm.programCache.maxBytes` bytes of modules (16 MiB by default; least
+recently used first out). Compiling is not interrupted by the script's deadline, and a compiled
+module takes several times its size in memory: a 1.4 MB Javy module took 0.2 s to compile and
+36 MiB of heap under Endive's interpreter.
+`-Dlarky.wasm.maxMemoryBytes` and `-Dlarky.wasm.maxOutputBytes` set each run's limits; a negative
+or malformed value means the default.
 
 ## Choosing the host functions
 

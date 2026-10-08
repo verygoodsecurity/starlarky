@@ -32,7 +32,7 @@ import run.endive.wabt.Wat2Wasm;
  * The modules the conformance tests run. Each WAT fixture in {@code src/test/resources/wasm} is the
  * source of truth and is compiled here with Endive's wabt port.
  */
-final class Fixtures {
+public final class Fixtures {
 
   /** The WAT fixtures, by file name without {@code .wat}. */
   static final List<String> WAT =
@@ -46,7 +46,7 @@ final class Fixtures {
   private Fixtures() {}
 
   /** The bytes of fixture {@code name}: a compiled WAT file or a committed {@code .wasm}. */
-  static byte[] wasm(String name) {
+  public static byte[] wasm(String name) {
     return CACHE.computeIfAbsent(name, Fixtures::load).clone();
   }
 
