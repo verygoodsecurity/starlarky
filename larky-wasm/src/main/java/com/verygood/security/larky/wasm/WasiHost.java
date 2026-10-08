@@ -45,64 +45,18 @@ final class WasiHost {
   static final int ERRNO_NOSYS = 52;
   static final int ERRNO_SPIPE = 70;
 
-  /**
-   * Every WASI preview 1 function's signature: its parameter types, a colon, and its result types,
-   * with {@code i} for i32 and {@code I} for i64.
-   */
-  static final java.util.Map<String, String> SIGNATURES =
-      java.util.Map.ofEntries(
-          java.util.Map.entry("args_get", "ii:i"),
-          java.util.Map.entry("args_sizes_get", "ii:i"),
-          java.util.Map.entry("clock_res_get", "ii:i"),
-          java.util.Map.entry("clock_time_get", "iIi:i"),
-          java.util.Map.entry("environ_get", "ii:i"),
-          java.util.Map.entry("environ_sizes_get", "ii:i"),
-          java.util.Map.entry("fd_advise", "iIIi:i"),
-          java.util.Map.entry("fd_allocate", "iII:i"),
-          java.util.Map.entry("fd_close", "i:i"),
-          java.util.Map.entry("fd_datasync", "i:i"),
-          java.util.Map.entry("fd_fdstat_get", "ii:i"),
-          java.util.Map.entry("fd_fdstat_set_flags", "ii:i"),
-          java.util.Map.entry("fd_fdstat_set_rights", "iII:i"),
-          java.util.Map.entry("fd_filestat_get", "ii:i"),
-          java.util.Map.entry("fd_filestat_set_size", "iI:i"),
-          java.util.Map.entry("fd_filestat_set_times", "iIIi:i"),
-          java.util.Map.entry("fd_pread", "iiiIi:i"),
-          java.util.Map.entry("fd_prestat_dir_name", "iii:i"),
-          java.util.Map.entry("fd_prestat_get", "ii:i"),
-          java.util.Map.entry("fd_pwrite", "iiiIi:i"),
-          java.util.Map.entry("fd_read", "iiii:i"),
-          java.util.Map.entry("fd_readdir", "iiiIi:i"),
-          java.util.Map.entry("fd_renumber", "ii:i"),
-          java.util.Map.entry("fd_seek", "iIii:i"),
-          java.util.Map.entry("fd_sync", "i:i"),
-          java.util.Map.entry("fd_tell", "ii:i"),
-          java.util.Map.entry("fd_write", "iiii:i"),
-          java.util.Map.entry("path_create_directory", "iii:i"),
-          java.util.Map.entry("path_filestat_get", "iiiii:i"),
-          java.util.Map.entry("path_filestat_set_times", "iiiiIIi:i"),
-          java.util.Map.entry("path_link", "iiiiiii:i"),
-          java.util.Map.entry("path_open", "iiiiiIIii:i"),
-          java.util.Map.entry("path_readlink", "iiiiii:i"),
-          java.util.Map.entry("path_remove_directory", "iii:i"),
-          java.util.Map.entry("path_rename", "iiiiii:i"),
-          java.util.Map.entry("path_symlink", "iiiii:i"),
-          java.util.Map.entry("path_unlink_file", "iii:i"),
-          java.util.Map.entry("poll_oneoff", "iiii:i"),
-          java.util.Map.entry("proc_exit", "i:"),
-          java.util.Map.entry("proc_raise", "i:i"),
-          java.util.Map.entry("random_get", "ii:i"),
-          java.util.Map.entry("sched_yield", ":i"),
-          java.util.Map.entry("sock_accept", "iii:i"),
-          java.util.Map.entry("sock_recv", "iiiiii:i"),
-          java.util.Map.entry("sock_send", "iiiii:i"),
-          java.util.Map.entry("sock_shutdown", "ii:i"));
-
   private static final Map<String, WasiHostRegistry.Descriptor> FUNCTIONS =
       WasiHostRegistry.discover(WasiHostModule.class);
 
-  /** Derived from annotations, independently of which functions the host permits. */
-  static final java.util.Set<String> RUNTIME_FUNCTIONS = FUNCTIONS.keySet();
+  /** Complete ABI catalog, derived solely from the module's annotated declarations. */
+  static final Map<String, String> SIGNATURES = FUNCTIONS.entrySet().stream()
+      .collect(java.util.stream.Collectors.toUnmodifiableMap(Map.Entry::getKey,
+          entry -> entry.getValue().signature()));
+
+  /** Implemented declarations only; discovery does not authorize their execution. */
+  static final java.util.Set<String> RUNTIME_FUNCTIONS = FUNCTIONS.entrySet().stream()
+      .filter(entry -> entry.getValue().implemented())
+      .map(Map.Entry::getKey).collect(java.util.stream.Collectors.toUnmodifiableSet());
 
   /** A guest's linear memory, as each runtime exposes it. Addresses are within {@link #size}. */
   interface GuestMemory {

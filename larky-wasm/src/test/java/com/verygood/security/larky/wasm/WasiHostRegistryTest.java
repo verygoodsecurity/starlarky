@@ -22,7 +22,9 @@ import static org.junit.Assert.assertThrows;
 import com.verygood.security.larky.wasm.WasmRuntime.WasiHostPolicy;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Properties;
 import java.util.Set;
 import org.junit.Test;
 
@@ -108,6 +110,52 @@ public final class WasiHostRegistryTest {
     assertThrows(IllegalArgumentException.class, () -> new WasiHostPolicy(Set.of("path_open")));
   }
 
+  @Test
+  public void annotationsCoverTheCompletePreview1Abi() throws Exception {
+    Properties abi = new Properties();
+    try (var stream = getClass().getResourceAsStream("/wasm/wasi-preview1-signatures.properties")) {
+      abi.load(stream);
+    }
+    var annotated = new HashMap<String, String>();
+    for (var method : WasiHostModule.class.getDeclaredMethods()) {
+      var function = method.getAnnotation(WasiHostFunction.class);
+      if (function != null) {
+        assertThat(annotated.put(function.name(), function.signature())).isNull();
+      }
+    }
+    assertThat(annotated).containsExactlyEntriesIn(abi);
+    assertThat(WasiHost.SIGNATURES).containsExactlyEntriesIn(abi);
+  }
+
+  @Test
+  public void everyUnsupportedDeclarationReturnsNosysAndCannotBeGranted() {
+    var descriptors = WasiHostRegistry.discover(WasiHostModule.class);
+    var module = new WasiHostModule(new byte[0], new CappedOutputStream("stdout", 0),
+        new CappedOutputStream("stderr", 0), 0L, 0);
+    Memory memory = new Memory();
+    for (String name : WasiHost.SIGNATURES.keySet()) {
+      if (descriptors.get(name).implemented()) {
+        continue;
+      }
+      assertThat(descriptors).containsKey(name);
+      long[] args = new long[WasiHost.SIGNATURES.get(name).indexOf(':')];
+      java.util.Arrays.fill(args, -1L);
+      assertThat(descriptors.get(name).bind(module).call(args, memory)).isEqualTo(52);
+      assertThat(host(WasiHostPolicy.defaults(), new CappedOutputStream("stdout", 0))
+          .bind(name).call(args, memory)).isEqualTo(52);
+      assertThrows(name, IllegalArgumentException.class, () -> new WasiHostPolicy(Set.of(name)));
+    }
+    assertThat(memory.accesses).isEqualTo(0);
+  }
+
+  @Test
+  public void discoveryPreservesTheExplicitDefaultGrants() {
+    assertThat(WasiHostPolicy.defaults().enabledFunctions()).containsExactly(
+        "args_get", "args_sizes_get", "environ_get", "environ_sizes_get", "clock_time_get",
+        "random_get", "fd_read", "fd_write", "fd_close", "fd_fdstat_get", "fd_seek",
+        "fd_prestat_get", "fd_prestat_dir_name", "sched_yield", "proc_exit");
+  }
+
   static final class Duplicate {
     @WasiHostFunction(name = "sched_yield", signature = ":i")
     int first(WasiHost.GuestMemory memory) { return 0; }
@@ -116,7 +164,7 @@ public final class WasiHostRegistryTest {
   }
 
   static final class BadSignature {
-    @WasiHostFunction(name = "random_get", signature = "i:i")
+    @WasiHostFunction(name = "random_get", signature = "ix:i")
     int wrong(WasiHost.GuestMemory memory, int address) { return 0; }
   }
 
@@ -135,18 +183,33 @@ public final class WasiHostRegistryTest {
     static int wrong(WasiHost.GuestMemory memory) { return 0; }
   }
 
-  static final class UnknownFunction {
-    @WasiHostFunction(name = "typo", signature = ":i")
+  static final class InvalidName {
+    @WasiHostFunction(name = "bad-name", signature = ":i")
     int wrong(WasiHost.GuestMemory memory) { return 0; }
   }
 
   @Test
   public void registryRejectsDuplicateNamesAndIncompatibleDeclarations() {
     for (Class<?> invalid : new Class<?>[] {Duplicate.class, BadSignature.class, BadJavaType.class,
-        BadReturn.class, StaticFunction.class, UnknownFunction.class}) {
+        BadReturn.class, StaticFunction.class, InvalidName.class}) {
       assertThrows(invalid.getName(), IllegalArgumentException.class,
           () -> WasiHostRegistry.discover(invalid));
     }
+  }
+
+  static final class AdditionalFunction {
+    @WasiHostFunction(name = "test_extension", signature = "i:i")
+    int extra(WasiHost.GuestMemory memory, int value) { return value; }
+  }
+
+  @Test
+  public void explicitlyDiscoveredDeclarationsDoNotChangeTheHostCatalogOrPolicy() {
+    var function = WasiHostRegistry.discover(AdditionalFunction.class).get("test_extension");
+    assertThat(function.bind(new AdditionalFunction()).call(new long[] {28}, new Memory()))
+        .isEqualTo(28);
+    assertThat(WasiHost.SIGNATURES).doesNotContainKey("test_extension");
+    assertThrows(IllegalArgumentException.class,
+        () -> new WasiHostPolicy(Set.of("test_extension")));
   }
 
   static final class NumericArguments {

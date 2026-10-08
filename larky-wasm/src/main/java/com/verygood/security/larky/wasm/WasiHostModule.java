@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.SplittableRandom;
 
-/** Annotated WASI implementations and mutable state, created afresh for each run. */
+/** Complete annotated WASI surface and mutable state, created afresh for each run. */
 final class WasiHostModule {
   /** The last of WASI's clock ids: realtime (0), monotonic (1), process (2) and thread (3). */
   private static final long CLOCK_THREAD_CPUTIME_ID = 3;
@@ -146,6 +146,172 @@ final class WasiHostModule {
   @WasiHostFunction(name = "proc_exit", signature = "i:")
   void procExit(GuestMemory memory, int code) {
     throw new ProcExit(code);
+  }
+
+  // These declarations recognize the standard ABI without granting files, sockets or other effects.
+  @WasiHostFunction(name = "clock_res_get", signature = "ii:i", implemented = false)
+  int clockResGet(GuestMemory memory, int clock, int address) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_advise", signature = "iIIi:i", implemented = false)
+  int fdAdvise(GuestMemory memory, int fd, long offset, long length, int advice) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_allocate", signature = "iII:i", implemented = false)
+  int fdAllocate(GuestMemory memory, int fd, long offset, long length) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_datasync", signature = "i:i", implemented = false)
+  int fdDatasync(GuestMemory memory, int fd) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_fdstat_set_flags", signature = "ii:i", implemented = false)
+  int fdFdstatSetFlags(GuestMemory memory, int fd, int flags) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_fdstat_set_rights", signature = "iII:i", implemented = false)
+  int fdFdstatSetRights(GuestMemory memory, int fd, long rightsBase, long rightsInheriting) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_filestat_get", signature = "ii:i", implemented = false)
+  int fdFilestatGet(GuestMemory memory, int fd, int address) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_filestat_set_size", signature = "iI:i", implemented = false)
+  int fdFilestatSetSize(GuestMemory memory, int fd, long size) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_filestat_set_times", signature = "iIIi:i", implemented = false)
+  int fdFilestatSetTimes(GuestMemory memory, int fd, long atim, long mtim, int flags) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_pread", signature = "iiiIi:i", implemented = false)
+  int fdPread(GuestMemory memory, int fd, int iovs, int count, long offset, int nread) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_pwrite", signature = "iiiIi:i", implemented = false)
+  int fdPwrite(GuestMemory memory, int fd, int iovs, int count, long offset, int nwritten) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_readdir", signature = "iiiIi:i", implemented = false)
+  int fdReaddir(GuestMemory memory, int fd, int buffer, int length, long cookie, int used) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_renumber", signature = "ii:i", implemented = false)
+  int fdRenumber(GuestMemory memory, int from, int to) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_sync", signature = "i:i", implemented = false)
+  int fdSync(GuestMemory memory, int fd) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "fd_tell", signature = "ii:i", implemented = false)
+  int fdTell(GuestMemory memory, int fd, int address) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "path_create_directory", signature = "iii:i", implemented = false)
+  int pathCreateDirectory(GuestMemory memory, int fd, int path, int length) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "path_filestat_get", signature = "iiiii:i", implemented = false)
+  int pathFilestatGet(GuestMemory memory, int fd, int flags, int path, int length, int address) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "path_filestat_set_times", signature = "iiiiIIi:i", implemented = false)
+  int pathFilestatSetTimes(
+      GuestMemory memory, int fd, int lookupFlags, int path, int length, long atim, long mtim,
+      int flags) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "path_link", signature = "iiiiiii:i", implemented = false)
+  int pathLink(
+      GuestMemory memory, int oldFd, int oldFlags, int oldPath, int oldLength, int newFd,
+      int newPath, int newLength) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "path_open", signature = "iiiiiIIii:i", implemented = false)
+  int pathOpen(
+      GuestMemory memory, int fd, int lookupFlags, int path, int length, int openFlags,
+      long rightsBase, long rightsInheriting, int fdFlags, int openedFd) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "path_readlink", signature = "iiiiii:i", implemented = false)
+  int pathReadlink(
+      GuestMemory memory, int fd, int path, int pathLength, int buffer, int bufferLength,
+      int used) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "path_remove_directory", signature = "iii:i", implemented = false)
+  int pathRemoveDirectory(GuestMemory memory, int fd, int path, int length) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "path_rename", signature = "iiiiii:i", implemented = false)
+  int pathRename(
+      GuestMemory memory, int oldFd, int oldPath, int oldLength, int newFd, int newPath,
+      int newLength) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "path_symlink", signature = "iiiii:i", implemented = false)
+  int pathSymlink(GuestMemory memory, int oldPath, int oldLength, int fd, int newPath, int newLength) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "path_unlink_file", signature = "iii:i", implemented = false)
+  int pathUnlinkFile(GuestMemory memory, int fd, int path, int length) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "poll_oneoff", signature = "iiii:i", implemented = false)
+  int pollOneoff(GuestMemory memory, int input, int output, int count, int nevents) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "proc_raise", signature = "i:i", implemented = false)
+  int procRaise(GuestMemory memory, int signal) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "sock_accept", signature = "iii:i", implemented = false)
+  int sockAccept(GuestMemory memory, int fd, int flags, int openedFd) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "sock_recv", signature = "iiiiii:i", implemented = false)
+  int sockRecv(GuestMemory memory, int fd, int iovs, int count, int flags, int nread, int resultFlags) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "sock_send", signature = "iiiii:i", implemented = false)
+  int sockSend(GuestMemory memory, int fd, int iovs, int count, int flags, int nwritten) {
+    return ERRNO_NOSYS;
+  }
+
+  @WasiHostFunction(name = "sock_shutdown", signature = "ii:i", implemented = false)
+  int sockShutdown(GuestMemory memory, int fd, int how) {
+    return ERRNO_NOSYS;
   }
 
   private boolean isOpen(int fd) {
