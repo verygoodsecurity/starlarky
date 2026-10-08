@@ -241,6 +241,49 @@ public class ConformanceTest {
   }
 
   @Test
+  public void rejectsAWasiImportWithTheWrongSignatureEvenIfImportedAgainRightly() {
+    assertThat(compileFails(Fixtures.wasm("dupimport")).kind()).isEqualTo(Kind.INVALID_MODULE);
+  }
+
+  /** longtype with its import's type index (0) encoded as {@code index}. */
+  private static byte[] withTypeIndex(byte[] index) {
+    byte[] wasm = Fixtures.wasm("longtype");
+    int pos = 8;
+    while (wasm[pos] != 2) { // sections before the import section; each is under 128 bytes here
+      pos += 2 + wasm[pos + 1];
+    }
+    int size = wasm[pos + 1];
+    // count, then "wasi_snapshot_preview1" and "fd_write" with their lengths, then the kind.
+    int typeIndex = pos + 2 + 1 + 1 + 22 + 1 + 8 + 1;
+    assertThat(wasm[typeIndex]).isEqualTo((byte) 0);
+    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+    out.write(wasm, 0, pos + 1);
+    out.write(size - 1 + index.length);
+    out.write(wasm, pos + 2, typeIndex - (pos + 2));
+    out.write(index, 0, index.length);
+    out.write(wasm, typeIndex + 1, wasm.length - typeIndex - 1);
+    return out.toByteArray();
+  }
+
+  @Test
+  public void integersMayUseTheirLongestEncodingButNoLonger() throws Exception {
+    byte c = (byte) 0x80; // a byte with the continuation bit and no payload
+    // 0 in one byte and in five, the most a u32 may use: valid.
+    assertThat(runtime.compile(withTypeIndex(new byte[] {0}))).isNotNull();
+    assertThat(runtime.compile(withTypeIndex(new byte[] {c, c, c, c, 0}))).isNotNull();
+    // 0 in six bytes; 0 with bit 32 set in the fifth byte; and ten bytes whose last byte sets
+    // bit 64, which a decoder that drops overflowing bits reads as 0.
+    for (byte[] index :
+        new byte[][] {
+          {c, c, c, c, c, 0}, {c, c, c, c, 0x10}, {c, c, c, c, c, c, c, c, c, 0x02}
+        }) {
+      assertWithMessage("type index %s", java.util.HexFormat.of().formatHex(index))
+          .that(compileFails(withTypeIndex(index)).kind())
+          .isEqualTo(Kind.INVALID_MODULE);
+    }
+  }
+
+  @Test
   public void clocksReadZero() throws Exception {
     assertOutput(run("clock", ""), 0, "0\n0\n", "");
   }
@@ -325,6 +368,12 @@ public class ConformanceTest {
   // Failures
 
   @Test
+  public void dataSegmentOutOfBoundsTrapsWhenInstantiated() throws Exception {
+    assertThat(runFails("dataoob", new byte[0], WasmRuntime.Limits.defaults()).kind())
+        .isEqualTo(Kind.TRAP);
+  }
+
+  @Test
   public void trapIsTrap() throws Exception {
     assertThat(runFails("trap", new byte[0], WasmRuntime.Limits.defaults()).kind()).isEqualTo(Kind.TRAP);
   }
@@ -358,6 +407,8 @@ public class ConformanceTest {
     long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
     assertThat(e.kind()).isEqualTo(Kind.TIMEOUT);
     assertWithMessage("milliseconds until TIMEOUT").that(elapsedMs).isLessThan(2000L);
+    // The deadline's own interrupt or cancellation does not reach the caller.
+    assertThat(Thread.currentThread().isInterrupted()).isFalse();
   }
 
   @Test

@@ -36,7 +36,7 @@ import java.util.Set;
  */
 public interface WasmRuntime {
 
-  /** System property naming the runtime, e.g. {@code -Dlarky.wasm.runtime=endive}. */
+  /** System property naming the runtime, e.g. {@code -Dlarky.wasm.runtime=graal}. */
   String PROPERTY = "larky.wasm.runtime";
 
   /** The runtime used when {@link #PROPERTY} is unset. */
@@ -51,7 +51,7 @@ public interface WasmRuntime {
   /** The most functions a module {@link #compile} accepts may define. */
   int MAX_FUNCTIONS = 20_000;
 
-  /** The name {@link #PROPERTY} selects it by, e.g. "endive". */
+  /** The name {@link #PROPERTY} selects it by, e.g. "endive" or "graal". */
   String name();
 
   /**
@@ -202,11 +202,16 @@ public interface WasmRuntime {
     return byName(name == null || name.isEmpty() ? DEFAULT : name);
   }
 
-  /** The runtime named {@code name}: "endive", or one registered with {@link ServiceLoader}. */
+  /**
+   * The runtime named {@code name}: "endive", "graal" (when GraalWasm is on the class path), or
+   * one registered with {@link ServiceLoader}.
+   */
   static WasmRuntime byName(String name) throws WasmException {
     switch (name) {
       case "endive":
         return new EndiveWasmRuntime();
+      case "graal":
+        return graal();
       default:
         for (WasmRuntime runtime : ServiceLoader.load(WasmRuntime.class, WasmRuntime.class.getClassLoader())) {
           if (runtime.name().equals(name)) {
@@ -218,11 +223,35 @@ public interface WasmRuntime {
     }
   }
 
-  /** Endive and any runtime registered with ServiceLoader. */
+  /** Endive, GraalWasm if it is on the class path, and any registered with ServiceLoader. */
   static List<WasmRuntime> all() {
     List<WasmRuntime> runtimes = new ArrayList<>();
     runtimes.add(new EndiveWasmRuntime());
+    try {
+      runtimes.add(graal());
+    } catch (WasmException e) {
+      // GraalWasm's dependencies are optional.
+    }
     ServiceLoader.load(WasmRuntime.class, WasmRuntime.class.getClassLoader()).forEach(runtimes::add);
     return runtimes;
+  }
+
+  /**
+   * {@link GraalWasmRuntime}, loaded by name: its GraalVM dependencies are optional, so it is
+   * only linked when asked for.
+   */
+  private static WasmRuntime graal() throws WasmException {
+    try {
+      return (WasmRuntime)
+          Class.forName("com.verygood.security.larky.wasm.GraalWasmRuntime")
+              .getDeclaredConstructor()
+              .newInstance();
+    } catch (ReflectiveOperationException | LinkageError e) {
+      throw new WasmException(
+          WasmException.Kind.INVALID_MODULE,
+          "the 'graal' WebAssembly runtime needs org.graalvm.polyglot:polyglot and"
+              + " org.graalvm.polyglot:wasm-community on the class path",
+          e);
+    }
   }
 }
