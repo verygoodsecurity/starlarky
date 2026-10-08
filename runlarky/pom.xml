@@ -35,7 +35,7 @@
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.protobuf.plugin.version>0.6.1</maven.protobuf.plugin.version>
-        <maven.surefire.plugin.version>3.1.2</maven.surefire.plugin.version>
+        <maven.surefire.plugin.version>3.5.3</maven.surefire.plugin.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
         <org.projectlombok.version>1.18.48</org.projectlombok.version>
         <picocli.version>4.7.7</picocli.version>
@@ -101,6 +101,14 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson-databind.version}</version>
+        </dependency>
+
+        <!-- junit 4 comes from larky at compile scope (its unittest module uses it). -->
+        <dependency>
+            <groupId>com.google.truth</groupId>
+            <artifactId>truth</artifactId>
+            <version>1.4.4</version>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>
@@ -189,7 +197,24 @@
                 </plugin>
             </plugins>
         </pluginManagement>
-
+        <plugins>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.plugin.version}</version>
+                <dependencies>
+                    <!--
+                        native-maven-plugin (a compile dependency above) brings JUnit Platform 1.8 and
+                        Jupiter 5.8 jars, which make surefire pick its JUnit Platform provider and fail
+                        to discover tests. Run the JUnit 4 tests with the JUnit 4 provider.
+                    -->
+                    <dependency>
+                        <groupId>org.apache.maven.surefire</groupId>
+                        <artifactId>surefire-junit4</artifactId>
+                        <version>${maven.surefire.plugin.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
     </build>
     <profiles>
         <profile>
