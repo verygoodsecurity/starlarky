@@ -20,10 +20,12 @@ import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
+import com.verygood.security.larky.wasm.WasmRuntime.WasiHostPolicy;
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException.Kind;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -142,6 +144,25 @@ public class EndiveWasmRuntimeTest {
   static final String FOREIGN_IMPORT =
       "(module (import \"env\" \"f\" (func)) (memory (export \"memory\") 1)"
           + " (func (export \"_start\")))";
+
+  @Test
+  public void hostPolicyAppliesPerRunOfACachedProgram() throws Exception {
+    WasmRuntime.Program program = compile(EXIT_3);
+    var restricted = new WasmRuntime.Limits(1 << 20, 0, 1024, 0L,
+        new WasiHostPolicy(Set.of("proc_exit")));
+    WasmRuntime.Result denied = program.run(NOTHING, restricted);
+    assertThat(denied.exitCode()).isEqualTo(3);
+    assertThat(denied.stderr()).isEmpty();
+    WasmRuntime.Result allowed = program.run(NOTHING, WasmRuntime.Limits.defaults());
+    assertThat(new String(allowed.stderr(), UTF_8)).isEqualTo("boom\n");
+  }
+
+  @Test
+  public void disabledVoidImportProducesATrap() throws Exception {
+    var limits = new WasmRuntime.Limits(1 << 20, 0, 1024, 0L, WasiHostPolicy.none());
+    WasmException error = assertThrows(WasmException.class, () -> compile(EXIT_3).run(NOTHING, limits));
+    assertThat(error.kind()).isEqualTo(Kind.TRAP);
+  }
 
   private final EndiveWasmRuntime.Mode mode;
   private final WasmRuntime runtime;

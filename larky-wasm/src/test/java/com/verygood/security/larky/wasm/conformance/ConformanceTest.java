@@ -25,11 +25,13 @@ import static com.verygood.security.larky.wasm.conformance.Fixtures.seeded;
 import static com.verygood.security.larky.wasm.conformance.Fixtures.utf8;
 import static org.junit.Assert.assertThrows;
 
+import com.verygood.security.larky.wasm.WasmRuntime.WasiHostPolicy;
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException.Kind;
 import com.verygood.security.larky.wasm.WasmRuntime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -89,6 +91,21 @@ public class ConformanceTest {
   @Test
   public void runtimeHasAName() {
     assertThat(runtime.name()).isNotEmpty();
+  }
+
+  @Test
+  public void hostPolicyAppliesToEachRunOfTheSameProgram() throws Exception {
+    WasmRuntime.Program program = runtime.compile(Fixtures.wasm("exit3"));
+    var restricted = new WasmRuntime.Limits(1 << 20, 0, 1024, 0L,
+        new WasiHostPolicy(Set.of("proc_exit")));
+    assertOutput(program.run(new byte[0], restricted), 3, "", "");
+    assertOutput(program.run(new byte[0], WasmRuntime.Limits.defaults()), 3, "", "boom");
+  }
+
+  @Test
+  public void disabledProcExitTrapsOnEveryRuntime() throws Exception {
+    var limits = new WasmRuntime.Limits(1 << 20, 0, 1024, 0L, WasiHostPolicy.none());
+    assertThat(runFails("exit3", new byte[0], limits).kind()).isEqualTo(Kind.TRAP);
   }
 
   // stdin and stdout
