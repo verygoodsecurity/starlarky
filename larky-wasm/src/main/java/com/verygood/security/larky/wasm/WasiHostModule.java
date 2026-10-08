@@ -16,7 +16,16 @@
 
 package com.verygood.security.larky.wasm;
 
-import static com.verygood.security.larky.wasm.WasiHost.*;
+import static com.verygood.security.larky.wasm.WasiHost.ERRNO_BADF;
+import static com.verygood.security.larky.wasm.WasiHost.ERRNO_INVAL;
+import static com.verygood.security.larky.wasm.WasiHost.ERRNO_NOSYS;
+import static com.verygood.security.larky.wasm.WasiHost.ERRNO_SPIPE;
+import static com.verygood.security.larky.wasm.WasiHost.ERRNO_SUCCESS;
+
+import com.verygood.security.larky.wasm.WasiHost.GuestMemory;
+import com.verygood.security.larky.wasm.WasiHost.ProcExit;
+import com.verygood.security.larky.wasm.WasiHost.Stop;
+import com.verygood.security.larky.wasm.WasiHost.Trap;
 
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
