@@ -1,0 +1,6 @@
+[
+  {
+    "name": "com.verygood.security.larky.wasm.WasiHostModule",
+    "allDeclaredMethods": true
+  }
+]
