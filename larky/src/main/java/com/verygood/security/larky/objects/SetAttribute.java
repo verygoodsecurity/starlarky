@@ -2,6 +2,7 @@ package com.verygood.security.larky.objects;
 
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
+import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.type.LarkyType;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
@@ -39,7 +40,10 @@ public abstract class SetAttribute {
       } else if (LarkyDataDescriptor.isDataDescriptor(typeAttr)) {
         // ok it's not a data descriptor instance, but it does contain some fields
         // that make it a data descriptor, so, let's see if it also has a __set__
-        Object __set__ = ((PyObject) typeAttr).getField(PyProtocols.__SET__, thread);
+        Object __set__ = LarkyNonDataDescriptor.descriptorMethod(typeAttr, PyProtocols.__SET__, thread);
+        if (__set__ == null) {
+          throw Starlark.errorf("AttributeError: object has no __set__ method");
+        }
         Starlark.call(thread, __set__, Tuple.of(obj, value), Dict.empty());
         result = true;
       }
@@ -49,7 +53,7 @@ public abstract class SetAttribute {
        * this is an invalid data descriptor.
        */
       throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(
-        "data descriptor does not define " + PyProtocols.__SET__, cause, thread
+        "data descriptor does not define " + PyProtocols.__SET__ + ": " + cause.getMessage(), cause, thread
       );
     }
     return result;

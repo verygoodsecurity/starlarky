@@ -2,6 +2,7 @@ package com.verygood.security.larky.objects;
 
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
+import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.type.LarkyType;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
@@ -39,7 +40,10 @@ public abstract class DeleteAttribute {
       } else if (LarkyDataDescriptor.isDataDescriptor(typeAttr)) {
         // ok it's not a data descriptor instance, but it does contain some fields
         // that make it a data descriptor, so, let's see if it also has a __DELETE__
-        Object __delete__ = ((PyObject) typeAttr).getField(PyProtocols.__DELETE__, thread);
+        Object __delete__ = LarkyNonDataDescriptor.descriptorMethod(typeAttr, PyProtocols.__DELETE__, thread);
+        if (__delete__ == null) {
+          throw Starlark.errorf("AttributeError: object has no __delete__ method");
+        }
         Starlark.call(thread, __delete__, Tuple.of(obj, attr), Dict.empty());
         result = true;
       }
@@ -49,7 +53,7 @@ public abstract class DeleteAttribute {
        * this is an invalid data descriptor.
        */
       throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(
-        "data descriptor does not define " + PyProtocols.__DELETE__, cause, thread
+        "data descriptor does not define " + PyProtocols.__DELETE__ + ": " + cause.getMessage(), cause, thread
       );
     }
     return result;
