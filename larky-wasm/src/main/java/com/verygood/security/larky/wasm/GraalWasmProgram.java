@@ -105,7 +105,8 @@ final class GraalWasmProgram implements WasmRuntime.Program {
     CappedOutputStream stdout = new CappedOutputStream("stdout", limits.maxOutputBytes());
     CappedOutputStream stderr = new CappedOutputStream("stderr", limits.maxOutputBytes());
     WasiHost wasi =
-        new WasiHost(stdin, stdout, stderr, limits.randomSeed(), limits.deadlineEpochMs());
+        new WasiHost(stdin, stdout, stderr, limits.randomSeed(), limits.deadlineEpochMs(),
+            limits.wasiHostPolicy());
     Context context = GraalWasmRuntime.contextBuilder().build();
     Watch watch = new Watch(context, Thread.currentThread(), limits.deadlineEpochMs(), stdout, stderr);
     ScheduledFuture<?> poll =
@@ -221,6 +222,7 @@ final class GraalWasmProgram implements WasmRuntime.Program {
         };
     Map<String, Object> functions = new HashMap<>();
     for (String name : imports) {
+      WasiHost.Function function = wasi.bind(name);
       functions.put(
           name,
           (ProxyExecutable)
@@ -229,7 +231,7 @@ final class GraalWasmProgram implements WasmRuntime.Program {
                 for (int i = 0; i < args.length; i++) {
                   values[i] = args[i].asLong();
                 }
-                return wasi.call(name, values, guest);
+                return function.call(values, guest);
               });
     }
     return Map.of(GraalWasmRuntime.HOST_MODULE, ProxyObject.fromMap(functions));

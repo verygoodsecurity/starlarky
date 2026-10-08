@@ -117,7 +117,7 @@ errno (`void` for `proc_exit`). These annotations declare the full WASI preview 
 derives names, signatures and bindings from the declarations, validates signature syntax and
 Java types, rejects duplicate exports, and caches unbound method handles. A test-only ABI
 fixture checks names and signatures independently of the production registry.
-Endive binds imports to the permitted handlers during instantiation; guest calls use those
+Endive and GraalWasm bind imports to the permitted handlers during instantiation; guest calls use those
 handles directly. Runtime adapters must pass `limits.wasiHostPolicy()` to `WasiHost` and bind
 all WASI imports through it, including unsupported functions, to preserve the same sandbox.
 The internal `WasiHost` constructor requires a policy; adapters using the old constructor
