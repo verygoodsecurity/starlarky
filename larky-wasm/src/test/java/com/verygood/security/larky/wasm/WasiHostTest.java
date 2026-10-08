@@ -81,7 +81,8 @@ public final class WasiHostTest {
   }
 
   private static WasiHost host(byte[] stdin, CappedOutputStream stdout) {
-    return new WasiHost(stdin, stdout, new CappedOutputStream("stderr", 0), 0L, 0);
+    return new WasiHost(stdin, stdout, new CappedOutputStream("stderr", 0), 0L, 0,
+        WasmRuntime.WasiHostPolicy.defaults());
   }
 
   @Test

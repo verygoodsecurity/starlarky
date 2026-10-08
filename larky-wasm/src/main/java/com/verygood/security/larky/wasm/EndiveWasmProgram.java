@@ -71,7 +71,8 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
     CappedOutputStream stdout = new CappedOutputStream("stdout", limits.maxOutputBytes());
     CappedOutputStream stderr = new CappedOutputStream("stderr", limits.maxOutputBytes());
     WasiHost wasi =
-        new WasiHost(stdin, stdout, stderr, limits.randomSeed(), limits.deadlineEpochMs());
+        new WasiHost(stdin, stdout, stderr, limits.randomSeed(), limits.deadlineEpochMs(),
+            limits.wasiHostPolicy());
 
     Instance.Builder builder =
         Instance.builder(module)
@@ -133,7 +134,8 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
             new CappedOutputStream("stdout", 0),
             new CappedOutputStream("stderr", 0),
             0L,
-            0);
+            0,
+            WasmRuntime.WasiHostPolicy.defaults());
     Instance.Builder builder =
         Instance.builder(module).withImportValues(imports(wasi)).withStart(false);
     if (machineFactory != null) {
@@ -207,13 +209,14 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
       String name = imp.name();
       FunctionType type = module.typeSection().getType(imp.typeIndex());
       boolean returnsErrno = !type.returns().isEmpty();
+      WasiHost.Function function = wasi.bind(name);
       functions.add(
           new HostFunction(
               WasiHost.MODULE,
               name,
               type,
               (instance, args) -> {
-                int errno = wasi.call(name, args, memory(instance));
+                int errno = function.call(args, memory(instance));
                 return returnsErrno ? new long[] {errno} : new long[0];
               }));
     }

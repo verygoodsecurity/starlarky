@@ -18,7 +18,9 @@ package com.verygood.security.larky.wasm;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 /**
  * Runs WebAssembly modules for Larky's {@code @vgs//wasm}. {@link #configured()} returns the
@@ -28,7 +30,8 @@ import java.util.ServiceLoader;
  * <p>Every runtime must behave identically (the conformance tests compare them): a module is a
  * WASI preview 1 command (it exports {@code _start} and its memory). A run gets a fresh instance
  * with the input as stdin; its stdout is the result. It has no files (no preopens), no
- * environment, argv {@code ["module"]}, no network, {@code clock_time_get} always returns 0, and
+ * environment, argv {@code ["module"]}, no network. With the default host policy,
+ * {@code clock_time_get} always returns 0, and
  * {@code random_get} reads {@link Limits#randomSeed()} if set, else a {@code SecureRandom}.
  */
 public interface WasmRuntime {
@@ -83,6 +86,39 @@ public interface WasmRuntime {
   }
 
   /**
+   * Host-selected WASI functions for a run. The allowlist is immutable and defaults to the
+   * existing sandbox behavior. Newly annotated functions require an explicit grant.
+   * Disabled errno-returning functions return NOSYS without side effects; disabled proc_exit traps.
+   *
+   * @param enabledFunctions names of implemented WASI preview 1 functions; unknown names and
+   *     functions without a host implementation are rejected
+   * @throws IllegalArgumentException if a requested function has no implementation
+   */
+  record WasiHostPolicy(Set<String> enabledFunctions) {
+    private static final WasiHostPolicy DEFAULT = new WasiHostPolicy(Set.of(
+        "args_get", "args_sizes_get", "clock_time_get", "environ_get", "environ_sizes_get",
+        "fd_close", "fd_fdstat_get", "fd_prestat_dir_name", "fd_prestat_get", "fd_read",
+        "fd_seek", "fd_write", "proc_exit", "random_get", "sched_yield"));
+
+    public WasiHostPolicy {
+      enabledFunctions = Set.copyOf(enabledFunctions);
+      for (String name : enabledFunctions) {
+        if (!WasiHost.RUNTIME_FUNCTIONS.contains(name)) {
+          throw new IllegalArgumentException("no WASI host implementation: " + name);
+        }
+      }
+    }
+
+    public static WasiHostPolicy defaults() {
+      return DEFAULT;
+    }
+
+    public static WasiHostPolicy none() {
+      return new WasiHostPolicy(Set.of());
+    }
+  }
+
+  /**
    * Limits for one run.
    *
    * @param maxMemoryBytes the most linear memory the instance may have (rounded down to 64 KiB
@@ -92,11 +128,19 @@ public interface WasmRuntime {
    * @param maxOutputBytes the most bytes stdout, and separately stderr, may receive
    * @param randomSeed if not null, {@code random_get} returns a deterministic stream from this
    *     seed (for tests); otherwise it reads a {@code SecureRandom}
+   * @param wasiHostPolicy functions the embedding host permits for this run
    * @throws IllegalArgumentException if a limit or the deadline is negative
    */
-  record Limits(long maxMemoryBytes, long deadlineEpochMs, int maxOutputBytes, Long randomSeed) {
+  record Limits(long maxMemoryBytes, long deadlineEpochMs, int maxOutputBytes, Long randomSeed,
+      WasiHostPolicy wasiHostPolicy) {
+
+    /** Existing callers retain the default WASI host policy. */
+    public Limits(long maxMemoryBytes, long deadlineEpochMs, int maxOutputBytes, Long randomSeed) {
+      this(maxMemoryBytes, deadlineEpochMs, maxOutputBytes, randomSeed, WasiHostPolicy.defaults());
+    }
 
     public Limits {
+      Objects.requireNonNull(wasiHostPolicy, "wasiHostPolicy");
       if (maxMemoryBytes < 0 || deadlineEpochMs < 0 || maxOutputBytes < 0) {
         throw new IllegalArgumentException(
             String.format(
