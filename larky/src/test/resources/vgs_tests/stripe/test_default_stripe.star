@@ -173,6 +173,60 @@ def _test_form_and_bearer_same_allowed_key_returns_none():
     asserts.assert_that(stripe.require_publishable_key(request, ALLOWED_KEYS)).is_none()
 
 
+def _request_with_authorization_headers(first, second):
+    request = _form_request("key=" + ALLOWED)
+    request.headers.add("Authorization", first)
+    request.headers.add("Authorization", second)
+    return request
+
+
+def _test_two_authorization_headers_returns_403():
+    request = _request_with_authorization_headers(
+        "Bearer " + ALLOWED,
+        "Bearer " + DISALLOWED,
+    )
+    _assert_forbidden(stripe.require_publishable_key(request, ALLOWED_KEYS))
+
+
+def _request_with_stripe_account_headers(first, second):
+    request = _form_request("key=" + ALLOWED)
+    request.headers.add("Stripe-Account", first)
+    request.headers.add("Stripe-Account", second)
+    return request
+
+
+def _test_two_stripe_account_headers_returns_403():
+    request = _request_with_stripe_account_headers(ALLOWED_ACCOUNT, ALLOWED_ACCOUNT)
+    _assert_account_forbidden(
+        stripe.require_publishable_key(
+            request,
+            ALLOWED_KEYS,
+            allowed_accounts=[ALLOWED_ACCOUNT],
+        )
+    )
+
+
+def _test_basic_with_appended_junk_returns_403():
+    token = str(base64.b64encode(builtins.bytes(ALLOWED + ":"))) + "!!"
+    request = VGSHttpRequest(
+        "https://api.stripe.com/v1/payment_intents/pi_123/confirm",
+        data=None,
+        headers={"Authorization": "Basic " + token},
+        method="POST",
+    )
+    _assert_forbidden(stripe.require_publishable_key(request, ALLOWED_KEYS))
+
+
+def _test_basic_with_bad_padding_returns_403():
+    request = VGSHttpRequest(
+        "https://api.stripe.com/v1/payment_intents/pi_123/confirm",
+        data=None,
+        headers={"Authorization": "Basic YQ"},
+        method="POST",
+    )
+    _assert_forbidden(stripe.require_publishable_key(request, ALLOWED_KEYS))
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_allowed_form_key_returns_none))
@@ -188,6 +242,10 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_basic_auth_allowed_username_alone_returns_none))
     _suite.addTest(unittest.FunctionTestCase(_test_stripe_account_forbidden_when_not_in_allowlist))
     _suite.addTest(unittest.FunctionTestCase(_test_form_and_bearer_same_allowed_key_returns_none))
+    _suite.addTest(unittest.FunctionTestCase(_test_two_authorization_headers_returns_403))
+    _suite.addTest(unittest.FunctionTestCase(_test_two_stripe_account_headers_returns_403))
+    _suite.addTest(unittest.FunctionTestCase(_test_basic_with_appended_junk_returns_403))
+    _suite.addTest(unittest.FunctionTestCase(_test_basic_with_bad_padding_returns_403))
     return _suite
 
 
