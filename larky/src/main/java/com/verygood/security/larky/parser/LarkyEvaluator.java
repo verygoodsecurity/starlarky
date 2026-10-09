@@ -9,6 +9,7 @@ import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
+import com.verygood.security.larky.modules.vgs.events.RecordedEvents;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -137,6 +138,7 @@ public final class LarkyEvaluator {
       StarlarkThread thread = new StarlarkThread(mu, getLarkySemantics());
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
+      maybeSetRecordedEventsThreadLocal(thread);
       thread.setPrintHandler(reporter::report);
 
       if (environment.containsKey(STEP_LIMIT) && environment.get(STEP_LIMIT) != null) {
@@ -316,6 +318,13 @@ public final class LarkyEvaluator {
     sb.append("* ").append(cycleElement).append("\n");
     reporter.error("Cycle was detected in the configuration: \n" + sb);
     throw new EvalException("Cycle was detected");
+  }
+
+  private void maybeSetRecordedEventsThreadLocal(StarlarkThread thread) {
+    Object binding = environment.get(RecordedEvents.BINDING_NAME);
+    if (binding instanceof RecordedEvents recordedEvents) {
+      thread.setThreadLocal(RecordedEvents.class, recordedEvents);
+    }
   }
 
   /**
