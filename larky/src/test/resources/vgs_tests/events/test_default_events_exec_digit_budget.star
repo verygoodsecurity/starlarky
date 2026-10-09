@@ -13,8 +13,8 @@ def _test_two_events_of_eight_digits_second_dropped():
     before_dropped = _rec().dropped()
     before_count = len(_rec().events())
     eight = {"a": "12345678"}
-    events.record("e1", eight)
-    events.record("e2", eight)
+    events.record("ev_one", eight)
+    events.record("ev_two", eight)
     asserts.assert_that(len(_rec().events())).is_equal_to(before_count + 1)
     asserts.assert_that(_rec().dropped()).is_equal_to(before_dropped + 1)
 

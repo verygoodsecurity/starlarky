@@ -12,8 +12,8 @@ def _rec():
 def _test_exactly_eleven_digits_across_two_events_accepted():
     before_dropped = _rec().dropped()
     before_count = len(_rec().events())
-    events.record("e1", {"a": "123456"})
-    events.record("e2", {"a": "12345"})
+    events.record("ev_one", {"a": "123456"})
+    events.record("ev_two", {"a": "12345"})
     asserts.assert_that(len(_rec().events())).is_equal_to(before_count + 2)
     asserts.assert_that(_rec().dropped()).is_equal_to(before_dropped)
 

@@ -28,6 +28,28 @@ def _test_invalid_name_dropped():
     asserts.assert_that(len(_rec().events())).is_equal_to(before_count)
 
 
+def _test_name_with_digits_dropped():
+    before_dropped = _rec().dropped()
+    before_count = len(_rec().events())
+    events.record("a4111111111111111", None)
+    asserts.assert_that(_rec().dropped()).is_equal_to(before_dropped + 1)
+    asserts.assert_that(len(_rec().events())).is_equal_to(before_count)
+
+
+def _test_key_with_digits_dropped():
+    before = _rec().dropped()
+    events.record("evt", {"k4111111": "x"})
+    asserts.assert_that(_rec().dropped()).is_equal_to(before + 1)
+
+
+def _test_name_with_underscores_accepted():
+    before = len(_rec().events())
+    events.record("psp_key_mismatch", {"detail": "x"})
+    evts = _rec().events()
+    asserts.assert_that(len(evts)).is_equal_to(before + 1)
+    asserts.assert_that(evts[before]["name"]).is_equal_to("psp_key_mismatch")
+
+
 def _test_name_too_long_dropped():
     before = _rec().dropped()
     events.record("a" * 65, None)
@@ -44,7 +66,7 @@ def _test_too_many_fields_dropped():
     before = _rec().dropped()
     fields = {}
     for i in range(9):
-        fields["k{}".format(i)] = "v"
+        fields["k_{}".format(chr(ord("a") + i))] = "v"
     events.record("evt", fields)
     asserts.assert_that(_rec().dropped()).is_equal_to(before + 1)
 
@@ -130,7 +152,7 @@ def _test_eleventh_event_dropped():
     if remaining < 0:
         remaining = 0
     for i in range(remaining):
-        events.record("fill_{}".format(i), None)
+        events.record("fill_{}".format(chr(ord("a") + i)), None)
     asserts.assert_that(len(_rec().events())).is_equal_to(10)
     before_dropped = _rec().dropped()
     events.record("one_over", None)
@@ -148,6 +170,9 @@ def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_valid_record_kept))
     _suite.addTest(unittest.FunctionTestCase(_test_invalid_name_dropped))
+    _suite.addTest(unittest.FunctionTestCase(_test_name_with_digits_dropped))
+    _suite.addTest(unittest.FunctionTestCase(_test_key_with_digits_dropped))
+    _suite.addTest(unittest.FunctionTestCase(_test_name_with_underscores_accepted))
     _suite.addTest(unittest.FunctionTestCase(_test_name_too_long_dropped))
     _suite.addTest(unittest.FunctionTestCase(_test_fields_not_dict_dropped))
     _suite.addTest(unittest.FunctionTestCase(_test_too_many_fields_dropped))
