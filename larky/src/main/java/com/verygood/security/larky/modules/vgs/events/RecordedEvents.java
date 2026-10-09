@@ -1,6 +1,5 @@
 package com.verygood.security.larky.modules.vgs.events;
 
-import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,20 +19,34 @@ import net.starlark.java.eval.StarlarkValue;
 
 /**
  * Per-execution event buffer for guarded-route script telemetry.
+ *
+ * <p>Validation limits how much numeric data can reach logs: each field value may contain at most
+ * eight ASCII digits, the field values of one accepted event may contain at most eleven digits
+ * together, and all accepted events in one script execution may contain at most twenty-four digits
+ * together. Values are at most 64 printable ASCII characters. These rules block plain card numbers
+ * in typical formats; a script that deliberately encodes data in letters is not prevented. The
+ * platform adds route and filter identifiers to published events, so scripts do not need long
+ * numeric fields.
+ *
+ * <p>One {@code RecordedEvents} instance is intended for a single script execution on one thread;
+ * it is not safe for concurrent use.
  */
 public final class RecordedEvents implements StarlarkValue {
 
   public static final String BINDING_NAME = "__vgs_recorded_events__";
   private static final int MAX_ACCEPTED_EVENTS = 10;
   private static final int MAX_FIELD_ENTRIES = 8;
-  private static final int MAX_FIELD_VALUE_LENGTH = 128;
+  private static final int MAX_FIELD_VALUE_LENGTH = 64;
+  private static final int MAX_DIGITS_PER_VALUE = 8;
+  private static final int MAX_DIGITS_PER_EVENT = 11;
+  private static final int MAX_DIGITS_PER_EXECUTION = 24;
 
   private static final Pattern NAME_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,63}$");
   private static final Pattern FIELD_KEY_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,31}$");
-  private static final Pattern CONSECUTIVE_DIGITS = Pattern.compile("\\d{12,}");
 
   private final List<Event> accepted = new ArrayList<>();
   private int dropped;
+  private int acceptedDigitCount;
 
   public record Event(String name, Map<String, String> fields) {
     public Event {
@@ -62,11 +75,21 @@ public final class RecordedEvents implements StarlarkValue {
       dropped++;
       return;
     }
+    int eventDigits = countDigitsInEvent(normalized);
+    if (eventDigits > MAX_DIGITS_PER_EVENT) {
+      dropped++;
+      return;
+    }
+    if (acceptedDigitCount + eventDigits > MAX_DIGITS_PER_EXECUTION) {
+      dropped++;
+      return;
+    }
     if (accepted.size() >= MAX_ACCEPTED_EVENTS) {
       dropped++;
       return;
     }
     accepted.add(new Event(name, normalized));
+    acceptedDigitCount += eventDigits;
   }
 
   /** Entry point from {@link EventsModule#record}. Never throws for bad input. */
@@ -160,7 +183,7 @@ public final class RecordedEvents implements StarlarkValue {
 
   static String coerceFieldValue(Object value) {
     if (value == null || value instanceof NoneType) {
-      return "";
+      return null;
     }
     if (value instanceof String s) {
       return s;
@@ -194,8 +217,25 @@ public final class RecordedEvents implements StarlarkValue {
         return false;
       }
     }
-    String digitsOnly = value.replace(" ", "").replace("-", "");
-    Matcher matcher = CONSECUTIVE_DIGITS.matcher(digitsOnly);
-    return !matcher.find();
+    return countAsciiDigits(value) <= MAX_DIGITS_PER_VALUE;
+  }
+
+  private static int countDigitsInEvent(Map<String, String> fields) {
+    int total = 0;
+    for (String value : fields.values()) {
+      total += countAsciiDigits(value);
+    }
+    return total;
+  }
+
+  static int countAsciiDigits(String value) {
+    int count = 0;
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
+      if (c >= '0' && c <= '9') {
+        count++;
+      }
+    }
+    return count;
   }
 }

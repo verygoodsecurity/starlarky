@@ -57,7 +57,7 @@ def _test_invalid_field_key_dropped():
 
 def _test_field_value_too_long_dropped():
     before = _rec().dropped()
-    events.record("evt", {"msg": "x" * 129})
+    events.record("evt", {"msg": "x" * 65})
     asserts.assert_that(_rec().dropped()).is_equal_to(before + 1)
 
 
@@ -91,6 +91,36 @@ def _test_card_number_dashed_dropped():
 def _test_card_number_plain_dropped():
     before = _rec().dropped()
     events.record("evt", {"pan": "4111111111111111"})
+    asserts.assert_that(_rec().dropped()).is_equal_to(before + 1)
+
+
+def _test_card_number_dotted_dropped():
+    before = _rec().dropped()
+    events.record("evt", {"pan": "4111.1111.1111.1111"})
+    asserts.assert_that(_rec().dropped()).is_equal_to(before + 1)
+
+
+def _test_card_number_slashed_dropped():
+    before = _rec().dropped()
+    events.record("evt", {"pan": "4111/1111/1111/1111"})
+    asserts.assert_that(_rec().dropped()).is_equal_to(before + 1)
+
+
+def _test_nine_digits_in_one_value_dropped():
+    before = _rec().dropped()
+    events.record("evt", {"n": "123456789"})
+    asserts.assert_that(_rec().dropped()).is_equal_to(before + 1)
+
+
+def _test_twelve_digits_across_two_fields_dropped():
+    before = _rec().dropped()
+    events.record("evt", {"a": "41111111", "b": "1111"})
+    asserts.assert_that(_rec().dropped()).is_equal_to(before + 1)
+
+
+def _test_none_field_value_dropped():
+    before = _rec().dropped()
+    events.record("evt", {"k": None})
     asserts.assert_that(_rec().dropped()).is_equal_to(before + 1)
 
 
@@ -128,6 +158,11 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_card_number_spaced_dropped))
     _suite.addTest(unittest.FunctionTestCase(_test_card_number_dashed_dropped))
     _suite.addTest(unittest.FunctionTestCase(_test_card_number_plain_dropped))
+    _suite.addTest(unittest.FunctionTestCase(_test_card_number_dotted_dropped))
+    _suite.addTest(unittest.FunctionTestCase(_test_card_number_slashed_dropped))
+    _suite.addTest(unittest.FunctionTestCase(_test_nine_digits_in_one_value_dropped))
+    _suite.addTest(unittest.FunctionTestCase(_test_twelve_digits_across_two_fields_dropped))
+    _suite.addTest(unittest.FunctionTestCase(_test_none_field_value_dropped))
     _suite.addTest(unittest.FunctionTestCase(_test_eleventh_event_dropped))
     _suite.addTest(unittest.FunctionTestCase(_test_record_never_raises_bad_input))
     return _suite
