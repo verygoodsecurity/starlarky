@@ -2,11 +2,12 @@
 
 ``events.record(name, fields=None)`` never raises; invalid events are dropped and counted.
 
-Field values are at most 64 printable ASCII characters. Digit budgets limit numeric data in
-logs: at most 8 ASCII digits per value, 11 per accepted event, and 24 across all accepted
-events in one execution. These rules block plain card numbers; deliberate letter encoding is
-not prevented. Route and filter identifiers are added by the platform, so scripts should not
-need long numeric fields.
+Field values are at most 64 printable ASCII characters. Each value may contain at most 8 ASCII
+digits; each accepted event may contain at most 11 digits across its field values. No single
+script execution's recorded events contain more than 11 digits in total, so they cannot carry a
+card number in plain digits. This does not prevent a script from leaking data across many
+executions or by encoding it in letters; only trusted (VGS template) scripts should run on
+guarded routes.
 
 ``RecordedEvents`` (binding ``__vgs_recorded_events__``) is single-threaded per script execution.
 """

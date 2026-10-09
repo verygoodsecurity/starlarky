@@ -52,14 +52,40 @@ class RecordedEventsTest {
   }
 
   @Test
-  void executionDigitBudgetDropsThirdEvent() {
+  void twoEventsOfEightDigitsSecondDropped() {
     RecordedEvents rec = new RecordedEvents();
-    Map<String, String> nineDigits = Map.of("a", "12345678", "b", "1");
-    rec.tryRecord("e1", nineDigits);
-    rec.tryRecord("e2", nineDigits);
-    rec.tryRecord("e3", nineDigits);
-    assertEquals(2, rec.events().size());
+    Map<String, String> eight = Map.of("a", "12345678");
+    rec.tryRecord("e1", eight);
+    rec.tryRecord("e2", eight);
+    assertEquals(1, rec.events().size());
     assertEquals(1, rec.dropped());
+  }
+
+  @Test
+  void exactlyElevenDigitsAcrossTwoEventsAccepted() {
+    RecordedEvents rec = new RecordedEvents();
+    rec.tryRecord("e1", Map.of("a", "123456"));
+    rec.tryRecord("e2", Map.of("a", "12345"));
+    assertEquals(2, rec.events().size());
+    assertEquals(0, rec.dropped());
+  }
+
+  @Test
+  void twelfthDigitAcrossEventsDropped() {
+    RecordedEvents rec = new RecordedEvents();
+    Map<String, String> six = Map.of("a", "123456");
+    rec.tryRecord("e1", six);
+    rec.tryRecord("e2", six);
+    assertEquals(1, rec.events().size());
+    assertEquals(1, rec.dropped());
+  }
+
+  @Test
+  void valueExactly64CharsAccepted() {
+    RecordedEvents rec = new RecordedEvents();
+    rec.tryRecord("evt", Map.of("msg", "x".repeat(64)));
+    assertEquals(1, rec.events().size());
+    assertEquals(0, rec.dropped());
   }
 
   @Test
