@@ -5,14 +5,20 @@
     def process(input, ctx):
         return stripe.require_publishable_key(input, ["pk_live_..."]) or input
 
+    This helper is for publishable-key client flows (Stripe.js): a credential is
+    allowed only if it starts with ``pk_`` and is in ``allowed_keys``. Secret,
+    restricted and organization keys (``sk_``, ``rk_``, ``sk_org_``, anything not
+    ``pk_``) are always rejected, even when listed in ``allowed_keys``.
+
     Every credential the request presents must be allowed: form ``key`` fields
     (application/x-www-form-urlencoded), ``key`` query parameters, ``Authorization:
-    Bearer`` token, and Basic auth username. If ``Stripe-Account`` is present,
-    ``allowed_accounts`` must be set and include that account value (header name
-    matched case-insensitively). Duplicate ``Authorization`` or ``Stripe-Account``
-    header values are rejected. A form body is parsed only when its ``charset``
-    parameter is absent, ``utf-8`` or ``us-ascii`` and the body has no NUL byte
-    and is valid UTF-8; any other form body is rejected.
+    Bearer`` token, and Basic auth username. If ``Stripe-Account`` or
+    ``Stripe-Context`` is present, ``allowed_accounts`` must be set and include that
+    value (header names matched case-insensitively); both are checked before any
+    key. Duplicate ``Stripe-Account``, ``Stripe-Context``, ``Authorization`` or
+    ``Content-Type`` header values are rejected. A form body is parsed only when its
+    ``charset`` parameter is absent, ``utf-8`` or ``us-ascii`` and the body has no
+    NUL byte and is valid UTF-8; any other form body is rejected.
 
     Accepts operation-pipeline ``LarkySanitizedHttpMessage`` (``uri()``, ``headers()``,
     ``raw_body()``) or ``VGSHttpRequest``.
@@ -30,6 +36,8 @@ _ACCOUNT_FORBIDDEN_BODY = b'{"error":"psp_account_not_allowed"}'
 _BASIC_B64_PATTERN = r'^[A-Za-z0-9+/]+={0,2}$'
 _REPLACEMENT_CHAR = "\ufffd"
 _ACCEPTED_FORM_CHARSETS = ["utf-8", "us-ascii"]
+_ACCOUNT_HEADERS = ["Stripe-Account", "Stripe-Context"]
+_PUBLISHABLE_KEY_PREFIX = "pk_"
 _EMPTY_HEADER_VALUES = []
 
 
@@ -255,18 +263,19 @@ def _account_forbidden_response():
 def require_publishable_key(request, allowed_keys, allowed_accounts=None):
     view = _view(request)
 
-    stripe_accounts = _header_values(view, "Stripe-Account")
-    if len(stripe_accounts) > 1:
-        return _account_forbidden_response()
-
-    authorizations = _header_values(view, "Authorization")
-    if len(authorizations) > 1:
-        return _key_forbidden_response()
-
-    if len(stripe_accounts) == 1:
-        stripe_account = stripe_accounts[0]
-        if allowed_accounts == None or stripe_account not in allowed_accounts:
+    account_values = [_header_values(view, name) for name in _ACCOUNT_HEADERS]
+    for values in account_values:
+        if len(values) > 1:
             return _account_forbidden_response()
+    for values in account_values:
+        if len(values) == 1:
+            if allowed_accounts == None or values[0] not in allowed_accounts:
+                return _account_forbidden_response()
+
+    if len(_header_values(view, "Authorization")) > 1:
+        return _key_forbidden_response()
+    if len(_header_values(view, "Content-Type")) > 1:
+        return _key_forbidden_response()
 
     if _is_form_urlencoded(view) and not _form_body_is_acceptable(view):
         return _key_forbidden_response()
@@ -275,6 +284,8 @@ def require_publishable_key(request, allowed_keys, allowed_accounts=None):
     if len(credentials) == 0:
         return _key_forbidden_response()
     for credential in credentials:
+        if not credential.startswith(_PUBLISHABLE_KEY_PREFIX):
+            return _key_forbidden_response()
         if credential not in allowed_keys:
             return _key_forbidden_response()
     return None
