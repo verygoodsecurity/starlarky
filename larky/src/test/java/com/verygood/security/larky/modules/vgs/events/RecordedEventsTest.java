@@ -55,8 +55,8 @@ class RecordedEventsTest {
   void twoEventsOfEightDigitsSecondDropped() {
     RecordedEvents rec = new RecordedEvents();
     Map<String, String> eight = Map.of("a", "12345678");
-    rec.tryRecord("e1", eight);
-    rec.tryRecord("e2", eight);
+    rec.tryRecord("ev_one", eight);
+    rec.tryRecord("ev_two", eight);
     assertEquals(1, rec.events().size());
     assertEquals(1, rec.dropped());
   }
@@ -64,8 +64,8 @@ class RecordedEventsTest {
   @Test
   void exactlyElevenDigitsAcrossTwoEventsAccepted() {
     RecordedEvents rec = new RecordedEvents();
-    rec.tryRecord("e1", Map.of("a", "123456"));
-    rec.tryRecord("e2", Map.of("a", "12345"));
+    rec.tryRecord("ev_one", Map.of("a", "123456"));
+    rec.tryRecord("ev_two", Map.of("a", "12345"));
     assertEquals(2, rec.events().size());
     assertEquals(0, rec.dropped());
   }
@@ -74,8 +74,8 @@ class RecordedEventsTest {
   void twelfthDigitAcrossEventsDropped() {
     RecordedEvents rec = new RecordedEvents();
     Map<String, String> six = Map.of("a", "123456");
-    rec.tryRecord("e1", six);
-    rec.tryRecord("e2", six);
+    rec.tryRecord("ev_one", six);
+    rec.tryRecord("ev_two", six);
     assertEquals(1, rec.events().size());
     assertEquals(1, rec.dropped());
   }
@@ -102,5 +102,30 @@ class RecordedEventsTest {
     rec.tryRecord("evt", Map.of("a", "12345678", "b", "123"));
     assertEquals(1, rec.events().size());
     assertEquals(0, rec.dropped());
+  }
+
+  @Test
+  void nameWithDigitsDropped() {
+    RecordedEvents rec = new RecordedEvents();
+    rec.tryRecord("a4111111111111111", Map.of());
+    assertEquals(0, rec.events().size());
+    assertEquals(1, rec.dropped());
+  }
+
+  @Test
+  void keyWithDigitsDropped() {
+    RecordedEvents rec = new RecordedEvents();
+    rec.tryRecord("evt", Map.of("k4111111", "x"));
+    assertEquals(0, rec.events().size());
+    assertEquals(1, rec.dropped());
+  }
+
+  @Test
+  void nameWithUnderscoresAccepted() {
+    RecordedEvents rec = new RecordedEvents();
+    rec.tryRecord("psp_key_mismatch", Map.of("detail", "x"));
+    assertEquals(1, rec.events().size());
+    assertEquals(0, rec.dropped());
+    assertEquals("psp_key_mismatch", rec.events().get(0).name());
   }
 }

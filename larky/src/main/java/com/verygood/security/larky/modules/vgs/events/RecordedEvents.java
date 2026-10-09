@@ -20,12 +20,14 @@ import net.starlark.java.eval.StarlarkValue;
 /**
  * Per-execution event buffer for guarded-route script telemetry.
  *
- * <p>Each field value may contain at most eight ASCII digits; the field values of one accepted
- * event may contain at most eleven digits together; values are at most 64 printable ASCII
- * characters. No single script execution's recorded events contain more than eleven digits in
- * total, so they cannot carry a card number in plain digits. This does not prevent a script from
- * leaking data across many executions or by encoding it in letters; only trusted (VGS template)
- * scripts should run on guarded routes.
+ * <p>Event names match {@code ^[a-z][a-z_]{0,63}$} and field keys match {@code
+ * ^[a-z][a-z_]{0,31}$} (lowercase letters and underscores only; no digits). Each field value may
+ * contain at most eight ASCII digits; the field values of one accepted event may contain at most
+ * eleven digits together; values are at most 64 printable ASCII characters. No single script
+ * execution's recorded events contain more than eleven digits in total, so they cannot carry a
+ * card number in plain digits. This does not prevent a script from leaking data across many
+ * executions or by encoding it in letters; only trusted (VGS template) scripts should run on
+ * guarded routes.
  *
  * <p>One {@code RecordedEvents} instance is intended for a single script execution on one thread;
  * it is not safe for concurrent use.
@@ -40,8 +42,8 @@ public final class RecordedEvents implements StarlarkValue {
   private static final int MAX_DIGITS_PER_EVENT = 11;
   private static final int MAX_DIGITS_PER_EXECUTION = 11;
 
-  private static final Pattern NAME_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,63}$");
-  private static final Pattern FIELD_KEY_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,31}$");
+  private static final Pattern NAME_PATTERN = Pattern.compile("^[a-z][a-z_]{0,63}$");
+  private static final Pattern FIELD_KEY_PATTERN = Pattern.compile("^[a-z][a-z_]{0,31}$");
 
   private final List<Event> accepted = new ArrayList<>();
   private int dropped;
