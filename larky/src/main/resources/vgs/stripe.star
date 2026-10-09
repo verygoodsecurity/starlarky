@@ -10,7 +10,9 @@
     Bearer`` token, and Basic auth username. If ``Stripe-Account`` is present,
     ``allowed_accounts`` must be set and include that account value (header name
     matched case-insensitively). Duplicate ``Authorization`` or ``Stripe-Account``
-    header values are rejected.
+    header values are rejected. A form body is parsed only when its ``charset``
+    parameter is absent, ``utf-8`` or ``us-ascii`` and the body has no NUL byte
+    and is valid UTF-8; any other form body is rejected.
 
     Accepts operation-pipeline ``LarkySanitizedHttpMessage`` (``uri()``, ``headers()``,
     ``raw_body()``) or ``VGSHttpRequest``.
@@ -27,6 +29,7 @@ _FORBIDDEN_BODY = b'{"error":"psp_key_not_allowed"}'
 _ACCOUNT_FORBIDDEN_BODY = b'{"error":"psp_account_not_allowed"}'
 _BASIC_B64_PATTERN = r'^[A-Za-z0-9+/]+={0,2}$'
 _REPLACEMENT_CHAR = "\ufffd"
+_ACCEPTED_FORM_CHARSETS = ["utf-8", "us-ascii"]
 _EMPTY_HEADER_VALUES = []
 
 
@@ -71,6 +74,36 @@ def _is_form_urlencoded(view):
         return False
     media_type = content_type.split(";", 1)[0].strip().lower()
     return media_type == _FORM_URLENCODED
+
+
+def _form_charset_is_acceptable(view):
+    content_type = _header_value(view, "Content-Type")
+    params = content_type.split(";")[1:]
+    for param in params:
+        eq = param.find("=")
+        if eq < 0:
+            continue
+        if param[0:eq].strip().lower() != "charset":
+            continue
+        value = param[eq + 1:].strip()
+        if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
+            value = value[1:-1].strip()
+        if value.lower() not in _ACCEPTED_FORM_CHARSETS:
+            return False
+    return True
+
+
+def _form_body_is_acceptable(view):
+    if not _form_charset_is_acceptable(view):
+        return False
+    body = view.body
+    if body == None:
+        return True
+    if type(body) == type(""):
+        body = body.encode("utf-8")
+    if 0 in body:
+        return False
+    return body.decode("utf-8", "replace").find(_REPLACEMENT_CHAR) < 0
 
 
 def _query_string_from_target(target):
@@ -234,6 +267,9 @@ def require_publishable_key(request, allowed_keys, allowed_accounts=None):
         stripe_account = stripe_accounts[0]
         if allowed_accounts == None or stripe_account not in allowed_accounts:
             return _account_forbidden_response()
+
+    if _is_form_urlencoded(view) and not _form_body_is_acceptable(view):
+        return _key_forbidden_response()
 
     credentials = _collect_credentials(view)
     if len(credentials) == 0:

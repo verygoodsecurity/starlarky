@@ -305,6 +305,86 @@ def _test_basic_token_decoding_to_invalid_utf8_prod_returns_403():
     _assert_forbidden(stripe.require_publishable_key(message, ALLOWED_KEYS))
 
 
+def _utf16le_bytes(text):
+    units = []
+    for i in range(len(text)):
+        units.append(ord(text[i]))
+        units.append(0)
+    return builtins.bytes(units)
+
+
+def _bytes_with_suffix(text, suffix_ints):
+    units = []
+    for i in range(len(text)):
+        units.append(ord(text[i]))
+    units.extend(suffix_ints)
+    return builtins.bytes(units)
+
+
+def _form_request_bytes(body_bytes, headers):
+    return VGSHttpRequest(
+        "https://api.stripe.com/v1/payment_intents/pi_123/confirm",
+        data=body_bytes,
+        headers=headers,
+        method="POST",
+    )
+
+
+def _test_utf16_form_body_with_bearer_allowed_is_refused():
+    body = _utf16le_bytes("key=" + DISALLOWED)
+    for content_type in [
+        "application/x-www-form-urlencoded",
+        "application/x-www-form-urlencoded; charset=UTF-16LE",
+    ]:
+        request = _form_request_bytes(
+            body,
+            {"Content-Type": content_type, "Authorization": "Bearer " + ALLOWED},
+        )
+        _assert_forbidden(stripe.require_publishable_key(request, ALLOWED_KEYS))
+
+        message = _prod_message(
+            "/v1/payment_intents/pi_123/confirm",
+            [
+                ("Content-Type", content_type),
+                ("Authorization", "Bearer " + ALLOWED),
+            ],
+            body,
+        )
+        _assert_forbidden(stripe.require_publishable_key(message, ALLOWED_KEYS))
+
+
+def _test_form_body_with_nul_is_refused():
+    request = _form_request_bytes(
+        _bytes_with_suffix("key=" + ALLOWED + "&x=", [0]),
+        {"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    _assert_forbidden(stripe.require_publishable_key(request, ALLOWED_KEYS))
+
+
+def _test_form_body_with_invalid_utf8_is_refused():
+    request = _form_request_bytes(
+        _bytes_with_suffix("key=" + ALLOWED + "&x=", [0xff]),
+        {"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    _assert_forbidden(stripe.require_publishable_key(request, ALLOWED_KEYS))
+
+
+def _test_form_charset_iso_8859_1_is_refused():
+    request = _form_request(
+        "key=" + ALLOWED,
+        headers={"Content-Type": "application/x-www-form-urlencoded; charset=ISO-8859-1"},
+    )
+    _assert_forbidden(stripe.require_publishable_key(request, ALLOWED_KEYS))
+
+
+def _test_form_charset_utf8_quoted_is_accepted():
+    request = _form_request(
+        "key=" + ALLOWED,
+        headers={"Content-Type": "application/x-www-form-urlencoded; charset=\"UTF-8\""},
+    )
+    asserts.assert_that(stripe.require_publishable_key(request, ALLOWED_KEYS)).is_none()
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_allowed_form_key_returns_none))
@@ -330,6 +410,11 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_prod_stripe_account_not_allowed_returns_403))
     _suite.addTest(unittest.FunctionTestCase(_test_basic_token_decoding_to_invalid_utf8_vgs_returns_403))
     _suite.addTest(unittest.FunctionTestCase(_test_basic_token_decoding_to_invalid_utf8_prod_returns_403))
+    _suite.addTest(unittest.FunctionTestCase(_test_utf16_form_body_with_bearer_allowed_is_refused))
+    _suite.addTest(unittest.FunctionTestCase(_test_form_body_with_nul_is_refused))
+    _suite.addTest(unittest.FunctionTestCase(_test_form_body_with_invalid_utf8_is_refused))
+    _suite.addTest(unittest.FunctionTestCase(_test_form_charset_iso_8859_1_is_refused))
+    _suite.addTest(unittest.FunctionTestCase(_test_form_charset_utf8_quoted_is_accepted))
     return _suite
 
 
