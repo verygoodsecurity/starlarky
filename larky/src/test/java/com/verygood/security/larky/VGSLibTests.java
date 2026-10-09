@@ -88,7 +88,8 @@ public class VGSLibTests {
         try {
             VGSLibTests.console.info("Running test: " + pathToTestFile.toAbsolutePath());
             LarkyScript runner = interpreter;
-            if (pathToTestFile.toString().contains("/events/")) {
+            if (pathToTestFile.getParent() != null
+                    && "events".equals(pathToTestFile.getParent().getFileName().toString())) {
                 runner = new LarkyScript(
                         CORE_MODULES,
                         LarkyScript.StarlarkMode.STRICT,
