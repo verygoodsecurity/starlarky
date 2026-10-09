@@ -20,13 +20,12 @@ import net.starlark.java.eval.StarlarkValue;
 /**
  * Per-execution event buffer for guarded-route script telemetry.
  *
- * <p>Validation limits how much numeric data can reach logs: each field value may contain at most
- * eight ASCII digits, the field values of one accepted event may contain at most eleven digits
- * together, and all accepted events in one script execution may contain at most twenty-four digits
- * together. Values are at most 64 printable ASCII characters. These rules block plain card numbers
- * in typical formats; a script that deliberately encodes data in letters is not prevented. The
- * platform adds route and filter identifiers to published events, so scripts do not need long
- * numeric fields.
+ * <p>Each field value may contain at most eight ASCII digits; the field values of one accepted
+ * event may contain at most eleven digits together; values are at most 64 printable ASCII
+ * characters. No single script execution's recorded events contain more than eleven digits in
+ * total, so they cannot carry a card number in plain digits. This does not prevent a script from
+ * leaking data across many executions or by encoding it in letters; only trusted (VGS template)
+ * scripts should run on guarded routes.
  *
  * <p>One {@code RecordedEvents} instance is intended for a single script execution on one thread;
  * it is not safe for concurrent use.
@@ -39,7 +38,7 @@ public final class RecordedEvents implements StarlarkValue {
   private static final int MAX_FIELD_VALUE_LENGTH = 64;
   private static final int MAX_DIGITS_PER_VALUE = 8;
   private static final int MAX_DIGITS_PER_EVENT = 11;
-  private static final int MAX_DIGITS_PER_EXECUTION = 24;
+  private static final int MAX_DIGITS_PER_EXECUTION = 11;
 
   private static final Pattern NAME_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,63}$");
   private static final Pattern FIELD_KEY_PATTERN = Pattern.compile("^[a-z][a-z0-9_]{0,31}$");
