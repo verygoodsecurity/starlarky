@@ -62,6 +62,9 @@ public class VGSLibTests {
                             return fileName.equals(singleTestDesired);
                         }
 
+                        if (fileName.equals("test_stripe.star")) {
+                            return true;
+                        }
                         return fileName.startsWith("test_default_") && fileName.endsWith(".star");
                     })
                     .sorted((o1, o2) -> Collator.getInstance(Locale.ENGLISH).compare(o1.toString(), o2.toString()))
