@@ -1,6 +1,7 @@
 """Unit tests for stripe.star"""
 load("@stdlib//base64", base64="base64")
 load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//larky", larky="larky")
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
 load("@vgs//http/request", VGSHttpRequest="VGSHttpRequest")
@@ -227,6 +228,83 @@ def _test_basic_with_bad_padding_returns_403():
     _assert_forbidden(stripe.require_publishable_key(request, ALLOWED_KEYS))
 
 
+def _prod_message(uri, header_pairs, body_bytes):
+    # mirrors LarkySanitizedHttpMessage (uri/headers/raw_body/body/phase methods)
+    return larky.struct(
+        uri=lambda: uri,
+        headers=lambda: header_pairs,
+        raw_body=lambda: body_bytes,
+        body=lambda charset="UTF-8": str(body_bytes),
+        phase=lambda: "REQUEST",
+    )
+
+
+def _test_prod_origin_form_allowed_form_key_returns_none():
+    body = builtins.bytes("key=" + ALLOWED)
+    message = _prod_message(
+        "/v1/payment_intents/pi_123/confirm",
+        [("Content-Type", "application/x-www-form-urlencoded")],
+        body,
+    )
+    asserts.assert_that(stripe.require_publishable_key(message, ALLOWED_KEYS)).is_none()
+
+
+def _test_prod_origin_form_query_key_disallowed_returns_403():
+    body = builtins.bytes("key=" + ALLOWED)
+    message = _prod_message(
+        "/v1/x?key=" + DISALLOWED,
+        [("Content-Type", "application/x-www-form-urlencoded")],
+        body,
+    )
+    _assert_forbidden(stripe.require_publishable_key(message, ALLOWED_KEYS))
+
+
+def _test_prod_duplicate_authorization_pairs_returns_403():
+    body = builtins.bytes("key=" + ALLOWED)
+    message = _prod_message(
+        "/v1/payment_intents/pi_123/confirm",
+        [
+            ("Content-Type", "application/x-www-form-urlencoded"),
+            ("Authorization", "Bearer " + ALLOWED),
+            ("Authorization", "Bearer " + DISALLOWED),
+        ],
+        body,
+    )
+    _assert_forbidden(stripe.require_publishable_key(message, ALLOWED_KEYS))
+
+
+def _test_prod_stripe_account_not_allowed_returns_403():
+    body = builtins.bytes("key=" + ALLOWED)
+    message = _prod_message(
+        "/v1/payment_intents/pi_123/confirm",
+        [
+            ("Content-Type", "application/x-www-form-urlencoded"),
+            ("Stripe-Account", DISALLOWED_ACCOUNT),
+        ],
+        body,
+    )
+    _assert_account_forbidden(stripe.require_publishable_key(message, ALLOWED_KEYS))
+
+
+def _test_basic_token_decoding_to_invalid_utf8_vgs_returns_403():
+    request = VGSHttpRequest(
+        "https://api.stripe.com/v1/payment_intents/pi_123/confirm",
+        data=None,
+        headers={"Authorization": "Basic /w=="},
+        method="POST",
+    )
+    _assert_forbidden(stripe.require_publishable_key(request, ALLOWED_KEYS))
+
+
+def _test_basic_token_decoding_to_invalid_utf8_prod_returns_403():
+    message = _prod_message(
+        "/v1/payment_intents/pi_123/confirm",
+        [("Authorization", "Basic /w==")],
+        builtins.bytes(""),
+    )
+    _assert_forbidden(stripe.require_publishable_key(message, ALLOWED_KEYS))
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_allowed_form_key_returns_none))
@@ -246,6 +324,12 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_two_stripe_account_headers_returns_403))
     _suite.addTest(unittest.FunctionTestCase(_test_basic_with_appended_junk_returns_403))
     _suite.addTest(unittest.FunctionTestCase(_test_basic_with_bad_padding_returns_403))
+    _suite.addTest(unittest.FunctionTestCase(_test_prod_origin_form_allowed_form_key_returns_none))
+    _suite.addTest(unittest.FunctionTestCase(_test_prod_origin_form_query_key_disallowed_returns_403))
+    _suite.addTest(unittest.FunctionTestCase(_test_prod_duplicate_authorization_pairs_returns_403))
+    _suite.addTest(unittest.FunctionTestCase(_test_prod_stripe_account_not_allowed_returns_403))
+    _suite.addTest(unittest.FunctionTestCase(_test_basic_token_decoding_to_invalid_utf8_vgs_returns_403))
+    _suite.addTest(unittest.FunctionTestCase(_test_basic_token_decoding_to_invalid_utf8_prod_returns_403))
     return _suite
 
 
