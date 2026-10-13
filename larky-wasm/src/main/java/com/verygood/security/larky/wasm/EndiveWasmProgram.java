@@ -31,11 +31,14 @@ import run.endive.runtime.ImportValues;
 import run.endive.runtime.Instance;
 import run.endive.runtime.Machine;
 import run.endive.runtime.Memory;
+import run.endive.runtime.TableInstance;
 import run.endive.runtime.WasmInterruptedException;
 import run.endive.wasm.WasmModule;
 import run.endive.wasm.types.FunctionImport;
 import run.endive.wasm.types.FunctionType;
 import run.endive.wasm.types.MemoryLimits;
+import run.endive.wasm.types.Table;
+import run.endive.wasm.types.TableLimits;
 
 /** A parsed (and, in compiler mode, compiled) module; each run instantiates it afresh. */
 final class EndiveWasmProgram implements WasmRuntime.Program {
@@ -50,12 +53,15 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
   private final Function<Instance, Machine> machineFactory;
 
   private final MemoryLimits declaredMemory;
+  private final long[] tableMaxima;
 
   EndiveWasmProgram(
-      WasmModule module, Function<Instance, Machine> machineFactory, MemoryLimits declaredMemory) {
+      WasmModule module, Function<Instance, Machine> machineFactory, MemoryLimits declaredMemory,
+      long[] tableMaxima) {
     this.module = module;
     this.machineFactory = machineFactory;
     this.declaredMemory = declaredMemory;
+    this.tableMaxima = tableMaxima.clone();
   }
 
   @Override
@@ -74,9 +80,12 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
         new WasiHost(stdin, stdout, stderr, limits.randomSeed(), limits.deadlineEpochMs(),
             limits.wasiHostPolicy());
 
+    int[] tableIndex = {0};
     Instance.Builder builder =
         Instance.builder(module)
             .withImportValues(imports(wasi))
+            .withTableFactory((table, initial) ->
+                freshTable(table, initial, tableMaxima[tableIndex[0]++]))
             .withMemoryLimits(memoryLimits)
             .withStart(false);
     if (machineFactory != null) {
@@ -136,12 +145,25 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
             0L,
             0,
             WasmRuntime.WasiHostPolicy.defaults());
+    int[] tableIndex = {0};
     Instance.Builder builder =
-        Instance.builder(module).withImportValues(imports(wasi)).withStart(false);
+        Instance.builder(module)
+            .withImportValues(imports(wasi))
+            .withTableFactory((table, initial) ->
+                freshTable(table, initial, tableMaxima[tableIndex[0]++]))
+            .withStart(false);
     if (machineFactory != null) {
       builder.withMachineFactory(machineFactory);
     }
     return builder.build();
+  }
+
+  /** Endive mutates TableLimits on growth; never share those limits with the cached module. */
+  private static TableInstance freshTable(Table table, int initialValue, long maximum) {
+    TableLimits limits = table.limits();
+    Table copy = new Table(table.elementType(),
+        new TableLimits(limits.min(), maximum, limits.shared()), table.initialize());
+    return new TableInstance(copy, initialValue);
   }
 
   /** The module's own memory limits, with the maximum lowered to the run's cap. */

@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 import com.verygood.security.larky.wasm.WasmRuntime.WasiHostPolicy;
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException.Kind;
+import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -212,6 +213,122 @@ public class EndiveWasmRuntimeTest {
       }
       for (int i = 0; i < 200; i++) {
         assertThat(new String(futures.get(i).get(), UTF_8)).isEqualTo("input-" + i);
+      }
+    } finally {
+      pool.shutdownNow();
+    }
+  }
+
+  @Test
+  public void oversizedInitialTableIsRejectedBeforeInstantiating() throws Exception {
+    WasmException error = assertThrows(WasmException.class, () -> compile(
+        "(module (memory (export \"memory\") 1) (table 10000000 funcref)"
+            + " (func (export \"_start\")))"));
+    assertThat(error.kind()).isEqualTo(Kind.MEMORY_LIMIT);
+  }
+
+  @Test
+  public void tableGrowCannotExceedTheEntryBudget() throws Exception {
+    WasmRuntime.Program program = compile(
+        "(module (import " + WASI + " \"proc_exit\" (func $exit (param i32)))"
+            + " (memory (export \"memory\") 1) (table 1 funcref)"
+            + " (func (export \"_start\") ref.null func i32.const 65536 table.grow 0"
+            + " i32.const -1 i32.eq call $exit))");
+    assertThat(program.run(NOTHING, WasmRuntime.Limits.defaults()).exitCode()).isEqualTo(1);
+  }
+
+  @Test
+  public void declaredPayloadAndVectorLengthsCannotAllocateBeyondTheBinary() throws Exception {
+    // Every case used to reach an Endive allocation before it checked the input length.
+    byte[] huge = java.util.HexFormat.of().parseHex("ffffffff07");
+    for (byte[] malformed : List.of(
+        section(11, concat(new byte[] {1, 1}, huge)), // passive data payload
+        section(0, huge), // custom section name
+        section(7, concat(new byte[] {1}, huge)), // export name
+        section(1, concat(new byte[] {1, 0x60}, huge)), // function parameters
+        section(9, concat(new byte[] {1, 1, 0}, huge)))) { // passive element initializers
+      WasmException error = assertThrows(WasmException.class, () -> runtime.compile(malformed));
+      assertThat(error.kind()).isEqualTo(Kind.INVALID_MODULE);
+    }
+  }
+
+  @Test
+  public void localGroupsCannotMultiplyPastThePerFunctionLimit() throws Exception {
+    ByteArrayOutputStream body = new ByteArrayOutputStream();
+    body.write(2); // two local groups
+    for (int i = 0; i < 2; i++) {
+      writeUnsigned(body, 50_000);
+      body.write(0x7f); // i32
+    }
+    body.write(0x0b);
+    ByteArrayOutputStream code = new ByteArrayOutputStream();
+    code.write(1); // one function
+    writeUnsigned(code, body.size());
+    code.writeBytes(body.toByteArray());
+    WasmException error = assertThrows(WasmException.class, () -> runtime.compile(section(10, code.toByteArray())));
+    assertThat(error.kind()).isEqualTo(Kind.INVALID_MODULE);
+  }
+
+  private static byte[] section(int id, byte[] body) {
+    ByteArrayOutputStream module = new ByteArrayOutputStream();
+    module.writeBytes(new byte[] {0, 'a', 's', 'm', 1, 0, 0, 0});
+    module.write(id);
+    writeUnsigned(module, body.length);
+    module.writeBytes(body);
+    return module.toByteArray();
+  }
+
+  private static byte[] concat(byte[] left, byte[] right) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    out.writeBytes(left);
+    out.writeBytes(right);
+    return out.toByteArray();
+  }
+
+  private static void writeUnsigned(ByteArrayOutputStream out, long value) {
+    do {
+      int next = (int) (value & 0x7f);
+      value >>>= 7;
+      out.write(value == 0 ? next : next | 0x80);
+    } while (value != 0);
+  }
+
+  @Test
+  public void multipleMemoriesCannotBypassTheRunCap() throws Exception {
+    // A command with memory 0 = one page and memory 1 = twenty pages. WABT's default
+    // feature set rejects multi-memory text, so keep the binary encoding explicit here.
+    byte[] wasm = java.util.HexFormat.of().parseHex(
+        "0061736d010000000104016000000302010005050200010014"
+            + "071302066d656d6f72790200065f737461727400000a040102000b");
+    WasmException error = assertThrows(WasmException.class, () -> runtime.compile(wasm));
+    assertThat(error.kind()).isEqualTo(Kind.INVALID_MODULE);
+  }
+
+  @Test
+  public void tableGrowthDoesNotChangeTheNextInstance() throws Exception {
+    WasmRuntime.Program program = compile(
+        "(module (import " + WASI + " \"proc_exit\" (func $exit (param i32)))"
+            + " (memory (export \"memory\") 1) (table 1 10 funcref)"
+            + " (func (export \"_start\") ref.null func i32.const 1 table.grow 0 call $exit))");
+    for (int i = 0; i < 3; i++) {
+      assertThat(program.run(NOTHING, WasmRuntime.Limits.defaults()).exitCode()).isEqualTo(1);
+    }
+  }
+
+  @Test
+  public void concurrentTableGrowthIsIsolated() throws Exception {
+    WasmRuntime.Program program = compile(
+        "(module (import " + WASI + " \"proc_exit\" (func $exit (param i32)))"
+            + " (memory (export \"memory\") 1) (table 1 10 funcref)"
+            + " (func (export \"_start\") ref.null func i32.const 1 table.grow 0 call $exit))");
+    var pool = java.util.concurrent.Executors.newFixedThreadPool(4);
+    try {
+      var runs = new java.util.ArrayList<java.util.concurrent.Future<Integer>>();
+      for (int i = 0; i < 20; i++) {
+        runs.add(pool.submit(() -> program.run(NOTHING, WasmRuntime.Limits.defaults()).exitCode()));
+      }
+      for (var run : runs) {
+        assertThat(run.get()).isEqualTo(1);
       }
     } finally {
       pool.shutdownNow();

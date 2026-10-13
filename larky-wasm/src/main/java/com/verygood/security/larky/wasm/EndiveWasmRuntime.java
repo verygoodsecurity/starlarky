@@ -18,7 +18,9 @@ package com.verygood.security.larky.wasm;
 
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException.Kind;
+import java.io.ByteArrayInputStream;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import run.endive.compiler.InterpreterFallback;
 import run.endive.compiler.MachineFactoryCompiler;
@@ -101,8 +103,11 @@ final class EndiveWasmRuntime implements WasmRuntime {
     }
     WasmModule module;
     try {
-      // Parser.parse also validates the module.
-      module = Parser.parse(wasm);
+      EndivePreflight.check(wasm);
+      // The default Endive "name" custom-section decoder also trusts nested length fields.
+      // Debug names are irrelevant to execution, so keep custom sections opaque here.
+      module = Parser.builder().withCustomParsers(Map.of()).build()
+          .parse(() -> new ByteArrayInputStream(wasm));
     } catch (RuntimeException e) {
       throw new WasmException(Kind.INVALID_MODULE, "invalid WebAssembly module: " + e.getMessage(), e);
     }
@@ -121,6 +126,7 @@ final class EndiveWasmRuntime implements WasmRuntime {
       throw new WasmException(
           Kind.INVALID_MODULE, "module has a start section; a WASI command starts at _start");
     }
+    long[] tableMaxima = tableMaxima(module);
     MemoryLimits declared = module.memorySection().get().getMemory(0).limits();
     Function<Instance, Machine> machineFactory = Simd.interpreter();
     if (mode == Mode.COMPILER) {
@@ -145,7 +151,34 @@ final class EndiveWasmRuntime implements WasmRuntime {
         }
       }
     }
-    return new EndiveWasmProgram(module, machineFactory, declared);
+    return new EndiveWasmProgram(module, machineFactory, declared, tableMaxima);
+  }
+
+  /** Bound the sum of table capacities, including future growth, before any instance allocates. */
+  private static long[] tableMaxima(WasmModule module) throws WasmException {
+    var tables = module.tableSection();
+    int count = tables.tableCount();
+    if (count > MAX_TABLES) {
+      throw new WasmException(Kind.MEMORY_LIMIT,
+          "module defines " + count + " tables; the limit is " + MAX_TABLES);
+    }
+    long[] maxima = new long[count];
+    long minimumTotal = 0;
+    for (int i = 0; i < count; i++) {
+      minimumTotal += tables.getTable(i).limits().min();
+      if (minimumTotal > MAX_TABLE_ELEMENTS) {
+        throw new WasmException(Kind.MEMORY_LIMIT,
+            "initial tables exceed " + MAX_TABLE_ELEMENTS + " entries");
+      }
+    }
+    long remaining = MAX_TABLE_ELEMENTS - minimumTotal;
+    for (int i = 0; i < count; i++) {
+      var limits = tables.getTable(i).limits();
+      long share = remaining / (count - i);
+      maxima[i] = Math.min(limits.max(), limits.min() + share);
+      remaining -= maxima[i] - limits.min();
+    }
+    return maxima;
   }
 
   /** Only WASI preview 1 functions, with the signatures Endive implements them with. */
@@ -207,6 +240,11 @@ final class EndiveWasmRuntime implements WasmRuntime {
     // Imports are all functions (checkImports), so the exported memory is defined by the module.
     if (memory.index() != 0 || module.memorySection().isEmpty()) {
       throw new WasmException(Kind.INVALID_MODULE, "module must export its first memory");
+    }
+    // Endive's builder only applies the host memory cap to memory zero. Reject multi-memory
+    // modules rather than letting additional memories allocate outside the per-instance limit.
+    if (module.memorySection().get().memoryCount() != 1) {
+      throw new WasmException(Kind.INVALID_MODULE, "module must define exactly one memory");
     }
     int importedFunctions = module.importSection().count(ExternalType.FUNCTION);
     FunctionType startType =

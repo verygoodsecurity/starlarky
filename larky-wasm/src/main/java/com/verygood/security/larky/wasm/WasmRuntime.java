@@ -43,13 +43,19 @@ public interface WasmRuntime {
   String DEFAULT = "endive";
 
   /**
-   * The largest module {@link #compile} accepts, in bytes. Preparing a module takes time in
-   * proportion to it, before any run's deadline applies.
+   * The largest module {@link #compile} accepts, in bytes. This bounds the input, not the parser's
+   * CPU or heap use; parsing happens before any run's deadline applies.
    */
   int MAX_MODULE_BYTES = 8 << 20;
 
   /** The most functions a module {@link #compile} accepts may define. */
   int MAX_FUNCTIONS = 20_000;
+
+  /** Maximum total table entries, including entries reachable through table.grow. */
+  int MAX_TABLE_ELEMENTS = 65_536;
+
+  /** Maximum number of tables in one module. */
+  int MAX_TABLES = 64;
 
   /** The name {@link #PROPERTY} selects it by, e.g. "endive". */
   String name();
@@ -58,7 +64,8 @@ public interface WasmRuntime {
    * Validates and prepares {@code wasm} for running. Callers cache the result by content.
    *
    * @throws WasmException of kind {@link WasmException.Kind#INVALID_MODULE} if the bytes are not
-   *     a valid module, it lacks the {@code _start} or {@code memory} export, has a start
+   *     a valid module, it lacks the {@code _start} or {@code memory} export, defines anything
+   *     other than exactly one memory, has a start
    *     section, imports anything but WASI preview 1 functions with their standard signatures, or
    *     is larger than {@link #MAX_MODULE_BYTES} or {@link #MAX_FUNCTIONS}
    */
