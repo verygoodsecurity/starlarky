@@ -76,6 +76,7 @@ Paths are relative to `larky/src/main/resources`.
 | `vendor/asserts.star` | [assertpy (+ bazel-skylib unittest.bzl)](https://github.com/assertpy/assertpy) | **assertpy 1.1; skylib <= 1.0.3** | [assertpy 1.1](https://github.com/assertpy/assertpy/tree/b9ad7ee2d673a45f9a5b68c3b7aa2d077560bb7c) | `assertpy/*.py; skylib lib/unittest.bzl` | BSD-3-Clause (assertpy); Apache-2.0 (skylib) | likely | [#10](https://github.com/verygoodsecurity/starlarky/pull/10) | 'modeled after assertpy'; 162 lines shared with 1.1 vs 160 with 1.0, incl. both 1.1-only lines. |
 | `vendor/jose/{__init__,exceptions,jwe,jwk,jws,utils}.star`<br>`vendor/jose/backends/{__init__,_asn1,base,native,pycrypto_backend}.star`<br>`vendor/jose/constants/{__init__,algorithms}.star` | [python-jose](https://github.com/mpdavis/python-jose) | master 89c3d41..8572088 (no release); pinned to **8572088** | [89c3d41..8572088](https://github.com/mpdavis/python-jose/compare/89c3d41bc6c60ad6f7d135f14dcd963cef633637...8572088b76f7c0d31068f38aeca0d4273ae8bc8f) | jose/&lt;same path&gt;.py (`constants/*` from `jose/constants.py`) | MIT | likely | [#124](https://github.com/verygoodsecurity/starlarky/pull/124) (jwe: [#122](https://github.com/verygoodsecurity/starlarky/pull/122), [#297](https://github.com/verygoodsecurity/starlarky/pull/297)) | jws.star has 89c3d41 (JWK objects); pycrypto_backend.star ports the backend removed after 8572088; in range upstream changed only the unported ecdsa_backend.py. |
 | `vendor/jose/jwt.star` | [python-jose](https://github.com/mpdavis/python-jose) | **3.5.0** | [3.5.0](https://github.com/mpdavis/python-jose/tree/018b310ddb8b50dcfd09a0c152117835a21dd656) | `jose/jwt.py` | MIT | exact | [#124](https://github.com/verygoodsecurity/starlarky/pull/124) (replaced on fix/jose-jwt, 87d6433f) | Translation of 3.5.0 jose/jwt.py on branch fix/jose-jwt (87d6433f); see Notes. |
+| `vendor/attr/{__init__,_make,_next_gen,setters,validators}.star`<br>`vendor/attrs/__init__.star` | [attrs](https://github.com/python-attrs/attrs) | **26.1.0** | [26.1.0](https://github.com/python-attrs/attrs/tree/7bfc49e9b22d5ba25b6e429524c3d49fee27cb36) | `src/attr/{__init__,_make,_funcs,_config,_next_gen,setters,validators}.py`, `src/attrs/__init__.py` | MIT | exact | feat/vendor-attrs (Fixes [#15](https://github.com/verygoodsecurity/starlarky/issues/15)) | Written against 26.1.0 (tag commit 7bfc49e9); version pinned, content is a reimplementation (see Notes). |
 
 ## stdlib/
 
@@ -150,6 +151,7 @@ Paths are relative to `larky/src/test/resources`.
 | `stdlib_tests/urllib/test_parse.star` | [CPython](https://github.com/python/cpython) | **3.5+ (not determined)** | - | `Lib/test/test_urlparse.py` | PSF-2.0 | unknown | [#126](https://github.com/verygoodsecurity/starlarky/pull/126) | 17/94 URL vectors match 3.5-3.9 equally; 2/114 code lines; mostly VGS-written. |
 | `stdlib_tests/test_bytes.star` | [starlark-go](https://github.com/google/starlark-go) | **ebe61bd (2021-02-12)** | [ebe61bd](https://github.com/google/starlark-go/tree/ebe61bd709bf23d7baddbb34e79084d7d156be04) | `starlark/testdata/bytes.star` | BSD-3-Clause | likely | [#71](https://github.com/verygoodsecurity/starlarky/pull/71) | Commit says 'match the go-upstream'; 33/205 lines match ebe61bd, the only revision before 2021-03-10. |
 | `stdlib_tests/test_binascii.star` | [Adafruit_CircuitPython_Binascii](https://github.com/adafruit/Adafruit_CircuitPython_Binascii) | 1.0-1.2.5 (example code identical); pinned to **1.2.5** | [1.2.5](https://github.com/adafruit/Adafruit_CircuitPython_Binascii/tree/1.2.5) | `examples/binascii_simpletest.py` | MIT | exact | [#81](https://github.com/verygoodsecurity/starlarky/pull/81) | Line-for-line translation of binascii_simpletest.py; upstream SPDX header dropped. |
+| `vendor_tests/attrs/{test_funcs,test_make,test_next_gen,test_validators}.star` | [attrs](https://github.com/python-attrs/attrs) | **26.1.0** | [26.1.0](https://github.com/python-attrs/attrs/tree/7bfc49e9b22d5ba25b6e429524c3d49fee27cb36) | `tests/test_{funcs,make,next_gen,setattr,validators}.py` | MIT | exact | feat/vendor-attrs (Fixes [#15](https://github.com/verygoodsecurity/starlarky/issues/15)) | Ported from 26.1.0 tests; `test_next_gen.star` also holds the ported `test_setattr.py` cases. |
 
 ## VGS-original files
 
@@ -460,6 +462,21 @@ Written for Larky; no upstream file to pin and no header. Paths are relative to 
   header; 1.2.6 is the last 1.2.x release containing r1862. The upstream site
   (effbot.org) is offline; compared against a mirror. The helper was split out
   in [#226](https://github.com/verygoodsecurity/starlarky/pull/226) ([#222](https://github.com/verygoodsecurity/starlarky/pull/222)).
+
+### attrs
+
+- Ported against attrs 26.1.0. attrs builds each class's `__init__`,
+  `__repr__`, `__eq__` and ordering methods as source and `exec()`s it; Larky
+  has no `exec`, so the `.star` files keep upstream's API and docstrings while
+  the generated methods, field descriptors, validators and setters are native
+  Java in `modules/attrs` (the `jattrs` module). The pin is exact as to the
+  version written against, not a line-level match with upstream.
+- `_make.star` also covers `_funcs.py` (`asdict`, `astuple`, `has`,
+  `evolve`) and `_config.py` (`set_run_validators`, `get_run_validators`).
+  Not ported: `converters`/`Converter`, `validators.not_` and
+  `validators.disabled`, `cmp_using`, `resolve_types`, `assoc`, `inspect`,
+  `filters`, `exceptions`, hashing by value and pickling. The `attr` module
+  docstring lists these and the other differences.
 
 ## Open licensing questions
 
