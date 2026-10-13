@@ -19,12 +19,18 @@ package net.starlark.java.eval.compiler;
  *
  * <ul>
  *   <li><b>interpreter</b> (default): {@link net.starlark.java.eval.BytecodeInterpreter}
+ *   <li><b>starlark-go</b>: separate operand stack and locals, as google/starlark-go
+ *   <li><b>starlark-rust</b>: one slot array for locals and operands, as starlark-rust
+ *   <li><b>buck</b>: Buck-style frame layout
  * </ul>
  *
  * All of them share the instruction semantics in {@code BcOps}; they differ only in storage.
  */
 public enum BytecodeTarget {
-  INTERPRETER("interpreter");
+  INTERPRETER("interpreter"),
+  STARLARK_GO("starlark-go"),
+  STARLARK_RUST("starlark-rust"),
+  BUCK("buck");
 
   private final String id;
 
