@@ -27,6 +27,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/Signature/pss.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Util/number", number="number", ceil_div="ceil_div", long_to_bytes="long_to_bytes", bytes_to_long="bytes_to_long")

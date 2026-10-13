@@ -1,3 +1,4 @@
+# Ported from CPython 3.10.0-3.10.4, pinned to 3.10.4 (9d38120): Lib/textwrap.py. See larky/src/main/resources/VENDORED.md.
 """Text wrapping and filling.
 """
 load("@stdlib//builtins", builtins="builtins")

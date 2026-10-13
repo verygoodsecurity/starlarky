@@ -1,3 +1,4 @@
+# Ported from luhn 0.2.0 (d6f3fa7): luhn.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", "larky")
 load("@stdlib//builtins", "builtins")
 

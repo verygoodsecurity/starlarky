@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# Ported from bazel-skylib 0.8.0-1.9.2, pinned to 1.0.3 (2ec2e6d): lib/dicts.bzl. See larky/src/main/resources/VENDORED.md.
 load("@stdlib/larky", "larky")
 load("types", "types")
 

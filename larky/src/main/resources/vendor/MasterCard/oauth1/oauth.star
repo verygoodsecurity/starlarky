@@ -25,7 +25,7 @@
 # IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# Ported from https://github.com/Mastercard/oauth1-signer-python/blob/main/oauth1/oauth.py
+# Ported from oauth1-signer-python (Mastercard) 1.4.0-1.5.0, pinned to 1.5.0 (3752107): oauth1/oauth.py. See larky/src/main/resources/VENDORED.md.
 #
 
 load("@stdlib//base64", "base64")

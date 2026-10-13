@@ -19,6 +19,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+# Ported from pycryptodome 3.10.4 (f8d40a6): lib/Crypto/Cipher/PKCS1_v1_5.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//operator", operator="operator")

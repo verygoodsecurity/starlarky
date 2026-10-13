@@ -1,3 +1,4 @@
+# Ported from OpenPGP-Python fork fork a174c38 (loosely): tests/test_OpenPGP.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//unittest", unittest="unittest")

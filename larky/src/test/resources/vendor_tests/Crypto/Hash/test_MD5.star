@@ -21,6 +21,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+# Ported from pycryptodome <= 3.12.0 (no discriminating lines), pinned to 3.12.0 (d8edf1a): lib/Crypto/SelfTest/Hash/test_MD5.py. See larky/src/main/resources/VENDORED.md.
 
 """Self-test suite for Crypto.Hash.MD5"""
 

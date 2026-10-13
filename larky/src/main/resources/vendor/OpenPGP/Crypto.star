@@ -1,3 +1,4 @@
+# Ported from OpenPGP-Python (mahmoudimus fork) fork branch HEAD (no release) (a174c38): src/OpenPGP/Crypto.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//collections", collections="collections")

@@ -1,3 +1,4 @@
+# Ported from pycryptodome 3.10.4-3.12.0, pinned to 3.12.0 (d8edf1a): lib/Crypto/Hash/SHAKE256.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@vendor//Crypto/Util/py3compat", bord="bord")

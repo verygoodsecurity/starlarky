@@ -1,3 +1,4 @@
+# Ported from CPython 3.10.1-3.12, pinned to 3.10.4 (9d38120): Lib/bz2.py. See larky/src/main/resources/VENDORED.md.
 """
 A Larky port of: https://docs.python.org/3/library/bz2.html
 

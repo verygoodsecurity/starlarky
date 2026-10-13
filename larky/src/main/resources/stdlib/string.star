@@ -1,3 +1,4 @@
+# Ported from CPython 2.7.x, pinned to 2.7.18 (8d21aa2): Lib/string.py. See larky/src/main/resources/VENDORED.md.
 """A collection of string operations (most are no longer used).
 
 Warning: most of the code you see here isn't normally used nowadays.

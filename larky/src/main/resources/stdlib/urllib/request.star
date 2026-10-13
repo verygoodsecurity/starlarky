@@ -1,3 +1,4 @@
+# Ported from CPython 3.9.7-3.10.1, pinned to 3.10.1 (2cd268a): Lib/urllib/request.py. See larky/src/main/resources/VENDORED.md.
 # Direct copy from: https://github.com/python/cpython/blob/3.10/Lib/urllib/request.py
 
 """An extensible library for opening URLs using a variety of protocols

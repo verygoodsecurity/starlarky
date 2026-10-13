@@ -1,3 +1,4 @@
+# Ported from Adafruit_CircuitPython_Binascii 1.0-1.2.5 (example code identical), pinned to 1.2.5: examples/binascii_simpletest.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", "larky")
 load("@stdlib//builtins", "builtins")
 load("@vendor//asserts", "asserts")
