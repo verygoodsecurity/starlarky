@@ -14,6 +14,8 @@
     * [Larky](#larky)
     * [Runlarky](#runlarky)
     * [Pylarky](#pylarky)
+* [Examples](#examples)
+    * [Shipping a host-owned module next to a script](#shipping-a-host-owned-module-next-to-a-script)
 * [Developer setup](#developer-setup)
 * [Depoyment process](#deployment-process)
 <!-- tocstop -->
@@ -91,6 +93,37 @@ docker compose run --rm python /bin/sh -c "./build-and-test-python.sh"
 ```bash
 mvn -Dtest='StdLibTest*' -Dlarky.stdlib_test=test_bytes.star org.apache.maven.plugins:maven-surefire-plugin:3.0.0-M5:test -pl larky
 ```
+
+## Examples
+
+### Shipping a host-owned module next to a script
+
+A host that runs a customer's script through the JSR223 engine can pass other files with it in
+the `LarkyScriptEngine.MODULES` engine property (a `Map<String, String>` of file name to
+source); the script loads them by name, e.g. `load("vgs_owned", "sign")` for `vgs_owned.star`.
+Each loads into its own module. `LarkyScriptEngine.CACHE_NAMESPACE` (e.g. a tenant ID) keeps
+the compiled programs of these files apart per namespace in Larky's cache.
+
+[`OpaqueModuleExampleTest`](larky/src/test/java/com/verygood/security/larky/jsr223/OpaqueModuleExampleTest.java)
+ships a module that keeps a vault alias in `_KEY_ALIAS` and exposes `sign(message)`, which
+reveals the key behind the alias and returns an HMAC. Names that start with `_` are private to
+their file, so `load("vgs_owned", "_KEY_ALIAS")` fails when the script is compiled with
+`symbol '_KEY_ALIAS' is private and cannot be imported`.
+
+```bash
+mvn test -pl larky -am -Dtest=OpaqueModuleExampleTest -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+What this hides, and what it does not:
+
+- The value stays hidden only while no public function returns it, returns something derived
+  from it that gives it away, or puts it in an error message. A private name is not access
+  control.
+- The script can call the public functions with any arguments, as often as it likes: the module
+  is an oracle for whatever they do (here, an HMAC of any message the script chooses).
+- The script can call `vault.reveal` itself on any alias it learns some other way.
+- Storing a module per tenant, choosing which modules to pass with which script, and keeping
+  tenants apart are up to the host (e.g. the proxy). Larky only loads the files it is given.
 
 ## Developer setup
 
