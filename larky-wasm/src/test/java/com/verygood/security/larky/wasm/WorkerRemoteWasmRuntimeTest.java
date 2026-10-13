@@ -63,7 +63,9 @@ public final class WorkerRemoteWasmRuntimeTest {
     String java = Path.of(javaHome, "bin", "java").toString();
     String classpath = System.getProperty("java.class.path");
     Path launcher = files.resolve("launch.sh");
-    Files.writeString(launcher, "#!/bin/sh\nexec '" + java.replace("'", "'\\''")
+    Files.writeString(launcher, "#!/bin/sh\nprintf 'started\\n' >> '"
+        + files.resolve("launches").toString().replace("'", "'\\''") + "'\nexec '"
+        + java.replace("'", "'\\''")
         + "' --add-modules jdk.incubator.vector -cp '" + classpath.replace("'", "'\\''")
         + "' com.verygood.security.larky.wasm.WorkerMain\n");
     launcher.toFile().setExecutable(true);
@@ -103,6 +105,7 @@ public final class WorkerRemoteWasmRuntimeTest {
     var result = remote.compile(Fixtures.wasm("echo")).run(input,
         new WasmRuntime.Limits(1 << 20, System.currentTimeMillis() + 5000, 1024, 0L));
     assertThat(result.stdout()).isEqualTo(input);
+    assertThat(Files.readAllLines(files.resolve("launches"))).hasSize(2);
     var error = assertThrows(WasmException.class,
         () -> remote.compile(new byte[] {0, 97, 115, 109}));
     assertThat(error.kind()).isEqualTo(WasmException.Kind.INVALID_MODULE);

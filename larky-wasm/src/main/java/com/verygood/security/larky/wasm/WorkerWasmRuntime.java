@@ -78,7 +78,8 @@ public final class WorkerWasmRuntime implements WasmRuntime {
 
   @Override public Program compile(byte[] wasm, long deadlineEpochMs) throws WasmException {
     if (wasm.length > hostLimits.maxModuleBytes()) {
-      throw new WasmException(WasmException.Kind.INVALID_MODULE, "WebAssembly module exceeds host limit");
+      throw new WasmException(WasmException.Kind.INVALID_MODULE,
+          "WebAssembly module exceeds host limit");
     }
     byte[] copy = wasm.clone();
     var request = new WorkerProtocol.Request(WorkerProtocol.COMPILE, settings.backend(), copy,
@@ -99,22 +100,32 @@ public final class WorkerWasmRuntime implements WasmRuntime {
 
     @Override
     public Result run(byte[] stdin, Limits limits) throws WasmException, InterruptedException {
-      if (limits.maxMemoryBytes() > settings.maxMemoryBytes()) {
-        throw new WasmException(WasmException.Kind.MEMORY_LIMIT,
-            "WASM memory exceeds worker host limit");
-      }
-      if (stdin.length > settings.maxInputBytes()) {
-        throw new WasmException(WasmException.Kind.MEMORY_LIMIT, "WASM stdin exceeds worker limit");
-      }
-      if (limits.maxOutputBytes() > settings.maxOutputBytes()) {
-        throw new WasmException(WasmException.Kind.OUTPUT_LIMIT,
-            "WASM output exceeds worker host limit");
-      }
-      var request = new WorkerProtocol.Request(WorkerProtocol.RUN, settings.backend(), wasm,
-          stdin.clone(), limits.maxMemoryBytes(), 1, limits.maxOutputBytes(), limits.randomSeed(),
-          limits.wasiHostPolicy());
-      return invoke(request, limits.deadlineEpochMs()).result();
+      return runOneShot(wasm, stdin, limits);
     }
+  }
+
+  // The remote server already received a RUN request. The child compiles before running, so
+  // launching another child just to compile first adds no validation or isolation.
+  Result runOneShot(byte[] wasm, byte[] stdin, Limits limits)
+      throws WasmException, InterruptedException {
+    if (wasm.length > hostLimits.maxModuleBytes()) {
+      throw new WasmException(WasmException.Kind.INVALID_MODULE, "WebAssembly module exceeds host limit");
+    }
+    if (limits.maxMemoryBytes() > settings.maxMemoryBytes()) {
+      throw new WasmException(WasmException.Kind.MEMORY_LIMIT,
+          "WASM memory exceeds worker host limit");
+    }
+    if (stdin.length > settings.maxInputBytes()) {
+      throw new WasmException(WasmException.Kind.MEMORY_LIMIT, "WASM stdin exceeds worker limit");
+    }
+    if (limits.maxOutputBytes() > settings.maxOutputBytes()) {
+      throw new WasmException(WasmException.Kind.OUTPUT_LIMIT,
+          "WASM output exceeds worker host limit");
+    }
+    var request = new WorkerProtocol.Request(WorkerProtocol.RUN, settings.backend(), wasm,
+        stdin.clone(), limits.maxMemoryBytes(), 1, limits.maxOutputBytes(), limits.randomSeed(),
+        limits.wasiHostPolicy());
+    return invoke(request, limits.deadlineEpochMs()).result();
   }
 
   private WorkerProtocol.Response invoke(WorkerProtocol.Request request, long wallDeadlineMs)
