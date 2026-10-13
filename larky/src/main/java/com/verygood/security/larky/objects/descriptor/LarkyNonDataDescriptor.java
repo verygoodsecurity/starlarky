@@ -31,16 +31,12 @@ public interface LarkyNonDataDescriptor {
 
   /** Reads a protocol method from any object accepted by descriptor detection. */
   static Object descriptorMethod(Object desc, String name, StarlarkThread thread) throws EvalException {
-    if (desc instanceof PyObject pyObject) {
-      return pyObject.getField(name, thread);
-    }
-    if (desc instanceof Structure structure) {
-      return structure.getValue(name);
-    }
-    if (desc instanceof Map<?, ?> map) {
-      return map.get(name);
-    }
-    throw Starlark.errorf("'%s' is not a descriptor", Starlark.type(desc));
+    return switch (desc) {
+      case PyObject pyObject -> pyObject.getField(name, thread);
+      case Structure structure -> structure.getValue(name);
+      case Map<?, ?> map -> map.get(name);
+      default -> throw Starlark.errorf("'%s' is not a descriptor", Starlark.type(desc));
+    };
   }
 
   // These are the prototypes for the descriptor protocol.
