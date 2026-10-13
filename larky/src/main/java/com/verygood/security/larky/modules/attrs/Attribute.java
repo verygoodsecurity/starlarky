@@ -209,7 +209,15 @@ public final class Attribute implements Structure {
       if (!values.containsKey(e.getKey())) {
         throw Starlark.errorf("AttributeError: 'Attribute' object has no attribute '%s'", e.getKey());
       }
-      v.put(e.getKey(), e.getKey().equals("metadata") ? freezeMetadata(e.getValue()) : e.getValue());
+      Object val = e.getValue();
+      // attrs fails later (or builds a broken Attribute) for these; fail here instead.
+      if (e.getKey().equals("name") && !(val instanceof String)) {
+        throw Starlark.errorf("TypeError: name must be a string, not %s", AttrsSupport.pythonTypeName(val));
+      }
+      if (e.getKey().equals("alias") && !AttrsSupport.isNone(val) && !(val instanceof String)) {
+        throw Starlark.errorf("TypeError: alias must be a string or None, not %s", AttrsSupport.pythonTypeName(val));
+      }
+      v.put(e.getKey(), e.getKey().equals("metadata") ? freezeMetadata(val) : val);
     }
     if (changes.containsKey("alias") && !changes.containsKey("alias_is_default")) {
       v.put("alias_is_default", false);
