@@ -45,6 +45,17 @@ public class StarlarkEvalWrapper {
     }
   }
 
+  /** Evaluates {@code x op y} as the Starlark binary operator {@code op} does. */
+  public static Object binaryOp(net.starlark.java.syntax.TokenKind op, Object x, Object y, StarlarkThread thread)
+      throws EvalException {
+    return EvalUtils.binaryOp(op, x, y, thread);
+  }
+
+  /** Evaluates {@code object[key]} as the Starlark index expression does. */
+  public static Object index(StarlarkThread thread, Object object, Object key) throws EvalException {
+    return EvalUtils.index(thread, object, key);
+  }
+
   public static <T> StarlarkList<?> zeroCopyList(Mutability mu, T[] arr) {
     return StarlarkList.wrap(mu, arr);
   }
