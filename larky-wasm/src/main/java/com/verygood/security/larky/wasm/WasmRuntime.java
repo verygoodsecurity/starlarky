@@ -77,6 +77,16 @@ public interface WasmRuntime {
    */
   Program compile(byte[] wasm) throws WasmException;
 
+  /** A deadline-aware compile entrypoint for runtimes that supervise the whole request. */
+  default Program compile(byte[] wasm, long deadlineEpochMs) throws WasmException {
+    return compile(wasm);
+  }
+
+  /** Whether prepared programs may be retained in the embedding JVM's shared cache. */
+  default boolean cacheProgramsInHost() {
+    return true;
+  }
+
   /** A compiled module. Thread-safe: each {@link #run} instantiates it afresh. */
   interface Program {
 
@@ -229,6 +239,8 @@ public interface WasmRuntime {
         return graal();
       case "graal-isolate":
         return graalIsolate();
+      case "worker":
+        return new WorkerWasmRuntime();
       default:
         for (WasmRuntime runtime : ServiceLoader.load(WasmRuntime.class, WasmRuntime.class.getClassLoader())) {
           if (runtime.name().equals(name)) {
