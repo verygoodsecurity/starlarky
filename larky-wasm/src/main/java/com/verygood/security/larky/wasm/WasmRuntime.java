@@ -138,7 +138,7 @@ public interface WasmRuntime {
    * @param maxMemoryBytes the most linear memory the instance may have (rounded down to 64 KiB
    *     pages)
    * @param deadlineEpochMs wall-clock deadline in {@link System#currentTimeMillis()} terms; 0 for
-   *     none
+   *     none on the standard backends; the isolate backend still imposes its configured maximum
    * @param maxOutputBytes the most bytes stdout, and separately stderr, may receive
    * @param randomSeed if not null, {@code random_get} returns a deterministic stream from this
    *     seed (for tests); otherwise it reads a {@code SecureRandom}
@@ -217,7 +217,8 @@ public interface WasmRuntime {
   }
 
   /**
-   * The runtime named {@code name}: "endive", "graal" (when GraalWasm is on the class path), or
+   * The runtime named {@code name}: "endive", "graal", "graal-isolate" (with matching GraalVM
+   * Polyglot isolate artifacts), or
    * one registered with {@link ServiceLoader}.
    */
   static WasmRuntime byName(String name) throws WasmException {
@@ -226,6 +227,8 @@ public interface WasmRuntime {
         return new EndiveWasmRuntime();
       case "graal":
         return graal();
+      case "graal-isolate":
+        return graalIsolate();
       default:
         for (WasmRuntime runtime : ServiceLoader.load(WasmRuntime.class, WasmRuntime.class.getClassLoader())) {
           if (runtime.name().equals(name)) {
@@ -237,7 +240,7 @@ public interface WasmRuntime {
     }
   }
 
-  /** Endive, GraalWasm if it is on the class path, and any registered with ServiceLoader. */
+  /** Endive, available GraalWasm backends, and any registered with ServiceLoader. */
   static List<WasmRuntime> all() {
     List<WasmRuntime> runtimes = new ArrayList<>();
     runtimes.add(new EndiveWasmRuntime());
@@ -245,6 +248,11 @@ public interface WasmRuntime {
       runtimes.add(graal());
     } catch (WasmException e) {
       // GraalWasm's dependencies are optional.
+    }
+    try {
+      runtimes.add(graalIsolate());
+    } catch (WasmException e) {
+      // The matching WASM isolate image is optional.
     }
     ServiceLoader.load(WasmRuntime.class, WasmRuntime.class.getClassLoader()).forEach(runtimes::add);
     return runtimes;
@@ -265,6 +273,21 @@ public interface WasmRuntime {
           WasmException.Kind.INVALID_MODULE,
           "the 'graal' WebAssembly runtime needs org.graalvm.polyglot:polyglot and"
               + " org.graalvm.polyglot:wasm-community on the class path",
+          e);
+    }
+  }
+
+  private static WasmRuntime graalIsolate() throws WasmException {
+    try {
+      return (WasmRuntime)
+          Class.forName("com.verygood.security.larky.wasm.GraalIsolateWasmRuntime")
+              .getDeclaredConstructor()
+              .newInstance();
+    } catch (ReflectiveOperationException | LinkageError e) {
+      throw new WasmException(
+          WasmException.Kind.INVALID_MODULE,
+          "the 'graal-isolate' runtime needs GraalVM Polyglot 25.1+ and matching"
+              + " org.graalvm.polyglot:wasm-isolate-community dependencies",
           e);
     }
   }
