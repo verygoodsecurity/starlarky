@@ -131,4 +131,30 @@ public final class WorkerWasmRuntimeTest {
             (1 << 20) + 1, 0L)));
     assertThat(output.kind()).isEqualTo(WasmException.Kind.OUTPUT_LIMIT);
   }
+
+  @Test
+  public void nullableWorkerErrorMessageRoundTripsSafely() throws Exception {
+    byte[] encoded = WorkerProtocol.encodeFailure(new WasmException(WasmException.Kind.TRAP, null));
+    var response = WorkerProtocol.decodeResponse(encoded, 0);
+    assertThat(response.error().kind()).isEqualTo(WasmException.Kind.TRAP);
+    assertThat(response.error()).hasMessageThat().isEmpty();
+  }
+
+  @Test
+  public void workerFailureDoesNotExposeRawStderr() throws Exception {
+    Files.writeString(launcher, "#!/bin/sh\ncat >/dev/null\nprintf 'customer-secret' >&2\nexit 42\n");
+    var runtime = WasmRuntime.byName("worker");
+    var error = assertThrows(WasmException.class,
+        () -> runtime.compile(Fixtures.wasm("echo")));
+    assertThat(error.kind()).isEqualTo(WasmException.Kind.TRAP);
+    assertThat(error).hasMessageThat().contains("exit code 42");
+    assertThat(error).hasMessageThat().doesNotContain("customer-secret");
+  }
+
+  @Test
+  public void rejectsOverlongRequestDeadlineWithPreciseConfigurationError() {
+    System.setProperty(MAX_MILLIS, "86400001");
+    var error = assertThrows(WasmException.class, () -> WasmRuntime.byName("worker"));
+    assertThat(error).hasMessageThat().contains("must not exceed 24 hours");
+  }
 }
