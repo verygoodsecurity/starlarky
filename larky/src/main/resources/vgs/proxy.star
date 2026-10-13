@@ -16,6 +16,13 @@ load("@vgs//http/response", "VGSHttpResponse")
 _RESPONSE_TYPES = (VGSHttpResponse,)
 
 
+def _is_response(value):
+    for t in _RESPONSE_TYPES:
+        if types.is_instance(value, t):
+            return True
+    return False
+
+
 def _type_name(value):
     return getattr(value, "__name__", None) or type(value)
 
@@ -28,7 +35,7 @@ def ShortCircuitResponse(response):
     """
     if response == None:
         fail("ShortCircuitResponse requires a response")
-    if not [t for t in _RESPONSE_TYPES if types.is_instance(response, t)]:
+    if not _is_response(response):
         fail("ShortCircuitResponse must wrap one of [%s], got %s" % (
             ", ".join([larky.impl_function_name(t) for t in _RESPONSE_TYPES]),
             _type_name(response),
