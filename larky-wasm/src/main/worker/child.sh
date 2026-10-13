@@ -5,5 +5,6 @@ set -eu
 # eclipse-temurin:21-jre image contract checked by Dockerfile.wasm-worker.
 exec /opt/java/openjdk/bin/java --add-modules jdk.incubator.vector \
   -Xmx256m -XX:MaxMetaspaceSize=64m \
+  -XX:SharedArchiveFile=/app/worker.jsa -Xshare:on \
   -cp '/app/worker.jar:/app/lib/*' \
   com.verygood.security.larky.wasm.WorkerMain

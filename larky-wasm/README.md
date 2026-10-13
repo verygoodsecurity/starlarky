@@ -273,7 +273,9 @@ stores from absolute files using `larky.wasm.worker.tls.keyStore`, `keyStorePass
 The connection requires TLS 1.3, client certificates, and server hostname verification. The
 remote server entry point is `com.verygood.security.larky.wasm.WorkerTlsServer`; the
 `Dockerfile.wasm-worker` image runs it with one concurrent request and a fresh child JVM per
-compile or run. The server's own maximum request time is 10 seconds unless the trusted host sets
+compile or run. The image builds a class archive from a harmless module and requires that archive
+for child startup; customer modules are never used to train it. The server's own maximum request
+time is 10 seconds unless the trusted host sets
 `larky.wasm.worker.server.maxRequestMillis`. Both client and server must set compatible module,
 input, memory, and output limits. The client deadline includes connection setup and response
 transfer. Use a dedicated trust store for this service and restrict access with a NetworkPolicy.
