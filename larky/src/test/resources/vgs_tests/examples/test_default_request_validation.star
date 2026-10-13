@@ -127,6 +127,8 @@ def test_valid_token_passes():
     _assert_passes(request)
     # The scheme is case-insensitive.
     _assert_passes(_request("bearer " + _token()))
+    # So is extra whitespace around the token.
+    _assert_passes(_request("Bearer   " + _token() + " "))
     # The request is returned unchanged, headers and body included.
     result = check_request(request, KEY_ALIAS)
     asserts.assert_that(result.body).is_equal_to(b'{"amount": 100}')

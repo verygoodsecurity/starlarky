@@ -82,8 +82,9 @@ def bearer_token(request):
     value = request.headers.get("Authorization")
     if not value:
         return None
-    parts = value.split(" ")
-    if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1]:
+    # Tolerates extra spaces: Python's value.split(); Larky's str.split needs a sep.
+    parts = [p for p in value.split(" ") if p]
+    if len(parts) != 2 or parts[0].lower() != "bearer":
         return None
     return parts[1]
 
