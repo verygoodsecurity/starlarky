@@ -58,6 +58,14 @@
             <type>pom</type>
             <optional>true</optional>
         </dependency>
+        <!-- Optional UNTRUSTED WASM isolate; only loaded by the graal-isolate runtime. -->
+        <dependency>
+            <groupId>org.graalvm.polyglot</groupId>
+            <artifactId>wasm-isolate-community</artifactId>
+            <version>${graalvm.version}</version>
+            <type>pom</type>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <!-- Compiles the WAT fixtures in src/test/resources/wasm when the tests run. -->
             <groupId>run.endive</groupId>

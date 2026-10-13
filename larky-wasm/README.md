@@ -17,14 +17,17 @@ a wall-clock deadline does not make it non-Turing-complete or provide determinis
 fuel. `random_get` uses secure random bytes, so repeated runs need not return identical results.
 The current integration is therefore not a deterministic sandbox.
 
-The run deadline does not interrupt parsing or compilation, including waits for a shared cached
-compilation. Larky checks expiration before compilation and after it returns, so an overdue compile
-cannot return success. Endive preflights guest lengths before its parser allocates from them; both
-engines cap declared table minima and future growth. These limits do not provide a total JVM heap,
-CPU or Metaspace budget for parsing, compilation and execution. Hosts that need an enforceable
-process-level resource boundary for hostile WASM should run it in a separately resource-limited
-process. The opt-in, deadline, memory and output limits do not make this in-process integration a
-complete sealed sandbox.
+The run deadline does not interrupt host-side preflight, module rewriting or waits for a shared
+cached compilation. Larky checks expiration before compilation and after it returns, so an overdue
+compile cannot return success. Endive preflights guest lengths before its parser allocates from
+them; both engines cap declared table minima and future growth. The optional `graal-isolate`
+backend runs GraalWasm validation and each guest execution in a fresh UNTRUSTED GraalVM isolate,
+with separate isolate-heap and guest CPU limits. Its host-side preflight and WASI callbacks still
+share the host JVM. The run has a finite wall deadline and a watchdog that cancels guest
+execution, but isolate creation and a privileged callback blocked in Java cannot be forcibly
+stopped by that watchdog.
+This is a meaningful in-process guest boundary, not a whole-request or process-level resource
+boundary. Hosts that need the latter should use a separately resource-limited worker process.
 
 ## What a module is
 
@@ -67,6 +70,9 @@ Returning from `_start` exits with 0; `proc_exit(n)` exits with `n`.
 | Preflight type entries and function arity | 100,000 entries; 1,000 parameters or results | `larky.wasm.maxTypeEntries`, `larky.wasm.maxFunctionArity` | the module is not valid |
 | Concurrent guest runs | 4 | `larky.wasm.maxConcurrentGuests` | a run waiting for admission fails at its deadline |
 | Guest thread stack size hint | 8 MiB | `larky.wasm.guestStackBytes` | JVM-dependent; this is not a hard memory cap |
+| Graal isolate heap | 256 MiB per isolate; 128 MiB guest heap | `larky.wasm.isolate.maxIsolateMemoryBytes`, `larky.wasm.isolate.maxGuestHeapBytes` | GraalVM rejects or stops the isolate |
+| Graal isolate CPU and wall time | 30 s each per run; 10 s validation CPU | `larky.wasm.isolate.maxCpuMillis`, `larky.wasm.isolate.maxWallMillis`, `larky.wasm.isolate.compileCpuMillis` | the run or validation fails |
+| Graal isolate AST depth and stack frames | 10,000 each | `larky.wasm.isolate.maxAstDepth`, `larky.wasm.isolate.maxStackFrames` | GraalVM stops the guest |
 
 Set the compile and guest-thread properties from trusted host configuration before constructing a
 runtime or starting any guest. Invalid values fail startup of the affected runtime; existing
@@ -225,6 +231,19 @@ runtime, by default. [GraalWasm](https://www.graalvm.org/webassembly/) is option
 service and set `-Dlarky.wasm.runtime=graal`. Both run Larky's WASI functions, and the
 conformance tests in `larky-wasm/src/test` require them to give the same results byte for byte.
 `WasmRuntime` is the whole API.
+
+For the opt-in isolate backend, add the matching GraalVM Polyglot 25
+`org.graalvm.polyglot:wasm-isolate-community` artifact and select
+`-Dlarky.wasm.runtime=graal-isolate`. The ordinary `graal` backend continues to use a shared
+engine; `graal-isolate` creates a new UNTRUSTED engine/isolate for validation and each run, so
+different customers do not share an isolate heap. Direct Java callers selecting this backend also
+receive a finite run wall deadline even if they pass `deadlineEpochMs=0`; an earlier caller
+deadline wins. Configure the isolate caps from trusted host configuration before constructing the
+runtime. Creating an isolate for validation and every run adds startup cost. Unsupported GraalVM or
+missing isolate artifacts fail runtime selection rather than
+silently falling back. Isolate creation, host preflight, WASI callbacks, and compiled-program
+cache waits still consume host resources; `graal-isolate` should not be advertised as a hard
+whole-request limit.
 
 Endive interprets modules by default. `-Dlarky.wasm.endive.mode=compiler` compiles each module to
 JVM bytecode instead, which runs faster but costs time and Metaspace in proportion to the module
