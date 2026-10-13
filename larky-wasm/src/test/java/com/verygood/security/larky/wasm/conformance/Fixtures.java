@@ -30,7 +30,8 @@ import run.endive.wabt.Wat2Wasm;
 
 /**
  * The modules the conformance tests run. Each WAT fixture in {@code src/test/resources/wasm} is the
- * source of truth and is compiled here with Endive's wabt port.
+ * source of truth and is compiled here with Endive's wabt port; {@code js/sample_encrypt.wasm} is
+ * built from {@code js/sample_encrypt.js} by {@code build-fixtures.sh} (Javy) and committed.
  */
 public final class Fixtures {
 
@@ -40,6 +41,22 @@ public final class Fixtures {
           "echo", "exit3", "trap", "spin", "grow", "bigmem", "flood", "random", "random_split",
           "random_at", "random_fill", "clock", "env", "fresh", "nostart", "nomemory", "nosys",
           "fds", "startsection", "badsig", "dataoob", "clock_badid", "dupimport", "longtype");
+
+  /** The Javy-built JavaScript fixture. */
+  static final String SAMPLE_ENCRYPT = "js/sample_encrypt";
+
+  /**
+   * Inputs to {@code sample_encrypt} and the stdout recorded for them (checked under Node's WASI
+   * and against the same JavaScript run directly in V8).
+   */
+  static final Map<String, String> SAMPLE_ENCRYPT_CASES =
+      Map.of(
+          "{\"pan\": \"4111111111111111\", \"key\": \"k1\"}",
+          "{\"encrypted\":\"5317929663681111\",\"keyId\":\"983d80c1\"}",
+          "{\"pan\": \"5500-0000-0000-0004\", \"key\": \"vendor-key-2026\"}",
+          "{\"encrypted\":\"6107-6120-6978-0004\",\"keyId\":\"b5c8e57e\"}",
+          "{\"pan\": \"4111\", \"key\": \"k1\"}",
+          "{\"error\":\"pan must have 12 to 19 digits; got 4\"}");
 
   private static final Map<String, byte[]> CACHE = new ConcurrentHashMap<>();
 
