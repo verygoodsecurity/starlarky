@@ -1,4 +1,4 @@
-# Ported from CPython main (2021-12), version not determined: Lib/test/test_uuid.py. See larky/src/main/resources/VENDORED.md.
+# Ported from CPython main, version not determined (a02cb47): Lib/test/test_uuid.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//uuid", uuid="uuid")
 load("@stdlib//unittest", "unittest")
 load("@vendor//asserts", "asserts")
