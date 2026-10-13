@@ -24,14 +24,10 @@ public final class ThreadExpiration {
   /**
    * Throws the error evaluation raises once {@code thread} is past its expiration date
    * ({@link StarlarkThread#setExpirationMs}), reading the clock now rather than on the periodic
-   * check. Returns normally if the thread has no expiration date or has not reached it.
+   * check. Returns normally if the thread has no expiration date or has not reached it. Once
+   * expired, the thread stays expired even if the clock moves backwards.
    */
   public static void check(StarlarkThread thread) throws EvalException {
-    long expirationMs = thread.getExpirationMs();
-    if (expirationMs == Long.MAX_VALUE) {
-      return;
-    }
-    thread.setExpirationMs(expirationMs); // re-arms the check, so it reads the clock
-    thread.checkExpired();
+    thread.checkExpiredNow();
   }
 }

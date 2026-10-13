@@ -58,11 +58,13 @@ public class LarkyWasmEndToEndTest {
   @Before
   public void selectRuntime() {
     System.setProperty(WasmRuntime.PROPERTY, runtime);
+    System.setProperty("larky.wasm.enabled", "true");
   }
 
   @After
   public void clearRuntime() {
     System.clearProperty(WasmRuntime.PROPERTY);
+    System.clearProperty("larky.wasm.enabled");
   }
 
   private static ParsedStarFile eval(String script, Map<String, ?> files, SimpleBindings bindings)
@@ -72,6 +74,7 @@ public class LarkyWasmEndToEndTest {
     context.setAttribute(LarkyScriptEngine.MODULES, files, ScriptContext.ENGINE_SCOPE);
     context.setAttribute(LarkyScriptEngine.SCRIPT_NAME, "main.star", ScriptContext.ENGINE_SCOPE);
     engine.setContext(context);
+    bindings.putIfAbsent(LarkyEvaluator.EXPIRATION_MS, System.currentTimeMillis() + 30_000);
     return (ParsedStarFile) engine.eval(script, bindings);
   }
 
