@@ -20,6 +20,8 @@ import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Runs each guest on a thread of its own, which every runtime uses:
@@ -28,24 +30,38 @@ import java.util.concurrent.Executors;
  *   <li>A runtime stops a guest at its deadline by interrupting or cancelling the guest's thread,
  *       never the caller's, so the caller's own interrupts are neither consumed nor mistaken for
  *       the deadline.
- *   <li>Every guest gets the same stack ({@link #STACK_BYTES}), so how deeply a module can nest
+ *   <li>Every guest gets the host-selected stack size hint (default {@link #STACK_BYTES}), so how deeply a module can nest
  *       calls does not depend on the thread that runs it.
  * </ul>
  */
 final class GuestThreads {
 
-  /** The stack of a thread that runs a guest. */
+  /** Default stack size hint for a thread that runs a guest. */
   static final long STACK_BYTES = 8L << 20;
 
-  private static final ExecutorService POOL =
-      Executors.newCachedThreadPool(
-          r -> {
-            Thread t = new Thread(null, r, "larky-wasm-guest", STACK_BYTES);
-            t.setDaemon(true);
-            return t;
-          });
+  private static final class DefaultHolder {
+    static final GuestThreads INSTANCE = configured();
 
-  private GuestThreads() {}
+    private static GuestThreads configured() {
+      WasmHostLimits limits = WasmHostLimits.configured();
+      return new GuestThreads(limits.maxConcurrentGuests(), limits.guestStackBytes());
+    }
+  }
+
+  private final Semaphore slots;
+  private final ExecutorService pool;
+
+  GuestThreads(int maxConcurrentGuests, long stackBytes) {
+    if (maxConcurrentGuests <= 0 || stackBytes <= 0) {
+      throw new IllegalArgumentException("guest concurrency and stack size must be positive");
+    }
+    slots = new Semaphore(maxConcurrentGuests, true);
+    pool = Executors.newCachedThreadPool(r -> {
+      Thread t = new Thread(null, r, "larky-wasm-guest", stackBytes);
+      t.setDaemon(true);
+      return t;
+    });
+  }
 
   /** A run of a guest, on the thread {@link #run} gives it. */
   interface Run {
@@ -58,19 +74,44 @@ final class GuestThreads {
    * its deadline), and once it has stopped, this throws {@link InterruptedException}.
    */
   static WasmRuntime.Result run(Run run) throws WasmException, InterruptedException {
+    return run(run, 0);
+  }
+
+  static WasmRuntime.Result run(Run run, long deadlineEpochMs)
+      throws WasmException, InterruptedException {
+    return DefaultHolder.INSTANCE.runGuest(run, deadlineEpochMs);
+  }
+
+  WasmRuntime.Result runGuest(Run run, long deadlineEpochMs)
+      throws WasmException, InterruptedException {
     if (Thread.interrupted()) {
       throw new InterruptedException();
     }
-    Task task = new Task(run);
-    POOL.execute(task);
-    try {
-      task.done.await();
-    } catch (InterruptedException e) {
-      task.cancel();
-      awaitUninterruptibly(task.done);
-      throw e;
+    if (deadlineEpochMs == 0) {
+      slots.acquire();
+    } else {
+      long remaining = deadlineEpochMs - System.currentTimeMillis();
+      if (remaining <= 0 || !slots.tryAcquire(remaining, TimeUnit.MILLISECONDS)) {
+        throw new WasmException(WasmException.Kind.TIMEOUT, "guest admission deadline expired");
+      }
     }
-    return task.result();
+    try {
+      if (deadlineEpochMs != 0 && System.currentTimeMillis() >= deadlineEpochMs) {
+        throw new WasmException(WasmException.Kind.TIMEOUT, "guest admission deadline expired");
+      }
+      Task task = new Task(run);
+      pool.execute(task);
+      try {
+        task.done.await();
+      } catch (InterruptedException e) {
+        task.cancel();
+        awaitUninterruptibly(task.done);
+        throw e;
+      }
+      return task.result();
+    } finally {
+      slots.release();
+    }
   }
 
   private static void awaitUninterruptibly(CountDownLatch latch) {

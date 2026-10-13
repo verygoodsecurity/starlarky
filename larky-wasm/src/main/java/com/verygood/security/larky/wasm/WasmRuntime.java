@@ -43,22 +43,27 @@ public interface WasmRuntime {
   String DEFAULT = "endive";
 
   /**
-   * The largest module {@link #compile} accepts, in bytes. This bounds the input, not the parser's
+   * Default largest module {@link #compile} accepts, in bytes. This bounds the input, not the parser's
    * CPU or heap use; parsing happens before any run's deadline applies.
    */
   int MAX_MODULE_BYTES = 8 << 20;
 
-  /** The most functions a module {@link #compile} accepts may define. */
+  /** Default maximum number of functions a module {@link #compile} accepts. */
   int MAX_FUNCTIONS = 20_000;
 
-  /** Maximum total table entries, including entries reachable through table.grow. */
+  /** Default maximum total table entries, including entries reachable through table.grow. */
   int MAX_TABLE_ELEMENTS = 65_536;
 
-  /** Maximum number of tables in one module. */
+  /** Default maximum number of tables in one module. */
   int MAX_TABLES = 64;
 
   /** The name {@link #PROPERTY} selects it by, e.g. "endive". */
   String name();
+
+  /** Identifies the runtime's compile policy for a host cache of prepared programs. */
+  default String compilePolicyKey() {
+    return name();
+  }
 
   /**
    * Validates and prepares {@code wasm} for running. Callers cache the result by content.
@@ -67,7 +72,8 @@ public interface WasmRuntime {
    *     a valid module, it lacks the {@code _start} or {@code memory} export, defines anything
    *     other than exactly one memory, has a start
    *     section, imports anything but WASI preview 1 functions with their standard signatures, or
-   *     is larger than {@link #MAX_MODULE_BYTES} or {@link #MAX_FUNCTIONS}
+   *     exceeds the host's configured module or function limit (defaults to {@link
+   *     #MAX_MODULE_BYTES} and {@link #MAX_FUNCTIONS})
    */
   Program compile(byte[] wasm) throws WasmException;
 
@@ -76,7 +82,8 @@ public interface WasmRuntime {
 
     /**
      * Instantiates the module and runs {@code _start} with {@code stdin}, on a thread of its own
-     * with an 8 MiB stack: the deadline stops that thread, never the caller's, and how deeply the
+     * with a host-selected stack size hint (8 MiB by default): the deadline stops that thread,
+     * never the caller's, and how deeply the
      * module can nest calls does not depend on the caller's stack.
      *
      * <p>A module that returns from {@code _start} exits with 0; {@code proc_exit(n)} exits with

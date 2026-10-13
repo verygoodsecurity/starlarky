@@ -22,6 +22,8 @@ import static org.junit.Assert.assertThrows;
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -32,6 +34,40 @@ public final class GuestThreadsTest {
 
   private static final WasmRuntime.Result EMPTY =
       new WasmRuntime.Result(0, new byte[0], new byte[0]);
+
+  @Test
+  public void admissionWaitHonorsDeadlineWithoutStartingAnotherGuest() throws Exception {
+    GuestThreads guests = new GuestThreads(1, GuestThreads.STACK_BYTES);
+    CountDownLatch entered = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    Thread first = new Thread(() -> {
+      try {
+        guests.runGuest(() -> {
+          entered.countDown();
+          release.await();
+          return EMPTY;
+        }, 0);
+      } catch (Exception e) {
+        throw new AssertionError(e);
+      }
+    });
+    first.start();
+    assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+    AtomicBoolean secondStarted = new AtomicBoolean();
+    try {
+      WasmException timeout = assertThrows(WasmException.class,
+          () -> guests.runGuest(() -> {
+            secondStarted.set(true);
+            return EMPTY;
+          }, System.currentTimeMillis() + 50));
+      assertThat(timeout.kind()).isEqualTo(WasmException.Kind.TIMEOUT);
+      assertThat(secondStarted.get()).isFalse();
+    } finally {
+      release.countDown();
+      first.join(2_000);
+    }
+    assertThat(first.isAlive()).isFalse();
+  }
 
   @After
   public void clearInterrupt() {

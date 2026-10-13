@@ -75,6 +75,7 @@ final class EndiveWasmRuntime implements WasmRuntime {
 
 
   private final Mode mode;
+  private final WasmHostLimits limits;
 
   /** The runtime in the mode {@code -Dlarky.wasm.endive.mode} selects. */
   public EndiveWasmRuntime() {
@@ -83,6 +84,7 @@ final class EndiveWasmRuntime implements WasmRuntime {
 
   public EndiveWasmRuntime(Mode mode) {
     this.mode = mode;
+    this.limits = WasmHostLimits.configured();
   }
 
   public Mode mode() {
@@ -95,15 +97,20 @@ final class EndiveWasmRuntime implements WasmRuntime {
   }
 
   @Override
+  public String compilePolicyKey() {
+    return name() + ":" + mode + ":" + limits;
+  }
+
+  @Override
   public WasmRuntime.Program compile(byte[] wasm) throws WasmException {
-    if (wasm.length > MAX_MODULE_BYTES) {
+    if (wasm.length > limits.maxModuleBytes()) {
       throw new WasmException(
           Kind.INVALID_MODULE,
-          "module is " + wasm.length + " bytes; the limit is " + MAX_MODULE_BYTES);
+          "module is " + wasm.length + " bytes; the limit is " + limits.maxModuleBytes());
     }
     WasmModule module;
     try {
-      EndivePreflight.check(wasm);
+      EndivePreflight.check(wasm, limits);
       // The default Endive "name" custom-section decoder also trusts nested length fields.
       // Debug names are irrelevant to execution, so keep custom sections opaque here.
       module = Parser.builder().withCustomParsers(Map.of()).build()
@@ -111,13 +118,13 @@ final class EndiveWasmRuntime implements WasmRuntime {
     } catch (RuntimeException e) {
       throw new WasmException(Kind.INVALID_MODULE, "invalid WebAssembly module: " + e.getMessage(), e);
     }
-    if (module.functionSection().functionCount() > MAX_FUNCTIONS) {
+    if (module.functionSection().functionCount() > limits.maxFunctions()) {
       throw new WasmException(
           Kind.INVALID_MODULE,
           "module defines "
               + module.functionSection().functionCount()
               + " functions; the limit is "
-              + MAX_FUNCTIONS);
+              + limits.maxFunctions());
     }
     checkImports(module);
     checkExports(module);
@@ -155,23 +162,23 @@ final class EndiveWasmRuntime implements WasmRuntime {
   }
 
   /** Bound the sum of table capacities, including future growth, before any instance allocates. */
-  private static long[] tableMaxima(WasmModule module) throws WasmException {
+  private long[] tableMaxima(WasmModule module) throws WasmException {
     var tables = module.tableSection();
     int count = tables.tableCount();
-    if (count > MAX_TABLES) {
+    if (count > limits.maxTables()) {
       throw new WasmException(Kind.MEMORY_LIMIT,
-          "module defines " + count + " tables; the limit is " + MAX_TABLES);
+          "module defines " + count + " tables; the limit is " + limits.maxTables());
     }
     long[] maxima = new long[count];
     long minimumTotal = 0;
     for (int i = 0; i < count; i++) {
       minimumTotal += tables.getTable(i).limits().min();
-      if (minimumTotal > MAX_TABLE_ELEMENTS) {
+      if (minimumTotal > limits.maxTableElements()) {
         throw new WasmException(Kind.MEMORY_LIMIT,
-            "initial tables exceed " + MAX_TABLE_ELEMENTS + " entries");
+            "initial tables exceed " + limits.maxTableElements() + " entries");
       }
     }
-    long remaining = MAX_TABLE_ELEMENTS - minimumTotal;
+    long remaining = limits.maxTableElements() - minimumTotal;
     for (int i = 0; i < count; i++) {
       var limits = tables.getTable(i).limits();
       long share = remaining / (count - i);

@@ -67,7 +67,7 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
   @Override
   public WasmRuntime.Result run(byte[] stdin, WasmRuntime.Limits limits)
       throws WasmException, InterruptedException {
-    return GuestThreads.run(() -> runOnThisThread(stdin, limits));
+    return GuestThreads.run(() -> runOnThisThread(stdin, limits), limits.deadlineEpochMs());
   }
 
   /** Runs the guest on the calling thread, which the deadline interrupts. */
