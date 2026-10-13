@@ -2,7 +2,9 @@
 #
 # Upstream versions:
 #
-# - Every file (jws, jwk, jwe, jwt, utils, exceptions, constants, backends):
+# - jwt.star: python-jose 3.5.0 (tag 3.5.0, commit
+#   018b310ddb8b50dcfd09a0c152117835a21dd656), jose/jwt.py. See its header.
+# - Every other file (jws, jwk, jwe, utils, exceptions, constants, backends):
 #   ported in 2021-2022 without a recorded version. They are consistent
 #   with python-jose's master branch between commits
 #   89c3d41bc6c60ad6f7d135f14dcd963cef633637 (2020-09-07, "Support loading a
@@ -19,3 +21,11 @@ load("@vendor//jose/exceptions", JWSError="JWSError")  # noqa: F401
 load("@vendor//jose/exceptions", ExpiredSignatureError="ExpiredSignatureError")  # noqa: F401
 load("@vendor//jose/exceptions", JWTError="JWTError")  # noqa: F401
 
+# Python reaches these submodules with `from jose import jwt`.
+load("@vendor//jose/jwk", _jwk="jwk")
+load("@vendor//jose/jws", _jws="jws")
+load("@vendor//jose/jwt", _jwt="jwt")
+
+jwk = _jwk
+jws = _jws
+jwt = _jwt
