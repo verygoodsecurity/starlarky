@@ -32,6 +32,7 @@ import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkSemantics;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -76,7 +77,8 @@ public class OpaqueModuleExampleTest {
         "load('@vendor//Crypto/Hash/HMAC', 'HMAC')",
         "load('@vgs//vault', 'vault')",
         "",
-        "_KEY_ALIAS = '" + alias + "'",
+        // Starlark.repr quotes and escapes the alias, so any string is safe to embed.
+        "_KEY_ALIAS = " + Starlark.repr(alias, StarlarkSemantics.DEFAULT),
         "",
         "def _key():",
         "    return bytes(vault.reveal(_KEY_ALIAS), encoding='utf-8')",
