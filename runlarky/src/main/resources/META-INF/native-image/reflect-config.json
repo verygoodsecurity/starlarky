@@ -1179,5 +1179,17 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true
+  },
+  {
+      "name": "sun.misc.Signal",
+      "methods": [
+          {"name": "<init>", "parameterTypes": ["java.lang.String"]},
+          {"name": "handle", "parameterTypes": ["sun.misc.Signal", "sun.misc.SignalHandler"]}
+      ]
+  },
+  {
+      "name": "sun.misc.SignalHandler",
+      "fields": [{"name": "SIG_DFL"}, {"name": "SIG_IGN"}],
+      "methods": [{"name": "handle", "parameterTypes": ["sun.misc.Signal"]}]
   }
 ]
