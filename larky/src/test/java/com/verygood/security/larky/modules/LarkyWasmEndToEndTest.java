@@ -46,7 +46,7 @@ public class LarkyWasmEndToEndTest {
 
   @Parameters(name = "{0}")
   public static List<Object[]> runtimes() {
-    return List.<Object[]>of(new Object[] {"endive"});
+    return List.of(new Object[] {"endive"}, new Object[] {"graal"});
   }
 
   private final String runtime;
