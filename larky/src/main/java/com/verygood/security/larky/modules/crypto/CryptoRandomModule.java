@@ -26,13 +26,23 @@ public class CryptoRandomModule implements StarlarkValue {
 
   public static final CryptoRandomModule INSTANCE = new CryptoRandomModule();
 
+  /** System property that sets {@link #maxRandomBytes()}. */
+  static final String MAX_RANDOM_BYTES_PROPERTY = "larky.random.maxBytes";
+
+  /** The default of {@link #maxRandomBytes()}: 64 KiB. */
+  static final int DEFAULT_MAX_RANDOM_BYTES = 64 << 10;
+
   /**
-   * The most random bytes one urandom or randbytes call may produce. CPython has no limit, but
-   * scripts are untrusted, and one urandom(2**31 - 1) would otherwise allocate 2 GiB. Scripts ask
-   * for keys, IVs and nonces (tens of bytes); CPython's own zlib tests ask for 10 MiB.
+   * The most random bytes one urandom or randbytes call may produce: {@code
+   * -Dlarky.random.maxBytes}, or 64 KiB if it is unset, malformed or negative. CPython has no
+   * limit, but scripts are untrusted, and urandom(2**31 - 1) would otherwise allocate 2 GiB in one
+   * call; scripts ask for keys, IVs and nonces (tens of bytes). Scripts cannot change it.
    * getrandbits is limited by the int limit instead ({@link IntLimits#MAX_BITS}).
    */
-  static final int MAX_RANDOM_BYTES = 16 << 20;
+  static int maxRandomBytes() {
+    int value = Integer.getInteger(MAX_RANDOM_BYTES_PROPERTY, DEFAULT_MAX_RANDOM_BYTES);
+    return value < 0 ? DEFAULT_MAX_RANDOM_BYTES : value;
+  }
 
   /** {@code n} as an int, failing if it is over the per-call limit of {@code max}. */
   private static int checkSize(StarlarkInt n, long max, String function, String unit)
@@ -52,7 +62,7 @@ public class CryptoRandomModule implements StarlarkValue {
     if (n.signum() < 0) {
       throw Starlark.errorf("ValueError: negative argument not allowed");
     }
-    byte[] key = new byte[checkSize(n, MAX_RANDOM_BYTES, "urandom", "bytes")];
+    byte[] key = new byte[checkSize(n, maxRandomBytes(), "urandom", "bytes")];
     CryptoServicesRegistrar.getSecureRandom().nextBytes(key);
     return StarlarkBytes.of(thrd.mutability(), key);
   }
@@ -177,7 +187,7 @@ public class CryptoRandomModule implements StarlarkValue {
       // CPython's randbytes(n) is getrandbits(n * 8).to_bytes(n, 'little').
       throw Starlark.errorf("ValueError: number of bits must be non-negative");
     }
-    byte[] randomBytes = new byte[checkSize(n, MAX_RANDOM_BYTES, "randbytes", "bytes")];
+    byte[] randomBytes = new byte[checkSize(n, maxRandomBytes(), "randbytes", "bytes")];
     CryptoServicesRegistrar.getSecureRandom().nextBytes(randomBytes);
     return StarlarkBytes.of(thread.mutability(), randomBytes);
   }

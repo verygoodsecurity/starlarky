@@ -206,9 +206,9 @@ def test_getrandbits_errors():
 
 
 def test_random_sizes_up_to_the_limit():
-    # One call may produce up to 16 MiB; scripts ask for tens of bytes.
-    asserts.assert_that(len(random.urandom(16 << 20))).is_equal_to(16 << 20)
-    asserts.assert_that(len(random.randbytes(16 << 20))).is_equal_to(16 << 20)
+    # One call may produce up to 64 KiB by default (-Dlarky.random.maxBytes); scripts ask for tens of bytes.
+    asserts.assert_that(len(random.urandom(64 << 10))).is_equal_to(64 << 10)
+    asserts.assert_that(len(random.randbytes(64 << 10))).is_equal_to(64 << 10)
     v = random.getrandbits(65536)
     asserts.assert_true(v >= 0 and len("%x" % v) <= 65536 // 4, "getrandbits(65536) out of range")
 
@@ -223,8 +223,8 @@ def test_randbytes_basic(n):
 
 def test_randbytes_errors():
     asserts.assert_fails(lambda: random.randbytes(-1), "ValueError: number of bits must be non-negative")
-    asserts.assert_fails(lambda: random.randbytes(1 << 40), "ValueError: randbytes\\(\\) is limited to 16777216 bytes per call in Larky; got 1099511627776")
-    asserts.assert_fails(lambda: random.randbytes((16 << 20) + 1), "ValueError: randbytes\\(\\) is limited to 16777216 bytes per call in Larky; got 16777217")
+    asserts.assert_fails(lambda: random.randbytes(1 << 40), "ValueError: randbytes\\(\\) is limited to 65536 bytes per call in Larky; got 1099511627776")
+    asserts.assert_fails(lambda: random.randbytes((64 << 10) + 1), "ValueError: randbytes\\(\\) is limited to 65536 bytes per call in Larky; got 65537")
 
 
 # urandom tests
@@ -236,9 +236,9 @@ def test_urandom_basic(n):
 
 def test_urandom_errors():
     asserts.assert_fails(lambda: random.urandom(-1), "ValueError: negative argument not allowed")
-    asserts.assert_fails(lambda: random.urandom(1 << 40), "ValueError: urandom\\(\\) is limited to 16777216 bytes per call in Larky; got 1099511627776")
-    asserts.assert_fails(lambda: random.urandom((16 << 20) + 1), "ValueError: urandom\\(\\) is limited to 16777216 bytes per call in Larky; got 16777217")
-    asserts.assert_fails(lambda: random.urandom((1 << 31) - 1), "ValueError: urandom\\(\\) is limited to 16777216 bytes per call in Larky; got 2147483647")
+    asserts.assert_fails(lambda: random.urandom(1 << 40), "ValueError: urandom\\(\\) is limited to 65536 bytes per call in Larky; got 1099511627776")
+    asserts.assert_fails(lambda: random.urandom((64 << 10) + 1), "ValueError: urandom\\(\\) is limited to 65536 bytes per call in Larky; got 65537")
+    asserts.assert_fails(lambda: random.urandom((1 << 31) - 1), "ValueError: urandom\\(\\) is limited to 65536 bytes per call in Larky; got 2147483647")
 
 
 # Suite
