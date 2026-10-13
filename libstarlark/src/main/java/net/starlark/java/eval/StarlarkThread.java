@@ -183,6 +183,12 @@ public final class StarlarkThread {
     }
   }
 
+  /** Checks the current clock without resetting the sticky expired state. */
+  void checkExpiredNow() throws EvalException {
+    checksUntilClockRead = 0;
+    checkExpired();
+  }
+
   private boolean expired;
 
   private boolean interrupted;

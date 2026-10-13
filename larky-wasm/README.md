@@ -4,6 +4,28 @@
 code that cannot be written in Larky, such as a payment processor's JavaScript library: compile it
 to WebAssembly and call it from your script.
 
+## Host authorization and security boundary
+
+WASM compilation and execution from Larky are disabled by default. The host must explicitly set
+`-Dlarky.wasm.enabled=true` and supply a finite `LARKY_EVAL_EXPIRATION_MS` evaluation deadline.
+Both conditions are checked for every load and run, including runs of previously loaded handles.
+Attaching a module's bytes does not authorize its execution. Direct Java callers of `WasmRuntime`
+remain responsible for choosing their own limits and host policy; this gate protects `@vgs//wasm`.
+
+Enabling WASM changes the language's guarantees. WASM permits arbitrary loops and recursion;
+a wall-clock deadline does not make it non-Turing-complete or provide deterministic instruction
+fuel. `random_get` uses secure random bytes, so repeated runs need not return identical results.
+The current integration is therefore not a deterministic sandbox.
+
+The run deadline does not interrupt parsing or compilation, including waits for a shared cached
+compilation. Larky checks expiration before compilation and after it returns, so an overdue compile
+cannot return success. Endive preflights guest lengths before its parser allocates from them; both
+engines cap declared table minima and future growth. These limits do not provide a total JVM heap,
+CPU or Metaspace budget for parsing, compilation and execution. Hosts that need an enforceable
+process-level resource boundary for hostile WASM should run it in a separately resource-limited
+process. The opt-in, deadline, memory and output limits do not make this in-process integration a
+complete sealed sandbox.
+
 ## What a module is
 
 A module is a [WASI preview 1](https://github.com/WebAssembly/WASI/blob/main/legacy/preview1/docs.md)
@@ -37,6 +59,7 @@ Returning from `_start` exits with 0; `proc_exit(n)` exits with `n`.
 | Limit | Default | When exceeded |
 | --- | --- | --- |
 | Linear memory | 64 MiB (1024 pages) | a module whose initial memory is larger fails to start; `memory.grow` past the limit returns -1 |
+| Tables | 64 tables and 65,536 entries combined | oversized initial declarations fail compilation; `table.grow` past the capped maximum returns -1 |
 | stdout, and separately stderr | 1 MiB each | the call fails |
 | Run time | a deadline set by the caller | the call fails |
 | Module size | 8 MiB and 20,000 functions | the module is not valid |
@@ -44,6 +67,19 @@ Returning from `_start` exits with 0; `proc_exit(n)` exits with `n`.
 A trap (for example `unreachable` or an out-of-bounds access) also fails the call.
 
 ## Calling a module from Larky
+
+The embedding host must authorize WASM and set the evaluation deadline first. For example:
+
+```java
+System.setProperty("larky.wasm.enabled", "true"); // host configuration, never customer input
+var engine = new com.verygood.security.larky.jsr223.LarkyScriptEngine();
+engine.put("larky.modules", java.util.Map.of("encrypt.wasm", wasmBytes));
+var bindings = new javax.script.SimpleBindings();
+bindings.put("LARKY_EVAL_EXPIRATION_MS", System.currentTimeMillis() + 1_000);
+engine.eval(scriptSource, bindings);
+```
+
+With that host configuration, the script can call the attached module:
 
 ```python
 load("@vgs//wasm", "wasm")

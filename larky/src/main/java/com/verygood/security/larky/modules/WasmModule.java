@@ -54,6 +54,9 @@ public final class WasmModule implements StarlarkValue {
   /** The name of a module made by {@code wasm.loads}. */
   static final String INLINE_NAME = "<inline>";
 
+  /** Host opt-in; the module remains unavailable to scripts unless explicitly enabled. */
+  static final String ENABLED_PROPERTY = "larky.wasm.enabled";
+
   static final String MAX_MEMORY_PROPERTY = "larky.wasm.maxMemoryBytes";
   static final String MAX_OUTPUT_PROPERTY = "larky.wasm.maxOutputBytes";
   static final String PROGRAM_CACHE_BYTES_PROPERTY = "larky.wasm.programCache.maxBytes";
@@ -106,13 +109,14 @@ public final class WasmModule implements StarlarkValue {
       parameters = {@Param(name = "name", allowedTypes = {@ParamType(type = String.class)})},
       useStarlarkThread = true)
   public LoadedWasmModule module(String name, StarlarkThread thread) throws EvalException {
+    checkExecutionAllowed(thread);
     StarFile script = thread.getThreadLocal(StarFile.class);
     byte[] shipped = script == null ? null : script.readShippedFile(name);
     if (shipped == null) {
       throw Starlark.errorf("wasm.module: no file named '%s'", name);
     }
     byte[] wasm = shipped.clone(); // the caller may still change its array
-    return new LoadedWasmModule(name, wasm, compile(name, wasm));
+    return new LoadedWasmModule(name, wasm, compile(name, wasm, thread));
   }
 
   // `load` is a keyword, so loading is spelled as in Python's pickle and json: loads/dumps.
@@ -121,10 +125,12 @@ public final class WasmModule implements StarlarkValue {
       doc =
           "Returns the WebAssembly module whose binary is <code>data</code> (as"
               + " <code>pickle.loads</code> takes bytes).",
-      parameters = {@Param(name = "data", allowedTypes = {@ParamType(type = StarlarkBytes.class)})})
-  public LoadedWasmModule loads(StarlarkBytes data) throws EvalException {
+      parameters = {@Param(name = "data", allowedTypes = {@ParamType(type = StarlarkBytes.class)})},
+      useStarlarkThread = true)
+  public LoadedWasmModule loads(StarlarkBytes data, StarlarkThread thread) throws EvalException {
+    checkExecutionAllowed(thread);
     byte[] wasm = data.toByteArray();
-    return new LoadedWasmModule(INLINE_NAME, wasm, compile(INLINE_NAME, wasm));
+    return new LoadedWasmModule(INLINE_NAME, wasm, compile(INLINE_NAME, wasm, thread));
   }
 
   @StarlarkMethod(
@@ -137,7 +143,20 @@ public final class WasmModule implements StarlarkValue {
     return StarlarkBytes.immutableOf(module.wasm.clone());
   }
 
-  private static WasmRuntime.Program compile(String name, byte[] wasm) throws EvalException {
+  private static void checkExecutionAllowed(StarlarkThread thread) throws EvalException {
+    if (!Boolean.getBoolean(ENABLED_PROPERTY)) {
+      throw Starlark.errorf("WebAssembly is disabled; the host must set -D%s=true", ENABLED_PROPERTY);
+    }
+    if (thread.getExpirationMs() == Long.MAX_VALUE) {
+      throw Starlark.errorf(
+          "WebAssembly requires a finite evaluation deadline (LARKY_EVAL_EXPIRATION_MS)");
+    }
+    ThreadExpiration.check(thread);
+  }
+
+  private static WasmRuntime.Program compile(String name, byte[] wasm, StarlarkThread thread)
+      throws EvalException {
+    checkExecutionAllowed(thread);
     WasmRuntime runtime;
     try {
       runtime = WasmRuntime.configured();
@@ -151,6 +170,10 @@ public final class WasmModule implements StarlarkValue {
     } catch (java.util.concurrent.ExecutionException
         | com.google.common.util.concurrent.UncheckedExecutionException e) {
       throw new EvalException(String.format("wasm module '%s' is not a valid WASI module", name));
+    } finally {
+      // Compilation and cache waits do not poll the evaluator's clock. Even a final call in
+      // a short script must fail if they consumed the remaining evaluation time.
+      ThreadExpiration.check(thread);
     }
   }
 
@@ -187,6 +210,7 @@ public final class WasmModule implements StarlarkValue {
         useStarlarkThread = true)
     public StarlarkBytes run(Object input, StarlarkThread thread)
         throws EvalException, InterruptedException {
+      checkExecutionAllowed(thread);
       byte[] stdin =
           input instanceof StarlarkBytes bytes
               ? bytes.toByteArray()
@@ -203,6 +227,7 @@ public final class WasmModule implements StarlarkValue {
         useStarlarkThread = true)
     public Object call(Object value, StarlarkThread thread)
         throws EvalException, InterruptedException {
+      checkExecutionAllowed(thread);
       byte[] stdin = JsonModule.INSTANCE.encode(value).getBytes(UTF_8);
       byte[] stdout = execute(stdin, thread);
       return JsonModule.INSTANCE.decode(new String(stdout, UTF_8), thread);
@@ -210,13 +235,14 @@ public final class WasmModule implements StarlarkValue {
 
     private byte[] execute(byte[] stdin, StarlarkThread thread)
         throws EvalException, InterruptedException {
+      checkExecutionAllowed(thread);
       long expirationMs = thread.getExpirationMs();
       WasmRuntime.Limits limits =
           new WasmRuntime.Limits(
               property(MAX_MEMORY_PROPERTY, WasmRuntime.Limits.DEFAULT_MAX_MEMORY_BYTES),
-              // The thread expires once its clock is past expirationMs; a run stops at its deadline,
-              // which is never 0 (no deadline) for an expiration in the past.
-              expirationMs == Long.MAX_VALUE ? 0 : Math.max(1, expirationMs + 1),
+              // The thread expires once its clock is past expirationMs. A finite expiration
+              // was required above; a WASM run must never receive 0 (no deadline).
+              Math.max(1, expirationMs + 1),
               (int)
                   Math.min(
                       Integer.MAX_VALUE,
@@ -226,8 +252,10 @@ public final class WasmModule implements StarlarkValue {
       try {
         result = program.run(stdin, limits);
       } catch (WasmException e) {
+        ThreadExpiration.check(thread);
         throw error(e, limits, thread);
       }
+      ThreadExpiration.check(thread);
       if (result.exitCode() != 0) {
         throw Starlark.errorf(
             "wasm module '%s' exited with code %d: %s",

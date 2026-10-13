@@ -33,6 +33,7 @@ import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
@@ -55,11 +56,13 @@ public class WasmModuleTest {
   @Before
   public void useFakeRuntime() {
     System.setProperty(WasmRuntime.PROPERTY, FakeWasmRuntime.NAME);
+    System.setProperty("larky.wasm.enabled", "true");
   }
 
   @After
   public void clearProperties() {
     System.clearProperty(WasmRuntime.PROPERTY);
+    System.clearProperty("larky.wasm.enabled");
     System.clearProperty(WasmModule.MAX_MEMORY_PROPERTY);
     System.clearProperty(WasmModule.MAX_OUTPUT_PROPERTY);
     WasmModule.randomSeedForTests = null;
@@ -73,9 +76,8 @@ public class WasmModuleTest {
     context.setAttribute(LarkyScriptEngine.SCRIPT_NAME, "host.star", ScriptContext.ENGINE_SCOPE);
     engine.setContext(context);
     SimpleBindings bindings = new SimpleBindings();
-    if (expirationMs != null) {
-      bindings.put("LARKY_EVAL_EXPIRATION_MS", expirationMs);
-    }
+    bindings.put("LARKY_EVAL_EXPIRATION_MS",
+        expirationMs == null ? System.currentTimeMillis() + 30_000 : expirationMs);
     return (ParsedStarFile) engine.eval(LOAD + script, bindings);
   }
 
@@ -89,6 +91,56 @@ public class WasmModuleTest {
 
   private static <T> T out(ParsedStarFile result, Class<T> type) {
     return result.getGlobalEnvironmentVariable("out", type);
+  }
+
+  @Test
+  public void wasmIsDisabledWithoutHostOptIn() {
+    System.clearProperty("larky.wasm.enabled");
+    int before = FakeWasmRuntime.COMPILES.get();
+    assertThat(error("wasm.loads(b'FAKE')")).contains("WebAssembly is disabled");
+    assertThat(error("wasm.module('vendor/encrypt.wasm')")).contains("WebAssembly is disabled");
+    assertThat(FakeWasmRuntime.COMPILES.get()).isEqualTo(before);
+  }
+
+  @Test
+  public void enablingWasmDoesNotPermitCompilationWithoutADeadline() throws Exception {
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setThreadLocal(StarFile.class,
+          new InMemMapBackedStarFile(ImmutableMap.of("a.wasm", MODULE), "a.wasm"));
+      EvalException error = assertThrows(
+          EvalException.class,
+          () -> WasmModule.INSTANCE.loads(StarlarkBytes.immutableOf(MODULE), thread));
+      assertThat(error).hasMessageThat().contains("requires a finite evaluation deadline");
+      error = assertThrows(EvalException.class,
+          () -> WasmModule.INSTANCE.module("a.wasm", thread));
+      assertThat(error).hasMessageThat().contains("requires a finite evaluation deadline");
+    }
+  }
+
+  @Test
+  public void cachedHandleRequiresOptInAndADeadlineForEveryRun() throws Exception {
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setExpirationMs(System.currentTimeMillis() + 30_000);
+      WasmModule.LoadedWasmModule module =
+          WasmModule.INSTANCE.loads(StarlarkBytes.immutableOf(MODULE), thread);
+      System.clearProperty("larky.wasm.enabled");
+      EvalException error = assertThrows(
+          EvalException.class, () -> module.run("input", thread));
+      assertThat(error).hasMessageThat().contains("WebAssembly is disabled");
+      error = assertThrows(EvalException.class,
+          () -> module.call("input", thread));
+      assertThat(error).hasMessageThat().contains("WebAssembly is disabled");
+      System.setProperty("larky.wasm.enabled", "true");
+      thread.setExpirationMs(Long.MAX_VALUE);
+      error = assertThrows(EvalException.class,
+          () -> module.run("input", thread));
+      assertThat(error).hasMessageThat().contains("requires a finite evaluation deadline");
+      error = assertThrows(EvalException.class,
+          () -> module.call("input", thread));
+      assertThat(error).hasMessageThat().contains("requires a finite evaluation deadline");
+    }
   }
 
   @Test
@@ -313,6 +365,7 @@ public class WasmModuleTest {
             ImmutableMap.of("host.star", new byte[0], "vendor/encrypt.wasm", shipped), "host.star");
     try (Mutability mu = Mutability.create("test")) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setExpirationMs(System.currentTimeMillis() + 30_000);
       thread.setThreadLocal(StarFile.class, script);
       WasmModule.LoadedWasmModule m = WasmModule.INSTANCE.module("vendor/encrypt.wasm", thread);
       shipped[5] = 0; // the host changes its array afterwards
@@ -321,14 +374,68 @@ public class WasmModuleTest {
   }
 
   @Test
-  public void anExpirationInThePastIsAPassedDeadlineNotNone() throws Exception {
-    WasmModule.LoadedWasmModule m =
-        WasmModule.INSTANCE.loads(StarlarkBytes.immutableOf("FAKE".getBytes(UTF_8)));
+  public void anExpirationInThePastPreventsExecution() throws Exception {
     try (Mutability mu = Mutability.create("test")) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setExpirationMs(System.currentTimeMillis() + 30_000);
+      WasmModule.LoadedWasmModule m =
+          WasmModule.INSTANCE.loads(StarlarkBytes.immutableOf("FAKE".getBytes(UTF_8)), thread);
       thread.setExpirationMs(-5);
-      StarlarkBytes out = m.run(StarlarkBytes.immutableOf("deadline".getBytes(UTF_8)), thread);
-      assertThat(new String(out.toByteArray(), UTF_8)).isEqualTo("1");
+      assertThrows(EvalException.class,
+          () -> m.run(StarlarkBytes.immutableOf("deadline".getBytes(UTF_8)), thread));
+    }
+  }
+
+  @Test
+  public void expiredEvaluationDoesNotCompileAShippedModule() throws Exception {
+    WasmModule.clearProgramCache();
+    int before = FakeWasmRuntime.COMPILES.get();
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setExpirationMs(System.currentTimeMillis() + 30_000);
+      thread.setThreadLocal(StarFile.class,
+          new InMemMapBackedStarFile(ImmutableMap.of("expired.wasm", MODULE), "expired.wasm"));
+      thread.setExpirationMs(-5);
+      EvalException error = assertThrows(
+          EvalException.class,
+          () -> WasmModule.INSTANCE.module("expired.wasm", thread));
+      assertThat(error).hasMessageThat().contains("past expiration date");
+      assertThat(FakeWasmRuntime.COMPILES.get()).isEqualTo(before);
+    }
+  }
+
+  @Test
+  public void compilationCannotReturnSuccessAfterTheEvaluationDeadline() throws Exception {
+    WasmModule.clearProgramCache();
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setExpirationMs(System.currentTimeMillis() + 30_000);
+      thread.setThreadLocal(StarFile.class, new InMemMapBackedStarFile(
+          ImmutableMap.of("slow.wasm", "FAKEslow-expiration".getBytes(UTF_8)), "slow.wasm"));
+      thread.setExpirationMs(System.currentTimeMillis() + 100);
+      EvalException error = assertThrows(
+          EvalException.class,
+          () -> WasmModule.INSTANCE.module("slow.wasm", thread));
+      assertThat(error).hasMessageThat().contains("past expiration date");
+    }
+  }
+
+  @Test
+  public void successfulRunCannotReturnAfterTheEvaluationDeadline() throws Exception {
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setExpirationMs(System.currentTimeMillis() + 30_000);
+      long expiration = System.currentTimeMillis() + 10_000;
+      thread.setExpirationMs(expiration);
+      WasmModule.LoadedWasmModule module = new WasmModule.LoadedWasmModule(
+          "late", MODULE, (stdin, limits) -> {
+            thread.setClock(java.time.Clock.fixed(
+                java.time.Instant.ofEpochMilli(expiration + 1), java.time.ZoneOffset.UTC));
+            return new WasmRuntime.Result(0, stdin, new byte[0]);
+          });
+      EvalException error = assertThrows(
+          EvalException.class, () -> module.run("out", thread));
+      assertThat(error).hasMessageThat().contains("past expiration date");
     }
   }
 
@@ -437,10 +544,11 @@ public class WasmModuleTest {
 
   @Test
   public void interruptionPropagatesUnwrapped() throws Exception {
-    WasmModule.LoadedWasmModule m =
-        WasmModule.INSTANCE.loads(StarlarkBytes.immutableOf("FAKE".getBytes(UTF_8)));
     try (Mutability mu = Mutability.create("test")) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setExpirationMs(System.currentTimeMillis() + 30_000);
+      WasmModule.LoadedWasmModule m =
+          WasmModule.INSTANCE.loads(StarlarkBytes.immutableOf("FAKE".getBytes(UTF_8)), thread);
       assertThrows(
           InterruptedException.class,
           () -> m.run(StarlarkBytes.immutableOf("interrupt".getBytes(UTF_8)), thread));
