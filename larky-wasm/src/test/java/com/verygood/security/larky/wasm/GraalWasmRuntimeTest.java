@@ -208,6 +208,24 @@ public final class GraalWasmRuntimeTest {
   }
 
   @Test
+  public void varyingMemoryCapsDoNotRetainUnboundedSources() throws Exception {
+    WasmRuntime.Program program = start("(memory (export \"memory\") 1)", "nop");
+    java.lang.reflect.Method cappedSource =
+        GraalWasmProgram.class.getDeclaredMethod("cappedSource", long.class);
+    cappedSource.setAccessible(true);
+    java.lang.reflect.Field sources = GraalWasmProgram.class.getDeclaredField("cappedSources");
+    sources.setAccessible(true);
+    for (long pages = 1; pages <= 256; pages++) {
+      cappedSource.invoke(program, pages);
+    }
+    // Host-controlled limit changes must not retain one copy of a large module indefinitely.
+    assertThat(((java.util.Map<?, ?>) sources.get(program)).size()).isAtMost(32);
+    // Evicting a cached source does not change the program's ability to use an earlier cap.
+    assertThat(program.run(new byte[0], new WasmRuntime.Limits(65536, 0, 1024, null)).exitCode())
+        .isEqualTo(0);
+  }
+
+  @Test
   public void memoryGrowStopsAtCap() throws Exception {
     WasmRuntime.Program program =
         start(
@@ -347,6 +365,17 @@ public final class GraalWasmRuntimeTest {
             WasmException.class,
             () -> compile("(module (memory (export \"memory\") 1) (func (export \"main\")))"));
     assertThat(e.kind()).isEqualTo(WasmException.Kind.INVALID_MODULE);
+  }
+
+  @Test
+  public void rejectsMultipleMemoriesThatWouldEachConsumeTheRunLimit() {
+    // Two one-page memories would consume 128 KiB under a 64 KiB per-instance limit.
+    byte[] wasm = HexFormat.of().parseHex(
+        "0061736d010000000104016000000302010005050200010001"
+            + "071302066d656d6f72790200065f737461727400000a040102000b");
+    WasmException e = assertThrows(WasmException.class, () -> RUNTIME.compile(wasm));
+    assertThat(e.kind()).isEqualTo(WasmException.Kind.INVALID_MODULE);
+    assertThat(e).hasMessageThat().contains("exactly one memory");
   }
 
   @Test

@@ -104,6 +104,7 @@ final class GraalWasmRuntime implements WasmRuntime {
     }
     byte[] bytes = wasm.clone();
     Set<String> imports = WasmBinaries.checkWasiCommand(bytes);
+    bytes = WasmBinaries.capTables(bytes);
     byte[] redirected = WasmBinaries.renameImports(bytes, WasiHost.MODULE, imports, HOST_MODULE);
     Source source = source(redirected);
     validate(source);

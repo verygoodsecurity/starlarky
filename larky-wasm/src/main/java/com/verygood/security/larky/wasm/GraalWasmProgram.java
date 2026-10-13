@@ -20,10 +20,10 @@ import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -66,8 +66,17 @@ final class GraalWasmProgram implements WasmRuntime.Program {
   private final Source source;
   /** The module's WASI imports, every one of them served by {@link WasiHost}. */
   private final Set<String> imports;
-  /** Sources with their memory capped, by cap in pages. */
-  private final Map<Long, Source> cappedSources = new ConcurrentHashMap<>();
+  /**
+   * Sources with their memory capped, by cap in pages. Limit retention because every distinct
+   * host-supplied cap can otherwise keep another module-sized byte array and compiled source alive.
+   * Guarded by this program's monitor.
+   */
+  private final Map<Long, Source> cappedSources = new LinkedHashMap<>(8, 0.75f, true) {
+    @Override
+    protected boolean removeEldestEntry(Map.Entry<Long, Source> eldest) {
+      return size() > 8;
+    }
+  };
 
   GraalWasmProgram(byte[] wasm, Source source, Set<String> imports) {
     this.wasm = wasm;
@@ -75,15 +84,15 @@ final class GraalWasmProgram implements WasmRuntime.Program {
     this.imports = imports;
   }
 
-  private Source cappedSource(long maxPages) throws WasmException {
+  private synchronized Source cappedSource(long maxPages) throws WasmException {
     Source cached = cappedSources.get(maxPages);
     if (cached != null) {
       return cached;
     }
     byte[] capped = WasmBinaries.capMemory(wasm, maxPages);
     Source result = capped == wasm ? source : GraalWasmRuntime.source(capped);
-    Source previous = cappedSources.putIfAbsent(maxPages, result);
-    return previous != null ? previous : result;
+    cappedSources.put(maxPages, result);
+    return result;
   }
 
   @Override
