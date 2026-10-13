@@ -29,6 +29,25 @@ public class ZLibModule implements StarlarkValue {
 
   public static final ZLibModule INSTANCE = new ZLibModule();
 
+  /** System property that sets {@link #maxOutputBytes()}. */
+  static final String MAX_OUTPUT_BYTES_PROPERTY = "larky.zlib.maxOutputBytes";
+
+  /** The default of {@link #maxOutputBytes()}: 64 MiB. */
+  static final int DEFAULT_MAX_OUTPUT_BYTES = 64 << 20;
+
+  /**
+   * The most bytes one decompression may produce: {@code -Dlarky.zlib.maxOutputBytes}, or 64 MiB
+   * if it is unset, malformed or negative. CPython has no limit, but scripts are untrusted and a
+   * few kilobytes of crafted input can inflate to gigabytes. Scripts cannot change it.
+   */
+  @StarlarkMethod(
+      name = "max_output_bytes",
+      doc = "The most bytes one decompression may produce (-Dlarky.zlib.maxOutputBytes).")
+  public static int maxOutputBytes() {
+    int value = Integer.getInteger(MAX_OUTPUT_BYTES_PROPERTY, DEFAULT_MAX_OUTPUT_BYTES);
+    return value < 0 ? DEFAULT_MAX_OUTPUT_BYTES : value;
+  }
+
   @StarlarkMethod(name="NO_FLUSH", structField = true)
   public StarlarkInt NO_FLUSH() {
     return StarlarkInt.of(Deflater.NO_FLUSH);
