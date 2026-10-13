@@ -125,3 +125,43 @@ def test_runner_failure_raises(popen, monkeypatch):
     monkeypatch.setattr(FakePopen, "wait", lambda self: 2)
     with pytest.raises(FailedEvaluation):
         Evaluator("1", modules={"echo.wasm": WASM}).evaluate("")
+
+
+@pytest.mark.parametrize("name", ["--script", "--debug", "--module", "-s"])
+def test_option_like_module_names_fail_before_starting_the_runner(name, popen):
+    with pytest.raises(ValueError, match="must not start"):
+        Evaluator("1", modules={name: WASM}).evaluate("")
+    assert popen.calls == []
+
+
+@pytest.mark.parametrize("name", ["../outside.wasm", "/absolute.wasm", "a b;$(touch x).wasm"])
+def test_module_names_do_not_choose_the_temporary_file_path(name, tmp_path):
+    args = evaluator_module._write_modules({name: WASM}, str(tmp_path))
+    assert args == ["--module", f"{name}={tmp_path / 'module-0'}"]
+    assert list(tmp_path.iterdir()) == [tmp_path / "module-0"]
+    assert (tmp_path / "module-0").read_bytes() == WASM
+
+
+def test_explicit_wasm_policy_reaches_the_runner(popen):
+    Evaluator("1", enable_wasm=True, timeout_ms=1000).evaluate("")
+    (args, _), = popen.calls
+    assert args[10:] == ["--enable-wasm", "--timeout-ms", "1000"]
+
+
+def test_timeout_without_wasm_and_http_forwarding(popen):
+    Evaluator("1", timeout_ms=1000).evaluate("")
+    assert popen.calls[0][0][10:] == ["--timeout-ms", "1000"]
+    evaluator = HttpEvaluator("1", enable_wasm=True, timeout_ms=1000)
+    Evaluator.evaluate(evaluator, "")
+    assert popen.calls[1][0][10:] == ["--enable-wasm", "--timeout-ms", "1000"]
+
+
+@pytest.mark.parametrize("options", [
+    {"enable_wasm": True}, {"enable_wasm": "true"},
+    {"timeout_ms": 0}, {"timeout_ms": -1}, {"timeout_ms": True},
+    {"timeout_ms": 1.5}, {"timeout_ms": "1000"}, {"timeout_ms": 2**63 - 1},
+])
+def test_invalid_execution_policy_fails_before_runner(options, popen):
+    with pytest.raises((ValueError, TypeError)):
+        Evaluator("1", **options).evaluate("")
+    assert popen.calls == []

@@ -2,6 +2,7 @@ import os
 import tempfile
 import sys
 import subprocess
+import time
 from importlib import resources
 from typing import Mapping, Optional, Union
 
@@ -24,7 +25,8 @@ ModuleData = Union[bytes, bytearray, str]
 
 class Evaluator:
     def __init__(
-        self, script_data: str, modules: Optional[Mapping[str, ModuleData]] = None
+        self, script_data: str, modules: Optional[Mapping[str, ModuleData]] = None,
+        *, enable_wasm: bool = False, timeout_ms: Optional[int] = None
     ):
         """
         :param script_data: the Starlark script.
@@ -33,8 +35,12 @@ class Evaluator:
             (``wasm.module("echo.wasm")``), or load()s a ``.star`` one. str
             values are written as UTF-8. At most MAX_MODULES files of at most
             MAX_MODULE_BYTES each (MAX_MODULES_TOTAL_BYTES together), with names
-            of at most MAX_MODULE_NAME_BYTES bytes.
+            of at most MAX_MODULE_NAME_BYTES bytes. Names cannot start with '-'
+            or contain '=' or NUL, because they are passed to the runner CLI.
+        :param enable_wasm: explicitly allow WebAssembly for this evaluation (off by default).
+        :param timeout_ms: positive integer evaluation timeout; required with enable_wasm.
         """
+        self._execution_args = _check_execution_policy(enable_wasm, timeout_ms)
         self.script_data = script_data
         self.modules = _check_modules(modules)
 
@@ -71,6 +77,7 @@ class Evaluator:
                         script_path,
                         LOG_PARAM,
                         log_file.name,
+                        *self._execution_args,
                         *module_args,
                     ],
                     stdout=subprocess.PIPE,
@@ -100,6 +107,23 @@ class FailedEvaluation(Exception):
     pass
 
 
+def _check_execution_policy(enable_wasm, timeout_ms):
+    if not isinstance(enable_wasm, bool):
+        raise TypeError("enable_wasm must be a bool")
+    if enable_wasm and timeout_ms is None:
+        raise ValueError("enable_wasm requires timeout_ms")
+    args = ["--enable-wasm"] if enable_wasm else []
+    if timeout_ms is not None:
+        if not isinstance(timeout_ms, int) or isinstance(timeout_ms, bool):
+            raise TypeError("timeout_ms must be a positive integer")
+        if timeout_ms <= 0:
+            raise ValueError("timeout_ms must be positive")
+        if time.time_ns() // 1_000_000 + timeout_ms >= (1 << 63) - 1:
+            raise ValueError("timeout_ms is too large for a finite deadline")
+        args += ["--timeout-ms", str(timeout_ms)]
+    return args
+
+
 def _check_modules(modules):
     if modules is None:
         return {}
@@ -110,6 +134,9 @@ def _check_modules(modules):
     for name, data in modules.items():
         if not isinstance(name, str) or not name:
             raise ValueError(f"module name must be a non-empty str; got {name!r}")
+        if name.startswith("-"):
+            # Picocli can interpret these as runner options, even in --module=NAME=PATH.
+            raise ValueError(f"module name must not start with '-'; got {name!r}")
         if "=" in name:
             # The runner splits --module NAME=PATH at the first '='.
             raise ValueError(f"module name must not contain '='; got {name!r}")
