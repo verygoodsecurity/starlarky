@@ -21,6 +21,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/Util/py3compat.py. See larky/src/main/resources/VENDORED.md.
 
 """Compatibility code for handling string/bytes changes from Python 2.x to Py3k
 

@@ -1,3 +1,4 @@
+# Ported from elementtreewriter 1.2 + Amara 2.0.0 elementtreewriter 1.2; amara 2.0.0 (40e79c3, a31cea7): elementtreewriter src/elementtreewriter/xmlwriter.py and amara lib/writers/_xmlprinters.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//enum", enum="enum")

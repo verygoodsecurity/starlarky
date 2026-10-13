@@ -1,3 +1,4 @@
+# Ported from luhn master (test.py last changed 2019-11-08): test.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//unittest","unittest")
 load("@vendor//asserts","asserts")
 load("@vendor//luhn", luhn="luhn")

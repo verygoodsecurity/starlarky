@@ -27,6 +27,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/Signature/pkcs1_15.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence", DerNull="DerNull", DerOctetString="DerOctetString", DerObjectId="DerObjectId")
 load("@vendor//Crypto/Util/number", number_size="size", ceil_div="ceil_div", bytes_to_long="bytes_to_long", long_to_bytes="long_to_bytes")

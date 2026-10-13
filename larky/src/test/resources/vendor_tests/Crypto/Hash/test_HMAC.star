@@ -1,3 +1,4 @@
+# Ported from pycryptodome <= 3.10.1 (some >= 3.10.0), pinned to 3.10.1 (339259c): lib/Crypto/SelfTest/Hash/test_HMAC.py. See larky/src/main/resources/VENDORED.md.
 load("@vendor//Crypto/Hash/HMAC", HMAC="HMAC")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//unittest", "unittest")
