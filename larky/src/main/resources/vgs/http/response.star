@@ -1,5 +1,35 @@
 load("@stdlib//larky", larky="larky")
-load("@vgs//http/request", VGSCIMultiDict="VGSCIMultiDict")
+load("@stdlib//types", types="types")
+
+
+# `headers` stays a plain dict: the host reads `response.__dict__["headers"]` as a
+# Map<String, String> and sends it in a protobuf map<string, string>, so it cannot carry a
+# header name twice. A multidict here makes the host fail on every response (issue #292).
+def _header_dict(headers):
+    """Return `headers` (a dict, a list of (name, value) pairs or a multidict) as a dict.
+
+    A dict is returned as is. A header name given twice fails rather than silently keeping
+    only the last value.
+    """
+    if types.is_dict(headers):
+        return headers
+    if hasattr(headers, "items"):
+        pairs = headers.items()
+    elif types.is_list(headers) or types.is_tuple(headers):
+        pairs = headers
+    else:
+        # e.g. None from `headers = d.update(...)`: fail here, not in the host
+        fail("VGSHttpResponse headers: expected a dict or (name, value) pairs; got %s" % type(headers))
+    result = {}
+    for name, value in pairs:
+        if name in result:
+            fail("VGSHttpResponse headers hold one value per name; got %r more than once" % name)
+        result[name] = value
+    return result
+
+
+def _same_name(key, name):
+    return types.is_string(key) and key.lower() == name.lower()
 
 
 def VGSHttpResponse(
@@ -20,46 +50,42 @@ def VGSHttpResponse(
             # issue 16464
             # if we change data we need to remove content-length header
             # (cause it's most probably calculated for previous value)
-            if self.has_header("Content-length"):
-                self.remove_header("Content-length")
+            if "Content-length" in self.headers:
+                self.headers.pop("Content-length")
     self.body = larky.property(_get_body, _set_body)
 
-    # headers property
+    # headers property: the dict is kept as is, so later changes to it still apply
     def _get_headers():
         return self._headers
 
     def _set_headers(headers):
-        self._headers = VGSCIMultiDict(headers or {})
+        self._headers = _header_dict(headers)
     self.headers = larky.property(_get_headers, _set_headers)
 
     def add_header(key, val):
-        # replaces every value already stored under ``key``.
-        # use ``append_header`` when duplicates must be kept (e.g. Set-Cookie).
         self.headers[key] = val
     self.add_header = add_header
 
-    def append_header(key, val):
-        """Add ``val`` under ``key`` without discarding the values already stored there."""
-        self.headers.add(key, val)
-    self.append_header = append_header
-
     def has_header(header_name):
-        return header_name in self.headers
+        """Whether a header named `header_name`, in any case, is set."""
+        for key in self.headers:
+            if _same_name(key, header_name):
+                return True
+        return False
     self.has_header = has_header
 
     def get_header(header_name, default=None):
-        """Return the first value stored under ``header_name``."""
-        return self.headers.get(header_name, default)
+        """Return the value of the first header named `header_name`, in any case."""
+        for key, value in self.headers.items():
+            if _same_name(key, header_name):
+                return value
+        return default
     self.get_header = get_header
 
-    def get_all_headers(header_name, default=None):
-        """Return every value stored under ``header_name`` as a list."""
-        return self.headers.getall(header_name, default if default != None else [])
-    self.get_all_headers = get_all_headers
-
     def remove_header(header_name):
-        """Remove every value stored under ``header_name``."""
-        self.headers.popall(header_name, None)
+        """Remove every header named `header_name`, in any case."""
+        for key in [k for k in self.headers if _same_name(k, header_name)]:
+            self.headers.pop(key)
     self.remove_header = remove_header
 
     def __init__(
@@ -68,7 +94,10 @@ def VGSHttpResponse(
         status_code
     ):
         self._body = body
-        self.headers = headers
+        # a copy, so the caller's dict is not changed through the response
+        if not headers:
+            headers = {}
+        self.headers = dict(headers) if types.is_dict(headers) else headers
         self.status_code = status_code
         return self
 
