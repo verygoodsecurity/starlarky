@@ -245,6 +245,43 @@ silently falling back. Isolate creation, host preflight, WASI callbacks, and com
 cache waits still consume host resources; `graal-isolate` should not be advertised as a hard
 whole-request limit.
 
+### One-shot worker backend (JDK 21)
+
+Select `-Dlarky.wasm.runtime=worker` only after a trusted host has configured
+`-Dlarky.wasm.worker.launcher=/absolute/path/to/launcher`. The launcher receives one versioned
+binary request on stdin and must return one bounded binary response on stdout. It must start
+`com.verygood.security.larky.wasm.WorkerMain` with the matching application classpath. The parent
+passes no inherited environment variables to the launcher; supply only worker-specific settings
+through trusted launcher configuration. The default child engine is Endive; the optional
+`-Dlarky.wasm.worker.backend=graal-isolate` selects an isolate inside the worker and requires the
+matching GraalVM artifacts there.
+
+Compilation and each run use a new worker. The run recompiles the module in that worker, so no
+prepared program or engine crosses the process boundary. The parent limits request admission to
+four concurrent workers, guest linear memory to 64 MiB, stdin and stdout/stderr to 1 MiB each,
+diagnostics to 4 KiB, and each request to 10 seconds by default. Trusted hosts can set
+`larky.wasm.worker.maxConcurrent`, `maxMemoryBytes`, `maxInputBytes`, `maxOutputBytes`,
+`maxDiagnosticBytes`, and `maxRequestMillis` (up to one day). The ordinary configurable
+`larky.wasm.*` module, table, memory, and output caps still apply. A Larky evaluation deadline
+shorter than the worker maximum wins. An absent or invalid launcher fails closed.
+
+**The launcher is the security boundary.** It must put the worker under an independent OS memory,
+CPU, and process budget *before* the child reads customer bytes, and ensure that timeout or launcher
+death terminates the entire sandbox. `ProcessBuilder`, `-Xmx`, a virtual thread, and a child in the
+same container do not provide that guarantee. The parent kills the launcher and its visible
+descendants on timeout; a launcher that detaches a worker needs its own cleanup mechanism.
+Transport wrappers must preserve the one-request protocol and enforce the same lifecycle. The
+worker has no file, network, or environment WASI capabilities, but its Java process must also be
+restricted by the deployment platform.
+
+Atlas Horizon's checked-in Kubernetes Rollout runs a JDK 21 service image. Its chart defaults to a
+2 GiB container memory limit, while the inspected production overlay sets 4 GiB. A child process
+inside either container would share its limit and could still kill the
+service. For Atlas Horizon, use a separately limited worker Pod/service or an equivalent delegated
+OS sandbox, then rerun the parser, table, loop, worker-OOM, and healthy-after-failure probes against
+that deployment. No such production launcher or worker service is supplied by this module; merely
+selecting `worker` does not establish parent survival.
+
 Endive interprets modules by default. `-Dlarky.wasm.endive.mode=compiler` compiles each module to
 JVM bytecode instead, which runs faster but costs time and Metaspace in proportion to the module
 before any deadline applies, and cannot be interrupted; use it only for modules you trust. A
