@@ -56,13 +56,24 @@ Returning from `_start` exits with 0; `proc_exit(n)` exits with `n`.
 
 ## Limits
 
-| Limit | Default | When exceeded |
-| --- | --- | --- |
-| Linear memory | 64 MiB (1024 pages) | a module whose initial memory is larger fails to start; `memory.grow` past the limit returns -1 |
-| Tables | 64 tables and 65,536 entries combined | oversized initial declarations fail compilation; `table.grow` past the capped maximum returns -1 |
-| stdout, and separately stderr | 1 MiB each | the call fails |
-| Run time | a deadline set by the caller | the call fails |
-| Module size | 8 MiB and 20,000 functions | the module is not valid |
+| Limit | Default | Host setting | When exceeded |
+| --- | --- | --- | --- |
+| Linear memory | 64 MiB (1024 pages) | `larky.wasm.maxMemoryBytes` for Larky; `WasmRuntime.Limits` for Java callers | a module whose initial memory is larger fails to start; `memory.grow` past the limit returns -1 |
+| Tables | 64 tables and 65,536 entries combined | `larky.wasm.maxTables`, `larky.wasm.maxTableElements` | oversized initial declarations fail compilation; `table.grow` past the capped maximum returns -1 |
+| stdout, and separately stderr | 1 MiB each | `larky.wasm.maxOutputBytes` for Larky; `WasmRuntime.Limits` for Java callers | the call fails |
+| Run time | a deadline set by the caller | `LARKY_EVAL_EXPIRATION_MS` for Larky; `WasmRuntime.Limits` for Java callers | the call fails |
+| Module size and functions | 8 MiB and 20,000 functions | `larky.wasm.maxModuleBytes`, `larky.wasm.maxFunctions` | the module is not valid |
+| Preflight locals | 50,000 per function; 100,000 total | `larky.wasm.maxLocalsPerFunction`, `larky.wasm.maxTotalLocals` | the module is not valid |
+| Preflight type entries and function arity | 100,000 entries; 1,000 parameters or results | `larky.wasm.maxTypeEntries`, `larky.wasm.maxFunctionArity` | the module is not valid |
+| Concurrent guest runs | 4 | `larky.wasm.maxConcurrentGuests` | a run waiting for admission fails at its deadline |
+| Guest thread stack size hint | 8 MiB | `larky.wasm.guestStackBytes` | JVM-dependent; this is not a hard memory cap |
+
+Set the compile and guest-thread properties from trusted host configuration before constructing a
+runtime or starting any guest. Invalid values fail startup of the affected runtime; existing
+runtime instances retain their compile limits, and the shared guest-thread pool takes its settings
+on first use. Larky's compiled-program cache has a separate `larky.wasm.programCache.maxBytes`
+setting (16 MiB by default). These settings bound individual dimensions; their sum does not
+bound the process heap or CPU.
 
 A trap (for example `unreachable` or an out-of-bounds access) also fails the call.
 
