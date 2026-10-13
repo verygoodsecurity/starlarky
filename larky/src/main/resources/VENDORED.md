@@ -151,7 +151,7 @@ Paths are relative to `larky/src/test/resources`.
 
 ## VGS-original files
 
-Written for Larky; no upstream file to pin and no header. Paths are relative to `larky/src/main/resources` (vendor, stdlib, vgs) or `larky/src/test/resources` (tests). 86 files.
+Written for Larky; no upstream file to pin and no header. Paths are relative to `larky/src/main/resources` (vendor, stdlib, vgs) or `larky/src/test/resources` (tests). 87 files.
 
 **vendor/**
 
@@ -224,6 +224,7 @@ Written for Larky; no upstream file to pin and no header. Paths are relative to 
 - `stdlib_tests/test_larky.star` ([#12](https://github.com/verygoodsecurity/starlarky/pull/12))
 - `stdlib_tests/test_larky_struct_eq.star` ([#715](https://github.com/verygoodsecurity/starlarky/pull/715))
 - `stdlib_tests/test_percent_format.star` ([#722](https://github.com/verygoodsecurity/starlarky/pull/722)): Expected values from CPython 3.10.13.
+- `stdlib_tests/test_property_descriptor.star` ([#770](https://github.com/verygoodsecurity/starlarky/pull/770))
 - `stdlib_tests/test_python_builtins_compat.star` ([#713](https://github.com/verygoodsecurity/starlarky/pull/713)): Expected values from CPython 3.10.
 - `stdlib_tests/test_re.star` ([#55](https://github.com/verygoodsecurity/starlarky/pull/55))
 - `stdlib_tests/test_re_cpython.star` ([#717](https://github.com/verygoodsecurity/starlarky/pull/717)): Expected values from CPython 3.12.
