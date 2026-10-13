@@ -1,0 +1,17 @@
+FROM maven:3.9.9-eclipse-temurin-21 AS build
+
+WORKDIR /build/larky-wasm
+COPY larky-wasm/pom.xml ./pom.xml
+COPY larky-wasm/src ./src
+RUN mvn -q -DskipTests package dependency:copy-dependencies \
+    -DincludeScope=runtime -DexcludeGroupIds=org.graalvm.polyglot,org.graalvm.truffle
+
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=build /build/larky-wasm/target/larky-wasm-1.0.0-SNAPSHOT.jar /app/worker.jar
+COPY --from=build /build/larky-wasm/target/dependency/ /app/lib/
+COPY --chmod=0555 larky-wasm/src/main/worker/server.sh /app/server.sh
+COPY --chmod=0555 larky-wasm/src/main/worker/child.sh /app/child.sh
+USER 65532:65532
+EXPOSE 8443
+ENTRYPOINT ["/app/server.sh"]
