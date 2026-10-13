@@ -63,7 +63,7 @@ Paths are relative to `larky/src/main/resources`.
 | `vendor/OpenSSL/crypto.star` | [pyOpenSSL](https://github.com/pyca/pyopenssl) | 20.0.0-20.0.1; pinned to **20.0.1** | [20.0.1](https://github.com/pyca/pyopenssl/tree/4211b909fb5aa2c4db2b0f5acbab1480972a0554) | `src/OpenSSL/crypto.py` | Apache-2.0 | likely | [#106](https://github.com/verygoodsecurity/starlarky/pull/106) | crypto.py identical in 20.0.0 and 20.0.1; commented-out blocks keep 20.0.x code that 21.0.0 replaced. |
 | `vendor/OpenPGP/{__init__,Crypto}.star` | [OpenPGP-Python (mahmoudimus fork)](https://github.com/mahmoudimus/OpenPGP-Python) | **fork branch HEAD (no release)** | [a174c38](https://github.com/mahmoudimus/OpenPGP-Python/tree/a174c38a2d352893e54b92f1ae3db48f029bad85) | `src/OpenPGP/{__init__,Crypto}.py` | ISC AND MIT | exact | [#255](https://github.com/verygoodsecurity/starlarky/pull/255) (continues [#168](https://github.com/verygoodsecurity/starlarky/pull/168)) | Crypto.star matches 10 lines unique to fork commit a174c38 and none unique to earlier commits; 0 parent-only lines. |
 | `vendor/xmlsig/` | [python-xmlsig](https://github.com/etobella/python-xmlsig) | 0.1.6-0.1.7 (src/ identical); pinned to **0.1.6** | [0.1.6](https://github.com/etobella/python-xmlsig/tree/1836ccceef543ebd635fd6007d283e04bfc6caab) | src/xmlsig/&lt;same path&gt;.py | BSD-3-Clause (0.1.6) or AGPL-3.0 (0.1.7); see licensing questions | likely | [#226](https://github.com/verygoodsecurity/starlarky/pull/226) (from [#225](https://github.com/verygoodsecurity/starlarky/pull/225)) | Has TransformHmacSha224 (added in 0.1.6); lacks f0233bc9 (2021-12-08); 0.1.6 and 0.1.7 src/ are byte-identical. |
-| `vendor/dukpt.star` | [allen246/dukpt](https://github.com/allen246/dukpt) (published as [dukpt](https://pypi.org/project/dukpt/1.0.1/) on PyPI) | **1.0.1** | [d3c66715](https://github.com/allen246/dukpt/tree/d3c66715c2491cb4ab11630d31d20160b4cd6b69) (`dukpt.py` added in b6d83e3) | `dukpt.py` | MIT | exact | [#34](https://github.com/verygoodsecurity/starlarky/issues/34) | `dukpt.py` byte-identical to the PyPI 1.0.1 sdist (sha256 `9e974b75…8dca`); keys corrected to ANSI X9.24-1 (see Notes). |
+| `vendor/pydukpt/{__init__,_core,compat,pinblock}.star` | [pydukpt](https://github.com/mahmoudimus/pydukpt) (published as [pydukpt](https://pypi.org/project/pydukpt/0.1.0/) on PyPI) | **0.1.0** | [v0.1.0](https://github.com/mahmoudimus/pydukpt/tree/3778da71dab2e11a185915a453e9175d6fe45aea) (3778da71) | `src/pydukpt/{__init__,_core,compat,pinblock}.py` | MIT | exact | [#783](https://github.com/verygoodsecurity/starlarky/pull/783) (for [#34](https://github.com/verygoodsecurity/starlarky/issues/34)) | Translated from tag v0.1.0; the PyPI 0.1.0 sdist and wheel ship byte-identical `src/pydukpt/*.py`. Larky differences in Notes. |
 | `vendor/iso8583/{decoder,encoder,specs}.star` | [pyiso8583](https://github.com/knovichikhin/pyiso8583) | **2.1.0** | [v2.1.0](https://github.com/knovichikhin/pyiso8583/tree/0bf053899b53a78cad30508d65b7ec5f990c9ec1) | `iso8583/{decoder,encoder,specs}.py` | MIT | exact | [#112](https://github.com/verygoodsecurity/starlarky/pull/112) | specs.star shares 413/413 lines with 2.1.0 (358 with 2.0.x); all 2.1.0 len_count/nibble lines present. |
 | `vendor/multidict.star` | [multidict](https://github.com/aio-libs/multidict) | 4.7.6-5.1.0; pinned to **5.1.0** | [v5.1.0](https://github.com/aio-libs/multidict/tree/c3eed831bb8bb944bb329013b4fd4b02c66fbf18) | `multidict/_multidict_py.py` | Apache-2.0 | likely | [#170](https://github.com/verygoodsecurity/starlarky/pull/170) | 136 lines shared equally with 4.7.6/5.0.2/5.1.0; upstream file unchanged 2020-07-26..2021-09-30. |
 | `vendor/MasterCard/oauth1/{__init__,authenticationutils,coreutils,oauth}.star` | [oauth1-signer-python (Mastercard)](https://github.com/Mastercard/oauth1-signer-python) | 1.4.0-1.5.0; pinned to **1.5.0** | [1.5.0](https://github.com/Mastercard/oauth1-signer-python/tree/375210796f1e1784ff7bc85803955f77baf587ec) | `oauth1/{oauth,coreutils,authenticationutils,__init__}.py` | MIT | likely | [#312](https://github.com/verygoodsecurity/starlarky/pull/312) | oauth/coreutils have lines only in >= 1.4.0; 1.4.0->1.5.0 changed only files not ported. |
@@ -131,6 +131,7 @@ Paths are relative to `larky/src/test/resources`.
 | `vendor_tests/OpenPGP/{data_test_fixtures,test_Crypto,test_OpenPGP}.star` | [OpenPGP-Python (mahmoudimus fork)](https://github.com/mahmoudimus/OpenPGP-Python) | **fork a174c38 (loosely)** | [a174c38](https://github.com/mahmoudimus/OpenPGP-Python/tree/a174c38a2d352893e54b92f1ae3db48f029bad85) | `tests/{test_OpenPGP,test_Crypto}.py, tests/data/*` | ISC AND MIT | likely | [#255](https://github.com/verygoodsecurity/starlarky/pull/255) | Only 19/357 and 12/153 lines shared with the fork tests (8 and 5 fork-only, 0 parent-only); mostly rewritten. |
 | `vendor_tests/xmlsig/{base,test_xmlsig}.star`<br>`vendor_tests/xmlsig/data/{rsacert_pem,rsakey_pem,rsapub_pem,sign1_in_xml,sign1_out_xml}.star` | [python-xmlsig](https://github.com/etobella/python-xmlsig) | 0.1.6-0.1.7 (tests/ not in sdist); pinned to **0.1.7** | [eed8913 (0.1.7)](https://github.com/etobella/python-xmlsig/tree/eed891371a80b6f65d0a8bec252b6b6c9af9bd1d) | `tests/{test_rsa,base}.py, tests/data/*` | as vendor/xmlsig (undetermined) | likely | [#226](https://github.com/verygoodsecurity/starlarky/pull/226) (from [#225](https://github.com/verygoodsecurity/starlarky/pull/225)) | Fixtures contain all upstream data lines; test_xmlsig.star is a rewrite (3 lines shared with test_rsa.py). |
 | `vendor_tests/iso8583/test_encode.star` | [pyiso8583](https://github.com/knovichikhin/pyiso8583) | 2.0.2-2.1.0; pinned to **2.1.0** | [v2.1.0](https://github.com/knovichikhin/pyiso8583/tree/0bf053899b53a78cad30508d65b7ec5f990c9ec1) | `tests/test_encode.py` | MIT | likely | [#112](https://github.com/verygoodsecurity/starlarky/pull/112) | All 89 upstream test names present (same set in 2.0.2 and 2.1.0); paired with the 2.1.0 library port. |
+| `vendor_tests/pydukpt/{conftest,helpers,test_compat,test_generated_vectors,test_keys,test_ksn,test_pinblock,test_published_vectors}.star`<br>`vendor_tests/pydukpt/fixtures/vectors.star` | [pydukpt](https://github.com/mahmoudimus/pydukpt) | **0.1.0** | [v0.1.0](https://github.com/mahmoudimus/pydukpt/tree/3778da71dab2e11a185915a453e9175d6fe45aea) (3778da71) | `tests/{conftest,helpers,test_compat,test_generated_vectors,test_keys,test_ksn,test_pinblock,test_published_vectors}.py`, `tests/fixtures/vectors.json` | MIT (vectors: see Notes) | exact | [#783](https://github.com/verygoodsecurity/starlarky/pull/783) | Every upstream test except `test_live_dukpt_1_0_1_if_installed`; `fixtures/vectors.star` is `vectors.json` (sha256 `8d9c8afb…e501bce2`) as a Starlark literal. See Notes. |
 | `vendor_tests/multidict/test_mutable_multidict.star` | [multidict](https://github.com/aio-libs/multidict) | 4.7.6-5.1.0; pinned to **5.1.0** | [v5.1.0](https://github.com/aio-libs/multidict/tree/c3eed831bb8bb944bb329013b4fd4b02c66fbf18) | `tests/test_mutable_multidict.py` | Apache-2.0 | likely | [#170](https://github.com/verygoodsecurity/starlarky/pull/170) | 31/34 upstream test names; upstream file unchanged 2020-07-26..2021-09-30. |
 | `vendor_tests/MasterCard/test_mcoauth.star` | [oauth1-signer-python (Mastercard)](https://github.com/Mastercard/oauth1-signer-python) | 1.4.0-1.5.0; pinned to **1.5.0** | [1.5.0](https://github.com/Mastercard/oauth1-signer-python/tree/375210796f1e1784ff7bc85803955f77baf587ec) | `tests/test_{oauth,utils,signer}.py` | MIT | likely | [#312](https://github.com/verygoodsecurity/starlarky/pull/312) | 6 of 13 tests share upstream names; the 7 `test_legacy_*` tests are VGS-written. |
 | `vendor_tests/option/test_result.star` | [option](https://github.com/MaT1g3R/option) | **1.0.3** | [d885a88](https://github.com/MaT1g3R/option/tree/d885a88d87404e59acad060bf635296bdc35fa93) | `tests/test_result.py` | MIT | likely | [#121](https://github.com/verygoodsecurity/starlarky/pull/121) | 13/18 upstream test names; upstream file unchanged 2020-02-21..2022-03-31. |
@@ -202,7 +203,6 @@ Written for Larky; no upstream file to pin and no header. Paths are relative to 
 - `vendor_tests/ECDH/test_ecdh.star` ([#320](https://github.com/verygoodsecurity/starlarky/pull/320)): Includes EC keys from halturin/applepay test cases (version not established).
 - `vendor_tests/OpenPGP/test_initial_test.star` ([#255](https://github.com/verygoodsecurity/starlarky/pull/255)): Larky-specific.
 - `vendor_tests/xmlsig/data/pkcs12_pfx_encoded_pw.star` ([#226](https://github.com/verygoodsecurity/starlarky/pull/226)): Encrypted PEM key; not found in python-xmlsig tests/data at eed8913.
-- `vendor_tests/dukpt/test_dukpt.star`: written for the port. ANSI X9.24-1 vectors (moov-io/dukpt `pkg/des/des_test.go@9cb72e64`, and an ANSI reference cross-checked against moov-io's Go implementation); 1.0.1's own results where they agree with ANSI (counters below 0x200); round trip from upstream `example.py`.
 - `vendor_tests/iso8583/test_iso8583.star` ([#112](https://github.com/verygoodsecurity/starlarky/pull/112)): 0 lines shared with pyiso8583 tests.
 - `vendor_tests/iso8583/test_base24_payload.star` ([#138](https://github.com/verygoodsecurity/starlarky/pull/138)): BASE24 payload tests.
 - `vendor_tests/lxml/test_lxml.star` ([#226](https://github.com/verygoodsecurity/starlarky/pull/226)): Individual cases cite lxml tests at ea954da3/f163e639.
@@ -396,11 +396,47 @@ Written for Larky; no upstream file to pin and no header. Paths are relative to 
 - Interface and docstring port of `option/result.py` (Ok/Err `Result`
   only); the implementation is rewritten over Larky's Java `Result`.
 
-### dukpt
+### pydukpt
 
-- Ported from [allen246/dukpt](https://github.com/allen246/dukpt) at d3c66715, the repository behind the PyPI 1.0.1 release: its `dukpt.py` is byte-identical to the 1.0.1 sdist's (sha256 `9e974b75f2afe39bce992c59c1daff3b8b3fdc40a38971a459adfa653b788dca`), and its `setup.py` names the package `dukpt` 1.0.1. The code derives from chokepoint/DUKPT (MIT, Copyright 2017 Chokepoint); 1.0.1 adds Python 3 byte literals and changes the shift register.
-- The API (`DUKPT`, `Server`, `Client`, `InvalidDUKPTArguments`, method names and docstrings) is 1.0.1's. Keys are derived per ANSI X9.24-1, which 1.0.1 does not do for transaction counters of 0x200 and above: it uses only 9 counter bits, leaves the counter bits set in the right IPEK half, and wraps the counter as a signed integer. The port uses all 21 counter bits, clears the counter for both IPEK halves, and fails when the counter is exhausted (0x1FFFFF).
-- 1.0.1 fails on Python 3 for raw bytes (`Server.gen_key`, `Client`); the port behaves as 1.0.1 does on Python 2. BitArray arguments and results are bytes.
+- Ported from [pydukpt](https://github.com/mahmoudimus/pydukpt) 0.1.0, tag
+  v0.1.0 (commit 3778da71dab2e11a185915a453e9175d6fe45aea). The PyPI 0.1.0
+  sdist (sha256 `2fad5a2981985496188ddfe7f1983d68ab06e68718145f61c9b51ed0674bcfca`)
+  and wheel (`5b95cbc41d0b7cc0cc1962d52585daa93d3bc607d3aaaa94b8d9a98e5a1535ae`)
+  ship `src/pydukpt/*.py`, `tests/` and `NOTICE` byte-identical to the tag.
+- pydukpt is MIT (Copyright (c) 2026 Mahmoud Abdelkader) and, per its NOTICE,
+  written from ANSI X9.24-1:2009 and ISO 9564-1 without code from other DUKPT
+  implementations. `pydukpt.compat` reproduces the API names of
+  [dukpt](https://pypi.org/project/dukpt/1.0.1/) 1.0.1
+  ([allen246/dukpt](https://github.com/allen246/dukpt), from
+  chokepoint/DUKPT, MIT, Copyright (c) 2017 Chokepoint) with new code. Each
+  file carries the MIT notice and the parts of NOTICE that apply to it.
+- Test vectors (from NOTICE): the ANSI X9.24-1 A.4.2 values are as
+  transcribed in [moov-io/dukpt](https://github.com/moov-io/dukpt)
+  (Apache-2.0) `pkg/des/des_test.go` at 9cb72e64; `vectors.json` was computed
+  with moov-io/dukpt and cross-checked with
+  [varhenn/dukpt_des_pinblock](https://github.com/varhenn/dukpt_des_pinblock)
+  (BSD-2-Clause) and dukpt 1.0.1. Neither is included.
+- Module layout: `@vendor//pydukpt` is `pydukpt/__init__.py` (the functional
+  API, also as the `pydukpt` struct), `@vendor//pydukpt/pinblock` and
+  `@vendor//pydukpt/compat` the submodules, `@vendor//pydukpt/_core` the
+  implementation. `_core.py`'s module-level names are exported from
+  `_core.star` as the `core` struct (Larky cannot load a private name).
+- Larky differences: `bytes` and `bytearray` are accepted where pydukpt takes
+  bytes-like values (no `memoryview`). Exceptions are `fail()`s whose message
+  starts with the Python exception name (`TypeError: `, `ValueError: `,
+  `KSNExhaustedError: `, `InvalidDUKPTArguments: `); `KSNExhaustedError` and
+  `InvalidDUKPTArguments` are functions that fail that way. `DUKPT`, `Server`
+  and `Client` are constructor functions over `larky.mutablestruct`, so the
+  `DUKPT` class attributes are read from instances. TDES is built from
+  single DES, as upstream does, so keys with equal halves work.
+- Tests: Hypothesis strategies are replaced by a fixed-seed generator
+  (`conftest.Examples`) with the same example counts (50 or 100). The slow
+  2**20 - 1 KSN walk runs (about 10 s). `test_live_dukpt_1_0_1_if_installed`
+  is not ported (it imports dukpt and bitstring). `fixtures/vectors.star` was
+  generated from `vectors.json` with a one-off script and checked to load
+  back to the same value.
+- Replaces an earlier, unmerged port of dukpt 1.0.1 as `@vendor//dukpt` on
+  the same PR.
 
 ### luhn
 
