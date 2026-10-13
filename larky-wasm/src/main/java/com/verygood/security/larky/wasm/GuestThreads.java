@@ -36,6 +36,14 @@ import java.util.concurrent.TimeUnit;
  */
 final class GuestThreads {
 
+  /** The task running on this guest thread, so guest-internal interrupts are not caller cancels. */
+  private static final ThreadLocal<Task> CURRENT = new ThreadLocal<>();
+
+  static boolean callerCancelled() {
+    Task task = CURRENT.get();
+    return task == null ? Thread.currentThread().isInterrupted() : task.isCancelled();
+  }
+
   /** Default stack size hint for a thread that runs a guest. */
   static final long STACK_BYTES = 8L << 20;
 
@@ -154,10 +162,12 @@ final class GuestThreads {
         thread = Thread.currentThread();
       }
       try {
+        CURRENT.set(this);
         result = run.run();
       } catch (Throwable t) {
         failure = t;
       } finally {
+        CURRENT.remove();
         synchronized (this) {
           thread = null;
         }
@@ -171,6 +181,10 @@ final class GuestThreads {
       if (thread != null) {
         thread.interrupt();
       }
+    }
+
+    synchronized boolean isCancelled() {
+      return cancelled;
     }
 
     WasmRuntime.Result result() throws WasmException, InterruptedException {

@@ -451,7 +451,6 @@ public final class GraalWasmRuntimeTest {
                 0,
                 null,
                 false,
-                false,
                 new CappedOutputStream("stdout", 10),
                 new CappedOutputStream("stderr", 10),
                 WasmRuntime.Limits.defaults()));
@@ -464,7 +463,7 @@ public final class GraalWasmRuntimeTest {
     // class loader, so a class loader of the test's own cannot hide it).
     List<String> classPath = new ArrayList<>();
     for (String entry : System.getProperty("java.class.path").split(File.pathSeparator)) {
-      if (!entry.contains("wasm-language")) {
+      if (!entry.contains("wasm-language") && !entry.contains("wasm-isolate")) {
         classPath.add(entry);
       }
     }

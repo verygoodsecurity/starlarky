@@ -42,6 +42,12 @@ final class GraalWasmProgram implements WasmRuntime.Program {
   /** How often the watchdog checks a run's deadline, output and calling thread. */
   private static final long POLL_MILLIS = 5;
 
+  /** GraalVM 25 can throw this ThreadDeath subtype while marshalling isolate cancellation. */
+  private static boolean graalCancellation(Throwable failure) {
+    return failure instanceof ThreadDeath && failure.getClass().getName()
+        .equals("com.oracle.truffle.polyglot.PolyglotEngineImpl$CancelExecution");
+  }
+
   private static final ScheduledExecutorService WATCHDOG =
       Executors.newSingleThreadScheduledExecutor(
           r -> {
@@ -62,6 +68,7 @@ final class GraalWasmProgram implements WasmRuntime.Program {
             return t;
           });
 
+  private final GraalWasmRuntime runtime;
   private final byte[] wasm;
   private final Source source;
   /** The module's WASI imports, every one of them served by {@link WasiHost}. */
@@ -78,7 +85,8 @@ final class GraalWasmProgram implements WasmRuntime.Program {
     }
   };
 
-  GraalWasmProgram(byte[] wasm, Source source, Set<String> imports) {
+  GraalWasmProgram(GraalWasmRuntime runtime, byte[] wasm, Source source, Set<String> imports) {
+    this.runtime = runtime;
     this.wasm = wasm;
     this.source = source;
     this.imports = imports;
@@ -90,7 +98,8 @@ final class GraalWasmProgram implements WasmRuntime.Program {
       return cached;
     }
     byte[] capped = WasmBinaries.capMemory(wasm, maxPages);
-    Source result = capped == wasm ? source : GraalWasmRuntime.source(capped);
+    Source result = capped == wasm ? source
+        : GraalWasmRuntime.source(capped, runtime.isolateSettings() == null);
     cappedSources.put(maxPages, result);
     return result;
   }
@@ -98,7 +107,14 @@ final class GraalWasmProgram implements WasmRuntime.Program {
   @Override
   public WasmRuntime.Result run(byte[] stdin, WasmRuntime.Limits limits)
       throws WasmException, InterruptedException {
-    return GuestThreads.run(() -> runOnThisThread(stdin, limits), limits.deadlineEpochMs());
+    WasmRuntime.Limits bounded = limits;
+    if (runtime.isolateSettings() != null) {
+      long deadline = runtime.isolateSettings().deadline(limits.deadlineEpochMs());
+      bounded = new WasmRuntime.Limits(limits.maxMemoryBytes(), deadline,
+          limits.maxOutputBytes(), limits.randomSeed(), limits.wasiHostPolicy());
+    }
+    WasmRuntime.Limits runLimits = bounded;
+    return GuestThreads.run(() -> runOnThisThread(stdin, runLimits), runLimits.deadlineEpochMs());
   }
 
   /** Runs the guest on the calling thread, whose interrupt the watchdog also watches for. */
@@ -116,12 +132,15 @@ final class GraalWasmProgram implements WasmRuntime.Program {
     WasiHost wasi =
         new WasiHost(stdin, stdout, stderr, limits.randomSeed(), limits.deadlineEpochMs(),
             limits.wasiHostPolicy());
-    Context context = GraalWasmRuntime.contextBuilder().build();
+    long cpuMillis = runtime.isolateSettings() == null ? 0
+        : Math.max(1, Math.min(runtime.isolateSettings().maxCpuMillis(),
+            limits.deadlineEpochMs() - System.currentTimeMillis()));
+    Context context = runtime.newContextBuilder(cpuMillis, limits.maxOutputBytes()).build();
     Watch watch = new Watch(context, Thread.currentThread(), limits.deadlineEpochMs(), stdout, stderr);
     ScheduledFuture<?> poll =
         WATCHDOG.scheduleWithFixedDelay(watch, POLL_MILLIS, POLL_MILLIS, TimeUnit.MILLISECONDS);
     int exitCode = 0;
-    PolyglotException failure = null;
+    Throwable failure = null;
     try {
       Value module = context.eval(capped);
       Value[] memory = new Value[1];
@@ -129,11 +148,22 @@ final class GraalWasmProgram implements WasmRuntime.Program {
       Value exports = instance.getMember("exports");
       memory[0] = exports.getMember("memory");
       exports.getMember("_start").executeVoid();
-    } catch (PolyglotException e) {
-      if (e.isHostException() && e.asHostException() instanceof WasiHost.ProcExit exit) {
-        exitCode = exit.code;
-      } else {
-        failure = e;
+    } catch (PolyglotException | ThreadDeath e) {
+      // An isolate may throw Graal's internal cancellation Error while marshalling a host
+      // callback failure, before it can produce a PolyglotException. Preserve the output or
+      // deadline reason below, but never swallow JVM failures.
+      if (e instanceof ThreadDeath && !graalCancellation(e)) throw (ThreadDeath) e;
+      try {
+        if (!stdout.exceeded() && !stderr.exceeded() && !watch.timedOut
+            && e instanceof PolyglotException polyglot && polyglot.isHostException()
+            && polyglot.asHostException() instanceof WasiHost.ProcExit exit) {
+          exitCode = exit.code;
+        } else {
+          failure = e;
+        }
+      } catch (ThreadDeath marshallingFailure) {
+        if (!graalCancellation(marshallingFailure)) throw marshallingFailure;
+        failure = marshallingFailure;
       }
     } finally {
       poll.cancel(false);
@@ -142,29 +172,27 @@ final class GraalWasmProgram implements WasmRuntime.Program {
         context.close();
       } catch (PolyglotException e) {
         // Closing a context that was cancelled reports that again.
+      } catch (ThreadDeath e) {
+        if (!graalCancellation(e)) throw e;
       }
     }
-    return result(exitCode, failure, watch.interrupted, watch.timedOut, stdout, stderr, limits);
+    return result(exitCode, failure, watch.timedOut, stdout, stderr, limits);
   }
 
   /**
    * The outcome of a run once its context is closed: {@code failure} is what the guest threw (null
-   * if it returned or exited), {@code interrupted} and {@code timedOut} what the watchdog saw.
+   * if it returned or exited), and {@code timedOut} what the watchdog saw. Caller cancellation
+   * comes from {@link GuestThreads}; Graal's own CPU-budget cancellation can interrupt its thread.
    */
   static WasmRuntime.Result result(
       int exitCode,
-      PolyglotException failure,
-      boolean interrupted,
+      Throwable failure,
       boolean timedOut,
       CappedOutputStream stdout,
       CappedOutputStream stderr,
       WasmRuntime.Limits limits)
       throws WasmException, InterruptedException {
-    boolean stopped =
-        failure != null
-            && failure.isHostException()
-            && failure.asHostException() instanceof WasiHost.Stop;
-    if (interrupted || (stopped && Thread.currentThread().isInterrupted())) {
+    if (GuestThreads.callerCancelled()) {
       Thread.interrupted();
       throw new InterruptedException("WebAssembly run interrupted");
     }
@@ -174,9 +202,24 @@ final class GraalWasmProgram implements WasmRuntime.Program {
           "output exceeded " + limits.maxOutputBytes() + " bytes",
           failure);
     }
-    if (timedOut || stopped || (failure != null && failure.isCancelled())) {
+    if (timedOut || (limits.deadlineEpochMs() != 0
+        && System.currentTimeMillis() >= limits.deadlineEpochMs())) {
       throw new WasmException(WasmException.Kind.TIMEOUT, "deadline exceeded", failure);
     }
+    PolyglotException polyglotFailure = failure instanceof PolyglotException p ? p : null;
+    if (polyglotFailure != null && polyglotFailure.isResourceExhausted()
+        && !String.valueOf(polyglotFailure.getMessage()).contains("CPU time")) {
+      throw new WasmException(WasmException.Kind.MEMORY_LIMIT,
+          "GraalWasm isolate resource limit exceeded", failure);
+    }
+    if (polyglotFailure != null && polyglotFailure.isCancelled()) {
+      throw new WasmException(WasmException.Kind.TIMEOUT, "deadline exceeded", failure);
+    }
+    if (graalCancellation(failure)) {
+      throw new WasmException(WasmException.Kind.TIMEOUT,
+          "GraalWasm isolate execution cancelled", failure);
+    }
+    if (failure instanceof Error error) throw error;
     if (failure != null) {
       // compile() accepted the module and every import is a host function, so it links; a
       // failure while instantiating is the module's own (e.g. a data segment out of bounds), a
@@ -260,7 +303,6 @@ final class GraalWasmProgram implements WasmRuntime.Program {
     /** The cancellation the watchdog started, if it started one. */
     private CompletableFuture<Void> cancelling;
     volatile boolean timedOut;
-    volatile boolean interrupted;
 
     Watch(Context context, Thread guest, long deadline, CappedOutputStream stdout,
         CappedOutputStream stderr) {
@@ -277,7 +319,7 @@ final class GraalWasmProgram implements WasmRuntime.Program {
         return;
       }
       if (guest.isInterrupted()) {
-        interrupted = true;
+        // Cancellation may come from the caller or Graal's CPU budget; the task records which.
       } else if (deadline != 0 && System.currentTimeMillis() >= deadline) {
         timedOut = true;
       } else if (!stdout.exceeded() && !stderr.exceeded()) {
