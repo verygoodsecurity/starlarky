@@ -24,7 +24,7 @@ import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 
 /**
  * Small rewrites of WebAssembly binaries, for runtimes that cannot enforce a limit or redirect an
- * import any other way. Only the import, memory and export sections are decoded; every other
+ * import any other way. Only the type, import, function, table, memory and export sections are decoded; every other
  * section is copied byte for byte.
  */
 final class WasmBinaries {
@@ -39,6 +39,7 @@ final class WasmBinaries {
   private static final int SECTION_TYPE = 1;
   private static final int SECTION_IMPORT = 2;
   private static final int SECTION_FUNCTION = 3;
+  private static final int SECTION_TABLE = 4;
   private static final int SECTION_MEMORY = 5;
   private static final int SECTION_EXPORT = 7;
   private static final int SECTION_START = 8;
@@ -122,6 +123,12 @@ final class WasmBinaries {
             functionTypes.add(r.u32());
           }
         }
+        case SECTION_MEMORY -> {
+          // The run limit is for the instance, not a separate allowance for every memory.
+          if (r.u32() != 1) {
+            throw invalid("module must define exactly one memory");
+          }
+        }
         case SECTION_EXPORT -> {
           long count = r.u32();
           for (long i = 0; i < count; i++) {
@@ -156,6 +163,96 @@ final class WasmBinaries {
     }
     return imports;
   }
+
+  /**
+   * Bounds table allocations for the whole instance, including table.grow. All minima are
+   * reserved first; the remaining allowance is shared in declaration order across the tables
+   * still to visit, respecting any smaller declared maximum. Imported tables are rejected by
+   * checkWasiCommand before this rewrite is used.
+   */
+  static byte[] capTables(byte[] wasm) throws WasmException {
+    Reader r = new Reader(wasm);
+    r.header();
+    int sectionStart = -1;
+    int sectionEnd = -1;
+    java.util.List<TableDefinition> tables = new java.util.ArrayList<>();
+    long totalMinimum = 0;
+    while (!r.atEnd()) {
+      int start = r.pos;
+      int id = r.u8();
+      int size = (int) r.u32();
+      int end = r.pos + size;
+      r.checkEnd(end);
+      if (id == SECTION_TABLE) {
+        if (sectionStart >= 0) {
+          throw invalid("duplicate table section");
+        }
+        sectionStart = start;
+        sectionEnd = end;
+        // Keep every read inside this section, including variable-length reference types.
+        Reader tableReader = new Reader(Arrays.copyOfRange(wasm, r.pos, end));
+        long count = tableReader.u32();
+        if (count > WasmRuntime.MAX_TABLES) {
+          throw new WasmException(WasmException.Kind.MEMORY_LIMIT,
+              "module defines " + count + " tables; the limit is " + WasmRuntime.MAX_TABLES);
+        }
+        for (int i = 0; i < count; i++) {
+          int typeStart = tableReader.pos;
+          int type = tableReader.valueType();
+          if (type == 0x40) {
+            throw invalid("explicit table initializer expressions are not supported");
+          }
+          byte[] referenceType = Arrays.copyOfRange(tableReader.b, typeStart, tableReader.pos);
+          int flags = tableReader.u8();
+          if ((flags & ~1) != 0) {
+            throw invalid("unsupported table limits flags " + flags);
+          }
+          long minimum = tableReader.u32();
+          long maximum = (flags & 1) != 0 ? tableReader.u32() : 0xffff_ffffL;
+          if (maximum < minimum) {
+            throw invalid("table maximum is smaller than its minimum");
+          }
+          totalMinimum += minimum;
+          if (totalMinimum > WasmRuntime.MAX_TABLE_ELEMENTS) {
+            throw new WasmException(WasmException.Kind.MEMORY_LIMIT,
+                "initial tables exceed the combined limit of " + WasmRuntime.MAX_TABLE_ELEMENTS
+                    + " elements");
+          }
+          tables.add(new TableDefinition(referenceType, minimum, maximum));
+        }
+        if (!tableReader.atEnd()) {
+          throw invalid("table section size mismatch");
+        }
+      }
+      r.pos = end;
+    }
+    if (sectionStart < 0) {
+      return wasm;
+    }
+    ByteArrayOutputStream body = new ByteArrayOutputStream();
+    writeU(body, tables.size());
+    long remaining = WasmRuntime.MAX_TABLE_ELEMENTS - totalMinimum;
+    for (int i = 0; i < tables.size(); i++) {
+      TableDefinition table = tables.get(i);
+      long maximum = Math.min(table.maximum(),
+          table.minimum() + remaining / (tables.size() - i));
+      remaining -= maximum - table.minimum();
+      body.writeBytes(table.referenceType());
+      body.write(1); // Every table has a maximum, even if the guest omitted it.
+      writeU(body, table.minimum());
+      writeU(body, maximum);
+    }
+    ByteArrayOutputStream out = new ByteArrayOutputStream(wasm.length + tables.size() * 6);
+    out.write(wasm, 0, sectionStart);
+    out.write(SECTION_TABLE);
+    writeU(out, body.size());
+    out.writeBytes(body.toByteArray());
+    out.write(wasm, sectionEnd, wasm.length - sectionEnd);
+    byte[] capped = out.toByteArray();
+    return Arrays.equals(capped, wasm) ? wasm : capped;
+  }
+
+  private record TableDefinition(byte[] referenceType, long minimum, long maximum) {}
 
   /** A value type in {@link WasiHost#SIGNATURES}' notation: i32 {@code i}, i64 {@code I}, else {@code ?}. */
   private static char code(int valueType) {
