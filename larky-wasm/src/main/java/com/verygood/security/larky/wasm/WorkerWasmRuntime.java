@@ -18,8 +18,12 @@ package com.verygood.security.larky.wasm;
 
 import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +36,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocket;
 
 /**
  * Opt-in one-shot worker backend. The host-supplied launcher must place the child JVM under an
@@ -42,17 +48,20 @@ public final class WorkerWasmRuntime implements WasmRuntime {
   private static final String PREFIX = "larky.wasm.worker.";
   private static final ConcurrentHashMap<Settings, Semaphore> ADMISSION = new ConcurrentHashMap<>();
 
-  private record Settings(Path launcher, int backend, long maxRequestMillis, long maxMemoryBytes,
-      int maxInputBytes, int maxOutputBytes, int maxDiagnosticBytes, int maxConcurrent) {}
+  private record Settings(Path launcher, String remoteHost, int remotePort, int backend,
+      long maxRequestMillis, long maxMemoryBytes, int maxInputBytes, int maxOutputBytes,
+      int maxDiagnosticBytes, int maxConcurrent) {}
 
   private final Settings settings;
   private final WasmHostLimits hostLimits;
   private final Semaphore slots;
+  private final WorkerTlsConfig tls;
 
   public WorkerWasmRuntime() throws WasmException {
     try {
       this.settings = configuredSettings();
       this.hostLimits = WasmHostLimits.configured();
+      this.tls = settings.remoteHost() == null ? null : WorkerTlsConfig.configured();
     } catch (IllegalArgumentException e) {
       throw new WasmException(WasmException.Kind.INVALID_MODULE, e.getMessage(), e);
     }
@@ -128,6 +137,9 @@ public final class WorkerWasmRuntime implements WasmRuntime {
         throw unavailable("could not encode worker request", e);
       }
       if (remaining(deadline) == 0) throw timeout();
+      if (settings.remoteHost() != null) {
+        return exchangeRemote(encoded, request.maxOutputBytes(), deadline);
+      }
       Process process = startLauncher(deadline);
       try {
         return exchange(process, encoded, request.maxOutputBytes(), deadline);
@@ -137,6 +149,66 @@ public final class WorkerWasmRuntime implements WasmRuntime {
     } finally {
       slots.release();
     }
+  }
+
+  private WorkerProtocol.Response exchangeRemote(byte[] request, int maxOutput, long deadline)
+      throws WasmException, InterruptedException {
+    AtomicReference<Socket> connection = new AtomicReference<>();
+    AtomicBoolean abandoned = new AtomicBoolean();
+    ExecutorService io = Executors.newVirtualThreadPerTaskExecutor();
+    try {
+      Future<WorkerProtocol.Response> exchange = io.submit(() -> {
+        try (Socket raw = new Socket()) {
+          connection.set(raw);
+          if (abandoned.get()) throw new IOException("remote worker request expired");
+          raw.connect(new InetSocketAddress(settings.remoteHost(), settings.remotePort()),
+              timeoutMillis(deadline));
+          if (abandoned.get()) throw new IOException("remote worker request expired");
+          try (SSLSocket socket = (SSLSocket) tls.context().getSocketFactory()
+              .createSocket(raw, settings.remoteHost(), settings.remotePort(), true)) {
+            connection.set(socket);
+            if (abandoned.get()) throw new IOException("remote worker request expired");
+            socket.setSoTimeout(timeoutMillis(deadline));
+            SSLParameters parameters = socket.getSSLParameters();
+            parameters.setEndpointIdentificationAlgorithm("HTTPS");
+            socket.setSSLParameters(parameters);
+            socket.startHandshake();
+            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+            out.writeInt(request.length);
+            out.write(request);
+            out.flush();
+            DataInputStream in = new DataInputStream(socket.getInputStream());
+            long maxResponse = 32L + 2L * maxOutput + WorkerProtocol.MAX_MESSAGE_BYTES;
+            int size = in.readInt();
+            if (size < 0 || size > maxResponse) {
+              throw new IOException("remote worker response exceeded IPC limit");
+            }
+            byte[] response = in.readNBytes(size);
+            if (response.length != size) throw new IOException("truncated remote worker response");
+            return WorkerProtocol.decodeResponse(response, maxOutput);
+          }
+        }
+      });
+      try {
+        WorkerProtocol.Response response = exchange.get(remaining(deadline), TimeUnit.NANOSECONDS);
+        if (response.error() != null) throw response.error();
+        return response;
+      } catch (TimeoutException e) {
+        throw timeout();
+      } catch (ExecutionException e) {
+        throw unavailable("remote worker transport failed", e.getCause());
+      }
+    } finally {
+      abandoned.set(true);
+      Socket active = connection.get();
+      if (active != null) try { active.close(); } catch (IOException ignored) { }
+      io.shutdownNow();
+    }
+  }
+
+  private static int timeoutMillis(long deadline) {
+    return (int) Math.max(1, Math.min(Integer.MAX_VALUE,
+        TimeUnit.NANOSECONDS.toMillis(remaining(deadline))));
   }
 
   private Process startLauncher(long deadline) throws WasmException, InterruptedException {
@@ -187,11 +259,11 @@ public final class WorkerWasmRuntime implements WasmRuntime {
       }
       byte[] reply = stdout.get(remaining(deadline), TimeUnit.NANOSECONDS);
       stderr.get(remaining(deadline), TimeUnit.NANOSECONDS);
-      writer.get(remaining(deadline), TimeUnit.NANOSECONDS);
       if (process.exitValue() != 0) {
         throw unavailable("worker exited without a valid result (exit code "
             + process.exitValue() + ")", null);
       }
+      writer.get(remaining(deadline), TimeUnit.NANOSECONDS);
       WorkerProtocol.Response result = WorkerProtocol.decodeResponse(reply, maxOutput);
       if (result.error() != null) throw result.error();
       return result;
@@ -250,14 +322,30 @@ public final class WorkerWasmRuntime implements WasmRuntime {
 
   private static Settings configuredSettings() throws WasmException {
     String value = System.getProperty(PREFIX + "launcher");
-    if (value == null || value.isBlank()) {
+    String remoteHost = System.getProperty(PREFIX + "remote.host");
+    boolean local = value != null && !value.isBlank();
+    boolean remote = remoteHost != null && !remoteHost.isBlank();
+    if (local == remote) {
       throw new WasmException(WasmException.Kind.INVALID_MODULE,
-          "worker backend requires an explicit OS-limited launcher");
+          "worker backend requires exactly one local launcher or remote host");
     }
-    Path launcher = Path.of(value);
-    if (!launcher.isAbsolute() || !Files.isRegularFile(launcher) || !Files.isExecutable(launcher)) {
+    Path launcher = local ? Path.of(value) : null;
+    if (local && (!launcher.isAbsolute() || !Files.isRegularFile(launcher)
+        || !Files.isExecutable(launcher))) {
       throw new WasmException(WasmException.Kind.INVALID_MODULE,
           "worker launcher must be an absolute executable file");
+    }
+    int remotePort = 0;
+    if (remote) {
+      if (System.getProperty(PREFIX + "remote.port") == null) {
+        throw new WasmException(WasmException.Kind.INVALID_MODULE,
+            "remote worker port is required");
+      }
+      remotePort = positiveInt("remote.port", 0);
+      if (remotePort > 65535) {
+        throw new WasmException(WasmException.Kind.INVALID_MODULE,
+            "remote worker port must be at most 65535");
+      }
     }
     String backend = System.getProperty(PREFIX + "backend", "endive");
     int backendCode = switch (backend) {
@@ -266,7 +354,8 @@ public final class WorkerWasmRuntime implements WasmRuntime {
       default -> throw new WasmException(WasmException.Kind.INVALID_MODULE,
           "worker backend must be endive or graal-isolate");
     };
-    return new Settings(launcher, backendCode, positiveLong("maxRequestMillis", 10_000),
+    return new Settings(launcher, remoteHost, remotePort, backendCode,
+        positiveLong("maxRequestMillis", 10_000),
         positiveLong("maxMemoryBytes", Limits.DEFAULT_MAX_MEMORY_BYTES),
         positiveInt("maxInputBytes", 1 << 20),
         positiveInt("maxOutputBytes", Limits.DEFAULT_MAX_OUTPUT_BYTES),

@@ -247,7 +247,8 @@ whole-request limit.
 
 ### One-shot worker backend (JDK 21)
 
-Select `-Dlarky.wasm.runtime=worker` only after a trusted host has configured
+Select `-Dlarky.wasm.runtime=worker` only after a trusted host has configured exactly one of a
+local launcher or a remote worker. For a local worker, set
 `-Dlarky.wasm.worker.launcher=/absolute/path/to/launcher`. The launcher receives one versioned
 binary request on stdin and must return one bounded binary response on stdout. It must start
 `com.verygood.security.larky.wasm.WorkerMain` with the matching application classpath. The parent
@@ -263,7 +264,19 @@ diagnostics to 4 KiB, and each request to 10 seconds by default. Trusted hosts c
 `larky.wasm.worker.maxConcurrent`, `maxMemoryBytes`, `maxInputBytes`, `maxOutputBytes`,
 `maxDiagnosticBytes`, and `maxRequestMillis` (up to one day). The ordinary configurable
 `larky.wasm.*` module, table, memory, and output caps still apply. A Larky evaluation deadline
-shorter than the worker maximum wins. An absent or invalid launcher fails closed.
+shorter than the worker maximum wins. Missing or invalid worker connection settings fail closed.
+
+For a worker in a separately limited Pod, set `larky.wasm.worker.remote.host` and
+`larky.wasm.worker.remote.port` instead of `launcher`. Both ends load PKCS12 identity and trust
+stores from absolute files using `larky.wasm.worker.tls.keyStore`, `keyStorePasswordFile`,
+`trustStore`, and `trustStorePasswordFile`; passwords are read from files, not command-line values.
+The connection requires TLS 1.3, client certificates, and server hostname verification. The
+remote server entry point is `com.verygood.security.larky.wasm.WorkerTlsServer`; the
+`Dockerfile.wasm-worker` image runs it with one concurrent request and a fresh child JVM per
+compile or run. The server's own maximum request time is 10 seconds unless the trusted host sets
+`larky.wasm.worker.server.maxRequestMillis`. Both client and server must set compatible module,
+input, memory, and output limits. The client deadline includes connection setup and response
+transfer. Use a dedicated trust store for this service and restrict access with a NetworkPolicy.
 
 **The launcher is the security boundary.** It must put the worker under an independent OS memory,
 CPU, and process budget *before* the child reads customer bytes, and ensure that timeout or launcher
@@ -279,8 +292,11 @@ Atlas Horizon's checked-in Kubernetes Rollout runs a JDK 21 service image. Its c
 inside either container would share its limit and could still kill the
 service. For Atlas Horizon, use a separately limited worker Pod/service or an equivalent delegated
 OS sandbox, then rerun the parser, table, loop, worker-OOM, and healthy-after-failure probes against
-that deployment. No such production launcher or worker service is supplied by this module; merely
-selecting `worker` does not establish parent survival.
+that deployment. This module supplies the worker server and image, but not an Atlas deployment or
+credentials. The image must be placed in a **separate Pod with its own container memory and CPU
+limits**; running it in Atlas's Pod or without OS limits does not establish parent survival. Its
+child JVM can read files mounted in the server container, including the TLS keys; a separate TLS
+proxy container with keys mounted only there would narrow that exposure.
 
 Endive interprets modules by default. `-Dlarky.wasm.endive.mode=compiler` compiles each module to
 JVM bytecode instead, which runs faster but costs time and Metaspace in proportion to the module
