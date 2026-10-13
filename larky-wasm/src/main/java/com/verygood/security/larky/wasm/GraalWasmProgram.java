@@ -176,23 +176,23 @@ final class GraalWasmProgram implements WasmRuntime.Program {
         if (!graalCancellation(e)) throw e;
       }
     }
-    return result(exitCode, failure, watch.interrupted, watch.timedOut, stdout, stderr, limits);
+    return result(exitCode, failure, watch.timedOut, stdout, stderr, limits);
   }
 
   /**
    * The outcome of a run once its context is closed: {@code failure} is what the guest threw (null
-   * if it returned or exited), {@code interrupted} and {@code timedOut} what the watchdog saw.
+   * if it returned or exited), and {@code timedOut} what the watchdog saw. Caller cancellation
+   * comes from {@link GuestThreads}; Graal's own CPU-budget cancellation can interrupt its thread.
    */
   static WasmRuntime.Result result(
       int exitCode,
       Throwable failure,
-      boolean interrupted,
       boolean timedOut,
       CappedOutputStream stdout,
       CappedOutputStream stderr,
       WasmRuntime.Limits limits)
       throws WasmException, InterruptedException {
-    if (interrupted || Thread.currentThread().isInterrupted()) {
+    if (GuestThreads.callerCancelled()) {
       Thread.interrupted();
       throw new InterruptedException("WebAssembly run interrupted");
     }
@@ -303,7 +303,6 @@ final class GraalWasmProgram implements WasmRuntime.Program {
     /** The cancellation the watchdog started, if it started one. */
     private CompletableFuture<Void> cancelling;
     volatile boolean timedOut;
-    volatile boolean interrupted;
 
     Watch(Context context, Thread guest, long deadline, CappedOutputStream stdout,
         CappedOutputStream stderr) {
@@ -320,7 +319,7 @@ final class GraalWasmProgram implements WasmRuntime.Program {
         return;
       }
       if (guest.isInterrupted()) {
-        interrupted = true;
+        // Cancellation may come from the caller or Graal's CPU budget; the task records which.
       } else if (deadline != 0 && System.currentTimeMillis() >= deadline) {
         timedOut = true;
       } else if (!stdout.exceeded() && !stderr.exceeded()) {

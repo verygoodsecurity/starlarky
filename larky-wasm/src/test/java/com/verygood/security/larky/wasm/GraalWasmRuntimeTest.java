@@ -451,7 +451,6 @@ public final class GraalWasmRuntimeTest {
                 0,
                 null,
                 false,
-                false,
                 new CappedOutputStream("stdout", 10),
                 new CappedOutputStream("stderr", 10),
                 WasmRuntime.Limits.defaults()));

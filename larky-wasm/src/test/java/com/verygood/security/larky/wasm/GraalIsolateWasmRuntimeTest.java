@@ -24,6 +24,7 @@ import com.verygood.security.larky.wasm.conformance.Fixtures;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.graalvm.polyglot.Context;
 import org.junit.Test;
 
@@ -73,6 +74,25 @@ public final class GraalIsolateWasmRuntimeTest {
     WasmException failure = assertThrows(WasmException.class,
         () -> spin.run(new byte[0], WasmRuntime.Limits.defaults()));
     assertThat(failure.kind()).isEqualTo(WasmException.Kind.TIMEOUT);
+  }
+
+  @Test
+  public void callerInterruptRemainsDistinctFromTheCpuBudget() throws Exception {
+    WasmRuntime.Program spin = runtime.compile(Fixtures.wasm("spin"));
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+    Thread caller = new Thread(() -> {
+      try {
+        spin.run(new byte[0], WasmRuntime.Limits.defaults());
+      } catch (Throwable e) {
+        failure.set(e);
+      }
+    });
+    caller.start();
+    Thread.sleep(200);
+    caller.interrupt();
+    caller.join(5_000);
+    assertThat(caller.isAlive()).isFalse();
+    assertThat(failure.get()).isInstanceOf(InterruptedException.class);
   }
 
   @Test
