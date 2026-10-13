@@ -1,4 +1,4 @@
-# Ported from dukpt 1.0.1 (PyPI sdist sha256:924076e36f946f16feb25f85969a70c513c14172a055ffc7f3d94cadded392a4; no git tag, nearest commit github.com/chokepoint/DUKPT@5d40401d267684591856189bf90cfc8b83b3fca6): dukpt.py. ANSI X9.24-1 corrections to dukpt 1.0.1: all 21 counter bits in derive_key, counter cleared for both IPEK halves, unsigned counter increment that fails on exhaustion. See larky/src/main/resources/VENDORED.md.
+# Ported from dukpt 1.0.1 (allen246/dukpt@d3c66715, the source of the PyPI 1.0.1 release; dukpt.py sha256:9e974b75f2afe39bce992c59c1daff3b8b3fdc40a38971a459adfa653b788dca): dukpt.py. ANSI X9.24-1 corrections to dukpt 1.0.1: all 21 counter bits in derive_key, counter cleared for both IPEK halves, unsigned counter increment that fails on exhaustion. See larky/src/main/resources/VENDORED.md.
 #
 # MIT License
 #
