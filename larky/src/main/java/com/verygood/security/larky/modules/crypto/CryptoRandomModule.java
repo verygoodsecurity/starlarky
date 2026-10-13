@@ -10,6 +10,7 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkBytes;
@@ -19,7 +20,6 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
-import org.bouncycastle.util.BigIntegers;
 
 public class CryptoRandomModule implements StarlarkValue {
 
@@ -30,78 +30,99 @@ public class CryptoRandomModule implements StarlarkValue {
 
   }, useStarlarkThread = true)
   public StarlarkBytes urandom(StarlarkInt n, StarlarkThread thrd) throws EvalException {
-    SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
-    byte[] key = new byte[n.toIntUnchecked()];
-    secureRandom.nextBytes(key);
+    if (n.signum() < 0) {
+      throw Starlark.errorf("ValueError: negative argument not allowed");
+    }
+    byte[] key = new byte[n.toInt("n")];
+    CryptoServicesRegistrar.getSecureRandom().nextBytes(key);
     return StarlarkBytes.of(thrd.mutability(), key);
-//    return StarlarkBytes.builder(thrd).setSequence(key).build();
   }
 
   @StarlarkMethod(
       name = "getrandbits",
-      doc = "Return an integer with k random bits.",
+      doc = "Return a non-negative integer with k random bits.",
       parameters = {@Param(name = "k")}
   )
-  public StarlarkInt getrandbits(StarlarkInt k) {
-    SecureRandom secRandom = CryptoServicesRegistrar.getSecureRandom();
-    int numBits = k.toIntUnchecked();
-    BigInteger candidate = new BigInteger(numBits, secRandom);
-    while(candidate.equals(BigInteger.ZERO)) {
-        candidate = new BigInteger(numBits, secRandom);
+  public StarlarkInt getrandbits(StarlarkInt k) throws EvalException {
+    if (k.signum() < 0) {
+      throw Starlark.errorf("ValueError: number of bits must be non-negative");
     }
-    return StarlarkInt.of(candidate);
+    // Uniform over [0, 2**k); getrandbits(0) is 0, as in CPython.
+    return StarlarkInt.of(new BigInteger(k.toInt("k"), CryptoServicesRegistrar.getSecureRandom()));
+  }
+
+  /** Returns a uniformly distributed integer in [0, n), for n > 0. */
+  private static BigInteger randbelow(BigInteger n) {
+    SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
+    int k = n.bitLength();
+    // Rejection sampling: each draw is accepted with probability > 1/2.
+    BigInteger r = new BigInteger(k, secureRandom);
+    while (r.compareTo(n) >= 0) {
+      r = new BigInteger(k, secureRandom);
+    }
+    return r;
   }
 
   @StarlarkMethod(
       name = "randrange",
       doc = "randrange([start,] stop[, step]):\n" +
           "Return a randomly-selected element from range(start, stop, step).",
-      parameters = {@Param(name = "start"), @Param(name = "stop", defaultValue = "None"), @Param(name = "step", defaultValue = "1")}
+      parameters = {
+          @Param(name = "start", named = true, allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+          @Param(name = "stop", named = true, defaultValue = "None", allowedTypes = {
+              @ParamType(type = StarlarkInt.class), @ParamType(type = NoneType.class)}),
+          @Param(name = "step", named = true, defaultValue = "1", allowedTypes = {@ParamType(type = StarlarkInt.class)})
+      }
   )
-  public StarlarkInt randrange(Object startObj, Object stopObj, StarlarkInt step_) throws EvalException {
-    SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
-    int start, stop;
-    int step = step_.toIntUnchecked();
-
-    if (Starlark.isNullOrNone(stopObj)) {
-        stop = Starlark.toInt(startObj, "stop");
-        start = 0;
-    } else {
-        start = Starlark.toInt(startObj, "start");
-        stop = Starlark.toInt(stopObj, "stop");
+  public StarlarkInt randrange(StarlarkInt start, Object stop, StarlarkInt step) throws EvalException {
+    // Follows CPython 3.12's Random.randrange, including its error messages.
+    BigInteger istart = start.toBigInteger();
+    BigInteger istep = step.toBigInteger();
+    if (Starlark.isNullOrNone(stop)) {
+      if (!istep.equals(BigInteger.ONE)) {
+        throw Starlark.errorf("TypeError: Missing a non-None stop argument");
+      }
+      if (istart.signum() > 0) {
+        return StarlarkInt.of(randbelow(istart));
+      }
+      throw Starlark.errorf("ValueError: empty range for randrange()");
     }
-
-    int width = stop - start;
-
-    if (step == 0) {
-        throw Starlark.errorf("zero step for radrange()");
+    BigInteger istop = ((StarlarkInt) stop).toBigInteger();
+    BigInteger width = istop.subtract(istart);
+    if (istep.equals(BigInteger.ONE)) {
+      if (width.signum() > 0) {
+        return StarlarkInt.of(istart.add(randbelow(width)));
+      }
+      throw Starlark.errorf("ValueError: empty range in randrange(%s, %s)", start, stop);
     }
-
-    if ((step == 1) && (width > 0)) {
-      return StarlarkInt.of(start + secureRandom.nextInt(width));
+    if (istep.signum() == 0) {
+      throw Starlark.errorf("ValueError: zero step for randrange()");
     }
-
-    int n = (step > 0) ? (width + step - 1) /step : (width + step + 1) /step;
-
-    if (n <= 0) {
-      throw Starlark.errorf("empty range for randrange()");
+    // n = number of elements of range(start, stop, step). When width and step
+    // have the same sign, both operands of the division share a sign, so
+    // truncating division equals CPython's floor division.
+    BigInteger n = BigInteger.ZERO;
+    if (width.signum() == istep.signum()) {
+      BigInteger adjust = istep.signum() > 0 ? BigInteger.ONE.negate() : BigInteger.ONE;
+      n = width.add(istep).add(adjust).divide(istep);
     }
-
-    return StarlarkInt.of(start + step * secureRandom.nextInt(n));
+    if (n.signum() <= 0) {
+      throw Starlark.errorf("ValueError: empty range in randrange(%s, %s, %s)", start, stop, step);
+    }
+    return StarlarkInt.of(istart.add(istep.multiply(randbelow(n))));
   }
 
   @StarlarkMethod(
       name = "randint",
       doc = "Return a random integer N such that a <= N <= b.",
-      parameters = {@Param(name = "min"), @Param(name = "max")}
+      parameters = {
+          @Param(name = "min", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
+          @Param(name = "max", allowedTypes = {@ParamType(type = StarlarkInt.class)})
+      }
   )
-  public StarlarkInt randint(StarlarkInt min, StarlarkInt max) {
-    SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
-    BigInteger rir = BigIntegers.createRandomInRange(
-        min.toBigInteger(),
-        max.toBigInteger(),
-        secureRandom);
-    return StarlarkInt.of(rir);
+  public StarlarkInt randint(StarlarkInt min, StarlarkInt max) throws EvalException {
+    // CPython: randint(a, b) is randrange(a, b + 1).
+    return randrange(min, StarlarkInt.of(max.toBigInteger().add(BigInteger.ONE)), StarlarkInt.of(1));
   }
 
   @StarlarkMethod(
@@ -112,7 +133,7 @@ public class CryptoRandomModule implements StarlarkValue {
    )
    public Object choice(Sequence<?> seq) throws EvalException {
      if(seq.size() == 0) {
-       throw Starlark.errorf("IndexError: sequence index is out of range");
+       throw Starlark.errorf("IndexError: Cannot choose from an empty sequence");
      }
      SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
      int ri = secureRandom.nextInt(seq.size());
@@ -125,11 +146,13 @@ public class CryptoRandomModule implements StarlarkValue {
       parameters = {@Param(name = "n")},
      useStarlarkThread = true
   )
-  public StarlarkBytes randbytes(StarlarkInt n, StarlarkThread thread) {
-    SecureRandom secRandom = CryptoServicesRegistrar.getSecureRandom();
-    int numBytes = n.toIntUnchecked();
-    byte[] randomBytes = new byte[numBytes];
-    secRandom.nextBytes(randomBytes);
+  public StarlarkBytes randbytes(StarlarkInt n, StarlarkThread thread) throws EvalException {
+    if (n.signum() < 0) {
+      // CPython's randbytes(n) is getrandbits(n * 8).to_bytes(n, 'little').
+      throw Starlark.errorf("ValueError: number of bits must be non-negative");
+    }
+    byte[] randomBytes = new byte[n.toInt("n")];
+    CryptoServicesRegistrar.getSecureRandom().nextBytes(randomBytes);
     return StarlarkBytes.of(thread.mutability(), randomBytes);
   }
 
@@ -141,7 +164,7 @@ public class CryptoRandomModule implements StarlarkValue {
   )
   public Sequence<?> shuffle(Sequence<?> x, StarlarkThread thread) {
     List<?> shufflable = new ArrayList<>(x.getImmutableList());
-    Collections.shuffle(shufflable);
+    Collections.shuffle(shufflable, CryptoServicesRegistrar.getSecureRandom());
     return StarlarkList.copyOf(thread.mutability(), shufflable);
   }
 
@@ -151,8 +174,12 @@ public class CryptoRandomModule implements StarlarkValue {
       parameters = {@Param(name = "population"), @Param(name = "k")},
       useStarlarkThread = true
   )
-  public Sequence<?> sample(Sequence<?> population, StarlarkInt k, StarlarkThread thread) {
-    int n = k.toIntUnchecked();
+  public Sequence<?> sample(Sequence<?> population, StarlarkInt k, StarlarkThread thread)
+      throws EvalException {
+    if (k.signum() < 0 || k.toBigInteger().compareTo(BigInteger.valueOf(population.size())) > 0) {
+      throw Starlark.errorf("ValueError: Sample larger than population or is negative");
+    }
+    int n = k.toInt("k");
     List<?> shufflable = new ArrayList<>(population.getImmutableList());
     List<?> objects = pickNRandomElements(shufflable, n);
     return StarlarkList.copyOf(thread.mutability(), objects);
