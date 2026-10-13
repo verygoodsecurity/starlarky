@@ -169,14 +169,28 @@ def _test_response_set_body_drops_stale_content_length():
     asserts.assert_that(response.headers).is_equal_to({'Content-Type': 'text/plain'})
 
 
-def _test_response_set_body_keeps_other_content_length_spellings():
-    """Only the exact name "Content-length" is dropped, as before; see issue #292."""
-    response = VGSHttpResponse(
-        body=builtins.bytes('response body'),
-        headers={'Content-Length': '13'},
-    )
-    response.body = builtins.bytes('a much longer response body')
-    asserts.assert_that(response.headers).is_equal_to({'Content-Length': '13'})
+def _test_response_set_body_drops_other_content_length_spellings():
+    """Header names are case-insensitive: every spelling of Content-Length is dropped."""
+    for name in ['Content-Length', 'content-length', 'CONTENT-LENGTH']:
+        response = VGSHttpResponse(
+            body=builtins.bytes('response body'),
+            headers={name: '13', 'Content-Type': 'text/plain'},
+        )
+        response.body = builtins.bytes('a much longer response body')
+        asserts.assert_that(response.headers).is_equal_to({'Content-Type': 'text/plain'})
+
+
+def _test_response_header_helpers_reject_non_string_names():
+    response = _create_simple_response()
+    asserts.assert_fails(
+        lambda: response.has_header(None),
+        "TypeError: VGSHttpResponse.has_header\\(header_name\\) expected `string`; got NoneType")
+    asserts.assert_fails(
+        lambda: response.get_header(1),
+        "TypeError: VGSHttpResponse.get_header\\(header_name\\) expected `string`; got int")
+    asserts.assert_fails(
+        lambda: response.remove_header(['header1']),
+        "TypeError: VGSHttpResponse.remove_header\\(header_name\\) expected `string`; got list")
 
 
 def _test_response_get_status_code():
@@ -206,7 +220,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_response_add_header_replaces))
     _suite.addTest(unittest.FunctionTestCase(_test_response_remove_missing_header_is_a_noop))
     _suite.addTest(unittest.FunctionTestCase(_test_response_set_body_drops_stale_content_length))
-    _suite.addTest(unittest.FunctionTestCase(_test_response_set_body_keeps_other_content_length_spellings))
+    _suite.addTest(unittest.FunctionTestCase(_test_response_set_body_drops_other_content_length_spellings))
+    _suite.addTest(unittest.FunctionTestCase(_test_response_header_helpers_reject_non_string_names))
     _suite.addTest(unittest.FunctionTestCase(_test_response_get_status_code))
     _suite.addTest(unittest.FunctionTestCase(_test_is_instance))
 

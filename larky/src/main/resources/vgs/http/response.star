@@ -28,6 +28,11 @@ def _header_dict(headers):
     return result
 
 
+def _check_name(method, name):
+    if not types.is_string(name):
+        fail("TypeError: VGSHttpResponse.%s(header_name) expected `string`; got %s" % (method, type(name)))
+
+
 def _same_name(key, name):
     return types.is_string(key) and key.lower() == name.lower()
 
@@ -47,11 +52,9 @@ def VGSHttpResponse(
     def _set_body(body):
         if body != self._body:
             self._body = body
-            # issue 16464
-            # if we change data we need to remove content-length header
-            # (cause it's most probably calculated for previous value)
-            if "Content-length" in self.headers:
-                self.headers.pop("Content-length")
+            # issue 16464: a Content-Length computed for the previous body is wrong.
+            # Header names are case-insensitive, so drop every spelling of it.
+            self.remove_header("Content-Length")
     self.body = larky.property(_get_body, _set_body)
 
     # headers property: the dict is kept as is, so later changes to it still apply
@@ -68,6 +71,7 @@ def VGSHttpResponse(
 
     def has_header(header_name):
         """Whether a header named `header_name`, in any case, is set."""
+        _check_name("has_header", header_name)
         for key in self.headers:
             if _same_name(key, header_name):
                 return True
@@ -76,6 +80,7 @@ def VGSHttpResponse(
 
     def get_header(header_name, default=None):
         """Return the value of the first header named `header_name`, in any case."""
+        _check_name("get_header", header_name)
         for key, value in self.headers.items():
             if _same_name(key, header_name):
                 return value
@@ -84,6 +89,7 @@ def VGSHttpResponse(
 
     def remove_header(header_name):
         """Remove every header named `header_name`, in any case."""
+        _check_name("remove_header", header_name)
         for key in [k for k in self.headers if _same_name(k, header_name)]:
             self.headers.pop(key)
     self.remove_header = remove_header
