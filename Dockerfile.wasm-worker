@@ -8,6 +8,7 @@ RUN mvn -q -DskipTests package dependency:copy-dependencies \
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
+RUN test -x /opt/java/openjdk/bin/java
 COPY --from=build /build/larky-wasm/target/larky-wasm-1.0.0-SNAPSHOT.jar /app/worker.jar
 COPY --from=build /build/larky-wasm/target/dependency/ /app/lib/
 COPY --chmod=0555 larky-wasm/src/main/worker/server.sh /app/server.sh

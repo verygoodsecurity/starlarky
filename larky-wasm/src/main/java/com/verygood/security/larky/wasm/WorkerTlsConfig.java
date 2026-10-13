@@ -17,6 +17,10 @@
 package com.verygood.security.larky.wasm;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -65,13 +69,33 @@ record WorkerTlsConfig(SSLContext context) {
   }
 
   private static char[] password(String suffix) throws IOException {
-    String value = Files.readString(configuredPath(suffix), StandardCharsets.UTF_8);
-    if (value.endsWith("\n")) value = value.substring(0, value.length() - 1);
-    if (value.endsWith("\r")) value = value.substring(0, value.length() - 1);
-    if (value.isEmpty() || value.length() > 1024) {
-      throw new IOException("invalid worker TLS password file");
+    byte[] bytes;
+    try (var input = Files.newInputStream(configuredPath(suffix))) {
+      bytes = input.readNBytes(1025);
     }
-    return value.toCharArray();
+    char[] decoded = new char[1024];
+    try {
+      if (bytes.length == 0 || bytes.length > 1024) {
+        throw new IOException("invalid worker TLS password file");
+      }
+      int length = bytes.length;
+      while (length > 0 && (bytes[length - 1] == '\n' || bytes[length - 1] == '\r')) length--;
+      if (length == 0) throw new IOException("invalid worker TLS password file");
+      var decoder = StandardCharsets.UTF_8.newDecoder()
+          .onMalformedInput(CodingErrorAction.REPORT)
+          .onUnmappableCharacter(CodingErrorAction.REPORT);
+      CharBuffer output = CharBuffer.wrap(decoded);
+      var result = decoder.decode(ByteBuffer.wrap(bytes, 0, length), output, true);
+      if (result.isError() || result.isOverflow()) result.throwException();
+      result = decoder.flush(output);
+      if (result.isError() || result.isOverflow()) result.throwException();
+      return Arrays.copyOf(decoded, output.position());
+    } catch (CharacterCodingException e) {
+      throw new IOException("invalid worker TLS password encoding", e);
+    } finally {
+      Arrays.fill(bytes, (byte) 0);
+      Arrays.fill(decoded, '\0');
+    }
   }
 
   private static Path configuredPath(String suffix) {

@@ -121,6 +121,12 @@ public final class WorkerRemoteWasmRuntimeTest {
     assertThat(result.exitCode()).isEqualTo(0);
   }
 
+  @Test
+  public void oversizedTlsPasswordFileIsRejected() throws Exception {
+    Files.writeString(files.resolve("password"), "x".repeat(1025));
+    assertThrows(IllegalArgumentException.class, WorkerTlsConfig::configured);
+  }
+
   private static void keytool(String home, String... args) throws Exception {
     String[] command = new String[args.length + 1];
     command[0] = Path.of(home, "bin", "keytool").toString();
