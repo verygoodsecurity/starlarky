@@ -45,6 +45,11 @@ public class LarkyFunction extends LarkyDescriptor implements ForwardingLarkyTyp
     return new LarkyFunction(TYPE, function, thread);
   }
 
+  /** The wrapped callable, not bound to any class. */
+  public StarlarkCallable getFunction() {
+    return this.fget;
+  }
+
   @Override
   public LarkyType delegate() {
     return __class__();

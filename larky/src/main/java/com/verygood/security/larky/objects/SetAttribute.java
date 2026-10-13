@@ -19,7 +19,7 @@ public abstract class SetAttribute {
 
   private SetAttribute() {} // do not inherit from this.
 
-  private static boolean onDataDescriptor(String attr, PyObject obj, Object value, StarlarkThread thread) {
+  private static boolean onDataDescriptor(String attr, PyObject obj, Object value, StarlarkThread thread) throws EvalException {
     // Look up the name in the type (null if not found).
     Object typeAttr = obj.typeClass().lookup(attr);
     if (typeAttr == null) {
@@ -27,17 +27,22 @@ public abstract class SetAttribute {
     }
     boolean result = false;
     // Found in the type, it might be a descriptor
+    // is typeAttr a data descriptor? if so, call its __set__. Its own errors (e.g. a frozen
+    // attribute) propagate as they are: the descriptor does define __set__.
+    if (typeAttr instanceof LarkyDataDescriptor) {
+      final LarkyDataDescriptor typeAttrAsDesc = (LarkyDataDescriptor) typeAttr;
+      if(typeAttrAsDesc.readonly()) {
+        throw Starlark.errorf("%s is readonly.", typeAttrAsDesc);
+      }
+      try {
+        typeAttrAsDesc.__set__(obj, value, thread);
+      } catch (InterruptedException e) {
+        throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, thread);
+      }
+      return true;
+    }
     try {
-      // is typeAttr a data descriptor? if so, call its __set__.
-      if (typeAttr instanceof LarkyDataDescriptor) {
-        final LarkyDataDescriptor typeAttrAsDesc = (LarkyDataDescriptor) typeAttr;
-        if(typeAttrAsDesc.readonly()) {
-          throw Starlark.errorf("%s is readonly.", typeAttrAsDesc);
-        }
-          typeAttrAsDesc.__set__(obj, value, thread);
-          result = true;
-
-      } else if (LarkyDataDescriptor.isDataDescriptor(typeAttr)) {
+      if (LarkyDataDescriptor.isDataDescriptor(typeAttr)) {
         // ok it's not a data descriptor instance, but it does contain some fields
         // that make it a data descriptor, so, let's see if it also has a __set__
         Object __set__ = LarkyNonDataDescriptor.descriptorMethod(typeAttr, PyProtocols.__SET__, thread);
