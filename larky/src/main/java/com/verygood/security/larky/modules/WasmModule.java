@@ -163,7 +163,7 @@ public final class WasmModule implements StarlarkValue {
     } catch (WasmException e) {
       throw new EvalException(e.getMessage()); // e.g. "no WebAssembly runtime named 'x'"
     }
-    String key = runtime.name() + ":" + Hashing.sha256().hashBytes(wasm);
+    String key = runtime.compilePolicyKey() + ":" + Hashing.sha256().hashBytes(wasm);
     try {
       // One compile per module even when many evaluations ask for it at once.
       return PROGRAMS.get(key, () -> new Compiled(runtime.compile(wasm), wasm.length)).program();
