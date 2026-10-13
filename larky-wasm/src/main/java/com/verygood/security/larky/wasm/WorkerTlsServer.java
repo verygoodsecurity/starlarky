@@ -16,8 +16,6 @@
 
 package com.verygood.security.larky.wasm;
 
-import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
-import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -38,9 +36,7 @@ import javax.net.ssl.SSLSocket;
 public final class WorkerTlsServer implements AutoCloseable {
   private static final String PREFIX = "larky.wasm.worker.server.";
   private final SSLServerSocket listener;
-  private final WorkerWasmRuntime runtime;
-  private final WasmHostLimits hostLimits;
-  private final int maxInputBytes;
+  private final WorkerRequestService service;
   private final long maxRequestMillis;
   private final Semaphore admission;
   private final ExecutorService handlers = Executors.newVirtualThreadPerTaskExecutor();
@@ -51,10 +47,8 @@ public final class WorkerTlsServer implements AutoCloseable {
         .createServerSocket(port, 16, address);
     this.listener.setNeedClientAuth(true);
     this.listener.setEnabledProtocols(new String[] {"TLSv1.3"});
-    this.runtime = runtime;
-    this.hostLimits = WasmHostLimits.configured();
-    this.maxInputBytes = WorkerWasmRuntime.configuredMaxInputBytes();
     this.maxRequestMillis = positiveLong("maxRequestMillis", 10_000);
+    this.service = new WorkerRequestService(runtime, maxRequestMillis);
     long maxConcurrent = positiveLong("maxConcurrent", 1);
     if (maxConcurrent > 32) {
       throw new IllegalArgumentException("worker server maxConcurrent exceeds 32");
@@ -115,39 +109,20 @@ public final class WorkerTlsServer implements AutoCloseable {
   private void handle(SSLSocket socket) throws IOException, InterruptedException {
     socket.startHandshake();
     DataInputStream in = new DataInputStream(socket.getInputStream());
-    long maxRequestBytes = 8192L + hostLimits.maxModuleBytes() + maxInputBytes;
     int size = in.readInt();
-    if (size <= 0 || size > maxRequestBytes) throw new IOException("worker request exceeded limit");
+    if (size <= 0 || size > service.maxRequestBytes()) {
+      throw new IOException("worker request exceeded limit");
+    }
     byte[] frame = in.readNBytes(size);
     if (frame.length != size) throw new IOException("truncated worker request");
-    WorkerProtocol.Request request = WorkerProtocol.readRequest(
-        new DataInputStream(new ByteArrayInputStream(frame)),
-        hostLimits.maxModuleBytes(), maxInputBytes);
-    long budget = Math.min(maxRequestMillis, request.remainingMillis());
-    long now = System.currentTimeMillis();
-    long deadline = budget > Long.MAX_VALUE - now ? Long.MAX_VALUE : now + budget;
-    byte[] response;
-    try {
-      WasmRuntime.Result result;
-      if (request.operation() == WorkerProtocol.COMPILE) {
-        runtime.compile(request.wasm(), deadline);
-        result = new WasmRuntime.Result(0, new byte[0], new byte[0]);
-      } else {
-        result = runtime.runOneShot(request.wasm(), request.stdin(),
-            new WasmRuntime.Limits(request.maxMemoryBytes(), deadline,
-                request.maxOutputBytes(), request.randomSeed(), request.policy()));
-      }
-      response = WorkerProtocol.encodeSuccess(result);
-    } catch (WasmException e) {
-      response = WorkerProtocol.encodeFailure(e);
-    }
+    byte[] response = service.handle(frame);
     DataOutputStream out = new DataOutputStream(socket.getOutputStream());
     out.writeInt(response.length);
     out.write(response);
     out.flush();
   }
 
-  private static long positiveLong(String suffix, long fallback) {
+  static long positiveLong(String suffix, long fallback) {
     String value = System.getProperty(PREFIX + suffix);
     if (value == null) return fallback;
     long parsed = Long.parseLong(value);
