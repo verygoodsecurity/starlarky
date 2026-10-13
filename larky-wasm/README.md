@@ -280,6 +280,44 @@ time is 10 seconds unless the trusted host sets
 input, memory, and output limits. The client deadline includes connection setup and response
 transfer. Use a dedicated trust store for this service and restrict access with a NetworkPolicy.
 
+For a deployment that keeps TLS private keys out of the guest-processing container, use the
+two-container manifest in `k8s/wasm-worker`. Run `WorkerTlsGateway` in the gateway container
+with the certificate Secret mounted **only there**. It authenticates clients and forwards bounded
+frames over Pod loopback to `WorkerPlainServer` in the separately limited worker container. The
+worker server and its fresh children have no TLS Secret mount. The Docker image includes
+`/app/gateway.sh` and `/app/plain-server.sh` for these two roles; the original `server.sh` remains
+available for existing deployments. The plaintext server refuses any non-loopback bind address.
+Both containers run as an unprivileged UID with a read-only root filesystem, all capabilities
+dropped, `no_new_privs`, and the runtime-default seccomp profile. The worker container has its
+own memory and CPU limits. The Pod has no service-account token, and the NetworkPolicy admits
+only labeled Atlas clients on port 8443 and denies egress. Loopback traffic inside the Pod is
+intentionally permitted. The Secret must supply `identity.p12`, `trust.p12`, `key-password`, and
+`trust-password`; use a server certificate valid for the Service DNS name that Atlas configures.
+Replace the deliberately invalid image reference with a pinned digest and verify the Atlas Pod
+label selector and CNI enforcement before applying. Kubernetes does not provide a per-Pod PID
+limit through this manifest; configure `podPidsLimit` at the kubelet or enforce an equivalent
+node policy. `ruby k8s/wasm-worker/test_manifest.rb` validates the rendered security contract.
+The worker container shares the Pod network namespace with the gateway, but cannot read the
+gateway's Secret volume. A compromise of the worker JVM still requires the container/OS boundary
+to contain it; this is defense in depth, not a proof against kernel exploits.
+
+Before applying the manifest, build the image and run the disposable local acceptance test from
+the repository root:
+
+```sh
+docker build -f Dockerfile.wasm-worker -t starlarky-wasm-worker:split .
+docker build -f Dockerfile.wasm-worker-probe -t starlarky-wasm-worker-probe:local .
+scripts/test-wasm-worker-container.sh
+ruby k8s/wasm-worker/test_manifest.rb
+```
+
+The script uses a private Docker network, separate limited worker and gateway containers, a
+test-only TLS volume, and a client container. If the ignored private parser/table fixtures are
+present, it also runs those exact probes without adding their bytes to the repository. It forces
+a worker cgroup OOM and a worker-container kill, then checks that the gateway stays up and a
+later request succeeds. This local run does not establish that the target Kubernetes CNI enforces
+NetworkPolicy or that Atlas's Service selector, image, and credentials are configured correctly.
+
 **The launcher is the security boundary.** It must put the worker under an independent OS memory,
 CPU, and process budget *before* the child reads customer bytes, and ensure that timeout or launcher
 death terminates the entire sandbox. `ProcessBuilder`, `-Xmx`, a virtual thread, and a child in the
@@ -296,9 +334,9 @@ service. For Atlas Horizon, use a separately limited worker Pod/service or an eq
 OS sandbox, then rerun the parser, table, loop, worker-OOM, and healthy-after-failure probes against
 that deployment. This module supplies the worker server and image, but not an Atlas deployment or
 credentials. The image must be placed in a **separate Pod with its own container memory and CPU
-limits**; running it in Atlas's Pod or without OS limits does not establish parent survival. Its
-child JVM can read files mounted in the server container, including the TLS keys; a separate TLS
-proxy container with keys mounted only there would narrow that exposure.
+limits**; running it in Atlas's Pod or without OS limits does not establish parent survival. The
+original combined `server.sh` mode mounts TLS keys in the same container as guest children; use
+the split gateway/worker deployment above so guest children cannot read those files.
 
 Endive interprets modules by default. `-Dlarky.wasm.endive.mode=compiler` compiles each module to
 JVM bytecode instead, which runs faster but costs time and Metaspace in proportion to the module
