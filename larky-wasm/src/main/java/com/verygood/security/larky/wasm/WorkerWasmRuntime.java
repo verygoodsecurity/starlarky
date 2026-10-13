@@ -54,8 +54,7 @@ public final class WorkerWasmRuntime implements WasmRuntime {
       this.settings = configuredSettings();
       this.hostLimits = WasmHostLimits.configured();
     } catch (IllegalArgumentException e) {
-      throw new WasmException(WasmException.Kind.INVALID_MODULE,
-          "invalid WASM worker host configuration", e);
+      throw new WasmException(WasmException.Kind.INVALID_MODULE, e.getMessage(), e);
     }
     this.slots = ADMISSION.computeIfAbsent(settings, s -> new Semaphore(s.maxConcurrent()));
   }
@@ -189,7 +188,10 @@ public final class WorkerWasmRuntime implements WasmRuntime {
       byte[] reply = stdout.get(remaining(deadline), TimeUnit.NANOSECONDS);
       stderr.get(remaining(deadline), TimeUnit.NANOSECONDS);
       writer.get(remaining(deadline), TimeUnit.NANOSECONDS);
-      if (process.exitValue() != 0) throw unavailable("worker exited without a valid result", null);
+      if (process.exitValue() != 0) {
+        throw unavailable("worker exited without a valid result (exit code "
+            + process.exitValue() + ")", null);
+      }
       WorkerProtocol.Response result = WorkerProtocol.decodeResponse(reply, maxOutput);
       if (result.error() != null) throw result.error();
       return result;
@@ -284,14 +286,18 @@ public final class WorkerWasmRuntime implements WasmRuntime {
   private static long positiveLong(String suffix, long fallback) {
     String value = System.getProperty(PREFIX + suffix);
     if (value == null) return fallback;
+    long parsed;
     try {
-      long parsed = Long.parseLong(value);
-      if (parsed > 0 && (!suffix.equals("maxRequestMillis") || parsed <= 86_400_000L)) {
-        return parsed;
-      }
-    } catch (NumberFormatException ignored) {
-      // Report the same configuration error below.
+      parsed = Long.parseLong(value);
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException(PREFIX + suffix + " must be an integer", e);
     }
-    throw new IllegalArgumentException(PREFIX + suffix + " must be positive");
+    if (parsed <= 0) {
+      throw new IllegalArgumentException(PREFIX + suffix + " must be positive");
+    }
+    if (suffix.equals("maxRequestMillis") && parsed > 86_400_000L) {
+      throw new IllegalArgumentException(PREFIX + suffix + " must not exceed 24 hours");
+    }
+    return parsed;
   }
 }

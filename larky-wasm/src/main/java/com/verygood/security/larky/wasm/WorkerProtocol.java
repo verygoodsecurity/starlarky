@@ -154,7 +154,9 @@ final class WorkerProtocol {
     out.writeInt(MAGIC);
     out.writeByte(FAILURE);
     out.writeByte(errorCode(error.kind()));
-    byte[] message = error.getMessage().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    String detail = error.getMessage();
+    byte[] message = (detail == null ? "" : detail)
+        .getBytes(java.nio.charset.StandardCharsets.UTF_8);
     out.writeInt(Math.min(message.length, MAX_MESSAGE_BYTES));
     out.write(message, 0, Math.min(message.length, MAX_MESSAGE_BYTES));
     return bytes.toByteArray();
