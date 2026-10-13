@@ -51,7 +51,12 @@ public class Error extends EvalException implements Result {
     }
     else if(e instanceof Starlark.UncheckedEvalException) {
       final Starlark.UncheckedEvalException e1 = (Starlark.UncheckedEvalException) e;
-      final EvalException evalException = new EvalException(e1.getCause().getMessage(), e1.getCause());
+      // Some (e.g. a bounded loop's limit) carry their message themselves, with no cause.
+      final Throwable cause = e1.getCause();
+      final EvalException evalException =
+          cause != null
+              ? new EvalException(cause.getMessage(), cause)
+              : new EvalException(e1.getMessage(), e1);
       return new Error(evalException);
     }
     return new Error(e);
