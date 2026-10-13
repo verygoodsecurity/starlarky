@@ -1,4 +1,4 @@
-# Ported from dukpt 1.0.1 (PyPI sdist sha256:924076e36f946f16feb25f85969a70c513c14172a055ffc7f3d94cadded392a4; no git tag, nearest commit github.com/chokepoint/DUKPT@5d40401d267684591856189bf90cfc8b83b3fca6): dukpt.py. See larky/src/main/resources/VENDORED.md.
+# Ported from dukpt 1.0.1 (PyPI sdist sha256:924076e36f946f16feb25f85969a70c513c14172a055ffc7f3d94cadded392a4; no git tag, nearest commit github.com/chokepoint/DUKPT@5d40401d267684591856189bf90cfc8b83b3fca6): dukpt.py. ANSI X9.24-1 corrections to dukpt 1.0.1: all 21 counter bits in derive_key, counter cleared for both IPEK halves, unsigned counter increment that fails on exhaustion. See larky/src/main/resources/VENDORED.md.
 #
 # MIT License
 #
@@ -21,35 +21,49 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-#
-# Differences from upstream:
-#
-# - bitstring is not available. Every argument and return value that upstream
-#   documents as "BitArray" (or "raw or BitArray") is `bytes` here; `bytearray`
-#   is accepted wherever bytes are. The `_pin_mask`, `_mac_*` attributes are
-#   bytes too.
-# - Upstream only runs as written on Python 2. On Python 3, `Server.gen_key`,
-#   `Server.generate_ipek` and `DUKPT.derive_key` fail for raw bytes
-#   (AttributeError: no `.bytes`), and `Client` fails in its constructor
-#   (`generator.next()`). This port gives every method the result Python 2
-#   gives for raw byte strings.
-# - Errors are `fail()`s whose message starts with the Python exception name:
-#   "InvalidDUKPTArguments: Must have either ipek or bdk",
-#   "InvalidDUKPTArguments: BDK must have a length of 16",
-#   "TypeError: ..." for a non-bytes argument, and "ValueError: ..." where
-#   bitstring would raise (operands of different lengths, a KSN shorter than
-#   10 bytes in increase_counter, a counter that does not fit in a signed
-#   21-bit integer).
-#
-# Behaviour kept from upstream 1.0.1 that differs from ANSI X9.24-1 (the
-# cross-check against the Python package depends on it):
-#
-# - derive_key starts its shift register at 0x000100, so only the low 9
-#   counter bits are used: for a counter >= 0x200 the key differs from the
-#   standard's (0x200 and 0x400 both give the IPEK itself).
-# - generate_right_ipek encrypts the KSN without clearing its counter bits.
-# - increase_counter adds one to the 21 counter bits read as a signed
-#   integer: 0x1FFFFF wraps to 0 and 0x0FFFFF fails.
+"""DUKPT (ANSI X9.24-1 TDES Derived Unique Key Per Transaction) key derivation.
+
+The API (DUKPT, Server, Client, InvalidDUKPTArguments, BDK_LEN, KSN_LEN, the
+method names, signatures, docstrings and error messages) is that of the PyPI
+dukpt 1.0.1 package. Keys are derived as ANSI X9.24-1 specifies for every
+transaction counter, which 1.0.1 does not do. Differences from 1.0.1:
+
+ANSI X9.24-1 corrections:
+
+- derive_key walks all 21 counter bits (shift register from 0x100000).
+  1.0.1 starts at 0x000100 and ignores counter bits 9-20, so its keys are
+  wrong for every counter >= 0x200 (0x200 and 0x400 give the IPEK itself).
+  For counters < 0x200 the keys are the same.
+- generate_right_ipek clears the counter bits of the KSN, as
+  generate_left_ipek does. 1.0.1 encrypts the KSN with its counter bits, so
+  its right IPEK half is wrong once counter bit 16 or above is set.
+- increase_counter adds one to the 21 counter bits read as an unsigned
+  integer. 1.0.1 reads them as a signed integer, so 0x1FFFFF wraps to 0 and
+  incrementing 0x0FFFFF raises. Here the counter stops at 0x1FFFFF: a Client
+  returns the key for 0x1FFFFF, and the next gen_key(), or increase_counter()
+  at 0x1FFFFF, fails with "ValueError: KSN counter exhausted". (A device
+  following the standard skips counters with more than ten 1 bits and so
+  stops at 0x1FFE00; Client, like 1.0.1, steps the counter by one.)
+- increase_counter requires a 10-byte KSN and updates its last 21 bits, the
+  bits derive_key reads.
+
+Python 3 fixes (1.0.1 only works as written on Python 2):
+
+- Server.gen_key, Server.generate_ipek and DUKPT.derive_key accept raw
+  bytes. In 1.0.1 they raise AttributeError (no `.bytes`) for raw bytes.
+- Client works. In 1.0.1 its constructor raises (`generator.next()`).
+
+Larky differences:
+
+- bitstring is not available. Every argument and return value documented as
+  "BitArray" (or "raw or BitArray") is `bytes`; `bytearray` is accepted
+  wherever bytes are. The `_pin_mask` and `_mac_*` attributes are bytes.
+- Errors are `fail()`s whose message starts with the Python exception name:
+  "InvalidDUKPTArguments: Must have either ipek or bdk",
+  "InvalidDUKPTArguments: BDK must have a length of 16", "TypeError: ..." for
+  a non-bytes argument, and "ValueError: ..." where bitstring would raise
+  (operands of different lengths) or the KSN is malformed or exhausted.
+"""
 load("@stdlib//binascii", unhexlify="unhexlify")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
@@ -67,6 +81,7 @@ _MAC_DATA_REQ = unhexlify("0000000000FF00000000000000FF0000")
 _MAC_DATA_RESP = unhexlify("000000FF00000000000000FF00000000")
 
 _COUNTER_MASK = 0x1FFFFF
+_COUNTER_BYTES_MAX = b"\x1f\xff\xff"
 
 
 def InvalidDUKPTArguments(msg=""):
@@ -162,8 +177,9 @@ def _DUKPT(self, bdk=None, ksn=None, ipek=None):
         r3 = self.copy_counter(ksnr)
         r8 = self.reset_counter(ksnr)
         # sr     = BitArray(hex='0x100000')
-        # Upstream 1.0.1 starts at 0x000100: the shift register walks bits 8..0.
-        for shift in range(8, -1, -1):
+        # ANSI X9.24-1: the shift register walks all 21 counter bits, 20..0.
+        # (dukpt 1.0.1 starts at 0x000100 and so ignores bits 9..20.)
+        for shift in range(20, -1, -1):
             sr = _int3(1 << shift)
             tmp = self.copy_counter(sr)
             tmp = _bitop("&", tmp, r3)
@@ -234,21 +250,17 @@ def _DUKPT(self, bdk=None, ksn=None, ipek=None):
 
     def increase_counter():
         """Increase the counter bytes of the stored ksn by one"""
-        # Upstream: bits 59..79 of the KSN, read as a signed 21-bit integer.
+        # ANSI X9.24-1: the 21 counter bits are an unsigned counter that stops
+        # at 0x1FFFFF. (dukpt 1.0.1 reads them as a signed integer and wraps.)
         ksn = self._ksn
-        if len(ksn) < KSN_LEN:
-            fail("ValueError: KSN must be at least %d bytes; got %d" % (KSN_LEN, len(ksn)))
+        if len(ksn) != KSN_LEN:
+            fail("ValueError: KSN must be %d bytes; got %d" % (KSN_LEN, len(ksn)))
         ctr = ((ksn[7] << 16) | (ksn[8] << 8) | ksn[9]) & _COUNTER_MASK
-        if ctr >= 0x100000:
-            ctr -= 0x200000
+        if ctr == _COUNTER_MASK:
+            fail("ValueError: KSN counter exhausted (0x1FFFFF)")
         ctr += 1
-        if ctr > 0xFFFFF:
-            fail(("ValueError: %d is too large a signed integer for a bitstring of length 21. " +
-                  "The allowed range is [-1048576, 1048575].") % ctr)
-        ctr &= _COUNTER_MASK
         self._ksn = (ksn[:7] +
-                     bytes([(ksn[7] & 0xE0) | (ctr >> 16), (ctr >> 8) & 0xFF, ctr & 0xFF]) +
-                     ksn[10:])
+                     bytes([(ksn[7] & 0xE0) | (ctr >> 16), (ctr >> 8) & 0xFF, ctr & 0xFF]))
     self.increase_counter = increase_counter
 
     __init__(bdk, ksn, ipek)
@@ -309,7 +321,8 @@ def Server(bdk=None):
         Keyword arguments:
         ksn (raw or BitArray) -- Key Serial Number
         """
-        ksn = _bytes("ksn", ksn)
+        # ANSI X9.24-1: both halves encrypt the KSN with its counter cleared.
+        ksn = self.reset_counter(ksn)
         mask = unhexlify("c0c0c0c000000000c0c0c0c000000000c0c0c0c000000000")
         key = _bitop("^", mask, self._tdes_key)
         cipher = DES3.new(key, DES3.MODE_ECB)
@@ -360,12 +373,19 @@ def Client(ipek, ksn):
         Return:
         key in bytes
         """
+        if self._exhausted:
+            fail("ValueError: KSN counter exhausted (0x1FFFFF)")
         key = self.derive_key(self._ipek, self._ksn)
         info = {'ksn': self._ksn, 'key': key}
-        self.increase_counter()
+        if self.copy_counter(self._ksn) == _COUNTER_BYTES_MAX:
+            # The key for the last counter value is returned; the next call fails.
+            self._exhausted = True
+        else:
+            self.increase_counter()
         return info
 
     _DUKPT(self, ipek=ipek, ksn=ksn)
+    self._exhausted = False
     self.gen_key = gen_key
     self.increase_counter()
     return self
