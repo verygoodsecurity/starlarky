@@ -128,11 +128,15 @@ public final class WorkerTlsServer implements AutoCloseable {
     long deadline = budget > Long.MAX_VALUE - now ? Long.MAX_VALUE : now + budget;
     byte[] response;
     try {
-      WasmRuntime.Program program = runtime.compile(request.wasm(), deadline);
-      WasmRuntime.Result result = request.operation() == WorkerProtocol.COMPILE
-          ? new WasmRuntime.Result(0, new byte[0], new byte[0])
-          : program.run(request.stdin(), new WasmRuntime.Limits(request.maxMemoryBytes(), deadline,
-              request.maxOutputBytes(), request.randomSeed(), request.policy()));
+      WasmRuntime.Result result;
+      if (request.operation() == WorkerProtocol.COMPILE) {
+        runtime.compile(request.wasm(), deadline);
+        result = new WasmRuntime.Result(0, new byte[0], new byte[0]);
+      } else {
+        result = runtime.runOneShot(request.wasm(), request.stdin(),
+            new WasmRuntime.Limits(request.maxMemoryBytes(), deadline,
+                request.maxOutputBytes(), request.randomSeed(), request.policy()));
+      }
       response = WorkerProtocol.encodeSuccess(result);
     } catch (WasmException e) {
       response = WorkerProtocol.encodeFailure(e);
