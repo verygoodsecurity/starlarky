@@ -58,6 +58,11 @@ final class WasmBinaries {
    * @throws WasmException of kind {@link WasmException.Kind#INVALID_MODULE} if it is not
    */
   static java.util.Set<String> checkWasiCommand(byte[] wasm) throws WasmException {
+    return checkWasiCommand(wasm, WasmHostLimits.configured());
+  }
+
+  static java.util.Set<String> checkWasiCommand(byte[] wasm, WasmHostLimits limits)
+      throws WasmException {
     Reader r = new Reader(wasm);
     r.header();
     java.util.List<String> types = new java.util.ArrayList<>(); // in WasiHost.SIGNATURES notation
@@ -115,9 +120,9 @@ final class WasmBinaries {
         }
         case SECTION_FUNCTION -> {
           long count = r.u32();
-          if (count > WasmRuntime.MAX_FUNCTIONS) {
+          if (count > limits.maxFunctions()) {
             throw invalid(
-                "module defines " + count + " functions; the limit is " + WasmRuntime.MAX_FUNCTIONS);
+                "module defines " + count + " functions; the limit is " + limits.maxFunctions());
           }
           for (long i = 0; i < count; i++) {
             functionTypes.add(r.u32());
@@ -171,6 +176,10 @@ final class WasmBinaries {
    * checkWasiCommand before this rewrite is used.
    */
   static byte[] capTables(byte[] wasm) throws WasmException {
+    return capTables(wasm, WasmHostLimits.configured());
+  }
+
+  static byte[] capTables(byte[] wasm, WasmHostLimits limits) throws WasmException {
     Reader r = new Reader(wasm);
     r.header();
     int sectionStart = -1;
@@ -192,9 +201,9 @@ final class WasmBinaries {
         // Keep every read inside this section, including variable-length reference types.
         Reader tableReader = new Reader(Arrays.copyOfRange(wasm, r.pos, end));
         long count = tableReader.u32();
-        if (count > WasmRuntime.MAX_TABLES) {
+        if (count > limits.maxTables()) {
           throw new WasmException(WasmException.Kind.MEMORY_LIMIT,
-              "module defines " + count + " tables; the limit is " + WasmRuntime.MAX_TABLES);
+              "module defines " + count + " tables; the limit is " + limits.maxTables());
         }
         for (int i = 0; i < count; i++) {
           int typeStart = tableReader.pos;
@@ -213,9 +222,9 @@ final class WasmBinaries {
             throw invalid("table maximum is smaller than its minimum");
           }
           totalMinimum += minimum;
-          if (totalMinimum > WasmRuntime.MAX_TABLE_ELEMENTS) {
+          if (totalMinimum > limits.maxTableElements()) {
             throw new WasmException(WasmException.Kind.MEMORY_LIMIT,
-                "initial tables exceed the combined limit of " + WasmRuntime.MAX_TABLE_ELEMENTS
+                "initial tables exceed the combined limit of " + limits.maxTableElements()
                     + " elements");
           }
           tables.add(new TableDefinition(referenceType, minimum, maximum));
@@ -231,7 +240,7 @@ final class WasmBinaries {
     }
     ByteArrayOutputStream body = new ByteArrayOutputStream();
     writeU(body, tables.size());
-    long remaining = WasmRuntime.MAX_TABLE_ELEMENTS - totalMinimum;
+    long remaining = limits.maxTableElements() - totalMinimum;
     for (int i = 0; i < tables.size(); i++) {
       TableDefinition table = tables.get(i);
       long maximum = Math.min(table.maximum(),

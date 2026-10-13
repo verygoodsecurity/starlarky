@@ -45,6 +45,7 @@ import org.graalvm.polyglot.io.IOAccess;
 final class GraalWasmRuntime implements WasmRuntime {
 
   static final String HOST_MODULE = "larky_wasi_host";
+  private final WasmHostLimits limits;
 
   private static final class EngineHolder {
     static final Engine ENGINE =
@@ -64,6 +65,7 @@ final class GraalWasmRuntime implements WasmRuntime {
    * {@link WasmException} instead.
    */
   GraalWasmRuntime() {
+    limits = WasmHostLimits.configured();
     if (!engine().getLanguages().containsKey("wasm")) {
       throw new IllegalStateException("GraalWasm's wasm language is not on the class path");
     }
@@ -96,15 +98,21 @@ final class GraalWasmRuntime implements WasmRuntime {
   }
 
   @Override
+  public String compilePolicyKey() {
+    return name() + ":" + limits;
+  }
+
+  @Override
   public WasmRuntime.Program compile(byte[] wasm) throws WasmException {
-    if (wasm.length > MAX_MODULE_BYTES) {
+    if (wasm.length > limits.maxModuleBytes()) {
       throw new WasmException(
           WasmException.Kind.INVALID_MODULE,
-          "module is " + wasm.length + " bytes; the limit is " + MAX_MODULE_BYTES);
+          "module is " + wasm.length + " bytes; the limit is " + limits.maxModuleBytes());
     }
     byte[] bytes = wasm.clone();
-    Set<String> imports = WasmBinaries.checkWasiCommand(bytes);
-    bytes = WasmBinaries.capTables(bytes);
+    EndivePreflight.check(bytes, limits);
+    Set<String> imports = WasmBinaries.checkWasiCommand(bytes, limits);
+    bytes = WasmBinaries.capTables(bytes, limits);
     byte[] redirected = WasmBinaries.renameImports(bytes, WasiHost.MODULE, imports, HOST_MODULE);
     Source source = source(redirected);
     validate(source);
