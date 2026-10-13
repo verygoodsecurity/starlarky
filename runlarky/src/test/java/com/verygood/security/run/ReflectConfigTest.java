@@ -82,8 +82,13 @@ public class ReflectConfigTest {
         require(config, missing, method.getDeclaringClass(), method, Access.EITHER);
         // ... and StarlarkAnnotations finds its annotation with getDeclaredMethods() on the class
         // that carries it. (Classes searched before that one may return nothing.)
-        require(config, missing, annotationOwner(method.getDeclaringClass(), method), method,
-            Access.DECLARED);
+        Class<?> owner = annotationOwner(method.getDeclaringClass(), method);
+        if (owner == null) {
+          fail("StarlarkAnnotations found @StarlarkMethod " + method.getName() + " on "
+              + clazz.getName() + ", but no class above " + method.getDeclaringClass().getName()
+              + " declares it; annotationOwner no longer matches StarlarkAnnotations");
+        }
+        require(config, missing, owner, method, Access.DECLARED);
       }
     }
 

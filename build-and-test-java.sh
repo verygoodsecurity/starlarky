@@ -12,6 +12,7 @@ mv ./runlarky/target/larky-runner ./runlarky/target/larky-${OS_TYPE_LOWER}
 
 # smoke-test the native runner: its classes reach Starlark only through reflect-config.json (#397)
 SMOKE_DIR=$(mktemp -d)
+trap 'rm -rf "${SMOKE_DIR:?}"' EXIT
 cat > "$SMOKE_DIR/smoke.star" <<'STAR'
 load("@stdlib//json", "json")
 
