@@ -377,6 +377,10 @@ public final class WorkerWasmRuntime implements WasmRuntime {
     return positiveInt("maxInputBytes", 1 << 20);
   }
 
+  static int configuredMaxOutputBytes() {
+    return positiveInt("maxOutputBytes", Limits.DEFAULT_MAX_OUTPUT_BYTES);
+  }
+
   private static int positiveInt(String suffix, int fallback) {
     long value = positiveLong(suffix, fallback);
     if (value > Integer.MAX_VALUE) throw new IllegalArgumentException(PREFIX + suffix + " too large");
