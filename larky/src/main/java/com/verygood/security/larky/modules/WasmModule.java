@@ -163,13 +163,21 @@ public final class WasmModule implements StarlarkValue {
     } catch (WasmException e) {
       throw new EvalException(e.getMessage()); // e.g. "no WebAssembly runtime named 'x'"
     }
-    String key = runtime.compilePolicyKey() + ":" + Hashing.sha256().hashBytes(wasm);
     try {
+      if (!runtime.cacheProgramsInHost()) {
+        return runtime.compile(wasm, Math.max(1, thread.getExpirationMs() + 1));
+      }
+      String key = runtime.compilePolicyKey() + ":" + Hashing.sha256().hashBytes(wasm);
       // One compile per module even when many evaluations ask for it at once.
       return PROGRAMS.get(key, () -> new Compiled(runtime.compile(wasm), wasm.length)).program();
     } catch (java.util.concurrent.ExecutionException
         | com.google.common.util.concurrent.UncheckedExecutionException e) {
       throw new EvalException(String.format("wasm module '%s' is not a valid WASI module", name));
+    } catch (WasmException e) {
+      if (e.kind() == WasmException.Kind.TIMEOUT) {
+        throw Starlark.errorf("wasm module '%s' compilation exceeded the worker deadline", name);
+      }
+      throw Starlark.errorf("wasm module '%s' could not be compiled", name);
     } finally {
       // Compilation and cache waits do not poll the evaluator's clock. Even a final call in
       // a short script must fail if they consumed the remaining evaluation time.

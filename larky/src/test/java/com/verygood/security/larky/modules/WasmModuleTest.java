@@ -66,6 +66,8 @@ public class WasmModuleTest {
     System.clearProperty(WasmModule.MAX_MEMORY_PROPERTY);
     System.clearProperty(WasmModule.MAX_OUTPUT_PROPERTY);
     WasmModule.randomSeedForTests = null;
+    FakeWasmRuntime.uncached = false;
+    FakeWasmRuntime.lastCompileDeadline = 0;
   }
 
   private static ParsedStarFile eval(String script, Map<String, Object> files, Long expirationMs)
@@ -87,6 +89,21 @@ public class WasmModuleTest {
 
   private static String error(String script) {
     return assertThrows(ScriptException.class, () -> eval(script)).getMessage();
+  }
+
+  @Test
+  public void uncachedWorkerStyleCompilationReceivesDeadlineForEveryLoad() throws Exception {
+    FakeWasmRuntime.uncached = true;
+    int before = FakeWasmRuntime.COMPILES.get();
+    long deadline = System.currentTimeMillis() + 30_000;
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setExpirationMs(deadline);
+      WasmModule.INSTANCE.loads(StarlarkBytes.immutableOf(MODULE), thread);
+      WasmModule.INSTANCE.loads(StarlarkBytes.immutableOf(MODULE), thread);
+    }
+    assertThat(FakeWasmRuntime.COMPILES.get()).isEqualTo(before + 2);
+    assertThat(FakeWasmRuntime.lastCompileDeadline).isEqualTo(deadline + 1);
   }
 
   private static <T> T out(ParsedStarFile result, Class<T> type) {
