@@ -15,7 +15,9 @@
 #   numbers in encode(), and options["leeway"] must be a number of seconds.
 # - Errors are raised with fail() as "<ExceptionName>: <message>", where the
 #   name is JWTError, JWTClaimsError or ExpiredSignatureError (the latter two
-#   subclass JWTError upstream).
+#   subclass JWTError upstream). An at_hash for an alg without a hash
+#   (e.g. "none") fails with "KeyError: '<alg>'", as upstream's uncaught
+#   KeyError does.
 #
 # The rest of vendor/jose was ported earlier from python-jose's master branch
 # (between commits 89c3d41 and 8572088, 2020-09-07..2020-12-07), not from
@@ -28,6 +30,13 @@ load("@vendor//jose/jws", jws="jws")
 load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS")
 load("@vendor//jose/utils", calculate_at_hash="calculate_at_hash")
 load("@vendor//option/result", Result="Result")
+
+
+def _at_hash_alg(algorithm):
+    """ALGORITHMS.HASHES[algorithm], failing as upstream's uncaught KeyError does."""
+    if algorithm not in ALGORITHMS.HASHES:
+        fail("KeyError: %s" % ("'%s'" % algorithm if types.is_string(algorithm) else repr(algorithm)))
+    return ALGORITHMS.HASHES[algorithm]
 
 
 def _strip_error_name(message, names):
@@ -76,7 +85,7 @@ def encode(claims, key, algorithm=ALGORITHMS.HS256, headers=None, access_token=N
     """
 
     if access_token:
-        claims["at_hash"] = calculate_at_hash(access_token, ALGORITHMS.HASHES[algorithm])
+        claims["at_hash"] = calculate_at_hash(access_token, _at_hash_alg(algorithm))
 
     return jws.sign(claims, key, headers=headers, algorithm=algorithm)
 
@@ -527,7 +536,7 @@ def _validate_at_hash(claims, access_token, algorithm):
         fail("JWTClaimsError: " + msg)
 
     # Looked up outside the "try" as upstream does not catch its KeyError.
-    hash_alg = ALGORITHMS.HASHES[algorithm]
+    hash_alg = _at_hash_alg(algorithm)
     _try_9_r = Result.Ok(None).map(lambda _: calculate_at_hash(access_token, hash_alg))
     if not _try_9_r.is_ok:
         msg = "Unable to calculate at_hash to verify against token claims."

@@ -688,6 +688,36 @@ def Larky_test_at_hash_algorithms():
                              "^JWTClaimsError: at_hash claim does not match access_token.")
 
 
+def _unsigned(alg, payload):
+    header = base64url_encode(bytes(json.dumps({"alg": alg}), encoding="utf-8")).decode("utf-8")
+    body = base64url_encode(bytes(json.dumps(payload), encoding="utf-8")).decode("utf-8")
+    return header + "." + body + ".c2ln"
+
+
+def Larky_test_at_hash_unknown_algorithm():
+    # at_hash of "<ACCESS_TOKEN>" under SHA-256; upstream looks up ALGORITHMS.HASHES[alg]
+    # without catching KeyError, so an alg it has no hash for raises KeyError (python-jose 3.5.0).
+    at_hash = jwt.get_unverified_claims(
+        jwt.encode({}, key, algorithm="HS256", access_token="<ACCESS_TOKEN>"))["at_hash"]
+    no_sig = {"verify_signature": False}
+    for alg in ["none", "PS256", "foo"]:
+        token = _unsigned(alg, {"a": "b", "at_hash": at_hash})
+        asserts.assert_fails(lambda: jwt.decode(token, key, options=no_sig, access_token="<ACCESS_TOKEN>"),
+                             "^KeyError: '%s'$" % alg)
+        asserts.assert_fails(lambda: jwt.encode(claims, key, algorithm=alg, access_token="<ACCESS_TOKEN>"),
+                             "^KeyError: '%s'$" % alg)
+        # where upstream succeeds or raises a jose error, so does Larky
+        asserts.assert_fails(lambda: jwt.decode(token, key, options=no_sig),
+                             "^JWTClaimsError: No access_token provided to compare against at_hash claim.$")
+        asserts.assert_that(jwt.decode(token, key, options={"verify_signature": False, "verify_at_hash": False},
+                                       access_token="<ACCESS_TOKEN>")).is_equal_to({"a": "b", "at_hash": at_hash})
+        asserts.assert_that(jwt.decode(_unsigned(alg, {"a": "b"}), key, options=no_sig,
+                                       access_token="<ACCESS_TOKEN>")).is_equal_to({"a": "b"})
+    token = _unsigned("HS256", {"a": "b", "at_hash": at_hash})
+    asserts.assert_that(jwt.decode(token, key, options=no_sig, access_token="<ACCESS_TOKEN>")).is_equal_to(
+        {"a": "b", "at_hash": at_hash})
+
+
 def Larky_test_claim_values_are_not_rewritten():
     payload = {"name": "Doe, John", "note": "a: b"}
     token = jwt.encode(payload, key)
@@ -772,6 +802,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(Larky_test_exp_nbf_boundaries))
     _suite.addTest(unittest.FunctionTestCase(Larky_test_error_types))
     _suite.addTest(unittest.FunctionTestCase(Larky_test_at_hash_algorithms))
+    _suite.addTest(unittest.FunctionTestCase(Larky_test_at_hash_unknown_algorithm))
     _suite.addTest(unittest.FunctionTestCase(Larky_test_claim_values_are_not_rewritten))
     _suite.addTest(unittest.FunctionTestCase(Larky_test_load_paths))
     return _suite
