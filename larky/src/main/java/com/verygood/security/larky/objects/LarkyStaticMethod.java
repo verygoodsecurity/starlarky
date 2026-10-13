@@ -10,7 +10,7 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
-import net.starlark.java.eval.StarlarkFunction;
+import net.starlark.java.eval.UserDefinedFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
@@ -39,7 +39,7 @@ public class LarkyStaticMethod implements ForwardingLarkyType, StarlarkCallable 
 
   @Override
   public PyObject __new__(Tuple args, Dict<String, Object> kwargs, StarlarkThread thread) {
-    return new LarkyStaticMethodInstance((StarlarkFunction) args.get(0), thread);
+    return new LarkyStaticMethodInstance((UserDefinedFunction) args.get(0), thread);
   }
 
   @Override
@@ -76,7 +76,7 @@ public class LarkyStaticMethod implements ForwardingLarkyType, StarlarkCallable 
   }
 
   public static class LarkyStaticMethodInstance extends LarkyFunction {
-    private LarkyStaticMethodInstance(StarlarkFunction function, StarlarkThread thread) {
+    private LarkyStaticMethodInstance(UserDefinedFunction function, StarlarkThread thread) {
       super(LarkyStaticMethod.TYPE, function, thread);
     }
 

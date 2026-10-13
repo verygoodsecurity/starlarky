@@ -34,7 +34,7 @@ import net.starlark.java.syntax.Types;
     name = "function",
     category = "core",
     doc = "The type of functions declared in Starlark.")
-public final class StarlarkFunction implements StarlarkCallable {
+public final class StarlarkFunction implements UserDefinedFunction {
 
   final Resolver.Function rfn;
   // TODO: #27370 - at eval time, we need only types of functions and globals; we could save some
