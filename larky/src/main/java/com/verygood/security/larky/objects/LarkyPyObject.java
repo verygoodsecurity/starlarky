@@ -108,6 +108,12 @@ public class LarkyPyObject implements
 
   @Override
   public void debugPrint(Printer p, StarlarkThread thread) {
+    // print() shows str(obj), as in Python, when the class defines __str__ or __repr__.
+    if (this.typeClass().lookup(PyProtocols.__STR__) != null
+          || this.typeClass().lookup(PyProtocols.__REPR__) != null) {
+      str(p, thread.getSemantics());
+      return;
+    }
     // This repr function prints only the fields.
     // Any methods are still accessible through dir/getattr/hasattr.
     p.append(typeName()).append("(");
@@ -126,12 +132,43 @@ public class LarkyPyObject implements
 
   @Override
   public void repr(Printer printer, StarlarkSemantics semantics) {
-    printer.append(this.__repr__());
+    String s = callClassStringMethod(PyProtocols.__REPR__);
+    printer.append(s != null ? s : this.__repr__());
   }
 
   @Override
   public void str(Printer printer, StarlarkSemantics semantics) {
-    printer.append(this.__str__());
+    // As in Python, str() falls back to __repr__ when the class defines no __str__.
+    String s = callClassStringMethod(PyProtocols.__STR__);
+    if (s == null) {
+      s = callClassStringMethod(PyProtocols.__REPR__);
+    }
+    printer.append(s != null ? s : this.__str__());
+  }
+
+  /**
+   * Calls {@code name} (__repr__ or __str__) if the object's class defines it, as Python looks
+   * special methods up on the type; returns null if the class does not define it.
+   */
+  @Nullable
+  private String callClassStringMethod(String name) {
+    if (this.typeClass().lookup(name) == null) {
+      return null;
+    }
+    final StarlarkThread thread = this.getCurrentThread();
+    try {
+      Object result = Starlark.call(thread, this.getField(name, thread), Tuple.empty(), Dict.empty());
+      if (!(result instanceof String)) {
+        throw Starlark.errorf(
+          "TypeError: %s returned non-string (type %s)", name, StarlarkUtil.richType(result));
+      }
+      return (String) result;
+    } catch (EvalException e) {
+      throw StructBinOp.uncheckedEvalError(e, thread);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, thread);
+    }
   }
 
   @Override
