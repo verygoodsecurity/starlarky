@@ -1,6 +1,8 @@
 package com.verygood.security.larky.modules.types;
 
 import com.verygood.security.larky.parser.StarlarkUtil;
+import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
+import com.verygood.security.larky.objects.type.LarkyType;
 
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkMethod;
@@ -21,11 +23,48 @@ import javax.annotation.Nullable;
 import lombok.Builder;
 
 @Builder
-public class Property implements StarlarkValue {
+public class Property implements StarlarkValue, LarkyDataDescriptor {
 
   final private StarlarkCallable fget;
   final private StarlarkCallable fset;
   final private StarlarkThread thread;
+
+  @Override
+  public Object __get__(Object obj, LarkyType type, @Nullable StarlarkThread thread)
+      throws InterruptedException, EvalException {
+    if (obj == null || obj == Starlark.NONE) {
+      return this;
+    }
+    if (this.fget == null) {
+      throw new EvalException("AttributeError: unreadable attribute");
+    }
+    return Starlark.call(thread != null ? thread : this.thread, this.fget, Tuple.of(obj), Dict.empty());
+  }
+
+  @Override
+  public void __set__(Object obj, Object value, @Nullable StarlarkThread thread)
+      throws InterruptedException, EvalException {
+    if (this.fset == null) {
+      throw new EvalException("AttributeError: can't set attribute");
+    }
+    Starlark.call(thread != null ? thread : this.thread, this.fset, Tuple.of(obj, value), Dict.empty());
+  }
+
+  @Override
+  public void __delete__(Object obj, @Nullable StarlarkThread thread) throws EvalException {
+    throw new EvalException("AttributeError: can't delete attribute");
+  }
+
+  @Override
+  public boolean readonly() {
+    // Dispatch to __set__ even without fset so it supplies the property-specific error.
+    return false;
+  }
+
+  @Override
+  public boolean optional() {
+    return false;
+  }
 
   @StarlarkMethod(
     name = "get",

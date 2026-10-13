@@ -3,9 +3,11 @@ package com.verygood.security.larky.objects.descriptor;
 import com.google.common.collect.ImmutableCollection;
 import java.util.Map;
 
+import com.verygood.security.larky.objects.PyObject;
 import com.verygood.security.larky.objects.type.LarkyType;
 
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Structure;
 
@@ -25,6 +27,18 @@ public interface LarkyNonDataDescriptor {
       result = obj1.containsKey("__get__");
     }
     return result;
+  }
+
+  /** Reads a protocol method from any object accepted by descriptor detection. */
+  static Object descriptorMethod(Object desc, String name, StarlarkThread thread) throws EvalException {
+    return switch (desc) {
+      // Order matters: PyObject is also a Structure; its thread-aware lookup must come first.
+      // Structure takes precedence over Map for objects implementing both.
+      case PyObject pyObject -> pyObject.getField(name, thread);
+      case Structure structure -> structure.getValue(name);
+      case Map<?, ?> map -> map.get(name);
+      default -> throw Starlark.errorf("'%s' is not a descriptor", Starlark.type(desc));
+    };
   }
 
   // These are the prototypes for the descriptor protocol.
