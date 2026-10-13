@@ -76,6 +76,11 @@ public class InMemMapBackedStarFile implements StarFile {
   }
 
   @Override
+  public byte[] readShippedFile(String name) {
+    return starFiles.get(name);
+  }
+
+  @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
         .add("current", current)

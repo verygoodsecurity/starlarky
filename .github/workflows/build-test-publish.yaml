@@ -200,6 +200,7 @@ jobs:
         run: |
           mvn -B -ntp versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false -pl larky-wasm,libstarlark,larky
           mvn -B -ntp versions:set-property -Dproperty=libstarlark.version -DnewVersion="$VERSION" -DgenerateBackupPoms=false -pl larky
+          mvn -B -ntp versions:set-property -Dproperty=larky-wasm.version -DnewVersion="$VERSION" -DgenerateBackupPoms=false -pl larky
           mvn -B -ntp deploy -DskipTests -pl larky-wasm,libstarlark,larky
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

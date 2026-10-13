@@ -33,6 +33,21 @@ public final class StarlarkThreadTest {
 
   private final EvaluationTestCase ev = new EvaluationTestCase();
 
+  @Test
+  public void immediateExpirationCheckCannotReviveAnExpiredThreadAfterClockRollback() {
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setExpirationMs(100);
+      thread.setClock(java.time.Clock.fixed(
+          java.time.Instant.ofEpochMilli(101), java.time.ZoneOffset.UTC));
+      assertThrows(EvalException.class, () -> ThreadExpiration.check(thread));
+      thread.setClock(java.time.Clock.fixed(
+          java.time.Instant.ofEpochMilli(99), java.time.ZoneOffset.UTC));
+      assertThrows(EvalException.class, () -> ThreadExpiration.check(thread));
+      assertThrows(EvalException.class, thread::checkExpired);
+    }
+  }
+
   // Test the API directly
   @Test
   public void testLookupAndUpdate() throws Exception {
