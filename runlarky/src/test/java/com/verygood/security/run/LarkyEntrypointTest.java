@@ -205,6 +205,139 @@ public final class LarkyEntrypointTest {
   }
 
   @Test
+  public void fallbackFilesKeepShippedFilesAndTheirOwnRelativeLoads() throws Exception {
+    File helper = tmp.newFile("helper.star");
+    Files.writeString(helper.toPath(), "x = 1\n");
+    File sibling = tmp.newFile("sibling.star");
+    Files.writeString(sibling.toPath(), "x = 2\n");
+    StarFile root = LarkyEntrypoint.rootStarFile(
+        new PrependMergedStarFile("x = 0\n"), "main.star",
+        ImmutableMap.of("echo.wasm", WASM, "shipped.star", "x = 3\n".getBytes(UTF_8)));
+
+    StarFile fromDisk = root.resolve("/" + helper.getAbsolutePath());
+    assertThat(fromDisk.readContent()).isEqualTo("x = 1\n");
+    assertThat(fromDisk.readShippedFile("echo.wasm")).isEqualTo(WASM);
+    assertThat(fromDisk.resolve("//shipped.star").readContent()).isEqualTo("x = 3\n");
+    StarFile fromSibling = fromDisk.resolve("sibling.star");
+    assertThat(fromSibling.readContent()).isEqualTo("x = 2\n");
+    assertThat(fromSibling.readShippedFile("echo.wasm")).isEqualTo(WASM);
+    assertThat(fromSibling.readShippedFile(sibling.getAbsolutePath())).isNull();
+  }
+
+  @Test
+  public void run_diskHelperCanLoadAShippedModule() throws Exception {
+    File helper = tmp.newFile("disk-helper.star");
+    Files.writeString(helper.toPath(), "load('//shipped', 'greet')\nmessage = greet('disk')\n");
+    File shipped = tmp.newFile("shipped-source.star");
+    Files.writeString(shipped.toPath(), "def greet(who):\n    return 'hello ' + who\n");
+    File script = tmp.newFile("main.star");
+    String label = "/" + helper.getAbsolutePath().replaceAll("\\.star$", "");
+    Files.writeString(script.toPath(), "load('" + label + "', 'message')\nmessage\n");
+    File out = tmp.newFile();
+    StringWriter err = new StringWriter();
+    CommandLine cli = new CommandLine(new LarkyEntrypoint());
+    cli.setErr(new PrintWriter(err));
+
+    int exit = cli.execute(
+        "-s", script.getPath(), "-o", out.getPath(), "-l", tmp.newFile().getPath(),
+        "--module", "shipped.star=" + shipped.getPath());
+
+    assertWithMessage("%s", err).that(exit).isEqualTo(0);
+    assertThat(Files.readString(out.toPath())).contains("hello disk");
+  }
+
+  @Test
+  public void run_wasmRequiresExplicitEnablementAndTimeout() throws Exception {
+    String property = "larky.wasm.enabled";
+    String previous = System.getProperty(property);
+    System.clearProperty(property);
+    try {
+      File script = tmp.newFile("wasm.star");
+      Files.writeString(script.toPath(),
+          "load('@vgs//wasm', 'wasm')\nwasm.module('empty.wasm').run(b'')\n'enabled'\n");
+      File wasm = tmp.newFile("empty.wasm");
+      // (module (memory (export "memory") 1) (func (export "_start")))
+      Files.write(wasm.toPath(), java.util.HexFormat.of().parseHex(
+          "0061736d01000000010401600000030201000503010001071302065f73746172740000"
+              + "066d656d6f727902000a040102000b"));
+      File out = tmp.newFile();
+      List<String> base = List.of("-s", script.getPath(), "-o", out.getPath(),
+          "-l", tmp.newFile().getPath(), "--module", "empty.wasm=" + wasm.getPath());
+
+      assertThat(runWithOptions(base, "--timeout-ms", "10000")).isNotEqualTo(0);
+      assertThat(lastCliError).contains("disabled");
+      assertThat(runWithOptions(base, "--enable-wasm"))
+          .isEqualTo(CommandLine.ExitCode.USAGE);
+      int enabledExit = runWithOptions(base, "--enable-wasm", "--timeout-ms", "10000");
+      assertWithMessage("%s", lastCliError).that(enabledExit).isEqualTo(0);
+      assertThat(Files.readString(out.toPath())).contains("enabled");
+      assertThat(System.getProperty(property)).isNull();
+
+      System.setProperty(property, "true");
+      assertThat(runWithOptions(base, "--timeout-ms", "10000")).isEqualTo(0);
+      assertThat(System.getProperty(property)).isEqualTo("true");
+      assertThat(runWithOptions(base)).isNotEqualTo(0);
+      assertThat(lastCliError).contains("finite evaluation deadline");
+      // An ambient host opt-in must not make timeouts mandatory for ordinary scripts.
+      Files.writeString(script.toPath(), "'normal'\n");
+      assertThat(runWithOptions(base)).isEqualTo(0);
+      System.setProperty(property, "false");
+      Files.writeString(script.toPath(), "fail('deliberate failure')\n");
+      assertThat(runWithOptions(base, "--enable-wasm", "--timeout-ms", "10000"))
+          .isNotEqualTo(0);
+      assertThat(System.getProperty(property)).isEqualTo("false");
+    } finally {
+      if (previous == null) System.clearProperty(property);
+      else System.setProperty(property, previous);
+    }
+  }
+
+  private String lastCliError;
+
+  private int runWithOptions(List<String> base, String... options) {
+    List<String> args = new ArrayList<>(base);
+    args.addAll(List.of(options));
+    CommandLine cli = new CommandLine(new LarkyEntrypoint());
+    StringWriter err = new StringWriter();
+    cli.setErr(new PrintWriter(err));
+    int exit = cli.execute(args.toArray(String[]::new));
+    lastCliError = err.toString();
+    return exit;
+  }
+
+  @Test
+  public void run_timeoutRejectsNonPositiveAndOverflowingDurations() {
+    for (String timeout : List.of("0", "-1", Long.toString(Long.MAX_VALUE))) {
+      assertThat(runWithOptions(List.of(), "--timeout-ms", timeout))
+          .isEqualTo(CommandLine.ExitCode.USAGE);
+    }
+  }
+
+  @Test
+  public void run_timeoutWorksWithoutWasm() throws Exception {
+    File script = tmp.newFile("normal.star");
+    Files.writeString(script.toPath(), "'normal'\n");
+    File out = tmp.newFile();
+    assertThat(runWithOptions(List.of("-s", script.getPath(), "-o", out.getPath(),
+        "-l", tmp.newFile().getPath()), "--timeout-ms", "10000")).isEqualTo(0);
+    assertThat(Files.readString(out.toPath())).contains("normal");
+  }
+
+  @Test(timeout = 5000)
+  public void run_timeoutStopsNormalStarlarkEvaluation() throws Exception {
+    File script = tmp.newFile("spin.star");
+    Files.writeString(script.toPath(),
+        "def spin():\n    x = 0\n    for i in range(2147483647):\n        x += 1\n    return x\nspin()\n");
+    StringWriter err = new StringWriter();
+    CommandLine cli = new CommandLine(new LarkyEntrypoint());
+    cli.setErr(new PrintWriter(err));
+    int exit = cli.execute("-s", script.getPath(), "-o", tmp.newFile().getPath(),
+        "-l", tmp.newFile().getPath(), "--timeout-ms", "50");
+    assertThat(exit).isNotEqualTo(0);
+    assertThat(err.toString()).contains("past expiration date");
+  }
+
+  @Test
   public void scriptName_isTheScriptsFileName() {
     assertThat(LarkyEntrypoint.scriptName("/a/b/main.star")).isEqualTo("main.star");
     assertThat(LarkyEntrypoint.scriptName(null)).isEqualTo(LarkyEntrypoint.DEFAULT_SCRIPT_NAME);

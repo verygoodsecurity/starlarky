@@ -197,13 +197,25 @@ def encrypt_pan(pan, key):
 Run your script with the module attached:
 
 ```sh
-larky-runner -s script.star -i input.star --module encrypt.wasm=./encrypt.wasm
+larky-runner -s script.star -i input.star --module encrypt.wasm=./encrypt.wasm \
+  --enable-wasm --timeout-ms 1000
 ```
 
 `--module NAME=PATH` makes `PATH` available to `wasm.module("NAME")`. Each file may be up to
 8 MiB, and all of them 64 MiB together. The script's other `load()`s resolve as they do without
-`--module`. From Python, `pylarky`'s `Evaluator(script, modules={"encrypt.wasm": data})` does the
-same, for up to 64 files.
+`--module`. `--enable-wasm` requires a positive `--timeout-ms`; attaching files alone leaves
+WASM disabled. From Python, pass the same host authorization explicitly (up to 64 files):
+
+```python
+Evaluator(
+    script,
+    modules={"encrypt.wasm": wasm_bytes},
+    enable_wasm=True,
+    timeout_ms=1000,
+).evaluate(input_data)
+```
+
+`HttpEvaluator` accepts the same options. Normal scripts can omit the timeout, but WASM cannot.
 
 ## Runtimes (for services that embed Larky)
 

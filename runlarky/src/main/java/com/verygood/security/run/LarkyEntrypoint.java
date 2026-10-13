@@ -27,6 +27,7 @@ import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.FileConsole;
 import com.verygood.security.larky.console.LogConsole;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 import com.verygood.security.larky.parser.PrependMergedStarFile;
@@ -104,6 +105,16 @@ public class LarkyEntrypoint implements Callable<Integer> {
               + "wasm.module(NAME)). Repeatable.")
   private List<String> moduleArgs = new ArrayList<>();
 
+  @CommandLine.Option(names = "--enable-wasm",
+      description = "Allow WebAssembly for this evaluation; requires --timeout-ms")
+  private boolean enableWasm;
+
+  @CommandLine.Option(names = "--timeout-ms", paramLabel = "MILLISECONDS",
+      description = "Positive finite evaluation timeout, required when WebAssembly is enabled")
+  private Long timeoutMs;
+
+  private static final String WASM_ENABLED_PROPERTY = "larky.wasm.enabled";
+
   @CommandLine.Spec
   private CommandLine.Model.CommandSpec spec;
 
@@ -129,12 +140,42 @@ public class LarkyEntrypoint implements Callable<Integer> {
   @Override
   public Integer call() throws Exception {
     ImmutableMap<String, byte[]> modules;
+    Long expirationMs = null;
     try {
+      if (enableWasm && timeoutMs == null) {
+        throw new IllegalArgumentException("WebAssembly requires --timeout-ms");
+      }
+      if (timeoutMs != null) {
+        if (timeoutMs <= 0) {
+          throw new IllegalArgumentException("--timeout-ms must be positive");
+        }
+        try {
+          expirationMs = Math.addExact(System.currentTimeMillis(), timeoutMs);
+        } catch (ArithmeticException e) {
+          throw new IllegalArgumentException("--timeout-ms is too large for a finite deadline", e);
+        }
+        if (expirationMs == Long.MAX_VALUE) {
+          throw new IllegalArgumentException("--timeout-ms is too large for a finite deadline");
+        }
+      }
       modules = readModules(moduleArgs, scriptName(filePath));
     } catch (IllegalArgumentException e) {
       throw new CommandLine.ParameterException(spec.commandLine(), e.getMessage(), e);
     }
-    execute(modules);
+    // The standalone CLI evaluates one script at a time. Do not leave an opt-in behind when tests
+    // or another host invoke this entrypoint repeatedly in the same JVM.
+    String previousWasmEnabled = System.getProperty(WASM_ENABLED_PROPERTY);
+    if (enableWasm) {
+      System.setProperty(WASM_ENABLED_PROPERTY, "true");
+    }
+    try {
+      execute(modules, expirationMs);
+    } finally {
+      if (enableWasm) {
+        if (previousWasmEnabled == null) System.clearProperty(WASM_ENABLED_PROPERTY);
+        else System.setProperty(WASM_ENABLED_PROPERTY, previousWasmEnabled);
+      }
+    }
     return CommandLine.ExitCode.OK;
   }
 
@@ -230,10 +271,16 @@ public class LarkyEntrypoint implements Callable<Integer> {
    * so shipping a file cannot break a script's other loads.
    */
   static final class ShippedFiles implements StarFile {
+    private final StarFile current;
     private final StarFile shipped;
     private final StarFile fallback;
 
     ShippedFiles(StarFile shipped, StarFile fallback) {
+      this(shipped, shipped, fallback);
+    }
+
+    private ShippedFiles(StarFile current, StarFile shipped, StarFile fallback) {
+      this.current = current;
       this.shipped = shipped;
       this.fallback = fallback;
     }
@@ -244,29 +291,32 @@ public class LarkyEntrypoint implements Callable<Integer> {
       try {
         file = shipped.resolve(path);
       } catch (RuntimeException notShipped) { // InMemMapBackedStarFile's "does not exist"
-        return fallback.resolve(path);
+        file = fallback.resolve(path);
+        // Disk/classpath helpers still belong to this evaluation. Keep its shipped files while
+        // resolving subsequent filesystem loads relative to the helper we just loaded.
+        return new ShippedFiles(file, shipped, file);
       }
       return new ShippedFiles(file, fallback);
     }
 
     @Override
     public String path() {
-      return shipped.path();
+      return current.path();
     }
 
     @Override
     public String cacheNamespace() {
-      return shipped.cacheNamespace();
+      return current.cacheNamespace();
     }
 
     @Override
     public byte[] readContentBytes() throws IOException {
-      return shipped.readContentBytes();
+      return current.readContentBytes();
     }
 
     @Override
     public String getIdentifier() {
-      return shipped.getIdentifier();
+      return current.getIdentifier();
     }
 
     @Override
@@ -276,7 +326,7 @@ public class LarkyEntrypoint implements Callable<Integer> {
   }
 
   @SneakyThrows
-  private void execute(ImmutableMap<String, byte[]> modules) {
+  private void execute(ImmutableMap<String, byte[]> modules, Long expirationMs) {
 
     Path tempdir =  Paths.get(System.getProperty("java.io.tmpdir"), "larky-runner");
     String timestamp = String.valueOf(System.currentTimeMillis());
@@ -306,8 +356,10 @@ public class LarkyEntrypoint implements Callable<Integer> {
     Console console = new FileConsole(CapturingConsole.captureAllConsole(
         LogConsole.writeOnlyConsole(System.out, true)), Path.of(logPath), Duration.ZERO);
 
+    Map<String, Object> globals = expirationMs == null
+        ? ImmutableMap.of() : ImmutableMap.of(LarkyEvaluator.EXPIRATION_MS, expirationMs);
     String output =
-      new LarkyScript(StarlarkMode.STRICT)
+      new LarkyScript(ModuleSupplier.CORE_MODULES, StarlarkMode.STRICT, globals)
         .executeSkylarkWithOutput(
           rootStarFile(prependMergedStarFile, scriptName(filePath), modules),
           new ModuleSupplier().create(),
