@@ -53,6 +53,9 @@ public class CryptoRandomModule implements StarlarkValue {
 
   /** Returns a uniformly distributed integer in [0, n), for n > 0. */
   private static BigInteger randbelow(BigInteger n) {
+    if (n.equals(BigInteger.ONE)) {
+      return BigInteger.ZERO; // the only value; no need to draw
+    }
     SecureRandom secureRandom = CryptoServicesRegistrar.getSecureRandom();
     int k = n.bitLength();
     // Rejection sampling: each draw is accepted with probability > 1/2.
