@@ -421,6 +421,35 @@ def TestEvolve_test_can_change_inst():
     asserts.assert_that(evolve(D(23), inst=42)).is_equal_to(D(42))
 
 
+# VGS: not in attrs' tests. The messages are attrs 26.1.0's.
+def VGS_test_instance_functions_reject_classes_and_non_attrs_values():
+    """
+    asdict, astuple, evolve and validate look up fields(inst.__class__), so a
+    class or a non-attrs value is rejected by its class.
+    """
+    for f in [asdict, astuple, evolve, attr.validate]:
+        asserts.assert_that(_error(lambda: f(C))).is_equal_to(
+            "NotAnAttrsClassError: <class 'type'> is not an attrs-decorated class.",
+        )
+        asserts.assert_that(_error(lambda: f(5))).is_equal_to(
+            "NotAnAttrsClassError: <class 'int'> is not an attrs-decorated class.",
+        )
+
+
+# VGS: attrs raises AttributeError from str.lstrip for a non-string name and
+# accepts any alias; Larky rejects both when evolving the Attribute.
+def VGS_test_attribute_evolve_checks_name_and_alias():
+    a = fields(C).x
+    asserts.assert_that(_error(lambda: a.evolve(name=5))).is_equal_to(
+        "TypeError: name must be a string, not int",
+    )
+    asserts.assert_that(_error(lambda: a.evolve(alias=5))).is_equal_to(
+        "TypeError: alias must be a string or None, not int",
+    )
+    asserts.assert_that(a.evolve(alias=None).alias).is_equal_to(None)
+    asserts.assert_that(a.evolve(name="z").alias).is_equal_to("z")
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     for t in [
@@ -459,6 +488,8 @@ def _testsuite():
         TestEvolve_test_no_inst,
         TestEvolve_test_too_many_pos_args,
         TestEvolve_test_can_change_inst,
+        VGS_test_instance_functions_reject_classes_and_non_attrs_values,
+        VGS_test_attribute_evolve_checks_name_and_alias,
     ]:
         _suite.addTest(unittest.FunctionTestCase(t))
     return _suite
