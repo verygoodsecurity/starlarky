@@ -1,3 +1,4 @@
+# Ported from pycryptodome 3.10.4-3.12.0, pinned to 3.12.0 (d8edf1a): lib/Crypto/Hash/SHA3_512.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", larky="larky")

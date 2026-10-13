@@ -27,6 +27,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
+# Ported from pycryptodome <= 3.10.1 (some >= 3.10.0), pinned to 3.10.1 (339259c): lib/Crypto/SelfTest/Cipher/test_GCM.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")

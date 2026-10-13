@@ -21,6 +21,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+# Ported from pycryptodome 3.13.0-3.14.1, pinned to 3.14.1 (5c5db24): lib/Crypto/PublicKey/DSA.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")

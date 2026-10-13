@@ -30,6 +30,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/Hash/HMAC.py. See larky/src/main/resources/VENDORED.md.
 
 load("@stdlib//larky", larky="larky")
 load("@stdlib//builtins","builtins")

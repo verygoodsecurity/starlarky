@@ -46,6 +46,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
 # OF THIS SOFTWARE.
 # --------------------------------------------------------------------
+# Ported from CPython 3.10.0a3-3.10.0a5, pinned to 3.10.0a5 (b0478d7): Lib/xml/etree/ElementPath.py. See larky/src/main/resources/VENDORED.md.
 
 # Licensed to PSF under a Contributor Agreement.
 # See http://www.python.org/psf/license for licensing details.

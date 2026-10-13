@@ -1,3 +1,4 @@
+# Ported from CPython 3.0.1-3.10 (blob unchanged), pinned to 3.9.6 (db3ff76): Lib/this.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", "larky")
 load("@vendor//asserts", "asserts")
 load("@stdlib//unittest", "unittest")

@@ -1,3 +1,4 @@
+# Ported from CPython 3.8.4-3.10, pinned to 3.9.2 (1a79785): Lib/test/test_struct.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//builtins", "builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", larky="larky")

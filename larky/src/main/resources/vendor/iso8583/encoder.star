@@ -1,3 +1,4 @@
+# Ported from pyiso8583 2.1.0 (0bf0538): iso8583/encoder.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//builtins","builtins")
 load("@stdlib//sets", "sets")

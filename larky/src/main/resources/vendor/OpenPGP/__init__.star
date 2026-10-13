@@ -1,3 +1,4 @@
+# Ported from OpenPGP-Python (mahmoudimus fork) fork branch HEAD (no release) (a174c38): src/OpenPGP/__init__.py. See larky/src/main/resources/VENDORED.md.
 # Pure Larky implementation of OpenPGP <http://tools.ietf.org/html/rfc4880>
 # Port of openpgp-python <http://github.com/mahmoudimus/openpgp-python>
 load("@stdlib//base64", base64="base64")

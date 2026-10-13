@@ -1,3 +1,4 @@
+# Ported from CPython 3.1.3-3.9, pinned to 3.3.7 (17bf6b4): Lib/test/test_base64.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//base64", "base64")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//unittest", "unittest")

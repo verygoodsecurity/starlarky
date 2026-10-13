@@ -1,3 +1,4 @@
+# Ported from option 1.0.3 (result.py docstrings unchanged since 0.3.0) (d885a88): option/result.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", "larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")

@@ -1,3 +1,4 @@
+# Ported from CPython 3.10.0a3-3.10.0a5, pinned to 3.10.0a5 (b0478d7): Lib/xml/etree/ElementTree.py. See larky/src/main/resources/VENDORED.md.
 """Lightweight XML support for Python.
 
  XML is an inherently hierarchical data format, and the most natural way to

@@ -1,3 +1,4 @@
+# Ported from PyXML 0.8.4 (no git): xml/dom/ext/c14n.py. See larky/src/main/resources/VENDORED.md.
 """XML Canonicalization
 
 This module generates canonical XML of a document or element.
