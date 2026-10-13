@@ -63,11 +63,17 @@ final class AttrsFunctions {
     return rv;
   }
 
+  /**
+   * attrs' {@code fields(inst.__class__)}: a class or any other non-attrs value is rejected by
+   * its class, e.g. {@code <class 'type'> is not an attrs-decorated class.}
+   */
   static AttrsFields fieldsOfInstance(StarlarkThread thread, Object inst) throws EvalException, InterruptedException {
-    if (!(inst instanceof PyObject)) {
-      return fields(thread, inst);
+    AttrsFields attrs = AttrsSupport.attrsOfInstance(thread, inst);
+    if (attrs == null) {
+      throw AttrsSupport.error("NotAnAttrsClassError",
+          AttrsSupport.classRepr(inst) + " is not an attrs-decorated class.");
     }
-    return fields(thread, ((PyObject) inst).typeClass());
+    return attrs;
   }
 
   static void validate(StarlarkThread thread, Object inst) throws EvalException, InterruptedException {
