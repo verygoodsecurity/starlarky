@@ -10,6 +10,7 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.IntLimits;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
@@ -25,6 +26,24 @@ public class CryptoRandomModule implements StarlarkValue {
 
   public static final CryptoRandomModule INSTANCE = new CryptoRandomModule();
 
+  /**
+   * The most random bytes one urandom or randbytes call may produce. CPython has no limit, but
+   * scripts are untrusted, and one urandom(2**31 - 1) would otherwise allocate 2 GiB. Scripts ask
+   * for keys, IVs and nonces (tens of bytes); CPython's own zlib tests ask for 10 MiB.
+   * getrandbits is limited by the int limit instead ({@link IntLimits#MAX_BITS}).
+   */
+  static final int MAX_RANDOM_BYTES = 16 << 20;
+
+  /** {@code n} as an int, failing if it is over the per-call limit of {@code max}. */
+  private static int checkSize(StarlarkInt n, long max, String function, String unit)
+      throws EvalException {
+    if (n.compareTo(StarlarkInt.of(max)) > 0) {
+      throw Starlark.errorf(
+          "ValueError: %s() is limited to %d %s per call in Larky; got %s", function, max, unit, n);
+    }
+    return n.toIntUnchecked();
+  }
+
   @StarlarkMethod(name = "urandom", parameters = {
       @Param(name = "n", allowedTypes = {@ParamType(type = StarlarkInt.class)}),
 
@@ -33,7 +52,7 @@ public class CryptoRandomModule implements StarlarkValue {
     if (n.signum() < 0) {
       throw Starlark.errorf("ValueError: negative argument not allowed");
     }
-    byte[] key = new byte[n.toInt("n")];
+    byte[] key = new byte[checkSize(n, MAX_RANDOM_BYTES, "urandom", "bytes")];
     CryptoServicesRegistrar.getSecureRandom().nextBytes(key);
     return StarlarkBytes.of(thrd.mutability(), key);
   }
@@ -48,7 +67,11 @@ public class CryptoRandomModule implements StarlarkValue {
       throw Starlark.errorf("ValueError: number of bits must be non-negative");
     }
     // Uniform over [0, 2**k); getrandbits(0) is 0, as in CPython.
-    return StarlarkInt.of(new BigInteger(k.toInt("k"), CryptoServicesRegistrar.getSecureRandom()));
+    // The result has up to k bits, so k may not exceed the int limit.
+    if (k.compareTo(StarlarkInt.of(IntLimits.MAX_BITS)) > 0) {
+      IntLimits.checkBits(k.toBigInteger().min(BigInteger.valueOf(Long.MAX_VALUE)).longValue(), "getrandbits(k)");
+    }
+    return StarlarkInt.of(new BigInteger(k.toIntUnchecked(), CryptoServicesRegistrar.getSecureRandom()));
   }
 
   /** Returns a uniformly distributed integer in [0, n), for n > 0. */
@@ -154,21 +177,33 @@ public class CryptoRandomModule implements StarlarkValue {
       // CPython's randbytes(n) is getrandbits(n * 8).to_bytes(n, 'little').
       throw Starlark.errorf("ValueError: number of bits must be non-negative");
     }
-    byte[] randomBytes = new byte[n.toInt("n")];
+    byte[] randomBytes = new byte[checkSize(n, MAX_RANDOM_BYTES, "randbytes", "bytes")];
     CryptoServicesRegistrar.getSecureRandom().nextBytes(randomBytes);
     return StarlarkBytes.of(thread.mutability(), randomBytes);
   }
 
   @StarlarkMethod(
       name = "shuffle",
-      doc = "Shuffle the sequence (NOT IN PLACE) and will return a new shuffled list",
-      parameters = {@Param(name = "x")},
-      useStarlarkThread = true
+      doc = "Shuffle the list x in place, and return None.",
+      parameters = {@Param(name = "x")}
   )
-  public Sequence<?> shuffle(Sequence<?> x, StarlarkThread thread) {
-    List<?> shufflable = new ArrayList<>(x.getImmutableList());
-    Collections.shuffle(shufflable, CryptoServicesRegistrar.getSecureRandom());
-    return StarlarkList.copyOf(thread.mutability(), shufflable);
+  public Object shuffle(Object x) throws EvalException {
+    if (!(x instanceof StarlarkList)) {
+      throw Starlark.errorf(
+          "TypeError: '%s' object does not support item assignment", Starlark.type(x));
+    }
+    @SuppressWarnings("unchecked")
+    StarlarkList<Object> list = (StarlarkList<Object>) x;
+    Starlark.checkMutable(list); // a frozen list fails before anything moves
+    SecureRandom random = CryptoServicesRegistrar.getSecureRandom();
+    // Fisher-Yates, as CPython's random.shuffle.
+    for (int i = list.size() - 1; i > 0; i--) {
+      int j = random.nextInt(i + 1);
+      Object tmp = list.get(i);
+      list.setElementAt(i, list.get(j));
+      list.setElementAt(j, tmp);
+    }
+    return Starlark.NONE;
   }
 
   @StarlarkMethod(

@@ -144,14 +144,32 @@ def test_sample_errors():
 # shuffle tests
 
 def test_shuffle_basic():
-    original = [1,2,3,4]
-    shuffled = random.shuffle(original)
+    # As in CPython: shuffles the list in place and returns None.
+    original = [1, 2, 3, 4]
+    asserts.assert_that(random.shuffle(original)).is_none()
+    asserts.assert_that(sorted(original)).is_equal_to([1, 2, 3, 4])
 
-    # original list must NOT change
-    asserts.assert_that(original).is_equal_to([1,2,3,4])
 
-    # shuffled must contain the same elements
-    asserts.assert_that(sorted(shuffled)).is_equal_to([1,2,3,4])
+def test_shuffle_reaches_every_order():
+    # 4! = 24 orders; over 2000 shuffles each is missing with probability < 24 * (23/24)**2000.
+    seen = {}
+    for _ in range(2000):
+        x = [1, 2, 3, 4]
+        random.shuffle(x)
+        seen[tuple(x)] = True
+    asserts.assert_that(len(seen)).is_equal_to(24)
+
+
+def test_shuffle_small_lists():
+    for x in ([], [7]):
+        before = list(x)
+        random.shuffle(x)
+        asserts.assert_that(x).is_equal_to(before)
+
+
+def test_shuffle_errors():
+    asserts.assert_fails(lambda: random.shuffle((1, 2, 3)), "TypeError: 'tuple' object does not support item assignment")
+    asserts.assert_fails(lambda: random.shuffle("abc"), "TypeError: 'string' object does not support item assignment")
 
 
 # getrandbits tests
@@ -182,7 +200,17 @@ def test_getrandbits_big():
 def test_getrandbits_errors():
     asserts.assert_fails(lambda: random.getrandbits(-1), "ValueError: number of bits must be non-negative")
     asserts.assert_fails(lambda: random.getrandbits(-(1 << 70)), "ValueError: number of bits must be non-negative")
-    asserts.assert_fails(lambda: random.getrandbits(1 << 40), "got 1099511627776 for k, want value in signed 32-bit range")
+    # The result can't exceed Larky's int limit (65,536 bits by default).
+    asserts.assert_fails(lambda: random.getrandbits(1 << 40), "int too large: getrandbits\\(k\\) would make an int of about 1099511627776 bits; the limit is 65536")
+    asserts.assert_fails(lambda: random.getrandbits(65537), "int too large: getrandbits\\(k\\) would make an int of about 65537 bits; the limit is 65536")
+
+
+def test_random_sizes_up_to_the_limit():
+    # One call may produce up to 16 MiB; scripts ask for tens of bytes.
+    asserts.assert_that(len(random.urandom(16 << 20))).is_equal_to(16 << 20)
+    asserts.assert_that(len(random.randbytes(16 << 20))).is_equal_to(16 << 20)
+    v = random.getrandbits(65536)
+    asserts.assert_true(v >= 0 and len("%x" % v) <= 65536 // 4, "getrandbits(65536) out of range")
 
 
 # randbytes tests
@@ -195,7 +223,8 @@ def test_randbytes_basic(n):
 
 def test_randbytes_errors():
     asserts.assert_fails(lambda: random.randbytes(-1), "ValueError: number of bits must be non-negative")
-    asserts.assert_fails(lambda: random.randbytes(1 << 40), "got 1099511627776 for n, want value in signed 32-bit range")
+    asserts.assert_fails(lambda: random.randbytes(1 << 40), "ValueError: randbytes\\(\\) is limited to 16777216 bytes per call in Larky; got 1099511627776")
+    asserts.assert_fails(lambda: random.randbytes((16 << 20) + 1), "ValueError: randbytes\\(\\) is limited to 16777216 bytes per call in Larky; got 16777217")
 
 
 # urandom tests
@@ -207,7 +236,9 @@ def test_urandom_basic(n):
 
 def test_urandom_errors():
     asserts.assert_fails(lambda: random.urandom(-1), "ValueError: negative argument not allowed")
-    asserts.assert_fails(lambda: random.urandom(1 << 40), "got 1099511627776 for n, want value in signed 32-bit range")
+    asserts.assert_fails(lambda: random.urandom(1 << 40), "ValueError: urandom\\(\\) is limited to 16777216 bytes per call in Larky; got 1099511627776")
+    asserts.assert_fails(lambda: random.urandom((16 << 20) + 1), "ValueError: urandom\\(\\) is limited to 16777216 bytes per call in Larky; got 16777217")
+    asserts.assert_fails(lambda: random.urandom((1 << 31) - 1), "ValueError: urandom\\(\\) is limited to 16777216 bytes per call in Larky; got 2147483647")
 
 
 # Suite
@@ -247,6 +278,9 @@ def suite():
 
     # shuffle
     s.addTest(unittest.FunctionTestCase(test_shuffle_basic))
+    s.addTest(unittest.FunctionTestCase(test_shuffle_reaches_every_order))
+    s.addTest(unittest.FunctionTestCase(test_shuffle_small_lists))
+    s.addTest(unittest.FunctionTestCase(test_shuffle_errors))
 
     # getrandbits
     larky.parametrize(s.addTest, unittest.FunctionTestCase, "bits", [8])(test_getrandbits_basic)
@@ -254,6 +288,7 @@ def suite():
     s.addTest(unittest.FunctionTestCase(test_getrandbits_one_is_uniform))
     s.addTest(unittest.FunctionTestCase(test_getrandbits_big))
     s.addTest(unittest.FunctionTestCase(test_getrandbits_errors))
+    s.addTest(unittest.FunctionTestCase(test_random_sizes_up_to_the_limit))
 
     # randbytes
     larky.parametrize(s.addTest, unittest.FunctionTestCase, "n", [16, 0])(test_randbytes_basic)
