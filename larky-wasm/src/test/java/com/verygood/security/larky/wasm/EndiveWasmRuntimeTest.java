@@ -44,6 +44,21 @@ public class EndiveWasmRuntimeTest {
   private static final String WASI = "\"wasi_snapshot_preview1\"";
   private static final byte[] NOTHING = new byte[0];
 
+  @Test
+  public void hostCanLowerCompileLimits() throws Exception {
+    String key = "larky.wasm.maxModuleBytes";
+    String old = System.getProperty(key);
+    try {
+      System.setProperty(key, "16");
+      EndiveWasmRuntime limited = new EndiveWasmRuntime(mode);
+      assertThat(assertThrows(WasmException.class,
+          () -> limited.compile(Wat2Wasm.parse(SPIN))).kind()).isEqualTo(Kind.INVALID_MODULE);
+    } finally {
+      if (old == null) System.clearProperty(key);
+      else System.setProperty(key, old);
+    }
+  }
+
   static final String ECHO =
       "(module\n"
           + "  (import " + WASI + " \"fd_read\" (func $fd_read (param i32 i32 i32 i32) (result i32)))\n"

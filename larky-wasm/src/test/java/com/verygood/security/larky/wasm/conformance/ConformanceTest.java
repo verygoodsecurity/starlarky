@@ -94,6 +94,44 @@ public class ConformanceTest {
   }
 
   @Test
+  public void hostCompileCapsApplyToEveryRuntime() throws Exception {
+    byte[] table = run.endive.wabt.Wat2Wasm.parse(
+        "(module (memory (export \"memory\") 1) (table 3 funcref) (func (export \"_start\")))");
+    byte[] local = run.endive.wabt.Wat2Wasm.parse(
+        "(module (memory (export \"memory\") 1) (func (export \"_start\") (local i32)))");
+    String tableKey = "larky.wasm.maxTableElements";
+    String localKey = "larky.wasm.maxLocalsPerFunction";
+    String typeKey = "larky.wasm.maxTypeEntries";
+    String oldTable = System.getProperty(tableKey);
+    String oldLocal = System.getProperty(localKey);
+    String oldType = System.getProperty(typeKey);
+    try {
+      System.setProperty(tableKey, "2");
+      WasmRuntime limitedTable = WasmRuntime.byName(name);
+      assertThat(limitedTable.compilePolicyKey()).isNotEqualTo(runtime.compilePolicyKey());
+      assertThat(assertThrows(WasmException.class, () -> limitedTable.compile(table)).kind())
+          .isEqualTo(Kind.MEMORY_LIMIT);
+      System.clearProperty(tableKey);
+      System.setProperty(localKey, "0");
+      WasmRuntime limitedLocal = WasmRuntime.byName(name);
+      assertThat(assertThrows(WasmException.class, () -> limitedLocal.compile(local)).kind())
+          .isEqualTo(Kind.INVALID_MODULE);
+      System.clearProperty(localKey);
+      System.setProperty(typeKey, "0");
+      WasmRuntime limitedType = WasmRuntime.byName(name);
+      assertThat(assertThrows(WasmException.class, () -> limitedType.compile(local)).kind())
+          .isEqualTo(Kind.INVALID_MODULE);
+    } finally {
+      if (oldTable == null) System.clearProperty(tableKey);
+      else System.setProperty(tableKey, oldTable);
+      if (oldLocal == null) System.clearProperty(localKey);
+      else System.setProperty(localKey, oldLocal);
+      if (oldType == null) System.clearProperty(typeKey);
+      else System.setProperty(typeKey, oldType);
+    }
+  }
+
+  @Test
   public void hostPolicyAppliesToEachRunOfTheSameProgram() throws Exception {
     WasmRuntime.Program program = runtime.compile(Fixtures.wasm("exit3"));
     var restricted = new WasmRuntime.Limits(1 << 20, 0, 1024, 0L,

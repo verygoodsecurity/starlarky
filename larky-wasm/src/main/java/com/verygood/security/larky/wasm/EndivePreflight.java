@@ -26,10 +26,6 @@ import com.verygood.security.larky.wasm.WasmRuntime.WasmException.Kind;
  */
 final class EndivePreflight {
   private static final byte[] WASM_HEADER = {0, 'a', 's', 'm', 1, 0, 0, 0};
-  private static final int MAX_LOCALS_PER_FUNCTION = 50_000;
-  private static final int MAX_TOTAL_LOCALS = 100_000;
-  private static final int MAX_TYPE_ENTRIES = 100_000;
-  private static final int MAX_FUNCTION_ARITY = 1_000;
   private static final int MIN_SINGLE_BYTE_ENTRY = 1;
   private static final int MIN_TWO_BYTE_ENTRY = 2;
   private static final int MIN_THREE_BYTE_ENTRY = 3;
@@ -135,12 +131,12 @@ final class EndivePreflight {
 
   private EndivePreflight() {}
 
-  static void check(byte[] wasm) throws WasmException {
+  static void check(byte[] wasm, WasmHostLimits limits) throws WasmException {
     Cursor r = new Cursor(wasm, 0, wasm.length);
     for (byte expected : WASM_HEADER) {
       if (r.u8() != (expected & UNSIGNED_BYTE_MASK)) throw invalid("bad WebAssembly header");
     }
-    Budget budget = new Budget();
+    Budget budget = new Budget(limits);
     while (r.remaining() != 0) {
       int wireId = r.u8();
       SectionId id = SectionId.fromWireId(wireId);
@@ -150,7 +146,8 @@ final class EndivePreflight {
         case CUSTOM -> s.name();
         case TYPE -> types(s, budget);
         case IMPORT -> imports(s);
-        case FUNCTION -> functions(s);
+        case FUNCTION -> functions(s, budget);
+        case TABLE -> tables(s, budget);
         case EXPORT -> exports(s);
         case ELEMENT -> elements(s, budget);
         case CODE -> code(s, budget);
@@ -165,16 +162,19 @@ final class EndivePreflight {
 
   private static void types(Cursor s, Budget budget) throws WasmException {
     int count = s.count(MIN_SINGLE_BYTE_ENTRY);
-    if (count > WasmRuntime.MAX_FUNCTIONS) throw invalid("too many types");
+    if (count > budget.limits.maxFunctions()) throw invalid("too many types");
     for (int i = 0; i < count; i++) {
       int wireForm = s.length();
       if (TypeForm.fromWireId(wireForm) == TypeForm.REC) {
         int subtypes = s.count(MIN_SINGLE_BYTE_ENTRY);
         budget.typeEntries += subtypes;
-        if (budget.typeEntries > MAX_TYPE_ENTRIES) throw invalid("too many type entries");
+        if (budget.typeEntries > budget.limits.maxTypeEntries()) throw invalid("too many type entries");
         for (int j = 0; j < subtypes; j++) subtype(s, s.length(), budget);
       } else {
         budget.typeEntries++;
+        if (budget.typeEntries > budget.limits.maxTypeEntries()) {
+          throw invalid("too many type entries");
+        }
         subtype(s, wireForm, budget);
       }
     }
@@ -185,7 +185,7 @@ final class EndivePreflight {
     if (typeForm == TypeForm.SUB || typeForm == TypeForm.SUB_FINAL) {
       int parents = s.count(MIN_SINGLE_BYTE_ENTRY);
       budget.typeEntries += parents;
-      if (budget.typeEntries > MAX_TYPE_ENTRIES) throw invalid("too many type entries");
+      if (budget.typeEntries > budget.limits.maxTypeEntries()) throw invalid("too many type entries");
       for (int i = 0; i < parents; i++) s.u32();
       form = s.length();
       typeForm = TypeForm.fromWireId(form);
@@ -193,21 +193,21 @@ final class EndivePreflight {
     switch (typeForm) {
       case FUNCTION -> {
         int params = s.count(MIN_SINGLE_BYTE_ENTRY);
-        if (params > MAX_FUNCTION_ARITY) throw invalid("too many function parameters");
+        if (params > budget.limits.maxFunctionArity()) throw invalid("too many function parameters");
         budget.typeEntries += params;
-        if (budget.typeEntries > MAX_TYPE_ENTRIES) throw invalid("too many type entries");
+        if (budget.typeEntries > budget.limits.maxTypeEntries()) throw invalid("too many type entries");
         for (int i = 0; i < params; i++) s.valueType();
         int results = s.count(MIN_SINGLE_BYTE_ENTRY);
-        if (results > MAX_FUNCTION_ARITY) throw invalid("too many function results");
+        if (results > budget.limits.maxFunctionArity()) throw invalid("too many function results");
         budget.typeEntries += results;
-        if (budget.typeEntries > MAX_TYPE_ENTRIES) throw invalid("too many type entries");
+        if (budget.typeEntries > budget.limits.maxTypeEntries()) throw invalid("too many type entries");
         for (int i = 0; i < results; i++) s.valueType();
       }
       case ARRAY -> s.fieldType();
       case STRUCT -> {
         int fields = s.count(MIN_TWO_BYTE_ENTRY);
         budget.typeEntries += fields;
-        if (budget.typeEntries > MAX_TYPE_ENTRIES) throw invalid("too many type entries");
+        if (budget.typeEntries > budget.limits.maxTypeEntries()) throw invalid("too many type entries");
         for (int i = 0; i < fields; i++) s.fieldType();
       }
       default -> throw invalid("unsupported type form " + form);
@@ -226,10 +226,20 @@ final class EndivePreflight {
     }
   }
 
-  private static void functions(Cursor s) throws WasmException {
+  private static void functions(Cursor s, Budget budget) throws WasmException {
     int count = s.count(MIN_SINGLE_BYTE_ENTRY);
-    if (count > WasmRuntime.MAX_FUNCTIONS) throw invalid("too many functions");
+    if (count > budget.limits.maxFunctions()) throw invalid("too many functions");
     for (int i = 0; i < count; i++) s.u32();
+  }
+
+  private static void tables(Cursor s, Budget budget) throws WasmException {
+    int count = s.count(MIN_SINGLE_BYTE_ENTRY);
+    if (count > budget.limits.maxTables()) {
+      throw new WasmException(Kind.MEMORY_LIMIT,
+          "module defines " + count + " tables; the limit is " + budget.limits.maxTables());
+    }
+    // Endive validates the table bodies. The count is checked before its parser may allocate a
+    // vector from it; table minima and growth are bounded before instantiation.
   }
 
   private static void exports(Cursor s) throws WasmException {
@@ -243,7 +253,7 @@ final class EndivePreflight {
 
   private static void elements(Cursor s, Budget budget) throws WasmException {
     int count = s.count(MIN_TWO_BYTE_ENTRY);
-    if (count > WasmRuntime.MAX_TABLE_ELEMENTS) throw invalid("too many element segments");
+    if (count > budget.limits.maxTableElements()) throw invalid("too many element segments");
     for (int i = 0; i < count; i++) {
       long flags = s.u32();
       if (flags > MAX_ELEMENT_FLAGS) throw invalid("unsupported element flags");
@@ -259,14 +269,14 @@ final class EndivePreflight {
       int initializers = s.count(MIN_SINGLE_BYTE_ENTRY);
       // Each live element occupies a table slot. Passive elements may be activated later, so
       // reject oversized segments even when the declared table minimum is small.
-      if (initializers > WasmRuntime.MAX_TABLE_ELEMENTS) {
+      if (initializers > budget.limits.maxTableElements()) {
         throw new WasmException(Kind.MEMORY_LIMIT, "element segment exceeds "
-            + WasmRuntime.MAX_TABLE_ELEMENTS + " entries");
+            + budget.limits.maxTableElements() + " entries");
       }
       budget.elementEntries += initializers;
-      if (budget.elementEntries > WasmRuntime.MAX_TABLE_ELEMENTS) {
+      if (budget.elementEntries > budget.limits.maxTableElements()) {
         throw new WasmException(Kind.MEMORY_LIMIT, "element segments exceed "
-            + WasmRuntime.MAX_TABLE_ELEMENTS + " entries in total");
+            + budget.limits.maxTableElements() + " entries in total");
       }
       for (int j = 0; j < initializers; j++) {
         if (expressions) s.expression();
@@ -277,18 +287,18 @@ final class EndivePreflight {
 
   private static void code(Cursor s, Budget budget) throws WasmException {
     int count = s.count(MIN_TWO_BYTE_ENTRY);
-    if (count > WasmRuntime.MAX_FUNCTIONS) throw invalid("too many function bodies");
+    if (count > budget.limits.maxFunctions()) throw invalid("too many function bodies");
     for (int i = 0; i < count; i++) {
       Cursor body = s.section(s.length());
       int groups = body.count(MIN_TWO_BYTE_ENTRY);
       long locals = 0;
       for (int j = 0; j < groups; j++) {
         locals += body.u32();
-        if (locals > MAX_LOCALS_PER_FUNCTION) throw invalid("too many locals in function body");
+        if (locals > budget.limits.maxLocalsPerFunction()) throw invalid("too many locals in function body");
         body.valueType();
       }
       budget.locals += locals;
-      if (budget.locals > MAX_TOTAL_LOCALS) throw invalid("too many locals in module");
+      if (budget.locals > budget.limits.maxTotalLocals()) throw invalid("too many locals in module");
       if (body.remaining() == 0) throw invalid("empty function expression");
       // Instructions have no input-independent allocation in Endive. Endive parses and
       // validates their operands. The body length has already been bounded by the section.
@@ -314,6 +324,9 @@ final class EndivePreflight {
   }
 
   private static final class Budget {
+    final WasmHostLimits limits;
+
+    Budget(WasmHostLimits limits) { this.limits = limits; }
     long typeEntries;
     long elementEntries;
     long locals;
