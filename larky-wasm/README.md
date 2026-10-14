@@ -245,6 +245,27 @@ silently falling back. Isolate creation, host preflight, WASI callbacks, and com
 cache waits still consume host resources; `graal-isolate` should not be advertised as a hard
 whole-request limit.
 
+For hosts that can supply a trustworthy customer identity, select
+`-Dlarky.wasm.runtime=graal-isolate-pooled` and enclose the evaluation in
+`try (var scope = WasmTrustDomain.enter(tenantId)) { ... }`. The identity must come from
+authenticated host state, not script bindings or a mutable script context. No identity fails
+closed. An engine belongs to one identity for its lifetime; each validation and run has a fresh
+context, and an evicted engine is closed before its slot can serve another customer. The default
+pool holds at most two engines and admits four concurrent validations/runs, at most two for
+one tenant; set
+`larky.wasm.isolate.pool.maxEngines` and
+`larky.wasm.isolate.pool.maxActiveContexts` and
+`larky.wasm.isolate.pool.maxActiveContextsPerTenant` before the runtime is first used. The maximum
+trust-domain key length is 256 characters by default and can be set with
+`larky.wasm.isolate.pool.maxTrustDomainChars`. The maximum
+configured isolate memory across retained engines is `maxEngines * maxIsolateMemoryBytes`, in
+addition to host JVM memory. When the pool is full and no engine is idle, the call fails instead
+of sharing an engine across customers. A timeout, resource exhaustion, cancellation, or JVM-side
+failure retires its engine; a cached module recompiles if its tenant's engine was evicted.
+This remains an in-process boundary: host preflight, cache waits, isolate creation, and WASI
+callbacks consume the host JVM's resources. Production callers must still enforce tenant
+provenance at the service boundary and set a finite evaluation deadline.
+
 Endive interprets modules by default. `-Dlarky.wasm.endive.mode=compiler` compiles each module to
 JVM bytecode instead, which runs faster but costs time and Metaspace in proportion to the module
 before any deadline applies, and cannot be interrupted; use it only for modules you trust. A
