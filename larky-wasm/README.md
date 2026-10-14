@@ -283,7 +283,8 @@ transfer. Use a dedicated trust store for this service and restrict access with 
 For a deployment that keeps TLS private keys out of the guest-processing container, use the
 two-container manifest in `k8s/wasm-worker`. Run `WorkerTlsGateway` in the gateway container
 with the certificate Secret mounted **only there**. It authenticates clients and forwards bounded
-frames over Pod loopback to `WorkerPlainServer` in the separately limited worker container. The
+frames over Pod loopback to `WorkerPlainServer` in the separately limited worker container. A
+gateway wall deadline also closes connections that trickle bytes without finishing a request. The
 worker server and its fresh children have no TLS Secret mount. The Docker image includes
 `/app/gateway.sh` and `/app/plain-server.sh` for these two roles; the original `server.sh` remains
 available for existing deployments. The plaintext server refuses any non-loopback bind address.
@@ -314,9 +315,10 @@ ruby k8s/wasm-worker/test_manifest.rb
 The script uses a private Docker network, separate limited worker and gateway containers, a
 test-only TLS volume, and a client container. If the ignored private parser/table fixtures are
 present, it also runs those exact probes without adding their bytes to the repository. It forces
-a worker cgroup OOM and a worker-container kill, then checks that the gateway stays up and a
-later request succeeds. This local run does not establish that the target Kubernetes CNI enforces
-NetworkPolicy or that Atlas's Service selector, image, and credentials are configured correctly.
+a worker cgroup OOM and a worker-container kill, then checks that the gateway and the same client
+JVM stay up and a later request succeeds. This local run does not establish that the target
+Kubernetes CNI enforces NetworkPolicy or that Atlas's Service selector, image, and credentials
+are configured correctly.
 
 **The launcher is the security boundary.** It must put the worker under an independent OS memory,
 CPU, and process budget *before* the child reads customer bytes, and ensure that timeout or launcher
