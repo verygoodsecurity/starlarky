@@ -253,6 +253,12 @@ public class WasmModuleTest {
   }
 
   @Test
+  public void busyRuntimeIsNotReportedAsAnInvalidModule() {
+    assertThat(error("wasm.loads(b'FAKEcapacity')"))
+        .contains("WebAssembly execution capacity is currently unavailable");
+  }
+
+  @Test
   public void unknownRuntime() {
     System.setProperty(WasmRuntime.PROPERTY, "nonesuch");
     assertThat(error("wasm.loads(b'FAKE')"))

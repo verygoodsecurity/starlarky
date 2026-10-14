@@ -35,7 +35,8 @@ import org.graalvm.polyglot.io.IOAccess;
 /**
  * Runs modules on GraalWasm. The ordinary backend shares one {@link Engine}, so a module parsed
  * once can be reused by later contexts. The opt-in isolate subclass instead creates a new
- * UNTRUSTED engine for validation and every run.
+ * UNTRUSTED engine for validation and every run; the pooled backend owns one engine per trust
+ * domain and creates a fresh context per operation.
  *
  * <p>GraalWasm's built-in WASI is not used: {@link #compile} renames every WASI import to
  * {@value #HOST_MODULE}, whose functions each run serves from {@link WasiHost}, as Endive's runs
@@ -72,12 +73,21 @@ class GraalWasmRuntime implements WasmRuntime {
   }
 
   GraalWasmRuntime(GraalIsolateSettings isolateSettings) {
-    limits = WasmHostLimits.configured();
+    this(isolateSettings, true);
+  }
+
+  GraalWasmRuntime(GraalIsolateSettings isolateSettings, boolean verifyIsolate) {
+    this(isolateSettings, verifyIsolate, WasmHostLimits.configured());
+  }
+
+  GraalWasmRuntime(GraalIsolateSettings isolateSettings, boolean verifyIsolate,
+                   WasmHostLimits hostLimits) {
+    limits = hostLimits;
     this.isolateSettings = isolateSettings;
     if (isolateSettings == null && !engine().getLanguages().containsKey("wasm")) {
       throw new IllegalStateException("GraalWasm's wasm language is not on the class path");
     }
-    if (isolateSettings != null) {
+    if (isolateSettings != null && verifyIsolate) {
       // Fail at runtime selection if the host lacks GraalVM or the matching isolate image.
       try (Context ignored = newContextBuilder(isolateSettings.compileCpuMillis(), 0).build()) {
         // Building the context validates the UNTRUSTED policy and isolate availability.
@@ -108,8 +118,14 @@ class GraalWasmRuntime implements WasmRuntime {
 
   Context.Builder newContextBuilder(long cpuMillis, int outputBytes) {
     if (isolateSettings == null) return contextBuilder();
+    return isolatedContextBuilder(null, cpuMillis, outputBytes);
+  }
+
+  /** Builds an isolated context, optionally on an engine owned by one trust domain. */
+  final Context.Builder isolatedContextBuilder(
+      Engine pooledEngine, long cpuMillis, int outputBytes) {
     int streamBytes = Math.max(0, outputBytes);
-    return Context.newBuilder("wasm")
+    Context.Builder builder = Context.newBuilder("wasm")
         .sandbox(SandboxPolicy.UNTRUSTED)
         .in(InputStream.nullInputStream())
         .out(OutputStream.nullOutputStream())
@@ -123,7 +139,6 @@ class GraalWasmRuntime implements WasmRuntime {
         .allowNativeAccess(false)
         .allowCreateThread(false)
         .allowCreateProcess(false)
-        .option("engine.MaxIsolateMemory", isolateSettings.maxIsolateMemoryBytes() + "B")
         .option("sandbox.MaxHeapMemory", isolateSettings.maxGuestHeapBytes() + "B")
         .option("sandbox.MaxCPUTime", cpuMillis + "ms")
         .option("sandbox.MaxThreads", "1")
@@ -131,6 +146,12 @@ class GraalWasmRuntime implements WasmRuntime {
         .option("sandbox.MaxStackFrames", Integer.toString(isolateSettings.maxStackFrames()))
         .option("sandbox.MaxOutputStreamSize", streamBytes + "B")
         .option("sandbox.MaxErrorStreamSize", streamBytes + "B");
+    if (pooledEngine == null) {
+      builder.option("engine.MaxIsolateMemory", isolateSettings.maxIsolateMemoryBytes() + "B");
+    } else {
+      builder.engine(pooledEngine);
+    }
+    return builder;
   }
 
   GraalIsolateSettings isolateSettings() {

@@ -189,6 +189,7 @@ public interface WasmRuntime {
       INVALID_MODULE,
       TRAP,
       MEMORY_LIMIT,
+      CAPACITY_LIMIT,
       TIMEOUT,
       OUTPUT_LIMIT,
     }
@@ -217,7 +218,8 @@ public interface WasmRuntime {
   }
 
   /**
-   * The runtime named {@code name}: "endive", "graal", "graal-isolate" (with matching GraalVM
+   * The runtime named {@code name}: "endive", "graal", "graal-isolate", or
+   * "graal-isolate-pooled" (with matching GraalVM
    * Polyglot isolate artifacts), or
    * one registered with {@link ServiceLoader}.
    */
@@ -229,6 +231,8 @@ public interface WasmRuntime {
         return graal();
       case "graal-isolate":
         return graalIsolate();
+      case "graal-isolate-pooled":
+        return graalPooledIsolate();
       default:
         for (WasmRuntime runtime : ServiceLoader.load(WasmRuntime.class, WasmRuntime.class.getClassLoader())) {
           if (runtime.name().equals(name)) {
@@ -289,6 +293,27 @@ public interface WasmRuntime {
           "the 'graal-isolate' runtime needs GraalVM Polyglot 25.1+ and matching"
               + " org.graalvm.polyglot:wasm-isolate-community dependencies",
           e);
+    }
+  }
+
+  private static WasmRuntime graalPooledIsolate() throws WasmException {
+    try {
+      return (WasmRuntime)
+          Class.forName("com.verygood.security.larky.wasm.GraalPooledIsolateWasmRuntime")
+              .getDeclaredConstructor()
+              .newInstance();
+    } catch (java.lang.reflect.InvocationTargetException e) {
+      if (e.getCause() instanceof WasmException wasm) throw wasm;
+      throw new WasmException(WasmException.Kind.INVALID_MODULE,
+          "the pooled GraalWasm isolate is unavailable", e.getCause());
+    } catch (ExceptionInInitializerError e) {
+      String message = e.getCause() instanceof IllegalArgumentException
+          ? e.getCause().getMessage() : "the pooled GraalWasm isolate is unavailable";
+      throw new WasmException(WasmException.Kind.INVALID_MODULE, message, e);
+    } catch (ReflectiveOperationException | LinkageError e) {
+      throw new WasmException(WasmException.Kind.INVALID_MODULE,
+          "the 'graal-isolate-pooled' runtime needs GraalVM Polyglot 25.1+ and matching"
+              + " org.graalvm.polyglot:wasm-isolate-community dependencies", e);
     }
   }
 }

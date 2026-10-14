@@ -55,6 +55,9 @@ public final class FakeWasmRuntime implements WasmRuntime {
     if (wasm.length < 4 || !new String(wasm, 0, 4, UTF_8).equals("FAKE")) {
       throw new WasmException(Kind.INVALID_MODULE, "fake: bad magic");
     }
+    if (new String(wasm, UTF_8).equals("FAKEcapacity")) {
+      throw new WasmException(Kind.CAPACITY_LIMIT, "fake: busy");
+    }
     COMPILES.incrementAndGet();
     if (new String(wasm, UTF_8).startsWith("FAKEslow")) {
       try {

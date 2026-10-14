@@ -169,6 +169,10 @@ public final class WasmModule implements StarlarkValue {
       return PROGRAMS.get(key, () -> new Compiled(runtime.compile(wasm), wasm.length)).program();
     } catch (java.util.concurrent.ExecutionException
         | com.google.common.util.concurrent.UncheckedExecutionException e) {
+      if (e.getCause() instanceof WasmException failure
+          && failure.kind() == WasmException.Kind.CAPACITY_LIMIT) {
+        throw Starlark.errorf("WebAssembly execution capacity is currently unavailable");
+      }
       throw new EvalException(String.format("wasm module '%s' is not a valid WASI module", name));
     } finally {
       // Compilation and cache waits do not poll the evaluator's clock. Even a final call in
@@ -274,6 +278,8 @@ public final class WasmModule implements StarlarkValue {
           return Starlark.errorf(
               "wasm module '%s' needs more memory than the %d bytes allowed",
               name, limits.maxMemoryBytes());
+        case CAPACITY_LIMIT:
+          return Starlark.errorf("WebAssembly execution capacity is currently unavailable");
         case OUTPUT_LIMIT:
           return Starlark.errorf(
               "wasm module '%s' wrote more than %d bytes", name, limits.maxOutputBytes());
