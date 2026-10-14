@@ -25,8 +25,12 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 
@@ -39,6 +43,8 @@ public final class WorkerTlsGateway implements AutoCloseable {
   private final int timeoutMillis;
   private final Semaphore admission;
   private final ExecutorService handlers = Executors.newVirtualThreadPerTaskExecutor();
+  private final ScheduledExecutorService deadlines = Executors.newSingleThreadScheduledExecutor(
+      task -> Thread.ofPlatform().daemon().name("wasm-gateway-deadline").unstarted(task));
 
   WorkerTlsGateway(WorkerTlsConfig tls, InetAddress address, int port, int workerPort)
       throws IOException {
@@ -90,48 +96,70 @@ public final class WorkerTlsGateway implements AutoCloseable {
         return;
       }
       if (listener.isClosed()) { socket.close(); return; }
-      handlers.submit(() -> {
-        try (socket) {
-          socket.setSoTimeout(timeoutMillis);
-          socket.startHandshake();
-          DataInputStream input = new DataInputStream(socket.getInputStream());
-          int size = input.readInt();
-          if (size <= 0 || size > maxRequestBytes) {
-            throw new IOException("gateway request exceeded limit");
-          }
-          byte[] frame = input.readNBytes(size);
-          if (frame.length != size) throw new IOException("truncated gateway request");
-          try (Socket worker = new Socket()) {
-            worker.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), workerPort),
-                timeoutMillis);
-            worker.setSoTimeout(timeoutMillis);
-            DataOutputStream toWorker = new DataOutputStream(worker.getOutputStream());
-            toWorker.writeInt(size);
-            toWorker.write(frame);
-            toWorker.flush();
-            DataInputStream fromWorker = new DataInputStream(worker.getInputStream());
-            int responseSize = fromWorker.readInt();
-            if (responseSize <= 0 || responseSize > maxResponseBytes) {
-              throw new IOException("gateway response exceeded limit");
+      try {
+        handlers.submit(() -> {
+          AtomicReference<Socket> workerSocket = new AtomicReference<>();
+          ScheduledFuture<?> deadline = null;
+          try (socket) {
+            deadline = deadlines.schedule(() -> {
+              closeQuietly(socket);
+              closeQuietly(workerSocket.get());
+            }, timeoutMillis, TimeUnit.MILLISECONDS);
+            socket.setSoTimeout(timeoutMillis);
+            socket.startHandshake();
+            DataInputStream input = new DataInputStream(socket.getInputStream());
+            int size = input.readInt();
+            if (size <= 0 || size > maxRequestBytes) {
+              throw new IOException("gateway request exceeded limit");
             }
-            byte[] response = fromWorker.readNBytes(responseSize);
-            if (response.length != responseSize) throw new IOException("truncated gateway response");
-            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-            out.writeInt(responseSize);
-            out.write(response);
-            out.flush();
+            byte[] frame = input.readNBytes(size);
+            if (frame.length != size) throw new IOException("truncated gateway request");
+            try (Socket worker = new Socket()) {
+              workerSocket.set(worker);
+              if (socket.isClosed()) throw new IOException("gateway deadline exceeded");
+              worker.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), workerPort),
+                  timeoutMillis);
+              worker.setSoTimeout(timeoutMillis);
+              DataOutputStream toWorker = new DataOutputStream(worker.getOutputStream());
+              toWorker.writeInt(size);
+              toWorker.write(frame);
+              toWorker.flush();
+              DataInputStream fromWorker = new DataInputStream(worker.getInputStream());
+              int responseSize = fromWorker.readInt();
+              if (responseSize <= 0 || responseSize > maxResponseBytes) {
+                throw new IOException("gateway response exceeded limit");
+              }
+              byte[] response = fromWorker.readNBytes(responseSize);
+              if (response.length != responseSize) throw new IOException("truncated gateway response");
+              DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+              out.writeInt(responseSize);
+              out.write(response);
+              out.flush();
+            }
+          } catch (IOException ignored) {
+            // A malformed or disconnected client has no result channel. Never log guest bytes.
+          } finally {
+            if (deadline != null) deadline.cancel(false);
+            admission.release();
           }
-        } catch (IOException ignored) {
-          // A malformed or disconnected client has no result channel. Never log guest bytes.
-        } finally {
-          admission.release();
-        }
-      });
+        });
+      } catch (RejectedExecutionException closed) {
+        admission.release();
+        socket.close();
+        if (listener.isClosed()) return;
+        throw closed;
+      }
     }
   }
 
   @Override public void close() throws IOException {
     listener.close();
     handlers.shutdownNow();
+    deadlines.shutdownNow();
+  }
+
+  private static void closeQuietly(Socket socket) {
+    if (socket == null) return;
+    try { socket.close(); } catch (IOException ignored) { }
   }
 }

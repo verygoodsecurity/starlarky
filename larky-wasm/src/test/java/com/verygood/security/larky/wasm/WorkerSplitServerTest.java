@@ -23,6 +23,7 @@ import com.verygood.security.larky.wasm.WasmRuntime.WasmException;
 import com.verygood.security.larky.wasm.conformance.Fixtures;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -98,6 +99,7 @@ public final class WorkerSplitServerTest {
     for (String name : new String[] {"launcher", "remote.host", "remote.port",
         "maxRequestMillis", "tls.keyStore", "tls.keyStorePasswordFile", "tls.trustStore",
         "tls.trustStorePasswordFile"}) System.clearProperty("larky.wasm.worker." + name);
+    System.clearProperty("larky.wasm.worker.server.maxRequestMillis");
     if (files != null) try (var paths = Files.walk(files)) {
       for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(path);
     }
@@ -166,6 +168,43 @@ public final class WorkerSplitServerTest {
     assertThat(remote.compile(Fixtures.wasm("echo")).run(new byte[0],
         new WasmRuntime.Limits(1 << 20, System.currentTimeMillis() + 5000, 1024, 0L))
         .exitCode()).isEqualTo(0);
+  }
+
+  @Test public void tricklingClientCannotExtendTheGatewayDeadline() throws Exception {
+    System.setProperty("larky.wasm.worker.server.maxRequestMillis", "1000");
+    try (WorkerTlsGateway bounded = new WorkerTlsGateway(WorkerTlsConfig.configured(),
+        InetAddress.getLoopbackAddress(), 0, worker.port())) {
+      Thread serving = Thread.ofVirtual().start(() -> {
+        try { bounded.serve(); } catch (IOException e) { throw new RuntimeException(e); }
+      });
+      try (SSLSocket socket = (SSLSocket) WorkerTlsConfig.configured().context()
+          .getSocketFactory().createSocket("localhost", bounded.port())) {
+        socket.setSoTimeout(75);
+        socket.startHandshake();
+        socket.getOutputStream().write(new byte[] {0, 0, 3, (byte) 232});
+        socket.getOutputStream().flush();
+        Thread.sleep(250);
+        socket.getOutputStream().write(1);
+        socket.getOutputStream().flush();
+        Thread.sleep(250);
+        socket.getOutputStream().write(1);
+        socket.getOutputStream().flush();
+        Thread.sleep(250);
+        socket.getOutputStream().write(1);
+        socket.getOutputStream().flush();
+        Thread.sleep(350);
+        try {
+          assertThat(socket.getInputStream().read()).isEqualTo(-1);
+        } catch (SocketTimeoutException alive) {
+          throw new AssertionError("trickling client retained gateway slot past deadline", alive);
+        } catch (java.net.SocketException closed) {
+          // A forced close can surface as a socket exception instead of EOF.
+        }
+      } finally {
+        bounded.close();
+        serving.join(1000);
+      }
+    }
   }
 
   private static void keytool(String home, String... args) throws Exception {
