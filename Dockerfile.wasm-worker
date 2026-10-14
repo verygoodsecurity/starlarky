@@ -39,6 +39,8 @@ COPY --from=build /build/larky-wasm/target/dependency/ /app/lib/
 COPY --from=archive --chmod=0444 /app/worker.jsa /app/worker.jsa
 COPY --chmod=0555 larky-wasm/src/main/worker/server.sh /app/server.sh
 COPY --chmod=0555 larky-wasm/src/main/worker/child.sh /app/child.sh
+COPY --chmod=0555 larky-wasm/src/main/worker/plain-server.sh /app/plain-server.sh
+COPY --chmod=0555 larky-wasm/src/main/worker/gateway.sh /app/gateway.sh
 USER 65532:65532
 EXPOSE 8443
-ENTRYPOINT ["/app/server.sh"]
+ENTRYPOINT ["/app/gateway.sh"]

@@ -1,0 +1,10 @@
+FROM maven:3.9.9-eclipse-temurin-21
+
+WORKDIR /build/larky-wasm
+COPY larky-wasm/pom.xml ./pom.xml
+COPY larky-wasm/src ./src
+RUN mvn -q -DskipTests test-compile dependency:copy-dependencies \
+    -DincludeScope=test -DexcludeGroupIds=org.graalvm.polyglot,org.graalvm.truffle \
+    -DoutputDirectory=/build/probe-lib
+
+ENTRYPOINT ["/opt/java/openjdk/bin/java", "--add-modules", "jdk.incubator.vector", "-cp", "target/classes:target/test-classes:/build/probe-lib/*", "com.verygood.security.larky.wasm.RemoteWorkerAcceptanceProbe"]
