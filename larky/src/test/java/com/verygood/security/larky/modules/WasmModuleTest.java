@@ -259,6 +259,14 @@ public class WasmModuleTest {
   }
 
   @Test
+  public void compileTimeoutAndMemoryLimitAreNotReportedAsInvalidModules() {
+    assertThat(error("wasm.loads(b'FAKEtimeout')"))
+        .contains("WebAssembly compilation timed out");
+    assertThat(error("wasm.loads(b'FAKEmemory')"))
+        .contains("WebAssembly compilation exceeded memory limits");
+  }
+
+  @Test
   public void unknownRuntime() {
     System.setProperty(WasmRuntime.PROPERTY, "nonesuch");
     assertThat(error("wasm.loads(b'FAKE')"))

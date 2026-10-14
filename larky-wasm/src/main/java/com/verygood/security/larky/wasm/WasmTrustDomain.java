@@ -27,13 +27,13 @@ public final class WasmTrustDomain {
   private static final String MAX_LENGTH_PROPERTY =
       "larky.wasm.isolate.pool.maxTrustDomainChars";
   private static final int DEFAULT_MAX_LENGTH = 256;
+  private static final int MAX_LENGTH = maxLength();
   private static final ThreadLocal<Scope> CURRENT = new ThreadLocal<>();
 
   private WasmTrustDomain() {}
 
   public static Scope enter(String identity) {
-    int maxLength = maxLength();
-    if (identity == null || identity.isBlank() || identity.length() > maxLength
+    if (identity == null || identity.isBlank() || identity.length() > MAX_LENGTH
         || identity.chars().anyMatch(Character::isISOControl)) {
       throw new IllegalArgumentException("a short, nonblank WASM trust domain is required");
     }
