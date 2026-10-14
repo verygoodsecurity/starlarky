@@ -58,6 +58,12 @@ public final class FakeWasmRuntime implements WasmRuntime {
     if (new String(wasm, UTF_8).equals("FAKEcapacity")) {
       throw new WasmException(Kind.CAPACITY_LIMIT, "fake: busy");
     }
+    if (new String(wasm, UTF_8).equals("FAKEtimeout")) {
+      throw new WasmException(Kind.TIMEOUT, "fake: slow compile");
+    }
+    if (new String(wasm, UTF_8).equals("FAKEmemory")) {
+      throw new WasmException(Kind.MEMORY_LIMIT, "fake: compile memory");
+    }
     COMPILES.incrementAndGet();
     if (new String(wasm, UTF_8).startsWith("FAKEslow")) {
       try {

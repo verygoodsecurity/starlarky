@@ -169,9 +169,16 @@ public final class WasmModule implements StarlarkValue {
       return PROGRAMS.get(key, () -> new Compiled(runtime.compile(wasm), wasm.length)).program();
     } catch (java.util.concurrent.ExecutionException
         | com.google.common.util.concurrent.UncheckedExecutionException e) {
-      if (e.getCause() instanceof WasmException failure
-          && failure.kind() == WasmException.Kind.CAPACITY_LIMIT) {
-        throw Starlark.errorf("WebAssembly execution capacity is currently unavailable");
+      if (e.getCause() instanceof WasmException failure) {
+        if (failure.kind() == WasmException.Kind.CAPACITY_LIMIT) {
+          throw Starlark.errorf("WebAssembly execution capacity is currently unavailable");
+        }
+        if (failure.kind() == WasmException.Kind.TIMEOUT) {
+          throw Starlark.errorf("WebAssembly compilation timed out");
+        }
+        if (failure.kind() == WasmException.Kind.MEMORY_LIMIT) {
+          throw Starlark.errorf("WebAssembly compilation exceeded memory limits");
+        }
       }
       throw new EvalException(String.format("wasm module '%s' is not a valid WASI module", name));
     } finally {

@@ -269,7 +269,7 @@ final class GraalPooledIsolateWasmRuntime implements WasmRuntime {
           activeContexts--;
         }
         if (e instanceof Error error) throw error;
-        throw new WasmException(WasmException.Kind.INVALID_MODULE,
+        throw new WasmException(WasmException.Kind.CAPACITY_LIMIT,
             "the pooled GraalWasm isolate is unavailable", e);
       }
       synchronized (this) {
