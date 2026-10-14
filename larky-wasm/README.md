@@ -286,8 +286,9 @@ with the certificate Secret mounted **only there**. It authenticates clients and
 frames over Pod loopback to `WorkerPlainServer` in the separately limited worker container. A
 gateway wall deadline also closes connections that trickle bytes without finishing a request. The
 worker server and its fresh children have no TLS Secret mount. The Docker image includes
-`/app/gateway.sh` and `/app/plain-server.sh` for these two roles; the original `server.sh` remains
-available for existing deployments. The plaintext server refuses any non-loopback bind address.
+`/app/gateway.sh` and `/app/plain-server.sh` for these two roles. The image defaults to the
+TLS-only gateway; the original `server.sh` requires an explicit entrypoint for compatibility.
+The plaintext server refuses any non-loopback bind address.
 Both containers run as an unprivileged UID with a read-only root filesystem, all capabilities
 dropped, `no_new_privs`, and the runtime-default seccomp profile. The worker container has its
 own memory and CPU limits. The Pod has no service-account token, and the NetworkPolicy admits

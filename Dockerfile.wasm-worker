@@ -43,4 +43,4 @@ COPY --chmod=0555 larky-wasm/src/main/worker/plain-server.sh /app/plain-server.s
 COPY --chmod=0555 larky-wasm/src/main/worker/gateway.sh /app/gateway.sh
 USER 65532:65532
 EXPOSE 8443
-ENTRYPOINT ["/app/server.sh"]
+ENTRYPOINT ["/app/gateway.sh"]
