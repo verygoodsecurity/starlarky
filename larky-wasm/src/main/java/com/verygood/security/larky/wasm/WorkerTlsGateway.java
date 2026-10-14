@@ -36,6 +36,7 @@ import javax.net.ssl.SSLSocket;
 
 /** Authenticates the client and forwards bounded frames; it never loads customer WASM. */
 public final class WorkerTlsGateway implements AutoCloseable {
+  private static final System.Logger LOGGER = System.getLogger(WorkerTlsGateway.class.getName());
   private final SSLServerSocket listener;
   private final int workerPort;
   private final long maxRequestBytes;
@@ -114,6 +115,7 @@ public final class WorkerTlsGateway implements AutoCloseable {
             }
             byte[] frame = input.readNBytes(size);
             if (frame.length != size) throw new IOException("truncated gateway request");
+            byte[] response;
             try (Socket worker = new Socket()) {
               workerSocket.set(worker);
               if (socket.isClosed()) throw new IOException("gateway deadline exceeded");
@@ -129,13 +131,19 @@ public final class WorkerTlsGateway implements AutoCloseable {
               if (responseSize <= 0 || responseSize > maxResponseBytes) {
                 throw new IOException("gateway response exceeded limit");
               }
-              byte[] response = fromWorker.readNBytes(responseSize);
+              response = fromWorker.readNBytes(responseSize);
               if (response.length != responseSize) throw new IOException("truncated gateway response");
-              DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-              out.writeInt(responseSize);
-              out.write(response);
-              out.flush();
+            } catch (IOException backendFailure) {
+              if (!socket.isClosed()) {
+                // Exception details can contain peer-controlled data; log only a fixed category.
+                LOGGER.log(System.Logger.Level.WARNING, "WASM worker loopback communication failed");
+              }
+              throw backendFailure;
             }
+            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+            out.writeInt(response.length);
+            out.write(response);
+            out.flush();
           } catch (IOException ignored) {
             // A malformed or disconnected client has no result channel. Never log guest bytes.
           } finally {
