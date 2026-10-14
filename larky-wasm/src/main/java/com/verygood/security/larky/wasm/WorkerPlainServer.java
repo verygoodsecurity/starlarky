@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 
 /** Guest-processing server reachable only over Pod loopback from the TLS gateway. */
 public final class WorkerPlainServer implements AutoCloseable {
-  private static final String PREFIX = "larky.wasm.worker.server.";
+  private static final System.Logger LOGGER = System.getLogger(WorkerPlainServer.class.getName());
   private final ServerSocket listener;
   private final WorkerRequestService service;
   private final long maxRequestMillis;
@@ -93,8 +93,14 @@ public final class WorkerPlainServer implements AutoCloseable {
           out.writeInt(response.length);
           out.write(response);
           out.flush();
-        } catch (IOException | InterruptedException ignored) {
-          if (ignored instanceof InterruptedException) Thread.currentThread().interrupt();
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+        } catch (IOException ignored) {
+          // Malformed frames and client disconnects are expected; never log guest input.
+        } catch (RuntimeException unexpected) {
+          // Do not log the exception or its message: they can include guest-controlled data.
+          LOGGER.log(System.Logger.Level.WARNING, "Unexpected WASM worker request failure: "
+              + unexpected.getClass().getName());
         } finally {
           admission.release();
         }
