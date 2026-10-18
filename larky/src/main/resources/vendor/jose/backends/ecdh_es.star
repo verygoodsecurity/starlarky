@@ -9,10 +9,6 @@
 #
 # Every failure is fail() with one of the fixed messages below, naming the
 # check that failed. None of them includes key material or header values.
-#
-# Failures are caught with Result.Ok(f).map(lambda ...), not option/result's
-# safe(): safe() fails when it is nested, and scripts may call jwe.decrypt
-# inside their own safe().
 
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//larky", larky="larky")

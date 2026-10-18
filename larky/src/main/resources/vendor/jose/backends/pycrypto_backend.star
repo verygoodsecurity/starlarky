@@ -46,7 +46,7 @@ load("@vendor//jose/utils",
      base64_to_long="base64_to_long",
      long_to_base64="long_to_base64")
 
-load("@vendor//option/result", Ok="Ok", Error="Error", Result="Result", safe="safe")
+load("@vendor//option/result", Ok="Ok", Error="Error", Result="Result")
 load("@vendor//six", six="six")
 
 ceil = math.ceil
@@ -493,7 +493,6 @@ def AESKey(key, algorithm):
                 cipher.update(aad)
                 cipher_text, auth_tag = cipher.encrypt_and_digest(plain_text)
             return iv, cipher_text, auth_tag
-        # Result.map rather than safe(), which fails when nested.
         return Result.Ok(self).map(lambda key: _try_encrypt(key, plain_text, aad)).unwrap()
     self.encrypt = encrypt
 

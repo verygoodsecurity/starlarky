@@ -36,7 +36,6 @@ def _compute_ecdh(key_priv, key_pub):
         # See Section 5.7.1.2 in NIST SP 800-56Ar3
         priv_der = key_priv.export_key(format="DER")
         pub_der = key_pub.public_key().export_key(format="DER")
-        # Result.map, not option/result's safe(): safe() cannot be nested.
         res = Result.Ok(_ECDH.key_exchange).map(
             lambda key_exchange: key_exchange(priv_der, "PKCS8", pub_der, "X509", ""))
         if res.is_err:
