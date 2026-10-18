@@ -42,7 +42,7 @@ load("@vendor//Crypto/Random", Random="Random")
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/Util/number", _sieve_base_large="sieve_base")
 load("@vendor//Crypto/Util/py3compat", iter_range="iter_range")
-load("@vendor//option/result", safe="safe", Result="Result", Error="Error")
+load("@vendor//option/result", Result="Result", Error="Error")
 
 COMPOSITE = 0
 PROBABLY_PRIME = 1

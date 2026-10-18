@@ -23,7 +23,10 @@ load("@vendor//jose/backends/pycrypto_backend", AESAlgorithm="AESAlgorithm")
 load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS", ZIPS="ZIPS")
 load("@vendor//jose/exceptions", JWEParseError="JWEParseError", JWEError="JWEError")
 load("@vendor//jose/utils", base64url_decode="base64url_decode", base64url_encode="base64url_encode")
-load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error", try_="try_", safe="safe")
+# Larky: failures are caught with Result (Result.Ok(x).map(f)), never with
+# option/result's safe(): safe() calls fail with "called recursively" when a
+# script wraps jwe.encrypt or jwe.decrypt in its own safe().
+load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error", try_="try_")
 load("@vendor//six", six="six")
 #
 # try:
@@ -172,7 +175,8 @@ def decrypt(jwe_str, key):
         # symmetric key.
         cek_bytes = _get_key_bytes_from_key(key)
     else:
-        rval = safe(key.unwrap)(encrypted_key, headers=header, enc_alg=enc)
+        rval = Result.Ok(key).map(
+            lambda k: k.unwrap(encrypted_key, headers=header, enc_alg=enc))
         if rval.is_err:
             if Result.error_is("NotImplementedError", rval):
                 return rval.unwrap()
@@ -311,8 +315,6 @@ def _jwe_compact_deserialize(jwe_bytes):
     # Vector, the JWE Ciphertext, the JWE Authentication Tag, and the
     # JWE AAD, following the restriction that no line breaks,
     # whitespace, or other additional characters have been used.
-    # Larky: segments are decoded with Result.map rather than safe(), which
-    # fails when nested, so jwe.decrypt can be called inside safe().
     jwe_bytes = six.ensure_binary(jwe_bytes)
     rval = jwe_bytes.split(b".", 4)
     ## DEBUG 👇
@@ -320,13 +322,6 @@ def _jwe_compact_deserialize(jwe_bytes):
     # rval = jwe_bytes.rsplit(b".")
     # print(rval)
     ## DEBUG 👆
-    # rval = safe(jwe_bytes.split)(bytes('.', encoding='utf-8'), 4)
-    # if rval.is_err:
-    #     if Result.error_is(".*in call to split()", rval):
-    #         return rval
-    #     elif Result.error_is("ValueError", rval):
-    #         return Error("JWEParseError: Not enough segments")
-    #     return Error("JWEParseError: Invalid header")
     (
         header_segment,
         encrypted_key_segment,
@@ -334,7 +329,6 @@ def _jwe_compact_deserialize(jwe_bytes):
         cipher_text_segment,
         auth_tag_segment
     ) = rval#.unwrap()
-    # header_data = safe(base64url_decode)(header_segment).unwrap()
     header_data = base64url_decode(header_segment)
     # Verify that the octet sequence resulting from decoding the
     # encoded JWE Protected Header is a UTF-8-encoded representation
@@ -427,7 +421,7 @@ def _encrypt_and_auth(key, alg, enc, zip, plaintext, aad):
           (bytes, bytes, bytes, bytes): A tuple of the following data
                                  (key wrapped cek, iv, cipher text, auth tag)
     """
-    cek_bytes, kw_cek = safe(_get_cek)(enc, alg, key).unwrap()
+    cek_bytes, kw_cek = Result.Ok(key).map(lambda k: _get_cek(enc, alg, k)).unwrap()
     iv, ciphertext, auth_tag = _encrypt_with_cek(cek_bytes, enc, plaintext, aad)
     return kw_cek, iv, ciphertext, auth_tag
 
@@ -459,8 +453,6 @@ def _ecdh_es_decrypt(key, header, encoded_header, alg, enc, encrypted_key,
         cek_bytes = agreed
     else:
         # Key Agreement with Key Wrapping (RFC 3394 AES key wrap).
-        # Result.map, not safe(): safe() cannot be nested, and callers may
-        # wrap jwe.decrypt in safe().
         res = Result.Ok(agreed).map(
             lambda kek: AESAlgorithm(len(kek) * 8).aes_key_unwrap(kek, encrypted_key))
         if res.is_err:
