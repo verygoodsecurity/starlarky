@@ -27,15 +27,38 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
+# Ported from pycryptodome 3.21.0 (v3.21.0, 5e40a1810e610ae45bb84aa79efe405515337a13): lib/Crypto/PublicKey/ECC.py, _point.py, _montgomery.py. See larky/src/main/resources/VENDORED.md.
+#
+# From 3.21.0: the Curve25519 (X25519) support (the curve table entry,
+# EccXPoint, the seed/raw/RFC 8410 handling in EccKey, generate, construct
+# and the importers), export_key's 'SEC1' and 'raw' formats, and the optional
+# 'parameters'/'publicKey' fields of _import_rfc5915_der (here
+# _import_private_der). The rest was ported earlier from an older
+# pycryptodome whose version was not recorded.
+#
+# Larky differences for Curve25519:
+# - The X25519 ladder is BouncyCastle's (jcrypto.PublicKey.ECC.X25519), in
+#   place of the C module _curve25519. EccXPoint can therefore only be
+#   multiplied by a clamped scalar (RFC 7748, Section 5), which is what every
+#   EccKey holds; any other scalar fails with ValueError.
+# - A product whose u-coordinate is zero is the point at infinity.
+# - generate() without randfunc draws the seed in Java from the same CSPRNG
+#   as Crypto.Random, clamped.
+# - SubjectPublicKeyInfo and PKCS#8 are built here with no algorithm
+#   parameters (RFC 8410), because Larky's create_subject_public_key_info and
+#   PKCS8.wrap predate 3.21.0 and encode missing parameters as NULL.
 load("@stdlib//binascii", binascii="binascii")
+load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//collections", namedtuple="namedtuple")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//re", re="re")
 load("@stdlib//struct", struct="struct")
+load("@stdlib//types", types="types")
 load("@vendor//Crypto/IO", PEM="PEM")
 load("@vendor//Crypto/IO", PKCS8="PKCS8")
+load("@vendor//Crypto/IO/_PBES", PBES2="PBES2")
 load("@vendor//Crypto/Math/Numbers", Integer="Integer")
 load("@vendor//Crypto/PublicKey", _expand_subject_public_key_info="expand_subject_public_key_info", _create_subject_public_key_info="create_subject_public_key_info", _extract_subject_public_key_info="extract_subject_public_key_info")
 load("@vendor//Crypto/PublicKey/_openssh", import_openssh_private_generic="import_openssh_private_generic", read_bytes="read_bytes", read_string="read_string", check_padding="check_padding")
@@ -261,6 +284,68 @@ def _init_p521():
 _init_p521()
 
 
+curve25519_names = ["curve25519", "Curve25519", "X25519"]
+
+
+def _init_curve25519():
+    p = 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed  # 2**255 - 19
+    order = 0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed
+
+    context = _JCrypto.PublicKey.ECC.X25519
+    curve25519 = _Curve(Integer(p),
+                        None,
+                        Integer(order),
+                        Integer(9),
+                        None,
+                        None,
+                        255,
+                        "1.3.101.110",      # RFC8410
+                        context,
+                        "Curve25519",
+                        None)
+
+    _curves.update({k: curve25519 for k in curve25519_names})
+
+
+_init_curve25519()
+
+
+def _is_montgomery(curve):
+    return curve.desc == "Curve25519"
+
+
+def _validate_x25519_point(point):
+
+    p = operator.index(_curves["Curve25519"].p)
+    p2 = p * 2
+    x1 = 325606250916557431795983626356110631294008115727848805560023387167927233504
+    x2 = 39382357235489614581723060781553021112529911719440698176882885853963445705823
+
+    # http://cr.yp.to/ecdh.html#validate
+    deny_list = (
+        0,
+        1,
+        x1,
+        x2,
+        p - 1,
+        p,
+        p + 1,
+        p + x1,
+        p + x2,
+        p2 - 1,
+        p2,
+        p2 + 1,
+    )
+
+    if point.is_point_at_infinity() or operator.index(point.x) in deny_list:
+        fail("ValueError: Invalid Curve25519 public key")
+
+
+def _le_bytes(value, size):
+    # value as `size` little-endian bytes
+    return long_to_bytes(operator.index(value), size)[::-1]
+
+
 def UnsupportedEccFeature(msg):
     return Error("UnsupportedEccFeature: " + msg)
 
@@ -392,6 +477,9 @@ def EccPoint(x, y, curve="p256"):
         self._curve = _curves[curve]
         self._curve_name = curve
 
+        if _is_montgomery(self._curve):
+            return Error("ValueError: EccPoint cannot be created for Curve25519").unwrap()
+
         modulus_bytes = self.size_in_bytes()
         context = self._curve.context
         xb = long_to_bytes(x, modulus_bytes)
@@ -429,6 +517,129 @@ _p521 = _curves['p521']._replace(G=_p521_G)
 _curves.update({key: _p521 for key in p521_names})
 # del p521_G, p521, p521_names
 
+
+def EccXPoint(x, curve):
+    """A class to model a point on an Elliptic Curve,
+    where only the X-coordinate is exposed.
+
+    The class supports operators for:
+
+    * Multiplying a point by a scalar: ``R = S*k``
+    * In-place multiplication by a scalar: ``T *= k``
+
+    :ivar curve: The **canonical** name of the curve as defined in the `ECC table`_.
+    :vartype curve: string
+
+    :ivar x: The affine X-coordinate of the ECC point
+    :vartype x: integer
+    """
+    self = larky.mutablestruct(__name__='EccXPoint', __class__=EccXPoint)
+
+    def __init__(x, curve):
+        # Once encoded, x must not exceed the length of the modulus,
+        # but its value may match or exceed the modulus itself
+        # (i.e., non-canonical value)
+
+        if curve not in _curves:
+            return Error("ValueError: Unknown curve name %s" % str(curve)).unwrap()
+        self._curve = _curves[curve]
+        self.curve = self._curve.desc
+
+        if not _is_montgomery(self._curve):
+            return Error("ValueError: EccXPoint can only be created for Curve25519/Curve448").unwrap()
+
+        modulus_bytes = self.size_in_bytes()
+
+        if x == None:
+            # Point at infinity
+            self._x = None
+        else:
+            xi = operator.index(x)
+            if xi < 0 or xi >= (1 << (8 * modulus_bytes)):
+                return Error("ValueError: Incorrect coordinate length").unwrap()
+            # X25519 treats a non-canonical u like its value modulo p
+            # (RFC 7748, Section 5); keep it reduced, as the C module does.
+            self._x = xi % operator.index(self._curve.p)
+        return self
+
+    def set(point):
+        self._x = point._x
+        return self
+    self.set = set
+
+    def __eq__(point):
+        if not builtins.isinstance(point, EccXPoint):
+            return False
+        return self._x == point._x
+    self.__eq__ = __eq__
+
+    def copy():
+        """Return a copy of this point."""
+        if self.is_point_at_infinity():
+            return self.point_at_infinity()
+        return EccXPoint(self._x, self.curve)
+    self.copy = copy
+
+    def is_point_at_infinity():
+        """``True`` if this is the *point-at-infinity*."""
+        return self._x == None
+    self.is_point_at_infinity = is_point_at_infinity
+
+    def point_at_infinity():
+        """Return the *point-at-infinity* for the curve."""
+        return EccXPoint(None, self.curve)
+    self.point_at_infinity = point_at_infinity
+
+    def _get_x():
+        if self._x == None:
+            return Error("ValueError: No X coordinate for the point at infinity").unwrap()
+        return Integer(self._x)
+    self.x = larky.property(_get_x)
+
+    def size_in_bytes():
+        """Size of each coordinate, in bytes."""
+        return (self.size_in_bits() + 7) // 8
+    self.size_in_bytes = size_in_bytes
+
+    def size_in_bits():
+        """Size of each coordinate, in bits."""
+        return self._curve.modulus_bits
+    self.size_in_bits = size_in_bits
+
+    def __imul__(scalar):
+        """Multiply this point by a scalar"""
+        if operator.lt(scalar, 0):
+            return Error("ValueError: Scalar multiplication is only defined for non-negative integers").unwrap()
+        k = operator.index(scalar)
+        # BouncyCastle's X25519 clamps the scalar, so only a scalar that is
+        # already clamped gives k*P.
+        if (k >> 255) != 0 or (k & 7) != 0 or ((k >> 254) & 1) != 1:
+            return Error("ValueError: Larky multiplies Curve25519 points only by clamped scalars").unwrap()
+        if self._x != None:
+            u = self._curve.context.x25519(_le_bytes(k, 32), _le_bytes(self._x, 32))
+            self._x = None if u == None else bytes_to_long(u[::-1])
+        return self
+    self.__imul__ = __imul__
+
+    def __mul__(scalar):
+        """Return a new point, the scalar product of this one"""
+        np = self.copy()
+        np.__imul__(scalar)
+        return np
+    self.__mul__ = __mul__
+
+    def __rmul__(left_hand):
+        return self.__mul__(left_hand)
+    self.__rmul__ = __rmul__
+
+    self = __init__(x, curve)
+    return self
+
+
+_curve25519_G = EccXPoint(_curves['Curve25519'].Gx, "Curve25519")
+_curve25519 = _curves['Curve25519']._replace(G=_curve25519_G)
+_curves.update({key: _curve25519 for key in curve25519_names})
+
 def EccKey(**kwargs):
     r"""Class defining an ECC key.
     Do not instantiate directly.
@@ -461,13 +672,39 @@ def EccKey(**kwargs):
         kwargs_ = dict(kwargs)
         curve_name = kwargs_.pop("curve", None)
         self._d = kwargs_.pop("d", None)
+        self._seed = kwargs_.pop("seed", None)
         self._point = kwargs_.pop("point", None)
+        if curve_name == None and self._point:
+            curve_name = self._point.curve
         if kwargs_:
             return Error("TypeError: Unknown parameters: " + str(kwargs_)).unwrap()
 
         if curve_name not in _curves:
             return Error("ValueError: Unsupported curve (%s)" % curve_name).unwrap()
         self._curve = _curves[curve_name]
+
+        # RFC 7748, 5
+        if _is_montgomery(self._curve):
+            self.curve = self._curve.desc
+            if self._d == None and self._seed == None:
+                if self._point == None:
+                    return Error("ValueError: At lest one between parameters 'point', 'd' or 'seed' must be specified").unwrap()
+                return self
+            if self._d != None and self._seed != None:
+                return Error("ValueError: Parameters d and seed are mutually exclusive").unwrap()
+            if self._d != None:
+                return Error("ValueError: Parameter d can only be used with NIST P curves").unwrap()
+            if not types.is_bytelike(self._seed) or len(self._seed) != 32:
+                return Error("ValueError: Parameter seed must be 32 bytes long for Curve25519").unwrap()
+            self._seed = bytes(self._seed)
+            tmp = bytearray(self._seed)
+            tmp[0] = tmp[0] & 0xF8
+            tmp[31] = (tmp[31] & 0x7F) | 0x40
+            self._d = Integer(bytes_to_long(bytes(tmp)[::-1]))
+            return self
+
+        if self._seed != None:
+            return Error("ValueError: Parameter 'seed' cannot be used with NIST P-curves").unwrap()
 
         if self._d == None:
             if self._point == None:
@@ -493,6 +730,9 @@ def EccKey(**kwargs):
             extra = ", d=%d" % operator.index(self._d)
         else:
             extra = ""
+        if _is_montgomery(self._curve):
+            x = self.pointQ.x
+            return "EccKey(curve='%s', point_x=%d%s)" % (self._curve.desc, operator.index(x), extra)
         x, y = self.pointQ.xy
         return "EccKey(curve='%s', point_x=%d, point_y=%d%s)" % (self._curve.desc, operator.index(x), operator.index(y), extra)
     self.__repr__ = __repr__
@@ -531,6 +771,12 @@ def EccKey(**kwargs):
         return self._d
     self.d = larky.property(__d)
 
+    def __seed():
+        if not self.has_private():
+            return Error("ValueError: This is not a private ECC key").unwrap()
+        return self._seed
+    self.seed = larky.property(__seed)
+
     def _pointQ():
         if self._point == None:
             # print("_pointQ")
@@ -551,7 +797,34 @@ def EccKey(**kwargs):
         return EccKey(curve=self._curve.desc, point=self.pointQ)
     self.public_key = public_key
 
+    def _export_montgomery_public():
+        if not _is_montgomery(self._curve):
+            return Error("ValueError: Not a Montgomery key to export").unwrap()
+        x = self.pointQ.x
+        field_size = self.pointQ.size_in_bytes()
+        return _le_bytes(x, field_size)
+    self._export_montgomery_public = _export_montgomery_public
+
+    def _export_SEC1(compress):
+        if _is_montgomery(self._curve):
+            return Error("ValueError: SEC1 format is only supported for NIST P curves").unwrap()
+        modulus_bytes = self.pointQ.size_in_bytes()
+        if compress:
+            first_byte = 3 if self.pointQ.y.is_odd() else 2
+            return (bchr(first_byte) +
+                    self.pointQ.x.to_bytes(modulus_bytes))
+        return (b'\x04' +
+                self.pointQ.x.to_bytes(modulus_bytes) +
+                self.pointQ.y.to_bytes(modulus_bytes))
+    self._export_SEC1 = _export_SEC1
+
     def _export_subjectPublicKeyInfo(compress):
+        if _is_montgomery(self._curve):
+            # RFC 8410: the parameters must be absent
+            return DerSequence([
+                DerSequence([DerObjectId(self._curve.oid)]),
+                DerBitString(self._export_montgomery_public())
+            ]).encode()
 
         # See 2.2 in RFC5480 and 2.3.3 in SEC1
         # The first byte is:
@@ -610,6 +883,22 @@ def EccKey(**kwargs):
         if kwargs.get('passphrase', None) != None and 'protection' not in kwargs:
             return Error("ValueError: At least the 'protection' parameter should be present").unwrap()
 
+        if self._seed != None:
+            # RFC 8410: CurvePrivateKey ::= OCTET STRING, no parameters
+            pk_info_der = DerSequence([
+                0,
+                DerSequence([DerObjectId(self._curve.oid)]),
+                DerOctetString(DerOctetString(self._seed).encode())
+            ]).encode()
+            passphrase = kwargs.pop("passphrase", None)
+            if passphrase == None:
+                return pk_info_der
+            return PBES2.encrypt(pk_info_der,
+                                 tobytes(passphrase),
+                                 kwargs.pop("protection"),
+                                 kwargs.pop("prot_params", None),
+                                 kwargs.pop("randfunc", None)).unwrap()
+
         unrestricted_oid = "1.2.840.10045.2.1"
         private_key = self._export_private_der(include_ec_params=False)
         result = PKCS8.wrap(private_key,
@@ -648,6 +937,8 @@ def EccKey(**kwargs):
             return Error("ValueError: Cannot export OpenSSH private keys").unwrap()
 
         desc = self._curve.openssh
+        if desc == None:
+            return Error("ValueError: Cannot export %s keys as OpenSSH" % self.curve).unwrap()
         modulus_bytes = self.pointQ.size_in_bytes()
 
         if compress:
@@ -727,7 +1018,7 @@ def EccKey(**kwargs):
 
         args = dict(**kwargs)
         ext_format = args.pop("format")
-        if ext_format not in ("PEM", "DER", "OpenSSH"):
+        if ext_format not in ("PEM", "DER", "OpenSSH", "SEC1", "raw"):
             return Error("ValueError: Unknown format '%s'" % ext_format).unwrap()
 
         compress = args.pop("compress", False)
@@ -739,6 +1030,12 @@ def EccKey(**kwargs):
                 if not passphrase:
                     return Error("ValueError: Empty passphrase").unwrap()
             use_pkcs8 = args.pop("use_pkcs8", True)
+            if use_pkcs8 == False:
+                if _is_montgomery(self._curve):
+                    return Error("ValueError: 'pkcs8' must be True for Curve25519").unwrap()
+                if 'protection' in args:
+                    return Error("ValueError: 'protection' is only supported for PKCS#8").unwrap()
+
             if ext_format == "PEM":
                 if use_pkcs8:
                     if passphrase:
@@ -755,8 +1052,10 @@ def EccKey(**kwargs):
                     return self._export_pkcs8(passphrase=passphrase, **args)
                 else:
                     return self._export_private_der()
-            else:
+            elif ext_format == "OpenSSH":
                 return Error("ValueError: Private keys cannot be exported in OpenSSH format").unwrap()
+            else:
+                return Error("ValueError: Private keys cannot be exported in the '%s' format" % ext_format).unwrap()
         else:  # Public key
             if args:
                 return Error("ValueError: " + "Unexpected parameters: '%s'" % args).unwrap()
@@ -764,6 +1063,12 @@ def EccKey(**kwargs):
                 return self._export_public_pem(compress)
             elif ext_format == "DER":
                 return self._export_subjectPublicKeyInfo(compress)
+            elif ext_format == "SEC1":
+                return self._export_SEC1(compress)
+            elif ext_format == "raw":
+                if _is_montgomery(self._curve):
+                    return self._export_montgomery_public()
+                return self._export_SEC1(compress)
             else:
                 return self._export_openssh(compress)
     self.export_key = export_key
@@ -785,10 +1090,21 @@ def generate(**kwargs):
 
     curve_name = kwargs.pop("curve")
     curve = _curves[curve_name]
-    randfunc = kwargs.pop("randfunc", get_random_bytes)
+    randfunc = kwargs.pop("randfunc", None)
     if kwargs:
         return Error("TypeError: Unknown parameters: " + str(kwargs)).unwrap()
 
+    if _is_montgomery(curve):
+        if randfunc == None:
+            seed = curve.context.generate_private_key()
+        else:
+            seed = randfunc(32)
+        new_key = EccKey(curve=curve_name, seed=seed)
+        _validate_x25519_point(new_key.pointQ)
+        return new_key
+
+    if randfunc == None:
+        randfunc = get_random_bytes
     d = Integer.random_range(min_inclusive=1,
                              max_exclusive=curve.order,
                              randfunc=randfunc)
@@ -825,6 +1141,13 @@ def _construct(**kwargs):
 
     if "point" in kwargs:
         return Error("TypeError: Unknown keyword: point")
+
+    if _is_montgomery(curve):
+        if point_x != None:
+            kwargs["point"] = EccXPoint(point_x, curve_name)
+        new_key = EccKey(**kwargs)
+        _validate_x25519_point(new_key.pointQ)
+        return Ok(new_key)
 
     if None not in (point_x, point_y):
         # ValueError is raised if the point is not on the curve
@@ -923,6 +1246,19 @@ def _import_subjectPublicKeyInfo(encoded, *kwargs):
     # Parse the generic subjectPublicKeyInfo structure
     oid, ec_point, params = _expand_subject_public_key_info(encoded)
 
+    xdh_oids = {
+        "1.3.101.110": ("Curve25519", _import_curve25519_public_key),   # id-X25519
+    }
+    if oid in xdh_oids:
+        curve_name, import_xdh_public_key = xdh_oids[oid]
+
+        # Parameters must be absent
+        if params:
+            return Error("ValueError: Unexpected ECC parameters for ECC OID %s" % oid)
+
+        x = import_xdh_public_key(ec_point)
+        return _construct(point_x=x, curve=curve_name)
+
     # ec_point must be an encoded OCTET STRING
     # params is encoded ECParameters
 
@@ -964,14 +1300,24 @@ def _import_private_der(encoded, passphrase, curve_oid=None):
     #           parameters [0] ECParameters {{ NamedCurve }} OPTIONAL,
     #           publicKey  [1] BIT STRING OPTIONAL
     #    }
-    private_key = DerSequence().decode(encoded, nr_elements=(3, 4))
+    # As pycryptodome 3.21.0's _import_rfc5915_der: 'parameters' and
+    # 'publicKey' are both optional (OpenSSL omits 'parameters' inside
+    # PKCS#8, where the AlgorithmIdentifier carries the curve).
+    private_key = DerSequence().decode(encoded, nr_elements=(2, 3, 4))
     if private_key[0] != 1:
         return Error("ValueError: Incorrect ECC private key version")
 
-    parameters = DerObjectId(explicit=0).decode(private_key[2]).value
-    if curve_oid != None and parameters != curve_oid:
-        return Error("ValueError: Curve mismatch")
-    curve_oid = parameters
+    next_element = 2
+
+    # Try to decode 'parameters'
+    if next_element < len(private_key):
+        res = Result.Ok(DerObjectId(explicit=0).decode).map(lambda dec: dec(private_key[next_element]).value)
+        if res.is_ok:
+            parameters = res.unwrap()
+            if curve_oid != None and parameters != curve_oid:
+                return Error("ValueError: Curve mismatch")
+            curve_oid = parameters
+            next_element += 1
 
     if curve_oid == None:
         return Error("ValueError: No curve found")
@@ -990,15 +1336,17 @@ def _import_private_der(encoded, passphrase, curve_oid=None):
         return Error("ValueError: Private key is too small")
     d = Integer.from_bytes(scalar_bytes)
 
-    # Decode public key (if any)
-    if len(private_key) == 4:
-        public_key_enc = DerBitString(explicit=1).decode(private_key[3]).value
-        public_key = _import_public_der(curve_oid, public_key_enc).unwrap()
-        point_x = public_key.pointQ.x
-        point_y = public_key.pointQ.y
-    else:
-        point_x = None
-        point_y = point_x
+    # Try to decode 'publicKey'
+    point_x = None
+    point_y = None
+    if next_element < len(private_key):
+        res = (Result.Ok(DerBitString(explicit=1).decode)
+               .map(lambda dec: dec(private_key[next_element]).value)
+               .map(lambda enc: _import_public_der(curve_oid, enc)))
+        if res.is_ok:
+            public_key = res.unwrap()
+            point_x = public_key.pointQ.x
+            point_y = public_key.pointQ.y
 
     return _construct(curve=curve_name, d=d, point_x=point_x, point_y=point_y)
 
@@ -1013,6 +1361,17 @@ def _import_pkcs8(encoded, passphrase):
     # b) ECPrivateKey in the PrivateKey field, which is an OCTET STRING.
 
     algo_oid, private_key, params = PKCS8.unwrap(encoded, passphrase)
+
+    xdh_oids = {
+        "1.3.101.110": "Curve25519",  # id-X25519
+    }
+    if algo_oid in xdh_oids:
+        curve_name = xdh_oids[algo_oid]
+        if params != None:
+            return Error("ValueError: %s ECC private key must not have parameters" %
+                         curve_name)
+        seed = DerOctetString().decode(private_key).payload
+        return _construct(curve=xdh_oids[algo_oid], seed=seed)
 
     # We accept id-ecPublicKey, id-ecDH, id-ecMQV without making any
     # distinction for now.
@@ -1086,6 +1445,8 @@ def _import_openssh_public(encoded):
 
     _larky_forelse_run_else = True
     for curve_name, curve in _curves.items():
+        if curve.openssh == None:
+            continue
         middle = tobytes(curve.openssh.split("-")[2])
         if keyparts[1] == middle:
             _larky_forelse_run_else = False
@@ -1123,6 +1484,34 @@ def _import_openssh_private_ecc(data, password):
     check_padding(padded)
 
     return Ok(EccKey(curve=name, d=d, point=point))
+
+
+def _import_curve25519_public_key(encoded):
+    """Import a Curve25519 ECC public key,
+    encoded as raw bytes as described in RFC7748_.
+
+    Args:
+      encoded (bytes):
+        The Curve25519 public key to import. It must be 32 bytes long.
+
+    Returns:
+      x (integer)
+
+    Raises:
+      ValueError: when the given key cannot be parsed.
+
+    .. _RFC7748: https://datatracker.ietf.org/doc/html/rfc7748
+    """
+
+    if not types.is_bytelike(encoded) or len(encoded) != 32:
+        fail("ValueError: Incorrect Curve25519 key length")
+
+    x = bytearray(encoded)
+    # RFC 7741, Section 5
+    x[31] = x[31] & 0x7F
+    point_x = Integer(bytes_to_long(bytes(x)[::-1]))
+
+    return point_x
 
 
 def import_key(encoded, passphrase=None, curve_name=None):
@@ -1245,5 +1634,7 @@ ECC = larky.struct(
     import_key=import_key,
     curves=_curves,
     EccPoint=EccPoint,
+    EccXPoint=EccXPoint,
     EccKey=EccKey,
+    _import_curve25519_public_key=_import_curve25519_public_key,
 )
