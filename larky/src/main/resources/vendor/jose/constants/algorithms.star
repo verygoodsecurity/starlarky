@@ -77,6 +77,7 @@ SUPPORTED = (
      .union(AES_KW)
      .union(AEC_GCM_KW)
      .union(EC_DS)
+     .union(EC_KW)  # Larky: ECDH-ES and ECDH-ES+A*KW for JWE (jose/backends/ecdh_es.star)
 )
 
 ALL = SUPPORTED.union(sets.Set([NONE])).union(EC_KW).union(PBES2_KW)

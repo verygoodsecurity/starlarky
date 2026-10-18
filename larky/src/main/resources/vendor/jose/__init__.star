@@ -15,6 +15,8 @@
 #   changed backends/ecdsa_backend.py, which is not ported. No release
 #   matches: 3.2.0 has no jwe.py, backends/native.py or AESKey, and 3.3.0
 #   dropped the PyCrypto backend.
+# - backends/ecdh_es.star and the ECDH-ES parts of jwe.star are Larky
+#   additions (python-jose has no ECDH-ES).
 
 load("@vendor//jose/exceptions", JOSEError="JOSEError")  # noqa: F401
 load("@vendor//jose/exceptions", JWSError="JWSError")  # noqa: F401
@@ -22,10 +24,12 @@ load("@vendor//jose/exceptions", ExpiredSignatureError="ExpiredSignatureError") 
 load("@vendor//jose/exceptions", JWTError="JWTError")  # noqa: F401
 
 # Python reaches these submodules with `from jose import jwt`.
+load("@vendor//jose/jwe", _jwe="jwe")
 load("@vendor//jose/jwk", _jwk="jwk")
 load("@vendor//jose/jws", _jws="jws")
 load("@vendor//jose/jwt", _jwt="jwt")
 
+jwe = _jwe
 jwk = _jwk
 jws = _jws
 jwt = _jwt
