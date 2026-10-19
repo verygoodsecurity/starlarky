@@ -33,6 +33,7 @@ ERR_ZERO = "^JWEError: ECDH-ES shared secret is all zero$"
 ERR_TAG = "^JWEError: Invalid JWE Auth Tag$"
 ERR_UNWRAP = "^JWEError: ECDH-ES key unwrap failed$"
 ERR_PARTY_INFO = "^JWEError: ECDH-ES apu or apv header is malformed$"
+ERR_KEY = "^JWEError: ECDH-ES needs an EC \\(P-256, P-384, P-521\\) or OKP \\(X25519\\) key$"
 
 ALL_ALGS = ["ECDH-ES", "ECDH-ES+A128KW", "ECDH-ES+A192KW", "ECDH-ES+A256KW"]
 ALL_ENCS = ["A128GCM", "A192GCM", "A256GCM", "A128CBC-HS256", "A256CBC-HS512"]
@@ -400,6 +401,34 @@ def Test_base64url_spare_bits_ignored():
         asserts.assert_that(len(base64url_decode(bytes("AA" + c, encoding="ascii")))).is_equal_to(2)
 
 
+def Test_argument_errors():
+    """The checks on ecdh_es's exported functions that jwe never fails."""
+    z = b"\x00" * 32
+    for args, error in (
+            (("z", 128, "A128GCM"), "^TypeError: concat_kdf\\(z=...\\) expected `bytes`; got string$"),
+            ((z, 0, "A128GCM"), "^ValueError: concat_kdf\\(keydatalen=...\\) expected a positive multiple of 8$"),
+            ((z, 12, "A128GCM"), "^ValueError: concat_kdf\\(keydatalen=...\\) expected a positive multiple of 8$"),
+            ((z, "128", "A128GCM"), "^ValueError: concat_kdf\\(keydatalen=...\\) expected a positive multiple of 8$"),
+            ((z, 128, 5), "^TypeError: concat_kdf\\(algorithm_id=...\\) expected `bytes`; got int$")):
+        asserts.assert_fails(lambda: ecdh_es.concat_kdf(*args), error)
+    asserts.assert_fails(lambda: ecdh_es.concat_kdf(z, 128, "A128GCM", party_v_info="apv"),
+                         "^TypeError: concat_kdf\\(party_v_info=...\\) expected `bytes`; got string$")
+    asserts.assert_fails(lambda: ecdh_es.key_bits("ECDH-ES", "A512GCM"),
+                         "^JWEError: Encryption algorithm not supported\\.$")
+    asserts.assert_fails(lambda: ecdh_es.key_bits("ECDH-ES+A512KW", "A128GCM"),
+                         "^JWEError: Algorithm not supported\\.$")
+
+    p256 = KEYS["p256"]["jwk"]
+    short = {"kty": "EC", "crv": "P-256", "x": p256["x"][:20], "y": p256["y"]}
+    asserts.assert_fails(lambda: ecdh_es.import_epk(short), ERR_EPK)
+
+    secp256k1 = ECC.generate(curve="secp256k1")
+    asserts.assert_fails(lambda: ecdh_es.epk_to_jwk(secp256k1), ERR_KEY)
+    for key in (secp256k1, "key"):
+        asserts.assert_fails(lambda: ecdh_es.derive_for_encrypt(key, "ECDH-ES", "A128GCM"),
+                             ERR_KEY)
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(Test_rfc7518_appendix_c_concat_kdf))
@@ -424,6 +453,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(Test_key_errors))
     _suite.addTest(unittest.FunctionTestCase(Test_agreement_with_unvalidated_point))
     _suite.addTest(unittest.FunctionTestCase(Test_base64url_spare_bits_ignored))
+    _suite.addTest(unittest.FunctionTestCase(Test_argument_errors))
     return _suite
 
 
