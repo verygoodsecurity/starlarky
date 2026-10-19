@@ -1314,6 +1314,9 @@ def _import_private_der(encoded, passphrase, curve_oid=None):
         res = Result.Ok(DerObjectId(explicit=0).decode).map(lambda dec: dec(private_key[next_element]).value)
         if res.is_ok:
             parameters = res.unwrap()
+            # Larky: a mismatch is an error. In 3.21.0 the ValueError is
+            # raised inside the try that skips undecodable 'parameters', so
+            # the PKCS#8 curve is used and the key imports.
             if curve_oid != None and parameters != curve_oid:
                 return Error("ValueError: Curve mismatch")
             curve_oid = parameters
