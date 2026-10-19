@@ -376,6 +376,30 @@ def Test_key_errors():
                          "^JWKError: OKP public key does not match the private key$")
 
 
+def Test_agreement_with_unvalidated_point():
+    """A recipient key whose point was replaced after import, which no import
+    or construct path allows: X25519 u = 0, and a P-384 point on a P-256 key.
+    This reaches the error branch of the key agreement in ecdh_es.star."""
+    x25519 = ECC.import_key(KEYS["x25519_a"]["public_pem"])
+    x25519._point._x = 0
+    asserts.assert_fails(lambda: jwe.encrypt(PLAINTEXT, x25519, algorithm="ECDH-ES"), ERR_ZERO)
+
+    p384 = ECC.generate(curve="P-384").pointQ
+    p256 = ECC.import_key(KEYS["p256"]["public_pem"])
+    p256._point = ECC.EccPoint(p384.x, p384.y, "p384")
+    asserts.assert_fails(lambda: jwe.encrypt(PLAINTEXT, p256, algorithm="ECDH-ES"),
+                         "^JWEError: ECDH-ES key agreement failed$")
+
+
+def Test_base64url_spare_bits_ignored():
+    """_b64_member relies on this: any last character decodes, so a value of
+    length 4k+2 or 4k+3 over the base64url alphabet cannot fail to decode."""
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    for c in alphabet.elems():
+        asserts.assert_that(len(base64url_decode(bytes("A" + c, encoding="ascii")))).is_equal_to(1)
+        asserts.assert_that(len(base64url_decode(bytes("AA" + c, encoding="ascii")))).is_equal_to(2)
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(Test_rfc7518_appendix_c_concat_kdf))
@@ -398,6 +422,8 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(Test_malformed_party_info))
     _suite.addTest(unittest.FunctionTestCase(Test_unsupported_alg_and_enc_not_echoed))
     _suite.addTest(unittest.FunctionTestCase(Test_key_errors))
+    _suite.addTest(unittest.FunctionTestCase(Test_agreement_with_unvalidated_point))
+    _suite.addTest(unittest.FunctionTestCase(Test_base64url_spare_bits_ignored))
     return _suite
 
 

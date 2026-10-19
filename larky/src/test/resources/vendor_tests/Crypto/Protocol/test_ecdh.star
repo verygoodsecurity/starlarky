@@ -340,6 +340,17 @@ def Larky_test_argument_errors():
                          "^ValueError: Parameter seed must be 32 bytes long for Curve25519$")
 
 
+def Larky_test_unvalidated_p256_point_refused():
+    # Every import and construct path checks that the point is on the curve,
+    # so put a P-384 point on a P-256 key by hand to reach the check on
+    # @stdlib//ECDH's result.
+    p384 = ECC.generate(curve="P-384").pointQ
+    pub = ECC.generate(curve="P-256").public_key()
+    pub._point = ECC.EccPoint(p384.x, p384.y, "p384")
+    asserts.assert_fails(lambda: key_agreement(static_priv=static_priv, static_pub=pub, kdf=kdf),
+                         "^ValueError: Invalid ECDH point$")
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(ECDH_Tests_test_1))
@@ -366,6 +377,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(Larky_test_rfc7518_appendix_c_z))
     _suite.addTest(unittest.FunctionTestCase(Larky_test_curve25519_generate_agreement))
     _suite.addTest(unittest.FunctionTestCase(Larky_test_argument_errors))
+    _suite.addTest(unittest.FunctionTestCase(Larky_test_unvalidated_p256_point_refused))
     return _suite
 
 
