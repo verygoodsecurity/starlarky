@@ -27,6 +27,8 @@ import net.starlark.java.eval.compiler.BytecodeChunk;
 import net.starlark.java.eval.compiler.ComprehensionScope;
 import net.starlark.java.spelling.SpellChecker;
 import net.starlark.java.syntax.Location;
+import net.starlark.java.syntax.StarlarkType;
+import net.starlark.java.syntax.Types;
 
 /**
  * A BytecodeFunction is a function value created by compiling a Starlark {@code def} statement
@@ -67,6 +69,9 @@ public final class BytecodeFunction implements UserDefinedFunction {
 
   // Identity token, as for StarlarkFunction; may be replaced by a global one on export.
   private SymbolGenerator.Symbol<?> token;
+
+  // The function's type, from the type table of a typed program; null if untyped.
+  @Nullable private Types.CallableType functionType;
 
   // Indices of locals that need to be wrapped in Cells at function entry.
   // These are variables shared with nested functions.
@@ -157,6 +162,15 @@ public final class BytecodeFunction implements UserDefinedFunction {
 
   public BytecodeChunk getChunk() {
     return chunk;
+  }
+
+  void setFunctionType(@Nullable Types.CallableType functionType) {
+    this.functionType = functionType;
+  }
+
+  @Override
+  public StarlarkType getStarlarkType(StarlarkSemantics semantics) {
+    return functionType != null ? functionType : Types.ANY;
   }
 
   @Override
@@ -370,6 +384,15 @@ public final class BytecodeFunction implements UserDefinedFunction {
     // Compute the effective parameter values
     Object[] locals = processArgs(thread.mutability(), positional, named);
 
+    boolean dynamicTyping =
+        functionType != null
+            && thread
+                .getSemantics()
+                .getBool(StarlarkSemantics.EXPERIMENTAL_STARLARK_DYNAMIC_TYPE_CHECKING);
+    if (dynamicTyping) {
+      checkArgumentTypes(thread, locals);
+    }
+
     // Spill indicated locals to cells.
     // This wraps locals that are shared with nested functions in Cell objects.
     for (int index : cellIndices) {
@@ -383,8 +406,40 @@ public final class BytecodeFunction implements UserDefinedFunction {
     fr.locals = locals;
 
     // Execute the function body bytecode with the processed locals and captured free variables
-    return BytecodeVms.executeWithLocals(
-        chunk, thread, locals, globals, filename, getFreevars());
+    Object returnValue =
+        BytecodeVms.executeWithLocals(chunk, thread, locals, globals, filename, getFreevars());
+    if (dynamicTyping
+        && !TypeChecker.isValueSubtypeOf(
+            returnValue,
+            functionType.getReturnType(),
+            thread.getSemantics(),
+            thread.getTypeContext())) {
+      throw Starlark.errorf(
+          "%s(): returns value of type '%s', declares '%s'",
+          name,
+          Starlark.getStarlarkType(returnValue, thread.getSemantics()),
+          functionType.getReturnType());
+    }
+    return returnValue;
+  }
+
+  /**
+   * Checks argument values against the declared parameter types, as StarlarkFunction does. (Its
+   * default values were checked when the function was defined.)
+   */
+  private void checkArgumentTypes(StarlarkThread thread, Object[] locals) throws EvalException {
+    for (int i = 0; i < functionType.getParameterTypes().size(); i++) {
+      StarlarkType parameterType = functionType.getParameterTypeByPos(i);
+      if (!TypeChecker.isValueSubtypeOf(
+          locals[i], parameterType, thread.getSemantics(), thread.getTypeContext())) {
+        throw Starlark.errorf(
+            "in call to %s(), parameter '%s' got value of type '%s', want '%s'",
+            name,
+            parameterNames.get(i),
+            Starlark.getStarlarkType(locals[i], thread.getSemantics()),
+            parameterType);
+      }
+    }
   }
 
   /**

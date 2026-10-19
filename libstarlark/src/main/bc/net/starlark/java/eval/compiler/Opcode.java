@@ -134,7 +134,8 @@ public enum Opcode {
   BREAK(0),         // Break from loop
   CONTINUE(0),      // Continue loop
   LOAD_MODULE(1),   // Load module (operand: name index)
-  POST_ASSIGN(1);   // Pop a top-level value and report it to the thread's post-assign hook (operand: name index)
+  POST_ASSIGN(1),   // Pop a top-level value and report it to the thread's post-assign hook (operand: name index)
+  TYPE_ALIAS(1);    // Bind a type alias to its type constructor, if the program is typed (operand: identifier index)
 
   private final int operandCount;
 
