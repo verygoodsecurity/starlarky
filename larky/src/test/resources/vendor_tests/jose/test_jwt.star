@@ -519,8 +519,12 @@ def TestJWT_test_require():
 # Larky additions
 
 rsa_public_key = b"-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCQouotdvmxpjokxe5GZxNQbWVQ\n6ip3T7k5xbU37jJheojRJm0wtTSbtIetDXr5vHp0/SnuxzMvEccB7/UrWWGOabVx\nHas4edX2X7Ie9JTDg9G9smkcCDlQLD6cvxgIy7afH5rG//SoBgMPwnAicHXaEuWp\nu+MaeJm1BAg6MND/2QIDAQAB\n-----END PUBLIC KEY-----"
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 rsa_private_key = b"-----BEGIN RSA PRIVATE KEY-----\nMIICXAIBAAKBgQCQouotdvmxpjokxe5GZxNQbWVQ6ip3T7k5xbU37jJheojRJm0w\ntTSbtIetDXr5vHp0/SnuxzMvEccB7/UrWWGOabVxHas4edX2X7Ie9JTDg9G9smkc\nCDlQLD6cvxgIy7afH5rG//SoBgMPwnAicHXaEuWpu+MaeJm1BAg6MND/2QIDAQAB\nAoGAbJKfD7n7/is2AlzCXP8LNJiqMW9WqXGjLYcIXg/kqd/9zGL4HFQqRafjITi5\nU7b0hdV1INVPysmhhgbHF99kpw3ee31mSQtenn//SGQFJeOn+QE+R63FH8icrod/\nNsXqR4w/61RS07wiYOtfzN/7czczi6WQV4W3xnugG6971vECQQDKCHyJ9W4xuYMl\nKcuQwokFsDKR1s9UpUPOCLeaQJFmW3hCHrWsFic2AH1oWxUrJdaAYL/DFTmtzpXJ\nz+a6heCHAkEAt0V/zqCWjG0+OIZopTaGS6/0Rtp67kAy2GlFLpg9hnIqTqgtHS1+\noeT9D0qQrNKGu5fR14WFQltTPxkWNOAUnwJABR7T8TcsNMxr23xEsYWMrX06uuGD\n3bRWlJk59gne5YY59QsMNbFWCxNWGlf8oFxUJGrPUWVvUc1jlHrVcTLFbwJBAJTD\nYDwMFEgGgMQHLjg1KwuS1tkQjUqJZ/xMbvCkeQSB9R+F2aDehfTJ2DQqVYdDGER7\ntsSXyBSV5tvH9EOVRIcCQFktF/V6TW6X3I3XmQjEuie4W0UT8tpWUcgkwO8slvra\nQ7aSCBe5pLlVT0SorTqH3ywozGy2uzGyaigjtIFbgcM=\n-----END RSA PRIVATE KEY-----"
 ecc_public_key = b"-----BEGIN PUBLIC KEY-----\nMFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAE7l9S5znW4VsHl3XXM1cFPXzkJ17QTX+H\nE4gS/P/0EgxJtkpIuKFNwjZnetGKCkJmIjdsVxtzQV3GPOTsi/Btzg==\n-----END PUBLIC KEY-----"
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 ecc_private_key = b"-----BEGIN EC PRIVATE KEY-----\nMHQCAQEEIPjfg99RGAgLkIWU+Ell5EWzQMXJ99C++CYaZ8DN4wmfoAcGBSuBBAAK\noUQDQgAE7l9S5znW4VsHl3XXM1cFPXzkJ17QTX+HE4gS/P/0EgxJtkpIuKFNwjZn\netGKCkJmIjdsVxtzQV3GPOTsi/Btzg==\n-----END EC PRIVATE KEY-----"
 
 # Generated with python-jose 3.5.0 (cryptography backend):
@@ -531,6 +535,8 @@ RS256_UPSTREAM_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0Iiw
 # rejects it), and
 # jwt.encode({"sub": "1234", "exp": 1700003600}, p256_private_key, algorithm="ES256")
 # from python-jose 3.5.0.
+# https://verygoodsecurity.atlassian.net/browse/SI-203
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
 p256_private_key = b"-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEINQ8w1Fm5qBANatem6RHkXfEfbgbLCAsEayPnLtkhE/5oAoGCCqGSM49\nAwEHoUQDQgAEsZ2JwgBv6kFQL2bJYJBxNCdSSrvYJW8mw3uXdYs05QPgudNwAkJh\nyIlzepjFstM22VHd1hnc5KjAPMEDpz9iuw==\n-----END EC PRIVATE KEY-----"
 p256_public_key = b"-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsZ2JwgBv6kFQL2bJYJBxNCdSSrvY\nJW8mw3uXdYs05QPgudNwAkJhyIlzepjFstM22VHd1hnc5KjAPMEDpz9iuw==\n-----END PUBLIC KEY-----"
 ES256_UPSTREAM_TOKEN = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0IiwiZXhwIjoxNzAwMDAzNjAwfQ.qmd1F_VAPMJgbYOkXVy8hnGjoF_i8ZPmaQcj6jlcma35dRHJJPEUumaqQhkBoJlWfVDZWysc2N7VlD7TJa8LaQ"
