@@ -71,7 +71,7 @@ def encrypt(plaintext, key, encryption=ALGORITHMS.A256GCM,
 
     """
     plaintext = six.ensure_binary(plaintext)  # Make sure it's bytes
-    if not operator.contains(ALGORITHMS.SUPPORTED, algorithm):
+    if not jwk.is_supported(algorithm):
         fail("JWEError: Algorithm not supported.")
     if not operator.contains(ALGORITHMS.AES_JWE_ENC, encryption):
         fail("JWEError: Encryption algorithm not supported.")
@@ -133,7 +133,7 @@ def decrypt(jwe_str, key):
     # specified by the "alg" (algorithm) Header Parameter.
     alg = header["alg"]
     enc = header["enc"]
-    if not types.is_string(alg) or not operator.contains(ALGORITHMS.SUPPORTED, alg):
+    if not types.is_string(alg) or not jwk.is_supported(alg):
         fail("JWEError: Algorithm not supported.")
     if not types.is_string(enc) or not operator.contains(ALGORITHMS.AES_JWE_ENC, enc):
         fail("JWEError: Encryption algorithm not supported.")
