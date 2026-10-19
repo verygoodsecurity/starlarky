@@ -2,10 +2,18 @@
 # fallible calls, inside option/result's safe() and inside Result.try_.
 # safe() cannot be nested (its wrapper reports "called recursively"), so
 # jose must not call safe() itself.
+#
+# The Test_*_error tests reach the error branch of each Result.Ok(x).map(f)
+# in jwe.star and AESKey.encrypt, and check that the failure is the same
+# inside safe().
 
+load("@stdlib//codecs", codecs="codecs")
+load("@stdlib//json", json="json")
 load("@stdlib//unittest", unittest="unittest")
 load("@vendor//asserts", asserts="asserts")
 load("@vendor//jose/jwe", jwe="jwe")
+load("@vendor//jose/jwk", jwk="jwk")
+load("@vendor//jose/utils", base64url_encode="base64url_encode")
 load("@vendor//option/result", Result="Result", safe="safe")
 load("./ecdh_es_fixtures", KEYS="KEYS")
 
@@ -97,10 +105,69 @@ def Test_inside_result_try():
             asserts.assert_that(res._val).is_equal_to(tag_err)
 
 
+def _assert_fails_alike(fn, error):
+    """fn fails with error, and inside safe() it is an Err with the same message."""
+    asserts.assert_fails(fn, error)
+    res = safe(fn)()
+    asserts.assert_that(res.is_err).is_true()
+    asserts.assert_that(res._val).is_equal_to(_direct_error(fn))
+
+
+def _with_header(token, header):
+    """token with its protected header replaced by header."""
+    encoded = codecs.decode(base64url_encode(codecs.encode(json.dumps(header), encoding="utf-8")),
+                            encoding="ascii")
+    return ".".join([encoded] + token.decode("utf-8").split(".")[1:])
+
+
+def Test_decrypt_unwrap_error():
+    # key.unwrap fails with a JWEError (here, the "iv" an A128GCMKW header
+    # needs), which decrypt raises as is.
+    key = b"0123456789abcdef"
+    token = jwe.encrypt(PLAINTEXT, key, encryption="A128GCM", algorithm="A128KW")
+    bad = _with_header(token, {"alg": "A128GCMKW", "enc": "A128GCM"})
+    _assert_fails_alike(lambda: jwe.decrypt(bad, key), '^JWEError: Missing "iv"$')
+    bad = _with_header(token, {"alg": "A128GCMKW", "enc": "A128GCM", "iv": "AAAAAAAAAAAAAAAA"})
+    _assert_fails_alike(lambda: jwe.decrypt(bad, key), '^JWEError: Missing "tag"$')
+
+
+def Test_decrypt_segment_error():
+    # A segment that is not base64url ("A" is too short) fails with the
+    # message for that segment.
+    key = b"0123456789abcdef"
+    token = jwe.encrypt(PLAINTEXT, key, encryption="A128GCM", algorithm="A128KW")
+    for index, error in ((1, "JWEParseError: Invalid encrypted key"),
+                         (2, "JWEParseError: Invalid IV"),
+                         (3, "JWEParseError: Invalid cyphertext"),
+                         (4, "JWEParseError: Invalid auth tag")):
+        parts = token.decode("utf-8").split(".")
+        parts[index] = "A"
+        bad = ".".join(parts)
+        _assert_fails_alike(lambda: jwe.decrypt(bad, key), "^%s$" % error)
+
+
+def Test_encrypt_cek_error():
+    # _get_cek fails: an HMAC key cannot wrap a CEK.
+    _assert_fails_alike(
+        lambda: jwe.encrypt(PLAINTEXT, b"0123456789abcdef", encryption="A128GCM", algorithm="HS256"),
+        "has no field or method 'wrap_key'")
+
+
+def Test_aes_key_encrypt_error():
+    # AESKey.encrypt fails: GCM needs bytes for the additional data.
+    key = jwk.construct(b"0123456789abcdef", "A128GCM")
+    _assert_fails_alike(lambda: key.encrypt(PLAINTEXT),
+                        "^TypeError: assoc_data is not byte-like$")
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(Test_inside_safe))
     _suite.addTest(unittest.FunctionTestCase(Test_inside_result_try))
+    _suite.addTest(unittest.FunctionTestCase(Test_decrypt_unwrap_error))
+    _suite.addTest(unittest.FunctionTestCase(Test_decrypt_segment_error))
+    _suite.addTest(unittest.FunctionTestCase(Test_encrypt_cek_error))
+    _suite.addTest(unittest.FunctionTestCase(Test_aes_key_encrypt_error))
     return _suite
 
 
