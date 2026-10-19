@@ -238,6 +238,9 @@ final class ReplCompleter {
   private static List<String> findResourceLabels() {
     TreeSet<String> labels = new TreeSet<>();
     ClassLoader loader = ReplCompleter.class.getClassLoader();
+    if (loader == null) {
+      loader = ClassLoader.getSystemClassLoader();
+    }
     for (String root : List.of("stdlib", "vendor", "vgs")) {
       List<String> names = new ArrayList<>();
       try {

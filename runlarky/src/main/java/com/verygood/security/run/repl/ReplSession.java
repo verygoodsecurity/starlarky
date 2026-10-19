@@ -259,7 +259,7 @@ public final class ReplSession {
 
   // Larky's own modules are resources (e.g. stdlib/json.star); nothing else is read from disk.
   private static String[] readResourceLines(String name) {
-    try (InputStream in = ReplSession.class.getClassLoader().getResourceAsStream(name)) {
+    try (InputStream in = ReplSession.class.getResourceAsStream("/" + name)) {
       return in == null ? null : new String(in.readAllBytes(), UTF_8).split("\n", -1);
     } catch (IOException e) {
       return null;

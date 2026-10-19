@@ -232,17 +232,23 @@ public final class LarkyRepl {
             EVAL_STACK_SIZE);
     running = thread;
     thread.start();
+    // An interrupt of this thread is passed on to the evaluation, then restored once it ends.
+    boolean interrupted = false;
     try {
       while (true) {
         try {
           thread.join();
           break;
         } catch (InterruptedException e) {
+          interrupted = true;
           thread.interrupt();
         }
       }
     } finally {
       running = null;
+      if (interrupted) {
+        Thread.currentThread().interrupt();
+      }
     }
     return ok[0];
   }
