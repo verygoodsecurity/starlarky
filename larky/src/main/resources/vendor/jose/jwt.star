@@ -1,23 +1,50 @@
- 
+# Ported from python-jose 3.5.0 (tag 3.5.0, commit
+# 018b310ddb8b50dcfd09a0c152117835a21dd656), file jose/jwt.py:
+# https://github.com/mpdavis/python-jose/blob/018b310ddb8b50dcfd09a0c152117835a21dd656/jose/jwt.py
+# sdist python-jose-3.5.0 (python_jose-3.5.0.tar.gz) sha256
+# fb4eaa44dbeb1c26dcc69e4bd7ec54a1cb8dd64d3b4d81ef08d90ff453f2b01b
+#
+# Translated with py2star (larkify) and fixed by hand. Differences from
+# upstream, each also described in the docstring it affects:
+#
+# - Larky scripts cannot read the clock, so decode() takes a Larky-only
+#   `now=` argument (seconds since the epoch) for the exp and nbf checks.
+#   Without it, a token that carries exp or nbf is rejected unless that check
+#   is disabled through `options`.
+# - There is no datetime module: exp/iat/nbf must already be NumericDate
+#   numbers in encode(), and options["leeway"] must be a number of seconds.
+# - Errors are raised with fail() as "<ExceptionName>: <message>", where the
+#   name is JWTError, JWTClaimsError or ExpiredSignatureError (the latter two
+#   subclass JWTError upstream). An at_hash for an alg without a hash
+#   (e.g. "none") fails with "KeyError: '<alg>'", as upstream's uncaught
+#   KeyError does.
+#
+# The rest of vendor/jose was ported earlier from python-jose's master branch
+# (between commits 89c3d41 and 8572088, 2020-09-07..2020-12-07), not from
+# 3.5.0; see the header of jose/__init__.star.
 
-load("@stdlib//calendar", timegm="timegm")
-load("@stdlib//json","json")
-try:
-    load("@stdlib//collections/abc", Mapping="Mapping")  # Python3
-except ImportError:
-    load("@stdlib//collections", Mapping="Mapping")  # Python2, will be deprecated in Python 3.8
-load("@stdlib//datetime", datetime="datetime")
-load("@stdlib//datetime", timedelta="timedelta")
-load("@vendor//six", string_types="string_types")
+load("@stdlib//json", json="json")
+load("@stdlib//larky", larky="larky")
+load("@stdlib//types", types="types")
+load("@vendor//jose/jws", jws="jws")
+load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS")
+load("@vendor//jose/utils", calculate_at_hash="calculate_at_hash")
+load("@vendor//option/result", Result="Result")
 
-load("@vendor//jose", jws="jws")
 
-load("@vendor//exceptions", JWSError="JWSError")
-load("@vendor//exceptions", JWTClaimsError="JWTClaimsError")
-load("@vendor//exceptions", JWTError="JWTError")
-load("@vendor//exceptions", ExpiredSignatureError="ExpiredSignatureError")
-load("@vendor//constants", ALGORITHMS="ALGORITHMS")
-load("@vendor//utils", timedelta_total_seconds="timedelta_total_seconds", calculate_at_hash="calculate_at_hash")
+def _at_hash_alg(algorithm):
+    """ALGORITHMS.HASHES[algorithm], failing as upstream's uncaught KeyError does."""
+    if algorithm not in ALGORITHMS.HASHES:
+        fail("KeyError: %s" % ("'%s'" % algorithm if types.is_string(algorithm) else repr(algorithm)))
+    return ALGORITHMS.HASHES[algorithm]
+
+
+def _strip_error_name(message, names):
+    for name in names:
+        prefix = name + ": "
+        if message.startswith(prefix):
+            return message[len(prefix):]
+    return message
 
 
 def encode(claims, key, algorithm=ALGORITHMS.HS256, headers=None, access_token=None):
@@ -44,6 +71,12 @@ def encode(claims, key, algorithm=ALGORITHMS.HS256, headers=None, access_token=N
     Raises:
         JWTError: If there is an error encoding the claims.
 
+    Larky:
+        Upstream converts ``datetime`` values of the exp, iat and nbf claims
+        to NumericDate integers. Larky has no ``datetime``, so pass these
+        claims as integers (seconds since the epoch); any other value is
+        signed as given.
+
     Examples:
 
         >>> jwt.encode({'a': 'b'}, 'secret', algorithm='HS256')
@@ -51,27 +84,27 @@ def encode(claims, key, algorithm=ALGORITHMS.HS256, headers=None, access_token=N
 
     """
 
-    for time_claim in ['exp', 'iat', 'nbf']:
-
-        # Convert datetime to a intDate value in known time-format claims
-        if types.is_instance(claims.get(time_claim), datetime):
-            claims[time_claim] = timegm(claims[time_claim].utctimetuple())
-
     if access_token:
-        claims['at_hash'] = calculate_at_hash(access_token,
-                                              ALGORITHMS.HASHES[algorithm])
+        claims["at_hash"] = calculate_at_hash(access_token, _at_hash_alg(algorithm))
 
     return jws.sign(claims, key, headers=headers, algorithm=algorithm)
 
 
-def decode(token, key, algorithms=None, options=None, audience=None,
-           issuer=None, subject=None, access_token=None):
+def decode(token, key, algorithms=None, options=None, audience=None, issuer=None, subject=None, access_token=None,
+           now=None):
     """Verifies a JWT string's signature and validates reserved claims.
 
     Args:
         token (str): A signed JWS to be verified.
-        key (str or dict): A key to attempt to verify the payload with. Can be
-            individual JWK or JWK set.
+        key (str or iterable): A key to attempt to verify the payload with.
+            This can be simple string with an individual key (e.g. "a1234"),
+            a tuple or list of keys (e.g. ("a1234...", "b3579"),
+            a JSON string, (e.g. '["a1234", "b3579"]'),
+            a dict with the 'keys' key that gives a tuple or list of keys (e.g {'keys': [...]} ) or
+            a dict or JSON string for a JWK set as defined by RFC 7517 (e.g.
+                {'keys': [{'kty': 'oct', 'k': 'YTEyMzQ'}, {'kty': 'oct', 'k':'YjM1Nzk'}]} or
+                '{"keys": [{"kty":"oct","k":"YTEyMzQ"},{"kty":"oct","k":"YjM1Nzk"}]}'
+            ) in which case the keys must be base64 url safe encoded (with optional padding).
         algorithms (str or list): Valid algorithms that should be used to verify the JWS.
         audience (str): The intended audience of the token.  If the "aud" claim is
             included in the claim set, then the audience must be included and must equal
@@ -108,6 +141,9 @@ def decode(token, key, algorithms=None, options=None, audience=None,
                 'leeway': 0,
             }
 
+        now (int or float): Larky only. The current time in seconds since the
+            epoch, used to check the "exp" and "nbf" claims.
+
     Returns:
         dict: The dict representation of the claims set, assuming the signature is valid
             and all requested data validation passes.
@@ -117,6 +153,21 @@ def decode(token, key, algorithms=None, options=None, audience=None,
         ExpiredSignatureError: If the signature has expired.
         JWTClaimsError: If any claim is invalid in any way.
 
+    Larky:
+        - Upstream reads the current time from the system clock. Larky scripts
+          cannot, so the caller passes it as ``now``. If ``now`` is None and the
+          token has an "exp" (or "nbf") claim that is being verified, decode
+          raises JWTClaimsError instead of skipping the check; set
+          ``options={'verify_exp': False}`` (or ``'verify_nbf'``) to skip it.
+        - ``options['leeway']`` must be a number of seconds; ``timedelta`` is
+          not supported.
+        - Errors are raised with ``fail()`` as "<name>: <message>", where name
+          is JWTError, JWTClaimsError or ExpiredSignatureError. Upstream
+          JWTClaimsError and ExpiredSignatureError subclass JWTError.
+        - Upstream re-raises only JWSError from jws.verify as JWTError. Larky's
+          jws reports some malformed tokens with other errors (e.g. a token
+          with no "."), so every error from jws.verify becomes a JWTError.
+
     Examples:
 
         >>> payload = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYiJ9.jiMyrsmD8AoHWeQgmxZ5yq8z0lXS67_QGs52AzC8Ru8'
@@ -125,51 +176,60 @@ def decode(token, key, algorithms=None, options=None, audience=None,
     """
 
     defaults = {
-        'verify_signature': True,
-        'verify_aud': True,
-        'verify_iat': True,
-        'verify_exp': True,
-        'verify_nbf': True,
-        'verify_iss': True,
-        'verify_sub': True,
-        'verify_jti': True,
-        'verify_at_hash': True,
-        'require_aud': False,
-        'require_iat': False,
-        'require_exp': False,
-        'require_nbf': False,
-        'require_iss': False,
-        'require_sub': False,
-        'require_jti': False,
-        'require_at_hash': False,
-        'leeway': 0,
+        "verify_signature": True,
+        "verify_aud": True,
+        "verify_iat": True,
+        "verify_exp": True,
+        "verify_nbf": True,
+        "verify_iss": True,
+        "verify_sub": True,
+        "verify_jti": True,
+        "verify_at_hash": True,
+        "require_aud": False,
+        "require_iat": False,
+        "require_exp": False,
+        "require_nbf": False,
+        "require_iss": False,
+        "require_sub": False,
+        "require_jti": False,
+        "require_at_hash": False,
+        "leeway": 0,
     }
 
     if options:
         defaults.update(options)
 
-    verify_signature = defaults.get('verify_signature', True)
+    if now != None and not (types.is_int(now) or types.is_float(now)):
+        fail("JWTError: now must be a number of seconds since the epoch or None")
 
-    try:
-        payload = jws.verify(token, key, algorithms, verify=verify_signature)
-    except JWSError as e:
-        fail(" JWTError(e)")
+    verify_signature = defaults.get("verify_signature", True)
+
+    _try_1_r = Result.Ok(None).map(lambda _: jws.verify(token, key, algorithms, verify=verify_signature))
+    if not _try_1_r.is_ok:
+        fail("JWTError: " + _strip_error_name(str(_try_1_r._val), ("JWSError",)))
+    payload = _try_1_r.unwrap()
 
     # Needed for at_hash verification
-    algorithm = jws.get_unverified_header(token)['alg']
+    algorithm = jws.get_unverified_header(token)["alg"]
 
-    try:
-        claims = json.loads(payload.decode('utf-8'))
-    except ValueError as e:
-        fail(" JWTError('Invalid payload string: %s' % e)")
+    _try_2_r = Result.Ok(None).map(lambda _: json.loads(payload.decode("utf-8")))
+    if not _try_2_r.is_ok:
+        fail("JWTError: " + "Invalid payload string: {}".format(_try_2_r._val))
+    claims = _try_2_r.unwrap()
 
-    if not types.is_instance(claims, Mapping):
-        fail(" JWTError('Invalid payload string: must be a json object')")
+    if not types.is_dict(claims):
+        fail("JWTError: Invalid payload string: must be a json object")
 
-    _validate_claims(claims, audience=audience, issuer=issuer,
-                     subject=subject, algorithm=algorithm,
-                     access_token=access_token,
-                     options=defaults)
+    _validate_claims(
+        claims,
+        audience=audience,
+        issuer=issuer,
+        subject=subject,
+        algorithm=algorithm,
+        access_token=access_token,
+        options=defaults,
+        now=now,
+    )
 
     return claims
 
@@ -186,12 +246,11 @@ def get_unverified_header(token):
     Raises:
         JWTError: If there is an exception decoding the token.
     """
-    try:
-        headers = jws.get_unverified_headers(token)
-    except Exception:
-        fail(" JWTError('Error decoding token headers.')")
+    _try_3_r = Result.Ok(None).map(lambda _: jws.get_unverified_headers(token))
+    if not _try_3_r.is_ok:
+        fail("JWTError: Error decoding token headers.")
 
-    return headers
+    return _try_3_r.unwrap()
 
 
 def get_unverified_headers(token):
@@ -224,20 +283,25 @@ def get_unverified_claims(token):
     Raises:
         JWTError: If there is an exception decoding the token.
     """
-    try:
-        claims = jws.get_unverified_claims(token)
-    except Exception:
-        fail(" JWTError('Error decoding token claims.')")
+    _try_4_r = Result.Ok(None).map(lambda _: jws.get_unverified_claims(token))
+    if not _try_4_r.is_ok:
+        fail("JWTError: Error decoding token claims.")
+    claims = _try_4_r.unwrap()
 
-    try:
-        claims = json.loads(claims.decode('utf-8'))
-    except ValueError as e:
-        fail(" JWTError('Invalid claims string: %s' % e)")
+    _try_5_r = Result.Ok(None).map(lambda _: json.loads(claims.decode("utf-8")))
+    if not _try_5_r.is_ok:
+        fail("JWTError: " + "Invalid claims string: {}".format(_try_5_r._val))
+    claims = _try_5_r.unwrap()
 
-    if not types.is_instance(claims, Mapping):
-        fail(" JWTError('Invalid claims string: must be a json object')")
+    if not types.is_dict(claims):
+        fail("JWTError: Invalid claims string: must be a json object")
 
     return claims
+
+
+# int() fails with these messages where Python raises ValueError; Python's
+# TypeError (e.g. int(None)) is not caught upstream and is not caught here.
+_INT_VALUE_ERROR = "^ValueError(:|$)|invalid base-\\d+ literal"
 
 
 def _validate_iat(claims):
@@ -252,16 +316,19 @@ def _validate_iat(claims):
         claims (dict): The claims dictionary to validate.
     """
 
-    if 'iat' not in claims:
+    if "iat" not in claims:
         return
 
-    try:
-        int(claims['iat'])
-    except ValueError:
-        fail(" JWTClaimsError('Issued At claim (iat) must be an integer.')")
+    _try_6_r = Result.Ok(None).map(lambda _: int(claims["iat"]))
+    if _try_6_r.is_ok:
+        return
+    elif Result.error_is(_INT_VALUE_ERROR, _try_6_r):
+        fail("JWTClaimsError: Issued At claim (iat) must be an integer.")
+    else:
+        _try_6_r.unwrap()
 
 
-def _validate_nbf(claims, leeway=0):
+def _validate_nbf(claims, leeway=0, now=None):
     """Validates that the 'nbf' claim is valid.
 
     The "nbf" (not before) claim identifies the time before which the JWT
@@ -275,23 +342,31 @@ def _validate_nbf(claims, leeway=0):
     Args:
         claims (dict): The claims dictionary to validate.
         leeway (int): The number of seconds of skew that is allowed.
+        now (int or float): Larky only: the current time in seconds since
+            the epoch. If None, a present "nbf" claim cannot be checked and
+            JWTClaimsError is raised.
     """
 
-    if 'nbf' not in claims:
+    if "nbf" not in claims:
         return
 
-    try:
-        nbf = int(claims['nbf'])
-    except ValueError:
-        fail(" JWTClaimsError('Not Before claim (nbf) must be an integer.')")
+    _try_7_r = Result.Ok(None).map(lambda _: int(claims["nbf"]))
+    if _try_7_r.is_ok:
+        nbf = _try_7_r.unwrap()
+    elif Result.error_is(_INT_VALUE_ERROR, _try_7_r):
+        fail("JWTClaimsError: Not Before claim (nbf) must be an integer.")
+    else:
+        _try_7_r.unwrap()
 
-    now = timegm(datetime.utcnow().utctimetuple())
+    if now == None:
+        fail("JWTClaimsError: Cannot verify the Not Before claim (nbf) without the current time: " +
+             "pass now= (seconds since the epoch) or options={'verify_nbf': False}.")
 
     if nbf > (now + leeway):
-        fail(" JWTClaimsError('The token is not yet valid (nbf)')")
+        fail("JWTClaimsError: The token is not yet valid (nbf)")
 
 
-def _validate_exp(claims, leeway=0):
+def _validate_exp(claims, leeway=0, now=None):
     """Validates that the 'exp' claim is valid.
 
     The "exp" (expiration time) claim identifies the expiration time on
@@ -305,20 +380,28 @@ def _validate_exp(claims, leeway=0):
     Args:
         claims (dict): The claims dictionary to validate.
         leeway (int): The number of seconds of skew that is allowed.
+        now (int or float): Larky only: the current time in seconds since
+            the epoch. If None, a present "exp" claim cannot be checked and
+            JWTClaimsError is raised.
     """
 
-    if 'exp' not in claims:
+    if "exp" not in claims:
         return
 
-    try:
-        exp = int(claims['exp'])
-    except ValueError:
-        fail(" JWTClaimsError('Expiration Time claim (exp) must be an integer.')")
+    _try_8_r = Result.Ok(None).map(lambda _: int(claims["exp"]))
+    if _try_8_r.is_ok:
+        exp = _try_8_r.unwrap()
+    elif Result.error_is(_INT_VALUE_ERROR, _try_8_r):
+        fail("JWTClaimsError: Expiration Time claim (exp) must be an integer.")
+    else:
+        _try_8_r.unwrap()
 
-    now = timegm(datetime.utcnow().utctimetuple())
+    if now == None:
+        fail("JWTClaimsError: Cannot verify the Expiration Time claim (exp) without the current time: " +
+             "pass now= (seconds since the epoch) or options={'verify_exp': False}.")
 
     if exp < (now - leeway):
-        fail(" ExpiredSignatureError('Signature has expired.')")
+        fail("ExpiredSignatureError: Signature has expired.")
 
 
 def _validate_aud(claims, audience=None):
@@ -341,20 +424,20 @@ def _validate_aud(claims, audience=None):
         audience (str): The audience that is verifying the token.
     """
 
-    if 'aud' not in claims:
+    if "aud" not in claims:
         # if audience:
         #     raise JWTError('Audience claim expected, but not in claims')
         return
 
-    audience_claims = claims['aud']
-    if types.is_instance(audience_claims, string_types):
+    audience_claims = claims["aud"]
+    if types.is_string(audience_claims):
         audience_claims = [audience_claims]
-    if not types.is_instance(audience_claims, list):
-        fail(" JWTClaimsError('Invalid claim format in token')")
-    if any([not types.is_instance(c, string_types) for c in audience_claims]):
-        fail(" JWTClaimsError('Invalid claim format in token')")
+    if not types.is_list(audience_claims):
+        fail("JWTClaimsError: Invalid claim format in token")
+    if any([not types.is_string(c) for c in audience_claims]):
+        fail("JWTClaimsError: Invalid claim format in token")
     if audience not in audience_claims:
-        fail(" JWTClaimsError('Invalid audience')")
+        fail("JWTClaimsError: Invalid audience")
 
 
 def _validate_iss(claims, issuer=None):
@@ -372,10 +455,10 @@ def _validate_iss(claims, issuer=None):
     """
 
     if issuer != None:
-        if types.is_instance(issuer, string_types):
+        if types.is_string(issuer):
             issuer = (issuer,)
-        if claims.get('iss') not in issuer:
-            fail(" JWTClaimsError('Invalid issuer')")
+        if claims.get("iss") not in issuer:
+            fail("JWTClaimsError: Invalid issuer")
 
 
 def _validate_sub(claims, subject=None):
@@ -394,15 +477,15 @@ def _validate_sub(claims, subject=None):
         subject (str): The subject of the token.
     """
 
-    if 'sub' not in claims:
+    if "sub" not in claims:
         return
 
-    if not types.is_instance(claims['sub'], string_types):
-        fail(" JWTClaimsError('Subject must be a string.')")
+    if not types.is_string(claims["sub"]):
+        fail("JWTClaimsError: Subject must be a string.")
 
     if subject != None:
-        if claims.get('sub') != subject:
-            fail(" JWTClaimsError('Invalid subject')")
+        if claims.get("sub") != subject:
+            fail("JWTClaimsError: Invalid subject")
 
 
 def _validate_jti(claims):
@@ -420,11 +503,11 @@ def _validate_jti(claims):
     Args:
         claims (dict): The claims dictionary to validate.
     """
-    if 'jti' not in claims:
+    if "jti" not in claims:
         return
 
-    if not types.is_instance(claims['jti'], string_types):
-        fail(" JWTClaimsError('JWT ID must be a string.')")
+    if not types.is_string(claims["jti"]):
+        fail("JWTClaimsError: JWT ID must be a string.")
 
 
 def _validate_at_hash(claims, access_token, algorithm):
@@ -445,64 +528,69 @@ def _validate_at_hash(claims, access_token, algorithm):
       algorithm (str): The algorithm used to sign the JWT, as specified by
           the token headers.
     """
-    if 'at_hash' not in claims:
+    if "at_hash" not in claims:
         return
 
     if not access_token:
-        msg = 'No access_token provided to compare against at_hash claim.'
-        fail(" JWTClaimsError(msg)")
+        msg = "No access_token provided to compare against at_hash claim."
+        fail("JWTClaimsError: " + msg)
 
-    try:
-        expected_hash = calculate_at_hash(access_token,
-                                          ALGORITHMS.HASHES[algorithm])
-    except (TypeError, ValueError):
-        msg = 'Unable to calculate at_hash to verify against token claims.'
-        fail(" JWTClaimsError(msg)")
+    # Looked up outside the "try" as upstream does not catch its KeyError.
+    hash_alg = _at_hash_alg(algorithm)
+    _try_9_r = Result.Ok(None).map(lambda _: calculate_at_hash(access_token, hash_alg))
+    if not _try_9_r.is_ok:
+        msg = "Unable to calculate at_hash to verify against token claims."
+        fail("JWTClaimsError: " + msg)
+    expected_hash = _try_9_r.unwrap()
 
-    if claims['at_hash'] != expected_hash:
-        fail(" JWTClaimsError('at_hash claim does not match access_token.')")
+    if claims["at_hash"] != expected_hash:
+        fail("JWTClaimsError: at_hash claim does not match access_token.")
 
 
-def _validate_claims(claims, audience=None, issuer=None, subject=None,
-                     algorithm=None, access_token=None, options=None):
+def _validate_claims(claims, audience=None, issuer=None, subject=None, algorithm=None, access_token=None, options=None,
+                     now=None):
+    leeway = options.get("leeway", 0)
 
-    leeway = options.get('leeway', 0)
-
-    if types.is_instance(leeway, timedelta):
-        leeway = timedelta_total_seconds(leeway)
-
-    for require_claim in [
-        e[len("require_"):] for e in options.keys() if e.startswith("require_") and options[e]
-    ]:
+    required_claims = [e[len("require_"):] for e in options.keys() if e.startswith("require_") and options[e]]
+    for require_claim in required_claims:
         if require_claim not in claims:
-            fail(" JWTError('missing required key \"%s\" among claims' % require_claim)")
+            fail("JWTError: " + "missing required key \"{}\" among claims".format(require_claim))
         else:
-            options['verify_' + require_claim] = True  # override verify when required
+            options["verify_" + require_claim] = True  # override verify when required
 
-    if not types.is_instance(audience, (string_types, type(None))):
-        fail(" JWTError('audience must be a string or None')")
+    if not (types.is_string(audience) or audience == None):
+        fail("JWTError: audience must be a string or None")
 
-    if options.get('verify_iat'):
+    if options.get("verify_iat"):
         _validate_iat(claims)
 
-    if options.get('verify_nbf'):
-        _validate_nbf(claims, leeway=leeway)
+    if options.get("verify_nbf"):
+        _validate_nbf(claims, leeway=leeway, now=now)
 
-    if options.get('verify_exp'):
-        _validate_exp(claims, leeway=leeway)
+    if options.get("verify_exp"):
+        _validate_exp(claims, leeway=leeway, now=now)
 
-    if options.get('verify_aud'):
+    if options.get("verify_aud"):
         _validate_aud(claims, audience=audience)
 
-    if options.get('verify_iss'):
+    if options.get("verify_iss"):
         _validate_iss(claims, issuer=issuer)
 
-    if options.get('verify_sub'):
+    if options.get("verify_sub"):
         _validate_sub(claims, subject=subject)
 
-    if options.get('verify_jti'):
+    if options.get("verify_jti"):
         _validate_jti(claims)
 
-    if options.get('verify_at_hash'):
+    if options.get("verify_at_hash"):
         _validate_at_hash(claims, access_token, algorithm)
 
+
+jwt = larky.struct(
+    __name__="jwt",
+    encode=encode,
+    decode=decode,
+    get_unverified_header=get_unverified_header,
+    get_unverified_headers=get_unverified_headers,
+    get_unverified_claims=get_unverified_claims,
+)
