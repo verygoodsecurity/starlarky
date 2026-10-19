@@ -179,11 +179,10 @@ def decrypt(jwe_str, key):
             lambda k: k.unwrap(encrypted_key, headers=header, enc_alg=enc))
         if rval.is_err:
             if Result.error_is("NotImplementedError", rval):
-                return rval.unwrap()
+                fail("JWEError: alg %s is not implemented" % alg)
             elif Result.error_is("JWEError", rval):
+                # A malformed header, such as A*GCMKW without "iv" or "tag".
                 return rval.unwrap()
-            else:
-                rval.unwrap()
             # Record whether the CEK could be successfully determined for this
             # recipient or not.
             cek_valid = False
@@ -421,7 +420,10 @@ def _encrypt_and_auth(key, alg, enc, zip, plaintext, aad):
           (bytes, bytes, bytes, bytes): A tuple of the following data
                                  (key wrapped cek, iv, cipher text, auth tag)
     """
-    cek_bytes, kw_cek = Result.Ok(key).map(lambda k: _get_cek(enc, alg, k)).unwrap()
+    res = Result.Ok(key).map(lambda k: _get_cek(enc, alg, k))
+    if res.is_err and Result.error_is("NotImplementedError", res):
+        fail("JWEError: alg %s is not implemented" % alg)
+    cek_bytes, kw_cek = res.unwrap()
     iv, ciphertext, auth_tag = _encrypt_with_cek(cek_bytes, enc, plaintext, aad)
     return kw_cek, iv, ciphertext, auth_tag
 
