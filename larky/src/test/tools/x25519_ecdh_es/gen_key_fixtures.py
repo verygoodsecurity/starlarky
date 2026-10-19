@@ -10,11 +10,18 @@ Run from the repository root:
 The PEM and DER encodings are OpenSSL's (make_keys.sh); the raw 32-byte keys
 are read from them with `cryptography`.
 """
+import subprocess
 import sys
 from importlib.metadata import version
 from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization as s
+
+
+def openssl_der(pem_path: Path, *args: str) -> bytes:
+    # Only the PEM files are committed; OpenSSL writes the DER forms.
+    return subprocess.run(["openssl", "pkey", "-in", str(pem_path), *args, "-outform", "DER"],
+                          check=True, capture_output=True).stdout
 
 
 def main(keydir: Path, out: Path) -> None:
@@ -28,9 +35,9 @@ def main(keydir: Path, out: Path) -> None:
     ]
     for name in ("x25519_a", "x25519_b"):
         pem = (keydir / ("%s.pem" % name)).read_bytes()
-        der = (keydir / ("%s.der" % name)).read_bytes()
+        der = openssl_der(keydir / ("%s.pem" % name))
         pub_pem = (keydir / ("%s.pub.pem" % name)).read_bytes()
-        pub_der = (keydir / ("%s.pub.der" % name)).read_bytes()
+        pub_der = openssl_der(keydir / ("%s.pem" % name), "-pubout")
         key = s.load_pem_private_key(pem, None)
         assert s.load_der_private_key(der, None).private_bytes_raw() == key.private_bytes_raw()
         raw_priv = key.private_bytes_raw()
