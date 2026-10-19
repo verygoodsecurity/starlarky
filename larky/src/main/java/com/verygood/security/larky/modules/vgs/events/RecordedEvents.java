@@ -149,11 +149,11 @@ public final class RecordedEvents implements StarlarkValue {
     LinkedHashMap<String, String> out = new LinkedHashMap<>();
     for (Map.Entry<String, String> entry : fields.entrySet()) {
       String key = entry.getKey();
-      if (!FIELD_KEY_PATTERN.matcher(key).matches()) {
+      if (key == null || !FIELD_KEY_PATTERN.matcher(key).matches()) {
         return null;
       }
       String value = entry.getValue();
-      if (!isValidFieldValue(value)) {
+      if (value == null || !isValidFieldValue(value)) {
         return null;
       }
       out.put(key, value);
