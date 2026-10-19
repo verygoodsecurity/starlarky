@@ -40,6 +40,8 @@ def main(keydir: Path, out: Path) -> None:
         lines += [
             "    {",
             "        \"name\": %r," % name,
+            "        # https://verygoodsecurity.atlassian.net/browse/SI-203",
+            "        # nosemgrep: secrets.misc.generic_private_key.generic_private_key",
             "        \"private_pem\": %r," % pem.decode(),
             "        \"private_der_hex\": %r," % der.hex(),
             "        \"public_pem\": %r," % pub_pem.decode(),

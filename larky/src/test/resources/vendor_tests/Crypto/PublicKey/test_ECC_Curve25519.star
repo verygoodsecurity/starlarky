@@ -312,6 +312,8 @@ def Larky_test_encrypted_pkcs8_export():
     key = ECC.import_key(OPENSSL_X25519_KEYS[0]["private_pem"])
     encoded = key.export_key(format="PEM", passphrase="secret",
                              protection="PBKDF2WithHMAC-SHA1AndAES128-CBC")
+    # https://verygoodsecurity.atlassian.net/browse/SI-203
+    # nosemgrep: secrets.misc.generic_private_key.generic_private_key
     asserts.assert_that(encoded).contains("-----BEGIN ENCRYPTED PRIVATE KEY-----")
     asserts.assert_fails(lambda: key.export_key(format="DER", passphrase="secret"),
                          "^ValueError: At least the 'protection' parameter should be present$")
