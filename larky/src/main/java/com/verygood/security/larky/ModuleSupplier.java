@@ -120,6 +120,12 @@ public class ModuleSupplier {
       UnittestModule.INSTANCE
   );
 
+  /** The names that scripts load {@link #TEST_MODULES} by, e.g. {@code @stdlib//unittest}. */
+  public static final ImmutableSet<String> TEST_MODULE_NAMES =
+      TEST_MODULES.stream()
+          .map(ModuleSupplier::findClosestStarlarkBuiltinName)
+          .collect(ImmutableSet.toImmutableSet());
+
   /**
    * The namespace a script loads a native module from: {@code vgs} for {@link #VGS_MODULES},
    * {@code stdlib} for every other module (e.g. {@code load("@stdlib//json", "json")}).

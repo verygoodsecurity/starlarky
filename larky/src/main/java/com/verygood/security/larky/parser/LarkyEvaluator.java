@@ -239,6 +239,7 @@ public final class LarkyEvaluator {
         else if (isNativeJavaModule(targetModule)) {
           loadedModule = fromNativeModule(targetModule);
         } else {
+          checkNotTestOnly(moduleToLoad, targetModule);
           // try to load from directory...
           ResourceContentStarFile starFile = ResourceContentStarFile.buildStarFile(moduleToLoad);
           loadedModule = evaluator.eval(starFile).module();
@@ -272,6 +273,23 @@ public final class LarkyEvaluator {
         throw Starlark.errorf(
             "cannot load '%s': %s is a @%s module; load it as '@%s//%s'",
             moduleToLoad, label[1], namespace, namespace, label[1]);
+      }
+    }
+
+    /**
+     * Fails if {@code moduleToLoad} names a test-only native module ({@link
+     * ModuleSupplier#TEST_MODULES}, e.g. {@code @stdlib//unittest}) that this evaluation was not
+     * given: those exist only for test scripts, and would otherwise be reported as missing.
+     */
+    static void checkNotTestOnly(String moduleToLoad, String targetModule) throws EvalException {
+      if (!ModuleSupplier.TEST_MODULE_NAMES.contains(targetModule)) {
+        return;
+      }
+      String[] label = ResourceContentStarFile.splitLabel(moduleToLoad);
+      if (label != null && label[0].equals("stdlib")) {
+        throw Starlark.errorf(
+            "cannot load '%s': %s is a test-only module, available only to test scripts",
+            moduleToLoad, targetModule);
       }
     }
 
