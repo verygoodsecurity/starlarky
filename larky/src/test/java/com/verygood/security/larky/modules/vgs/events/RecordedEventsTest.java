@@ -2,6 +2,7 @@ package com.verygood.security.larky.modules.vgs.events;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -15,6 +16,19 @@ class RecordedEventsTest {
     assertEquals(1, rec.events().size());
     assertEquals("payment", rec.events().get(0).name());
     assertEquals("v", rec.events().get(0).fields().get("k"));
+  }
+
+  @Test
+  void nullFieldKeyOrValueDropped() {
+    RecordedEvents rec = new RecordedEvents();
+    Map<String, String> nullKey = new HashMap<>();
+    nullKey.put(null, "v");
+    Map<String, String> nullValue = new HashMap<>();
+    nullValue.put("k", null);
+    rec.tryRecord("evt", nullKey);
+    rec.tryRecord("evt", nullValue);
+    assertEquals(0, rec.events().size());
+    assertEquals(2, rec.dropped());
   }
 
   @Test
