@@ -6,6 +6,8 @@
 OPENSSL_X25519_KEYS = [
     {
         "name": 'x25519_a',
+        # https://verygoodsecurity.atlassian.net/browse/SI-203
+        # nosemgrep: secrets.misc.generic_private_key.generic_private_key
         "private_pem": '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VuBCIEIDB4mUM0NVyp45YhaC8AFF61C4vMpn5EvSWUlHnRXZtK\n-----END PRIVATE KEY-----\n',
         "private_der_hex": '302e020100300506032b656e042204203078994334355ca9e39621682f00145eb50b8bcca67e44bd25949479d15d9b4a',
         "public_pem": '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VuAyEAfdW/z5qmEavDN0siDvQtfKcvwhPmK3EXrtaH8WX5e0E=\n-----END PUBLIC KEY-----\n',
@@ -15,6 +17,8 @@ OPENSSL_X25519_KEYS = [
     },
     {
         "name": 'x25519_b',
+        # https://verygoodsecurity.atlassian.net/browse/SI-203
+        # nosemgrep: secrets.misc.generic_private_key.generic_private_key
         "private_pem": '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VuBCIEIHDVJaLMwt3DUpSRRVbKiSjPM8niFgKpsL9K+lpFA/F4\n-----END PRIVATE KEY-----\n',
         "private_der_hex": '302e020100300506032b656e0422042070d525a2ccc2ddc35294914556ca8928cf33c9e21602a9b0bf4afa5a4503f178',
         "public_pem": '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VuAyEA0lA4CwEhM75mcHFVwJLIPUZr4VSQF9IK6CihSgUmby8=\n-----END PUBLIC KEY-----\n',

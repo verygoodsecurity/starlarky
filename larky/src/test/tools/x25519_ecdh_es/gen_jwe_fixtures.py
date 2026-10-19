@@ -78,6 +78,8 @@ def main(keydir: Path, out: Path) -> None:
     w("KEYS = {")
     for name in keys:
         w("    %r: {" % name)
+        w("        # https://verygoodsecurity.atlassian.net/browse/SI-203")
+        w("        # nosemgrep: secrets.misc.generic_private_key.generic_private_key")
         w("        \"private_pem\": %r," % (keydir / ("%s.pem" % name)).read_text())
         w("        \"public_pem\": %r," % (keydir / ("%s.pub.pem" % name)).read_text())
         w("        \"jwk\": %s," % json.dumps(keys[name].as_dict(private=True), sort_keys=True))

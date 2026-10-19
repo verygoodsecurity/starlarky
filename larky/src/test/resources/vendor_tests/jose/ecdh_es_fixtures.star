@@ -7,16 +7,22 @@ PLAINTEXT = b'{"card":"4111111111111111","exp":"12/30","cvv":"123"}'
 
 KEYS = {
     'x25519_a': {
+        # https://verygoodsecurity.atlassian.net/browse/SI-203
+        # nosemgrep: secrets.misc.generic_private_key.generic_private_key
         "private_pem": '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VuBCIEIDB4mUM0NVyp45YhaC8AFF61C4vMpn5EvSWUlHnRXZtK\n-----END PRIVATE KEY-----\n',
         "public_pem": '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VuAyEAfdW/z5qmEavDN0siDvQtfKcvwhPmK3EXrtaH8WX5e0E=\n-----END PUBLIC KEY-----\n',
         "jwk": {"crv": "X25519", "d": "MHiZQzQ1XKnjliFoLwAUXrULi8ymfkS9JZSUedFdm0o", "kty": "OKP", "x": "fdW_z5qmEavDN0siDvQtfKcvwhPmK3EXrtaH8WX5e0E"},
     },
     'x25519_b': {
+        # https://verygoodsecurity.atlassian.net/browse/SI-203
+        # nosemgrep: secrets.misc.generic_private_key.generic_private_key
         "private_pem": '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VuBCIEIHDVJaLMwt3DUpSRRVbKiSjPM8niFgKpsL9K+lpFA/F4\n-----END PRIVATE KEY-----\n',
         "public_pem": '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VuAyEA0lA4CwEhM75mcHFVwJLIPUZr4VSQF9IK6CihSgUmby8=\n-----END PUBLIC KEY-----\n',
         "jwk": {"crv": "X25519", "d": "cNUloszC3cNSlJFFVsqJKM8zyeIWAqmwv0r6WkUD8Xg", "kty": "OKP", "x": "0lA4CwEhM75mcHFVwJLIPUZr4VSQF9IK6CihSgUmby8"},
     },
     'p256': {
+        # https://verygoodsecurity.atlassian.net/browse/SI-203
+        # nosemgrep: secrets.misc.generic_private_key.generic_private_key
         "private_pem": '-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgFXK4kB32yuVfktgy\nqo9dwxnwGNmpEnJpwCLSvoX63XahRANCAARZEvkSL19TowxTLhS3fyXlVsQByLSi\nSQzWVyxcOBlyVKAFkMvMmTxWl0DBxdYbdOXrLDdbXrLWmdIXSi5UpEga\n-----END PRIVATE KEY-----\n',
         "public_pem": '-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEWRL5Ei9fU6MMUy4Ut38l5VbEAci0\nokkM1lcsXDgZclSgBZDLzJk8VpdAwcXWG3Tl6yw3W16y1pnSF0ouVKRIGg==\n-----END PUBLIC KEY-----\n',
         "jwk": {"crv": "P-256", "d": "FXK4kB32yuVfktgyqo9dwxnwGNmpEnJpwCLSvoX63XY", "kty": "EC", "x": "WRL5Ei9fU6MMUy4Ut38l5VbEAci0okkM1lcsXDgZclQ", "y": "oAWQy8yZPFaXQMHF1ht05essN1testaZ0hdKLlSkSBo"},
