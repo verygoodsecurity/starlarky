@@ -4,8 +4,8 @@ Larky's jose is ported from python-jose's master branch at commit 8572088b
 (see vendor/jose/__init__.star). The expected values here come from that
 commit, run with the same inputs. joserfc supplies what python-jose does not
 have: A*GCMKW, and "zip": "DEF" written as raw DEFLATE (RFC 7516), as other
-libraries write it. keys/ holds a test-only RSA key made with
-`openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048`.
+libraries write it. keys/ holds a test-only RSA key, not a secret, made by
+make_keys.sh (see keys/README.md).
 
 Run from the repository root:
 
@@ -75,6 +75,10 @@ def main(keys: Path, out: Path) -> None:
         "K16 = %r" % K16,
         "K24 = %r" % K24,
         "K32 = %r" % K32,
+        "# Test-only key from larky/src/test/tools/jose_parity/keys; not a secret",
+        "# (see keys/README.md there).",
+        "# https://verygoodsecurity.atlassian.net/browse/SI-203",
+        "# nosemgrep: secrets.misc.generic_private_key.generic_private_key",
         "RSA_PRIVATE_PEM = %r" % priv,
         "RSA_PUBLIC_PEM = %r" % pub,
         "",
