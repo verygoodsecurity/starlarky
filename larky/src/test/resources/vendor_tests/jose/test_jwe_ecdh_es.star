@@ -429,6 +429,21 @@ def Test_argument_errors():
                              ERR_KEY)
 
 
+def Test_jwe_checks():
+    asserts.assert_fails(lambda: jwe.encrypt(PLAINTEXT, KEYS["p256"]["public_pem"], algorithm="ECDH-1PU"),
+                         "^JWEError: Algorithm not supported\\.$")
+    name, key_name, alg, enc, token = _token("x25519_a128kw_a128gcm_apu_apv")
+    pem = KEYS[key_name]["private_pem"]
+    header = _header(token)
+    header.pop("enc")
+    asserts.assert_fails(lambda: jwe.decrypt(_with_header(token, header), pem),
+                         "^JWEParseError: alg and enc headers are required!$")
+    # The key unwraps, but to a 16-byte CEK where A256GCM needs 32.
+    header = _header(token)
+    header["enc"] = "A256GCM"
+    asserts.assert_fails(lambda: jwe.decrypt(_with_header(token, header), pem), ERR_UNWRAP)
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(Test_rfc7518_appendix_c_concat_kdf))
@@ -454,6 +469,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(Test_agreement_with_unvalidated_point))
     _suite.addTest(unittest.FunctionTestCase(Test_base64url_spare_bits_ignored))
     _suite.addTest(unittest.FunctionTestCase(Test_argument_errors))
+    _suite.addTest(unittest.FunctionTestCase(Test_jwe_checks))
     return _suite
 
 

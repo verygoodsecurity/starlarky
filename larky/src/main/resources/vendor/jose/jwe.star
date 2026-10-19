@@ -432,11 +432,10 @@ def _encrypt_with_cek(cek_bytes, enc, plaintext, aad):
         encryption_key, mac_key, key_len = _get_encryption_key_mac_key_and_key_length_from_cek(cek_bytes, enc)
         iv, ciphertext, tag = encryption_key.encrypt(plaintext, aad)
         auth_tag = _auth_tag(ciphertext, iv, aad, mac_key, key_len)
-    elif operator.contains(ALGORITHMS.GCM, enc):
+    else:
+        # encrypt checked that enc is in AES_JWE_ENC, so it is a GCM enc.
         encryption_key = jwk.construct(cek_bytes, enc)
         iv, ciphertext, auth_tag = encryption_key.encrypt(plaintext, aad)
-    else:
-        fail("JWEError: Encryption algorithm not supported.")
 
     return iv, ciphertext, auth_tag
 
