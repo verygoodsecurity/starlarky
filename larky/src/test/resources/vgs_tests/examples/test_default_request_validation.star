@@ -25,6 +25,8 @@ load(
 )
 
 PRIVATE_KEY = "\n".join([
+    # https://verygoodsecurity.atlassian.net/browse/SI-203
+    # nosemgrep: secrets.misc.generic_private_key.generic_private_key
     "-----BEGIN RSA PRIVATE KEY-----",
     "MIIEogIBAAKCAQEAxUjsYL5oo2PDNTMFiEJgFPhRFzo+OBrN5pFxpJQo8J4bcSwL",
     "hzCTY/GrLm3SJGWkd9S+t4+n+GcVSBzF5qcvG3FqIPxqPWJ2S51K3jKWlkFe3y2y",
