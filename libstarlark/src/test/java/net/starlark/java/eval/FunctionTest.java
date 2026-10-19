@@ -32,7 +32,7 @@ public final class FunctionTest {
   @Test
   public void testDef() throws Exception {
     ev.exec("def f(a, b=1, *args, c, d=2, e=3, **kwargs): pass");
-    StarlarkFunction f = (StarlarkFunction) ev.lookup("f");
+    UserDefinedFunction f = (UserDefinedFunction) ev.lookup("f");
     assertThat(f).isNotNull();
     assertThat(f.getName()).isEqualTo("f");
     assertThat(f.getParameterNames())
@@ -49,7 +49,7 @@ public final class FunctionTest {
 
     // same, sans varargs
     ev.exec("def g(a, b=1, *, c, d=2, e=3, **kwargs): pass");
-    StarlarkFunction g = (StarlarkFunction) ev.lookup("g");
+    UserDefinedFunction g = (UserDefinedFunction) ev.lookup("g");
     assertThat(g.getParameterNames()).containsExactly("a", "b", "c", "d", "e", "kwargs").inOrder();
     assertThat(g.getNumOrdinaryParameters()).isEqualTo(2); // a, b
     assertThat(g.getNumKeywordOnlyParameters()).isEqualTo(3); // c, d, e
@@ -60,7 +60,7 @@ public final class FunctionTest {
         .inOrder();
   }
 
-  private static List<Object> getDefaults(StarlarkFunction fn) {
+  private static List<Object> getDefaults(UserDefinedFunction fn) {
     List<Object> defaults = new ArrayList<>();
     for (int i = 0; i < fn.getParameterNames().size(); i++) {
       defaults.add(fn.getDefaultValue(i));
@@ -597,7 +597,7 @@ public final class FunctionTest {
 
         g = _f
         """);
-    var f = (StarlarkFunction) ev.lookup("_f");
+    var f = (UserDefinedFunction) ev.lookup("_f");
     assertThat(ev.lookup("g")).isSameInstanceAs(f); // "g" is an alias for "_f"
 
     SymbolGenerator.Symbol<?> id = f.getToken();
@@ -614,7 +614,7 @@ public final class FunctionTest {
         x = lambda v: "--" + v
         y = x
         """);
-    var x = (StarlarkFunction) ev.lookup("x");
+    var x = (UserDefinedFunction) ev.lookup("x");
     assertThat(ev.lookup("y")).isSameInstanceAs(x); // "y" is an alias for "x"
 
     SymbolGenerator.Symbol<?> id = x.getToken();
@@ -630,7 +630,7 @@ public final class FunctionTest {
         x = (lambda v: v + 1,)
         """);
     var x = (Tuple) ev.lookup("x");
-    var lambda = (StarlarkFunction) x.get(0);
+    var lambda = (UserDefinedFunction) x.get(0);
 
     SymbolGenerator.Symbol<?> id = lambda.getToken();
     assertThat(id.isGlobal()).isFalse();
@@ -644,7 +644,7 @@ public final class FunctionTest {
         y = x[0]
         """);
     var x = (Tuple) ev.lookup("x");
-    var y = (StarlarkFunction) ev.lookup("y");
+    var y = (UserDefinedFunction) ev.lookup("y");
     assertThat(x.get(0)).isSameInstanceAs(y);
 
     SymbolGenerator.Symbol<?> id = y.getToken();
@@ -676,7 +676,7 @@ public final class FunctionTest {
             kwargs["mutable"] = True  # verify that **kwargs is a mutable dict
             return "k=%s args=%s kwargs=%s" % (repr(k), repr(args), repr(kwargs))
         """);
-    StarlarkFunction f = (StarlarkFunction) ev.lookup("f");
+    UserDefinedFunction f = (UserDefinedFunction) ev.lookup("f");
     try (Mutability mu = Mutability.create("test")) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
       assertThat((String) Starlark.positionalOnlyCall(thread, f, "a", "b", "c", "d"))

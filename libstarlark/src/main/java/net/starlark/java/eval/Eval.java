@@ -452,7 +452,7 @@ final class Eval {
       Object y = eval(fr, rhs);
       Object z;
       try {
-        z = inplaceBinaryOp(fr, op, x, y);
+        z = inplaceBinaryOp(fr.thread, op, x, y);
       } catch (EvalException ex) {
         fr.setErrorLocation(stmt.getOperatorLocation());
         throw ex;
@@ -469,7 +469,7 @@ final class Eval {
       Object y = eval(fr, rhs);
       Object z;
       try {
-        z = inplaceBinaryOp(fr, op, x, y);
+        z = inplaceBinaryOp(fr.thread, op, x, y);
       } catch (EvalException ex) {
         fr.setErrorLocation(stmt.getOperatorLocation());
         throw ex;
@@ -490,7 +490,7 @@ final class Eval {
         Object y = eval(fr, rhs);
         Object z;
         try {
-          z = inplaceBinaryOp(fr, op, x, y);
+          z = inplaceBinaryOp(fr.thread, op, x, y);
         } catch (EvalException ex) {
           fr.setErrorLocation(stmt.getOperatorLocation());
           throw ex;
@@ -509,7 +509,7 @@ final class Eval {
   }
 
   @SuppressWarnings("unchecked")
-  private static Object inplaceBinaryOp(StarlarkThread.Frame fr, TokenKind op, Object x, Object y)
+  static Object inplaceBinaryOp(StarlarkThread thread, TokenKind op, Object x, Object y)
       throws EvalException {
     switch (op) {
       case PLUS:
@@ -563,7 +563,7 @@ final class Eval {
 
       default: // fall through
     }
-    return EvalUtils.binaryOp(op, x, y, fr.thread);
+    return EvalUtils.binaryOp(op, x, y, thread);
   }
 
   // ---- expressions ----
