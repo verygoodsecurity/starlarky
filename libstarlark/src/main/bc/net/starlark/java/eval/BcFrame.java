@@ -21,7 +21,7 @@ import net.starlark.java.syntax.Location;
 
 /**
  * The execution state of one bytecode chunk activation that {@link BcOps} needs: implemented by
- * the VMs ({@link AbstractBytecodeVM}).
+ * the interpreting VMs ({@link AbstractBytecodeVM}) and by JVM-compiled code ({@link JvmFrame}).
  */
 interface BcFrame {
 
