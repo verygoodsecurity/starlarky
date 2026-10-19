@@ -15,7 +15,14 @@
 package com.verygood.security.larky.modules;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.Set;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.verygood.security.larky.objects.type.TypeClassLookup;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -24,16 +31,16 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
-import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
-import net.starlark.java.eval.StarlarkSet;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
-import net.starlark.java.eval.Structure;
 import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.eval.Tuple;
+import net.starlark.java.lib.StarlarkEncodable;
+
+import javax.annotation.Nullable;
 
 // Tests at //src/test/java/net/starlark/java/eval:testdata/json.star
 
@@ -64,10 +71,12 @@ public final class JsonModule implements StarlarkValue {
     + "<li>A dict is encoded as a JSON object, in key order.  It is an error if any key"
     + " is not a string.\n"
     + "<li>A list or tuple is encoded as a JSON array.\n"
-    + "<li>A struct-like value is encoded as a JSON object, in field name order.\n"
     + "</ul>\n"
-    + "An application-defined type may define its own JSON encoding.\n"
-    + "Encoding any other value yields an error.\n";
+    + "As in Python, any other value (for example a range, set, bytes, struct or class"
+    + " instance, even an iterable one) is not JSON serializable: if the optional keyword"
+    + " argument <code>default</code> is a function, it is called with that value and must"
+    + " return a serializable replacement; otherwise encoding fails with"
+    + " 'Object of type T is not JSON serializable'.\n";
   //@formatter:on
 
   //@formatter:off
@@ -94,51 +103,32 @@ public final class JsonModule implements StarlarkValue {
   public static final JsonModule INSTANCE = new JsonModule();
 
   /**
-   * An interface for StarlarkValue subclasses to define their own JSON encoding.
+   * Encodes a Starlark value as JSON, as Python's {@code json.dumps} does with its default
+   * (compact, sorted-keys) settings.
    *
-   * Larky's encoder (below) calls {@link #encodeJSON} and appends the result verbatim. Upstream
-   * Starlark's Json.Encodable, which this used to extend, was replaced by StarlarkEncodable.
-   * */
-  public interface Encodable {
-    String encodeJSON();
-  }
-
-  /**
-   * Encodes a Starlark value as JSON.
-   *
-   * <p>An application-defined subclass of StarlarkValue may define its own JSON encoding by
-   * implementing the {@link Encodable} interface. Otherwise, the encoder tests for the {@link Map},
-   * {@link StarlarkIterable}, and {@link Structure} interfaces, in that order, resulting in
-   * dict-like, list-like, and struct-like encoding, respectively. See the Starlark documentation
-   * annotation for more detail.
-   *
-   * <p>Encoding any other value yields an error.
+   * <p>A Java-defined value may define its own JSON encoding by implementing upstream Starlark's
+   * {@link StarlarkEncodable}, as for {@code net.starlark.java.lib.json.Json}. Otherwise only the
+   * JSON types are encoded: None, bool, int, float, str, dict (with string keys), list and tuple.
+   * Any other value is passed to {@code default}, if given, and its result is encoded instead;
+   * without {@code default} it is an error.
    */
   @StarlarkMethod(
       name = "encode",
-      doc =
-          "<p>The encode function accepts one required positional argument, which it converts to"
-              + " JSON by cases:\n"
-              + "<ul>\n"
-              + "<li>None, True, and False are converted to 'null', 'true', and 'false',"
-              + " respectively.\n"
-              + "<li>An int, no matter how large, is encoded as a decimal integer. Some decoders"
-              + " may not be able to decode very large integers.\n"
-              + "<li>A float is encoded using a decimal point or an exponent or both, even if its"
-              + " numeric value is an integer. It is an error to encode a non-finite "
-              + " floating-point value.\n"
-              + "<li>A string value is encoded as a JSON string literal that denotes the value. "
-              + " Each unpaired surrogate is replaced by U+FFFD.\n"
-              + "<li>A dict is encoded as a JSON object, in key order.  It is an error if any key"
-              + " is not a string.\n"
-              + "<li>A list or tuple is encoded as a JSON array.\n"
-              + "<li>A struct-like value is encoded as a JSON object, in field name order.\n"
-              + "</ul>\n"
-              + "An application-defined type may define its own JSON encoding.\n"
-              + "Encoding any other value yields an error.\n",
-      parameters = {@Param(name = "x")})
-  public String encode(Object x) throws EvalException {
-    Encoder enc = new Encoder();
+      doc = _METHOD_ENCODE_DOCUMENTATION,
+      parameters = {
+          @Param(name = "x"),
+          @Param(
+              name = "default",
+              named = true,
+              positional = false,
+              defaultValue = "None",
+              doc = "A function called with each value that is not JSON serializable; what it"
+                  + " returns is encoded in the value's place.")
+      },
+      useStarlarkThread = true)
+  public String encode(Object x, Object defaultFn, StarlarkThread thread)
+      throws EvalException, InterruptedException {
+    Encoder enc = new Encoder(thread, Starlark.isNullOrNone(defaultFn) ? null : defaultFn);
     try {
       enc.encode(x);
     } catch (StackOverflowError unused) {
@@ -149,17 +139,49 @@ public final class JsonModule implements StarlarkValue {
 
   @StarlarkMethod(
       name = "dumps",
-      doc =_METHOD_ENCODE_DOCUMENTATION,
-      parameters = {@Param(name = "x")})
-  public String dumps(Object x) throws EvalException {
-    return encode(x);
+      doc = _METHOD_ENCODE_DOCUMENTATION,
+      parameters = {
+          @Param(name = "x"),
+          @Param(
+              name = "default",
+              named = true,
+              positional = false,
+              defaultValue = "None",
+              doc = "A function called with each value that is not JSON serializable; what it"
+                  + " returns is encoded in the value's place.")
+      },
+      useStarlarkThread = true)
+  public String dumps(Object x, Object defaultFn, StarlarkThread thread)
+      throws EvalException, InterruptedException {
+    return encode(x, defaultFn, thread);
   }
 
   private static final class Encoder {
 
-    private final StringBuilder out = new StringBuilder();
+    // How many calls of default may be nested, e.g. for a default that returns a new object of
+    // the class it is called for each time. Python raises RecursionError; without a limit the
+    // Java stack would overflow inside a Starlark call, which reports it as an internal error.
+    private static final int MAX_DEFAULT_DEPTH = 200;
 
-    private void encode(Object x) throws EvalException {
+    private final StringBuilder out = new StringBuilder();
+    private final StarlarkThread thread;
+    // The function given as dumps(default=...), or null.
+    @Nullable private final Object defaultFn;
+    // The values whose default replacement is being encoded: as in Python's json, a default
+    // that returns (a container of) a value it is already replacing is a circular reference.
+    private final Set<Object> replacing = Collections.newSetFromMap(new IdentityHashMap<>());
+
+    private Encoder(StarlarkThread thread, @Nullable Object defaultFn) {
+      this.thread = thread;
+      this.defaultFn = defaultFn;
+    }
+
+    private void encode(Object x) throws EvalException, InterruptedException {
+      if (x instanceof StarlarkEncodable encodable) {
+        // Java-defined values may define their own JSON encoding, as for upstream's json module.
+        x = encodable.objectForEncoding(thread.getSemantics());
+      }
+
       if (x == Starlark.NONE) {
         out.append("null");
         return;
@@ -180,19 +202,6 @@ public final class JsonModule implements StarlarkValue {
           throw Starlark.errorf("cannot encode non-finite float %s", x);
         }
         out.append(x.toString()); // always contains a decimal point or exponent
-        return;
-      }
-
-      // As Python's json: bytes, bytearray and sets are not JSON types, although they are
-      // iterable (and would otherwise be encoded as arrays).
-      if (x instanceof StarlarkBytes || x instanceof StarlarkSet) {
-        throw Starlark.errorf("Object of type %s is not JSON serializable", Starlark.type(x));
-      }
-
-      if (x instanceof Encodable) {
-        // Application-defined Starlark value types
-        // may define their own JSON encoding.
-        out.append(((Encodable) x).encodeJSON());
         return;
       }
 
@@ -229,12 +238,13 @@ public final class JsonModule implements StarlarkValue {
         return;
       }
 
-      // e.g. tuple, list
-      if (x instanceof StarlarkIterable) {
+      // As Python's json, only lists and tuples (including namedtuples) are arrays: other
+      // iterables, such as range, set, bytes or a class with __iter__, are not JSON types.
+      if (x instanceof StarlarkList || x instanceof Tuple) {
         out.append('[');
         String sep = "";
         int i = 0;
-        for (Object elem : (StarlarkIterable) x) {
+        for (Object elem : (Iterable<?>) x) {
           out.append(sep);
           sep = ",";
           try {
@@ -248,33 +258,29 @@ public final class JsonModule implements StarlarkValue {
         return;
       }
 
-      // e.g. struct
-      if (x instanceof Structure) {
-        Structure obj = (Structure) x;
-
-        // Sort keys for determinism.
-        String[] fields = obj.getFieldNames().toArray(new String[0]);
-        Arrays.sort(fields);
-
-        out.append('{');
-        String sep = "";
-        for (String field : fields) {
-          out.append(sep);
-          sep = ",";
-          appendQuoted(field);
-          out.append(":");
-          try {
-            Object v = obj.getValue(field); // may fail (field not defined)
-            encode(v); // may fail (unexpected type)
-          } catch (EvalException ex) {
-            throw Starlark.errorf("in %s field .%s: %s", Starlark.type(x), field, ex.getMessage());
-          }
-        }
-        out.append('}');
-        return;
+      // Anything else, such as a struct or a class instance (iterable or not), is not a JSON
+      // type: as Python's json.dumps, encode what default returns in its place, or fail.
+      if (defaultFn == null) {
+        throw notSerializable(x);
       }
+      if (!replacing.add(x)) {
+        throw Starlark.errorf("Circular reference detected");
+      }
+      if (replacing.size() > MAX_DEFAULT_DEPTH) {
+        replacing.remove(x);
+        throw Starlark.errorf("nesting depth limit exceeded");
+      }
+      try {
+        encode(Starlark.call(thread, defaultFn, ImmutableList.of(x), ImmutableMap.of()));
+      } finally {
+        replacing.remove(x);
+      }
+    }
 
-      throw Starlark.errorf("cannot encode %s as JSON", Starlark.type(x));
+    private static EvalException notSerializable(Object x) {
+      // Python names the value's class: type(x).__name__ ("C" for an instance of class C).
+      return Starlark.errorf(
+          "Object of type %s is not JSON serializable", TypeClassLookup.defaultBehavior(x));
     }
 
     private void appendQuoted(String s) {
@@ -683,9 +689,11 @@ public final class JsonModule implements StarlarkValue {
         @Param(name = "x"),
         @Param(name = "prefix", positional = false, named = true, defaultValue = "''"),
         @Param(name = "indent", positional = false, named = true, defaultValue = "'\\t'"),
-      })
-  public String encodeIndent(Object x, String prefix, String indent) throws EvalException {
-    return indent(encode(x), prefix, indent);
+      },
+      useStarlarkThread = true)
+  public String encodeIndent(Object x, String prefix, String indent, StarlarkThread thread)
+      throws EvalException, InterruptedException {
+    return indent(encode(x, Starlark.NONE, thread), prefix, indent);
   }
 
   private static final class Indenter {
