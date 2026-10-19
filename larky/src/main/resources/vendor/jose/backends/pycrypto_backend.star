@@ -36,7 +36,6 @@ load("@vendor//cryptography/hazmat/primitives/serialization/base", load_pem_publ
 load("@vendor//cryptography/hazmat/primitives/asymmetric/utils", decode_dss_signature="decode_dss_signature",
      encode_dss_signature="encode_dss_signature")
 load("@vendor//cryptography/utils", int_to_bytes="int_to_bytes")
-# load("@vendor//jose/backends/_asn1", rsa_public_key_pkcs8_to_pkcs1="rsa_public_key_pkcs8_to_pkcs1")
 load("@vendor//jose/backends/base", Key="Key")
 load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS")
 load("@vendor//jose/exceptions", JWKError="JWKError", JWEError="JWEError", JWEAlgorithmUnsupportedError="JWEAlgorithmUnsupportedError")
