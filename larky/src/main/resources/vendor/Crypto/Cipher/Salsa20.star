@@ -1,3 +1,4 @@
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/Cipher/Salsa20.py. See larky/src/main/resources/VENDORED.md.
 def Salsa20Cipher:
     """
     Salsa20 cipher object. Do not create it directly. Use :py:func:`new`

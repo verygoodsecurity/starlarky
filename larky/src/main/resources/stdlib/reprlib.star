@@ -1,3 +1,4 @@
+# Ported from CPython 3.2-3.10, pinned to 3.9.6 (db3ff76): Lib/reprlib.py. See larky/src/main/resources/VENDORED.md.
 """Redo the builtin repr() (representation) but with limits on most sizes.
 
 The reprlib module provides a means for producing object representations with

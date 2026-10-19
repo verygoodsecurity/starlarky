@@ -1,3 +1,4 @@
+# Ported from python-xmlsig 0.1.6-0.1.7 (tests/ not in sdist), pinned to 0.1.7 (eed8913): tests/data/sign1-out.xml. See larky/src/main/resources/VENDORED.md.
 SIGN1_OUT_XML = """\
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
