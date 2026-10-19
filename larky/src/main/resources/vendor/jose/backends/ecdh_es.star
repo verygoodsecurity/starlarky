@@ -136,10 +136,9 @@ def _b64_member(obj, name, error):
     for c in value.elems():
         if c not in _B64URL_ALPHABET:
             fail(error)
-    res = Result.Ok(value).map(lambda v: base64url_decode(codecs.encode(v, encoding="ascii")))
-    if res.is_err:
-        fail(error)
-    return res.unwrap()
+    # Any length but 4k+1 over this alphabet decodes (spare low bits of the
+    # last character are ignored), so this cannot fail.
+    return base64url_decode(codecs.encode(value, encoding="ascii"))
 
 
 def party_info(header, name):
