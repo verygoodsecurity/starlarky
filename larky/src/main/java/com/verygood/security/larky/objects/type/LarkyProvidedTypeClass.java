@@ -17,7 +17,7 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.HasBinary;
 import net.starlark.java.eval.StarlarkCallable;
-import net.starlark.java.eval.StarlarkFunction;
+import net.starlark.java.eval.UserDefinedFunction;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import net.starlark.java.syntax.TokenKind;
@@ -52,10 +52,10 @@ final public class LarkyProvidedTypeClass implements
     final Map<String, Object> clsDict = this.getInternalDictUnsafe();
     for (Map.Entry<String, Object> entry : clsDict.entrySet()) {
       Object value = entry.getValue();
-      if(value instanceof StarlarkFunction) {
-        // We are decorating a StarlarkFunction with a LarkyFunction so
-        // that we can enable python descriptor support.
-        value = LarkyFunction.create((StarlarkFunction) value, thread);
+      if(value instanceof UserDefinedFunction) {
+        // We are decorating a user-defined function (tree-walker or bytecode) with a
+        // LarkyFunction so that we can enable python descriptor support.
+        value = LarkyFunction.create((UserDefinedFunction) value, thread);
       }
 
       if (value instanceof LarkyBindable) {

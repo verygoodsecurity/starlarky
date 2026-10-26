@@ -43,8 +43,8 @@ public class StarlarkThreadDebuggingTest {
   }
 
   // Executes the definition of a trivial function f and returns the function value.
-  private static StarlarkFunction defineFunc() throws Exception {
-    return (StarlarkFunction)
+  private static StarlarkCallable defineFunc() throws Exception {
+    return (StarlarkCallable)
         Starlark.execFile(
             ParserInput.fromLines("def f(): pass\nf"),
             FileOptions.DEFAULT,
