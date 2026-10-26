@@ -10,7 +10,9 @@
 # - Larky scripts cannot read the clock, so decode() takes a Larky-only
 #   `now=` argument (seconds since the epoch) for the exp and nbf checks.
 #   Without it, a token that carries exp or nbf is rejected unless that check
-#   is disabled through `options`.
+#   is disabled through `options`. `now` must come from the host, not from
+#   anything the client sends: a client that chooses `now` can make an
+#   expired token pass.
 # - There is no datetime module: exp/iat/nbf must already be NumericDate
 #   numbers in encode(), and options["leeway"] must be a number of seconds.
 # - Errors are raised with fail() as "<ExceptionName>: <message>", where the
@@ -142,7 +144,9 @@ def decode(token, key, algorithms=None, options=None, audience=None, issuer=None
             }
 
         now (int or float): Larky only. The current time in seconds since the
-            epoch, used to check the "exp" and "nbf" claims.
+            epoch, used to check the "exp" and "nbf" claims. Take it from the
+            host, never from the request or the token: a client that chooses
+            ``now`` can make an expired token pass.
 
     Returns:
         dict: The dict representation of the claims set, assuming the signature is valid
