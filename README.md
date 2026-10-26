@@ -116,8 +116,8 @@ the vault and revealed by alias), checks `exp`, `nbf`, `aud` and `iss` with
   RS256, RS384, RS512 (RSA PKCS#1 v1.5) and ES256, ES384, ES512 (ECDSA), as listed in
   `vendor/jose/constants/algorithms.star`. `none` is never accepted, and a PEM public key is
   refused as an HMAC secret. Pass only the algorithms your issuer uses in `algorithms=`.
-- **Time.** Scripts cannot read the clock, so `jwt.decode` takes `now=` (seconds since the
-  epoch) and rejects a token that has `exp` or `nbf` when `now` is not given. The time has to
+- **Time.** Scripts cannot read the clock, so `jwt.decode` requires `now=` (seconds since the
+  epoch) and fails without it. The time has to
   come from the host. Larky does not provide it and does not define what the `ctx` argument of
   `process(input, ctx)` contains; the example assumes the proxy sets a request header with the
   time it received the request and drops any copy sent by the client.

@@ -17,11 +17,11 @@ only its alias; vault.reveal returns the PEM at run time. PUBLIC_KEY_ALIAS
 below is a placeholder. If the alias does not resolve, reveal returns the
 alias itself, which is not a key, so every request gets a 401.
 
-The current time. Larky scripts cannot read the clock, and jwt.decode rejects
-a token with "exp" or "nbf" unless it is given `now=` (seconds since the
-epoch). This example ASSUMES that the host proxy sets the request header
-REQUEST_TIME_HEADER to the time it received the request, and removes any
-copy of that header sent by the client. Larky does not set such a header and
+The current time. Larky scripts cannot read the clock, and jwt.decode
+requires `now=` (seconds since the epoch). This example ASSUMES that the
+host proxy sets the request header REQUEST_TIME_HEADER to the time it
+received the request, and removes any copy of that header sent by the
+client. Larky does not set such a header and
 does not define what `ctx` contains; a host that passes the time some other
 way should pass it to check_request as `now` instead. A client that can set
 this header can replay expired tokens.
