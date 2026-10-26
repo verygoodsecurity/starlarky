@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# Ported from bazel-skylib 1.0.0-1.0.3, pinned to 1.0.3 (2ec2e6d): tests/types_tests.bzl. See larky/src/main/resources/VENDORED.md.
 """Unit tests for types.bzl."""
 load("@stdlib//builtins", "builtins")
 load("@stdlib//larky", "larky")

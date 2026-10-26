@@ -1,3 +1,4 @@
+# Ported from CPython 2.7.x, pinned to 2.7.18 (8d21aa2): Lib/xmllib.py. See larky/src/main/resources/VENDORED.md.
 """A parser for XML, using the derived class as static DTD."""
 
 load("@stdlib//_markupbase", ParserBase="ParserBase")

@@ -27,6 +27,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
+# Ported from pycryptodome 3.10.0-3.11.0, pinned to 3.11.0 (b92494b): lib/Crypto/SelfTest/PublicKey/test_ECC.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//collections", namedtuple="namedtuple")
 load("@stdlib//operator", operator="operator")

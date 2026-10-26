@@ -1,3 +1,4 @@
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/PublicKey/ElGamal.py. See larky/src/main/resources/VENDORED.md.
 def generate(bits, randfunc):
     """
     Randomly generate a fresh, new ElGamal key.

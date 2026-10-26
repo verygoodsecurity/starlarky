@@ -1,3 +1,4 @@
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/Cipher/__init__.py. See larky/src/main/resources/VENDORED.md.
 #
 # A block cipher is instantiated as a combination of:
 # 1. A base cipher (such as AES)

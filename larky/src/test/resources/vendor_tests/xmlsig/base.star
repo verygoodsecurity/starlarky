@@ -1,3 +1,4 @@
+# Ported from python-xmlsig 0.1.6-0.1.7 (tests/ not in sdist), pinned to 0.1.7 (eed8913): tests/base.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//io", io="io")
 load("@stdlib//types", types="types")
