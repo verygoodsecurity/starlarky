@@ -37,6 +37,9 @@ def HMACKey(key, algorithm):
                  % jwk_dict.get('kty'))
 
         k = jwk_dict.get('k')
+        # python-jose fails here with an AttributeError on None.
+        if k == None:
+            fail("JWKError: Mandatory parameter 'k' is missing")
         k = codecs.encode(k, encoding='utf-8')
         k = bytes(k, encoding='utf-8')
         k = base64url_decode(k)

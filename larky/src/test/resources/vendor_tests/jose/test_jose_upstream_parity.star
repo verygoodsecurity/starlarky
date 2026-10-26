@@ -116,6 +116,8 @@ def Test_hmac_jwk():
     asserts.assert_that(key.to_dict()).is_equal_to({"alg": "HS256", "k": "cw", "kty": "oct"})
     asserts.assert_fails(lambda: jwk.construct({"kty": "RSA", "k": "cw"}, "HS256"),
                          ".*?JWKError: Incorrect key type. Expected: 'oct', Received: RSA")
+    asserts.assert_fails(lambda: jwk.construct({"kty": "oct"}, "HS256"),
+                         ".*?JWKError: Mandatory parameter 'k' is missing")
 
 
 def Test_rsa_jwk_errors():
