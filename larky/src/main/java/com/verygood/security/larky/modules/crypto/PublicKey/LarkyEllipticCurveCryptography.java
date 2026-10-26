@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules.crypto.PublicKey;
 
 import com.verygood.security.larky.modules.crypto.PublicKey.ECC.LarkyECCurve;
+import com.verygood.security.larky.modules.crypto.PublicKey.ECC.LarkyX25519;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.StarlarkValue;
@@ -31,6 +32,11 @@ public class LarkyEllipticCurveCryptography implements StarlarkValue {
   @StarlarkMethod(name = "P521R1Curve")
   public LarkyECCurve P521R1Curve() {
     return new LarkyECCurve(new SecP521R1Curve());
+  }
+
+  @StarlarkMethod(name = "X25519", structField = true)
+  public LarkyX25519 X25519() {
+    return LarkyX25519.INSTANCE;
   }
 
 }

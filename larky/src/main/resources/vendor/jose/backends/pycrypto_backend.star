@@ -24,6 +24,7 @@ load("@vendor//Crypto/Hash/SHA512", SHA512="SHA512")
 load("@vendor//Crypto/Hash/SHA1", SHA1="SHA1")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//Crypto/PublicKey/ECC", ECC="ECC")
+load("@vendor//Crypto/Protocol/DH", DH="DH")
 load("@vendor//Crypto/Signature/DSS", DSS="DSS")
 load("@vendor//Crypto/Signature/PKCS1_v1_5", PKCS1_v1_5_Signature="PKCS1_v1_5")
 load("@vendor//Crypto/Util/asn1", DerSequence="DerSequence")
@@ -45,7 +46,7 @@ load("@vendor//jose/utils",
      base64_to_long="base64_to_long",
      long_to_base64="long_to_base64")
 
-load("@vendor//option/result", Ok="Ok", Error="Error", safe="safe")
+load("@vendor//option/result", Ok="Ok", Error="Error", Result="Result")
 load("@vendor//six", six="six")
 
 ceil = math.ceil
@@ -99,6 +100,7 @@ def ECKey(key, algorithm):
 
         if types.is_dict(key):
             self.prepared_key = self._process_jwk(key)
+            return self
 
         if types.is_string(key):
             key = tobytes(key)
@@ -107,14 +109,34 @@ def ECKey(key, algorithm):
             self.prepared_key = ECC.import_key(key)
             return self
 
-        fail('JWKError: Unable to parse an ECKey from key: %s' % key)
-    self = __init__(key, algorithm)
+        # Larky: the message does not include the key.
+        fail('JWKError: Unable to parse an ECKey from key')
+
+    def _process_okp_jwk(jwk_dict):
+        # Larky: OKP keys (RFC 8037), X25519 only, for ECDH-ES.
+        if jwk_dict.get("crv") != "X25519":
+            fail("JWKError: Unsupported OKP curve. Only X25519 is supported")
+        if not types.is_string(jwk_dict.get("x")):
+            fail("JWKError: Mandatory parameters are missing")
+        x = base64url_decode(tobytes(jwk_dict["x"]))
+        if "d" in jwk_dict:
+            if not types.is_string(jwk_dict.get("d")):
+                fail("JWKError: Invalid OKP private key")
+            key = DH.import_x25519_private_key(base64url_decode(tobytes(jwk_dict["d"])))
+            if key.public_key().export_key(format="raw") != x:
+                fail("JWKError: OKP public key does not match the private key")
+            return key
+        return DH.import_x25519_public_key(x)
 
     def _process_jwk(jwk_dict):
+        if jwk_dict.get("kty") == "OKP":
+            return _process_okp_jwk(jwk_dict)
         if not jwk_dict.get("kty") == "EC":
-            return Error("Incorrect key type. Expected: 'EC', Received: %s" % jwk_dict.get("kty"))
+            fail("JWKError: Incorrect key type. Expected: 'EC' or 'OKP'")
         if not all([k in jwk_dict for k in ["x", "y", "crv"]]):
-            return Error("Mandatory parameters are missing")
+            fail("JWKError: Mandatory parameters are missing")
+        if jwk_dict["crv"] not in ("P-256", "P-384", "P-521"):
+            fail("JWKError: Unsupported EC curve")
         x = base64_to_long(jwk_dict.get("x"))
         y = base64_to_long(jwk_dict.get("y"))
         curve = {
@@ -129,14 +151,53 @@ def ECKey(key, algorithm):
         else:
             return ECC.construct(point_x=x, point_y=y, curve=curve)
     self._process_jwk = _process_jwk
+    self = __init__(key, algorithm)
+
+    def is_public():
+        return not self.prepared_key.has_private()
+    self.is_public = is_public
+
+    def to_dict():
+        # Larky: python-jose's ECKey.to_dict, plus OKP (X25519) keys.
+        key = self.prepared_key
+        if key.curve == "Curve25519":
+            data = {
+                'alg': self._algorithm,
+                'kty': 'OKP',
+                'crv': 'X25519',
+                'x': tostr(base64url_encode(key.public_key().export_key(format="raw"))),
+            }
+            if key.has_private():
+                data['d'] = tostr(base64url_encode(key.seed))
+            return data
+        crv, size = {
+            "NIST P-256": ("P-256", 32),
+            "NIST P-384": ("P-384", 48),
+            "NIST P-521": ("P-521", 66),
+        }[key.curve]
+        data = {
+            'alg': self._algorithm,
+            'kty': 'EC',
+            'crv': crv,
+            'x': tostr(long_to_base64(operator.index(key.pointQ.x), size=size)),
+            'y': tostr(long_to_base64(operator.index(key.pointQ.y), size=size)),
+        }
+        if key.has_private():
+            data['d'] = tostr(long_to_base64(operator.index(key.d), size=size))
+        return data
+    self.to_dict = to_dict
 
     def sign(msg):
+        if self.hash_alg == None:
+            fail("JWKError: %s is not a signing algorithm" % self._algorithm)
         hashed = self.hash_alg.new(msg)
         signer = DSS.new(self.prepared_key, 'fips-186-3')
         return signer.sign(hashed)
     self.sign = sign
 
     def verify(msg, sig):
+        if self.hash_alg == None:
+            return False
         hashed = self.hash_alg.new(msg)
         signer = DSS.new(self.prepared_key, 'fips-186-3')
         result = Ok(signer.verify).map(lambda v: v(hashed, sig))
@@ -432,7 +493,7 @@ def AESKey(key, algorithm):
                 cipher.update(aad)
                 cipher_text, auth_tag = cipher.encrypt_and_digest(plain_text)
             return iv, cipher_text, auth_tag
-        return safe(_try_encrypt)(self, plain_text, aad).unwrap()
+        return Result.Ok(self).map(lambda key: _try_encrypt(key, plain_text, aad)).unwrap()
     self.encrypt = encrypt
 
     def decrypt(cipher_text, iv=None, aad=None, tag=None):
@@ -646,8 +707,6 @@ def AESAlgorithm(key_size):
         a = r.pop(0)
         a, r = self._unwrap_core(wrapping_key, a, r)
         if not HMAC.compare_digest(a, aiv):
-            print(a.hex())
-            print(aiv.hex())
             return Error("Invalid unwrap!").unwrap()
 
         return b"".join(r)
