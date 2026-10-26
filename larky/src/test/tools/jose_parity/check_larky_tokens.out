@@ -1,0 +1,8 @@
+python-jose 3.2.0 (git 8572088b), joserfc 1.7.5
+ok A128GCMKW A128GCM zip=None (joserfc)
+ok A128GCMKW A256CBC-HS512 zip=None (joserfc)
+ok A192GCMKW A192GCM zip=None (joserfc)
+ok A256GCMKW A256GCM zip=None (joserfc)
+ok A256GCMKW A128CBC-HS256 zip=None (joserfc)
+ok dir A128GCM zip=DEF (python-jose)
+6 of 6 tokens decrypted

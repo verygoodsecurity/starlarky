@@ -31,6 +31,23 @@ def HMACKey(key, algorithm):
             ALGORITHMS.HS512: hashlib.sha512
     })
 
+    def _process_jwk(jwk_dict):
+        if not jwk_dict.get('kty') == 'oct':
+            fail("JWKError: Incorrect key type. Expected: 'oct', Received: %s"
+                 % jwk_dict.get('kty'))
+
+        k = jwk_dict.get('k')
+        # python-jose fails here with an AttributeError on None.
+        if k == None:
+            fail("JWKError: Mandatory parameter 'k' is missing")
+        k = codecs.encode(k, encoding='utf-8')
+        k = bytes(k, encoding='utf-8')
+        k = base64url_decode(k)
+
+        return k
+    # __init__ calls this, so it is set first.
+    self._process_jwk = _process_jwk
+
     def __init__(key, algorithm):
         if not operator.contains(ALGORITHMS.HMAC, algorithm):
             fail("JWKError: hash_alg: %s is not a valid hash algorithm" % algorithm)
@@ -63,19 +80,6 @@ def HMACKey(key, algorithm):
         return self
 
     self = __init__(key, algorithm)
-
-    def _process_jwk(jwk_dict):
-        if not jwk_dict.get('kty') == 'oct':
-            fail("JWKError: Incorrect key type. Expected: 'oct', Received: %s"
-                 % jwk_dict.get('kty'))
-
-        k = jwk_dict.get('k')
-        k = codecs.encode(k, encoding='utf-8')
-        k = bytes(k, encoding='utf-8')
-        k = base64url_decode(k)
-
-        return k
-    self._process_jwk = _process_jwk
 
     def sign(msg):
         return hmac.new(self.prepared_key, msg, self._hash_alg()).digest()

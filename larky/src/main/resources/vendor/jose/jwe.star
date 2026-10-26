@@ -12,10 +12,11 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//json","json")
+load("@stdlib//sets", sets="sets")
 load("@stdlib//struct", struct="struct")
 load("@stdlib//types", types="types")
 load("@stdlib//operator", operator="operator")
-# load("@stdlib//zlib", zlib="zlib")
+load("@stdlib//zlib", zlib="zlib")
 load("@vendor//jose/jwk", jwk="jwk")
 load("@vendor//jose/backends", get_random_bytes="get_random_bytes")
 load("@vendor//jose/backends/ecdh_es", ecdh_es="ecdh_es")
@@ -34,6 +35,10 @@ load("@vendor//six", six="six")
 # except ImportError:
 #     from collections import Mapping  # Python 2, will be deprecated in Python 3.8
 pack = struct.pack
+
+# python-jose 3.5.0's JWE_SIZE_LIMIT, the most a "zip" plaintext may
+# decompress to (CVE-2024-33664).
+JWE_SIZE_LIMIT = 250 * 1024
 
 
 def encrypt(plaintext, key, encryption=ALGORITHMS.A256GCM,
@@ -79,6 +84,9 @@ def encrypt(plaintext, key, encryption=ALGORITHMS.A256GCM,
     if operator.contains(ALGORITHMS.EC_KW, algorithm):
         return _ecdh_es_encrypt(plaintext, key, encryption, algorithm, zip,
                                 cty, kid, extra_headers)
+    if operator.contains(ALGORITHMS.AEC_GCM_KW, algorithm):
+        return _gcm_kw_encrypt(plaintext, key, encryption, algorithm, zip,
+                               cty, kid, extra_headers)
     encoded_header = _encoded_header(
         algorithm, encryption, zip, cty, kid,
         extra_headers=extra_headers,
@@ -247,7 +255,7 @@ def get_unverified_header(jwe_str):
     Raises:
         JWEError: If there is an exception decoding the JWE.
     """
-    header = _jwe_compact_deserialize(jwe_str)[0]
+    header = _jwe_compact_deserialize(jwe_str).unwrap()[0]
     return header
 
 
@@ -496,6 +504,26 @@ def _ecdh_es_encrypt(plaintext, key, enc, alg, zip, cty, kid, extra_headers):
     return _jwe_compact_serialize(encoded_header, enc_cek, iv, cipher_text, auth_tag)
 
 
+def _gcm_kw_encrypt(plaintext, key, enc, alg, zip, cty, kid, extra_headers):
+    """Larky: encrypt with A128GCMKW, A192GCMKW or A256GCMKW.
+
+    python-jose does not support these algorithms. The "iv" and "tag" of
+    the key wrap go in the protected header (RFC 7518, Section 4.7), so
+    the header is made after the CEK is wrapped.
+    """
+    headers = dict(extra_headers or {})
+    if "iv" in headers or "tag" in headers:
+        fail("JWEError: A*GCMKW generates the iv and tag headers")
+    cek_bytes = _get_random_cek_bytes_for_enc(enc).unwrap()
+    enc_cek, kw_headers = key.wrap_gcm(cek_bytes)
+    headers.update(kw_headers)
+    encoded_header = _encoded_header(alg, enc, zip, cty, kid, extra_headers=headers)
+
+    plaintext = _compress(zip, plaintext)
+    iv, cipher_text, auth_tag = _encrypt_with_cek(cek_bytes, enc, plaintext, encoded_header)
+    return _jwe_compact_serialize(encoded_header, enc_cek, iv, cipher_text, auth_tag)
+
+
 def _get_hmac_key(enc, mac_key_bytes):
     """
     Get an HMACKey for the provided encryption algorithm and key bytes
@@ -523,17 +551,11 @@ def _compress(zip, plaintext):
     Returns:
         (bytes): Compressed plaintext
     """
-    return plaintext
-    # return Error("NotImplementedError: ZIP {} is not implemented!")
-    # if zip not in ZIPS.SUPPORTED:
-    #     return Error("NotImplementedError: ZIP {} is not supported!")
-    # if zip == None:
-    #     compressed = plaintext
-    # elif zip == ZIPS.DEF:
-    #     compressed = zlib.compress(plaintext)
-    # else:
-    #     return Error("NotImplementedError: ZIP {} is not implemented!")
-    # return compressed
+    if not sets.contains(ZIPS.SUPPORTED, zip):
+        fail("NotImplementedError: ZIP %s is not supported!" % zip)
+    if zip == None:
+        return plaintext
+    return zlib.compress(plaintext)
 
 
 def _decompress(zip, compressed):
@@ -547,17 +569,28 @@ def _decompress(zip, compressed):
     Returns:
         (bytes): Compressed plaintext
     """
-    return compressed
-    return Error("NotImplementedError: ZIP {} is not implemented!")
-    # if zip not in ZIPS.SUPPORTED:
-    #     return Error("NotImplementedError: ZIP {} is not supported!")
-    # if zip == None:
-    #     decompressed = compressed
-    # elif zip == ZIPS.DEF:
-    #     decompressed = zlib.decompress(compressed)
-    # else:
-    #     return Error("NotImplementedError: ZIP {} is not implemented!")
-    # return decompressed
+    if not sets.contains(ZIPS.SUPPORTED, zip):
+        fail("NotImplementedError: ZIP %s is not supported!" % zip)
+    if zip == None:
+        return compressed
+    # python-jose writes zlib (RFC 1950) data. RFC 7516 defines "DEF" as raw
+    # DEFLATE (RFC 1951), which other libraries write, so that is tried
+    # when the data is not zlib data.
+    res = Result.Ok(compressed).map(lambda c: _inflate(c, zlib.MAX_WBITS))
+    if res.is_err:
+        res = Result.Ok(compressed).map(lambda c: _inflate(c, -zlib.MAX_WBITS))
+    decompressed, unconsumed_tail = res.unwrap()
+    # As python-jose 3.5.0 does: stop at JWE_SIZE_LIMIT bytes and refuse
+    # what is left.
+    if unconsumed_tail:
+        fail("JWEError: Decompressed JWE string exceeds %d bytes" % JWE_SIZE_LIMIT)
+    return decompressed
+
+
+def _inflate(compressed, wbits):
+    decompressor = zlib.decompressobj(wbits)
+    decompressed = decompressor.decompress(compressed, max_length=JWE_SIZE_LIMIT)
+    return decompressed, decompressor.unconsumed_tail
 
 
 def _get_cek(enc, alg, key):
@@ -1357,5 +1390,6 @@ def _jwe_compact_serialize(encoded_header, encrypted_cek, iv, cipher_text, auth_
 
 jwe = larky.struct(
     encrypt=encrypt,
-    decrypt=decrypt
+    decrypt=decrypt,
+    get_unverified_header=get_unverified_header,
 )
