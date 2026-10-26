@@ -52,7 +52,7 @@ def TestJWT_test_no_alg():
     bad_header_json_bytes = bytes(json.dumps(header), encoding="utf-8")
     bad_b64header = base64url_encode(bad_header_json_bytes).decode("utf-8")
     bad_token = ".".join([bad_b64header, b64payload, b64signature])
-    asserts.assert_fails(lambda: jwt.decode(token=bad_token, key=key, algorithms=[]), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token=bad_token, key=key, algorithms=[], now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_numeric_key():
@@ -66,32 +66,32 @@ def TestJWT_test_numeric_key():
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoidGVzdCJ9.D8WLFPMi3yKgua2jm3BKThFsParXpgxhIbsUc39zJDw",
         ),
     ]:
-        token_info = jwt.decode(token, key)
+        token_info = jwt.decode(token, key, now=NOW)
         asserts.assert_that(token_info).is_equal_to({"name": "test"})
 
 
 def TestJWT_test_invalid_claims_json():
     token = jws.sign(b'["a", "b"}', "secret", algorithm="HS256")
-    asserts.assert_fails(lambda: jwt.decode(token, "secret", ["HS256"]), "^JWTError: Invalid payload string: ")
+    asserts.assert_fails(lambda: jwt.decode(token, "secret", ["HS256"], now=NOW), "^JWTError: Invalid payload string: ")
 
 
 def TestJWT_test_invalid_claims():
     token = jws.sign(b'["a","b"]', "secret", algorithm="HS256")
     asserts.assert_fails(
-        lambda: jwt.decode(token, "secret", ["HS256"]),
+        lambda: jwt.decode(token, "secret", ["HS256"], now=NOW),
         "^JWTError: Invalid payload string: must be a json object",
     )
 
 
 def TestJWT_test_non_default_alg():
     encoded = jwt.encode(claims, key, algorithm="HS384")
-    decoded = jwt.decode(encoded, key, algorithms="HS384")
+    decoded = jwt.decode(encoded, key, algorithms="HS384", now=NOW)
     asserts.assert_that(claims).is_equal_to(decoded)
 
 
 def TestJWT_test_non_default_alg_positional_bwcompat():
     encoded = jwt.encode(claims, key, "HS384")
-    decoded = jwt.decode(encoded, key, "HS384")
+    decoded = jwt.decode(encoded, key, "HS384", now=NOW)
     asserts.assert_that(claims).is_equal_to(decoded)
 
 
@@ -104,7 +104,7 @@ def TestJWT_test_no_alg_default_headers():
 
 def TestJWT_test_non_default_headers():
     encoded = jwt.encode(claims, key, headers=headers)
-    decoded = jwt.decode(encoded, key)
+    decoded = jwt.decode(encoded, key, now=NOW)
     asserts.assert_that(claims).is_equal_to(decoded)
     all_headers = jwt.get_unverified_headers(encoded)
     for k, v in headers.items():
@@ -147,7 +147,7 @@ def TestJWT_test_encode():
 def TestJWT_test_decode():
     token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" + ".eyJhIjoiYiJ9" + ".jiMyrsmD8AoHWeQgmxZ5yq8z0lXS67_QGs52AzC8Ru8"
 
-    decoded = jwt.decode(token, key)
+    decoded = jwt.decode(token, key, now=NOW)
 
     asserts.assert_that(decoded).is_equal_to(claims)
 
@@ -155,7 +155,7 @@ def TestJWT_test_decode():
 def TestJWT_test_round_trip_with_different_key_types():
     for key in [b"key", "key"]:
         token = jwt.encode({"testkey": "testvalue"}, key, algorithm="HS256")
-        verified_data = jwt.decode(token, key, algorithms=["HS256"])
+        verified_data = jwt.decode(token, key, algorithms=["HS256"], now=NOW)
         asserts.assert_that("testkey" in verified_data.keys()).is_true()
         asserts.assert_that(verified_data["testkey"]).is_equal_to("testvalue")
 
@@ -169,7 +169,7 @@ def TestJWT_test_iat_not_int():
 
     token = jwt.encode(claims, key)
 
-    asserts.assert_fails(lambda: jwt.decode(token, key), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_nbf_not_int():
@@ -286,7 +286,7 @@ def TestJWT_test_aud_string():
     claims = {"aud": aud}
 
     token = jwt.encode(claims, key)
-    jwt.decode(token, key, audience=aud)
+    jwt.decode(token, key, audience=aud, now=NOW)
 
 
 def TestJWT_test_aud_list():
@@ -295,7 +295,7 @@ def TestJWT_test_aud_list():
     claims = {"aud": [aud]}
 
     token = jwt.encode(claims, key)
-    jwt.decode(token, key, audience=aud)
+    jwt.decode(token, key, audience=aud, now=NOW)
 
 
 def TestJWT_test_aud_list_multiple():
@@ -304,7 +304,7 @@ def TestJWT_test_aud_list_multiple():
     claims = {"aud": [aud, "another"]}
 
     token = jwt.encode(claims, key)
-    jwt.decode(token, key, audience=aud)
+    jwt.decode(token, key, audience=aud, now=NOW)
 
 
 def TestJWT_test_aud_list_is_strings():
@@ -313,7 +313,7 @@ def TestJWT_test_aud_list_is_strings():
     claims = {"aud": [aud, 1]}
 
     token = jwt.encode(claims, key)
-    asserts.assert_fails(lambda: jwt.decode(token, key, audience=aud), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, audience=aud, now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_aud_case_sensitive():
@@ -322,14 +322,14 @@ def TestJWT_test_aud_case_sensitive():
     claims = {"aud": [aud]}
 
     token = jwt.encode(claims, key)
-    asserts.assert_fails(lambda: jwt.decode(token, key, audience="AUDIENCE"), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, audience="AUDIENCE", now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_aud_empty_claim():
     aud = "audience"
 
     token = jwt.encode(claims, key)
-    jwt.decode(token, key, audience=aud)
+    jwt.decode(token, key, audience=aud, now=NOW)
 
 
 def TestJWT_test_aud_not_string_or_list():
@@ -338,7 +338,7 @@ def TestJWT_test_aud_not_string_or_list():
     claims = {"aud": aud}
 
     token = jwt.encode(claims, key)
-    asserts.assert_fails(lambda: jwt.decode(token, key), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_aud_given_number():
@@ -347,7 +347,7 @@ def TestJWT_test_aud_given_number():
     claims = {"aud": aud}
 
     token = jwt.encode(claims, key)
-    asserts.assert_fails(lambda: jwt.decode(token, key, audience=1), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, audience=1, now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_iss_string():
@@ -356,7 +356,7 @@ def TestJWT_test_iss_string():
     claims = {"iss": iss}
 
     token = jwt.encode(claims, key)
-    jwt.decode(token, key, issuer=iss)
+    jwt.decode(token, key, issuer=iss, now=NOW)
 
 
 def TestJWT_test_iss_list():
@@ -365,7 +365,7 @@ def TestJWT_test_iss_list():
     claims = {"iss": iss}
 
     token = jwt.encode(claims, key)
-    jwt.decode(token, key, issuer=["https://issuer", "issuer"])
+    jwt.decode(token, key, issuer=["https://issuer", "issuer"], now=NOW)
 
 
 def TestJWT_test_iss_tuple():
@@ -374,7 +374,7 @@ def TestJWT_test_iss_tuple():
     claims = {"iss": iss}
 
     token = jwt.encode(claims, key)
-    jwt.decode(token, key, issuer=("https://issuer", "issuer"))
+    jwt.decode(token, key, issuer=("https://issuer", "issuer"), now=NOW)
 
 
 def TestJWT_test_iss_invalid():
@@ -383,7 +383,7 @@ def TestJWT_test_iss_invalid():
     claims = {"iss": iss}
 
     token = jwt.encode(claims, key)
-    asserts.assert_fails(lambda: jwt.decode(token, key, issuer="another"), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, issuer="another", now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_sub_string():
@@ -392,7 +392,7 @@ def TestJWT_test_sub_string():
     claims = {"sub": sub}
 
     token = jwt.encode(claims, key)
-    jwt.decode(token, key)
+    jwt.decode(token, key, now=NOW)
 
 
 def TestJWT_test_sub_invalid():
@@ -401,7 +401,7 @@ def TestJWT_test_sub_invalid():
     claims = {"sub": sub}
 
     token = jwt.encode(claims, key)
-    asserts.assert_fails(lambda: jwt.decode(token, key), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_sub_correct():
@@ -410,7 +410,7 @@ def TestJWT_test_sub_correct():
     claims = {"sub": sub}
 
     token = jwt.encode(claims, key)
-    jwt.decode(token, key, subject=sub)
+    jwt.decode(token, key, subject=sub, now=NOW)
 
 
 def TestJWT_test_sub_incorrect():
@@ -419,7 +419,7 @@ def TestJWT_test_sub_incorrect():
     claims = {"sub": sub}
 
     token = jwt.encode(claims, key)
-    asserts.assert_fails(lambda: jwt.decode(token, key, subject="another"), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, subject="another", now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_jti_string():
@@ -428,7 +428,7 @@ def TestJWT_test_jti_string():
     claims = {"jti": jti}
 
     token = jwt.encode(claims, key)
-    jwt.decode(token, key)
+    jwt.decode(token, key, now=NOW)
 
 
 def TestJWT_test_jti_invalid():
@@ -437,39 +437,39 @@ def TestJWT_test_jti_invalid():
     claims = {"jti": jti}
 
     token = jwt.encode(claims, key)
-    asserts.assert_fails(lambda: jwt.decode(token, key), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_at_hash():
     claims = {"a": "b"}
     access_token = "<ACCESS_TOKEN>"
     token = jwt.encode(claims, key, access_token=access_token)
-    payload = jwt.decode(token, key, access_token=access_token)
+    payload = jwt.decode(token, key, access_token=access_token, now=NOW)
     asserts.assert_that("at_hash" in payload).is_true()
 
 
 def TestJWT_test_at_hash_invalid():
     claims = {"a": "b"}
     token = jwt.encode(claims, key, access_token="<ACCESS_TOKEN>")
-    asserts.assert_fails(lambda: jwt.decode(token, key, access_token="<OTHER_TOKEN>"), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, access_token="<OTHER_TOKEN>", now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_at_hash_missing_access_token():
     claims = {"a": "b"}
     token = jwt.encode(claims, key, access_token="<ACCESS_TOKEN>")
-    asserts.assert_fails(lambda: jwt.decode(token, key), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_at_hash_missing_claim():
     token = jwt.encode(claims, key)
-    payload = jwt.decode(token, key, access_token="<ACCESS_TOKEN>")
+    payload = jwt.decode(token, key, access_token="<ACCESS_TOKEN>", now=NOW)
     asserts.assert_that("at_hash" not in payload).is_true()
 
 
 def TestJWT_test_at_hash_unable_to_calculate():
     claims = {"a": "b"}
     token = jwt.encode(claims, key, access_token="<ACCESS_TOKEN>")
-    asserts.assert_fails(lambda: jwt.decode(token, key, access_token="â"), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(token, key, access_token="â", now=NOW), JWT_ERROR)
 
 
 def TestJWT_test_bad_claims():
@@ -559,7 +559,7 @@ def _tamper(token, index):
 
 def Larky_test_hs512_matches_upstream():
     asserts.assert_that(jwt.encode({"a": "b"}, "secret", algorithm="HS512")).is_equal_to(HS512_UPSTREAM_TOKEN)
-    asserts.assert_that(jwt.decode(HS512_UPSTREAM_TOKEN, "secret", algorithms=["HS512"])).is_equal_to({"a": "b"})
+    asserts.assert_that(jwt.decode(HS512_UPSTREAM_TOKEN, "secret", algorithms=["HS512"], now=NOW)).is_equal_to({"a": "b"})
 
 
 def Larky_test_hmac_round_trip():
@@ -606,7 +606,7 @@ def Larky_test_es256_round_trip():
 
 def Larky_test_algorithm_not_allowed():
     token = jwt.encode(claims, rsa_private_key, algorithm="RS256")
-    asserts.assert_fails(lambda: jwt.decode(token, rsa_public_key, algorithms=["HS256"]),
+    asserts.assert_fails(lambda: jwt.decode(token, rsa_public_key, algorithms=["HS256"], now=NOW),
                          "^JWTError: The specified alg value is not allowed")
 
 
@@ -615,50 +615,44 @@ def Larky_test_tampered_token():
     forged_payload = base64url_encode(b'{"admin":true,"sub":"1234"}').decode("utf-8")
     parts = token.split(".")
     forged = ".".join([parts[0], forged_payload, parts[2]])
-    asserts.assert_fails(lambda: jwt.decode(forged, key, algorithms=["HS256"]),
+    asserts.assert_fails(lambda: jwt.decode(forged, key, algorithms=["HS256"], now=NOW),
                          "^JWTError: Signature verification failed")
-    asserts.assert_fails(lambda: jwt.decode(_tamper(token, 2), key, algorithms=["HS256"]),
+    asserts.assert_fails(lambda: jwt.decode(_tamper(token, 2), key, algorithms=["HS256"], now=NOW),
                          "^JWTError: Signature verification failed")
-    asserts.assert_fails(lambda: jwt.decode(_tamper(token, 0), key, algorithms=["HS256"]), JWT_ERROR)
+    asserts.assert_fails(lambda: jwt.decode(_tamper(token, 0), key, algorithms=["HS256"], now=NOW), JWT_ERROR)
 
 
 def Larky_test_alg_none_rejected():
     header = base64url_encode(b'{"alg":"none","typ":"JWT"}').decode("utf-8")
     payload = base64url_encode(b'{"sub":"1234"}').decode("utf-8")
     for unsigned in [header + "." + payload + ".", header + "." + payload + ".c2ln"]:
-        asserts.assert_fails(lambda: jwt.decode(unsigned, key), "^JWTError: ")
-        asserts.assert_fails(lambda: jwt.decode(unsigned, key, algorithms=["none"]), "^JWTError: ")
-        asserts.assert_fails(lambda: jwt.decode(unsigned, key, algorithms=["HS256"]), "^JWTError: ")
+        asserts.assert_fails(lambda: jwt.decode(unsigned, key, now=NOW), "^JWTError: ")
+        asserts.assert_fails(lambda: jwt.decode(unsigned, key, algorithms=["none"], now=NOW), "^JWTError: ")
+        asserts.assert_fails(lambda: jwt.decode(unsigned, key, algorithms=["HS256"], now=NOW), "^JWTError: ")
 
 
 def Larky_test_malformed_token():
     for bad in ["", "abc", "a.b", "....", "eyJhbGciOiJIUzI1NiJ9.!!!.sig"]:
-        asserts.assert_fails(lambda: jwt.decode(bad, key), "^JWTError: ")
+        asserts.assert_fails(lambda: jwt.decode(bad, key, now=NOW), "^JWTError: ")
 
 
-def Larky_test_time_claims_need_now():
+def Larky_test_now_is_required():
+    # Larky scripts cannot read the clock, so decode always needs now from
+    # the host, even when the token has no time claims or their checks are off.
+    required = "^JWTError: now is required"
+    for claims in [{}, {"exp": NOW + 60}, {"nbf": NOW - 60}, {"iat": NOW}]:
+        token = jwt.encode(claims, key)
+        asserts.assert_fails(lambda: jwt.decode(token, key), required)
+        asserts.assert_fails(lambda: jwt.decode(token, key, now=None), required)
+        asserts.assert_fails(
+            lambda: jwt.decode(token, key, options={"verify_exp": False, "verify_nbf": False}), required)
+
     exp_token = jwt.encode({"exp": NOW + 60}, key)
-    asserts.assert_fails(lambda: jwt.decode(exp_token, key),
-                         "^JWTClaimsError: Cannot verify the Expiration Time claim \\(exp\\)")
-    jwt.decode(exp_token, key, options={"verify_exp": False})
-
-    nbf_token = jwt.encode({"nbf": NOW - 60}, key)
-    asserts.assert_fails(lambda: jwt.decode(nbf_token, key),
-                         "^JWTClaimsError: Cannot verify the Not Before claim \\(nbf\\)")
-    jwt.decode(nbf_token, key, options={"verify_nbf": False})
-
-    # require_exp turns verify_exp back on, as upstream does
-    asserts.assert_fails(
-        lambda: jwt.decode(exp_token, key, options={"verify_exp": False, "require_exp": True}),
-        "^JWTClaimsError: Cannot verify the Expiration Time claim",
-    )
-
-    # iat is only type-checked, so it needs no clock
-    jwt.decode(jwt.encode({"iat": NOW}, key), key)
-
     asserts.assert_fails(lambda: jwt.decode(exp_token, key, now="1700000000"),
                          "^JWTError: now must be a number")
     jwt.decode(exp_token, key, now=NOW + 0.5)
+    # iat is only type-checked, not compared with now
+    jwt.decode(jwt.encode({"iat": NOW}, key), key, now=NOW)
 
 
 def Larky_test_exp_nbf_boundaries():
@@ -672,25 +666,25 @@ def Larky_test_exp_nbf_boundaries():
 
 
 def Larky_test_error_types():
-    asserts.assert_fails(lambda: jwt.decode(jwt.encode({"aud": "x"}, key), key, audience="y"),
+    asserts.assert_fails(lambda: jwt.decode(jwt.encode({"aud": "x"}, key), key, audience="y", now=NOW),
                          "^JWTClaimsError: Invalid audience")
-    asserts.assert_fails(lambda: jwt.decode(jwt.encode({"iss": "x"}, key), key, issuer="y"),
+    asserts.assert_fails(lambda: jwt.decode(jwt.encode({"iss": "x"}, key), key, issuer="y", now=NOW),
                          "^JWTClaimsError: Invalid issuer")
-    asserts.assert_fails(lambda: jwt.decode(jwt.encode({"sub": "x"}, key), key, subject="y"),
+    asserts.assert_fails(lambda: jwt.decode(jwt.encode({"sub": "x"}, key), key, subject="y", now=NOW),
                          "^JWTClaimsError: Invalid subject")
     asserts.assert_fails(lambda: jwt.decode(jwt.encode({"exp": NOW - 1}, key), key, now=NOW),
                          "^ExpiredSignatureError: Signature has expired.")
-    asserts.assert_fails(lambda: jwt.decode(jwt.encode(claims, key), key, options={"require_jti": True}),
+    asserts.assert_fails(lambda: jwt.decode(jwt.encode(claims, key), key, options={"require_jti": True}, now=NOW),
                          "^JWTError: missing required key \"jti\" among claims")
-    asserts.assert_fails(lambda: jwt.decode(jwt.encode(claims, key), key, audience=1),
+    asserts.assert_fails(lambda: jwt.decode(jwt.encode(claims, key), key, audience=1, now=NOW),
                          "^JWTError: audience must be a string or None")
 
 
 def Larky_test_at_hash_algorithms():
     for alg in ["HS256", "HS384", "HS512"]:
         token = jwt.encode({"a": "b"}, key, algorithm=alg, access_token="<ACCESS_TOKEN>")
-        jwt.decode(token, key, algorithms=[alg], access_token="<ACCESS_TOKEN>")
-        asserts.assert_fails(lambda: jwt.decode(token, key, algorithms=[alg], access_token="other"),
+        jwt.decode(token, key, algorithms=[alg], access_token="<ACCESS_TOKEN>", now=NOW)
+        asserts.assert_fails(lambda: jwt.decode(token, key, algorithms=[alg], access_token="other", now=NOW),
                              "^JWTClaimsError: at_hash claim does not match access_token.")
 
 
@@ -708,19 +702,19 @@ def Larky_test_at_hash_unknown_algorithm():
     no_sig = {"verify_signature": False}
     for alg in ["none", "PS256", "foo"]:
         token = _unsigned(alg, {"a": "b", "at_hash": at_hash})
-        asserts.assert_fails(lambda: jwt.decode(token, key, options=no_sig, access_token="<ACCESS_TOKEN>"),
+        asserts.assert_fails(lambda: jwt.decode(token, key, options=no_sig, access_token="<ACCESS_TOKEN>", now=NOW),
                              "^KeyError: '%s'$" % alg)
         asserts.assert_fails(lambda: jwt.encode(claims, key, algorithm=alg, access_token="<ACCESS_TOKEN>"),
                              "^KeyError: '%s'$" % alg)
         # where upstream succeeds or raises a jose error, so does Larky
-        asserts.assert_fails(lambda: jwt.decode(token, key, options=no_sig),
+        asserts.assert_fails(lambda: jwt.decode(token, key, options=no_sig, now=NOW),
                              "^JWTClaimsError: No access_token provided to compare against at_hash claim.$")
         asserts.assert_that(jwt.decode(token, key, options={"verify_signature": False, "verify_at_hash": False},
-                                       access_token="<ACCESS_TOKEN>")).is_equal_to({"a": "b", "at_hash": at_hash})
+                                       access_token="<ACCESS_TOKEN>", now=NOW)).is_equal_to({"a": "b", "at_hash": at_hash})
         asserts.assert_that(jwt.decode(_unsigned(alg, {"a": "b"}), key, options=no_sig,
-                                       access_token="<ACCESS_TOKEN>")).is_equal_to({"a": "b"})
+                                       access_token="<ACCESS_TOKEN>", now=NOW)).is_equal_to({"a": "b"})
     token = _unsigned("HS256", {"a": "b", "at_hash": at_hash})
-    asserts.assert_that(jwt.decode(token, key, options=no_sig, access_token="<ACCESS_TOKEN>")).is_equal_to(
+    asserts.assert_that(jwt.decode(token, key, options=no_sig, access_token="<ACCESS_TOKEN>", now=NOW)).is_equal_to(
         {"a": "b", "at_hash": at_hash})
 
 
@@ -729,7 +723,7 @@ def Larky_test_claim_values_are_not_rewritten():
     token = jwt.encode(payload, key)
     asserts.assert_that(token).is_equal_to(SEPARATORS_UPSTREAM_TOKEN)
     asserts.assert_that(jwt.get_unverified_claims(token)).is_equal_to(payload)
-    asserts.assert_that(jwt.decode(token, key)).is_equal_to(payload)
+    asserts.assert_that(jwt.decode(token, key, now=NOW)).is_equal_to(payload)
     hdrs = jwt.get_unverified_headers(jwt.encode(claims, key, headers={"kid": "a, b: c"}))
     asserts.assert_that(hdrs["kid"]).is_equal_to("a, b: c")
 
@@ -804,7 +798,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(Larky_test_tampered_token))
     _suite.addTest(unittest.FunctionTestCase(Larky_test_alg_none_rejected))
     _suite.addTest(unittest.FunctionTestCase(Larky_test_malformed_token))
-    _suite.addTest(unittest.FunctionTestCase(Larky_test_time_claims_need_now))
+    _suite.addTest(unittest.FunctionTestCase(Larky_test_now_is_required))
     _suite.addTest(unittest.FunctionTestCase(Larky_test_exp_nbf_boundaries))
     _suite.addTest(unittest.FunctionTestCase(Larky_test_error_types))
     _suite.addTest(unittest.FunctionTestCase(Larky_test_at_hash_algorithms))

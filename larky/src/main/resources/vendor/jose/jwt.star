@@ -8,11 +8,10 @@
 # upstream, each also described in the docstring it affects:
 #
 # - Larky scripts cannot read the clock, so decode() takes a Larky-only
-#   `now=` argument (seconds since the epoch) for the exp and nbf checks.
-#   Without it, a token that carries exp or nbf is rejected unless that check
-#   is disabled through `options`. `now` must come from the host, not from
-#   anything the client sends: a client that chooses `now` can make an
-#   expired token pass.
+#   `now=` argument (seconds since the epoch) for the exp and nbf checks. It
+#   is required: decode() fails without it. `now` must come from the host,
+#   not from anything the client sends: a client that chooses `now` can make
+#   an expired token pass.
 # - There is no datetime module: exp/iat/nbf must already be NumericDate
 #   numbers in encode(), and options["leeway"] must be a number of seconds.
 # - Errors are raised with fail() as "<ExceptionName>: <message>", where the
@@ -143,10 +142,10 @@ def decode(token, key, algorithms=None, options=None, audience=None, issuer=None
                 'leeway': 0,
             }
 
-        now (int or float): Larky only. The current time in seconds since the
-            epoch, used to check the "exp" and "nbf" claims. Take it from the
-            host, never from the request or the token: a client that chooses
-            ``now`` can make an expired token pass.
+        now (int or float): Larky only, required. The current time in seconds
+            since the epoch, used to check the "exp" and "nbf" claims. Take it
+            from the host, never from the request or the token: a client that
+            chooses ``now`` can make an expired token pass.
 
     Returns:
         dict: The dict representation of the claims set, assuming the signature is valid
@@ -159,10 +158,8 @@ def decode(token, key, algorithms=None, options=None, audience=None, issuer=None
 
     Larky:
         - Upstream reads the current time from the system clock. Larky scripts
-          cannot, so the caller passes it as ``now``. If ``now`` is None and the
-          token has an "exp" (or "nbf") claim that is being verified, decode
-          raises JWTClaimsError instead of skipping the check; set
-          ``options={'verify_exp': False}`` (or ``'verify_nbf'``) to skip it.
+          cannot, so the caller must pass it as ``now``; decode raises JWTError
+          without it, even when the token has no "exp" or "nbf" claim.
         - ``options['leeway']`` must be a number of seconds; ``timedelta`` is
           not supported.
         - Errors are raised with ``fail()`` as "<name>: <message>", where name
@@ -203,8 +200,10 @@ def decode(token, key, algorithms=None, options=None, audience=None, issuer=None
     if options:
         defaults.update(options)
 
-    if now != None and not (types.is_int(now) or types.is_float(now)):
-        fail("JWTError: now must be a number of seconds since the epoch or None")
+    if now == None:
+        fail("JWTError: now is required: pass the current time from the host, in seconds since the epoch")
+    if not (types.is_int(now) or types.is_float(now)):
+        fail("JWTError: now must be a number of seconds since the epoch")
 
     verify_signature = defaults.get("verify_signature", True)
 
