@@ -95,5 +95,19 @@ def HMACKey(key, algorithm):
             ),
         }
     self.to_dict = to_dict
+
+    # python-jose's HMACKey inherits these from Key, which raises
+    # NotImplementedError; jwe reports it as "alg ... is not implemented".
+    def wrap_key(key_data):
+        fail("NotImplementedError: HMACKey cannot wrap a key")
+    self.wrap_key = wrap_key
+
+    def unwrap_key(wrapped_key):
+        fail("NotImplementedError: HMACKey cannot unwrap a key")
+    self.unwrap_key = unwrap_key
+
+    def unwrap(wrapped_key, headers=None, enc_alg=None):
+        return self.unwrap_key(wrapped_key)
+    self.unwrap = unwrap
     return self
 
