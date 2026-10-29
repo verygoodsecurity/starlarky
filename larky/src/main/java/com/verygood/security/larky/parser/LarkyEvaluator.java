@@ -8,6 +8,7 @@ import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
+import com.verygood.security.larky.modules.vgs.events.RecordedEvents;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -170,6 +171,7 @@ public final class LarkyEvaluator {
       StarlarkThread thread = StarlarkThread.createTransient(mu, getLarkySemantics());
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
+      maybeSetRecordedEventsThreadLocal(thread);
       thread.setPrintHandler(reporter::report);
 
       if (environment.containsKey(STEP_LIMIT) && environment.get(STEP_LIMIT) != null) {
@@ -488,6 +490,13 @@ public final class LarkyEvaluator {
   /**
    * Create the environment for all evaluations (will be shared between all the dependent files loaded).
    */
+  private void maybeSetRecordedEventsThreadLocal(StarlarkThread thread) {
+    Object binding = environment.get(RecordedEvents.BINDING_NAME);
+    if (binding instanceof RecordedEvents recordedEvents) {
+      thread.setThreadLocal(RecordedEvents.class, recordedEvents);
+    }
+  }
+
   // The bindings of each built-in module class. The classes are stateless (no fields), so one
   // instance per process serves every evaluation; sharing them is what lets cached modules, which
   // capture these values, be reused across evaluations (see ModuleCache).
