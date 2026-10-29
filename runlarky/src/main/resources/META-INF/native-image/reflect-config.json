@@ -322,7 +322,39 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.CerebroModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.ChaseModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.CodecsModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.CollectionsModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.CollectionsModule$LarkyNamedTuple"
   },
   {
       "allDeclaredFields": true,
@@ -338,7 +370,31 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.CyberSourceModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.ECDHModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.JsonModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.NetworkTokenModule"
   },
   {
       "allDeclaredFields": true,
@@ -386,7 +442,55 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.SysModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.VaultModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.XMLModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.ZLibModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.ZLibModule$LarkyCRC32"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.ZLibModule$LarkyDeflater"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.ZLibModule$LarkyInflater"
   },
   {
       "allDeclaredFields": true,
@@ -434,6 +538,14 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.Cipher.LarkyPKCS1"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.crypto.Cipher.LarkyStreamCipher"
   },
   {
@@ -458,7 +570,63 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.CryptoHashModule$1"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.CryptoHashModule$2"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.CryptoHashModule$3"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.CryptoHashModule$4"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.CryptoHashModule$5"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.crypto.CryptoIOModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.CryptoIOModule$PEM"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.CryptoIOModule$PKCS8"
   },
   {
       "allDeclaredFields": true,
@@ -570,7 +738,119 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.PublicKey.ECC.LarkyECCurve"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.PublicKey.ECC.LarkyECPoint"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.PublicKey.LarkyDigitalSignatureAlgorithm"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.PublicKey.LarkyEllipticCurveCryptography"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.crypto.Util.ASN1"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyASN1Encodable"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyASN1Sequence"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyDLTaggedObject"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyDerBitString"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyDerInteger"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyDerNull"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyDerObjectId"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyDerUTF8String"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyOctetString"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.Util.ASN1$LarkySetOf"
   },
   {
       "allDeclaredFields": true,
@@ -690,6 +970,54 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.testing.UnittestModule$LarkyTestRunner"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.testing.UnittestModule$LarkyTestSuite"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.types.LarkyCounter"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.types.LarkyCounter$AtomicLarkyCounter"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.types.LarkyCounter$NotThreadSafeLarkyCounter"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.types.LarkyMapping"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.types.LarkyObject"
   },
   {
@@ -723,6 +1051,30 @@
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.types.results.Error"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.types.results.LarkyAttributeError"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.types.results.LarkyIndexError"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.types.results.LarkyStopIteration"
   },
   {
       "allDeclaredFields": true,
@@ -826,6 +1178,46 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.vgs.PGPModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.TextAnalyzerModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.dto.TextPIIEntity"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.vgs.jks.JKSModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.vgs.metrics.MetricsModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.vgs.vault.NoopVault"
   },
   {
@@ -893,6 +1285,150 @@
       "name": "com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault"
   },
   {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.x509.LarkyKeyPair"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.x509.LarkyX509Certificate"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.xml.LarkyXMLNamespaceContext"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.LarkyClassMethod"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.LarkyClassMethod$LarkyClassMethodInstance"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.LarkyFunction"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.LarkyMethod"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.LarkyPyObject"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.LarkyStaticMethod"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.LarkyStaticMethod$LarkyStaticMethodInstance"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.LarkySuper"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.PyObject"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.descriptor.LarkyDescriptor"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.type.ForwardingLarkyType"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.type.LarkyBaseObjectType"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.type.LarkyProvidedTypeClass"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.type.LarkyType"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.objects.type.LarkyTypeObject"
+  },
+  {
       "name": "net.starlark.java.eval.BuiltinFunction",
       "allDeclaredFields": true,
       "allDeclaredMethods": true,
@@ -907,6 +1443,62 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.CompactImmutableDict"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.CompactImmutableDict$ArrayImmutableDict"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.CompactImmutableDict$DoubletonImmutableDict"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.CompactImmutableDict$EmptyImmutableDict"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.CompactImmutableDict$HashImmutableDict"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.CompactImmutableDict$LinearImmutableDict"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.CompactImmutableDict$SingletonImmutableDict"
   },
   {
       "name": "net.starlark.java.eval.CpuProfiler",
@@ -931,6 +1523,38 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.Dict$ImmutableKeyTrackingDict"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.Dict$ImmutableMapBackedDict"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.Dict$MapBackedDict"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.Dict$MutableDict"
   },
   {
       "name": "net.starlark.java.eval.Eval",
@@ -981,12 +1605,36 @@
       "allPublicConstructors": true
   },
   {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.ImmutableSingletonStarlarkList"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.ImmutableStarlarkList"
+  },
+  {
       "name": "net.starlark.java.eval.JNI",
       "allDeclaredFields": true,
       "allDeclaredMethods": true,
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.LazyImmutableStarlarkList"
   },
   {
       "name": "net.starlark.java.eval.MethodDescriptor",
@@ -1021,6 +1669,14 @@
       "allPublicConstructors": true
   },
   {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.MutableStarlarkList"
+  },
+  {
       "name": "net.starlark.java.eval.NoneType",
       "allDeclaredFields": true,
       "allDeclaredMethods": true,
@@ -1053,6 +1709,14 @@
       "allPublicConstructors": true
   },
   {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.RegularImmutableStarlarkList"
+  },
+  {
       "name": "net.starlark.java.eval.Sequence",
       "allDeclaredFields": true,
       "allDeclaredMethods": true,
@@ -1075,6 +1739,14 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.StarlarkBytes$StarlarkByteArray"
   },
   {
       "name": "net.starlark.java.eval.StarlarkCallable",
@@ -1141,6 +1813,14 @@
       "allPublicConstructors": true
   },
   {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.eval.StarlarkSet"
+  },
+  {
       "name": "net.starlark.java.eval.StarlarkThread",
       "allDeclaredFields": true,
       "allDeclaredMethods": true,
@@ -1179,5 +1859,21 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.ext.ByteStringModuleApi"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "net.starlark.java.lib.json.Json"
   }
 ]

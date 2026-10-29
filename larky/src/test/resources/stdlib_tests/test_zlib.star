@@ -173,11 +173,9 @@ def ExceptionTestCase_test_overflow():
 
 
 def _check_big_compress_buffer(size, compress_func):
-    _1M = 1024 * 1024
-    # Generate 10 MiB worth of random, and expand it by repeating it.
-    # The assumption is that zlib's memory is not big enough to exploit
-    # such spread out redundancy.
-    data = random.randbytes(_1M * 10)
+    # Generate 64 KiB worth of random (Larky's default random.randbytes limit;
+    # CPython's test uses 10 MiB), and expand it by repeating it.
+    data = random.randbytes(64 * 1024)
     data = data * (size // len(data) + 1)
     compress_func(data)
 
