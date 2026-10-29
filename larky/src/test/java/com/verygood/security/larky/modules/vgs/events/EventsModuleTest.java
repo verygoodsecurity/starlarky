@@ -13,7 +13,7 @@ class EventsModuleTest {
   @Test
   void recordWithoutThreadLocalIsNoOp() throws Exception {
     try (Mutability mu = Mutability.create("test")) {
-      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
       Object result =
           EventsModule.INSTANCE.record("evt", Starlark.NONE, thread);
       assertEquals(Starlark.NONE, result);
