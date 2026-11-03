@@ -4,6 +4,8 @@ import static com.verygood.security.larky.ModuleSupplier.CORE_ENVIRONMENT;
 import static com.verygood.security.larky.ModuleSupplier.CORE_MODULES;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+import com.verygood.security.larky.modules.vgs.events.RecordedEvents;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -85,7 +87,20 @@ public class VGSLibTests {
                                      Path pathToTestFile) {
         try {
             VGSLibTests.console.info("Running test: " + pathToTestFile.toAbsolutePath());
-            interpreter.evaluate(
+            LarkyScript runner = interpreter;
+            if (pathToTestFile.getParent() != null
+                    && "events".equals(pathToTestFile.getParent().getFileName().toString())) {
+                runner = new LarkyScript(
+                        CORE_MODULES,
+                        LarkyScript.StarlarkMode.STRICT,
+                        ImmutableMap.<String, Object>builder()
+                                .putAll(CORE_ENVIRONMENT)
+                                .put(RecordedEvents.BINDING_NAME, new RecordedEvents())
+                                .buildKeepingLast(),
+                        moduleSet
+                );
+            }
+            runner.evaluate(
                     new PathBasedStarFile(pathToTestFile.toAbsolutePath(), null, null),
                     moduleSet,
                     VGSLibTests.console
