@@ -62,8 +62,8 @@ mvn clean package -pl larky
 
 ### Runlarky
 
-_Runlarky_ is an example Larky invocation application
-It builds as a Quarkus executable and gives ability to run Larky with input parameters.
+_Runlarky_ is an example Larky invocation application.
+It is a picocli command-line application, built as a GraalVM native executable, that runs Larky with input parameters.
 
 To build run this command:
 ```bash
@@ -94,7 +94,14 @@ mvn -Dtest='StdLibTest*' -Dlarky.stdlib_test=test_bytes.star org.apache.maven.pl
 
 ## Developer setup
 
-In addition to having Maven installed, it must be configured to retrieve artifacts from Github.
+Building Starlarky requires JDK 21 or newer and Maven 3.9 or newer; a build of the whole project
+stops at the start with a message saying so if either is older. With those installed, build and
+install all modules from the repository root with:
+```bash
+mvn clean install
+```
+
+Maven must also be configured to retrieve artifacts from Github.
 1) Generate an access token using [Github's instructions](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).  The token needs `read:packages` scopes.
 2) You must enable SSO for verygoodsecurity
 
