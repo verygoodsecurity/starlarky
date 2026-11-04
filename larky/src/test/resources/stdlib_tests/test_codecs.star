@@ -39,6 +39,14 @@ def _test_decode():
     asserts.assert_fails(lambda: codecs.decode(b"\xff", "utf8", "bogus"), "^decoding\\ with\\ 'utf8'\\ codec\\ failed\\ \\(LookupError:\\ unknown\\ error\\ handler\\ name\\ 'bogus'\\)$")
     asserts.assert_that(codecs.decode(b"a", "utf8", "bogus")).is_equal_to("a")
     asserts.assert_that(codecs.decode(b"\x82\xa0", "shift_jis")).is_equal_to("\u3042")
+    # "utf-8", in any case, and the default encoding decode like every other spelling: no escaping
+    for encoding in ["utf-8", "UTF-8", "Utf-8"]:
+        asserts.assert_that(codecs.decode(b"a\"b\\c\n\t\xc3\xa9\xe2\x82\xac", encoding)).is_equal_to("a\"b\\c\n\t\u00e9\u20ac")
+    asserts.assert_that(codecs.decode(b"a\"b\\c\n\t\xc3\xa9\xe2\x82\xac")).is_equal_to("a\"b\\c\n\t\u00e9\u20ac")
+    asserts.assert_that(codecs.decode(b"a\xff", "utf-8", "replace")).is_equal_to("a\ufffd")
+    asserts.assert_that(codecs.decode(b"a\xff", "utf-8", "ignore")).is_equal_to("a")
+    asserts.assert_that(codecs.decode(b"a\xff", "utf-8", "backslashreplace")).is_equal_to("a\\xff")
+    asserts.assert_fails(lambda: codecs.decode(b"a\xff"), "^'utf\\-8'\\ codec\\ can't\\ decode\\ byte\\ 0xff\\ in\\ position\\ 1:\\ invalid\\ start\\ byte$")
 
 
 def _test_encode():
