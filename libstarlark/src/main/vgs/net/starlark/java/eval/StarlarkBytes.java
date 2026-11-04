@@ -99,6 +99,12 @@ public class StarlarkBytes implements ByteStringModuleApi,
       return false;
     }
 
+    /** As Python's repr, with Larky's bytes quoting: {@code bytearray(b"a\\xff")}. */
+    @Override
+    public void repr(Printer printer, StarlarkSemantics semantics) {
+      printer.append("bytearray(").append(quoteBytes(this.delegate.toArray())).append(")");
+    }
+
     @Override
     public Mutability mutability() {
       return mutability;
