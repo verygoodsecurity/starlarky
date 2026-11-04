@@ -234,6 +234,30 @@ public class LarkyScriptEngineTest {
   }
 
   @Test
+  public void testEvalTwiceInOneContext() throws ScriptException {
+    // the first run leaves json, re and x in the engine bindings; the second run's load()s
+    // must not read those back as modules
+    String json = "load('@stdlib//json', 'json')\nx = json.dumps({'a': 1})\n";
+    String re = "load('@stdlib//re', 're')\nx = re.match('a', 'a') != None\n";
+    for (String script : List.of(json, re)) {
+      instance.eval(script);
+      instance.eval(script);
+      CompiledScript compiled = ((Compilable) instance).compile(script);
+      compiled.eval();
+      compiled.eval();
+    }
+    assertEquals(true, instance.get("x"));
+  }
+
+  @Test
+  public void testHostBindingDoesNotShadowLoad() throws ScriptException {
+    Bindings bindings = new SimpleBindings();
+    bindings.put("json", "not a module");
+    instance.eval("load('@stdlib//json', 'json')\nx = json.dumps([1])\n", bindings);
+    assertEquals("[1]", bindings.get("x"));
+  }
+
+  @Test
   public void testGetFactory() {
     assertNotNull(instance);
 
