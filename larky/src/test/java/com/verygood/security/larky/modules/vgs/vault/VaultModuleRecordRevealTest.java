@@ -2,11 +2,17 @@ package com.verygood.security.larky.modules.vgs.vault;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.modules.VaultModule;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import net.starlark.java.eval.EvalException;
@@ -24,6 +30,9 @@ public class VaultModuleRecordRevealTest {
     public static void useInMemoryVault() {
         savedProperty = System.getProperty(VaultModule.ENABLE_INMEMORY_PROPERTY);
         System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "true");
+        // VaultModule.INSTANCE, which scripts use, is built when the class first loads. Load it now,
+        // with the in-memory vault selected, so no test below decides which vault scripts get.
+        assertNotNull(VaultModule.INSTANCE);
     }
 
     @AfterAll
@@ -91,39 +100,65 @@ public class VaultModuleRecordRevealTest {
         assertThrows(EvalException.class, () -> module.reveal("alias", "unknown", "record-a"));
     }
 
+    /** A provider written against the two-argument SPI, before the record overloads existed. */
+    public static class LegacyProvider implements LarkyVault {
+        public static final List<String> DELETED = new ArrayList<>();
+
+        @Override
+        public Object redact(Object v, Object s, Object f, List<Object> t, Object d) {
+            return v;
+        }
+
+        @Override
+        public Object reveal(Object value, Object storage) {
+            return "plain:" + value;
+        }
+
+        @Override
+        public void delete(Object value, Object storage) {
+            DELETED.add(String.valueOf(value));
+        }
+
+        @Override
+        public Object sign(String keyId, String message, String algorithm) {
+            return message;
+        }
+
+        @Override
+        public Object verify(String keyId, String message, String signature, String algorithm) {
+            return false;
+        }
+    }
+
     @Test
-    public void aVaultWithoutRecordSupportRejectsARecordButServesPlainReveals() throws Exception {
-        // A LarkyVault written against the 2-arg SPI, reached through the same default method
-        // VaultModule calls on whatever provider is installed.
-        LarkyVault legacy = new LarkyVault() {
-            @Override
-            public Object redact(Object v, Object s, Object f, List<Object> t, Object d) {
-                return v;
-            }
+    public void aLegacyProviderServesPlainCallsAndRejectsARecordThroughTheModule() throws Exception {
+        Path config = Paths.get("target", "test-classes", "META-INF", "services",
+                "com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault");
+        String saved = new String(Files.readAllBytes(config), StandardCharsets.UTF_8);
+        try {
+            Files.write(config, LegacyProvider.class.getName().getBytes(StandardCharsets.UTF_8));
+            System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "false");
+            VaultModule module = new VaultModule();
+            assertEquals(LegacyProvider.class, module.getVault().getClass());
 
-            @Override
-            public Object reveal(Object value, Object storage) {
-                return "plain:" + value;
-            }
+            assertEquals("plain:a", module.reveal("a", Starlark.NONE));
+            assertEquals("plain:a", module.reveal("a", Starlark.NONE, Starlark.NONE));
+            module.delete("a", Starlark.NONE);
+            module.delete("b", Starlark.NONE, Starlark.NONE);
+            assertEquals(List.of("a", "b"), LegacyProvider.DELETED);
 
-            @Override
-            public void delete(Object value, Object storage) {}
-
-            @Override
-            public Object sign(String keyId, String message, String algorithm) {
-                return message;
-            }
-
-            @Override
-            public Object verify(String keyId, String message, String signature, String algorithm) {
-                return false;
-            }
-        };
-
-        assertEquals("plain:a", legacy.reveal("a", Starlark.NONE, Starlark.NONE));
-        EvalException e = assertThrows(EvalException.class,
-                () -> legacy.reveal("a", Starlark.NONE, "record-a"));
-        assertEquals("this vault does not support record-scoped reveal", e.getMessage());
+            EvalException r = assertThrows(EvalException.class,
+                    () -> module.reveal("a", Starlark.NONE, "record-a"));
+            assertEquals("this vault does not support record-scoped reveal", r.getMessage());
+            EvalException d = assertThrows(EvalException.class,
+                    () -> module.delete("a", Starlark.NONE, "record-a"));
+            assertEquals("this vault does not support record-scoped delete", d.getMessage());
+            assertEquals(List.of("a", "b"), LegacyProvider.DELETED);
+        } finally {
+            Files.write(config, saved.getBytes(StandardCharsets.UTF_8));
+            System.setProperty(VaultModule.ENABLE_INMEMORY_PROPERTY, "true");
+            LegacyProvider.DELETED.clear();
+        }
     }
 
     @Test
