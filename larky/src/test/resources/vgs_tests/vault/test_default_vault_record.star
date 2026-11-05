@@ -113,6 +113,17 @@ def _test_delete_record_is_keyword_only():
 def _test_delete_empty_record():
     asserts.assert_fails(lambda : vault.delete("tok_123", record=""), "record must not be empty")
 
+def _test_synthetic_format_passes_validation_and_default_vault_rejects_it():
+    # VaultModule accepts the format, so the call reaches the provider; DefaultVault has no generator for it.
+    asserts.assert_fails(
+        lambda : vault.redact(
+            "example-secret-12",
+            format="SYNTHETIC",
+            decorator_config={"kind": "example", "record": "record-a"}
+        ),
+        "Format 'SYNTHETIC' is not supported"
+    )
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_reveal_with_record))
@@ -131,6 +142,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_delete_without_record_still_works))
     _suite.addTest(unittest.FunctionTestCase(_test_delete_record_is_keyword_only))
     _suite.addTest(unittest.FunctionTestCase(_test_delete_empty_record))
+    _suite.addTest(unittest.FunctionTestCase(_test_synthetic_format_passes_validation_and_default_vault_rejects_it))
     return _suite
 
 _runner = unittest.TextTestRunner()

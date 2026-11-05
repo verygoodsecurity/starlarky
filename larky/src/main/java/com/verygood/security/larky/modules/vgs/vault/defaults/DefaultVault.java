@@ -40,6 +40,7 @@ public class DefaultVault implements LarkyVault {
             .put("FPE_ALPHANUMERIC_ACC_NUM_T_FOUR", new NoopAliasGenerator("FPE_ALPHANUMERIC_ACC_NUM_T_FOUR"))
             .put("GENERIC_T_FOUR", new NoopAliasGenerator("GENERIC_T_FOUR"))
             .put("ALPHANUMERIC_SIX_T_FOUR", new NoopAliasGenerator("ALPHANUMERIC_SIX_T_FOUR"))
+            .put("SYNTHETIC", new NoopAliasGenerator("SYNTHETIC"))
             .build();
 
     @Override
