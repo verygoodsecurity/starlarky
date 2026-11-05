@@ -14,10 +14,13 @@ import net.starlark.java.eval.Starlark;
 
 public class DefaultVault implements LarkyVault {
 
-    private final Map<String, Object> persistentVaultStorage = new HashMap<>();
-    private final Map<String, Object> volatileVaultStorage = new HashMap<>();
+    /** Entries are keyed on (record, alias); record is null for aliases stored without a record. */
+    private record StorageKey(String record, String alias) {}
 
-    private final ImmutableMap<String, Map<String, Object>> storageConfig = ImmutableMap.of(
+    private final Map<StorageKey, Object> persistentVaultStorage = new HashMap<>();
+    private final Map<StorageKey, Object> volatileVaultStorage = new HashMap<>();
+
+    private final ImmutableMap<String, Map<StorageKey, Object>> storageConfig = ImmutableMap.of(
             "persistent", persistentVaultStorage,
             "volatile", volatileVaultStorage
     );
@@ -42,13 +45,14 @@ public class DefaultVault implements LarkyVault {
     @Override
     public Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException {
         String sValue = getValue(value);
+        String record = getRecord(decoratorConfig);
         AliasGenerator generator = getAliasGenerator(format);
         Optional<AliasDecorator> aliasDecorator = resolveAliasDecorator(decoratorConfig, generator);
 
         String alias = aliasDecorator.isPresent()
             ? aliasDecorator.get().tokenize(sValue)
             : generator.generate(sValue);
-        getStorage(storage).put(alias, value);
+        getStorage(storage).put(new StorageKey(record, alias), value);
         return alias;
     }
 
@@ -68,15 +72,20 @@ public class DefaultVault implements LarkyVault {
 
     @Override
     public Object reveal(Object value, Object storage) throws EvalException {
+        return reveal(value, storage, Starlark.NONE);
+    }
+
+    @Override
+    public Object reveal(Object value, Object storage, Object record) throws EvalException {
         String sValue = getValue(value);
-        Object secret = getStorage(storage).get(sValue);
+        Object secret = getStorage(storage).get(new StorageKey(getRecordName(record), sValue));
         return secret == null ? sValue : secret; // return value of alias if secret not found
     }
 
     @Override
     public void delete(Object value, Object storage) throws EvalException {
         String sValue = getValue(value);
-        getStorage(storage).remove(sValue);
+        getStorage(storage).remove(new StorageKey(null, sValue));
     }
 
     // These don't make a ton of sense in memory, we could hash and return if we really wanted to.
@@ -98,7 +107,32 @@ public class DefaultVault implements LarkyVault {
         return value.toString();
     }
 
-    private Map<String, Object> getStorage(Object storage) throws EvalException {
+    /** The record named by a decorator config's "record" entry, or null when it names none. */
+    private String getRecord(Object decoratorConfig) throws EvalException {
+        if (!(decoratorConfig instanceof Map<?, ?> config) || !config.containsKey("record")) {
+            return null;
+        }
+        return getRecordName(config.get("record"));
+    }
+
+    /** Validates a record: null for None, otherwise a non-empty String. */
+    private String getRecordName(Object record) throws EvalException {
+        if (record == null || record instanceof NoneType) {
+            return null;
+        }
+        if (!(record instanceof String name)) {
+            throw Starlark.errorf(String.format(
+                    "Record of type %s is not supported in DefaultVault, expecting String",
+                    record.getClass().getName()
+            ));
+        }
+        if (name.isEmpty()) {
+            throw Starlark.errorf("record must not be empty");
+        }
+        return name;
+    }
+
+    private Map<StorageKey, Object> getStorage(Object storage) throws EvalException {
 
         if (storage instanceof NoneType) { // Use persistent storage by default
             return persistentVaultStorage;
