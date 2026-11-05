@@ -86,6 +86,18 @@ def _test_volatile_storage():
     asserts.assert_that(revealed_card_number_volatile).is_equal_to(card_number)
     asserts.assert_that(revealed_card_number_persistent).is_equal_to(redacted_card_number)
 
+def _test_storage_name_ignores_case():
+    card_number = "4111111111111119"
+    redacted_card_number = vault.redact(card_number, storage="VOLATILE")
+    asserts.assert_that(vault.reveal(redacted_card_number, storage="Volatile")).is_equal_to(card_number)
+    asserts.assert_that(vault.reveal(redacted_card_number, storage="volatile")).is_equal_to(card_number)
+    asserts.assert_that(vault.reveal(redacted_card_number, storage="PERSISTENT")).is_equal_to(redacted_card_number)
+    vault.delete(redacted_card_number, storage="VOLATILE")
+    asserts.assert_that(vault.reveal(redacted_card_number, storage="volatile")).is_equal_to(redacted_card_number)
+    asserts.assert_fails(lambda : vault.redact(card_number, storage="UNKNOWN"),
+            "Storage 'UNKNOWN' not found in supported storage types: \\[persistent, volatile\\]"
+    )
+
 def _test_unknown_storage():
     card_number = "4111111111111116"
     asserts.assert_fails(lambda : vault.redact(card_number, storage="unknown"),
@@ -289,6 +301,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_persistent_storage))
     _suite.addTest(unittest.FunctionTestCase(_test_volatile_storage))
     _suite.addTest(unittest.FunctionTestCase(_test_unknown_storage))
+    _suite.addTest(unittest.FunctionTestCase(_test_storage_name_ignores_case))
 
     # Format Tests
     _suite.addTest(unittest.FunctionTestCase(_test_unknown_format))
