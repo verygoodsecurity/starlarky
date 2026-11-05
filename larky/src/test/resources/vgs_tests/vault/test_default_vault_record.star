@@ -72,6 +72,47 @@ def _test_redact_with_kind_only_is_unscoped():
 
     asserts.assert_that(vault.reveal(alias)).is_equal_to(secret)
 
+def _test_reveal_record_is_keyword_only():
+    asserts.assert_fails(
+        lambda : vault.reveal("tok_123", "persistent", "record-a"),
+        "accepts no more than 2 positional arguments"
+    )
+
+def _test_delete_with_record():
+    secret = "example-secret-9"
+    alias = vault.redact(secret, decorator_config={"kind": "example", "record": "record-a"})
+
+    vault.delete(alias, record="record-b")
+    asserts.assert_that(vault.reveal(alias, record="record-a")).is_equal_to(secret)
+    vault.delete(alias)
+    asserts.assert_that(vault.reveal(alias, record="record-a")).is_equal_to(secret)
+    vault.delete(alias, record="record-a")
+    asserts.assert_that(vault.reveal(alias, record="record-a")).is_equal_to(alias)
+
+def _test_delete_with_record_and_storage():
+    secret = "example-secret-10"
+    alias = vault.redact(secret, storage="volatile", decorator_config={"record": "record-a"})
+
+    vault.delete(alias, storage="persistent", record="record-a")
+    asserts.assert_that(vault.reveal(alias, storage="volatile", record="record-a")).is_equal_to(secret)
+    vault.delete(alias, storage="volatile", record="record-a")
+    asserts.assert_that(vault.reveal(alias, storage="volatile", record="record-a")).is_equal_to(alias)
+
+def _test_delete_without_record_still_works():
+    secret = "example-secret-11"
+    alias = vault.redact(secret)
+    vault.delete(alias)
+    asserts.assert_that(vault.reveal(alias)).is_equal_to(alias)
+
+def _test_delete_record_is_keyword_only():
+    asserts.assert_fails(
+        lambda : vault.delete("tok_123", "persistent", "record-a"),
+        "accepts no more than 2 positional arguments"
+    )
+
+def _test_delete_empty_record():
+    asserts.assert_fails(lambda : vault.delete("tok_123", record=""), "record must not be empty")
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_reveal_with_record))
@@ -84,6 +125,12 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_reveal_invalid_record_type))
     _suite.addTest(unittest.FunctionTestCase(_test_reveal_backward_compatible))
     _suite.addTest(unittest.FunctionTestCase(_test_redact_with_kind_only_is_unscoped))
+    _suite.addTest(unittest.FunctionTestCase(_test_reveal_record_is_keyword_only))
+    _suite.addTest(unittest.FunctionTestCase(_test_delete_with_record))
+    _suite.addTest(unittest.FunctionTestCase(_test_delete_with_record_and_storage))
+    _suite.addTest(unittest.FunctionTestCase(_test_delete_without_record_still_works))
+    _suite.addTest(unittest.FunctionTestCase(_test_delete_record_is_keyword_only))
+    _suite.addTest(unittest.FunctionTestCase(_test_delete_empty_record))
     return _suite
 
 _runner = unittest.TextTestRunner()
