@@ -43,6 +43,7 @@ import com.verygood.security.larky.modules.X509Module;
 import com.verygood.security.larky.modules.XMLModule;
 import com.verygood.security.larky.modules.ZLibModule;
 import com.verygood.security.larky.modules.vgs.PGPModule;
+import com.verygood.security.larky.modules.vgs.synthetic.SyntheticModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.vgs.jks.JKSModule;
@@ -112,6 +113,7 @@ public class ModuleSupplier {
       MetricsModule.INSTANCE,
       NetworkTokenModule.INSTANCE,
       PGPModule.INSTANCE,
+      SyntheticModule.INSTANCE,
       VaultModule.INSTANCE
   );
 
