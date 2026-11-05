@@ -132,8 +132,8 @@ public class DefaultVault implements LarkyVault {
                     record.getClass().getName()
             ));
         }
-        if (name.isEmpty()) {
-            throw Starlark.errorf("record must not be empty");
+        if (name.isBlank()) {
+            throw Starlark.errorf("record must not be empty or blank");
         }
         return name;
     }

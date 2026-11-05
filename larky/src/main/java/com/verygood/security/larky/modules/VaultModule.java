@@ -376,8 +376,18 @@ public class VaultModule implements LarkyVault {
     }
 
     private void validateRecord(Object record) throws EvalException {
-        if (record instanceof String name && name.isEmpty()) {
-            throw Starlark.errorf("record must not be empty");
+        if (record == null || record instanceof NoneType) {
+            return;
+        }
+        // Scripts cannot pass a non-String (the parameter is typed), but Java callers can.
+        if (!(record instanceof String name)) {
+            throw Starlark.errorf(String.format(
+                "Record of type %s is not supported in VAULT, expecting String",
+                record.getClass().getName()
+            ));
+        }
+        if (name.isBlank()) {
+            throw Starlark.errorf("record must not be empty or blank");
         }
     }
 

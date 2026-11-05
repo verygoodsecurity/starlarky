@@ -41,12 +41,20 @@ def _test_reveal_record_with_storage():
     asserts.assert_that(vault.reveal(alias, storage="volatile")).is_equal_to(alias)
 
 def _test_reveal_empty_record():
-    asserts.assert_fails(lambda : vault.reveal("tok_123", record=""), "record must not be empty")
+    asserts.assert_fails(lambda : vault.reveal("tok_123", record=""), "record must not be empty or blank")
+
+def _test_whitespace_only_record():
+    asserts.assert_fails(lambda : vault.reveal("tok_123", record="   "), "record must not be empty or blank")
+    asserts.assert_fails(lambda : vault.delete("tok_123", record="\t"), "record must not be empty or blank")
+    asserts.assert_fails(
+        lambda : vault.redact("example-secret-13", decorator_config={"record": " "}),
+        "record must not be empty or blank"
+    )
 
 def _test_redact_empty_record():
     asserts.assert_fails(
         lambda : vault.redact("example-secret-6", decorator_config={"record": ""}),
-        "record must not be empty"
+        "record must not be empty or blank"
     )
 
 def _test_reveal_invalid_record_type():
@@ -111,7 +119,7 @@ def _test_delete_record_is_keyword_only():
     )
 
 def _test_delete_empty_record():
-    asserts.assert_fails(lambda : vault.delete("tok_123", record=""), "record must not be empty")
+    asserts.assert_fails(lambda : vault.delete("tok_123", record=""), "record must not be empty or blank")
 
 def _test_synthetic_format_passes_validation_and_default_vault_rejects_it():
     # VaultModule accepts the format, so the call reaches the provider; DefaultVault has no generator for it.
@@ -132,6 +140,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_reveal_with_record_ignores_unscoped_alias))
     _suite.addTest(unittest.FunctionTestCase(_test_reveal_record_with_storage))
     _suite.addTest(unittest.FunctionTestCase(_test_reveal_empty_record))
+    _suite.addTest(unittest.FunctionTestCase(_test_whitespace_only_record))
     _suite.addTest(unittest.FunctionTestCase(_test_redact_empty_record))
     _suite.addTest(unittest.FunctionTestCase(_test_reveal_invalid_record_type))
     _suite.addTest(unittest.FunctionTestCase(_test_reveal_backward_compatible))

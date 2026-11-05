@@ -83,9 +83,12 @@ public class DefaultVaultRecordTest {
     }
 
     @Test
-    public void emptyRecordIsRejectedAtRedactAndReveal() {
-        assertThrows(EvalException.class, () -> redact(Starlark.NONE, config("")));
-        assertThrows(EvalException.class, () -> vault.reveal("alias", Starlark.NONE, ""));
+    public void emptyOrBlankRecordIsRejectedAtRedactAndReveal() {
+        for (String blank : new String[] {"", " ", "\t", " \n "}) {
+            assertThrows(EvalException.class, () -> redact(Starlark.NONE, config(blank)));
+            assertThrows(EvalException.class, () -> vault.reveal("alias", Starlark.NONE, blank));
+            assertThrows(EvalException.class, () -> vault.delete("alias", Starlark.NONE, blank));
+        }
     }
 
     @Test

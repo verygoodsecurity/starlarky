@@ -40,7 +40,37 @@ public class VaultModuleRecordRevealTest {
         VaultModule module = new VaultModule();
         EvalException e = assertThrows(EvalException.class,
                 () -> module.reveal("alias", Starlark.NONE, ""));
-        assertEquals("record must not be empty", e.getMessage());
+        assertEquals("record must not be empty or blank", e.getMessage());
+    }
+
+    @Test
+    public void blankRecordsAreRejectedOnRevealAndDelete() {
+        VaultModule module = new VaultModule();
+        for (String blank : new String[] {"", " ", "   ", "\t", "\n", " \t\n "}) {
+            EvalException r = assertThrows(EvalException.class,
+                    () -> module.reveal("alias", Starlark.NONE, blank));
+            assertEquals("record must not be empty or blank", r.getMessage());
+            EvalException d = assertThrows(EvalException.class,
+                    () -> module.delete("alias", Starlark.NONE, blank));
+            assertEquals("record must not be empty or blank", d.getMessage());
+        }
+    }
+
+    @Test
+    public void nonStringRecordsFromJavaCallersAreRejected() {
+        VaultModule module = new VaultModule();
+        assertThrows(EvalException.class, () -> module.reveal("alias", Starlark.NONE, 1));
+        assertThrows(EvalException.class, () -> module.delete("alias", Starlark.NONE, 1));
+        assertThrows(EvalException.class, () -> module.reveal("alias", Starlark.NONE, List.of("a")));
+    }
+
+    @Test
+    public void aRecordWithSurroundingSpacesButContentIsAccepted() throws Exception {
+        VaultModule module = new VaultModule();
+        String alias = (String) module.redact("example-secret", Starlark.NONE, Starlark.NONE,
+                Collections.emptyList(), ImmutableMap.of("record", " record-a "));
+        assertEquals("example-secret", module.reveal(alias, Starlark.NONE, " record-a "));
+        assertEquals(alias, module.reveal(alias, Starlark.NONE, "record-a"));
     }
 
     @Test
@@ -115,7 +145,7 @@ public class VaultModuleRecordRevealTest {
         VaultModule module = new VaultModule();
         EvalException e = assertThrows(EvalException.class,
                 () -> module.delete("alias", Starlark.NONE, ""));
-        assertEquals("record must not be empty", e.getMessage());
+        assertEquals("record must not be empty or blank", e.getMessage());
         assertThrows(EvalException.class, () -> module.delete("alias", "unknown", "record-a"));
     }
 }
