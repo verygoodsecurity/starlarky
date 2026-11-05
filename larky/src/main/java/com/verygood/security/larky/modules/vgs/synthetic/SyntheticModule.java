@@ -43,25 +43,39 @@ public class SyntheticModule implements StarlarkValue {
           "age");
 
   private static final Pattern COUNTRY = Pattern.compile("[A-Z]{2}");
-  private static final Pattern LOCALE = Pattern.compile("(?:[A-Za-z]{2}[_-])?([A-Za-z]{2})");
+  private static final Pattern LANGUAGE_COUNTRY = Pattern.compile("[A-Za-z]{2}[_-]([A-Za-z]{2})");
+  private static final Pattern BARE_COUNTRY = Pattern.compile("[A-Z]{2}");
+  private static final Pattern BARE_OTHER = Pattern.compile("[A-Za-z]{2}");
 
   /**
-   * The country of a locale: {@code xx_CC} or {@code xx-CC} gives {@code CC}, and a bare two-letter
-   * country {@code CC} gives itself, all upper-cased.
+   * The country of a locale: {@code xx_CC} or {@code xx-CC} in any case gives {@code CC}, and a
+   * bare upper-case country {@code CC} gives itself, all upper-cased.
+   *
+   * <p>A bare lower-case value such as {@code en} is rejected: in faker-style locales a bare value
+   * is a language, not a country, so accepting it would read {@code "en"} as the country EN.
    */
   public static String countryOfLocale(String locale) throws EvalException {
-    java.util.regex.Matcher m = LOCALE.matcher(locale);
-    if (!m.matches()) {
+    java.util.regex.Matcher m = LANGUAGE_COUNTRY.matcher(locale);
+    if (m.matches()) {
+      return m.group(1).toUpperCase(java.util.Locale.ROOT);
+    }
+    if (BARE_COUNTRY.matcher(locale).matches()) {
+      return locale;
+    }
+    if (BARE_OTHER.matcher(locale).matches()) {
       throw Starlark.errorf(
-          "Invalid locale '%s': expected 'xx_CC', 'xx-CC' or a two-letter country code such as 'GB'",
+          "Invalid locale '%s': a bare lower-case value is a language code in faker-style locales, "
+              + "not a country; pass 'en_GB' (language and country) or 'GB' (country)",
           locale);
     }
-    return m.group(1).toUpperCase(java.util.Locale.ROOT);
+    throw Starlark.errorf(
+        "Invalid locale '%s': expected 'xx_CC', 'xx-CC' or an upper-case two-letter country code such as 'GB'",
+        locale);
   }
 
   @StarlarkMethod(
       name = "locale_country",
-      doc = "The upper-case country code of a locale such as 'en_GB', 'en-GB' or 'GB'.",
+      doc = "The upper-case country code of a locale such as 'en_GB', 'en-GB' or 'GB'. A bare lower-case value is a language, not a country, and is rejected.",
       parameters = {@Param(name = "locale", doc = "the locale", allowedTypes = {@ParamType(type = String.class)})})
   public String localeCountry(String locale) throws EvalException {
     return countryOfLocale(locale);

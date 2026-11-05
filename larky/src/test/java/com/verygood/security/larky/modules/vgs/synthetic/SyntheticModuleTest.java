@@ -21,12 +21,23 @@ public class SyntheticModuleTest {
     @Test
     public void parsesLocales() throws Exception {
         String[][] cases = {
-            {"en_GB", "GB"}, {"en-GB", "GB"}, {"GB", "GB"}, {"gb", "GB"}, {"en_gb", "GB"},
-            {"EN-gb", "GB"}, {"fr_FR", "FR"}, {"de", "DE"}
+            {"en_GB", "GB"}, {"en-GB", "GB"}, {"GB", "GB"}, {"en_gb", "GB"}, {"EN-gb", "GB"},
+            {"EN_GB", "GB"}, {"fr_FR", "FR"}, {"DE", "DE"}, {"fr-fr", "FR"}
         };
         for (String[] c : cases) {
             assertEquals(c[1], SyntheticModule.countryOfLocale(c[0]), c[0]);
             assertEquals(c[1], MODULE.localeCountry(c[0]), c[0]);
+        }
+    }
+
+    @Test
+    public void rejectsABareLowerCaseValueAsALanguageCode() {
+        for (String locale : new String[] {"cy", "en", "de", "gb", "Gb", "gB"}) {
+            EvalException e = assertThrows(EvalException.class,
+                    () -> SyntheticModule.countryOfLocale(locale), locale);
+            assertTrue(e.getMessage().startsWith("Invalid locale '" + locale + "'"), e.getMessage());
+            assertTrue(e.getMessage().contains("language code"), e.getMessage());
+            assertTrue(e.getMessage().contains("'en_GB'") && e.getMessage().contains("'GB'"), e.getMessage());
         }
     }
 
@@ -99,6 +110,28 @@ public class SyntheticModuleTest {
         }
         assertThrows(EvalException.class,
                 () -> MODULE.aliasSpec("age", "r", "GB", Starlark.NONE, false, " "));
+    }
+
+    @Test
+    public void textFormsNeverContainTheDateOfBirth() throws Exception {
+        String dob = "1987-06-05";
+        AliasSpec spec = MODULE.aliasSpec("age", "record-a", "GB", Starlark.NONE, false, dob);
+        String[] forms = {
+            spec.toString(),
+            Starlark.repr(spec, net.starlark.java.eval.StarlarkSemantics.DEFAULT),
+            Starlark.str(spec, net.starlark.java.eval.StarlarkSemantics.DEFAULT),
+            String.format("%s", spec),
+            "" + spec,
+        };
+        for (String form : forms) {
+            assertTrue(!form.contains(dob) && !form.contains("1987"), form);
+            assertTrue(form.contains("dob=<set>"), form);
+            assertTrue(form.contains("record-a"), form);
+        }
+        // The value itself is still available to the vault.
+        assertEquals(dob, spec.getDecoratorConfigMap().get("dob"));
+        // Other kinds print their config in full.
+        assertTrue(spec("city").toString().contains("kind=city"));
     }
 
     @Test

@@ -1,6 +1,8 @@
 package com.verygood.security.larky.modules.vgs.synthetic;
 
 import com.google.common.collect.ImmutableMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -81,7 +83,7 @@ public final class AliasSpec implements StarlarkValue {
 
   @Override
   public void repr(Printer printer, StarlarkSemantics semantics) {
-    printer.append("alias_spec(").append(decoratorConfig.toString()).append(")");
+    printer.append("alias_spec(").append(describe()).append(")");
   }
 
   @Override
@@ -96,6 +98,21 @@ public final class AliasSpec implements StarlarkValue {
 
   @Override
   public String toString() {
-    return "AliasSpec" + decoratorConfig;
+    return "AliasSpec" + describe();
+  }
+
+  /**
+   * The config as text for logs and error messages. A date of birth is personal data about a real
+   * person, so it is shown only as {@code <set>}.
+   */
+  private String describe() {
+    Map<String, Object> shown = new LinkedHashMap<>(decoratorConfig);
+    shown.computeIfPresent("dob", (k, v) -> new Object() {
+      @Override
+      public String toString() {
+        return "<set>";
+      }
+    });
+    return shown.toString();
   }
 }

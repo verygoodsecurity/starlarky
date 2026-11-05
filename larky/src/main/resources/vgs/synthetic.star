@@ -10,7 +10,8 @@
     vault.reveal(alias, record=customer_id)   # the same as fake.reveal(alias)
 
 `Faker(locale, record, email_domain=None, allow_unreserved_phone=False)` binds a locale and a
-record. `locale` is `xx_CC`, `xx-CC` or a bare two-letter country `CC`; only the country is used.
+record. `locale` is `xx_CC` or `xx-CC` (any case), or a bare upper-case country `CC`; only the country is used.
+A bare lower-case value such as `en` is rejected, because faker-style bare values are language codes.
 `record` is required and must not be blank: a SYNTHETIC alias is only unique within its record, so
 the same record must be given to reveal it.
 
@@ -23,7 +24,7 @@ Each generator method returns an immutable spec to pass as `vault.redact(..., al
     country()         country           date_of_birth()   dob
     phone_number()    phone             age(dob=None)     age
 
-`email_domain` applies to email(), `allow_unreserved_phone` to phone_number(), and `dob` to age().
+`email_domain` applies to email(), `allow_unreserved_phone` to phone_number(), and `dob` to age(). A dob must be a string (for example ISO 8601, `1990-05-17`).
 """
 
 load("@vgs//native_synthetic", _native="native_synthetic")
@@ -31,18 +32,16 @@ load("@vgs//vault", "vault")
 load("@stdlib//larky", larky="larky")
 
 def _dob_text(dob):
-    """Returns dob as text; dates and datetimes are written in ISO 8601 form."""
-    if dob == None or type(dob) == "string":
-        return dob
-    if hasattr(dob, "isoformat"):
-        return dob.isoformat()
-    fail("dob must be a string or a date, not %s" % type(dob))
+    """Returns dob, which must be a string or None."""
+    if dob != None and type(dob) != "string":
+        fail("dob must be a string, not %s" % type(dob))
+    return dob
 
 def Faker(locale, record, email_domain = None, allow_unreserved_phone = False):
     """Creates a Faker for a locale and a record.
 
     Args:
-      locale: `xx_CC`, `xx-CC` or a two-letter country code.
+      locale: `xx_CC` or `xx-CC` in any case, or an upper-case two-letter country code.
       record: the record every alias made by this Faker belongs to; not blank.
       email_domain: the domain of email() addresses.
       allow_unreserved_phone: let phone_number() leave the reserved fictional ranges.

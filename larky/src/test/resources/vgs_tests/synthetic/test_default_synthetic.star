@@ -50,14 +50,32 @@ def _test_options_are_carried_when_set():
 def _test_specs_are_immutable():
     spec = Faker("GB", record = "record-a").city()
     asserts.assert_fails(lambda: spec.decorator_config.update({"kind": "x"}), "trying to mutate a frozen dict value")
-    asserts.assert_fails(lambda: setattr(spec, "kind", "x"), "")
+
+def _test_spec_fields_cannot_be_assigned():
+    spec = Faker("GB", record = "record-a").city()
+    asserts.assert_fails(lambda: setattr(spec, "kind", "x"), "type\\(alias_spec\\) does not support setattr.*")
+
+def _test_text_forms_never_contain_the_date_of_birth():
+    spec = Faker("GB", record = "record-a").age(dob = "1987-06-05")
+    for text in [repr(spec), str(spec), "%s" % spec, "%r" % spec, "{}".format(spec)]:
+        asserts.assert_true("1987" not in text, text)
+        asserts.assert_true("dob=<set>" in text, text)
+        asserts.assert_true("record-a" in text, text)
+    asserts.assert_that(spec.decorator_config["dob"]).is_equal_to("1987-06-05")
 
 def _test_locale_parsing():
-    for locale in ["en_GB", "en-GB", "GB", "gb", "en_gb", "EN-gb"]:
+    for locale in ["en_GB", "en-GB", "GB", "en_gb", "EN-gb", "EN_GB"]:
         asserts.assert_that(Faker(locale, record = "r").city().country).is_equal_to("GB")
     asserts.assert_that(Faker("fr_FR", record = "r").city().country).is_equal_to("FR")
     for locale in ["", "G", "GBR", "eng_GB", "en_GBR", "en GB", "en_GB_x", "_GB", "en_"]:
-        asserts.assert_fails(lambda: Faker(locale, record = "r"), "Invalid locale")
+        asserts.assert_fails(lambda: Faker(locale, record = "r"), "Invalid locale.*")
+
+def _test_bare_lower_case_locale_is_a_language_not_a_country():
+    for locale in ["cy", "en", "de", "gb"]:
+        asserts.assert_fails(
+            lambda: Faker(locale, record = "r"),
+            "Invalid locale '" + locale + "': a bare lower-case value is a language code.*pass 'en_GB'.*or 'GB'.*",
+        )
 
 def _test_record_is_required_and_not_blank():
     asserts.assert_fails(lambda: Faker("en_GB"), "missing 1 required positional argument: record|missing.*record")
@@ -68,7 +86,7 @@ def _test_record_is_required_and_not_blank():
 def _test_option_misuse_fails():
     asserts.assert_fails(lambda: Faker("en_GB", record = "r", email_domain = "a@b.org").email(), "Invalid email_domain")
     asserts.assert_fails(lambda: Faker("en_GB", record = "r").age(dob = " "), "dob must not be empty or blank")
-    asserts.assert_fails(lambda: Faker("en_GB", record = "r").age(dob = 1), "dob must be a string or a date")
+    asserts.assert_fails(lambda: Faker("en_GB", record = "r").age(dob = 1), "dob must be a string, not int")
 
 def _test_redact_with_alias_reaches_the_default_vault():
     fake = Faker("en_GB", record = "record-a")
@@ -136,7 +154,10 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_every_method_returns_a_synthetic_spec))
     _suite.addTest(unittest.FunctionTestCase(_test_options_are_carried_when_set))
     _suite.addTest(unittest.FunctionTestCase(_test_specs_are_immutable))
+    _suite.addTest(unittest.FunctionTestCase(_test_spec_fields_cannot_be_assigned))
+    _suite.addTest(unittest.FunctionTestCase(_test_text_forms_never_contain_the_date_of_birth))
     _suite.addTest(unittest.FunctionTestCase(_test_locale_parsing))
+    _suite.addTest(unittest.FunctionTestCase(_test_bare_lower_case_locale_is_a_language_not_a_country))
     _suite.addTest(unittest.FunctionTestCase(_test_record_is_required_and_not_blank))
     _suite.addTest(unittest.FunctionTestCase(_test_option_misuse_fails))
     _suite.addTest(unittest.FunctionTestCase(_test_redact_with_alias_reaches_the_default_vault))
