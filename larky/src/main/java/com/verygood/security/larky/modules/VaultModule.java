@@ -167,13 +167,34 @@ public class VaultModule implements LarkyVault {
                             allowedTypes = {
                                     @ParamType(type = NoneType.class),
                                     @ParamType(type = String.class),
+                            }),
+                    @Param(
+                            name = "record",
+                            doc = "record the alias belongs to; required to reveal record-scoped aliases",
+                            named = true,
+                            defaultValue = "None",
+                            allowedTypes = {
+                                    @ParamType(type = NoneType.class),
+                                    @ParamType(type = String.class),
                             })
             })
+    public Object revealForStarlark(Object value, Object storage, Object record) throws EvalException {
+        return reveal(value, storage, record);
+    }
+
+    // Not annotated: Starlark matches @StarlarkMethod to Java methods by name, so the overloads of
+    // the SPI's reveal() cannot carry the annotation. revealForStarlark() is the script entry point.
+    @Override
+    public Object reveal(Object value, Object storage, Object record) throws EvalException {
+        storage = validateStorage(storage);
+        validateRecord(record);
+
+        return vault.reveal(value, storage, record);
+    }
+
     @Override
     public Object reveal(Object value, Object storage) throws EvalException {
-        storage = validateStorage(storage);
-
-        return vault.reveal(value, storage);
+        return reveal(value, storage, Starlark.NONE);
     }
 
     @StarlarkMethod(
@@ -328,6 +349,12 @@ public class VaultModule implements LarkyVault {
                     decoratorConfig, e.getMessage()
                 ));
             }
+        }
+    }
+
+    private void validateRecord(Object record) throws EvalException {
+        if (record instanceof String name && name.isEmpty()) {
+            throw Starlark.errorf("record must not be empty");
         }
     }
 
