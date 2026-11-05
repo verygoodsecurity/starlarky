@@ -228,7 +228,7 @@ public final class WasmModule implements StarlarkValue {
     public Object call(Object value, StarlarkThread thread)
         throws EvalException, InterruptedException {
       checkExecutionAllowed(thread);
-      byte[] stdin = JsonModule.INSTANCE.encode(value).getBytes(UTF_8);
+      byte[] stdin = JsonModule.INSTANCE.encode(value, Starlark.NONE, thread).getBytes(UTF_8);
       byte[] stdout = execute(stdin, thread);
       return JsonModule.INSTANCE.decode(new String(stdout, UTF_8), thread);
     }
