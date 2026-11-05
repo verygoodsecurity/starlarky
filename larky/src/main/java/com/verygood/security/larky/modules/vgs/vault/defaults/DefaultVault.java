@@ -84,8 +84,13 @@ public class DefaultVault implements LarkyVault {
 
     @Override
     public void delete(Object value, Object storage) throws EvalException {
+        delete(value, storage, Starlark.NONE);
+    }
+
+    @Override
+    public void delete(Object value, Object storage, Object record) throws EvalException {
         String sValue = getValue(value);
-        getStorage(storage).remove(new StorageKey(null, sValue));
+        getStorage(storage).remove(new StorageKey(getRecordName(record), sValue));
     }
 
     // These don't make a ton of sense in memory, we could hash and return if we really wanted to.

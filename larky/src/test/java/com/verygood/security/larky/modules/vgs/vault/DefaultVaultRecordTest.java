@@ -93,4 +93,37 @@ public class DefaultVaultRecordTest {
         assertThrows(EvalException.class, () -> redact(Starlark.NONE, config(1)));
         assertThrows(EvalException.class, () -> vault.reveal("alias", Starlark.NONE, 1));
     }
+
+    @Test
+    public void deleteWithTheRecordRemovesOnlyThatEntry() throws Exception {
+        String alias = redact(Starlark.NONE, config("record-a"));
+        vault.delete(alias, Starlark.NONE, "record-b");
+        assertEquals(SECRET, vault.reveal(alias, Starlark.NONE, "record-a"));
+        vault.delete(alias, Starlark.NONE);
+        assertEquals(SECRET, vault.reveal(alias, Starlark.NONE, "record-a"));
+        vault.delete(alias, Starlark.NONE, "record-a");
+        assertEquals(alias, vault.reveal(alias, Starlark.NONE, "record-a"));
+    }
+
+    @Test
+    public void deleteWithARecordLeavesUnscopedEntries() throws Exception {
+        String alias = redact(Starlark.NONE, Starlark.NONE);
+        vault.delete(alias, Starlark.NONE, "record-a");
+        assertEquals(SECRET, vault.reveal(alias, Starlark.NONE));
+    }
+
+    @Test
+    public void deleteWithStorageIsScoped() throws Exception {
+        String alias = redact("volatile", config("record-a"));
+        vault.delete(alias, "persistent", "record-a");
+        assertEquals(SECRET, vault.reveal(alias, "volatile", "record-a"));
+        vault.delete(alias, "volatile", "record-a");
+        assertEquals(alias, vault.reveal(alias, "volatile", "record-a"));
+    }
+
+    @Test
+    public void deleteRejectsEmptyAndNonStringRecords() {
+        assertThrows(EvalException.class, () -> vault.delete("alias", Starlark.NONE, ""));
+        assertThrows(EvalException.class, () -> vault.delete("alias", Starlark.NONE, 1));
+    }
 }
