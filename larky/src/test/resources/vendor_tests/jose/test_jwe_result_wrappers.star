@@ -154,7 +154,7 @@ def Test_encrypt_cek_error():
         "^JWEError: alg HS256 is not implemented$")
     _assert_fails_alike(
         lambda: jwe.encrypt(PLAINTEXT, b"0123456789abcdef", encryption="A128GCM", algorithm="A256KW"),
-        "^256 bit algo: A256KW's key \\(size 16\\) is not size 32$")
+        "^JWKError: Key must be 256 bits for alg A256KW$")
 
 
 def Test_decrypt_alg_not_implemented():

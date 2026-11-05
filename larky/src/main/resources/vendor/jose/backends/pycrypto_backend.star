@@ -36,7 +36,6 @@ load("@vendor//cryptography/hazmat/primitives/serialization/base", load_pem_publ
 load("@vendor//cryptography/hazmat/primitives/asymmetric/utils", decode_dss_signature="decode_dss_signature",
      encode_dss_signature="encode_dss_signature")
 load("@vendor//cryptography/utils", int_to_bytes="int_to_bytes")
-# load("@vendor//jose/backends/_asn1", rsa_public_key_pkcs8_to_pkcs1="rsa_public_key_pkcs8_to_pkcs1")
 load("@vendor//jose/backends/base", Key="Key")
 load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS")
 load("@vendor//jose/exceptions", JWKError="JWKError", JWEError="JWEError", JWEAlgorithmUnsupportedError="JWEAlgorithmUnsupportedError")
@@ -224,7 +223,7 @@ def RSAKey(key, algorithm):
 
     def _process_jwk(jwk_dict):
         if not jwk_dict.get('kty') == 'RSA':
-            return Error("JWKError: Incorrect key type. Expected: 'RSA', Received: %s" % jwk_dict.get('kty'))
+            fail("JWKError: Incorrect key type. Expected: 'RSA', Received: %s" % jwk_dict.get('kty'))
 
         e = base64_to_long(jwk_dict.get('e', 256))
         n = base64_to_long(jwk_dict.get('n'))
@@ -241,7 +240,7 @@ def RSAKey(key, algorithm):
                     # These values must be present when 'p' is according to
                     # Section 6.3.2 of RFC7518, so if they are not we raise
                     # an error.
-                    return Error("JWKError: Precomputed private key parameters are incomplete.")
+                    fail("JWKError: Precomputed private key parameters are incomplete.")
 
                 p = base64_to_long(jwk_dict.get('p'))
                 q = base64_to_long(jwk_dict.get('q'))
@@ -336,15 +335,16 @@ def RSAKey(key, algorithm):
         elif pem_format == 'PKCS1':
             pkcs = 1
         else:
-            return Error("ValueError: Invalid pem format specified: %r" % (pem_format,))
+            fail("ValueError: Invalid pem format specified: %r" % (pem_format,))
 
         if self.is_public():
             # PyCrypto/dome always export public keys as PKCS8
             if pkcs == 8:
                 pem = self.prepared_key.exportKey('PEM')
             else:
-                pkcs8_der = self.prepared_key.exportKey('DER')
-                pkcs1_der = pkcs8_der # rsa_public_key_pkcs8_to_pkcs1(pkcs8_der)
+                # python-jose converts the PKCS8 export with _asn1; a PKCS1
+                # RSAPublicKey is SEQUENCE { modulus, publicExponent }.
+                pkcs1_der = DerSequence([self.prepared_key.n, self.prepared_key.e]).encode()
                 pem = _der_to_pem(pkcs1_der, 'RSA PUBLIC KEY')
             return pem
         else:
@@ -459,11 +459,11 @@ def AESKey(key, algorithm):
             return Error("JWEAlgorithmUnsupportedError: AES Mode is not supported by cryptographic library")
 
         if algorithm in self.ALG_128 and len(key) != 16:
-            return Error("128 bit algo: %s's key (size %s) is not size 16" % (algorithm, len(key)))
+            return Error("JWKError: Key must be 128 bits for alg %s" % algorithm)
         elif algorithm in self.ALG_192 and len(key) != 24:
-            return Error("192 bit algo: %s's key (size %s) is not size 24" % (algorithm, len(key)))
+            return Error("JWKError: Key must be 192 bits for alg %s" % algorithm)
         elif algorithm in self.ALG_256 and len(key) != 32:
-            return Error("256 bit algo: %s's key (size %s) is not size 32" % (algorithm, len(key)))
+            return Error("JWKError: Key must be 256 bits for alg %s" % algorithm)
 
         self._key = six.ensure_binary(key)
         self._key_size = len(key) * 8
@@ -539,6 +539,13 @@ def AESKey(key, algorithm):
     def wrap_key(key_data):
         return self.wrap(key_data, enc_alg=None)
     self.wrap_key = wrap_key
+
+    def wrap_gcm(key_data):
+        """Larky: A*GCMKW wrap; returns the wrapped key and its "iv" and
+        "tag" header values, which jwe.encrypt puts in the JOSE header."""
+        wrapped = AESGCMAlgorithm(self._key_size).wrap(None, {}, self._key, key_data)
+        return wrapped['ek'], wrapped['header']
+    self.wrap_gcm = wrap_gcm
 
     def unwrap(wrapped_key, headers, enc_alg):
         if self._mode == AES.MODE_GCM:
@@ -744,6 +751,16 @@ def AESAlgorithm(key_size):
     return self
 
 
+_CEK_BYTES = {
+    ALGORITHMS.A128GCM: 16,
+    ALGORITHMS.A192GCM: 24,
+    ALGORITHMS.A256GCM: 32,
+    ALGORITHMS.A128CBC_HS256: 32,
+    ALGORITHMS.A192CBC_HS384: 48,
+    ALGORITHMS.A256CBC_HS512: 64,
+}
+
+
 def AESGCMAlgorithm(key_size):
     EXTRA_HEADERS = sets.Set(['iv', 'tag'])
     self = larky.mutablestruct(__name__='AESGCMAlgorithm', __class__=AESGCMAlgorithm)
@@ -792,8 +809,13 @@ def AESGCMAlgorithm(key_size):
         tag = base64url_decode(tobytes(tag))
 
         cipher = AES.new(key, AES.MODE_GCM, nonce=iv, mac_len=len(tag))
-        cek = cipher.decrypt(ek)
-        if len(cek) not in AES.key_size:
+        cek = cipher.decrypt_and_verify(ek, tag)
+        # The CEK is the enc's key: 32, 48 or 64 bytes for A*CBC-HS*.
+        if enc_alg in _CEK_BYTES:
+            valid = len(cek) == _CEK_BYTES[enc_alg]
+        else:
+            valid = len(cek) in AES.key_size
+        if not valid:
             fail('JWEError: Invalid "cek" length')
         return cek
     self.unwrap = unwrap
