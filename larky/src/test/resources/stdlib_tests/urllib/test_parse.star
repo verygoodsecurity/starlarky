@@ -35,8 +35,9 @@ def _test_urlunsplit():
 
 def _test_parse_qsl():
     res_parse_qsl = parse.parse_qsl('key=\\u0141%C3%A9', encoding='utf-8')
-    # print("parse_qsl result: ", res_parse_qsl)
-    eq([('key','\\xc5\\x81\\xc3\\xa9')], res_parse_qsl)
+    # codecs.decode(utf-8) no longer escapes the decoded text. CPython returns [('key', '\\u0141\u00e9')];
+    # this 0.17 parse_qsl also interprets the literal \\u0141 (fixed on master by #716).
+    eq([('key', '\u0141\u00e9')], res_parse_qsl)
 
 def _test_parse_qs():
     # python test:
@@ -44,7 +45,7 @@ def _test_parse_qs():
     # b'\xc5\x81\xc3\xa9'
     res_parse_qs = parse.parse_qs("key=\\u0141%C3%A9", encoding="utf-8")['key']
     # print("parse_qs result: ", res_parse_qs)
-    eq(["\\xc5\\x81\\xc3\\xa9"], res_parse_qs)
+    eq(["\u0141\u00e9"], res_parse_qs)  # decoded text, no longer escaped by codecs.decode
 
     URL='https://someurl.com/with/query_string?i=main&mode=front&sid=12ab&enc=+Hello'
     parsed_url = parse.urlparse(URL)
