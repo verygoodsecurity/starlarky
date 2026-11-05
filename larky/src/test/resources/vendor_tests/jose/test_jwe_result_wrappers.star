@@ -3,9 +3,9 @@
 # safe() cannot be nested (its wrapper reports "called recursively"), so
 # jose must not call safe() itself.
 #
-# The Test_*_error tests reach the error branch of each Result.Ok(x).map(f)
-# in jwe.star and AESKey.encrypt, and check that the failure is the same
-# inside safe().
+# The Test_*_error tests and the Test_decrypt_* tests after them reach the
+# error branch of each Result.Ok(x).map(f) in jwe.star and AESKey.encrypt,
+# and check that the failure is the same inside safe().
 
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//json", json="json")
@@ -147,10 +147,38 @@ def Test_decrypt_segment_error():
 
 
 def Test_encrypt_cek_error():
-    # _get_cek fails: an HMAC key cannot wrap a CEK.
+    # _get_cek fails. An HMAC key cannot wrap a CEK, which python-jose
+    # reports as not implemented; other errors are raised as they are.
     _assert_fails_alike(
         lambda: jwe.encrypt(PLAINTEXT, b"0123456789abcdef", encryption="A128GCM", algorithm="HS256"),
-        "has no field or method 'wrap_key'")
+        "^JWEError: alg HS256 is not implemented$")
+    _assert_fails_alike(
+        lambda: jwe.encrypt(PLAINTEXT, b"0123456789abcdef", encryption="A128GCM", algorithm="A256KW"),
+        "^256 bit algo: A256KW's key \\(size 16\\) is not size 32$")
+
+
+def Test_decrypt_alg_not_implemented():
+    key = b"0123456789abcdef"
+    token = jwe.encrypt(PLAINTEXT, key, encryption="A128GCM", algorithm="A128KW")
+    bad = _with_header(token, {"alg": "HS256", "enc": "A128GCM"})
+    _assert_fails_alike(lambda: jwe.decrypt(bad, key), "^JWEError: alg HS256 is not implemented$")
+
+
+def Test_decrypt_unwrap_failure_uses_random_cek():
+    # RFC 7516, Section 11.5: when the encrypted key does not unwrap,
+    # decrypt goes on with a random CEK, so a wrong key, a truncated
+    # encrypted key and a changed one all fail like a changed tag.
+    for alg, enc, key, wrong, tag_err in CASES:
+        if alg not in ("A128KW", "A256KW"):
+            continue
+        token = jwe.encrypt(PLAINTEXT, key, encryption=enc, algorithm=alg)
+        parts = token.decode("utf-8").split(".")
+        short = list(parts)
+        short[1] = "AAAAAAAAAAA"
+        changed = list(parts)
+        changed[1] = ("B" if parts[1][0] == "A" else "A") + parts[1][1:]
+        for bad_token, bad_key in ((token, wrong), (".".join(short), key), (".".join(changed), key)):
+            _assert_fails_alike(lambda: jwe.decrypt(bad_token, bad_key), "^%s$" % tag_err)
 
 
 def Test_aes_key_encrypt_error():
@@ -167,6 +195,8 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(Test_decrypt_unwrap_error))
     _suite.addTest(unittest.FunctionTestCase(Test_decrypt_segment_error))
     _suite.addTest(unittest.FunctionTestCase(Test_encrypt_cek_error))
+    _suite.addTest(unittest.FunctionTestCase(Test_decrypt_alg_not_implemented))
+    _suite.addTest(unittest.FunctionTestCase(Test_decrypt_unwrap_failure_uses_random_cek))
     _suite.addTest(unittest.FunctionTestCase(Test_aes_key_encrypt_error))
     return _suite
 

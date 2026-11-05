@@ -10,6 +10,9 @@ import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
@@ -208,5 +211,27 @@ public final class LarkyGlobals {
     useStarlarkThread = true)
   public LarkyIterator WhileTrue(StarlarkInt bound, String limit_exceed_msg, StarlarkThread thread) {
     return LarkyBoundedWhileTrue.of(bound.toIntUnchecked(), limit_exceed_msg, thread);
+  }
+
+  /** The dicts of {@code _evaluation_dict} of one evaluation, by name. */
+  private static final class EvaluationDicts {
+    final Map<String, Dict<Object, Object>> byName = new HashMap<>();
+  }
+
+  @StarlarkMethod(
+      name = "_evaluation_dict",
+      doc = "The dict named `name` of the evaluation running on this thread. Every call with the "
+          + "same name in one evaluation returns the same dict, and another evaluation gets its "
+          + "own. It is for registries that Python keeps in a module-level global: Larky freezes "
+          + "a module's globals once it is loaded, and a module is shared by every evaluation.",
+      parameters = {@Param(name = "name", allowedTypes = {@ParamType(type = String.class)})},
+      useStarlarkThread = true)
+  public Dict<Object, Object> evaluationDict(String name, StarlarkThread thread) {
+    EvaluationDicts dicts = thread.getThreadLocal(EvaluationDicts.class);
+    if (dicts == null) {
+      dicts = new EvaluationDicts();
+      thread.setThreadLocal(EvaluationDicts.class, dicts);
+    }
+    return dicts.byName.computeIfAbsent(name, n -> Dict.of(thread.mutability()));
   }
 }

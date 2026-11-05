@@ -71,7 +71,7 @@ def encrypt(plaintext, key, encryption=ALGORITHMS.A256GCM,
 
     """
     plaintext = six.ensure_binary(plaintext)  # Make sure it's bytes
-    if not operator.contains(ALGORITHMS.SUPPORTED, algorithm):
+    if not jwk.is_supported(algorithm):
         fail("JWEError: Algorithm not supported.")
     if not operator.contains(ALGORITHMS.AES_JWE_ENC, encryption):
         fail("JWEError: Encryption algorithm not supported.")
@@ -133,7 +133,7 @@ def decrypt(jwe_str, key):
     # specified by the "alg" (algorithm) Header Parameter.
     alg = header["alg"]
     enc = header["enc"]
-    if not types.is_string(alg) or not operator.contains(ALGORITHMS.SUPPORTED, alg):
+    if not types.is_string(alg) or not jwk.is_supported(alg):
         fail("JWEError: Algorithm not supported.")
     if not types.is_string(enc) or not operator.contains(ALGORITHMS.AES_JWE_ENC, enc):
         fail("JWEError: Encryption algorithm not supported.")
@@ -179,11 +179,10 @@ def decrypt(jwe_str, key):
             lambda k: k.unwrap(encrypted_key, headers=header, enc_alg=enc))
         if rval.is_err:
             if Result.error_is("NotImplementedError", rval):
-                return rval.unwrap()
+                fail("JWEError: alg %s is not implemented" % alg)
             elif Result.error_is("JWEError", rval):
+                # A malformed header, such as A*GCMKW without "iv" or "tag".
                 return rval.unwrap()
-            else:
-                rval.unwrap()
             # Record whether the CEK could be successfully determined for this
             # recipient or not.
             cek_valid = False
@@ -421,7 +420,10 @@ def _encrypt_and_auth(key, alg, enc, zip, plaintext, aad):
           (bytes, bytes, bytes, bytes): A tuple of the following data
                                  (key wrapped cek, iv, cipher text, auth tag)
     """
-    cek_bytes, kw_cek = Result.Ok(key).map(lambda k: _get_cek(enc, alg, k)).unwrap()
+    res = Result.Ok(key).map(lambda k: _get_cek(enc, alg, k))
+    if res.is_err and Result.error_is("NotImplementedError", res):
+        fail("JWEError: alg %s is not implemented" % alg)
+    cek_bytes, kw_cek = res.unwrap()
     iv, ciphertext, auth_tag = _encrypt_with_cek(cek_bytes, enc, plaintext, aad)
     return kw_cek, iv, ciphertext, auth_tag
 

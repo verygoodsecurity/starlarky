@@ -453,6 +453,7 @@ larky = _struct(
     DeterministicGenerator=_DeterministicGenerator,
     type_cls=_type_cls,
     while_true=_while_true,
+    evaluation_dict=_evaluation_dict,
     strings=_struct(
         zfill=_zfill,
     ),

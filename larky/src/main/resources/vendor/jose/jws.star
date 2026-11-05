@@ -43,7 +43,7 @@ def sign(payload, key, headers=None, algorithm=ALGORITHMS.HS256):
 
     """
 
-    if algorithm not in ALGORITHMS.SUPPORTED:
+    if not jwk.is_supported(algorithm):
         fail("JWSError: 'Algorithm %s not supported.'" % algorithm)
 
     encoded_header = _encode_header(algorithm, additional_headers=headers)
