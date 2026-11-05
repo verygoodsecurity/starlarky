@@ -7,6 +7,7 @@ import com.verygood.security.larky.modules.vgs.vault.NoopVault;
 import com.verygood.security.larky.modules.vgs.vault.defaults.DefaultVault;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.ServiceLoader;
 import lombok.Getter;
@@ -140,7 +141,7 @@ public class VaultModule implements LarkyVault {
             })
     @Override
     public Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException {
-        validateStorage(storage);
+        storage = validateStorage(storage);
         validateFormat(format);
         validateDecoratorConfig(decoratorConfig);
 
@@ -170,7 +171,7 @@ public class VaultModule implements LarkyVault {
             })
     @Override
     public Object reveal(Object value, Object storage) throws EvalException {
-        validateStorage(storage);
+        storage = validateStorage(storage);
 
         return vault.reveal(value, storage);
     }
@@ -198,7 +199,7 @@ public class VaultModule implements LarkyVault {
         })
     @Override
     public void delete(Object value, Object storage) throws EvalException {
-        validateStorage(storage);
+        storage = validateStorage(storage);
         vault.delete(value, storage);
     }
 
@@ -276,19 +277,25 @@ public class VaultModule implements LarkyVault {
         return vault.verify(keyId, message, signature, algorithm);
     }
 
-    private void validateStorage(Object storage) throws EvalException {
+    /** Returns the storage name in lowercase: scripts may write 'VOLATILE' or 'volatile'. */
+    private Object validateStorage(Object storage) throws EvalException {
         if (!(storage instanceof NoneType) && !(storage instanceof String)) {
             throw Starlark.errorf(String.format(
                 "Storage of type %s is not supported in VAULT, expecting String",
                 storage.getClass().getName()
             ));
-        } else if ((storage instanceof String) && !supportedStorage.contains(storage.toString())) {
-            throw Starlark.errorf(String.format(
-                "Storage '%s' not found in supported storage types: %s",
-                storage,
-                supportedStorage
-            ));
+        } else if (storage instanceof String name) {
+            String lower = name.toLowerCase(Locale.ROOT);
+            if (!supportedStorage.contains(lower)) {
+                throw Starlark.errorf(String.format(
+                    "Storage '%s' not found in supported storage types: %s",
+                    storage,
+                    supportedStorage
+                ));
+            }
+            return lower;
         }
+        return storage;
     }
 
     private void validateFormat(Object format) throws EvalException {
