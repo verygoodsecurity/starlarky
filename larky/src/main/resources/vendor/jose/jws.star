@@ -1,3 +1,7 @@
+# Ported from python-jose jose/jws.py; consistent with its master branch between
+# 89c3d41bc6c60ad6f7d135f14dcd963cef633637 and 8572088b76f7c0d31068f38aeca0d4273ae8bc8f
+# (no release; the version was not recorded, see jose/__init__.star).
+
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//codecs", codecs="codecs")
@@ -143,12 +147,12 @@ def _encode_header(algorithm, additional_headers=None):
     for sk in sorted_keys:
         sorted_headers[sk] = header[sk]
 
+    # Larky's json.dumps already writes the compact form that upstream asks
+    # for with separators=(",", ":"), so the output must not be edited.
     json_header = bytes(
         Result.Ok(json.dumps)
             .map(lambda x: x(sorted_headers))
-            .unwrap()
-            .replace(', ', ',')
-            .replace(': ', ':'),
+            .unwrap(),
         encoding='utf-8'
     )
 
@@ -160,9 +164,7 @@ def _encode_payload(payload):
         payload = bytes(
             Result.Ok(json.dumps)
                 .map(lambda x: x(payload))
-                .unwrap()
-                .replace(': ', ':')
-                .replace(', ', ','),
+                .unwrap(),
             encoding='utf-8'
         )
 
@@ -232,8 +234,12 @@ def _get_keys(key):
     if builtins.isinstance(key, Key):
         return (key,)
 
+    # Upstream parses numbers as strings (parse_int=str, parse_float=str), so
+    # a numeric secret such as "1234567890" stays the string it was. Larky's
+    # json.loads has no such hooks: keep the original key if it parsed to a
+    # number.
     rval = Result.Ok(json.loads).map(lambda loads: loads(key))
-    if rval.is_ok:
+    if rval.is_ok and not (types.is_int(rval.unwrap()) or types.is_float(rval.unwrap())):
         key = rval.unwrap()
 
     if types.is_dict(key):
