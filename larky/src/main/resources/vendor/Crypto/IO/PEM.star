@@ -113,6 +113,9 @@ def decode(pem_data, passphrase=None):
     # Removes spaces and slit on lines
     lines = pem_data.replace(" ", '')
     lines = re.split(r'(?:\s|\x0B|\r?\n)+', lines)
+    # As str.split() upstream: no empty first/last item when the PEM has
+    # leading or trailing whitespace (e.g. the final newline of a file).
+    lines = [line for line in lines if line]
     # Decrypts, if necessary
     if lines[1].startswith('Proc-Type:4,ENCRYPTED'):
         if not passphrase:

@@ -1,6 +1,12 @@
 # Ported from python-jose jose/jwe.py; consistent with its master branch between
 # 89c3d41bc6c60ad6f7d135f14dcd963cef633637 and 8572088b76f7c0d31068f38aeca0d4273ae8bc8f
 # (no release; the version was not recorded, see jose/__init__.star).
+#
+# Larky additions (python-jose has no ECDH-ES): alg ECDH-ES and
+# ECDH-ES+A128KW/A192KW/A256KW (RFC 7518, Section 4.6) with EC P-curve and
+# OKP X25519 keys (RFC 8037), through jose/backends/ecdh_es.star. On those
+# algorithms every failure is a fixed JWEError message. Unsupported alg/enc
+# values are not echoed in the error.
 
 load("@stdlib//larky", larky="larky")
 load("@stdlib//binascii", binascii="binascii")
@@ -12,10 +18,15 @@ load("@stdlib//operator", operator="operator")
 # load("@stdlib//zlib", zlib="zlib")
 load("@vendor//jose/jwk", jwk="jwk")
 load("@vendor//jose/backends", get_random_bytes="get_random_bytes")
+load("@vendor//jose/backends/ecdh_es", ecdh_es="ecdh_es")
+load("@vendor//jose/backends/pycrypto_backend", AESAlgorithm="AESAlgorithm")
 load("@vendor//jose/constants", ALGORITHMS="ALGORITHMS", ZIPS="ZIPS")
 load("@vendor//jose/exceptions", JWEParseError="JWEParseError", JWEError="JWEError")
 load("@vendor//jose/utils", base64url_decode="base64url_decode", base64url_encode="base64url_encode")
-load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error", try_="try_", safe="safe")
+# Larky: failures are caught with Result (Result.Ok(x).map(f)), never with
+# option/result's safe(): safe() calls fail with "called recursively" when a
+# script wraps jwe.encrypt or jwe.decrypt in its own safe().
+load("@vendor//option/result", Result="Result", Ok="Ok", Error="Error", try_="try_")
 load("@vendor//six", six="six")
 #
 # try:
@@ -61,10 +72,13 @@ def encrypt(plaintext, key, encryption=ALGORITHMS.A256GCM,
     """
     plaintext = six.ensure_binary(plaintext)  # Make sure it's bytes
     if not operator.contains(ALGORITHMS.SUPPORTED, algorithm):
-        return Error("JWEError: Algorithm %s not supported." % algorithm)
-    if not operator.contains(ALGORITHMS.SUPPORTED, encryption):
-        return Error("JWEError: Encryption %s not supported." % encryption)
+        fail("JWEError: Algorithm not supported.")
+    if not operator.contains(ALGORITHMS.AES_JWE_ENC, encryption):
+        fail("JWEError: Encryption algorithm not supported.")
     key = jwk.construct(key, algorithm)
+    if operator.contains(ALGORITHMS.EC_KW, algorithm):
+        return _ecdh_es_encrypt(plaintext, key, encryption, algorithm, zip,
+                                cty, kid, extra_headers)
     encoded_header = _encoded_header(
         algorithm, encryption, zip, cty, kid,
         extra_headers=extra_headers,
@@ -113,19 +127,23 @@ def decrypt(jwe_str, key):
     # are also understood and supported.
 
     if "alg" not in header or "enc" not in header:
-        return Error("JWEParseError: alg and enc headers are required!")
+        fail("JWEParseError: alg and enc headers are required!")
 
     # Determine the Key Management Mode employed by the algorithm
     # specified by the "alg" (algorithm) Header Parameter.
     alg = header["alg"]
     enc = header["enc"]
-    if not operator.contains(ALGORITHMS.SUPPORTED, alg):
-        return Error("JWEError: Algorithm %s not supported." % alg).unwrap()
-    if not operator.contains(ALGORITHMS.SUPPORTED, enc):
-        return Error("JWEError: Algorithm %s not supported." % enc).unwrap()
+    if not types.is_string(alg) or not operator.contains(ALGORITHMS.SUPPORTED, alg):
+        fail("JWEError: Algorithm not supported.")
+    if not types.is_string(enc) or not operator.contains(ALGORITHMS.AES_JWE_ENC, enc):
+        fail("JWEError: Encryption algorithm not supported.")
 
     # Verify that the JWE uses a key known to the recipient.
     key = jwk.construct(key, alg)
+
+    if operator.contains(ALGORITHMS.EC_KW, alg):
+        return _ecdh_es_decrypt(key, header, encoded_header, alg, enc,
+                                encrypted_key, iv, cipher_text, auth_tag)
 
     # When Direct Key Agreement or Key Agreement with Key Wrapping are
     # employed, use the key agreement algorithm to compute the value
@@ -157,9 +175,9 @@ def decrypt(jwe_str, key):
         # symmetric key.
         cek_bytes = _get_key_bytes_from_key(key)
     else:
-        rval = safe(key.unwrap)(encrypted_key, headers=header, enc_alg=enc)
+        rval = Result.Ok(key).map(
+            lambda k: k.unwrap(encrypted_key, headers=header, enc_alg=enc))
         if rval.is_err:
-            print(rval)
             if Result.error_is("NotImplementedError", rval):
                 return rval.unwrap()
             elif Result.error_is("JWEError", rval):
@@ -304,13 +322,6 @@ def _jwe_compact_deserialize(jwe_bytes):
     # rval = jwe_bytes.rsplit(b".")
     # print(rval)
     ## DEBUG 👆
-    # rval = safe(jwe_bytes.split)(bytes('.', encoding='utf-8'), 4)
-    # if rval.is_err:
-    #     if Result.error_is(".*in call to split()", rval):
-    #         return rval
-    #     elif Result.error_is("ValueError", rval):
-    #         return Error("JWEParseError: Not enough segments")
-    #     return Error("JWEParseError: Invalid header")
     (
         header_segment,
         encrypted_key_segment,
@@ -318,7 +329,6 @@ def _jwe_compact_deserialize(jwe_bytes):
         cipher_text_segment,
         auth_tag_segment
     ) = rval#.unwrap()
-    # header_data = safe(base64url_decode)(header_segment).unwrap()
     header_data = base64url_decode(header_segment)
     # Verify that the octet sequence resulting from decoding the
     # encoded JWE Protected Header is a UTF-8-encoded representation
@@ -341,16 +351,16 @@ def _jwe_compact_deserialize(jwe_bytes):
     if not types.is_dict(header):
         return Error("JWEParseError: Invalid header string: must be a json object")
 
-    encrypted_key = safe(base64url_decode)(encrypted_key_segment)\
+    encrypted_key = Result.Ok(encrypted_key_segment).map(lambda seg: base64url_decode(seg))\
         .expect("JWEParseError: Invalid encrypted key")
 
-    iv = safe(base64url_decode)(iv_segment)\
+    iv = Result.Ok(iv_segment).map(lambda seg: base64url_decode(seg))\
         .expect("JWEParseError: Invalid IV")
 
-    ciphertext = safe(base64url_decode)(cipher_text_segment)\
+    ciphertext = Result.Ok(cipher_text_segment).map(lambda seg: base64url_decode(seg))\
         .expect("JWEParseError: Invalid cyphertext")
 
-    auth_tag = safe(base64url_decode)(auth_tag_segment)\
+    auth_tag = Result.Ok(auth_tag_segment).map(lambda seg: base64url_decode(seg))\
         .expect("JWEParseError: Invalid auth tag")
 
     return Ok((header, header_segment, encrypted_key, iv, ciphertext, auth_tag,))
@@ -411,19 +421,77 @@ def _encrypt_and_auth(key, alg, enc, zip, plaintext, aad):
           (bytes, bytes, bytes, bytes): A tuple of the following data
                                  (key wrapped cek, iv, cipher text, auth tag)
     """
-    cek_bytes, kw_cek = safe(_get_cek)(enc, alg, key).unwrap()
+    cek_bytes, kw_cek = Result.Ok(key).map(lambda k: _get_cek(enc, alg, k)).unwrap()
+    iv, ciphertext, auth_tag = _encrypt_with_cek(cek_bytes, enc, plaintext, aad)
+    return kw_cek, iv, ciphertext, auth_tag
 
+
+def _encrypt_with_cek(cek_bytes, enc, plaintext, aad):
+    """Encrypt plaintext with the given CEK; returns (iv, cipher text, auth tag)."""
     if operator.contains(ALGORITHMS.HMAC_AUTH_TAG, enc):
         encryption_key, mac_key, key_len = _get_encryption_key_mac_key_and_key_length_from_cek(cek_bytes, enc)
         iv, ciphertext, tag = encryption_key.encrypt(plaintext, aad)
         auth_tag = _auth_tag(ciphertext, iv, aad, mac_key, key_len)
-    elif operator.contains(ALGORITHMS.GCM, enc):
+    else:
+        # encrypt checked that enc is in AES_JWE_ENC, so it is a GCM enc.
         encryption_key = jwk.construct(cek_bytes, enc)
         iv, ciphertext, auth_tag = encryption_key.encrypt(plaintext, aad)
-    else:
-        return Error("enc {} is not implemented!".format(enc)).unwrap()
 
-    return kw_cek, iv, ciphertext, auth_tag
+    return iv, ciphertext, auth_tag
+
+
+def _ecdh_es_decrypt(key, header, encoded_header, alg, enc, encrypted_key,
+                     iv, cipher_text, auth_tag):
+    """Larky: decrypt a JWE whose alg is ECDH-ES or ECDH-ES+A*KW."""
+    agreed = ecdh_es.derive_for_decrypt(key.prepared_key, header, alg, enc)
+    if alg == ALGORITHMS.ECDH_ES:
+        # Direct Key Agreement: the agreed-upon key is the CEK, and the
+        # JWE Encrypted Key must be empty.
+        if encrypted_key != b"":
+            fail("JWEError: ECDH-ES requires an empty JWE Encrypted Key")
+        cek_bytes = agreed
+    else:
+        # Key Agreement with Key Wrapping (RFC 3394 AES key wrap).
+        res = Result.Ok(agreed).map(
+            lambda kek: AESAlgorithm(len(kek) * 8).aes_key_unwrap(kek, encrypted_key))
+        if res.is_err:
+            fail("JWEError: ECDH-ES key unwrap failed")
+        cek_bytes = res.unwrap()
+        if len(cek_bytes) * 8 != ecdh_es.key_bits(ALGORITHMS.ECDH_ES, enc):
+            fail("JWEError: ECDH-ES key unwrap failed")
+
+    res = Result.Ok(cek_bytes).map(
+        lambda cek: _decrypt_and_auth(cek, enc, cipher_text, iv, encoded_header, auth_tag))
+    if res.is_err:
+        fail("JWEError: Invalid JWE Auth Tag")
+    return _decompress(header.get("zip"), res.unwrap())
+
+
+def _ecdh_es_encrypt(plaintext, key, enc, alg, zip, cty, kid, extra_headers):
+    """Larky: encrypt to the public part of key with ECDH-ES or ECDH-ES+A*KW.
+
+    An "apu" or "apv" in extra_headers (base64url strings) is used as
+    PartyUInfo/PartyVInfo. The "epk" header is generated.
+    """
+    headers = dict(extra_headers or {})
+    if "epk" in headers:
+        fail("JWEError: ECDH-ES generates the epk header")
+    apu = ecdh_es.party_info(headers, "apu")
+    apv = ecdh_es.party_info(headers, "apv")
+    agreed, epk = ecdh_es.derive_for_encrypt(key.prepared_key, alg, enc, apu, apv)
+    headers["epk"] = epk
+    encoded_header = _encoded_header(alg, enc, zip, cty, kid, extra_headers=headers)
+
+    if alg == ALGORITHMS.ECDH_ES:
+        cek_bytes = agreed
+        enc_cek = b""
+    else:
+        cek_bytes = _get_random_cek_bytes_for_enc(enc).unwrap()
+        enc_cek = AESAlgorithm(len(agreed) * 8).aes_key_wrap(agreed, cek_bytes)
+
+    plaintext = _compress(zip, plaintext)
+    iv, cipher_text, auth_tag = _encrypt_with_cek(cek_bytes, enc, plaintext, encoded_header)
+    return _jwe_compact_serialize(encoded_header, enc_cek, iv, cipher_text, auth_tag)
 
 
 def _get_hmac_key(enc, mac_key_bytes):

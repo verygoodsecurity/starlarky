@@ -754,6 +754,14 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.crypto.PublicKey.ECC.LarkyX25519"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.crypto.PublicKey.LarkyDigitalSignatureAlgorithm"
   },
   {

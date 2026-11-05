@@ -1,0 +1,9 @@
+joserfc 1.7.5 (cryptography 50.0.2), Python 3.14.0
+larky_x25519_dir_a256gcm             alg=ECDH-ES         enc=A256GCM epk=OKP/X25519 apu=- apv=- -> plaintext OK
+larky_x25519_dir_a256gcm_apu_apv     alg=ECDH-ES         enc=A256GCM epk=OKP/X25519 apu=QWxpY2U apv=Qm9i -> plaintext OK
+larky_x25519_a256kw_a256gcm          alg=ECDH-ES+A256KW  enc=A256GCM epk=OKP/X25519 apu=- apv=- -> plaintext OK
+larky_x25519_a128kw_a128gcm          alg=ECDH-ES+A128KW  enc=A128GCM epk=OKP/X25519 apu=- apv=- -> plaintext OK
+larky_x25519_a192kw_a192gcm          alg=ECDH-ES+A192KW  enc=A192GCM epk=OKP/X25519 apu=- apv=- -> plaintext OK
+larky_p256_dir_a256gcm               alg=ECDH-ES         enc=A256GCM epk=EC/P-256 apu=- apv=- -> plaintext OK
+larky_p256_a256kw_a256gcm            alg=ECDH-ES+A256KW  enc=A256GCM epk=EC/P-256 apu=c2RrLWNsaWVudA apv=dmdzLXJvdXRl -> plaintext OK
+7 of 7 Larky tokens decrypted
