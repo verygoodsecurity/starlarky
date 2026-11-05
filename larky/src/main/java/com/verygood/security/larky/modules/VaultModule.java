@@ -172,6 +172,7 @@ public class VaultModule implements LarkyVault {
                             name = "record",
                             doc = "record the alias belongs to; required to reveal record-scoped aliases",
                             named = true,
+                            positional = false,
                             defaultValue = "None",
                             allowedTypes = {
                                     @ParamType(type = NoneType.class),
@@ -216,12 +217,33 @@ public class VaultModule implements LarkyVault {
                 allowedTypes = {
                     @ParamType(type = NoneType.class),
                     @ParamType(type = String.class),
+                }),
+            @Param(
+                name = "record",
+                doc = "record the alias belongs to; required to delete record-scoped aliases",
+                named = true,
+                positional = false,
+                defaultValue = "None",
+                allowedTypes = {
+                    @ParamType(type = NoneType.class),
+                    @ParamType(type = String.class),
                 })
         })
+    public void deleteForStarlark(Object value, Object storage, Object record) throws EvalException {
+        delete(value, storage, record);
+    }
+
+    // Not annotated, for the reason given on reveal(Object, Object, Object).
+    @Override
+    public void delete(Object value, Object storage, Object record) throws EvalException {
+        storage = validateStorage(storage);
+        validateRecord(record);
+        vault.delete(value, storage, record);
+    }
+
     @Override
     public void delete(Object value, Object storage) throws EvalException {
-        storage = validateStorage(storage);
-        vault.delete(value, storage);
+        delete(value, storage, Starlark.NONE);
     }
 
     @StarlarkMethod(

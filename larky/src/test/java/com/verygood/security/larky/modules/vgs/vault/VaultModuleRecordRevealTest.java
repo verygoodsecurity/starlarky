@@ -95,4 +95,27 @@ public class VaultModuleRecordRevealTest {
                 () -> legacy.reveal("a", Starlark.NONE, "record-a"));
         assertEquals("this vault does not support record-scoped reveal", e.getMessage());
     }
+
+    @Test
+    public void deleteWithRecordRoundTripThroughTheModule() throws Exception {
+        VaultModule module = new VaultModule();
+        String alias = (String) module.redact("example-secret", Starlark.NONE, Starlark.NONE,
+                Collections.emptyList(), ImmutableMap.of("record", "record-a"));
+
+        module.delete(alias, Starlark.NONE, "record-b");
+        assertEquals("example-secret", module.reveal(alias, Starlark.NONE, "record-a"));
+        module.delete(alias, Starlark.NONE);
+        assertEquals("example-secret", module.reveal(alias, Starlark.NONE, "record-a"));
+        module.delete(alias, Starlark.NONE, "record-a");
+        assertEquals(alias, module.reveal(alias, Starlark.NONE, "record-a"));
+    }
+
+    @Test
+    public void deleteRejectsAnEmptyRecordAndAnUnknownStorage() {
+        VaultModule module = new VaultModule();
+        EvalException e = assertThrows(EvalException.class,
+                () -> module.delete("alias", Starlark.NONE, ""));
+        assertEquals("record must not be empty", e.getMessage());
+        assertThrows(EvalException.class, () -> module.delete("alias", "unknown", "record-a"));
+    }
 }
