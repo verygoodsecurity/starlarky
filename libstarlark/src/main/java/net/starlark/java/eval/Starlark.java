@@ -1351,7 +1351,7 @@ public final class Starlark {
             /* defaultValues= */ Tuple.empty(),
             /* freevars= */ Tuple.empty(),
             thread.getNextIdentityToken());
-    Object result = Starlark.positionalOnlyCall(thread, toplevel);
+    Object result = BytecodeVms.execFile(prog, module, thread, toplevel); // VGS: bytecode VM
     if (prog.getTypeTable() != null) {
       // For globals that don't have a declared static type, we export the value's dynamic type.
       // We export the dynamic type of the value (rather than the inferred static type) because it's
