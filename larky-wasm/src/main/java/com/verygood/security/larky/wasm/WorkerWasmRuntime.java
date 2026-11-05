@@ -46,6 +46,7 @@ import javax.net.ssl.SSLSocket;
  */
 public final class WorkerWasmRuntime implements WasmRuntime {
   private static final String PREFIX = "larky.wasm.worker.";
+  private static final System.Logger LOGGER = System.getLogger(WorkerWasmRuntime.class.getName());
   private static final ConcurrentHashMap<Settings, Semaphore> ADMISSION = new ConcurrentHashMap<>();
 
   private record Settings(Path launcher, String remoteHost, int remotePort, int backend,
@@ -328,6 +329,8 @@ public final class WorkerWasmRuntime implements WasmRuntime {
   }
 
   private static WasmException unavailable(String message, Throwable cause) {
+    // The returned diagnostic can include a cause; server logs must remain guest-data-free.
+    LOGGER.log(System.Logger.Level.WARNING, "WASM worker backend unavailable");
     return new WasmException(WasmException.Kind.TRAP, message, cause);
   }
 
@@ -375,6 +378,10 @@ public final class WorkerWasmRuntime implements WasmRuntime {
 
   static int configuredMaxInputBytes() {
     return positiveInt("maxInputBytes", 1 << 20);
+  }
+
+  static int configuredMaxOutputBytes() {
+    return positiveInt("maxOutputBytes", Limits.DEFAULT_MAX_OUTPUT_BYTES);
   }
 
   private static int positiveInt(String suffix, int fallback) {
