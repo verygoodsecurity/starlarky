@@ -71,6 +71,23 @@ public class ConformanceTest {
     return run(fixture, stdin, WasmRuntime.Limits.defaults());
   }
 
+  /** How long the last {@link #timedRunFails} run took, in milliseconds. */
+  private long lastRunMs;
+
+  /**
+   * Compiles {@code fixture}, then runs it with a deadline {@code deadlineMs} from now expecting a
+   * {@link WasmException}, and records how long the run took in {@link #lastRunMs}. Compiling is
+   * left out of the time: on a busy machine it alone took up to 800ms.
+   */
+  private WasmException timedRunFails(String fixture, long deadlineMs) throws Exception {
+    WasmRuntime.Program program = runtime.compile(Fixtures.wasm(fixture));
+    WasmRuntime.Limits limits = deadlineIn(deadlineMs);
+    long start = System.nanoTime();
+    WasmException e = assertThrows(WasmException.class, () -> program.run(new byte[0], limits));
+    lastRunMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+    return e;
+  }
+
   /** Runs {@code fixture} expecting a {@link WasmException} from {@code run} (not compile). */
   private WasmException runFails(String fixture, byte[] stdin, WasmRuntime.Limits limits)
       throws Exception {
@@ -370,9 +387,8 @@ public class ConformanceTest {
   @Test
   public void deadlineStopsALongRandomGet() throws Exception {
     // One random_get of 64 MiB takes longer than the deadline; the host stops filling.
-    long start = System.nanoTime();
-    WasmException e = runFails("random_fill", new byte[0], deadlineIn(50));
-    long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+    WasmException e = timedRunFails("random_fill", 50);
+    long elapsedMs = lastRunMs;
     assertThat(e.kind()).isEqualTo(Kind.TIMEOUT);
     assertWithMessage("milliseconds until TIMEOUT").that(elapsedMs).isLessThan(500L);
   }
@@ -391,9 +407,8 @@ public class ConformanceTest {
 
   @Test
   public void deadlineStopsAnInfiniteLoop() throws Exception {
-    long start = System.nanoTime();
-    WasmException e = runFails("spin", new byte[0], deadlineIn(200));
-    long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+    WasmException e = timedRunFails("spin", 200);
+    long elapsedMs = lastRunMs;
     assertThat(e.kind()).isEqualTo(Kind.TIMEOUT);
     assertWithMessage("milliseconds until TIMEOUT").that(elapsedMs).isLessThan(2000L);
   }
