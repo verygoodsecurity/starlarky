@@ -383,7 +383,12 @@ public final class LarkyEvaluator {
             module, ParserInput.fromUTF8(bytes, content.path()), options, parsed));
   }
 
-  Map<String, Module> processLoads(StarFile content, List<String> loads) throws EvalException {
+  /**
+   * Loads the modules named by {@code loads}, the load() labels of {@code content}, as a script's
+   * loads are; relative labels resolve against {@code content}. Also used by the runner's REPL,
+   * which compiles each input itself.
+   */
+  public Map<String, Module> processLoads(StarFile content, List<String> loads) throws EvalException {
     Map<String, Module> loadedModules = new HashMap<>();
     LarkyLoader larkyLoader = new LarkyLoader(content, this);
     for (String load : loads) {
