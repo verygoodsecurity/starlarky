@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules;
 
 import com.google.common.collect.ImmutableList;
+import com.verygood.security.larky.modules.vgs.synthetic.AliasSpec;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig.InvalidDecoratorConfigException;
 import com.verygood.security.larky.modules.vgs.vault.NoopVault;
@@ -16,6 +17,7 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
@@ -139,7 +141,32 @@ public class VaultModule implements LarkyVault {
                                 @ParamType(type = NoneType.class),
                                 @ParamType(type = Map.class),
                         }),
+                    @Param(
+                            name = "alias",
+                            doc = "specification of the alias, from @vgs//synthetic (for example "
+                                + "Faker(...).email()); replaces format and decorator_config, which "
+                                + "must then be omitted",
+                            named = true,
+                            positional = false,
+                            defaultValue = "None",
+                            allowedTypes = {
+                                @ParamType(type = NoneType.class),
+                                @ParamType(type = AliasSpec.class),
+                        }),
             })
+    public Object redactForStarlark(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig, Object alias) throws EvalException {
+        if (alias instanceof AliasSpec spec) {
+            if (!(format instanceof NoneType) || !(decoratorConfig instanceof NoneType)) {
+                throw Starlark.errorf("alias cannot be combined with format or decorator_config");
+            }
+            format = spec.getFormat();
+            decoratorConfig = Dict.immutableCopyOf(spec.getDecoratorConfigMap());
+        }
+        return redact(value, storage, format, tags, decoratorConfig);
+    }
+
+    // Not annotated: Starlark matches @StarlarkMethod to Java methods by name, so the SPI's redact()
+    // cannot carry the annotation once redactForStarlark() takes an extra parameter.
     @Override
     public Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException {
         storage = validateStorage(storage);
