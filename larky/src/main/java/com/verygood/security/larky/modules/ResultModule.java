@@ -7,10 +7,12 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkEvalWrapper;
+import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
@@ -72,6 +74,54 @@ public class ResultModule implements StarlarkValue {
       return error(new EvalException(e.getMessage(), e.getCause()), thread);
     }
     // InterruptedException propagates: an interrupted evaluation must stop.
+  }
+
+  @StarlarkMethod(
+      name = "safe_wrap",
+      doc = "Returns a callable that calls <code>func</code> through <code>safe</code>.",
+      parameters = {@Param(name = "func")})
+  public static SafeFunction safeWrap(StarlarkCallable func) {
+    return new SafeFunction(func);
+  }
+
+  /**
+   * What {@code safe(func)} returns. It is a Java callable rather than a Starlark closure: the
+   * recursion check compares a Starlark function's code, so every closure made by one {@code def
+   * decorator} counted as the same function, and {@code safe(f)()} failed with "function
+   * 'decorator' called recursively" as soon as {@code f} called any other {@code safe(g)()}. A
+   * Java callable is not checked itself; the functions it calls still are, so real recursion
+   * (e.g. {@code f} calling {@code safe(f)()}) is still refused. Its type is {@code function}
+   * and its repr is {@code <function safe(f)>}.
+   */
+  @StarlarkBuiltin(name = "function", documented = false)
+  public static final class SafeFunction implements StarlarkCallable {
+    private final StarlarkCallable func;
+
+    SafeFunction(StarlarkCallable func) {
+      this.func = func;
+    }
+
+    @Override
+    public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs)
+        throws EvalException, InterruptedException {
+      return safe(func, args, kwargs, thread);
+    }
+
+    /** {@code safe(<name of the wrapped function>)}, e.g. {@code safe(parse_body)}. */
+    @Override
+    public String getName() {
+      return "safe(" + func.getName() + ")";
+    }
+
+    @Override
+    public boolean isImmutable() {
+      return func.isImmutable();
+    }
+
+    @Override
+    public void repr(Printer printer, StarlarkSemantics semantics) {
+      printer.append("<function ").append(getName()).append(">");
+    }
   }
 
 

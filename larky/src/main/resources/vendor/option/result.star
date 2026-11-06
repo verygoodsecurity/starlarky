@@ -467,9 +467,9 @@ def safe(function):
       >>> asserts.assert_true(failed.is_err)
 
     """
-    def decorator(*args, **kwargs):
-        return _JResult.safe(function, *args, **kwargs)
-    return decorator
+    # A Java callable, so that one safe() call can run inside another (see
+    # ResultModule.SafeFunction).
+    return _JResult.safe_wrap(function)
 
 
 def _error_is(regex, error_obj):
