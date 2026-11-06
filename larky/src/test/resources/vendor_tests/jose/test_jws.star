@@ -57,6 +57,19 @@ def test_sign_and_verify_ecc():
     asserts.assert_true(verified)
 
 
+def test_json_separators_in_values():
+    # python-jose 3.5.0: jws.sign({"name": "Doe, John", "note": "a: b"}, "secret", headers={"kid": "a, b: c"})
+    expected = "eyJhbGciOiJIUzI1NiIsImtpZCI6ImEsIGI6IGMiLCJ0eXAiOiJKV1QifQ.eyJuYW1lIjoiRG9lLCBKb2huIiwibm90ZSI6ImE6IGIifQ.eAbQsPqtJvssBwRyJlwtmSx5oHKzAvxEyV6UPRUHWcA"
+    token = jws.sign({"name": "Doe, John", "note": "a: b"}, "secret", headers={"kid": "a, b: c"})
+    asserts.assert_that(token).is_equal_to(expected)
+
+
+def test_numeric_string_key():
+    for key in ["1234567890", "123456789.0"]:
+        token = jws.sign({"a": "b"}, key, algorithm="HS256")
+        asserts.assert_that(jws.verify(token, key, algorithms=["HS256"])).is_equal_to(b'{"a":"b"}')
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(test_sign_rsa))
@@ -65,6 +78,8 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_sign_ecc))
     _suite.addTest(unittest.FunctionTestCase(test_verify_ecc))
     _suite.addTest(unittest.FunctionTestCase(test_sign_and_verify_ecc))
+    _suite.addTest(unittest.FunctionTestCase(test_json_separators_in_values))
+    _suite.addTest(unittest.FunctionTestCase(test_numeric_string_key))
     return _suite
 
 
