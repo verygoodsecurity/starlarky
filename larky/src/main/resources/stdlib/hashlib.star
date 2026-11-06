@@ -1,3 +1,4 @@
+# Ported from CPython 3.7.1-3.10, pinned to 3.9.5 (0a7dcbd): Lib/hashlib.py. See larky/src/main/resources/VENDORED.md.
 """
 #.  Copyright (C) 2005-2010   Gregory P. Smith (greg@krypto.org)
 #  Licensed to PSF under a Contributor Agreement.

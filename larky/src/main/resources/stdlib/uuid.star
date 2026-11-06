@@ -1,3 +1,4 @@
+# Ported from CPython 3.7-3.10, pinned to 3.10.0 (b494f59): Lib/uuid.py. See larky/src/main/resources/VENDORED.md.
 r"""UUID objects (universally unique identifiers) according to RFC 4122.
 This module provides immutable UUID objects (class UUID) and the functions
 uuid1(), uuid3(), uuid4(), uuid5() for generating version 1, 3, 4, and 5

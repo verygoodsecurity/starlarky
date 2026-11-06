@@ -1,3 +1,4 @@
+# Ported from CPython 3.5+, version not determined: Lib/test/test_urlparse.py. See larky/src/main/resources/VENDORED.md.
 """Unit tests for parse.star"""
 load("@stdlib//larky", larky="larky")
 load("@stdlib//builtins", builtins="builtins")

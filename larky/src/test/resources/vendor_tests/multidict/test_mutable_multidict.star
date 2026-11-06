@@ -1,3 +1,4 @@
+# Ported from multidict 4.7.6-5.1.0, pinned to 5.1.0 (c3eed83): tests/test_mutable_multidict.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//string", string="string")

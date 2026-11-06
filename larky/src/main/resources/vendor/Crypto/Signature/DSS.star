@@ -30,6 +30,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
+# Ported from pycryptodome 3.13.0-3.14.1, pinned to 3.14.1 (5c5db24): lib/Crypto/Signature/DSS.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//operator", operator="operator")

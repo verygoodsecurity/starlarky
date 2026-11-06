@@ -1,3 +1,4 @@
+# Ported from multidict 4.7.6-5.1.0, pinned to 5.1.0 (c3eed83): multidict/_multidict_py.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")

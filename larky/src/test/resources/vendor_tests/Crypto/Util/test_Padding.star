@@ -1,3 +1,4 @@
+# Ported from pycryptodome <= 3.10.1 (some >= 3.10.0), pinned to 3.10.1 (339259c): lib/Crypto/SelfTest/Util/test_Padding.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//binascii", uh="unhexlify")
 load("@stdlib//builtins", "builtins")
 load("@stdlib//unittest", "unittest")

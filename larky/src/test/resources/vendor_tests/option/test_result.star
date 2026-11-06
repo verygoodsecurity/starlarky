@@ -1,3 +1,4 @@
+# Ported from option 1.0.3 (d885a88): tests/test_result.py. See larky/src/main/resources/VENDORED.md.
 """Unit tests for @vendor//result.star
 
 Port of: https://github.com/MaT1g3R/option/blob/master/tests/test_result.py

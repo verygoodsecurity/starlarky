@@ -1,3 +1,4 @@
+# Ported from OpenPGP-Python fork fork a174c38 (loosely): tests/data/*. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//base64", base64="base64")

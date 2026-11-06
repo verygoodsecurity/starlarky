@@ -1,3 +1,4 @@
+# Ported from python-xmlsig 0.1.6-0.1.7 (tests/ not in sdist), pinned to 0.1.7 (eed8913): tests/data/rsacert.pem. See larky/src/main/resources/VENDORED.md.
 RSACERT_PEM = b"""\
 Certificate:
     Data:

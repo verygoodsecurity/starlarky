@@ -1,3 +1,4 @@
+# Ported from pycryptodome <= 3.12.0 (no discriminating lines), pinned to 3.12.0 (d8edf1a): lib/Crypto/SelfTest/Hash/common.py. See larky/src/main/resources/VENDORED.md.
 load("@vendor//Crypto/Util/py3compat", tobytes="tobytes")
 load("@stdlib//builtins", builtins="builtins")
 load("@vendor//asserts", asserts="asserts")

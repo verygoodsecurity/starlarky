@@ -1,3 +1,4 @@
+# Ported from CPython 3.9 branch 5a8ddcc: Lib/enum.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", "types")
 

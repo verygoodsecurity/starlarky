@@ -1,3 +1,4 @@
+# Ported from pyiso8583 2.0.2-2.1.0, pinned to 2.1.0 (0bf0538): tests/test_encode.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//builtins", "builtins")
 load("@stdlib//sets", "sets")

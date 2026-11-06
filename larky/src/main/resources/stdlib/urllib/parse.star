@@ -1,3 +1,4 @@
+# Ported from CPython 3.9.6 (db3ff76): Lib/urllib/parse.py. See larky/src/main/resources/VENDORED.md.
 # This module defines a standard interface to break Uniform Resource Locator (URL)
 # strings up in components (addressing scheme, network location, path etc.)
 

@@ -1,3 +1,4 @@
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/IO/PEM.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//binascii",
      a2b_base64="a2b_base64",
      b2a_base64="b2a_base64",

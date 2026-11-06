@@ -1,3 +1,4 @@
+# Ported from CPython 3.8-3.10, pinned to 3.9.5 (0a7dcbd): Lib/test/test_operator.py. See larky/src/main/resources/VENDORED.md.
 """Unit testing for operator.star.
 
 copy most tests from: https://github.com/python/cpython/blob/main/Lib/test/test_operator.py

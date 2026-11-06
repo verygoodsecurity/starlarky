@@ -1,6 +1,7 @@
 # This file is dual licensed under the terms of the Apache License, Version
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
+# Ported from cryptography 3.4.x (<= 3.4.8), pinned to 3.4.8 (70ccc25): src/cryptography/hazmat/primitives/asymmetric/utils.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//larky", larky="larky")
 load("@vendor//cryptography/hazmat/_der", DERReader="DERReader", INTEGER="INTEGER", SEQUENCE="SEQUENCE", encode_der="encode_der", encode_der_integer="encode_der_integer")

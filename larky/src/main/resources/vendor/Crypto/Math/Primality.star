@@ -27,6 +27,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
+# Ported from pycryptodome 3.13.0-3.14.1, pinned to 3.14.1 (5c5db24): lib/Crypto/Math/Primality.py. See larky/src/main/resources/VENDORED.md.
 
 """Functions to create and test prime numbers.
 

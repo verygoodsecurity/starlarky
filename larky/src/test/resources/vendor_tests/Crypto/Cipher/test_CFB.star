@@ -1,3 +1,4 @@
+# Ported from pycryptodome <= 3.10.1 (some >= 3.10.0), pinned to 3.10.1 (339259c): lib/Crypto/SelfTest/Cipher/test_CFB.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//builtins","builtins")
 load("@stdlib//base64", "base64")
 load("@stdlib//unittest","unittest")

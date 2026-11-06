@@ -46,6 +46,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
 # OF THIS SOFTWARE.
 # --------------------------------------------------------------------
+# Ported from ElementTree (effbot) 1.2.6 (r1862): elementtree/SimpleXMLTreeBuilder.py. See larky/src/main/resources/VENDORED.md.
 
 ##
 # Tools to build element trees from XML files, using <b>xmllib</b>.

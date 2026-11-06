@@ -1,3 +1,4 @@
+# Ported from pyOpenSSL 20.0.0-20.0.1, pinned to 20.0.1 (4211b90): src/OpenSSL/crypto.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//builtins","builtins")
 
 load("@stdlib//base64", b16encode="b16encode")

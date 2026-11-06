@@ -21,6 +21,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+# Ported from pycryptodome 3.10.0-3.14.1, pinned to 3.14.1 (5c5db24): lib/Crypto/SelfTest/PublicKey/test_DSA.py. See larky/src/main/resources/VENDORED.md.
 """Self-test suite for Crypto.PublicKey.DSA"""
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//types", types="types")

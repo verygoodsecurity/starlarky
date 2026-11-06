@@ -1,3 +1,4 @@
+# Ported from backports.csv 1.0.5-1.0.7, pinned to 1.0.7: src/backports/csv.py. See larky/src/main/resources/VENDORED.md.
 # -*- coding: utf-8 -*-
 """A port of Python 3's csv module to Larky.
 

@@ -19,6 +19,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+# Ported from pycryptodome 3.11.0 (b92494b): lib/Crypto/SelfTest/Cipher/test_pkcs1_15.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//unittest", unittest="unittest")

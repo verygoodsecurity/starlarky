@@ -1,6 +1,7 @@
 # This file is dual licensed under the terms of the Apache License, Version
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
+# Ported from cryptography 3.4.x (<= 3.4.8), pinned to 3.4.8 (70ccc25): src/cryptography/hazmat/primitives/serialization/pkcs7.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//enum", Enum="Enum")
 load("@stdlib//types", types="types")
 load("@stdlib//larky", larky="larky")

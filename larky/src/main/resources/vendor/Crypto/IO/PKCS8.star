@@ -30,6 +30,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
+# Ported from pycryptodome 3.14.1 + master 764c1e8 (5c5db24 + 764c1e8): lib/Crypto/IO/PKCS8.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@vendor//Crypto/IO/_PBES", PBES1="PBES1", PBES2="PBES2", PbesError="PbesError")
 load("@vendor//Crypto/Util/asn1", DerNull="DerNull", DerSequence="DerSequence", DerObjectId="DerObjectId", DerOctetString="DerOctetString")

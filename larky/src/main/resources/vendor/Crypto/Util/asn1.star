@@ -19,6 +19,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/Util/asn1.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//builtins","builtins")
 load("@stdlib//codecs", "codecs")

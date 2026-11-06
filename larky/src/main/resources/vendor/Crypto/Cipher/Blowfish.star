@@ -1,3 +1,4 @@
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/Cipher/Blowfish.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 
 def _create_base_cipher(dict_parameters):

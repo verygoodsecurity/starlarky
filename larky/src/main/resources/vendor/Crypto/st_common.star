@@ -1,3 +1,4 @@
+# Ported from pycryptodome any (helper unchanged), pinned to 3.10.1 (339259c): lib/Crypto/SelfTest/st_common.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//builtins","builtins")
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//re", re="re")

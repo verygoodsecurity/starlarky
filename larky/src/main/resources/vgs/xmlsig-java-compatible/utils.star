@@ -1,3 +1,4 @@
+# Ported from python-xmlsig 0.1.6-0.1.7, pinned to 0.1.6 (1836ccc) via vendor/xmlsig: src/xmlsig/utils.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//codecs", codecs="codecs")
