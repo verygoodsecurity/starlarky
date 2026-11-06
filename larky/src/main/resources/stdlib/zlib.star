@@ -444,31 +444,41 @@ def _get_deflate_data(deflater, mode=Z_NO_FLUSH):
     return bytes(data)
 
 
+# Bytes inflated per loop iteration. A bigger chunk means fewer Starlark steps:
+# with 1 KiB chunks, output of 16 MiB or more ran past larky.while_true()'s
+# default bound of 16,384 iterations.
+_INFLATE_CHUNK = 65536
+
+
 def _get_inflate_data(inflater, max_length=0):
-    buf = bytearray(b" " * 1024)
+    # The most one decompression may produce (-Dlarky.zlib.maxOutputBytes,
+    # 64 MiB by default): a few kilobytes of crafted input can inflate to
+    # gigabytes.
+    limit = _JZLib.max_output_bytes()
+    buf = bytearray(b"\x00" * _INFLATE_CHUNK)
     data = bytearray()
     total = 0
 
-    for _while_ in larky.while_true():
+    for _while_ in larky.while_true(bound=limit // _INFLATE_CHUNK + 2):
         if inflater.finished():
             break
 
         if max_length:
-            l = inflater.inflate(buf, 0, min(1024, max_length - total))
+            l = inflater.inflate(buf, 0, min(_INFLATE_CHUNK, max_length - total))
         else:
             l = inflater.inflate(buf)
-        # print("_get_inflate_data(): inflated: ", l)
         if l == 0:
             break
 
         total += l
-        # print("_get_inflate_data(): total inflated so far: ", total)
+        if total > limit:
+            fail(("error: decompressed data is larger than %d bytes, the most " +
+                  "Larky decompresses (-Dlarky.zlib.maxOutputBytes)") % limit)
         data.extend(buf[0:l])
         if max_length and total == max_length:
             break
     buf.clear()
     return bytes(data)
-
 
 
 FTEXT = 1
