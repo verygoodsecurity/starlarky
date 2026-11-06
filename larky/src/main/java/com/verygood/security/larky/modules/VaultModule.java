@@ -394,6 +394,12 @@ public class VaultModule implements LarkyVault {
             try {
                 DecoratorConfig.fromObject(decoratorConfig);
             } catch (InvalidDecoratorConfigException e) {
+                // SYNTHETIC options can be personal data (a date of birth, a record): when the
+                // config carries any, report the problem without echoing the config.
+                if (decoratorConfig instanceof Map<?, ?> map
+                        && DecoratorConfig.OPTION_KEYS.stream().anyMatch(map::containsKey)) {
+                    throw Starlark.errorf(String.format("Decorator config is invalid. %s", e.getMessage()));
+                }
                 throw Starlark.errorf(String.format(
                     "Decorator config '%s' is invalid. %s",
                     decoratorConfig, e.getMessage()
