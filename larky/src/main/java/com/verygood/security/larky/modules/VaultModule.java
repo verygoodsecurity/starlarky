@@ -56,7 +56,8 @@ public class VaultModule implements LarkyVault {
             "ALPHANUMERIC_LENGTH_PRESERVING_T_FOUR",
             "ALPHANUMERIC_LENGTH_PRESERVING_SIX_T_FOUR",
             "ALPHANUMERIC_SSN_T_FOUR",
-            "ALPHANUMERIC_LENGTH_PRESERVING_ONE_T_TWO"
+            "ALPHANUMERIC_LENGTH_PRESERVING_ONE_T_TWO",
+            "SYNTHETIC"
     );
 
     private final ImmutableList<String> supportedSigningAlgorithms = ImmutableList.of(
@@ -167,13 +168,35 @@ public class VaultModule implements LarkyVault {
                             allowedTypes = {
                                     @ParamType(type = NoneType.class),
                                     @ParamType(type = String.class),
+                            }),
+                    @Param(
+                            name = "record",
+                            doc = "record the alias belongs to; required to reveal record-scoped aliases",
+                            named = true,
+                            positional = false,
+                            defaultValue = "None",
+                            allowedTypes = {
+                                    @ParamType(type = NoneType.class),
+                                    @ParamType(type = String.class),
                             })
             })
+    public Object revealForStarlark(Object value, Object storage, Object record) throws EvalException {
+        return reveal(value, storage, record);
+    }
+
+    // Not annotated: Starlark matches @StarlarkMethod to Java methods by name, so the overloads of
+    // the SPI's reveal() cannot carry the annotation. revealForStarlark() is the script entry point.
+    @Override
+    public Object reveal(Object value, Object storage, Object record) throws EvalException {
+        storage = validateStorage(storage);
+        validateRecord(record);
+
+        return vault.reveal(value, storage, record);
+    }
+
     @Override
     public Object reveal(Object value, Object storage) throws EvalException {
-        storage = validateStorage(storage);
-
-        return vault.reveal(value, storage);
+        return reveal(value, storage, Starlark.NONE);
     }
 
     @StarlarkMethod(
@@ -195,12 +218,33 @@ public class VaultModule implements LarkyVault {
                 allowedTypes = {
                     @ParamType(type = NoneType.class),
                     @ParamType(type = String.class),
+                }),
+            @Param(
+                name = "record",
+                doc = "record the alias belongs to; required to delete record-scoped aliases",
+                named = true,
+                positional = false,
+                defaultValue = "None",
+                allowedTypes = {
+                    @ParamType(type = NoneType.class),
+                    @ParamType(type = String.class),
                 })
         })
+    public void deleteForStarlark(Object value, Object storage, Object record) throws EvalException {
+        delete(value, storage, record);
+    }
+
+    // Not annotated, for the reason given on reveal(Object, Object, Object).
+    @Override
+    public void delete(Object value, Object storage, Object record) throws EvalException {
+        storage = validateStorage(storage);
+        validateRecord(record);
+        vault.delete(value, storage, record);
+    }
+
     @Override
     public void delete(Object value, Object storage) throws EvalException {
-        storage = validateStorage(storage);
-        vault.delete(value, storage);
+        delete(value, storage, Starlark.NONE);
     }
 
     @StarlarkMethod(
@@ -328,6 +372,22 @@ public class VaultModule implements LarkyVault {
                     decoratorConfig, e.getMessage()
                 ));
             }
+        }
+    }
+
+    private void validateRecord(Object record) throws EvalException {
+        if (record == null || record instanceof NoneType) {
+            return;
+        }
+        // Scripts cannot pass a non-String (the parameter is typed), but Java callers can.
+        if (!(record instanceof String name)) {
+            throw Starlark.errorf(String.format(
+                "Record of type %s is not supported in VAULT, expecting String",
+                record.getClass().getName()
+            ));
+        }
+        if (name.isBlank()) {
+            throw Starlark.errorf("record must not be empty or blank");
         }
     }
 
