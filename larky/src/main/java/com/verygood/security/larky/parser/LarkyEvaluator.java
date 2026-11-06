@@ -293,8 +293,10 @@ public final class LarkyEvaluator {
       }
     }
 
+    // Only a Module counts: the environment also holds host bindings, and on a reused JSR-223
+    // engine the previous run's globals (e.g. the json module object a load() bound).
     private boolean inEvaluatorEnvironment(String moduleToLoad) {
-      return evaluator.getEnvironment().containsKey(moduleToLoad);
+      return evaluator.getEnvironment().get(moduleToLoad) instanceof Module;
     }
 
     private Module fromEvaluatorEnvironment(String moduleToLoad) {
