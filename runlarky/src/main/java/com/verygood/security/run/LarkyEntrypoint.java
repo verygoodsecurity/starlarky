@@ -6,21 +6,33 @@ import com.google.common.base.Strings;
 import java.io.BufferedReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
+
+import com.google.common.collect.ImmutableMap;
 
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.CapturingConsole;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.FileConsole;
 import com.verygood.security.larky.console.LogConsole;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 import com.verygood.security.larky.parser.PrependMergedStarFile;
+import com.verygood.security.larky.parser.StarFile;
+import com.verygood.security.larky.wasm.WasmRuntime;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
@@ -83,6 +95,38 @@ public class LarkyEntrypoint implements Callable<Integer> {
   @CommandLine.Option(names = {"-d", "--debug"}, description="Verbose merged script")
   private boolean debug; //  boolean debug = commandLine.hasOption("d");
 
+  @CommandLine.Option(
+      names = {"--module"},
+      paramLabel = "NAME=PATH",
+      description =
+          "Ship the file at PATH with the evaluation under NAME, as a host service's"
+              + " larky.modules do: the script can load() it (NAME ending in .star) or read it by"
+              + " name (e.g. "
+              + "wasm.module(NAME)). Repeatable.")
+  private List<String> moduleArgs = new ArrayList<>();
+
+  @CommandLine.Option(names = "--enable-wasm",
+      description = "Allow WebAssembly for this evaluation; requires --timeout-ms")
+  private boolean enableWasm;
+
+  @CommandLine.Option(names = "--timeout-ms", paramLabel = "MILLISECONDS",
+      description = "Positive finite evaluation timeout, required when WebAssembly is enabled")
+  private Long timeoutMs;
+
+  private static final String WASM_ENABLED_PROPERTY = "larky.wasm.enabled";
+
+  @CommandLine.Spec
+  private CommandLine.Model.CommandSpec spec;
+
+  /** The name the script is evaluated under when no --script is given. */
+  static final String DEFAULT_SCRIPT_NAME = "larky.star";
+
+  /** The largest file --module reads: the largest WebAssembly module Larky runs. */
+  static final int MAX_MODULE_FILE_BYTES = WasmRuntime.MAX_MODULE_BYTES;
+
+  /** The most bytes all --module files together may hold. */
+  static final long MAX_MODULE_TOTAL_BYTES = 64L << 20;
+
 
   public static void main(String[] args) {
     if(args.length == 0) {
@@ -95,12 +139,194 @@ public class LarkyEntrypoint implements Callable<Integer> {
 
   @Override
   public Integer call() throws Exception {
-    execute();
+    ImmutableMap<String, byte[]> modules;
+    Long expirationMs = null;
+    try {
+      if (enableWasm && timeoutMs == null) {
+        throw new IllegalArgumentException("WebAssembly requires --timeout-ms");
+      }
+      if (timeoutMs != null) {
+        if (timeoutMs <= 0) {
+          throw new IllegalArgumentException("--timeout-ms must be positive");
+        }
+        try {
+          expirationMs = Math.addExact(System.currentTimeMillis(), timeoutMs);
+        } catch (ArithmeticException e) {
+          throw new IllegalArgumentException("--timeout-ms is too large for a finite deadline", e);
+        }
+        if (expirationMs == Long.MAX_VALUE) {
+          throw new IllegalArgumentException("--timeout-ms is too large for a finite deadline");
+        }
+      }
+      modules = readModules(moduleArgs, scriptName(filePath));
+    } catch (IllegalArgumentException e) {
+      throw new CommandLine.ParameterException(spec.commandLine(), e.getMessage(), e);
+    }
+    // The standalone CLI evaluates one script at a time. Do not leave an opt-in behind when tests
+    // or another host invoke this entrypoint repeatedly in the same JVM.
+    String previousWasmEnabled = System.getProperty(WASM_ENABLED_PROPERTY);
+    if (enableWasm) {
+      System.setProperty(WASM_ENABLED_PROPERTY, "true");
+    }
+    try {
+      execute(modules, expirationMs);
+    } finally {
+      if (enableWasm) {
+        if (previousWasmEnabled == null) System.clearProperty(WASM_ENABLED_PROPERTY);
+        else System.setProperty(WASM_ENABLED_PROPERTY, previousWasmEnabled);
+      }
+    }
     return CommandLine.ExitCode.OK;
   }
 
+  /**
+   * Parses {@code --module NAME=PATH} arguments and reads each PATH's bytes, in argument order.
+   *
+   * @throws IllegalArgumentException if an argument is not NAME=PATH, a NAME repeats or is the
+   *     script's own name, a file cannot be read, a file is over {@link #MAX_MODULE_FILE_BYTES},
+   *     or the files total more than {@link #MAX_MODULE_TOTAL_BYTES}
+   */
+  static ImmutableMap<String, byte[]> readModules(List<String> args, String scriptName) {
+    Map<String, byte[]> modules = new LinkedHashMap<>();
+    long total = 0;
+    for (String arg : args) {
+      int eq = arg.indexOf('=');
+      if (eq <= 0 || eq == arg.length() - 1) {
+        throw new IllegalArgumentException(
+            String.format("--module expects NAME=PATH; got '%s'", arg));
+      }
+      String name = arg.substring(0, eq);
+      String path = arg.substring(eq + 1);
+      if (name.equals(scriptName)) {
+        throw new IllegalArgumentException(
+            String.format("--module %s: NAME is the script's own name", arg));
+      }
+      if (modules.containsKey(name)) {
+        throw new IllegalArgumentException(
+            String.format("--module %s: NAME '%s' is given more than once", arg, name));
+      }
+      byte[] bytes;
+      try (InputStream in = Files.newInputStream(Paths.get(path))) {
+        // At most one byte past the limit, so a huge file is never read whole.
+        bytes = in.readNBytes(MAX_MODULE_FILE_BYTES + 1);
+      } catch (IOException | RuntimeException e) {
+        throw new IllegalArgumentException(
+            String.format("--module %s: cannot read '%s' (%s)", arg, path, e), e);
+      }
+      if (bytes.length > MAX_MODULE_FILE_BYTES) {
+        throw new IllegalArgumentException(
+            String.format(
+                "--module %s: '%s' is larger than %d bytes", arg, path, MAX_MODULE_FILE_BYTES));
+      }
+      total += bytes.length;
+      if (total > MAX_MODULE_TOTAL_BYTES) {
+        throw new IllegalArgumentException(
+            String.format("--module: the files total more than %d bytes", MAX_MODULE_TOTAL_BYTES));
+      }
+      modules.put(name, bytes);
+    }
+    return ImmutableMap.copyOf(modules);
+  }
+
+  /**
+   * The name of the script in the evaluation's file map: its file name.
+   *
+   * @throws IllegalArgumentException if {@code scriptPath} is not a valid path
+   */
+  static String scriptName(String scriptPath) {
+    if (Strings.isNullOrEmpty(scriptPath) || scriptPath.trim().isEmpty()) {
+      return DEFAULT_SCRIPT_NAME;
+    }
+    Path fileName;
+    try {
+      fileName = Paths.get(scriptPath).getFileName();
+    } catch (InvalidPathException e) {
+      throw new IllegalArgumentException(
+          String.format("--script: '%s' is not a valid path (%s)", scriptPath, e.getReason()), e);
+    }
+    return fileName == null ? DEFAULT_SCRIPT_NAME : fileName.toString();
+  }
+
+  /**
+   * The file the evaluation starts from. Without modules it is the merged script itself, as
+   * before; with modules it is an in-memory file map holding the merged script under {@code
+   * scriptName} next to each module, the same map a host service fills through {@code
+   * LarkyScriptEngine.MODULES}, over the merged script's own resolution ({@link ShippedFiles}).
+   */
+  static StarFile rootStarFile(
+      PrependMergedStarFile merged, String scriptName, ImmutableMap<String, byte[]> modules)
+      throws IOException {
+    if (modules.isEmpty()) {
+      return merged;
+    }
+    ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
+    files.put(scriptName, merged.readContentBytes());
+    files.putAll(modules);
+    return new ShippedFiles(new InMemMapBackedStarFile(files.buildOrThrow(), scriptName), merged);
+  }
+
+  /**
+   * Shipped files over the runner's usual resolution: a load() finds a shipped file first, and
+   * anything else (a class path resource, an absolute path) resolves as it does without --module,
+   * so shipping a file cannot break a script's other loads.
+   */
+  static final class ShippedFiles implements StarFile {
+    private final StarFile current;
+    private final StarFile shipped;
+    private final StarFile fallback;
+
+    ShippedFiles(StarFile shipped, StarFile fallback) {
+      this(shipped, shipped, fallback);
+    }
+
+    private ShippedFiles(StarFile current, StarFile shipped, StarFile fallback) {
+      this.current = current;
+      this.shipped = shipped;
+      this.fallback = fallback;
+    }
+
+    @Override
+    public StarFile resolve(String path) {
+      StarFile file;
+      try {
+        file = shipped.resolve(path);
+      } catch (RuntimeException notShipped) { // InMemMapBackedStarFile's "does not exist"
+        file = fallback.resolve(path);
+        // Disk/classpath helpers still belong to this evaluation. Keep its shipped files while
+        // resolving subsequent filesystem loads relative to the helper we just loaded.
+        return new ShippedFiles(file, shipped, file);
+      }
+      return new ShippedFiles(file, fallback);
+    }
+
+    @Override
+    public String path() {
+      return current.path();
+    }
+
+    @Override
+    public String cacheNamespace() {
+      return current.cacheNamespace();
+    }
+
+    @Override
+    public byte[] readContentBytes() throws IOException {
+      return current.readContentBytes();
+    }
+
+    @Override
+    public String getIdentifier() {
+      return current.getIdentifier();
+    }
+
+    @Override
+    public byte[] readShippedFile(String name) {
+      return shipped.readShippedFile(name);
+    }
+  }
+
   @SneakyThrows
-  private void execute() {
+  private void execute(ImmutableMap<String, byte[]> modules, Long expirationMs) {
 
     Path tempdir =  Paths.get(System.getProperty("java.io.tmpdir"), "larky-runner");
     String timestamp = String.valueOf(System.currentTimeMillis());
@@ -130,10 +356,12 @@ public class LarkyEntrypoint implements Callable<Integer> {
     Console console = new FileConsole(CapturingConsole.captureAllConsole(
         LogConsole.writeOnlyConsole(System.out, true)), Path.of(logPath), Duration.ZERO);
 
+    Map<String, Object> globals = expirationMs == null
+        ? ImmutableMap.of() : ImmutableMap.of(LarkyEvaluator.EXPIRATION_MS, expirationMs);
     String output =
-      new LarkyScript(StarlarkMode.STRICT)
+      new LarkyScript(ModuleSupplier.CORE_MODULES, StarlarkMode.STRICT, globals)
         .executeSkylarkWithOutput(
-          prependMergedStarFile,
+          rootStarFile(prependMergedStarFile, scriptName(filePath), modules),
           new ModuleSupplier().create(),
           console
         ).toString();

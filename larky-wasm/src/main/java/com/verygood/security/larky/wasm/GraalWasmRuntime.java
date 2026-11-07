@@ -27,13 +27,15 @@ import org.graalvm.polyglot.EnvironmentAccess;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.PolyglotAccess;
 import org.graalvm.polyglot.PolyglotException;
+import org.graalvm.polyglot.SandboxPolicy;
 import org.graalvm.polyglot.Source;
 import org.graalvm.polyglot.io.ByteSequence;
 import org.graalvm.polyglot.io.IOAccess;
 
 /**
- * Runs modules on GraalWasm. All runtimes share one {@link Engine}, so a module parsed once is
- * reused by every later context that evaluates the same {@link Source}.
+ * Runs modules on GraalWasm. The ordinary backend shares one {@link Engine}, so a module parsed
+ * once can be reused by later contexts. The opt-in isolate subclass instead creates a new
+ * UNTRUSTED engine for validation and every run.
  *
  * <p>GraalWasm's built-in WASI is not used: {@link #compile} renames every WASI import to
  * {@value #HOST_MODULE}, whose functions each run serves from {@link WasiHost}, as Endive's runs
@@ -42,10 +44,11 @@ import org.graalvm.polyglot.io.IOAccess;
  * messages such as its warning about vector instructions) is discarded rather than reaching
  * the module's stderr.
  */
-final class GraalWasmRuntime implements WasmRuntime {
+class GraalWasmRuntime implements WasmRuntime {
 
   static final String HOST_MODULE = "larky_wasi_host";
   private final WasmHostLimits limits;
+  private final GraalIsolateSettings isolateSettings;
 
   private static final class EngineHolder {
     static final Engine ENGINE =
@@ -65,9 +68,20 @@ final class GraalWasmRuntime implements WasmRuntime {
    * {@link WasmException} instead.
    */
   GraalWasmRuntime() {
+    this(null);
+  }
+
+  GraalWasmRuntime(GraalIsolateSettings isolateSettings) {
     limits = WasmHostLimits.configured();
-    if (!engine().getLanguages().containsKey("wasm")) {
+    this.isolateSettings = isolateSettings;
+    if (isolateSettings == null && !engine().getLanguages().containsKey("wasm")) {
       throw new IllegalStateException("GraalWasm's wasm language is not on the class path");
+    }
+    if (isolateSettings != null) {
+      // Fail at runtime selection if the host lacks GraalVM or the matching isolate image.
+      try (Context ignored = newContextBuilder(isolateSettings.compileCpuMillis(), 0).build()) {
+        // Building the context validates the UNTRUSTED policy and isolate availability.
+      }
     }
   }
 
@@ -92,6 +106,37 @@ final class GraalWasmRuntime implements WasmRuntime {
         .allowCreateProcess(false);
   }
 
+  Context.Builder newContextBuilder(long cpuMillis, int outputBytes) {
+    if (isolateSettings == null) return contextBuilder();
+    int streamBytes = Math.max(0, outputBytes);
+    return Context.newBuilder("wasm")
+        .sandbox(SandboxPolicy.UNTRUSTED)
+        .in(InputStream.nullInputStream())
+        .out(OutputStream.nullOutputStream())
+        .err(OutputStream.nullOutputStream())
+        .logHandler(OutputStream.nullOutputStream())
+        .allowIO(IOAccess.NONE)
+        .allowHostAccess(HostAccess.UNTRUSTED)
+        .allowHostClassLookup(name -> false)
+        .allowEnvironmentAccess(EnvironmentAccess.NONE)
+        .allowPolyglotAccess(PolyglotAccess.NONE)
+        .allowNativeAccess(false)
+        .allowCreateThread(false)
+        .allowCreateProcess(false)
+        .option("engine.MaxIsolateMemory", isolateSettings.maxIsolateMemoryBytes() + "B")
+        .option("sandbox.MaxHeapMemory", isolateSettings.maxGuestHeapBytes() + "B")
+        .option("sandbox.MaxCPUTime", cpuMillis + "ms")
+        .option("sandbox.MaxThreads", "1")
+        .option("sandbox.MaxASTDepth", Integer.toString(isolateSettings.maxAstDepth()))
+        .option("sandbox.MaxStackFrames", Integer.toString(isolateSettings.maxStackFrames()))
+        .option("sandbox.MaxOutputStreamSize", streamBytes + "B")
+        .option("sandbox.MaxErrorStreamSize", streamBytes + "B");
+  }
+
+  GraalIsolateSettings isolateSettings() {
+    return isolateSettings;
+  }
+
   @Override
   public String name() {
     return "graal";
@@ -99,7 +144,7 @@ final class GraalWasmRuntime implements WasmRuntime {
 
   @Override
   public String compilePolicyKey() {
-    return name() + ":" + limits;
+    return name() + ":" + limits + ":" + isolateSettings;
   }
 
   @Override
@@ -114,24 +159,33 @@ final class GraalWasmRuntime implements WasmRuntime {
     Set<String> imports = WasmBinaries.checkWasiCommand(bytes, limits);
     bytes = WasmBinaries.capTables(bytes, limits);
     byte[] redirected = WasmBinaries.renameImports(bytes, WasiHost.MODULE, imports, HOST_MODULE);
-    Source source = source(redirected);
+    Source source = source(redirected, isolateSettings == null);
     validate(source);
-    return new GraalWasmProgram(redirected, source, imports);
+    return new GraalWasmProgram(this, redirected, source, imports);
   }
 
   static Source source(byte[] wasm) {
+    return source(wasm, true);
+  }
+
+  static Source source(byte[] wasm, boolean cached) {
     try {
-      return Source.newBuilder("wasm", ByteSequence.create(wasm), "module").cached(true).build();
+      return Source.newBuilder("wasm", ByteSequence.create(wasm), "module").cached(cached).build();
     } catch (IOException e) {
       throw new IllegalStateException(e); // a ByteSequence source does no I/O
     }
   }
 
   /** Parses (and so validates) {@code source} in a throwaway context, without instantiating it. */
-  static void validate(Source source) throws WasmException {
-    try (Context context = contextBuilder().build()) {
+  void validate(Source source) throws WasmException {
+    long cpuMillis = isolateSettings == null ? 0 : isolateSettings.compileCpuMillis();
+    try (Context context = newContextBuilder(cpuMillis, 0).build()) {
       context.eval(source);
     } catch (PolyglotException e) {
+      if (e.isResourceExhausted()) {
+        throw new WasmException(WasmException.Kind.MEMORY_LIMIT,
+            "module validation exceeded the GraalWasm isolate resource limit", e);
+      }
       throw new WasmException(
           WasmException.Kind.INVALID_MODULE, "invalid module: " + e.getMessage(), e);
     }

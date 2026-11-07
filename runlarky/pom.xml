@@ -103,6 +103,14 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- junit 4 comes from larky at compile scope (its unittest module uses it). -->
+        <dependency>
+            <groupId>com.google.truth</groupId>
+            <artifactId>truth</artifactId>
+            <version>1.4.4</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
