@@ -41,11 +41,11 @@ public class Larky {
 
   // TODO(adonovan): set load-binds-globally option when we support load,
   // so that loads bound in one REPL chunk are visible in the next.
-  private static final FileOptions OPTIONS = FileOptions.DEFAULT;
+  private static final FileOptions OPTIONS = LarkySemantics.FILE_OPTIONS;
 
   static {
     Mutability mu = Mutability.create("interpreter");
-    thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+    thread = StarlarkThread.createTransient(mu, LarkySemantics.STARLARK_SEMANTICS);
     thread.setPrintHandler((th, msg) -> System.out.println(msg));
   }
 

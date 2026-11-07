@@ -1,0 +1,3003 @@
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/CpuProfilerNativeSupportImpl.java a/libstarlark/src/main/java/net/starlark/java/eval/CpuProfilerNativeSupportImpl.java
+index bba694c4..fc28260b 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/CpuProfilerNativeSupportImpl.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/CpuProfilerNativeSupportImpl.java
+@@ -13,11 +13,9 @@
+ // limitations under the License.
+ package net.starlark.java.eval;
+ 
+-import com.google.devtools.build.lib.skybridge.ScOnly;
+ import java.io.FileDescriptor;
+ 
+ /** Implementation of {@link CpuProfilerNativeSupport}. */
+-@ScOnly
+ public final class CpuProfilerNativeSupportImpl implements CpuProfilerNativeSupport {
+ 
+   static {
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Eval.java a/libstarlark/src/main/java/net/starlark/java/eval/Eval.java
+index e7795647..8b4f61f5 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/Eval.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/Eval.java
+@@ -29,6 +29,7 @@ import net.starlark.java.spelling.SpellChecker;
+ import net.starlark.java.syntax.Argument;
+ import net.starlark.java.syntax.AssignmentStatement;
+ import net.starlark.java.syntax.BinaryOperatorExpression;
++import net.starlark.java.syntax.ByteLiteral;
+ import net.starlark.java.syntax.CallExpression;
+ import net.starlark.java.syntax.CastExpression;
+ import net.starlark.java.syntax.Comprehension;
+@@ -373,6 +374,7 @@ final class Eval {
+     if (++fr.thread.steps >= fr.thread.stepLimit) {
+       throw new EvalException("Starlark computation cancelled: too many steps");
+     }
++    fr.thread.checkExpired();
+ 
+     switch (st.kind()) {
+       case ASSIGNMENT:
+@@ -419,7 +421,7 @@ final class Eval {
+       // x[i] = ...
+       Object object = eval(fr, index.getObject());
+       Object key = eval(fr, index.getKey());
+-      EvalUtils.setIndex(object, key, value);
++      EvalUtils.setIndex(fr.thread, object, key, value);
+ 
+     } else if (lhs instanceof ListExpression list) {
+       // a, b, c = ...
+@@ -521,7 +523,7 @@ final class Eval {
+         throw ex;
+       }
+       try {
+-        EvalUtils.setIndex(object, key, z);
++        EvalUtils.setIndex(fr.thread, object, key, z);
+       } catch (EvalException ex) {
+         fr.setErrorLocation(stmt.getOperatorLocation());
+         throw ex;
+@@ -619,6 +621,7 @@ final class Eval {
+     if (++fr.thread.steps >= fr.thread.stepLimit) {
+       throw new EvalException("Starlark computation cancelled: too many steps");
+     }
++    fr.thread.checkExpired();
+ 
+     // The switch cases have been split into separate functions
+     // to reduce the stack usage during recursion, which is
+@@ -668,6 +671,8 @@ final class Eval {
+         return evalSlice(fr, (SliceExpression) expr);
+       case STRING_LITERAL:
+         return ((StringLiteral) expr).getValue();
++      case BYTE_LITERAL:
++        return evalByteLiteral(fr, (ByteLiteral) expr);
+       case UNARY_OPERATOR:
+         return evalUnaryOperator(fr, (UnaryOperatorExpression) expr);
+       case ELLIPSIS:
+@@ -924,6 +929,11 @@ final class Eval {
+     return expr.isTuple() ? Tuple.wrap(array) : StarlarkList.wrap(fr.thread.mutability(), array);
+   }
+ 
++  private static Object evalByteLiteral(StarlarkThread.Frame fr, ByteLiteral expr)
++      throws EvalException, InterruptedException {
++    return StarlarkBytes.wrap(fr.thread.mutability(), expr.getValue());
++  }
++
+   private static Object evalSlice(StarlarkThread.Frame fr, SliceExpression slice)
+       throws EvalException, InterruptedException {
+     Object x = eval(fr, slice.getObject());
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java a/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
+index 1655e0a9..7c660d45 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
+@@ -13,6 +13,7 @@
+ // limitations under the License.
+ package net.starlark.java.eval;
+ 
++import com.google.common.base.Strings;
+ import java.util.IllegalFormatException;
+ import java.util.LinkedHashMap;
+ import java.util.Map;
+@@ -209,6 +210,7 @@ final class EvalUtils {
+         if (x instanceof StarlarkInt xi) {
+           if (y instanceof StarlarkInt) {
+             // int * int
++            IntLimits.checkProduct(xi, (StarlarkInt) y); // VGS
+             return StarlarkInt.multiply(xi, (StarlarkInt) y);
+           } else if (y instanceof String) {
+             // int * string
+@@ -317,6 +319,9 @@ final class EvalUtils {
+ 
+         } else if (x instanceof String xs) {
+           // string % any
++          if (semantics.getBool(PercentFormat.PYTHON_PERCENT_FORMAT)) {
++            return PercentFormat.format(starlarkThread, xs, y); // VGS: Python's str % args
++          }
+           try {
+             if (y instanceof Tuple) {
+               return Starlark.formatWithList(semantics, xs, (Tuple) y);
+@@ -417,7 +422,10 @@ final class EvalUtils {
+       // Would exceed max length of a java String.
+       throw Starlark.errorf("excessive repeat (%d * %d characters)", s.length(), n);
+     } else {
+-      return s.repeat(n);
++      // We currently do not support JDK11 (for now), so we will avoid this:
++      // We can remove this once we are on JDK11.
++      // return s.repeat(n);
++      return Strings.repeat(s, n);
+     }
+   }
+ 
+@@ -489,7 +497,7 @@ final class EvalUtils {
+    *
+    * @throws EvalException if the object is not a list or dict.
+    */
+-  static void setIndex(Object object, Object key, Object value) throws EvalException {
++  static void setIndex(StarlarkThread thread, Object object, Object key, Object value) throws EvalException {
+     if (object instanceof Dict) {
+       @SuppressWarnings("unchecked")
+       Dict<Object, Object> dict = (Dict<Object, Object>) object;
+@@ -502,10 +510,15 @@ final class EvalUtils {
+       index = EvalUtils.getSequenceIndex(index, list.size());
+       list.setElementAt(index, value);
+ 
++    } else if (object instanceof StarlarkSetIndexable) {
++      ((StarlarkSetIndexable) object).setIndex(thread.getSemantics(), key, value);
++    } else if (object instanceof StarlarkSetIndexable.Threaded) {
++      ((StarlarkSetIndexable.Threaded) object).setIndex(thread, thread.getSemantics(), key, value);
+     } else {
+       throw Starlark.errorf(
+-          "can only assign an element in a dictionary or a list, not in a '%s'",
+-          Starlark.type(object));
++        "can only assign an element in a dictionary, list, or implementation of " +
++          "StarlarkSetIndexable, not in a '%s'",
++        Starlark.type(object));
+     }
+   }
+ 
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java a/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java
+index 2de345d6..411a3655 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java
+@@ -442,7 +442,7 @@ class MethodLibrary {
+       isTypeConstructor = true)
+   public Tuple tuple(StarlarkIterable<?> x) throws EvalException {
+     if (x instanceof Tuple) {
+-      return (Tuple) x;
++      return Tuple.copyOf((Tuple) x); // VGS: a namedtuple becomes a plain tuple, as in Python
+     }
+     return Tuple.wrap(Starlark.toArray(x));
+   }
+@@ -497,6 +497,81 @@ class MethodLibrary {
+     return Starlark.str(x, thread.getSemantics());
+   }
+ 
++  @StarlarkMethod(
++      name = "bytes",
++      doc =
++        "<pre class=\"language-python\">bytes(x)</pre> converts its argument to a bytes.\n" +
++          "\n" +
++          "If x is a bytes, the result is x.\n" +
++          "\n" +
++          "If x is a string, the result is a bytes whose elements are the UTF-8 encoding of" +
++          " the string. Each element of the string that is not part of a valid encoding of " +
++          "a code point is replaced by the UTF-8 encoding of the replacement character, " +
++          "U+FFFD.\n" +
++          "\n" +
++          "If x is an iterable sequence of int values, the result is a bytes whose " +
++          "elements are those integers. It is an error if any element is not in the " +
++          "range 0-255.",
++      parameters = {@Param(name = "x", doc = "The object to convert.")})
++  public StarlarkBytes bytes(Object x) throws EvalException {
++    switch(Starlark.type(x)) {
++      case "bytes":
++        return (StarlarkBytes) x;
++      case "string":
++        return StarlarkBytes.immutableOf(((String) x).toCharArray());
++      default:
++        // nothing
++    }
++    if(x instanceof Sequence) {
++      Sequence<StarlarkInt> cast = Sequence.cast(
++        x,
++        StarlarkInt.class,
++        Starlark.str(x, StarlarkSemantics.DEFAULT));
++      return StarlarkBytes.immutableCopyOf(cast);
++    }
++    throw Starlark.errorf("bytes: got %s, want string, bytes, or iterable of ints", Starlark.type(x));
++  }
++
++
++  @StarlarkMethod(
++       name = "ord",
++       doc = "Given a string representing one Unicode character, return an integer representing" +
++           " the Unicode code point of that character. For example, ord('a') returns the " +
++           "integer 97 and ord('€') (Euro sign) returns 8364. This is the inverse of chr().",
++       parameters = {
++           @Param(
++               name = "c",
++               allowedTypes = {
++                   @ParamType(type = String.class),
++                   @ParamType(type = StarlarkBytes.class),
++                   @ParamType(type = StarlarkInt.class),
++               }
++           )
++       }
++   )
++   public StarlarkInt ordinal(Object c) throws EvalException {
++     // b[i] used to be a 1-byte bytes, so scripts wrote ord(b[i]); it is now the byte's int.
++     if (c instanceof StarlarkInt i) {
++       int v = i.toInt("ord");
++       if (v < 0 || v > 255) {
++         throw Starlark.errorf("ord: int %d out of range, want a byte (0-255)", v);
++       }
++       return i;
++     }
++     if (c instanceof String s) {
++       // One code point, which may be a surrogate pair.
++       if (s.isEmpty() || s.length() != Character.charCount(s.codePointAt(0))) {
++         throw Starlark.errorf("ord: string has length %d, want 1", s.length());
++       }
++       return StarlarkInt.of(s.codePointAt(0));
++     }
++     StarlarkBytes b = (StarlarkBytes) c;
++     if (b.size() != 1) {
++       throw Starlark.errorf("ord: bytes has length %d, want 1", b.size());
++     }
++     return StarlarkInt.of(Byte.toUnsignedInt(b.byteAt(0)));
++  }
++
+   @StarlarkMethod(
+       name = "repr",
+       doc =
+@@ -787,15 +862,27 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
+   @StarlarkMethod(
+       name = "hash",
+       doc =
+-          "Return a hash value for a string. This is computed deterministically using the same "
++          "Return a hash value for a string or bytes." +
++            "For strings, this is computed deterministically using the same "
+               + "algorithm as Java's <code>String.hashCode()</code>, namely: "
+               + "<pre class=\"language-python\">s[0] * (31^(n-1)) + s[1] * (31^(n-2)) + ... + "
+-              + "s[n-1]</pre> Hashing of values besides strings is not currently supported.",
++              + "s[n-1]</pre>.\n" +
++            "For bytes, this is computed using the Fnv32 hash function.\n" +
++            "Hashing of values besides strings or bytes is not currently supported.",
+       // Deterministic hashing is important for the consistency of builds, hence why we
+       // promise a specific algorithm. This is in contrast to Java (Object.hashCode()) and
+       // Python, which promise stable hashing only within a given execution of the program.
+-      parameters = {@Param(name = "value", doc = "String value to hash.")})
+-  public int hash(String value) throws EvalException {
++      parameters = {
++        @Param(name = "value", doc = "String value to hash.",
++        allowedTypes = {
++          @ParamType(type = String.class),
++          @ParamType(type = StarlarkBytes.class),
++        })
++      })
++  public int hash(Object value) throws EvalException {
++    if (value instanceof StarlarkBytes b) {
++      b.checkHashable(); // a bytearray is unhashable, as in Python
++    }
+     return value.hashCode();
+   }
+ 
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Module.java a/libstarlark/src/main/java/net/starlark/java/eval/Module.java
+index 96c45406..2a6a82d9 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/Module.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/Module.java
+@@ -299,10 +299,30 @@ public final class Module implements Resolver.Module, TypeTagger.LoadableModule
+     throw new Undefined(String.format("name '%s' is not defined", name), candidates);
+   }
+ 
++  // VGS: whether a type expression may name a global of this module that has no value yet.
++  private boolean forwardTypeReferences;
++
++  /**
++   * Lets type expressions name globals of this module that have no value when the file is
++   * type-tagged, such as classes the file defines; see {@link ForwardGlobalType}.
++   */
++  public void allowForwardTypeReferences() {
++    forwardTypeReferences = true;
++  }
++
+   @Override
+   @Nullable
+   public TypeConstructor getTypeConstructor(String name) throws Undefined {
+-    Resolver.Scope scope = resolve(name, /* resolveTypeSyntax= */ true);
++    Resolver.Scope scope;
++    try {
++      scope = resolve(name, /* resolveTypeSyntax= */ true);
++    } catch (Undefined e) {
++      // The resolver accepted the name, so it is a global of the file, not yet assigned.
++      if (forwardTypeReferences) {
++        return ForwardGlobalType.constructor(this, name);
++      }
++      throw e;
++    }
+     Object value;
+     switch (scope) {
+       case GLOBAL -> value = getGlobal(name);
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java a/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
+index b1efe3ab..424d865f 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
+@@ -708,6 +708,9 @@ public final class Starlark {
+     } else {
+       // different types
+ 
++      if (x instanceof StarlarkBytes xb && y instanceof StarlarkBytes yb) {
++        return xb.compareTo(yb); // VGS: bytes and bytearray order by content, as in Python
++      }
+       if (x instanceof StarlarkFloat && y instanceof StarlarkInt) {
+         // float < int
+         double xf = ((StarlarkFloat) x).toDouble();
+@@ -1109,9 +1112,9 @@ public final class Starlark {
+    *
+    * <p>The original exception can be retrieved using {@link #getCause}.
+    */
+-  public static final class UncheckedEvalException extends RuntimeException {
++  public static class UncheckedEvalException extends RuntimeException {
+ 
+-    private UncheckedEvalException(RuntimeException cause, StarlarkThread thread) {
++    protected UncheckedEvalException(RuntimeException cause, StarlarkThread thread) {
+       super(createUncheckedEvalMessage(cause, thread), cause);
+       thread.fillInStackTrace(this);
+     }
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkFunction.java a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkFunction.java
+index 86618afb..38488f3f 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkFunction.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkFunction.java
+@@ -683,9 +683,10 @@ public sealed class StarlarkFunction implements StarlarkCallable {
+         Module module,
+         int[] globalIndex,
+         SymbolGenerator.Symbol<?> token) {
+-      checkArgument(rfn.isToplevel());
++      // VGS: upstream calls checkArgument before super(), which needs Java 25 (flexible
++      // constructor bodies); libstarlark compiles with release 21, so the check runs in an argument.
+       super(
+-          rfn,
++          requireToplevel(rfn),
+           typeTable == null ? null : typeTable.getNonToplevelFunctionTypes(),
+           module,
+           globalIndex,
+@@ -695,6 +696,11 @@ public sealed class StarlarkFunction implements StarlarkCallable {
+       this.typeTable = typeTable;
+     }
+ 
++    private static Resolver.Function requireToplevel(Resolver.Function rfn) {
++      checkArgument(rfn.isToplevel());
++      return rfn;
++    }
++
+     @Override
+     public StarlarkType getStarlarkType(StarlarkSemantics semantics) {
+       if (typeTable != null) {
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkInt.java a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkInt.java
+index 0aad6f24..f177a079 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkInt.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkInt.java
+@@ -166,6 +166,7 @@ public abstract sealed class StarlarkInt implements StarlarkValue, Comparable<St
+     try {
+       result = StarlarkInt.of(Long.parseLong(digits, base));
+     } catch (NumberFormatException unused1) {
++      IntLimits.checkDigits(digits, base); // VGS
+       try {
+         result = StarlarkInt.of(new BigInteger(digits, base));
+       } catch (NumberFormatException unused2) {
+@@ -700,6 +701,7 @@ public abstract sealed class StarlarkInt implements StarlarkValue, Comparable<St
+     }
+ 
+     BigInteger xbig = x.toBigInteger();
++    IntLimits.checkBits((long) xbig.bitLength() + yi, "<<"); // VGS
+     BigInteger zbig = xbig.shiftLeft(yi);
+     return StarlarkInt.of(zbig);
+   }
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
+index 79dbb5ae..225b21e6 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkThread.java
+@@ -14,13 +14,16 @@
+ 
+ package net.starlark.java.eval;
+ 
++import com.google.common.annotations.VisibleForTesting;
+ import com.google.common.base.Preconditions;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableMap;
++import java.time.Clock;
+ import java.util.ArrayList;
+ import java.util.HashMap;
+ import java.util.Map;
+ import java.util.concurrent.atomic.AtomicInteger;
++import javax.annotation.Nonnull;
+ import javax.annotation.Nullable;
+ import javax.annotation.concurrent.Immutable;
+ import net.starlark.java.syntax.Location;
+@@ -75,6 +78,8 @@ public final class StarlarkThread
+ 
+   long steps; // count of logical computation steps executed so far
+   long stepLimit = Long.MAX_VALUE; // limit on logical computation steps
++  long expirationMs = Long.MAX_VALUE; // time after which execution should halt
++  Clock clock = Clock.systemUTC(); // Used to check expiration. Can be set for debug purposes
+ 
+   /**
+    * Returns the number of Starlark computation steps executed by this thread according to a
+@@ -112,6 +117,77 @@ public final class StarlarkThread
+     return stepLimit;
+   }
+ 
++  /**
++   *
++   * @return expiration date in ms since 1970
++   */
++  public long getExpirationMs() {
++    return expirationMs;
++  }
++
++  /**
++   * Sets the expiration date.
++   * Will halt execution on the next evaluation after the given date.
++   * If not called, evals will not expire.
++   *
++   * @param expirationMs expiration date in ms since 1970
++   */
++  public void setExpirationMs(long expirationMs) {
++    this.expirationMs = expirationMs;
++    this.checksUntilClockRead = 0;
++    this.expired = false; // a new date re-arms the check
++  }
++
++  /**
++   *
++   * @return current Clock object
++   */
++  public Clock getClock() {
++    return clock;
++  }
++
++  /**
++   * Sets a specific clock object for testing purposes
++   * @param clock Clock for testing
++   */
++  @VisibleForTesting
++  public void setClock(@Nonnull Clock clock) {
++    this.clock = clock;
++  }
++
++  public boolean isExpired(){
++    return clock.millis() > expirationMs;
++  }
++
++  // checkExpired reads the clock on the first check after an expiration date is set and on every
++  // EXPIRY_CHECK_INTERVAL-th check after that: it runs for every statement and expression, and
++  // reading the clock each time was a large part of evaluation. A larger interval reads the clock
++  // less often but lets more statements run past the expiration date before evaluation stops.
++  private static final int EXPIRY_CHECK_INTERVAL =
++      Math.max(1, Integer.getInteger("starlark.expiry.checkInterval", 64));
++  private int checksUntilClockRead;
++
++  /** Throws if evaluation has run past the expiration date set by {@link #setExpirationMs}. */
++  void checkExpired() throws EvalException {
++    // VGS: once past the expiration date, every check fails, so a script that catches the error
++    // (Larky's safe()) can't keep running: its next statement fails too.
++    if (expired) {
++      throw new EvalException("Starlark computation cancelled: past expiration date");
++    }
++    if (expirationMs == Long.MAX_VALUE || --checksUntilClockRead > 0) {
++      return;
++    }
++    checksUntilClockRead = EXPIRY_CHECK_INTERVAL;
++    if (isExpired()) {
++      expired = true;
++      throw new EvalException("Starlark computation cancelled: past expiration date");
++    }
++  }
++
++  private boolean expired;
++
++  private boolean interrupted;
++
+   /**
+    * Disables polling of the {@link java.lang.Thread#interrupted} flag during Starlark evaluation.
+    */
+@@ -123,11 +199,19 @@ public final class StarlarkThread
+   }
+ 
+   void checkInterrupt() throws InterruptedException {
+-    if (interruptible && Thread.interrupted()) {
++    // VGS: Thread.interrupted() clears the flag, so remember the interrupt; every later check
++    // fails even if a script caught the first InterruptedException.
++    if (interrupted || (interruptible && Thread.interrupted())) {
++      interrupted = true;
+       throw new InterruptedException();
+     }
+   }
+ 
++  /** VGS: the number of frames on the call stack, for callers that recover from an error. */
++  int callStackSize() {
++    return callstack.size();
++  }
++
+   /**
+    * setThreadLocal saves {@code value} as a thread-local variable of this Starlark thread, keyed by
+    * {@code key}, so that it can later be retrieved by {@code getThreadLocal(key)}.
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java a/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java
+index 1191027e..ffad3cd0 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java
+@@ -188,16 +188,24 @@ final class StringModule implements StarlarkValue {
+   @StarlarkMethod(
+       name = "lower",
+       doc = "Returns the lower case version of this string.",
+-      parameters = {@Param(name = "self")})
+-  public String lower(String self) {
++      parameters = {@Param(name = "self")},
++      useStarlarkThread = true)
++  public String lower(String self, StarlarkThread thread) {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.lower(self); // VGS: Python's Unicode rules
++    }
+     return Ascii.toLowerCase(self);
+   }
+ 
+   @StarlarkMethod(
+       name = "upper",
+       doc = "Returns the upper case version of this string.",
+-      parameters = {@Param(name = "self")})
+-  public String upper(String self) {
++      parameters = {@Param(name = "self")},
++      useStarlarkThread = true)
++  public String upper(String self, StarlarkThread thread) {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.upper(self); // VGS: Python's Unicode rules
++    }
+     return Ascii.toUpperCase(self);
+   }
+ 
+@@ -349,7 +357,9 @@ final class StringModule implements StarlarkValue {
+         ? CharMatcher.anyOf((String) charsOrNone)
+         : (starlarkSemantics.getBool(StarlarkSemantics.INTERNAL_BAZEL_ONLY_UTF_8_BYTE_STRINGS)
+             ? ASCII_WHITESPACE
+-            : LATIN1_WHITESPACE);
++            : PythonStrings.unicode(starlarkSemantics)
++                ? PythonStrings.WHITESPACE // VGS: Python's whitespace
++                : LATIN1_WHITESPACE);
+   }
+ 
+   @StarlarkMethod(
+@@ -540,8 +550,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns a copy of the string with its first character (if any) capitalized and the rest "
+               + "lowercased. This method does not support non-ascii characters. ",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public String capitalize(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public String capitalize(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.capitalize(self); // VGS: Python's Unicode rules
++    }
+     if (self.isEmpty()) {
+       return self;
+     }
+@@ -556,8 +570,12 @@ final class StringModule implements StarlarkValue {
+               + "uppercase letter while the remaining letters are lowercase. In this "
+               + "context, a word means strictly a sequence of letters. This method does "
+               + "not support supplementary Unicode characters.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public String title(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public String title(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.title(self); // VGS: Python's Unicode rules
++    }
+     char[] data = self.toCharArray();
+     boolean previousWasLetter = false;
+ 
+@@ -627,8 +645,13 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position before which to restrict to search.")
+-      })
+-  public int rfind(String self, String sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public int rfind(String self, String sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
++      return -1; // VGS: Python's start > end
++    }
+     return stringFind(false, self, sub, start, end);
+   }
+ 
+@@ -657,8 +680,13 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position before which to restrict to search.")
+-      })
+-  public int find(String self, String sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public int find(String self, String sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
++      return -1; // VGS: Python's start > end
++    }
+     return stringFind(true, self, sub, start, end);
+   }
+ 
+@@ -687,8 +715,13 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position before which to restrict to search.")
+-      })
+-  public int rindex(String self, String sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public int rindex(String self, String sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
++      throw Starlark.errorf("substring not found"); // VGS: Python's start > end
++    }
+     int res = stringFind(false, self, sub, start, end);
+     if (res < 0) {
+       throw Starlark.errorf("substring not found");
+@@ -721,8 +754,13 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position before which to restrict to search.")
+-      })
+-  public int index(String self, String sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public int index(String self, String sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
++      throw Starlark.errorf("substring not found"); // VGS: Python's start > end
++    }
+     int res = stringFind(true, self, sub, start, end);
+     if (res < 0) {
+       throw Starlark.errorf("substring not found");
+@@ -771,8 +809,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all characters in the string are alphabetic ([a-zA-Z]) and there is "
+               + "at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isAlpha(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isAlpha(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isAlpha(self); // VGS: Python's Unicode rules
++    }
+     return matches(self, ALPHA, false);
+   }
+ 
+@@ -781,8 +823,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all characters in the string are alphanumeric ([a-zA-Z0-9]) and there "
+               + "is at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isAlnum(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isAlnum(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isAlnum(self); // VGS: Python's Unicode rules
++    }
+     return matches(self, ALNUM, false);
+   }
+ 
+@@ -791,8 +837,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all characters in the string are digits ([0-9]) and there is "
+               + "at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isDigit(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isDigit(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isDigit(self); // VGS: Python's Unicode rules
++    }
+     return matches(self, DIGIT, false);
+   }
+ 
+@@ -801,8 +851,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all characters are white space characters and the string "
+               + "contains at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isSpace(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isSpace(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isSpace(self); // VGS: Python's Unicode rules
++    }
+     return matches(self, SPACE, false);
+   }
+ 
+@@ -811,8 +865,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all cased characters in the string are lowercase and there is "
+               + "at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isLower(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isLower(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isLower(self); // VGS: Python's Unicode rules
++    }
+     // Python also accepts non-cased characters, so we cannot use LOWER.
+     return matches(self, UPPER.negate(), true);
+   }
+@@ -822,8 +880,12 @@ final class StringModule implements StarlarkValue {
+       doc =
+           "Returns True if all cased characters in the string are uppercase and there is "
+               + "at least one character.",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isUpper(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isUpper(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isUpper(self); // VGS: Python's Unicode rules
++    }
+     // Python also accepts non-cased characters, so we cannot use UPPER.
+     return matches(self, LOWER.negate(), true);
+   }
+@@ -835,8 +897,12 @@ final class StringModule implements StarlarkValue {
+               + "This means that every uppercase character must follow an uncased one (e.g. "
+               + "whitespace) and every lowercase character must follow a cased one (e.g. "
+               + "uppercase or lowercase).",
+-      parameters = {@Param(name = "self", doc = "This string.")})
+-  public boolean isTitle(String self) throws EvalException {
++      parameters = {@Param(name = "self", doc = "This string.")},
++      useStarlarkThread = true)
++  public boolean isTitle(String self, StarlarkThread thread) throws EvalException {
++    if (PythonStrings.unicode(thread)) {
++      return PythonStrings.isTitle(self); // VGS: Python's Unicode rules
++    }
+     if (self.isEmpty()) {
+       return false;
+     }
+@@ -920,8 +986,13 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position before which to restrict to search.")
+-      })
+-  public int count(String self, String sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public int count(String self, String sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, start, end)) {
++      return 0; // VGS: Python's start > end
++    }
+     long indices = substringIndices(self, start, end);
+     if (sub.isEmpty()) {
+       return hi(indices) - lo(indices) + 1; // str.length() + 1
+@@ -988,8 +1059,14 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "optional position at which to stop comparing.")
+-      })
+-  public boolean endsWith(String self, Object sub, Object start, Object end) throws EvalException {
++      },
++      useStarlarkThread = true)
++  public boolean endsWith(
++      String self, Object sub, Object start, Object end, StarlarkThread thread)
++      throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, sub, start, end)) {
++      return false; // VGS: Python's start > end
++    }
+     long indices = substringIndices(self, start, end);
+     if (sub instanceof String) {
+       return substringEndsWith(self, lo(indices), hi(indices), (String) sub);
+@@ -1070,9 +1147,14 @@ final class StringModule implements StarlarkValue {
+             },
+             defaultValue = "None",
+             doc = "Stop comparing at this position.")
+-      })
+-  public boolean startsWith(String self, Object sub, Object start, Object end)
++      },
++      useStarlarkThread = true)
++  public boolean startsWith(
++      String self, Object sub, Object start, Object end, StarlarkThread thread)
+       throws EvalException {
++    if (PythonStrings.bounds(thread) && PythonStrings.emptySearchRange(self, sub, start, end)) {
++      return false; // VGS: Python's start > end
++    }
+     long indices = substringIndices(self, start, end);
+     if (sub instanceof String) {
+       return substringStartsWith(self, lo(indices), hi(indices), (String) sub);
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Tuple.java a/libstarlark/src/main/java/net/starlark/java/eval/Tuple.java
+index e6a54446..cc420918 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/Tuple.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/Tuple.java
+@@ -73,7 +73,9 @@ public abstract class Tuple extends AbstractList<Object>
+ 
+   /** Returns a tuple containing the given elements. */
+   public static Tuple copyOf(Iterable<?> seq) {
+-    if (seq instanceof Tuple) {
++    // VGS: only a plain tuple is returned as is; a subclass (a namedtuple) is copied, as
++    // Python's tuple(p) is a plain tuple.
++    if (seq instanceof RegularTuple || seq instanceof SingletonTuple) {
+       return (Tuple) seq;
+     }
+     return wrap(Iterables.toArray(seq, Object.class));
+@@ -109,18 +111,18 @@ public abstract class Tuple extends AbstractList<Object>
+   /** Returns a tuple that is the concatenation of two tuples. */
+   public static Tuple concat(Tuple x, Tuple y) {
+     if (x.isEmpty()) {
+-      return y;
++      return copyOf(y); // VGS: copyOf makes a subclass (a namedtuple) a plain tuple
+     } else if (y.isEmpty()) {
+-      return x;
++      return copyOf(x);
+     } else {
+       Object[] xelems =
+           x instanceof SingletonTuple
+               ? new Object[] {((SingletonTuple) x).elem}
+-              : ((RegularTuple) x).elems;
++              : x instanceof RegularTuple ? ((RegularTuple) x).elems : x.toArray(); // VGS
+       Object[] yelems =
+           y instanceof SingletonTuple
+               ? new Object[] {((SingletonTuple) y).elem}
+-              : ((RegularTuple) y).elems;
++              : y instanceof RegularTuple ? ((RegularTuple) y).elems : y.toArray(); // VGS
+       return wrap(ObjectArrays.concat(xelems, yelems, Object.class));
+     }
+   }
+diff --git b/libstarlark/src/main/java/net/starlark/java/syntax/Expression.java a/libstarlark/src/main/java/net/starlark/java/syntax/Expression.java
+index d82c42aa..bc293b26 100644
+--- b/libstarlark/src/main/java/net/starlark/java/syntax/Expression.java
++++ a/libstarlark/src/main/java/net/starlark/java/syntax/Expression.java
+@@ -48,6 +48,7 @@ public abstract class Expression extends Node {
+     STRING_LITERAL,
+     UNARY_OPERATOR,
+     TYPE_APPLICATION,
++    BYTE_LITERAL,
+   }
+ 
+   // Materialize kind as a field so its accessor can be non-virtual.
+diff --git b/libstarlark/src/main/java/net/starlark/java/syntax/Lexer.java a/libstarlark/src/main/java/net/starlark/java/syntax/Lexer.java
+index d0609ff9..bbf5c028 100644
+--- b/libstarlark/src/main/java/net/starlark/java/syntax/Lexer.java
++++ a/libstarlark/src/main/java/net/starlark/java/syntax/Lexer.java
+@@ -33,12 +33,12 @@ final class Lexer {
+   final FileLocations locs;
+ 
+   // Information about current token. Updated by nextToken.
+-  // raw and value are defined only for STRING, INT, FLOAT, IDENTIFIER, and COMMENT.
++  // raw and value are defined only for STRING, BYTE, INT, FLOAT, IDENTIFIER, and COMMENT.
+   // TODO(adonovan): rename s/xyz/tokenXyz/
+   TokenKind kind;
+   int start; // start offset
+   int end; // end offset
+-  Object value; // String, Integer/Long/BigInteger, or Double value of token
++  Object value; // String, Bytes, Integer/Long/BigInteger, or Double value of token
+ 
+   // --- end of parser-visible fields ---
+ 
+@@ -153,7 +153,7 @@ final class Lexer {
+   }
+ 
+   // setValue sets the value associated with a STRING, FLOAT, INT,
+-  // IDENTIFIER, or COMMENT token, and records the raw text of the token.
++  // BYTE, IDENTIFIER, or COMMENT token, and records the raw text of the token.
+   private void setValue(Object value) {
+     this.value = value;
+   }
+@@ -265,12 +265,12 @@ final class Lexer {
+   }
+ 
+   /**
+-   * Scans a string literal delimited by 'quot', containing escape sequences.
++   * Scans a string or byte literal delimited by 'quot', containing escape sequences.
+    *
+    * <p>ON ENTRY: 'pos' is 1 + the index of the first delimiter
+    * ON EXIT: 'pos' is 1 + the index of the last delimiter.
+    */
+-  private void escapedStringLiteral(char quot, boolean isRaw) {
++  private void escapedLiteral(char quot, boolean isRaw, TokenKind tokenKind) {
+     int literalStartPos = isRaw ? pos - 2 : pos - 1;
+     boolean inTriplequote = skipTripleQuote(quot);
+     // more expensive second choice that expands escaped into a buffer
+@@ -284,15 +284,15 @@ final class Lexer {
+             literal.append(c);
+             break;
+           } else {
+-            error("unclosed string literal", literalStartPos);
+-            setToken(TokenKind.STRING, literalStartPos, pos);
++            error(String.format("unclosed %s", tokenKind.toString()), literalStartPos);
++            setToken(tokenKind, literalStartPos, pos);
+             setValue(literal.toString());
+             return;
+           }
+         case '\\':
+           if (pos == buffer.length) {
+-            error("unclosed string literal", literalStartPos);
+-            setToken(TokenKind.STRING, literalStartPos, pos);
++            error(String.format("unclosed %s", tokenKind.toString()), literalStartPos);
++            setToken(tokenKind, literalStartPos, pos);
+             setValue(literal.toString());
+             return;
+           }
+@@ -325,15 +325,6 @@ final class Lexer {
+             case '\n':
+               // ignore end of line character
+               break;
+-            case 'a':
+-              literal.append('\u0007');
+-              break;
+-            case 'b':
+-              literal.append('\b');
+-              break;
+-            case 'f':
+-              literal.append('\f');
+-              break;
+             case 'n':
+               literal.append('\n');
+               break;
+@@ -343,9 +334,6 @@ final class Lexer {
+             case 't':
+               literal.append('\t');
+               break;
+-            case 'v':
+-              literal.append('\u000b');
+-              break;
+             case '\\':
+               literal.append('\\');
+               break;
+@@ -379,17 +367,123 @@ final class Lexer {
+                     }
+                   }
+                 }
++                if(tokenKind.equals(TokenKind.STRING) && octal > 127) {
++                  error(String.format(
++                    "non-ASCII octal escape \\%o " +
++                      "(use \\u%04X for the UTF-8 encoding of U+%04X)",
++                    octal, octal, octal),
++                    pos-1);
++                  setToken(tokenKind, literalStartPos, pos);
++                  setValue(literal.toString());
++                  break;
++                }
+                 if (octal > 0xff) {
+-                  error("octal escape sequence out of range (maximum is \\377)", pos - 1);
+-                } else if (options.stringLiteralsAreAsciiOnly() && octal >= 0x80) {
+-                  error("octal escape sequence denotes non-ASCII character", pos - 1);
++                  error(
++                    "octal escape sequence out of range"
++                      + " (maximum is \\377)",
++                    pos - 1);
++                  setToken(tokenKind, literalStartPos, pos);
++                  setValue(literal.toString());
++                  break;
+                 }
+                 literal.append((char) (octal & 0xff));
+                 break;
+               }
+-            case 'N':
++            case 'a':
++              literal.append('\u0007');
++              break;
++            case 'b':
++              literal.append('\b');
++              break;
++            case 'f':
++              literal.append('\f');
++              break;
++            case 'v':
++              literal.append('\u000B');
++              break;
++            case 'x': {
++              if (pos + 2 >= buffer.length) {
++                error(String.format(
++                  "truncated escape sequence \\x%s",
++                  bufferSlice(pos, buffer.length - 1)),
++                  pos - 1);
++                setToken(tokenKind, literalStartPos, pos);
++                setValue(literal.toString());
++                break;
++              }
++              int n;
++              try {
++                n = Integer.parseInt(bufferSlice(pos, pos + 2),/*radix*/16);
++              } catch (NumberFormatException nfe) {
++                error(String.format(
++                  "invalid escape sequence \\x%s",
++                  bufferSlice(pos, buffer.length - 1)),
++                  pos - 1);
++                setToken(tokenKind, literalStartPos, pos);
++                setValue(literal.toString());
++                break;
++              }
++              if (tokenKind.equals(TokenKind.STRING) && n > Byte.MAX_VALUE) {
++                error(
++                  String.format("non-ASCII hex escape \\x%s (use \\u%04X for" +
++                                  " the UTF-8 encoding of U+%04X)",
++                    bufferSlice(pos, pos + 2), n, n), pos - 1);
++                setToken(tokenKind, literalStartPos, pos);
++                setValue(literal.toString());
++                break;
++              }
++              literal.append(Character.toChars(n));
++              pos += 2;
++              break;
++            }
+             case 'u':
+-            case 'U':
++            case 'U': {
++              int sz = c == 'u' ? 4 : 8;
++              if (pos + sz >= buffer.length) {
++                error(String.format(
++                  "truncated escape sequence \\%c%s",
++                  c, bufferSlice(pos, buffer.length - 1)),
++                  pos - 1);
++                setToken(tokenKind, literalStartPos, pos);
++                setValue(literal.toString());
++                break;
++              }
++              int n;
++              try {
++                n = Integer.parseInt(bufferSlice(pos, pos + sz),/*radix*/16);
++              } catch (NumberFormatException nfe) {
++                error(String.format(
++                  "invalid escape sequence \\%c%s",
++                  c, bufferSlice(pos, buffer.length - 1)),
++                  pos - 1);
++                setToken(tokenKind, literalStartPos, pos);
++                setValue(literal.toString());
++                break;
++              }
++              if (n > Character.MAX_CODE_POINT) {
++                error(String.format(
++                  "code point out of range: \\U%s (max \\U%08x)",
++                  bufferSlice(pos, buffer.length - 1), n),
++                  pos - 1);
++                setToken(tokenKind, literalStartPos, pos);
++                setValue(literal.toString());
++                break;
++              }
++              // surrogates are disallowed.
++              if (Character.MIN_HIGH_SURROGATE <= n && n < Character.MAX_LOW_SURROGATE) {
++                error(String.format("invalid Unicode code point U+%04X", n), pos - 1);
++                setToken(tokenKind, literalStartPos, pos);
++                setValue(literal.toString());
++                break;
++              }
++              literal.append(Character.toChars(n));
++              pos += sz;
++              break;
++            }
++            case 'N':
++              // exists in Python but not implemented in Blaze => error
++              error("invalid escape sequence: \\" + c, pos - 1);
++              break;
+             default:
+               // unknown char escape => "\literal"
+               error("invalid escape sequence: \\" + c + ". Use '\\\\' to insert '\\'.", pos - 1);
+@@ -405,7 +499,7 @@ final class Lexer {
+             literal.append(c);
+           } else {
+             // Matching close-delimiter, all done.
+-            setToken(TokenKind.STRING, literalStartPos, pos);
++            setToken(tokenKind, literalStartPos, pos);
+             setValue(literal.toString());
+             return;
+           }
+@@ -418,8 +512,8 @@ final class Lexer {
+           break;
+       }
+     }
+-    error("unclosed string literal", literalStartPos);
+-    setToken(TokenKind.STRING, literalStartPos, pos);
++    error(String.format("unclosed %s", tokenKind.toString()), literalStartPos);
++    setToken(tokenKind, literalStartPos, pos);
+     setValue(literal.toString());
+   }
+ 
+@@ -430,17 +524,17 @@ final class Lexer {
+    * <li> ON ENTRY: 'pos' is 1 + the index of the first delimiter
+    * <li> ON EXIT: 'pos' is 1 + the index of the last delimiter.
+    * </ul>
+-   *
+-   * @param isRaw if true, do not escape the string.
++   *  @param isRaw if true, do not escape the string.
++   * @param tokenKind
+    */
+-  private void stringLiteral(char quot, boolean isRaw) {
++  private void stringLiteral(char quot, boolean isRaw, TokenKind tokenKind) {
+     int literalStartPos = isRaw ? pos - 2 : pos - 1;
+     int contentStartPos = pos;
+ 
+     // Don't even attempt to parse triple-quotes here.
+     if (skipTripleQuote(quot)) {
+       pos -= 2;
+-      escapedStringLiteral(quot, isRaw);
++      escapedLiteral(quot, isRaw, tokenKind);
+       return;
+     }
+ 
+@@ -450,7 +544,7 @@ final class Lexer {
+       switch (c) {
+         case '\n':
+           error("unclosed string literal", literalStartPos);
+-          setToken(TokenKind.STRING, literalStartPos, pos);
++          setToken(tokenKind, literalStartPos, pos);
+           setValue(bufferSlice(contentStartPos, pos - 1));
+           return;
+         case '\\':
+@@ -459,7 +553,7 @@ final class Lexer {
+               // There was a CRLF after the newline. No shortcut possible, since it needs to be
+               // transformed into a single LF.
+               pos = contentStartPos;
+-              escapedStringLiteral(quot, true);
++              escapedLiteral(quot, true, tokenKind);
+               return;
+             } else {
+               pos++;
+@@ -468,13 +562,13 @@ final class Lexer {
+           }
+           // oops, hit an escape, need to start over & build a new string buffer
+           pos = contentStartPos;
+-          escapedStringLiteral(quot, false);
++          escapedLiteral(quot, false, tokenKind);
+           return;
+         case '\'':
+         case '"':
+           if (c == quot) {
+             // close-quote, all done.
+-            setToken(TokenKind.STRING, literalStartPos, pos);
++            setToken(tokenKind, literalStartPos, pos);
+             setValue(bufferSlice(contentStartPos, pos - 1));
+             // If we're requiring ASCII-only, do another scan for validation.
+             if (options.stringLiteralsAreAsciiOnly()) {
+@@ -499,7 +593,7 @@ final class Lexer {
+     }
+ 
+     error("unclosed string literal", literalStartPos);
+-    setToken(TokenKind.STRING, literalStartPos, pos);
++    setToken(tokenKind, literalStartPos, pos);
+     setValue(bufferSlice(contentStartPos, pos));
+   }
+ 
+@@ -848,17 +942,26 @@ final class Lexer {
+           break;
+         case '\'':
+         case '\"':
+-          stringLiteral(c, false);
++          stringLiteral(c, false, TokenKind.STRING);
+           break;
+         default:
+-          // detect raw strings, e.g. r"str"
+-          if (c == 'r') {
++          // detect raw strings, e.g. r"str" or b".."
++          if (c == 'r' || c == 'b') {
+             int c0 = peek(0);
+             if (c0 == '\'' || c0 == '\"') {
+               pos++;
+-              stringLiteral((char) c0, true);
++              stringLiteral((char) c0, c == 'r', c == 'r' ? TokenKind.STRING : TokenKind.BYTE);
+               break;
+             }
++            else if (c == 'r' && c0 == 'b' && (buffer.length > 2)) {
++              int c1 = peek(1);
++              // rb"..."
++              if(c1 == '"' || c1 == '\'') {
++                pos+=2;
++                stringLiteral((char) c1, true, TokenKind.BYTE);
++                break;
++              }
++            }
+           }
+ 
+           // int or float literal, or dot, or ellipsis
+diff --git b/libstarlark/src/main/java/net/starlark/java/syntax/NodePrinter.java a/libstarlark/src/main/java/net/starlark/java/syntax/NodePrinter.java
+index 876501a0..cba26d6a 100644
+--- b/libstarlark/src/main/java/net/starlark/java/syntax/NodePrinter.java
++++ a/libstarlark/src/main/java/net/starlark/java/syntax/NodePrinter.java
+@@ -509,6 +509,7 @@ final class NodePrinter {
+           break;
+         }
+ 
++      case BYTE_LITERAL:
+       case STRING_LITERAL:
+         {
+           StringLiteral literal = (StringLiteral) expr;
+diff --git b/libstarlark/src/main/java/net/starlark/java/syntax/NodeVisitor.java a/libstarlark/src/main/java/net/starlark/java/syntax/NodeVisitor.java
+index 60a49ffc..fb9c798c 100644
+--- b/libstarlark/src/main/java/net/starlark/java/syntax/NodeVisitor.java
++++ a/libstarlark/src/main/java/net/starlark/java/syntax/NodeVisitor.java
+@@ -284,6 +284,8 @@ public class NodeVisitor {
+ 
+   public void visit(@SuppressWarnings("unused") StringLiteral node) {}
+ 
++  public void visit(@SuppressWarnings("unused") ByteLiteral node) {}
++
+   public void visit(UnaryOperatorExpression node) {
+     visit(node.getX());
+   }
+diff --git b/libstarlark/src/main/java/net/starlark/java/syntax/Parser.java a/libstarlark/src/main/java/net/starlark/java/syntax/Parser.java
+index 7c7f5f45..5e4a3f78 100644
+--- b/libstarlark/src/main/java/net/starlark/java/syntax/Parser.java
++++ a/libstarlark/src/main/java/net/starlark/java/syntax/Parser.java
+@@ -671,9 +671,24 @@ final class Parser {
+     return literal;
+   }
+ 
++
++  // expr = BYTE
++  private ByteLiteral parseBytesLiteral() {
++    Preconditions.checkState(token.kind == TokenKind.BYTE);
++    ByteLiteral literal =
++            new ByteLiteral(locs, token.start, ((String) token.value).intern(), token.end);
++    nextToken();
++    if (token.kind == TokenKind.BYTE) {
++      reportError(token.start, "Implicit byte concatenation is forbidden");
++    }
++    return literal;
++  }
++
++
+   //  primary = INT
+   //          | FLOAT
+   //          | STRING
++  //          | BYTE
+   //          | IDENTIFIER
+   //          | list_expression
+   //          | '(' ')'                    // a tuple with zero elements
+@@ -702,6 +717,9 @@ final class Parser {
+       case STRING:
+         return parseStringLiteral();
+ 
++      case BYTE:
++        return parseBytesLiteral();
++
+       case IDENTIFIER:
+         return parseIdent();
+ 
+diff --git b/libstarlark/src/main/java/net/starlark/java/syntax/TokenKind.java a/libstarlark/src/main/java/net/starlark/java/syntax/TokenKind.java
+index 8c73cc97..f7938c68 100644
+--- b/libstarlark/src/main/java/net/starlark/java/syntax/TokenKind.java
++++ a/libstarlark/src/main/java/net/starlark/java/syntax/TokenKind.java
+@@ -22,6 +22,7 @@ public enum TokenKind {
+   AS("as"),
+   ASSERT("assert"),
+   BREAK("break"),
++  BYTE("byte literal"),
+   CARET("^"),
+   CARET_EQUALS("^="),
+   /** Emitted only if --experimental_starlark_type_syntax is enabled. */
+diff --git b/libstarlark/src/main/java/net/starlark/java/syntax/TypeChecker.java a/libstarlark/src/main/java/net/starlark/java/syntax/TypeChecker.java
+index 63e9cee6..48e3809a 100644
+--- b/libstarlark/src/main/java/net/starlark/java/syntax/TypeChecker.java
++++ a/libstarlark/src/main/java/net/starlark/java/syntax/TypeChecker.java
+@@ -147,6 +147,22 @@ public final class TypeChecker extends NodeVisitor {
+     }
+   }
+ 
++  /**
++   * The type of a byte literal (a VGS extension): that of the {@code bytes} type constructor in
++   * scope, or {@code Any} if there is none.
++   */
++  private StarlarkType bytesType() {
++    try {
++      TypeConstructor bytes = module.getTypeConstructor("bytes");
++      if (bytes != null) {
++        return bytes.createStarlarkType(ImmutableList.of());
++      }
++    } catch (Resolver.Module.Undefined | TypeConstructor.Failure e) {
++      // no bytes type in scope
++    }
++    return Types.ANY;
++  }
++
+   /**
+    * Infers the type of an expression from a bottom-up traversal, relying on type information stored
+    * in identifier bindings by the {@link TypeTagger}.
+@@ -157,6 +173,7 @@ public final class TypeChecker extends NodeVisitor {
+     return switch (expr.kind()) {
+       case IDENTIFIER -> getType((Identifier) expr);
+       case STRING_LITERAL -> Types.STR;
++      case BYTE_LITERAL -> bytesType();
+       case INT_LITERAL -> Types.INT;
+       case FLOAT_LITERAL -> Types.FLOAT;
+       case CAST -> {
+diff --git b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java
+index 7e1c3b3a..d5be296d 100644
+--- b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java
++++ a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/EnablingAndDisablingFlag.java
+@@ -16,6 +16,7 @@ package net.starlark.java.annot.processor.testsources;
+ 
+ import net.starlark.java.annot.Param;
+ import net.starlark.java.annot.StarlarkMethod;
++import net.starlark.java.eval.StarlarkInt;
+ import net.starlark.java.eval.StarlarkValue;
+ 
+ /**
+diff --git b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java
+index cdc28ba9..0280a114 100644
+--- b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java
++++ a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/MultipleSelfCallMethods.java
+@@ -31,11 +31,11 @@ public class MultipleSelfCallMethods implements StarlarkValue {
+       },
+       documented = false)
+   public StarlarkInt selfCallMethod(String one, StarlarkInt two) {
+-    return 0;
++    return StarlarkInt.of(0);
+   }
+ 
+   @StarlarkMethod(name = "selfCallMethodTwo", selfCall = true, documented = false)
+   public StarlarkInt selfCallMethodTwo() {
+-    return 0;
++    return StarlarkInt.of(0);
+   }
+ }
+diff --git b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java
+index 5ad388fa..9cb56618 100644
+--- b/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java
++++ a/libstarlark/src/test/java/net/starlark/java/annot/processor/testsources/StructFieldWithInvalidInfo.java
+@@ -15,6 +15,7 @@
+ package net.starlark.java.annot.processor.testsources;
+ 
+ import net.starlark.java.annot.StarlarkMethod;
++import net.starlark.java.eval.StarlarkThread;
+ import net.starlark.java.eval.StarlarkValue;
+ 
+ /** Test case which verifies a struct field method cannot specify useStarlarkThread. */
+diff --git b/libstarlark/src/test/java/net/starlark/java/eval/CpuProfilerTest.java a/libstarlark/src/test/java/net/starlark/java/eval/CpuProfilerTest.java
+index 3b08c5ea..c5275bd2 100644
+--- b/libstarlark/src/test/java/net/starlark/java/eval/CpuProfilerTest.java
++++ a/libstarlark/src/test/java/net/starlark/java/eval/CpuProfilerTest.java
+@@ -13,27 +13,20 @@
+ // limitations under the License.
+ package net.starlark.java.eval;
+ 
+-import com.google.perftools.profiles.ProfileProto.Function;
+-import com.google.perftools.profiles.ProfileProto.Line;
+-import com.google.perftools.profiles.ProfileProto.Location;
+-import com.google.perftools.profiles.ProfileProto.Profile;
+-import com.google.perftools.profiles.ProfileProto.Sample;
++import com.google.common.io.ByteStreams;
++import java.io.ByteArrayOutputStream;
+ import java.io.File;
+-import java.io.FileInputStream;
+ import java.io.FileOutputStream;
+-import java.io.InputStream;
+ import java.io.OutputStream;
+ import java.time.Duration;
+-import java.util.HashMap;
+-import java.util.TreeSet;
+-import java.util.concurrent.atomic.AtomicInteger;
+-import java.util.zip.GZIPInputStream;
+ import net.starlark.java.syntax.FileOptions;
+ import net.starlark.java.syntax.ParserInput;
+ 
+ /**
+  * CpuProfilerTest is a simple integration test that the Starlark CPU profiler emits minimally
+  * plausible pprof-compatible output.
++ *
++ * <p>It runs under Blaze only, because it requires a pprof executable.
+  */
+ public final class CpuProfilerTest {
+ 
+@@ -44,19 +37,15 @@ public final class CpuProfilerTest {
+   }
+ 
+   public static void main(String[] args) throws Exception {
++    String pprofCmd = args.length == 0 ? "/bin/pprof" : args[0];
++    if (!new File(pprofCmd).exists()) {
++      throw new AssertionError("no pprof command: " + pprofCmd);
++    }
++
+     // This test will fail during profiling of the Java tests
+     // because a process (the JVM) can have only one profiler.
+     // That's ok; just ignore it.
+ 
+-    // An evaluation may finish after its profiler stops and another session starts.
+-    if (!Starlark.startCpuProfile(OutputStream.nullOutputStream(), Duration.ofMillis(10))) {
+-      throw new AssertionError("Failed to start cpu profiler");
+-    }
+-    CpuProfiler previous = CpuProfiler.get();
+-    AtomicInteger previousTicks = new AtomicInteger();
+-    previous.setCpuTicksForCurrentThread(previousTicks);
+-    Starlark.stopCpuProfile();
+-
+     // Start writing profile to temporary file.
+     File profile = java.io.File.createTempFile("pprof", ".gz", null);
+     OutputStream prof = new FileOutputStream(profile);
+@@ -67,15 +56,6 @@ public final class CpuProfilerTest {
+       System.exit(1);
+     }
+ 
+-    CpuProfiler current = CpuProfiler.get();
+-    AtomicInteger currentTicks = new AtomicInteger();
+-    if (current.setCpuTicksForCurrentThread(currentTicks) != null) {
+-      throw new AssertionError("New profiler inherited the previous session's counter");
+-    }
+-    if (previous.setCpuTicksForCurrentThread(null) != previousTicks) {
+-      throw new AssertionError("Finishing the old evaluation changed another session's counter");
+-    }
+-
+     // This program consumes about 5s of CPU.
+     ParserInput input =
+         ParserInput.fromLines(
+@@ -102,43 +82,42 @@ public final class CpuProfilerTest {
+       Starlark.execFile(input, FileOptions.DEFAULT, module, thread);
+     }
+ 
+-    if (current.setCpuTicksForCurrentThread(null) != currentTicks) {
+-      throw new AssertionError("Starlark evaluation did not restore the enclosing counter");
+-    }
+-
+     Starlark.stopCpuProfile();
+ 
+-    Profile proto;
+-    try (InputStream in = new GZIPInputStream(new FileInputStream(profile))) {
+-      proto = Profile.parseFrom(in);
+-    }
+-    var functionNames = new HashMap<Long, String>();
+-    for (Function function : proto.getFunctionList()) {
+-      functionNames.put(function.getId(), proto.getStringTable((int) function.getName()));
+-    }
+-    var locations = new HashMap<Long, Location>();
+-    for (Location location : proto.getLocationList()) {
+-      locations.put(location.getId(), location);
+-    }
+-    var sampledFunctions = new TreeSet<String>();
+-    for (Sample sample : proto.getSampleList()) {
+-      for (long locationId : sample.getLocationIdList()) {
+-        for (Line line : locations.get(locationId).getLineList()) {
+-          sampledFunctions.add(functionNames.get(line.getFunctionId()));
+-        }
+-      }
+-    }
++    // Run pprof -top. Typical output (may vary by pprof release):
++    //
++    // Type: CPU
++    // Time: 2026-08-04 13:40:18 PDT
++    // Duration: 4.59s, Total samples = 8.27s (180.24%)
++    // Showing nodes accounting for 8.26s, 99.88% of 8.27s total
++    // Dropped 1 node (cum <= 0.04s)
++    //       flat  flat%   sum%        cum   cum%
++    //      2.69s 32.53% 32.53%      8.21s 99.27%  g
++    //      2.60s 31.44% 63.97%      2.60s 31.44%  list
++    //      1.61s 19.47% 83.43%      1.61s 19.47%  range
++    //      1.32s 15.96% 99.40%      1.32s 15.96%  sorted
++    //      0.03s  0.36% 99.76%      8.27s   100%  <unknown>
++    //      0.01s  0.12% 99.88%      8.24s 99.64%  f
+ 
+-    // We'll assert that a few key functions have been sampled.
++    // Runtime.exec is deprecated at Google but its open-source replacement is not yet available.
++    @SuppressWarnings("RuntimeExec")
++    Process pprof =
++        Runtime.getRuntime()
++            .exec(pprofCmd + " -top " + profile, /* envp= */ new String[0], /* dir= */ null);
++    ByteArrayOutputStream out = new ByteArrayOutputStream();
++    ByteStreams.copy(pprof.getInputStream(), out);
++    String got = out.toString(); // encoding undefined but unimportant---result is ASCII
++
++    // We'll assert that a few key substrings are present.
+     boolean ok = true;
+-    for (String want : new String[] {"list", "sorted", "range"}) {
+-      if (!sampledFunctions.contains(want)) {
+-        System.err.println("profile contains no samples in function: " + want);
++    for (String want : new String[] {"flat%", "list", "sorted", "range"}) {
++      if (!got.contains(want)) {
++        System.err.println("pprof output does not contain substring: " + want);
+         ok = false;
+       }
+     }
+     if (!ok) {
+-      System.err.println("sampled functions: " + sampledFunctions);
++      System.err.println("pprof output:\n" + out);
+       System.exit(1);
+     }
+   }
+diff --git b/libstarlark/src/test/java/net/starlark/java/eval/DynamicTypeCheckTest.java a/libstarlark/src/test/java/net/starlark/java/eval/DynamicTypeCheckTest.java
+index 4ba712df..87483853 100644
+--- b/libstarlark/src/test/java/net/starlark/java/eval/DynamicTypeCheckTest.java
++++ a/libstarlark/src/test/java/net/starlark/java/eval/DynamicTypeCheckTest.java
+@@ -308,7 +308,7 @@ public class DynamicTypeCheckTest {
+             "False: bool",
+             "True: bool",
+             "None: None; is a reified type",
+-            "hash: (str, /) -> int",
++            "hash: (bytes | str, /) -> int", // VGS: hash also accepts bytes
+             "bool: ([object], /) -> bool; is a reified type",
+             "getattr: (object, str, [object], /) -> Any",
+             "hasattr: (object, str, /) -> bool",
+diff --git b/libstarlark/src/test/java/net/starlark/java/eval/EvaluationTest.java a/libstarlark/src/test/java/net/starlark/java/eval/EvaluationTest.java
+index abec288b..b63524fb 100644
+--- b/libstarlark/src/test/java/net/starlark/java/eval/EvaluationTest.java
++++ a/libstarlark/src/test/java/net/starlark/java/eval/EvaluationTest.java
+@@ -15,6 +15,7 @@ package net.starlark.java.eval;
+ 
+ import static com.google.common.truth.Truth.assertThat;
+ import static org.junit.Assert.assertThrows;
++import static org.junit.Assert.assertTrue;
+ 
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableMap;
+@@ -172,6 +173,32 @@ public final class EvaluationTest {
+     assertThat(ex).hasMessageThat().contains("Starlark computation cancelled: too many steps");
+   }
+ 
++  @Test
++  public void testExpiration() throws Exception {
++    Mutability mu = Mutability.create("test");
++    StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
++    ParserInput input = ParserInput.fromLines("squares = [x+x for x in range(n)]");
++
++    class C {
++      long run(int n) throws SyntaxError.Exception, EvalException, InterruptedException {
++        Module module =
++            Module.withPredeclared(
++                StarlarkSemantics.DEFAULT, ImmutableMap.of("n", StarlarkInt.of(n)));
++        long steps0 = thread.getExecutedSteps();
++        Starlark.execFile(input, FileOptions.DEFAULT, module, thread);
++        return thread.getExecutedSteps() - steps0;
++      }
++    }
++
++    // Exceeding the limit causes cancellation.
++    thread.setExpirationMs(1);
++    EvalException ex = assertThrows(EvalException.class, () -> new C().run(1000));
++    assertThat(ex).hasMessageThat().contains("Starlark computation cancelled: past expiration date");
++    thread.setExpirationMs(System.currentTimeMillis() + 10000000);
++    long steps = new C().run(1000); // should not throw error
++    assertTrue(steps > 0);
++  }
++
+   @Test
+   public void testExprs() throws Exception {
+     ev.new Scenario()
+diff --git b/libstarlark/src/test/java/net/starlark/java/eval/MethodLibraryTest.java a/libstarlark/src/test/java/net/starlark/java/eval/MethodLibraryTest.java
+index 96821cb5..55092a27 100644
+--- b/libstarlark/src/test/java/net/starlark/java/eval/MethodLibraryTest.java
++++ a/libstarlark/src/test/java/net/starlark/java/eval/MethodLibraryTest.java
+@@ -597,7 +597,8 @@ public final class MethodLibraryTest {
+         .testExpression("hash('starlark')", StarlarkInt.of("starlark".hashCode()))
+         .testExpression("hash('google')", StarlarkInt.of("google".hashCode()))
+         .testIfErrorContains(
+-            "in call to hash(), parameter 'value' got value of type 'NoneType', want 'string'",
++            "in call to hash(), parameter 'value' got value of type" +
++              " 'NoneType', want 'string or bytes'",
+             "hash(None)");
+   }
+ 
+diff --git b/libstarlark/src/test/java/net/starlark/java/eval/ScriptTest.java a/libstarlark/src/test/java/net/starlark/java/eval/ScriptTest.java
+index a563dc2f..7584c54e 100644
+--- b/libstarlark/src/test/java/net/starlark/java/eval/ScriptTest.java
++++ a/libstarlark/src/test/java/net/starlark/java/eval/ScriptTest.java
+@@ -202,8 +202,23 @@ public final class ScriptTest {
+       root = new File("."); // bazel
+     }
+     File testdata = new File(root, "src/test/java/net/starlark/java/eval/testdata");
++    boolean allOk = true;
+     for (String name : testdata.list()) {
+-      File file = new File(testdata, name);
++      allOk &= runFile(new File(testdata, name));
++    }
++    if (!allOk) {
++      System.exit(1);
++    }
++  }
++
++  /**
++   * Runs the chunks of one test file, reporting failures to stderr. Returns true if the file
++   * passed. Deeply nested cases rely on StackOverflowError, so run this on a thread with a
++   * bounded stack (as ScriptFilesTest does).
++   */
++  static boolean runFile(File file) throws Exception {
++    ok = true;
++    {
+       String content = Files.asCharSource(file, UTF_8).read();
+       int linenum = 1;
+       for (String chunk : Splitter.on("\n---\n").split(content)) {
+@@ -316,9 +331,7 @@ public final class ScriptTest {
+         linenum += newlines(chunk) + 2; // for "\n---\n"
+       }
+     }
+-    if (!ok) {
+-      System.exit(1);
+-    }
++    return ok;
+   }
+ 
+   // Called by assert_ and assert_eq when the test encounters an error.
+diff --git b/libstarlark/src/test/java/net/starlark/java/eval/StarlarkMutableTest.java a/libstarlark/src/test/java/net/starlark/java/eval/StarlarkMutableTest.java
+index b61a8f65..2dd1480c 100644
+--- b/libstarlark/src/test/java/net/starlark/java/eval/StarlarkMutableTest.java
++++ a/libstarlark/src/test/java/net/starlark/java/eval/StarlarkMutableTest.java
+@@ -95,7 +95,7 @@ public final class StarlarkMutableTest {
+         Dict.<String, String>builder()
+             .put("one", "1")
+             .put("two", "2.0")
+-            .put("two", "2") // overwrites previous entry
++            .put("two", "2") // overrwrites previous entry
+             .put("three", "3")
+             .buildImmutable();
+     assertThat(dict1.toString()).isEqualTo("{\"one\": \"1\", \"two\": \"2\", \"three\": \"3\"}");
+diff --git b/libstarlark/src/test/java/net/starlark/java/ext/ByteListTest.java a/libstarlark/src/test/java/net/starlark/java/ext/ByteListTest.java
+new file mode 100644
+index 00000000..b7b9a8a5
+--- /dev/null
++++ a/libstarlark/src/test/java/net/starlark/java/ext/ByteListTest.java
+@@ -0,0 +1,1216 @@
++package net.starlark.java.ext;
++
++import static org.junit.Assert.assertArrayEquals;
++import static org.junit.Assert.assertEquals;
++import static org.junit.Assert.assertFalse;
++import static org.junit.Assert.assertSame;
++import static org.junit.Assert.assertTrue;
++
++import com.google.common.collect.Iterables;
++import java.nio.charset.StandardCharsets;
++import java.util.ArrayList;
++import java.util.Random;
++
++import org.junit.Test;
++
++public class ByteListTest {
++
++  public static byte[] b(final String s) {
++    return s.getBytes(StandardCharsets.ISO_8859_1);
++  }
++
++  public void checkEqual(ByteList a1, ArrayList<Byte> a2) {
++    assertEquals(a1.size(), a2.size());
++    for (int i = 0; i < a1.size(); i++) {
++      assertEquals(a1.get(i), (byte) a2.get(i));
++      assertEquals(a1.byteAt(i), (byte) a2.get(i));
++    }
++    //noinspection AssertBetweenInconvertibleTypes
++    assertEquals(a1, a2);  // testing implicit iterator conversion
++    assertTrue(a1.iterator().itemsEqual(a2.iterator()));
++    assertTrue(ByteList.OfByte.itemsEqual(a2.iterator(), a1.iterator()));
++  }
++
++  public void check(int length) {
++    ByteList a1 = new ByteList();
++    ArrayList<Byte> a2 = new ArrayList<>();
++    Random random = new Random();
++    for (int i = 0; i < length; i++) {
++      byte l = ((byte) random.nextInt());
++      a1.add(l);
++      a2.add(l);
++    }
++
++    checkEqual(a1, a2);
++
++    boolean flag = false;
++    for (Byte l : a2) {
++      flag = !flag;
++      if (flag) {
++        a1.remove(l);
++      } else {
++        a1.removeValue(l);
++      }
++    }
++
++    assertTrue(a1.isEmpty());
++    a1.addAll(0, a2);
++    checkEqual(a1, a2);
++  }
++
++  public void performanceChecks(int length) {
++    Random random = new Random();
++    ByteList data = new ByteList();
++    for (int i = 0; i < length; i++) {
++      byte l = ((byte) random.nextInt());
++      data.add(l);
++    }
++
++    long begin1 = System.currentTimeMillis();
++    ByteList a1 = new ByteList();
++
++    for (int i = 0; i < length; i++) {
++      a1.add(data.get(i));
++    }
++    //a1.sort(null);
++    Object a1c = ByteList.copy(a1);
++    for (int i = 0; i < length; i++) {
++      a1.removeValue(data.get(i));
++    }
++    long score1 = (System.currentTimeMillis() - begin1);
++    System.out.println("ByteList time : " + score1);
++
++    long begin2 = System.currentTimeMillis();
++    ArrayList<Byte> a2 = new ArrayList<>();
++    for (int i = 0; i < length; i++) {
++      a2.add(data.get(i));
++    }
++    //a2.sort(null);
++    Object a2c = a2.clone();
++    for (int i = 0; i < length; i++) {
++      a2.remove((Byte) data.get(i));
++    }
++    long score2 = (System.currentTimeMillis() - begin2);
++    System.out.println("ArrayList<Byte> time : " + score2);
++    assertTrue(score2 > score1);
++    assertEquals(a1c, a2c);
++  }
++
++  @Test
++  public void testMicroCapacity() {
++    for (int i = 0; i < 1000; i++) {
++      check(100);
++    }
++  }
++
++  @Test
++  public void testSmallCapacity() {
++    for (int i = 0; i < 20; i++) {
++      check(10000);
++    }
++  }
++
++  @Test
++  public void testMediumCapacity() {
++    for (int i = 0; i < 5; i++) {
++      check(100000);
++    }
++  }
++
++  @Test
++  public void testLargeCapacity() {
++    for (int i = 0; i < 1; i++) {
++      check(1000000);
++    }
++  }
++
++  @Test
++  public void testPerformanceIsBetterThanJDKListImplementation() {
++    performanceChecks(100000);
++  }
++
++  @Test
++  public void subSequenceTest() {
++    byte[] init = {'t', 'h', 'i', 's', ' ', 'i', 's', ' ', 'a', ' ', 't', 'e', 's', 't'};
++    ByteList ascii = new ByteList(init);
++    final int start = 2;
++    final int end = init.length;
++    CharSequence sub1 = ascii.subSequence(start, end);
++    CharSequence sub2 = ascii.subSequence(start, end);
++    assertEquals(sub1, sub2);
++    for (int i = start; i < end; ++i) {
++      assertEquals(init[i], sub1.charAt(i - start));
++    }
++  }
++
++  /**
++   * Tests {@link ByteList#insert(int, int)}.
++   */
++  protected void testInsert(final ByteList array) {
++    final int size = array.size();
++    final Object e0 = array.get(0);
++    final Object e2 = array.get(2);
++    final Object e3 = array.get(3);
++    final Object eN = array.get(size - 1);
++
++    array.insert(size, 3);
++    assertEquals(size + 3, array.size());
++    assertEquals(e0, array.get(0));
++    assertEquals(eN, array.get(size - 1));
++
++    array.insert(3, 7);
++    assertEquals(size + 10, array.size());
++    assertEquals(e0, array.get(0));
++    assertEquals(e3, array.get(10));
++    assertEquals(eN, array.get(size + 6));
++
++    array.insert(0, 5);
++    assertEquals(size + 15, array.size());
++    assertEquals(e0, array.get(5));
++    assertEquals(e2, array.get(7));
++    assertEquals(e3, array.get(15));
++    assertEquals(eN, array.get(size + 11));
++  }
++
++  /**
++   * Tests {@link ByteList#delete(int, int)}.
++   */
++  protected void testDelete(final ByteList array) {
++    final byte[] a = array.toArray();
++
++    array.delete(a.length - 2, 2);
++    assertEquals(a.length - 2, array.size());
++    for (int i = 0; i < a.length - 2; i++) {
++      assertEquals("@" + i, a[i], array.get(i));
++    }
++
++    array.delete(0, 2);
++    assertEquals(a.length - 4, array.size());
++    for (int i = 0; i < a.length - 4; i++) {
++      assertEquals("@" + i, a[i + 2], array.get(i));
++    }
++  }
++
++  /**
++   * Tests {@link ByteList#ByteList()}.
++   */
++  @Test
++  public void testConstructorNoArgs() {
++    final ByteList array = new ByteList();
++    assertEquals(0, array.size());
++    assertEquals(0, array.copy().length);
++  }
++
++  /**
++   * Tests {@link ByteList#ByteList(int)}.
++   */
++  @Test
++  public void testConstructorWithCapacity() {
++    final ByteList array = new ByteList(10);
++    assertEquals(0, array.size()); // capacity != size
++    assertEquals(array.size(), array.length());
++    assertEquals(10, array.capacity()); // but the underlying array length *should* have capacity of 10
++  }
++
++  /**
++   * Tests {@link ByteList#ByteList(byte[])}.
++   */
++  @Test
++  public void testConstructorArray() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw);
++    assertSame(raw, array.getArrayUnsafe());
++    assertEquals(raw.length, array.size());
++    for (int i = 0; i < raw.length; i++) {
++      assertEquals("@" + i, raw[i], array.getValue(i));
++    }
++    assertArrayEquals(raw, array.toArray());
++  }
++
++  /**
++   * Tests {@link ByteList#addValue(byte)}.
++   */
++  @Test
++  public void testAddValue() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    final byte e6 = 1, e7 = 2;
++    array.addValue(e6);
++    array.addValue(e7);
++    assertEquals(raw.length + 2, array.size());
++    for (int i = 0; i < raw.length; i++) {
++      assertEquals("@" + i, raw[i], array.getValue(i));
++    }
++    assertEquals(e6, array.getValue(5));
++    assertEquals(e7, array.getValue(6));
++  }
++
++  /**
++   * Tests {@link ByteList#removeValue(byte)}.
++   */
++  @Test
++  public void testRemoveValue() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    assertEquals(raw.length, array.size());
++    array.removeValue(raw[0]);
++    assertEquals(raw.length - 1, array.size());
++    array.removeValue(raw[2]);
++    assertEquals(raw.length - 2, array.size());
++    array.removeValue(raw[4]);
++    assertEquals(raw.length - 3, array.size());
++    assertEquals(raw[1], array.getValue(0));
++    assertEquals(raw[3], array.getValue(1));
++  }
++
++  /**
++   * Tests {@link ByteList#getValue(int)}.
++   */
++  @Test
++  public void testGetValue() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    for (int i = 0; i < raw.length; i++) {
++      assertEquals("@" + i, raw[i], array.getValue(i));
++    }
++  }
++
++  /**
++   * Tests {@link ByteList#setValue(int, byte)}.
++   */
++  @Test
++  public void testSetValue() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    final byte e0 = 7, e2 = 1, e4 = 2;
++    array.setValue(0, e0);
++    array.setValue(2, e2);
++    array.setValue(4, e4);
++    assertEquals(raw.length, array.size());
++    assertEquals(e0, array.getValue(0));
++    assertEquals(raw[1], array.getValue(1));
++    assertEquals(e2, array.getValue(2));
++    assertEquals(raw[3], array.getValue(3));
++    assertEquals(e4, array.getValue(4));
++  }
++
++  /**
++   * Tests {@link ByteList#addValue(int, byte)}.
++   */
++  @Test
++  public void testAddValueIndex() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    final byte e0 = 7, e4 = 1, e7 = 2;
++    array.addValue(0, e0);
++    array.addValue(4, e4);
++    array.addValue(7, e7);
++    assertEquals(raw.length + 3, array.size());
++    assertEquals(e0, array.getValue(0));
++    assertEquals(raw[0], array.getValue(1));
++    assertEquals(raw[1], array.getValue(2));
++    assertEquals(raw[2], array.getValue(3));
++    assertEquals(e4, array.getValue(4));
++    assertEquals(raw[3], array.getValue(5));
++    assertEquals(raw[4], array.getValue(6));
++    assertEquals(e7, array.getValue(7));
++  }
++
++  /**
++   * Tests {@link ByteList#removeAt(int)}.
++   */
++  @Test
++  public void testRemoveIndex() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    assertEquals(raw.length, array.size());
++    byte r = array.removeAt(0);
++    assertEquals(3, r);
++    assertEquals(raw.length - 1, array.size());
++    // {5, 8, 13, 21};
++    r = array.removeAt(2);
++    assertEquals(13, r);
++    assertEquals(raw.length - 2, array.size());
++    // {5, 8, 21};
++    assertEquals(raw[1], array.getValue(0));
++    assertEquals(raw[2], array.getValue(1));
++  }
++
++  /**
++   * Tests {@link ByteList#indexOf(byte)}.
++   */
++  @Test
++  public void testIndexOf() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    for (int i = 0; i < raw.length; i++) {
++      assertEquals("@" + i, i, array.indexOf(raw[i]));
++    }
++    assertEquals(-1, array.indexOf((byte) -1));
++    assertEquals(-1, array.indexOf((byte) 0));
++    assertEquals(-1, array.indexOf((byte) 1));
++    assertEquals(-1, array.indexOf(Byte.MAX_VALUE));
++    assertEquals(-1, array.indexOf(Byte.MIN_VALUE));
++  }
++
++  /**
++   * Tests {@link ByteList#lastIndexOf(byte)}.
++   */
++  @Test
++  public void testLastIndexOf() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    for (int i = 0; i < raw.length; i++) {
++      assertEquals("@" + i, i, array.lastIndexOf(raw[i]));
++    }
++    assertEquals(-1, array.lastIndexOf((byte) -1));
++    assertEquals(-1, array.lastIndexOf((byte) 0));
++    assertEquals(-1, array.lastIndexOf((byte) 1));
++    assertEquals(-1, array.lastIndexOf(Byte.MAX_VALUE));
++    assertEquals(-1, array.lastIndexOf(Byte.MIN_VALUE));
++  }
++
++  /**
++   * Tests {@link ByteList#contains(byte)}.
++   */
++  @Test
++  public void testContains() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    for (int i = 0; i < raw.length; i++) {
++      assertTrue("@" + i, array.contains(raw[i]));
++    }
++    assertFalse(array.contains(-1));
++    assertFalse(array.contains(0));
++    assertFalse(array.contains(1));
++    assertFalse(array.contains(Byte.MAX_VALUE));
++    assertFalse(array.contains(Byte.MIN_VALUE));
++  }
++
++  /**
++   * Tests: - {@link ByteList#toArray()} - {@link ByteList#setArrayUnsafe(byte[])}. - {@link
++   * ByteList#getArrayUnsafe()}.
++   */
++  @Test
++  public void testSetArray() {
++    final ByteList array = new ByteList();
++    final byte[] raw = {1, 2, 3, 5, 8, 13, 21};
++    array.setArrayUnsafe(raw);
++    assertSame(raw, array.getArrayUnsafe());
++  }
++
++  /**
++   * Tests {@link ByteList#insert(int, int)}.
++   */
++  @Test
++  public void testInsert() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    testInsert(new ByteList(raw));
++  }
++
++  /**
++   * Tests {@link ByteList#delete(int, int)}.
++   */
++  @Test
++  public void testDelete() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    testDelete(new ByteList(raw));
++  }
++
++  /**
++   * Tests {@link ByteList#get(int)}.
++   */
++  @Test
++  public void testGet() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    for (int i = 0; i < raw.length; i++) {
++      assertEquals("@" + i, raw[i], array.get(i));
++    }
++  }
++
++  /**
++   * Tests {@link ByteList#set(int, Byte)}.
++   */
++  @Test
++  public void testSet() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    final Byte e0 = 7, e2 = 1, e4 = 2;
++    array.set(0, e0);
++    array.set(2, e2);
++    array.set(4, e4);
++    assertEquals(raw.length, array.size());
++    assertEquals((byte) e0, array.get(0));
++    assertEquals(raw[1], array.getValue(1));
++    assertEquals((byte) e2, array.get(2));
++    assertEquals(raw[3], array.getValue(3));
++    assertEquals((byte) e4, array.get(4));
++  }
++
++  /**
++   * Tests {@link ByteList#add(int, Byte)}.
++   */
++  @Test
++  public void testAdd() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    final Byte e6 = 1, e7 = 2;
++    array.add(e6);
++    array.add(e7);
++    assertEquals(raw.length + 2, array.size());
++    for (int i = 0; i < raw.length; i++) {
++      assertEquals("@" + i, raw[i], array.getValue(i));
++    }
++    assertEquals((byte) e6, array.get(5));
++    assertEquals((byte) e7, array.get(6));
++  }
++
++  /**
++   * Tests {@link ByteList#indexOf(byte)}.
++   */
++  @SuppressWarnings("UnnecessaryBoxing")
++  @Test
++  public void testIndexOfBoxed() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    for (int i = 0; i < raw.length; i++) {
++      assertEquals("@" + i, i, array.indexOf(Byte.valueOf(raw[i])));
++    }
++    assertEquals(-1, array.indexOf((byte) -1));
++    assertEquals(-1, array.indexOf(Byte.valueOf((byte) 0)));
++    assertEquals(-1, array.indexOf(Byte.valueOf((byte) 1)));
++    assertEquals(-1, array.indexOf(Byte.valueOf(Byte.MAX_VALUE)));
++    assertEquals(-1, array.indexOf(Byte.valueOf(Byte.MIN_VALUE)));
++  }
++
++  /**
++   * Tests {@link ByteList#lastIndexOf(byte)}}.
++   */
++  @SuppressWarnings("UnnecessaryBoxing")
++  @Test
++  public void testLastIndexOfBoxed() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    for (int i = 0; i < raw.length; i++) {
++      assertEquals("@" + i, i, array.lastIndexOf(Byte.valueOf(raw[i])));
++    }
++    assertEquals(-1, array.lastIndexOf(Byte.valueOf((byte) -1)));
++    assertEquals(-1, array.lastIndexOf(Byte.valueOf((byte) 0)));
++    assertEquals(-1, array.lastIndexOf(Byte.valueOf((byte) 1)));
++    assertEquals(-1, array.lastIndexOf(Byte.valueOf(Byte.MAX_VALUE)));
++    assertEquals(-1, array.lastIndexOf(Byte.valueOf(Byte.MIN_VALUE)));
++  }
++
++  /**
++   * Tests {@link ByteList#contains(byte)}.
++   */
++  @Test
++  public void testContainsBoxed() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    for (int i = 0; i < raw.length; i++) {
++      assertTrue("@" + i, array.contains(Byte.valueOf(raw[i])));
++    }
++    assertFalse(array.contains(Byte.valueOf((byte) -1)));
++    assertFalse(array.contains(Byte.valueOf((byte) 0)));
++    assertFalse(array.contains(Byte.valueOf((byte) 1)));
++    assertFalse(array.contains(Byte.valueOf(Byte.MAX_VALUE)));
++    assertFalse(array.contains(Byte.valueOf(Byte.MIN_VALUE)));
++  }
++
++  /**
++   * Tests {@link ByteList#removeAt(int)}.
++   */
++  @Test
++  public void testRemove() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    assertEquals(raw.length, array.size());
++    array.remove(Byte.valueOf(raw[0]));
++    assertEquals(raw.length - 1, array.size());
++    array.remove(Byte.valueOf(raw[2]));
++    assertEquals(raw.length - 2, array.size());
++    array.remove(Byte.valueOf(raw[4]));
++    assertEquals(raw.length - 3, array.size());
++    assertEquals(raw[1], array.getValue(0));
++    assertEquals(raw[3], array.getValue(1));
++  }
++
++  /**
++   * Tests {@link ByteList#containsAll}.
++   */
++  @Test
++  public void testContainsAll() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++
++    final ArrayList<Byte> list = new ArrayList<>();
++    assertTrue(array.containsAll(list));
++    list.add((byte) 13);
++    assertTrue(array.containsAll(list));
++    list.add((byte) 1);
++    assertFalse(array.containsAll(list));
++
++    final ByteList yes = new ByteList(new byte[]{3, 8, 21});
++    assertTrue(Iterables.all(yes, array::contains));
++
++    final ByteList no = new ByteList(new byte[]{5, 13, 1});
++    assertFalse(Iterables.all(no, array::contains));
++  }
++
++  /**
++   * Tests {@link ByteList#addAll(int, java.util.Collection)}.
++   */
++  @Test
++  public void testAddAll() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    final byte[] add = {1, 7};
++    final ByteList toAdd = new ByteList(add.clone());
++    final int index = 3;
++    array.addAll(index, toAdd);
++    for (int i = 0; i < index; i++) {
++      assertEquals(raw[i], array.getValue(i));
++    }
++    for (int i = index; i < index + add.length; i++) {
++      assertEquals(add[i - index], array.getValue(i));
++    }
++    for (int i = index + add.length; i < raw.length + add.length; i++) {
++      assertEquals(raw[i - add.length], array.getValue(i));
++    }
++  }
++
++  /**
++   * Tests {@link ByteList#removeAll}.
++   */
++  @Test
++  public void testRemoveAll() {
++    final byte[] raw = {3, 5, 8, 13, 21};
++    final ByteList array = new ByteList(raw.clone());
++    final ByteList toRemove = new ByteList(new byte[]{3, 8, 21});
++    assertEquals(raw.length, array.size());
++    array.removeAll(toRemove);
++    assertEquals(raw.length - 3, array.size());
++    assertEquals(raw[1], array.getValue(0));
++    assertEquals(raw[3], array.getValue(1));
++  }
++
++  @Test
++  public void testHex() {
++    final ByteList three_bytes = ByteList.wrap(new byte[] {(byte) 0xb9, 0x01, (byte) 0xef});
++    assertEquals(three_bytes.hex(), "b901ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 0), "b901ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b("\u0000"))), "b9\u000001\u0000ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b("\u0000"))), "b9\u000001\u0000ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b("\u007f"))), "b9\u007f01\u007fef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b("\u007f"))), "b9\u007f01\u007fef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 3), "b901ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 4), "b901ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), -4), "b901ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b(":"))),"b9:01:ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b("$"))),"b9$01$ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 1),"b9:01:ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), -1), "b9:01:ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 2), "b9:01ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b(":")), 1), "b9:01:ef");
++    assertEquals(three_bytes.hex(ByteList.wrap(b("*")), -2), "b901*ef");
++
++    final ByteList value = ByteList.wrap(b("{s\u0005\u0000\u0000\u0000worldi\u0002\u0000\u0000\u0000s\u0005\u0000\u0000\u0000helloi\u0001\u0000\u0000\u00000"));
++    assertEquals(value.hex(ByteList.wrap(b(".")), 8), "7b7305000000776f.726c646902000000.730500000068656c.6c6f690100000030");
++  }
++
++  @Test
++  public void testCount() {
++    final ByteList b = ByteList.copy("mississippi");
++    byte i = 105;
++    byte p = 112;
++    byte w = 119;
++    assertEquals(4, b.count(b("i")));
++    assertEquals(2, b.count(b("ss")));
++    assertEquals(0, b.count(b("w")));
++
++    assertEquals(4, b.count(i));
++    assertEquals(0, b.count(w));
++
++    assertEquals(2, b.count(b("i"), 6));
++    assertEquals(2, b.count(b("p"), 6));
++    assertEquals(1, b.count(b("i"), 1, 3));
++    assertEquals(1, b.count(b("p"), 7, 9));
++
++    assertEquals(2, b.count(i, 6));
++    assertEquals(2, b.count(p, 6));
++    assertEquals(1, b.count(i, 1, 3));
++    assertEquals(1, b.count(p, 7, 9));
++  }
++
++  @Test
++  public void testEndsWith() {
++    ByteList b = ByteList.wrap(b("hello"));
++    assertFalse(ByteList.empty().endsWith(b("anything")));
++    assertTrue(b.endsWith(b("hello")));
++    assertTrue(b.endsWith(b("llo")));
++    assertTrue(b.endsWith(b("o")));
++    assertFalse(b.endsWith(b("whello")));
++    assertFalse(b.endsWith(b("no")));
++  }
++
++  @Test
++  public void testFind() {
++    final ByteList b = ByteList.copy("mississippi");
++    byte i = 105;
++    byte w = 119;
++    assertEquals(2, b.find(b("ss")));
++    assertEquals(-1, b.find(b("w")));
++    assertEquals(-1, b.find(b("mississippian")));
++
++    assertEquals(1, b.find(i));
++    assertEquals(-1, b.find(w));
++
++    assertEquals(5, b.find(b("ss"), 3));
++    assertEquals(2, b.find(b("ss"), 1, 7));
++    assertEquals(-1, b.find(b("ss"), 1, 3));
++
++    assertEquals(7, b.find(i, 6));
++    assertEquals(1, b.find(i, 1, 3));
++    assertEquals(-1, b.find(w, 1, 3));
++  }
++
++  @Test
++  public void testJoin() {
++    assertEquals(ByteList.empty(), ByteList.wrap(b("")).join(new byte[][]{new byte[0]}));
++    assertEquals(ByteList.empty(), ByteList.wrap(b("")).join(new byte[][]{b("")}));
++    final byte[][][] abcs = {
++      new byte[][] {b("abc")},
++      new byte[][] {b("a"), b("bc")},
++      new byte[][] {b("ab"), b("c")},
++      new byte[][] {b("ab"), b("c")},
++      new byte[][] {b("a"), b("b"), b("c")},
++    };
++    final ByteList abc = ByteList.wrap(b("abc"));
++    for (byte[][] bytes : abcs) {
++//      System.out.println(Arrays.deepToString(abcs[i]));
++      assertEquals(ByteList.empty().join(bytes), abc);
++    }
++    final ByteList joiner = ByteList.wrap(b(".:"));
++    //final $Function<ByteList, ByteList> dotJoin2 = ByteList.of(b(".:"))::join;
++    assertEquals(ByteList.wrap(b("ab.:cd")), joiner.join(new byte[][]{b("ab"), b("cd")}));
++    // Stress it with many items
++    ByteList[] seq = new ByteList[100000];
++    for (int i = 0; i < seq.length; i++) {
++      seq[i] = ByteList.wrap(b("abc"));
++    }
++    ByteList expected = ByteList.wrap(b("abc"))
++                          .mergedCopy(ByteList.wrap(b(".:abc")).repeat(99999));
++    assertEquals(expected, joiner.join(seq));
++     //Stress test with empty separator
++    assertEquals(ByteList.wrap(b("abc")).repeat(100000), ByteList.wrap(b("")).join(seq));
++   }
++
++  @SuppressWarnings("HttpUrlsUsage")
++  @Test
++  public void testPartition() {
++    final ByteList b = ByteList.copy("mississippi");
++    assertArrayEquals(
++      new ByteList[]{ByteList.copy("mi"), ByteList.copy("ss"), ByteList.copy("issippi")},
++      b.partition(b("ss"))
++    );
++    assertArrayEquals(
++      new ByteList[]{b, ByteList.empty(), ByteList.empty()},
++      b.partition(b("w"))
++    );
++    final ByteList ex = ByteList.copy("this is the partition method");
++    assertArrayEquals(
++      new ByteList[]{ByteList.copy("this is the par"), ByteList.copy("ti"), ByteList.copy("tion method")},
++      ex.partition(b("ti"))
++    );
++    // from raymond's original specification
++    final ByteList S = ByteList.copy("http://www.python.org");
++
++    assertArrayEquals(
++      new ByteList[]{ByteList.copy("http"), ByteList.copy("://"), ByteList.copy("www.python.org")},
++      S.partition(b("://"))
++    );
++    assertArrayEquals(
++      new ByteList[]{ByteList.copy("http://www.python.org"), ByteList.empty(), ByteList.empty()},
++      S.partition(b("?"))
++    );
++    assertArrayEquals(
++      new ByteList[]{ByteList.empty(), ByteList.copy("http://"), ByteList.copy("www.python.org")},
++      S.partition(b("http://"))
++    );
++    assertArrayEquals(
++      new ByteList[]{ByteList.copy("http://www.python."), ByteList.copy("org"), ByteList.empty()},
++      S.partition(b("org"))
++    );
++  }
++
++  @SuppressWarnings("HttpUrlsUsage")
++  @Test
++  public void testRightPartition() {
++    final ByteList b = ByteList.copy("mississippi");
++    assertArrayEquals(
++      new ByteList[]{ByteList.copy("missi"), ByteList.copy("ss"), ByteList.copy("ippi")},
++      b.rpartition(b("ss"))
++    );
++    assertArrayEquals(
++      new ByteList[]{ByteList.copy("mississipp"), ByteList.copy("i"), ByteList.empty()},
++      b.rpartition(b("i"))
++    );
++    assertArrayEquals(
++      new ByteList[]{ByteList.empty(), ByteList.empty(), b},
++      b.rpartition(b("w"))
++    );
++    final ByteList ex = ByteList.copy("this is the rpartition method");
++    assertArrayEquals(
++      new ByteList[]{ByteList.copy("this is the rparti"), ByteList.copy("ti"), ByteList.copy("on method")},
++      ex.rpartition(b("ti"))
++    );
++    // from raymond's original specification
++    final ByteList S = ByteList.copy("http://www.python.org");
++
++    assertArrayEquals(
++      new ByteList[]{ByteList.copy("http"), ByteList.copy("://"), ByteList.copy("www.python.org")},
++      S.rpartition(b("://"))
++    );
++    assertArrayEquals(
++      new ByteList[]{ByteList.empty(), ByteList.empty(), ByteList.copy("http://www.python.org")},
++      S.rpartition(b("?"))
++    );
++    assertArrayEquals(
++      new ByteList[]{ByteList.empty(), ByteList.copy("http://"), ByteList.copy("www.python.org")},
++      S.rpartition(b("http://"))
++    );
++    assertArrayEquals(
++      new ByteList[]{ByteList.copy("http://www.python."), ByteList.copy("org"), ByteList.empty()},
++      S.rpartition(b("org"))
++    );
++  }
++
++  @Test
++  public void testStartsWith() {
++    final ByteList hello = ByteList.copy("hello");
++    assertFalse(ByteList.empty().startsWith(b("anything")));
++    assertFalse(ByteList.empty().startsWith(ByteList.copy("anything")));
++    assertTrue(hello.startsWith(b("hello")));
++    assertTrue(hello.startsWith(b("hel")));
++    assertTrue(hello.startsWith(b("h")));
++    assertFalse(hello.startsWith(b("hellow")));
++    assertFalse(hello.startsWith(b("ha")));
++    assertTrue(hello.startsWith(ByteList.copy("hello")));
++    assertTrue(hello.startsWith(ByteList.copy("hel")));
++    assertTrue(hello.startsWith(ByteList.copy("h")));
++    assertFalse(hello.startsWith(ByteList.copy("hellow")));
++    assertFalse(hello.startsWith(ByteList.copy("ha")));
++  }
++
++  @Test
++  public void testReplace() {
++    final ByteList hello = ByteList.copy("mississippi");
++    assertEquals(ByteList.copy("massassappa"), hello.replace(b("i"), b("a")));
++    assertEquals(ByteList.copy("mixixippi"), hello.replace(b("ss"), b("x")));
++  }
++
++  @Test
++  public void testSplit() {
++//    for b in (b'a\x1Cb', b'a\x1Db', b'a\x1Eb', b'a\x1Fb'):
++    final byte[][] bytes = {
++      b("a\u001Cb"), b("a\u001Db"), b("a\u001Eb"), b("a\u001Fb")
++    };
++    for(byte[] bz : bytes) {
++//        assertEquals(b.split(), [b])
++      assertArrayEquals(ByteList.wrap(bz).split(), new ByteList[] { ByteList.wrap(bz) });
++    }
++
++    final ByteList b = ByteList.copy("\u0009\n\u000B\u000C\r\u001C\u001D\u001E\u001F");
++    assertArrayEquals(b.split(), new ByteList[] {ByteList.wrap(b("\u001c\u001d\u001e\u001f"))});
++    assertArrayEquals(ByteList.wrap(b("a b")).split(ByteList.wrap(b(" "))), new ByteList[] {ByteList.copy("a"), ByteList.copy("b")});
++    // by 1 byte
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d")) }, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|"))));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a|b|c|d")) }, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),0));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b|c|d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),1));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c|d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),2));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),3));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),4));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")), Integer.MAX_VALUE - 2));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a|b|c|d"))}, ByteList.wrap(b("a|b|c|d")).split(ByteList.wrap(b("|")),0));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("")), ByteList.wrap(b("b||c||d"))}, ByteList.wrap(b("a||b||c||d")).split(ByteList.wrap(b("|")),2));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("abcd"))}, ByteList.wrap(b("abcd")).split(ByteList.wrap(b("|"))));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b(""))}, ByteList.wrap(b("")).split(ByteList.wrap(b("|"))));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("endcase ")), ByteList.wrap(b(""))}, ByteList.wrap(b("endcase |")).split(ByteList.wrap(b("|"))));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("")), ByteList.wrap(b(" startcase"))}, ByteList.wrap(b("| startcase")).split(ByteList.wrap(b("|"))));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("")), ByteList.wrap(b("bothcase")), ByteList.wrap(b(""))}, ByteList.wrap(b("|bothcase|")).split(ByteList.wrap(b("|"))));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("")), ByteList.wrap(b("b\u0000c\u0000d"))}, ByteList.wrap(b("a\u0000\u0000b\u0000c\u0000d")).split(ByteList.wrap(b("\u0000")),2));
++
++    // by a bytelist
++    assertArrayEquals(new ByteList[] {ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a//b//c//d")).split(ByteList.wrap(b("//"))));
++
++  }
++
++  @Test
++  public void testRSplit() {
++    final ByteList b = ByteList.wrap(b("\u0009\n\u000B\u000C\r\u001C\u001D\u001E\u001F"));
++    assertArrayEquals(b.split(), new ByteList[] {ByteList.wrap(b("\u001c\u001d\u001e\u001f"))});
++    assertArrayEquals(ByteList.wrap(b("a b")).rsplit(ByteList.wrap(b(" "))), new ByteList[] {ByteList.copy("a"), ByteList.copy("b")});
++    // by 1 byte
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d")) }, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|"))));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a|b|c")), ByteList.wrap(b("d")) }, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|")),1));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a|b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|")),2));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|")),3));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|")),4));
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a|b|c|d")).rsplit(ByteList.wrap(b("|")), Integer.MAX_VALUE - 100));
++
++    // by a bytelist
++    assertArrayEquals(new ByteList[] { ByteList.wrap(b("a")), ByteList.wrap(b("b")), ByteList.wrap(b("c")), ByteList.wrap(b("d"))}, ByteList.wrap(b("a//b//c//d")).rsplit(ByteList.wrap(b("//"))));
++  }
++
++  @Test
++  public void testStrip() {
++    assertEquals(ByteList.wrap(b("abc")).strip(ByteList.wrap(b("ac"))), ByteList.wrap(b("b")));
++    // whitespace
++    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("   hello   ")).strip());
++    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("hello")).strip());
++    final ByteList b = ByteList.copy(" \t\n\r\f\u000babc \t\n\r\f\u000b");
++    assertEquals(ByteList.copy("abc"), b.strip());
++
++    // strip with None arg
++    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("   hello   ")).strip(null));
++    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("hello")).strip(null));
++
++    // strip with byte string arg
++    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("xyzzyhelloxyzzy")).strip(ByteList.wrap(b("xyz"))));
++    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("hello")).strip(ByteList.wrap(b("xyz"))));
++    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("mississippi")).strip(ByteList.wrap(b("mississippi"))));
++
++    // only trim the start and end; does not strip internal characters
++    assertEquals(ByteList.wrap(b("mississipp")), ByteList.wrap(b("mississippi")).strip(ByteList.wrap(b("i"))));
++  }
++
++  @Test
++  public void testLeftStrip() {
++    assertEquals(ByteList.wrap(b("abc")).lstrip(ByteList.wrap(b("ac"))), ByteList.wrap(b("bc")));
++    assertEquals(ByteList.wrap(b("hello   ")), ByteList.wrap(b("   hello   ")).lstrip());
++    final ByteList b = ByteList.copy(" \t\n\r\f\u000babc \t\n\r\f\u000b");
++    assertEquals(ByteList.copy("abc \t\n\r\f\u000b"), b.lstrip());
++    // lstrip with None arg
++    assertEquals(ByteList.wrap(b("hello   ")), ByteList.wrap(b("   hello   ")).lstrip(null));
++    // lstrip with byte string arg
++    assertEquals(ByteList.wrap(b("helloxyzzy")), ByteList.wrap(b("xyzzyhelloxyzzy")).lstrip(ByteList.wrap(b("xyz"))));
++  }
++
++  @Test
++  public void testRightStrip() {
++    assertEquals(ByteList.wrap(b("abc")).rstrip(ByteList.wrap(b("ac"))), ByteList.wrap(b("ab")));
++    assertEquals(ByteList.wrap(b("   hello")), ByteList.wrap(b("   hello   ")).rstrip());
++    final ByteList b = ByteList.copy(" \t\n\r\f\u000babc \t\n\r\f\u000b");
++    assertEquals(ByteList.copy(" \t\n\r\f\u000babc"), b.rstrip());
++    // rstrip with None arg
++    assertEquals(ByteList.wrap(b("   hello")), ByteList.wrap(b("   hello   ")).rstrip(null));
++    // rstrip with byte string arg
++    assertEquals(ByteList.wrap(b("xyzzyhello")), ByteList.wrap(b("xyzzyhelloxyzzy")).rstrip(ByteList.wrap(b("xyz"))));
++  }
++
++  @Test
++  public void testRightFind() {
++    final ByteList b = ByteList.copy("mississippi");
++    byte i = 105;
++    byte w = 119;
++    assertEquals(b.rfind(ByteList.wrap(b("ss"))), 5);
++    assertEquals(b.rfind(ByteList.wrap(b("w"))), -1);
++    assertEquals(b.rfind(ByteList.wrap(b("mississippian"))), -1);
++
++    assertEquals(b.rfind(i), 10);
++    assertEquals(b.rfind(w), -1);
++
++    assertEquals(b.rfind(ByteList.wrap(b("ss")), 3), 5);
++    assertEquals(b.rfind(ByteList.wrap(b("ss")), 0, 6), 2);
++
++    assertEquals(b.rfind(i, 1, 3), 1);
++    assertEquals(b.rfind(i, 3, 9), 7);
++    assertEquals(b.rfind(w, 1, 3), -1);
++
++    assertEquals(9,  ByteList.wrap(b("abcdefghiabc")).rfind(ByteList.wrap(b("abc"))));
++    assertEquals(12, ByteList.wrap(b("abcdefghiabc")).rfind(ByteList.wrap(b(""))));
++    assertEquals(0, ByteList.wrap(b("abcdefghiabc")).rfind(ByteList.wrap(b("abcd"))));
++    assertEquals(-1, ByteList.wrap(b("abcdefghiabc")).rfind(ByteList.wrap(b("abcz"))));
++    assertEquals(0, ByteList.wrap(b("abcdefghiabc")).rfind(ByteList.wrap(b("abc")), 0, -1));
++
++    assertEquals(3, ByteList.wrap(b("abc")).rfind(ByteList.wrap(b("")),0));
++    assertEquals(3, ByteList.wrap(b("abc")).rfind(ByteList.wrap(b("")),3));
++    assertEquals(-1, ByteList.wrap(b("abc")).rfind(ByteList.wrap(b("")),4));
++
++    assertEquals(12, ByteList.wrap(b("rrarrrrrrrrra")).rfind(ByteList.wrap(b("a"))));
++    assertEquals(12, ByteList.wrap(b("rrarrrrrrrrra")).rfind(ByteList.wrap(b("a")),4));
++    assertEquals(-1, ByteList.wrap(b("rrarrrrrrrrra")).rfind(ByteList.wrap(b("a")),4,6));
++    assertEquals(2, ByteList.wrap(b("rrarrrrrrrrra")).rfind(ByteList.wrap(b("a")),0,6));
++  }
++
++  @Test
++  public void testLeftJustify() {
++    assertEquals(ByteList.wrap(b("abc       ")), ByteList.wrap(b("abc")).ljust(10));
++    assertEquals(ByteList.wrap(b("abc   ")), ByteList.wrap(b("abc")).ljust(6));
++    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).ljust(3));
++    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).ljust(2));
++    assertEquals(ByteList.wrap(b("abc*******")), ByteList.wrap(b("abc")).ljust(10,ByteList.wrap(b("*"))));
++  }
++
++  @Test
++  public void testRightJustify() {
++    assertEquals(ByteList.wrap(b("       abc")), ByteList.wrap(b("abc")).rjust(10));
++    assertEquals(ByteList.wrap(b("   abc")), ByteList.wrap(b("abc")).rjust(6));
++    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).rjust(3));
++    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).rjust(2));
++    assertEquals(ByteList.wrap(b("*******abc")), ByteList.wrap(b("abc")).rjust(10,b("*")));
++    assertEquals(ByteList.wrap(b("*******abc")), ByteList.wrap(b("abc")).rjust(10,ByteList.wrap(b("*"))));
++    final ByteList b = ByteList.copy("abc");
++    assertEquals(b.rjust(7, b("-")), ByteList.copy("----abc"));
++  }
++
++  @Test
++  public void testCenter() {
++    assertEquals(ByteList.wrap(b("   abc    ")), ByteList.wrap(b("abc")).center(10));
++    assertEquals(ByteList.wrap(b(" abc  ")), ByteList.wrap(b("abc")).center(6));
++    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).center(3));
++    assertEquals(ByteList.wrap(b("abc")), ByteList.wrap(b("abc")).center(2));
++    assertEquals(ByteList.wrap(b("***abc****")), ByteList.wrap(b("abc")).center(10, b("*")));
++    assertEquals(ByteList.wrap(b("***abc****")), ByteList.wrap(b("abc")).center(10, ByteList.wrap(b("*"))));
++    // Fill character can be either bytes or bytearray (issue 12380)
++    final ByteList b = ByteList.copy("abc");
++    assertEquals(b.center(7, b("-")), ByteList.copy("--abc--"));
++  }
++
++  @Test
++  public void testSwapCase() {
++    assertEquals(
++      ByteList.wrap(b("hEllO CoMPuTErS")),
++      ByteList.wrap(b("HeLLo cOmpUteRs")).swapcase());
++  }
++
++  @Test
++  public void testZFill() {
++    assertEquals(ByteList.wrap(b("123")), ByteList.wrap(b("123")).zfill(2));
++    assertEquals(ByteList.wrap(b("123")), ByteList.wrap(b("123")).zfill(3));
++    assertEquals(ByteList.wrap(b("0123")), ByteList.wrap(b("123")).zfill(4));
++    assertEquals(ByteList.wrap(b("+123")), ByteList.wrap(b("+123")).zfill(3));
++    assertEquals(ByteList.wrap(b("+123")), ByteList.wrap(b("+123")).zfill(4));
++    assertEquals(ByteList.wrap(b("+0123")), ByteList.wrap(b("+123")).zfill(5));
++    assertEquals(ByteList.wrap(b("-123")), ByteList.wrap(b("-123")).zfill(3));
++    assertEquals(ByteList.wrap(b("-123")), ByteList.wrap(b("-123")).zfill(4));
++    assertEquals(ByteList.wrap(b("-0123")), ByteList.wrap(b("-123")).zfill(5));
++    assertEquals(ByteList.wrap(b("000")), ByteList.wrap(b("")).zfill(3));
++    assertEquals(ByteList.wrap(b("34")), ByteList.wrap(b("34")).zfill(1));
++    assertEquals(ByteList.wrap(b("0034")), ByteList.wrap(b("34")).zfill(4));
++  }
++
++  @Test
++  public void testIsLower() {
++    assertFalse(ByteList.wrap(b("")).islower());
++    assertTrue(ByteList.wrap(b("a")).islower());
++    assertFalse(ByteList.wrap(b("A")).islower());
++    assertFalse(ByteList.wrap(b("\n")).islower());
++    assertTrue(ByteList.wrap(b("abc")).islower());
++    assertFalse(ByteList.wrap(b("aBc")).islower());
++    assertTrue(ByteList.wrap(b("abc\n")).islower());
++  }
++
++  @Test
++  public void testIsUpper() {
++    assertFalse(ByteList.wrap(b("")).isupper());
++    assertFalse(ByteList.wrap(b("a")).isupper());
++    assertTrue(ByteList.wrap(b("A")).isupper());
++    assertFalse(ByteList.wrap(b("\n")).isupper());
++    assertTrue(ByteList.wrap(b("ABC")).isupper());
++    assertFalse(ByteList.wrap(b("AbC")).isupper());
++    assertTrue(ByteList.wrap(b("ABC\n")).isupper());
++  }
++
++  @Test
++  public void testIsTitle() {
++    assertFalse(ByteList.wrap(b("")).istitle());
++    assertFalse(ByteList.wrap(b("a")).istitle());
++    assertTrue(ByteList.wrap(b("A")).istitle());
++    assertFalse(ByteList.wrap(b("\n")).istitle());
++    assertTrue(ByteList.wrap(b("A Titlecased Line")).istitle());
++    assertTrue(ByteList.wrap(b("A\nTitlecased Line")).istitle());
++    assertTrue(ByteList.wrap(b("A Titlecased, Line")).istitle());
++    assertFalse(ByteList.wrap(b("Not a capitalized String")).istitle());
++    assertFalse(ByteList.wrap(b("Not\ta Titlecase String")).istitle());
++  }
++
++  @Test
++  public void testIsSpace() {
++    assertFalse(ByteList.wrap(b("a")).isspace());
++    assertTrue(ByteList.wrap(b(" ")).isspace());
++    assertTrue(ByteList.wrap(b("\t")).isspace());
++    assertTrue(ByteList.wrap(b("\r")).isspace());
++    assertTrue(ByteList.wrap(b("\n")).isspace());
++    assertTrue(ByteList.wrap(b(" \t\r\n")).isspace());
++    assertFalse(ByteList.wrap(b(" \t\r\na")).isspace());
++  }
++
++  @Test
++  public void testIsAlpha() {
++    assertFalse(ByteList.wrap(b("")).isalpha());
++    assertTrue(ByteList.wrap(b("a")).isalpha());
++    assertTrue(ByteList.wrap(b("A")).isalpha());
++    assertFalse(ByteList.wrap(b("\n")).isalpha());
++    assertTrue(ByteList.wrap(b("abc")).isalpha());
++    assertFalse(ByteList.wrap(b("aBc123")).isalpha());
++    assertFalse(ByteList.wrap(b("abc\n")).isalpha());
++  }
++
++  @Test
++  public void testIsAlphaNumeric() {
++    assertFalse(ByteList.wrap(b("")).isalnum());
++    assertTrue(ByteList.wrap(b("a")).isalnum());
++    assertTrue(ByteList.wrap(b("A")).isalnum());
++    assertFalse(ByteList.wrap(b("\n")).isalnum());
++    assertTrue(ByteList.wrap(b("123abc456")).isalnum());
++    assertTrue(ByteList.wrap(b("a1b3c")).isalnum());
++    assertFalse(ByteList.wrap(b("aBc000 ")).isalnum());
++    assertFalse(ByteList.wrap(b("abc\n")).isalnum());
++  }
++
++  @Test
++  public void testIsAscii() {
++    assertTrue(ByteList.wrap(b("")).isascii());
++    assertTrue(ByteList.wrap(b(" ")).isascii());
++    assertTrue(ByteList.wrap(b("")).isascii());
++    assertTrue(ByteList.wrap(b(" ")).isascii());
++    assertFalse(ByteList.wrap(b("")).isascii());
++    assertFalse(ByteList.wrap(b("é")).isascii());
++  }
++
++  @Test
++  public void testIsDigit() {
++    assertFalse(ByteList.wrap(b("")).isdigit());
++    assertFalse(ByteList.wrap(b("a")).isdigit());
++    assertTrue(ByteList.wrap(b("0")).isdigit());
++    assertTrue(ByteList.wrap(b("0123456789")).isdigit());
++    assertFalse(ByteList.wrap(b("0123456789a")).isdigit());
++  }
++
++  @Test
++  public void testTitle() {
++    assertEquals(ByteList.wrap(b(" Hello ")), ByteList.wrap(b(" hello ")).title());
++    assertEquals(ByteList.wrap(b("Hello ")), ByteList.wrap(b("hello ")).title());
++    assertEquals(ByteList.wrap(b("Hello ")), ByteList.wrap(b("Hello ")).title());
++    assertEquals(ByteList.wrap(b("Format This As Title String")), ByteList.wrap(b("fOrMaT thIs aS titLe String")).title());
++    assertEquals(ByteList.wrap(b("Format,This-As*Title;String")), ByteList.wrap(b("fOrMaT,thIs-aS*titLe;String")).title());
++    assertEquals(ByteList.wrap(b("Getint")), ByteList.wrap(b("getInt")).title());
++  }
++
++  @Test
++  public void testLower() {
++    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("HeLLo")).lower());
++    assertEquals(ByteList.wrap(b("hello")), ByteList.wrap(b("hello")).lower());
++  }
++
++  @Test
++  public void testUpper() {
++    assertEquals(ByteList.wrap(b("HELLO")), ByteList.wrap(b("HeLLo")).upper());
++    assertEquals(ByteList.wrap(b("HELLO")), ByteList.wrap(b("HELLO")).upper());
++  }
++
++  @Test
++  public void testCapitalize() {
++    assertEquals(ByteList.wrap(b(" hello ")), ByteList.wrap(b(" hello ")).capitalize());
++    assertEquals(ByteList.wrap(b("Hello ")), ByteList.wrap(b("Hello ")).capitalize());
++    assertEquals(ByteList.wrap(b("Hello ")), ByteList.wrap(b("hello ")).capitalize());
++    assertEquals(ByteList.wrap(b("Aaaa")), ByteList.wrap(b("aaaa")).capitalize());
++    assertEquals(ByteList.wrap(b("Aaaa")), ByteList.wrap(b("AaAa")).capitalize());
++  }
++
++  @Test
++  public void testRemovePrefix() {
++    assertEquals(ByteList.wrap(b("am")), ByteList.wrap(b("spam")).removeprefix(ByteList.wrap(b("sp"))));
++    assertEquals(ByteList.wrap(b("spamspam")), ByteList.wrap(b("spamspamspam")).removeprefix(ByteList.wrap(b("spam"))));
++    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removeprefix(ByteList.wrap(b("python"))));
++    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removeprefix(ByteList.wrap(b("spider"))));
++    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removeprefix(ByteList.wrap(b("spam and eggs"))));
++    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("")).removeprefix(ByteList.wrap(b(""))));
++    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("")).removeprefix(ByteList.wrap(b("abcde"))));
++    assertEquals(ByteList.wrap(b("abcde")), ByteList.wrap(b("abcde")).removeprefix(ByteList.wrap(b(""))));
++    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("abcde")).removeprefix(ByteList.wrap(b("abcde"))));
++
++  }
++
++  @Test
++  public void testRemoveSuffix() {
++    assertEquals(ByteList.wrap(b("sp")), ByteList.wrap(b("spam")).removesuffix(ByteList.wrap(b("am"))));
++    assertEquals(ByteList.wrap(b("spamspam")), ByteList.wrap(b("spamspamspam")).removesuffix(ByteList.wrap(b("spam"))));
++    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removesuffix(ByteList.wrap(b("python"))));
++    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removesuffix(ByteList.wrap(b("blam"))));
++    assertEquals(ByteList.wrap(b("spam")), ByteList.wrap(b("spam")).removesuffix(ByteList.wrap(b("eggs and spam"))));
++
++    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("")).removesuffix(ByteList.wrap(b(""))));
++    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("")).removesuffix(ByteList.wrap(b("abcde"))));
++    assertEquals(ByteList.wrap(b("abcde")), ByteList.wrap(b("abcde")).removesuffix(ByteList.wrap(b(""))));
++    assertEquals(ByteList.wrap(b("")), ByteList.wrap(b("abcde")).removesuffix(ByteList.wrap(b("abcde"))));
++  }
++
++  @Test
++  public void testSplitLines() {
++    assertArrayEquals(new ByteList[] {ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("")), ByteList.wrap(b("ghi"))}, ByteList.wrap(b("abc\ndef\n\rghi")).splitlines());
++    assertArrayEquals(new ByteList[] {ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("")), ByteList.wrap(b("ghi"))}, ByteList.wrap(b("abc\ndef\n\r\nghi")).splitlines());
++    assertArrayEquals(new ByteList[] {ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi"))}, ByteList.wrap(b("abc\ndef\r\nghi")).splitlines());
++    assertArrayEquals(new ByteList[] {ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi"))}, ByteList.wrap(b("abc\ndef\r\nghi\n")).splitlines());
++    assertArrayEquals(new ByteList[] {ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi")), ByteList.wrap(b(""))}, ByteList.wrap(b("abc\ndef\r\nghi\n\r")).splitlines());
++    assertArrayEquals(new ByteList[] {ByteList.wrap(b("")), ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi")), ByteList.wrap(b(""))}, ByteList.wrap(b("\nabc\ndef\r\nghi\n\r")).splitlines());
++    assertArrayEquals(new ByteList[] {ByteList.wrap(b("")), ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi")), ByteList.wrap(b(""))}, ByteList.wrap(b("\nabc\ndef\r\nghi\n\r")).splitlines(false));
++    assertArrayEquals(new ByteList[] {ByteList.wrap(b("\n")), ByteList.wrap(b("abc\n")), ByteList.wrap(b("def\r\n")), ByteList.wrap(b("ghi\n")), ByteList.wrap(b("\r"))},
++                  ByteList.wrap(b("\nabc\ndef\r\nghi\n\r")).splitlines(true));
++    assertArrayEquals(new ByteList[] {ByteList.wrap(b("")), ByteList.wrap(b("abc")), ByteList.wrap(b("def")), ByteList.wrap(b("ghi")), ByteList.wrap(b(""))}, ByteList.wrap(b("\nabc\ndef\r\nghi\n\r")).splitlines(false));
++    assertArrayEquals(new ByteList[] {ByteList.wrap(b("\n")), ByteList.wrap(b("abc\n")), ByteList.wrap(b("def\r\n")), ByteList.wrap(b("ghi\n")), ByteList.wrap(b("\r"))},
++                  ByteList.wrap(b("\nabc\ndef\r\nghi\n\r")).splitlines(true));
++  }
++
++  @Test
++  public void testTranslate() {
++    final ByteList b = ByteList.copy("hello");
++    final byte[] rosetta = new byte[256];
++    for (int i = 0; i < rosetta.length; i++) {
++      rosetta[i] = (byte) i;
++      if(i == 'o') {
++        rosetta[i] = (byte) 'e';
++      }
++    }
++
++    ByteList c = b.translate(rosetta);
++    ByteList d = b.translate(rosetta, b(""));
++    ByteList dd = b.translate(rosetta, ByteList.wrap(b("")));
++    assertEquals(c, d);
++    assertEquals(c, dd);
++    assertEquals(c, ByteList.wrap(b("helle")));
++
++    c = b.translate(rosetta, b("hello"));
++    assertEquals(b, ByteList.wrap(b("hello")));
++    assertEquals(c, ByteList.wrap(b("")));
++
++    c = b.translate(rosetta, b("l"));
++    assertEquals(c, ByteList.wrap(b("hee")));
++    c = b.translate(null, b("e"));
++    assertEquals(c, ByteList.wrap(b("hllo")));
++
++    c = b.translate(rosetta, b(""));
++    assertEquals(c, ByteList.wrap(b("helle")));
++    c = b.translate(rosetta, b("l"));
++    assertEquals(c, ByteList.wrap(b("hee")));
++    c = b.translate(null, b("e"));
++    assertEquals(c, ByteList.wrap(b("hllo")));
++  }
++
++  @Test
++  public void testExpandTabs() {
++    assertEquals(ByteList.wrap(b("abc\rab      def\ng       hi")), ByteList.wrap(b("abc\rab\tdef\ng\thi")).expandtabs());
++    assertEquals(ByteList.wrap(b("abc\rab      def\ng       hi")), ByteList.wrap(b("abc\rab\tdef\ng\thi")).expandtabs(8));
++    assertEquals(ByteList.wrap(b("abc\rab  def\ng   hi")), ByteList.wrap(b("abc\rab\tdef\ng\thi")).expandtabs(4));
++    assertEquals(ByteList.wrap(b("abc\r\nab      def\ng       hi")), ByteList.wrap(b("abc\r\nab\tdef\ng\thi")).expandtabs());
++    assertEquals(ByteList.wrap(b("abc\r\nab      def\ng       hi")), ByteList.wrap(b("abc\r\nab\tdef\ng\thi")).expandtabs(8));
++    assertEquals(ByteList.wrap(b("abc\r\nab  def\ng   hi")), ByteList.wrap(b("abc\r\nab\tdef\ng\thi")).expandtabs(4));
++    assertEquals(ByteList.wrap(b("abc\r\nab\r\ndef\ng\r\nhi")), ByteList.wrap(b("abc\r\nab\r\ndef\ng\r\nhi")).expandtabs(4));
++    assertEquals(ByteList.wrap(b("abc\rab      def\ng       hi")), ByteList.wrap(b("abc\rab\tdef\ng\thi")).expandtabs(8));
++    assertEquals(ByteList.wrap(b("abc\rab  def\ng   hi")), ByteList.wrap(b("abc\rab\tdef\ng\thi")).expandtabs(4));
++    assertEquals(ByteList.wrap(b("  a\n b")), ByteList.wrap(b(" \ta\n\tb")).expandtabs(1));
++  }
++}
+\ No newline at end of file
+diff --git b/libstarlark/src/test/java/net/starlark/java/syntax/LexerTest.java a/libstarlark/src/test/java/net/starlark/java/syntax/LexerTest.java
+index 1f8fd80c..8977e5c4 100644
+--- b/libstarlark/src/test/java/net/starlark/java/syntax/LexerTest.java
++++ a/libstarlark/src/test/java/net/starlark/java/syntax/LexerTest.java
+@@ -379,12 +379,38 @@ public class LexerTest {
+         "STRING(\\$$) NEWLINE EOF",
+         "  ^ invalid escape sequence: \\$. Use '\\\\' to insert '\\'.");
+     check("'a\\\nb'", "STRING(ab) NEWLINE EOF"); // escape end of line
+-    checkErrors(
+-        "\"ab\\ucd\"", //
+-        "STRING(ab\\ucd) NEWLINE EOF",
+-        "    ^ invalid escape sequence: \\u. Use '\\\\' to insert '\\'.");
++    checkErrors("\"ab\\ucd\"",
++      "STRING(abcd) NEWLINE EOF",
++      "    ^ truncated escape sequence \\ucd");
++
++    // hex escapes
++    check("'\\x00\\x20\\x09\\x41\\x7e\\x7f'", "STRING(\u0000 \tA~\u007F) NEWLINE EOF"); // DEL is non-printable
++    checkErrors("'\\x80'", "STRING(80) NEWLINE EOF", "  ^ non-ASCII hex escape \\x80 (use \\u0080 for the UTF-8 encoding of U+0080)");
++    checkErrors("'\\xff'", "STRING(ff) NEWLINE EOF", "  ^ non-ASCII hex escape \\xff (use \\u00FF for the UTF-8 encoding of U+00FF)");
++    checkErrors("'\\xFf'", "STRING(Ff) NEWLINE EOF", "  ^ non-ASCII hex escape \\xFf (use \\u00FF for the UTF-8 encoding of U+00FF)");
++    checkErrors("'\\xF'", "STRING(F) NEWLINE EOF", "  ^ truncated escape sequence \\xF");
++    checkErrors("'\\x'", "STRING() NEWLINE EOF", "  ^ truncated escape sequence \\x");
++    checkErrors("'\\xfg'", "STRING(fg) NEWLINE EOF", "  ^ invalid escape sequence \\xfg");
++    // Unicode escapes
++    // \\uXXXX
++    check("'\\u0400'", "STRING(Ѐ) NEWLINE EOF");
++    checkErrors("'\\u100'", "STRING(100) NEWLINE EOF", "  ^ truncated escape sequence \\u100");
++    check("'\\u04000'", "STRING(Ѐ0) NEWLINE EOF"); // = U+0400 + '0'
++    checkErrors("'\\u100g'", "STRING(100g) NEWLINE EOF", "  ^ invalid escape sequence \\u100g");
++    check("'\\u4E16'", "STRING(世) NEWLINE EOF");
++    checkErrors("'\\udc00'", "STRING(dc00) NEWLINE EOF", "  ^ invalid Unicode code point U+DC00"); // surrogate
++    // \\UXXXXXXXX
++    check("'\\U00000400'", "STRING(Ѐ) NEWLINE EOF");
++    checkErrors("'\\U0000400'", "STRING(0000400) NEWLINE EOF", "  ^ truncated escape sequence \\U0000400");
++    check("'\\U000004000'", "STRING(Ѐ0) NEWLINE EOF"); // = U+0400 + '0'
++    checkErrors("'\\U1000000g'", "STRING(1000000g) NEWLINE EOF", "  ^ invalid escape sequence \\U1000000g");
++    check("'\\U0010FFFF'", "STRING(\uDBFF\uDFFF) NEWLINE EOF");
++    checkErrors("'\\U00110000'", "STRING(00110000) NEWLINE EOF", "  ^ code point out of range: \\U00110000 (max \\U00110000)");
++    check("'\\U0001F63F'", "STRING(\uD83D\uDE3F) NEWLINE EOF");
++    checkErrors("'\\U0000dc00'", "STRING(0000dc00) NEWLINE EOF", "  ^ invalid Unicode code point U+DC00"); // surrogate
+   }
+ 
++
+   @Test
+   public void testEscapedCrlfInString() throws Exception {
+     check("'a\\\r\nb'", "STRING(ab) NEWLINE EOF");
+@@ -412,6 +438,16 @@ public class LexerTest {
+         "  ^ unclosed string literal");
+   }
+ 
++  @Test
++  public void testBytePrefix() throws Exception {
++    check("b'abcd'", "BYTE(abcd) NEWLINE EOF");
++    check("b\'AЀ世\uD83D\uDE3F\'", "BYTE(AЀ世\uD83D\uDE3F) NEWLINE EOF");
++    check("b\'\\x41\\u0400\\u4e16\\U0001F63F\'", "BYTE(AЀ世\uD83D\uDE3F) NEWLINE EOF");
++    check("b\'\\377\\378\\x80\\xff\\xFf\'", "BYTE(ÿ\u001F8\u0080ÿÿ) NEWLINE EOF");
++    checkErrors("b\'\\400\'", "BYTE() NEWLINE EOF", "     ^ octal escape sequence out of range (maximum is \\377)");
++    checkErrors("b\'\\udc00\'", "BYTE(dc00) NEWLINE EOF", "   ^ invalid Unicode code point U+DC00");
++  }
++
+   @Test
+   public void testTripleRawString() throws Exception {
+     // r'''a\ncd'''
+@@ -429,12 +465,10 @@ public class LexerTest {
+ 
+   @Test
+   public void testOctalEscapes() throws Exception {
+-    // Regression test for a bug.
+-    check(
+-        "'\\0 \\1 \\11 \\77 \\111 \\1111 \\377'",
+-        "STRING(\0 \1 \t \u003f I I1 \u00ff) NEWLINE EOF");
+     // Test boundaries (non-octal char, EOF).
+     check("'\\1b \\1'", "STRING(\1b \1) NEWLINE EOF");
++    check("'\\037'", "STRING(\u001F) NEWLINE EOF");
++    check("'\\378'", "STRING(\u001F8) NEWLINE EOF");  // = '\37' + '8'
+     // Test first digit out-of-range.
+     checkErrors(
+         "'\\800'",
+@@ -444,22 +478,24 @@ public class LexerTest {
+ 
+   @Test
+   public void testOctalEscapeOutOfRange() throws Exception {
+-    // Capped at U+FF.
++    // Regression test for a bug.
++    checkErrors(
++        "'\\0 \\1 \\11 \\77 \\111 \\1111 \\377'",
++        "STRING(\0 \1 \t \u003f I I1 ) NEWLINE EOF",
++      "                             ^ non-ASCII octal " +
++        "escape \\377 (use \\u00FF for the UTF-8 encoding of U+00FF)");
+     checkErrors(
+         "'\\777'",
+-        "STRING(\u00ff) NEWLINE EOF",
+-        "    ^ octal escape sequence out of range (maximum is \\377)");
+-    // Emitted value is masked by (not capped to) 0xFF.
++        "STRING() NEWLINE EOF",
++        "    ^ non-ASCII octal escape \\777 (use \\u01FF for the UTF-8 encoding of U+01FF)");
+     checkErrors(
+-        "'\\401'",
+-        "STRING(\u0001) NEWLINE EOF",
+-        "    ^ octal escape sequence out of range (maximum is \\377)");
+-    // Multiple errors.
++      "'\\377'",
++      "STRING() NEWLINE EOF",
++      "    ^ non-ASCII octal escape \\377 (use \\u00FF for the UTF-8 encoding of U+00FF)");
+     checkErrors(
+-        "'\\401\\402'",
+-        "STRING(\u0001\u0002) NEWLINE EOF",
+-        "    ^ octal escape sequence out of range (maximum is \\377)",
+-        "        ^ octal escape sequence out of range (maximum is \\377)");
++      "'\\400'",
++      "STRING() NEWLINE EOF",
++      "    ^ non-ASCII octal escape \\400 (use \\u0100 for the UTF-8 encoding of U+0100)");
+   }
+ 
+   @Test
+@@ -503,30 +539,20 @@ public class LexerTest {
+ 
+   @Test
+   public void testStringContainingNonAsciiOctalEscapes() throws Exception {
+-    // Lexer is fine with U+80 to U+FF by default.
+-    check("'\\200\\377'", "STRING(\200\377) NEWLINE EOF");
+-
+-    options = FileOptions.builder().stringLiteralsAreAsciiOnly(true).build();
+-    // Ok, U+7F is ASCII.
++    // VGS: like starlark-go, string literals reject octal escapes above \177 (bytes literals
++    // accept \200-\377), with or without the ASCII-only option.
+     check("'\\177'", "STRING(\177) NEWLINE EOF");
+-    // With U+80 to U+FF, we error but still emit the token with the original value (no masking
+-    // down to ASCII).
+     checkErrors(
+         "'\\200'",
+-        "STRING(\200) NEWLINE EOF",
+-        "    ^ octal escape sequence denotes non-ASCII character");
+-    // Out-of-range error takes priority over non-ASCII error. As in the case without the ASCII-only
+-    // option, the value is masked down to U+FF.
++        "STRING() NEWLINE EOF",
++        "    ^ non-ASCII octal escape \\200 (use \\u0080 for the UTF-8 encoding of U+0080)");
++
++    options = FileOptions.builder().stringLiteralsAreAsciiOnly(true).build();
++    check("'\\177'", "STRING(\177) NEWLINE EOF");
+     checkErrors(
+-        "'\\400'",
+-        "STRING(\000) NEWLINE EOF",
+-        "    ^ octal escape sequence out of range (maximum is \\377)");
+-    // Multiple errors.
+-    checkErrors(
+-        "'\\200\\201'",
+-        "STRING(\200\201) NEWLINE EOF",
+-        "    ^ octal escape sequence denotes non-ASCII character",
+-        "        ^ octal escape sequence denotes non-ASCII character");
++        "'\\200'",
++        "STRING() NEWLINE EOF",
++        "    ^ non-ASCII octal escape \\200 (use \\u0080 for the UTF-8 encoding of U+0080)");
+   }
+ 
+   @Test

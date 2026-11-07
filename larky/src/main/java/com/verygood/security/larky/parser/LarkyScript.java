@@ -56,7 +56,7 @@ public class LarkyScript {
 
   // Even in strict mode, we allow top-level if and for statements.
   public static final FileOptions STARLARK_STRICT_FILE_OPTIONS =
-      FileOptions.DEFAULT.toBuilder()
+      LarkySemantics.FILE_OPTIONS.toBuilder()
           .allowToplevelRebinding(true)
           .loadBindsGlobally(true)
           .build();

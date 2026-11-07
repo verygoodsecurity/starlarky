@@ -134,11 +134,11 @@ public abstract sealed class Dict<K, V>
     return Types.dict(
         Types.union(
             keySet().stream()
-                .map(k -> Starlark.getStarlarkType(k, semantics))
+                .map(k -> Starlark.getStarlarkTypePropagatingStackOverflow(k, semantics))
                 .collect(toImmutableSet())),
         Types.union(
             values().stream()
-                .map(v -> Starlark.getStarlarkType(v, semantics))
+                .map(v -> Starlark.getStarlarkTypePropagatingStackOverflow(v, semantics))
                 .collect(toImmutableSet())));
   }
 
@@ -603,7 +603,6 @@ public abstract sealed class Dict<K, V>
     throw new UnsupportedOperationException();
   }
 
-  @Nullable
   @Deprecated // use putEntry
   @Override
   public final V put(K key, V value) {
@@ -616,7 +615,6 @@ public abstract sealed class Dict<K, V>
     throw new UnsupportedOperationException();
   }
 
-  @Nullable
   @Deprecated // use pop
   @Override
   public final V remove(Object key) {

@@ -75,7 +75,7 @@ public final class TypeChecker extends NodeVisitor {
   // Formats and reports an error at the specified location.
   @FormatMethod
   private void errorf(Location loc, String format, Object... args) {
-    typeTable.errors.add(new SyntaxError(loc, String.format(format, args)));
+    typeTable.addError(new SyntaxError(loc, String.format(format, args)));
   }
 
   private void binaryOperatorError(
@@ -195,16 +195,7 @@ public final class TypeChecker extends NodeVisitor {
         if (!originalType.getReturnType().equals(inferedReturnType)) {
           // Update the lambda function type with a more precise return type.
           typeTable.setType(
-              lambda.getResolvedFunction(),
-              Types.generalCallable(
-                  originalType.getParameterNames(),
-                  originalType.getParameterTypes(),
-                  originalType.getNumPositionalOnlyParameters(),
-                  originalType.getNumPositionalParameters(),
-                  originalType.getMandatoryParameters(),
-                  originalType.getVarargsType(),
-                  originalType.getKwargsType(),
-                  inferedReturnType));
+              lambda.getResolvedFunction(), originalType.withReturnType(inferedReturnType));
         }
         yield typeTable.getType(lambda.getResolvedFunction());
       }
@@ -686,7 +677,7 @@ public final class TypeChecker extends NodeVisitor {
         }
         // Argument is not residual; check it against the corresponding parameter.
         String parameterName = callable.getParameterNames().get(parameterIndex);
-        StarlarkType parameterType = callable.getParameterTypeByPos(parameterIndex);
+        StarlarkType parameterType = callable.getParameterType(parameterIndex);
         if (callable.isMandatory(parameterIndex)) {
           seenMandatoryParameters.add(parameterName);
         }
@@ -1326,26 +1317,26 @@ public final class TypeChecker extends NodeVisitor {
               typeTable.getType(function),
               "type tagger should have set type for def statement '%s'",
               def);
-      int numNonSpecialParams = callableType.getParameterTypes().size();
+      int numNonSpecialParams = callableType.getNumNonResidualParameters();
       // Indices of parameters in `def` and their types in `callableType` may be offset:
       // `def f(a: T, *, b: U)` has 3 parameters, but only 2 parameter types in its callableType.
       for (int iParam = 0, iType = 0; iType < numNonSpecialParams; iParam++, iType++) {
         Parameter param = def.getParameters().get(iParam);
         while (!(param instanceof Parameter.Mandatory || param instanceof Parameter.Optional)) {
-          // Skip special params; they are not in callableType.getParameterTypes().
+          // Skip special params; they are not in callableType.
           param = def.getParameters().get(++iParam);
         }
         if (param.getDefaultValue() != null) {
           StarlarkType defaultValueType = infer(param.getDefaultValue());
           if (!StarlarkType.assignableFrom(
-              callableType.getParameterTypeByPos(iType), defaultValueType, typeContext)) {
+              callableType.getParameterType(iType), defaultValueType, typeContext)) {
             errorf(
                 param.getDefaultValue().getStartLocation(),
                 "%s(): parameter '%s' has default value of type '%s', declares '%s'",
                 def.getIdentifier().getName(),
                 param.getName(),
                 defaultValueType.typeRepr(),
-                callableType.getParameterTypeByPos(iType).typeRepr());
+                callableType.getParameterType(iType).typeRepr());
           }
         }
       }
