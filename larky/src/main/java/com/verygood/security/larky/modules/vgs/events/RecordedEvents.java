@@ -95,6 +95,11 @@ public final class RecordedEvents implements StarlarkValue {
 
   /** Entry point from {@link EventsModule#record}. Never throws for bad input. */
   public void recordStarlark(Object nameArg, Object fieldsArg) throws EvalException {
+    // Once ten events are accepted every further call is dropped, so don't read its arguments.
+    if (accepted.size() >= MAX_ACCEPTED_EVENTS) {
+      dropped++;
+      return;
+    }
     String name = coerceName(nameArg);
     Map<String, String> fields;
     if (fieldsArg == null || fieldsArg instanceof NoneType) {
@@ -166,6 +171,10 @@ public final class RecordedEvents implements StarlarkValue {
       return Map.of();
     }
     if (!(fieldsArg instanceof Dict<?, ?> dict)) {
+      return null;
+    }
+    // An event with more fields is dropped anyway; reject it before converting any value.
+    if (dict.size() > MAX_FIELD_ENTRIES) {
       return null;
     }
     LinkedHashMap<String, String> out = new LinkedHashMap<>();

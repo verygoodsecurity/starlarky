@@ -1,9 +1,13 @@
 package com.verygood.security.larky.modules.vgs.events;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.HashMap;
 import java.util.Map;
+import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.Mutability;
+import net.starlark.java.eval.Starlark;
 import org.junit.jupiter.api.Test;
 
 class RecordedEventsTest {
@@ -132,6 +136,40 @@ class RecordedEventsTest {
     rec.tryRecord("evt", Map.of("k4111111", "x"));
     assertEquals(0, rec.events().size());
     assertEquals(1, rec.dropped());
+  }
+
+  @Test
+  void fieldsOverTheEntryLimitAreRejectedBeforeConversion() throws Exception {
+    Dict<Object, Object> nine = Dict.of(Mutability.create("test"));
+    for (int i = 0; i < 9; i++) {
+      nine.putEntry("k" + (char) ('a' + i), "v");
+    }
+    assertNull(RecordedEvents.fieldsFromStarlark(nine));
+  }
+
+  @Test
+  void everyCallAfterTheTenthEventIsDroppedOnce() throws Exception {
+    RecordedEvents rec = new RecordedEvents();
+    for (int i = 0; i < 10; i++) {
+      rec.recordStarlark("evt", Starlark.NONE);
+    }
+    Dict<Object, Object> nine = Dict.of(Mutability.create("test"));
+    for (int i = 0; i < 9; i++) {
+      nine.putEntry("k" + (char) ('a' + i), "v");
+    }
+    Object[][] calls = {
+      {"evt", Starlark.NONE},
+      {"evt", Dict.of(Mutability.create("test"))},
+      {"Bad Name", Starlark.NONE},
+      {Starlark.NONE, Starlark.NONE},
+      {"evt", "not a dict"},
+      {"evt", nine},
+    };
+    for (int i = 0; i < calls.length; i++) {
+      rec.recordStarlark(calls[i][0], calls[i][1]);
+      assertEquals(10, rec.events().size());
+      assertEquals(i + 1, rec.dropped());
+    }
   }
 
   @Test
