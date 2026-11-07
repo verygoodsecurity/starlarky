@@ -44,6 +44,19 @@ public final class FakeWasmRuntime implements WasmRuntime {
 
   public static final String NAME = "fake";
   static final AtomicInteger COMPILES = new AtomicInteger();
+  static volatile boolean uncached;
+  static volatile long lastCompileDeadline;
+
+  @Override
+  public boolean cacheProgramsInHost() {
+    return !uncached;
+  }
+
+  @Override
+  public WasmRuntime.Program compile(byte[] wasm, long deadlineEpochMs) throws WasmException {
+    lastCompileDeadline = deadlineEpochMs;
+    return compile(wasm);
+  }
 
   @Override
   public String name() {
