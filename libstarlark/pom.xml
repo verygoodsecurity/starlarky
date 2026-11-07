@@ -265,6 +265,15 @@
 <!--                        -Xbootclasspath/p:${settings.localRepository}/com/google/errorprone/javac/${google.errorprone.javac.version}/javac-${google.errorprone.javac.version}.jar-->
 <!--                    </argLine>-->
                     <trimStackTrace>false</trimStackTrace>
+                    <!-- EvalTests and SyntaxTests are upstream's JUnit suites for Bazel's java_test
+                         targets. Every class they list is also picked up on its own here, so running
+                         the suites runs each of those tests twice in one JVM, and a test that checks
+                         instance identity then sees Types' interner hand back the first run's
+                         instance. -->
+                    <excludes>
+                        <exclude>**/net/starlark/java/eval/EvalTests.java</exclude>
+                        <exclude>**/net/starlark/java/syntax/SyntaxTests.java</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
         </plugins>

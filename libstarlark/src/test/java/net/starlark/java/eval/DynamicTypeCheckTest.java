@@ -308,7 +308,7 @@ public class DynamicTypeCheckTest {
             "False: bool",
             "True: bool",
             "None: None; is a reified type",
-            "hash: (str | bytes, /) -> int", // VGS: hash also accepts bytes
+            "hash: (bytes | str, /) -> int", // VGS: hash also accepts bytes
             "bool: ([object], /) -> bool; is a reified type",
             "getattr: (object, str, [object], /) -> Any",
             "hasattr: (object, str, /) -> bool",
