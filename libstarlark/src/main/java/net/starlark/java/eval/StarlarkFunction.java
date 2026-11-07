@@ -683,9 +683,10 @@ public sealed class StarlarkFunction implements StarlarkCallable {
         Module module,
         int[] globalIndex,
         SymbolGenerator.Symbol<?> token) {
-      checkArgument(rfn.isToplevel());
+      // VGS: upstream calls checkArgument before super(), which needs Java 25 (flexible
+      // constructor bodies); libstarlark compiles with release 21, so the check runs in an argument.
       super(
-          rfn,
+          requireToplevel(rfn),
           typeTable == null ? null : typeTable.getNonToplevelFunctionTypes(),
           module,
           globalIndex,
@@ -693,6 +694,11 @@ public sealed class StarlarkFunction implements StarlarkCallable {
           /* freevars= */ Tuple.empty(),
           token);
       this.typeTable = typeTable;
+    }
+
+    private static Resolver.Function requireToplevel(Resolver.Function rfn) {
+      checkArgument(rfn.isToplevel());
+      return rfn;
     }
 
     @Override
