@@ -10,6 +10,7 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>larky-wasm</module>
         <module>libstarlark</module>
         <module>larky</module>
         <module>runlarky</module>
