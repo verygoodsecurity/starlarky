@@ -3,6 +3,7 @@ package com.verygood.security.larky;
 import net.starlark.java.eval.PythonStrings;
 import net.starlark.java.eval.PercentFormat;
 import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.syntax.FileOptions;
 
 public final class LarkySemantics {
 
@@ -27,6 +28,27 @@ public final class LarkySemantics {
       .setBool(PythonStrings.PYTHON_UNICODE_STRINGS, true)
       // str % args follows Python's printf-style formatting (flags, width, precision, %(key)s).
       .setBool(PercentFormat.PYTHON_PERCENT_FORMAT, true)
+      // Upstream Starlark turned static type checking on by default; Larky keeps it off unless a
+      // host asks for it (see LarkyScript#scriptFileOptions).
+      .setBool(StarlarkSemantics.EXPERIMENTAL_STARLARK_STATIC_TYPE_CHECKING, false)
       .build();
+
+  /**
+   * Upstream's default semantics with static type checking off, for the entry points that run
+   * plain Starlark rather than {@link #LARKY_SEMANTICS} (the Larky REPL and the runner's).
+   */
+  public static final StarlarkSemantics STARLARK_SEMANTICS = StarlarkSemantics.DEFAULT
+      .toBuilder()
+      .setBool(StarlarkSemantics.EXPERIMENTAL_STARLARK_STATIC_TYPE_CHECKING, false)
+      .build();
+
+  /**
+   * The file options Larky starts from. Upstream Starlark now allows and resolves type syntax by
+   * default, which makes {@code isinstance} a keyword and rejects scripts that call
+   * {@code isinstance(...)} as a function; Larky turns type syntax on only when type checking is
+   * enabled (see LarkyScript#scriptFileOptions).
+   */
+  public static final FileOptions FILE_OPTIONS =
+      FileOptions.DEFAULT.toBuilder().allowTypeSyntax(false).resolveTypeSyntax(false).build();
 
 }

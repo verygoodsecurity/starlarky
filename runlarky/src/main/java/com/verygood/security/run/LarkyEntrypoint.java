@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.concurrent.Callable;
 
+import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.CapturingConsole;
 import com.verygood.security.larky.console.Console;
@@ -50,7 +51,7 @@ public class LarkyEntrypoint implements Callable<Integer> {
   //REPL
   private static final String START_PROMPT = ">> ";
   private static final String CONTINUATION_PROMPT = ".. ";
-  private static final FileOptions OPTIONS = FileOptions.DEFAULT;
+  private static final FileOptions OPTIONS = LarkySemantics.FILE_OPTIONS;
   private static final BufferedReader reader =
       new BufferedReader(new InputStreamReader(System.in, UTF_8));
   private static final StarlarkThread thread;
@@ -58,7 +59,7 @@ public class LarkyEntrypoint implements Callable<Integer> {
 
   static {
     Mutability mu = Mutability.create("interpreter");
-    thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+    thread = StarlarkThread.createTransient(mu, LarkySemantics.STARLARK_SEMANTICS);
     thread.setPrintHandler((th, msg) -> System.out.println(msg));
   }
   //REPL end

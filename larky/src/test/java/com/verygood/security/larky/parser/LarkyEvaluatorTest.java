@@ -6,14 +6,13 @@ import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableMap;
 
+import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.console.testing.TestingConsole;
 
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
-import net.starlark.java.syntax.FileOptions;
 import net.starlark.java.syntax.ParserInput;
 
 import org.junit.After;
@@ -32,7 +31,7 @@ public class LarkyEvaluatorTest {
 
   @Test
   public void testErrorMessageOnFailedLoad() {
-    StarlarkThread thread = StarlarkThread.createTransient(Mutability.create(), StarlarkSemantics.DEFAULT);
+    StarlarkThread thread = StarlarkThread.createTransient(Mutability.create(), LarkySemantics.LARKY_SEMANTICS);
     LarkyEvaluator.LarkyLoader larkyLoader = new LarkyEvaluator.LarkyLoader(
       new InMemMapBackedStarFile(ImmutableMap.of(), "vendor/herp.star"),
       new LarkyEvaluator(
@@ -45,7 +44,7 @@ public class LarkyEvaluatorTest {
              () ->
                  Starlark.execFile(
                      ParserInput.fromString("load('@stdlib//does/not/exist', 'x')", "herp.star"),
-                     FileOptions.DEFAULT,
+                     LarkySemantics.FILE_OPTIONS,
                      Module.create(),
                    thread));
      assertThat(ex.getCause()).hasMessageThat()
