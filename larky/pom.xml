@@ -41,6 +41,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <libstarlark.version>1.0.0-SNAPSHOT</libstarlark.version>
+        <larky-wasm.version>1.0.0-SNAPSHOT</larky-wasm.version>
 
         <apache.commons-text.version>1.15.0</apache.commons-text.version>
         <commons-io.version>2.22.0</commons-io.version>
@@ -67,6 +68,26 @@
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.verygood.security</groupId>
+            <artifactId>larky-wasm</artifactId>
+            <version>${larky-wasm.version}</version>
+        </dependency>
+        <dependency>
+            <!-- The WebAssembly fixtures, for the @vgs//wasm end-to-end tests. -->
+            <groupId>com.verygood.security</groupId>
+            <artifactId>larky-wasm</artifactId>
+            <version>${larky-wasm.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- Compiles the WAT fixtures the end-to-end tests run. -->
+            <groupId>run.endive</groupId>
+            <artifactId>wabt</artifactId>
+            <version>1.1.0</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>net.starlark.java</groupId>
             <artifactId>libstarlark</artifactId>

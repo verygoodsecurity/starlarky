@@ -73,6 +73,18 @@
                     <argLine>--add-modules jdk.incubator.vector</argLine>
                 </configuration>
             </plugin>
+            <plugin>
+                <!-- Larky's end-to-end tests use the fixtures (Fixtures and src/test/resources/wasm). -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>
