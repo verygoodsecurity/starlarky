@@ -12,9 +12,18 @@ def _test_decode_utf8_is_not_escaped():
     asserts.assert_that(codecs.decode(b"tab\there", "utf-8")).is_equal_to("tab\there")
 
 
+def _test_decode_utf8_invalid_bytes():
+    # CPython 3.10: b"a\xffb".decode("utf-8", <errors>)
+    asserts.assert_that(codecs.decode(b"a\xffb", "utf-8", "backslashreplace")).is_equal_to("a\\xffb")
+    asserts.assert_that(codecs.decode(b"a\xffb", "utf-8", "replace")).is_equal_to("a\ufffdb")
+    asserts.assert_that(codecs.decode(b"a\xffb", "utf-8", "ignore")).is_equal_to("ab")
+    asserts.assert_fails(lambda: codecs.decode(b"a\xffb", "utf-8"), ".*")
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_decode_utf8_is_not_escaped))
+    _suite.addTest(unittest.FunctionTestCase(_test_decode_utf8_invalid_bytes))
     return _suite
 
 

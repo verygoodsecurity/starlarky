@@ -7,6 +7,8 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.CoderResult;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -120,6 +122,10 @@ public class CodecsModule implements StarlarkValue {
       }
   )
   public String decode(StarlarkBytes bytesToDecode, String encoding, String errors) throws EvalException {
+    if (TextUtil.CodecHelper.BACKSLASHREPLACE.equals(errors)
+        || TextUtil.CodecHelper.SURROGATEESCAPE.equals(errors)) {
+      return decodeReplacingBytes(bytesToDecode.toByteArray(), Charset.forName(encoding), errors);
+    }
     CharsetDecoder decoder = Charset.forName(encoding)
         .newDecoder()
         .onMalformedInput(TextUtil.CodecHelper.convertCodingErrorAction(errors))
@@ -131,5 +137,44 @@ public class CodecsModule implements StarlarkValue {
       throw Starlark.errorf(e.getMessage());
     }
     return decoded.toString();
+  }
+
+  /**
+   * Decodes like CPython's "backslashreplace" (each undecodable byte becomes {@code \xNN}) or "surrogateescape"
+   * (each undecodable byte b becomes U+DC00+b).
+   */
+  private static String decodeReplacingBytes(byte[] input, Charset charset, String errors) throws EvalException {
+    final CharsetDecoder decoder = charset.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPORT);
+    final ByteBuffer in = ByteBuffer.wrap(input);
+    final CharBuffer out = CharBuffer.allocate(Math.max(16, input.length * 2 + 16));
+    final StringBuilder result = new StringBuilder(input.length);
+    CoderResult cr;
+    do {
+      cr = decoder.decode(in, out, true);
+      drain(out, result);
+      if (cr.isError()) {
+        for (int i = 0; i < cr.length(); i++) {
+          final int b = in.get() & 0xff;
+          if (TextUtil.CodecHelper.BACKSLASHREPLACE.equals(errors)) {
+            result.append("\\x").append(LOWER_HEX[b >> 4]).append(LOWER_HEX[b & 0xf]);
+          } else {
+            result.append((char) (0xDC00 + b));
+          }
+        }
+      }
+    } while (!cr.isUnderflow());
+    decoder.flush(out);
+    drain(out, result);
+    return result.toString();
+  }
+
+  private static final char[] LOWER_HEX = "0123456789abcdef".toCharArray();
+
+  private static void drain(CharBuffer out, StringBuilder result) {
+    out.flip();
+    result.append(out);
+    out.clear();
   }
 }
