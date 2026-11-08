@@ -1348,7 +1348,8 @@ public final class ParserTest {
 
   private static ParserInput veryDeepExpression() {
     StringBuilder s = new StringBuilder();
-    for (int i = 0; i < 1000; i++) {
+    // 1000 levels can fit in the stack once the parser is JIT-compiled; upstream uses 5000.
+    for (int i = 0; i < 5000; i++) {
       s.append("{");
     }
     return ParserInput.fromString(s.toString(), "foo.star");
