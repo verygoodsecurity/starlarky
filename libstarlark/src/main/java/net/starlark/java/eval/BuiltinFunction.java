@@ -85,8 +85,12 @@ public sealed class BuiltinFunction implements StarlarkCallable
     } else {
       vector = getPositionalOnlyArgumentVector(thread, positional);
     }
-    return desc.call(
-        obj instanceof String ? StringModule.INSTANCE : obj, vector, thread.mutability());
+    Object result =
+        desc.call(
+            obj instanceof String ? StringModule.INSTANCE : obj, vector, thread.mutability());
+    return thread.secretTaint == null && !desc.isSecretSource()
+        ? result
+        : Taint.afterBuiltin(thread, desc, obj, vector, result);
   }
 
   /**
@@ -451,10 +455,14 @@ public sealed class BuiltinFunction implements StarlarkCallable
         vector[i++] = thread;
       }
 
-      return desc.call(
-          owner.obj instanceof String ? StringModule.INSTANCE : owner.obj,
-          vector,
-          thread.mutability());
+      Object result =
+          desc.call(
+              owner.obj instanceof String ? StringModule.INSTANCE : owner.obj,
+              vector,
+              thread.mutability());
+      return thread.secretTaint == null && !desc.isSecretSource()
+          ? result
+          : Taint.afterBuiltin(thread, desc, owner.obj, vector, result);
     }
   }
 

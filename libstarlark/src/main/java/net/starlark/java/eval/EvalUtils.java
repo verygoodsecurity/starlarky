@@ -59,6 +59,12 @@ final class EvalUtils {
   /** Evaluates an eager binary operation, {@code x op y}. (Excludes AND and OR.) */
   static Object binaryOp(TokenKind op, Object x, Object y, StarlarkThread starlarkThread)
       throws EvalException {
+    Object z = untaintedBinaryOp(op, x, y, starlarkThread);
+    return starlarkThread.secretTaint == null ? z : Taint.binary(starlarkThread, x, y, z);
+  }
+
+  private static Object untaintedBinaryOp(
+      TokenKind op, Object x, Object y, StarlarkThread starlarkThread) throws EvalException {
     StarlarkSemantics semantics = starlarkThread.getSemantics();
     Mutability mu = starlarkThread.mutability();
     switch (op) {
@@ -470,6 +476,15 @@ final class EvalUtils {
    */
   @Nullable
   static Object index(StarlarkThread starlarkThread, Object object, Object key)
+      throws EvalException {
+    Object result = untaintedIndex(starlarkThread, object, key);
+    return starlarkThread.secretTaint == null
+        ? result
+        : Taint.readFrom(starlarkThread, object, result, key);
+  }
+
+  @Nullable
+  private static Object untaintedIndex(StarlarkThread starlarkThread, Object object, Object key)
       throws EvalException {
     Mutability mu = starlarkThread.mutability();
     StarlarkSemantics semantics = starlarkThread.getSemantics();
