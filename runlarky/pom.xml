@@ -259,7 +259,7 @@
                                 <buildArg>
                                     -H:DynamicProxyConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/proxy-config.json
                                 </buildArg>
-                                <buildArg>-H:IncludeResources=".*$"</buildArg>
+                                <buildArg>-H:IncludeResources=.*$</buildArg>
                             </buildArgs>
                         </configuration>
                     </plugin>
