@@ -13,6 +13,7 @@
     * [Libstarlark](#libstarlark)
     * [Larky](#larky)
     * [Runlarky](#runlarky)
+        * [Larky REPL](#larky-repl)
     * [Pylarky](#pylarky)
 * [Developer setup](#developer-setup)
 * [Depoyment process](#deployment-process)
@@ -73,6 +74,51 @@ mvn clean package -pl runlarky -Pnative
 ```
 
 This would build `larky-runner` executable in `runlarky/target` directory, that can be run from terminal
+
+#### Larky REPL
+
+Run `larky-runner` with no arguments to get an interactive Larky prompt. It has the same environment as a script run by the runner, so Python builtins and `load()` of `@stdlib`, `@vendor` and `@vgs` modules work. Use it to try out a snippet or poke at a module before putting it in a script.
+
+**Install on Linux (x86-64).** Each release from 1.0.0 on attaches a native `larky-<version>-linux` binary. Download it from the [releases page](https://github.com/verygoodsecurity/starlarky/releases), then:
+
+```bash
+chmod +x larky-1.0.0-linux
+./larky-1.0.0-linux
+```
+
+**Run it on any OS with Java 21** (macOS, for example). Build it from a clone and start it on the JVM:
+
+```bash
+mvn -B -q -pl runlarky -am -DskipTests package dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
+java -cp "runlarky/target/runlarky-1.0.0-SNAPSHOT.jar:$(cat runlarky/target/classpath.txt)" \
+  com.verygood.security.run.LarkyEntrypoint
+```
+
+It prints three SLF4J warnings when it starts; they're harmless.
+
+If Maven can't download a dependency, set up GitHub Packages access first (see [Developer setup](#developer-setup)).
+
+**Use it:**
+
+```
+Larky interactive interpreter. Type :help for help, :quit or Ctrl-D to exit.
+>>> load("@stdlib//base64", "base64")
+>>> base64.b64encode(b"hi")
+b"aGk="
+>>> def add(a, b):
+...     return a + b
+...
+>>> add(2, 3)
+5
+```
+
+- The value of an expression is printed. A block (`def`, `if`, `for`) ends at a blank line.
+- Tab completes names, attributes (`base64.<Tab>`) and `load()` labels. Up and down arrows walk through history, which is kept in `~/.larky_history`.
+- Ctrl-C cancels the line you're typing, or stops a running evaluation, without leaving the REPL.
+- Commands: `:help`, `:load <file>` (run a `.star` file in the session), `:reset` (forget every binding), `:quit` or Ctrl-D.
+- Input can also be piped in. There's no prompt then, and the exit status is 1 if any input failed: `echo 'print(1 + 1)' | larky-runner` prints `2`.
+
+Script mode (`-s`, `-i`, `-o`, `-l`, `-d`) works as before.
 
 ### Pylarky
 
