@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.starlark.java.annot.Declassifies;
+import net.starlark.java.annot.SecretSource;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
@@ -40,6 +42,7 @@ public class DefaultVault implements LarkyVault {
             .build();
 
     @Override
+    @Declassifies
     public Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException {
         String sValue = getValue(value);
         AliasGenerator generator = getAliasGenerator(format);
@@ -67,6 +70,7 @@ public class DefaultVault implements LarkyVault {
     }
 
     @Override
+    @SecretSource
     public Object reveal(Object value, Object storage) throws EvalException {
         String sValue = getValue(value);
         Object secret = getStorage(storage).get(sValue);

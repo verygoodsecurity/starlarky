@@ -22,6 +22,7 @@ import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.Mutability;
+import net.starlark.java.eval.SecretTaint;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkSemantics;
@@ -179,6 +180,7 @@ public final class LarkyEvaluator {
       StarlarkThread thread = StarlarkThread.createTransient(mu, getLarkySemantics());
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
+      maybeSetSecretTaint(thread);
       thread.setPrintHandler(reporter::report);
       // refused when it is not providers, as LarkyLoadedScript.invoke refuses it
       ModuleProviders.given(environment.get(MODULE_PROVIDERS)).installOn(thread);
@@ -502,6 +504,19 @@ public final class LarkyEvaluator {
     sb.append("* ").append(cycleElement).append("\n");
     reporter.error("Cycle was detected in the configuration: \n" + sb);
     throw new EvalException("Cycle was detected");
+  }
+
+  // A host binding of SecretTaint, visible to the script as a value with no attributes. Every
+  // file of this evaluation shares it: the script runs on the top-level file's thread, modules
+  // load on their own threads first, and a value tagged on one thread must stay tagged on the
+  // others. If a module already revealed something, this thread starts active.
+  private void maybeSetSecretTaint(StarlarkThread thread) {
+    if (environment.get(SecretTaint.BINDING_NAME) instanceof SecretTaint secretTaint) {
+      thread.setThreadLocal(SecretTaint.class, secretTaint);
+      if (secretTaint.isActive()) {
+        thread.setSecretTaint(secretTaint);
+      }
+    }
   }
 
   /**
