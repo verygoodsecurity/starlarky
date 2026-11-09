@@ -799,7 +799,8 @@ final class Eval {
     fr.setLocation(loc);
 
     try {
-      return Starlark.callViaArgumentProcessor(fr.thread, callable, argumentProcessor);
+      Object result = Starlark.callViaArgumentProcessor(fr.thread, callable, argumentProcessor);
+      return fr.thread.secretTaint == null ? result : Taint.afterCallable(fr.thread, callable, result);
     } catch (EvalException ex) {
       fr.setErrorLocation(loc);
       throw ex;
@@ -824,7 +825,8 @@ final class Eval {
     Location loc = call.getLparenLocation(); // (Location is prematerialized)
     fr.setLocation(loc);
     try {
-      return Starlark.positionalOnlyCall(fr.thread, callable, positional);
+      Object result = Starlark.positionalOnlyCall(fr.thread, callable, positional);
+      return fr.thread.secretTaint == null ? result : Taint.afterCallable(fr.thread, callable, result);
     } catch (EvalException ex) {
       fr.setErrorLocation(loc);
       throw ex;

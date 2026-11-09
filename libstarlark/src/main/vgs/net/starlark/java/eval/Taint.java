@@ -78,15 +78,38 @@ final class Taint {
   /** After reading a field or bound method off {@code object}. */
   static Object field(StarlarkThread thread, Object object, Object result) {
     SecretTaint taint = thread.secretTaint;
-    if (result instanceof StarlarkCallable) {
-      return result; // a bound method carries no data of its own
-    }
     try {
+      if (result instanceof StarlarkCallable) {
+        // A bound built-in or def carries no data itself. A Java callable read off a tainted
+        // object (an iterator's __next__, say) has that object's state, and no descriptor.
+        if (isOpaqueCallable(result) && taint.isTaggedShallow(object)) {
+          taint.tagShallow(result);
+        }
+        return result;
+      }
       return taint.isTaggedShallow(object) ? carry(taint, object, result, false) : result;
     } catch (RuntimeException | StackOverflowError e) {
       taint.saturate();
       return result;
     }
+  }
+
+  /** After calling a Java callable, which has no descriptor and is not otherwise hooked. */
+  static Object afterCallable(StarlarkThread thread, StarlarkCallable callable, Object result) {
+    SecretTaint taint = thread.secretTaint;
+    try {
+      if (isOpaqueCallable(callable) && taint.isTaggedShallow(callable)) {
+        return carry(taint, callable, result, false);
+      }
+      return result;
+    } catch (RuntimeException | StackOverflowError e) {
+      taint.saturate();
+      return result;
+    }
+  }
+
+  private static boolean isOpaqueCallable(Object callable) {
+    return !(callable instanceof StarlarkFunction) && !(callable instanceof BuiltinFunction);
   }
 
   /** Before {@code object.field = value}: a tainted value makes the object tainted. */

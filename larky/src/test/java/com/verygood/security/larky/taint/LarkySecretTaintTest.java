@@ -126,6 +126,13 @@ class LarkySecretTaintTest {
   }
 
   @Test
+  void aTaintedIteratorsJavaNextMethodCarriesTheSecret() throws Exception {
+    Result r = run(TaintMode.ENFORCE, "c = iter(pan).__next__()\nprint(c)\n");
+    assertTrue(r.taint.isTainted(global(r, "c")));
+    assertEquals(SecretTaint.REDACTED, r.output.strip());
+  }
+
+  @Test
   void hashingUnrelatedDataIsNotTainted() throws Exception {
     Result r = run(TaintMode.ENFORCE, "r = hashlib.sha256(b'public').hexdigest()\nprint(r)\n");
     assertFalse(r.taint.isTainted(global(r, "r")));
