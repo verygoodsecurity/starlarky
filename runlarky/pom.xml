@@ -91,13 +91,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.graalvm.buildtools</groupId>
-            <artifactId>native-maven-plugin</artifactId>
-            <version>${graalvm-native-maven-plugin.version}</version>
-            <type>maven-plugin</type>
-        </dependency>
-
 <!--        Pinned to a version that passes Semgrep. ReflectConfigTest reads reflect-config.json with it. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
