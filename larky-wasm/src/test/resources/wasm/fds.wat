@@ -1,0 +1,65 @@
+;; Calls the allowed descriptor functions and writes what they return to stdout, space-separated:
+;; for fds 0, 1 and 2, fd_fdstat_get's errno and the 24 bytes it wrote (hex); then the errnos of
+;; fd_fdstat_get(3), fd_seek(fd, 0, CUR) on 0..2, fd_read(1), fd_write(0), fd_write(3),
+;; sched_yield, fd_close(3), fd_close(0), and fd_read(0) after closing it.
+(module
+  (import "wasi_snapshot_preview1" "fd_fdstat_get" (func $fd_fdstat_get (param i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_seek" (func $fd_seek (param i32 i64 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_close" (func $fd_close (param i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_read" (func $fd_read (param i32 i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "sched_yield" (func $sched_yield (result i32)))
+  (import "wasi_snapshot_preview1" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 200) "0123456789abcdef")
+  ;; Writes len bytes at ptr to stdout, using an iovec at 3100.
+  (func $out (param $ptr i32) (param $len i32)
+    (i32.store (i32.const 3100) (local.get $ptr))
+    (i32.store (i32.const 3104) (local.get $len))
+    (drop (call $fd_write (i32.const 1) (i32.const 3100) (i32.const 1) (i32.const 3108))))
+  ;; Writes $v in decimal and a space.
+  (func $put (param $v i32)
+    (local $p i32)
+    (local.set $p (i32.const 3031))
+    (i32.store8 (i32.const 3031) (i32.const 32))
+    (loop $digit
+      (local.set $p (i32.sub (local.get $p) (i32.const 1)))
+      (i32.store8 (local.get $p) (i32.add (i32.const 48) (i32.rem_u (local.get $v) (i32.const 10))))
+      (local.set $v (i32.div_u (local.get $v) (i32.const 10)))
+      (br_if $digit (i32.ne (local.get $v) (i32.const 0))))
+    (call $out (local.get $p) (i32.sub (i32.const 3032) (local.get $p))))
+  ;; Writes the 24 bytes at 512 in hex and a space.
+  (func $hex24
+    (local $i i32)
+    (local $b i32)
+    (loop $byte
+      (local.set $b (i32.load8_u (i32.add (i32.const 512) (local.get $i))))
+      (i32.store8 (i32.add (i32.const 2048) (i32.shl (local.get $i) (i32.const 1)))
+        (i32.load8_u (i32.add (i32.const 200) (i32.shr_u (local.get $b) (i32.const 4)))))
+      (i32.store8 (i32.add (i32.const 2049) (i32.shl (local.get $i) (i32.const 1)))
+        (i32.load8_u (i32.add (i32.const 200) (i32.and (local.get $b) (i32.const 15)))))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br_if $byte (i32.lt_u (local.get $i) (i32.const 24))))
+    (i32.store8 (i32.const 2096) (i32.const 32))
+    (call $out (i32.const 2048) (i32.const 49)))
+  (func $fdstat (param $fd i32)
+    (memory.fill (i32.const 512) (i32.const 0xee) (i32.const 24))
+    (call $put (call $fd_fdstat_get (local.get $fd) (i32.const 512)))
+    (call $hex24))
+  (func (export "_start")
+    (call $fdstat (i32.const 0))
+    (call $fdstat (i32.const 1))
+    (call $fdstat (i32.const 2))
+    (call $put (call $fd_fdstat_get (i32.const 3) (i32.const 512)))
+    (call $put (call $fd_seek (i32.const 0) (i64.const 0) (i32.const 1) (i32.const 64)))
+    (call $put (call $fd_seek (i32.const 1) (i64.const 0) (i32.const 1) (i32.const 64)))
+    (call $put (call $fd_seek (i32.const 2) (i64.const 0) (i32.const 1) (i32.const 64)))
+    ;; one-byte iovec at 3200 pointing at 3300
+    (i32.store (i32.const 3200) (i32.const 3300))
+    (i32.store (i32.const 3204) (i32.const 1))
+    (call $put (call $fd_read (i32.const 1) (i32.const 3200) (i32.const 1) (i32.const 3208)))
+    (call $put (call $fd_write (i32.const 0) (i32.const 3200) (i32.const 1) (i32.const 3208)))
+    (call $put (call $fd_write (i32.const 3) (i32.const 3200) (i32.const 1) (i32.const 3208)))
+    (call $put (call $sched_yield))
+    (call $put (call $fd_close (i32.const 3)))
+    (call $put (call $fd_close (i32.const 0)))
+    (call $put (call $fd_read (i32.const 0) (i32.const 3200) (i32.const 1) (i32.const 3208)))))
