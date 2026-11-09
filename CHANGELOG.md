@@ -1,5 +1,91 @@
 # Changelog
 
+## [1.0.0](https://github.com/verygoodsecurity/starlarky/compare/v0.17.1...v1.0.0) (2026-11-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* Load native modules only from their own namespace ([#732](https://github.com/verygoodsecurity/starlarky/issues/732))
+* Limit ints to 65,536 bits ([#719](https://github.com/verygoodsecurity/starlarky/issues/719))
+* Fix bytes and bytearray semantics ([#712](https://github.com/verygoodsecurity/starlarky/issues/712))
+* the libstarlark and larky jars are built for Java 21 (class file version 65); consumers need Java 21 or later.
+
+### Features
+
+* Accept type annotations in Larky scripts ([#724](https://github.com/verygoodsecurity/starlarky/issues/724)) ([0fd5a57](https://github.com/verygoodsecurity/starlarky/commit/0fd5a5710cbfa3ed7352d29f525817e613fafc0c))
+* Add Python's format(value, format_spec) built-in to Larky ([#723](https://github.com/verygoodsecurity/starlarky/issues/723)) ([84ea310](https://github.com/verygoodsecurity/starlarky/commit/84ea3103ecc4ac4a5d343b5281802d87e1f02d18))
+* Format str % args as Python does in Larky ([#722](https://github.com/verygoodsecurity/starlarky/issues/722)) ([ee3ef57](https://github.com/verygoodsecurity/starlarky/commit/ee3ef57ed0d17b9391e674bb8576103aae318ee0))
+* Limit ints to 65,536 bits ([#719](https://github.com/verygoodsecurity/starlarky/issues/719)) ([1c2fdcc](https://github.com/verygoodsecurity/starlarky/commit/1c2fdcc8c06d8087efc4262dd079211fa89efb6e))
+* Load a script's named files as separate modules, cached per namespace, with errors at the script's own line ([#731](https://github.com/verygoodsecurity/starlarky/issues/731)) ([16bc351](https://github.com/verygoodsecurity/starlarky/commit/16bc351c9a739bb746f8a766d3270e93ac1d06d7))
+* port pydukpt 0.1.0 as @vendor//pydukpt ([#783](https://github.com/verygoodsecurity/starlarky/issues/783)) ([355dcf9](https://github.com/verygoodsecurity/starlarky/commit/355dcf9844f434590cc2ca3ce529e403f89e709b))
+* reject a ShortCircuitResponse that does not wrap a protocol response ([#771](https://github.com/verygoodsecurity/starlarky/issues/771)) ([ee31cde](https://github.com/verygoodsecurity/starlarky/commit/ee31cdef7eeba66f00b519ae83493b006c2f67dc))
+* replace the runner's REPL with a Larky REPL ([763c9dd](https://github.com/verygoodsecurity/starlarky/commit/763c9dd16675113edf41244c787bb035df3ebb74))
+* Update libstarlark to Bazel bd258719f and require Java 21 ([#704](https://github.com/verygoodsecurity/starlarky/issues/704)) ([28a3988](https://github.com/verygoodsecurity/starlarky/commit/28a39885e0ab870591aca73e5d63934b5112c197))
+
+
+### Bug Fixes
+
+* accept vault storage names in any case ([#808](https://github.com/verygoodsecurity/starlarky/issues/808)) ([faec192](https://github.com/verygoodsecurity/starlarky/commit/faec192faa9a444d9aaada0e421347875f1b576f))
+* build Larky's .star modules into the native runner ([763c9dd](https://github.com/verygoodsecurity/starlarky/commit/763c9dd16675113edf41244c787bb035df3ebb74))
+* decode utf-8 in codecs.decode as CPython does ([#806](https://github.com/verygoodsecurity/starlarky/issues/806)) ([7407267](https://github.com/verygoodsecurity/starlarky/commit/740726766f9b4b86cdd72df70974d57239629faa))
+* decompress zlib output past 16 MiB, cap it explicitly, keep loop-limit errors ([#784](https://github.com/verygoodsecurity/starlarky/issues/784)) ([73bcce7](https://github.com/verygoodsecurity/starlarky/commit/73bcce7139a2e22bbfa5dada5cc7dbd2b5efa667))
+* **deps:** resolve jackson and httpcomponents to versions without advisories ([#827](https://github.com/verygoodsecurity/starlarky/issues/827)) ([4719dab](https://github.com/verygoodsecurity/starlarky/commit/4719dabb0aabda9666b926a7551d986b19172769))
+* **deps:** Update com.google dependencies RL-586 ([#801](https://github.com/verygoodsecurity/starlarky/issues/801)) ([05e055a](https://github.com/verygoodsecurity/starlarky/commit/05e055a3f7c0de98f05e1a0e31d0a0e690690891))
+* **deps:** Update com.google dependencies RL-586 ([#824](https://github.com/verygoodsecurity/starlarky/issues/824)) ([c04b5a9](https://github.com/verygoodsecurity/starlarky/commit/c04b5a995c93a5b13106dbe46a88ecea960e26a2))
+* **deps:** Update dependency org.graalvm.buildtools:native-maven-plugin to v1.1.18 RL-586 ([#821](https://github.com/verygoodsecurity/starlarky/issues/821)) ([ac26392](https://github.com/verygoodsecurity/starlarky/commit/ac263925a11ee9116d6592ebd99c6a34434a70e1))
+* **deps:** Update dependency org.graalvm.sdk:graal-sdk to v25 RL-586 ([#752](https://github.com/verygoodsecurity/starlarky/issues/752)) ([2c586de](https://github.com/verygoodsecurity/starlarky/commit/2c586de4e4fcf9d3793312740b05783d50771437))
+* encode only JSON types in json.dumps and add default= ([#774](https://github.com/verygoodsecurity/starlarky/issues/774)) ([c5aa73c](https://github.com/verygoodsecurity/starlarky/commit/c5aa73c90598bfeadfe01a0cf34ebe9b6ba179a5))
+* Fix bytes and bytearray semantics ([#712](https://github.com/verygoodsecurity/starlarky/issues/712)) ([7565726](https://github.com/verygoodsecurity/starlarky/commit/7565726afdc7754ab813c1fd6293fdd06f44f2c8))
+* Fix bytes repr and codecs; test Padding.unpad with pycryptodome's inputs ([#718](https://github.com/verygoodsecurity/starlarky/issues/718)) ([5aae553](https://github.com/verygoodsecurity/starlarky/commit/5aae553f06460f4e344060759165b6d8698ae714))
+* Fix OpenPGP MPI encoding and base32 ([#711](https://github.com/verygoodsecurity/starlarky/issues/711)) ([e75296d](https://github.com/verygoodsecurity/starlarky/commit/e75296defeda19e3b9e0d12d8a602f7bac5cf6d0))
+* Give bytes and bytearray Starlark type names via @StarlarkBuiltin ([#707](https://github.com/verygoodsecurity/starlarky/issues/707)) ([df2fa24](https://github.com/verygoodsecurity/starlarky/commit/df2fa244762b5e85f024179321c43624095cf52b))
+* Isolate scripts: immutable built-in types, per-evaluation XML namespaces, safe() fixes ([#710](https://github.com/verygoodsecurity/starlarky/issues/710)) ([63228e6](https://github.com/verygoodsecurity/starlarky/commit/63228e629fdcfd6f9f63b3a361e8241614d612d9))
+* let safe() calls nest ([#795](https://github.com/verygoodsecurity/starlarky/issues/795)) ([f97e536](https://github.com/verygoodsecurity/starlarky/commit/f97e536c8f200e7614dba26f72af99b71b7f87c6))
+* Load native modules only from their own namespace ([#732](https://github.com/verygoodsecurity/starlarky/issues/732)) ([b0d93f7](https://github.com/verygoodsecurity/starlarky/commit/b0d93f7c980b09f317486545a823454add45265b))
+* make larky.property a descriptor and support struct descriptors ([#770](https://github.com/verygoodsecurity/starlarky/issues/770)) ([045014d](https://github.com/verygoodsecurity/starlarky/commit/045014db73b2c55038db4ade4675e9cc7bb32d29))
+* make random follow CPython and stop hanging on getrandbits(0) ([#773](https://github.com/verygoodsecurity/starlarky/issues/773)) ([bc58c18](https://github.com/verygoodsecurity/starlarky/commit/bc58c18d4d288140191c90ebc864b8d04a2ac34a))
+* Match Python in str search bounds and Unicode case mapping ([#714](https://github.com/verygoodsecurity/starlarky/issues/714)) ([0614acb](https://github.com/verygoodsecurity/starlarky/commit/0614acbef8cf1aac33e043f74427788adbd1910e))
+* register Larky's Starlark classes for reflection in the native runner ([#777](https://github.com/verygoodsecurity/starlarky/issues/777)) ([eb7e1db](https://github.com/verygoodsecurity/starlarky/commit/eb7e1db52f83f3fd67d14a96baba5a277a78320e))
+* say a test-only module is test-only when a script loads it ([#776](https://github.com/verygoodsecurity/starlarky/issues/776)) ([92774f0](https://github.com/verygoodsecurity/starlarky/commit/92774f029ade3f2ffaead22507422e603ba6065c)), closes [#120](https://github.com/verygoodsecurity/starlarky/issues/120)
+
+
+### Performance Improvements
+
+* Cache compiled programs and loaded modules ([#729](https://github.com/verygoodsecurity/starlarky/issues/729)) ([50ea9b4](https://github.com/verygoodsecurity/starlarky/commit/50ea9b49bbc6528ab1f19c0f23015aec140659a5))
+* Read the clock on every 64th expiration check, and make the interval configurable ([#721](https://github.com/verygoodsecurity/starlarky/issues/721)) ([7151d82](https://github.com/verygoodsecurity/starlarky/commit/7151d82d2aea10751429ff19c38bdf70e0992099))
+* Remove per-request work from Larky evaluations ([#720](https://github.com/verygoodsecurity/starlarky/issues/720)) ([47ddbff](https://github.com/verygoodsecurity/starlarky/commit/47ddbffbae6b455d4267396dc7f62b659e38a712))
+
+
+### Documentation
+
+* show a host-owned module that keeps a key alias out of the customer's script ([#781](https://github.com/verygoodsecurity/starlarky/issues/781)) ([8696b0b](https://github.com/verygoodsecurity/starlarky/commit/8696b0b041fc611a2daae069dc9bdc9d8958336e))
+
+
+### Miscellaneous Chores
+
+* **deps:** Lock file maintenance RL-586 ([#758](https://github.com/verygoodsecurity/starlarky/issues/758)) ([b20862e](https://github.com/verygoodsecurity/starlarky/commit/b20862e3c2f9c8f47d266862db1cc6e203aa12dd))
+* **deps:** Lock file maintenance RL-586 ([#825](https://github.com/verygoodsecurity/starlarky/issues/825)) ([9830aff](https://github.com/verygoodsecurity/starlarky/commit/9830aff580007fabd11c471c39fa184211de726b))
+* **deps:** Pin dependencies RL-586 ([#671](https://github.com/verygoodsecurity/starlarky/issues/671)) ([868cced](https://github.com/verygoodsecurity/starlarky/commit/868cced3175ded9417784edf33f57200e554acaa))
+* **deps:** Update dependency com.google.testparameterinjector:test-parameter-injector to v1.25 RL-586 ([#823](https://github.com/verygoodsecurity/starlarky/issues/823)) ([8fe1cd0](https://github.com/verygoodsecurity/starlarky/commit/8fe1cd0ddc60751f9a68a5299b594154ad1f3502))
+* **deps:** Update dependency org.codehaus.mojo:build-helper-maven-plugin to v3.6.2 RL-586 ([#800](https://github.com/verygoodsecurity/starlarky/issues/800)) ([378b5ab](https://github.com/verygoodsecurity/starlarky/commit/378b5abe356a7d64f615afa7ff8342a465159ed2))
+* **deps:** Update GitHub Actions RL-586 ([#798](https://github.com/verygoodsecurity/starlarky/issues/798)) ([ac69b01](https://github.com/verygoodsecurity/starlarky/commit/ac69b01f8a5f9b6cfeace61186914354a3133b40))
+* **deps:** Update mikepenz/action-junit-report action to v6.6.2 RL-586 ([#820](https://github.com/verygoodsecurity/starlarky/issues/820)) ([20b6a6e](https://github.com/verygoodsecurity/starlarky/commit/20b6a6efc89ca6fc7123d050a60cba5dc89fdc52))
+* **deps:** Update Test and dev dependencies RL-586 ([#799](https://github.com/verygoodsecurity/starlarky/issues/799)) ([9b4c599](https://github.com/verygoodsecurity/starlarky/commit/9b4c59978666c44b0f5bae7070430c51eccd300e))
+* record which upstream version each vendored and stdlib port came from ([#780](https://github.com/verygoodsecurity/starlarky/issues/780)) ([cc17aa2](https://github.com/verygoodsecurity/starlarky/commit/cc17aa238db28751cfc44de730ecc6ee1d7f47f8))
+
+
+### Code Refactoring
+
+* Move the expiration check into StarlarkThread.checkExpired ([#708](https://github.com/verygoodsecurity/starlarky/issues/708)) ([a2c0d74](https://github.com/verygoodsecurity/starlarky/commit/a2c0d74e860db92b73a41eaf7c21e733bb723385))
+
+
+### Build System
+
+* build the native runner with GraalVM 25.4 and native-maven-plugin 1.1.17 ([#809](https://github.com/verygoodsecurity/starlarky/issues/809)) ([749737d](https://github.com/verygoodsecurity/starlarky/commit/749737de48ea7e6a1e2da3536a400bf7a399591e))
+* Move VGS libstarlark sources to src/main/vgs and run .star tests under Maven ([#709](https://github.com/verygoodsecurity/starlarky/issues/709)) ([3dece7e](https://github.com/verygoodsecurity/starlarky/commit/3dece7e0dd8c87965a68680fd53192b9b3ff8f2d))
+* Replace Poetry with uv for pylarky ([#759](https://github.com/verygoodsecurity/starlarky/issues/759)) ([561c00e](https://github.com/verygoodsecurity/starlarky/commit/561c00e412a2f464e1de2ff956be227f3eb69920))
+* require JDK 21 and Maven 3.9 at the start of the build ([#778](https://github.com/verygoodsecurity/starlarky/issues/778)) ([c830344](https://github.com/verygoodsecurity/starlarky/commit/c830344740de81eb2648b29666e998e5ebe3182a)), closes [#507](https://github.com/verygoodsecurity/starlarky/issues/507)
+
 ## [0.17.1](https://github.com/verygoodsecurity/starlarky/compare/v0.17.0...v0.17.1) (2026-10-02)
 
 
