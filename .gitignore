@@ -85,3 +85,5 @@ __pycache__
 pylarky/larky-runner
 
 .vscode/*
+# GraalVM downloaded by install_graalvm.sh
+.graalvm/

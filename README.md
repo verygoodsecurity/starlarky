@@ -86,7 +86,15 @@ chmod +x larky-1.0.0-linux
 ./larky-1.0.0-linux
 ```
 
-**Run it on any OS with Java 21** (macOS, for example). Build it from a clone and start it on the JVM:
+**Build a native binary on macOS (Apple Silicon).** `install_graalvm.sh` downloads GraalVM into `.graalvm`, and the `native` profile builds `runlarky/target/larky-runner` with it. The native build takes several minutes.
+
+```bash
+./install_graalvm.sh
+JAVA_HOME="$PWD/.graalvm/Contents/Home" mvn -B -q -pl runlarky -am -Pnative -DskipTests package
+runlarky/target/larky-runner
+```
+
+**Or run it on the JVM, on any OS with Java 21.** This skips the native build:
 
 ```bash
 mvn -B -q -pl runlarky -am -DskipTests package dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
@@ -94,9 +102,7 @@ java -cp "runlarky/target/runlarky-1.0.0-SNAPSHOT.jar:$(cat runlarky/target/clas
   com.verygood.security.run.LarkyEntrypoint
 ```
 
-It prints three SLF4J warnings when it starts; they're harmless.
-
-If Maven can't download a dependency, set up GitHub Packages access first (see [Developer setup](#developer-setup)).
+Both print three SLF4J warnings when they start; they're harmless. If Maven can't download a dependency, set up GitHub Packages access first (see [Developer setup](#developer-setup)).
 
 **Use it:**
 
