@@ -46,6 +46,7 @@ import com.verygood.security.larky.modules.vgs.PGPModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.vgs.jks.JKSModule;
+import com.verygood.security.larky.modules.vgs.synthetic.SyntheticModule;
 import com.verygood.security.larky.modules.testing.AssertionsModule;
 import com.verygood.security.larky.modules.testing.UnittestModule;
 import com.verygood.security.larky.objects.LarkyClassMethod;
@@ -112,6 +113,7 @@ public class ModuleSupplier {
       MetricsModule.INSTANCE,
       NetworkTokenModule.INSTANCE,
       PGPModule.INSTANCE,
+      SyntheticModule.INSTANCE,
       VaultModule.INSTANCE
   );
 

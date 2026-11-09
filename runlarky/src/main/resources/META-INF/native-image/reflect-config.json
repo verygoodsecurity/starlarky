@@ -1234,6 +1234,22 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.vgs.synthetic.AliasSpec"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.vgs.synthetic.SyntheticModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.vgs.vault.defaults.AliasGenerator"
   },
   {
