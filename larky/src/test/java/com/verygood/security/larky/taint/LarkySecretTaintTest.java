@@ -12,6 +12,7 @@ import com.verygood.security.larky.parser.ParsedStarFile;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import javax.script.Bindings;
 import javax.script.ScriptContext;
@@ -130,6 +131,29 @@ class LarkySecretTaintTest {
     Result r = run(TaintMode.ENFORCE, "c = iter(pan).__next__()\nprint(c)\n");
     assertTrue(r.taint.isTainted(global(r, "c")));
     assertEquals(SecretTaint.REDACTED, r.output.strip());
+  }
+
+  @Test
+  void aValueRevealedWhileLoadingAModuleStaysTaintedOnTheMainThread() throws Exception {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, (sink, reason) -> {});
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    SimpleScriptContext context = new SimpleScriptContext();
+    context.setAttribute(
+        LarkyScriptEngine.MODULES,
+        Map.of(
+            "helper.star",
+            "load('@vgs//vault', vault='vault')\n"
+                + "SECRET = vault.reveal(vault.redact('" + FAKE_PAN + "'))\n"),
+        ScriptContext.ENGINE_SCOPE);
+    context.setAttribute(LarkyScriptEngine.SCRIPT_NAME, "host.star", ScriptContext.ENGINE_SCOPE);
+    StringWriter out = new StringWriter();
+    context.setWriter(out);
+    engine.setContext(context);
+    Bindings bindings = new SimpleBindings();
+    bindings.put(SecretTaint.BINDING_NAME, taint);
+    engine.eval("load('helper', 'SECRET')\nprint(SECRET)\n", bindings);
+    assertEquals(SecretTaint.REDACTED, out.toString().strip());
+    assertFalse(out.toString().contains(FAKE_PAN));
   }
 
   @Test
