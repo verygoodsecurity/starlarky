@@ -1039,6 +1039,9 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
       extraPositionals = @Param(name = "args", doc = "The objects to print."),
       useStarlarkThread = true)
   public void print(String sep, Sequence<?> args, StarlarkThread thread) throws EvalException {
+    SecretTaint taint = thread.secretTaint;
+    SecretTaint.Reason hit =
+        taint == null ? null : taint.checkOutput(SecretTaint.Sink.PRINT, args, sep);
     Printer p = new Printer();
     String separator = "";
     for (Object x : args) {
@@ -1052,7 +1055,11 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
       p.append("<== Starlark flag test ==>");
     }
 
-    thread.getPrintHandler().print(thread, p.toString());
+    String text = p.toString();
+    if (taint != null) {
+      text = taint.sanitize(SecretTaint.Sink.PRINT, text, hit);
+    }
+    thread.getPrintHandler().print(thread, text);
   }
 
   @StarlarkMethod(
