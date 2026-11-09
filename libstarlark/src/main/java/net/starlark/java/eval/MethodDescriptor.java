@@ -32,6 +32,8 @@ import java.util.Arrays;
 import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
+import net.starlark.java.annot.Declassifies;
+import net.starlark.java.annot.SecretSource;
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.ParamDescriptor.ConditionalCheck;
@@ -62,6 +64,9 @@ final class MethodDescriptor {
   private final boolean allowReturnNones;
   private final boolean useStarlarkThread;
   private final boolean useStarlarkSemantics;
+  private final boolean secretSource;
+  private final boolean declassifies;
+  private final boolean returnsVoid;
   @Nullable private final Class<?> typeConstructorProxy;
   private final boolean positionalsReusableAsJavaArgsVectorIfArgumentCountValid;
   private final StarlarkType starlarkType;
@@ -109,6 +114,11 @@ final class MethodDescriptor {
     this.allowReturnNones = allowReturnNones;
     this.useStarlarkThread = useStarlarkThread;
     this.useStarlarkSemantics = useStarlarkSemantics;
+    this.secretSource =
+        StarlarkAnnotations.hasAnnotationInHierarchy(method, SecretSource.class);
+    this.declassifies =
+        StarlarkAnnotations.hasAnnotationInHierarchy(method, Declassifies.class);
+    this.returnsVoid = method.getReturnType() == void.class;
     this.typeConstructorProxy = isTypeConstructor ? method.getReturnType() : null;
 
     Class<?> ret = method.getReturnType();
@@ -336,6 +346,21 @@ final class MethodDescriptor {
     return param.isPositional()
         && param.conditionalCheck == null
         && param.getAllowedClasses() == null;
+  }
+
+  /** Whether this method's results are revealed secrets. */
+  boolean isSecretSource() {
+    return secretSource;
+  }
+
+  /** Whether this method's result is safe to emit even when an argument is secret. */
+  boolean isDeclassifies() {
+    return declassifies;
+  }
+
+  /** Whether the Java method returns void, so a None result carries no information. */
+  boolean returnsVoid() {
+    return returnsVoid;
   }
 
   /** Returns the StarlarkMethod annotation corresponding to this method. */

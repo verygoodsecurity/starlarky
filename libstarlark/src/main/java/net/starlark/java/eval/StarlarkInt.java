@@ -56,6 +56,15 @@ public abstract class StarlarkInt implements StarlarkValue, Comparable<StarlarkI
   /** Only nested classes of {@code StarlarkInt} are allowed to inherit it. */
   private StarlarkInt() {}
 
+  /** Returns whether this is one of the shared cached values, so has no identity of its own. */
+  boolean isSharedSmallValue() {
+    if (this instanceof Int32 i) {
+      int index = i.v - LEAST_SMALLINT; // (may overflow)
+      return 0 <= index && index < smallints.length && smallints[index] == this;
+    }
+    return false;
+  }
+
   /** Returns the Starlark int value that represents x. */
   public static StarlarkInt of(int x) {
     int index = x - LEAST_SMALLINT; // (may overflow)

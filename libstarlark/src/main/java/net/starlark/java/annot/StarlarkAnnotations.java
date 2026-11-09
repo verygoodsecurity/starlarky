@@ -201,6 +201,37 @@ public final class StarlarkAnnotations {
   }
 
   /**
+   * Returns whether the given annotation is present on {@code method} or on a method of the same
+   * name and parameter types anywhere in its class hierarchy.
+   */
+  public static boolean hasAnnotationInHierarchy(
+      Method method, Class<? extends java.lang.annotation.Annotation> annotation) {
+    return hasAnnotationInHierarchy(method.getDeclaringClass(), method, annotation);
+  }
+
+  private static boolean hasAnnotationInHierarchy(
+      Class<?> classObj, Method method, Class<? extends java.lang.annotation.Annotation> annotation) {
+    try {
+      if (classObj.getDeclaredMethod(method.getName(), method.getParameterTypes())
+          .isAnnotationPresent(annotation)) {
+        return true;
+      }
+    } catch (NoSuchMethodException | SecurityException e) {
+      // not declared on this class; keep looking
+    }
+    if (classObj.getSuperclass() != null
+        && hasAnnotationInHierarchy(classObj.getSuperclass(), method, annotation)) {
+      return true;
+    }
+    for (Class<?> interfaceObj : classObj.getInterfaces()) {
+      if (hasAnnotationInHierarchy(interfaceObj, method, annotation)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Convenience version of {@code getAnnotationsFromParentClass(Class, Method)} that uses the
    * declaring class of the method.
    */
