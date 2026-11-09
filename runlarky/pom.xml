@@ -239,7 +239,7 @@
                                 <buildArg>
                                     -H:ResourceConfigurationFiles=${project.basedir}/src/main/resources/META-INF/native-image/resource-config.json
                                 </buildArg>
-                                <buildArg>-H:IncludeResources=".*$"</buildArg>
+                                <buildArg>-H:IncludeResources=.*$</buildArg>
                             </buildArgs>
                         </configuration>
                     </plugin>
