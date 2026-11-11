@@ -44,11 +44,6 @@ public class LarkyLoadedScriptTest {
     }
   }
 
-  /** A value that stays mutable however its module is frozen. */
-  @StarlarkBuiltin(name = "Mutable", documented = false)
-  public static class Mutable implements StarlarkValue {
-  }
-
   private static LarkyCompiledScript compile(String... lines) throws ScriptException {
     return (LarkyCompiledScript) new LarkyScriptEngine().compile(String.join("\n", lines) + "\n");
   }
@@ -60,6 +55,35 @@ public class LarkyLoadedScriptTest {
     engine.putAll(bindings);
     context.setBindings(engine, ScriptContext.ENGINE_SCOPE);
     return context;
+  }
+
+  /** A loaded script gets nothing of the host's: a name it reads from the host must be declared per call. */
+  @Test
+  public void aScriptThatReadsAHostNameNotDeclaredPerCallIsNotLoaded() throws Exception {
+    final LarkyCompiledScript script = compile(
+        "def process():",
+        "    return request_pan");
+
+    final LarkyScriptNotLoadableException e = assertThrows(LarkyScriptNotLoadableException.class,
+        () -> script.load(context(new StringWriter(), Map.of("request_pan", "4111-LOADTIME")), Set.of()));
+    assertTrue(e.getMessage(), e.getMessage().contains("request_pan"));
+  }
+
+  /**
+   * A value bound at load never reaches a call, so data of one request cannot reach another: each call sees only its
+   * own per-call value, and a call without one has none.
+   */
+  @Test
+  public void aLoadTimeBindingNeverReachesACall() throws Exception {
+    final LarkyLoadedScript loaded = compile(
+        "def process():",
+        "    return request_pan.upper()")
+        .load(context(new StringWriter(), Map.of("request_pan", "4111-LOADTIME")), Set.of("request_pan"));
+
+    assertEquals("A", loaded.invoke("process", Map.of("request_pan", "a")));
+    assertEquals("B", loaded.invoke("process", Map.of("request_pan", "b")));
+    final Exception none = assertThrows(Exception.class, () -> loaded.invoke("process", Map.of()));
+    assertFalse(none.getMessage(), none.getMessage().contains("4111-LOADTIME"));
   }
 
   @Test
@@ -82,7 +106,7 @@ public class LarkyLoadedScriptTest {
   public void loadWritesNothingBackToTheBindings() throws Exception {
     final ScriptContext context = context(new StringWriter(), Map.of("given", "x"));
 
-    compile("defined = given").load(context, Set.of());
+    compile("defined = 1").load(context, Set.of());
 
     assertEquals(Set.of("given"), context.getBindings(ScriptContext.ENGINE_SCOPE).keySet());
   }
@@ -169,12 +193,13 @@ public class LarkyLoadedScriptTest {
   @Test
   public void refusesAScriptWhoseTopLevelLeavesAMutableValue() throws Exception {
     final LarkyCompiledScript script = compile(
-        "kept = thing",
+        "load('@stdlib//larky', 'larky')",
+        "kept = larky.mutablestruct(a = 1)",
         "def process(input):",
         "    return input");
 
     final LarkyScriptNotLoadableException e = assertThrows(LarkyScriptNotLoadableException.class,
-        () -> script.load(context(new StringWriter(), Map.of("thing", new Mutable())), Set.of()));
+        () -> script.load(context(new StringWriter(), Map.of()), Set.of()));
     assertTrue(e.getMessage(), e.getMessage().contains("kept"));
   }
 

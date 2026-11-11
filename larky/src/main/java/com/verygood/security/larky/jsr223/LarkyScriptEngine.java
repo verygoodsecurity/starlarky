@@ -7,15 +7,9 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Objects;
-import com.verygood.security.larky.console.StreamWriterConsole;
-import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
-import java.util.HashMap;
-import java.util.Map;
 import javax.annotation.Nonnull;
-import net.starlark.java.eval.StarlarkCallable;
 import javax.script.Bindings;
 import javax.script.Compilable;
-import javax.script.Invocable;
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
@@ -24,7 +18,7 @@ import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
 
-public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
+public class LarkyScriptEngine implements Compilable, ScriptEngine {
 
   /** Engine property for script name. */
   public static final String SCRIPT_NAME = "larky.scriptName";
@@ -401,60 +395,5 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
 
   private Reader getScriptReader(String script) {
     return new StringReader(script);
-  }
-
-  /**
-   * Calls the function {@code name} that an earlier {@code eval} with this engine's context defined (eval leaves a
-   * script's globals in the context's bindings), on a thread of its own. Its result is a Starlark value. To call a
-   * script's functions many times without running it again for each call, see {@link LarkyCompiledScript#load}.
-   */
-  @Override
-  public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
-    return LarkyCalls.call(function(name), args, console(), LarkyCalls.Limits.of(bindings()));
-  }
-
-  /** Calls the method {@code name} of {@code thiz}, a value a script evaluated with this engine returned. */
-  @Override
-  public Object invokeMethod(Object thiz, String name, Object... args)
-      throws ScriptException, NoSuchMethodException {
-    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(), LarkyCalls.Limits.of(bindings()));
-  }
-
-  @Override
-  public <T> T getInterface(Class<T> type) {
-    return LarkyCalls.proxy(type, name -> bindings().get(name) instanceof StarlarkCallable, this::invokeFunction);
-  }
-
-  @Override
-  public <T> T getInterface(Object thiz, Class<T> type) {
-    return LarkyCalls.proxy(type, name -> LarkyCalls.hasMethod(thiz, name),
-        (name, args) -> invokeMethod(thiz, name, args));
-  }
-
-  private StarlarkCallable function(String name) throws NoSuchMethodException {
-    if (bindings().get(name) instanceof StarlarkCallable callable) {
-      return callable;
-    }
-    throw new NoSuchMethodException("no function " + name + " in this engine's bindings; eval a script that defines it");
-  }
-
-  /** The context's bindings, engine scope over global scope. */
-  private Map<String, Object> bindings() {
-    final Map<String, Object> bindings = new HashMap<>();
-    final Bindings global = context.getBindings(ScriptContext.GLOBAL_SCOPE);
-    final Bindings engine = context.getBindings(ScriptContext.ENGINE_SCOPE);
-    if (global != null) {
-      bindings.putAll(global);
-    }
-    if (engine != null) {
-      bindings.putAll(engine);
-    }
-    return bindings;
-  }
-
-  private StreamWriterConsole console() {
-    final boolean verbose = Boolean.parseBoolean(
-        String.valueOf(bindings().getOrDefault(DefaultLarkyInterpreter.VERBOSE, "false")));
-    return new StreamWriterConsole(LarkyCompiledScript.writer(context), verbose);
   }
 }
