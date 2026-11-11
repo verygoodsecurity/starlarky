@@ -204,9 +204,16 @@ public class LarkyCompiledScript extends CompiledScript {
     return cachedProgram != null;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws LarkyGlobalScopeRefusedException if the engine refuses the context's global scope
+   *     ({@link LarkyScriptEngine.GlobalScope#REFUSE})
+   */
   @Override
-  public Object eval(ScriptContext context) throws LarkyEvaluationScriptException {
-    Bindings globalBindings = context.getBindings(ScriptContext.GLOBAL_SCOPE);
+  public Object eval(ScriptContext context) throws ScriptException {
+    // the global scope as the engine uses it: as JSR-223 describes it, or none (LarkyScriptEngine.GlobalScope)
+    Bindings globalBindings = engine.globalBindings(context);
     Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
 
     // Evaluation goes through the Larky interpreter, so bindings, load() and print() behave as
@@ -261,11 +268,14 @@ public class LarkyCompiledScript extends CompiledScript {
    * @throws LarkyEvaluationScriptException if the top level fails
    * @throws LarkyScriptNotLoadableException if the script reads a name that is neither Larky's nor declared per call,
    *     its top level leaves a mutable value, or it defines a per-call name
+   * @throws LarkyGlobalScopeRefusedException if the engine refuses the context's global scope
+   *     ({@link LarkyScriptEngine.GlobalScope#REFUSE})
    */
   public LarkyLoadedScript load(ScriptContext context, Set<String> perCallNames) throws ScriptException {
     if (cachedSource == null) {
       throw new IllegalStateException("compile the script before loading it");
     }
+    final Bindings globalBindings = engine.globalBindings(context);
     final ScriptNames scriptNames = names();
     for (String name : perCallNames) {
       if (scriptNames.defined().contains(name)) {
@@ -275,7 +285,6 @@ public class LarkyCompiledScript extends CompiledScript {
     }
     final LarkyLoadedScript.PerCallValues perCall = new LarkyLoadedScript.PerCallValues(perCallNames);
     final Map<String, Object> bindings = new java.util.HashMap<>();
-    final Bindings globalBindings = context.getBindings(ScriptContext.GLOBAL_SCOPE);
     final Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
     if (globalBindings != null) {
       bindings.putAll(globalBindings);
