@@ -4,11 +4,15 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.Reader;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.console.StreamWriterConsole;
 import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.LarkyEvaluator;
@@ -25,10 +29,13 @@ import net.starlark.java.syntax.TypeContext;
 import net.starlark.java.syntax.TypeConstructor;
 import net.starlark.java.syntax.StarlarkType;
 import net.starlark.java.syntax.Identifier;
+import net.starlark.java.syntax.LoadStatement;
+import net.starlark.java.syntax.NodeVisitor;
 import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.Resolver;
 import net.starlark.java.syntax.Program;
 import net.starlark.java.syntax.StarlarkFile;
+import net.starlark.java.syntax.Statement;
 import net.starlark.java.syntax.SyntaxError;
 
 import javax.annotation.Nullable;
@@ -36,6 +43,8 @@ import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
+import javax.script.ScriptException;
+import javax.script.SimpleBindings;
 
 
 /**
@@ -61,6 +70,8 @@ public class LarkyCompiledScript extends CompiledScript {
   // Separates this script's cached compiled programs from other namespaces' (see
   // LarkyScriptEngine#CACHE_NAMESPACE).
   private String cacheNamespace = "";
+  // The names the script reads and defines, worked out on the first load() (see names()).
+  @Nullable private ScriptNames names;
 
   /**
    * Construct a {@link LarkyCompiledScript}.
@@ -114,8 +125,13 @@ public class LarkyCompiledScript extends CompiledScript {
     // through JSR-223 bindings are only known at eval time, so any name that is not a universal
     // builtin resolves as predeclared here. Real resolution against the bindings happens again
     // in eval().
+    return Program.compileFile(file, lenientModule());
+  }
+
+  /** Resolves every name that is not a Starlark builtin as predeclared: a binding may supply it. */
+  private static Resolver.Module lenientModule() {
     Module universe = Module.create();
-    Resolver.Module lenient = new Resolver.Module() {
+    return new Resolver.Module() {
       @Override
       public Resolver.Scope resolve(String name, boolean resolveTypeSyntax)
           throws Resolver.Module.Undefined {
@@ -151,7 +167,6 @@ public class LarkyCompiledScript extends CompiledScript {
         return universe.getTypeContext();
       }
     };
-    return Program.compileFile(file, lenient);
   }
 
   public void compile(String source, String scriptName) throws LarkyEvaluationScriptException {
@@ -207,18 +222,7 @@ public class LarkyCompiledScript extends CompiledScript {
 
     try {
       String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
-      String scriptName = cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
-
-      final StarFile script;
-      if (modules.isEmpty() && cacheNamespace.isEmpty()) {
-        script = InMemMapBackedStarFile.createStarFile(scriptName, source);
-      } else {
-        ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
-        files.put(scriptName, source.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        modules.forEach(
-            (name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
-      }
+      final StarFile script = starFile(source, scriptNameOrDefault());
       final DefaultLarkyInterpreter larkyInterpreter = new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings);
       result = larkyInterpreter.evaluate(script, context.getWriter());
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
@@ -227,6 +231,155 @@ public class LarkyCompiledScript extends CompiledScript {
     }
     setBindingsValue(globalBindings, engineBindings, result.getGlobals());
     return result;
+  }
+
+  /**
+   * The names the script reads from its bindings: names that neither the script, its load() statements nor Starlark
+   * define. Some may be Larky's own predeclared modules.
+   */
+  public Set<String> predeclaredNames() throws ScriptException {
+    return names().predeclared();
+  }
+
+  /** {@link #load(ScriptContext, Set)} with the engine's context. */
+  public LarkyLoadedScript load(Set<String> perCallNames) throws ScriptException {
+    return load(engine.getContext(), perCallNames);
+  }
+
+  /**
+   * Runs the script's top level once, with the context's bindings, so that its functions can be called many times
+   * (see {@link LarkyLoadedScript}). Unlike {@link #eval(ScriptContext)}, it writes nothing back to the bindings.
+   *
+   * @param perCallNames names whose values are given with each call rather than here; a binding of the same name is
+   *     ignored
+   * @throws LarkyEvaluationScriptException if the top level fails
+   * @throws LarkyScriptNotLoadableException if the top level leaves a mutable value, or defines a per-call name
+   */
+  public LarkyLoadedScript load(ScriptContext context, Set<String> perCallNames) throws ScriptException {
+    if (cachedSource == null) {
+      throw new IllegalStateException("compile the script before loading it");
+    }
+    final ScriptNames scriptNames = names();
+    for (String name : perCallNames) {
+      if (scriptNames.defined().contains(name)) {
+        throw new LarkyScriptNotLoadableException(
+            "the script defines " + name + ", which is declared per call");
+      }
+    }
+    final LarkyLoadedScript.PerCallValues perCall = new LarkyLoadedScript.PerCallValues(perCallNames);
+    final Bindings globalBindings = context.getBindings(ScriptContext.GLOBAL_SCOPE);
+    final Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
+    // engine bindings override global ones, and the per-call stand-ins both (DefaultLarkyInterpreter keeps the last)
+    final Bindings standIns = new SimpleBindings(new java.util.HashMap<>(perCall.standIns()));
+    final Map<String, Object> bindings = new java.util.HashMap<>();
+    if (globalBindings != null) {
+      bindings.putAll(globalBindings);
+    }
+    if (engineBindings != null) {
+      bindings.putAll(engineBindings);
+    }
+    bindings.putAll(standIns);
+    final ParsedStarFile result;
+    final java.io.Writer writer = writer(context);
+    try {
+      final DefaultLarkyInterpreter interpreter =
+          new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings, standIns);
+      result = interpreter.evaluate(starFile(cachedSource, scriptNameOrDefault()), writer);
+    } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException
+             | EvalException e) {
+      throw LarkyEvaluationScriptException.of(e);
+    }
+    final Module module = result.getModule();
+    for (String name : scriptNames.defined()) {
+      final Object value = module.getGlobal(name);
+      if (value != null && !isImmutable(value)) {
+        throw new LarkyScriptNotLoadableException(
+            "the script's top level leaves " + name + " mutable (" + Starlark.type(value) + ")");
+      }
+    }
+    final boolean verbose = Boolean.parseBoolean(
+        String.valueOf(bindings.getOrDefault(DefaultLarkyInterpreter.VERBOSE, "false")));
+    // the load's expiration is a date for the load; calls give their own (see LarkyLoadedScript)
+    final LarkyCalls.Limits limits = new LarkyCalls.Limits(LarkyCalls.Limits.of(bindings).stepLimit(), null);
+    return new LarkyLoadedScript(module, perCall, new StreamWriterConsole(writer, verbose), limits);
+  }
+
+  private static boolean isImmutable(Object value) {
+    try {
+      return Starlark.isImmutable(value);
+    } catch (RuntimeException e) {
+      // not a Starlark value: nothing says a call cannot change it
+      return false;
+    }
+  }
+
+  static java.io.Writer writer(ScriptContext context) {
+    final java.io.Writer writer = context.getWriter();
+    return writer != null ? writer : new java.io.PrintWriter(System.out, true);
+  }
+
+  private String scriptNameOrDefault() {
+    return cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
+  }
+
+  private StarFile starFile(String source, String scriptName) {
+    if (modules.isEmpty() && cacheNamespace.isEmpty()) {
+      return InMemMapBackedStarFile.createStarFile(scriptName, source);
+    }
+    ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
+    files.put(scriptName, source.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    modules.forEach(
+        (name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    return new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
+  }
+
+  /**
+   * The names a script reads from its bindings ({@code predeclared}), and the module-level names it defines itself
+   * ({@code defined}): not the names its load() statements bind, nor the builtins Larky adds to every module.
+   */
+  record ScriptNames(ImmutableSet<String> predeclared, ImmutableSet<String> defined) {
+  }
+
+  private synchronized ScriptNames names() throws ScriptException {
+    if (names == null) {
+      try {
+        names = scriptNames(cachedSource, scriptNameOrDefault());
+      } catch (SyntaxError.Exception e) {
+        throw LarkyEvaluationScriptException.of(LarkyEvaluator.compileError(scriptNameOrDefault(), e));
+      }
+    }
+    return names;
+  }
+
+  @VisibleForTesting
+  static ScriptNames scriptNames(String source, String scriptName) throws SyntaxError.Exception {
+    final StarlarkFile file = StarlarkFile.parse(ParserInput.fromString(source, scriptName),
+        LarkyScript.scriptFileOptions(LARKY_MODE, LarkySemantics.LARKY_SEMANTICS));
+    // resolves every identifier of the file in place
+    Program.compileFile(file, lenientModule());
+    final Set<String> loaded = new HashSet<>();
+    for (Statement statement : file.getStatements()) {
+      if (statement instanceof LoadStatement load) {
+        load.getBindings().forEach(binding -> loaded.add(binding.getLocalName().getName()));
+      }
+    }
+    final ImmutableSet.Builder<String> predeclared = ImmutableSet.builder();
+    final ImmutableSet.Builder<String> defined = ImmutableSet.builder();
+    new NodeVisitor() {
+      @Override
+      public void visit(Identifier identifier) {
+        final Resolver.Binding binding = identifier.getBinding();
+        if (binding == null) {
+          return;
+        }
+        if (binding.getScope() == Resolver.Scope.PREDECLARED) {
+          predeclared.add(identifier.getName());
+        } else if (binding.getScope() == Resolver.Scope.GLOBAL && !loaded.contains(identifier.getName())) {
+          defined.add(identifier.getName());
+        }
+      }
+    }.visit(file);
+    return new ScriptNames(predeclared.build(), defined.build());
   }
 
   /**
