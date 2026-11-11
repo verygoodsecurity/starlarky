@@ -299,8 +299,10 @@ public class LarkyCompiledScript extends CompiledScript {
     }
     final boolean verbose = Boolean.parseBoolean(
         String.valueOf(bindings.getOrDefault(DefaultLarkyInterpreter.VERBOSE, "false")));
-    // the load's expiration is a date for the load; calls give their own (see LarkyLoadedScript)
-    final LarkyCalls.Limits limits = new LarkyCalls.Limits(LarkyCalls.Limits.of(bindings).stepLimit(), null);
+    // the load's expiration is a date for the load, and its module providers belong to the load's own run; calls give
+    // their own (see LarkyLoadedScript)
+    final LarkyCalls.Limits limits = new LarkyCalls.Limits(LarkyCalls.Limits.of(bindings).stepLimit(), null,
+        com.verygood.security.larky.modules.vgs.ModuleProviders.NONE);
     return new LarkyLoadedScript(module, perCall, new StreamWriterConsole(writer, verbose), limits);
   }
 

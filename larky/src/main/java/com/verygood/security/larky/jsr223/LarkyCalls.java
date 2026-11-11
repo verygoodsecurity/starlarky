@@ -3,6 +3,7 @@ package com.verygood.security.larky.jsr223;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.StarlarkUtil;
 import java.lang.reflect.InvocationHandler;
@@ -31,22 +32,38 @@ import net.starlark.java.eval.StarlarkThread;
  */
 final class LarkyCalls {
 
-  /** What a call needs besides its function and arguments. */
-  record Limits(@Nullable Long stepLimit, @Nullable Long expirationMs) {
+  /** What a call needs besides its function and arguments: its limits and its {@code @vgs//} module providers. */
+  record Limits(@Nullable Long stepLimit, @Nullable Long expirationMs, ModuleProviders providers) {
 
-    static final Limits NONE = new Limits(null, null);
+    static final Limits NONE = new Limits(null, null, ModuleProviders.NONE);
 
-    /** The limits named by these bindings (see {@link LarkyEvaluator#STEP_LIMIT}). */
+    /**
+     * The limits and providers named by these bindings (see {@link LarkyEvaluator#STEP_LIMIT} and
+     * {@link LarkyEvaluator#MODULE_PROVIDERS}).
+     */
     static Limits of(Map<String, ?> bindings) {
       return new Limits(asLong(bindings.get(LarkyEvaluator.STEP_LIMIT)),
-          asLong(bindings.get(LarkyEvaluator.EXPIRATION_MS)));
+          asLong(bindings.get(LarkyEvaluator.EXPIRATION_MS)), providers(bindings));
     }
 
-    /** These limits, with any that {@code bindings} names instead. */
+    /** These limits and providers, with any that {@code bindings} names instead. */
     Limits with(Map<String, ?> bindings) {
       final Limits other = of(bindings);
       return new Limits(other.stepLimit != null ? other.stepLimit : stepLimit,
-          other.expirationMs != null ? other.expirationMs : expirationMs);
+          other.expirationMs != null ? other.expirationMs : expirationMs,
+          bindings.containsKey(LarkyEvaluator.MODULE_PROVIDERS) ? other.providers : providers);
+    }
+
+    private static ModuleProviders providers(Map<String, ?> bindings) {
+      final Object value = bindings.get(LarkyEvaluator.MODULE_PROVIDERS);
+      if (value == null) {
+        return ModuleProviders.NONE;
+      }
+      if (value instanceof ModuleProviders providers) {
+        return providers;
+      }
+      throw new IllegalArgumentException(LarkyEvaluator.MODULE_PROVIDERS + " must be a "
+          + ModuleProviders.class.getName() + ", not " + value.getClass().getName());
     }
 
     @Nullable
@@ -82,6 +99,7 @@ final class LarkyCalls {
       final Reporter reporter = new Reporter(console);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
+      limits.providers().installOn(thread);
       if (limits.stepLimit() != null) {
         thread.setMaxExecutionSteps(limits.stepLimit());
       }

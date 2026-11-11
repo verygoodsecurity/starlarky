@@ -70,8 +70,12 @@ public final class LarkyLoadedScript implements Invocable {
    * Calls the script's function {@code name} with {@code args}, and these values for its per-call names. A name left
    * out has no value in this call.
    *
+   * <p>{@link LarkyEvaluator#MODULE_PROVIDERS} gives this call its {@code @vgs//} module providers
+   * ({@link com.verygood.security.larky.modules.vgs.ModuleProviders}); a call without it uses each module's own.
+   *
    * @throws IllegalArgumentException if {@code perCallValues} names a name that was not declared per call at load
-   *     (other than {@link LarkyEvaluator#STEP_LIMIT} and {@link LarkyEvaluator#EXPIRATION_MS}, which limit this call)
+   *     (other than {@link LarkyEvaluator#STEP_LIMIT} and {@link LarkyEvaluator#EXPIRATION_MS}, which limit this call,
+   *     and {@link LarkyEvaluator#MODULE_PROVIDERS})
    * @throws NoSuchMethodException if the script defines no function {@code name}
    */
   public Object invoke(String name, Map<String, ?> perCallValues, Object... args)
@@ -81,7 +85,8 @@ public final class LarkyLoadedScript implements Invocable {
     perCallValues.forEach((key, value) -> {
       if (perCall.names.contains(key)) {
         values.put(key, StarlarkUtil.valueToStarlark(value));
-      } else if (!LarkyEvaluator.STEP_LIMIT.equals(key) && !LarkyEvaluator.EXPIRATION_MS.equals(key)) {
+      } else if (!LarkyEvaluator.STEP_LIMIT.equals(key) && !LarkyEvaluator.EXPIRATION_MS.equals(key)
+          && !LarkyEvaluator.MODULE_PROVIDERS.equals(key)) {
         throw new IllegalArgumentException(key + " is not a per-call name of this script: " + perCall.names);
       }
     });
