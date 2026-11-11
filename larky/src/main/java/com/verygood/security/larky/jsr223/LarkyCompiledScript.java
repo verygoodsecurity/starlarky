@@ -7,6 +7,7 @@ import java.io.Reader;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -247,13 +248,19 @@ public class LarkyCompiledScript extends CompiledScript {
   }
 
   /**
-   * Runs the script's top level once, with the context's bindings, so that its functions can be called many times
-   * (see {@link LarkyLoadedScript}). Unlike {@link #eval(ScriptContext)}, it writes nothing back to the bindings.
+   * Runs the script's top level once so that its functions can be called many times (see {@link LarkyLoadedScript}).
+   *
+   * <p>A loaded script is shared by every later call, so by design it gets nothing of the host's: the context's
+   * bindings are not given to the script (only Larky's own settings in them are read: the step limit and verbosity,
+   * and the context's writer). Every name the script reads that Larky does not provide must be declared in
+   * {@code perCallNames} and given with each {@link LarkyLoadedScript#invoke}, where it has a value only during that
+   * call. A script that reads any other name is refused. So nothing one call's host data put in can reach another.
    *
    * @param perCallNames names whose values are given with each call rather than here; a binding of the same name is
    *     ignored
    * @throws LarkyEvaluationScriptException if the top level fails
-   * @throws LarkyScriptNotLoadableException if the top level leaves a mutable value, or defines a per-call name
+   * @throws LarkyScriptNotLoadableException if the script reads a name that is neither Larky's nor declared per call,
+   *     its top level leaves a mutable value, or it defines a per-call name
    */
   public LarkyLoadedScript load(ScriptContext context, Set<String> perCallNames) throws ScriptException {
     if (cachedSource == null) {
@@ -267,26 +274,36 @@ public class LarkyCompiledScript extends CompiledScript {
       }
     }
     final LarkyLoadedScript.PerCallValues perCall = new LarkyLoadedScript.PerCallValues(perCallNames);
+    final Map<String, Object> bindings = new java.util.HashMap<>();
     final Bindings globalBindings = context.getBindings(ScriptContext.GLOBAL_SCOPE);
     final Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
-    // engine bindings override global ones, and the per-call stand-ins both (DefaultLarkyInterpreter keeps the last)
-    final Bindings standIns = new SimpleBindings(new java.util.HashMap<>(perCall.standIns()));
-    final Map<String, Object> bindings = new java.util.HashMap<>();
     if (globalBindings != null) {
       bindings.putAll(globalBindings);
     }
     if (engineBindings != null) {
       bindings.putAll(engineBindings);
     }
-    bindings.putAll(standIns);
+    // of the host's bindings only Larky's own settings; the script gets nothing else of the host's
+    final Bindings settings = new SimpleBindings();
+    for (String setting : List.of(LarkyEvaluator.STEP_LIMIT, DefaultLarkyInterpreter.VERBOSE)) {
+      if (bindings.get(setting) != null) {
+        settings.put(setting, bindings.get(setting));
+      }
+    }
+    final Bindings standIns = new SimpleBindings(new java.util.HashMap<>(perCall.standIns()));
     final ParsedStarFile result;
     final java.io.Writer writer = writer(context);
     try {
-      final DefaultLarkyInterpreter interpreter =
-          new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings, standIns);
+      final DefaultLarkyInterpreter interpreter = new DefaultLarkyInterpreter(LARKY_MODE, settings, standIns);
       result = interpreter.evaluate(starFile(cachedSource, scriptNameOrDefault()), writer);
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException
              | EvalException e) {
+      final Optional<String> fromHost = undefinedName(e).filter(scriptNames.predeclared()::contains);
+      if (fromHost.isPresent()) {
+        // Larky's resolver found a name only the host could supply, and the host gives a loaded script nothing
+        throw new LarkyScriptNotLoadableException("the script reads " + fromHost.get()
+            + ", which a loaded script is shared by every call and so can only be given per call");
+      }
       throw LarkyEvaluationScriptException.of(e);
     }
     final Module module = result.getModule();
@@ -304,6 +321,24 @@ public class LarkyCompiledScript extends CompiledScript {
     final LarkyCalls.Limits limits = new LarkyCalls.Limits(LarkyCalls.Limits.of(bindings).stepLimit(), null,
         com.verygood.security.larky.modules.vgs.ModuleProviders.NONE);
     return new LarkyLoadedScript(module, perCall, new StreamWriterConsole(writer, verbose), limits);
+  }
+
+  private static final java.util.regex.Pattern UNDEFINED_NAME =
+      java.util.regex.Pattern.compile("name '([A-Za-z_][A-Za-z0-9_]*)' is not defined");
+
+  /** The name of Starlark's "name 'x' is not defined" resolution error, from {@code failure} or its causes. */
+  private static Optional<String> undefinedName(Throwable failure) {
+    for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+      final java.util.regex.Matcher matcher =
+          UNDEFINED_NAME.matcher(String.valueOf(cause.getMessage()));
+      if (matcher.find()) {
+        return Optional.of(matcher.group(1));
+      }
+      if (cause.getCause() == cause) {
+        break;
+      }
+    }
+    return Optional.empty();
   }
 
   private static boolean isImmutable(Object value) {
