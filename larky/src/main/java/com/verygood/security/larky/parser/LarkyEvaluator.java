@@ -177,9 +177,8 @@ public final class LarkyEvaluator {
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
-      if (environment.get(MODULE_PROVIDERS) instanceof ModuleProviders providers) {
-        providers.installOn(thread);
-      }
+      // refused when it is not providers, as LarkyLoadedScript.invoke refuses it
+      ModuleProviders.given(environment.get(MODULE_PROVIDERS)).installOn(thread);
 
       if (environment.containsKey(STEP_LIMIT) && environment.get(STEP_LIMIT) != null) {
         thread.setMaxExecutionSteps(Long.parseLong(environment.get(STEP_LIMIT).toString()));

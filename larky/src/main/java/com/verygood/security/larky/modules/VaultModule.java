@@ -305,7 +305,7 @@ public class VaultModule implements LarkyVault {
      * The vault a script's calls in the run of {@code thread} go to: the {@link LarkyVault} the host gave this run
      * ({@link ModuleProviders}), else the one this module found with ServiceLoader.
      */
-    LarkyVault vaultFor(StarlarkThread thread) {
+    private LarkyVault vaultFor(StarlarkThread thread) {
         return ModuleProviders.forRun(thread, LarkyVault.class).orElse(vault);
     }
 

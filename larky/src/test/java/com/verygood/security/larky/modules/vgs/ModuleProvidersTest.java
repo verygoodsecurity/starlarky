@@ -138,6 +138,13 @@ public class ModuleProvidersTest {
   }
 
   @Test
+  public void anEvalBindingThatIsNotProvidersIsRefusedAsACallsIs() {
+    final IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+        () -> eval(Map.of(LarkyEvaluator.MODULE_PROVIDERS, "not providers"), "out = 1"));
+    assertTrue(e.getMessage(), e.getMessage().contains(LarkyEvaluator.MODULE_PROVIDERS + " must be a "));
+  }
+
+  @Test
   public void givingATypeAgainReplacesIt() {
     final ModuleProviders providers = vault("first").with(LarkyVault.class, new NamedVault("second"));
     assertEquals("second", ((NamedVault) providers.get(LarkyVault.class).orElseThrow()).name());

@@ -59,11 +59,28 @@ public final class ModuleProviders implements StarlarkValue {
     }
     final ImmutableMap.Builder<Class<?>, Object> builder = ImmutableMap.builder();
     providers.forEach((key, value) -> {
-      if (!key.equals(type)) {
+      if (key != type) {
         builder.put(key, value);
       }
     });
     return new ModuleProviders(builder.put(type, provider).buildOrThrow());
+  }
+
+  /**
+   * The providers a host gave under {@link com.verygood.security.larky.parser.LarkyEvaluator#MODULE_PROVIDERS}: none
+   * for {@code null}.
+   *
+   * @throws IllegalArgumentException if {@code value} is anything else than providers
+   */
+  public static ModuleProviders given(@Nullable Object value) {
+    if (value == null) {
+      return NONE;
+    }
+    if (value instanceof ModuleProviders providers) {
+      return providers;
+    }
+    throw new IllegalArgumentException(com.verygood.security.larky.parser.LarkyEvaluator.MODULE_PROVIDERS
+        + " must be a " + ModuleProviders.class.getName() + ", not " + value.getClass().getName());
   }
 
   /** The provider given for {@code type}, if any. */
