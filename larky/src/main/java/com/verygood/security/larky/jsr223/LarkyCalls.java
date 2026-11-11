@@ -55,15 +55,7 @@ final class LarkyCalls {
     }
 
     private static ModuleProviders providers(Map<String, ?> bindings) {
-      final Object value = bindings.get(LarkyEvaluator.MODULE_PROVIDERS);
-      if (value == null) {
-        return ModuleProviders.NONE;
-      }
-      if (value instanceof ModuleProviders providers) {
-        return providers;
-      }
-      throw new IllegalArgumentException(LarkyEvaluator.MODULE_PROVIDERS + " must be a "
-          + ModuleProviders.class.getName() + ", not " + value.getClass().getName());
+      return ModuleProviders.given(bindings.get(LarkyEvaluator.MODULE_PROVIDERS));
     }
 
     @Nullable
