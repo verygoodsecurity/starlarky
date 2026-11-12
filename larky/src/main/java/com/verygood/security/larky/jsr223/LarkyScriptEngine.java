@@ -112,8 +112,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
     return null;
   }
 
-  /** The engine setting {@code name} of the context: from either scope, or only the engine scope when refused. */
-  private Object setting(String name) {
+  /** The engine setting {@code name} of a context: from either scope, or only the engine scope when refused. */
+  private Object setting(ScriptContext context, String name) {
     return globalScope == GlobalScope.JSR223
         ? context.getAttribute(name)
         : context.getAttribute(name, ScriptContext.ENGINE_SCOPE);
@@ -132,7 +132,7 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    */
   @Override
   public CompiledScript compile(String script) throws ScriptException {
-    return compile(script, getScriptName());
+    return compile(script, getScriptName(context), context);
   }
 
   /**
@@ -144,28 +144,35 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    * @throws ScriptException if compilation fails.
    */
   public LarkyCompiledScript compile(String script, String scriptName) throws ScriptException {
+    return compile(script, scriptName, context);
+  }
+
+  /** Compiles the script with the settings of {@code context}, which must be one this engine accepts. */
+  private LarkyCompiledScript compile(String script, String scriptName, ScriptContext context)
+      throws ScriptException {
     globalBindings(context);
     LarkyCompiledScript compiledScript = new LarkyCompiledScript(this);
-    if (setting(MODULES) instanceof java.util.Map<?, ?> modules) {
+    if (setting(context, MODULES) instanceof java.util.Map<?, ?> modules) {
       java.util.Map<String, String> files = new java.util.LinkedHashMap<>();
       modules.forEach((name, text) -> files.put(String.valueOf(name), String.valueOf(text)));
       compiledScript.setModules(files);
     }
-    if (setting(CACHE_NAMESPACE) instanceof String namespace) {
+    if (setting(context, CACHE_NAMESPACE) instanceof String namespace) {
       compiledScript.setCacheNamespace(namespace);
     }
 
     compiledScript.compile(script, scriptName);
 
-    // Set reader for backward compatibility
-    Reader scriptReader = getScriptReader(script);
-    context.setReader(scriptReader);
+    // Set reader for backward compatibility, on the engine's own context only: eval leaves a caller's context as it was
+    if (context == this.context) {
+      context.setReader(getScriptReader(script));
+    }
 
     return compiledScript;
   }
 
-  private String getScriptName() {
-    Object nameObj = setting(SCRIPT_NAME);
+  private String getScriptName(ScriptContext context) {
+    Object nameObj = setting(context, SCRIPT_NAME);
     if (nameObj instanceof String) {
       return (String) nameObj;
     }
@@ -228,8 +235,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    */
   @Override
   public Object eval(String script, ScriptContext context) throws ScriptException {
-    globalBindings(context);
-    return eval(script, context.getBindings(ScriptContext.ENGINE_SCOPE));
+    // the given context governs compiling and running: its global scope, settings and writer
+    return compile(script, getScriptName(context), context).eval(context);
   }
 
   /**

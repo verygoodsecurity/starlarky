@@ -73,6 +73,40 @@ public class LarkyScriptEngineGlobalScopeTest {
     assertEquals("written back", context.getBindings(ScriptContext.GLOBAL_SCOPE).get("shared"));
   }
 
+  /** The context given to eval governs the call, not the engine's default context. */
+  @Test
+  public void aRefusingEngineEvaluatesACleanContextWhateverItsDefaultContextHolds() throws Exception {
+    final LarkyScriptEngine engine = refusing();
+    engine.setContext(withGlobal());
+    final ScriptContext context = clean();
+    context.getBindings(ScriptContext.ENGINE_SCOPE).put("given", "engine value");
+
+    final ParsedStarFile result = (ParsedStarFile) engine.eval("out = given\n", context);
+
+    assertEquals("engine value", result.getGlobalEnvironmentVariable("out", Object.class));
+    assertEquals("engine value", context.getBindings(ScriptContext.ENGINE_SCOPE).get("out"));
+    assertFalse("the default context is not written", engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE)
+        .containsKey("out"));
+  }
+
+  /** Its global scope, settings and writer all come from the context given to eval. */
+  @Test
+  public void evalWithAContextUsesThatContextsGlobalScopeSettingsAndWriter() throws Exception {
+    final LarkyScriptEngine engine = new LarkyScriptEngine();
+    final StringWriter defaultWriter = new StringWriter();
+    engine.getContext().setWriter(defaultWriter);
+    final ScriptContext context = withGlobal();
+    context.setAttribute(LarkyScriptEngine.MODULES, Map.of("helper.star", "def greet():\n    return 'hi'\n"),
+        ScriptContext.ENGINE_SCOPE);
+
+    final ParsedStarFile result = (ParsedStarFile) engine.eval(
+        "load('helper', 'greet')\nprint(greet())\nout = shared\n", context);
+
+    assertEquals("global value", result.getGlobalEnvironmentVariable("out", Object.class));
+    assertEquals("hi\n", context.getWriter().toString());
+    assertEquals("", defaultWriter.toString());
+  }
+
   @Test
   public void aRefusingEngineRefusesToCompileWithAGlobalScope() {
     final LarkyScriptEngine engine = refusing();
