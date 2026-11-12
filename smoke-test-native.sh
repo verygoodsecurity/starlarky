@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke-tests a native runlarky binary: its classes reach Starlark only through reflect-config.json (#397).
 # Usage: smoke-test-native.sh <path to the binary>
-set -u
+set -euo pipefail
 BINARY=${1:?usage: smoke-test-native.sh <binary>}
 
 SMOKE_DIR=$(mktemp -d)

@@ -24,9 +24,15 @@ if [ "$OS_TYPE" == "Darwin" ]; then
     GRAALVM_BIN=${GRAALVM_HOME}/bin
 elif [ "$OS_TYPE" == "Linux" ]; then
     # For CI/CD builds and MakeFile usage
-    echo "Linux detected."
-    GRAALVM_URL="${GRAALVM_DOWNLOADS}/graalvm-community-jdk-25i4-${GRAALVM_JAVA_VERSION}_linux-x64_bin.tar.gz"
-    GRAALVM_SHA256=05ccbbe783210b6886ff7b08fcd0b061c5dce4852b05db87284fc0e24abb08e2
+    if [ "$(uname -m)" == "aarch64" ]; then
+        echo "Linux aarch64 detected."
+        GRAALVM_URL="${GRAALVM_DOWNLOADS}/graalvm-community-jdk-25i4-${GRAALVM_JAVA_VERSION}_linux-aarch64_bin.tar.gz"
+        GRAALVM_SHA256=e5f5e2f59643cf96765c741dc00b206f86c69c8c1bf843fe26050c871e0e2dbc
+    else
+        echo "Linux detected."
+        GRAALVM_URL="${GRAALVM_DOWNLOADS}/graalvm-community-jdk-25i4-${GRAALVM_JAVA_VERSION}_linux-x64_bin.tar.gz"
+        GRAALVM_SHA256=05ccbbe783210b6886ff7b08fcd0b061c5dce4852b05db87284fc0e24abb08e2
+    fi
     GRAALVM_HOME=${GRAALVM_DIR}
     GRAALVM_BIN=${GRAALVM_HOME}/bin
 elif [ "$OS_TYPE" == "Windows" ]; then

@@ -1,6 +1,6 @@
 ---
-## Native runlarky binaries for macOS and Windows, next to the Linux one that build-test-publish.yaml
-## builds and attaches.
+## Native runlarky binaries for Linux aarch64, macOS and Windows, next to the Linux x64 one that
+## build-test-publish.yaml builds and attaches.
 ## - on a tag: build each binary, smoke-test it, and attach it to the tag's GitHub release
 ## - on a pull request that changes how they are built, or on demand: build and smoke-test only
 
@@ -35,6 +35,12 @@ jobs:
       matrix:
         include:
           # GraalVM Community 25.4 ships macOS for aarch64 only, and Windows for x64 only.
+          # On Linux the binary links glibc and zlib dynamically, as the x64 one does.
+          - os: linux-aarch64
+            runs-on: ubuntu-24.04-arm
+            graalvm-home: .graalvm
+            binary: larky-runner
+            suffix: ""
           - os: macos-aarch64
             runs-on: macos-latest
             graalvm-home: .graalvm/Contents/Home
@@ -77,6 +83,11 @@ jobs:
 
       - name: Install GraalVM
         run: ./install_graalvm.sh
+
+      - name: Install zlib headers
+        # native-image links zlib; the x64 build gets it from zlib1g-dev in Dockerfile.maven
+        if: ${{ runner.os == 'Linux' }}
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zlib1g-dev
 
       - name: Set up MSVC
         if: ${{ runner.os == 'Windows' }}
