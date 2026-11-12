@@ -97,7 +97,13 @@ chmod +x larky-1.1.1-linux
 ./larky-1.1.1-linux
 ```
 
-The Linux binaries are dynamically linked against glibc (2.34 or newer) and zlib, so they run on Ubuntu 22.04+, Debian 12+ or RHEL 9+, but not on musl systems such as Alpine, nor in an empty (`scratch`) container image. In a container, use a glibc base image such as `debian:bookworm-slim` or `ubuntu:24.04`.
+The Linux binaries are dynamically linked against glibc (2.34 or newer) and zlib, so they run on Ubuntu 22.04+, Debian 12+ or RHEL 9+, but not on musl systems such as Alpine, nor in an empty (`scratch`) container image. In a container, use a glibc base image such as `debian:bookworm-slim` or `ubuntu:24.04`, or the published image below.
+
+**Or run the container image.** Release tags (such as `v1.2.3`) publish `ghcr.io/verygoodsecurity/larky:<version>` and `latest`, for linux/amd64 and linux/arm64. It runs the binary as `nobody` on `debian:bookworm-slim`:
+
+```bash
+docker run --rm -i ghcr.io/verygoodsecurity/larky:latest -s /dev/stdin -o /dev/stdout < script.star
+```
 
 The macOS binary isn't signed. If macOS refuses to open a downloaded copy, remove the quarantine flag with `xattr -d com.apple.quarantine larky-<version>-macos-aarch64`.
 
