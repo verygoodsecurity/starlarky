@@ -1,0 +1,133 @@
+---
+## Native runlarky binaries for macOS and Windows, next to the Linux one that build-test-publish.yaml
+## builds and attaches.
+## - on a tag: build each binary, smoke-test it, and attach it to the tag's GitHub release
+## - on a pull request that changes how they are built, or on demand: build and smoke-test only
+
+name: native binaries
+
+on:
+  push:
+    tags:
+      - "**"
+  pull_request:
+    paths:
+      - ".github/workflows/native-binaries.yaml"
+      - "install_graalvm.sh"
+      - "smoke-test-native.sh"
+      - "runlarky/pom.xml"
+      - "runlarky/src/main/resources/META-INF/native-image/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # GraalVM Community 25.4 ships macOS for aarch64 only, and Windows for x64 only.
+          - os: macos-aarch64
+            runs-on: macos-latest
+            graalvm-home: .graalvm/Contents/Home
+            binary: larky-runner
+            suffix: ""
+          - os: windows-x64
+            runs-on: windows-latest
+            graalvm-home: .graalvm
+            binary: larky-runner.exe
+            suffix: ".exe"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - name: Version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            VERSION=${GITHUB_REF_NAME##*-v}  # remove everything up to and including -v
+            VERSION=${VERSION#v}              # remove initial v if it's just v1.2.3
+          else
+            VERSION="dev-${GITHUB_SHA::8}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Set up JDK
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Cache GraalVM Home
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6
+        with:
+          path: ./.graalvm
+          key: ${{ runner.os }}-${{ runner.arch }}-graalvm-${{ hashFiles('install_graalvm.sh') }}
+
+      - name: Install GraalVM
+        run: ./install_graalvm.sh
+
+      - name: Set up MSVC
+        if: ${{ runner.os == 'Windows' }}
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756  # v1.13.0
+        with:
+          arch: x64
+
+      - name: Build native runner
+        # The tests run in build-test-publish.yaml's Linux build; this builds the binary only.
+        run: mvn -B -ntp package -Pnative -DskipTests -pl runlarky -am
+        env:
+          GRAALVM_HOME: ${{ github.workspace }}/${{ matrix.graalvm-home }}
+          GITHUB_TOKEN: ${{ secrets.VERYGOODBOT_CIAPPBUILDER_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Name and smoke-test the binary
+        run: |
+          mkdir -p dist
+          ASSET="dist/larky-${VERSION}-${{ matrix.os }}${{ matrix.suffix }}"
+          mv "runlarky/target/${{ matrix.binary }}" "$ASSET"
+          ./smoke-test-native.sh "$ASSET"
+
+      - name: Upload binary
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
+        with:
+          name: native-${{ matrix.os }}
+          path: dist/*
+          retention-days: 7
+          if-no-files-found: error
+
+  attach-to-release:
+    name: Attach to release
+    needs: build
+    if: ${{ github.ref_type == 'tag' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download binaries
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8
+        with:
+          pattern: native-*
+          path: dist
+          merge-multiple: true
+
+      - name: Upload to release
+        run: |
+          ls -l dist
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            echo "No release found for tag $GITHUB_REF_NAME"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
