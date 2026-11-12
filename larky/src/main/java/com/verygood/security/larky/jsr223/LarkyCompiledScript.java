@@ -196,7 +196,7 @@ public class LarkyCompiledScript extends CompiledScript {
    *     ({@link LarkyScriptEngine.GlobalScope#REFUSE})
    */
   @Override
-  public Object eval(ScriptContext context) throws ScriptException {
+  public Object eval(ScriptContext context) throws LarkyEvaluationScriptException {
     // the global scope as the engine uses it: as JSR-223 describes it, or none (LarkyScriptEngine.GlobalScope)
     Bindings globalBindings = engine.globalBindings(context);
     Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);

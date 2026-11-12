@@ -107,6 +107,33 @@ public class LarkyScriptEngineGlobalScopeTest {
     assertEquals("", defaultWriter.toString());
   }
 
+  /**
+   * Existing handlers keep working: {@code eval(ScriptContext)} still declares only {@link LarkyEvaluationScriptException}
+   * (this method compiles only if so), and a refusal is one.
+   */
+  @Test
+  public void aRefusalReachesAHandlerOfEvaluationFailures() {
+    final LarkyCompiledScript compiled;
+    try {
+      compiled = (LarkyCompiledScript) refusingWithCleanContext().compile("out = 1\n");
+    } catch (ScriptException e) {
+      throw new AssertionError(e);
+    }
+    LarkyEvaluationScriptException caught = null;
+    try {
+      compiled.eval(withGlobal());
+    } catch (LarkyEvaluationScriptException e) {
+      caught = e;
+    }
+    assertTrue(String.valueOf(caught), caught instanceof LarkyGlobalScopeRefusedException);
+  }
+
+  private static LarkyScriptEngine refusingWithCleanContext() {
+    final LarkyScriptEngine engine = refusing();
+    engine.setContext(clean());
+    return engine;
+  }
+
   @Test
   public void aRefusingEngineRefusesToCompileWithAGlobalScope() {
     final LarkyScriptEngine engine = refusing();
