@@ -8,6 +8,7 @@ import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,6 +44,11 @@ public final class LarkyEvaluator {
   public static final String EXECUTION_STEPS = "_EXECUTION_STEPS_";
   public static final String STEP_LIMIT = "LARKY_EVAL_STEP_LIMIT";
   public static final String EXPIRATION_MS = "LARKY_EVAL_EXPIRATION_MS";
+  /**
+   * The binding that gives a run its {@code @vgs//} module providers: a
+   * {@link com.verygood.security.larky.modules.vgs.ModuleProviders}.
+   */
+  public static final String MODULE_PROVIDERS = "LARKY_EVAL_MODULE_PROVIDERS";
 
   private final LinkedHashSet<String> pending = new LinkedHashSet<>();
   private final Map<String, Module> loaded = new HashMap<>();
@@ -171,6 +177,8 @@ public final class LarkyEvaluator {
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
+      // refused when it is not providers, as LarkyLoadedScript.invoke refuses it
+      ModuleProviders.given(environment.get(MODULE_PROVIDERS)).installOn(thread);
 
       if (environment.containsKey(STEP_LIMIT) && environment.get(STEP_LIMIT) != null) {
         thread.setMaxExecutionSteps(Long.parseLong(environment.get(STEP_LIMIT).toString()));
