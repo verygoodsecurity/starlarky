@@ -223,6 +223,12 @@ public final class StarlarkFunction implements StarlarkCallable {
     return (Cell) freevars.get(index);
   }
 
+  // VGS: how many cells of enclosing functions this function holds, so that MutableReach can
+  // look at what a function keeps reachable.
+  int getNumFreeVars() {
+    return freevars.size();
+  }
+
   void export(StarlarkThread thread, String name) {
     // Checks that thread is the one that defines the StarlarkFunction. It's possible for one
     // StarlarkFunction to be exported in different places.

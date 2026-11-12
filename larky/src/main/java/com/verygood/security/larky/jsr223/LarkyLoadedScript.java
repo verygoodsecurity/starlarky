@@ -26,9 +26,13 @@ import net.starlark.java.eval.Structure;
  * running the file again. {@link LarkyCompiledScript#load} makes one.
  *
  * <p>The top level runs with the bindings of the context it was loaded with, and the module is frozen when it ends.
- * Every value the script's top level defines must then be immutable (functions, strings, numbers, frozen lists and
- * dicts, tuples of those), or {@code load} refuses the script: nothing one call does can reach another through the
- * module. Each call runs on a thread of its own.
+ * Nothing a call can reach may then be able to change, or {@code load} refuses the script: not a value the top level
+ * leaves, nor anything one holds (an element of a frozen list or dict, a struct's field), nor a function's default
+ * values, the values it closes over, or the globals of a module it was loaded from. Strings, numbers, functions,
+ * frozen lists, dicts and sets, tuples and structs of those qualify; a hash being updated, say, does not, wherever it
+ * is held. So nothing one call does can reach another through the module. Larky's native modules, its predeclared
+ * names, and the stdlib, vendor and vgs modules its module cache shares are shared by every evaluation, loaded or
+ * not, and are not looked into; a module the script brings itself is. Each call runs on a thread of its own.
  *
  * <p>A <em>per-call name</em> is a predeclared name whose value is given with each call instead of once at load
  * ({@link #invoke(String, Map, Object...)}), for example a service a request is handled with. The script sees a

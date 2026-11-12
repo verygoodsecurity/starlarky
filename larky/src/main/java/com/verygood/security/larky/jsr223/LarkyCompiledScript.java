@@ -13,6 +13,7 @@ import java.util.Set;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.StreamWriterConsole;
 import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
@@ -23,6 +24,7 @@ import com.verygood.security.larky.parser.StarFile;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
+import net.starlark.java.eval.MutableReach;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkSemantics;
@@ -283,9 +285,11 @@ public class LarkyCompiledScript extends CompiledScript {
     if (engineBindings != null) {
       bindings.putAll(engineBindings);
     }
-    // of the host's bindings only Larky's own settings; the script gets nothing else of the host's
+    // of the host's bindings only Larky's own settings; the script gets nothing else of the host's.
+    // The expiration limits the load's own top level; calls are given theirs (see LarkyLoadedScript).
     final Bindings settings = new SimpleBindings();
-    for (String setting : List.of(LarkyEvaluator.STEP_LIMIT, DefaultLarkyInterpreter.VERBOSE)) {
+    for (String setting
+        : List.of(LarkyEvaluator.STEP_LIMIT, LarkyEvaluator.EXPIRATION_MS, DefaultLarkyInterpreter.VERBOSE)) {
       if (bindings.get(setting) != null) {
         settings.put(setting, bindings.get(setting));
       }
@@ -307,12 +311,12 @@ public class LarkyCompiledScript extends CompiledScript {
       throw LarkyEvaluationScriptException.of(e);
     }
     final Module module = result.getModule();
-    for (String name : scriptNames.defined()) {
-      final Object value = module.getGlobal(name);
-      if (value != null && !isImmutable(value)) {
-        throw new LarkyScriptNotLoadableException(
-            "the script's top level leaves " + name + " mutable (" + Starlark.type(value) + ")");
-      }
+    final Set<Module> sharedModules = LarkyEvaluator.modulesSharedByEveryEvaluation();
+    final Optional<String> mutable = MutableReach.find(module.getGlobals(),
+        sharedByEveryEvaluation(module, sharedModules), m -> m == module || sharedModules.contains(m));
+    if (mutable.isPresent()) {
+      throw new LarkyScriptNotLoadableException("the script's top level leaves " + mutable.get()
+          + " able to change, and a loaded script is shared by every call");
     }
     final boolean verbose = Boolean.parseBoolean(
         String.valueOf(bindings.getOrDefault(DefaultLarkyInterpreter.VERBOSE, "false")));
@@ -339,13 +343,25 @@ public class LarkyCompiledScript extends CompiledScript {
     return Optional.empty();
   }
 
-  private static boolean isImmutable(Object value) {
-    try {
-      return Starlark.isImmutable(value);
-    } catch (RuntimeException e) {
-      // not a Starlark value: nothing says a call cannot change it
-      return false;
+  /**
+   * Values every evaluation shares anyway, so a loaded script sharing them adds nothing: Larky's
+   * native modules (process-wide singletons), the predeclared names (including the per-call names,
+   * whose values belong to calls), and the globals of the loaded modules every evaluation shares.
+   * A module the script brings itself, which no other evaluation shares, is looked into.
+   */
+  private static java.util.function.Predicate<Object> sharedByEveryEvaluation(
+      Module module, Set<Module> sharedModules) {
+    final Set<Object> shared = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    shared.addAll(ModuleSupplier.STD_MODULES);
+    shared.addAll(ModuleSupplier.VGS_MODULES);
+    shared.addAll(ModuleSupplier.TEST_MODULES);
+    shared.addAll(ModuleSupplier.CORE_ENVIRONMENT.values());
+    shared.addAll(Starlark.UNIVERSE.values());
+    shared.addAll(module.getPredeclaredBindings().values());
+    for (Module sharedModule : sharedModules) {
+      shared.addAll(sharedModule.getGlobals().values());
     }
+    return shared::contains;
   }
 
   static java.io.Writer writer(ScriptContext context) {

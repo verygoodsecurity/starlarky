@@ -436,6 +436,14 @@ public final class LarkyEvaluator {
   }
 
   /** The error for a file that does not compile: its name, then each error with its location. */
+  /**
+   * The loaded modules every evaluation in this process shares (see {@link ModuleCache}): cached
+   * stdlib, vendor and vgs modules, and native module wrappers. A snapshot.
+   */
+  public static java.util.Set<Module> modulesSharedByEveryEvaluation() {
+    return ModuleCache.shared();
+  }
+
   public static EvalException compileError(String file, SyntaxError.Exception ex) {
     List<String> errs = new ArrayList<>();
     for (SyntaxError error : ex.errors()) {

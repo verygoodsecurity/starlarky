@@ -126,6 +126,15 @@ final class ModuleCache {
     BY_MODULE.put(module, new Entry(module, ImmutableMap.of()));
   }
 
+  /** The modules every evaluation shares: cached modules and native module wrappers. */
+  static Set<Module> shared() {
+    synchronized (BY_MODULE) {
+      Set<Module> shared = Collections.newSetFromMap(new IdentityHashMap<>());
+      shared.addAll(BY_MODULE.keySet());
+      return shared;
+    }
+  }
+
   /** Number of cached modules, for tests. */
   static int size() {
     return CACHE.size();

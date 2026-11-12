@@ -81,6 +81,11 @@ public final class LarkyGlobals {
     public void repr(Printer printer, StarlarkSemantics semantics) {
       printer.append("<sentinel>");
     }
+
+    @Override
+    public boolean isImmutable() {
+      return true; // one instance, with no state
+    }
   }
 
   @StarlarkMethod(
