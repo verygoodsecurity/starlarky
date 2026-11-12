@@ -1,19 +1,86 @@
-# Security Policy & AI Agent Guidelines
+# Security policy
 
-## Security Invariants
-- **No Hardcoded Secrets:** Never hardcode API keys, service role keys, database passwords, or private tokens in generated code, configuration files, or logs.
-- **Authentication & Authorization:** All API endpoints and database mutations must enforce strict tenant isolation and authentication checks. 
-- **Row Level Security (RLS):** RLS must remain mandatory for all public or shared database tables. Do not bypass or weaken RLS policies.
-- **Input Sanitization:** All user-supplied inputs and parameters must be validated, sanitized, and type-checked before processing or querying.
-- **Server-Side Exclusivity:** Privileged operations (such as service role queries or administrative actions) must run strictly on trusted server endpoints or edge functions—never expose them to the client.
+Starlarky executes untrusted scripts inside a Java host, through its embedded
+engine or CLI. Security depends on both the interpreter and the capabilities
+the host makes available. This policy guides changes to that boundary; it is not
+a claim that every embedding is sandboxed or PCI compliant.
 
-## Data & Token Hygiene
-- Do not log, print, or output sensitive data, OAuth tokens, session IDs, or private user payloads.
-- If handling mock data or examples, use non-production placeholder values only.
+## Reporting a vulnerability
 
-## Reportable / Preventable Violations
-AI code generation or modifications must actively avoid:
-- Cross-tenant data leaks or broken object-level authorization (BOLA).
-- Unescaped SQL queries, stored XSS vulnerabilities, or insecure deserialization.
-- Disabling security definitions or removing rate-limiting from public write paths.
-- Any potential PCI violation
+Do not put sensitive payloads, credentials, or exploit details in public issues
+or pull requests. Use **Report a vulnerability** in the repository's
+[Security tab](https://github.com/verygoodsecurity/starlarky/security) if private
+reporting is enabled. If it is unavailable, ask the maintainers to establish a
+private reporting channel before sharing those details.
+
+Include the affected version or commit, embedded/JVM/native/Python execution
+mode, relevant host configuration, a minimal reproduction using synthetic data,
+and the expected and observed impact. Redact secrets and customer information.
+
+## Host capabilities and isolation
+
+- Treat script source, bindings, supplied module files, load labels, and native
+  method arguments as untrusted. Validate types, ranges, lengths, and paths at
+  the Java boundary, including overflow and allocation risks.
+- Review module resolution for unintended filesystem or classpath access and
+  namespace bypasses. Keep test-only modules out of normal evaluations. Do not
+  expose arbitrary Java reflection, class loading, process execution, filesystem,
+  or network access to scripts without an explicit capability design and review.
+- Preserve freezing of shared module values, immutable built-in types, and
+  isolation between evaluations. Caches must not reuse mutable bindings, results,
+  or host data across requests or tenants. Preserve the namespace separation of
+  host-supplied module programs via `LarkyScriptEngine.CACHE_NAMESPACE`.
+- The embedding host chooses the modules, credentials, providers, and data a
+  script receives and enforces authorization and tenant separation. A private
+  `_name` in a `.star` file is not access control: public functions can still
+  reveal it or act as an oracle. See the host-owned module example in
+  [README.md](README.md).
+- Keep `ServiceLoader` provider selection explicit and validate unexpected
+  provider counts. Preserve the vault's failure behavior when no implementation
+  is installed. `larky.modules.vgs.vault.enableInMemoryVault` is an explicit
+  development/test opt-in, not a production vault implementation; do not enable it
+  silently or substitute an in-memory vault after a provider failure.
+
+## Resource exhaustion and native operations
+
+- Preserve evaluation step/deadline limits and interruption behavior. Long-running
+  Java operations must also consider cancellation and bounded work; interpreter
+  checks alone do not bound a native method's cost. Hosts must configure limits
+  appropriate to their workload rather than assume every execution is bounded.
+- Validate sizes before allocating, expanding, or converting script-controlled
+  values. Preserve bounds on caches, decompressed output, random-byte requests,
+  and large integer operations. Test boundary and failure cases with small,
+  controlled inputs rather than exhausting the test machine.
+- Keep XML external entities and external resource resolution disabled where
+  parsing untrusted content. Review serializers, parsers, regex operations, and
+  compression for unsafe input handling and excessive CPU or memory use.
+- Preserve safe subprocess argument handling and temporary-file cleanup in the
+  Python wrapper. CLI output files, logs, and REPL history are persistent surfaces;
+  use synthetic data and avoid entering secrets into history.
+
+## Cryptography and sensitive data
+
+- Use the project's vetted cryptographic providers rather than implementing new
+  primitives. Validate algorithm parameters, keys, nonces/IVs, padding, encodings,
+  and verification failures; use cryptographically secure randomness where needed.
+- Existing compatibility APIs include legacy algorithms. Do not introduce new
+  insecure defaults or silently change compatibility behavior. Explain the use
+  case and security implications of algorithm or provider changes and add known
+  vectors and negative tests.
+- Never commit production credentials, private keys, real payment data, or PII.
+  Use clearly synthetic fixtures and test-only keys. Do not add host logging,
+  exception messages, metrics, or debug output that disclose secrets, full PAN,
+  CVV, authentication tokens, or customer payloads.
+- Payment and vault modules can process sensitive data by design. Minimize copies
+  and retention, keep production authorization and protected storage in the host
+  or configured provider, and do not persist CVV. Avoid claiming that tokenization
+  or this library alone establishes PCI compliance.
+
+## Security changes and verification
+
+Add regression tests for the affected boundary, including rejected inputs and
+cross-evaluation behavior where applicable. Test the native runner when changing
+Java APIs or resources reachable from scripts, and the Python wrapper when changing
+its process/file boundary. Document capability, provider, data exposure, or limit
+changes in the PR. Review dependency vulnerabilities and existing security pins;
+do not bypass security checks or suppress findings without a specific rationale.
