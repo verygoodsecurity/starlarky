@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.0](https://github.com/verygoodsecurity/starlarky/compare/v1.0.0...v1.1.0) (2026-11-12)
+
+
+### Features
+
+* **jsr223:** an engine can be built to refuse a context's global scope ([#836](https://github.com/verygoodsecurity/starlarky/issues/836)) ([81f8d67](https://github.com/verygoodsecurity/starlarky/commit/81f8d67b48d446952e813fa2e80f4df1ef65f9cd))
+* **vgs:** @vgs//agent_gateway session for Agent Web Gateway functions ([#834](https://github.com/verygoodsecurity/starlarky/issues/834)) ([5285c5e](https://github.com/verygoodsecurity/starlarky/commit/5285c5e3ca1fbbed7d99cf06070c0c9e8bee1fea))
+* **vgs:** a host can give one run its own @vgs// module providers ([#835](https://github.com/verygoodsecurity/starlarky/issues/835)) ([dd87a3e](https://github.com/verygoodsecurity/starlarky/commit/dd87a3ef5492c448c2798b863c4de41fe920a71f))
+
 ## [1.0.0](https://github.com/verygoodsecurity/starlarky/compare/v0.17.1...v1.0.0) (2026-11-09)
 
 
