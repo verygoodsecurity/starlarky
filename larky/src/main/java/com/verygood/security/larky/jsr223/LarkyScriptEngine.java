@@ -112,6 +112,11 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
     return null;
   }
 
+  /** Refuses {@code context} if this engine refuses its global scope; see {@link #globalBindings}. */
+  void checkGlobalScope(ScriptContext context) throws LarkyGlobalScopeRefusedException {
+    globalBindings(context);
+  }
+
   /** The engine setting {@code name} of a context: from either scope, or only the engine scope when refused. */
   private Object setting(ScriptContext context, String name) {
     return globalScope == GlobalScope.JSR223
@@ -129,6 +134,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    * of the <code>eval</code> methods of <code>CompiledScript</code>.
    * @throws ScriptException if compilation fails.
    * @throws NullPointerException if the argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public CompiledScript compile(String script) throws ScriptException {
@@ -142,6 +149,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    * @param scriptName The name of the script for error reporting.
    * @return A compiled script ready for execution.
    * @throws ScriptException if compilation fails.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   public LarkyCompiledScript compile(String script, String scriptName) throws ScriptException {
     return compile(script, scriptName, context);
@@ -150,7 +159,7 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
   /** Compiles the script with the settings of {@code context}, which must be one this engine accepts. */
   private LarkyCompiledScript compile(String script, String scriptName, ScriptContext context)
       throws ScriptException {
-    globalBindings(context);
+    checkGlobalScope(context);
     LarkyCompiledScript compiledScript = new LarkyCompiledScript(this);
     if (setting(context, MODULES) instanceof java.util.Map<?, ?> modules) {
       java.util.Map<String, String> files = new java.util.LinkedHashMap<>();
@@ -190,6 +199,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    * of its <code>eval</code> methods of <code>CompiledScript</code>.
    * @throws ScriptException      if compilation fails.
    * @throws NullPointerException if argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public CompiledScript compile(Reader script) throws ScriptException {
@@ -232,6 +243,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if either argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses {@code context}'s global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(String script, ScriptContext context) throws ScriptException {
@@ -252,6 +265,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if either argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses {@code context}'s global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(Reader reader, ScriptContext context) throws ScriptException {
@@ -270,6 +285,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if the argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(String script) throws ScriptException {
@@ -288,6 +305,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if the argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(Reader reader) throws ScriptException {
@@ -312,6 +331,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if either argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(String script, Bindings n) throws ScriptException {
@@ -332,6 +353,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if either argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(Reader reader, Bindings n) throws ScriptException {
