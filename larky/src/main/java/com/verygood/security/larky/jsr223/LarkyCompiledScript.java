@@ -36,6 +36,7 @@ import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
+import javax.script.ScriptException;
 
 
 /**
@@ -188,9 +189,16 @@ public class LarkyCompiledScript extends CompiledScript {
     return cachedProgram != null;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws LarkyGlobalScopeRefusedException if the engine refuses the context's global scope
+   *     ({@link LarkyScriptEngine.GlobalScope#REFUSE})
+   */
   @Override
-  public Object eval(ScriptContext context) throws LarkyEvaluationScriptException {
-    Bindings globalBindings = context.getBindings(ScriptContext.GLOBAL_SCOPE);
+  public Object eval(ScriptContext context) throws ScriptException {
+    // the global scope as the engine uses it: as JSR-223 describes it, or none (LarkyScriptEngine.GlobalScope)
+    Bindings globalBindings = engine.globalBindings(context);
     Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
 
     // Evaluation goes through the Larky interpreter, so bindings, load() and print() behave as
