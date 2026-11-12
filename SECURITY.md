@@ -115,3 +115,12 @@ Java APIs or resources reachable from scripts, and the Python wrapper when chang
 its process/file boundary. Document capability, provider, data exposure, or limit
 changes in the PR. Review dependency vulnerabilities and existing security pins;
 do not bypass security checks or suppress findings without a specific rationale.
+
+## Review evidence
+
+- Identify the affected interpreter/host boundary and whether the change concerns
+  current code or an explicitly unmerged design. A planned provider API is not
+  evidence that the default branch already enforces its isolation guarantees.
+- Review token/provider scope, fallback, cache reuse, and per-call cleanup as a
+  complete flow. Include a rejected-operation or cross-evaluation regression test
+  when changing these boundaries, and state which JVM/native/Python checks ran.

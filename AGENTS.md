@@ -181,3 +181,64 @@ make py_test_and_package
 - Update the existing README, module documentation, or examples that describe the
   changed behavior. Do not invent documentation paths, team notification handles,
   service architecture requirements, or checks absent from this repository.
+
+## Code Review Rules
+
+- Prioritize defects introduced by this change: incorrect behavior, security or
+  tenant-boundary failures, compatibility breaks, data loss, and demonstrated
+  performance or availability risks. Read the surrounding implementation and
+  relevant tests before concluding that a pattern is unsafe.
+- Each finding needs a file/line, the triggering input or system state, its
+  concrete impact, and a practical correction. Distinguish defects from questions,
+  optional improvements, and pre-existing problems. Do not invent missing
+  architecture or report unsupported speculation.
+- In the review summary, state the actionable finding count and recommend a
+  focused pass, normal review, or deep/specialist review, with reasons. Point the
+  human reviewer to the highest-risk files and specific behavior to verify.
+  Identify compatibility and deployment dependencies for stacked changes.
+- State which tests or checks actually ran and which remain unverified. A build
+  with tests skipped or a passing security scan does not establish tested behavior.
+  Say when no actionable findings were identified in the material reviewed;
+  incomplete context is not a clean assessment or permission to merge.
+- Leave formatting and mechanical lint to existing tools. Avoid mandatory praise,
+  broad refactors, arbitrary method-size limits, and repeating the same issue.
+  Recommend shared framework changes only when a concrete duplicated or divergent
+  behavior matters to this change.
+- Apply [SECURITY.md](SECURITY.md) to the affected data flow. Review security
+  boundaries and failure behavior even when a feature is off by default.
+- Update existing architecture or domain documentation when its contract changes.
+  Use verified owner identities for escalation; do not invent team handles.
+
+### Common Java/JVM baseline
+
+These rules apply to maintained JVM code; preserve Kotlin idioms in Kotlin modules.
+Framework-specific checks apply only where the affected module uses that framework.
+
+- Prefer existing shared clients, authentication, cryptography, and resilience
+  facilities. Preserve public APIs, serialization, exception contracts, dependency
+  injection, and the configured Java/runtime compatibility.
+- Use an injected `java.time.Clock` for new time-dependent application logic so
+  expiry and scheduling can be tested deterministically. Elapsed-time measurements
+  have different requirements; do not flag a monotonic timer as wall-clock misuse.
+- Check actual execution context before flagging blocking: protect event loops
+  and constrained consumer pools, bound waits and queues, propagate cancellation,
+  and avoid accidental common-pool or unbounded executor use. Support a finding
+  with a starvation, contention, race, or resource-exhaustion scenario.
+- Outbound calls need suitable deadlines and bounded retries/backoff. Check
+  idempotency before retrying writes, retry amplification, connection pools, and
+  poison-message behavior. Preserve tracing context across asynchronous work.
+- For database code, check N+1 queries, unbounded reads, index/query changes, and
+  transactions held across slow I/O. Where Spring transaction attributes control
+  replica routing, use appropriate read-only transaction boundaries while
+  preserving writes, consistency requirements, and inherited transaction behavior.
+- Keep hot-path logging and metrics bounded. Avoid sensitive values, raw-ID metric
+  labels, and unnecessary high-cardinality histograms. Expected retryable failures
+  should normally be `WARN`; reserve `ERROR` for actionable failures under the
+  service's alerting contract. Preserve useful, safe diagnostic context.
+- Inspect the effective Maven parent/management chain before proposing version
+  changes. Inherit versions already managed at the same value; centralize new
+  managed versions in properties where the build convention supports it. Preserve
+  explained security/compatibility pins, reactor references, build extensions,
+  and repository-specific release tooling. Do not rewrite unrelated POMs.
+- Add regression coverage for the changed success and failure paths. Match the
+  existing test framework and formatting instead of introducing a new one.
