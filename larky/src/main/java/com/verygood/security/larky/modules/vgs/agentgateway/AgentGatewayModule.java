@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules.vgs.agentgateway;
 
 import com.google.common.collect.ImmutableList;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.modules.vgs.agentgateway.spi.AgentGatewaySession;
 import com.verygood.security.larky.modules.vgs.agentgateway.spi.LarkyAgentGateway;
 import java.util.List;
@@ -16,14 +17,15 @@ import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 /**
  * The native side of {@code @vgs//agent_gateway}: the {@code session} of the message an Agent Web Gateway function
- * handles. The module and its {@code session} are the same objects for every script; each method asks the host's
- * {@link LarkyAgentGateway} (found with {@link ServiceLoader}) for the current thread's session when it is called, so
- * a script whose top level ran once still sees each message's own session. Without a host, or off session traffic,
- * every method fails.
+ * handles. The module and its {@code session} are the same objects for every script; each method finds the session
+ * when it is called, so a script whose top level ran once still sees each message's own session: the session the host
+ * gave the run ({@link ModuleProviders}), else the one its {@link LarkyAgentGateway} (found with
+ * {@link ServiceLoader}) has for the current message. Without either, or off session traffic, every method fails.
  */
 @StarlarkBuiltin(
     name = "native_agent_gateway",
@@ -55,8 +57,15 @@ public final class AgentGatewayModule implements StarlarkValue {
     return session;
   }
 
-  private AgentGatewaySession current() throws EvalException {
-    final Optional<AgentGatewaySession> current = gateway == null ? Optional.empty() : gateway.currentSession();
+  /**
+   * The session of the run of {@code thread}: the one the host gave this run ({@link ModuleProviders}), else the one
+   * the {@link LarkyAgentGateway} found with ServiceLoader has for the current message.
+   */
+  private AgentGatewaySession current(StarlarkThread thread) throws EvalException {
+    Optional<AgentGatewaySession> current = ModuleProviders.forRun(thread, AgentGatewaySession.class);
+    if (current.isEmpty() && gateway != null) {
+      current = gateway.currentSession();
+    }
     if (current.isEmpty()) {
       throw Starlark.errorf("%s", UNAVAILABLE);
     }
@@ -74,35 +83,37 @@ public final class AgentGatewayModule implements StarlarkValue {
 
     @StarlarkMethod(name = "card", doc = "The session aliases of a card's parts: number, cvc, expiry, holder.",
         parameters = {@Param(name = "label", defaultValue = "None", named = true,
-            allowedTypes = {@ParamType(type = String.class), @ParamType(type = NoneType.class)})})
-    public Object card(Object label) throws EvalException {
-      return current().card(label == Starlark.NONE ? null : (String) label);
+            allowedTypes = {@ParamType(type = String.class), @ParamType(type = NoneType.class)})},
+        useStarlarkThread = true)
+    public Object card(Object label, StarlarkThread thread) throws EvalException {
+      return current(thread).card(label == Starlark.NONE ? null : (String) label);
     }
 
     @StarlarkMethod(name = "alias", doc = "The session alias of a text alias, by its label.",
-        parameters = {@Param(name = "label")})
-    public String alias(String label) throws EvalException {
-      return current().alias(label);
+        parameters = {@Param(name = "label")}, useStarlarkThread = true)
+    public String alias(String label, StarlarkThread thread) throws EvalException {
+      return current(thread).alias(label);
     }
 
     @StarlarkMethod(name = "context", doc = "A string field of the session's context, or the default.",
-        parameters = {@Param(name = "key"), @Param(name = "default", defaultValue = "None", named = true)})
-    public Object context(String key, Object defaultValue) throws EvalException {
-      final String value = current().context(key);
+        parameters = {@Param(name = "key"), @Param(name = "default", defaultValue = "None", named = true)},
+        useStarlarkThread = true)
+    public Object context(String key, Object defaultValue, StarlarkThread thread) throws EvalException {
+      final String value = current(thread).context(key);
       return value == null ? defaultValue : value;
     }
 
     @StarlarkMethod(name = "get", doc = "A value this function's adapter captured in the session, or None.",
-        parameters = {@Param(name = "key")})
-    public Object get(String key) throws EvalException {
-      final String value = current().get(key);
+        parameters = {@Param(name = "key")}, useStarlarkThread = true)
+    public Object get(String key, StarlarkThread thread) throws EvalException {
+      final String value = current(thread).get(key);
       return value == null ? Starlark.NONE : value;
     }
 
     @StarlarkMethod(name = "put", doc = "Captures a value for this function's adapter (in a response function).",
-        parameters = {@Param(name = "key"), @Param(name = "value")})
-    public void put(String key, String value) throws EvalException {
-      current().put(key, value);
+        parameters = {@Param(name = "key"), @Param(name = "value")}, useStarlarkThread = true)
+    public void put(String key, String value, StarlarkThread thread) throws EvalException {
+      current(thread).put(key, value);
     }
 
     @Override

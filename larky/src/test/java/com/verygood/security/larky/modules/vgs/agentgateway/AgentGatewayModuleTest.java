@@ -5,6 +5,8 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
+import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.modules.vgs.agentgateway.spi.AgentGatewaySession;
 import com.verygood.security.larky.modules.vgs.agentgateway.spi.LarkyAgentGateway;
 import com.verygood.security.larky.parser.ParsedStarFile;
@@ -22,7 +24,7 @@ import org.junit.Test;
 public class AgentGatewayModuleTest {
 
   /** A session with one card, one labelled alias, one context field and in-memory captures. */
-  private static final class FakeSession implements AgentGatewaySession {
+  private static class FakeSession implements AgentGatewaySession {
     final Map<String, String> captures = new HashMap<>();
 
     @Override
@@ -106,7 +108,7 @@ public class AgentGatewayModuleTest {
   public void withoutAHostEveryMethodFails() {
     final AgentGatewayModule module = new AgentGatewayModule(List.of());
 
-    final EvalException e = assertThrows(EvalException.class, () -> module.session().get("k"));
+    final EvalException e = assertThrows(EvalException.class, () -> module.session().get("k", null));
     assertTrue(e.getMessage(), e.getMessage().contains(AgentGatewayModule.UNAVAILABLE));
   }
 
@@ -115,7 +117,54 @@ public class AgentGatewayModuleTest {
     final LarkyAgentGateway none = Optional::empty;
 
     final EvalException e = assertThrows(EvalException.class,
-        () -> new AgentGatewayModule(List.of(none)).session().card(Starlark.NONE));
+        () -> new AgentGatewayModule(List.of(none)).session().card(Starlark.NONE, null));
+    assertTrue(e.getMessage(), e.getMessage().contains(AgentGatewayModule.UNAVAILABLE));
+  }
+
+  /** A session whose single card is named after it. */
+  private static AgentGatewaySession named(String name) {
+    return new FakeSession() {
+      @Override
+      public Object card(@Nullable String label) {
+        return "card:" + name;
+      }
+    };
+  }
+
+  @Test
+  public void aSessionGivenToTheRunIsUsedWithoutAHostSession() throws Exception {
+    final javax.script.Bindings bindings = new javax.script.SimpleBindings();
+    bindings.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(AgentGatewaySession.class, named("given")));
+
+    final ParsedStarFile result = (ParsedStarFile) new LarkyScriptEngine().eval(
+        "load(\"@vgs//agent_gateway\", \"session\")\nout = session.card()\n", bindings);
+
+    assertEquals("card:given", result.getGlobalEnvironmentVariable("out", Object.class));
+  }
+
+  @Test
+  public void aSessionGivenToTheRunWinsOverTheHostsSession() throws Exception {
+    TestAgentGateway.CURRENT.set(named("host"));
+    final javax.script.Bindings bindings = new javax.script.SimpleBindings();
+    bindings.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(AgentGatewaySession.class, named("given")));
+
+    final ParsedStarFile result = (ParsedStarFile) new LarkyScriptEngine().eval(
+        "load(\"@vgs//agent_gateway\", \"session\")\nout = session.card()\n", bindings);
+
+    assertEquals("card:given", result.getGlobalEnvironmentVariable("out", Object.class));
+  }
+
+  @Test
+  public void eachEvaluationSeesItsOwnSession() throws Exception {
+    final String script = "load(\"@vgs//agent_gateway\", \"session\")\nout = session.card()\n";
+    for (String name : List.of("first", "second")) {
+      final javax.script.Bindings bindings = new javax.script.SimpleBindings();
+      bindings.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(AgentGatewaySession.class, named(name)));
+      final ParsedStarFile result = (ParsedStarFile) new LarkyScriptEngine().eval(script, bindings);
+      assertEquals("card:" + name, result.getGlobalEnvironmentVariable("out", Object.class));
+    }
+    final ScriptException e = assertThrows(ScriptException.class,
+        () -> new LarkyScriptEngine().eval(script, new javax.script.SimpleBindings()));
     assertTrue(e.getMessage(), e.getMessage().contains(AgentGatewayModule.UNAVAILABLE));
   }
 
