@@ -35,11 +35,42 @@ and the expected and observed impact. Redact secrets and customer information.
   `_name` in a `.star` file is not access control: public functions can still
   reveal it or act as an oracle. See the host-owned module example in
   [README.md](README.md).
-- Keep `ServiceLoader` provider selection explicit and validate unexpected
-  provider counts. Preserve the vault's failure behavior when no implementation
-  is installed. `larky.modules.vgs.vault.enableInMemoryVault` is an explicit
-  development/test opt-in, not a production vault implementation; do not enable it
-  silently or substitute an in-memory vault after a provider failure.
+- Keep default `ServiceLoader` provider selection explicit and validate unexpected
+  provider counts. Preserve the vault's failure behavior when neither a run-scoped
+  nor a default implementation is available.
+  `larky.modules.vgs.vault.enableInMemoryVault` is an explicit development/test
+  opt-in, not a production vault implementation; do not enable it silently or
+  substitute an in-memory vault after a provider failure.
+
+### Providers scoped to one run (PR #830)
+
+[PR #830](https://github.com/verygoodsecurity/starlarky/pull/830), stacked on
+#828/#829 and not yet merged into this branch, adds explicit per-run providers.
+See [AGENTS.md](AGENTS.md) for the architecture and compatibility contract.
+
+- Treat `ModuleProviders` as host-granted capabilities, not script-controlled
+  configuration. The host must choose a vault and session authorized for the
+  current message and tenant, and ensure that the two agree in scope. Passing a
+  registry does not itself authenticate the caller or authorize vault operations.
+- Install providers on the current evaluation/call's `StarlarkThread`. Never
+  capture them in shared modules, loaded-script defaults, or compilation caches.
+  Repeated calls must not inherit another call's providers. The registry is
+  immutable; provider implementations remain responsible for their own mutable
+  state, concurrency, authorization, and lifetime.
+- An explicit run provider wins over the module's default. Without it, legacy
+  `ServiceLoader` behavior remains; absence is not an automatic deny. Hosts that
+  require message-scoped capabilities must require the appropriate providers
+  before invocation and secure any fallback provider's authorization behavior.
+  Never retry a rejected operation through a more privileged fallback provider.
+- Accept only the supported provider types and reject invalid registry bindings
+  consistently in evaluation and invocation. A supplied gateway session works
+  without a `ServiceLoader` host; with no supplied session, use the host's current
+  session or fail. Do not fabricate a session when neither is available.
+- Gateway card/text aliases are session stand-ins, not raw values or proof of
+  authorization. They are revealed through the authorized vault. The session
+  provider must enforce adapter capture permissions and storage bounds for
+  `get`/`put`; a shared facade does not make session data safe to share between
+  messages. Keep aliases and captured sensitive values out of host diagnostics.
 
 ## Resource exhaustion and native operations
 

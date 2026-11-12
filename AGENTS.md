@@ -17,6 +17,65 @@ Read [README.md](README.md), [CONTRIBUTING.md](CONTRIBUTING.md), and
 - `bin/` and `third_party/`: upstream synchronization scripts, patches, and
   third-party material. Preserve license notices and keep vendor changes explicit.
 
+## Runtime architecture: providers scoped to one run
+
+[PR #830](https://github.com/verygoodsecurity/starlarky/pull/830) introduces this
+design on top of [#829](https://github.com/verygoodsecurity/starlarky/pull/829)
+(`@vgs//agent_gateway`) and [#828](https://github.com/verygoodsecurity/starlarky/pull/828)
+(scripts loaded once with per-call names). This stack is not yet merged into this
+branch; the APIs and tests below describe that incoming architecture.
+
+- Compilation, loading, and invocation have different lifetimes. A
+  `LarkyCompiledScript` can produce a `LarkyLoadedScript` whose top level runs once
+  and whose module is frozen for repeated calls. Host values needed by calls must
+  be supplied per call rather than captured in shared module state.
+- `ModuleProviders` is an immutable registry of host-supplied provider references
+  for one run. Its supported types are `LarkyVault` and `AgentGatewaySession`.
+  Adding or replacing a provider returns a new registry; it does not freeze the
+  provider's own state or make that provider thread-safe.
+- Hosts pass the registry under `LarkyEvaluator.MODULE_PROVIDERS` in evaluation
+  bindings or `LarkyLoadedScript.invoke`'s per-call values. This is an execution
+  setting, like `STEP_LIMIT` and `EXPIRATION_MS`; it need not be declared as a
+  script's per-call name. Reject wrong-typed bindings consistently in both paths.
+- Evaluation and invocation install providers on the run's `StarlarkThread` via
+  `setThreadLocal`. Annotated native entry points use `useStarlarkThread = true`
+  and look up the provider when called. Do not store a request's provider in a
+  singleton module or implement new implicit Java thread-state lookups.
+- `load()` and module identity stay unchanged. `@vgs//vault` delegates to the
+  run's `LarkyVault` when supplied, otherwise to the module's default vault.
+  `@vgs//agent_gateway` exposes a shared `session` facade whose methods use the
+  run's `AgentGatewaySession`, otherwise `LarkyAgentGateway.currentSession()`
+  from the `ServiceLoader` host. With neither session source, methods fail even
+  though loading the module is allowed. Fallback applies when a provider is
+  absent, not when a supplied provider rejects an operation.
+- Each loaded-script call gets a fresh `StarlarkThread` and its own provider
+  registry. Load-context providers and expiration are not retained as defaults
+  for later calls; the load's step limit remains the default. A call without
+  providers uses module defaults, never the previous call's providers.
+- Preserve the Java compatibility API: `VaultModule` still implements
+  `LarkyVault`; `INSTANCE`, its public constructor, and `getVault()` remain.
+  Direct Java calls use the module's default vault. Script calls retain their
+  names, parameters, validation, and lowercase storage normalization regardless
+  of the chosen provider.
+
+For example, with `loaded` already created and `vaultForThisMessage` supplied by
+the host, #830 allows the same script function to use a different vault per call:
+
+```java
+ModuleProviders providers = ModuleProviders.of()
+    .with(LarkyVault.class, vaultForThisMessage);
+loaded.invoke("process", Map.of(LarkyEvaluator.MODULE_PROVIDERS, providers), input);
+```
+
+When modifying this design, extend `ModuleProvidersTest`,
+`AgentGatewayModuleTest`, and `LarkyLoadedScriptTest` from the stack. Cover
+provider precedence, no-provider fallback, calls with different providers followed
+by a call without them, rejected bindings, and unchanged argument validation and
+Java behavior. Keep execution providers out of compiled-program cache keys and
+cached values: they belong to the run, while `CACHE_NAMESPACE` separates cached
+host-supplied module programs. Validate native-image metadata when changing
+annotated entry points.
+
 ## Build and validation
 
 Run commands from the repository root. Use JDK 21 or newer and Maven 3.9 or newer.
