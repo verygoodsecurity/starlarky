@@ -31,7 +31,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Runs each ScriptTest file in testdata/ (upstream's, then VGS's in src/test/vgs) as a JUnit test, so that Maven
+ * Runs each ScriptTest file in testdata/ (upstream's, then VGS's in src/test/vgs and the bytecode VMs' in src/test/bc) as a JUnit test, so that Maven
  * runs them. Failure details are printed to stderr by ScriptTest.
  */
 @RunWith(Parameterized.class)
@@ -43,6 +43,7 @@ public final class ScriptFilesTest {
 
   private static final File TESTDATA = new File("src/test/java/net/starlark/java/eval/testdata");
   private static final File VGS_TESTDATA = new File("src/test/vgs/net/starlark/java/eval/testdata");
+  private static final File BC_TESTDATA = new File("src/test/bc/net/starlark/java/eval/testdata");
 
   /**
    * Edits applied to upstream test files before running them, for syntax that VGS rejects on
@@ -59,7 +60,7 @@ public final class ScriptFilesTest {
   @Parameters(name = "{0}")
   public static List<Object[]> files() {
     List<Object[]> params = new ArrayList<>();
-    for (File dir : new File[] {TESTDATA, VGS_TESTDATA}) {
+    for (File dir : new File[] {TESTDATA, VGS_TESTDATA, BC_TESTDATA}) {
       String[] names = dir.list((d, name) -> name.endsWith(".star"));
       if (names == null) {
         continue; // no such directory
