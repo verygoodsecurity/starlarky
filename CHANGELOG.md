@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.2.0](https://github.com/verygoodsecurity/starlarky/compare/v1.1.0...v1.2.0) (2026-11-13)
+
+
+### Features
+
+* port python-jose 3.5.0's jwt module to @vendor//jose ([#779](https://github.com/verygoodsecurity/starlarky/issues/779)) ([9fb96a2](https://github.com/verygoodsecurity/starlarky/commit/9fb96a20999583300c142b3c6af479e7864b6fed))
+
+
+### Bug Fixes
+
+* **jsr223:** keep eval(ScriptContext)'s exception type; document the refusal ([#841](https://github.com/verygoodsecurity/starlarky/issues/841)) ([1c3a613](https://github.com/verygoodsecurity/starlarky/commit/1c3a6137cb407dd101ee27a634ed1ead9f7fcd35))
+
+
+### Documentation
+
+* AR-192 configure agent and security guidance (starlarky) ([#838](https://github.com/verygoodsecurity/starlarky/issues/838)) ([cc5382e](https://github.com/verygoodsecurity/starlarky/commit/cc5382e783a79eaf67fc66449485de1ea8cb8725))
+* **AR-192:** add shared review baseline to Starlarky guidance ([cc5382e](https://github.com/verygoodsecurity/starlarky/commit/cc5382e783a79eaf67fc66449485de1ea8cb8725))
+
+
+### Continuous Integration
+
+* build the native runlarky binary for macOS and Windows on release tags ([#842](https://github.com/verygoodsecurity/starlarky/issues/842)) ([e745a51](https://github.com/verygoodsecurity/starlarky/commit/e745a515a481855743b8274326e1bdc5dab998ee))
+* publish the runlarky binary as ghcr.io/verygoodsecurity/larky on release tags ([#843](https://github.com/verygoodsecurity/starlarky/issues/843)) ([d1beaea](https://github.com/verygoodsecurity/starlarky/commit/d1beaeaeae7f688a43f3d9cb2df4c191b524035e))
+
 ## [1.1.0](https://github.com/verygoodsecurity/starlarky/compare/v1.0.0...v1.1.0) (2026-11-12)
 
 
