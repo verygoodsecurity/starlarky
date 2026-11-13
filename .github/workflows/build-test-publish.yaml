@@ -6,7 +6,7 @@
 ##    - package the jar with unit tests
 ##    - run integrations tests
 ##    - publish the jar with github tag if event is push.tag
-##    - deploy libstarlark and larky to GitHub Packages on a tag (or on demand for an existing tag)
+##    - deploy larky-wasm, libstarlark and larky to GitHub Packages on a tag (or on demand for an existing tag)
 
 name: build test and publish
 
@@ -196,10 +196,10 @@ jobs:
         env:
           TAG: ${{ inputs.tag || github.ref_name }}
 
-      - name: Deploy libstarlark and larky
+      - name: Deploy larky-wasm, libstarlark and larky
         run: |
-          mvn -B -ntp versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false -pl libstarlark,larky
+          mvn -B -ntp versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false -pl larky-wasm,libstarlark,larky
           mvn -B -ntp versions:set-property -Dproperty=libstarlark.version -DnewVersion="$VERSION" -DgenerateBackupPoms=false -pl larky
-          mvn -B -ntp deploy -DskipTests -pl libstarlark,larky
+          mvn -B -ntp deploy -DskipTests -pl larky-wasm,libstarlark,larky
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

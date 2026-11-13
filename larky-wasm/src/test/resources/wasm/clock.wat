@@ -1,0 +1,33 @@
+;; Reads the realtime (id 0) and monotonic (id 1) clocks and writes each value in decimal on its
+;; own line. Exits with clock_time_get's errno if it fails.
+(module
+  (import "wasi_snapshot_preview1" "clock_time_get" (func $clock_time_get (param i32 i64 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "proc_exit" (func $proc_exit (param i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 300) "\n")
+  (func $write (param $ptr i32) (param $len i32)
+    (i32.store (i32.const 0) (local.get $ptr))
+    (i32.store (i32.const 4) (local.get $len))
+    (drop (call $fd_write (i32.const 1) (i32.const 0) (i32.const 1) (i32.const 16))))
+  (func $write_u64 (param $v i64)
+    (local $p i32)
+    (local.set $p (i32.const 2048))
+    (loop $digit
+      (local.set $p (i32.sub (local.get $p) (i32.const 1)))
+      (i32.store8 (local.get $p)
+        (i32.add (i32.const 48) (i32.wrap_i64 (i64.rem_u (local.get $v) (i64.const 10)))))
+      (local.set $v (i64.div_u (local.get $v) (i64.const 10)))
+      (br_if $digit (i64.ne (local.get $v) (i64.const 0))))
+    (call $write (local.get $p) (i32.sub (i32.const 2048) (local.get $p))))
+  (func $print_clock (param $id i32)
+    (local $errno i32)
+    ;; A non-zero sentinel, so a host that returns success without writing is caught.
+    (i64.store (i32.const 512) (i64.const 12345))
+    (local.set $errno (call $clock_time_get (local.get $id) (i64.const 1) (i32.const 512)))
+    (if (local.get $errno) (then (call $proc_exit (local.get $errno))))
+    (call $write_u64 (i64.load (i32.const 512)))
+    (call $write (i32.const 300) (i32.const 1)))
+  (func (export "_start")
+    (call $print_clock (i32.const 0))
+    (call $print_clock (i32.const 1))))

@@ -1,0 +1,22 @@
+;; Reads ptr and len (little-endian u32s) from stdin, fills them with random_get, and writes the
+;; len bytes at ptr to stdout. Exits with random_get's errno if it fails. 4 pages of memory.
+(module
+  (import "wasi_snapshot_preview1" "fd_read" (func $fd_read (param i32 i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "random_get" (func $random_get (param i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_write" (func $fd_write (param i32 i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "proc_exit" (func $proc_exit (param i32)))
+  (memory (export "memory") 4)
+  (func (export "_start")
+    (local $ptr i32)
+    (local $len i32)
+    (local $errno i32)
+    (i32.store (i32.const 32) (i32.const 0))
+    (i32.store (i32.const 36) (i32.const 8))
+    (drop (call $fd_read (i32.const 0) (i32.const 32) (i32.const 1) (i32.const 40)))
+    (local.set $ptr (i32.load (i32.const 0)))
+    (local.set $len (i32.load (i32.const 4)))
+    (local.set $errno (call $random_get (local.get $ptr) (local.get $len)))
+    (if (local.get $errno) (then (call $proc_exit (local.get $errno))))
+    (i32.store (i32.const 32) (local.get $ptr))
+    (i32.store (i32.const 36) (local.get $len))
+    (drop (call $fd_write (i32.const 1) (i32.const 32) (i32.const 1) (i32.const 40)))))
