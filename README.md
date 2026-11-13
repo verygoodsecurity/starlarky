@@ -81,12 +81,25 @@ This would build `larky-runner` executable in `runlarky/target` directory, that 
 
 Run `larky-runner` with no arguments to get an interactive Larky prompt. It has the same environment as a script run by the runner, so Python builtins and `load()` of `@stdlib`, `@vendor` and `@vgs` modules work. Use it to try out a snippet or poke at a module before putting it in a script.
 
-**Install on Linux (x86-64).** Each release from 1.0.0 on attaches a native `larky-<version>-linux` binary. Download it from the [releases page](https://github.com/verygoodsecurity/starlarky/releases), then:
+**Install a prebuilt binary.** Each release attaches native binaries to its [releases page](https://github.com/verygoodsecurity/starlarky/releases):
+
+| Platform | Asset |
+|---|---|
+| Linux x86-64 | `larky-<version>-linux` (every release from 1.0.0 on) |
+| Linux aarch64 | `larky-<version>-linux-aarch64` |
+| macOS (Apple Silicon) | `larky-<version>-macos-aarch64` |
+| Windows x64 | `larky-<version>-windows-x64.exe` |
+
+The Linux aarch64, macOS and Windows binaries are built from the first release after 1.1.0 on. There is no Intel macOS or ARM Windows build, because GraalVM doesn't publish one.
 
 ```bash
-chmod +x larky-1.0.0-linux
-./larky-1.0.0-linux
+chmod +x larky-1.1.1-linux
+./larky-1.1.1-linux
 ```
+
+The Linux binaries are dynamically linked against glibc (2.34 or newer) and zlib, so they run on Ubuntu 22.04+, Debian 12+ or RHEL 9+, but not on musl systems such as Alpine, nor in an empty (`scratch`) container image. In a container, use a glibc base image such as `debian:bookworm-slim` or `ubuntu:24.04`.
+
+The macOS binary isn't signed. If macOS refuses to open a downloaded copy, remove the quarantine flag with `xattr -d com.apple.quarantine larky-<version>-macos-aarch64`.
 
 **Build a native binary on macOS (Apple Silicon).** `install_graalvm.sh` downloads GraalVM into `.graalvm`, and the `native` profile builds `runlarky/target/larky-runner` with it. The native build takes several minutes.
 
@@ -126,7 +139,13 @@ b"aGk="
 - Commands: `:help`, `:load <file>` (run a `.star` file in the session), `:reset` (forget every binding), `:quit` or Ctrl-D.
 - Input can also be piped in. There's no prompt then, and the exit status is 1 if any input failed: `echo 'print(1 + 1)' | larky-runner` prints `2`.
 
-Script mode (`-s`, `-i`, `-o`, `-l`, `-d`) works as before.
+Script mode (`-s`, `-i`, `-o`, `-l`, `-d`) works as before. `-s` and `-o` take file paths, so a script can come in on standard input and its result go to standard output:
+
+```bash
+./larky-1.1.1-linux -s /dev/stdin -o /dev/stdout < script.star
+```
+
+The result of the script's last expression is printed. A failing script exits with status 1 and prints its traceback on standard error.
 
 ### Pylarky
 
