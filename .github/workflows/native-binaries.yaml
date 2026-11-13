@@ -1,7 +1,8 @@
 ---
 ## Native runlarky binaries for Linux aarch64, macOS and Windows, next to the Linux x64 one that
-## build-test-publish.yaml builds and attaches.
-## - on a tag: build each binary, smoke-test it, and attach it to the tag's GitHub release
+## build-test-publish.yaml builds and attaches, and the ghcr.io/verygoodsecurity/larky image (linux/amd64, arm64).
+## - on a tag: build each binary, smoke-test it, and attach it to the tag's GitHub release; on a release tag
+##   (vX.Y.Z, no pre-release suffix) also push the image as X.Y.Z and latest
 ## - on a pull request that changes how they are built, or on demand: build and smoke-test only
 
 name: native binaries
@@ -15,6 +16,7 @@ on:
       - ".github/workflows/native-binaries.yaml"
       - "install_graalvm.sh"
       - "smoke-test-native.sh"
+      - "Dockerfile.runtime"
       - "runlarky/pom.xml"
       - "runlarky/src/main/resources/META-INF/native-image/**"
   workflow_dispatch:
@@ -36,6 +38,12 @@ jobs:
         include:
           # GraalVM Community 25.4 ships macOS for aarch64 only, and Windows for x64 only.
           # On Linux the binary links glibc and zlib dynamically, as the x64 one does.
+          # linux-x64 is built here for the image only; build-test-publish.yaml attaches the x64 release binary.
+          - os: linux-x64
+            runs-on: ubuntu-24.04
+            graalvm-home: .graalvm
+            binary: larky-runner
+            suffix: ""
           - os: linux-aarch64
             runs-on: ubuntu-24.04-arm
             graalvm-home: .graalvm
@@ -134,6 +142,7 @@ jobs:
 
       - name: Upload to release
         run: |
+          rm -f dist/*-linux-x64  # build-test-publish.yaml attaches the x64 one as larky-<version>-linux
           ls -l dist
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
@@ -142,3 +151,77 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  image:
+    name: Image
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/larky
+      # push only for a release tag such as v1.2.3; pre-release tags (v1.2.3-awg.1) and other runs only build
+      PUBLISH: ${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - name: Download the Linux binaries
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8
+        with:
+          pattern: native-linux-*
+          path: downloaded
+          merge-multiple: true
+
+      - name: Name them by Docker platform
+        run: |
+          mkdir -p image
+          mv downloaded/larky-*-linux-x64 image/larky-linux-amd64
+          mv downloaded/larky-*-linux-aarch64 image/larky-linux-arm64
+          chmod 0755 image/*
+          ls -l image
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
+
+      - name: Smoke-test the amd64 image
+        # a script on standard input, its result on standard output
+        run: |
+          docker buildx build --platform linux/amd64 --load -t larky:smoke -f Dockerfile.runtime image
+          OUT=$(printf 'load("@stdlib//json", "json")\njson.dumps({"a": [1]})\n' \
+            | docker run --rm -i larky:smoke -s /dev/stdin -o /dev/stdout)
+          if [ "$OUT" != '{"a":[1]}' ]; then
+            echo "image smoke test: expected {\"a\":[1]}, got $OUT"
+            exit 1
+          fi
+          echo "image smoke test passed"
+
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302  # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+          labels: |
+            org.opencontainers.image.title=larky
+            org.opencontainers.image.description=Larky, a Starlark-based scripting language: the native runlarky CLI
+
+      - name: Log in to ghcr.io
+        if: ${{ env.PUBLISH == 'true' }}
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550  # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build linux/amd64 and linux/arm64, and push on a release tag
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc  # v7.4.0
+        with:
+          context: image
+          file: Dockerfile.runtime
+          platforms: linux/amd64,linux/arm64
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
