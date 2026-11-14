@@ -126,6 +126,16 @@ public final class HostValues {
     return new HostValues(semantics, maxSteps, providers, handler);
   }
 
+  /**
+   * The same, leaving {@code print()} output of callbacks to Starlark's default handler (standard
+   * error, prefixed with the caller's location), as on a {@link StarlarkThread} the host creates
+   * itself and never gives a handler. For hosts that read values on their own thread today and must
+   * keep printing where they did.
+   */
+  public HostValues withStarlarkDefaultPrintHandler() {
+    return new HostValues(semantics, maxSteps, providers, null);
+  }
+
   /** The semantics callbacks run with. */
   public StarlarkSemantics semantics() {
     return semantics;

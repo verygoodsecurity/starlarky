@@ -202,4 +202,23 @@ public class HostValuesTest {
     console.assertThat().onceInLog(MessageType.VERBOSE, ".*to-console.*");
     console.assertThat().timesInLog(0, MessageType.VERBOSE, ".*to-handler.*");
   }
+
+  @Test
+  public void starlarkDefaultPrintHandlerWritesToStandardErrorWithTheLocation() throws Exception {
+    TestingConsole console = new TestingConsole();
+    ParsedStarFile parsed =
+        evaluate("def say(word):\n    print(word)\n    return 1\n", null, console);
+    Object say = parsed.getGlobalEnvironmentVariable("say", Object.class);
+    java.io.ByteArrayOutputStream err = new java.io.ByteArrayOutputStream();
+    java.io.PrintStream saved = System.err;
+    System.setErr(new java.io.PrintStream(err, true, StandardCharsets.UTF_8));
+    try {
+      parsed.hostValues().withStarlarkDefaultPrintHandler().call(say, "to-stderr");
+    } finally {
+      System.setErr(saved);
+    }
+    assertThat(err.toString(StandardCharsets.UTF_8))
+        .isEqualTo("main.star:2:10: to-stderr" + System.lineSeparator());
+    console.assertThat().timesInLog(0, MessageType.VERBOSE, ".*to-stderr.*");
+  }
 }
