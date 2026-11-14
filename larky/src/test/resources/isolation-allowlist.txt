@@ -1,6 +1,6 @@
 # Allowlist for IsolationStructureTest. Format: KIND<TAB>class#field<TAB>reason (one line).
 # KIND: THREAD (StarlarkThread stored/captured), NONFINAL (non-final field in a non-freeze-guarded
-# StarlarkValue), STATIC (static mutable state). See the Javadoc of IsolationStructureTest.
+# StarlarkValue), STATIC (static mutable state), SHARED_THROWABLE (static Throwable). See the Javadoc of IsolationStructureTest.
 # The test fails when a violation is missing here and when a line here no longer matches a
 # violation: a change that fixes a violation must delete its line. Do not add lines to silence
 # the test without a reviewed reason.
@@ -251,16 +251,22 @@ STATIC	net.starlark.java.ext.ByteList#SPACE	static final array lookup table, wri
 STATIC	net.starlark.java.ext.ByteList$PY_ISSPACE#PY_CTF_SPACE	static final array lookup table, written only in <clinit>; contents are mutable
 STATIC	net.starlark.java.ext.CodecHelper$ThreadLocalCoders#DECODERS	per-OS-thread factory/codec cache; holds no evaluation state
 STATIC	net.starlark.java.ext.CodecHelper$ThreadLocalCoders#ENCODERS	per-OS-thread factory/codec cache; holds no evaluation state
-THREAD	com.verygood.security.larky.Larky#thread	REPL main class: process-wide thread; not reachable from library paths (audit A#Larky)
-THREAD	com.verygood.security.larky.modules.CollectionsModule$LarkyNamedTuple#currentThread	stores the creating thread; entry points without a thread use it (audit A: LarkyNamedTuple)
-THREAD	com.verygood.security.larky.modules.JsonModule$Encoder#thread	transient: created per json.dumps call, never stored in a value
-THREAD	com.verygood.security.larky.modules.testing.UnittestModule$LarkyFunctionTestCase#thread	test-only module (TEST_MODULES); stores the thread of the test run
-THREAD	com.verygood.security.larky.modules.types.LarkyIterator#currentThread	iterator stores thread set by setCurrentThread/next(); used by thread-less iterator()/hasNext (audit A: LarkyIterator)
-THREAD	com.verygood.security.larky.modules.types.Property#thread	descriptor value stores the defining thread; get()/set() run on it (audit A: Property)
-THREAD	com.verygood.security.larky.modules.types.Property$PropertyBuilder#thread	Lombok builder of Property: transient holder of the thread
-THREAD	com.verygood.security.larky.modules.types.structs.SimpleStruct#currentThread	struct value stores the creating thread (audit A: SimpleStruct, covers Immutable/MutableStruct)
-THREAD	com.verygood.security.larky.modules.xml.LarkyXMLNamespaceContext#currentThread	per-thread registry object stores thread and mutability (audit A: LarkyXMLNamespaceContext)
-THREAD	com.verygood.security.larky.objects.LarkyPyObject#thread	object/descriptor/function values store the defining thread (audit A: LarkyPyObject and subclasses)
-THREAD	com.verygood.security.larky.objects.LarkySuper#thread	per-call super() object; thread set by call()/__get__ (audit A: LarkySuper)
-THREAD	com.verygood.security.larky.objects.type.LarkyProvidedTypeClass#thread	class value stores the defining thread; binaryOp has no thread (audit A: LarkyProvidedTypeClass)
-THREAD	net.starlark.java.eval.PercentFormat$Args#thread	transient: one per str % args evaluation, never stored in a value
+THREAD	com.verygood.security.larky.Larky#thread	REPL main class: static final thread, only used by Larky.java; fix: move into main() so the class has no static evaluation state
+THREAD	com.verygood.security.larky.modules.CollectionsModule$LarkyNamedTuple#currentThread	only LarkyObject defaults (getErrorMessageForUnknownField) read it, no Starlark call is made on it; fix: delete the field (getCurrentThread() returns null as the built-in types do)
+THREAD	com.verygood.security.larky.modules.JsonModule$Encoder#thread	transient helper created per json.dumps call, never stored in a value or outliving the call; no change needed (non-StarlarkValue helper)
+THREAD	com.verygood.security.larky.modules.testing.UnittestModule$LarkyFunctionTestCase#thread	test-only (TEST_MODULES): junit TestCase.runTest() has no parameters; fix: run the suite from a builtin that has the thread and pass it down (lowest priority)
+THREAD	com.verygood.security.larky.modules.types.LarkyIterator#currentThread	java.util.Iterator.hasNext()/next() and StarlarkIterable.iterator() have no thread; per-evaluation by nature, so keep out of module globals; fix: take the thread from the per-call context
+THREAD	com.verygood.security.larky.modules.types.Property#thread	get()/set() @StarlarkMethods do not use the stored thread (reached reflectively from MutableStruct.getField); fix: delete field, get/set take useStarlarkThread=true, __get__/__set__ require a thread
+THREAD	com.verygood.security.larky.modules.types.Property$PropertyBuilder#thread	Lombok builder of Property, carries the same thread into the Property; goes away with the Property field
+THREAD	com.verygood.security.larky.modules.types.structs.SimpleStruct#currentThread	read by thread-less entry points (getValue via LarkyObject.getField, repr, truth, equals, hashCode, binaryOp, compareTo); fix: delete field, thread-aware hooks and per-call context failing closed (also covers ImmutableStruct, MutableStruct, SimpleStructWithMethods, TextPIIEntity)
+THREAD	com.verygood.security.larky.modules.xml.LarkyXMLNamespaceContext#currentThread	already per evaluation (registry per file thread); fix: drop currentThread, keep the Mutability as its own freeze state
+THREAD	com.verygood.security.larky.objects.LarkyPyObject#thread	read by thread-less __init__, equals, compareTo, PyObject.setField and descriptor __get__ fallbacks; fix: take a Mutability for __dict__ instead of a thread, __init__ gets the thread from LarkyProvidedTypeClass.call (covers LarkyDescriptor, LarkyFunction, LarkyMethod, class/static method instances)
+THREAD	com.verygood.security.larky.objects.LarkySuper#thread	per-call super() object; __getattribute__(name, thread) ignores its thread argument and uses the stored one; fix: use the argument, delete field, make superType/obj/objType final
+THREAD	com.verygood.security.larky.objects.type.LarkyProvidedTypeClass#thread	read by HasBinary.binaryOp and the LarkyObject defaults via getCurrentThread(), and passed to LarkyFunction.create for each method; fix: delete field, thread-aware binaryOp hook, LarkyFunction no longer needs a thread
+THREAD	net.starlark.java.eval.PercentFormat$Args#thread	transient: one per str % args evaluation, never stored in a value; no change needed
+SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyAttributeError#ATTRIBUTE_ERROR	EvalException cause of LarkyAttributeError.INSTANCE; goes away with INSTANCE
+SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyAttributeError#INSTANCE	never thrown (grep: no throw site); used only as a returned sentinel (PythonBuiltins.hasattr compares against it); remove or keep as sentinel only
+SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyIndexError#INDEX_ERROR	EvalException cause of LarkyIndexError.INSTANCE; goes away with INSTANCE
+SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyIndexError#INSTANCE	never thrown (grep: no throw site); used only as a returned sentinel (LarkyIterator compares nextVal against it); remove or keep as sentinel only
+SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyStopIteration#INSTANCE	thrown from PythonBuiltins.next / LarkyIterator (4 throw sites) on this base; the per-raise fix removes the throw sites, after which it remains only as a returned sentinel
+SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyStopIteration#STOP_ITERATION	EvalException cause of LarkyStopIteration.INSTANCE; goes away with INSTANCE

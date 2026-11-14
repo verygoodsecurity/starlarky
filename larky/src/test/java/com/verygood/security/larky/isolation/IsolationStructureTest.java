@@ -74,6 +74,10 @@ import org.objectweb.asm.Type;
  *       field of array / {@code java.util} collection / stateful JDK or crypto type that is not
  *       initialised by an immutable factory ({@code Immutable*}, {@code Collections.unmodifiable*},
  *       {@code List.of}, ...). Key: {@code class#field}.
+ *   <li>{@code SHARED_THROWABLE}: a static field (final or not) whose type is assignable to {@code
+ *       Throwable}. A shared exception object keeps the call stack of the first evaluation that
+ *       threw it ({@code EvalException.ensureStack} records it once), leaking one evaluation's
+ *       locations and function names into another. Key: {@code class#field}.
  * </ul>
  *
  * <p>The allowlist {@code isolation-allowlist.txt} (tab separated: {@code KIND}, {@code key},
@@ -194,6 +198,9 @@ public class IsolationStructureTest {
         out.add(new Violation("THREAD", key));
       }
       if (f.isStatic()) {
+        if (f.desc().startsWith("L") && isThrowable(f.desc().substring(1, f.desc().length() - 1))) {
+          out.add(new Violation("SHARED_THROWABLE", key));
+        }
         if (isStaticMutable(c, f)) {
           out.add(new Violation("STATIC", key));
         }
@@ -253,6 +260,10 @@ public class IsolationStructureTest {
       }
     }
     return mutabilityField && check;
+  }
+
+  private boolean isThrowable(String name) {
+    return allSupertypes(name).contains("java/lang/Throwable");
   }
 
   private boolean isStarlarkValue(String name) {
@@ -464,7 +475,7 @@ public class IsolationStructureTest {
             .that(p.length == 3 && !p[2].isBlank())
             .isTrue();
         assertWithMessage("unknown kind on allowlist line %s", lineNo)
-            .that(Set.of("THREAD", "NONFINAL", "STATIC"))
+            .that(Set.of("THREAD", "NONFINAL", "STATIC", "SHARED_THROWABLE"))
             .contains(p[0]);
         Violation v = new Violation(p[0], p[1]);
         assertWithMessage("duplicate allowlist entry on line %s: %s", lineNo, v)
