@@ -16,10 +16,30 @@ import org.junit.Test;
 
 public class ModuleCacheTest {
 
+  private boolean wasEnabled;
+
   @Before
-  @After
-  public void clear() {
+  public void enable() {
+    wasEnabled = ModuleCache.isEnabled();
+    ModuleCache.setEnabled(true);
     ModuleCache.clear();
+  }
+
+  @After
+  public void restore() {
+    ModuleCache.clear();
+    ModuleCache.setEnabled(wasEnabled);
+  }
+
+  @Test
+  public void notSharedWhenDisabled() throws Exception {
+    ModuleCache.setEnabled(false);
+    Module first =
+        newEvaluator().eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
+    Module second =
+        newEvaluator().eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
+    assertThat(second).isNotSameInstanceAs(first);
+    assertThat(ModuleCache.size()).isEqualTo(0);
   }
 
   private static LarkyEvaluator newEvaluator() {

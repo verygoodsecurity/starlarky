@@ -124,7 +124,8 @@ public final class LarkyEvaluator {
           .module(module)
           .build();
     }
-    // Larky's own modules are loaded once per process and shared (see ModuleCache).
+    // With the module cache on, Larky's own modules are loaded once per process and shared (see
+    // ModuleCache).
     if (content instanceof ResourceContentStarFile) {
       Module shared =
           ModuleCache.lookup(
