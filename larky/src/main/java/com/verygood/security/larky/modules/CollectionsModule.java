@@ -60,6 +60,7 @@ import org.jetbrains.annotations.Nullable;
             "* UserList     wrapper around list objects for easier list subclassing\n" +
             "* UserString   wrapper around string objects for easier string subclassing\n"
 )
+@com.google.errorprone.annotations.Immutable
 public class CollectionsModule implements StarlarkValue {
 
   public static final CollectionsModule INSTANCE = new CollectionsModule();

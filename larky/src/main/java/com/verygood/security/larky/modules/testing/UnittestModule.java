@@ -33,6 +33,7 @@ import lombok.Setter;
     name = "unittest",
     category = "BUILTIN",
     doc = "This module implements unittests")
+@com.google.errorprone.annotations.Immutable
 public class UnittestModule implements StarlarkValue {
 
   public static final UnittestModule INSTANCE = new UnittestModule();
