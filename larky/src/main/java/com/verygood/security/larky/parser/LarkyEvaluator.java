@@ -77,15 +77,17 @@ public final class LarkyEvaluator {
   }
 
   /**
-   * How host code reads the values of what this evaluator ran: with this evaluator's semantics
-   * and step limit, each access on a fresh thread. See {@link HostValues}.
+   * How host code reads the values of what this evaluator ran: with this evaluator's semantics,
+   * step limit and reporter (where {@code print()} of callbacks went when they ran on the
+   * evaluation's own thread), each access on a fresh thread. See {@link HostValues}.
    */
   public HostValues hostValues() {
     Object stepLimit = environment.get(STEP_LIMIT);
     return HostValues.of(
         getLarkySemantics(),
         stepLimit == null ? null : Long.parseLong(stepLimit.toString()),
-        ModuleProviders.given(environment.get(MODULE_PROVIDERS)));
+        ModuleProviders.given(environment.get(MODULE_PROVIDERS)))
+        .withPrintHandler(reporter::report);
   }
 
   /**

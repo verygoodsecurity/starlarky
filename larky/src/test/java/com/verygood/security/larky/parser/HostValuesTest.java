@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.console.Message.MessageType;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +53,11 @@ public class HostValuesTest {
           "");
 
   static ParsedStarFile evaluate(String script, Object stepLimit) throws Exception {
+    return evaluate(script, stepLimit, new TestingConsole());
+  }
+
+  static ParsedStarFile evaluate(String script, Object stepLimit, TestingConsole console)
+      throws Exception {
     ImmutableMap<String, Object> globals =
         stepLimit == null
             ? ImmutableMap.of()
@@ -61,7 +67,7 @@ public class HostValuesTest {
         .evaluate(
             InMemMapBackedStarFile.createStarFile(
                 "main.star", script),
-            new TestingConsole());
+            console);
   }
 
   @Test
@@ -183,13 +189,17 @@ public class HostValuesTest {
   }
 
   @Test
-  public void printOfCallbacksIsDiscardedUnlessAHandlerIsGiven() throws Exception {
+  public void printOfCallbacksGoesToTheEvaluationsConsoleUnlessAHandlerIsGiven()
+      throws Exception {
+    TestingConsole console = new TestingConsole();
     ParsedStarFile parsed =
-        evaluate("def say():\n    print('hi')\n    return 1\n", null);
+        evaluate("def say(word):\n    print(word)\n    return 1\n", null, console);
     Object say = parsed.getGlobalEnvironmentVariable("say", Object.class);
+    parsed.hostValues().call(say, "to-console");
     List<String> printed = new ArrayList<>();
-    parsed.hostValues().call(say);
-    parsed.hostValues().withPrintHandler((t, m) -> printed.add(m)).call(say);
-    assertThat(printed).containsExactly("hi");
+    parsed.hostValues().withPrintHandler((t, m) -> printed.add(m)).call(say, "to-handler");
+    assertThat(printed).containsExactly("to-handler");
+    console.assertThat().onceInLog(MessageType.VERBOSE, ".*to-console.*");
+    console.assertThat().timesInLog(0, MessageType.VERBOSE, ".*to-handler.*");
   }
 }

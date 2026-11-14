@@ -65,9 +65,12 @@ import net.starlark.java.eval.StarlarkThread;
  *       later call.
  *   <li>Nothing is shared between calls, so instances are thread-safe, and a getter that loops
  *       forever stops at the step limit with an {@link EvalException} instead of hanging.
- *   <li>{@code print()} output of the callbacks is discarded by default: the evaluation's console
- *       belongs to the finished evaluation (its writer may be closed). Use {@link
- *       #withPrintHandler} to receive it.
+ *   <li>{@code print()} output of the callbacks goes where it went before host code read values
+ *       this way: an instance from {@link ParsedStarFile#hostValues()} sends it to the
+ *       evaluation's reporter, as a callback run on the evaluation's own thread did; an instance
+ *       without one ({@link #create()}, {@link #of}) leaves Starlark's default handler (standard
+ *       error), as a thread the host created itself did. Use {@link #withPrintHandler} to send it
+ *       elsewhere.
  * </ul>
  *
  * <p>Example, for a service that reads the response of a script whose result is a struct with a
@@ -88,25 +91,23 @@ import net.starlark.java.eval.StarlarkThread;
  */
 public final class HostValues {
 
-  private static final StarlarkThread.PrintHandler DISCARD = (thread, msg) -> {};
-
   private final StarlarkSemantics semantics;
   @Nullable private final Long maxSteps;
   @Nullable private final ModuleProviders providers;
-  private final StarlarkThread.PrintHandler printHandler;
+  @Nullable private final StarlarkThread.PrintHandler printHandler;
 
   private HostValues(
       StarlarkSemantics semantics,
       @Nullable Long maxSteps,
       @Nullable ModuleProviders providers,
-      StarlarkThread.PrintHandler printHandler) {
+      @Nullable StarlarkThread.PrintHandler printHandler) {
     this.semantics = semantics;
     this.maxSteps = maxSteps;
     this.providers = providers;
     this.printHandler = printHandler;
   }
 
-  /** Larky's default semantics, no step limit, no providers. */
+  /** Larky's default semantics, no step limit, no providers, Starlark's default print handler. */
   public static HostValues create() {
     return of(LarkySemantics.LARKY_SEMANTICS, null, null);
   }
@@ -117,7 +118,7 @@ public final class HostValues {
    */
   public static HostValues of(
       StarlarkSemantics semantics, @Nullable Long maxSteps, @Nullable ModuleProviders providers) {
-    return new HostValues(semantics, maxSteps, providers, DISCARD);
+    return new HostValues(semantics, maxSteps, providers, null);
   }
 
   /** The same, delivering {@code print()} output of callbacks to {@code handler}. */
@@ -145,7 +146,9 @@ public final class HostValues {
   private <T> T run(String name, Body<T> body) throws EvalException, InterruptedException {
     try (Mutability mu = Mutability.create("HostValues." + name)) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, semantics);
-      thread.setPrintHandler(printHandler);
+      if (printHandler != null) {
+        thread.setPrintHandler(printHandler);
+      }
       if (providers != null) {
         providers.installOn(thread);
       }
