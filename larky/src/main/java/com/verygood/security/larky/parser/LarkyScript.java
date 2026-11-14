@@ -223,8 +223,9 @@ public class LarkyScript {
                                               Console console)
       throws IOException, EvalException {
     Module module;
+    final LarkyEvaluator evaluator = new LarkyEvaluator(this, moduleSet, console);
     try {
-      module = new LarkyEvaluator(this, moduleSet, console).eval(content).module();
+      module = evaluator.eval(content).module();
     } catch (InterruptedException e) {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
@@ -235,7 +236,8 @@ public class LarkyScript {
         .putAll(module.getPredeclaredBindings())
         .putAll(module.getGlobals())
         .buildKeepingLast(),
-        module);
+        module,
+        evaluator.hostValues());
   }
 
   private static class StarFilesSupplier
