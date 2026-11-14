@@ -7,6 +7,7 @@ import com.verygood.security.larky.parser.CurrentEvaluation;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkThread;
@@ -17,15 +18,19 @@ import org.jetbrains.annotations.Nullable;
 import lombok.SneakyThrows;
 
 class MutableStruct extends SimpleStruct {
-  MutableStruct(Dict<String, Object> fields, StarlarkThread currentThread) {
-    super(fields, currentThread);
+  // The struct's own freeze state: the Mutability of the thread that created it. Not the thread.
+  private final Mutability mutability;
+
+  MutableStruct(Dict<String, Object> fields, Mutability mutability) {
+    super(fields);
+    this.mutability = mutability;
   }
 
   @Override
   @StarlarkMethod(name = PyProtocols.__DICT__, structField = true)
   public Dict<String, Object> dunderDict() throws EvalException {
     return composeAndFillDunderDictBuilder()
-        .build(this.currentThread.mutability());
+        .build(this.mutability);
   }
 
   @Override
@@ -54,7 +59,7 @@ class MutableStruct extends SimpleStruct {
 
   @Override
   public void setField(String name, Object value) throws EvalException {
-    if (this.currentThread.mutability().isFrozen()) {
+    if (this.mutability.isFrozen()) {
       throw new EvalException("Attempting to update a frozen structure");
     }
     Object field = this.fields.get(name);

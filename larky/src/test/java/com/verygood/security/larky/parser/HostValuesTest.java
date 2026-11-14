@@ -125,7 +125,9 @@ public class HostValuesTest {
     host.call(probe);
     assertThat(probe.threads).hasSize(2);
     assertThat(probe.threads.get(0)).isNotSameInstanceAs(probe.threads.get(1));
-    assertThat(probe.current).isEqualTo(probe.threads);
+    for (int i = 0; i < 2; i++) {
+      assertThat(probe.current.get(i)).isSameInstanceAs(probe.threads.get(i));
+    }
     assertThat(CurrentEvaluation.currentOrNull()).isNull();
   }
 
