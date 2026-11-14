@@ -394,7 +394,7 @@ public final class PythonBuiltins {
       return defaultO;
     }
     // else raise StopIteration
-    throw LarkyStopIteration.getInstance();
+    throw LarkyStopIteration.create();
   }
 
   @StarlarkMethod(
