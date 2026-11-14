@@ -11,12 +11,21 @@ public final class LarkyStopIteration extends Error implements StarlarkValue {
     super(exc);
   }
 
-  private static final EvalException STOP_ITERATION = new EvalException("StopIteration");
-
-  public static final LarkyStopIteration INSTANCE = new LarkyStopIteration(STOP_ITERATION);
+  /**
+   * Shared value for scripts that <em>return</em> StopIteration (compared by identity). Never throw
+   * it: an exception records its call stack once, so a shared one would report the first
+   * evaluation's location and function names to every later evaluation. Use {@link #create()}.
+   */
+  public static final LarkyStopIteration INSTANCE =
+      new LarkyStopIteration(new EvalException("StopIteration"));
 
   public static LarkyStopIteration getInstance() {
     return INSTANCE;
+  }
+
+  /** Returns a new exception, to be thrown by exactly one raise. */
+  public static LarkyStopIteration create() {
+    return new LarkyStopIteration(new EvalException("StopIteration"));
   }
 
   @Override
