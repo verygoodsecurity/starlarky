@@ -16,9 +16,9 @@ import net.starlark.java.syntax.FileOptions;
  * Process-wide cache of loaded Larky modules (stdlib, vendor, vgs): the module values themselves,
  * shared by every evaluation instead of re-running each module's top-level code.
  *
- * <p>Sharing is safe because a loaded module is frozen: its lists, dicts, structs and classes
- * reject mutation (see SharedModuleIsolationTest), and each evaluation keeps its own top-level
- * module and globals, discarded when it ends.
+ * <p>A loaded module is frozen: its lists, dicts, structs and classes reject mutation (see
+ * SharedModuleIsolationTest), and each evaluation keeps its own top-level module and globals,
+ * discarded when it ends.
  *
  * <p>A module's values may capture the values of the predeclared names it uses and of the modules
  * it loads, so a cached module is reused only if, in the new evaluation's environment, every
@@ -26,13 +26,28 @@ import net.starlark.java.syntax.FileOptions;
  * reusable. Per-evaluation bindings (e.g. JSR-223's) that a module uses therefore prevent sharing
  * it rather than leaking one evaluation's values into another.
  *
- * <p>{@code -Dlarky.moduleCache.disable=true} turns it off.
+ * <p>Off by default: {@code -Dlarky.moduleCache.enable=true} turns it on, and
+ * {@code -Dlarky.moduleCache.disable=true} keeps it off even then. Frozen is not enough to make a
+ * module safe to share: some loaded values keep mutable state, or the evaluation thread that
+ * created them, and concurrent evaluations sharing them fail intermittently. Keep it off until
+ * only modules verified free of such state are shared.
  */
 final class ModuleCache {
 
   private ModuleCache() {}
 
-  static final boolean DISABLED = Boolean.getBoolean("larky.moduleCache.disable");
+  private static volatile boolean enabled =
+      Boolean.getBoolean("larky.moduleCache.enable")
+          && !Boolean.getBoolean("larky.moduleCache.disable");
+
+  static boolean isEnabled() {
+    return enabled;
+  }
+
+  /** Turns the cache on or off, for tests. */
+  static void setEnabled(boolean value) {
+    enabled = value;
+  }
 
   private record Key(String path, FileOptions options, StarlarkSemantics semantics) {}
 
@@ -67,7 +82,7 @@ final class ModuleCache {
   @Nullable
   static Module lookup(
       String path, FileOptions options, StarlarkSemantics semantics, Map<String, Object> env) {
-    if (DISABLED) {
+    if (!enabled) {
       return null;
     }
     Entry entry = CACHE.get(key(path, options, semantics));
@@ -89,7 +104,7 @@ final class ModuleCache {
       @Nullable Set<String> predeclaredNames,
       Map<String, Object> env,
       Map<String, Module> loaded) {
-    if (DISABLED || predeclaredNames == null) {
+    if (!enabled || predeclaredNames == null) {
       return;
     }
     Map<String, Object> captured = new java.util.HashMap<>();
