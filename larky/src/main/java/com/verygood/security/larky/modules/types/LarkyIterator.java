@@ -190,7 +190,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
       if (hasNext()) {
         return StringCache.valueOf(obj.charAt(pos++));
       }
-      throw LarkyStopIteration.getInstance();
+      throw LarkyStopIteration.create();
     }
 
     @Override
@@ -229,7 +229,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
       if (hasNext()) {
         return iterator.next();
       }
-      throw LarkyStopIteration.getInstance();
+      throw LarkyStopIteration.create();
     }
 
     @Override
@@ -350,7 +350,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
     public Object __next__() throws EvalException {
       if (!hasNext()) {
         this.iterator_method = null;
-        throw LarkyStopIteration.getInstance();
+        throw LarkyStopIteration.create();
       }
       Object rval = nextVal;
       checkedForNext = false;
