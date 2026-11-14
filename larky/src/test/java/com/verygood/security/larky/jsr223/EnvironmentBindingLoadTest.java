@@ -49,4 +49,12 @@ public class EnvironmentBindingLoadTest {
     // the load binds `vault` in the script's own scope, in front of the predeclared binding of the same name
     assertThat(run("load('@vgs//vault', 'vault')\nout = [type(vault)]\n")).containsExactly("vault");
   }
+
+  @Test
+  public void aModuleThatLoadsTheVaultModuleItselfLoadsWithTheBindingPresent() throws Exception {
+    // nts.star loads @vgs//vault; with the host's binding in the environment that load used to fail
+    assertThat(run("load('@vgs//nts', 'nts')\nout = [type(nts), vault]\n"))
+        .containsExactly("ImmutableStruct", "the host's binding")
+        .inOrder();
+  }
 }
