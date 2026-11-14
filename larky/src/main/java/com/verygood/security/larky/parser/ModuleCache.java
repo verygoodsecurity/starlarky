@@ -146,9 +146,14 @@ final class ModuleCache {
     return CACHE.size();
   }
 
-  /** Empties the cache, for tests. */
+  /**
+   * Empties the cache, for tests. Native module wrappers stay registered: they are created once
+   * per process, so dropping them would stop every module that loads one from being cached.
+   */
   static void clear() {
+    for (Entry entry : CACHE.values()) {
+      BY_MODULE.remove(entry.module());
+    }
     CACHE.clear();
-    BY_MODULE.clear();
   }
 }
