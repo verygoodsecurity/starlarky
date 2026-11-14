@@ -1,0 +1,266 @@
+# Allowlist for IsolationStructureTest. Format: KIND<TAB>class#field<TAB>reason (one line).
+# KIND: THREAD (StarlarkThread stored/captured), NONFINAL (non-final field in a non-freeze-guarded
+# StarlarkValue), STATIC (static mutable state). See the Javadoc of IsolationStructureTest.
+# The test fails when a violation is missing here and when a line here no longer matches a
+# violation: a change that fixes a violation must delete its line. Do not add lines to silence
+# the test without a reviewed reason.
+NONFINAL	com.verygood.security.larky.modules.crypto.Cipher.GHash#stateSave0	GCM GHASH running state in Java arrays; stateful by design (audit B)
+NONFINAL	com.verygood.security.larky.modules.crypto.Cipher.GHash#stateSave1	GCM GHASH running state in Java arrays; stateful by design (audit B)
+NONFINAL	com.verygood.security.larky.modules.crypto.Cipher.GHash#subkeyHtbl	GCM GHASH running state in Java arrays; stateful by design (audit B)
+NONFINAL	com.verygood.security.larky.modules.crypto.Cipher.LarkyBlockCipher#ENCRYPT_MODE	cipher object state (initialized/mode); stateful by design (audit B)
+NONFINAL	com.verygood.security.larky.modules.crypto.Cipher.LarkyBlockCipher#initialized	cipher object state (initialized/mode); stateful by design (audit B)
+NONFINAL	com.verygood.security.larky.modules.crypto.Cipher.LarkyStreamCipher#initialized	cipher object state; stateful by design (audit B)
+NONFINAL	com.verygood.security.larky.modules.crypto.Cipher.LarkyStreamCipher#processedBytes	cipher object state; stateful by design (audit B)
+NONFINAL	com.verygood.security.larky.modules.crypto.PublicKey.ECC.LarkyECPoint#point	point is reassigned by in-place ops (__iadd__); not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyASN1Encodable#encodable	encodable reassigned after construction; not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.re.RegexMatcher#lastMatchEnd	java.util.regex.Matcher state (match positions); stateful by design (audit B)
+NONFINAL	com.verygood.security.larky.modules.re.RegexMatcher#lastMatchStart	java.util.regex.Matcher state (match positions); stateful by design (audit B)
+NONFINAL	com.verygood.security.larky.modules.re.RegexMatcher#matcher	java.util.regex.Matcher state (match positions); stateful by design (audit B)
+NONFINAL	com.verygood.security.larky.modules.re.RegexMatcher#parentPattern	java.util.regex.Matcher state (match positions); stateful by design (audit B)
+NONFINAL	com.verygood.security.larky.modules.re.RegexPattern#pattern	pattern/py reassigned after construction; not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.re.RegexPattern#py	pattern/py reassigned after construction; not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.testing.UnittestModule$LarkyFunctionTestCase#function	test-only module (TEST_MODULES)
+NONFINAL	com.verygood.security.larky.modules.testing.UnittestModule$LarkyFunctionTestCase#thread	test-only module (TEST_MODULES)
+NONFINAL	com.verygood.security.larky.modules.testing.UnittestModule$LarkyTestRunner#FINAL_TEST_RESULT	test-only module (TEST_MODULES): accumulated result
+NONFINAL	com.verygood.security.larky.modules.types.LarkyBoundedWhileTrue$LarkyBoundedWhileTrueIterator#counter	iteration counter; per-iteration state, not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.types.LarkyCounter$NotThreadSafeLarkyCounter#count	counter value mutated by increment; named not thread safe (audit B)
+NONFINAL	com.verygood.security.larky.modules.types.LarkyIterator#currentThread	iterator cursor/thread state; per-iteration state, not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.types.LarkyIterator$LarkyObjectIterator#checkedForNext	iterator cursor state; per-iteration state, not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.types.LarkyIterator$LarkyObjectIterator#iterator_method	iterator cursor state; per-iteration state, not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.types.LarkyIterator$LarkyObjectIterator#nextVal	iterator cursor state; per-iteration state, not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.types.LarkyIterator$LarkyObjectIterator$LarkyGetItemIterator#pos	iterator cursor state; per-iteration state, not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.types.LarkyIterator$LarkyStringIterator#pos	iterator cursor state; per-iteration state, not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.x509.LarkyX509Certificate#certPublicKey	lazily computed certPublicKey/hash caches; not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.x509.LarkyX509Certificate#hash	lazily computed certPublicKey/hash caches; not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.modules.ZLibModule$LarkyInflater#zdict	zlib decompressobj state: stateful Java object by design; not shareable (audit B)
+NONFINAL	com.verygood.security.larky.objects.LarkyFunction#im_class	im_class assigned after construction (bind); not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.objects.LarkyMethod#im_self	im_self assigned after construction (bind); not freeze-guarded (audit B)
+NONFINAL	com.verygood.security.larky.objects.LarkySuper#obj	obj/objType/superType/thread assigned per super() call (audit B)
+NONFINAL	com.verygood.security.larky.objects.LarkySuper#objType	obj/objType/superType/thread assigned per super() call (audit B)
+NONFINAL	com.verygood.security.larky.objects.LarkySuper#superType	obj/objType/superType/thread assigned per super() call (audit B)
+NONFINAL	com.verygood.security.larky.objects.LarkySuper#thread	obj/objType/superType/thread assigned per super() call (audit B)
+STATIC	com.verygood.security.larky.Larky#reader	static final holder of mutable type: Ljava/io/BufferedReader;
+STATIC	com.verygood.security.larky.modules.BinasciiModule#CRC32_TABLE	static non-final array
+STATIC	com.verygood.security.larky.modules.codecs.TextUtil#bytesFromUTF8	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.codecs.TextUtil#EMPTY_BYTES	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.codecs.TextUtil#HEX_DIGITS	static non-final array
+STATIC	com.verygood.security.larky.modules.codecs.TextUtil#offsetsFromUTF8	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.codecs.TextUtil$PyCodecs#CODECS	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Arabic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Armenian	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Avestan	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Balinese	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Bamum	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Batak	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Bengali	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Bopomofo	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Brahmi	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Braille	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Buginese	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Buhid	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#C	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Canadian_Aboriginal	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Carian	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#CASE_ORBIT	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#CATEGORIES	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Cc	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Cf	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Cham	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Cherokee	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Co	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Common	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Coptic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Cs	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Cuneiform	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Cypriot	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Cyrillic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Deseret	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Devanagari	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Egyptian_Hieroglyphs	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Ethiopic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#FOLD_CATEGORIES	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#FOLD_SCRIPT	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#foldCommon	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#foldGreek	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#foldInherited	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#foldLl	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#foldLt	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#foldLu	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#foldMn	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Georgian	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Glagolitic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Gothic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Greek	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Gujarati	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Gurmukhi	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Han	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Hangul	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Hanunoo	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Hebrew	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Hiragana	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Imperial_Aramaic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Inherited	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Inscriptional_Pahlavi	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Inscriptional_Parthian	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Javanese	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Kaithi	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Kannada	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Katakana	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Kayah_Li	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Kharoshthi	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Khmer	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#L	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Lao	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Latin	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Lepcha	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Limbu	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Linear_B	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Lisu	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Ll	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Lm	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Lo	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Lt	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Lu	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Lycian	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Lydian	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#M	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Malayalam	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Mandaic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Mc	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Me	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Meetei_Mayek	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Mn	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Mongolian	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Myanmar	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#N	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Nd	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#New_Tai_Lue	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Nko	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Nl	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#No	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Ogham	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Ol_Chiki	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Old_Italic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Old_Persian	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Old_South_Arabian	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Old_Turkic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Oriya	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Osmanya	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#P	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Pc	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Pd	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Pe	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Pf	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Phags_Pa	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Phoenician	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Pi	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Po	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Ps	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Rejang	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Runic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#S	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Samaritan	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Saurashtra	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Sc	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#SCRIPTS	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Shavian	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Sinhala	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Sk	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Sm	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#So	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Sundanese	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Syloti_Nagri	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Syriac	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Tagalog	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Tagbanwa	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Tai_Le	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Tai_Tham	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Tai_Viet	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Tamil	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Telugu	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Thaana	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Thai	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Tibetan	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Tifinagh	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Ugaritic	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Unknown	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Upper	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Vai	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Yi	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Z	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Zl	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Zp	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.codecs.UnicodeTables#Zs	static final array lookup table, written only in <clinit>; contents are mutable (make private or wrap)
+STATIC	com.verygood.security.larky.modules.crypto.CryptoMathModule#JACOBI_TABLE	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.crypto.Protocol.KDF.BCrypt#base64_code	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.crypto.Protocol.KDF.BCrypt#bf_crypt_ciphertext	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.crypto.Protocol.KDF.BCrypt#index_64	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.crypto.Protocol.KDF.BCrypt#P_orig	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.crypto.Protocol.KDF.BCrypt#S_orig	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.crypto.PublicKey.LarkyDigitalSignatureAlgorithm#INSTANCE	static non-final field (singleton/lazy holder); audit B
+STATIC	com.verygood.security.larky.modules.crypto.PublicKey.LarkyEllipticCurveCryptography#INSTANCE	static non-final field (singleton/lazy holder); audit B
+STATIC	com.verygood.security.larky.modules.globals.LarkyGlobals$Sentinel#SINGLETON	static non-final field (singleton/lazy holder); audit B
+STATIC	com.verygood.security.larky.modules.JsonModule#HEX	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.re.PyRegexTranslator$CaseFolding#ORBITS	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
+STATIC	com.verygood.security.larky.modules.re.PyRegexTranslator$UnicodeSets#ASCII	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
+STATIC	com.verygood.security.larky.modules.re.PyRegexTranslator$UnicodeSets#UNICODE	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
+STATIC	com.verygood.security.larky.modules.re.RegexPattern$ByteArrayCharSequence#EMPTY_ARRAY	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.StructModule#bigendianTable	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.StructModule#littleEndian	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.StructModule#nativeTable	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.types.structs.SimpleStruct#COMPARE_OPNAMES	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.utils.ByteArrayUtil#HEX_CHARS	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.utils.ByteArrayUtil#LATIN1_WHITESPACE	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.utils.FnvHash$FnvHash32#DEFAULT_SEED	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.utils.NumOpsUtils#BI_UINT32_MAX	non-final numeric constant; should be static final
+STATIC	com.verygood.security.larky.modules.utils.NumOpsUtils#BI_UINT64_MAX	non-final numeric constant; should be static final
+STATIC	com.verygood.security.larky.modules.utils.NumOpsUtils#UINT16_MAX	non-final numeric constant; should be static final
+STATIC	com.verygood.security.larky.modules.utils.NumOpsUtils#UINT24_MAX	non-final numeric constant; should be static final
+STATIC	com.verygood.security.larky.modules.utils.NumOpsUtils#UINT32_MAX	non-final numeric constant; should be static final
+STATIC	com.verygood.security.larky.modules.utils.NumOpsUtils#UINT40_MAX	non-final numeric constant; should be static final
+STATIC	com.verygood.security.larky.modules.utils.NumOpsUtils#UINT48_MAX	non-final numeric constant; should be static final
+STATIC	com.verygood.security.larky.modules.utils.NumOpsUtils#UINT56_MAX	non-final numeric constant; should be static final
+STATIC	com.verygood.security.larky.modules.utils.NumOpsUtils#UINT64_MAX	non-final numeric constant; should be static final
+STATIC	com.verygood.security.larky.modules.utils.NumOpsUtils#UINT8_MAX	non-final numeric constant; should be static final
+STATIC	com.verygood.security.larky.modules.utils.StringCache#charsCache	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.InMemoryTextPIIAnalyzer#SUPPORTED_LANGUAGES	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
+STATIC	com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.analyzers.InMemoryTextPIIAnalyzer#SUPPORTED_PII_ENTITIES	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
+STATIC	com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.TextAnalyzerModule#ISO_LANGUAGES	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
+STATIC	com.verygood.security.larky.modules.xml.LarkyXMLNamespaceContext#WELL_KNOWN_NAMESPACE_PREFIXES	process-wide cache/registry by design; written at runtime
+STATIC	com.verygood.security.larky.modules.xml.SafeXMLUtils#DOCUMENT_BUILDER_FACTORY	per-OS-thread factory/codec cache; holds no evaluation state
+STATIC	com.verygood.security.larky.modules.xml.SafeXMLUtils#SAX_PARSER_FACTORY	per-OS-thread factory/codec cache; holds no evaluation state
+STATIC	com.verygood.security.larky.modules.xml.SafeXMLUtils#TRANSFORMER_FACTORY	per-OS-thread factory/codec cache; holds no evaluation state
+STATIC	com.verygood.security.larky.modules.ZLibModule$LarkyInflater#EMPTY_ARRAY	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	com.verygood.security.larky.ModuleSupplier#NAMED_MODULE_SETS	process-wide cache/registry by design; written at runtime
+STATIC	com.verygood.security.larky.objects.LarkyPyObject#INITIAL_DICT	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
+STATIC	com.verygood.security.larky.objects.type.SpecialMethod#MAP	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
+STATIC	com.verygood.security.larky.parser.LarkyEvaluator#BUILTIN_BINDINGS	process-wide cache/registry by design; written at runtime
+STATIC	com.verygood.security.larky.parser.LarkyEvaluator#MERGED_BUILTIN_BINDINGS	process-wide cache/registry by design; written at runtime
+STATIC	com.verygood.security.larky.parser.LarkyEvaluator$LarkyLoader#NATIVE_WRAPPERS	process-wide cache/registry by design; written at runtime
+STATIC	com.verygood.security.larky.parser.ModuleCache#BY_MODULE	process-wide cache/registry by design; written at runtime
+STATIC	com.verygood.security.larky.parser.ModuleCache#CACHE	process-wide cache/registry by design; written at runtime
+STATIC	com.verygood.security.larky.parser.ProgramCache#CACHE	process-wide cache/registry by design; written at runtime
+STATIC	com.verygood.security.larky.parser.ProgramCache#compiledFromSource	process-wide cache/registry by design; written at runtime
+STATIC	com.verygood.security.larky.parser.ResourceContentStarFile#RESOURCES	process-wide cache/registry by design; written at runtime
+STATIC	net.starlark.java.eval.PythonStrings#FULL_TITLE	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
+STATIC	net.starlark.java.eval.StarlarkBytes#decoder	static non-final field (singleton/lazy holder); audit B
+STATIC	net.starlark.java.eval.StarlarkBytes#TABLE_UTF8_NEEDED	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	net.starlark.java.ext.ByteList#EMPTY_BYTE_ARRAY	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	net.starlark.java.ext.ByteList#HEX_CHAR_LOOKUP_TABLE	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	net.starlark.java.ext.ByteList#SPACE	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	net.starlark.java.ext.ByteList$PY_ISSPACE#PY_CTF_SPACE	static final array lookup table, written only in <clinit>; contents are mutable
+STATIC	net.starlark.java.ext.CodecHelper$ThreadLocalCoders#DECODERS	per-OS-thread factory/codec cache; holds no evaluation state
+STATIC	net.starlark.java.ext.CodecHelper$ThreadLocalCoders#ENCODERS	per-OS-thread factory/codec cache; holds no evaluation state
+THREAD	com.verygood.security.larky.Larky#thread	REPL main class: process-wide thread; not reachable from library paths (audit A#Larky)
+THREAD	com.verygood.security.larky.modules.CollectionsModule$LarkyNamedTuple#currentThread	stores the creating thread; entry points without a thread use it (audit A: LarkyNamedTuple)
+THREAD	com.verygood.security.larky.modules.JsonModule$Encoder#thread	transient: created per json.dumps call, never stored in a value
+THREAD	com.verygood.security.larky.modules.testing.UnittestModule$LarkyFunctionTestCase#thread	test-only module (TEST_MODULES); stores the thread of the test run
+THREAD	com.verygood.security.larky.modules.types.LarkyIterator#currentThread	iterator stores thread set by setCurrentThread/next(); used by thread-less iterator()/hasNext (audit A: LarkyIterator)
+THREAD	com.verygood.security.larky.modules.types.Property#thread	descriptor value stores the defining thread; get()/set() run on it (audit A: Property)
+THREAD	com.verygood.security.larky.modules.types.Property$PropertyBuilder#thread	Lombok builder of Property: transient holder of the thread
+THREAD	com.verygood.security.larky.modules.types.structs.SimpleStruct#currentThread	struct value stores the creating thread (audit A: SimpleStruct, covers Immutable/MutableStruct)
+THREAD	com.verygood.security.larky.modules.xml.LarkyXMLNamespaceContext#currentThread	per-thread registry object stores thread and mutability (audit A: LarkyXMLNamespaceContext)
+THREAD	com.verygood.security.larky.objects.LarkyPyObject#thread	object/descriptor/function values store the defining thread (audit A: LarkyPyObject and subclasses)
+THREAD	com.verygood.security.larky.objects.LarkySuper#thread	per-call super() object; thread set by call()/__get__ (audit A: LarkySuper)
+THREAD	com.verygood.security.larky.objects.type.LarkyProvidedTypeClass#thread	class value stores the defining thread; binaryOp has no thread (audit A: LarkyProvidedTypeClass)
+THREAD	net.starlark.java.eval.PercentFormat$Args#thread	transient: one per str % args evaluation, never stored in a value
