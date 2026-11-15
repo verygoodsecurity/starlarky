@@ -71,7 +71,22 @@ public class StopIterationIsolationTest {
     assertThat(b.getMessageWithStack()).contains("line 7, column 23");
     assertThat(b.getMessage()).isEqualTo("StopIteration");
     assertThat(b).isNotSameInstanceAs(a);
-    assertThat(a).isNotSameInstanceAs(LarkyStopIteration.sentinel());
-    assertThat(b).isNotSameInstanceAs(LarkyStopIteration.sentinel());
+  }
+
+  /** The shared StopIteration value is not an exception, so {@code throw} on it cannot compile. */
+  @Test
+  public void theSharedStopIterationCannotBeThrown() {
+    assertThat(Throwable.class.isAssignableFrom(LarkyStopIteration.Sentinel.class)).isFalse();
+  }
+
+  /** A thrown StopIteration and the {@code StopIteration()} value are equal, as before. */
+  @Test
+  public void thrownAndSharedStopIterationAreEqual() {
+    LarkyStopIteration thrown = LarkyStopIteration.newInstance();
+    assertThat((Object) thrown).isEqualTo(LarkyStopIteration.sentinel());
+    assertThat((Object) LarkyStopIteration.sentinel()).isEqualTo(thrown);
+    assertThat(thrown.hashCode()).isEqualTo(LarkyStopIteration.sentinel().hashCode());
+    assertThat((Object) LarkyStopIteration.sentinel().getError())
+        .isNotSameInstanceAs(LarkyStopIteration.sentinel().getError());
   }
 }

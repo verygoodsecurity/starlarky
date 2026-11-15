@@ -320,7 +320,7 @@ public final class PythonBuiltins {
   }
 
   @StarlarkMethod(name = "StopIteration")
-  public LarkyStopIteration stopIteration() {//throws LarkyStopIteration {
+  public LarkyStopIteration.Sentinel stopIteration() {
     return LarkyStopIteration.sentinel();
   }
 
