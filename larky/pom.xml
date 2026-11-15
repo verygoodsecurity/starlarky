@@ -248,6 +248,19 @@
             <version>${google.truth.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- @Immutable on StarlarkValue classes (checked by Error Prone and IsolationStructureTest). -->
+        <dependency>
+            <groupId>com.google.errorprone</groupId>
+            <artifactId>error_prone_annotations</artifactId>
+            <version>${google.errorprone.version}</version>
+        </dependency>
+        <!-- IsolationStructureTest reads class files with ASM (the version Truth already brings). -->
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm</artifactId>
+            <version>9.8</version>
+            <scope>test</scope>
+        </dependency>
         <!--
             junit is not scoped for test because we are using
             it in larky/nativelib to offer unittest interface
