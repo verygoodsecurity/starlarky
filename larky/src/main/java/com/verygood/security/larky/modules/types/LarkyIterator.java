@@ -413,7 +413,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
             }
 //            throw new RuntimeException(e);
           }
-          if (length < 0 && nextVal == LarkyIndexError.getInstance()) {
+          if (length < 0 && nextVal == LarkyIndexError.sentinel()) {
             // infinite iterator, so check to see if it's an IndexError
             nextVal = null;
           }
