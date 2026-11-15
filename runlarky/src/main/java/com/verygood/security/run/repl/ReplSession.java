@@ -21,6 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.console.LogConsole;
 import com.verygood.security.larky.modules.utils.Reporter;
+import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
@@ -198,7 +199,7 @@ public final class ReplSession {
 
       StarlarkThread thread = newThread();
       thread.setLoader(loaded::get);
-      try {
+      try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
         Object result = Starlark.execFileProgram(prog, module, thread);
         if (echo && result != Starlark.NONE) {
           out.println(repr(thread, result));

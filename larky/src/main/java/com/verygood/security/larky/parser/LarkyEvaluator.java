@@ -79,6 +79,27 @@ public final class LarkyEvaluator {
   }
 
   /**
+   * How host code reads the values of what this evaluator ran: with this evaluator's semantics,
+   * the steps left of its step limit, its expiration date, and its reporter (where {@code print()}
+   * of callbacks went when they ran on the evaluation's own thread), each access on a fresh
+   * thread. See {@link HostValues}.
+   */
+  public HostValues hostValues() {
+    Object stepLimit = environment.get(STEP_LIMIT);
+    return HostValues.of(
+        getLarkySemantics(),
+        stepLimit == null ? null : Long.parseLong(stepLimit.toString()) - lastExecutedSteps,
+        lastExpirationMs,
+        ModuleProviders.given(environment.get(MODULE_PROVIDERS)))
+        .withPrintHandler(reporter::report);
+  }
+
+  // The steps and expiration date of the last file this evaluator executed: the main script, whose
+  // loads execute before it. hostValues() continues from them.
+  private long lastExecutedSteps;
+  private long lastExpirationMs = Long.MAX_VALUE;
+
+  /**
    * The output of a Larky script is an evaluated {@link Module} that contains various attributes such as
    * {@link Module#getGlobals()}, {@link Module#getPredeclaredBindings()}, as well as other various items.
    * <p>
@@ -191,7 +212,7 @@ public final class LarkyEvaluator {
         thread.setExpirationMs(Long.parseLong(environment.get(EXPIRATION_MS).toString()));
       }
 
-      try {
+      try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
         starlarkOutput = prog.exec(module, thread);
       } catch (EvalException cause) {
         throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(cause, thread);
@@ -199,6 +220,8 @@ public final class LarkyEvaluator {
 
       // Set some statistical information
       module.setGlobal(EXECUTION_STEPS, thread.getExecutedSteps());
+      lastExecutedSteps = thread.getExecutedSteps();
+      lastExpirationMs = thread.getExpirationMs();
     }
     if (content instanceof ResourceContentStarFile) {
       moduleCache.put(
@@ -356,7 +379,7 @@ public final class LarkyEvaluator {
       // TODO(mahmoudimus): Move this to ModuleSupplier?
       try (Mutability mu = Mutability.create("InMemoryNativeModule")) {
         StarlarkThread thread = StarlarkThread.createTransient(mu, evaluator.getLarkySemantics());
-        try {
+        try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
           // Not Starlark.execFile, which would type-check this generated file when the
           // semantics enable type checking (its options do not allow type syntax).
           Starlark.execFileProgram(

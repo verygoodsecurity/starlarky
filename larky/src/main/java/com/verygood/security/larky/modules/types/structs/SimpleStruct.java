@@ -8,6 +8,7 @@ import com.verygood.security.larky.modules.types.LarkyCallable;
 import com.verygood.security.larky.modules.types.LarkyCollection;
 import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
+import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
 import net.starlark.java.annot.StarlarkMethod;
@@ -41,19 +42,26 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
     TokenKind.GREATER_EQUALS
   };
   final Map<String, Object> fields;
-  final StarlarkThread currentThread;
 
-  protected SimpleStruct(Map<String, Object> fields, StarlarkThread currentThread) {
-    this.currentThread = currentThread;
+  // A struct stores no StarlarkThread: structs live in module globals that outlive (and, once
+  // modules are cached, are shared across) the evaluations that use them. Callbacks that have no
+  // thread parameter (equals, hashCode, compareTo, repr, truth, binaryOp, iteration, getField(name))
+  // run on the thread of the evaluation that is active when they are called
+  // (CurrentEvaluation), and fail closed when there is none.
+  protected SimpleStruct(Map<String, Object> fields) {
     this.fields = fields;
   }
 
   public static SimpleStruct immutable(Dict<String, Object> kwargs, StarlarkThread thread) {
-    return new ImmutableStruct(ImmutableMap.copyOf(kwargs), thread);
+    return new ImmutableStruct(ImmutableMap.copyOf(kwargs));
   }
 
+  /**
+   * A mutable struct. It owns the {@link Mutability} of the thread that creates it, which decides
+   * when it is frozen; it does not keep the thread.
+   */
   public static SimpleStruct mutable(Dict<String, Object> kwargs, StarlarkThread thread) {
-    return new MutableStruct(kwargs, thread);
+    return new MutableStruct(kwargs, thread.mutability());
   }
 
   @StarlarkMethod(name = PyProtocols.__DICT__, structField = true)
@@ -61,9 +69,13 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
     return composeAndFillDunderDictBuilder().build(Mutability.IMMUTABLE);
   }
 
+  /**
+   * The thread of the evaluation active on this Java thread, or null if there is none. A struct
+   * has no thread of its own.
+   */
   @Override
   public StarlarkThread getCurrentThread() {
-    return currentThread;
+    return CurrentEvaluation.currentOrNull();
   }
 
   @Override
@@ -84,7 +96,7 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
     if (!fields.containsKey(name)) {
       // if there's an object with a __getattr__, it will be invoked..
       Object getAttrMethod = this.fields.get(PyProtocols.__GETATTR__);
-      StarlarkThread evalThread = thread == null ? getCurrentThread() : thread;
+      StarlarkThread evalThread = CurrentEvaluation.orRequire(thread);
       try {
         return Starlark.call(evalThread, getAttrMethod, Tuple.of(name), Dict.empty());
       } catch (EvalException | InterruptedException e) {
@@ -135,7 +147,7 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
    * caller.
    */
   protected Dict.Builder<String, Object> composeAndFillDunderDictBuilder() throws EvalException {
-    StarlarkThread thread = getCurrentThread();
+    StarlarkThread thread = CurrentEvaluation.requireThread();
     StarlarkList<String> keys = Starlark.dir(thread.mutability(), thread.getSemantics(), this);
     Dict.Builder<String, Object> builder = Dict.builder();
     for (String k : keys) {
@@ -182,7 +194,7 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
         final StarlarkInt asInt;
         if(res instanceof LarkyObject) {
           try {
-            asInt = ((LarkyObject) res).coerceToInt(getCurrentThread());
+            asInt = ((LarkyObject) res).coerceToInt(CurrentEvaluation.requireThread());
           } catch (EvalException e) {
             throw new RuntimeException(e);
           }
@@ -236,10 +248,10 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
     }
     try {
       return StructBinOp.richComparison(
-        this, obj, PyProtocols.__EQ__, PyProtocols.__EQ__, this.getCurrentThread()
+        this, obj, PyProtocols.__EQ__, PyProtocols.__EQ__, CurrentEvaluation.requireThread()
       );
     } catch (EvalException e) {
-      throw StructBinOp.uncheckedEvalError(e, this.getCurrentThread());
+      throw StructBinOp.uncheckedEvalError(e, CurrentEvaluation.currentOrNull());
     }
   }
 
@@ -270,12 +282,12 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
     try {
       return callDunderHash();
     } catch (EvalException e) {
-      throw StructBinOp.uncheckedEvalError(e, this.getCurrentThread());
+      throw StructBinOp.uncheckedEvalError(e, CurrentEvaluation.currentOrNull());
     }
   }
 
   private int callDunderHash() throws EvalException {
-    Object res = invoke(getCurrentThread(), fields.get(PyProtocols.__HASH__), Tuple.empty(), Dict.empty());
+    Object res = invoke(CurrentEvaluation.requireThread(), fields.get(PyProtocols.__HASH__), Tuple.empty(), Dict.empty());
     if (res instanceof StarlarkInt) {
       return res.hashCode();
     } else if (res instanceof Boolean) {
@@ -296,7 +308,7 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
   @Nullable
   @Override
   public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
-    return StructBinOp.operatorDispatch(this, op, that, thisLeft, this.getCurrentThread());
+    return StructBinOp.operatorDispatch(this, op, that, thisLeft, CurrentEvaluation.requireThread());
   }
 
   @Override
@@ -329,7 +341,7 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
         TokenKind.LESS,
         other,
         true,
-        this.getCurrentThread()
+        CurrentEvaluation.requireThread()
       );
       if (result instanceof Boolean) {
         lt = (boolean) result;
@@ -342,7 +354,7 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
         TokenKind.GREATER,
         other,
         true,
-        this.getCurrentThread()
+        CurrentEvaluation.requireThread()
       );
       if (result instanceof Boolean) {
         gt = (boolean) result;

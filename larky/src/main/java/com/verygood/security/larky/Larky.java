@@ -4,6 +4,7 @@ package com.verygood.security.larky;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.verygood.security.larky.parser.CurrentEvaluation;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
@@ -88,9 +89,12 @@ public class Larky {
     while ((line = prompt()) != null) {
       ParserInput input = ParserInput.fromString(line, "<stdin>");
       try {
-        Object result = Starlark.execFile(input, OPTIONS, module, thread);
-        if (result != Starlark.NONE) {
-          System.out.println(Starlark.repr(result, StarlarkSemantics.DEFAULT));
+        Object result;
+        try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
+          result = Starlark.execFile(input, OPTIONS, module, thread);
+          if (result != Starlark.NONE) {
+            System.out.println(Starlark.repr(result, StarlarkSemantics.DEFAULT));
+          }
         }
       } catch (SyntaxError.Exception ex) {
         for (SyntaxError error : ex.errors()) {
@@ -114,7 +118,10 @@ public class Larky {
             ParserInput.readFile(inputFile),
             input);
       }
-      Object returnValue = Starlark.execFile(input, OPTIONS, module, thread);
+      Object returnValue;
+      try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
+        returnValue = Starlark.execFile(input, OPTIONS, module, thread);
+      }
       if (!outputFile.equals("") && !(returnValue instanceof NoneType)) {
         writeOutput(outputFile, (StarlarkValue) returnValue);
       }

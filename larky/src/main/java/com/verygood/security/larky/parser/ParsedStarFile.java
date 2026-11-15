@@ -43,10 +43,29 @@ public final class ParsedStarFile {
   @Getter
   private final Module module;
 
+  @EqualsAndHashCode.Exclude @ToString.Exclude
+  private final HostValues hostValues;
+
   public ParsedStarFile(String location, Map<String, Object> globals, Module module) {
+    this(location, globals, module, HostValues.create());
+  }
+
+  public ParsedStarFile(
+      String location, Map<String, Object> globals, Module module, HostValues hostValues) {
     this.location = Preconditions.checkNotNull(location);
     this.globals = ImmutableMap.copyOf(Preconditions.checkNotNull(globals));
     this.module = module;
+    this.hostValues = Preconditions.checkNotNull(hostValues);
+  }
+
+  /**
+   * How to read the values of this result (struct fields that are properties, {@code str()} of a
+   * struct, calling a function value) after the evaluation has finished. It carries the
+   * semantics and step limit of the evaluation that produced this result, and runs each access on
+   * a fresh thread. See {@link HostValues}.
+   */
+  public HostValues hostValues() {
+    return hostValues;
   }
 
   /**
