@@ -18,12 +18,15 @@ package com.verygood.security.larky.parser;
 
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import com.verygood.security.larky.ModuleSupplier;
+import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,8 +35,6 @@ import java.util.concurrent.TimeUnit;
 import javax.script.Bindings;
 import javax.script.SimpleBindings;
 import net.starlark.java.eval.Starlark;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -86,21 +87,8 @@ public class ConcurrentEvaluationTest {
   private static final int THREADS = 16;
   private static final int EVALUATIONS = 64;
 
-  private boolean wasEnabled;
-
-  @Before
-  public void saveCacheSetting() {
-    wasEnabled = ModuleCache.isEnabled();
-    ModuleCache.clear();
-  }
-
-  @After
-  public void restoreCacheSetting() {
-    ModuleCache.clear();
-    ModuleCache.setEnabled(wasEnabled);
-  }
-
-  // Through the JSR-223 engine with per-evaluation bindings, as services embedding Larky run it.
+  // Through the JSR-223 engine with per-evaluation bindings, as services embedding Larky run it,
+  // with the process-wide module cache (off unless -Dlarky.moduleCache.enable=true).
   private static String evaluate() throws Exception {
     Bindings bindings = new SimpleBindings();
     bindings.put("ctx", new HashMap<String, Object>());
@@ -108,8 +96,22 @@ public class ConcurrentEvaluationTest {
     return Starlark.str(result.getGlobalEnvironmentVariable("result", Object.class), null);
   }
 
-  /** Runs the script concurrently; returns each distinct outcome and how often it occurred. */
-  private static Map<String, Integer> evaluateConcurrently() throws Exception {
+  // The same, with per-evaluation globals and a module cache of this test's own, so the test never
+  // turns the process-wide cache on or off.
+  private static String evaluate(ModuleCache cache) throws Exception {
+    ParsedStarFile result =
+        new LarkyScript(
+                ModuleSupplier.CORE_MODULES,
+                LarkyScript.StarlarkMode.STRICT,
+                Map.of("ctx", new HashMap<String, Object>()))
+            .withModuleCache(cache)
+            .evaluate(InMemMapBackedStarFile.createStarFile("main.star", SCRIPT), new TestingConsole());
+    return Starlark.str(result.getGlobalEnvironmentVariable("result", Object.class), null);
+  }
+
+  /** Runs {@code evaluation} concurrently; returns each distinct outcome and how often it occurred. */
+  private static Map<String, Integer> evaluateConcurrently(Callable<String> evaluation)
+      throws Exception {
     ExecutorService pool = Executors.newFixedThreadPool(THREADS);
     try {
       CountDownLatch start = new CountDownLatch(1);
@@ -120,7 +122,7 @@ public class ConcurrentEvaluationTest {
                 () -> {
                   start.await();
                   try {
-                    return evaluate();
+                    return evaluation.call();
                   } catch (Throwable t) {
                     return "FAILED: " + t;
                   }
@@ -137,28 +139,29 @@ public class ConcurrentEvaluationTest {
     }
   }
 
-  private static void assertAllMatchASingleEvaluation() throws Exception {
-    String expected = evaluate();
-    ModuleCache.clear();
+  private static void assertAllMatch(String expected, Callable<String> evaluation)
+      throws Exception {
     assertWithMessage("outcomes of %s concurrent evaluations", EVALUATIONS)
-        .that(evaluateConcurrently())
+        .that(evaluateConcurrently(evaluation))
         .containsExactly(expected, EVALUATIONS);
   }
 
   /** With the default settings: fails if the module cache is turned on by default while unsafe. */
   @Test
   public void concurrentEvaluationsDoNotInterfere() throws Exception {
-    assertAllMatchASingleEvaluation();
+    assertAllMatch(evaluate(), ConcurrentEvaluationTest::evaluate);
   }
 
   /**
    * The gate for turning the module cache back on: it fails while loaded modules that keep mutable
-   * state or their creating thread can be shared.
+   * state or their creating thread can be shared. The cache starts empty, so the concurrent
+   * evaluations also race to load and share each module.
    */
   @Test
   @Ignore("shared loaded modules are not yet safe under concurrent evaluation")
   public void concurrentEvaluationsDoNotInterfereWithTheModuleCache() throws Exception {
-    ModuleCache.setEnabled(true);
-    assertAllMatchASingleEvaluation();
+    String expected = evaluate(new ModuleCache(false));
+    ModuleCache cache = new ModuleCache(true);
+    assertAllMatch(expected, () -> evaluate(cache));
   }
 }
