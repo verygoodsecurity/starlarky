@@ -647,7 +647,11 @@ public class IsolationStructureTest {
       cache.putIfAbsent(ci.name, ci);
       result.add(ci);
     }
+    // from larky/ under Maven; from the repository root in some IDE runs
     Path vgs = basedir().resolve("../libstarlark/src/main/vgs").normalize();
+    if (!Files.isDirectory(vgs)) {
+      vgs = basedir().resolve("libstarlark/src/main/vgs").normalize();
+    }
     assertWithMessage("VGS libstarlark source root " + vgs).that(Files.isDirectory(vgs)).isTrue();
     for (byte[] b : classBytes(codeSource("net.starlark.java.eval.StarlarkValue"), "net/starlark/")) {
       ClassInfo ci = parse(b);
@@ -906,7 +910,7 @@ public class IsolationStructureTest {
     try (InputStream in = IsolationStructureTest.class.getResourceAsStream("/isolation-allowlist.txt")) {
       assertWithMessage("isolation-allowlist.txt on the test classpath").that(in).isNotNull();
       int lineNo = 0;
-      for (String line : new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\n")) {
+      for (String line : new String(in.readAllBytes(), StandardCharsets.UTF_8).lines().toList()) {
         lineNo++;
         if (line.isBlank() || line.startsWith("#")) {
           continue;
