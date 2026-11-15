@@ -31,6 +31,7 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
@@ -169,23 +170,117 @@ public class HostValuesTest {
   }
 
   @Test
-  public void helperInheritsSemanticsAndStepLimitOfTheEvaluation() throws Exception {
+  public void helperContinuesTheEvaluationsStepBudget() throws Exception {
     ParsedStarFile parsed = evaluate(SCRIPT, 2_000_000L);
     HostValues host = parsed.hostValues();
     assertThat(host.semantics()).isSameInstanceAs(LarkySemantics.LARKY_SEMANTICS);
-    assertThat(host.maxSteps()).isEqualTo(2_000_000L);
+    // what the evaluation left of its limit
+    long used = parsed.getGlobalEnvironmentVariable(LarkyEvaluator.EXECUTION_STEPS, Long.class);
+    assertThat(used).isGreaterThan(0L);
+    assertThat(host.remainingSteps()).isEqualTo(2_000_000L - used);
     Object spin = parsed.getGlobalEnvironmentVariable("spin", Object.class);
     EvalException e = assertThrows(EvalException.class, () -> host.call(spin));
     assertThat(e).hasMessageThat().contains("too many steps");
-    // the limit applies to each call, not cumulatively: a cheap call still works afterwards
+    // the budget is shared by all calls: once spent, a cheap call fails too, also through a
+    // derived instance
     Object add = parsed.getGlobalEnvironmentVariable("add", Object.class);
-    assertThat(host.call(add, net.starlark.java.eval.StarlarkInt.of(1)))
-        .isEqualTo(net.starlark.java.eval.StarlarkInt.of(11));
+    EvalException after =
+        assertThrows(
+            EvalException.class,
+            () -> host.withPrintHandler((t, m) -> {}).call(add, StarlarkInt.of(1)));
+    assertThat(after).hasMessageThat().contains("too many steps");
+  }
+
+  @Test
+  public void callsDrawOnOneBudget() throws Exception {
+    // a getter that takes ~3,000 steps, under a budget of 10,000 for all calls
+    String script = "def work():\n    for i in range(1000):\n        pass\n    return 1\n";
+    ParsedStarFile parsed = evaluate(script, 10_000L);
+    HostValues host = parsed.hostValues();
+    Object work = parsed.getGlobalEnvironmentVariable("work", Object.class);
+    int ok = 0;
+    EvalException e = null;
+    for (int i = 0; i < 100 && e == null; i++) {
+      try {
+        host.call(work);
+        ok++;
+      } catch (EvalException x) {
+        e = x;
+      }
+    }
+    assertThat(e).isNotNull();
+    assertThat(e).hasMessageThat().contains("too many steps");
+    assertThat(ok).isAtLeast(1);
+    assertThat(ok).isLessThan(10);
   }
 
   @Test
   public void withoutAStepLimitTheHelperHasNone() throws Exception {
-    assertThat(evaluate(SCRIPT, null).hostValues().maxSteps()).isNull();
+    assertThat(evaluate(SCRIPT, null).hostValues().remainingSteps()).isNull();
+  }
+
+  @Test
+  public void helperStopsAtTheEvaluationsExpirationDate() throws Exception {
+    long expiration = System.currentTimeMillis() + 60_000;
+    ParsedStarFile parsed =
+        new LarkyScript(
+                ModuleSupplier.CORE_MODULES,
+                LarkyScript.StarlarkMode.STRICT,
+                ImmutableMap.of(LarkyEvaluator.EXPIRATION_MS, expiration))
+            .evaluate(InMemMapBackedStarFile.createStarFile("main.star", SCRIPT), new TestingConsole());
+    assertThat(parsed.hostValues().expirationMs()).isEqualTo(expiration);
+
+    HostValues past =
+        HostValues.of(LarkySemantics.LARKY_SEMANTICS, null, System.currentTimeMillis() - 1, null);
+    Object add = parsed.getGlobalEnvironmentVariable("add", Object.class);
+    EvalException e = assertThrows(EvalException.class, () -> past.call(add, StarlarkInt.of(1)));
+    assertThat(e).hasMessageThat().contains("past expiration date");
+
+    // a call runs on a thread with that date, so a callback that runs past it stops there
+    Probe probe = new Probe();
+    parsed.hostValues().call(probe);
+    assertThat(probe.threads.get(0).getExpirationMs()).isEqualTo(expiration);
+  }
+
+  /** A callable whose Java code fails with an unchecked exception. */
+  private static final class Broken implements StarlarkCallable {
+    @Override
+    public String getName() {
+      return "broken";
+    }
+
+    @Override
+    public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) {
+      throw new IllegalArgumentException("java detail");
+    }
+  }
+
+  @Test
+  public void uncheckedExceptionsOfCallbacksAreEvalExceptions() throws Exception {
+    EvalException e =
+        assertThrows(EvalException.class, () -> HostValues.create().call(new Broken()));
+    assertThat(e).hasMessageThat().contains("internal error in HostValues.call");
+    assertThat(e).hasMessageThat().contains("IllegalArgumentException: java detail");
+  }
+
+  @Test
+  public void javaStringRunsAStructsReprOnAHelperThread() throws Exception {
+    String script =
+        String.join(
+            "\n",
+            "load('@stdlib//larky', 'larky')",
+            "def _repr():",
+            "    return 'R!'",
+            "R = larky.struct(__repr__ = _repr)",
+            "[R]",
+            "");
+    String out =
+        new LarkyScript(LarkyScript.StarlarkMode.STRICT)
+            .executeSkylarkWithOutputAsString(
+                InMemMapBackedStarFile.createStarFile("main.star", script),
+                new ModuleSupplier().create(),
+                new TestingConsole());
+    assertThat(out).isEqualTo("[R!]");
   }
 
   @Test

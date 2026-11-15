@@ -21,6 +21,7 @@ import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -36,24 +37,26 @@ import net.starlark.java.eval.StarlarkThread;
  * <p>Script values are not plain data. A struct field may be a {@code larky.property} whose getter
  * is Starlark code, a struct may define {@code __getattr__}, {@code __str__} or {@code __repr__},
  * and a function value is Starlark code. Running any of that needs a {@link StarlarkThread}. The
- * thread that evaluated the script is finished: its {@link Mutability} is frozen and its step
- * count and deadline are spent, and values never keep it. Do not build a thread of your own with
- * {@code StarlarkSemantics.DEFAULT} and no step limit either: callbacks would then run with other
- * semantics than the script and without a bound on a script's loop.
+ * thread that evaluated the script is finished (its {@link Mutability} is frozen), and callbacks
+ * must not run on it after the evaluation. Do not build a thread of your own with {@code
+ * StarlarkSemantics.DEFAULT} and no step limit either: callbacks would then run with other
+ * semantics than the script and without the script's bounds.
  *
  * <p>Obtain an instance from the evaluation result: {@link ParsedStarFile#hostValues()}. It
  * carries that evaluation's
  *
  * <ul>
  *   <li>semantics ({@link LarkySemantics}),
- *   <li>step limit ({@link LarkyEvaluator#STEP_LIMIT}), applied to <em>each call</em> of this
- *       class: it bounds one access, not the sum of all accesses,
+ *   <li>remaining step budget: the step limit ({@link LarkyEvaluator#STEP_LIMIT}) minus the steps
+ *       the evaluation used. All calls through the instance (and through instances derived from it
+ *       with {@code with...}) draw on that one budget, as callbacks run on the evaluation's own
+ *       thread did; once it is spent, every call fails with "too many steps". Calls running at the
+ *       same time each start with the budget left when they start, so together they can exceed it
+ *       by the steps of the calls that overlap,
+ *   <li>expiration date ({@link LarkyEvaluator#EXPIRATION_MS}): the same absolute time; a call
+ *       past it fails with "past expiration date", as on the evaluation's own thread,
  *   <li>module providers ({@link LarkyEvaluator#MODULE_PROVIDERS}).
  * </ul>
- *
- * The expiration deadline ({@link LarkyEvaluator#EXPIRATION_MS}) is not inherited: it is an
- * absolute time that has typically passed by the time the host reads results. Bound host calls
- * with the step limit.
  *
  * <p>Every method creates a fresh {@link Mutability} and {@link StarlarkThread}, makes the thread
  * the {@link CurrentEvaluation} for the call (so thread-less callbacks such as {@code __eq__} in a
@@ -63,8 +66,11 @@ import net.starlark.java.eval.StarlarkThread;
  *   <li>Values created by a call (a list returned by a getter) are frozen when the call returns.
  *       They are safe to keep and read, and cannot be mutated by, or leak mutability into, a
  *       later call.
- *   <li>Nothing is shared between calls, so instances are thread-safe, and a getter that loops
- *       forever stops at the step limit with an {@link EvalException} instead of hanging.
+ *   <li>Calls share only the step budget, so instances are thread-safe, and a getter that loops
+ *       forever stops at the step budget or the expiration date with an {@link EvalException}
+ *       instead of hanging.
+ *   <li>Every failure of a callback is an {@link EvalException}, also an unchecked exception
+ *       thrown by Java code it calls (the {@code EvalException}'s cause).
  *   <li>{@code print()} output of the callbacks goes where it went before host code read values
  *       this way: an instance from {@link ParsedStarFile#hostValues()} sends it to the
  *       evaluation's reporter, as a callback run on the evaluation's own thread did; an instance
@@ -91,20 +97,33 @@ import net.starlark.java.eval.StarlarkThread;
  */
 public final class HostValues {
 
+  /** What all calls through an instance and the instances derived from it may use, together. */
+  private static final class Budget {
+    /** Steps left for all calls, or null for no limit. */
+    @Nullable final AtomicLong remainingSteps;
+    /** Absolute expiration date in ms since 1970, or Long.MAX_VALUE for none. */
+    final long expirationMs;
+
+    Budget(@Nullable Long maxSteps, long expirationMs) {
+      this.remainingSteps = maxSteps == null ? null : new AtomicLong(Math.max(0, maxSteps));
+      this.expirationMs = expirationMs;
+    }
+  }
+
   private final StarlarkSemantics semantics;
-  @Nullable private final Long maxSteps;
   @Nullable private final ModuleProviders providers;
   @Nullable private final StarlarkThread.PrintHandler printHandler;
+  private final Budget budget;
 
   private HostValues(
       StarlarkSemantics semantics,
-      @Nullable Long maxSteps,
       @Nullable ModuleProviders providers,
-      @Nullable StarlarkThread.PrintHandler printHandler) {
+      @Nullable StarlarkThread.PrintHandler printHandler,
+      Budget budget) {
     this.semantics = semantics;
-    this.maxSteps = maxSteps;
     this.providers = providers;
     this.printHandler = printHandler;
+    this.budget = budget;
   }
 
   /** Larky's default semantics, no step limit, no providers, Starlark's default print handler. */
@@ -113,17 +132,36 @@ public final class HostValues {
   }
 
   /**
-   * @param maxSteps the step limit of each call, or null for none
+   * @param maxSteps the steps all calls through the instance may use together, or null for no
+   *     limit
    * @param providers the module providers visible to callbacks, or null
    */
   public static HostValues of(
       StarlarkSemantics semantics, @Nullable Long maxSteps, @Nullable ModuleProviders providers) {
-    return new HostValues(semantics, maxSteps, providers, null);
+    return of(semantics, maxSteps, Long.MAX_VALUE, providers);
   }
 
-  /** The same, delivering {@code print()} output of callbacks to {@code handler}. */
+  /**
+   * @param maxSteps the steps all calls through the instance may use together, or null for no
+   *     limit
+   * @param expirationMs the absolute time (ms since 1970) after which calls fail, or {@code
+   *     Long.MAX_VALUE} for none
+   * @param providers the module providers visible to callbacks, or null
+   */
+  public static HostValues of(
+      StarlarkSemantics semantics,
+      @Nullable Long maxSteps,
+      long expirationMs,
+      @Nullable ModuleProviders providers) {
+    return new HostValues(semantics, providers, null, new Budget(maxSteps, expirationMs));
+  }
+
+  /**
+   * The same (sharing this instance's step budget), delivering {@code print()} output of
+   * callbacks to {@code handler}.
+   */
   public HostValues withPrintHandler(StarlarkThread.PrintHandler handler) {
-    return new HostValues(semantics, maxSteps, providers, handler);
+    return new HostValues(semantics, providers, handler, budget);
   }
 
   /**
@@ -133,7 +171,7 @@ public final class HostValues {
    * keep printing where they did.
    */
   public HostValues withStarlarkDefaultPrintHandler() {
-    return new HostValues(semantics, maxSteps, providers, null);
+    return new HostValues(semantics, providers, null, budget);
   }
 
   /** The semantics callbacks run with. */
@@ -141,10 +179,15 @@ public final class HostValues {
     return semantics;
   }
 
-  /** The step limit of each call, or null if unlimited. */
+  /** The steps left for all calls together, or null if unlimited. */
   @Nullable
-  public Long maxSteps() {
-    return maxSteps;
+  public Long remainingSteps() {
+    return budget.remainingSteps == null ? null : budget.remainingSteps.get();
+  }
+
+  /** The absolute expiration date of calls (ms since 1970), or {@code Long.MAX_VALUE} if none. */
+  public long expirationMs() {
+    return budget.expirationMs;
   }
 
   /** A body that runs on a fresh thread. */
@@ -154,6 +197,40 @@ public final class HostValues {
   }
 
   private <T> T run(String name, Body<T> body) throws EvalException, InterruptedException {
+    try {
+      return runUnchecked(name, body);
+    } catch (Starlark.UncheckedEvalException e) {
+      // a RuntimeException thrown by Java code, decorated with the Starlark stack
+      throw new EvalException(internalErrorMessage(name, e.getCause()), e);
+    } catch (RuntimeException e) {
+      for (Throwable c = e.getCause(); c != null; c = c.getCause()) {
+        if (c instanceof EvalException) {
+          throw (EvalException) c; // a Starlark error that Java code wrapped to pass it through
+        }
+      }
+      throw new EvalException(internalErrorMessage(name, e), e);
+    }
+  }
+
+  private static String internalErrorMessage(String name, @Nullable Throwable e) {
+    return "internal error in HostValues." + name + ": "
+        + (e == null ? "unknown" : e.getClass().getSimpleName()
+            + (e.getMessage() == null ? "" : ": " + e.getMessage()));
+  }
+
+  /** As {@link #run}, but unchecked exceptions of the body propagate unchanged. */
+  private <T> T runUnchecked(String name, Body<T> body) throws EvalException, InterruptedException {
+    long startSteps = Long.MAX_VALUE;
+    if (budget.remainingSteps != null) {
+      startSteps = budget.remainingSteps.get();
+      if (startSteps <= 0) {
+        throw new EvalException("Starlark computation cancelled: too many steps");
+      }
+    }
+    if (budget.expirationMs != Long.MAX_VALUE
+        && System.currentTimeMillis() > budget.expirationMs) {
+      throw new EvalException("Starlark computation cancelled: past expiration date");
+    }
     try (Mutability mu = Mutability.create("HostValues." + name)) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, semantics);
       if (printHandler != null) {
@@ -162,11 +239,18 @@ public final class HostValues {
       if (providers != null) {
         providers.installOn(thread);
       }
-      if (maxSteps != null) {
-        thread.setMaxExecutionSteps(maxSteps);
+      if (budget.remainingSteps != null) {
+        thread.setMaxExecutionSteps(startSteps);
+      }
+      if (budget.expirationMs != Long.MAX_VALUE) {
+        thread.setExpirationMs(budget.expirationMs);
       }
       try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
         return body.run(mu, thread);
+      } finally {
+        if (budget.remainingSteps != null) {
+          budget.remainingSteps.addAndGet(-thread.getExecutedSteps());
+        }
       }
     }
   }
@@ -174,6 +258,25 @@ public final class HostValues {
   /** As Starlark's {@code str(value)}. */
   public String str(Object value) throws EvalException, InterruptedException {
     return run("str", (mu, thread) -> Starlark.str(value, semantics));
+  }
+
+  /**
+   * As {@code String.valueOf(value)}, Java's {@code toString}, for hosts that printed results that
+   * way. A struct's {@code toString} runs its {@code __repr__}, so it needs an evaluation too.
+   */
+  public String javaString(Object value) throws EvalException, InterruptedException {
+    return run("javaString", (mu, thread) -> String.valueOf(value));
+  }
+
+  /**
+   * As {@link StarlarkUtil#valueToStarlark(Object)}: converts a host value (possibly a value of an
+   * earlier evaluation, such as a binding a JSR-223 engine kept) to Starlark form. Copying a dict
+   * hashes its keys, which runs a struct's {@code __hash__} and {@code __eq__}.
+   *
+   * @throws IllegalArgumentException for a value that has no Starlark form, as valueToStarlark
+   */
+  public Object toStarlark(Object value) throws EvalException, InterruptedException {
+    return runUnchecked("toStarlark", (mu, thread) -> StarlarkUtil.valueToStarlark(value));
   }
 
   /** As Starlark's {@code repr(value)}. */

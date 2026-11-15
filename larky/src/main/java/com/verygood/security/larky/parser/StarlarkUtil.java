@@ -215,6 +215,12 @@ public final class StarlarkUtil {
    * </ol>
    */
   public static Object valueToStarlark(Object x, @Nullable Mutability mutability) throws IllegalArgumentException {
+    // A frozen Dict is already in Starlark form and cannot change: return it, as Dict.copyOf does.
+    // Copying it would hash its keys again, which runs a struct's __hash__ (Starlark code) with no
+    // evaluation active when the dict comes from an earlier evaluation (a JSR-223 binding).
+    if (x instanceof Dict && ((Dict<?, ?>) x).isImmutable()) {
+      return x;
+    }
     // Is x a non-empty string_list_dict?
     if (x instanceof Map) {
       Map<?, ?> map = (Map<?, ?>) x;

@@ -183,6 +183,19 @@ public class LarkyScript {
     return executeStarlark(content, moduleSet, console).output();
   }
 
+  /**
+   * Runs {@code content} and returns its output as Java's {@code toString} of it (what the larky
+   * runner writes), computed through the evaluation's {@link HostValues}: the output may be a
+   * struct whose {@code __repr__} is Starlark code, which needs a current evaluation.
+   */
+  public String executeSkylarkWithOutputAsString(
+      StarFile content, ModuleSet moduleSet, Console console)
+      throws IOException, InterruptedException, EvalException {
+    LarkyEvaluator evaluator = new LarkyEvaluator(this, moduleSet, console);
+    Object output = evaluator.eval(content).output();
+    return evaluator.hostValues().javaString(output);
+  }
+
   public ParsedStarFile evaluate(StarFile content, Console console)
       throws IOException, EvalException {
     return evaluate(content, moduleSet, console);

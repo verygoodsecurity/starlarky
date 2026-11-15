@@ -25,6 +25,7 @@ import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 import java.util.ArrayList;
 import java.util.List;
 import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
@@ -125,9 +126,31 @@ public class StructThreadIsolationTest {
   public void aLoopingGetterStopsAtTheEvaluationsStepLimit() throws Exception {
     ParsedStarFile parsed = HostValuesTest.evaluate(SCRIPT, 2_000_000L);
     Object s = global(parsed, "S");
-    RuntimeException e =
-        assertThrows(RuntimeException.class, () -> parsed.hostValues().getField(s, "spin"));
+    // an EvalException, not the RuntimeException the struct wraps it in
+    EvalException e =
+        assertThrows(EvalException.class, () -> parsed.hostValues().getField(s, "spin"));
     assertThat(e).hasMessageThat().contains("too many steps");
+  }
+
+  @Test
+  public void aReusedEngineCarriesStructDictKeysIntoTheNextEval() throws Exception {
+    // the engine keeps each eval's globals as bindings; the next eval converts them, which copies
+    // D and so hashes its struct key (a __hash__ in Starlark) outside any evaluation
+    javax.script.ScriptEngine engine =
+        new com.verygood.security.larky.jsr223.LarkyScriptEngineFactory().getScriptEngine();
+    engine.eval(
+        String.join(
+            "\n",
+            "load('@stdlib//larky', 'larky')",
+            "def _hash():",
+            "    return 7",
+            "def _eq(other):",
+            "    return True",
+            "K = larky.struct(__hash__ = _hash, __eq__ = _eq)",
+            "D = {K: [1, 2]}",
+            ""));
+    engine.eval("n = len(D)\n");
+    assertThat(engine.get("n")).isEqualTo(StarlarkInt.of(1));
   }
 
   /** A callable that records the threads it ran on, and the current evaluation then. */
