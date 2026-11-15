@@ -321,7 +321,7 @@ public final class PythonBuiltins {
 
   @StarlarkMethod(name = "StopIteration")
   public LarkyStopIteration stopIteration() {//throws LarkyStopIteration {
-    return LarkyStopIteration.getInstance();
+    return LarkyStopIteration.sentinel();
   }
 
   @StarlarkMethod(name = "IndexError")
@@ -394,7 +394,7 @@ public final class PythonBuiltins {
       return defaultO;
     }
     // else raise StopIteration
-    throw LarkyStopIteration.create();
+    throw LarkyStopIteration.newInstance();
   }
 
   @StarlarkMethod(

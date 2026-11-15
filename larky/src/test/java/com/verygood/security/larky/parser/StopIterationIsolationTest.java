@@ -20,6 +20,7 @@ import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.modules.types.results.LarkyStopIteration;
 import java.nio.charset.StandardCharsets;
 import net.starlark.java.eval.EvalException;
 import org.junit.Test;
@@ -70,5 +71,7 @@ public class StopIterationIsolationTest {
     assertThat(b.getMessageWithStack()).contains("line 7, column 23");
     assertThat(b.getMessage()).isEqualTo("StopIteration");
     assertThat(b).isNotSameInstanceAs(a);
+    assertThat(a).isNotSameInstanceAs(LarkyStopIteration.sentinel());
+    assertThat(b).isNotSameInstanceAs(LarkyStopIteration.sentinel());
   }
 }
