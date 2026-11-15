@@ -153,6 +153,36 @@ public class StructThreadIsolationTest {
     assertThat(engine.get("n")).isEqualTo(StarlarkInt.of(1));
   }
 
+  @Test
+  public void propertySetChecksItsArgumentsWithoutShowingJava() throws Exception {
+    String script =
+        String.join(
+            "\n",
+            "load('@stdlib//larky', 'larky')",
+            "seen = []",
+            "p = larky.property(lambda: 41, lambda v: seen.append(v))",
+            "p.set(5)",
+            "got = seen[0]",
+            "");
+    ParsedStarFile parsed = HostValuesTest.evaluate(script, null);
+    assertThat(global(parsed, "got")).isEqualTo(StarlarkInt.of(5));
+
+    // LarkyScript reports a failed script as RuntimeEvalException, with the EvalException as cause
+    RuntimeException e =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                HostValuesTest.evaluate(
+                    "load('@stdlib//larky', 'larky')\n"
+                        + "p = larky.property(lambda: 41, lambda v: None)\n"
+                        + "p.set()\n",
+                    null));
+    assertThat(e.getCause()).isInstanceOf(EvalException.class);
+    assertThat(e.getCause())
+        .hasMessageThat()
+        .isEqualTo("set() missing 1 required positional argument: val");
+  }
+
   /** A callable that records the threads it ran on, and the current evaluation then. */
   private static final class Probe implements StarlarkCallable {
     final List<StarlarkThread> threads = new ArrayList<>();

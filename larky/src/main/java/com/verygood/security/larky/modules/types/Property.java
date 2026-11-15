@@ -4,6 +4,7 @@ import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.objects.type.LarkyType;
 
+import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -77,9 +78,15 @@ public class Property implements StarlarkValue, LarkyDataDescriptor {
   }
 
   /** As {@link #get}: calls the setter with {@code val} on the caller's thread. */
+  // The parameters are declared so that Starlark checks the call. Without them every call failed
+  // with a Java reflection error that showed this method's Java signature to the script.
   @StarlarkMethod(
     name = "set",
-    doc = "call",
+    doc = "Calls the setter with val. field_name names the field in the error if there is none.",
+    parameters = {
+      @Param(name = "val"),
+      @Param(name = "field_name", defaultValue = "''", named = true)
+    },
     useStarlarkThread = true
   )
   public Object set(Object val, String fieldName, StarlarkThread thread)
