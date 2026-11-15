@@ -45,7 +45,7 @@ class MutableStruct extends SimpleStruct {
     try {
       // on the caller's thread (the current evaluation's when the caller has none)
       return field1.get(thread);
-    } catch (NullPointerException | EvalException exception) {
+    } catch (EvalException exception) {
       String s = String.format(
         "Exception encountered for property '%s' pointing to: '%s': %s",
         name, field, exception

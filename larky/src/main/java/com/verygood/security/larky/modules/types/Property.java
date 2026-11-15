@@ -73,6 +73,10 @@ public class Property implements StarlarkValue, LarkyDataDescriptor {
     useStarlarkThread = true
   )
   public Object get(StarlarkThread thread) throws InterruptedException, EvalException {
+    if (this.fget == null) {
+      // a Java host can build a property without a getter; as __get__ does
+      throw new EvalException("AttributeError: unreadable attribute");
+    }
     return Starlark.call(
         CurrentEvaluation.orRequire(thread), this.fget, Tuple.empty(), Dict.empty());
   }
@@ -101,6 +105,6 @@ public class Property implements StarlarkValue, LarkyDataDescriptor {
 
   @Override
   public String toString() {
-    return fget.toString();
+    return String.valueOf(fget);
   }
 }

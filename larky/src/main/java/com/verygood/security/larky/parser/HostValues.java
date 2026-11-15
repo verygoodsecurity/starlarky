@@ -120,10 +120,10 @@ public final class HostValues {
       @Nullable ModuleProviders providers,
       @Nullable StarlarkThread.PrintHandler printHandler,
       Budget budget) {
-    this.semantics = semantics;
+    this.semantics = java.util.Objects.requireNonNull(semantics, "semantics");
     this.providers = providers;
     this.printHandler = printHandler;
-    this.budget = budget;
+    this.budget = java.util.Objects.requireNonNull(budget, "budget");
   }
 
   /** Larky's default semantics, no step limit, no providers, Starlark's default print handler. */

@@ -51,6 +51,17 @@ class PropertyTest {
   }
 
   @Test
+  void getWithoutAGetterIsAnEvalException() throws Exception {
+    try (Mutability mu = Mutability.create("property")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      Property property = Property.builder().build();
+      EvalException e = assertThrows(EvalException.class, () -> property.get(thread));
+      assertEquals("AttributeError: unreadable attribute", e.getMessage());
+      assertEquals("null", property.toString());
+    }
+  }
+
+  @Test
   void descriptorAccessUsesSuppliedThreadOrFallsBackToCurrentEvaluation() throws Exception {
     try (Mutability current = Mutability.create("current");
          Mutability active = Mutability.create("active")) {
