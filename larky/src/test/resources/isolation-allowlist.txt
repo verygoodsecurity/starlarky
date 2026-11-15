@@ -268,5 +268,3 @@ SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyAttribut
 SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyAttributeError#INSTANCE	never thrown (grep: no throw site); used only as a returned sentinel (PythonBuiltins.hasattr compares against it); remove or keep as sentinel only
 SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyIndexError#INDEX_ERROR	EvalException cause of LarkyIndexError.INSTANCE; goes away with INSTANCE
 SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyIndexError#INSTANCE	never thrown (grep: no throw site); used only as a returned sentinel (LarkyIterator compares nextVal against it); remove or keep as sentinel only
-SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyStopIteration#INSTANCE	thrown from PythonBuiltins.next / LarkyIterator (4 throw sites) on this base; the per-raise fix removes the throw sites, after which it remains only as a returned sentinel
-SHARED_THROWABLE	com.verygood.security.larky.modules.types.results.LarkyStopIteration#STOP_ITERATION	EvalException cause of LarkyStopIteration.INSTANCE; goes away with INSTANCE
