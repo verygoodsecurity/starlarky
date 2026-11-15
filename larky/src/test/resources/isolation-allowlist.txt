@@ -329,8 +329,8 @@ STATIC	com.verygood.security.larky.parser.CurrentEvaluation#CURRENT:java.lang.Th
 STATIC	com.verygood.security.larky.parser.LarkyEvaluator#BUILTIN_BINDINGS:java.util.concurrent.ConcurrentHashMap	process-wide cache/registry by design; written at runtime
 STATIC	com.verygood.security.larky.parser.LarkyEvaluator#MERGED_BUILTIN_BINDINGS:java.util.concurrent.ConcurrentHashMap	process-wide cache/registry by design; written at runtime
 STATIC	com.verygood.security.larky.parser.LarkyEvaluator$LarkyLoader#NATIVE_WRAPPERS:java.util.concurrent.ConcurrentHashMap	process-wide cache/registry by design; written at runtime
-STATIC	com.verygood.security.larky.parser.ModuleCache#BY_MODULE:java.util.Map	process-wide cache/registry by design; written at runtime
-STATIC	com.verygood.security.larky.parser.ModuleCache#CACHE:java.util.concurrent.ConcurrentHashMap	process-wide cache/registry by design; written at runtime
+STATIC	com.verygood.security.larky.parser.ModuleCache#SHARED:com.verygood.security.larky.parser.ModuleCache	the process-wide module cache; off unless -Dlarky.moduleCache.enable=true, and #846's ConcurrentEvaluationTest gate must pass before it is turned on
+STATIC	com.verygood.security.larky.parser.ModuleCache#STABLE:java.util.Set	registry of native module wrappers, which are created once per process and hold no evaluation state; written at runtime
 STATIC	com.verygood.security.larky.parser.ProgramCache#CACHE:java.util.concurrent.ConcurrentHashMap	process-wide cache/registry by design; written at runtime
 STATIC	com.verygood.security.larky.parser.ProgramCache#SCRIPTS:com.google.common.cache.Cache	process-wide Guava cache of compiled stdlib/vendor/vgs Programs, shared by design; each evaluation executes into a fresh Module
 STATIC	com.verygood.security.larky.parser.ProgramCache#compiledFromSource:java.util.concurrent.atomic.AtomicInteger	process-wide cache/registry by design; written at runtime

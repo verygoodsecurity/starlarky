@@ -29,13 +29,11 @@ public class ProgramCacheTest {
   @Before
   public void setUp() {
     ProgramCache.clear();
-    ModuleCache.clear(); // a cached module would skip the program cache entirely
   }
 
   @After
   public void tearDown() {
     ProgramCache.clear();
-    ModuleCache.clear(); // a cached module would skip the program cache entirely
   }
 
   private ProgramCache.Executable get(Module module) throws EvalException {
@@ -135,6 +133,8 @@ public class ProgramCacheTest {
 
   private static LarkyEvaluator newEvaluator() {
     return new LarkyEvaluator(
-        new LarkyScript(LarkyScript.StarlarkMode.STRICT), new TestingConsole());
+        // without a module cache: a cached module would skip the program cache entirely
+        new LarkyScript(LarkyScript.StarlarkMode.STRICT).withModuleCache(new ModuleCache(false)),
+        new TestingConsole());
   }
 }

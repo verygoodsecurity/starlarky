@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.AccessLevel;
 import lombok.Getter;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
@@ -111,6 +112,9 @@ public class LarkyScript {
   private final ModuleSet moduleSet;
   @Getter
   private final StarlarkSemantics larkySemantics;
+  // the cache of Larky's own loaded modules; a test gives its own (see ModuleCache)
+  @Getter(AccessLevel.PACKAGE)
+  private ModuleCache moduleCache = ModuleCache.SHARED;
 
   // TODO: convert to builder
   public LarkyScript(StarlarkMode validation) {
@@ -159,6 +163,13 @@ public class LarkyScript {
         (a, b) -> b)
       );
     this.larkySemantics = larkySemantics;
+  }
+
+  /** Evaluates with {@code cache} instead of the process-wide {@link ModuleCache#SHARED}. */
+  @VisibleForTesting
+  LarkyScript withModuleCache(ModuleCache cache) {
+    this.moduleCache = Objects.requireNonNull(cache);
+    return this;
   }
 
   private LarkyEvaluator.EvaluationResult executeStarlark(StarFile content, ModuleSet moduleSet, Console console)
