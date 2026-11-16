@@ -91,7 +91,7 @@ def _HMAC(key, msg, digestmod):
                 :return: An :class:`HMAC`
 
         """
-        new_hmac = _HMAC(b"fake key", digestmod=self._digestmod)
+        new_hmac = _HMAC(b"fake key", b"", self._digestmod)
 
         # Syncronize the state
         new_hmac._inner = self._inner.copy()
