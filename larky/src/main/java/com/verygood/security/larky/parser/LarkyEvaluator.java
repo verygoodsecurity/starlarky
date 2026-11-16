@@ -62,6 +62,7 @@ public final class LarkyEvaluator {
 
   @Getter
   private final StarlarkSemantics larkySemantics;
+  private final ModuleCache moduleCache;
 
   public LarkyEvaluator(LarkyScript larkyScript, Console console) {
     this(larkyScript, larkyScript.getModuleSet(), console);
@@ -72,6 +73,7 @@ public final class LarkyEvaluator {
     this.moduleSet = checkNotNull(moduleSet);
     this.validationMode = larkyScript.getValidation();
     this.larkySemantics = larkyScript.getLarkySemantics();
+    this.moduleCache = larkyScript.getModuleCache();
     //todo(mahmoudimus): convert to builder pattern
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
   }
@@ -124,10 +126,11 @@ public final class LarkyEvaluator {
           .module(module)
           .build();
     }
-    // Larky's own modules are loaded once per process and shared (see ModuleCache).
+    // With the module cache on, Larky's own modules are loaded once per process and shared (see
+    // ModuleCache).
     if (content instanceof ResourceContentStarFile) {
       Module shared =
-          ModuleCache.lookup(
+          moduleCache.lookup(
               content.path(), getStarlarkValidationOptions(), getLarkySemantics(), getEnvironment());
       if (shared != null) {
         loaded.put(content.path(), shared);
@@ -198,7 +201,7 @@ public final class LarkyEvaluator {
       module.setGlobal(EXECUTION_STEPS, thread.getExecutedSteps());
     }
     if (content instanceof ResourceContentStarFile) {
-      ModuleCache.put(
+      moduleCache.put(
           content.path(), options, getLarkySemantics(), module, prog.predeclaredNames(),
           getEnvironment(), loadedModules);
     }
