@@ -26,6 +26,7 @@ import java.util.Map;
     name = "proto",
     category = "BUILTIN",
     doc = "A module for protocol message processing.")
+@com.google.errorprone.annotations.Immutable
 public final class ProtoBufModule implements StarlarkValue {
 
   // Note: in due course this is likely to move to net.starlark.java.lib.proto.

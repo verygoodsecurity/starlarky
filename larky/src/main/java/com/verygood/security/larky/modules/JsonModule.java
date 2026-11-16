@@ -52,6 +52,7 @@ import javax.annotation.Nullable;
     name = "json",
     category = "core.lib",
     doc = "Module json is a Starlark module of JSON-related functions.")
+@com.google.errorprone.annotations.Immutable
 public final class JsonModule implements StarlarkValue {
 
   //@formatter:off

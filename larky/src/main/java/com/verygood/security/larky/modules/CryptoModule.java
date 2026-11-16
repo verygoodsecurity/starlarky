@@ -23,6 +23,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
     category = "BUILTIN",
     doc = ""
 )
+@com.google.errorprone.annotations.Immutable
 public class CryptoModule implements StarlarkValue {
 
   static {

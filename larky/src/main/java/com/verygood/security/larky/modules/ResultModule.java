@@ -32,6 +32,7 @@ import net.starlark.java.eval.Tuple;
       " under-the-hood error handling without having to define try-catch-blocks or" +
       " conditionals."
 )
+@com.google.errorprone.annotations.Immutable
 public class ResultModule implements StarlarkValue {
 
   public static final ResultModule INSTANCE = new ResultModule();
