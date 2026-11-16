@@ -40,7 +40,7 @@
         <org.projectlombok.version>1.18.48</org.projectlombok.version>
         <picocli.version>4.7.7</picocli.version>
         <graalvm.version>25.5.5.0.3</graalvm.version>
-        <jackson-databind.version>2.22.4</jackson-databind.version>
+        <jackson-databind.version>2.23.0</jackson-databind.version>
         <jline.version>4.5.0</jline.version>
         <google.truth.version>1.4.5</google.truth.version>
 
