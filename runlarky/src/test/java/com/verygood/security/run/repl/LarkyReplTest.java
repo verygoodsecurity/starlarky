@@ -256,12 +256,16 @@ public final class LarkyReplTest {
 
   @Test
   public void jlineEditsAMultiLineInputAsOneBuffer() throws Exception {
-    // A terminal over in-memory streams: the line editor without a real terminal.
+    // A terminal over in-memory streams: the line editor without a real terminal. Like
+    // JLineInput.systemTerminal(), no JNI or FFM provider: those back the streams with a pty, which
+    // JLine 4 closes when the input stream ends, before the reader has read it.
     byte[] keys = "def f():\rreturn 7\r\rf()\r:quit\r".getBytes(UTF_8);
     ByteArrayOutputStream screen = new ByteArrayOutputStream();
     Terminal terminal =
         TerminalBuilder.builder()
             .system(false)
+            .jni(false)
+            .ffm(false)
             .streams(new ByteArrayInputStream(keys), screen)
             .type("xterm")
             .build();
