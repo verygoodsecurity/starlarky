@@ -301,8 +301,11 @@ public final class LarkyEvaluator {
       }
     }
 
+    // Only a Module is loadable from the environment. Any other entry of the same name is a predeclared value
+    // (e.g. a host's binding named like the module), which a load() must not take for the module: the module
+    // then comes from the module set as usual.
     private boolean inEvaluatorEnvironment(String moduleToLoad) {
-      return evaluator.getEnvironment().containsKey(moduleToLoad);
+      return evaluator.getEnvironment().get(moduleToLoad) instanceof Module;
     }
 
     private Module fromEvaluatorEnvironment(String moduleToLoad) {
