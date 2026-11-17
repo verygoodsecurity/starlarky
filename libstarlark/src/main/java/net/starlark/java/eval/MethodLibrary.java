@@ -751,7 +751,7 @@ class MethodLibrary {
       return kwargs;
     }
     Dict<Object, Object> dict = Dict.of(thread.mutability());
-    Dict.update("dict", dict, pairs, kwargs);
+    Dict.update("dict", dict, pairs, kwargs, thread);
     return dict;
   }
 

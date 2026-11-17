@@ -164,17 +164,20 @@ public interface LarkyMapping<K, V> extends Map<K, V>, LarkyIndexable, Mutabilit
     throws EvalException {
     Starlark.checkMutable(this);
     Dict<Object, Object> dict = Dict.copyOf(thread.mutability(), this); // see class doc comment
-    update("update", dict, pairs, kwargs);
+    update("update", dict, pairs, kwargs, thread);
     //noinspection unchecked
     this.contents().putAll(Collections.unmodifiableMap((Map<? extends K, ? extends V>) dict));
   }
 
   // Common implementation of dict(pairs, **kwargs) and dict.update(pairs, **kwargs).
   static void update(
-    String funcname, Dict<Object, Object> dict, Object pairs, Dict<String, Object> kwargs)
+    String funcname, Dict<Object, Object> dict, Object pairs, Dict<String, Object> kwargs,
+    StarlarkThread thread)
     throws EvalException {
     if (pairs instanceof Dict) { // common case
       dict.putEntries((Dict<?, ?>) pairs);
+    } else if (net.starlark.java.eval.MappingProtocol.copyInto(dict, pairs, thread)) {
+      // copied via Python's keys() protocol
     } else {
       Iterable<?> iterable;
       try {

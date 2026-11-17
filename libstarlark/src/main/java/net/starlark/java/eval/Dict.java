@@ -291,15 +291,21 @@ public abstract sealed class Dict<K, V>
     Starlark.checkMutable(this);
     @SuppressWarnings("unchecked")
     Dict<Object, Object> dict = (Dict) this; // see class doc comment
-    update("update", dict, pairs, kwargs);
+    update("update", dict, pairs, kwargs, thread);
   }
 
   // Common implementation of dict(pairs, **kwargs) and dict.update(pairs, **kwargs).
   static void update(
-      String funcname, Dict<Object, Object> dict, Object pairs, Map<String, Object> kwargs)
+      String funcname,
+      Dict<Object, Object> dict,
+      Object pairs,
+      Map<String, Object> kwargs,
+      StarlarkThread thread)
       throws EvalException {
     if (pairs instanceof Map) { // common case
       dict.putEntries((Map<?, ?>) pairs);
+    } else if (MappingProtocol.copyInto(dict, pairs, thread)) { // VGS: Python's keys() protocol
+      // copied
     } else {
       Iterable<?> iterable;
       try {

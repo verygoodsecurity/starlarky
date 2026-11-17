@@ -14,6 +14,34 @@ index bba694c4..fc28260b 100644
  public final class CpuProfilerNativeSupportImpl implements CpuProfilerNativeSupport {
  
    static {
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Dict.java a/libstarlark/src/main/java/net/starlark/java/eval/Dict.java
+index 4ce35f47..77483c2d 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/Dict.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/Dict.java
+@@ -291,15 +291,21 @@ public abstract sealed class Dict<K, V>
+     Starlark.checkMutable(this);
+     @SuppressWarnings("unchecked")
+     Dict<Object, Object> dict = (Dict) this; // see class doc comment
+-    update("update", dict, pairs, kwargs);
++    update("update", dict, pairs, kwargs, thread);
+   }
+ 
+   // Common implementation of dict(pairs, **kwargs) and dict.update(pairs, **kwargs).
+   static void update(
+-      String funcname, Dict<Object, Object> dict, Object pairs, Map<String, Object> kwargs)
++      String funcname,
++      Dict<Object, Object> dict,
++      Object pairs,
++      Map<String, Object> kwargs,
++      StarlarkThread thread)
+       throws EvalException {
+     if (pairs instanceof Map) { // common case
+       dict.putEntries((Map<?, ?>) pairs);
++    } else if (MappingProtocol.copyInto(dict, pairs, thread)) { // VGS: Python's keys() protocol
++      // copied
+     } else {
+       Iterable<?> iterable;
+       try {
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Eval.java a/libstarlark/src/main/java/net/starlark/java/eval/Eval.java
 index bf7eeac3..a171a8e4 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/Eval.java
@@ -151,7 +179,7 @@ index 1655e0a9..7c660d45 100644
    }
  
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java a/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java
-index ec4ebbfa..3efac2fc 100644
+index ec4ebbfa..ab9ac9e6 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java
 @@ -392,7 +392,7 @@ class MethodLibrary {
@@ -245,6 +273,15 @@ index ec4ebbfa..3efac2fc 100644
    @StarlarkMethod(
        name = "repr",
        doc =
+@@ -676,7 +751,7 @@ class MethodLibrary {
+       return kwargs;
+     }
+     Dict<Object, Object> dict = Dict.of(thread.mutability());
+-    Dict.update("dict", dict, pairs, kwargs);
++    Dict.update("dict", dict, pairs, kwargs, thread);
+     return dict;
+   }
+ 
 @@ -737,15 +812,27 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
    @StarlarkMethod(
        name = "hash",
