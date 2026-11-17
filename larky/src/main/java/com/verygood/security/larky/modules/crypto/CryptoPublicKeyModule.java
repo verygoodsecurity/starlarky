@@ -417,7 +417,9 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   }, useStarlarkThread = true)
   public Tuple PKCS8_unwrap(StarlarkBytes binaryKey, String oid, Object passphraseO, String protection, StarlarkThread thread) throws EvalException {
     InputStreamReader r = new InputStreamReader(new ByteArrayInputStream(binaryKey.toByteArray()));
-    String passphrase = Starlark.isNullOrNone(passphraseO) ? null : (String) passphraseO;
+    String passphrase = Starlark.isNullOrNone(passphraseO)
+        ? null
+        : new String(((StarlarkBytes) passphraseO).toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
     KeyPair kp;
     try (PEMParser pemParser = new PEMParser(r)) {
       JcaPEMKeyConverter converter = new JcaPEMKeyConverter();

@@ -449,7 +449,7 @@ public class ASN1 {
       try (ByteArrayInputStream bais = new ByteArrayInputStream(asbytes)) {
         this.encodable = DERSequence.fromByteArray(asbytes);
       } catch (IOException e) {
-        String message = String.valueOf(e.getMessage());
+        String message = e.getMessage() != null ? e.getMessage() : "Malformed DER data";
         if (message.contains("Extra data detected in stream")) {
           message = "ValueError: Extra data detected in stream";
         } else if (message.contains("end-of-contents marker")) {
