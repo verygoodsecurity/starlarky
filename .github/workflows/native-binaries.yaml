@@ -97,14 +97,9 @@ jobs:
         if: ${{ runner.os == 'Linux' }}
         run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zlib1g-dev
 
-      - name: Set up MSVC
-        if: ${{ runner.os == 'Windows' }}
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756  # v1.13.0
-        with:
-          arch: x64
-
       - name: Build native runner
         # The tests run in build-test-publish.yaml's Linux build; this builds the binary only.
+        # On Windows, native-image finds the runner's Visual Studio and sets up MSVC itself.
         run: mvn -B -ntp package -Pnative -DskipTests -pl runlarky -am
         env:
           GRAALVM_HOME: ${{ github.workspace }}/${{ matrix.graalvm-home }}
