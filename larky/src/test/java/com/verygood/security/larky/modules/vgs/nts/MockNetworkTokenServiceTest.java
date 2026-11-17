@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules.vgs.nts;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -74,6 +75,18 @@ public class MockNetworkTokenServiceTest {
     t = service.getNetworkToken(request("alias", DEFAULT_MERCHANT, "DTVV", null)).get();
     assertEquals("4242424242424242", t.getToken());
     assertEquals("MOCK_DYNAMIC_CVV", t.getCryptogramValue());
+  }
+
+  @Test
+  public void missingCryptogramTypeIsNotAnError() {
+    // cryptogramType is @Nullable in GetNetworkTokenRequest
+    for (String merchant : new String[] {null, OTHER_MERCHANT}) {
+      NetworkToken t = service.getNetworkToken(request("alias", merchant, null, null)).get();
+      assertEquals("MOCK_CRYPTOGRAM_VALUE", t.getCryptogramValue());
+      assertNull(t.getCryptogramType());
+    }
+    NetworkToken aft = service.getNetworkToken(request("alias", null, null, "AFT")).get();
+    assertEquals("MOCK_CRYPTOGRAM_VALUE", aft.getCryptogramValue());
   }
 
   @Test

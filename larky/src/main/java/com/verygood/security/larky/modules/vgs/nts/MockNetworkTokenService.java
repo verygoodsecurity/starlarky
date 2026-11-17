@@ -46,17 +46,17 @@ public class MockNetworkTokenService implements NetworkTokenService {
       NetworkToken.NetworkTokenBuilder builder, String cryptogramType) {
     return builder
         .cryptogramValue(
-            cryptogramType.equals("DTVV") ? "MOCK_DYNAMIC_CVV" : "MOCK_CRYPTOGRAM_VALUE")
+            "DTVV".equals(cryptogramType) ? "MOCK_DYNAMIC_CVV" : "MOCK_CRYPTOGRAM_VALUE")
         .cryptogramType(cryptogramType)
         .build();
   }
 
   @Override
   public Optional<NetworkToken> getNetworkToken(GetNetworkTokenRequest request) {
-    if (request.getPanAlias().equals("NOT_FOUND")) {
+    if ("NOT_FOUND".equals(request.getPanAlias())) {
       return Optional.empty();
     }
-    if (request.getTransactionType() != null && request.getTransactionType().equals("AFT")) {
+    if ("AFT".equals(request.getTransactionType())) {
       return Optional.of(withCryptogram(newAftBuilder(), request.getCryptogramType()));
     }
     final String merchantId =
