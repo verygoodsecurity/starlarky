@@ -70,6 +70,9 @@ public class ModuleSupplier {
     // bytes.decode uses the same codecs as codecs.decode: CPython's names and error handlers.
     net.starlark.java.eval.StarlarkBytes.setDecoder(
         com.verygood.security.larky.modules.codecs.TextUtil.PyCodecs::decode);
+    // str.encode likewise uses the codecs of codecs.encode and bytes(s, encoding).
+    net.starlark.java.eval.StarlarkBytes.setEncoder(
+        com.verygood.security.larky.modules.codecs.TextUtil.PyCodecs::encode);
   }
 
   public static final ImmutableSet<Class<?>> CORE_MODULES = ImmutableSet.of(

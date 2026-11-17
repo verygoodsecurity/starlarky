@@ -1047,6 +1047,29 @@ public class StarlarkBytes implements ByteStringModuleApi,
     decoder = d;
   }
 
+  /** Encodes a string to bytes for {@code str.encode}. */
+  public interface Encoder {
+    byte[] encode(String s, String encoding, String errors) throws EvalException;
+  }
+
+  @Nullable private static volatile Encoder encoder;
+
+  /**
+   * Sets how {@code str.encode} encodes (Larky installs CPython's codec names and error handlers,
+   * as for {@code bytes(s, encoding)}). Without one, UTF-8, Latin-1 and ASCII are supported.
+   */
+  public static void setEncoder(@Nullable Encoder e) {
+    encoder = e;
+  }
+
+  /** Returns {@code s} encoded as {@code encoding} does, with {@code errors} handling failures. */
+  public static StarlarkBytes encode(String s, String encoding, String errors)
+      throws EvalException {
+    Encoder e = encoder;
+    return immutableOf(
+        e != null ? e.encode(s, encoding, errors) : StringEncoder.encode(s, encoding, errors));
+  }
+
   @Override
   public String decode(String encoding, String errors) throws EvalException {
     Decoder d = decoder;

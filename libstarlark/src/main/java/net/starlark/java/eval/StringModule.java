@@ -768,6 +768,31 @@ final class StringModule implements StarlarkValue {
     return res;
   }
 
+  // VGS: Python's str.encode.
+  @StarlarkMethod(
+      name = "encode",
+      doc =
+          "Returns the string encoded as bytes. <code>encoding</code> names the codec and"
+              + " <code>errors</code> how unencodable characters are handled ('strict', 'ignore',"
+              + " 'replace', 'backslashreplace', 'xmlcharrefreplace', 'namereplace',"
+              + " 'surrogateescape').",
+      parameters = {
+        @Param(name = "self", doc = "This string."),
+        @Param(
+            name = "encoding",
+            defaultValue = "'utf-8'",
+            named = true,
+            doc = "The name of the encoding."),
+        @Param(
+            name = "errors",
+            defaultValue = "'strict'",
+            named = true,
+            doc = "The error handler's name.")
+      })
+  public StarlarkBytes encode(String self, String encoding, String errors) throws EvalException {
+    return StarlarkBytes.encode(self, encoding, errors);
+  }
+
   @StarlarkMethod(
       name = "splitlines",
       doc =

@@ -489,7 +489,7 @@ index 65cfb87a..69dcbd31 100644
     * setThreadLocal saves {@code value} as a thread-local variable of this Starlark thread, keyed by
     * {@code key}, so that it can later be retrieved by {@code getThreadLocal(key)}.
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java a/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java
-index 1191027e..ffad3cd0 100644
+index 1191027e..395ae39a 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/StringModule.java
 @@ -188,16 +188,24 @@ final class StringModule implements StarlarkValue {
@@ -626,7 +626,39 @@ index 1191027e..ffad3cd0 100644
      int res = stringFind(true, self, sub, start, end);
      if (res < 0) {
        throw Starlark.errorf("substring not found");
-@@ -771,8 +809,12 @@ final class StringModule implements StarlarkValue {
+@@ -730,6 +768,31 @@ final class StringModule implements StarlarkValue {
+     return res;
+   }
+ 
++  // VGS: Python's str.encode.
++  @StarlarkMethod(
++      name = "encode",
++      doc =
++          "Returns the string encoded as bytes. <code>encoding</code> names the codec and"
++              + " <code>errors</code> how unencodable characters are handled ('strict', 'ignore',"
++              + " 'replace', 'backslashreplace', 'xmlcharrefreplace', 'namereplace',"
++              + " 'surrogateescape').",
++      parameters = {
++        @Param(name = "self", doc = "This string."),
++        @Param(
++            name = "encoding",
++            defaultValue = "'utf-8'",
++            named = true,
++            doc = "The name of the encoding."),
++        @Param(
++            name = "errors",
++            defaultValue = "'strict'",
++            named = true,
++            doc = "The error handler's name.")
++      })
++  public StarlarkBytes encode(String self, String encoding, String errors) throws EvalException {
++    return StarlarkBytes.encode(self, encoding, errors);
++  }
++
+   @StarlarkMethod(
+       name = "splitlines",
+       doc =
+@@ -771,8 +834,12 @@ final class StringModule implements StarlarkValue {
        doc =
            "Returns True if all characters in the string are alphabetic ([a-zA-Z]) and there is "
                + "at least one character.",
@@ -641,7 +673,7 @@ index 1191027e..ffad3cd0 100644
      return matches(self, ALPHA, false);
    }
  
-@@ -781,8 +823,12 @@ final class StringModule implements StarlarkValue {
+@@ -781,8 +848,12 @@ final class StringModule implements StarlarkValue {
        doc =
            "Returns True if all characters in the string are alphanumeric ([a-zA-Z0-9]) and there "
                + "is at least one character.",
@@ -656,7 +688,7 @@ index 1191027e..ffad3cd0 100644
      return matches(self, ALNUM, false);
    }
  
-@@ -791,8 +837,12 @@ final class StringModule implements StarlarkValue {
+@@ -791,8 +862,12 @@ final class StringModule implements StarlarkValue {
        doc =
            "Returns True if all characters in the string are digits ([0-9]) and there is "
                + "at least one character.",
@@ -671,7 +703,7 @@ index 1191027e..ffad3cd0 100644
      return matches(self, DIGIT, false);
    }
  
-@@ -801,8 +851,12 @@ final class StringModule implements StarlarkValue {
+@@ -801,8 +876,12 @@ final class StringModule implements StarlarkValue {
        doc =
            "Returns True if all characters are white space characters and the string "
                + "contains at least one character.",
@@ -686,7 +718,7 @@ index 1191027e..ffad3cd0 100644
      return matches(self, SPACE, false);
    }
  
-@@ -811,8 +865,12 @@ final class StringModule implements StarlarkValue {
+@@ -811,8 +890,12 @@ final class StringModule implements StarlarkValue {
        doc =
            "Returns True if all cased characters in the string are lowercase and there is "
                + "at least one character.",
@@ -701,7 +733,7 @@ index 1191027e..ffad3cd0 100644
      // Python also accepts non-cased characters, so we cannot use LOWER.
      return matches(self, UPPER.negate(), true);
    }
-@@ -822,8 +880,12 @@ final class StringModule implements StarlarkValue {
+@@ -822,8 +905,12 @@ final class StringModule implements StarlarkValue {
        doc =
            "Returns True if all cased characters in the string are uppercase and there is "
                + "at least one character.",
@@ -716,7 +748,7 @@ index 1191027e..ffad3cd0 100644
      // Python also accepts non-cased characters, so we cannot use UPPER.
      return matches(self, LOWER.negate(), true);
    }
-@@ -835,8 +897,12 @@ final class StringModule implements StarlarkValue {
+@@ -835,8 +922,12 @@ final class StringModule implements StarlarkValue {
                + "This means that every uppercase character must follow an uncased one (e.g. "
                + "whitespace) and every lowercase character must follow a cased one (e.g. "
                + "uppercase or lowercase).",
@@ -731,7 +763,7 @@ index 1191027e..ffad3cd0 100644
      if (self.isEmpty()) {
        return false;
      }
-@@ -920,8 +986,13 @@ final class StringModule implements StarlarkValue {
+@@ -920,8 +1011,13 @@ final class StringModule implements StarlarkValue {
              },
              defaultValue = "None",
              doc = "optional position before which to restrict to search.")
@@ -747,7 +779,7 @@ index 1191027e..ffad3cd0 100644
      long indices = substringIndices(self, start, end);
      if (sub.isEmpty()) {
        return hi(indices) - lo(indices) + 1; // str.length() + 1
-@@ -988,8 +1059,14 @@ final class StringModule implements StarlarkValue {
+@@ -988,8 +1084,14 @@ final class StringModule implements StarlarkValue {
              },
              defaultValue = "None",
              doc = "optional position at which to stop comparing.")
@@ -764,7 +796,7 @@ index 1191027e..ffad3cd0 100644
      long indices = substringIndices(self, start, end);
      if (sub instanceof String) {
        return substringEndsWith(self, lo(indices), hi(indices), (String) sub);
-@@ -1070,9 +1147,14 @@ final class StringModule implements StarlarkValue {
+@@ -1070,9 +1172,14 @@ final class StringModule implements StarlarkValue {
              },
              defaultValue = "None",
              doc = "Stop comparing at this position.")

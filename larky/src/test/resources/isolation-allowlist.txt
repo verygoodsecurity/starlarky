@@ -340,6 +340,7 @@ STATIC	net.starlark.java.eval.PythonStrings#FULL_TITLE:java.util.Map	static coll
 STATIC	net.starlark.java.eval.StarlarkBytes#EMPTY:net.starlark.java.eval.StarlarkBytes	shared empty bytes; its ByteList delegate is mutable and the bytes class has no write guard of its own (see MUTABLE StarlarkBytes#delegate)
 STATIC	net.starlark.java.eval.StarlarkBytes#TABLE_UTF8_NEEDED:int[]	static final array lookup table, written only in <clinit>; contents are mutable
 STATIC	net.starlark.java.eval.StarlarkBytes#decoder:net.starlark.java.eval.StarlarkBytes$Decoder	process-wide decoder hook (volatile), replaced through a public static setter; one setter call changes decoding for every evaluation
+STATIC	net.starlark.java.eval.StarlarkBytes#encoder:net.starlark.java.eval.StarlarkBytes$Encoder	process-wide encoder hook (volatile), replaced through a public static setter; one setter call changes encoding for every evaluation
 STATIC	net.starlark.java.ext.ByteList#EMPTY:net.starlark.java.ext.ByteList	shared empty ByteList; ByteList has non-final offset/size/array fields, so a write through EMPTY would reach every user
 STATIC	net.starlark.java.ext.ByteList#EMPTY_BYTE_ARRAY:byte[]	static final array lookup table, written only in <clinit>; contents are mutable
 STATIC	net.starlark.java.ext.ByteList#HEX_CHAR_LOOKUP_TABLE:byte[]	static final array lookup table, written only in <clinit>; contents are mutable
