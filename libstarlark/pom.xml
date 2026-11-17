@@ -32,16 +32,16 @@
         <google.auto.value.version>1.11.1</google.auto.value.version>
         <google.compile.testing.version>0.24.0</google.compile.testing.version>
         <google.errorprone.javac.version>9+181-r4173-1</google.errorprone.javac.version>
-        <google.errorprone.version>2.50.0</google.errorprone.version>
+        <google.errorprone.version>2.52.0</google.errorprone.version>
         <google.flogger.version>0.9</google.flogger.version>
-        <google.guava.version>33.7.2-jre</google.guava.version>
+        <google.guava.version>33.8.0-jre</google.guava.version>
         <google.jimfs.version>1.3.0</google.jimfs.version>
         <google.truth.version>1.4.5</google.truth.version>
         <org.jetbrains.annotations.version>26.1.0</org.jetbrains.annotations.version>
         <org.junit.version>4.13.2</org.junit.version>
         <org.projectlombok.version>1.18.48</org.projectlombok.version>
 
-        <surefire-plugin.version>3.6.0</surefire-plugin.version>
+        <surefire-plugin.version>3.6.1</surefire-plugin.version>
     </properties>
 
     <dependencies>
@@ -127,7 +127,7 @@
         <dependency>
             <groupId>com.google.testparameterinjector</groupId>
             <artifactId>test-parameter-injector</artifactId>
-            <version>1.24</version>
+            <version>1.25</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -160,7 +160,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.6.2</version>
+                <version>3.7.0</version>
                 <executions>
                     <execution>
                         <id>add-vgs-sources</id>
@@ -224,6 +224,22 @@
                         <!-- @todo #971 Document ErrorProne tool -->
                         <compilerArg>-XDcompilePolicy=simple</compilerArg>
                         <!-- @todo #1170 ErrorProne: activate experimental checks -->
+                        <!-- Error Prone, scoped to the isolation rules: @Immutable (and its enum variant) and @GuardedBy.
+                             Everything else is off. The JDK 21 flags are required by Error Prone 2.51; -Xep:ThreadSafe is not
+                             a valid check in this version. See IsolationStructureTest for the structural side. -->
+                        <compilerArg>-XDaddTypeAnnotationsToSymbol=true</compilerArg>
+                        <compilerArg>--should-stop=ifError=FLOW</compilerArg>
+                        <compilerArg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:Immutable:ERROR -Xep:ImmutableEnumChecker:WARN -Xep:GuardedBy:ERROR</compilerArg>
+                        <compilerArg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</compilerArg>
+                        <compilerArg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</compilerArg>
+                        <compilerArg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</compilerArg>
+                        <compilerArg>-J--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED</compilerArg>
+                        <compilerArg>-J--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</compilerArg>
+                        <compilerArg>-J--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</compilerArg>
+                        <compilerArg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</compilerArg>
+                        <compilerArg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</compilerArg>
+                        <compilerArg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</compilerArg>
+                        <compilerArg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</compilerArg>
 <!--                        &lt;!&ndash;-->
 <!--                            The following checks have been disabled:-->
 <!--                            - MissingOverride: produce false positives with @Getter from Lombok-->

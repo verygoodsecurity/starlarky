@@ -10,6 +10,7 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.StarlarkSemantics;
 
+@com.google.errorprone.annotations.Immutable
 public class LarkyBoundedWhileTrue implements StarlarkValue {
 
   /**

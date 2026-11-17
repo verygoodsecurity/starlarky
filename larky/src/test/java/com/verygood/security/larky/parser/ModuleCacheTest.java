@@ -1,6 +1,7 @@
 package com.verygood.security.larky.parser;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assume.assumeFalse;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -10,31 +11,44 @@ import net.starlark.java.eval.Module;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.syntax.FileOptions;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
+/** Each test uses a cache of its own, so tests can run concurrently with each other and others. */
 public class ModuleCacheTest {
 
-  @Before
-  @After
-  public void clear() {
-    ModuleCache.clear();
+  private final ModuleCache cache = new ModuleCache(true);
+
+  private static LarkyEvaluator newEvaluator(ModuleCache cache) {
+    return new LarkyEvaluator(
+        new LarkyScript(LarkyScript.StarlarkMode.STRICT).withModuleCache(cache),
+        new TestingConsole());
   }
 
-  private static LarkyEvaluator newEvaluator() {
-    return new LarkyEvaluator(
-        new LarkyScript(LarkyScript.StarlarkMode.STRICT), new TestingConsole());
+  @Test
+  public void notSharedWhenDisabled() throws Exception {
+    ModuleCache disabled = new ModuleCache(false);
+    Module first =
+        newEvaluator(disabled).eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
+    Module second =
+        newEvaluator(disabled).eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
+    assertThat(second).isNotSameInstanceAs(first);
+    assertThat(disabled.size()).isEqualTo(0);
   }
 
   @Test
   public void evaluationsShareALoadedStdlibModule() throws Exception {
     Module first =
-        newEvaluator().eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
+        newEvaluator(cache).eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
     Module second =
-        newEvaluator().eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
+        newEvaluator(cache).eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
     assertThat(second).isSameInstanceAs(first);
-    assertThat(ModuleCache.size()).isGreaterThan(0);
+    assertThat(cache.size()).isGreaterThan(0);
+  }
+
+  @Test
+  public void theProcessWideCacheIsOffUnlessEnabled() {
+    assumeFalse(Boolean.getBoolean("larky.moduleCache.enable"));
+    assertThat(ModuleCache.SHARED.isEnabled()).isFalse();
   }
 
   private static final FileOptions OPTIONS = FileOptions.DEFAULT;
@@ -44,15 +58,15 @@ public class ModuleCacheTest {
   public void notReusedWhenAUsedNameIsBoundToADifferentObject() {
     Module module = Module.create();
     Object v1 = new Object();
-    ModuleCache.put("a.star", OPTIONS, SEMANTICS, module, ImmutableSet.of("x"),
+    cache.put("a.star", OPTIONS, SEMANTICS, module, ImmutableSet.of("x"),
         ImmutableMap.of("x", v1), ImmutableMap.of());
-    assertThat(ModuleCache.lookup("a.star", OPTIONS, SEMANTICS, ImmutableMap.of("x", v1)))
+    assertThat(cache.lookup("a.star", OPTIONS, SEMANTICS, ImmutableMap.of("x", v1)))
         .isSameInstanceAs(module);
     // Another evaluation's object.
-    assertThat(ModuleCache.lookup("a.star", OPTIONS, SEMANTICS,
+    assertThat(cache.lookup("a.star", OPTIONS, SEMANTICS,
         ImmutableMap.of("x", new Object()))).isNull();
     // Unused names don't matter.
-    assertThat(ModuleCache.lookup("a.star", OPTIONS, SEMANTICS,
+    assertThat(cache.lookup("a.star", OPTIONS, SEMANTICS,
         ImmutableMap.of("x", v1, "other", StarlarkInt.of(1)))).isSameInstanceAs(module);
   }
 
@@ -60,14 +74,14 @@ public class ModuleCacheTest {
   public void notReusedWhenADependencyIsNotReusable() {
     Object v1 = new Object();
     Module dep = Module.create();
-    ModuleCache.put("dep.star", OPTIONS, SEMANTICS, dep, ImmutableSet.of("x"),
+    cache.put("dep.star", OPTIONS, SEMANTICS, dep, ImmutableSet.of("x"),
         ImmutableMap.of("x", v1), ImmutableMap.of());
     Module top = Module.create();
-    ModuleCache.put("top.star", OPTIONS, SEMANTICS, top, ImmutableSet.of(),
+    cache.put("top.star", OPTIONS, SEMANTICS, top, ImmutableSet.of(),
         ImmutableMap.of("x", v1), Map.of("dep", dep));
-    assertThat(ModuleCache.lookup("top.star", OPTIONS, SEMANTICS, ImmutableMap.of("x", v1)))
+    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS, ImmutableMap.of("x", v1)))
         .isSameInstanceAs(top);
-    assertThat(ModuleCache.lookup("top.star", OPTIONS, SEMANTICS,
+    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS,
         ImmutableMap.of("x", new Object()))).isNull();
   }
 
@@ -75,8 +89,8 @@ public class ModuleCacheTest {
   public void notCachedWhenADependencyIsNotShared() {
     Module unshared = Module.create();
     Module top = Module.create();
-    ModuleCache.put("top.star", OPTIONS, SEMANTICS, top, ImmutableSet.of(),
-        ImmutableMap.of(), Map.of("customer", unshared));
-    assertThat(ModuleCache.lookup("top.star", OPTIONS, SEMANTICS, ImmutableMap.of())).isNull();
+    cache.put("top.star", OPTIONS, SEMANTICS, top, ImmutableSet.of(),
+        ImmutableMap.of(), Map.of("unshared", unshared));
+    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS, ImmutableMap.of())).isNull();
   }
 }

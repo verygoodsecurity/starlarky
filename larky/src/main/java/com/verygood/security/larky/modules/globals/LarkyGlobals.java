@@ -66,6 +66,7 @@ public final class LarkyGlobals {
   }
 
 
+  @com.google.errorprone.annotations.Immutable
   static class Sentinel implements StarlarkValue {
     private static Sentinel SINGLETON = null;
 //    public static final Set<Integer> SINGLETON = Collections.singleton(1);

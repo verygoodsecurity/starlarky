@@ -49,6 +49,7 @@ import org.w3c.dom.Document;
     category = "BUILTIN",
     doc = "Module providing tools for CyberSource payment gateway operations"
 )
+@com.google.errorprone.annotations.Immutable
 public class CyberSourceModule implements StarlarkValue {
 
     public static final CyberSourceModule INSTANCE = new CyberSourceModule();

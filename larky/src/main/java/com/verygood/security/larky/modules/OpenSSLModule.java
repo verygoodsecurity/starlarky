@@ -10,6 +10,7 @@ import net.starlark.java.eval.StarlarkValue;
     name = "jopenssl",
     category = "BUILTIN",
     doc = "")
+@com.google.errorprone.annotations.Immutable
 public class OpenSSLModule implements StarlarkValue {
 
   public static final OpenSSLModule INSTANCE =  new OpenSSLModule();

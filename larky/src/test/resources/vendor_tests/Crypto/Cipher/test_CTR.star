@@ -27,6 +27,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
+# Ported from pycryptodome 3.12.0-3.15.0, pinned to 3.15.0 (c37fd19): lib/Crypto/SelfTest/Cipher/test_CTR.py. See larky/src/main/resources/VENDORED.md.
 
 load("@stdlib//binascii", hexlify="hexlify", unhexlify="unhexlify")
 load("@stdlib//unittest", unittest="unittest")

@@ -8,6 +8,7 @@ import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,6 +44,11 @@ public final class LarkyEvaluator {
   public static final String EXECUTION_STEPS = "_EXECUTION_STEPS_";
   public static final String STEP_LIMIT = "LARKY_EVAL_STEP_LIMIT";
   public static final String EXPIRATION_MS = "LARKY_EVAL_EXPIRATION_MS";
+  /**
+   * The binding that gives a run its {@code @vgs//} module providers: a
+   * {@link com.verygood.security.larky.modules.vgs.ModuleProviders}.
+   */
+  public static final String MODULE_PROVIDERS = "LARKY_EVAL_MODULE_PROVIDERS";
 
   private final LinkedHashSet<String> pending = new LinkedHashSet<>();
   private final Map<String, Module> loaded = new HashMap<>();
@@ -56,6 +62,7 @@ public final class LarkyEvaluator {
 
   @Getter
   private final StarlarkSemantics larkySemantics;
+  private final ModuleCache moduleCache;
 
   public LarkyEvaluator(LarkyScript larkyScript, Console console) {
     this(larkyScript, larkyScript.getModuleSet(), console);
@@ -66,6 +73,7 @@ public final class LarkyEvaluator {
     this.moduleSet = checkNotNull(moduleSet);
     this.validationMode = larkyScript.getValidation();
     this.larkySemantics = larkyScript.getLarkySemantics();
+    this.moduleCache = larkyScript.getModuleCache();
     //todo(mahmoudimus): convert to builder pattern
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
   }
@@ -118,10 +126,11 @@ public final class LarkyEvaluator {
           .module(module)
           .build();
     }
-    // Larky's own modules are loaded once per process and shared (see ModuleCache).
+    // With the module cache on, Larky's own modules are loaded once per process and shared (see
+    // ModuleCache).
     if (content instanceof ResourceContentStarFile) {
       Module shared =
-          ModuleCache.lookup(
+          moduleCache.lookup(
               content.path(), getStarlarkValidationOptions(), getLarkySemantics(), getEnvironment());
       if (shared != null) {
         loaded.put(content.path(), shared);
@@ -171,6 +180,8 @@ public final class LarkyEvaluator {
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
+      // refused when it is not providers, as LarkyLoadedScript.invoke refuses it
+      ModuleProviders.given(environment.get(MODULE_PROVIDERS)).installOn(thread);
 
       if (environment.containsKey(STEP_LIMIT) && environment.get(STEP_LIMIT) != null) {
         thread.setMaxExecutionSteps(Long.parseLong(environment.get(STEP_LIMIT).toString()));
@@ -190,7 +201,7 @@ public final class LarkyEvaluator {
       module.setGlobal(EXECUTION_STEPS, thread.getExecutedSteps());
     }
     if (content instanceof ResourceContentStarFile) {
-      ModuleCache.put(
+      moduleCache.put(
           content.path(), options, getLarkySemantics(), module, prog.predeclaredNames(),
           getEnvironment(), loadedModules);
     }
@@ -293,8 +304,11 @@ public final class LarkyEvaluator {
       }
     }
 
+    // Only a Module is loadable from the environment. Any other entry of the same name is a predeclared value
+    // (e.g. a host's binding named like the module), which a load() must not take for the module: the module
+    // then comes from the module set as usual.
     private boolean inEvaluatorEnvironment(String moduleToLoad) {
-      return evaluator.getEnvironment().containsKey(moduleToLoad);
+      return evaluator.getEnvironment().get(moduleToLoad) instanceof Module;
     }
 
     private Module fromEvaluatorEnvironment(String moduleToLoad) {
@@ -383,7 +397,12 @@ public final class LarkyEvaluator {
             module, ParserInput.fromUTF8(bytes, content.path()), options, parsed));
   }
 
-  Map<String, Module> processLoads(StarFile content, List<String> loads) throws EvalException {
+  /**
+   * Loads the modules named by {@code loads}, the load() labels of {@code content}, as a script's
+   * loads are; relative labels resolve against {@code content}. Also used by the runner's REPL,
+   * which compiles each input itself.
+   */
+  public Map<String, Module> processLoads(StarFile content, List<String> loads) throws EvalException {
     Map<String, Module> loadedModules = new HashMap<>();
     LarkyLoader larkyLoader = new LarkyLoader(content, this);
     for (String load : loads) {

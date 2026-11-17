@@ -1,12 +1,14 @@
 package com.verygood.security.larky.modules;
 
 import com.google.common.collect.ImmutableList;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig.InvalidDecoratorConfigException;
 import com.verygood.security.larky.modules.vgs.vault.NoopVault;
 import com.verygood.security.larky.modules.vgs.vault.defaults.DefaultVault;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.ServiceLoader;
 import lombok.Getter;
@@ -18,12 +20,14 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkThread;
 
 @Slf4j
 @StarlarkBuiltin(
         name = "vault",
         category = "BUILTIN",
-        doc = "Overridable Vault API in Larky")
+        doc = "Overridable Vault API in Larky. A host may give a run its own vault (ModuleProviders); otherwise "
+            + "calls go to the vault found with ServiceLoader.")
 public class VaultModule implements LarkyVault {
 
     public static final VaultModule INSTANCE = new VaultModule();
@@ -93,6 +97,7 @@ public class VaultModule implements LarkyVault {
 
     @StarlarkMethod(
             name = "redact",
+        useStarlarkThread = true,
             doc = "generates an alias for value",
             parameters = {
                     @Param(
@@ -138,17 +143,14 @@ public class VaultModule implements LarkyVault {
                                 @ParamType(type = Map.class),
                         }),
             })
-    @Override
-    public Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException {
-        validateStorage(storage);
-        validateFormat(format);
-        validateDecoratorConfig(decoratorConfig);
-
-        return vault.redact(value, storage, format, tags, decoratorConfig);
+    public Object redactForRun(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig,
+        StarlarkThread thread) throws EvalException {
+        return redact(vaultFor(thread), value, storage, format, tags, decoratorConfig);
     }
 
     @StarlarkMethod(
             name = "reveal",
+        useStarlarkThread = true,
             doc = "reveals aliased value",
             parameters = {
                     @Param(
@@ -168,15 +170,13 @@ public class VaultModule implements LarkyVault {
                                     @ParamType(type = String.class),
                             })
             })
-    @Override
-    public Object reveal(Object value, Object storage) throws EvalException {
-        validateStorage(storage);
-
-        return vault.reveal(value, storage);
+    public Object revealForRun(Object value, Object storage, StarlarkThread thread) throws EvalException {
+        return reveal(vaultFor(thread), value, storage);
     }
 
     @StarlarkMethod(
         name = "delete",
+        useStarlarkThread = true,
         doc = "deletes aliased value",
         parameters = {
             @Param(
@@ -196,14 +196,13 @@ public class VaultModule implements LarkyVault {
                     @ParamType(type = String.class),
                 })
         })
-    @Override
-    public void delete(Object value, Object storage) throws EvalException {
-        validateStorage(storage);
-        vault.delete(value, storage);
+    public void deleteForRun(Object value, Object storage, StarlarkThread thread) throws EvalException {
+        delete(vaultFor(thread), value, storage);
     }
 
     @StarlarkMethod(
         name = "sign",
+        useStarlarkThread = true,
         doc = "signs a payload with given keyArn",
         parameters = {
             @Param(
@@ -230,14 +229,13 @@ public class VaultModule implements LarkyVault {
             )
         }
     )
-    @Override
-    public Object sign(String keyId, String message, String algorithm) throws EvalException {
-        validateSigningAlgorithm(algorithm);
-        return vault.sign(keyId, message, algorithm);
+    public Object signForRun(String keyId, String message, String algorithm, StarlarkThread thread) throws EvalException {
+        return sign(vaultFor(thread), keyId, message, algorithm);
     }
 
     @StarlarkMethod(
         name = "verify",
+        useStarlarkThread = true,
         doc = "verifies that a given signature is valid",
         parameters = {
             @Param(
@@ -270,25 +268,93 @@ public class VaultModule implements LarkyVault {
             )
         }
     )
-    @Override
-    public Object verify(String keyId, String message, String signature, String algorithm) throws EvalException {
-        validateSigningAlgorithm(algorithm);
-        return vault.verify(keyId, message, signature, algorithm);
+    public Object verifyForRun(String keyId, String message, String signature, String algorithm, StarlarkThread thread)
+        throws EvalException {
+        return verify(vaultFor(thread), keyId, message, signature, algorithm);
     }
 
-    private void validateStorage(Object storage) throws EvalException {
+    // The Java API (LarkyVault): the vault this module found with ServiceLoader, as before.
+
+    @Override
+    public Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig)
+        throws EvalException {
+        return redact(vault, value, storage, format, tags, decoratorConfig);
+    }
+
+    @Override
+    public Object reveal(Object value, Object storage) throws EvalException {
+        return reveal(vault, value, storage);
+    }
+
+    @Override
+    public void delete(Object value, Object storage) throws EvalException {
+        delete(vault, value, storage);
+    }
+
+    @Override
+    public Object sign(String keyId, String message, String algorithm) throws EvalException {
+        return sign(vault, keyId, message, algorithm);
+    }
+
+    @Override
+    public Object verify(String keyId, String message, String signature, String algorithm) throws EvalException {
+        return verify(vault, keyId, message, signature, algorithm);
+    }
+
+    /**
+     * The vault a script's calls in the run of {@code thread} go to: the {@link LarkyVault} the host gave this run
+     * ({@link ModuleProviders}), else the one this module found with ServiceLoader.
+     */
+    private LarkyVault vaultFor(StarlarkThread thread) {
+        return ModuleProviders.forRun(thread, LarkyVault.class).orElse(vault);
+    }
+
+    private Object redact(LarkyVault target, Object value, Object storage, Object format, List<Object> tags,
+        Object decoratorConfig) throws EvalException {
+        storage = validateStorage(storage);
+        validateFormat(format);
+        validateDecoratorConfig(decoratorConfig);
+        return target.redact(value, storage, format, tags, decoratorConfig);
+    }
+
+    private Object reveal(LarkyVault target, Object value, Object storage) throws EvalException {
+        return target.reveal(value, validateStorage(storage));
+    }
+
+    private void delete(LarkyVault target, Object value, Object storage) throws EvalException {
+        target.delete(value, validateStorage(storage));
+    }
+
+    private Object sign(LarkyVault target, String keyId, String message, String algorithm) throws EvalException {
+        validateSigningAlgorithm(algorithm);
+        return target.sign(keyId, message, algorithm);
+    }
+
+    private Object verify(LarkyVault target, String keyId, String message, String signature, String algorithm)
+        throws EvalException {
+        validateSigningAlgorithm(algorithm);
+        return target.verify(keyId, message, signature, algorithm);
+    }
+
+    /** Returns the storage name in lowercase: scripts may write 'VOLATILE' or 'volatile'. */
+    private Object validateStorage(Object storage) throws EvalException {
         if (!(storage instanceof NoneType) && !(storage instanceof String)) {
             throw Starlark.errorf(String.format(
                 "Storage of type %s is not supported in VAULT, expecting String",
                 storage.getClass().getName()
             ));
-        } else if ((storage instanceof String) && !supportedStorage.contains(storage.toString())) {
-            throw Starlark.errorf(String.format(
-                "Storage '%s' not found in supported storage types: %s",
-                storage,
-                supportedStorage
-            ));
+        } else if (storage instanceof String name) {
+            String lower = name.toLowerCase(Locale.ROOT);
+            if (!supportedStorage.contains(lower)) {
+                throw Starlark.errorf(String.format(
+                    "Storage '%s' not found in supported storage types: %s",
+                    storage,
+                    supportedStorage
+                ));
+            }
+            return lower;
         }
+        return storage;
     }
 
     private void validateFormat(Object format) throws EvalException {

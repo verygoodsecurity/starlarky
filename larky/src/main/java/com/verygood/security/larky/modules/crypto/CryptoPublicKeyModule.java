@@ -88,6 +88,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
 
 
+@com.google.errorprone.annotations.Immutable
 public class CryptoPublicKeyModule implements StarlarkValue {
 
   public static final CryptoPublicKeyModule INSTANCE = new CryptoPublicKeyModule();

@@ -63,12 +63,26 @@ public final class StarlarkByteArrayTest {
   }
 
   @Test
+  public void reprNamesTheType() throws Exception {
+    // as CPython's repr(bytearray(...)), with the same quoting as repr(bytes)
+    StarlarkByteArray b =
+        StarlarkByteArray.of(Mutability.create("m"), (byte) 'a', (byte) '"', (byte) 0xc3, (byte) 0xa9, (byte) 0xff);
+    assertThat(repr(b)).isEqualTo("bytearray(b\"a\\\"é\\xff\")");
+    assertThat(repr(StarlarkByteArray.of(Mutability.create("m")))).isEqualTo("bytearray(b\"\")");
+    Module module =
+        exec(b, "r = repr([B])", "p = '%r' % (B,)", "s = repr(bytes(B))");
+    assertThat(module.getGlobal("r")).isEqualTo("[bytearray(b\"a\\\"é\\xff\")]");
+    assertThat(module.getGlobal("p")).isEqualTo("bytearray(b\"a\\\"é\\xff\")");
+    assertThat(module.getGlobal("s")).isEqualTo("b\"a\\\"é\\xff\"");
+  }
+
+  @Test
   public void frozenBytearrayRejectsEveryMutation() {
     for (String mutation : MUTATIONS) {
       StarlarkByteArray b = frozenAB();
       EvalException e = assertThrows(mutation, EvalException.class, () -> exec(b, mutation));
       assertThat(e).hasMessageThat().contains("trying to mutate a frozen bytearray value");
-      assertThat(repr(b)).isEqualTo("b\"AB\"");
+      assertThat(repr(b)).isEqualTo("bytearray(b\"AB\")");
     }
   }
 
@@ -86,7 +100,7 @@ public final class StarlarkByteArrayTest {
         assertThat(e)
             .hasMessageThat()
             .contains("bytearray value is temporarily immutable due to active for-loop iteration");
-        assertThat(repr(b)).isEqualTo("b\"AB\"");
+        assertThat(repr(b)).isEqualTo("bytearray(b\"AB\")");
       }
     }
   }
@@ -102,21 +116,21 @@ public final class StarlarkByteArrayTest {
   public void bytearrayIsMutableAgainAfterTheLoop() throws Exception {
     StarlarkByteArray b = StarlarkByteArray.of(Mutability.create("iterated"), (byte) 'A');
     exec(b, "def f():", "  for c in B:", "    pass", "  B.append(66)", "f()");
-    assertThat(repr(b)).isEqualTo("b\"AB\"");
+    assertThat(repr(b)).isEqualTo("bytearray(b\"AB\")");
   }
 
   @Test
   public void copyIsIndependentAndMutable() throws Exception {
     StarlarkByteArray b = frozenAB();
     Module module = exec(b, "c = B.copy()", "c.append(67)", "c.clear()", "c.append(68)");
-    assertThat(repr(b)).isEqualTo("b\"AB\"");
-    assertThat(repr(module.getGlobal("c"))).isEqualTo("b\"D\"");
+    assertThat(repr(b)).isEqualTo("bytearray(b\"AB\")");
+    assertThat(repr(module.getGlobal("c"))).isEqualTo("bytearray(b\"D\")");
 
     Mutability mu = Mutability.create("mutable");
     StarlarkByteArray m = StarlarkByteArray.of(mu, (byte) 'A');
     Module copied = exec(m, "c = B.copy()", "c.append(67)", "B.append(66)");
-    assertThat(repr(m)).isEqualTo("b\"AB\"");
-    assertThat(repr(copied.getGlobal("c"))).isEqualTo("b\"AC\"");
+    assertThat(repr(m)).isEqualTo("bytearray(b\"AB\")");
+    assertThat(repr(copied.getGlobal("c"))).isEqualTo("bytearray(b\"AC\")");
   }
 
   @Test
@@ -131,7 +145,7 @@ public final class StarlarkByteArrayTest {
     Module module = exec(b, "x = B.pop(0)", "y = B.pop(-1)");
     assertThat(module.getGlobal("x")).isEqualTo(StarlarkInt.of('A'));
     assertThat(module.getGlobal("y")).isEqualTo(StarlarkInt.of('C'));
-    assertThat(repr(b)).isEqualTo("b\"B\"");
+    assertThat(repr(b)).isEqualTo("bytearray(b\"B\")");
     EvalException e = assertThrows(EvalException.class, () -> exec(b, "B.pop(5)"));
     assertThat(e).hasMessageThat().contains("out of range");
   }

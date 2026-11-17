@@ -32,6 +32,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE
 # OF THIS SOFTWARE.
 # --------------------------------------------------------------------
+# Ported from lxml 4.3.0-4.7.1, pinned to 4.6.4 (bbee1e9): src/lxml/builder.py. See larky/src/main/resources/VENDORED.md.
 
 """
 The ``E`` Element factory for generating XML documents.

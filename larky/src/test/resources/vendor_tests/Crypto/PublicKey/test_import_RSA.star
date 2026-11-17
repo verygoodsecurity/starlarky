@@ -19,6 +19,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+# Ported from pycryptodome <= 3.10.1 (some >= 3.10.0), pinned to 3.10.1 (339259c): lib/Crypto/SelfTest/PublicKey/test_import_RSA.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@stdlib//re", re="re")
 load("@stdlib//builtins", "builtins")

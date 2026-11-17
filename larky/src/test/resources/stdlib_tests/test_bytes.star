@@ -1,3 +1,4 @@
+# Ported from starlark-go commit ebe61bd: starlark/testdata/bytes.star. See larky/src/main/resources/VENDORED.md.
 """Unit tests for test_bytes.star"""
 
 load("@stdlib//larky", "larky")
@@ -68,7 +69,7 @@ def _test_bytes_vs_string():
     # ]))
     asserts.assert_that(
         codecs.decode(sliced, encoding='utf-8', errors='replace')
-    ).is_equal_to(r"hello, 世\xe7\x95")
+    ).is_equal_to("hello, 世�")
 
 
 def _test_bytes_construction():

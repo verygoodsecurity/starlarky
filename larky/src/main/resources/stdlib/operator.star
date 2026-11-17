@@ -1,3 +1,4 @@
+# Ported from CPython 3.5-3.10, pinned to 3.9.5 (0a7dcbd): Lib/operator.py. See larky/src/main/resources/VENDORED.md.
 """
 Operator Interface
 

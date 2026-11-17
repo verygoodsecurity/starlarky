@@ -1,3 +1,4 @@
+# Ported from python-xmlsig 0.1.6-0.1.7 (src/ identical), pinned to 0.1.6 (1836ccc): src/xmlsig/algorithms/hmac.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//base64", b64decode="b64decode")
 load("@vendor//Crypto/Hash/HMAC", HMAC="HMAC")
 

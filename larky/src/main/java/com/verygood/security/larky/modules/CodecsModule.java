@@ -1,7 +1,6 @@
 package com.verygood.security.larky.modules;
 
 import com.verygood.security.larky.modules.codecs.TextUtil;
-import java.nio.charset.StandardCharsets;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -20,10 +19,10 @@ import net.starlark.java.eval.Tuple;
     name = "codecs",
     category = "BUILTIN",
     doc = "This module provides codecs")
+@com.google.errorprone.annotations.Immutable
 public class CodecsModule implements StarlarkValue {
 
   public static final CodecsModule INSTANCE = new CodecsModule();
-  private static final String UTF8 = StandardCharsets.UTF_8.toString().toLowerCase();
 
   @StarlarkMethod(
       name = "encode",
@@ -122,9 +121,6 @@ public class CodecsModule implements StarlarkValue {
       }
   )
   public String decode(StarlarkBytes bytesToDecode, String encoding, String errors) throws EvalException {
-    if (CodecsModule.UTF8.equals(encoding.toLowerCase())) { // TODO: fix this to be a normal decoder
-      return TextUtil.starlarkDecodeUtf8(bytesToDecode.toByteArray());
-    }
     try {
       return TextUtil.PyCodecs.decode(bytesToDecode.toByteArray(), encoding, errors);
     } catch (EvalException e) {
