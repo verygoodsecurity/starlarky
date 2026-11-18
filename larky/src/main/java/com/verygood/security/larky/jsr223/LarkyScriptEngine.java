@@ -522,29 +522,35 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
    */
   @Override
   public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
-    return LarkyCalls.call(function(name), args, console(), LarkyCalls.Limits.of(bindings()));
+    final Map<String, Object> bindings = bindings();
+    return LarkyCalls.call(function(name, bindings), args, console(bindings), LarkyCalls.Limits.of(bindings));
   }
 
   /** Calls the method {@code name} of {@code thiz}, a value a script evaluated with this engine returned. */
   @Override
   public Object invokeMethod(Object thiz, String name, Object... args)
       throws ScriptException, NoSuchMethodException {
-    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(), LarkyCalls.Limits.of(bindings()));
+    final Map<String, Object> bindings = bindings();
+    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), LarkyCalls.Limits.of(bindings));
   }
 
   @Override
   public <T> T getInterface(Class<T> type) {
-    return LarkyCalls.proxy(type, name -> bindings().get(name) instanceof StarlarkCallable, this::invokeFunction);
+    final Map<String, Object> bindings = bindings();
+    return LarkyCalls.proxy(type, name -> bindings.get(name) instanceof StarlarkCallable, this::invokeFunction);
   }
 
   @Override
   public <T> T getInterface(Object thiz, Class<T> type) {
+    if (thiz == null) {
+      throw new IllegalArgumentException("thiz is null");
+    }
     return LarkyCalls.proxy(type, name -> LarkyCalls.hasMethod(thiz, name),
         (name, args) -> invokeMethod(thiz, name, args));
   }
 
-  private StarlarkCallable function(String name) throws NoSuchMethodException {
-    if (bindings().get(name) instanceof StarlarkCallable callable) {
+  private static StarlarkCallable function(String name, Map<String, Object> bindings) throws NoSuchMethodException {
+    if (bindings.get(name) instanceof StarlarkCallable callable) {
       return callable;
     }
     throw new NoSuchMethodException("no function " + name + " in this engine's bindings; eval a script that defines it");
@@ -564,9 +570,9 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
     return bindings;
   }
 
-  private StreamWriterConsole console() {
+  private StreamWriterConsole console(Map<String, Object> bindings) {
     final boolean verbose = Boolean.parseBoolean(
-        String.valueOf(bindings().getOrDefault(DefaultLarkyInterpreter.VERBOSE, "false")));
+        String.valueOf(bindings.getOrDefault(DefaultLarkyInterpreter.VERBOSE, "false")));
     return new StreamWriterConsole(LarkyCalls.writer(context), verbose);
   }
 }

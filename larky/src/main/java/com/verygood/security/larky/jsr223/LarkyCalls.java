@@ -137,12 +137,12 @@ final class LarkyCalls {
       throw new IllegalArgumentException("not an interface: " + type);
     }
     for (Method method : type.getMethods()) {
-      if (Modifier.isAbstract(method.getModifiers()) && !defines.test(method.getName())) {
+      if (Modifier.isAbstract(method.getModifiers()) && !isObjectMethod(method) && !defines.test(method.getName())) {
         return null;
       }
     }
     final InvocationHandler handler = (proxy, method, args) -> {
-      if (method.getDeclaringClass() == Object.class) {
+      if (method.getDeclaringClass() == Object.class || isObjectMethod(method)) {
         return switch (method.getName()) {
           case "equals" -> proxy == args[0];
           case "hashCode" -> System.identityHashCode(proxy);
@@ -155,6 +155,19 @@ final class LarkyCalls {
       return toJava(invoker.invoke(method.getName(), args == null ? new Object[0] : args), method);
     };
     return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[] {type}, handler));
+  }
+
+  /**
+   * Whether {@code method} is one of Object's public methods; an interface may redeclare them (Comparator declares
+   * equals), and the proxy answers them itself.
+   */
+  private static boolean isObjectMethod(Method method) {
+    final Class<?>[] params = method.getParameterTypes();
+    return switch (method.getName()) {
+      case "equals" -> params.length == 1 && params[0] == Object.class;
+      case "hashCode", "toString" -> params.length == 0;
+      default -> false;
+    };
   }
 
   /** A Starlark result as the Java type {@code method} returns. */
@@ -172,7 +185,7 @@ final class LarkyCalls {
     }
     if (value instanceof StarlarkInt i) {
       if (type == int.class || type == Integer.class) {
-        return i.toIntUnchecked();
+        return i.toBigInteger().intValueExact();
       }
       if (type == long.class || type == Long.class) {
         return i.toBigInteger().longValueExact();
@@ -180,9 +193,26 @@ final class LarkyCalls {
       if (type == BigInteger.class) {
         return i.toBigInteger();
       }
+      if (type == short.class || type == Short.class) {
+        return i.toBigInteger().shortValueExact();
+      }
+      if (type == byte.class || type == Byte.class) {
+        return i.toBigInteger().byteValueExact();
+      }
+      if (type == double.class || type == Double.class) {
+        return i.toBigInteger().doubleValue();
+      }
+      if (type == float.class || type == Float.class) {
+        return i.toBigInteger().floatValue();
+      }
     }
-    if (value instanceof StarlarkFloat f && (type == double.class || type == Double.class)) {
-      return f.toDouble();
+    if (value instanceof StarlarkFloat f) {
+      if (type == double.class || type == Double.class) {
+        return f.toDouble();
+      }
+      if (type == float.class || type == Float.class) {
+        return (float) f.toDouble();
+      }
     }
     if (type.isInstance(value) || (type == boolean.class && value instanceof Boolean)) {
       return value;

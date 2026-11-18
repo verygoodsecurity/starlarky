@@ -50,6 +50,32 @@ public class LarkyScriptEngineInvocableTest {
     String upper();
   }
 
+  /** Numbers as each Java numeric type. */
+  public interface Numbers {
+    short small();
+
+    byte tiny();
+
+    double widened();
+
+    float single();
+
+    float fromFloat();
+  }
+
+  /** An int result that does not fit the Java type. */
+  public interface TooBig {
+    int big();
+  }
+
+  /** Redeclares Object's equals, as java.util.Comparator does; the script need not define it. */
+  public interface Compare {
+    int compare(int a, int b);
+
+    @Override
+    boolean equals(Object other);
+  }
+
   /** A host interface the script does not implement. */
   public interface Missing {
     void missing();
@@ -140,6 +166,43 @@ public class LarkyScriptEngineInvocableTest {
     final Upper upper = engine.getInterface("larky", Upper.class);
     assertEquals("LARKY", upper.upper());
     assertNull(engine.getInterface("larky", Missing.class));
+  }
+
+  @Test
+  public void getInterfaceConvertsNumbersToEveryNumericType() throws Exception {
+    final Invocable engine = (Invocable) evaluated(
+        "def small():\n    return 300\ndef tiny():\n    return -5\ndef widened():\n    return 7\n"
+            + "def single():\n    return 2\ndef fromFloat():\n    return 0.5\ndef big():\n    return 1 << 40\n");
+
+    final Numbers numbers = engine.getInterface(Numbers.class);
+    assertEquals((short) 300, numbers.small());
+    assertEquals((byte) -5, numbers.tiny());
+    assertEquals(7.0, numbers.widened(), 0.0);
+    assertEquals(2.0f, numbers.single(), 0.0f);
+    assertEquals(0.5f, numbers.fromFloat(), 0.0f);
+    // an int that does not fit is an error, not a truncated value
+    final TooBig tooBig = engine.getInterface(TooBig.class);
+    assertThrows(ArithmeticException.class, () -> {
+      tooBig.big();
+    });
+  }
+
+  @Test
+  public void anInterfaceRedeclaringObjectsMethodsIsStillImplemented() throws Exception {
+    final Invocable engine = (Invocable) evaluated("def compare(a, b):\n    return a - b\n");
+
+    final Compare compare = engine.getInterface(Compare.class);
+    assertEquals(-1, compare.compare(1, 2));
+    assertTrue(compare.equals(compare));
+  }
+
+  @Test
+  public void getInterfaceOfNullIsAnIllegalArgument() throws Exception {
+    final Invocable engine = (Invocable) evaluated("value = 1\n");
+
+    assertThrows(IllegalArgumentException.class, () -> {
+      engine.getInterface(null, Upper.class);
+    });
   }
 
   @Test
