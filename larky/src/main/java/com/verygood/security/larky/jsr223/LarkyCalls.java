@@ -3,6 +3,7 @@ package com.verygood.security.larky.jsr223;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.StarlarkUtil;
 import java.lang.reflect.InvocationHandler;
@@ -64,10 +65,10 @@ final class LarkyCalls {
 
   /**
    * Calls {@code function} with {@code args}, converted to Starlark values as bindings are, on a new thread whose
-   * {@code print} goes to {@code console}.
+   * {@code print} goes to {@code console} and whose run gets {@code providers}, as an evaluation's does.
    */
-  static Object call(StarlarkCallable function, Object[] args, Console console, Limits limits)
-      throws ScriptException {
+  static Object call(StarlarkCallable function, Object[] args, Console console, Limits limits,
+      ModuleProviders providers) throws ScriptException {
     final List<Object> starlarkArgs = new ArrayList<>(args == null ? 0 : args.length);
     if (args != null) {
       for (Object arg : args) {
@@ -79,6 +80,7 @@ final class LarkyCalls {
       final Reporter reporter = new Reporter(console);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
+      providers.installOn(thread);
       if (limits.stepLimit() != null) {
         thread.setMaxExecutionSteps(limits.stepLimit());
       }

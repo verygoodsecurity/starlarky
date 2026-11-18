@@ -1,21 +1,23 @@
 package com.verygood.security.larky.jsr223;
 
+import com.verygood.security.larky.console.StreamWriterConsole;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
+import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
+import com.verygood.security.larky.parser.LarkyEvaluator;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
-import com.verygood.security.larky.console.StreamWriterConsole;
-import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.script.Bindings;
 import javax.script.Compilable;
-import javax.script.Invocable;
 import javax.script.CompiledScript;
+import javax.script.Invocable;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
@@ -522,16 +524,20 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
    */
   @Override
   public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
+    checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
-    return LarkyCalls.call(function(name, bindings), args, console(bindings), LarkyCalls.Limits.of(bindings));
+    return LarkyCalls.call(function(name, bindings), args, console(bindings), LarkyCalls.Limits.of(bindings),
+        providers(bindings));
   }
 
   /** Calls the method {@code name} of {@code thiz}, a value a script evaluated with this engine returned. */
   @Override
   public Object invokeMethod(Object thiz, String name, Object... args)
       throws ScriptException, NoSuchMethodException {
+    checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
-    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), LarkyCalls.Limits.of(bindings));
+    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), LarkyCalls.Limits.of(bindings),
+        providers(bindings));
   }
 
   @Override
@@ -568,6 +574,11 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
       bindings.putAll(engine);
     }
     return bindings;
+  }
+
+  /** The module providers the bindings give, as an evaluation reads them (LarkyEvaluator.MODULE_PROVIDERS). */
+  private static ModuleProviders providers(Map<String, Object> bindings) {
+    return ModuleProviders.given(bindings.get(LarkyEvaluator.MODULE_PROVIDERS));
   }
 
   private StreamWriterConsole console(Map<String, Object> bindings) {
