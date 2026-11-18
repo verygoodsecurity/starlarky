@@ -47,7 +47,6 @@ import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.DLSequence;
 import org.bouncycastle.asn1.pkcs.RSAPrivateKey;
 import org.bouncycastle.asn1.x509.Certificate;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -56,6 +55,7 @@ import org.bouncycastle.crypto.AsymmetricBlockCipher;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.BufferedBlockCipher;
 import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.CryptoException;
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.crypto.DataLengthException;
@@ -181,6 +181,9 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       components = decodeDERKey(externKey.toByteArray(), passphrase);
     } catch (SignatureException | NoSuchAlgorithmException | IOException e) {
       throw new EvalException("ValueError: " + e.getMessage(), e);
+    } catch (RuntimeException e) {
+      // never let an internal exception escape to the script
+      throw new EvalException("ValueError: RSA key format is not supported", e);
     }
     // TODO(mahmoudimus): hack until I get this module to return key pairs
     //  basically, pycrypto needs p mod (q^-1) and discards the crt co-efficient
@@ -217,8 +220,9 @@ public class CryptoPublicKeyModule implements StarlarkValue {
 
     StringBuilder sb = new StringBuilder();
     Throwable e = null;
+    sb.append("ValueError: RSA key format is not supported (");
     sb.append(failures.size());
-    sb.append(" failures detected!");
+    sb.append(" failures detected)");
     sb.append(System.lineSeparator());
     for (Throwable z : failures) {
       sb.append(z.getMessage());
@@ -244,7 +248,9 @@ public class CryptoPublicKeyModule implements StarlarkValue {
         privParams.getPrimeQ(),
         privParams.getPrimeP().modInverse(privParams.getPrimeQ()),
         privParams.getCrtCoefficient()));
-    } catch (IOException e) {
+    } catch (IOException | RuntimeException e) {
+      // RuntimeException covers ClassCastException (non-RSA key) and BouncyCastle parse errors
+      r.clear();
       failures.add(e);
     }
     return r;
@@ -256,7 +262,12 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     RSAPrivateCrtKeyParameters crtPrivParams;
     try {
       // is this a possible PKCS#8-encoded key?
-      crtPrivParams = (RSAPrivateCrtKeyParameters) PrivateKeyFactory.createKey(externKey);
+      AsymmetricKeyParameter keyParams = PrivateKeyFactory.createKey(externKey);
+      if (!(keyParams instanceof RSAPrivateCrtKeyParameters)) {
+        failures.add(new EvalException("No PKCS#8 encoded RSA private key"));
+        return r;
+      }
+      crtPrivParams = (RSAPrivateCrtKeyParameters) keyParams;
       r.addAll(ImmutableList.of(
         crtPrivParams.getModulus(),
         crtPrivParams.getPublicExponent(),
@@ -265,7 +276,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
         crtPrivParams.getQ(),
         crtPrivParams.getP().modInverse(crtPrivParams.getQ()),
         crtPrivParams.getQInv()));
-    } catch (IllegalArgumentException e) {
+    } catch (IOException | RuntimeException e) {
+      r.clear();
       failures.add(e);
     }
     return r;
@@ -276,8 +288,13 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     List<BigInteger> r = new ArrayList<>();
     RSAKeyParameters pubKey;
     try {
-      pubKey = (RSAKeyParameters) PublicKeyFactory.createKey(externKey);
-    } catch (IOException | IllegalArgumentException e) {
+      AsymmetricKeyParameter keyParams = PublicKeyFactory.createKey(externKey);
+      if (!(keyParams instanceof RSAKeyParameters)) {
+        failures.add(new EvalException("No RSA SubjectPublicKeyInfo"));
+        return r;
+      }
+      pubKey = (RSAKeyParameters) keyParams;
+    } catch (IOException | RuntimeException e) {
       failures.add(e); // ok so it's not a subject public key info.
       return r;
     }
@@ -294,19 +311,24 @@ public class CryptoPublicKeyModule implements StarlarkValue {
     //ASN1InputStream bIn = new ASN1InputStream(new ByteArrayInputStream(spec.getEncoded()));
     try {
       instance = Certificate.getInstance(new ASN1InputStream(externKey).readObject());
-    } catch (IOException | IllegalArgumentException e) {
+      if (instance == null) {
+        failures.add(new EvalException("Not an X.509 certificate"));
+        return r;
+      }
+      SubjectPublicKeyInfo pki = instance.getSubjectPublicKeyInfo();
+      //SubjectPublicKeyInfo pki = SubjectPublicKeyInfo.getInstance(bIn.readObject());
+      ASN1ObjectIdentifier algOid = pki.getAlgorithm().getAlgorithm();
+      if (!RSAUtil.isRsaOid(algOid)) {
+        failures.add(new EvalException(String.format(
+          "Unknown algorithm id: %s, supporting only RSA here", algOid.getId())));
+        return r;
+      }
+      pubKey = (RSAPublicKey) new KeyFactorySpi().generatePublic(pki);
+      r.addAll(ImmutableList.of(pubKey.getModulus(), pubKey.getPublicExponent()));
+    } catch (IOException | RuntimeException e) {
+      r.clear();
       failures.add(e);
-      return r;
     }
-    SubjectPublicKeyInfo pki = instance.getSubjectPublicKeyInfo();
-    //SubjectPublicKeyInfo pki = SubjectPublicKeyInfo.getInstance(bIn.readObject());
-    ASN1ObjectIdentifier algOid = pki.getAlgorithm().getAlgorithm();
-    if (!RSAUtil.isRsaOid(algOid)) {
-      failures.add(new EvalException(String.format(
-        "Unknown algorithm id: %s, supporting only RSA here", algOid.getId())));
-    }
-    pubKey = (RSAPublicKey) new KeyFactorySpi().generatePublic(pki);
-    r.addAll(ImmutableList.of(pubKey.getModulus(), pubKey.getPublicExponent()));
     return r;
   }
 
@@ -314,14 +336,15 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   private List<BigInteger> _import_pkcs1_public(byte[] externKey, char[] passPhrase, List<Throwable> failures) {
     List<BigInteger> r = new ArrayList<>();
     try {
-      DLSequence sequence = (DLSequence) ASN1Sequence.getInstance(externKey);
+      ASN1Sequence sequence = ASN1Sequence.getInstance(externKey);
       org.bouncycastle.asn1.pkcs.RSAPublicKey pubKey = org.bouncycastle.asn1.pkcs.RSAPublicKey.getInstance(sequence);
       //ASN1Integer modulus = ASN1Integer.getInstance(sequence.getObjectAt(0));
       //ASN1Integer exponent = ASN1Integer.getInstance(sequence.getObjectAt(1));
       // TODO(mahmoudimus): do some checks here to see if this is even close
       //  if e <= 1 || e >= modulus, we have something wonky.
       r.addAll(ImmutableList.of(pubKey.getModulus(), pubKey.getPublicExponent()));
-    } catch (IllegalArgumentException e) {
+    } catch (RuntimeException e) {
+      r.clear();
       failures.add(e);
     }
     return r;
@@ -330,44 +353,42 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   @NotNull
   private List<BigInteger> _importPKCS1Private(byte[] externKey, char[] passPhrase, List<Throwable> failures) {
     List<BigInteger> r = new ArrayList<>();
-    ASN1Integer integer;
-    DLSequence sequence;
-    Enumeration<?> rator;
-
-    // is it is not, so let's try to see if it is a PKCS#1 encoded key.
-    // ok now we try some black magic
-    // https://stackoverflow.com/questions/48958304/pkcs1-and-pkcs8-format-for-rsa-private-key great question + answer
     try {
-      sequence = (DLSequence) ASN1Sequence.getInstance(externKey);
+      // is it is not, so let's try to see if it is a PKCS#1 encoded key.
+      // ok now we try some black magic
+      // https://stackoverflow.com/questions/48958304/pkcs1-and-pkcs8-format-for-rsa-private-key great question + answer
+      ASN1Sequence sequence = ASN1Sequence.getInstance(externKey);
       // if next element is 0 or 1, it's probably a private key
-      rator = sequence.getObjects();
-      integer = ASN1Integer.getInstance(rator.nextElement());
-    } catch (IllegalArgumentException e) {
-      failures.add(e);
-      return r;
-    }
+      Enumeration<?> rator = sequence.getObjects();
+      ASN1Integer integer = ASN1Integer.getInstance(rator.nextElement());
 
-    if (!integer.getValue().equals(BigInteger.ONE)
-          && !integer.getValue().equals(BigInteger.ZERO)) {
-      return r;
+      if (!integer.getValue().equals(BigInteger.ONE)
+            && !integer.getValue().equals(BigInteger.ZERO)) {
+        return r;
+      }
+      // ok this is a private key
+      // ok, RFC says next thing should _NOT_ be a sequence if it is a PKCS#1 encoded
+      // key, so let's check
+      if (rator.nextElement() instanceof ASN1Sequence) {
+        // it is! abort.
+        //AlgorithmIdentifier.getInstance(rator.nextElement());
+        return r;
+      }
+      RSAPrivateKey privParams = RSAPrivateKey.getInstance(sequence);
+      r.addAll(ImmutableList.of(
+        privParams.getModulus(),
+        privParams.getPublicExponent(),
+        privParams.getPrivateExponent(),
+        privParams.getPrime1(),
+        privParams.getPrime2(),
+        privParams.getPrime1().modInverse(privParams.getPrime2()),
+        privParams.getCoefficient()));
+    } catch (RuntimeException e) {
+      // not a PKCS#1 RSA private key: malformed/truncated DER, a different structure
+      // (e.g. an EC private key), or non-integer fields where integers are expected.
+      r.clear();
+      failures.add(e);
     }
-    // ok this is a private key
-    // ok, RFC says next thing should _NOT_ be a sequence if it is a PKCS#1 encoded
-    // key, so let's check
-    if (rator.nextElement() instanceof ASN1Sequence) {
-      // it is! abort.
-      //AlgorithmIdentifier.getInstance(rator.nextElement());
-      return r;
-    }
-    RSAPrivateKey privParams = RSAPrivateKey.getInstance(sequence);
-    r.addAll(ImmutableList.of(
-      privParams.getModulus(),
-      privParams.getPublicExponent(),
-      privParams.getPrivateExponent(),
-      privParams.getPrime1(),
-      privParams.getPrime2(),
-      privParams.getPrime1().modInverse(privParams.getPrime2()),
-      privParams.getCoefficient()));
     return r;
   }
 
@@ -396,7 +417,9 @@ public class CryptoPublicKeyModule implements StarlarkValue {
   }, useStarlarkThread = true)
   public Tuple PKCS8_unwrap(StarlarkBytes binaryKey, String oid, Object passphraseO, String protection, StarlarkThread thread) throws EvalException {
     InputStreamReader r = new InputStreamReader(new ByteArrayInputStream(binaryKey.toByteArray()));
-    String passphrase = Starlark.isNullOrNone(passphraseO) ? null : (String) passphraseO;
+    String passphrase = Starlark.isNullOrNone(passphraseO)
+        ? null
+        : new String(((StarlarkBytes) passphraseO).toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
     KeyPair kp;
     try (PEMParser pemParser = new PEMParser(r)) {
       JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
@@ -404,6 +427,8 @@ public class CryptoPublicKeyModule implements StarlarkValue {
       kp = extractKeyPair(pemKeyPairObject, converter, passphrase);
     } catch (IOException | SignatureException e) {
       throw new EvalException(e.getMessage(), e);
+    } catch (RuntimeException e) {
+      throw new EvalException("ValueError: unsupported or malformed private key", e);
     }
     String algorithm = kp.getPrivate().getAlgorithm();
     return Tuple.of(
