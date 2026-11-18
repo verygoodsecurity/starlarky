@@ -18,10 +18,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.DSAPrivateKeySpec;
 import java.security.spec.DSAPublicKeySpec;
@@ -30,13 +28,13 @@ import java.security.spec.KeySpec;
 import java.security.spec.RSAPrivateCrtKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
 import com.verygood.security.larky.modules.crypto.Util.CryptoUtils;
+import com.verygood.security.larky.modules.crypto.Util.PemDecoding;
 import com.verygood.security.larky.modules.crypto.Util.SimpleDERReader;
 
 import org.bouncycastle.asn1.x500.X500Name;
@@ -97,7 +95,6 @@ public final class SSLUtils {
     private static final Pattern PRIVKEY_EC_END = Pattern.compile("-----END EC PRIVATE KEY-----\\s*$");
     private static final Pattern PRIVKEY_PROCTYPE = Pattern.compile("^Proc-Type:\\s+4,ENCRYPTED\n");
     private static final Pattern PRIVKEY_DEKINFO = Pattern.compile("^DEK-Info:\\s+([^,]+),(\\S+)\n");
-    private static final String X_509 = "X.509";
 
     /**
      * create a basic X509 certificate from the given keys
@@ -159,37 +156,15 @@ public final class SSLUtils {
         DES_CBC
     }
 
-    /**
-     * Decodes PEM-encoded certificates.
-     *
-     * @param pem The PEM encoded content to decode.
-     * @return A list of Certificates.
-     * @throws CertificateException if a certificate could not be decoded.
-     */
-    public Collection<? extends Certificate> decodeCertificates(final String pem)
-      throws CertificateException {
-        if (null == pem || pem.isEmpty()) {
-            throw new IllegalArgumentException("PEM data is null or empty");
-        }
-        try(final ByteArrayInputStream bis = new ByteArrayInputStream(pem.getBytes(Charset.defaultCharset()))) {
-            final CertificateFactory cf = CertificateFactory.getInstance(X_509);
-            return cf.generateCertificates(bis);
-        } catch (IOException t) {
-            logger.atFine().log("", t);
-            throw new RuntimeException(t);
-        }
-    }
-
     public static List<X509Certificate> readCertificateChain(final String certificateChainContents)
       throws GeneralSecurityException {
         Matcher matcher = CERT_PATTERN.matcher(certificateChainContents);
-        CertificateFactory certificateFactory = CertificateFactory.getInstance(X_509);
         List<X509Certificate> certificates = new ArrayList<>();
 
         int start = 0;
         while (matcher.find(start)) {
             byte[] buffer = Base64.decode(matcher.group(1));
-            certificates.add((X509Certificate) certificateFactory.generateCertificate(new ByteArrayInputStream(buffer)));
+            certificates.add(PemDecoding.certificateFromDer(buffer));
             start = matcher.end();
         }
 
