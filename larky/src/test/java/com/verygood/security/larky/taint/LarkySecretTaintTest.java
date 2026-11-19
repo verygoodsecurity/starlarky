@@ -109,7 +109,8 @@ class LarkySecretTaintTest {
                       Result r = run(TaintMode.ENFORCE, "r = " + d[1] + "\nprint(r)\n");
                       assertTrue(r.taint.isTainted(global(r, "r")), d[0]);
                       assertFalse(r.taint.isSaturated(), d[0]);
-                      assertEquals(SecretTaint.REDACTED, r.output.strip(), d[0]);
+                      assertFalse(r.output.contains(FAKE_PAN), d[0]);
+                      assertTrue(r.output.contains(SecretTaint.REDACTED), d[0]);
                     }));
   }
 
@@ -218,10 +219,11 @@ class LarkySecretTaintTest {
     Result r =
         run(
             TaintMode.ENFORCE,
-            "print('" + FAKE_PAN + "')\n"
-                + "print(base64.b64encode(b'" + FAKE_PAN + "').decode('utf-8'))\n");
-    assertFalse(r.output.contains(FAKE_PAN));
-    assertEquals(List.of("PRINT:VALUE_MATCH", "PRINT:VALUE_MATCH"), r.hits);
+            "print('k=" + FAKE_PAN.substring(0, 8) + "')\n"
+                + "print('k=' + base64.b64encode(b'" + FAKE_PAN + "').decode('utf-8'))\n");
+    assertEquals(
+        "k=" + FAKE_PAN.substring(0, 8) + "\nk=" + SecretTaint.REDACTED, r.output.strip());
+    assertEquals(List.of("PRINT:VALUE_MATCH"), r.hits);
   }
 
   @Test
@@ -271,6 +273,64 @@ class LarkySecretTaintTest {
     LarkyEvaluationScriptException e =
         assertThrows(LarkyEvaluationScriptException.class, () -> script.eval(context));
     assertTrue(e.getMessage().contains(FAKE_PAN));
-    assertEquals(SecretTaint.REDACTED, taint.sanitizeError(e.getMessage()));
+    String sanitized = taint.sanitizeError(e.getMessage());
+    assertFalse(sanitized.contains(FAKE_PAN));
+    assertTrue(sanitized.contains("bad card " + SecretTaint.REDACTED));
+  }
+
+  @Test
+  void aTaggedValueInALineIsMaskedInPlace() throws Exception {
+    Result r = run(TaintMode.ENFORCE, "print('bad card: ' + pan)\n");
+    assertEquals("bad card: ***REDACTED***", r.output.strip());
+  }
+
+  @Test
+  void encodedFormsInAnUntaggedLineAreMasked() throws Exception {
+    Result r =
+        run(
+            TaintMode.ENFORCE,
+            "print('b64=' + 'NDExMTExMTExMTExMTExMQ' + ' hex=' + '34313131313131313131313131313131'.upper()"
+                + " + ' url=' + '" + FAKE_PAN + "')\n");
+    assertEquals("b64=***REDACTED*** hex=***REDACTED*** url=***REDACTED***", r.output.strip());
+  }
+
+  @Test
+  void aTransformedTaggedArgumentIsMaskedWhole() throws Exception {
+    Result r = run(TaintMode.ENFORCE, "print('card', ''.join(reversed(pan.elems())), 'ok')\n");
+    assertEquals("card ***REDACTED*** ok", r.output.strip());
+  }
+
+  @Test
+  void aSecretDependentBranchRedactsTheWholeLine() throws Exception {
+    Result r =
+        run(
+            TaintMode.ENFORCE,
+            "def main():\n"
+                + "    if pan.startswith('4'):\n"
+                + "        print('visa', 'line')\n"
+                + "main()\n");
+    assertEquals(SecretTaint.REDACTED, r.output.strip());
+  }
+
+  @Test
+  void observeLeavesTextUnchangedButReports() throws Exception {
+    Result r = run(TaintMode.OBSERVE, "print('bad card: ' + pan)\n");
+    assertEquals("bad card: " + FAKE_PAN, r.output.strip());
+    assertEquals(List.of("PRINT:TAGGED"), r.hits);
+  }
+
+  @Test
+  void withoutARevealTextIsUnchangedWhenEnforcing() throws Exception {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, (s, why) -> {});
+    Bindings bindings = new SimpleBindings();
+    bindings.put(SecretTaint.BINDING_NAME, taint);
+    ScriptContext context = new SimpleScriptContext();
+    context.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
+    StringWriter out = new StringWriter();
+    context.setWriter(out);
+    ((LarkyCompiledScript)
+            new LarkyScriptEngine().compile("print('bad card: " + FAKE_PAN + "')\n"))
+        .eval(context);
+    assertEquals("bad card: " + FAKE_PAN, out.toString().strip());
   }
 }

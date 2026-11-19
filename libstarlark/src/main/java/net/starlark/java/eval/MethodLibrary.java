@@ -1042,11 +1042,22 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
     SecretTaint taint = thread.secretTaint;
     SecretTaint.Reason hit =
         taint == null ? null : taint.checkOutput(SecretTaint.Sink.PRINT, args, sep);
+    // A tagged argument is masked on its own, so the rest of the line stays readable. The
+    // run-wide reasons are left to sanitize below, which redacts the whole line.
+    boolean perArgument =
+        taint != null && taint.isEnforcing() && hit == SecretTaint.Reason.TAGGED;
     Printer p = new Printer();
     String separator = "";
     for (Object x : args) {
-      p.append(separator);
-      p.debugPrint(x, thread);
+      if (perArgument) {
+        p.append(taint.maskTaggedArgument(sep, separator));
+        Printer arg = new Printer();
+        arg.debugPrint(x, thread);
+        p.append(taint.maskTaggedArgument(x, arg.toString()));
+      } else {
+        p.append(separator);
+        p.debugPrint(x, thread);
+      }
       separator = sep;
     }
     // The PRINT_TEST_MARKER key is used in tests to verify the effects of command-line options.
@@ -1057,7 +1068,8 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
 
     String text = p.toString();
     if (taint != null) {
-      text = taint.sanitize(SecretTaint.Sink.PRINT, text, hit);
+      // After per-argument masking, only the value scan is left to do on the final text.
+      text = taint.sanitize(SecretTaint.Sink.PRINT, text, perArgument ? null : hit);
     }
     thread.getPrintHandler().print(thread, text);
   }

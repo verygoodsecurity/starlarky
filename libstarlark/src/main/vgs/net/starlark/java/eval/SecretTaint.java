@@ -36,8 +36,11 @@ public final class SecretTaint implements StarlarkValue {
   /** The script-binding name under which the host passes this object to the interpreter. */
   public static final String BINDING_NAME = "__vgs_secret_taint__";
 
-  /** The text that replaces blocked output. */
-  public static final String REDACTED = "[redacted: secret value]";
+  /**
+   * The fixed mask that replaces a secret in output, whatever the secret's length. It also stands
+   * for a whole text or argument when no secret can be located in it.
+   */
+  public static final String REDACTED = "***REDACTED***";
 
   /** The default limit on tagged objects, after which a run is saturated. */
   public static final int DEFAULT_TAG_LIMIT = 100_000;
@@ -220,8 +223,10 @@ public final class SecretTaint implements StarlarkValue {
 
   /**
    * The text to emit at {@code sink}, given the result of {@link #checkOutput} for the same output.
-   * Scans the text for revealed values when no tag fired. Under {@link TaintMode#ENFORCE}, a hit
-   * replaces the text with {@link #REDACTED}.
+   * Scans the text for revealed values when no tag fired. Under {@link TaintMode#ENFORCE}, a
+   * {@link Reason#VALUE_MATCH} or {@link Reason#TAGGED} hit returns the text with every known form
+   * of a revealed value masked; if none can be located in it, or the reason is {@link
+   * Reason#SECRET_DEPENDENT} or {@link Reason#SATURATED}, the whole text becomes {@link #REDACTED}.
    */
   public String sanitize(Sink sink, String text, @Nullable Reason earlierHit) {
     Reason reason = earlierHit;
@@ -229,7 +234,86 @@ public final class SecretTaint implements StarlarkValue {
       reason = Reason.VALUE_MATCH;
       report(sink, reason);
     }
-    return reason != null && isEnforcing() ? REDACTED : text;
+    if (reason == null || !isEnforcing()) {
+      return text;
+    }
+    if (reason == Reason.SECRET_DEPENDENT || reason == Reason.SATURATED) {
+      return REDACTED;
+    }
+    String masked = mask(text);
+    return masked.equals(text) ? REDACTED : masked;
+  }
+
+  /**
+   * Returns {@code arg}'s printed {@code text} for a print argument under {@link
+   * TaintMode#ENFORCE}: unchanged if {@code arg} carries no tag, masked in place if it does and a
+   * known form is found in the text, and {@link #REDACTED} if it does and none is found (for
+   * example, a transformed value). Does not report; the caller reports through {@link
+   * #checkOutput}.
+   */
+  String maskTaggedArgument(Object arg, String text) {
+    if (!isEnforcing() || !anyTainted(arg)) {
+      return text;
+    }
+    String masked = mask(text);
+    return masked.equals(text) ? REDACTED : masked;
+  }
+
+  /**
+   * Replaces every occurrence of each known plaintext form of a revealed value (raw, URL-encoded,
+   * Base64, Base64URL, and hex in either case) with {@link #REDACTED}. Matches are found against
+   * the original text and overlapping or touching ones are merged into one mask, so the mask is
+   * never re-matched and no tail of an overlapped form is left behind. Returns {@code text}
+   * itself when no form occurs in it.
+   */
+  public String mask(String text) {
+    if (text == null || text.isEmpty() || (plaintextForms.isEmpty() && hexForms.isEmpty())) {
+      return text;
+    }
+    try {
+      List<int[]> spans = new ArrayList<>();
+      collectSpans(text, plaintextForms, false, spans);
+      collectSpans(text, hexForms, true, spans);
+      if (spans.isEmpty()) {
+        return text;
+      }
+      spans.sort((a, b) -> a[0] != b[0] ? Integer.compare(a[0], b[0]) : Integer.compare(b[1], a[1]));
+      StringBuilder sb = new StringBuilder(text.length());
+      int copied = 0;
+      int start = spans.get(0)[0];
+      int end = spans.get(0)[1];
+      for (int i = 1; i <= spans.size(); i++) {
+        if (i < spans.size() && spans.get(i)[0] <= end) {
+          end = Math.max(end, spans.get(i)[1]);
+          continue;
+        }
+        sb.append(text, copied, start).append(REDACTED);
+        copied = end;
+        if (i < spans.size()) {
+          start = spans.get(i)[0];
+          end = spans.get(i)[1];
+        }
+      }
+      return sb.append(text, copied, text.length()).toString();
+    } catch (RuntimeException | StackOverflowError e) {
+      saturate();
+      return REDACTED;
+    }
+  }
+
+  // Every occurrence of every form, longest forms first, as [start, end) spans.
+  private static void collectSpans(
+      String text, List<String> forms, boolean ignoreCase, List<int[]> spans) {
+    List<String> longestFirst = new ArrayList<>(forms);
+    longestFirst.sort((a, b) -> Integer.compare(b.length(), a.length()));
+    for (String form : longestFirst) {
+      int n = form.length();
+      for (int i = 0; i + n <= text.length(); i++) {
+        if (text.regionMatches(ignoreCase, i, form, 0, n)) {
+          spans.add(new int[] {i, i + n});
+        }
+      }
+    }
   }
 
   /**
@@ -390,8 +474,13 @@ public final class SecretTaint implements StarlarkValue {
     addForm(plaintextForms, s);
     addForm(plaintextForms, URLEncoder.encode(s, StandardCharsets.UTF_8));
     byte[] utf8 = s.getBytes(StandardCharsets.UTF_8);
-    addForm(plaintextForms, stripPadding(Base64.getEncoder().encodeToString(utf8)));
-    addForm(plaintextForms, stripPadding(Base64.getUrlEncoder().encodeToString(utf8)));
+    // Unpadded, so a form cut off from its padding is still found, and padded, so that masking
+    // takes the "=" padding with the form instead of leaving it behind.
+    for (Base64.Encoder encoder : List.of(Base64.getEncoder(), Base64.getUrlEncoder())) {
+      String padded = encoder.encodeToString(utf8);
+      addForm(plaintextForms, padded);
+      addForm(plaintextForms, stripPadding(padded));
+    }
     addForm(hexForms, toHex(utf8));
   }
 

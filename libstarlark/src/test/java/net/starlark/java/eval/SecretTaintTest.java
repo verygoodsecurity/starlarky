@@ -415,7 +415,7 @@ public final class SecretTaintTest {
     assertThat(run.tainted("n")).isTrue();
     assertThat(run.printed).hasSize(5);
     assertThat(run.printed).containsNoneOf(PAN, "[\"" + PAN + "\"]");
-    assertThat(run.printed.stream().allMatch(SecretTaint.REDACTED::equals)).isTrue();
+    assertThat(run.printed.stream().allMatch(l -> l.contains(SecretTaint.REDACTED))).isTrue();
   }
 
   @Test
@@ -524,7 +524,7 @@ public final class SecretTaintTest {
   @Test
   public void enforceBlocksWithoutThrowing() throws Exception {
     Run run = enforce(REVEAL + "print('got', s)\nr = 'still running'\n");
-    assertThat(run.printed).containsExactly(SecretTaint.REDACTED);
+    assertThat(run.printed).containsExactly("got " + SecretTaint.REDACTED);
     assertThat(run.global("r")).isEqualTo("still running");
     assertThat(run.hits).containsExactly("PRINT:TAGGED");
   }
@@ -534,7 +534,7 @@ public final class SecretTaintTest {
     // The literal has the secret's text but none of its identity.
     String lost = "x = secrets.plain() + '" + PAN + "'\nprint(x)\n";
     Run run = enforce(REVEAL + lost);
-    assertThat(run.printed).containsExactly(SecretTaint.REDACTED);
+    assertThat(run.printed).containsExactly("nothing secret" + SecretTaint.REDACTED);
     assertThat(run.hits).containsExactly("PRINT:VALUE_MATCH");
   }
 
@@ -569,9 +569,129 @@ public final class SecretTaintTest {
     SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, (s, r) -> hits.add(s + ":" + r));
     taint.onSource(new String(PAN));
     taint.markSecretDependent();
-    assertThat(taint.sanitizeError("failed on " + PAN)).isEqualTo(SecretTaint.REDACTED);
+    assertThat(taint.sanitizeError("failed on " + PAN))
+        .isEqualTo("failed on " + SecretTaint.REDACTED);
     assertThat(taint.sanitizeError("failed: bad state")).isEqualTo("failed: bad state");
     assertThat(hits).containsExactly("ERROR_TEXT:VALUE_MATCH");
+  }
+
+  @Test
+  public void maskIsAFixedStringWhateverTheSecretLength() {
+    assertThat(SecretTaint.REDACTED).isEqualTo("***REDACTED***");
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    taint.onSource(new String("abc"));
+    taint.onSource(new String("a-much-longer-secret-value"));
+    assertThat(taint.mask("x abc y a-much-longer-secret-value z"))
+        .isEqualTo("x ***REDACTED*** y ***REDACTED*** z");
+  }
+
+  @Test
+  public void maskCoversEveryEncodedFormAndEveryOccurrence() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    taint.onSource(new String("a b&c=fake"));
+    String b64 = java.util.Base64.getEncoder().withoutPadding()
+        .encodeToString("a b&c=fake".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    String hex = "61206226633d66616b65";
+    assertThat(taint.mask("raw=a b&c=fake url=a+b%26c%3Dfake b64=" + b64 + " hex=" + hex.toUpperCase()
+            + " again=a b&c=fake"))
+        .isEqualTo(
+            "raw=***REDACTED*** url=***REDACTED*** b64=***REDACTED*** hex=***REDACTED***"
+                + " again=***REDACTED***");
+  }
+
+  @Test
+  public void maskHandlesOverlappingFormsAndNeverRematchesTheMask() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    taint.onSource(new String("abcdef"));
+    taint.onSource(new String("defxyz"));
+    // The two plaintexts overlap in "def": one mask covers the union, no tail is left.
+    assertThat(taint.mask("<abcdefxyz>")).isEqualTo("<***REDACTED***>");
+    // A secret that occurs inside the mask text cannot be matched again.
+    SecretTaint inMask = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    inMask.onSource(new String("RED"));
+    inMask.onSource(new String("abcRED"));
+    assertThat(inMask.mask("abcRED and RED")).isEqualTo("***REDACTED*** and ***REDACTED***");
+  }
+
+  @Test
+  public void maskLeavesTextWithoutAFormUnchanged() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    taint.onSource(new String(PAN));
+    String text = "nothing here";
+    assertThat(taint.mask(text)).isSameInstanceAs(text);
+  }
+
+  @Test
+  public void printMasksTheSecretInPlace() throws Exception {
+    Run run = enforce(REVEAL + "print('bad card: ' + s)\n");
+    assertThat(run.printed).containsExactly("bad card: ***REDACTED***");
+    assertThat(run.hits).containsExactly("PRINT:TAGGED");
+  }
+
+  @Test
+  public void printMasksOnlyTheTaggedArgument() throws Exception {
+    Run run = enforce(REVEAL + "print('card', s, 'ok')\n");
+    assertThat(run.printed).containsExactly("card ***REDACTED*** ok");
+  }
+
+  @Test
+  public void printMasksATaggedValueInsideAContainerInPlace() throws Exception {
+    Run run = enforce(REVEAL + "print('cards', [s, 'x'])\n");
+    assertThat(run.printed).containsExactly("cards [\"***REDACTED***\", \"x\"]");
+  }
+
+  @Test
+  public void aTransformedTaggedArgumentIsMaskedWhole() throws Exception {
+    Run run = enforce(REVEAL + "print('card', s[::-1], 'ok')\n");
+    assertThat(run.printed).containsExactly("card ***REDACTED*** ok");
+    assertThat(run.printed.get(0)).doesNotContain(PAN);
+  }
+
+  @Test
+  public void aSecretDependentBranchRedactsTheWholeLine() throws Exception {
+    Run run = enforce(REVEAL + "def f():\n    if s.startswith('4'):\n        print('visa', 'line')\nf()\n");
+    assertThat(run.printed).containsExactly(SecretTaint.REDACTED);
+    assertThat(run.hits).containsExactly("PRINT:SECRET_DEPENDENT");
+  }
+
+  @Test
+  public void sanitizeMasksValueMatchesAndRedactsWholeForOtherReasons() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    taint.onSource(new String(PAN));
+    assertThat(taint.sanitize(SecretTaint.Sink.PRINT, "pan " + PAN + "!", null))
+        .isEqualTo("pan ***REDACTED***!");
+    assertThat(
+            taint.sanitize(SecretTaint.Sink.PRINT, "pan " + PAN, SecretTaint.Reason.SECRET_DEPENDENT))
+        .isEqualTo(SecretTaint.REDACTED);
+    assertThat(taint.sanitize(SecretTaint.Sink.PRINT, "pan " + PAN, SecretTaint.Reason.SATURATED))
+        .isEqualTo(SecretTaint.REDACTED);
+    assertThat(taint.sanitize(SecretTaint.Sink.PRINT, "no form", SecretTaint.Reason.TAGGED))
+        .isEqualTo(SecretTaint.REDACTED);
+  }
+
+  @Test
+  public void sanitizeErrorMasksTheSecretAndKeepsTheRest() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    taint.onSource(new String(PAN));
+    assertThat(taint.sanitizeError("failed on " + PAN + " twice " + PAN))
+        .isEqualTo("failed on ***REDACTED*** twice ***REDACTED***");
+  }
+
+  @Test
+  public void observeModeLeavesTextUnchangedButReports() throws Exception {
+    Run run = new Run(TaintMode.OBSERVE).exec(REVEAL + "print('bad card: ' + s)\n");
+    assertThat(run.printed).containsExactly("bad card: " + PAN);
+    assertThat(run.hits).containsExactly("PRINT:TAGGED");
+    SecretTaint observe = new SecretTaint(TaintMode.OBSERVE, TaintObserver.NOOP);
+    observe.onSource(new String(PAN));
+    assertThat(observe.sanitizeError("x " + PAN)).isEqualTo("x " + PAN);
+  }
+
+  @Test
+  public void withoutARevealTextIsUnchanged() throws Exception {
+    Run run = enforce("print('bad card: ' + '" + PAN + "')\n");
+    assertThat(run.printed).containsExactly("bad card: " + PAN);
+    assertThat(run.hits).isEmpty();
   }
 
   @Test
