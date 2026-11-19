@@ -65,6 +65,7 @@ final class MethodDescriptor {
   private final boolean useStarlarkThread;
   private final boolean useStarlarkSemantics;
   private final boolean secretSource;
+  private final int sourcePassthroughParameter;
   private final boolean declassifies;
   private final boolean returnsVoid;
   @Nullable private final Class<?> typeConstructorProxy;
@@ -114,8 +115,9 @@ final class MethodDescriptor {
     this.allowReturnNones = allowReturnNones;
     this.useStarlarkThread = useStarlarkThread;
     this.useStarlarkSemantics = useStarlarkSemantics;
-    this.secretSource =
-        StarlarkAnnotations.hasAnnotationInHierarchy(method, SecretSource.class);
+    SecretSource source = StarlarkAnnotations.getAnnotationInHierarchy(method, SecretSource.class);
+    this.secretSource = source != null;
+    this.sourcePassthroughParameter = source == null ? -1 : source.passthroughParameter();
     this.declassifies =
         StarlarkAnnotations.hasAnnotationInHierarchy(method, Declassifies.class);
     this.returnsVoid = method.getReturnType() == void.class;
@@ -351,6 +353,10 @@ final class MethodDescriptor {
   /** Whether this method's results are revealed secrets. */
   boolean isSecretSource() {
     return secretSource;
+  }
+
+  int sourcePassthroughParameter() {
+    return sourcePassthroughParameter;
   }
 
   /** Whether this method's result is safe to emit even when an argument is secret. */

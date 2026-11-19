@@ -1,6 +1,5 @@
 package com.verygood.security.larky.modules;
 
-import com.verygood.security.larky.modules.types.results.Error;
 import com.verygood.security.larky.modules.types.results.Result;
 
 import net.starlark.java.annot.Param;
@@ -9,6 +8,7 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.SecretTaint;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkEvalWrapper;
@@ -63,13 +63,10 @@ public class ResultModule implements StarlarkValue {
       throws InterruptedException {
     int stackSize = StarlarkEvalWrapper.callStackSize(thread);
     try {
-      return ok(Starlark.call(thread, func, args, kwargs));
-    } catch(Error e) {
-      StarlarkEvalWrapper.unwindCallStack(thread, stackSize);
-      return e;
+      return Result.ok(Starlark.call(thread, func, args, kwargs), thread);
     } catch (EvalException e) {
       StarlarkEvalWrapper.unwindCallStack(thread, stackSize);
-      return Error.of(e); // for the stack trace.
+      return error(e, thread);
     } catch (RuntimeException e) {
       StarlarkEvalWrapper.unwindCallStack(thread, stackSize);
       return error(new EvalException(e.getMessage(), e.getCause()), thread);
@@ -105,7 +102,13 @@ public class ResultModule implements StarlarkValue {
     @Override
     public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs)
         throws EvalException, InterruptedException {
-      return safe(func, args, kwargs, thread);
+      Result result = safe(func, args, kwargs, thread);
+      SecretTaint taint = thread.getSecretTaint();
+      if (taint != null
+          && (taint.isTainted(func) || taint.isTainted(args) || taint.isTainted(kwargs))) {
+        taint.tag(result);
+      }
+      return result;
     }
 
     /** {@code safe(<name of the wrapped function>)}, e.g. {@code safe(parse_body)}. */

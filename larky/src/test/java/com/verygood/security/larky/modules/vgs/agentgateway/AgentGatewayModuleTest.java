@@ -10,6 +10,7 @@ import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.modules.vgs.agentgateway.spi.AgentGatewaySession;
 import com.verygood.security.larky.modules.vgs.agentgateway.spi.LarkyAgentGateway;
 import com.verygood.security.larky.parser.ParsedStarFile;
+import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,9 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import javax.script.ScriptException;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.SecretTaint;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.TaintMode;
 import org.junit.After;
 import org.junit.Test;
 
@@ -92,6 +95,27 @@ public class AgentGatewayModuleTest {
         "session.put('public_key', 'k1')",
         "out = session.get('public_key') if before == None else 'unexpected'"));
     assertEquals(Map.of("public_key", "k1"), session.captures);
+  }
+
+  @Test
+  public void writingCapturedDataKeepsUnrelatedSessionDiagnosticsVisible() throws Exception {
+    TestAgentGateway.CURRENT.set(new FakeSession());
+    final SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, null);
+    final StringWriter out = new StringWriter();
+    final LarkyScriptEngine engine = new LarkyScriptEngine();
+    engine.put(SecretTaint.BINDING_NAME, taint);
+    engine.getContext().setWriter(out);
+
+    engine.eval("""
+        load('@vgs//agent_gateway', 'session')
+        load('@vgs//vault', 'vault')
+        captured = vault.reveal(vault.redact('synthetic capture'))
+        session.put('capture', captured)
+        print(session.card(), session.context('order_id'))
+        """);
+
+    assertTrue(taint.isActive());
+    assertEquals("card:only o-1", out.toString().strip());
   }
 
   @Test

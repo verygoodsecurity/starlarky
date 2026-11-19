@@ -37,9 +37,7 @@ class SecretTaintCoverageTest {
 
   /** Methods whose implementation checks taint itself: "class#name". */
   private static final Set<String> SINKS =
-      ImmutableSet.of(
-          "net.starlark.java.eval.MethodLibrary#print",
-          "com.verygood.security.larky.modules.vgs.events.EventsModule#record");
+      ImmutableSet.of("net.starlark.java.eval.MethodLibrary#print");
 
   // Names that imply a method hands out a secret, or sends text somewhere outside the script.
   private static final Pattern SOURCE_LIKE = Pattern.compile("reveal|detokenize");
@@ -81,6 +79,9 @@ class SecretTaintCoverageTest {
 
   private static String kind(Class<?> cls, Method method, StarlarkMethod annotation) {
     if (StarlarkAnnotations.hasAnnotationInHierarchy(method, SecretSource.class)) {
+      assertTrue(
+          !annotation.structField(),
+          () -> "@SecretSource requires a callable method: " + cls.getName() + "#" + annotation.name());
       return "source";
     }
     if (SINKS.contains(cls.getName() + "#" + annotation.name())) {

@@ -206,29 +206,41 @@ public final class StarlarkAnnotations {
    */
   public static boolean hasAnnotationInHierarchy(
       Method method, Class<? extends java.lang.annotation.Annotation> annotation) {
-    return hasAnnotationInHierarchy(method.getDeclaringClass(), method, annotation);
+    return getAnnotationInHierarchy(method, annotation) != null;
   }
 
-  private static boolean hasAnnotationInHierarchy(
-      Class<?> classObj, Method method, Class<? extends java.lang.annotation.Annotation> annotation) {
+  /** Gets a method annotation, falling back to declarations with the same signature. */
+  @Nullable
+  public static <A extends java.lang.annotation.Annotation> A getAnnotationInHierarchy(
+      Method method, Class<A> annotation) {
+    return getAnnotationInHierarchy(method.getDeclaringClass(), method, annotation);
+  }
+
+  @Nullable
+  private static <A extends java.lang.annotation.Annotation> A getAnnotationInHierarchy(
+      Class<?> classObj, Method method, Class<A> annotation) {
     try {
-      if (classObj.getDeclaredMethod(method.getName(), method.getParameterTypes())
-          .isAnnotationPresent(annotation)) {
-        return true;
+      A found = classObj.getDeclaredMethod(method.getName(), method.getParameterTypes())
+          .getAnnotation(annotation);
+      if (found != null) {
+        return found;
       }
     } catch (NoSuchMethodException | SecurityException e) {
       // not declared on this class; keep looking
     }
-    if (classObj.getSuperclass() != null
-        && hasAnnotationInHierarchy(classObj.getSuperclass(), method, annotation)) {
-      return true;
-    }
-    for (Class<?> interfaceObj : classObj.getInterfaces()) {
-      if (hasAnnotationInHierarchy(interfaceObj, method, annotation)) {
-        return true;
+    if (classObj.getSuperclass() != null) {
+      A found = getAnnotationInHierarchy(classObj.getSuperclass(), method, annotation);
+      if (found != null) {
+        return found;
       }
     }
-    return false;
+    for (Class<?> interfaceObj : classObj.getInterfaces()) {
+      A found = getAnnotationInHierarchy(interfaceObj, method, annotation);
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
   }
 
   /**

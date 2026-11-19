@@ -14,4 +14,10 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface SecretSource {}
+public @interface SecretSource {
+  /**
+   * Zero-based parameter whose unchanged String identities are aliases passed through by the
+   * source, including corresponding elements in a batch. A negative value tracks every result.
+   */
+  int passthroughParameter() default -1;
+}

@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -991,28 +992,58 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
       throws EvalException {
     boolean includeStack =
         stackTrace || thread.getSemantics().getBool(StarlarkSemantics.FORCE_STARLARK_STACK_TRACE);
-    Printer printer = new Printer();
+    Printer printer = diagnosticPrinter(thread);
     boolean needSeparator = false;
     if (attr != Starlark.NONE) {
-      printer.append("attribute ").append((String) attr).append(":");
+      printer.append("attribute ");
+      appendDiagnosticValue(printer, (String) attr);
+      printer.append(":");
       needSeparator = true;
     }
     // msg acts like a leading element of args.
     if (msg != Starlark.NONE) {
       if (needSeparator) {
-        printer.append(sep);
+        appendDiagnosticValue(printer, sep);
       }
       printer.debugPrint(msg, thread);
       needSeparator = true;
     }
     for (Object arg : args) {
       if (needSeparator) {
-        printer.append(sep);
+        appendDiagnosticValue(printer, sep);
       }
       printer.debugPrint(arg, thread);
       needSeparator = true;
     }
-    throw new EvalException(printer.toString(), null, includeStack);
+    EvalException failure = new EvalException(printer.toString(), null, includeStack);
+    SecretTaint taint = diagnosticTaint(thread, printer);
+    if (taint != null) {
+      taint.noteRenderedError(failure, printer);
+    }
+    throw failure;
+  }
+
+  private static Printer diagnosticPrinter(StarlarkThread thread) {
+    SecretTaint taint = thread.secretTaint;
+    return taint == null ? new Printer(thread) : new SecretTaint.OutputPrinter(taint, thread);
+  }
+
+  @Nullable
+  private static SecretTaint diagnosticTaint(StarlarkThread thread, Printer printer) {
+    // A script-provided representation can reveal a value while it is being rendered.
+    SecretTaint taint = thread.secretTaint;
+    if (taint == null && printer.hasForeignRepresentation()) {
+      taint = thread.getThreadLocal(SecretTaint.class);
+    }
+    return taint == null || taint.mode() == TaintMode.OFF ? null : taint;
+  }
+
+  private static void appendDiagnosticValue(Printer printer, String value) {
+    if (printer instanceof SecretTaint.OutputPrinter output) {
+      output.appendValue(value);
+    } else {
+      printer.append(value);
+    }
   }
 
   @StarlarkMethod(
@@ -1039,25 +1070,11 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
       extraPositionals = @Param(name = "args", doc = "The objects to print."),
       useStarlarkThread = true)
   public void print(String sep, Sequence<?> args, StarlarkThread thread) throws EvalException {
-    SecretTaint taint = thread.secretTaint;
-    SecretTaint.Reason hit =
-        taint == null ? null : taint.checkOutput(SecretTaint.Sink.PRINT, args, sep);
-    // A tagged argument is masked on its own, so the rest of the line stays readable. The
-    // run-wide reasons are left to sanitize below, which redacts the whole line.
-    boolean perArgument =
-        taint != null && taint.isEnforcing() && hit == SecretTaint.Reason.TAGGED;
-    Printer p = new Printer();
+    Printer p = diagnosticPrinter(thread);
     String separator = "";
     for (Object x : args) {
-      if (perArgument) {
-        p.append(taint.maskTaggedArgument(sep, separator));
-        Printer arg = new Printer();
-        arg.debugPrint(x, thread);
-        p.append(taint.maskTaggedArgument(x, arg.toString()));
-      } else {
-        p.append(separator);
-        p.debugPrint(x, thread);
-      }
+      appendDiagnosticValue(p, separator);
+      p.debugPrint(x, thread);
       separator = sep;
     }
     // The PRINT_TEST_MARKER key is used in tests to verify the effects of command-line options.
@@ -1066,12 +1083,9 @@ set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
       p.append("<== Starlark flag test ==>");
     }
 
-    String text = p.toString();
-    if (taint != null) {
-      // After per-argument masking, only the value scan is left to do on the final text.
-      text = taint.sanitize(SecretTaint.Sink.PRINT, text, perArgument ? null : hit);
-    }
-    thread.getPrintHandler().print(thread, text);
+    SecretTaint taint = diagnosticTaint(thread, p);
+    thread.getPrintHandler()
+        .print(thread, taint == null ? p.toString() : taint.sanitizePrint(p, args, sep));
   }
 
   @StarlarkMethod(

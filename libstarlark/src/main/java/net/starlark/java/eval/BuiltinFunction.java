@@ -85,12 +85,29 @@ public sealed class BuiltinFunction implements StarlarkCallable
     } else {
       vector = getPositionalOnlyArgumentVector(thread, positional);
     }
-    Object result =
-        desc.call(
-            obj instanceof String ? StringModule.INSTANCE : obj, vector, thread.mutability());
+    return invokeMethod(thread, vector);
+  }
+
+  private Object invokeMethod(StarlarkThread thread, Object[] vector)
+      throws EvalException, InterruptedException {
+    int passthroughParameter = desc.sourcePassthroughParameter();
+    Object sourceInput = passthroughParameter >= 0 && passthroughParameter < vector.length
+        ? Taint.snapshotSourceInput(thread, vector[passthroughParameter])
+        : null;
+    Object result;
+    try {
+      result = desc.call(
+          obj instanceof String ? StringModule.INSTANCE : obj, vector, thread.mutability());
+    } catch (EvalException | RuntimeException error) {
+      SecretTaint taint = thread.secretTaint;
+      if (taint != null) {
+        taint.noteBuiltinError(obj, vector, error);
+      }
+      throw error;
+    }
     return thread.secretTaint == null && !desc.isSecretSource()
         ? result
-        : Taint.afterBuiltin(thread, desc, obj, vector, result);
+        : Taint.afterBuiltin(thread, desc, obj, vector, result, sourceInput);
   }
 
   /**
@@ -455,14 +472,7 @@ public sealed class BuiltinFunction implements StarlarkCallable
         vector[i++] = thread;
       }
 
-      Object result =
-          desc.call(
-              owner.obj instanceof String ? StringModule.INSTANCE : owner.obj,
-              vector,
-              thread.mutability());
-      return thread.secretTaint == null && !desc.isSecretSource()
-          ? result
-          : Taint.afterBuiltin(thread, desc, owner.obj, vector, result);
+      return owner.invokeMethod(thread, vector);
     }
   }
 

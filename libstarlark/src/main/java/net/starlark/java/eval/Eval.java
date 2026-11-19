@@ -511,7 +511,7 @@ final class Eval {
   private static Object inplaceBinaryOp(StarlarkThread.Frame fr, TokenKind op, Object x, Object y)
       throws EvalException {
     Object z = untaintedInplaceBinaryOp(fr, op, x, y);
-    return fr.thread.secretTaint == null ? z : Taint.binary(fr.thread, x, y, z);
+    return fr.thread.secretTaint == null ? z : Taint.binary(fr.thread, op, x, y, z);
   }
 
   @SuppressWarnings("unchecked")
@@ -682,9 +682,15 @@ final class Eval {
       }
       if (map.put(k, v) != null) {
         fr.setErrorLocation(entry.getColonLocation());
-        throw Starlark.errorf(
-            "dictionary expression has duplicate key: %s",
-            Starlark.repr(k, fr.thread.getSemantics()));
+        EvalException error =
+            Starlark.errorf(
+                "dictionary expression has duplicate key: %s",
+                Starlark.repr(k, fr.thread.getSemantics()));
+        SecretTaint taint = fr.thread.secretTaint;
+        if (taint != null) {
+          taint.noteValueError(error, k);
+        }
+        throw error;
       }
     }
     Mutability mu = fr.thread.mutability();

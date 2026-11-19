@@ -65,10 +65,10 @@ final class LarkyCalls {
 
   /**
    * Calls {@code function} with {@code args}, converted to Starlark values as bindings are, on a new thread whose
-   * {@code print} goes to {@code console} and whose run gets {@code providers}, as an evaluation's does.
+   * {@code print} goes to {@code console} and whose run gets the host's providers and taint binding.
    */
   static Object call(StarlarkCallable function, Object[] args, Console console, Limits limits,
-      ModuleProviders providers) throws ScriptException {
+      ModuleProviders providers, @Nullable Object taintBinding) throws ScriptException {
     final List<Object> starlarkArgs = new ArrayList<>(args == null ? 0 : args.length);
     if (args != null) {
       for (Object arg : args) {
@@ -80,6 +80,7 @@ final class LarkyCalls {
       final Reporter reporter = new Reporter(console);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
+      boolean taintInstalled = LarkyEvaluator.installSecretTaint(thread, taintBinding);
       providers.installOn(thread);
       if (limits.stepLimit() != null) {
         thread.setMaxExecutionSteps(limits.stepLimit());
@@ -97,6 +98,10 @@ final class LarkyCalls {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new ScriptException(e);
+      } finally {
+        if (taintInstalled) {
+          LarkyEvaluator.detachSecretTaint(thread);
+        }
       }
     }
   }

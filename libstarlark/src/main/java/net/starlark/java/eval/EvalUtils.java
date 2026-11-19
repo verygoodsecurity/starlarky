@@ -60,7 +60,7 @@ final class EvalUtils {
   static Object binaryOp(TokenKind op, Object x, Object y, StarlarkThread starlarkThread)
       throws EvalException {
     Object z = untaintedBinaryOp(op, x, y, starlarkThread);
-    return starlarkThread.secretTaint == null ? z : Taint.binary(starlarkThread, x, y, z);
+    return starlarkThread.secretTaint == null ? z : Taint.binary(starlarkThread, op, x, y, z);
   }
 
   private static Object untaintedBinaryOp(
@@ -477,7 +477,16 @@ final class EvalUtils {
   @Nullable
   static Object index(StarlarkThread starlarkThread, Object object, Object key)
       throws EvalException {
-    Object result = untaintedIndex(starlarkThread, object, key);
+    Object result;
+    try {
+      result = untaintedIndex(starlarkThread, object, key);
+    } catch (EvalException error) {
+      SecretTaint taint = starlarkThread.secretTaint;
+      if (taint != null) {
+        taint.noteValueError(error, object, key);
+      }
+      throw error;
+    }
     return starlarkThread.secretTaint == null
         ? result
         : Taint.readFrom(starlarkThread, object, result, key);

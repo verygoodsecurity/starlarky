@@ -12,6 +12,7 @@
 * [Project overview](#project-overview)
     * [Libstarlark](#libstarlark)
     * [Larky](#larky)
+        * [Secret taint for diagnostics](#secret-taint-for-diagnostics)
     * [Runlarky](#runlarky)
         * [Larky REPL](#larky-repl)
     * [Pylarky](#pylarky)
@@ -63,6 +64,25 @@ mvn versions:set -DnewVersion=<your-version> -pl larky (optional)
 mvn versions:set-property -Dproperty=libstarlark.version -DnewVersion=<larky-version> -pl larky
 mvn clean package -pl larky
 ```
+
+#### Secret taint for diagnostics
+
+An embedding host can bind a `SecretTaint` under `SecretTaint.BINDING_NAME` for an
+evaluation or a JSR223 invocation. Give each independent run its own instance.
+Keep the instance through error handling so the host can pass the error text to
+`sanitizeError` before logging or returning a diagnostic.
+
+`OFF` is the default. Start with `OBSERVE` to count hits by sink and reason while
+emitting the original diagnostic. In `ENFORCE`, Starlark `print` and host-sanitized
+error text use the fixed mask `***REDACTED***`. The sanitizer preserves surrounding
+text when it can identify the sensitive spans and masks the whole argument or
+diagnostic when it cannot. Tracking evaluates resource modules per run and
+reuses compiled programs. Hosts can read the `larky.taint.mode` setting with
+`TaintMode.parse(System.getProperty(TaintMode.PROPERTY))` when constructing the
+per-run object.
+
+Taint is a defense against accidental disclosure in diagnostics. Hosts control
+access to vault providers and decide where script results may go.
 
 ### Runlarky
 

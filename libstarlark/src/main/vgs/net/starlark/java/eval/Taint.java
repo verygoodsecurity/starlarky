@@ -1,5 +1,7 @@
 package net.starlark.java.eval;
 
+import net.starlark.java.syntax.TokenKind;
+
 /**
  * The interpreter's secret-taint hooks. Each is called only after its caller has checked that the
  * thread holds a {@link SecretTaint}, or that a {@code @SecretSource} just returned; runs that
@@ -9,20 +11,45 @@ package net.starlark.java.eval;
 final class Taint {
   private Taint() {}
 
+  /** Captures potential alias identities before an annotated source can mutate its inputs. */
+  static Object snapshotSourceInput(StarlarkThread thread, Object input) {
+    if (input instanceof String) {
+      return input;
+    }
+    SecretTaint taint = sourceTaint(thread);
+    if (taint == null) {
+      return null;
+    }
+    Object[] snapshot = taint.snapshotSourceBatch(input);
+    if (taint.isActive()) {
+      thread.secretTaint = taint;
+    }
+    return snapshot;
+  }
+
+  private static SecretTaint sourceTaint(StarlarkThread thread) {
+    SecretTaint taint = thread.secretTaint;
+    if (taint == null) {
+      taint = thread.getThreadLocal(SecretTaint.class);
+    }
+    return taint != null && taint.mode() != TaintMode.OFF ? taint : null;
+  }
+
   /** After a {@code @StarlarkMethod} call; {@code receiver} is the bound object or string. */
   static Object afterBuiltin(
-      StarlarkThread thread, MethodDescriptor desc, Object receiver, Object[] args, Object result) {
+      StarlarkThread thread, MethodDescriptor desc, Object receiver, Object[] args,
+      Object result, Object sourceInput) {
     SecretTaint taint = thread.secretTaint;
     if (desc.isSecretSource()) {
+      taint = sourceTaint(thread);
       if (taint == null) {
-        taint = thread.getThreadLocal(SecretTaint.class);
-        if (taint == null || taint.mode() == TaintMode.OFF) {
-          return result;
-        }
+        return result;
+      }
+      Object value = taint.onSource(result, sourceInput);
+      if (taint.isActive()) {
         thread.secretTaint = taint;
       }
-      taint.markActive();
-      return taint.onSource(result);
+      return value;
     }
     if (taint == null || desc.isDeclassifies()) {
       return result;
@@ -36,11 +63,14 @@ final class Taint {
   }
 
   /** After a binary operator; also covers in-place operators, whose receiver is {@code x}. */
-  static Object binary(StarlarkThread thread, Object x, Object y, Object result) {
+  static Object binary(StarlarkThread thread, TokenKind op, Object x, Object y, Object result) {
     SecretTaint taint = thread.secretTaint;
     try {
       if (!taint.anyTainted(x, y)) {
         return result;
+      }
+      if (op == TokenKind.PLUS && x instanceof String left && y instanceof String right) {
+        return taint.tagConcatenation(left, right, (String) result);
       }
       tagIfMutable(taint, x);
       return carry(taint, x, result, false);

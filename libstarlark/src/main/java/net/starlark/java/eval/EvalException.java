@@ -38,6 +38,7 @@ public class EvalException extends Exception {
   // built-in function has no stack until it is thrown out of a function call.
   @Nullable private ImmutableList<StarlarkThread.CallStackEntry> callstack;
   private final boolean includeStackTrace;
+  private boolean taintedDiagnostic;
 
   /** Constructs an EvalException. Use {@link Starlark#errorf} if you want string formatting. */
   public EvalException(String message) {
@@ -70,6 +71,16 @@ public class EvalException extends Exception {
   /** Constructs an EvalException using the same message as the cause exception. */
   public EvalException(Throwable cause) {
     this(getCauseMessage(cause), cause, /* includeStackTrace= */ true);
+    taintedDiagnostic = cause instanceof EvalException error && error.hasTaintedDiagnostic();
+  }
+
+  /** Whether the interpreter identified tainted input to this exception's diagnostic. */
+  public final boolean hasTaintedDiagnostic() {
+    return taintedDiagnostic;
+  }
+
+  final void markTaintedDiagnostic() {
+    taintedDiagnostic = true;
   }
 
   /**

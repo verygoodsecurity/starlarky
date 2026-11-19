@@ -151,7 +151,7 @@ public class VaultModule implements LarkyVault {
         return redact(vaultFor(thread), value, storage, format, tags, decoratorConfig);
     }
 
-    @SecretSource
+    @SecretSource(passthroughParameter = 0)
     @StarlarkMethod(
             name = "reveal",
         useStarlarkThread = true,

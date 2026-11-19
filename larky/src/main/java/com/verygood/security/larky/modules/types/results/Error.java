@@ -4,6 +4,7 @@ import java.util.Objects;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
+import net.starlark.java.eval.SecretTaint;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkSemantics;
@@ -55,11 +56,17 @@ public class Error extends EvalException implements Result {
       // cause without a message (e.g. a NullPointerException) falls back to e1's, which names
       // the exception's class.
       final Throwable cause = e1.getCause();
+      final String causeMessage = cause != null ? cause.getMessage() : null;
       final EvalException evalException =
-          cause != null && cause.getMessage() != null
-              ? new EvalException(cause.getMessage(), cause)
+          causeMessage != null
+              ? new EvalException(causeMessage, cause)
               : new EvalException(e1.getMessage(), cause != null ? cause : e1);
-      return new Error(evalException);
+      Error result = new Error(evalException);
+      SecretTaint taint = thread == null ? null : thread.getSecretTaint();
+      if (causeMessage != null && taint != null && taint.hasTaintedNativeDiagnostic(cause)) {
+        taint.tag(result);
+      }
+      return result;
     }
     return new Error(e);
   }

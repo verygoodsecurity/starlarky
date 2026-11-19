@@ -257,7 +257,7 @@ class LarkySecretTaintTest {
   }
 
   @Test
-  void aFailingScriptsErrorTextCanBeScanned() throws Exception {
+  void aWrappedTaggedErrorRequiresWholeMessageMasking() throws Exception {
     SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, (s, why) -> {});
     Bindings bindings = new SimpleBindings();
     bindings.put(SecretTaint.BINDING_NAME, taint);
@@ -273,9 +273,7 @@ class LarkySecretTaintTest {
     LarkyEvaluationScriptException e =
         assertThrows(LarkyEvaluationScriptException.class, () -> script.eval(context));
     assertTrue(e.getMessage().contains(FAKE_PAN));
-    String sanitized = taint.sanitizeError(e.getMessage());
-    assertFalse(sanitized.contains(FAKE_PAN));
-    assertTrue(sanitized.contains("bad card " + SecretTaint.REDACTED));
+    assertEquals(SecretTaint.REDACTED, taint.sanitizeError(e.toString()));
   }
 
   @Test

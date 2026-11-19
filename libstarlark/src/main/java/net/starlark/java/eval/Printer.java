@@ -21,6 +21,7 @@ import java.util.IllegalFormatException;
 import java.util.List;
 import java.util.Map;
 import java.util.MissingFormatWidthException;
+import javax.annotation.Nullable;
 
 /**
  * A printer of Starlark values.
@@ -37,6 +38,8 @@ public class Printer {
   private final int maxDepth;
   private final int maxElements;
   private boolean truncated;
+  @Nullable private final StarlarkThread diagnosticThread;
+  private boolean foreignRepresentation;
 
   // Stack of values in the middle of being printed.
   // Each renders as "..." if recursively encountered,
@@ -57,15 +60,30 @@ public class Printer {
     this(new StringBuilder());
   }
 
+  Printer(StarlarkThread diagnosticThread) {
+    this(new StringBuilder(), diagnosticThread);
+  }
+
+  Printer(StringBuilder buffer, StarlarkThread diagnosticThread) {
+    this(buffer, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, diagnosticThread);
+  }
+
   /**
    * Creates a printer that writes to the given buffer, with limits on maximum character count,
    * recursion depth, and elements per collection.
    */
   public Printer(StringBuilder buffer, int maxChars, int maxDepth, int maxElements) {
+    this(buffer, maxChars, maxDepth, maxElements, null);
+  }
+
+  private Printer(
+      StringBuilder buffer, int maxChars, int maxDepth, int maxElements,
+      @Nullable StarlarkThread diagnosticThread) {
     this.buffer = buffer;
     this.maxChars = maxChars;
     this.maxDepth = maxDepth;
     this.maxElements = maxElements;
+    this.diagnosticThread = diagnosticThread;
   }
 
   /** Returns the maximum number of elements to print per collection. */
@@ -108,6 +126,23 @@ public class Printer {
   @CanIgnoreReturnValue
   public final Printer append(CharSequence s) {
     return append(s, 0, s.length());
+  }
+
+  /** Appends a script callback's rendered value, with the thread that ran the callback. */
+  @CanIgnoreReturnValue
+  public Printer appendRenderedValue(Object value, StarlarkThread producer) {
+    if (diagnosticThread != null && !isCurrentDiagnosticThread(producer)) {
+      foreignRepresentation = true;
+    }
+    return append(value.toString());
+  }
+
+  final boolean isCurrentDiagnosticThread(StarlarkThread producer) {
+    return diagnosticThread == producer;
+  }
+
+  final boolean hasForeignRepresentation() {
+    return foreignRepresentation;
   }
 
   /** Appends a char subsequence to the printer's buffer */

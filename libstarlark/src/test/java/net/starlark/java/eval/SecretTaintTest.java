@@ -78,6 +78,11 @@ public final class SecretTaintTest {
       return new String("nothing secret");
     }
 
+    @StarlarkMethod(name = "unavailable", parameters = {@Param(name = "value", named = true)})
+    public Object unavailable(Object value) throws EvalException {
+      throw Starlark.errorf("diagnostic unavailable");
+    }
+
   }
 
   /** A mutable object with fields, like {@code larky.mutablestruct}. */
@@ -557,6 +562,16 @@ public final class SecretTaintTest {
   }
 
   @Test
+  public void valueScanUsesOriginalBytesForBinaryEncodings() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    taint.onSource(StarlarkBytes.of(Mutability.IMMUTABLE, (byte) 0xff, (byte) 0xfe, (byte) 0, (byte) 1));
+    assertThat(taint.containsSecretValue("//4AAQ==")).isTrue();
+    assertThat(taint.containsSecretValue("__4AAQ==")).isTrue();
+    assertThat(taint.containsSecretValue("FFFE0001")).isTrue();
+    assertThat(taint.containsSecretValue("\uFFFD\uFFFD\0\1")).isFalse();
+  }
+
+  @Test
   public void shortPlaintextsAreNotScanned() {
     SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
     taint.onSource(new String("42"));
@@ -564,15 +579,227 @@ public final class SecretTaintTest {
   }
 
   @Test
-  public void errorTextIsScannedWithValueSetOnly() {
+  public void repeatedRevealsDoNotFillTheFormInventory() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    for (int i = 0; i < 2000; i++) {
+      taint.onSource(new String("separate instance"));
+    }
+    assertThat(taint.isSaturated()).isFalse();
+    assertThat(taint.mask("diagnostic: separate instance")).isEqualTo("diagnostic: " + SecretTaint.REDACTED);
+  }
+
+  @Test
+  public void distinctRevealsRespectTheFormCountBudget() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    for (int i = 0; i < 2000 && !taint.isSaturated(); i++) {
+      taint.onSource("registered value " + i);
+    }
+    assertThat(taint.isSaturated()).isTrue();
+  }
+
+  @Test
+  public void longRevealsRespectTheTotalFormLengthBudget() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    String payload = "a".repeat(4096);
+    for (int i = 0; i < 30 && !taint.isSaturated(); i++) {
+      taint.onSource("value " + i + ":" + payload);
+    }
+    assertThat(taint.isSaturated()).isTrue();
+  }
+
+  @Test
+  public void oversizedSourceStopsBeforeEncoding() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    taint.onSource("text".repeat(5000));
+    assertThat(taint.isSaturated()).isTrue();
+  }
+
+  @Test
+  public void textScanWorkLimitReportsSaturationInBothModes() {
+    String diagnostic = "ordinary diagnostic".repeat(4096);
+    for (TaintMode mode : List.of(TaintMode.OBSERVE, TaintMode.ENFORCE)) {
+      List<String> hits = new ArrayList<>();
+      SecretTaint taint = new SecretTaint(mode, (s, r) -> hits.add(s + ":" + r));
+      for (int i = 0; i < 10; i++) {
+        taint.onSource("registered value " + i + ":" + "a".repeat(64));
+      }
+      String actual = taint.sanitizeError(diagnostic);
+      assertThat(taint.isSaturated()).isTrue();
+      assertThat(hits).containsExactly("ERROR_TEXT:SATURATED");
+      assertThat(actual).isEqualTo(mode == TaintMode.ENFORCE ? SecretTaint.REDACTED : diagnostic);
+    }
+  }
+
+  @Test
+  public void matchingSpansRespectTheOutputBudget() {
+    String diagnostic = "amber ".repeat(10_001);
+    for (TaintMode mode : List.of(TaintMode.OBSERVE, TaintMode.ENFORCE)) {
+      List<String> hits = new ArrayList<>();
+      SecretTaint taint = new SecretTaint(mode, (s, r) -> hits.add(s + ":" + r));
+      taint.onSource(new String("amber"));
+      String actual = taint.sanitizeError(diagnostic);
+      assertThat(taint.isSaturated()).isTrue();
+      assertThat(hits).containsExactly("ERROR_TEXT:SATURATED");
+      assertThat(actual).isEqualTo(mode == TaintMode.ENFORCE ? SecretTaint.REDACTED : diagnostic);
+    }
+  }
+
+  @Test
+  public void containerInspectionBudgetsIncludeScalarsWithoutTags() {
+    List<String> hits = new ArrayList<>();
+    SecretTaint taint = new SecretTaint(TaintMode.OBSERVE, (s, r) -> hits.add(s + ":" + r));
+    Tuple values = Tuple.copyOf(java.util.Collections.nCopies(10_001, true));
+    assertThat(taint.checkOutput(SecretTaint.Sink.PRINT, values))
+        .isEqualTo(SecretTaint.Reason.SATURATED);
+    assertThat(hits).containsExactly("PRINT:SATURATED");
+  }
+
+  @Test
+  public void registersSourceLeafAtTheTraversalBoundary() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    Object result = new String("synthetic source field");
+    for (int i = 0; i < 8; i++) {
+      result = Tuple.of(result);
+    }
+    taint.onSource(result);
+    assertThat(taint.isSaturated()).isFalse();
+    assertThat(taint.sanitizeError("field: synthetic source field"))
+        .isEqualTo("field: " + SecretTaint.REDACTED);
+  }
+
+  @Test
+  public void sourceSubtreeBeyondTraversalBoundarySaturates() {
+    List<String> hits = new ArrayList<>();
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, (s, r) -> hits.add(s + ":" + r));
+    Object result = new String("synthetic source field");
+    for (int i = 0; i < 9; i++) {
+      result = Tuple.of(result);
+    }
+    taint.onSource(result);
+    assertThat(taint.sanitizeError("ordinary diagnostic")).isEqualTo(SecretTaint.REDACTED);
+    assertThat(hits).containsExactly("ERROR_TEXT:SATURATED");
+  }
+
+  @Test
+  public void tagTraversalAllowsEmptySubtreeAtTheBoundary() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    Object result = Tuple.empty();
+    for (int i = 0; i < 8; i++) {
+      result = Tuple.of(result);
+    }
+    taint.tag(result);
+    assertThat(taint.isSaturated()).isFalse();
+  }
+
+  @Test
+  public void aliasBatchInspectionSpendsTheRunBudgetBeforeActivation() {
+    SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, TaintObserver.NOOP);
+    StarlarkList<String> aliases =
+        StarlarkList.immutableCopyOf(java.util.Collections.nCopies(4000, "unregistered alias"));
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      thread.setThreadLocal(SecretTaint.class, taint);
+      for (int i = 0; i < 125; i++) {
+        Object snapshot = Taint.snapshotSourceInput(thread, aliases);
+        assertThat(taint.onSource(aliases, snapshot)).isSameInstanceAs(aliases);
+      }
+      assertThat(taint.isActive()).isFalse();
+      assertThat(Taint.snapshotSourceInput(thread, aliases)).isNull();
+      assertThat(taint.isActive()).isTrue();
+      assertThat(thread.getSecretTaint()).isSameInstanceAs(taint);
+      assertThat(taint.sanitizeError("ordinary diagnostic")).isEqualTo(SecretTaint.REDACTED);
+    }
+  }
+
+  @Test
+  public void errorTextUsesRunWideTaintReasons() {
     List<String> hits = new ArrayList<>();
     SecretTaint taint = new SecretTaint(TaintMode.ENFORCE, (s, r) -> hits.add(s + ":" + r));
     taint.onSource(new String(PAN));
     taint.markSecretDependent();
-    assertThat(taint.sanitizeError("failed on " + PAN))
-        .isEqualTo("failed on " + SecretTaint.REDACTED);
+    assertThat(taint.sanitizeError("failed: bad state")).isEqualTo(SecretTaint.REDACTED);
+    taint.saturate();
+    assertThat(taint.sanitizeError("failed: bad state")).isEqualTo(SecretTaint.REDACTED);
+    assertThat(hits).containsExactly("ERROR_TEXT:SECRET_DEPENDENT", "ERROR_TEXT:SATURATED").inOrder();
+  }
+
+  @Test
+  public void observeReportsSaturatedErrorsWithoutChangingText() {
+    List<String> hits = new ArrayList<>();
+    SecretTaint taint = new SecretTaint(TaintMode.OBSERVE, (s, r) -> hits.add(s + ":" + r));
+    taint.saturate();
     assertThat(taint.sanitizeError("failed: bad state")).isEqualTo("failed: bad state");
-    assertThat(hits).containsExactly("ERROR_TEXT:VALUE_MATCH");
+    assertThat(hits).containsExactly("ERROR_TEXT:SATURATED");
+  }
+
+  @Test
+  public void failKeepsRawTextAndMasksPreciseDiagnosticTextOnRequest() {
+    Run run = new Run(TaintMode.ENFORCE);
+    EvalException failure =
+        assertThrows(EvalException.class, () -> run.exec(REVEAL + "fail('bad card: ' + s)\n"));
+    assertThat(failure.getMessage()).isEqualTo("bad card: " + PAN);
+    assertThat(failure.hasTaintedDiagnostic()).isTrue();
+    assertThat(new EvalException(failure).hasTaintedDiagnostic()).isTrue();
+    assertThat(new EvalException("ordinary diagnostic", failure).hasTaintedDiagnostic()).isFalse();
+    assertThat(run.hits).isEmpty();
+    assertThat(run.taint.sanitizeError(failure.getMessage()))
+        .isEqualTo("bad card: " + SecretTaint.REDACTED);
+    assertThat(run.taint.sanitizeError("runtime error: " + failure.getMessage()))
+        .isEqualTo(SecretTaint.REDACTED);
+    assertThat(run.hits).containsExactly("ERROR_TEXT:TAGGED", "ERROR_TEXT:TAGGED");
+  }
+
+  @Test
+  public void builtinErrorsWithTaintedInputsHaveConservativeDiagnostics() {
+    for (String argument : List.of("s", "value=s")) {
+      Run run = new Run(TaintMode.ENFORCE);
+      EvalException failure = assertThrows(
+          EvalException.class, () -> run.exec(REVEAL + "secrets.unavailable(" + argument + ")\n"));
+      assertThat(failure.getMessage()).isEqualTo("diagnostic unavailable");
+      assertThat(failure.hasTaintedDiagnostic()).isTrue();
+      assertThat(run.taint.sanitizeError(failure.getMessage())).isEqualTo(SecretTaint.REDACTED);
+      assertThat(run.hits).containsExactly("ERROR_TEXT:TAGGED");
+    }
+  }
+
+  @Test
+  public void observedBuiltinErrorsPreserveOriginalText() {
+    Run run = new Run(TaintMode.OBSERVE);
+    EvalException failure =
+        assertThrows(EvalException.class, () -> run.exec(REVEAL + "secrets.unavailable(s)\n"));
+    assertThat(run.taint.sanitizeError(failure.getMessage())).isEqualTo("diagnostic unavailable");
+    assertThat(run.hits).containsExactly("ERROR_TEXT:TAGGED");
+  }
+
+  @Test
+  public void unrelatedBuiltinErrorsKeepTheirText() {
+    Run run = new Run(TaintMode.ENFORCE);
+    EvalException failure = assertThrows(
+        EvalException.class, () -> run.exec(REVEAL + "secrets.unavailable('public')\n"));
+    assertThat(run.taint.sanitizeError(failure.getMessage())).isEqualTo("diagnostic unavailable");
+    assertThat(run.hits).isEmpty();
+    assertThat(failure.hasTaintedDiagnostic()).isFalse();
+  }
+
+  @Test
+  public void dictionaryErrorsCarryProvenanceFromTheirKeys() {
+    for (String line : List.of("r = {s: 1, s: 2}", "r = {}[s]")) {
+      Run run = new Run(TaintMode.ENFORCE);
+      EvalException failure =
+          assertThrows(EvalException.class, () -> run.exec(REVEAL + line + "\n"));
+      assertThat(failure.hasTaintedDiagnostic()).isTrue();
+      assertThat(run.taint.sanitizeError(failure.getMessage())).isEqualTo(SecretTaint.REDACTED);
+      assertThat(run.hits).containsExactly("ERROR_TEXT:TAGGED");
+    }
+  }
+
+  @Test
+  public void untaintedLookupAfterAnEarlierErrorHasNoDiagnosticTag() {
+    Run run = new Run(TaintMode.ENFORCE);
+    assertThrows(EvalException.class, () -> run.exec(REVEAL + "r = {}[s]\n"));
+    EvalException failure =
+        assertThrows(EvalException.class, () -> run.exec("r = {}['public']\n"));
+    assertThat(failure.hasTaintedDiagnostic()).isFalse();
   }
 
   @Test
@@ -635,9 +862,103 @@ public final class SecretTaintTest {
   }
 
   @Test
+  public void printRechecksTaintActivatedDuringRendering() throws Exception {
+    Run run = new Run(TaintMode.ENFORCE).exec("");
+    new MethodLibrary().print(" ", Tuple.of(activatingDiagnostic("rendered")), run.thread);
+    assertThat(run.printed).containsExactly(SecretTaint.REDACTED);
+    assertThat(run.hits).containsExactly("PRINT:TAGGED");
+  }
+
+  @Test
+  public void failRecordsTaintActivatedDuringRenderingWithoutChangingRawText() throws Exception {
+    Run run = new Run(TaintMode.ENFORCE).exec("");
+    EvalException failure =
+        assertThrows(EvalException.class,
+            () -> new MethodLibrary().fail(
+                activatingDiagnostic("rendered"), Starlark.NONE, " ", false,
+                Tuple.empty(), run.thread));
+    assertThat(failure.getMessage()).isEqualTo("rendered");
+    assertThat(failure.hasTaintedDiagnostic()).isTrue();
+    assertThat(run.taint.sanitizeError(failure.getMessage())).isEqualTo(SecretTaint.REDACTED);
+  }
+
+  private static StarlarkValue activatingDiagnostic(String message) {
+    return new StarlarkValue() {
+      @Override
+      public void debugPrint(Printer printer, StarlarkThread thread) {
+        SecretTaint state = thread.getThreadLocal(SecretTaint.class);
+        state.markActive();
+        thread.setSecretTaint(state);
+        printer.append(message);
+      }
+    };
+  }
+
+  @Test
+  public void printKeepsThePublicPortionOfAnAttributedRepresentation() throws Exception {
+    Run run = enforce(REVEAL);
+    String value = run.taint.tagConcatenation("detail: ", (String) run.global("s"), "detail: " + PAN);
+    new MethodLibrary().print(" ", Tuple.of(renderedDiagnostic(value, run.thread)), run.thread);
+    assertThat(run.printed).containsExactly("detail: " + SecretTaint.REDACTED);
+    assertThat(run.hits).containsExactly("PRINT:TAGGED");
+  }
+
+  @Test
+  public void foreignRepresentationIsOpaqueOnlyWhenTrackingIsEnabled() throws Exception {
+    Run off = new Run(TaintMode.OFF).exec("");
+    Run enforce = new Run(TaintMode.ENFORCE).exec("");
+    StarlarkValue diagnostic = renderedDiagnostic("rendered", off.thread);
+    new MethodLibrary().print(" ", Tuple.of(diagnostic), enforce.thread);
+    assertThat(enforce.printed).containsExactly(SecretTaint.REDACTED);
+    assertThat(enforce.hits).containsExactly("PRINT:TAGGED");
+
+    StarlarkValue foreignToOff = renderedDiagnostic("rendered", enforce.thread);
+    new MethodLibrary().print(" ", Tuple.of(foreignToOff), off.thread);
+    assertThat(off.printed).containsExactly("rendered");
+    assertThat(off.hits).isEmpty();
+  }
+
+  private static StarlarkValue renderedDiagnostic(String message, StarlarkThread producer) {
+    return new StarlarkValue() {
+      @Override
+      public void debugPrint(Printer printer, StarlarkThread thread) {
+        printer.appendRenderedValue(message, producer);
+      }
+    };
+  }
+
+  @Test
+  public void printMasksAnOpaqueTaggedArgumentWholeEvenWithAKnownForm() throws Exception {
+    Run run = enforce(REVEAL);
+    Object opaque = run.taint.tag(new String("synthetic " + PAN));
+    new MethodLibrary().print(" ", Tuple.of("detail:", opaque), run.thread);
+    assertThat(run.printed).containsExactly("detail: " + SecretTaint.REDACTED);
+  }
+
+  @Test
+  public void printDoesNotScanTextItJustMasked() throws Exception {
+    Run run = enforce(REVEAL);
+    Object shortSecret = run.taint.onSource(new String("RED"));
+    new MethodLibrary().print(" ", Tuple.of("color:", shortSecret), run.thread);
+    assertThat(run.printed).containsExactly("color: " + SecretTaint.REDACTED);
+  }
+
+  @Test
+  public void printPreservesPublicConcatenationSpansBetweenTaggedStrings() throws Exception {
+    Run run = enforce(REVEAL + "print('first=' + s + ', second=' + s + '.')\n");
+    assertThat(run.printed).containsExactly("first=***REDACTED***, second=***REDACTED***.");
+  }
+
+  @Test
   public void printMasksATaggedValueInsideAContainerInPlace() throws Exception {
     Run run = enforce(REVEAL + "print('cards', [s, 'x'])\n");
     assertThat(run.printed).containsExactly("cards [\"***REDACTED***\", \"x\"]");
+  }
+
+  @Test
+  public void printPreservesKnownSpansInsideAQuotedString() throws Exception {
+    Run run = enforce(REVEAL + "print(['first=' + s + '.'])\n");
+    assertThat(run.printed).containsExactly("[\"first=***REDACTED***.\"]");
   }
 
   @Test
@@ -666,6 +987,8 @@ public final class SecretTaintTest {
     assertThat(taint.sanitize(SecretTaint.Sink.PRINT, "pan " + PAN, SecretTaint.Reason.SATURATED))
         .isEqualTo(SecretTaint.REDACTED);
     assertThat(taint.sanitize(SecretTaint.Sink.PRINT, "no form", SecretTaint.Reason.TAGGED))
+        .isEqualTo(SecretTaint.REDACTED);
+    assertThat(taint.sanitize(SecretTaint.Sink.PRINT, "pan " + PAN, SecretTaint.Reason.TAGGED))
         .isEqualTo(SecretTaint.REDACTED);
   }
 
