@@ -38,6 +38,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.DiagnosticMethodLibrary;
 import net.starlark.java.eval.StarlarkValue;
 import org.junit.Test;
 
@@ -180,6 +181,7 @@ public class ReflectConfigTest {
     ArrayDeque<Class<?>> work = new ArrayDeque<>();
 
     work.addAll(ModuleSupplier.CORE_MODULES);
+    work.add(DiagnosticMethodLibrary.class);
     ModuleSupplier.CORE_ENVIRONMENT.values().forEach(v -> work.add(v.getClass()));
     ModuleSupplier.STD_MODULES.forEach(v -> work.add(v.getClass()));
     ModuleSupplier.VGS_MODULES.forEach(v -> work.add(v.getClass()));

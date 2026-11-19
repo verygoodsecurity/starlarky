@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import javax.script.ScriptException;
+import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
@@ -68,7 +69,8 @@ final class LarkyCalls {
    * {@code print} goes to {@code console} and whose run gets {@code providers}, as an evaluation's does.
    */
   static Object call(StarlarkCallable function, Object[] args, Console console, Limits limits,
-      ModuleProviders providers) throws ScriptException {
+      ModuleProviders providers, @Nullable DiagnosticRedactor diagnosticRedactor)
+      throws ScriptException {
     final List<Object> starlarkArgs = new ArrayList<>(args == null ? 0 : args.length);
     if (args != null) {
       for (Object arg : args) {
@@ -87,6 +89,7 @@ final class LarkyCalls {
       if (limits.expirationMs() != null) {
         thread.setExpirationMs(limits.expirationMs());
       }
+      DiagnosticRedactor.installOn(thread, diagnosticRedactor);
       try {
         return Starlark.call(thread, function, starlarkArgs, Map.of());
       } catch (EvalException e) {
@@ -97,6 +100,8 @@ final class LarkyCalls {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new ScriptException(e);
+      } finally {
+        DiagnosticRedactor.installOn(thread, null);
       }
     }
   }

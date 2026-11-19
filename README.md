@@ -12,6 +12,7 @@
 * [Project overview](#project-overview)
     * [Libstarlark](#libstarlark)
     * [Larky](#larky)
+        * [Vault diagnostic redaction](#vault-diagnostic-redaction)
     * [Runlarky](#runlarky)
         * [Larky REPL](#larky-repl)
     * [Pylarky](#pylarky)
@@ -63,6 +64,28 @@ mvn versions:set -DnewVersion=<your-version> -pl larky (optional)
 mvn versions:set-property -Dproperty=libstarlark.version -DnewVersion=<larky-version> -pl larky
 mvn clean package -pl larky
 ```
+
+#### Vault diagnostic redaction
+
+An embedding host can bind a `DiagnosticRedactor` under
+`DiagnosticRedactor.BINDING_NAME` in the execution's engine scope. Give each
+independent run its own instance and keep it through error handling. The
+`@vgs//vault` module registers revealed values. Hosts exposing additional
+reveal APIs can call `registerRevealed` on the same instance.
+
+With no binding or with `OFF`, diagnostics use the ordinary behavior.
+`OBSERVE` reports matches and leaves text intact. `ENFORCE` masks known values in
+Larky's `print` output and text the host passes to `sanitizeError`. The host
+should sanitize the final diagnostic before logging, auditing, or returning it.
+`fail` raises the ordinary script exception so script catches behave as before.
+
+The scanner recognizes complete strings of at least three characters, bytes
+values of at least three bytes, and flat lists of those values. It checks
+literal text, Larky-escaped forms, standard URL and form encodings, Base64,
+Base64URL, and hex. When the tracking
+budget is exhausted, `ENFORCE` masks the whole diagnostic. This feature covers
+known values in diagnostics. It provides no propagation through operators or
+control flow.
 
 ### Runlarky
 

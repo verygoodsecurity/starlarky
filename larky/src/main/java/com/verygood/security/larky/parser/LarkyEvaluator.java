@@ -19,6 +19,8 @@ import lombok.Builder;
 import lombok.Getter;
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.eval.DiagnosticMethodLibrary;
+import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.Mutability;
@@ -53,6 +55,7 @@ public final class LarkyEvaluator {
   private final LinkedHashSet<String> pending = new LinkedHashSet<>();
   private final Map<String, Module> loaded = new HashMap<>();
   private final Reporter reporter;
+  @Nullable private final DiagnosticRedactor diagnosticRedactor;
   // Predeclared environment shared by all files (modules) loaded.
   @Getter
   private final ImmutableMap<String, Object> environment;
@@ -75,6 +78,7 @@ public final class LarkyEvaluator {
     this.larkySemantics = larkyScript.getLarkySemantics();
     this.moduleCache = larkyScript.getModuleCache();
     //todo(mahmoudimus): convert to builder pattern
+    this.diagnosticRedactor = larkyScript.getDiagnosticRedactor();
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
   }
 
@@ -128,7 +132,9 @@ public final class LarkyEvaluator {
     }
     // With the module cache on, Larky's own modules are loaded once per process and shared (see
     // ModuleCache).
-    if (content instanceof ResourceContentStarFile) {
+    boolean shareEvaluatedModule = content instanceof ResourceContentStarFile
+        && (diagnosticRedactor == null || !diagnosticRedactor.isTracking());
+    if (shareEvaluatedModule) {
       Module shared =
           moduleCache.lookup(
               content.path(), getStarlarkValidationOptions(), getLarkySemantics(), getEnvironment());
@@ -191,16 +197,19 @@ public final class LarkyEvaluator {
         thread.setExpirationMs(Long.parseLong(environment.get(EXPIRATION_MS).toString()));
       }
 
+      DiagnosticRedactor.installOn(thread, diagnosticRedactor);
       try {
         starlarkOutput = prog.exec(module, thread);
       } catch (EvalException cause) {
         throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(cause, thread);
+      } finally {
+        DiagnosticRedactor.installOn(thread, null);
       }
 
       // Set some statistical information
       module.setGlobal(EXECUTION_STEPS, thread.getExecutedSteps());
     }
-    if (content instanceof ResourceContentStarFile) {
+    if (shareEvaluatedModule) {
       moduleCache.put(
           content.path(), options, getLarkySemantics(), module, prog.predeclaredNames(),
           getEnvironment(), loadedModules);
@@ -537,6 +546,7 @@ public final class LarkyEvaluator {
   private static ImmutableMap<String, Object> mergedBuiltinBindings(
       Iterable<Class<?>> globalModules) {
     ImmutableMap.Builder<String, Object> env = ImmutableMap.builder();
+    env.putAll(DiagnosticMethodLibrary.bindings());
     for (Class<?> module : globalModules) {
       logger.atFine().log("Creating variable for %s", module.getName());
       // Create the module object and associate it with the functions
@@ -554,5 +564,6 @@ public final class LarkyEvaluator {
         .putAll(globals)
         .buildKeepingLast();
   }
+
 
 }

@@ -3,6 +3,7 @@ package com.verygood.security.larky.modules.utils;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.LogConsole;
 
+import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.StarlarkThread;
 
 import java.util.List;
@@ -28,10 +29,16 @@ public class Reporter {
     if (console == null) {
       console = LogConsole.writeOnlyConsole(System.err, true);
     }
-    if (console.isVerbose()) {
-      console.verbose(thread.getCallerLocation() + ": " + msg);
+    boolean verbose = console.isVerbose();
+    String diagnostic = verbose ? thread.getCallerLocation() + ": " + msg : msg;
+    DiagnosticRedactor redactor = thread.getThreadLocal(DiagnosticRedactor.class);
+    if (redactor != null) {
+      diagnostic = redactor.sanitizePrint(diagnostic);
+    }
+    if (verbose) {
+      console.verbose(diagnostic);
     } else {
-      console.info(msg);
+      console.info(diagnostic);
     }
   }
 

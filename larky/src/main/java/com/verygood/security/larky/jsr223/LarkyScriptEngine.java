@@ -24,6 +24,7 @@ import javax.script.ScriptEngineFactory;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
+import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.StarlarkCallable;
 
 public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
@@ -527,7 +528,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
     return LarkyCalls.call(function(name, bindings), args, console(bindings), LarkyCalls.Limits.of(bindings),
-        providers(bindings));
+        providers(bindings), diagnosticRedactor());
   }
 
   /** Calls the method {@code name} of {@code thiz}, a value a script evaluated with this engine returned. */
@@ -537,7 +538,12 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
     return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), LarkyCalls.Limits.of(bindings),
-        providers(bindings));
+        providers(bindings), diagnosticRedactor());
+  }
+
+  private DiagnosticRedactor diagnosticRedactor() {
+    return DiagnosticRedactor.given(
+        context.getAttribute(DiagnosticRedactor.BINDING_NAME, ScriptContext.ENGINE_SCOPE));
   }
 
   @Override

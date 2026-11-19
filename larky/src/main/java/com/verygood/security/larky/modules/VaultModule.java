@@ -17,6 +17,7 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
@@ -171,7 +172,13 @@ public class VaultModule implements LarkyVault {
                             })
             })
     public Object revealForRun(Object value, Object storage, StarlarkThread thread) throws EvalException {
-        return reveal(vaultFor(thread), value, storage);
+        Object revealed = reveal(vaultFor(thread), value, storage);
+        DiagnosticRedactor redactor = thread.getThreadLocal(DiagnosticRedactor.class);
+        // A provider can return the original alias object when there is no stored value.
+        if (redactor != null && !(revealed instanceof String && revealed == value)) {
+            redactor.registerRevealed(revealed);
+        }
+        return revealed;
     }
 
     @StarlarkMethod(

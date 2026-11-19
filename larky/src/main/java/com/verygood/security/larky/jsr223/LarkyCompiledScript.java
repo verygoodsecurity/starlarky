@@ -1,6 +1,7 @@
 package com.verygood.security.larky.jsr223;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.Reader;
@@ -16,6 +17,7 @@ import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.StarFile;
 
+import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.Starlark;
@@ -37,6 +39,7 @@ import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
+import javax.script.SimpleBindings;
 
 
 /**
@@ -227,7 +230,13 @@ public class LarkyCompiledScript extends CompiledScript {
             (name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
       }
-      final DefaultLarkyInterpreter larkyInterpreter = new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings);
+      Bindings scriptGlobals = globalBindings;
+      if (globalBindings != null && globalBindings.containsKey(DiagnosticRedactor.BINDING_NAME)) {
+        scriptGlobals = new SimpleBindings(Maps.filterKeys(
+            globalBindings, key -> !DiagnosticRedactor.BINDING_NAME.equals(key)));
+      }
+      final DefaultLarkyInterpreter larkyInterpreter =
+          new DefaultLarkyInterpreter(LARKY_MODE, scriptGlobals, engineBindings);
       result = larkyInterpreter.evaluate(script, context.getWriter());
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
              EvalException e) {
@@ -250,6 +259,9 @@ public class LarkyCompiledScript extends CompiledScript {
   private void setBindingsValue(Bindings globalBindings, Bindings engineBindings, Map<String, Object> moduleGlobals) {
     for (Map.Entry<String, Object> entry : moduleGlobals.entrySet()) {
       String name = entry.getKey();
+      if (DiagnosticRedactor.BINDING_NAME.equals(name)) {
+        continue;
+      }
       Object value = entry.getValue();
       if (globalBindings != null && globalBindings.containsKey(name)) {
         globalBindings.put(name, value);
