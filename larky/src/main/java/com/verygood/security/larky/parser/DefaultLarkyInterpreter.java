@@ -29,15 +29,42 @@ public class DefaultLarkyInterpreter {
   private final ModuleSet moduleSet;
   private final LarkyScript interpreter;
 
-  /** Creates an interpreter for JSR223 scopes. Only engine bindings may supply the redactor. */
-  public static DefaultLarkyInterpreter forScopes(
-      StarlarkMode mode, @Nullable Bindings globalBindings, @Nullable Bindings engineBindings) {
-    Bindings scriptGlobals = globalBindings;
-    if (globalBindings != null && globalBindings.containsKey(DiagnosticRedactor.BINDING_NAME)) {
-      scriptGlobals = new SimpleBindings(Maps.filterKeys(
-          globalBindings, key -> !DiagnosticRedactor.BINDING_NAME.equals(key)));
+  /** Builds an interpreter for JSR223 scopes. Only engine bindings may supply the redactor. */
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static final class Builder {
+    private StarlarkMode mode;
+    @Nullable private Bindings globalBindings;
+    @Nullable private Bindings engineBindings;
+
+    private Builder() {}
+
+    public Builder mode(StarlarkMode mode) {
+      this.mode = mode;
+      return this;
     }
-    return new DefaultLarkyInterpreter(mode, scriptGlobals, engineBindings);
+
+    public Builder globalBindings(@Nullable Bindings globalBindings) {
+      this.globalBindings = globalBindings;
+      return this;
+    }
+
+    public Builder engineBindings(@Nullable Bindings engineBindings) {
+      this.engineBindings = engineBindings;
+      return this;
+    }
+
+    public DefaultLarkyInterpreter build() {
+      Bindings scriptGlobals = globalBindings;
+      if (globalBindings != null && globalBindings.containsKey(DiagnosticRedactor.BINDING_NAME)) {
+        scriptGlobals = new SimpleBindings(Maps.filterKeys(
+            globalBindings, key -> !DiagnosticRedactor.BINDING_NAME.equals(key)));
+      }
+      return new DefaultLarkyInterpreter(
+          Objects.requireNonNull(mode, "mode"), scriptGlobals, engineBindings);
+    }
   }
 
   public DefaultLarkyInterpreter(StarlarkMode mode, Bindings... bindings) {

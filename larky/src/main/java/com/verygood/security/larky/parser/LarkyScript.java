@@ -183,7 +183,12 @@ public class LarkyScript {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
-    LarkyEvaluator.EvaluationResult result = new LarkyEvaluator(this, moduleSet, console).eval(content);
+    LarkyEvaluator.EvaluationResult result = LarkyEvaluator.builder()
+        .script(this)
+        .moduleSet(moduleSet)
+        .console(console)
+        .build()
+        .eval(content);
     starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
     return result;
   }
@@ -241,7 +246,13 @@ public class LarkyScript {
       throws IOException, EvalException {
     Module module;
     try {
-      module = new LarkyEvaluator(this, moduleSet, console).eval(content).module();
+      module = LarkyEvaluator.builder()
+          .script(this)
+          .moduleSet(moduleSet)
+          .console(console)
+          .build()
+          .eval(content)
+          .module();
     } catch (InterruptedException e) {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);

@@ -16,7 +16,6 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import lombok.Builder;
 import lombok.Getter;
 import net.starlark.java.annot.StarlarkAnnotations;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -68,17 +67,49 @@ public final class LarkyEvaluator {
   private final StarlarkSemantics larkySemantics;
   private final ModuleCache moduleCache;
 
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static final class Builder {
+    private LarkyScript script;
+    private Console console;
+    @Nullable private ModuleSupplier.ModuleSet moduleSet;
+
+    private Builder() {}
+
+    public Builder script(LarkyScript script) {
+      this.script = script;
+      return this;
+    }
+
+    public Builder console(Console console) {
+      this.console = console;
+      return this;
+    }
+
+    /** Overrides the module set supplied by the script. */
+    public Builder moduleSet(ModuleSupplier.ModuleSet moduleSet) {
+      this.moduleSet = checkNotNull(moduleSet);
+      return this;
+    }
+
+    public LarkyEvaluator build() {
+      LarkyScript source = checkNotNull(script, "script");
+      return new LarkyEvaluator(source, moduleSet == null ? source.getModuleSet() : moduleSet, console);
+    }
+  }
+
   public LarkyEvaluator(LarkyScript larkyScript, Console console) {
     this(larkyScript, larkyScript.getModuleSet(), console);
   }
 
-  LarkyEvaluator(LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console) {
+  private LarkyEvaluator(LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console) {
     this.console = checkNotNull(console);
     this.moduleSet = checkNotNull(moduleSet);
     this.validationMode = larkyScript.getValidation();
     this.larkySemantics = larkyScript.getLarkySemantics();
     this.moduleCache = larkyScript.getModuleCache();
-    //todo(mahmoudimus): convert to builder pattern
     this.diagnosticRedactor = larkyScript.getDiagnosticRedactor();
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
   }
@@ -104,7 +135,7 @@ public final class LarkyEvaluator {
 
   }
 
-  @Builder
+  @lombok.Builder
   protected record DefaultEvaluationResult(
       Object output,
       Module module
@@ -122,39 +153,62 @@ public final class LarkyEvaluator {
 
   public EvaluationResult eval(StarFile content)
       throws IOException, InterruptedException, EvalException {
-    if (pending.contains(content.path())) {
-      throw throwCycleError(content.path());
+    String path = content.path();
+    if (pending.contains(path)) {
+      throw throwCycleError(path);
     }
-    Module module = loaded.get(content.path());
+    Module module = loaded.get(path);
     if (module != null) {
       return DefaultEvaluationResult.builder()
           .module(module)
           .build();
     }
+    pending.add(path);
+    try {
+      EvaluationResult result = switch (content) {
+        case ResourceContentStarFile resource -> evalResource(resource);
+        default -> evalScript(content);
+      };
+      loaded.put(path, result.module());
+      return result;
+    } finally {
+      pending.remove(path);
+    }
+  }
+
+  private EvaluationResult evalResource(ResourceContentStarFile content)
+      throws IOException, InterruptedException, EvalException {
     // A module evaluated with tracking can retain values registered by that run.
-    boolean trackingDiagnostics = diagnosticRedactor != null && diagnosticRedactor.isTracking();
-    boolean useSharedModuleCache =
-        content instanceof ResourceContentStarFile && !trackingDiagnostics;
+    boolean useSharedModuleCache = diagnosticRedactor == null || !diagnosticRedactor.isTracking();
+    FileOptions options = getStarlarkValidationOptions();
     if (useSharedModuleCache) {
-      Module shared =
-          moduleCache.lookup(
-              content.path(), getStarlarkValidationOptions(), getLarkySemantics(), getEnvironment());
+      Module shared = moduleCache.lookup(content.path(), options, larkySemantics, environment);
       if (shared != null) {
-        loaded.put(content.path(), shared);
         return DefaultEvaluationResult.builder().module(shared).build();
       }
     }
-    pending.add(content.path());
 
-    // Make the modules available as predeclared bindings.
-    module = Module.withPredeclared(getLarkySemantics(), getEnvironment());
+    Module module = Module.withPredeclared(larkySemantics, environment);
+    ProgramCache.Executable prog = ProgramCache.get(
+        content.path(), module, options, larkySemantics,
+        parsed -> compileStarlarkProgram(
+            module, ParserInput.fromUTF8(content.readContentBytes(), content.path()), options, parsed));
+    Map<String, Module> loadedModules = processLoads(content, prog.loads());
+    EvaluationResult result = executeProgram(module, prog, loadedModules);
+    if (useSharedModuleCache) {
+      moduleCache.put(
+          content.path(), options, larkySemantics, module, prog.predeclaredNames(),
+          environment, loadedModules);
+    }
+    return result;
+  }
 
-    // parse & compile (Larky's own modules come from a process-wide cache)
-    FileOptions options = getStarlarkValidationOptions();
-    final Module env = module;
+  private EvaluationResult evalScript(StarFile content)
+      throws IOException, InterruptedException, EvalException {
+    Module module = Module.withPredeclared(larkySemantics, environment);
     ProgramCache.Executable prog;
     Map<String, Module> loadedModules;
-    if (typeChecking() && !(content instanceof ResourceContentStarFile)) {
+    if (typeChecking()) {
       // A typed script is tagged with the types of the modules it loads, so it is compiled here
       // rather than cached. Its annotations may name the classes it defines.
       module.allowForwardTypeReferences();
@@ -166,22 +220,16 @@ public final class LarkyEvaluator {
       loadedModules = processLoads(content, program.getLoads());
       prog = ProgramCache.Executable.of(withTypeInfo(program, module, loadedModules));
     } else {
-      prog = content instanceof ResourceContentStarFile resource
-          ? ProgramCache.get(
-              resource.path(),
-              env,
-              options,
-              getLarkySemantics(),
-              parsed -> compileStarlarkProgram(
-                  env, ParserInput.fromUTF8(resource.readContentBytes(), resource.path()), options,
-                  parsed))
-          : scriptProgram(content, module, options);
+      prog = scriptProgram(content, module, getStarlarkValidationOptions());
       loadedModules = processLoads(content, prog.loads());
     }
+    return executeProgram(module, prog, loadedModules);
+  }
 
+  private EvaluationResult executeProgram(
+      Module module, ProgramCache.Executable prog, Map<String, Module> loadedModules)
+      throws InterruptedException, EvalException {
     Object starlarkOutput;
-
-    // execute
     try (Mutability mu = Mutability.create("LarkyModules")) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, getLarkySemantics());
       thread.setLoader(loadedModules::get);
@@ -208,13 +256,6 @@ public final class LarkyEvaluator {
       // Set some statistical information
       module.setGlobal(EXECUTION_STEPS, thread.getExecutedSteps());
     }
-    if (useSharedModuleCache) {
-      moduleCache.put(
-          content.path(), options, getLarkySemantics(), module, prog.predeclaredNames(),
-          getEnvironment(), loadedModules);
-    }
-    pending.remove(content.path());
-    loaded.put(content.path(), module);
     return DefaultEvaluationResult.builder()
         .output(starlarkOutput)
         .module(module)
