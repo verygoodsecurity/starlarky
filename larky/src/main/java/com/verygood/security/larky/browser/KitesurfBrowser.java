@@ -17,6 +17,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -131,17 +132,24 @@ public final class KitesurfBrowser implements StarlarkValue, AutoCloseable {
     client.close();
   }
 
-  private static final class CdpSession implements WebSocket.Listener, AutoCloseable {
+  static final class CdpSession implements WebSocket.Listener, AutoCloseable {
     private final StarlarkThread thread;
     private final long deadline;
-    private final ArrayBlockingQueue<String> messages = new ArrayBlockingQueue<>(16);
+    private final Consumer<Map<?, ?>> onEvent;
+    private final ArrayBlockingQueue<String> messages;
     private final StringBuilder fragment = new StringBuilder();
     private WebSocket socket;
     private int nextId;
 
     CdpSession(StarlarkThread thread, long deadline) {
+      this(thread, deadline, 16, event -> {});
+    }
+
+    CdpSession(StarlarkThread thread, long deadline, int queueCapacity, Consumer<Map<?, ?>> onEvent) {
       this.thread = thread;
       this.deadline = deadline;
+      this.onEvent = onEvent;
+      this.messages = new ArrayBlockingQueue<>(queueCapacity);
     }
 
     void connect(HttpClient client, URI endpoint)
@@ -185,6 +193,9 @@ public final class KitesurfBrowser implements StarlarkValue, AutoCloseable {
           throw Starlark.errorf("browser.render: invalid Kitesurf response");
         }
         if (!id.equals(response.get("id"))) {
+          if (response.containsKey("method")) {
+            onEvent.accept(response);
+          }
           continue; // CDP events may arrive between replies.
         }
         if (response.containsKey("error")) {
