@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.3.0](https://github.com/verygoodsecurity/starlarky/compare/v1.2.0...v1.3.0) (2026-11-19)
+
+
+### Features
+
+* **jsr223:** implement javax.script.Invocable on the engine ([#866](https://github.com/verygoodsecurity/starlarky/issues/866)) ([57772dd](https://github.com/verygoodsecurity/starlarky/commit/57772dd7bf3c8fcf4a8576f8ad9a5e267fd0e46b))
+
+
+### Bug Fixes
+
+* **deps:** Update crypto dependencies to v4.0.3 RL-586 ([#869](https://github.com/verygoodsecurity/starlarky/issues/869)) ([8abf5d8](https://github.com/verygoodsecurity/starlarky/commit/8abf5d8e436030624a494c4816f98cf7ccc4d2ee))
+* **deps:** Update Java runtime minor and patch updates RL-586 ([#871](https://github.com/verygoodsecurity/starlarky/issues/871)) ([45ad216](https://github.com/verygoodsecurity/starlarky/commit/45ad21699632d206a3e32f42806d21ca69142260))
+* keep script PEM data away from java.util.Base64's basic decoder ([#868](https://github.com/verygoodsecurity/starlarky/issues/868)) ([d28b2f7](https://github.com/verygoodsecurity/starlarky/commit/d28b2f797b9193a7e74d4fea381ecd434e9c1b9b))
+
+
+### Miscellaneous Chores
+
+* **deps:** Update dependency org.ow2.asm:asm to v9.11.1 RL-586 ([#870](https://github.com/verygoodsecurity/starlarky/issues/870)) ([de117d8](https://github.com/verygoodsecurity/starlarky/commit/de117d89e608921129e6a6992f352d6ccfa1e619))
+
+
+### Continuous Integration
+
+* drop ilammy/msvc-dev-cmd from the Windows native build ([#860](https://github.com/verygoodsecurity/starlarky/issues/860)) ([ed015c0](https://github.com/verygoodsecurity/starlarky/commit/ed015c0f94eb95d2ec4992334a0f6f12fdd60296))
+
 ## [1.2.0](https://github.com/verygoodsecurity/starlarky/compare/v1.1.0...v1.2.0) (2026-11-16)
 
 
