@@ -301,6 +301,12 @@
   "methods":[{"name":"<init>","parameterTypes":["java.lang.Boolean","java.lang.Object"] }]
 },
   {
+      "name": "com.verygood.security.larky.browser.KitesurfBrowser",
+      "methods": [
+        {"name": "render", "parameterTypes": ["java.lang.String", "net.starlark.java.eval.StarlarkThread"]}
+      ]
+  },
+  {
       "allDeclaredFields": true,
       "allDeclaredMethods": true,
       "allPublicMethods": true,

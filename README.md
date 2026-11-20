@@ -60,6 +60,47 @@ mvn versions:set-property -Dproperty=libstarlark.version -DnewVersion=<larky-ver
 mvn clean package -pl larky
 ```
 
+### Experimental Kitesurf browser
+
+A Java host can give a Larky script a browser for rendering trusted inline HTML.
+Kitesurf runs in a separate local `workerd` process and uses the same page-worker
+and WebAssembly architecture as the Workers deployment. Larky connects over the
+Chrome DevTools Protocol. The browser capability is independent of
+`@vgs//wasm` and its WASI command runtime.
+
+Build and start [Kitesurf](https://github.com/cloudflare/kitesurf) on
+`127.0.0.1:8787` using its local setup. The experimental adapter targets
+[revision `a58b15d`](https://github.com/cloudflare/kitesurf/commit/a58b15dfabc0a238a4ab37c9ba9c1813c865bf21).
+Leave `KITESURF_NATIVE_EVAL` unset to use the Workers-compatible JavaScript
+evaluation path. Grant the browser binding only to trusted scripts and HTML.
+Cloudflare documents that local `workerd` is unsuitable for running untrusted pages.
+
+```java
+try (var browser = new KitesurfBrowser(URI.create("ws://127.0.0.1:8787/devtools/browser"))) {
+  var engine = new LarkyScriptEngine();
+  engine.put("browser", browser);
+  engine.eval("""
+      page = browser.render("<h1>Hello from Kitesurf</h1>")
+      text = page["text"]
+      png = page["png"]
+      """);
+}
+```
+
+Import `KitesurfBrowser` from `com.verygood.security.larky.browser`.
+Each call creates a fresh browser context and returns visible text and an 800 ×
+600 PNG as Starlark bytes. The host supplies the loopback endpoint. The adapter
+caps HTML at 256 KiB and uses the earlier of 15 seconds and the evaluation
+deadline.
+
+To run the live smoke test against a running engine:
+
+```bash
+mvn -B -ntp -pl larky -am -Dtest=KitesurfBrowserTest \
+  -Dsurefire.failIfNoSpecifiedTests=false \
+  -Dlarky.kitesurf.testEndpoint=ws://127.0.0.1:8787/devtools/browser test
+```
+
 ### Runlarky
 
 _Runlarky_ is an example Larky invocation application.
