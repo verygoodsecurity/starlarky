@@ -143,7 +143,7 @@ public final class WasmModule implements StarlarkValue {
     return StarlarkBytes.immutableOf(module.wasm.clone());
   }
 
-  private static void checkExecutionAllowed(StarlarkThread thread) throws EvalException {
+  static void checkExecutionAllowed(StarlarkThread thread) throws EvalException {
     if (!Boolean.getBoolean(ENABLED_PROPERTY)) {
       throw Starlark.errorf("WebAssembly is disabled; the host must set -D%s=true", ENABLED_PROPERTY);
     }

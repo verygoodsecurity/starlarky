@@ -103,6 +103,10 @@ final class EndiveWasmRuntime implements WasmRuntime {
 
   @Override
   public WasmRuntime.Program compile(byte[] wasm) throws WasmException {
+    return compile(wasm, false);
+  }
+
+  EndiveWasmProgram compile(byte[] wasm, boolean browserImports) throws WasmException {
     if (wasm.length > limits.maxModuleBytes()) {
       throw new WasmException(
           Kind.INVALID_MODULE,
@@ -126,8 +130,8 @@ final class EndiveWasmRuntime implements WasmRuntime {
               + " functions; the limit is "
               + limits.maxFunctions());
     }
-    checkImports(module);
-    checkExports(module);
+    checkImports(module, browserImports);
+    checkExports(module, browserImports);
     if (module.startSection().isPresent()) {
       // It would run while the module is instantiated, before the host can see its memory.
       throw new WasmException(
@@ -188,17 +192,21 @@ final class EndiveWasmRuntime implements WasmRuntime {
     return maxima;
   }
 
-  /** Only WASI preview 1 functions, with the signatures Endive implements them with. */
-  private static void checkImports(WasmModule module) throws WasmException {
+  /** Verify the signatures of the imports the selected runtime can link. */
+  private static void checkImports(WasmModule module, boolean browserImports) throws WasmException {
     var imports = module.importSection();
     for (int i = 0; i < imports.importCount(); i++) {
       Import imp = imports.getImport(i);
       String what = "import " + imp.module() + "." + imp.name();
-      if (!(imp instanceof FunctionImport function) || !imp.module().equals(WasiHost.MODULE)) {
+      boolean wasi = imp.module().equals(WasiHost.MODULE);
+      boolean browser = browserImports && imp.module().equals(BrowserWasmRuntime.MODULE)
+          && imp.name().equals(BrowserWasmRuntime.HTTP_GET);
+      if (!(imp instanceof FunctionImport function) || (!wasi && !browser)) {
         throw new WasmException(
             Kind.INVALID_MODULE, what + " is not a " + WasiHost.MODULE + " function");
       }
-      String expected = WasiHost.SIGNATURES.get(imp.name());
+      String expected = wasi ? WasiHost.SIGNATURES.get(imp.name())
+          : BrowserWasmRuntime.HTTP_GET_SIGNATURE;
       if (expected == null) {
         throw new WasmException(Kind.INVALID_MODULE, what + " is not a WASI preview 1 function");
       }
@@ -226,43 +234,52 @@ final class EndiveWasmRuntime implements WasmRuntime {
     return type.equals(ValType.I32) ? 'i' : type.equals(ValType.I64) ? 'I' : '?';
   }
 
-  private static void checkExports(WasmModule module) throws WasmException {
-    Export start = null;
+  private static void checkExports(WasmModule module, boolean browserReactor)
+      throws WasmException {
     Export memory = null;
     var exports = module.exportSection();
     for (int i = 0; i < exports.exportCount(); i++) {
       Export export = exports.getExport(i);
-      if (export.name().equals("_start") && export.exportType() == ExternalType.FUNCTION) {
-        start = export;
-      } else if (export.name().equals("memory") && export.exportType() == ExternalType.MEMORY) {
+      if (export.name().equals("memory") && export.exportType() == ExternalType.MEMORY) {
         memory = export;
+        break;
       }
     }
-    if (start == null) {
-      throw new WasmException(Kind.INVALID_MODULE, "module does not export a _start function");
+    if (browserReactor) {
+      checkEntryPoint(module, BrowserWasmRuntime.INITIALIZE);
+      checkEntryPoint(module, BrowserWasmRuntime.STEP);
+    } else {
+      checkEntryPoint(module, "_start");
     }
     if (memory == null) {
       throw new WasmException(Kind.INVALID_MODULE, "module does not export its memory");
     }
-    // Imports are all functions (checkImports), so the exported memory is defined by the module.
+    // The builder applies the memory cap to memory zero. Reject additional memories.
     if (memory.index() != 0 || module.memorySection().isEmpty()) {
       throw new WasmException(Kind.INVALID_MODULE, "module must export its first memory");
     }
-    // Endive's builder only applies the host memory cap to memory zero. Reject multi-memory
-    // modules rather than letting additional memories allocate outside the per-instance limit.
     if (module.memorySection().get().memoryCount() != 1) {
       throw new WasmException(Kind.INVALID_MODULE, "module must define exactly one memory");
     }
+  }
+
+  private static void checkEntryPoint(WasmModule module, String name) throws WasmException {
     int importedFunctions = module.importSection().count(ExternalType.FUNCTION);
-    FunctionType startType =
-        start.index() < importedFunctions
-            ? null
-            : module
-                .functionSection()
-                .getFunctionType(start.index() - importedFunctions, module.typeSection());
-    if (startType == null || !startType.equals(FunctionType.of(List.of(), List.of()))) {
-      throw new WasmException(Kind.INVALID_MODULE, "_start must be a function [] -> []");
+    var exports = module.exportSection();
+    for (int i = 0; i < exports.exportCount(); i++) {
+      Export candidate = exports.getExport(i);
+      if (!candidate.name().equals(name) || candidate.exportType() != ExternalType.FUNCTION) {
+        continue;
+      }
+      if (candidate.index() >= importedFunctions
+          && module.functionSection()
+              .getFunctionType(candidate.index() - importedFunctions, module.typeSection())
+              .equals(FunctionType.of(List.of(), List.of()))) {
+        return;
+      }
+      throw new WasmException(Kind.INVALID_MODULE, name + " must be a function [] -> []");
     }
+    throw new WasmException(Kind.INVALID_MODULE, "module does not export a " + name + " function");
   }
 
 

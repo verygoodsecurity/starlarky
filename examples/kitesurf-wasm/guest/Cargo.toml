@@ -1,0 +1,12 @@
+[package]
+name = "larky-kitesurf-guest"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+kitesurf-core = { path = "../core", features = ["native-host"] }
+serde_json = { workspace = true }
