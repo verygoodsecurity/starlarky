@@ -27,10 +27,32 @@ public final class DiagnosticRedactor {
     void onHit(Sink sink, Reason reason);
   }
 
-  @FunctionalInterface
-  public interface Scope extends AutoCloseable {
+  public static final class Scope implements AutoCloseable {
+    @Nullable private DiagnosticRedactor redactor;
+    @Nullable private Runnable restoreBinding;
+
+    private Scope(@Nullable DiagnosticRedactor redactor, @Nullable Runnable restoreBinding) {
+      this.redactor = redactor;
+      this.restoreBinding = restoreBinding;
+    }
+
+    public boolean isTracking() {
+      return redactor != null;
+    }
+
+    public String sanitizePrint(String message) {
+      return redactor == null ? message : redactor.sanitizePrint(message);
+    }
+
     @Override
-    void close();
+    public void close() {
+      Runnable restore = restoreBinding;
+      redactor = null;
+      restoreBinding = null;
+      if (restore != null) {
+        restore.run();
+      }
+    }
   }
 
   /** Host-configurable limits. An exhausted budget applies to the whole run. */
@@ -140,10 +162,10 @@ public final class DiagnosticRedactor {
     DiagnosticRedactor previous = thread.getThreadLocal(DiagnosticRedactor.class);
     DiagnosticRedactor active = redactor != null && redactor.isTracking() ? redactor : null;
     if (previous == active) {
-      return () -> {};
+      return new Scope(active, null);
     }
     thread.setThreadLocal(DiagnosticRedactor.class, active);
-    return () -> thread.setThreadLocal(DiagnosticRedactor.class, previous);
+    return new Scope(active, () -> thread.setThreadLocal(DiagnosticRedactor.class, previous));
   }
 
   /** Registers the scalar or flat batch result of an authorized reveal. */

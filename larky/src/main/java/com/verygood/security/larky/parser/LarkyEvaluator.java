@@ -196,9 +196,8 @@ public final class LarkyEvaluator {
         thread.setExpirationMs(Long.parseLong(environment.get(EXPIRATION_MS).toString()));
       }
 
-      try (var scope = DiagnosticRedactor.bind(thread, diagnosticRedactor);
-           var printConsole = RedactingPrintConsole.whenTracking(console, diagnosticRedactor)) {
-        Reporter reporter = new Reporter(printConsole == null ? console : printConsole);
+      try (var scope = DiagnosticRedactor.bind(thread, diagnosticRedactor)) {
+        Reporter reporter = new Reporter(RedactingPrintConsole.whenTracking(console, scope));
         thread.setThreadLocal(Reporter.class, reporter);
         thread.setPrintHandler(reporter::report);
         starlarkOutput = prog.exec(module, thread);
