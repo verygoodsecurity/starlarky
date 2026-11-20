@@ -130,9 +130,22 @@ public final class Module implements Resolver.Module, TypeTagger.LoadableModule 
    */
   @Nullable
   public static Module ofInnermostEnclosingStarlarkFunction(StarlarkThread thread, int depth) {
-    StarlarkFunction fn = thread.getInnermostEnclosingStarlarkFunction(depth);
-    if (fn != null) {
-      return fn.getModule();
+    Preconditions.checkArgument(depth >= 0);
+    for (Debug.Frame fr : thread.getDebugCallStack().reverse()) {
+      // Bytecode VM frames (defined functions and a file's top-level code) count as well.
+      StarlarkCallable fn = fr.getFunction();
+      Module module =
+          fn instanceof StarlarkFunction sf
+              ? sf.getModule()
+              : fn instanceof BytecodeFunction bf
+                  ? bf.getModule()
+                  : fn instanceof BytecodeToplevel bt ? bt.getModule() : null;
+      if (module != null) {
+        if (depth == 0) {
+          return module;
+        }
+        depth--;
+      }
     }
     return null;
   }
