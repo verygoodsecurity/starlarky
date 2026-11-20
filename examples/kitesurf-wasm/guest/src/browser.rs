@@ -283,8 +283,9 @@ impl Browser {
                     parent: parent.id,
                     node,
                     url,
-                    allow_scripts: permits("allow-scripts"),
-                    same_origin: permits("allow-same-origin"),
+                    // An iframe cannot lift its containing document's active sandbox restrictions.
+                    allow_scripts: parent.script.is_some() && permits("allow-scripts"),
+                    same_origin: parent.origin != "null" && permits("allow-same-origin"),
                 });
             }
         }

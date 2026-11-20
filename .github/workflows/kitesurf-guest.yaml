@@ -6,10 +6,21 @@ on:
       - .github/workflows/kitesurf-guest.yaml
       - examples/kitesurf-wasm/**
       - examples/kitesurf-adyen/**
+      - pom.xml
+      - larky/pom.xml
+      - larky-wasm/**
+      - larky/src/main/java/com/verygood/security/larky/modules/KitesurfModule.java
+      - larky/src/main/resources/vgs/browsers.star
+      - larky/src/test/java/com/verygood/security/larky/modules/Kitesurf*.java
+      - larky/src/test/resources/kitesurf/**
   workflow_dispatch:
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   candidate:
@@ -42,17 +53,22 @@ jobs:
           examples/kitesurf-wasm/build.sh target/kitesurf-guest.wasm --check
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
-        if: github.event_name == 'workflow_dispatch'
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - name: Run deterministic browser tests against the candidate
+        if: github.event_name == 'pull_request'
+        run: |
+          digest="$(jq -er .sha256 target/kitesurf-guest.wasm.build.json)"
+          examples/kitesurf-wasm/check-candidate.sh target/kitesurf-guest.wasm "$digest"
       - name: Build the sandbox fixture
         if: github.event_name == 'workflow_dispatch'
         run: |
           npm --prefix examples/kitesurf-adyen ci
           npm --prefix examples/kitesurf-adyen run build
       - name: Exercise the exact candidate in the embedded browser
+        id: acceptance
         if: github.event_name == 'workflow_dispatch'
         env:
           ADYEN_CLIENT_KEY: ${{ secrets.KITESURF_ADYEN_CLIENT_KEY }}
@@ -64,13 +80,17 @@ jobs:
           curl --fail --silent --retry 15 --retry-connrefused http://127.0.0.1:18801/ >/dev/null
           digest="$(jq -er .sha256 target/kitesurf-guest.wasm.build.json)"
           examples/kitesurf-wasm/check-candidate.sh target/kitesurf-guest.wasm "$digest" "$ADYEN_FIXTURE_PORT"
+          printf 'sha256=%s\n' "$digest" >> "$GITHUB_OUTPUT"
 
       - name: Pack the tested guest
         id: pack
         if: github.event_name == 'workflow_dispatch'
+        env:
+          TESTED_SHA256: ${{ steps.acceptance.outputs.sha256 }}
         run: |
           cd target
-          jq -r '.sha256 + "  kitesurf-guest.wasm"' kitesurf-guest.wasm.build.json | sha256sum --check --strict
+          test "$(jq -er .sha256 kitesurf-guest.wasm.build.json)" = "$TESTED_SHA256"
+          printf '%s  kitesurf-guest.wasm\n' "$TESTED_SHA256" | sha256sum --check --strict
           tar -czf kitesurf-guest-wasip1.tar.gz kitesurf-guest.wasm kitesurf-guest.wasm.build.json
           printf 'sha256=%s\n' "$(sha256sum kitesurf-guest-wasip1.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 

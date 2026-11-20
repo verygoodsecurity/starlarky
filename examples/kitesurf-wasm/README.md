@@ -22,9 +22,9 @@ dispatches browser input events, and clicking dispatches a browser click. The
 verifies that a child frame encrypts a synthetic value with WebCrypto, sends
 the result to its parent using `postMessage`, and the parent submits the
 ciphertext to a local receipt. It also checks parent-document access, wrong-target
-message rejection, and denial when the merchant field requests the hosted
-field's value. The runtime tests exercise destination, exact POST URL, and
-request-budget checks separately.
+message rejection, and denied fills in the merchant field and in a nested frame
+that inherits an opaque origin. The runtime tests exercise destination, exact
+POST URL, and request-budget checks separately.
 
 ## Build and run
 
@@ -86,7 +86,8 @@ mvn -B -ntp -pl larky -am -Dtest=KitesurfWasmAdyenTest \
 
 Merchant and hosted payment iframe JavaScript execute inside the Larky Wasm
 guest. The [guest workflow](../../.github/workflows/kitesurf-guest.yaml)
-checks and builds the Rust guest in CI. Once the workflow is on the default
+checks and builds the Rust guest and runs the deterministic browser tests on
+pull requests. Once the workflow is on the default
 branch, a manual dispatch against an existing release tag runs the browser and
 Adyen tests against the exact candidate digest.
 The Adyen step uses the sandbox client key in the `KITESURF_ADYEN_CLIENT_KEY`

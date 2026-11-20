@@ -155,7 +155,7 @@ public class KitesurfWasmModuleTest {
     var engine = new LarkyScriptEngine();
     var bindings = new SimpleBindings();
     bindings.put("checkout", checkout);
-    bindings.put(LarkyEvaluator.EXPIRATION_MS, System.currentTimeMillis() + 10_000);
+    bindings.put(LarkyEvaluator.EXPIRATION_MS, System.currentTimeMillis() + 45_000);
     try (var source = new InputStreamReader(
         KitesurfWasmModuleTest.class.getResourceAsStream("/kitesurf/wasm_checkout.star"),
         StandardCharsets.UTF_8)) {

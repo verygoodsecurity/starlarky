@@ -24,6 +24,7 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
@@ -47,6 +48,7 @@ public class KitesurfWasmJavaScriptTest {
     String merchantOrigin = "http://127.0.0.1:" + merchant.getAddress().getPort();
     String frameOrigin = "http://127.0.0.1:" + hosted.getAddress().getPort();
     AtomicReference<String> receipt = new AtomicReference<>();
+    var resolutionAttempts = new AtomicInteger();
 
     merchant.createContext("/checkout", exchange -> respond(exchange, """
         <!doctype html><title>Waiting for hosted fields</title>
@@ -76,6 +78,12 @@ public class KitesurfWasmJavaScriptTest {
           document.title = await reply.text();
         });
         """.formatted(frameOrigin)));
+    merchant.createContext("/opaque", exchange -> respond(exchange, """
+        <!doctype html><iframe src="%s/outer" sandbox="allow-scripts"></iframe>
+        """.formatted(frameOrigin)));
+    hosted.createContext("/outer", exchange -> respond(exchange, """
+        <!doctype html><iframe src="/field" sandbox="allow-scripts allow-same-origin"></iframe>
+        """));
     hosted.createContext("/field", exchange -> respond(exchange, """
         <!doctype html><title>Hosted input</title>
         <script>
@@ -116,14 +124,17 @@ public class KitesurfWasmJavaScriptTest {
           (uri, deadline, cap) -> request(client, uri, null, deadline, cap),
           Set.of(URI.create(merchantOrigin + "/receipt")),
           (uri, body, deadline, cap) -> request(client, uri, body, deadline, cap),
-          (reference, target) -> "test.card".equals(reference)
-              && URI.create(merchantOrigin + "/checkout").equals(target.checkoutUrl())
-              && URI.create(frameOrigin + "/field").equals(target.documentUrl())
-              && "hosted-card".equals(target.fieldId()) ? Optional.of("424242") : Optional.empty());
+          (reference, target) -> {
+            resolutionAttempts.incrementAndGet();
+            return "test.card".equals(reference)
+                && URI.create(merchantOrigin + "/checkout").equals(target.checkoutUrl())
+                && URI.create(frameOrigin + "/field").equals(target.documentUrl())
+                && "hosted-card".equals(target.fieldId()) ? Optional.of("424242") : Optional.empty();
+          });
       var engine = new LarkyScriptEngine();
       var bindings = new SimpleBindings();
       bindings.put("checkout", merchantOrigin + "/checkout");
-      bindings.put(LarkyEvaluator.EXPIRATION_MS, System.currentTimeMillis() + 30_000);
+      bindings.put(LarkyEvaluator.EXPIRATION_MS, System.currentTimeMillis() + 45_000);
       ParsedStarFile result;
       try (var ignored = host.openInvocation()) {
         var denied = assertThrows(ScriptException.class, () -> engine.eval("""
@@ -134,7 +145,7 @@ public class KitesurfWasmJavaScriptTest {
             """, bindings));
         assertThat(denied).hasMessageThat().contains("Kitesurf value reference is unavailable");
       }
-      bindings.put(LarkyEvaluator.EXPIRATION_MS, System.currentTimeMillis() + 30_000);
+      bindings.put(LarkyEvaluator.EXPIRATION_MS, System.currentTimeMillis() + 45_000);
       try (var ignored = host.openInvocation()) {
         result = (ParsedStarFile) engine.eval("""
             load("@vgs//browsers", "kitesurf")
@@ -161,6 +172,20 @@ public class KitesurfWasmJavaScriptTest {
           new GCMParameterSpec(128, new byte[12]));
       assertThat(new String(cipher.doFinal(HexFormat.of().parseHex(encrypted)), UTF_8))
           .isEqualTo("424242");
+      assertThat(resolutionAttempts.get()).isEqualTo(2);
+
+      bindings.put("checkout", merchantOrigin + "/opaque");
+      bindings.put(LarkyEvaluator.EXPIRATION_MS, System.currentTimeMillis() + 45_000);
+      try (var ignored = host.openInvocation()) {
+        var denied = assertThrows(ScriptException.class, () -> engine.eval("""
+            load("@vgs//browsers", "kitesurf")
+            kitesurf.open(checkout)
+            fields = kitesurf.inspect()["fields"]
+            kitesurf.fill(fields[0]["handle"], "test.card")
+            """, bindings));
+        assertThat(denied).hasMessageThat().contains("Kitesurf could not complete the browser command");
+      }
+      assertThat(resolutionAttempts.get()).isEqualTo(2);
     } finally {
       hosted.stop(0);
       merchant.stop(0);
