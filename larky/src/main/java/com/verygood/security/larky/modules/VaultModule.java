@@ -160,6 +160,17 @@ public class VaultModule implements LarkyVault {
             })
     public Object redactForRun(Object value, Object storage, Object format, List<Object> tags,
         Object decoratorConfig, Object alias, StarlarkThread thread) throws EvalException {
+        return redactWithAlias(vaultFor(thread), value, storage, format, tags, decoratorConfig, alias);
+    }
+
+    /** Java compatibility entry point; script calls resolve the provider from their current run. */
+    public Object redactForStarlark(Object value, Object storage, Object format, List<Object> tags,
+        Object decoratorConfig, Object alias) throws EvalException {
+        return redactWithAlias(vault, value, storage, format, tags, decoratorConfig, alias);
+    }
+
+    private Object redactWithAlias(LarkyVault target, Object value, Object storage, Object format, List<Object> tags,
+        Object decoratorConfig, Object alias) throws EvalException {
         if (alias instanceof AliasSpec spec) {
             if (!(format instanceof NoneType) || !(decoratorConfig instanceof NoneType)) {
                 throw Starlark.errorf("alias cannot be combined with format or decorator_config");
@@ -167,7 +178,7 @@ public class VaultModule implements LarkyVault {
             format = spec.getFormat();
             decoratorConfig = Dict.immutableCopyOf(spec.getDecoratorConfigMap());
         }
-        return redact(vaultFor(thread), value, storage, format, tags, decoratorConfig);
+        return redact(target, value, storage, format, tags, decoratorConfig);
     }
 
     @StarlarkMethod(
