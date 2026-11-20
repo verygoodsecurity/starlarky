@@ -59,7 +59,8 @@ public class VaultModule implements LarkyVault {
             "ALPHANUMERIC_LENGTH_PRESERVING_T_FOUR",
             "ALPHANUMERIC_LENGTH_PRESERVING_SIX_T_FOUR",
             "ALPHANUMERIC_SSN_T_FOUR",
-            "ALPHANUMERIC_LENGTH_PRESERVING_ONE_T_TWO"
+            "ALPHANUMERIC_LENGTH_PRESERVING_ONE_T_TWO",
+            "SYNTHETIC"
     );
 
     private final ImmutableList<String> supportedSigningAlgorithms = ImmutableList.of(
@@ -168,10 +169,20 @@ public class VaultModule implements LarkyVault {
                             allowedTypes = {
                                     @ParamType(type = NoneType.class),
                                     @ParamType(type = String.class),
+                            }),
+                    @Param(
+                            name = "record",
+                            doc = "record the alias belongs to; required to reveal record-scoped aliases",
+                            named = true,
+                            positional = false,
+                            defaultValue = "None",
+                            allowedTypes = {
+                                    @ParamType(type = NoneType.class),
+                                    @ParamType(type = String.class),
                             })
             })
-    public Object revealForRun(Object value, Object storage, StarlarkThread thread) throws EvalException {
-        return reveal(vaultFor(thread), value, storage);
+    public Object revealForRun(Object value, Object storage, Object record, StarlarkThread thread) throws EvalException {
+        return reveal(vaultFor(thread), value, storage, record);
     }
 
     @StarlarkMethod(
@@ -194,10 +205,20 @@ public class VaultModule implements LarkyVault {
                 allowedTypes = {
                     @ParamType(type = NoneType.class),
                     @ParamType(type = String.class),
+                }),
+            @Param(
+                name = "record",
+                doc = "record the alias belongs to; required to delete record-scoped aliases",
+                named = true,
+                positional = false,
+                defaultValue = "None",
+                allowedTypes = {
+                    @ParamType(type = NoneType.class),
+                    @ParamType(type = String.class),
                 })
         })
-    public void deleteForRun(Object value, Object storage, StarlarkThread thread) throws EvalException {
-        delete(vaultFor(thread), value, storage);
+    public void deleteForRun(Object value, Object storage, Object record, StarlarkThread thread) throws EvalException {
+        delete(vaultFor(thread), value, storage, record);
     }
 
     @StarlarkMethod(
@@ -283,12 +304,22 @@ public class VaultModule implements LarkyVault {
 
     @Override
     public Object reveal(Object value, Object storage) throws EvalException {
-        return reveal(vault, value, storage);
+        return reveal(vault, value, storage, Starlark.NONE);
     }
 
     @Override
     public void delete(Object value, Object storage) throws EvalException {
-        delete(vault, value, storage);
+        delete(vault, value, storage, Starlark.NONE);
+    }
+
+    @Override
+    public Object reveal(Object value, Object storage, Object record) throws EvalException {
+        return reveal(vault, value, storage, record);
+    }
+
+    @Override
+    public void delete(Object value, Object storage, Object record) throws EvalException {
+        delete(vault, value, storage, record);
     }
 
     @Override
@@ -317,12 +348,16 @@ public class VaultModule implements LarkyVault {
         return target.redact(value, storage, format, tags, decoratorConfig);
     }
 
-    private Object reveal(LarkyVault target, Object value, Object storage) throws EvalException {
-        return target.reveal(value, validateStorage(storage));
+    private Object reveal(LarkyVault target, Object value, Object storage, Object record) throws EvalException {
+        storage = validateStorage(storage);
+        validateRecord(record);
+        return target.reveal(value, storage, record);
     }
 
-    private void delete(LarkyVault target, Object value, Object storage) throws EvalException {
-        target.delete(value, validateStorage(storage));
+    private void delete(LarkyVault target, Object value, Object storage, Object record) throws EvalException {
+        storage = validateStorage(storage);
+        validateRecord(record);
+        target.delete(value, storage, record);
     }
 
     private Object sign(LarkyVault target, String keyId, String message, String algorithm) throws EvalException {
@@ -387,6 +422,22 @@ public class VaultModule implements LarkyVault {
                     decoratorConfig, e.getMessage()
                 ));
             }
+        }
+    }
+
+    private void validateRecord(Object record) throws EvalException {
+        if (record == null || record instanceof NoneType) {
+            return;
+        }
+        // Scripts cannot pass a non-String (the parameter is typed), but Java callers can.
+        if (!(record instanceof String name)) {
+            throw Starlark.errorf(String.format(
+                "Record of type %s is not supported in VAULT, expecting String",
+                record.getClass().getName()
+            ));
+        }
+        if (name.isBlank()) {
+            throw Starlark.errorf("record must not be empty or blank");
         }
     }
 
