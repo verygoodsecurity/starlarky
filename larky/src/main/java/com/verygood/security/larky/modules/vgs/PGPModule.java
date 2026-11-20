@@ -72,6 +72,7 @@ import org.bouncycastle.util.io.Streams;
     category = "BUILTIN",
     doc = "Module for PGP operations using the Bouncycastle library"
 )
+@com.google.errorprone.annotations.Immutable
 public class PGPModule implements StarlarkValue {
 
     public static final PGPModule INSTANCE = new PGPModule();

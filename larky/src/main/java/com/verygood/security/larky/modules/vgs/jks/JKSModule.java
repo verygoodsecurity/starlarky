@@ -34,6 +34,7 @@ import java.util.List;
         name = "jks",
         category = "BUILTIN",
         doc = "Module for interaction with Java KeyStore API")
+@com.google.errorprone.annotations.Immutable
 public class JKSModule implements StarlarkValue {
 
     public static final JKSModule INSTANCE =  new JKSModule();

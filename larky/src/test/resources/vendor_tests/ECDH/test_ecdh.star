@@ -28,6 +28,31 @@ aPBDWKsJNnEgfrH8hhKqPrR5f3dhxhkGLJgOB/PAk1XuUfUbZ7hz1rSX8A==
 
 public_key_ephemeral = b"""MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMwliotf2ICjiMwREdqyHSilqZzuV2fZey86nBIDlTY8sNMJv9CPpL5/DKg4bIEMe6qaj67mz4LWdr7Er0Ld5qA=="""
 
+# Throwaway P-256 key pairs (generated with openssl for this test only).
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
+multiline_private_a = b"""-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgVmbZNl4Jkc8DBmKC
+tXGP2/tGdZs/nU42YX0nbrN1tw2hRANCAASjU9PHSFdlJlGH1ZkDovsz5KRwC3aD
+lH4V20FWrasgSRNLp6UFMfpyEi07R5V9Et9zLGLmPG25x8bZGEMJWPHU
+-----END PRIVATE KEY-----"""
+
+multiline_public_a = b"""-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEo1PTx0hXZSZRh9WZA6L7M+SkcAt2
+g5R+FdtBVq2rIEkTS6elBTH6chItO0eVfRLfcyxi5jxtucfG2RhDCVjx1A==
+-----END PUBLIC KEY-----"""
+
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
+multiline_private_b = b"""-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgM+lA0a1Bb05Cb2Lw
+EL5CUNB9due1SaWsdvFqG0HvuhihRANCAAQRwuaVauRpxBjc5W0v8Z451LDZ5GZO
+vXvWaAoUd1Dd9+EJBGi08oCnn4k30izlemYDQp+wYCvAOjSkfLRmpLaw
+-----END PRIVATE KEY-----"""
+
+multiline_public_b = b"""-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEEcLmlWrkacQY3OVtL/GeOdSw2eRm
+Tr171mgKFHdQ3ffhCQRotPKAp5+JN9Is5XpmA0KfsGArwDo0pHy0ZqS2sA==
+-----END PUBLIC KEY-----"""
+
 def test_generated_keypair():
     ecdh = LarkyECDH()
     ecdh.set_private_key(private_key_pkcs8, type="PKCS8")
@@ -114,6 +139,50 @@ def test_bad_private_key():
     asserts.assert_fails(lambda: ecdh.set_private_key(b"A random phrase that isn't a key", type="PKCS8"), "Invalid base64-encoded string")
 
 
+def _exchange(private_key, public_key):
+    ecdh = LarkyECDH()
+    ecdh.set_private_key(private_key, type="PKCS8")
+    ecdh.set_public_key(public_key, "X509")
+    return ecdh.exchange()
+
+
+def test_multiline_pem_both_sides_agree():
+    """
+    Multi-line PEM-wrapped PKCS8 private keys and X509 public keys (64-column bodies, as openssl
+    writes them) must give the same secret on both sides of the exchange.
+    """
+    secret_a = _exchange(multiline_private_a, multiline_public_b)
+    secret_b = _exchange(multiline_private_b, multiline_public_a)
+    asserts.assert_that(len(secret_a)).is_equal_to(32)
+    asserts.assert_that(base64.b64encode(secret_a)).is_equal_to(base64.b64encode(secret_b))
+
+
+def test_multiline_pem_crlf_both_sides_agree():
+    """Same as above with CRLF line endings, as keys pasted from Windows tools have."""
+    secret_lf = _exchange(multiline_private_a, multiline_public_b)
+    secret_crlf_a = _exchange(
+        multiline_private_a.replace(b"\n", b"\r\n"),
+        multiline_public_b.replace(b"\n", b"\r\n"),
+    )
+    secret_crlf_b = _exchange(
+        multiline_private_b.replace(b"\n", b"\r\n"),
+        multiline_public_a.replace(b"\n", b"\r\n"),
+    )
+    asserts.assert_that(base64.b64encode(secret_crlf_a)).is_equal_to(base64.b64encode(secret_lf))
+    asserts.assert_that(base64.b64encode(secret_crlf_b)).is_equal_to(base64.b64encode(secret_lf))
+
+
+def test_multiline_equals_single_line_body():
+    """The body with its newlines removed by hand must give the same secret as the multi-line PEM."""
+    one_line = b"".join([
+        l for l in multiline_public_b.split(b"\n") if not l.startswith(b"-----")
+    ])
+    asserts.assert_that(base64.b64encode(_exchange(multiline_private_a, one_line))).is_equal_to(
+        base64.b64encode(_exchange(multiline_private_a, multiline_public_b))
+    )
+
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(test_generated_keypair))
@@ -126,6 +195,9 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_no_private_type))
     _suite.addTest(unittest.FunctionTestCase(test_bad_public_key))
     _suite.addTest(unittest.FunctionTestCase(test_bad_private_key))
+    _suite.addTest(unittest.FunctionTestCase(test_multiline_pem_both_sides_agree))
+    _suite.addTest(unittest.FunctionTestCase(test_multiline_pem_crlf_both_sides_agree))
+    _suite.addTest(unittest.FunctionTestCase(test_multiline_equals_single_line_body))
     return _suite
 
 _runner = unittest.TextTestRunner()

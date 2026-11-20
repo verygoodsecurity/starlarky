@@ -1,3 +1,4 @@
+# Ported from CPython 3.10.0-3.13 (blob unchanged), pinned to 3.10.1 (2cd268a): Lib/_markupbase.py. See larky/src/main/resources/VENDORED.md.
 """Shared support for scanning document type declarations in HTML and XHTML.
 
 This module is used as a foundation for the html.parser module.  It has no

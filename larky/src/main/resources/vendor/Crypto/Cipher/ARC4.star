@@ -19,6 +19,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+# Ported from pycryptodome 3.10.1-3.11.0, pinned to 3.10.1 (339259c): lib/Crypto/Cipher/ARC4.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@vendor//Crypto/Util/py3compat", b="b")
 load("@vendor//option/result", Error="Error")
