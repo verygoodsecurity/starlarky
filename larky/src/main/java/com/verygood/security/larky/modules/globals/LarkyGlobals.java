@@ -38,6 +38,23 @@ import net.starlark.java.eval.StarlarkSemantics;
 public final class LarkyGlobals {
 
   @StarlarkMethod(
+      name = "_is_small_string_keyed_dict",
+      documented = false,
+      parameters = {@Param(name = "value")})
+  public boolean isSmallStringKeyedDict(Object value) {
+    // Bound the native scan. Larger inputs keep the interruptible Starlark path.
+    if (!(value instanceof Dict<?, ?> dict) || dict.size() > 64) {
+      return false;
+    }
+    for (Object key : dict.keySet()) {
+      if (!(key instanceof String)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @StarlarkMethod(
       name = "_struct",
       doc =
           "Creates an immutable struct using the keyword arguments as attributes. It is used to "
