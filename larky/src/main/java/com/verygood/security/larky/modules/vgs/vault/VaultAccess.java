@@ -3,6 +3,7 @@ package com.verygood.security.larky.modules.vgs.vault;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import com.verygood.security.larky.modules.vgs.vault.spi.RevealOutcome;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkThread;
@@ -35,7 +36,16 @@ public final class VaultAccess {
     }
 
     /** Installs an observer for the scope and restores the previous observer on close. */
-    public static Scope observe(StarlarkThread thread, @Nullable RevealObserver observer) {
+    public static Scope observe(StarlarkThread thread, RevealObserver observer) {
+        return bindObserver(thread, Objects.requireNonNull(observer));
+    }
+
+    /** Suspends observation for the scope and restores the previous observer on close. */
+    public static Scope suspendObservation(StarlarkThread thread) {
+        return bindObserver(thread, null);
+    }
+
+    private static Scope bindObserver(StarlarkThread thread, @Nullable RevealObserver observer) {
         RevealObserver previous = thread.getThreadLocal(RevealObserver.class);
         if (previous == observer) {
             return new Scope(null);

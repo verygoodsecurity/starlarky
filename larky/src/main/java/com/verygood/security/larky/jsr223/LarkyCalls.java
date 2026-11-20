@@ -2,10 +2,9 @@ package com.verygood.security.larky.jsr223;
 
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.console.Console;
-import com.verygood.security.larky.console.RedactingPrintConsole;
+import com.verygood.security.larky.console.RunDiagnostics;
 import com.verygood.security.larky.modules.utils.Reporter;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
-import com.verygood.security.larky.modules.vgs.vault.VaultAccess;
 import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.StarlarkUtil;
 import java.lang.reflect.InvocationHandler;
@@ -88,9 +87,8 @@ final class LarkyCalls {
       if (limits.expirationMs() != null) {
         thread.setExpirationMs(limits.expirationMs());
       }
-      try (var scope = DiagnosticRedactor.openScope(diagnosticRedactor);
-          var reveals = VaultAccess.observe(thread, scope.isTracking() ? scope::registerRevealed : null)) {
-        Reporter reporter = new Reporter(RedactingPrintConsole.whenTracking(console, scope));
+      try (var diagnostics = new RunDiagnostics(thread, diagnosticRedactor)) {
+        Reporter reporter = new Reporter(diagnostics.printConsole(console));
         thread.setThreadLocal(Reporter.class, reporter);
         thread.setPrintHandler(reporter::report);
         return Starlark.call(thread, function, starlarkArgs, Map.of());

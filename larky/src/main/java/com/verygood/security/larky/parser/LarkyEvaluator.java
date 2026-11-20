@@ -7,10 +7,9 @@ import com.google.common.flogger.FluentLogger;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
-import com.verygood.security.larky.console.RedactingPrintConsole;
+import com.verygood.security.larky.console.RunDiagnostics;
 import com.verygood.security.larky.modules.utils.Reporter;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
-import com.verygood.security.larky.modules.vgs.vault.VaultAccess;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -197,9 +196,8 @@ public final class LarkyEvaluator {
         thread.setExpirationMs(Long.parseLong(environment.get(EXPIRATION_MS).toString()));
       }
 
-      try (var scope = DiagnosticRedactor.openScope(diagnosticRedactor);
-          var reveals = VaultAccess.observe(thread, scope.isTracking() ? scope::registerRevealed : null)) {
-        Reporter reporter = new Reporter(RedactingPrintConsole.whenTracking(console, scope));
+      try (var diagnostics = new RunDiagnostics(thread, diagnosticRedactor)) {
+        Reporter reporter = new Reporter(diagnostics.printConsole(console));
         thread.setThreadLocal(Reporter.class, reporter);
         thread.setPrintHandler(reporter::report);
         starlarkOutput = prog.exec(module, thread);

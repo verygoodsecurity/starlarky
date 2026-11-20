@@ -39,6 +39,11 @@ class VaultAccessTest {
         assertEquals(List.of(List.of("fixture value")), outer);
         assertEquals("miss", VaultAccess.reveal(vault, "miss", Starlark.NONE, thread));
 
+        try (var suspended = VaultAccess.suspendObservation(thread)) {
+          assertSame(values, VaultAccess.reveal(vault, "batch", Starlark.NONE, thread));
+        }
+        assertEquals(List.of(List.of("fixture value")), outer);
+
         innerScope = VaultAccess.observe(thread, inner::add);
         assertThrows(EvalException.class, () -> {
           try (innerScope) {
