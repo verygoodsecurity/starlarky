@@ -251,6 +251,10 @@ public class LarkyCompiledScript extends CompiledScript {
     for (Map.Entry<String, Object> entry : moduleGlobals.entrySet()) {
       String name = entry.getKey();
       Object value = entry.getValue();
+      // Script assignments cannot configure the host's next evaluation.
+      if (LarkyEvaluator.ORDERED_RESPONSE_HEADERS.equals(name)) {
+        continue;
+      }
       if (globalBindings != null && globalBindings.containsKey(name)) {
         globalBindings.put(name, value);
       }
