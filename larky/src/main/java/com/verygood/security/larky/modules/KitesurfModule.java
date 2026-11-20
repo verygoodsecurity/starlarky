@@ -6,16 +6,18 @@ package com.verygood.security.larky.modules;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.google.common.hash.Hashing;
 import com.verygood.security.larky.wasm.BrowserWasmRuntime;
 import com.verygood.security.larky.wasm.WasmRuntime;
 import java.io.IOException;
 import java.net.URI;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -113,10 +115,12 @@ public final class KitesurfModule implements StarlarkValue {
     if (reference.isEmpty() || reference.length() > 256) {
       throw Starlark.errorf("invalid Kitesurf value reference");
     }
-    String value = invocation.host.resolveValue.apply(reference)
+    Dict<?, ?> target = step(Dict.immutableCopyOf(Map.of("op", "field_target", "handle", handle)), thread);
+    String value = invocation.host.resolveValue.resolve(reference, FieldTarget.from(target))
         .filter(text -> text.length() <= 1024 && text.getBytes(UTF_8).length <= 1024)
         .orElseThrow(() -> Starlark.errorf("Kitesurf value reference is unavailable"));
-    step(Dict.immutableCopyOf(Map.of("op", "fill", "handle", handle, "value", value)), thread);
+    step(Dict.immutableCopyOf(Map.of("op", "fill", "handle", handle, "target", target,
+        "value", value)), thread);
   }
 
   @StarlarkMethod(
@@ -174,23 +178,53 @@ public final class KitesurfModule implements StarlarkValue {
     return response;
   }
 
-  /**
-   * Prepares a trusted guest from host configuration. The host selects the guest and grants
-   * origins, and a script can access it only while the host has opened an invocation.
-   */
-  public static Host prepareHost(byte[] guest, Set<URI> origins, int maxRequests,
-      BrowserWasmRuntime.Fetcher fetcher, Function<String, Optional<String>> resolveValue)
+  /** Metadata collected from the live field by the verified guest before a fill. */
+  public record FieldTarget(URI checkoutUrl, URI documentUrl, String origin, String fieldId,
+      String autocomplete) {
+    private static FieldTarget from(Dict<?, ?> target) throws EvalException {
+      if (target.get("checkout_url") instanceof String checkout
+          && target.get("document_url") instanceof String document
+          && target.get("origin") instanceof String origin
+          && target.get("field_id") instanceof String id
+          && target.get("autocomplete") instanceof String autocomplete) {
+        try {
+          return new FieldTarget(URI.create(checkout), URI.create(document), origin, id, autocomplete);
+        } catch (IllegalArgumentException invalid) {
+          // A malformed guest result is reported without exposing the URL.
+        }
+      }
+      throw Starlark.errorf("invalid Kitesurf field metadata");
+    }
+  }
+
+  /** Resolves a reference only when its host policy permits the supplied live field. */
+  @FunctionalInterface
+  public interface FillValueResolver {
+    Optional<String> resolve(String reference, FieldTarget target);
+  }
+
+  /** Prepares a guest using an expected SHA-256 from authenticated host configuration. */
+  public static Host prepareHost(byte[] guest, String expectedSha256, Set<URI> origins, int maxRequests,
+      BrowserWasmRuntime.Fetcher fetcher, FillValueResolver resolveValue)
       throws WasmRuntime.WasmException {
-    return prepareHost(guest, origins, maxRequests, fetcher, Set.of(),
+    return prepareHost(guest, expectedSha256, origins, maxRequests, fetcher, Set.of(),
         (url, body, deadline, limit) -> { throw new IOException("browser POST unavailable"); },
         resolveValue);
   }
 
   /** Gives this trusted guest a separate, exact URL allowlist for POST requests. */
-  public static Host prepareHost(byte[] guest, Set<URI> origins, int maxRequests,
+  public static Host prepareHost(byte[] guest, String expectedSha256, Set<URI> origins, int maxRequests,
       BrowserWasmRuntime.Fetcher fetcher, Set<URI> postUrls, BrowserWasmRuntime.Poster poster,
-      Function<String, Optional<String>> resolveValue) throws WasmRuntime.WasmException {
-    return new Host(BrowserWasmRuntime.compile(guest), origins, maxRequests, fetcher, postUrls,
+      FillValueResolver resolveValue) throws WasmRuntime.WasmException {
+    if (expectedSha256 == null || expectedSha256.length() != 64) {
+      throw new IllegalArgumentException("Expected a 64-digit Kitesurf SHA-256 digest");
+    }
+    byte[] expected = HexFormat.of().parseHex(expectedSha256);
+    byte[] candidate = guest.clone();
+    if (!MessageDigest.isEqual(expected, Hashing.sha256().hashBytes(candidate).asBytes())) {
+      throw new IllegalArgumentException("Kitesurf guest SHA-256 does not match");
+    }
+    return new Host(BrowserWasmRuntime.compile(candidate), origins, maxRequests, fetcher, postUrls,
         poster, resolveValue);
   }
 
@@ -203,11 +237,11 @@ public final class KitesurfModule implements StarlarkValue {
     private final BrowserWasmRuntime.Fetcher fetcher;
     private final Set<URI> postUrls;
     private final BrowserWasmRuntime.Poster poster;
-    private final Function<String, Optional<String>> resolveValue;
+    private final FillValueResolver resolveValue;
 
     private Host(BrowserWasmRuntime.Program program, Set<URI> origins, int maxRequests,
         BrowserWasmRuntime.Fetcher fetcher, Set<URI> postUrls, BrowserWasmRuntime.Poster poster,
-        Function<String, Optional<String>> resolveValue) {
+        FillValueResolver resolveValue) {
       this.program = program;
       this.origins = Set.copyOf(origins);
       this.maxRequests = maxRequests;

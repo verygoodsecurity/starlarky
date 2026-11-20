@@ -6,7 +6,6 @@ package com.verygood.security.larky.modules;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assume.assumeNotNull;
 
 import com.sun.net.httpserver.HttpServer;
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
@@ -20,8 +19,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -60,9 +57,17 @@ public class KitesurfWasmModuleTest {
   }
 
   @Test
+  public void mismatchedGuestDigestIsRejectedBeforeWasmCompilation() {
+    var denied = assertThrows(IllegalArgumentException.class,
+        () -> KitesurfModule.prepareHost(new byte[] {1, 2, 3}, "0".repeat(64), Set.of(), 1,
+            (uri, deadline, limit) -> { throw new AssertionError("unexpected network request"); },
+            (reference, target) -> { throw new AssertionError("unexpected value resolution"); }));
+    assertThat(denied).hasMessageThat().isEqualTo("Kitesurf guest SHA-256 does not match");
+  }
+
+  @Test
   public void customerScriptLoadsAndFillsAFormInTheEmbeddedWasmGuest() throws Exception {
-    String guestPath = System.getProperty("larky.kitesurf.wasmGuest");
-    assumeNotNull(guestPath);
+    var guest = KitesurfTestGuest.load();
 
     byte[] html = """
         <!DOCTYPE html>
@@ -90,7 +95,7 @@ public class KitesurfWasmModuleTest {
     try (var client = HttpClient.newBuilder()
         .proxy(HttpClient.Builder.NO_PROXY)
         .followRedirects(HttpClient.Redirect.NEVER).build()) {
-      var host = KitesurfModule.prepareHost(Files.readAllBytes(Path.of(guestPath)),
+      var host = KitesurfModule.prepareHost(guest.bytes(), guest.sha256(),
           Set.of(URI.create(origin)), 1, (uri, deadline, maxBytes) -> {
             var request = HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofMillis(Math.max(1, deadline - System.currentTimeMillis())))
@@ -103,7 +108,10 @@ public class KitesurfWasmModuleTest {
               }
               return body.readNBytes(maxBytes + 1);
             }
-          }, reference -> "checkout.email".equals(reference)
+          }, (reference, target) -> "checkout.email".equals(reference)
+              && URI.create(origin + "/checkout").equals(target.checkoutUrl())
+              && target.checkoutUrl().equals(target.documentUrl())
+              && "email".equals(target.fieldId())
               ? Optional.of("synthetic@example.test") : Optional.empty());
 
       try (var ignored = host.openInvocation()) {

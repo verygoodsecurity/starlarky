@@ -6,7 +6,7 @@ package com.verygood.security.larky.modules;
 
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assert.assertThrows;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -19,8 +19,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.Map;
@@ -31,13 +29,13 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.script.SimpleBindings;
+import javax.script.ScriptException;
 import org.junit.Test;
 
 public class KitesurfWasmJavaScriptTest {
   @Test
   public void aHostedFieldRunsJavaScriptAndEncryptsAValueInsideTheWasmBrowser() throws Exception {
-    String guest = System.getProperty("larky.kitesurf.wasmGuest");
-    assumeNotNull(guest);
+    var guest = KitesurfTestGuest.load();
     var properties = Map.of("larky.wasm.enabled", "true",
         "larky.wasm.maxModuleBytes", "33554432", "larky.wasm.maxFunctions", "50000",
         "larky.wasm.maxTotalLocals", "150000");
@@ -53,6 +51,7 @@ public class KitesurfWasmJavaScriptTest {
     merchant.createContext("/checkout", exchange -> respond(exchange, """
         <!doctype html><title>Waiting for hosted fields</title>
         <script src="/checkout.js"></script>
+        <input id="merchant-field" aria-label="Merchant field" autocomplete="cc-number">
         <iframe id="field" src="%s/field" sandbox="allow-scripts allow-same-origin"></iframe>
         <button id="pay" disabled>Pay</button>
         """.formatted(frameOrigin)));
@@ -60,8 +59,12 @@ public class KitesurfWasmJavaScriptTest {
         let encrypted = null;
         window.addEventListener("message", event => {
           const frame = document.getElementById("field");
-          if (event.origin !== "%s" || event.source !== frame.contentWindow ||
-              event.data.kind !== "encrypted") return;
+          if (event.origin !== "%s" || event.source !== frame.contentWindow) return;
+          if (event.data.kind === "wrong-target") {
+            document.body.append("Wrong target received");
+            return;
+          }
+          if (event.data.kind !== "encrypted") return;
           encrypted = event.data.value;
           setTimeout(() => {
             document.getElementById("pay").removeAttribute("disabled");
@@ -78,6 +81,7 @@ public class KitesurfWasmJavaScriptTest {
         <script>
           if (parent.document !== undefined) throw new Error("frame boundary broken");
           const field = document.createElement("input");
+          field.id = "hosted-card";
           field.setAttribute("aria-label", "Synthetic card");
           field.setAttribute("autocomplete", "cc-number");
           document.body.appendChild(field);
@@ -87,7 +91,7 @@ public class KitesurfWasmJavaScriptTest {
             const clear = new TextEncoder().encode(field.value);
             const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv: new Uint8Array(12) }, key, clear);
             const value = Array.from(new Uint8Array(ciphertext), b => b.toString(16).padStart(2, "0")).join("");
-            parent.postMessage({ kind: "encrypted", value: "should be ignored" }, "https://wrong.example");
+            parent.postMessage({ kind: "wrong-target" }, "https://wrong.example");
             parent.postMessage({ kind: "encrypted", value }, "%s");
           });
         </script>
@@ -107,25 +111,39 @@ public class KitesurfWasmJavaScriptTest {
     hosted.start();
     try (var client = HttpClient.newBuilder().proxy(HttpClient.Builder.NO_PROXY)
         .followRedirects(HttpClient.Redirect.NEVER).build()) {
-      var host = KitesurfModule.prepareHost(Files.readAllBytes(Path.of(guest)),
+      var host = KitesurfModule.prepareHost(guest.bytes(), guest.sha256(),
           Set.of(URI.create(merchantOrigin), URI.create(frameOrigin)), 4,
           (uri, deadline, cap) -> request(client, uri, null, deadline, cap),
           Set.of(URI.create(merchantOrigin + "/receipt")),
           (uri, body, deadline, cap) -> request(client, uri, body, deadline, cap),
-          reference -> "test.card".equals(reference) ? Optional.of("424242") : Optional.empty());
+          (reference, target) -> "test.card".equals(reference)
+              && URI.create(merchantOrigin + "/checkout").equals(target.checkoutUrl())
+              && URI.create(frameOrigin + "/field").equals(target.documentUrl())
+              && "hosted-card".equals(target.fieldId()) ? Optional.of("424242") : Optional.empty());
       var engine = new LarkyScriptEngine();
       var bindings = new SimpleBindings();
       bindings.put("checkout", merchantOrigin + "/checkout");
       bindings.put(LarkyEvaluator.EXPIRATION_MS, System.currentTimeMillis() + 30_000);
       ParsedStarFile result;
       try (var ignored = host.openInvocation()) {
+        var denied = assertThrows(ScriptException.class, () -> engine.eval("""
+            load("@vgs//browsers", "kitesurf")
+            kitesurf.open(checkout)
+            fields = kitesurf.inspect()["fields"]
+            kitesurf.fill(fields[0]["handle"], "test.card")
+            """, bindings));
+        assertThat(denied).hasMessageThat().contains("Kitesurf value reference is unavailable");
+      }
+      bindings.put(LarkyEvaluator.EXPIRATION_MS, System.currentTimeMillis() + 30_000);
+      try (var ignored = host.openInvocation()) {
         result = (ParsedStarFile) engine.eval("""
             load("@vgs//browsers", "kitesurf")
             kitesurf.open(checkout)
             timed_out = not kitesurf.wait_for_text("title", "Ready for payment", timeout_ms = 0)
             fields = kitesurf.inspect()["fields"]
-            kitesurf.fill(fields[0]["handle"], "test.card")
+            kitesurf.fill(fields[1]["handle"], "test.card")
             ready = kitesurf.wait_for_text("title", "Ready for payment")
+            wrong_target_received = kitesurf.wait_for_text("body", "Wrong target received", timeout_ms = 0)
             payment = kitesurf.inspect()
             kitesurf.click(payment["actions"][0]["handle"])
             title = kitesurf.inspect()["title"]
@@ -133,6 +151,7 @@ public class KitesurfWasmJavaScriptTest {
       }
       assertThat(result.getGlobalEnvironmentVariable("timed_out", Boolean.class)).isTrue();
       assertThat(result.getGlobalEnvironmentVariable("ready", Boolean.class)).isTrue();
+      assertThat(result.getGlobalEnvironmentVariable("wrong_target_received", Boolean.class)).isFalse();
       assertThat(result.getGlobalEnvironmentVariable("title", String.class))
           .isEqualTo("Encrypted receipt");
       String encrypted = receipt.get();

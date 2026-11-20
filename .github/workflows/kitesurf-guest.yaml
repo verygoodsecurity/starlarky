@@ -1,0 +1,106 @@
+name: Kitesurf Wasm guest
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/kitesurf-guest.yaml
+      - examples/kitesurf-wasm/**
+      - examples/kitesurf-adyen/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    outputs:
+      archive-sha256: ${{ steps.pack.outputs.sha256 }}
+    steps:
+      - name: Require an existing release tag for promotion
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REF_TYPE" = tag
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json tagName >/dev/null
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Check owned Rust and build the candidate
+        env:
+          KITESURF_ADAPTER_REVISION: ${{ github.sha }}
+          RUSTUP_TOOLCHAIN: 1.99.0
+        run: |
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal \
+            --target wasm32-wasip1 --component rustfmt --component clippy
+          examples/kitesurf-wasm/build.sh target/kitesurf-guest.wasm --check
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build the sandbox fixture
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          npm --prefix examples/kitesurf-adyen ci
+          npm --prefix examples/kitesurf-adyen run build
+      - name: Exercise the exact candidate in the embedded browser
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ADYEN_CLIENT_KEY: ${{ secrets.KITESURF_ADYEN_CLIENT_KEY }}
+          ADYEN_FIXTURE_PORT: '18801'
+        run: |
+          node examples/kitesurf-adyen/fixture.mjs > "$RUNNER_TEMP/adyen-fixture.log" 2>&1 &
+          trap 'kill "$!" 2>/dev/null || true' EXIT
+          unset ADYEN_CLIENT_KEY
+          curl --fail --silent --retry 15 --retry-connrefused http://127.0.0.1:18801/ >/dev/null
+          digest="$(jq -er .sha256 target/kitesurf-guest.wasm.build.json)"
+          examples/kitesurf-wasm/check-candidate.sh target/kitesurf-guest.wasm "$digest" "$ADYEN_FIXTURE_PORT"
+
+      - name: Pack the tested guest
+        id: pack
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          cd target
+          jq -r '.sha256 + "  kitesurf-guest.wasm"' kitesurf-guest.wasm.build.json | sha256sum --check --strict
+          tar -czf kitesurf-guest-wasip1.tar.gz kitesurf-guest.wasm kitesurf-guest.wasm.build.json
+          printf 'sha256=%s\n' "$(sha256sum kitesurf-guest-wasip1.tar.gz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: tested-kitesurf-guest
+          path: target/kitesurf-guest-wasip1.tar.gz
+          if-no-files-found: error
+
+  promote:
+    if: github.event_name == 'workflow_dispatch' && github.ref_type == 'tag'
+    needs: candidate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: tested-kitesurf-guest
+      - name: Verify archive from the candidate job
+        env:
+          EXPECTED_SHA256: ${{ needs.candidate.outputs.archive-sha256 }}
+        run: printf '%s  kitesurf-guest-wasip1.tar.gz\n' "$EXPECTED_SHA256" | sha256sum --check --strict
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: kitesurf-guest-wasip1.tar.gz
+      - name: Attach the attested archive to the tag's release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" kitesurf-guest-wasip1.tar.gz

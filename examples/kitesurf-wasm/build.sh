@@ -4,6 +4,14 @@ set -euo pipefail
 revision=a58b15dfabc0a238a4ab37c9ba9c1813c865bf21
 example_dir="$(cd "$(dirname "$0")" && pwd)"
 output="${1:-$example_dir/../../target/kitesurf-guest.wasm}"
+checks="${2:-}"
+if [[ -n "$checks" && "$checks" != "--check" ]] || [[ $# -gt 2 ]]; then
+  printf 'Usage: %s [output.wasm] [--check]\n' "$0" >&2
+  exit 2
+fi
+if [[ "$checks" == "--check" ]]; then
+  rustfmt --edition 2021 --check "$example_dir/guest/src/lib.rs" "$example_dir/core-wasi.rs"
+fi
 mkdir -p "$(dirname "$output")"
 output="$(cd "$(dirname "$output")" && pwd)/$(basename "$output")"
 scratch="$(mktemp -d)"
@@ -46,6 +54,28 @@ patch -s -p0 < "$example_dir/guest/Cargo.lock.patch"
 
 export CARGO_TARGET_WASM32_WASIP1_RUSTFLAGS="-C target-cpu=mvp -C target-feature=+bulk-memory,+mutable-globals -C link-arg=--strip-all"
 build_dir="${CARGO_TARGET_DIR:-target}"
+if [[ "$checks" == "--check" ]]; then
+  cargo clippy --locked --target-dir "$build_dir" --target wasm32-wasip1 \
+    --profile release-test -p larky-kitesurf-guest -- --no-deps -D warnings
+fi
 cargo build --locked --target-dir "$build_dir" --target wasm32-wasip1 --profile release-test -p larky-kitesurf-guest
 cp "$build_dir/wasm32-wasip1/release-test/larky_kitesurf_guest.wasm" "$output"
+node --input-type=module - "$output" "$revision" "$( "${RUSTC:-rustc}" --version )" "$(cargo --version)" <<'NODE'
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+const [output, upstreamRevision, rustc, cargo] = process.argv.slice(2);
+const sha256 = path => createHash('sha256').update(readFileSync(path)).digest('hex');
+const manifest = {
+  sha256: sha256(output),
+  upstreamRevision,
+  adapterRevision: process.env.KITESURF_ADAPTER_REVISION ?? null,
+  cargoLockSha256: sha256('Cargo.lock'),
+  rustc,
+  cargo,
+  target: 'wasm32-wasip1',
+  hostAbi: 'vgs_browser_v1',
+  browserProtocol: 'field-target-v1',
+};
+writeFileSync(output + '.build.json', JSON.stringify(manifest, null, 2) + '\n');
+NODE
 printf 'Built %s\n' "$output"

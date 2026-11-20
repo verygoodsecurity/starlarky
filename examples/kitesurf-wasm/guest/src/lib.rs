@@ -25,7 +25,9 @@ pub extern "C" fn vgs_browser_step() {
 
 fn read_command() -> Result<Value, &'static str> {
     let mut input = Vec::new();
-    io::stdin().take(16385).read_to_end(&mut input)
+    io::stdin()
+        .take(16385)
+        .read_to_end(&mut input)
         .map_err(|_| "could not read the browser command")?;
     if input.len() > 16384 {
         return Err("browser command is too large");
@@ -39,7 +41,10 @@ fn execute(command: Value) -> Result<Value, &'static str> {
         let op = command.get("op").and_then(Value::as_str);
         if op == Some("open") {
             *session = None;
-            let url = command.get("url").and_then(Value::as_str).ok_or("missing document URL")?;
+            let url = command
+                .get("url")
+                .and_then(Value::as_str)
+                .ok_or("missing document URL")?;
             *session = Some(Browser::open(url)?);
             return Ok(json!({"opened": true}));
         }
@@ -47,6 +52,7 @@ fn execute(command: Value) -> Result<Value, &'static str> {
         match op {
             Some("inspect") => browser.inspect(),
             Some("match_text") => browser.match_text(&command),
+            Some("field_target") => browser.field_target(&command),
             Some("fill") => browser.fill(&command),
             Some("click") => browser.click(&command),
             _ => Err("unknown browser command"),

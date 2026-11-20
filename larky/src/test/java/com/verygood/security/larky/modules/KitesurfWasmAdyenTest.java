@@ -16,8 +16,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,9 +38,9 @@ public class KitesurfWasmAdyenTest {
 
   @Test
   public void embeddedKitesurfLetsAdyenEncryptItsOwnHostedInputs() throws Exception {
-    String guest = System.getProperty("larky.kitesurf.wasmGuest");
+    var guest = KitesurfTestGuest.load();
     String fixturePort = System.getProperty("larky.kitesurf.adyenFixturePort");
-    assumeNotNull(guest, fixturePort);
+    assumeNotNull(fixturePort);
     URI fixture = URI.create("http://127.0.0.1:" + Integer.parseInt(fixturePort));
     var previous = new HashMap<String, String>();
     // The vendor bundles are substantially faster in Endive compiler mode.
@@ -61,13 +59,23 @@ public class KitesurfWasmAdyenTest {
         .followRedirects(HttpClient.Redirect.NEVER).build();
          var source = new InputStreamReader(getClass().getResourceAsStream(
              "/kitesurf/embedded_adyen_checkout.star"), UTF_8)) {
-      var host = KitesurfModule.prepareHost(Files.readAllBytes(Path.of(guest)), ORIGINS, 48,
+      var host = KitesurfModule.prepareHost(guest.bytes(), guest.sha256(), ORIGINS, 48,
           (uri, deadline, cap) -> request(client, fixture, uri, null, deadline, cap, transportErrors),
           Set.of(RECEIPT), (uri, body, deadline, cap) -> {
             byte[] result = request(client, fixture, uri, body, deadline, cap, transportErrors);
             receipt.set(new String(result, UTF_8));
             return result;
-          }, reference -> Optional.ofNullable(testCard.get(reference)));
+          }, (reference, target) -> {
+            String autocomplete = Map.of("card.number", "cc-number", "card.expiry", "cc-exp",
+                "card.security_code", "cc-csc").get(reference);
+            if (!MERCHANT.resolve("/").equals(target.checkoutUrl())
+                || !"https://checkoutshopper-test.adyen.com".equals(target.origin())
+                || !target.documentUrl().getPath().contains("/securedfields/")
+                || autocomplete == null || !autocomplete.equals(target.autocomplete())) {
+              return Optional.empty();
+            }
+            return Optional.of(testCard.get(reference));
+          });
 
       var bindings = new SimpleBindings();
       bindings.put("start_url", MERCHANT + "/");
