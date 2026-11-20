@@ -1,4 +1,4 @@
-load("@vendor//multidict", CIMultiDict="CIMultiDict")
+load("@vendor//_multidict_core", CIMultiDict="CIMultiDict")
 
 
 def VGSCIMultiDict(*args, **kwargs):

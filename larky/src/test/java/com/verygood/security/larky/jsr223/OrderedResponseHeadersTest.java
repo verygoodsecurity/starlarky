@@ -190,6 +190,29 @@ public class OrderedResponseHeadersTest {
         .containsExactly(Tuple.of("X-Trace", "trace"));
   }
 
+  @Test
+  public void publicImportsRemainAvailableAfterSplittingHeaderDependencies() throws Exception {
+    ParsedStarFile result = (ParsedStarFile) new LarkyScriptEngine().eval("""
+        load("@vgs//http/request", "CIMultiDict")
+        load("@vendor//multidict", "types", "operator", "Error", "Ok")
+        load("@stdlib//operator", "eq")
+        load("@vendor//option/result", "Result")
+
+        values = [
+            types.is_string("value"),
+            operator.eq(2, 2),
+            eq("value", "value"),
+            Error("problem").unwrap_err(),
+            Ok("ready").unwrap(),
+            Result.Error("another problem").unwrap_err(),
+            CIMultiDict([("Name", "first")]).getone("NAME"),
+        ]
+        """);
+    assertThat(result.getGlobalEnvironmentVariable("values", List.class))
+        .containsExactly(true, true, true, "problem", "ready", "another problem", "first")
+        .inOrder();
+  }
+
   private static ParsedStarFile eval(String script) throws Exception {
     return (ParsedStarFile) new LarkyScriptEngine().eval(IMPORT + script, orderedBindings());
   }
