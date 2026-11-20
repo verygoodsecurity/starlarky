@@ -88,8 +88,8 @@ final class LarkyCalls {
         thread.setExpirationMs(limits.expirationMs());
       }
       try (var scope = DiagnosticRedactor.bind(thread, diagnosticRedactor);
-           var printConsole = new RedactingPrintConsole(console, diagnosticRedactor)) {
-        Reporter reporter = new Reporter(printConsole);
+           var printConsole = RedactingPrintConsole.whenTracking(console, diagnosticRedactor)) {
+        Reporter reporter = new Reporter(printConsole == null ? console : printConsole);
         thread.setThreadLocal(Reporter.class, reporter);
         thread.setPrintHandler(reporter::report);
         return Starlark.call(thread, function, starlarkArgs, Map.of());

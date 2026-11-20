@@ -7,9 +7,18 @@ import net.starlark.java.eval.DiagnosticRedactor;
 public final class RedactingPrintConsole extends DelegateConsole {
   @Nullable private DiagnosticRedactor redactor;
 
-  public RedactingPrintConsole(Console delegate, @Nullable DiagnosticRedactor redactor) {
+  private RedactingPrintConsole(Console delegate, DiagnosticRedactor redactor) {
     super(delegate);
-    this.redactor = redactor != null && redactor.isTracking() ? redactor : null;
+    this.redactor = redactor;
+  }
+
+  /** Creates a wrapper only for a run that tracks diagnostics. */
+  @Nullable
+  public static RedactingPrintConsole whenTracking(
+      Console delegate, @Nullable DiagnosticRedactor redactor) {
+    return redactor != null && redactor.isTracking()
+        ? new RedactingPrintConsole(delegate, redactor)
+        : null;
   }
 
   @Override
