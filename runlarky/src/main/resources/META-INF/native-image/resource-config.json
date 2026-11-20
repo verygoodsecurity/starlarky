@@ -94,7 +94,8 @@
     {"pattern":"\\Qorg/slf4j/impl/StaticLoggerBinder.class\\E"},
     {"pattern":"\\Qorg/sonatype/plexus/components/cipher/DefaultPlexusCipher.class\\E"},
     {"pattern":"\\Qquarkus.properties\\E"},
-    {"pattern":"\\Qsimplelogger.properties\\E"}
+    {"pattern":"\\Qsimplelogger.properties\\E"},
+    {"pattern":"\\Qvgs/browsers.star\\E"}
   ]},
   "bundles":[]
 }

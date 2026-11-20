@@ -15,6 +15,7 @@ SMOKE_DIR=$(mktemp -d)
 trap 'rm -rf "${SMOKE_DIR:?}"' EXIT
 cat > "$SMOKE_DIR/smoke.star" <<'STAR'
 load("@stdlib//json", "json")
+load("@vgs//browsers", "kitesurf")
 
 def f(self):
     return "A"
@@ -29,10 +30,10 @@ def g(self):
 
 B = type("B", (A,), {"f": g})
 
-[type(1), str(type(object())), B().f(), B.cm(), B.sm(21), json.dumps({"a": [1]})]
+[type(1), str(type(object())), B().f(), B.cm(), B.sm(21), json.dumps({"a": [1]}), hasattr(kitesurf, "wait_for_text")]
 STAR
 ./runlarky/target/larky-${OS_TYPE_LOWER} -s "$SMOKE_DIR/smoke.star" -o "$SMOKE_DIR/out" -l "$SMOKE_DIR/log" || exit 1
-EXPECTED='["int", "type", "AB", "B", 42, "{\"a\":[1]}"]'
+EXPECTED='["int", "type", "AB", "B", 42, "{\"a\":[1]}", True]'
 if [ "$(cat "$SMOKE_DIR/out")" != "$EXPECTED" ]; then
   echo "native smoke test: expected $EXPECTED, got $(cat "$SMOKE_DIR/out")"
   exit 1
