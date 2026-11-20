@@ -21,7 +21,12 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 import net.starlark.java.eval.compiler.FunctionDescriptor;
+import net.starlark.java.syntax.Identifier;
+import net.starlark.java.syntax.Resolver;
+import net.starlark.java.syntax.StarlarkType;
 import net.starlark.java.syntax.TokenKind;
+import net.starlark.java.syntax.TypeTable;
+import net.starlark.java.syntax.Types;
 
 /**
  * The semantics of the bytecode instructions that do more than move values, shared by the VMs
@@ -378,9 +383,38 @@ public final class BcOps {
     }
   }
 
-  public static Object makeFunction(BcFrame f, Object descriptorObj, Object[] defaults) {
+  /** TYPE_ALIAS: binds the alias to its statically computed type constructor (Eval.execTypeAlias). */
+  public static void typeAlias(BcFrame f, Object identifierObj) {
+    TypeTable typeTable = BytecodeGlobals.typeTableOf(f.globals());
+    if (typeTable == null) {
+      return;
+    }
+    Identifier id = (Identifier) identifierObj;
+    Resolver.Binding binding = id.getBinding();
+    Object value = TypeConstructorValue.of(typeTable.getTypeConstructor(binding));
+    switch (binding.getScope()) {
+      case LOCAL -> f.storeLocal(binding.getIndex(), value);
+      case CELL -> storeCell(f.getLocal(binding.getIndex()), value);
+      case GLOBAL -> storeGlobal(f, id.getName(), value);
+      default -> throw new IllegalStateException(binding.getScope().toString());
+    }
+  }
+
+  public static Object makeFunction(BcFrame f, Object descriptorObj, Object[] defaults)
+      throws EvalException {
     FunctionDescriptor descriptor = (FunctionDescriptor) descriptorObj;
     StarlarkThread thread = f.thread();
+    Types.CallableType functionType = null;
+    TypeTable typeTable = BytecodeGlobals.typeTableOf(f.globals());
+    if (typeTable != null && descriptor.getResolvedFunction() != null) {
+      functionType = typeTable.getType(descriptor.getResolvedFunction());
+      if (functionType != null
+          && thread
+              .getSemantics()
+              .getBool(StarlarkSemantics.EXPERIMENTAL_STARLARK_DYNAMIC_TYPE_CHECKING)) {
+        checkDefaultTypes(thread, descriptor, functionType, defaults);
+      }
+    }
     BytecodeFunction function =
         new BytecodeFunction(
             descriptor.getName(),
@@ -395,6 +429,7 @@ public final class BcOps {
             f.filename());
     function.setToken(thread.getNextIdentityToken());
     function.setGlobals(f.globals());
+    function.setFunctionType(functionType);
     function.setCellIndices(descriptor.getCellIndices());
 
     // Capture free variables for closures.
@@ -419,6 +454,36 @@ public final class BcOps {
       function.setFreevars(Tuple.wrap(capturedCells));
     }
     return function;
+  }
+
+  /** Checks default values against their declared parameter types, as Eval.newFunction does. */
+  private static void checkDefaultTypes(
+      StarlarkThread thread,
+      FunctionDescriptor descriptor,
+      Types.CallableType functionType,
+      Object[] defaults)
+      throws EvalException {
+    int nparams =
+        descriptor.getParameterNames().size()
+            - (descriptor.hasKwargs() ? 1 : 0)
+            - (descriptor.hasVarargs() ? 1 : 0);
+    int first = nparams - defaults.length; // index of the parameter of defaults[0]
+    for (int j = 0; j < defaults.length; j++) {
+      Object defaultValue = defaults[j];
+      if (defaultValue == BytecodeFunction.MANDATORY) {
+        continue;
+      }
+      StarlarkType parameterType = functionType.getParameterTypeByPos(first + j);
+      if (!TypeChecker.isValueSubtypeOf(
+          defaultValue, parameterType, thread.getSemantics(), thread.getTypeContext())) {
+        throw Starlark.errorf(
+            "%s(): parameter '%s' has default value of type '%s', declares '%s'",
+            descriptor.getName(),
+            descriptor.getParameterNames().get(first + j),
+            Starlark.getStarlarkType(defaultValue, thread.getSemantics()),
+            parameterType);
+      }
+    }
   }
 
   public static Object loadModule(BcFrame f, String moduleName) throws EvalException {
