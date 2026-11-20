@@ -28,14 +28,24 @@ public final class AliasSpec implements StarlarkValue {
   /** The alias format every spec carries. */
   public static final String FORMAT = "SYNTHETIC";
 
-  private final ImmutableMap<String, Object> decoratorConfig;
+  private final String kind;
+  private final String record;
+  private final String country;
+  private final String emailDomain;
+  private final String dob;
+  private final boolean allowUnreservedPhone;
 
   /**
    * @param decoratorConfig entries in the order a script should see them; values are Strings or
    *     Booleans
    */
   AliasSpec(ImmutableMap<String, Object> decoratorConfig) {
-    this.decoratorConfig = decoratorConfig;
+    this.kind = (String) decoratorConfig.get("kind");
+    this.record = (String) decoratorConfig.get("record");
+    this.country = (String) decoratorConfig.get("country");
+    this.emailDomain = (String) decoratorConfig.get("email_domain");
+    this.dob = (String) decoratorConfig.get("dob");
+    this.allowUnreservedPhone = Boolean.TRUE.equals(decoratorConfig.get("allow_unreserved_phone"));
   }
 
   /** The alias format, always {@link #FORMAT}. */
@@ -45,7 +55,18 @@ public final class AliasSpec implements StarlarkValue {
 
   /** The decorator config for the vault, as an immutable Java map. */
   public ImmutableMap<String, Object> getDecoratorConfigMap() {
-    return decoratorConfig;
+    ImmutableMap.Builder<String, Object> builder = ImmutableMap.<String, Object>builder()
+        .put("kind", kind).put("record", record).put("country", country);
+    if (emailDomain != null) {
+      builder.put("email_domain", emailDomain);
+    }
+    if (allowUnreservedPhone) {
+      builder.put("allow_unreserved_phone", true);
+    }
+    if (dob != null) {
+      builder.put("dob", dob);
+    }
+    return builder.build();
   }
 
   @StarlarkMethod(name = "format", doc = "The alias format: always 'SYNTHETIC'.", structField = true)
@@ -58,22 +79,22 @@ public final class AliasSpec implements StarlarkValue {
       doc = "The decorator config sent to the vault, as an immutable dict.",
       structField = true)
   public Dict<String, Object> decoratorConfig() {
-    return Dict.immutableCopyOf(decoratorConfig);
+    return Dict.immutableCopyOf(getDecoratorConfigMap());
   }
 
   @StarlarkMethod(name = "kind", doc = "The kind of value to generate.", structField = true)
   public String kind() {
-    return (String) decoratorConfig.get("kind");
+    return kind;
   }
 
   @StarlarkMethod(name = "record", doc = "The record the alias belongs to.", structField = true)
   public String record() {
-    return (String) decoratorConfig.get("record");
+    return record;
   }
 
   @StarlarkMethod(name = "country", doc = "The two-letter country code.", structField = true)
   public String country() {
-    return (String) decoratorConfig.get("country");
+    return country;
   }
 
   @Override
@@ -88,12 +109,12 @@ public final class AliasSpec implements StarlarkValue {
 
   @Override
   public boolean equals(Object o) {
-    return o instanceof AliasSpec other && decoratorConfig.equals(other.decoratorConfig);
+    return o instanceof AliasSpec other && getDecoratorConfigMap().equals(other.getDecoratorConfigMap());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(decoratorConfig);
+    return Objects.hash(getDecoratorConfigMap());
   }
 
   @Override
@@ -106,7 +127,7 @@ public final class AliasSpec implements StarlarkValue {
    * person, so it is shown only as {@code <set>}.
    */
   private String describe() {
-    Map<String, Object> shown = new LinkedHashMap<>(decoratorConfig);
+    Map<String, Object> shown = new LinkedHashMap<>(getDecoratorConfigMap());
     shown.computeIfPresent("dob", (k, v) -> new Object() {
       @Override
       public String toString() {
