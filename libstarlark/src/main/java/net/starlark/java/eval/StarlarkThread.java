@@ -68,13 +68,7 @@ public final class StarlarkThread {
   private StarlarkThread savedThread; // saved StarlarkThread, when profiling reentrant evaluation
 
   private final Map<Class<?>, Object> threadLocals = new HashMap<>();
-  @Nullable EvaluationExtensions evaluationExtensions;
-
-  @Nullable
-  EvaluationHooks evaluationHooks() {
-    EvaluationExtensions extensions = evaluationExtensions;
-    return extensions == null ? null : extensions.hooks();
-  }
+  @Nullable EvaluationExtensions.BinaryObserver binaryObserver;
 
   private final SymbolGenerator<?> symbolGenerator;
 

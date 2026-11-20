@@ -142,7 +142,7 @@ final class Eval {
     EvalUtils.addIterator(seq);
     try {
       for (Object it : seq) {
-        assign(fr, node.getVars(), iterationElement(fr.thread, seq, it));
+        assign(fr, node.getVars(), it);
 
         switch (execStatements(fr, node.getBody(), /* indented= */ true)) {
           case PASS:
@@ -250,7 +250,7 @@ final class Eval {
 
   private static TokenKind execIf(StarlarkThread.Frame fr, IfStatement node)
       throws EvalException, InterruptedException {
-    boolean cond = truth(fr.thread, eval(fr, node.getCondition()));
+    boolean cond = Starlark.truth(eval(fr, node.getCondition()));
     if (cond) {
       return execStatements(fr, node.getThenBlock(), /* indented= */ true);
     } else if (node.getElseBlock() != null) {
@@ -384,7 +384,7 @@ final class Eval {
       Object object = eval(fr, dot.getObject());
       String field = dot.getField().getName();
       try {
-        setField(fr.thread, object, field, value);
+        EvalUtils.setField(object, field, value);
       } catch (EvalException ex) {
         fr.setErrorLocation(dot.getDotLocation());
         throw ex;
@@ -434,7 +434,7 @@ final class Eval {
     }
     int i = 0;
     for (Object item : rhs) {
-      assign(fr, lhs.get(i), iterationElement(fr.thread, x, item));
+      assign(fr, lhs.get(i), item);
       i++;
     }
   }
@@ -495,7 +495,7 @@ final class Eval {
           fr.setErrorLocation(stmt.getOperatorLocation());
           throw ex;
         }
-        setField(fr.thread, object, field, z);
+        EvalUtils.setField(object, field, z);
       } catch (EvalException ex) {
         fr.setErrorLocation(dot.getDotLocation());
         throw ex;
@@ -510,16 +510,13 @@ final class Eval {
 
   private static Object inplaceBinaryOp(StarlarkThread.Frame fr, TokenKind op, Object x, Object y)
       throws EvalException {
-    StarlarkThread thread = fr.thread;
-    EvaluationExtensions extensions = thread.evaluationExtensions;
-    return extensions == null
-        ? defaultInplaceBinaryOp(op, x, y, thread)
-        : extensions.binary(Eval::defaultInplaceBinaryOp, op, x, y, thread, true);
+    Object result = defaultInplaceBinaryOp(fr, op, x, y);
+    return EvalUtils.observeBinaryResult(fr.thread, op, x, y, result, /* augmented= */ true);
   }
 
   @SuppressWarnings("unchecked")
-  private static Object defaultInplaceBinaryOp(TokenKind op, Object x, Object y, StarlarkThread thread)
-      throws EvalException {
+  private static Object defaultInplaceBinaryOp(
+      StarlarkThread.Frame fr, TokenKind op, Object x, Object y) throws EvalException {
     switch (op) {
       case PLUS:
         // list += iterable  behaves like  list.extend(iterable)
@@ -572,7 +569,7 @@ final class Eval {
 
       default: // fall through
     }
-    return EvalUtils.defaultBinaryOp(op, x, y, thread);
+    return EvalUtils.defaultBinaryOp(op, x, y, fr.thread);
   }
 
   // ---- expressions ----
@@ -650,9 +647,9 @@ final class Eval {
     // AND and OR require short-circuit evaluation.
     switch (binop.getOperator()) {
       case AND:
-        return truth(fr.thread, x) ? eval(fr, binop.getY()) : x;
+        return Starlark.truth(x) ? eval(fr, binop.getY()) : x;
       case OR:
-        return truth(fr.thread, x) ? x : eval(fr, binop.getY());
+        return Starlark.truth(x) ? x : eval(fr, binop.getY());
       default:
         Object y = eval(fr, binop.getY());
         try {
@@ -667,7 +664,7 @@ final class Eval {
   private static Object evalConditional(StarlarkThread.Frame fr, ConditionalExpression cond)
       throws EvalException, InterruptedException {
     Object v = eval(fr, cond.getCondition());
-    return eval(fr, truth(fr.thread, v) ? cond.getThenCase() : cond.getElseCase());
+    return eval(fr, Starlark.truth(v) ? cond.getThenCase() : cond.getElseCase());
   }
 
   private static Object evalDict(StarlarkThread.Frame fr, DictExpression dictexpr)
@@ -685,14 +682,9 @@ final class Eval {
       }
       if (map.put(k, v) != null) {
         fr.setErrorLocation(entry.getColonLocation());
-        EvalException error = Starlark.errorf(
+        throw Starlark.errorf(
             "dictionary expression has duplicate key: %s",
             Starlark.repr(k, fr.thread.getSemantics()));
-        EvaluationHooks hooks = fr.thread.evaluationHooks();
-        if (hooks != null) {
-          hooks.onDuplicateKey(fr.thread, k, error);
-        }
-        throw error;
       }
     }
     Mutability mu = fr.thread.mutability();
@@ -780,7 +772,7 @@ final class Eval {
         throw Starlark.errorf("argument after * must be an iterable, not %s", Starlark.type(value));
       }
       for (Object o : iter) {
-        argumentProcessor.addPositionalArg(iterationElement(fr.thread, value, o));
+        argumentProcessor.addPositionalArg(o);
       }
     }
 
@@ -907,9 +899,7 @@ final class Eval {
     Object stop = slice.getStop() == null ? Starlark.NONE : eval(fr, slice.getStop());
     Object step = slice.getStep() == null ? Starlark.NONE : eval(fr, slice.getStep());
     try {
-      Object result = Starlark.slice(fr.thread.mutability(), x, start, stop, step);
-      EvaluationHooks hooks = fr.thread.evaluationHooks();
-      return hooks == null ? result : hooks.afterSlice(fr.thread, x, start, stop, step, result);
+      return Starlark.slice(fr.thread.mutability(), x, start, stop, step);
     } catch (EvalException ex) {
       fr.setErrorLocation(slice.getLbracketLocation());
       throw ex;
@@ -920,10 +910,7 @@ final class Eval {
       throws EvalException, InterruptedException {
     Object x = eval(fr, unop.getX());
     try {
-      TokenKind op = unop.getOperator();
-      Object result = EvalUtils.unaryOp(op, x);
-      EvaluationHooks hooks = fr.thread.evaluationHooks();
-      return hooks == null ? result : hooks.afterUnary(fr.thread, op, x, result);
+      return EvalUtils.unaryOp(unop.getOperator(), x);
     } catch (EvalException ex) {
       fr.setErrorLocation(unop.getStartLocation());
       throw ex;
@@ -952,7 +939,7 @@ final class Eval {
             EvalUtils.addIterator(seq);
             try {
               for (Object elem : seq) {
-                assign(fr, forClause.getVars(), iterationElement(fr.thread, seq, elem));
+                assign(fr, forClause.getVars(), elem);
                 execClauses(index + 1);
               }
             } catch (EvalException ex) {
@@ -964,7 +951,7 @@ final class Eval {
 
           } else {
             Comprehension.If ifClause = (Comprehension.If) clause;
-            if (truth(fr.thread, eval(fr, ifClause.getCondition()))) {
+            if (Starlark.truth(eval(fr, ifClause.getCondition()))) {
               execClauses(index + 1);
             }
           }
@@ -1010,28 +997,6 @@ final class Eval {
     } catch (EvalException ex) {
       fr.setErrorLocation(expr.getStartLocation());
       throw ex;
-    }
-  }
-
-  private static boolean truth(StarlarkThread thread, Object value) {
-    EvaluationHooks hooks = thread.evaluationHooks();
-    if (hooks != null) {
-      hooks.onTruthTest(thread, value);
-    }
-    return Starlark.truth(value);
-  }
-
-  private static Object iterationElement(StarlarkThread thread, Object iterable, Object element) {
-    EvaluationHooks hooks = thread.evaluationHooks();
-    return hooks == null ? element : hooks.afterIterationElement(thread, iterable, element);
-  }
-
-  private static void setField(StarlarkThread thread, Object object, String field, Object value)
-      throws EvalException {
-    EvalUtils.setField(object, field, value);
-    EvaluationHooks hooks = thread.evaluationHooks();
-    if (hooks != null) {
-      hooks.afterFieldWrite(thread, object, field, value);
     }
   }
 

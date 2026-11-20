@@ -78,30 +78,28 @@ if square(2) == 4:
     print("square function works!") 
 ```
 
-### Per-run evaluator extensions
+### Per-run binary observation
 
-Trusted Java embedders can install `EvaluationExtensions` on a `StarlarkThread`
-for one execution. Install the returned scope with try-with-resources to restore
-the prior configuration even if evaluation fails.
+Trusted Java embedders can install a binary observer on a `StarlarkThread` for
+one execution. Close the returned scope to restore the prior observer.
 
 ```java
-var extensions = new EvaluationExtensions(hooks);
-try (var scope = extensions.installOn(thread)) {
+try (var scope = EvaluationExtensions.observeBinary(thread, observer)) {
   Starlark.execFile(input, options, module, thread);
 }
 ```
 
-`EvaluationHooks` observes operator results, reads, control flow and calls. A
-result callback can return an equivalent value with a different identity. A
-field-read callback receives the resolved value, including values returned by
-custom `Structure` implementations. Java `null` from a structure means to
-continue the lookup.
+The observer receives the operator, operands, and result after each successful
+eager binary operation, including augmented assignment. An in-place operation
+such as list `+=` has already mutated its receiver when the callback runs.
+Short-circuit `and` and `or` and expressions folded at compile time are outside
+this callback. The callback runs synchronously on the execution thread and may
+receive sensitive values. It may return an equivalent value with a different
+identity for run-specific metadata and must preserve evaluation semantics.
 
-A binary override can replace an eager operation or delegate to the interpreter
-once, including for augmented assignment. These callbacks run on the same
-execution thread and may receive sensitive values. Hosts should bypass shared
-evaluated-module caches when extensions can affect results or carry per-run
-state. Compiled programs can still be shared for runtime-only extensions.
+Use run-specific evaluated-module results if observation depends on values
+produced during module evaluation or adds run-specific metadata. Compiled
+programs can still be shared.
 
 ### Language Lawyers
 
