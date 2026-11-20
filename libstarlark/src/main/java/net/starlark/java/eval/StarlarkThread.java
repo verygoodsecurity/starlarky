@@ -473,6 +473,24 @@ public final class StarlarkThread {
     void print(StarlarkThread thread, String msg);
   }
 
+  /**
+   * The current run's secret taint, or null until a {@code @SecretSource} has fired in this
+   * thread. Interpreter hot paths read this directly; a null check is all that a run that never
+   * reveals pays.
+   */
+  @Nullable SecretTaint secretTaint;
+
+  /** Returns the run's secret taint if it has revealed a secret, else null. */
+  @Nullable
+  public SecretTaint getSecretTaint() {
+    return secretTaint;
+  }
+
+  /** Installs a run's already-active secret taint; see {@link SecretTaint}. */
+  public void setSecretTaint(@Nullable SecretTaint taint) {
+    this.secretTaint = taint;
+  }
+
   /** Returns the PrintHandler for Starlark print statements. */
   PrintHandler getPrintHandler() {
     return printHandler;

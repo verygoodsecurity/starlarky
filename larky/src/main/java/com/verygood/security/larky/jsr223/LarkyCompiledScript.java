@@ -18,6 +18,7 @@ import com.verygood.security.larky.parser.StarFile;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
+import net.starlark.java.eval.SecretTaint;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkSemantics;
@@ -250,6 +251,10 @@ public class LarkyCompiledScript extends CompiledScript {
   private void setBindingsValue(Bindings globalBindings, Bindings engineBindings, Map<String, Object> moduleGlobals) {
     for (Map.Entry<String, Object> entry : moduleGlobals.entrySet()) {
       String name = entry.getKey();
+      // Secret taint is a host setting even when the module defines a global with the same name.
+      if (SecretTaint.BINDING_NAME.equals(name)) {
+        continue;
+      }
       Object value = entry.getValue();
       if (globalBindings != null && globalBindings.containsKey(name)) {
         globalBindings.put(name, value);

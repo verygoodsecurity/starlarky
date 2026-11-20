@@ -114,6 +114,14 @@ final class StringModule implements StarlarkValue {
     return a;
   }
 
+  /** Returns whether {@code x} is one of the shared single-character strings. */
+  static boolean isMemoized(Object x) {
+    return x instanceof String s
+        && s.length() == 1
+        && s.charAt(0) < ASCII_CHAR_STRINGS.length
+        && ASCII_CHAR_STRINGS[s.charAt(0)] == s;
+  }
+
   /** Semantically equivalent to {@link String#valueOf(char)} but faster for ASCII strings. */
   static String memoizedCharToString(char c) {
     if (c < ASCII_CHAR_STRINGS.length) {

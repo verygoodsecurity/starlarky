@@ -142,7 +142,7 @@ final class Eval {
     EvalUtils.addIterator(seq);
     try {
       for (Object it : seq) {
-        assign(fr, node.getVars(), it);
+        assign(fr, node.getVars(), loopElement(fr, seq, it));
 
         switch (execStatements(fr, node.getBody(), /* indented= */ true)) {
           case PASS:
@@ -250,7 +250,7 @@ final class Eval {
 
   private static TokenKind execIf(StarlarkThread.Frame fr, IfStatement node)
       throws EvalException, InterruptedException {
-    boolean cond = Starlark.truth(eval(fr, node.getCondition()));
+    boolean cond = Taint.truth(fr.thread, eval(fr, node.getCondition()));
     if (cond) {
       return execStatements(fr, node.getThenBlock(), /* indented= */ true);
     } else if (node.getElseBlock() != null) {
@@ -384,7 +384,7 @@ final class Eval {
       Object object = eval(fr, dot.getObject());
       String field = dot.getField().getName();
       try {
-        EvalUtils.setField(object, field, value);
+        setField(fr, object, field, value);
       } catch (EvalException ex) {
         fr.setErrorLocation(dot.getDotLocation());
         throw ex;
@@ -486,7 +486,7 @@ final class Eval {
       Object object = eval(fr, dot.getObject());
       String field = dot.getField().getName();
       try {
-        Object x = Starlark.getattr(fr.thread, object, field, /* defaultValue= */ null);
+        Object x = getattr(fr, object, field);
         Object y = eval(fr, rhs);
         Object z;
         try {
@@ -495,7 +495,7 @@ final class Eval {
           fr.setErrorLocation(stmt.getOperatorLocation());
           throw ex;
         }
-        EvalUtils.setField(object, field, z);
+        setField(fr, object, field, z);
       } catch (EvalException ex) {
         fr.setErrorLocation(dot.getDotLocation());
         throw ex;
@@ -508,9 +508,15 @@ final class Eval {
     }
   }
 
-  @SuppressWarnings("unchecked")
   private static Object inplaceBinaryOp(StarlarkThread.Frame fr, TokenKind op, Object x, Object y)
       throws EvalException {
+    Object z = untaintedInplaceBinaryOp(fr, op, x, y);
+    return fr.thread.secretTaint == null ? z : Taint.binary(fr.thread, op, x, y, z);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Object untaintedInplaceBinaryOp(
+      StarlarkThread.Frame fr, TokenKind op, Object x, Object y) throws EvalException {
     switch (op) {
       case PLUS:
         // list += iterable  behaves like  list.extend(iterable)
@@ -641,9 +647,9 @@ final class Eval {
     // AND and OR require short-circuit evaluation.
     switch (binop.getOperator()) {
       case AND:
-        return Starlark.truth(x) ? eval(fr, binop.getY()) : x;
+        return Taint.truth(fr.thread, x) ? eval(fr, binop.getY()) : x;
       case OR:
-        return Starlark.truth(x) ? x : eval(fr, binop.getY());
+        return Taint.truth(fr.thread, x) ? x : eval(fr, binop.getY());
       default:
         Object y = eval(fr, binop.getY());
         try {
@@ -658,7 +664,7 @@ final class Eval {
   private static Object evalConditional(StarlarkThread.Frame fr, ConditionalExpression cond)
       throws EvalException, InterruptedException {
     Object v = eval(fr, cond.getCondition());
-    return eval(fr, Starlark.truth(v) ? cond.getThenCase() : cond.getElseCase());
+    return eval(fr, Taint.truth(fr.thread, v) ? cond.getThenCase() : cond.getElseCase());
   }
 
   private static Object evalDict(StarlarkThread.Frame fr, DictExpression dictexpr)
@@ -676,9 +682,15 @@ final class Eval {
       }
       if (map.put(k, v) != null) {
         fr.setErrorLocation(entry.getColonLocation());
-        throw Starlark.errorf(
-            "dictionary expression has duplicate key: %s",
-            Starlark.repr(k, fr.thread.getSemantics()));
+        EvalException error =
+            Starlark.errorf(
+                "dictionary expression has duplicate key: %s",
+                Starlark.repr(k, fr.thread.getSemantics()));
+        SecretTaint taint = fr.thread.secretTaint;
+        if (taint != null) {
+          taint.noteValueError(error, k);
+        }
+        throw error;
       }
     }
     Mutability mu = fr.thread.mutability();
@@ -690,7 +702,7 @@ final class Eval {
     Object object = eval(fr, dot.getObject());
     String name = dot.getField().getName();
     try {
-      return Starlark.getattr(fr.thread, object, name, /* defaultValue= */ null);
+      return getattr(fr, object, name);
     } catch (EvalException ex) {
       fr.setErrorLocation(dot.getDotLocation());
       throw ex;
@@ -793,7 +805,8 @@ final class Eval {
     fr.setLocation(loc);
 
     try {
-      return Starlark.callViaArgumentProcessor(fr.thread, callable, argumentProcessor);
+      Object result = Starlark.callViaArgumentProcessor(fr.thread, callable, argumentProcessor);
+      return fr.thread.secretTaint == null ? result : Taint.afterCallable(fr.thread, callable, result);
     } catch (EvalException ex) {
       fr.setErrorLocation(loc);
       throw ex;
@@ -818,7 +831,8 @@ final class Eval {
     Location loc = call.getLparenLocation(); // (Location is prematerialized)
     fr.setLocation(loc);
     try {
-      return Starlark.positionalOnlyCall(fr.thread, callable, positional);
+      Object result = Starlark.positionalOnlyCall(fr.thread, callable, positional);
+      return fr.thread.secretTaint == null ? result : Taint.afterCallable(fr.thread, callable, result);
     } catch (EvalException ex) {
       fr.setErrorLocation(loc);
       throw ex;
@@ -893,7 +907,8 @@ final class Eval {
     Object stop = slice.getStop() == null ? Starlark.NONE : eval(fr, slice.getStop());
     Object step = slice.getStep() == null ? Starlark.NONE : eval(fr, slice.getStep());
     try {
-      return Starlark.slice(fr.thread.mutability(), x, start, stop, step);
+      Object result = Starlark.slice(fr.thread.mutability(), x, start, stop, step);
+      return fr.thread.secretTaint == null ? result : Taint.readFrom(fr.thread, x, result, start, stop, step);
     } catch (EvalException ex) {
       fr.setErrorLocation(slice.getLbracketLocation());
       throw ex;
@@ -904,7 +919,8 @@ final class Eval {
       throws EvalException, InterruptedException {
     Object x = eval(fr, unop.getX());
     try {
-      return EvalUtils.unaryOp(unop.getOperator(), x);
+      Object result = EvalUtils.unaryOp(unop.getOperator(), x);
+      return fr.thread.secretTaint == null ? result : Taint.unary(fr.thread, x, result);
     } catch (EvalException ex) {
       fr.setErrorLocation(unop.getStartLocation());
       throw ex;
@@ -933,7 +949,7 @@ final class Eval {
             EvalUtils.addIterator(seq);
             try {
               for (Object elem : seq) {
-                assign(fr, forClause.getVars(), elem);
+                assign(fr, forClause.getVars(), loopElement(fr, seq, elem));
                 execClauses(index + 1);
               }
             } catch (EvalException ex) {
@@ -945,7 +961,7 @@ final class Eval {
 
           } else {
             Comprehension.If ifClause = (Comprehension.If) clause;
-            if (Starlark.truth(eval(fr, ifClause.getCondition()))) {
+            if (Taint.truth(fr.thread, eval(fr, ifClause.getCondition()))) {
               execClauses(index + 1);
             }
           }
@@ -992,6 +1008,24 @@ final class Eval {
       fr.setErrorLocation(expr.getStartLocation());
       throw ex;
     }
+  }
+
+  private static Object loopElement(StarlarkThread.Frame fr, Iterable<?> seq, Object it) {
+    return fr.thread.secretTaint == null ? it : Taint.element(fr.thread, seq, it);
+  }
+
+  private static Object getattr(StarlarkThread.Frame fr, Object object, String name)
+      throws EvalException, InterruptedException {
+    Object result = Starlark.getattr(fr.thread, object, name, /* defaultValue= */ null);
+    return fr.thread.secretTaint == null ? result : Taint.field(fr.thread, object, result);
+  }
+
+  private static void setField(StarlarkThread.Frame fr, Object object, String field, Object value)
+      throws EvalException {
+    if (fr.thread.secretTaint != null) {
+      Taint.onSetField(fr.thread, object, value);
+    }
+    EvalUtils.setField(object, field, value);
   }
 
   private static final Object[] EMPTY = {};

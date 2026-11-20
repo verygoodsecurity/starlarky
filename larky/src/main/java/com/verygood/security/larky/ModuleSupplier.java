@@ -59,6 +59,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.eval.SecretTaint;
 import net.starlark.java.eval.StarlarkValue;
 
 /**
@@ -134,6 +135,15 @@ public class ModuleSupplier {
    */
   public static String namespaceOf(Object module) {
     return VGS_MODULES.contains(module) ? "vgs" : "stdlib";
+  }
+
+  static {
+    // These singletons hold no per-run state; a secret passed to one of their methods must not
+    // make the module itself count as tainted.
+    STD_MODULES.forEach(SecretTaint::registerGlobalModule);
+    VGS_MODULES.forEach(SecretTaint::registerGlobalModule);
+    TEST_MODULES.forEach(SecretTaint::registerGlobalModule);
+    CORE_ENVIRONMENT.values().forEach(SecretTaint::registerGlobalModule);
   }
 
   private final Map<String, Object> environment;

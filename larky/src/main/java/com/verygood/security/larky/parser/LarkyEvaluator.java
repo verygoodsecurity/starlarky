@@ -3,6 +3,7 @@ package com.verygood.security.larky.parser;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.flogger.FluentLogger;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
@@ -22,10 +23,12 @@ import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.Mutability;
+import net.starlark.java.eval.SecretTaint;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.TaintMode;
 import net.starlark.java.syntax.FileOptions;
 import net.starlark.java.syntax.ParserInput;
 import net.starlark.java.syntax.Program;
@@ -56,6 +59,8 @@ public final class LarkyEvaluator {
   // Predeclared environment shared by all files (modules) loaded.
   @Getter
   private final ImmutableMap<String, Object> environment;
+  @Nullable
+  private final SecretTaint secretTaint;
   @Getter
   private final ModuleSupplier.ModuleSet moduleSet;
   private final LarkyScript.StarlarkMode validationMode;
@@ -74,8 +79,15 @@ public final class LarkyEvaluator {
     this.validationMode = larkyScript.getValidation();
     this.larkySemantics = larkyScript.getLarkySemantics();
     this.moduleCache = larkyScript.getModuleCache();
+    Map<String, Object> globals = larkyScript.getGlobals();
+    Object taintBinding = globals.get(SecretTaint.BINDING_NAME);
+    this.secretTaint = taintBinding instanceof SecretTaint taint ? taint : null;
+    if (taintBinding != null) {
+      // Modules and the functions they define can outlive the evaluation.
+      globals = Maps.filterKeys(globals, name -> !SecretTaint.BINDING_NAME.equals(name));
+    }
     //todo(mahmoudimus): convert to builder pattern
-    this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
+    this.environment = createEnvironment(larkyScript.getBuiltinModules(), globals);
   }
 
   /**
@@ -126,9 +138,12 @@ public final class LarkyEvaluator {
           .module(module)
           .build();
     }
-    // With the module cache on, Larky's own modules are loaded once per process and shared (see
-    // ModuleCache).
-    if (content instanceof ResourceContentStarFile) {
+    // A module evaluated with tracking can hold run-local data, and taint tags from another run
+    // cannot be reconstructed from a cached module. Compiled programs are still shared.
+    boolean shareEvaluatedModule =
+        content instanceof ResourceContentStarFile
+            && (secretTaint == null || secretTaint.mode() == TaintMode.OFF);
+    if (shareEvaluatedModule) {
       Module shared =
           moduleCache.lookup(
               content.path(), getStarlarkValidationOptions(), getLarkySemantics(), getEnvironment());
@@ -179,6 +194,7 @@ public final class LarkyEvaluator {
       StarlarkThread thread = StarlarkThread.createTransient(mu, getLarkySemantics());
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
+      boolean taintInstalled = installSecretTaint(thread, secretTaint);
       thread.setPrintHandler(reporter::report);
       // refused when it is not providers, as LarkyLoadedScript.invoke refuses it
       ModuleProviders.given(environment.get(MODULE_PROVIDERS)).installOn(thread);
@@ -195,12 +211,16 @@ public final class LarkyEvaluator {
         starlarkOutput = prog.exec(module, thread);
       } catch (EvalException cause) {
         throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(cause, thread);
+      } finally {
+        if (taintInstalled) {
+          detachSecretTaint(thread);
+        }
       }
 
       // Set some statistical information
       module.setGlobal(EXECUTION_STEPS, thread.getExecutedSteps());
     }
-    if (content instanceof ResourceContentStarFile) {
+    if (shareEvaluatedModule) {
       moduleCache.put(
           content.path(), options, getLarkySemantics(), module, prog.predeclaredNames(),
           getEnvironment(), loadedModules);
@@ -502,6 +522,30 @@ public final class LarkyEvaluator {
     sb.append("* ").append(cycleElement).append("\n");
     reporter.error("Cycle was detected in the configuration: \n" + sb);
     throw new EvalException("Cycle was detected");
+  }
+
+  /**
+   * Installs the host's taint state on an evaluation or call thread. A module loaded earlier in
+   * this evaluation may already have tagged values that the new thread will use. The host supplies
+   * a fresh state for independent runs and keeps ownership through error sanitization.
+   *
+   * @return whether the state was attached and must be detached when this thread finishes
+   */
+  public static boolean installSecretTaint(StarlarkThread thread, @Nullable Object binding) {
+    if (binding instanceof SecretTaint secretTaint && secretTaint.mode() != TaintMode.OFF) {
+      thread.setThreadLocal(SecretTaint.class, secretTaint);
+      if (secretTaint.isActive()) {
+        thread.setSecretTaint(secretTaint);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /** Releases taint references from a thread that can be retained by values it created. */
+  public static void detachSecretTaint(StarlarkThread thread) {
+    thread.setSecretTaint(null);
+    thread.setThreadLocal(SecretTaint.class, null);
   }
 
   /**

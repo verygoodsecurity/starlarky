@@ -13,8 +13,10 @@ import java.util.Map;
 import java.util.ServiceLoader;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import net.starlark.java.annot.Declassifies;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
+import net.starlark.java.annot.SecretSource;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
@@ -95,6 +97,7 @@ public class VaultModule implements LarkyVault {
 
     }
 
+    @Declassifies
     @StarlarkMethod(
             name = "redact",
         useStarlarkThread = true,
@@ -148,6 +151,7 @@ public class VaultModule implements LarkyVault {
         return redact(vaultFor(thread), value, storage, format, tags, decoratorConfig);
     }
 
+    @SecretSource(passthroughParameter = 0)
     @StarlarkMethod(
             name = "reveal",
         useStarlarkThread = true,

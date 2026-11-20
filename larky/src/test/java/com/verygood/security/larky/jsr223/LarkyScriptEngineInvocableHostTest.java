@@ -1,6 +1,7 @@
 package com.verygood.security.larky.jsr223;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -10,6 +11,7 @@ import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import com.verygood.security.larky.parser.LarkyEvaluator;
 import java.io.StringWriter;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.script.Bindings;
@@ -17,6 +19,8 @@ import javax.script.ScriptContext;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
+import net.starlark.java.eval.SecretTaint;
+import net.starlark.java.eval.TaintMode;
 import org.junit.Test;
 
 /**
@@ -63,6 +67,8 @@ public class LarkyScriptEngineInvocableHostTest {
       "load('@stdlib//larky', 'larky')",
       "def reveal(alias):",
       "    return vault.reveal(alias)",
+      "def diagnose(alias):",
+      "    print(reveal(alias))",
       "holder = larky.struct(reveal = reveal)",
       "");
 
@@ -102,6 +108,84 @@ public class LarkyScriptEngineInvocableHostTest {
     // without providers, the vault found with ServiceLoader answers (in these tests, the in-memory one)
     bindings.remove(LarkyEvaluator.MODULE_PROVIDERS);
     assertEquals(List.of("tok", "tok", "tok"), reveals(engine, "tok"));
+  }
+
+  @Test
+  public void functionCallsObserveTaintOnlyWhileTheHostBindsIt() throws Exception {
+    final LarkyScriptEngine engine = LarkyScriptEngine.builder().build();
+    final ScriptContext context = clean();
+    engine.setContext(context);
+    engine.eval(SCRIPT);
+    final Bindings bindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
+    bindings.put(LarkyEvaluator.MODULE_PROVIDERS, vault("fixture"));
+
+    final List<SecretTaint.Sink> hits = new ArrayList<>();
+    final SecretTaint taint = new SecretTaint(TaintMode.OBSERVE, (sink, reason) -> hits.add(sink));
+    bindings.put(SecretTaint.BINDING_NAME, taint);
+    engine.invokeFunction("diagnose", "sample");
+    assertEquals(List.of(SecretTaint.Sink.PRINT), hits);
+    assertEquals("fixture:sample", context.getWriter().toString().strip());
+
+    bindings.remove(SecretTaint.BINDING_NAME);
+    engine.invokeFunction("diagnose", "sample");
+    assertEquals(List.of(SecretTaint.Sink.PRINT), hits);
+  }
+
+  @Test
+  public void methodCallsTrackValuesFromTheCurrentRun() throws Exception {
+    final LarkyScriptEngine engine = LarkyScriptEngine.builder().build();
+    final ScriptContext context = clean();
+    engine.setContext(context);
+    engine.eval(SCRIPT);
+    final Bindings bindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
+    bindings.put(LarkyEvaluator.MODULE_PROVIDERS, vault("fixture"));
+    final SecretTaint taint = new SecretTaint(TaintMode.OBSERVE, null);
+    bindings.put(SecretTaint.BINDING_NAME, taint);
+
+    final Object revealed = engine.invokeMethod(bindings.get("holder"), "reveal", "sample");
+    assertEquals("fixture:sample", revealed);
+    assertTrue(taint.isTainted(revealed));
+  }
+
+  @Test
+  public void moduleGlobalsLeaveTheEngineTaintBindingInPlace() throws Exception {
+    final LarkyScriptEngine engine = LarkyScriptEngine.builder().build();
+    final ScriptContext context = clean();
+    engine.setContext(context);
+    final Bindings bindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
+    final SecretTaint taint = new SecretTaint(TaintMode.OBSERVE, null);
+    bindings.put(SecretTaint.BINDING_NAME, taint);
+    bindings.put(LarkyEvaluator.MODULE_PROVIDERS, vault("fixture"));
+
+    engine.eval(SCRIPT + SecretTaint.BINDING_NAME + " = 'module value'\n");
+
+    assertSame(taint, bindings.get(SecretTaint.BINDING_NAME));
+    final Object revealed = engine.invokeFunction("reveal", "sample");
+    assertEquals("fixture:sample", revealed);
+    assertTrue(taint.isTainted(revealed));
+  }
+
+  @Test
+  public void moduleGlobalsPreserveBothHostScopesAndTheirTaintPrecedence() throws Exception {
+    final LarkyScriptEngine engine = LarkyScriptEngine.builder().build();
+    final ScriptContext context = clean();
+    final Bindings globalBindings = new SimpleBindings();
+    context.setBindings(globalBindings, ScriptContext.GLOBAL_SCOPE);
+    engine.setContext(context);
+    final Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
+    final SecretTaint globalTaint = new SecretTaint(TaintMode.OBSERVE, null);
+    final SecretTaint engineTaint = new SecretTaint(TaintMode.OBSERVE, null);
+    globalBindings.put(SecretTaint.BINDING_NAME, globalTaint);
+    engineBindings.put(SecretTaint.BINDING_NAME, engineTaint);
+    engineBindings.put(LarkyEvaluator.MODULE_PROVIDERS, vault("fixture"));
+
+    engine.eval(SCRIPT + SecretTaint.BINDING_NAME + " = 'module value'\n");
+
+    assertSame(globalTaint, globalBindings.get(SecretTaint.BINDING_NAME));
+    assertSame(engineTaint, engineBindings.get(SecretTaint.BINDING_NAME));
+    assertTrue(engineTaint.isTainted(engine.invokeFunction("reveal", "engine scope")));
+    engineBindings.remove(SecretTaint.BINDING_NAME);
+    assertTrue(globalTaint.isTainted(engine.invokeFunction("reveal", "global scope")));
   }
 
   @Test

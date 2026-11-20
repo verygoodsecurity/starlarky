@@ -24,6 +24,7 @@ import javax.script.ScriptEngineFactory;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
+import net.starlark.java.eval.SecretTaint;
 import net.starlark.java.eval.StarlarkCallable;
 
 public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
@@ -519,15 +520,15 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
   /**
    * Calls the function {@code name} that an earlier {@code eval} with this engine's context defined (eval leaves a
    * script's globals in the context's bindings), on a thread of its own. Its print goes to the context's writer, and the
-   * step limit and expiration in the bindings apply as they do to eval. Its result is a Starlark value, frozen when the
-   * call ends.
+   * step limit, expiration, providers and secret taint in the current bindings apply as they do to eval.
+   * Its result is a Starlark value, frozen when the call ends.
    */
   @Override
   public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
     return LarkyCalls.call(function(name, bindings), args, console(bindings), LarkyCalls.Limits.of(bindings),
-        providers(bindings));
+        providers(bindings), bindings.get(SecretTaint.BINDING_NAME));
   }
 
   /** Calls the method {@code name} of {@code thiz}, a value a script evaluated with this engine returned. */
@@ -537,7 +538,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
     return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), LarkyCalls.Limits.of(bindings),
-        providers(bindings));
+        providers(bindings), bindings.get(SecretTaint.BINDING_NAME));
   }
 
   @Override

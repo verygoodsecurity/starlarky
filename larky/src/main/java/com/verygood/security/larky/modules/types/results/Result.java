@@ -8,6 +8,7 @@ import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.SecretTaint;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkEvalWrapper;
@@ -26,10 +27,31 @@ public interface Result extends StarlarkValue, Comparable<Result> {
   @StarlarkMethod(name = "Error", parameters = {@Param(name = "error")}, useStarlarkThread = true)
   static Result error(Object error, StarlarkThread thread) {
     Objects.requireNonNull(error);
-    if(error instanceof Result) {
-      return (Result) error;
+    Result result = error instanceof Result existing ? existing : Error.withThread(error, thread);
+    SecretTaint taint = thread == null ? null : thread.getSecretTaint();
+    if (taint != null && result instanceof Error failure
+        && (taint.isTainted(error) || hasTaintedDiagnostic(failure, error))) {
+      taint.tag(result);
     }
-    return Error.withThread(error, thread);
+    return result;
+  }
+
+  private static boolean hasTaintedDiagnostic(Error failure, Object source) {
+    if (failure.hasTaintedDiagnostic() || failure.toEvalException().hasTaintedDiagnostic()) {
+      return true;
+    }
+    if (!(source instanceof Starlark.UncheckedEvalException unchecked)) {
+      return false;
+    }
+    // map_err preserves a throwing callback in RuntimeException(cause). Error.withThread
+    // copies that wrapper's message. Only carry the marker for the inherited diagnostic.
+    Throwable cause = unchecked.getCause();
+    return cause != null
+        && cause.getClass() == RuntimeException.class
+        && cause.getCause() instanceof EvalException nested
+        && nested.hasTaintedDiagnostic()
+        && !nested.getMessage().isEmpty()
+        && failure.getMessage().contains(nested.getMessage());
   }
 
   @StarlarkMethod(name = "Ok", parameters = {@Param(name = "value")})
@@ -41,6 +63,16 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     return new Ok(value);
   }
 
+  static Result ok(Object value, StarlarkThread thread) {
+    Result result = ok(value);
+    SecretTaint taint = thread == null ? null : thread.getSecretTaint();
+    // The taint walker cannot see the value stored inside the new Ok.
+    if (taint != null && result != value && taint.isTainted(value)) {
+      taint.tag(result);
+    }
+    return result;
+  }
+
   @StarlarkMethod(name = "of", parameters = {@Param(name = "o")}, useStarlarkThread = true)
   static Result of(Object o, StarlarkThread thread) {
     if(o instanceof Result) {
@@ -49,12 +81,22 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     else if (o instanceof Exception) {
       return error(o, thread);
     }
-    return ok(o);
+    return ok(o, thread);
   }
 
   Object getValue();
 
   Error getError();
+
+  private Object callbackArgument(Object value, StarlarkThread thread) {
+    SecretTaint taint = thread.getSecretTaint();
+    if (taint == null || !taint.isTainted(this) || taint.isTainted(value)) {
+      return value;
+    }
+    // A callback reads the payload without passing through the annotated Result getters.
+    // Give a diagnostic string its own identity so the tag stays on this argument.
+    return taint.tag(value instanceof String text ? new String(text) : value);
+  }
 
   @StarlarkMethod(name = "_val", structField = true, allowReturnNones = true)
   default Object Val() {
@@ -79,7 +121,8 @@ public interface Result extends StarlarkValue, Comparable<Result> {
 
     int stackSize = StarlarkEvalWrapper.callStackSize(thread);
     try {
-      final Object res = Starlark.call(thread, func, Tuple.of(getValue()), Dict.empty());
+      final Object res =
+          Starlark.call(thread, func, Tuple.of(callbackArgument(getValue(), thread)), Dict.empty());
       return of(res, thread);
     } catch (EvalException | Starlark.UncheckedEvalException e) {
       StarlarkEvalWrapper.unwindCallStack(thread, stackSize);
@@ -94,7 +137,9 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     if(this.isOk()) {
       int stackSize = StarlarkEvalWrapper.callStackSize(thread);
       try {
-        return ok(Starlark.call(thread, func, Tuple.of(getValue()), Dict.empty()));
+        return ok(
+            Starlark.call(thread, func, Tuple.of(callbackArgument(getValue(), thread)), Dict.empty()),
+            thread);
       } catch (EvalException | Starlark.UncheckedEvalException e) {
         StarlarkEvalWrapper.unwindCallStack(thread, stackSize);
         return error(e, thread);
@@ -111,7 +156,8 @@ public interface Result extends StarlarkValue, Comparable<Result> {
       return this;
     }
     try {
-      final Object res = Starlark.call(thread, func, Tuple.of(getError().getValue()), Dict.empty());
+      final Object res = Starlark.call(
+          thread, func, Tuple.of(callbackArgument(getError().getValue(), thread)), Dict.empty());
       return error(res, thread);
     } catch (EvalException | Starlark.UncheckedEvalException | InterruptedException e) {
       throw new RuntimeException(e);
@@ -212,7 +258,8 @@ public interface Result extends StarlarkValue, Comparable<Result> {
     }
     // we know we are an error instance here
     try {
-      return Starlark.call(thread, func, Tuple.of(getError().getValue()), Dict.empty());
+      return Starlark.call(
+          thread, func, Tuple.of(callbackArgument(getError().getValue(), thread)), Dict.empty());
     } catch (InterruptedException e) {
       throw new EvalException(e.getMessage(), e);
     }

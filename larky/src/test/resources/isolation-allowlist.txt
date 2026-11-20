@@ -60,6 +60,11 @@ MUTABLE	com.verygood.security.larky.objects.type.LarkyBaseObjectType#__dict__:ja
 MUTABLE	com.verygood.security.larky.objects.type.LarkyBaseObjectType#allSubclasses:java.util.Set	type dict / subclass registry of `object`, written when classes are defined (by any evaluation)
 MUTABLE	com.verygood.security.larky.objects.type.LarkyBaseObjectType#type:com.verygood.security.larky.objects.type.LarkyType	the metatype LarkyType, whose subclass registry is written at runtime
 MUTABLE	com.verygood.security.larky.objects.type.LarkyProvidedTypeClass#thread:net.starlark.java.eval.StarlarkThread	stored creating thread; see the THREAD entry for this field
+MUTABLE	net.starlark.java.eval.SecretTaint#concatSpans:java.util.Map	Character ranges of tagged string values, retained only by the host's per-run SecretTaint object
+MUTABLE	net.starlark.java.eval.SecretTaint#hexForms:java.util.Set	Bounded hex form inventory, retained only by the host's per-run SecretTaint object
+MUTABLE	net.starlark.java.eval.SecretTaint#observer:net.starlark.java.eval.TaintObserver	per-run state: the host creates one SecretTaint per script execution and binds it for that run only; it is confined to one thread at a time and never shared between evaluations; the observer only counts hits
+MUTABLE	net.starlark.java.eval.SecretTaint#plaintextForms:java.util.Set	Bounded raw, URL-encoded, and Base64 form inventory, retained only by the host's per-run SecretTaint object
+MUTABLE	net.starlark.java.eval.SecretTaint#tagged:java.util.Set	per-run state: the host creates one SecretTaint per script execution and binds it for that run only; it is confined to one thread at a time and never shared between evaluations
 MUTABLE	net.starlark.java.eval.StarlarkBytes#delegate:net.starlark.java.ext.ByteList	bytes storage (ByteList is mutable); only the StarlarkByteArray subclass writes it, behind checkMutable, but the bytes class has no write guard of its own
 NONFINAL	com.verygood.security.larky.modules.ZLibModule$LarkyInflater#zdict:byte[]	zlib decompressobj state: stateful Java object by design; not shareable (audit B)
 NONFINAL	com.verygood.security.larky.modules.crypto.Cipher.GHash#stateSave0:long	GCM GHASH running state in Java arrays; stateful by design (audit B)
@@ -102,6 +107,17 @@ NONFINAL	junit.framework.TestSuite#fTests:java.util.Vector	inherited from JUnit 
 NONFINAL	junit.runner.BaseTestRunner#fLoading:boolean	inherited from JUnit 3 by the unittest module's LarkyTestSuite/LarkyFunctionTestCase/LarkyTestRunner; TEST_MODULES only
 NONFINAL	junit.textui.TestRunner#fPrinter:junit.textui.ResultPrinter	inherited from JUnit 3 by the unittest module's LarkyTestSuite/LarkyFunctionTestCase/LarkyTestRunner; TEST_MODULES only
 NONFINAL	net.starlark.java.eval.EvalException#callstack:com.google.common.collect.ImmutableList	inherited by results.Error (a StarlarkValue); ensureStack sets it once, so an Error object must be created per raise and never shared (#847)
+NONFINAL	net.starlark.java.eval.EvalException#taintedDiagnostic:boolean	diagnostic provenance bit on each raised error; inherited by results.Error and contains no message data
+NONFINAL	net.starlark.java.eval.SecretTaint#active:boolean	per-run state: the host creates one SecretTaint per script execution and binds it for that run only; it is confined to one thread at a time and never shared between evaluations
+NONFINAL	net.starlark.java.eval.SecretTaint#formChars:int	Character count of the per-run form inventory
+NONFINAL	net.starlark.java.eval.SecretTaint#remainingScanWork:long	Remaining text comparison budget for the run
+NONFINAL	net.starlark.java.eval.SecretTaint#remainingWalkWork:int	Remaining object inspection budget for the run
+NONFINAL	net.starlark.java.eval.SecretTaint#renderedError:net.starlark.java.eval.SecretTaint$ErrorSpans	bounded error offsets and a weak message reference in the current host run's taint state
+NONFINAL	net.starlark.java.eval.SecretTaint#saturated:boolean	per-run state: the host creates one SecretTaint per script execution and binds it for that run only; it is confined to one thread at a time and never shared between evaluations
+NONFINAL	net.starlark.java.eval.SecretTaint#secretDependent:boolean	per-run state: the host creates one SecretTaint per script execution and binds it for that run only; it is confined to one thread at a time and never shared between evaluations
+NONFINAL	net.starlark.java.eval.SecretTaint#taintedError:boolean	provenance flag for host-side diagnostic masking in the current run only
+NONFINAL	net.starlark.java.eval.SecretTaint#taintedNativeError:java.lang.ref.WeakReference	Weak identity reference to the most recent tagged native failure within the current run
+NONFINAL	net.starlark.java.eval.SecretTaint#walkBudget:int	per-run state: the host creates one SecretTaint per script execution and binds it for that run only; it is confined to one thread at a time and never shared between evaluations
 STATIC	com.verygood.security.larky.Larky#module:net.starlark.java.eval.Module	larky CLI (main) REPL state; one per process, not used by embedded evaluation
 STATIC	com.verygood.security.larky.Larky#reader:java.io.BufferedReader	static final holder of mutable type: Ljava/io/BufferedReader;
 STATIC	com.verygood.security.larky.Larky#thread:net.starlark.java.eval.StarlarkThread	larky CLI (main) REPL state; one per process, not used by embedded evaluation
@@ -335,9 +351,11 @@ STATIC	com.verygood.security.larky.parser.ProgramCache#SCRIPTS:com.google.common
 STATIC	com.verygood.security.larky.parser.ProgramCache#compiledFromSource:java.util.concurrent.atomic.AtomicInteger	process-wide cache/registry by design; written at runtime
 STATIC	com.verygood.security.larky.parser.ResourceContentStarFile#RESOURCES:java.util.concurrent.ConcurrentHashMap	process-wide cache/registry by design; written at runtime
 STATIC	net.starlark.java.eval.PythonStrings#FULL_TITLE:java.util.Map	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
+STATIC	net.starlark.java.eval.SecretTaint#GLOBAL_MODULE_CLASSES:java.util.Set	registry of stdlib module classes that a secret argument must not taint, filled once at ModuleSupplier class init; holds classes only, no per-run data
 STATIC	net.starlark.java.eval.StarlarkBytes#EMPTY:net.starlark.java.eval.StarlarkBytes	shared empty bytes; its ByteList delegate is mutable and the bytes class has no write guard of its own (see MUTABLE StarlarkBytes#delegate)
 STATIC	net.starlark.java.eval.StarlarkBytes#TABLE_UTF8_NEEDED:int[]	static final array lookup table, written only in <clinit>; contents are mutable
 STATIC	net.starlark.java.eval.StarlarkBytes#decoder:net.starlark.java.eval.StarlarkBytes$Decoder	process-wide decoder hook (volatile), replaced through a public static setter; one setter call changes decoding for every evaluation
+STATIC	net.starlark.java.eval.TaintObserver#NOOP:net.starlark.java.eval.TaintObserver	stateless observer that ignores every hit
 STATIC	net.starlark.java.ext.ByteList#EMPTY:net.starlark.java.ext.ByteList	shared empty ByteList; ByteList has non-final offset/size/array fields, so a write through EMPTY would reach every user
 STATIC	net.starlark.java.ext.ByteList#EMPTY_BYTE_ARRAY:byte[]	static final array lookup table, written only in <clinit>; contents are mutable
 STATIC	net.starlark.java.ext.ByteList#HEX_CHAR_LOOKUP_TABLE:byte[]	static final array lookup table, written only in <clinit>; contents are mutable

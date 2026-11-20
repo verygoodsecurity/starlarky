@@ -101,7 +101,7 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
         final StarlarkCallable reprCallable = (StarlarkCallable) getField(PyProtocols.__REPR__);
         if (reprCallable != null) {
           try {
-            p.append(invoke(reprCallable).toString());
+            p.appendRenderedValue(invoke(reprCallable), getCurrentThread());
             return;
           } catch (EvalException ex) {
             if (!ex.getMessage().contains("'__repr__' called recursively")) {
