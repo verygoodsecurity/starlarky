@@ -385,7 +385,6 @@ public final class PythonBuiltins {
         StarlarkUtil.richType(iteratorO));
     }
 
-    iterator.setCurrentThread(thread);
     if (iterator.hasNext()) {
       return iterator.next();
     }

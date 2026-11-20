@@ -1,5 +1,7 @@
 package com.verygood.security.larky.modules.re;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,7 +50,15 @@ final class PyRegexTranslator {
   static final int FLAG_T = 512;
 
   /** Placeholders for the constructs whose RE2 spelling depends on the input. */
-  enum Marker {
+  /** One element of a translated pattern: RE2 text, or a {@link Marker}. */
+  @com.google.errorprone.annotations.Immutable
+  sealed interface Piece permits Text, Marker {}
+
+  /** RE2 text that needs no further rewriting. */
+  @com.google.errorprone.annotations.Immutable
+  record Text(String re2) implements Piece {}
+
+  enum Marker implements Piece {
     /** Python {@code $} outside MULTILINE: end of string, or before a newline that ends it. */
     DOLLAR,
     /** Python {@code \Z}: end of string only. */
@@ -56,18 +66,19 @@ final class PyRegexTranslator {
   }
 
   /** The translated pattern: RE2 text interleaved with {@link Marker}s, plus group metadata. */
+  @com.google.errorprone.annotations.Immutable
   static final class Translation {
-    final List<Object> pieces;
+    final ImmutableList<Piece> pieces;
     final int groups;
-    final Map<String, Integer> groupIndex;
+    final ImmutableMap<String, Integer> groupIndex;
     final boolean hasDollar;
     /** Global inline flags found in the pattern (e.g. {@code (?i)}), merged with the call's. */
     final int flags;
 
-    Translation(List<Object> pieces, int groups, Map<String, Integer> groupIndex, int flags) {
-      this.pieces = pieces;
+    Translation(List<Piece> pieces, int groups, Map<String, Integer> groupIndex, int flags) {
+      this.pieces = ImmutableList.copyOf(pieces);
       this.groups = groups;
-      this.groupIndex = Collections.unmodifiableMap(groupIndex);
+      this.groupIndex = ImmutableMap.copyOf(groupIndex);
       this.hasDollar = pieces.contains(Marker.DOLLAR);
       this.flags = flags;
     }
@@ -112,7 +123,7 @@ final class PyRegexTranslator {
   private final boolean forceAscii;
   private int i;
   private int globalFlags;
-  private final List<Object> pieces = new ArrayList<>();
+  private final List<Piece> pieces = new ArrayList<>();
   private final StringBuilder out = new StringBuilder();
   private int groups;
   private final Map<String, Integer> groupIndex = new LinkedHashMap<>();
@@ -147,7 +158,7 @@ final class PyRegexTranslator {
 
   private void flushOut() {
     if (out.length() > 0) {
-      pieces.add(out.toString());
+      pieces.add(new Text(out.toString()));
       out.setLength(0);
     }
   }

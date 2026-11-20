@@ -1,5 +1,6 @@
 package com.verygood.security.larky.objects.type;
 
+import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.google.common.collect.ImmutableList;
 import net.starlark.java.syntax.StarlarkType;
 import net.starlark.java.syntax.TypeConstructor;
@@ -10,6 +11,7 @@ import java.util.Map;
 import com.verygood.security.larky.modules.types.LarkyCollection;
 import com.verygood.security.larky.objects.LarkyBindable;
 import com.verygood.security.larky.objects.LarkyFunction;
+import com.verygood.security.larky.objects.LarkyMethod;
 import com.verygood.security.larky.objects.LarkyPyObject;
 import com.verygood.security.larky.objects.PyObject;
 
@@ -33,10 +35,8 @@ final public class LarkyProvidedTypeClass implements
 {
 
   private final ImmutableSet<SpecialMethod> operations;
-  private final StarlarkThread thread;
   private final LarkyTypeObject type;
   public LarkyProvidedTypeClass(StarlarkThread thread, LarkyTypeObject type) {
-    this.thread = thread;
     this.type = type;
     this.operations =
       getInternalDictUnsafe()
@@ -58,6 +58,15 @@ final public class LarkyProvidedTypeClass implements
         value = LarkyFunction.create((StarlarkFunction) value, thread);
       }
 
+      if (value instanceof LarkyFunction f
+          && !(f instanceof LarkyMethod)
+          && (f.isBound() ? f.getBoundOwner() != this : f.mutability().isFrozen())) {
+        // A function, classmethod or staticmethod that another class has bound, or that a loaded
+        // module froze (and later evaluations may share): this class binds its own copy. Python
+        // binds such an object on each lookup, so one object may serve several classes. A bound
+        // method keeps its self, as in Python.
+        value = f.unboundCopy(thread);
+      }
       if (value instanceof LarkyBindable) {
         ((LarkyBindable) value).bindToOwnerIfNotBound(this);
       }
@@ -145,13 +154,13 @@ final public class LarkyProvidedTypeClass implements
 
   @Override
   public StarlarkThread getCurrentThread() {
-    return thread;
+    return CurrentEvaluation.currentOrNull();
   }
 
   @Nullable
   @Override
   public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
-    return BinaryOpHelper.operatorDispatch(this, op, that, thisLeft, this.getCurrentThread());
+    return BinaryOpHelper.operatorDispatch(this, op, that, thisLeft, CurrentEvaluation.requireThread());
   }
 
   @Override

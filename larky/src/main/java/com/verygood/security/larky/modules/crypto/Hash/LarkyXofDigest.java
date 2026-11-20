@@ -42,6 +42,7 @@ public class LarkyXofDigest<T extends KeccakDigest & Xof> extends LarkyKeccakDig
           @Param(name = "length", allowedTypes = {@ParamType(type = StarlarkInt.class)})
       }, useStarlarkThread = true)
   public StarlarkBytes read(StarlarkInt length, StarlarkThread thread) throws EvalException {
+    com.verygood.security.larky.modules.types.NativeMutability.checkMutable(this);
     int length_ = length.toIntUnchecked();
     Preconditions.checkArgument(
         length_ < MAX_READ_LENGTH,

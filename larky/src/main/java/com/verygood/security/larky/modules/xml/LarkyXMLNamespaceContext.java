@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.xml;
 
+import com.verygood.security.larky.parser.CurrentEvaluation;
 import static javax.xml.XMLConstants.NULL_NS_URI;
 import static javax.xml.XMLConstants.XMLNS_ATTRIBUTE;
 import static javax.xml.XMLConstants.XMLNS_ATTRIBUTE_NS_URI;
@@ -26,7 +27,6 @@ import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
 
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.xml.crypto.dsig.XMLSignature;
@@ -72,13 +72,11 @@ public class LarkyXMLNamespaceContext implements LarkyMapping<String, String>, N
   private final ConcurrentNavigableMap<String, String> namespaceMap;
   private final Pattern internalPatternPrefix = Pattern.compile("ns\\d+$");
   private Mutability mutability;
-  private StarlarkThread currentThread;
   private int iteratorCount; // number of active iterators (unused once frozen)
 
   private LarkyXMLNamespaceContext(StarlarkThread thread) {
     this.namespaceMap = new ConcurrentSkipListMap<>(WELL_KNOWN_NAMESPACE_PREFIXES);
     this.mutability = thread.mutability();
-    this.currentThread = thread;
   }
 
   /**
@@ -171,19 +169,9 @@ public class LarkyXMLNamespaceContext implements LarkyMapping<String, String>, N
     this.namespaceMap.put(uri, prefix);
   }
 
-  /**
-   * We will set the current thread so that we can ensure mutability
-   * across the execution StarlarkThread.
-   *
-   * @param thread - the starlark thread in the current execution context
-   */
-  public void setCurrentThread(@NotNull StarlarkThread thread) {
-    this.currentThread = thread;
-  }
-
   @Override
   public StarlarkThread getCurrentThread() {
-    return this.currentThread;
+    return CurrentEvaluation.currentOrNull();
   }
 
   @Nullable
@@ -209,7 +197,7 @@ public class LarkyXMLNamespaceContext implements LarkyMapping<String, String>, N
 
   @Override
   public boolean updateIteratorCount(int delta) {
-    if (isImmutable()) {
+    if (mutability.isFrozen()) {
       return false;
     }
     if (delta > 0) {

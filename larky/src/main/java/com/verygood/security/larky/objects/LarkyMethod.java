@@ -108,6 +108,7 @@ public class LarkyMethod extends LarkyFunction {
 
   @Override
   public void bindToOwner(LarkyType cls) {
+    checkUnfrozen(this);
     im_class = cls;
   }
 }

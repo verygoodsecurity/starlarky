@@ -83,7 +83,9 @@ def istr(v=""):
     return larky.struct(**self.__dict__)
 
 
-_version = larky.utils.Counter()
+# Each multidict counts its own changes. Python's multidict uses one process-wide counter; a
+# counter in this module's globals would be shared by every evaluation that uses the module (and,
+# with the module cache, by concurrent ones), and is frozen once the module is loaded.
 
 
 def getversion(md):
@@ -94,12 +96,13 @@ def _Impl():
     self = larky.mutablestruct(_name__='_Impl', __class__=_Impl)
 
     def incr_version():
-        self._version = _version.add_and_get()
+        self._version += 1
 
     self.incr_version = incr_version
 
     def __init__():
         self._items = []
+        self._version = 0
         self.incr_version()
         return self
 

@@ -34,20 +34,25 @@ public class ResourceContentStarFile implements StarFile {
   private static final String VENDOR = "@vendor//";
   private static final String VGS = "@vgs//";
 
-  private String resourcePath;
-  private byte[] content;
+  private final String resourcePath;
+  private final byte[] content;
+  private final boolean bundledLibrary;
 
-  private ResourceContentStarFile(String resourcePath, byte[] content) {
+  private ResourceContentStarFile(String resourcePath, byte[] content, boolean bundledLibrary) {
     this.resourcePath = resourcePath;
     this.content = content;
+    this.bundledLibrary = bundledLibrary;
   }
 
   public static ResourceContentStarFile buildStarFile(String resourcePath, InputStream inputStream) throws IOException {
-    return new ResourceContentStarFile(resourcePath,
-      String.join(
-        "\n",
-          CharStreams.toString(new InputStreamReader(inputStream, StandardCharsets.UTF_8)))
-        .getBytes());
+    return buildStarFile(resourcePath, inputStream, false);
+  }
+
+  private static ResourceContentStarFile buildStarFile(
+      String resourcePath, InputStream inputStream, boolean bundledLibrary) throws IOException {
+    byte[] content = CharStreams.toString(new InputStreamReader(inputStream, StandardCharsets.UTF_8))
+        .getBytes();
+    return new ResourceContentStarFile(resourcePath, content, bundledLibrary);
   }
 
   // Resource contents by load label. Larky's own .star resources cannot change while the class
@@ -86,7 +91,7 @@ public class ResourceContentStarFile implements StarFile {
       }
     }
     try {
-      return buildStarFile(resourceName, resourceStream);
+      return buildStarFile(resourceName, resourceStream, true);
     } catch (IOException e) {
       throw new EvalException(e);
     }
@@ -143,6 +148,22 @@ public class ResourceContentStarFile implements StarFile {
     return label[1]; // namespace/path <-- the path
   }
 
+  /**
+   * The load label of a resource path made by {@link #resolveResourceName}: {@code
+   * "stdlib/re.star"} is {@code "@stdlib//re"}.
+   */
+  static String labelOf(String resourcePath) {
+    int slash = resourcePath.indexOf('/');
+    if (slash <= 0) {
+      return resourcePath;
+    }
+    String path = resourcePath.substring(slash + 1);
+    if (path.endsWith(LarkyScript.STAR_EXTENSION)) {
+      path = path.substring(0, path.length() - LarkyScript.STAR_EXTENSION.length());
+    }
+    return "@" + resourcePath.substring(0, slash) + "//" + path;
+  }
+
   public static String resolveResourceName(String moduleToLoad) {
     String[] label = splitLabel(moduleToLoad);
     String prefix;
@@ -180,7 +201,11 @@ public class ResourceContentStarFile implements StarFile {
 
   @Override
   public byte[] readContentBytes() {
-    return content;
+    return content.clone();
+  }
+
+  final boolean isBundledLibrary() {
+    return bundledLibrary;
   }
 
   @Override

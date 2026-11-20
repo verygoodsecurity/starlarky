@@ -18,7 +18,7 @@ import javax.annotation.Nullable;
 import lombok.Builder;
 
 @Builder
-public class Property implements StarlarkValue, LarkyDataDescriptor {
+public final class Property implements StarlarkValue, LarkyDataDescriptor {
 
   final private StarlarkCallable fget;
   final private StarlarkCallable fset;

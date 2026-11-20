@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.vgs.metrics;
 
+import com.verygood.security.larky.annot.HostService;
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.vgs.metrics.impl.NoopMetrics;
 import com.verygood.security.larky.modules.vgs.metrics.spi.LarkyMetrics;
@@ -25,7 +26,8 @@ import static com.verygood.security.larky.modules.vgs.metrics.constants.Transact
   name = "native_metrics",
   category = "BUILTIN",
   doc = "Overridable Metrics API in Larky")
-public class MetricsModule implements LarkyMetrics {
+@HostService
+public final class MetricsModule implements LarkyMetrics {
 
   public static final MetricsModule INSTANCE = new MetricsModule();
   private final LarkyMetrics metrics;

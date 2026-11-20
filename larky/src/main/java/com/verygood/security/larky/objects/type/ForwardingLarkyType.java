@@ -27,11 +27,6 @@ public interface ForwardingLarkyType extends LarkyType {
   }
 
   @Override
-  default Set<LarkyType> getAllSubclasses() {
-    return delegate().getAllSubclasses();
-  }
-
-  @Override
   default void setBaseClasses(LarkyType[] parentClasses) {
     delegate().setBaseClasses(parentClasses);
   }

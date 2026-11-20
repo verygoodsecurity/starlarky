@@ -6,7 +6,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 
 @com.google.errorprone.annotations.Immutable
-public class NoopVault implements LarkyVault {
+public final class NoopVault implements LarkyVault {
     @Override
     public Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException {
         throw Starlark.errorf("vault.redact operation must be overridden");

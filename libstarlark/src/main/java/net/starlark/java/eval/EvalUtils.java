@@ -389,13 +389,19 @@ final class EvalUtils {
 
     // custom binary operator?
     if (x instanceof HasBinary) {
-      Object z = ((HasBinary) x).binaryOp(op, y, true);
+      Object z =
+          x instanceof StarlarkBytes b
+              ? b.binaryOp(op, y, true, mu) // VGS: a new bytearray belongs to this evaluation
+              : ((HasBinary) x).binaryOp(op, y, true);
       if (z != null) {
         return z;
       }
     }
     if (y instanceof HasBinary) {
-      Object z = ((HasBinary) y).binaryOp(op, x, false);
+      Object z =
+          y instanceof StarlarkBytes b
+              ? b.binaryOp(op, x, false, mu) // VGS
+              : ((HasBinary) y).binaryOp(op, x, false);
       if (z != null) {
         return z;
       }

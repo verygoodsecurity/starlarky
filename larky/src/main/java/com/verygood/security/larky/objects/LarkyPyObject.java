@@ -1,5 +1,6 @@
 package com.verygood.security.larky.objects;
 
+import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.objects.type.LarkyClassType;
 import net.starlark.java.syntax.StarlarkType;
 import com.google.common.collect.ImmutableCollection;
@@ -43,7 +44,6 @@ public class LarkyPyObject implements
   private final LarkyType.Origin origin;
   private final LarkyType __class__;
   private final Dict<String, Object> __dict__;
-  private final StarlarkThread thread;
 
   // just a simple default to avoid re-allocation as the initial
   // capacity size defaults to 1 which is just too small
@@ -53,13 +53,13 @@ public class LarkyPyObject implements
 
   public LarkyPyObject(LarkyType klass, StarlarkThread instanceThread) {
     this.origin = LarkyType.Origin.LARKY;
-    this.thread = instanceThread;
-    this.__dict__ = Dict.copyOf(thread.mutability(), INITIAL_DICT);
+    this.__dict__ = Dict.copyOf(instanceThread.mutability(), INITIAL_DICT);
     this.__class__ = klass;
   }
 
   @Override
   public void __init__(Tuple args, Dict<String, ?> keywords) throws EvalException {
+    StarlarkThread thread = CurrentEvaluation.requireThread();
     Object init = this.getField("__init__", thread);
     if (init != null && StarlarkUtil.isCallable(init)) {
       try {
@@ -148,7 +148,7 @@ public class LarkyPyObject implements
 
   @Override
   public StarlarkThread getCurrentThread() {
-    return thread;
+    return CurrentEvaluation.currentOrNull();
   }
 
   @Override
@@ -182,7 +182,7 @@ public class LarkyPyObject implements
         TokenKind.LESS,
         o,
         true,
-        this.getCurrentThread()
+        CurrentEvaluation.requireThread()
       );
       if (result instanceof Boolean) {
         lt = (boolean) result;
@@ -195,7 +195,7 @@ public class LarkyPyObject implements
         TokenKind.GREATER,
         o,
         true,
-        this.getCurrentThread()
+        CurrentEvaluation.requireThread()
       );
       if (result instanceof Boolean) {
         gt = (boolean) result;
@@ -230,7 +230,7 @@ public class LarkyPyObject implements
     // Objects compare by identity unless one of them has an __eq__, which then decides. An error
     // raised by __eq__ propagates (as an unchecked evaluation error, since equals() cannot throw
     // EvalException) instead of reading as "not equal", as in Python.
-    final StarlarkThread thread = this.getCurrentThread();
+    final StarlarkThread thread = CurrentEvaluation.requireThread();
     if (this.getField(PyProtocols.__EQ__, thread) == null
           && ((LarkyPyObject) obj).getField(PyProtocols.__EQ__, thread) == null) {
       return false;

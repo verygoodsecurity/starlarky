@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
 
-public class MockNetworkTokenService implements NetworkTokenService {
+public final class MockNetworkTokenService implements NetworkTokenService {
 
   private static final String DEFAULT_MERCHANT_ID = "MC8SWErAVLuooPFYz9WTx5W1";
 
