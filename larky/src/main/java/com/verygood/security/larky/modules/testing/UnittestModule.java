@@ -7,6 +7,7 @@ import java.util.Enumeration;
 import java.util.Iterator;
 
 import com.verygood.security.larky.modules.utils.NullPrintStream;
+import com.verygood.security.larky.parser.CurrentEvaluation;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -34,7 +35,7 @@ import lombok.Setter;
     category = "BUILTIN",
     doc = "This module implements unittests")
 @com.google.errorprone.annotations.Immutable
-public class UnittestModule implements StarlarkValue {
+public final class UnittestModule implements StarlarkValue {
 
   public static final UnittestModule INSTANCE = new UnittestModule();
 
@@ -68,16 +69,11 @@ public class UnittestModule implements StarlarkValue {
     LarkyFunctionTestCase tc = new LarkyFunctionTestCase(Starlark.repr(function, thread.getSemantics()));
     //TODO: if this fails, we need to return a better error message.
     tc.setFunction((StarlarkCallable) function);
-    tc.setThread(thread);
     return tc;
   }
 
 
   static class LarkyFunctionTestCase extends TestCase implements StarlarkValue {
-
-    @Getter
-    @Setter
-    private StarlarkThread thread;
 
     @Getter
     @Setter
@@ -90,16 +86,18 @@ public class UnittestModule implements StarlarkValue {
     public LarkyFunctionTestCase(LarkyFunctionTestCase other) {
       super(other.getName());
       setFunction(other.getFunction());
-      setThread(other.getThread());
     }
 
     @Override
     public void runTest() throws EvalException, InterruptedException {
-      if(thread == null || function == null) {
-        throw new RuntimeException(
-            String.format("Thread (%s) and Function (%s) cannot be null!", thread, function));
+      if (function == null) {
+        throw new RuntimeException(String.format("Function (%s) cannot be null!", function));
       }
-      Starlark.call(this.thread, this.function, ImmutableList.of(), ImmutableMap.of());
+      // Run on the evaluation that is running the suite (the caller of TextTestRunner.run), not
+      // the one that created the test case: a suite built in a loaded module would otherwise run
+      // on that module's finished thread, and its tracebacks would lose the caller's frames.
+      Starlark.call(
+          CurrentEvaluation.requireThread(), this.function, ImmutableList.of(), ImmutableMap.of());
     }
   }
 
@@ -112,7 +110,7 @@ public class UnittestModule implements StarlarkValue {
 
   public static class LarkyTestRunner extends TestRunner implements StarlarkValue {
 
-    private String FINAL_TEST_RESULT = "Total number of tests: %d, started: %d, success: %d, error: %d, skipped: %d";
+    private static final String FINAL_TEST_RESULT = "Total number of tests: %d, started: %d, success: %d, error: %d, skipped: %d";
 
     public LarkyTestRunner() {
       //super(System.out);

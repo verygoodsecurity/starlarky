@@ -78,7 +78,7 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
 
   private final GlobalScope globalScope;
 
-  private ScriptContext context = new SimpleScriptContext();
+  private ScriptContext context = new LarkyScriptContext();
 
   /** An engine with the JSR-223 global scope ({@link GlobalScope#JSR223}). */
   public LarkyScriptEngine() {

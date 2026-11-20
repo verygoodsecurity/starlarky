@@ -10,6 +10,8 @@ import java.util.Map;
 import com.google.common.annotations.VisibleForTesting;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
+import com.verygood.security.larky.parser.EvaluationMetadata;
+import com.verygood.security.larky.parser.EvaluationSettings;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.LarkyScript;
@@ -37,6 +39,7 @@ import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
+import javax.script.SimpleScriptContext;
 
 
 /**
@@ -203,15 +206,58 @@ public class LarkyCompiledScript extends CompiledScript {
 
     // Evaluation goes through the Larky interpreter, so bindings, load() and print() behave as
     // they do for an uncompiled script.
-    return evalInterpreted(context, globalBindings, engineBindings);
+    return evalInterpreted(
+        context,
+        globalBindings,
+        engineBindings,
+        context instanceof LarkyScriptContext larky ? larky : null);
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Runs in a context built from the engine's, as {@link CompiledScript#eval(Bindings)} does,
+   * with {@code bindings} as its engine scope. When the engine's context is a {@link
+   * LarkyScriptContext}, its settings apply, and the evaluation's metadata is recorded on it.
+   */
+  @Override
+  public Object eval(Bindings bindings) throws ScriptException {
+    ScriptContext engineContext = engine.getContext();
+    if (bindings == null) {
+      return eval(engineContext);
+    }
+    SimpleScriptContext context = new SimpleScriptContext();
+    context.setReader(engineContext.getReader());
+    context.setWriter(engineContext.getWriter());
+    context.setErrorWriter(engineContext.getErrorWriter());
+    context.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
+    context.setBindings(engineContext.getBindings(ScriptContext.GLOBAL_SCOPE), ScriptContext.GLOBAL_SCOPE);
+    return evalInterpreted(
+        context,
+        engine.globalBindings(context),
+        bindings,
+        engineContext instanceof LarkyScriptContext larky ? larky : null);
   }
 
   /**
    * Evaluates through the Larky interpreter.
    */
-  private Object evalInterpreted(ScriptContext context, Bindings globalBindings, Bindings engineBindings)
+  private Object evalInterpreted(
+      ScriptContext context,
+      Bindings globalBindings,
+      Bindings engineBindings,
+      @Nullable LarkyScriptContext settingsContext)
       throws LarkyEvaluationScriptException {
+    // read once, when the evaluation starts
+    final EvaluationSettings settings =
+        settingsContext == null ? EvaluationSettings.NONE : settingsContext.getSettings();
+    if (settingsContext != null) {
+      settingsContext.setMetadata(null); // never the previous evaluation's
+    }
     ParsedStarFile result;
+    // what happened in the evaluation, for a failure whose exception carries none
+    final java.util.concurrent.atomic.AtomicReference<EvaluationMetadata> metadata =
+        new java.util.concurrent.atomic.AtomicReference<>();
 
     try {
       String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
@@ -227,11 +273,20 @@ public class LarkyCompiledScript extends CompiledScript {
             (name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
       }
-      final DefaultLarkyInterpreter larkyInterpreter = new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings);
-      result = larkyInterpreter.evaluate(script, context.getWriter());
+      final DefaultLarkyInterpreter larkyInterpreter =
+          new DefaultLarkyInterpreter(LARKY_MODE, settings, globalBindings, engineBindings);
+      result = larkyInterpreter.evaluate(script, context.getWriter(), metadata::set);
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
              EvalException e) {
-      throw LarkyEvaluationScriptException.of(e);
+      LarkyEvaluationScriptException failure =
+          LarkyEvaluationScriptException.of(e).withMetadataIfAbsent(metadata.get());
+      if (settingsContext != null) {
+        settingsContext.setMetadata(failure.metadata());
+      }
+      throw failure;
+    }
+    if (settingsContext != null) {
+      settingsContext.setMetadata(result.metadata() != null ? result.metadata() : metadata.get());
     }
     setBindingsValue(globalBindings, engineBindings, result.getGlobals());
     return result;
@@ -251,6 +306,11 @@ public class LarkyCompiledScript extends CompiledScript {
     for (Map.Entry<String, Object> entry : moduleGlobals.entrySet()) {
       String name = entry.getKey();
       Object value = entry.getValue();
+      // a retired setting name is refused as a binding: copying a script's variable of that name
+      // back would make the next run on these bindings fail
+      if (LarkyEvaluator.isRetiredSettingName(name)) {
+        continue;
+      }
       if (globalBindings != null && globalBindings.containsKey(name)) {
         globalBindings.put(name, value);
       }

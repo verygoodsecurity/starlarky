@@ -1,6 +1,8 @@
 package com.verygood.security.larky.parser;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.verygood.security.larky.ModuleSupplier;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -26,11 +28,14 @@ import net.starlark.java.syntax.FileOptions;
  * reusable. Per-evaluation bindings (e.g. JSR-223's) that a module uses therefore prevent sharing
  * it rather than leaking one evaluation's values into another.
  *
+ * <p>Frozen is not enough to make a module safe to share: a value may keep Java state that
+ * freezing does not cover. So a module is cached only if {@link ModuleAdmission} finds nothing in
+ * it that belongs to one evaluation; otherwise it is declined, with a reason, and each evaluation
+ * that loads it runs it itself. A declined module is never run again to be cached: the evaluation
+ * that ran it keeps using it.
+ *
  * <p>Off by default: {@code -Dlarky.moduleCache.enable=true} turns it on, and
- * {@code -Dlarky.moduleCache.disable=true} keeps it off even then. Frozen is not enough to make a
- * module safe to share: some loaded values keep mutable state, or the evaluation thread that
- * created them, and concurrent evaluations sharing them fail intermittently. Keep it off until
- * only modules verified free of such state are shared.
+ * {@code -Dlarky.moduleCache.disable=true} keeps it off even then.
  */
 final class ModuleCache {
 
@@ -54,18 +59,51 @@ final class ModuleCache {
     return enabled;
   }
 
-  private record Key(String path, FileOptions options, StarlarkSemantics semantics) {}
+  enum Registry {
+    DEFAULT,
+    TEST;
+
+    private static final ImmutableMap<String, Object> DEFAULT_MODULES =
+        new ModuleSupplier().modulesToVariableMap();
+    private static final ImmutableMap<String, Object> TEST_MODULES =
+        new ModuleSupplier().modulesToVariableMap(true).getModules();
+
+    @Nullable
+    static Registry from(ImmutableMap<String, Object> modules) {
+      if (modules == DEFAULT_MODULES) {
+        return DEFAULT;
+      }
+      return modules == TEST_MODULES ? TEST : null;
+    }
+  }
+
+  private record Key(
+      String path, FileOptions options, StarlarkSemantics semantics, Registry registry) {}
 
   /**
    * A cached module and the conditions for reusing it: the values it and, transitively, every
    * module it loaded captured from the environment, flattened when it is cached so that checking
    * them does not walk the dependency graph (which revisits shared dependencies) on every load.
    */
-  private record Entry(Module module, ImmutableMap<String, Object> captured) {
+  private record Entry(
+      Module module,
+      ImmutableMap<String, Object> captured,
+      ImmutableSet<String> universal,
+      ImmutableSet<String> loadTargets) {
 
     boolean reusableIn(Map<String, Object> env) {
       for (Map.Entry<String, Object> e : captured.entrySet()) {
         if (env.get(e.getKey()) != e.getValue()) {
+          return false;
+        }
+      }
+      for (String name : universal) {
+        if (env.containsKey(name)) {
+          return false;
+        }
+      }
+      for (String target : loadTargets) {
+        if (env.get(target) instanceof Module) {
           return false;
         }
       }
@@ -75,7 +113,7 @@ final class ModuleCache {
 
   private final ConcurrentHashMap<Key, Entry> cache = new ConcurrentHashMap<>();
 
-  // Cached modules by identity, to find a loaded module's entry.
+  // Only published entries belong here. An evaluation still owns its losing candidates.
   private final Map<Module, Entry> byModule = Collections.synchronizedMap(new IdentityHashMap<>());
 
   // Native module wrappers: created once per process and never dependent on the evaluation, so
@@ -83,69 +121,129 @@ final class ModuleCache {
   private static final Set<Module> STABLE =
       Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
 
-  private static Key key(String path, FileOptions options, StarlarkSemantics semantics) {
-    return new Key(path, options, semantics);
-  }
-
   /** Returns the cached module for {@code path} if it can be reused in {@code env}, else null. */
   @Nullable
   Module lookup(
-      String path, FileOptions options, StarlarkSemantics semantics, Map<String, Object> env) {
+      String path, FileOptions options, StarlarkSemantics semantics, Registry registry,
+      Map<String, Object> env) {
     if (!enabled) {
       return null;
     }
-    Entry entry = cache.get(key(path, options, semantics));
+    Entry entry = cache.get(new Key(path, options, semantics, registry));
     return entry != null && entry.reusableIn(env) ? entry.module() : null;
   }
 
   /**
-   * Caches a module just loaded from {@code path}, if everything it depends on is shareable.
+   * Caches a module just loaded from {@code path} if it may be shared: everything it loaded is
+   * shared, and {@link ModuleAdmission} accepts what it reaches.
    *
    * @param predeclaredNames names the file resolved as PREDECLARED (null if unknown: not cached)
    * @param env the environment the module was loaded in
-   * @param loaded the modules it loaded
+   * @param builtins the builtins that every evaluation shares anyway (created once per process),
+   *     by name: the walk accepts them wherever it meets them, as the cache does not make them any
+   *     more shared than they are. Any other predeclared value the module uses (a host binding) is
+   *     checked
+   * @param loaded the modules it loaded, by load label
+   * @return why it was not cached, or null if it was (or the cache is off)
    */
-  void put(
+  @Nullable
+  ModuleAdmission.Decline put(
       String path,
       FileOptions options,
       StarlarkSemantics semantics,
+      Registry registry,
       Module module,
       @Nullable Set<String> predeclaredNames,
+      Set<String> universalNames,
       Map<String, Object> env,
+      Map<String, Object> builtins,
       Map<String, Module> loaded) {
-    if (!enabled || predeclaredNames == null) {
-      return;
+    if (!enabled) {
+      return null;
     }
+    if (predeclaredNames == null) {
+      return new ModuleAdmission.Decline(
+          ModuleAdmission.Reason.NOT_ANALYZED, "predeclared names unknown", "");
+    }
+    if (!predeclaredNames.containsAll(module.getPredeclaredBindings().keySet())) {
+      return new ModuleAdmission.Decline(
+          ModuleAdmission.Reason.NOT_ANALYZED, "unverified predeclared bindings", "");
+    }
+    Key key = new Key(path, options, semantics, registry);
+    var universal = ImmutableSet.<String>builder().addAll(universalNames);
+    var loadTargets = ImmutableSet.<String>builder();
     Map<String, Object> captured = new java.util.HashMap<>();
+    Map<String, Object> usedPredeclared = new java.util.TreeMap<>();
     for (String name : predeclaredNames) {
       Object value = env.get(name);
       if (value != null) {
         captured.put(name, value);
+        usedPredeclared.put(name, value);
       }
     }
     for (Map.Entry<String, Module> load : loaded.entrySet()) {
       Module dependency = load.getValue();
-      if (env.get(load.getKey()) == dependency) {
-        captured.put(load.getKey(), dependency); // a module from the environment itself
-        continue;
+      if (ResourceContentStarFile.startsWithPrefix(load.getKey())) {
+        String target = ResourceContentStarFile.getModulePath(load.getKey());
+        if (env.get(target) instanceof Module) {
+          return new ModuleAdmission.Decline(
+              ModuleAdmission.Reason.DEPENDS_ON, load.getKey(), "");
+        }
+        loadTargets.add(target);
       }
       if (STABLE.contains(dependency)) {
         continue; // a native module wrapper: captures nothing
       }
       Entry entry = byModule.get(dependency);
       if (entry == null) {
-        return; // depends on a module that is not shared: don't share this one either
+        // depends on a module that is not shared: running this one from the cache would skip it
+        return new ModuleAdmission.Decline(ModuleAdmission.Reason.DEPENDS_ON, load.getKey(), "");
       }
+      universal.addAll(entry.universal());
+      loadTargets.addAll(entry.loadTargets());
       for (Map.Entry<String, Object> e : entry.captured().entrySet()) {
         Object previous = captured.putIfAbsent(e.getKey(), e.getValue());
         if (previous != null && previous != e.getValue()) {
-          return; // no environment can satisfy both: don't share
+          // no environment can bind this name to both values
+          return new ModuleAdmission.Decline(
+              ModuleAdmission.Reason.DEPENDS_ON, load.getKey(), "<predeclared " + e.getKey() + ">");
         }
       }
     }
-    Entry entry = new Entry(module, ImmutableMap.copyOf(captured));
-    cache.put(key(path, options, semantics), entry);
-    byModule.put(module, entry);
+    Map<Module, String> labels = new IdentityHashMap<>();
+    loaded.forEach((label, m) -> labels.putIfAbsent(m, label));
+    ModuleAdmission.Decline decline =
+        ModuleAdmission.check(
+            module,
+            usedPredeclared,
+            builtins.values(),
+            new ModuleAdmission.Modules() {
+              @Override
+              public boolean admitted(Module m) {
+                return byModule.containsKey(m);
+              }
+
+              @Override
+              public boolean nativeWrapper(Module m) {
+                return STABLE.contains(m);
+              }
+
+              @Override
+              public String label(Module m) {
+                return labels.getOrDefault(m, "<module>");
+              }
+            });
+    if (decline != null) {
+      return decline;
+    }
+    Entry entry =
+        new Entry(module, ImmutableMap.copyOf(captured), universal.build(), loadTargets.build());
+    synchronized (byModule) {
+      if (cache.putIfAbsent(key, entry) == null) {
+        byModule.put(module, entry);
+      }
+    }
+    return null;
   }
 
   /** Registers a module whose values never depend on the evaluation (a native module wrapper). */
@@ -153,9 +251,23 @@ final class ModuleCache {
     STABLE.add(module);
   }
 
+  /** Paths of the cached modules, for tests. */
+  Set<String> cachedPaths() {
+    Set<String> paths = new java.util.TreeSet<>();
+    for (Key key : cache.keySet()) {
+      paths.add(key.path());
+    }
+    return paths;
+  }
+
   /** Number of cached modules, for tests. */
   int size() {
     return cache.size();
+  }
+
+  /** Whether {@code module} is a module this cache admitted, for tests. */
+  boolean admitted(Module module) {
+    return byModule.containsKey(module);
   }
 
   /** Empties the cache, for tests. */

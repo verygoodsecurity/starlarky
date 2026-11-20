@@ -42,13 +42,7 @@ public interface LarkyType extends PyObject, LarkyCollection, HasBinary {
     final List<LarkyType> mro;
     mro = C3.calculateMRO(cls);
     cls.setMRO(mro);
-    for (LarkyType superclass : mro) {
-      superclass.getAllSubclasses().add(cls);
-    }
-    cls.getAllSubclasses().add(cls);
   }
-
-  Set<LarkyType> getAllSubclasses();
 
   void setMRO(List<LarkyType> mro);
 
@@ -236,20 +230,15 @@ public interface LarkyType extends PyObject, LarkyCollection, HasBinary {
     return result;
   }
 
+  /**
+   * Whether {@code object} is an instance of this type or of a subclass: whether this type is in
+   * the MRO of the object's type. The MRO is fixed when a type is created, so this needs no
+   * registry of subclasses on the base type (which, for a type shared between evaluations, would
+   * collect every evaluation's subclasses).
+   */
   default boolean isInstance(PyObject object) {
-    boolean result = false;
-    if (object.typeClass() == this) {
-      result = true;
-    } else {
-      for (LarkyType subclass : this.getAllSubclasses()) {
-        if (subclass == object.typeClass()) {
-          result = true;
-          break;
-        }
-      }
-    }
-
-    return result;
+    LarkyType type = object.typeClass();
+    return type == this || (type != null && type.isSubtypeOf(this));
   }
 
   /**

@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules;
 
+import com.verygood.security.larky.annot.HostService;
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig;
@@ -28,7 +29,8 @@ import net.starlark.java.eval.StarlarkThread;
         category = "BUILTIN",
         doc = "Overridable Vault API in Larky. A host may give a run its own vault (ModuleProviders); otherwise "
             + "calls go to the vault found with ServiceLoader.")
-public class VaultModule implements LarkyVault {
+@HostService
+public final class VaultModule implements LarkyVault {
 
     public static final VaultModule INSTANCE = new VaultModule();
     public static final String ENABLE_INMEMORY_PROPERTY = "larky.modules.vgs.vault.enableInMemoryVault";

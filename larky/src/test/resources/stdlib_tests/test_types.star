@@ -585,6 +585,18 @@ def test_class_methods_get_class_as_first_param():
     asserts.assert_that(args).is_equal_to([TestClass, 1])
 
 
+def test_one_class_method_in_two_classes():
+    # Python binds a classmethod on each lookup, so one object serves several classes.
+    def name(cls):
+        return cls.__name__
+
+    shared = classmethod(name)
+    First = types.new_class('First', (), {}, lambda ns: ns.update(m=shared))
+    Second = types.new_class('Second', (), {}, lambda ns: ns.update(m=shared))
+    asserts.assert_that((First.m(), Second.m())).is_equal_to(('First', 'Second'))
+    asserts.assert_that((First().m(), Second().m())).is_equal_to(('First', 'Second'))
+
+
 def test_attribute_lookups_will_use_inheritance():
     BaseClass = make_class('BaseClass', cls_dict={
         'x': 1
@@ -630,6 +642,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_setting_an_instance_callable_does_not_receive_the_instance))
     _suite.addTest(unittest.FunctionTestCase(test_static_methods_do_not_get_instance_as_first_param))
     _suite.addTest(unittest.FunctionTestCase(test_class_methods_get_class_as_first_param))
+    _suite.addTest(unittest.FunctionTestCase(test_one_class_method_in_two_classes))
     _suite.addTest(unittest.FunctionTestCase(test_attribute_lookups_will_use_inheritance))
     return _suite
 

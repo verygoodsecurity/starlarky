@@ -1012,10 +1012,6 @@ public class ByteList implements CharSequence, RandomAccess, Iterable<Byte>, Com
       return empty();
     }
 
-    if (getArrayUnsafe() == null) {
-      setArrayUnsafe(EMPTY_BYTE_ARRAY);
-    }
-
     int elementTotals = 0;
     for (byte[] e : parts) {
       elementTotals += e.length;

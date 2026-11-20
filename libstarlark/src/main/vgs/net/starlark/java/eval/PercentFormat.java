@@ -46,14 +46,12 @@ public final class PercentFormat {
 
   /** Python's argument state (argidx/arglen in CPython's unicode_format_arg). */
   private static final class Args {
-    private final StarlarkThread thread;
     private final Object mapping; // the operand, if it can be indexed by key
     private Object args;
     private int argidx;
     private int arglen;
 
-    Args(StarlarkThread thread, Object operand) {
-      this.thread = thread;
+    Args(Object operand) {
       this.args = operand;
       if (operand instanceof Tuple tuple) {
         arglen = tuple.size();
@@ -81,7 +79,7 @@ public final class PercentFormat {
     }
 
     /** Looks up {@code %(key)}: the next conversion formats that value, and only that value. */
-    void selectKey(String key) throws EvalException {
+    void selectKey(StarlarkThread thread, String key) throws EvalException {
       if (mapping == null) {
         throw Starlark.errorf("format requires a mapping");
       }
@@ -101,7 +99,7 @@ public final class PercentFormat {
   static String format(StarlarkThread thread, String pattern, Object operand)
       throws EvalException {
     StarlarkSemantics semantics = thread.getSemantics();
-    Args args = new Args(thread, operand);
+    Args args = new Args(operand);
     StringBuilder out = new StringBuilder(pattern.length() + 16);
     int n = pattern.length();
     int i = 0;
@@ -131,7 +129,7 @@ public final class PercentFormat {
         if (depth > 0) {
           throw Starlark.errorf("incomplete format key");
         }
-        args.selectKey(pattern.substring(start, i - 1));
+        args.selectKey(thread, pattern.substring(start, i - 1));
       }
 
       boolean left = false;

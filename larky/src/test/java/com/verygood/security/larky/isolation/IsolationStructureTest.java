@@ -15,6 +15,7 @@
  */
 package com.verygood.security.larky.isolation;
 
+import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import java.io.IOException;
@@ -111,6 +112,7 @@ public class IsolationStructureTest {
   private static final String STARLARK_VALUE = "net/starlark/java/eval/StarlarkValue";
   private static final String FREEZABLE = "net/starlark/java/eval/Mutability$Freezable";
   private static final String THREAD = "net/starlark/java/eval/StarlarkThread";
+  private static final String CURRENT_EVALUATION = "com.verygood.security.larky.parser.CurrentEvaluation";
   private static final String MUTABILITY_DESC = "Lnet/starlark/java/eval/Mutability;";
   private static final Set<String> IMMUTABLE_ANNOTATIONS =
       Set.of(
@@ -220,6 +222,12 @@ public class IsolationStructureTest {
     List<FieldInfo> fields = new ArrayList<>();
     boolean callsFreezeCheck;
     boolean annotatedImmutable;
+    /** Annotated {@code @HostService}: a native module keeping a host's provider. */
+    boolean hostService;
+    /** Fields annotated Error Prone {@code @LazyInit}: a racy, idempotent lazy initialization. */
+    Set<String> lazyInit = new HashSet<>();
+    /** Classes named in a PermittedSubclasses attribute: non-empty for a sealed class. */
+    List<String> permittedSubclasses = new ArrayList<>();
     /** static field name -> true while every <clinit> store is an immutable factory result. */
     Map<String, Boolean> immutableInit = new HashMap<>();
     /** static field name -> true while every <clinit> store is an empty immutable collection. */
@@ -317,13 +325,140 @@ public class IsolationStructureTest {
         continue;
       }
       for (FieldInfo f : instanceFieldsWithInherited(c)) {
-        if (!f.isFinal() || !isShareableField(f)) {
+        // @LazyInit (checked by Error Prone): a volatile field set once, racily, to an immutable value.
+        boolean lazy = c.lazyInit.contains(f.name()) && (f.access() & Opcodes.ACC_VOLATILE) != 0;
+        if ((!f.isFinal() && !lazy) || !isShareableField(f)) {
           broken.add(c.name.replace('/', '.') + "#" + f.name() + ":" + f.typeName());
         }
       }
     }
     assertWithMessage("fields of @Immutable classes that are not final and shareable")
         .that(broken)
+        .isEmpty();
+  }
+
+  /**
+   * A class annotated {@code @Immutable} is final, or sealed with only final or sealed permitted
+   * subclasses (never {@code non-sealed}), so no subclass outside Larky can inherit the annotation
+   * and add mutable state.
+   */
+  @Test
+  public void immutableClassesCannotBeSubclassedOutsideLarky() {
+    Map<String, ClassInfo> byName = new HashMap<>();
+    scanned.forEach(c -> byName.put(c.name, c));
+    List<String> open = new ArrayList<>();
+    for (ClassInfo c : scanned) {
+      if (c.annotatedImmutable && !c.isInterface() && !closed(c, byName)) {
+        open.add(c.name.replace('/', '.'));
+      }
+    }
+    assertWithMessage("@Immutable classes that are neither final nor sealed").that(open).isEmpty();
+  }
+
+  private static boolean closed(ClassInfo c, Map<String, ClassInfo> byName) {
+    if (c.isFinal()) {
+      return true;
+    }
+    if (c.permittedSubclasses.isEmpty()) {
+      return false;
+    }
+    for (String sub : c.permittedSubclasses) {
+      ClassInfo s = byName.get(sub);
+      if (s == null || !closed(s, byName)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Every native module scripts can load ({@link com.verygood.security.larky.ModuleSupplier}) is a
+   * final or sealed class, so its Java state is what Larky declares.
+   */
+  @Test
+  public void moduleFacadesAreFinalOrSealed() {
+    List<String> open = new ArrayList<>();
+    for (Object m : new com.verygood.security.larky.ModuleSupplier().getModules(true)) {
+      Class<?> k = m.getClass();
+      if (!java.lang.reflect.Modifier.isFinal(k.getModifiers()) && !k.isSealed()) {
+        open.add(k.getName());
+      }
+    }
+    for (Object v : com.verygood.security.larky.ModuleSupplier.CORE_ENVIRONMENT.values()) {
+      Class<?> k = v.getClass();
+      if (k.getName().startsWith("com.verygood.security.larky.")
+          && !java.lang.reflect.Modifier.isFinal(k.getModifiers())
+          && !k.isSealed()) {
+        open.add(k.getName());
+      }
+    }
+    assertWithMessage("module facades that are neither final nor sealed").that(open).isEmpty();
+  }
+
+  /** The library types Error Prone treats as immutable are the ones listed, with a reason, in the
+   * checked-in file (larky/src/main/config/known-immutable-types.txt). */
+  @Test
+  public void knownImmutableTypesMatchTheirReasons() throws Exception {
+    java.nio.file.Path larky = java.nio.file.Path.of(System.getProperty("user.dir"));
+    TreeSet<String> listed = new TreeSet<>();
+    for (String line :
+        java.nio.file.Files.readAllLines(larky.resolve("src/main/config/known-immutable-types.txt"))) {
+      if (line.isBlank() || line.startsWith("#")) {
+        continue;
+      }
+      String[] p = line.split("\t", 2);
+      assertWithMessage("a reason for %s", p[0]).that(p.length == 2 && !p[1].isBlank()).isTrue();
+      listed.add(p[0]);
+    }
+    String pom = java.nio.file.Files.readString(larky.resolve("pom.xml"));
+    java.util.regex.Matcher m =
+        java.util.regex.Pattern.compile("-XepOpt:Immutable:KnownImmutable=([^\\s<]+)").matcher(pom);
+    assertWithMessage("-XepOpt:Immutable:KnownImmutable in larky/pom.xml").that(m.find()).isTrue();
+    assertThat(new TreeSet<>(List.of(m.group(1).split(",")))).isEqualTo(listed);
+  }
+
+  /**
+   * The module cache's admission walk accepts the same library types (ModuleAdmission#
+   * KNOWN_IMMUTABLE) as Error Prone and the reasons file.
+   */
+  @Test
+  public void admissionKnownImmutableTypesMatchTheirReasons() throws Exception {
+    java.nio.file.Path larky = java.nio.file.Path.of(System.getProperty("user.dir"));
+    TreeSet<String> listed = new TreeSet<>();
+    for (String line :
+        java.nio.file.Files.readAllLines(larky.resolve("src/main/config/known-immutable-types.txt"))) {
+      if (!line.isBlank() && !line.startsWith("#")) {
+        listed.add(line.split("\t", 2)[0]);
+      }
+    }
+    java.lang.reflect.Field f =
+        Class.forName("com.verygood.security.larky.parser.ModuleAdmission")
+            .getDeclaredField("KNOWN_IMMUTABLE");
+    f.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    java.util.Collection<String> walk = (java.util.Collection<String>) f.get(null);
+    assertThat(new TreeSet<>(walk)).isEqualTo(listed);
+  }
+
+  /**
+   * A class keeping a host's provider (a field whose type is in a {@code .spi.} package) is marked
+   * {@code @HostService}, so the module cache declines a module that reaches it by that reason.
+   */
+  @Test
+  public void hostProvidersAreKeptOnlyByHostServices() {
+    TreeSet<String> unmarked = new TreeSet<>();
+    for (ClassInfo c : scanned) {
+      if (c.hostService || c.name.contains("/spi/")) {
+        continue;
+      }
+      for (FieldInfo f : c.fields) {
+        if (!f.isStatic() && f.desc().contains("/spi/")) {
+          unmarked.add(c.name.replace('/', '.') + "#" + f.name());
+        }
+      }
+    }
+    assertWithMessage("fields keeping a host provider in a class not marked @HostService")
+        .that(unmarked)
         .isEmpty();
   }
 
@@ -750,15 +885,29 @@ public class IsolationStructureTest {
           }
 
           @Override
+          public void visitPermittedSubclass(String permitted) {
+            ci.permittedSubclasses.add(permitted);
+          }
+
+          @Override
           public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
             ci.annotatedImmutable |= IMMUTABLE_ANNOTATIONS.contains(desc);
+            ci.hostService |= desc.equals("Lcom/verygood/security/larky/annot/HostService;");
             return null;
           }
 
           @Override
           public FieldVisitor visitField(int acc, String name, String desc, String sig, Object val) {
             ci.fields.add(new FieldInfo(name, desc, sig, acc));
-            return null;
+            return new FieldVisitor(Opcodes.ASM9) {
+              @Override
+              public AnnotationVisitor visitAnnotation(String adesc, boolean visible) {
+                if (adesc.equals("Lcom/google/errorprone/annotations/concurrent/LazyInit;")) {
+                  ci.lazyInit.add(name);
+                }
+                return null;
+              }
+            };
           }
 
           @Override
@@ -923,6 +1072,13 @@ public class IsolationStructureTest {
             .that(p[2].trim().toUpperCase(java.util.Locale.ROOT).startsWith("TODO"))
             .isFalse();
         assertWithMessage("unknown kind on allowlist line %s", lineNo).that(KINDS).contains(p[0]);
+        // A StarlarkThread may be held only by CurrentEvaluation, which sets and restores the
+        // running thread around each evaluation. Anything else takes the thread as a parameter or
+        // reads CurrentEvaluation; there is no reason that makes a stored thread acceptable.
+        assertWithMessage(
+                "allowlist line %s: only CurrentEvaluation may hold a StarlarkThread", lineNo)
+            .that(!p[0].equals("THREAD") || p[1].startsWith(CURRENT_EVALUATION + "#"))
+            .isTrue();
         Violation v = new Violation(p[0], p[1]);
         assertWithMessage("duplicate allowlist entry on line %s: %s", lineNo, v)
             .that(out.put(v, p[2]))

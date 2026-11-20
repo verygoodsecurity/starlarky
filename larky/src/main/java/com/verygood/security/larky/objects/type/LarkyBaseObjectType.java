@@ -43,9 +43,6 @@ final public class LarkyBaseObjectType
     SpecialMethod.dunder_gt,
     SpecialMethod.dunder_ge
   );
-  private final Set<LarkyType> allSubclasses = Collections.synchronizedSet(Collections.newSetFromMap(
-      new MapMaker().weakKeys().makeMap()));
-
   private final Map<String, Object> __dict__;
   private final LarkyType type;
 
@@ -81,11 +78,6 @@ final public class LarkyBaseObjectType
   @Override
   public LarkyType __class__() {
     return LarkyTypeObject.getInstance();
-  }
-
-  @Override
-  public Set<LarkyType> getAllSubclasses() {
-    return allSubclasses;
   }
 
   @Override

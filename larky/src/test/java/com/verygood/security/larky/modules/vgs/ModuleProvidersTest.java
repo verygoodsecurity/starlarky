@@ -4,13 +4,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.verygood.security.larky.ModuleSupplier;
+import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.jsr223.LarkyScriptContext;
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
-import com.verygood.security.larky.parser.LarkyEvaluator;
+import com.verygood.security.larky.parser.EvaluationSettings;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.util.List;
 import java.util.Map;
-import javax.script.Bindings;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import org.junit.Test;
@@ -53,24 +57,38 @@ public class ModuleProvidersTest {
     return ModuleProviders.of().with(LarkyVault.class, new NamedVault(name));
   }
 
-  private static Object eval(Map<String, Object> bindings, String... lines) throws ScriptException {
-    final Bindings engineBindings = new SimpleBindings();
-    engineBindings.putAll(bindings);
-    final ParsedStarFile result = (ParsedStarFile) new LarkyScriptEngine()
-        .eval(String.join("\n", lines) + "\n", engineBindings);
+  // As a JSR-223 host does: the providers in the settings of the engine's LarkyScriptContext.
+  private static Object eval(ModuleProviders providers, String... lines) throws ScriptException {
+    final LarkyScriptEngine engine = new LarkyScriptEngine();
+    final LarkyScriptContext context = new LarkyScriptContext();
+    context.setSettings(EvaluationSettings.builder().moduleProviders(providers).build());
+    engine.setContext(context);
+    final ParsedStarFile result = (ParsedStarFile) engine.eval(String.join("\n", lines) + "\n", new SimpleBindings());
     return result.getGlobalEnvironmentVariable("out", Object.class);
   }
 
   @Test
   public void aRunGivenAVaultRevealsThroughIt() throws Exception {
-    assertEquals("given:tok", eval(Map.of(LarkyEvaluator.MODULE_PROVIDERS, vault("given")),
+    assertEquals("given:tok", eval(vault("given"),
         "load('@vgs//vault', 'vault')",
         "out = vault.reveal('tok')"));
   }
 
   @Test
+  public void aRunGivenAVaultThroughLarkyScriptRevealsThroughIt() throws Exception {
+    final ParsedStarFile result = new LarkyScript(
+        ModuleSupplier.CORE_MODULES,
+        LarkyScript.StarlarkMode.STRICT,
+        Map.of(),
+        EvaluationSettings.builder().moduleProviders(vault("given")).build())
+        .evaluate(InMemMapBackedStarFile.createStarFile("main.star",
+            "load('@vgs//vault', 'vault')\nout = vault.reveal('tok')\n"), new TestingConsole());
+    assertEquals("given:tok", result.getGlobalEnvironmentVariable("out", Object.class));
+  }
+
+  @Test
   public void aRunWithoutOneUsesTheServiceLoaderVault() throws Exception {
-    assertEquals("4111111111111111", eval(Map.of(),
+    assertEquals("4111111111111111", eval(ModuleProviders.NONE,
         "load('@vgs//vault', 'vault')",
         "out = vault.reveal(vault.redact('4111111111111111'))"));
   }
@@ -78,7 +96,7 @@ public class ModuleProvidersTest {
   @Test
   public void theModuleStillChecksTheArgumentsForAGivenVault() {
     final ScriptException e = assertThrows(ScriptException.class,
-        () -> eval(Map.of(LarkyEvaluator.MODULE_PROVIDERS, vault("given")),
+        () -> eval(vault("given"),
             "load('@vgs//vault', 'vault')",
             "out = vault.reveal('tok', storage='bogus')"));
     assertTrue(e.getMessage(), e.getMessage().contains("Storage 'bogus' not found"));
@@ -86,7 +104,7 @@ public class ModuleProvidersTest {
 
   @Test
   public void theGivenVaultGetsTheStorageInLowercaseAsTheModuleAlwaysPassedIt() throws Exception {
-    assertEquals("given:tok@volatile", eval(Map.of(LarkyEvaluator.MODULE_PROVIDERS, vault("given")),
+    assertEquals("given:tok@volatile", eval(vault("given"),
         "load('@vgs//vault', 'vault')",
         "out = vault.reveal('tok', storage='VOLATILE')"));
   }
@@ -95,10 +113,10 @@ public class ModuleProvidersTest {
   public void eachEvaluationRevealsThroughItsOwnVault() throws Exception {
     final String[] script = {"load('@vgs//vault', 'vault')", "out = vault.reveal('t')"};
 
-    assertEquals("first:t", eval(Map.of(LarkyEvaluator.MODULE_PROVIDERS, vault("first")), script));
-    assertEquals("second:t", eval(Map.of(LarkyEvaluator.MODULE_PROVIDERS, vault("second")), script));
+    assertEquals("first:t", eval(vault("first"), script));
+    assertEquals("second:t", eval(vault("second"), script));
     // an evaluation without providers gets the ServiceLoader vault, not the previous evaluation's
-    assertEquals("t", eval(Map.of(), script));
+    assertEquals("t", eval(ModuleProviders.NONE, script));
   }
 
   @Test
@@ -111,13 +129,6 @@ public class ModuleProvidersTest {
   public void onlyTheModulesProviderTypesAreTaken() {
     assertThrows(IllegalArgumentException.class, () -> ModuleProviders.of().with(String.class, "x"));
     assertThrows(IllegalArgumentException.class, () -> ModuleProviders.of().with(LarkyVault.class, null));
-  }
-
-  @Test
-  public void aBindingThatIsNotProvidersIsRefused() {
-    final IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
-        () -> eval(Map.of(LarkyEvaluator.MODULE_PROVIDERS, "not providers"), "out = 1"));
-    assertTrue(e.getMessage(), e.getMessage().contains(LarkyEvaluator.MODULE_PROVIDERS + " must be a "));
   }
 
   @Test

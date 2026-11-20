@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules;
 
+import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -61,7 +62,7 @@ import org.jetbrains.annotations.Nullable;
             "* UserString   wrapper around string objects for easier string subclassing\n"
 )
 @com.google.errorprone.annotations.Immutable
-public class CollectionsModule implements StarlarkValue {
+public final class CollectionsModule implements StarlarkValue {
 
   public static final CollectionsModule INSTANCE = new CollectionsModule();
 
@@ -73,12 +74,9 @@ public class CollectionsModule implements StarlarkValue {
   public static final class LarkyNamedTuple extends NamedTuple implements LarkyObject {
 
     private final NamedTupleType type;
-    private final StarlarkThread currentThread;
-
-    LarkyNamedTuple(NamedTupleType type, Iterable<?> elems, StarlarkThread thread) {
+    LarkyNamedTuple(NamedTupleType type, Iterable<?> elems) {
       super(elems);
       this.type = type;
-      this.currentThread = thread;
     }
 
     @Override
@@ -111,7 +109,7 @@ public class CollectionsModule implements StarlarkValue {
 
     @Override
     public StarlarkThread getCurrentThread() {
-      return currentThread;
+      return CurrentEvaluation.currentOrNull();
     }
 
     @Override
@@ -158,7 +156,7 @@ public class CollectionsModule implements StarlarkValue {
           values[i] = kwds.get(field);
         }
       }
-      return new LarkyNamedTuple(type, Arrays.asList(values), thread);
+      return new LarkyNamedTuple(type, Arrays.asList(values));
     }
 
     @StarlarkMethod(
@@ -283,7 +281,7 @@ public class CollectionsModule implements StarlarkValue {
             "TypeError: %s.__new__() missing %d required positional argument%s: %s",
             typename, missing.size(), missing.size() == 1 ? "" : "s", names);
       }
-      return new LarkyNamedTuple(this, Arrays.asList(values), thread);
+      return new LarkyNamedTuple(this, Arrays.asList(values));
     }
 
     /** {@code P._make(iterable)}: an instance from exactly as many values as fields. */
@@ -293,7 +291,7 @@ public class CollectionsModule implements StarlarkValue {
         throw Starlark.errorf(
             "TypeError: Expected %d arguments, got %d", fields.size(), values.size());
       }
-      return new LarkyNamedTuple(this, values, thread);
+      return new LarkyNamedTuple(this, values);
     }
 
     @Nullable

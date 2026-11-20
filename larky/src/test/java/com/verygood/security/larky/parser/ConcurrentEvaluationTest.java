@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import javax.script.Bindings;
 import javax.script.SimpleBindings;
 import net.starlark.java.eval.Starlark;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -153,15 +152,16 @@ public class ConcurrentEvaluationTest {
   }
 
   /**
-   * The gate for turning the module cache back on: it fails while loaded modules that keep mutable
-   * state or their creating thread can be shared. The cache starts empty, so the concurrent
-   * evaluations also race to load and share each module.
+   * The gate for the module cache: evaluations sharing one cache, at the same time, match a
+   * private evaluation. The cache starts empty, so the concurrent evaluations also race to load and
+   * share each module; it must end up sharing modules (the ones ModuleAdmission admits), not
+   * merely declining them all.
    */
   @Test
-  @Ignore("shared loaded modules are not yet safe under concurrent evaluation")
   public void concurrentEvaluationsDoNotInterfereWithTheModuleCache() throws Exception {
     String expected = evaluate(new ModuleCache(false));
     ModuleCache cache = new ModuleCache(true);
     assertAllMatch(expected, () -> evaluate(cache));
+    assertWithMessage("modules the cache shares").that(cache.size()).isGreaterThan(10);
   }
 }
