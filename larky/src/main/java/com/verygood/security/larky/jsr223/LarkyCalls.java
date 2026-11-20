@@ -2,6 +2,7 @@ package com.verygood.security.larky.jsr223;
 
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.console.Console;
+import com.verygood.security.larky.console.RedactingPrintConsole;
 import com.verygood.security.larky.modules.utils.Reporter;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.parser.LarkyEvaluator;
@@ -79,9 +80,6 @@ final class LarkyCalls {
     }
     try (Mutability mu = Mutability.create("larky-call")) {
       final StarlarkThread thread = StarlarkThread.createTransient(mu, LarkySemantics.LARKY_SEMANTICS);
-      final Reporter reporter = new Reporter(console);
-      thread.setThreadLocal(Reporter.class, reporter);
-      thread.setPrintHandler(reporter::report);
       providers.installOn(thread);
       if (limits.stepLimit() != null) {
         thread.setMaxExecutionSteps(limits.stepLimit());
@@ -89,7 +87,11 @@ final class LarkyCalls {
       if (limits.expirationMs() != null) {
         thread.setExpirationMs(limits.expirationMs());
       }
-      try (var scope = DiagnosticRedactor.bind(thread, diagnosticRedactor)) {
+      try (var scope = DiagnosticRedactor.bind(thread, diagnosticRedactor);
+           var printConsole = new RedactingPrintConsole(console, diagnosticRedactor)) {
+        Reporter reporter = new Reporter(printConsole);
+        thread.setThreadLocal(Reporter.class, reporter);
+        thread.setPrintHandler(reporter::report);
         return Starlark.call(thread, function, starlarkArgs, Map.of());
       } catch (EvalException e) {
         // as the interpreter reports a script whose top level fails (LarkyEvaluator, then LarkyCompiledScript)

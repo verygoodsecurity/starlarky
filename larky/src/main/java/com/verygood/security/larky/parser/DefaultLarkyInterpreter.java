@@ -3,6 +3,7 @@ package com.verygood.security.larky.parser;
 import static com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import static com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Arrays;
@@ -18,13 +19,26 @@ import com.verygood.security.larky.console.StreamWriterConsole;
 import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.EvalException;
 
+import javax.annotation.Nullable;
 import javax.script.Bindings;
+import javax.script.SimpleBindings;
 
 public class DefaultLarkyInterpreter {
 
   public static final String VERBOSE = "__VERBOSE__";
   private final ModuleSet moduleSet;
   private final LarkyScript interpreter;
+
+  /** Creates an interpreter for JSR223 scopes. Only engine bindings may supply the redactor. */
+  public static DefaultLarkyInterpreter forScopes(
+      StarlarkMode mode, @Nullable Bindings globalBindings, @Nullable Bindings engineBindings) {
+    Bindings scriptGlobals = globalBindings;
+    if (globalBindings != null && globalBindings.containsKey(DiagnosticRedactor.BINDING_NAME)) {
+      scriptGlobals = new SimpleBindings(Maps.filterKeys(
+          globalBindings, key -> !DiagnosticRedactor.BINDING_NAME.equals(key)));
+    }
+    return new DefaultLarkyInterpreter(mode, scriptGlobals, engineBindings);
+  }
 
   public DefaultLarkyInterpreter(StarlarkMode mode, Bindings... bindings) {
     this.moduleSet = new ModuleSupplier().create();

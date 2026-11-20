@@ -1,7 +1,6 @@
 package com.verygood.security.larky.jsr223;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.Reader;
@@ -39,7 +38,6 @@ import javax.script.CompiledScript;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptException;
-import javax.script.SimpleBindings;
 
 
 /**
@@ -230,13 +228,8 @@ public class LarkyCompiledScript extends CompiledScript {
             (name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
       }
-      Bindings scriptGlobals = globalBindings;
-      if (globalBindings != null && globalBindings.containsKey(DiagnosticRedactor.BINDING_NAME)) {
-        scriptGlobals = new SimpleBindings(Maps.filterKeys(
-            globalBindings, key -> !DiagnosticRedactor.BINDING_NAME.equals(key)));
-      }
       final DefaultLarkyInterpreter larkyInterpreter =
-          new DefaultLarkyInterpreter(LARKY_MODE, scriptGlobals, engineBindings);
+          DefaultLarkyInterpreter.forScopes(LARKY_MODE, globalBindings, engineBindings);
       result = larkyInterpreter.evaluate(script, context.getWriter());
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
              EvalException e) {

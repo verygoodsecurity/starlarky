@@ -7,6 +7,7 @@ import com.google.common.flogger.FluentLogger;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
+import com.verygood.security.larky.console.RedactingPrintConsole;
 import com.verygood.security.larky.modules.utils.Reporter;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import java.io.IOException;
@@ -54,7 +55,7 @@ public final class LarkyEvaluator {
 
   private final LinkedHashSet<String> pending = new LinkedHashSet<>();
   private final Map<String, Module> loaded = new HashMap<>();
-  private final Reporter reporter;
+  private final Console console;
   @Nullable private final DiagnosticRedactor diagnosticRedactor;
   // Predeclared environment shared by all files (modules) loaded.
   @Getter
@@ -72,7 +73,7 @@ public final class LarkyEvaluator {
   }
 
   LarkyEvaluator(LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console) {
-    this.reporter = new Reporter(checkNotNull(console));
+    this.console = checkNotNull(console);
     this.moduleSet = checkNotNull(moduleSet);
     this.validationMode = larkyScript.getValidation();
     this.larkySemantics = larkyScript.getLarkySemantics();
@@ -184,8 +185,6 @@ public final class LarkyEvaluator {
     try (Mutability mu = Mutability.create("LarkyModules")) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, getLarkySemantics());
       thread.setLoader(loadedModules::get);
-      thread.setThreadLocal(Reporter.class, reporter);
-      thread.setPrintHandler(reporter::report);
       // refused when it is not providers, as LarkyLoadedScript.invoke refuses it
       ModuleProviders.given(environment.get(MODULE_PROVIDERS)).installOn(thread);
 
@@ -197,7 +196,11 @@ public final class LarkyEvaluator {
         thread.setExpirationMs(Long.parseLong(environment.get(EXPIRATION_MS).toString()));
       }
 
-      try (var scope = DiagnosticRedactor.bind(thread, diagnosticRedactor)) {
+      try (var scope = DiagnosticRedactor.bind(thread, diagnosticRedactor);
+           var printConsole = new RedactingPrintConsole(console, diagnosticRedactor)) {
+        Reporter reporter = new Reporter(printConsole);
+        thread.setThreadLocal(Reporter.class, reporter);
+        thread.setPrintHandler(reporter::report);
         starlarkOutput = prog.exec(module, thread);
       } catch (EvalException cause) {
         throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(cause, thread);
@@ -448,7 +451,7 @@ public final class LarkyEvaluator {
       parsed[0] = file;
     } catch (SyntaxError.Exception ex) {
       for (SyntaxError error : ex.errors()) {
-        reporter.error(error.toString());
+        console.error(error.toString());
       }
       throw compileError(input.getFile(), ex);
     }
@@ -481,7 +484,7 @@ public final class LarkyEvaluator {
     } catch (SyntaxError.Exception ex) {
       List<String> errs = new ArrayList<>();
       for (SyntaxError error : ex.errors()) {
-        reporter.error(error.toString());
+        console.error(error.toString());
         errs.add(error.toString());
       }
       throw new EvalException(
@@ -506,7 +509,7 @@ public final class LarkyEvaluator {
       sb.append(element).append("\n");
     }
     sb.append("* ").append(cycleElement).append("\n");
-    reporter.error("Cycle was detected in the configuration: \n" + sb);
+    console.error("Cycle was detected in the configuration: \n" + sb);
     throw new EvalException("Cycle was detected");
   }
 

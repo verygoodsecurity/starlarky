@@ -97,4 +97,33 @@ public class DiagnosticRedactorTest {
     assertThat(redactor.sanitizeError("failed")).isEqualTo(DiagnosticRedactor.MASK);
     assertThat(reasons).containsExactly(DiagnosticRedactor.Reason.LIMIT);
   }
+
+  @Test
+  public void hostCanOverrideMinimumLengthForOneRun() {
+    DiagnosticRedactor custom = new DiagnosticRedactor(
+        DiagnosticRedactor.Mode.ENFORCE, DiagnosticRedactor.Limits.builder().minLength(2).build());
+    DiagnosticRedactor defaults = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE);
+
+    custom.registerRevealed("xy");
+    defaults.registerRevealed("xy");
+
+    assertThat(custom.sanitizeError("value=xy")).isEqualTo("value=***REDACTED***");
+    assertThat(defaults.sanitizeError("value=xy")).isEqualTo("value=xy");
+  }
+
+  @Test
+  public void hostConfiguredBudgetsTriggerTheExistingFallback() {
+    List<DiagnosticRedactor.Limits> limits = List.of(
+        DiagnosticRedactor.Limits.builder().maxSourceLength(1).build(),
+        DiagnosticRedactor.Limits.builder().maxForms(1).build(),
+        DiagnosticRedactor.Limits.builder().maxFormChars(1).build(),
+        DiagnosticRedactor.Limits.builder().maxRegistrationInput(1).build(),
+        DiagnosticRedactor.Limits.builder().maxTextLength(1).build(),
+        DiagnosticRedactor.Limits.builder().maxScanWork(1).build());
+    for (DiagnosticRedactor.Limits limit : limits) {
+      DiagnosticRedactor redactor = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE, limit);
+      redactor.registerRevealed("fixture value");
+      assertThat(redactor.sanitizeError("ordinary diagnostic")).isEqualTo(DiagnosticRedactor.MASK);
+    }
+  }
 }

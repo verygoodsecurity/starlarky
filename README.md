@@ -79,13 +79,17 @@ Larky's `print` output and text the host passes to `sanitizeError`. The host
 should sanitize the final diagnostic before logging, auditing, or returning it.
 `fail` raises the ordinary script exception so script catches behave as before.
 
-The scanner recognizes complete strings of at least three characters, bytes
+By default, the scanner recognizes complete strings of at least three characters, bytes
 values of at least three bytes, and flat lists of those values. It checks
 literal text, Larky-escaped forms, standard URL and form encodings, Base64,
 Base64URL, and hex. When the tracking
 budget is exhausted, `ENFORCE` masks the whole diagnostic. This feature covers
 known values in diagnostics. It provides no propagation through operators or
 control flow.
+
+Hosts can override individual limits with `DiagnosticRedactor.Limits.builder()`
+and pass the built limits to the redactor constructor. The builder starts with
+the default values.
 
 ### Runlarky
 

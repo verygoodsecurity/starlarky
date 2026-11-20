@@ -1,5 +1,6 @@
 package net.starlark.java.eval;
 
+import com.google.auto.value.AutoValue;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -17,14 +18,6 @@ public final class DiagnosticRedactor {
   public static final String BINDING_NAME = "__vgs_diagnostic_redactor__";
   public static final String MASK = "***REDACTED***";
 
-  private static final int MIN_LENGTH = 3;
-  private static final int MAX_SOURCE_LENGTH = 16 * 1024;
-  private static final int MAX_FORMS = 1_024;
-  private static final int MAX_FORM_CHARS = 256 * 1024;
-  private static final int MAX_REGISTRATION_INPUT = 256 * 1024;
-  private static final int MAX_TEXT_LENGTH = 1024 * 1024;
-  private static final long MAX_SCAN_WORK = 32_000_000;
-
   public enum Mode { OFF, OBSERVE, ENFORCE }
   public enum Sink { PRINT, ERROR_TEXT }
   public enum Reason { VALUE_MATCH, LIMIT }
@@ -40,22 +33,90 @@ public final class DiagnosticRedactor {
     void close();
   }
 
+  /** Host-configurable limits. An exhausted budget applies to the whole run. */
+  @AutoValue
+  public abstract static class Limits {
+    Limits() {}
+
+    public abstract int minLength();
+    public abstract int maxSourceLength();
+    public abstract int maxForms();
+    public abstract int maxFormChars();
+    public abstract int maxRegistrationInput();
+    public abstract int maxTextLength();
+    public abstract long maxScanWork();
+
+    public static Builder builder() {
+      return new AutoValue_DiagnosticRedactor_Limits.Builder()
+          .minLength(3)
+          .maxSourceLength(16 * 1024)
+          .maxForms(1_024)
+          .maxFormChars(256 * 1024)
+          .maxRegistrationInput(256 * 1024)
+          .maxTextLength(1024 * 1024)
+          .maxScanWork(32_000_000);
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder minLength(int value);
+      public abstract Builder maxSourceLength(int value);
+      public abstract Builder maxForms(int value);
+      public abstract Builder maxFormChars(int value);
+      public abstract Builder maxRegistrationInput(int value);
+      public abstract Builder maxTextLength(int value);
+      public abstract Builder maxScanWork(long value);
+
+      abstract Limits autoBuild();
+
+      public final Limits build() {
+        Limits limits = autoBuild();
+        requirePositive("minLength", limits.minLength());
+        requirePositive("maxSourceLength", limits.maxSourceLength());
+        requirePositive("maxForms", limits.maxForms());
+        requirePositive("maxFormChars", limits.maxFormChars());
+        requirePositive("maxRegistrationInput", limits.maxRegistrationInput());
+        requirePositive("maxTextLength", limits.maxTextLength());
+        requirePositive("maxScanWork", limits.maxScanWork());
+        return limits;
+      }
+
+      private static void requirePositive(String name, long value) {
+        if (value <= 0) {
+          throw new IllegalArgumentException(name + " must be positive");
+        }
+      }
+    }
+  }
+
   private final Mode mode;
   private final Observer observer;
+  private final Limits limits;
   private final Set<String> forms = new LinkedHashSet<>();
   private final Set<String> hexForms = new LinkedHashSet<>();
   private int formChars;
-  private int remainingRegistration = MAX_REGISTRATION_INPUT;
-  private long remainingWork = MAX_SCAN_WORK;
+  private int remainingRegistration;
+  private long remainingWork;
   private boolean limited;
 
   public DiagnosticRedactor(Mode mode) {
-    this(mode, (sink, reason) -> {});
+    this(mode, Limits.builder().build());
+  }
+
+  public DiagnosticRedactor(Mode mode, Limits limits) {
+    this(mode, limits, (sink, reason) -> {});
   }
 
   public DiagnosticRedactor(Mode mode, Observer observer) {
+    this(mode, Limits.builder().build(), observer);
+  }
+
+  public DiagnosticRedactor(Mode mode, Limits limits, Observer observer) {
     this.mode = Objects.requireNonNull(mode);
+    this.limits = Objects.requireNonNull(limits);
     this.observer = Objects.requireNonNull(observer);
+    this.remainingRegistration = limits.maxRegistrationInput();
+    this.remainingWork = limits.maxScanWork();
   }
 
   /** Reads a host binding. A missing binding disables tracking. */
@@ -91,7 +152,7 @@ public final class DiagnosticRedactor {
       return;
     }
     if (!(value instanceof StarlarkBytes) && value instanceof List<?> batch) {
-      if (batch.size() > MAX_FORMS) {
+      if (batch.size() > limits.maxForms()) {
         limited = true;
         return;
       }
@@ -118,16 +179,16 @@ public final class DiagnosticRedactor {
 
   private void registerScalar(Object value) {
     if (value instanceof String text) {
-      if (chargeRegistration(text.length()) && text.length() >= MIN_LENGTH) {
+      if (chargeRegistration(text.length()) && text.length() >= limits.minLength()) {
         addText(text);
         addBytes(text.getBytes(StandardCharsets.UTF_8));
       }
     } else if (value instanceof StarlarkBytes bytes) {
-      if (chargeRegistration(bytes.size()) && bytes.size() >= MIN_LENGTH) {
+      if (chargeRegistration(bytes.size()) && bytes.size() >= limits.minLength()) {
         registerBinary(bytes.toByteArray());
       }
     } else if (value instanceof byte[] raw) {
-      if (chargeRegistration(raw.length) && raw.length >= MIN_LENGTH) {
+      if (chargeRegistration(raw.length) && raw.length >= limits.minLength()) {
         registerBinary(raw);
       }
     } else {
@@ -136,7 +197,7 @@ public final class DiagnosticRedactor {
   }
 
   private boolean chargeRegistration(int length) {
-    if (length > MAX_SOURCE_LENGTH || length >= remainingRegistration) {
+    if (length > limits.maxSourceLength() || length >= remainingRegistration) {
       limited = true;
       return false;
     }
@@ -193,8 +254,8 @@ public final class DiagnosticRedactor {
     if (limited || form.isEmpty() || target.contains(form)) {
       return;
     }
-    if (forms.size() + hexForms.size() >= MAX_FORMS
-        || form.length() > MAX_FORM_CHARS - formChars) {
+    if (forms.size() + (long) hexForms.size() >= limits.maxForms()
+        || form.length() > limits.maxFormChars() - formChars) {
       limited = true;
       return;
     }
@@ -210,8 +271,8 @@ public final class DiagnosticRedactor {
     if (!limited && formChars == 0) {
       return message;
     }
-    long work = (long) message.length() * (formChars + 1);
-    if (limited || message.length() > MAX_TEXT_LENGTH || work > remainingWork) {
+    long work = message.length() * (formChars + 1L);
+    if (limited || message.length() > limits.maxTextLength() || work > remainingWork) {
       limited = true;
       report(sink, Reason.LIMIT);
       return mode == Mode.ENFORCE ? MASK : message;
