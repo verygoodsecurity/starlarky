@@ -54,16 +54,15 @@ Wasm limits. The build checks formatting on the guest and its Rust DOM shim
 and runs Clippy with warnings treated as errors on the guest crate. The build
 compiles the DOM shim with the pinned Kitesurf core.
 
-## Adyen sandbox checkout
+## Adyen Card Component and Drop-in demo
 
 [The checkout script](../larky/src/test/resources/kitesurf/embedded_adyen_checkout.star)
 discovers the test card fields in Adyen's hosted frames using their labels,
 autocomplete hints, and origin. It fills them from host-owned references,
-waits for the merchant page to report that the card fields are encrypted,
-and clicks Pay. The local receipt checks for four compact JWE-shaped fields
-and checks that the submitted body omits the synthetic card number. The
-demo ends at the loopback receipt. Processor decryption and authorization
-require their own tests.
+waits for Adyen's component state to become valid, and clicks Pay. The Java
+runner evaluates the same script against the Card Component
+at `/` and Drop-in at `/drop-in`. The run prints the discovered fields,
+the script SHA-256, and the receipt for each URL.
 
 Set `ADYEN_CLIENT_KEY` to a sandbox client key that permits the merchant origin
 `http://localhost:3000`. Start the merchant fixture on an unused loopback port.
@@ -78,14 +77,30 @@ npm run build
 ADYEN_FIXTURE_PORT=18801 node fixture.mjs
 ```
 
-Run the opt-in test from the repository root:
+By default the fixture checks for four compact JWE fields and checks that the
+submitted body omits the synthetic card number. The candidate workflow uses
+this mode.
+
+Run the demo from the repository root with the built guest:
 
 ```sh
+candidate="$PWD/target/kitesurf-guest.wasm"
 mvn -B -ntp -pl larky -am -Dtest=KitesurfWasmAdyenTest \
   -Dsurefire.failIfNoSpecifiedTests=false \
-  -Dlarky.kitesurf.wasmGuest="$PWD/target/kitesurf-guest.wasm" \
+  -Dlarky.kitesurf.wasmGuest="$candidate" \
+  -Dlarky.kitesurf.wasmGuestSha256="$(jq -er .sha256 "$candidate.build.json")" \
   -Dlarky.kitesurf.adyenFixturePort=18801 test
 ```
+
+To demonstrate processor authorization, restart the fixture with
+`ADYEN_DEMO_AUTHORIZE=1` and provide `ADYEN_API_KEY` and
+`ADYEN_MERCHANT_ACCOUNT` from the Adyen test environment in addition to
+`ADYEN_CLIENT_KEY`. Generate one `ADYEN_DEMO_TOKEN` with `openssl rand -hex 32`
+and export it in both the fixture and Maven environments. The Java host sends
+it only to the local payment endpoint, which requires it before forwarding the
+browser's `paymentMethod` object to Adyen's test `/payments` endpoint. Run the
+same Maven command with `-Dlarky.kitesurf.adyenRequireAuthorised=true` added
+before `test` to require a real sandbox authorization on both pages.
 
 ## Release the prebuilt guest
 
