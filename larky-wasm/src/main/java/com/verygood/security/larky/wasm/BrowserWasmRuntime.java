@@ -13,6 +13,7 @@ import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.security.Provider;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
@@ -93,6 +94,7 @@ public final class BrowserWasmRuntime {
     private final AtomicInteger remaining;
     private final Fetcher fetcher;
     private final Poster poster;
+    private final BrowserWebCrypto webCrypto;
 
     public Session(Set<URI> origins, int maxRequests, Fetcher fetcher) {
       this(origins, maxRequests, fetcher, Set.of(), (url, body, deadline, maxBytes) -> {
@@ -102,6 +104,15 @@ public final class BrowserWasmRuntime {
 
     public Session(Set<URI> origins, int maxRequests, Fetcher fetcher,
         Set<URI> exactPostUrls, Poster poster) {
+      this(origins, maxRequests, fetcher, exactPostUrls, poster, null);
+    }
+
+    /**
+     * Uses the host's JCA provider for browser encryption. A null provider selects the JVM defaults.
+     * An explicit provider must supply the requested primitives, including the RSA key factory.
+     */
+    public Session(Set<URI> origins, int maxRequests, Fetcher fetcher,
+        Set<URI> exactPostUrls, Poster poster, Provider cryptoProvider) {
       if (maxRequests <= 0) {
         throw new IllegalArgumentException("A positive browser request budget is required");
       }
@@ -115,6 +126,7 @@ public final class BrowserWasmRuntime {
       this.remaining = new AtomicInteger(maxRequests);
       this.fetcher = Objects.requireNonNull(fetcher);
       this.poster = Objects.requireNonNull(poster);
+      this.webCrypto = new BrowserWebCrypto(cryptoProvider);
     }
 
     WasiHost.Function bind(String name, long deadlineEpochMs) {
@@ -126,8 +138,8 @@ public final class BrowserWasmRuntime {
       }
       WasiHost.Function function = switch (name) {
         case WALL_CLOCK_MS -> BrowserWasmRuntime::wallClock;
-        case BrowserWebCrypto.AES_GCM_ENCRYPT -> BrowserWebCrypto::aesGcmEncrypt;
-        case BrowserWebCrypto.RSA_OAEP_256_ENCRYPT -> BrowserWebCrypto::rsaOaep256Encrypt;
+        case BrowserWebCrypto.AES_GCM_ENCRYPT -> webCrypto::aesGcmEncrypt;
+        case BrowserWebCrypto.RSA_OAEP_256_ENCRYPT -> webCrypto::rsaOaep256Encrypt;
         default -> throw new IllegalArgumentException("Unknown browser host function: " + name);
       };
       return (args, memory) -> {

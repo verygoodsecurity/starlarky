@@ -26,6 +26,7 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.ThreadExpiration;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 /** Experimental, host-granted Kitesurf DOM execution inside a Larky Wasm invocation. */
 @StarlarkBuiltin(name = "kitesurf", doc = "Experimental in-process Kitesurf DOM session.")
@@ -194,6 +195,8 @@ public final class KitesurfModule implements StarlarkValue {
   }
 
   public static final class Host {
+    private static final BouncyCastleProvider CRYPTO_PROVIDER = new BouncyCastleProvider();
+
     private final BrowserWasmRuntime.Program program;
     private final Set<URI> origins;
     private final int maxRequests;
@@ -221,7 +224,8 @@ public final class KitesurfModule implements StarlarkValue {
       }
       var invocation =
           new Invocation(this,
-              new BrowserWasmRuntime.Session(origins, maxRequests, fetcher, postUrls, poster));
+              new BrowserWasmRuntime.Session(origins, maxRequests, fetcher, postUrls, poster,
+                  CRYPTO_PROVIDER));
       CURRENT.set(invocation);
       return invocation;
     }

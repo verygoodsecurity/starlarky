@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPairGenerator;
+import java.security.Provider;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.MGF1ParameterSpec;
 import java.util.Arrays;
@@ -24,6 +25,8 @@ import run.endive.wabt.Wat2Wasm;
 
 public class BrowserWebCryptoTest {
   private static final int OUTPUT = 1024;
+  private static final Provider EMPTY_PROVIDER =
+      new Provider("empty-browser-crypto-test", "1", "No crypto algorithms") {};
 
   @Test
   public void aesGcmMatchesKnownAnswerThroughBrowserImport() throws Exception {
@@ -31,6 +34,13 @@ public class BrowserWebCryptoTest {
     assertThat(result.exitCode()).isEqualTo(0);
     assertThat(HexFormat.of().formatHex(result.stdout())).isEqualTo(
         "0388dace60b6a392f328c2b971b2fe78ab6e47d42cec13bdf53a67b21257bddf");
+  }
+
+  @Test
+  public void aesGcmUsesTheSessionProvider() throws Exception {
+    var result = run(aesGuest(0, 12, OUTPUT, 32), EMPTY_PROVIDER);
+    assertThat(result.exitCode()).isEqualTo(1);
+    assertThat(result.stdout()).isEmpty();
   }
 
   @Test
@@ -67,6 +77,10 @@ public class BrowserWebCryptoTest {
     decrypt.init(Cipher.DECRYPT_MODE, keyPair.getPrivate(), new OAEPParameterSpec(
         "SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT));
     assertThat(decrypt.doFinal(result.stdout())).isEqualTo(plaintext);
+
+    var rejected = run(guest, EMPTY_PROVIDER);
+    assertThat(rejected.exitCode()).isEqualTo(1);
+    assertThat(rejected.stdout()).isEmpty();
   }
 
   @Test
@@ -103,9 +117,15 @@ public class BrowserWebCryptoTest {
   }
 
   private static WasmRuntime.Result run(byte[] wasm) throws Exception {
+    return run(wasm, null);
+  }
+
+  private static WasmRuntime.Result run(byte[] wasm, Provider provider) throws Exception {
     var session = new BrowserWasmRuntime.Session(Set.of(), 1, (uri, deadline, maxBytes) -> {
       throw new AssertionError("Browser primitives must not fetch");
-    });
+    }, Set.of(), (uri, body, deadline, maxBytes) -> {
+      throw new AssertionError("Browser primitives must not post");
+    }, provider);
     var limits = new WasmRuntime.Limits(1 << 20, System.currentTimeMillis() + 10_000, 1024, null);
     try (var guest = BrowserWasmRuntime.compile(wasm).open(limits, session)) {
       return guest.step(new byte[0]);

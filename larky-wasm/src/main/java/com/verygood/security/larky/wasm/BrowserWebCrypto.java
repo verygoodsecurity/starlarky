@@ -10,6 +10,7 @@ import static com.verygood.security.larky.wasm.BrowserWasmRuntime.validRange;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
+import java.security.Provider;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Arrays;
@@ -33,9 +34,13 @@ final class BrowserWebCrypto {
   private static final OAEPParameterSpec OAEP_SHA256 = new OAEPParameterSpec(
       "SHA-256", "MGF1", MGF1ParameterSpec.SHA256, PSource.PSpecified.DEFAULT);
 
-  private BrowserWebCrypto() {}
+  private final Provider provider;
 
-  static int aesGcmEncrypt(long[] args, WasiHost.GuestMemory memory) {
+  BrowserWebCrypto(Provider provider) {
+    this.provider = provider;
+  }
+
+  int aesGcmEncrypt(long[] args, WasiHost.GuestMemory memory) {
     Range key = Range.at(args, 0);
     Range iv = Range.at(args, 2);
     Range aad = Range.at(args, 4);
@@ -54,7 +59,7 @@ final class BrowserWebCrypto {
     byte[] keyBytes = key.read(memory);
     byte[] data = plaintext.read(memory);
     try {
-      Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+      Cipher cipher = cipher("AES/GCM/NoPadding");
       cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes, "AES"),
           new GCMParameterSpec((int) tagBits, iv.read(memory)));
       cipher.updateAAD(aad.read(memory));
@@ -67,7 +72,7 @@ final class BrowserWebCrypto {
     }
   }
 
-  static int rsaOaep256Encrypt(long[] args, WasiHost.GuestMemory memory) {
+  int rsaOaep256Encrypt(long[] args, WasiHost.GuestMemory memory) {
     Range modulus = Range.at(args, 0);
     Range exponent = Range.at(args, 2);
     Range plaintext = Range.at(args, 4);
@@ -90,8 +95,11 @@ final class BrowserWebCrypto {
 
     byte[] data = plaintext.read(memory);
     try {
-      var key = KeyFactory.getInstance("RSA").generatePublic(new RSAPublicKeySpec(n, e));
-      Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+      var keyFactory = provider == null
+          ? KeyFactory.getInstance("RSA")
+          : KeyFactory.getInstance("RSA", provider);
+      var key = keyFactory.generatePublic(new RSAPublicKeySpec(n, e));
+      Cipher cipher = cipher("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
       cipher.init(Cipher.ENCRYPT_MODE, key, OAEP_SHA256);
       return output.write(memory, cipher.doFinal(data));
     } catch (GeneralSecurityException | IllegalArgumentException failure) {
@@ -99,6 +107,12 @@ final class BrowserWebCrypto {
     } finally {
       Arrays.fill(data, (byte) 0);
     }
+  }
+
+  private Cipher cipher(String transformation) throws GeneralSecurityException {
+    return provider == null
+        ? Cipher.getInstance(transformation)
+        : Cipher.getInstance(transformation, provider);
   }
 
   private record Range(long start, long length) {
