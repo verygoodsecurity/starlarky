@@ -99,9 +99,11 @@ public final class DiagnosticRedactor {
     private Object afterBinary(
         StarlarkThread thread, TokenKind op, Object left, Object right, Object result,
         boolean augmented) {
-      return redactor == null || redactor.taint == null || redactor.isLimited()
+      DiagnosticRedactor active = redactor;
+      BinaryTaint taint = active == null ? null : active.taint;
+      return taint == null || active.limited
           ? result
-          : redactor.taint.afterBinary(thread, op, left, right, result, augmented);
+          : taint.afterBinary(thread, op, left, right, result, augmented);
     }
 
     @Nullable

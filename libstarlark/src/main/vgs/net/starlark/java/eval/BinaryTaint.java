@@ -14,6 +14,7 @@ import net.starlark.java.syntax.TokenKind;
 final class BinaryTaint {
   // Entries are pairs of UTF-16 offsets. The whole-value marker also covers bytes.
   private final int[] whole = new int[0];
+  @Nullable private int[] recentRange;
 
   private final IdentityHashMap<String, int[]> stringTags = new IdentityHashMap<>();
   @Nullable private Map<StarlarkBytes, int[]> bytesTags;
@@ -152,7 +153,14 @@ final class BinaryTaint {
   Object afterBinary(
       StarlarkThread thread, TokenKind op, Object left, Object right, Object result,
       boolean augmented) {
-    if (limited || !hasTags() || !canTag(result)) {
+    if (limited) {
+      return result;
+    }
+    if (op == TokenKind.PLUS
+        && left instanceof String ls && right instanceof String rs && result instanceof String text) {
+      return afterConcat(ls, rs, text);
+    }
+    if (!canTag(result)) {
       return result;
     }
     int[] leftTag = tag(left);
@@ -164,14 +172,6 @@ final class BinaryTaint {
     if (tag(result) != null || !reserveTag(result)) {
       return result;
     }
-    if (op == TokenKind.PLUS && left instanceof String ls && right instanceof String rs) {
-      int[] ranges = concat(leftTag, ls.length(), rightTag, rs.length());
-      if (!limited) {
-        remember(result, ranges);
-      }
-      return result;
-    }
-
     boolean stringRepeat = op == TokenKind.STAR
         && ((left instanceof String && right instanceof StarlarkInt)
             || (left instanceof StarlarkInt && right instanceof String));
@@ -180,6 +180,23 @@ final class BinaryTaint {
       result = new String(text);
     }
     remember(result, whole);
+    return result;
+  }
+
+  private String afterConcat(String left, String right, String result) {
+    if (result.isEmpty()) {
+      return result;
+    }
+    int[] leftTag = stringTags.get(left);
+    int[] rightTag = stringTags.get(right);
+    if ((leftTag == null && rightTag == null)
+        || stringTags.containsKey(result) || !reserveTag(result)) {
+      return result;
+    }
+    int[] ranges = concat(leftTag, left.length(), rightTag, right.length());
+    if (!limited) {
+      remember(result, ranges);
+    }
     return result;
   }
 
@@ -192,6 +209,12 @@ final class BinaryTaint {
     }
     if (left == whole && right == whole) {
       return whole;
+    }
+    if (right == null) {
+      return left == whole ? singleRange(0, leftLength) : left;
+    }
+    if (left == null && right == whole) {
+      return singleRange(leftLength, leftLength + rightLength);
     }
     int leftOffsets = offsetCount(left);
     int rightOffsets = offsetCount(right);
@@ -216,12 +239,23 @@ final class BinaryTaint {
     return result;
   }
 
+  private int[] singleRange(int start, int end) {
+    // Adjacent public suffixes reuse the prior span array, and loops often repeat the same range.
+    if (recentRange == null || recentRange[0] != start || recentRange[1] != end) {
+      if (!charge(2)) {
+        return whole;
+      }
+      recentRange = new int[] {start, end};
+    }
+    return recentRange;
+  }
+
   private int offsetCount(int[] tag) {
     return tag == null ? 0 : tag == whole ? 2 : tag.length;
   }
 
   private boolean hasTaggedArgument(Object root) {
-    if (!isArgumentContainer(root)) {
+    if (!isArgumentContainer(root) || !hasTags()) {
       return false;
     }
     var pending = new ArrayDeque<Object>();
