@@ -19,6 +19,7 @@ package com.verygood.security.larky.parser;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
+import net.starlark.java.eval.DiagnosticMethodLibrary;
 import net.starlark.java.eval.Module;
 
 import java.util.Map;
@@ -65,8 +66,9 @@ public final class ParsedStarFile {
     if (module.getGlobals().containsKey(name)) {
       return clazz.cast(module.getGlobal(name));
     }
-    if(module.getPredeclaredBindings().containsKey(name)) {
-      return clazz.cast(module.getPredeclaredBindings().get(name));
+    Object predeclared = module.getPredeclaredBindings().get(name);
+    if (predeclared != null && !DiagnosticMethodLibrary.isDefaultBinding(name, predeclared)) {
+      return clazz.cast(predeclared);
     }
     if (globals.containsKey(name)) {
       return clazz.cast(globals.get(name));

@@ -35,6 +35,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.AccessLevel;
 import lombok.Getter;
+import net.starlark.java.eval.DiagnosticMethodLibrary;
+import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.StarlarkSemantics;
@@ -108,6 +110,8 @@ public class LarkyScript {
   private final StarlarkMode validation;
   @Getter
   private final Map<String, Object> globals;
+  @Getter(AccessLevel.PACKAGE)
+  private final DiagnosticRedactor diagnosticRedactor;
   @Getter
   private final ModuleSet moduleSet;
   @Getter
@@ -147,6 +151,7 @@ public class LarkyScript {
         .build();
     this.validation = validation;
     this.moduleSet = moduleSet;
+    this.diagnosticRedactor = DiagnosticRedactor.given(globals.get(DiagnosticRedactor.BINDING_NAME));
     // TODO(mahmoudimus): differentiate between globals + module predeclared
     this.globals =
       Stream.concat(
@@ -156,6 +161,7 @@ public class LarkyScript {
         globals.entrySet().stream()
       )
       .filter(Objects::nonNull)
+      .filter(entry -> !DiagnosticRedactor.BINDING_NAME.equals(entry.getKey()))
       .collect(Collectors.toMap(
         Map.Entry::getKey,
         entry -> StarlarkUtil.valueToStarlark(entry.getValue()),
@@ -177,7 +183,12 @@ public class LarkyScript {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
-    LarkyEvaluator.EvaluationResult result = new LarkyEvaluator(this, moduleSet, console).eval(content);
+    LarkyEvaluator.EvaluationResult result = LarkyEvaluator.builder()
+        .script(this)
+        .moduleSet(moduleSet)
+        .console(console)
+        .build()
+        .eval(content);
     starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
     return result;
   }
@@ -235,7 +246,13 @@ public class LarkyScript {
       throws IOException, EvalException {
     Module module;
     try {
-      module = new LarkyEvaluator(this, moduleSet, console).eval(content).module();
+      module = LarkyEvaluator.builder()
+          .script(this)
+          .moduleSet(moduleSet)
+          .console(console)
+          .build()
+          .eval(content)
+          .module();
     } catch (InterruptedException e) {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
@@ -243,7 +260,9 @@ public class LarkyScript {
     return new ParsedStarFile(
         content.path(),
         ImmutableMap.<String, Object>builder()
-        .putAll(module.getPredeclaredBindings())
+        .putAll(com.google.common.collect.Maps.filterEntries(
+            module.getPredeclaredBindings(),
+            entry -> !DiagnosticMethodLibrary.isDefaultBinding(entry.getKey(), entry.getValue())))
         .putAll(module.getGlobals())
         .buildKeepingLast(),
         module);

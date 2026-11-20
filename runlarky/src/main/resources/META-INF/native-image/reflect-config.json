@@ -1677,6 +1677,11 @@
       "allPublicConstructors": true
   },
   {
+      "name": "net.starlark.java.eval.DiagnosticMethodLibrary",
+      "allDeclaredMethods": true,
+      "allPublicMethods": true
+  },
+  {
       "name": "net.starlark.java.eval.MethodLibrary",
       "allDeclaredFields": true,
       "allDeclaredMethods": true,

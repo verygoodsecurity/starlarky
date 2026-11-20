@@ -96,7 +96,10 @@ public final class ReplSession {
       mutability.close();
     }
     LarkyScript script = new LarkyScript(StarlarkMode.STRICT);
-    evaluator = new LarkyEvaluator(script, LogConsole.writeOnlyConsole(System.err, false));
+    evaluator = LarkyEvaluator.builder()
+        .script(script)
+        .console(LogConsole.writeOnlyConsole(System.err, false))
+        .build();
     semantics = evaluator.getLarkySemantics();
     options = LarkyScript.scriptFileOptions(StarlarkMode.STRICT, semantics);
     module = Module.withPredeclared(semantics, evaluator.getEnvironment());

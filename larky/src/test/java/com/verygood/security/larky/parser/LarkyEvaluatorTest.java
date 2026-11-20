@@ -8,6 +8,7 @@ import com.google.common.collect.ImmutableMap;
 
 import com.verygood.security.larky.console.testing.TestingConsole;
 
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
@@ -28,6 +29,19 @@ public class LarkyEvaluatorTest {
 
   @After
   public void tearDown() {
+  }
+
+  @Test
+  public void retriesTheSamePathAfterACompileFailure() throws Exception {
+    LarkyEvaluator evaluator = LarkyEvaluator.builder()
+        .script(new LarkyScript(LarkyScript.StarlarkMode.STRICT))
+        .console(new TestingConsole())
+        .build();
+    StarFile invalid = InMemMapBackedStarFile.createStarFile("retry.star", "result =\n");
+    assertThrows(EvalException.class, () -> evaluator.eval(invalid));
+
+    StarFile corrected = InMemMapBackedStarFile.createStarFile("retry.star", "result = 'ok'\n");
+    assertThat(evaluator.eval(corrected).module().getGlobal("result")).isEqualTo("ok");
   }
 
   @Test

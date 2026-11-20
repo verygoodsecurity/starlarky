@@ -3,6 +3,7 @@ package com.verygood.security.larky.parser;
 import static com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import static com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Arrays;
@@ -15,15 +16,41 @@ import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.StreamWriterConsole;
 
+import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.EvalException;
 
+import javax.annotation.Nullable;
 import javax.script.Bindings;
+import javax.script.SimpleBindings;
 
 public class DefaultLarkyInterpreter {
 
   public static final String VERBOSE = "__VERBOSE__";
   private final ModuleSet moduleSet;
   private final LarkyScript interpreter;
+
+  /** Builds an interpreter for JSR223 scopes. Only engine bindings may supply the redactor. */
+  @lombok.Builder(builderClassName = "Builder")
+  private static DefaultLarkyInterpreter create(
+      StarlarkMode mode, @Nullable Bindings globalBindings, @Nullable Bindings engineBindings) {
+    Bindings scriptGlobals = globalBindings;
+    if (globalBindings != null && globalBindings.containsKey(DiagnosticRedactor.BINDING_NAME)) {
+      scriptGlobals = new SimpleBindings(Maps.filterKeys(
+          globalBindings, key -> !DiagnosticRedactor.BINDING_NAME.equals(key)));
+    }
+    return new DefaultLarkyInterpreter(
+        Objects.requireNonNull(mode, "mode"), scriptGlobals, engineBindings);
+  }
+
+  public static final class Builder {
+    private Builder() {}
+
+    @Override
+    public String toString() {
+      // Bindings can contain secrets and can define their own toString().
+      return "DefaultLarkyInterpreter.Builder";
+    }
+  }
 
   public DefaultLarkyInterpreter(StarlarkMode mode, Bindings... bindings) {
     this.moduleSet = new ModuleSupplier().create();
@@ -38,7 +65,10 @@ public class DefaultLarkyInterpreter {
           .flatMap(Collection::stream)
         .collect(Collectors.toMap(
             Map.Entry::getKey,
-            entry -> StarlarkUtil.valueToStarlark(entry.getValue()), (a, b) -> b)
+            entry -> DiagnosticRedactor.BINDING_NAME.equals(entry.getKey())
+                ? entry.getValue()
+                : StarlarkUtil.valueToStarlark(entry.getValue()),
+            (a, b) -> b)
         )
     );
   }
