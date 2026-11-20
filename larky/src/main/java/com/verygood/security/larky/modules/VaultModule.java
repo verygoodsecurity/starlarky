@@ -171,13 +171,9 @@ public class VaultModule implements LarkyVault {
                                     @ParamType(type = String.class),
                             })
             })
-    public Object revealForRun(Object value, Object storage, StarlarkThread thread) throws EvalException {
-        Object revealed = reveal(vaultFor(thread), value, storage);
-        DiagnosticRedactor redactor = thread.getThreadLocal(DiagnosticRedactor.class);
-        // A provider can return the original alias object when there is no stored value.
-        if (redactor != null && !(revealed instanceof String && revealed == value)) {
-            redactor.registerRevealed(revealed);
-        }
+    public Object revealForRun(Object alias, Object storage, StarlarkThread thread) throws EvalException {
+        Object revealed = reveal(vaultFor(thread), alias, storage);
+        registerRevealForDiagnostics(thread, alias, revealed);
         return revealed;
     }
 
@@ -326,6 +322,17 @@ public class VaultModule implements LarkyVault {
 
     private Object reveal(LarkyVault target, Object value, Object storage) throws EvalException {
         return target.reveal(value, validateStorage(storage));
+    }
+
+    private static void registerRevealForDiagnostics(StarlarkThread thread, Object alias, Object revealed) {
+        // A provider can return the original scalar alias object when there is no stored value.
+        if (revealed == alias && alias instanceof String) {
+            return;
+        }
+        DiagnosticRedactor redactor = thread.getThreadLocal(DiagnosticRedactor.class);
+        if (redactor != null) {
+            redactor.registerRevealed(revealed);
+        }
     }
 
     private void delete(LarkyVault target, Object value, Object storage) throws EvalException {

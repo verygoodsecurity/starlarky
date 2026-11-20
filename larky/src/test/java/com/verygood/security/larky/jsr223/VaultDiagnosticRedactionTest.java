@@ -6,8 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
+import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
 import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
+import com.verygood.security.larky.parser.LarkyEvaluator;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +42,27 @@ class VaultDiagnosticRedactionTest {
     engine.eval(REVEAL + "print('value', secret, 'done', sep=' | ')\n");
     assertEquals("value | ***REDACTED*** | done", output.toString().strip());
     assertEquals(SECRET, engine.get("secret"));
+  }
+
+  @Test
+  void distinguishesAnUnchangedAliasFromARevealWithEqualText() throws Exception {
+    LarkyVault vault = mock(LarkyVault.class);
+    when(vault.reveal(eq("missing alias"), any()))
+        .thenAnswer(call -> call.getArgument(0));
+    when(vault.reveal(eq("stored value"), any()))
+        .thenAnswer(call -> new String((String) call.getArgument(0)));
+
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    StringWriter output = writer(engine);
+    engine.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(LarkyVault.class, vault));
+    engine.put(DiagnosticRedactor.BINDING_NAME, new DiagnosticRedactor(Mode.ENFORCE));
+    engine.eval("""
+        load('@vgs//vault', 'vault')
+        print(vault.reveal('missing alias'))
+        print(vault.reveal('stored value'))
+        """);
+
+    assertEquals(List.of("missing alias", "***REDACTED***"), output.toString().lines().toList());
   }
 
   @Test
