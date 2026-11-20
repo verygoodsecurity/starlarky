@@ -222,6 +222,41 @@ def _test_finditer():
         ["asdf", ""])
 
 
+def _test_unicode_codepoint_positions():
+    text = "𐐀😀éx"
+    match = re.search("(😀)(é)?", text)
+    asserts.assert_that(match.regs).is_equal_to(((1, 3), (1, 2), (2, 3)))
+    asserts.assert_that(match.group(1, 2)).is_equal_to(("😀", "é"))
+    asserts.assert_that(match.endpos).is_equal_to(4)
+
+    dot = re.compile(".")
+    asserts.assert_that(dot.match(text, 1, 2).span()).is_equal_to((1, 2))
+    asserts.assert_that(dot.fullmatch(text, 1, 2).group()).is_equal_to("😀")
+    asserts.assert_that(re.compile(r"\A.").match(text, 1, 2)).is_none()
+    asserts.assert_that(re.compile("^.", re.MULTILINE).match("😀\né", 2, 3).span()).is_equal_to((2, 3))
+    asserts.assert_that(re.search("(😀)(z)?", text).span(2)).is_equal_to((-1, -1))
+    asserts.assert_that(dot.finditer(text, 1, 3)[1].span()).is_equal_to((2, 3))
+    asserts.assert_that(dot.findall(text, 1, 3)).is_equal_to(["😀", "é"])
+    asserts.assert_that([m.span() for m in dot.finditer(text)]).is_equal_to(
+        [(0, 1), (1, 2), (2, 3), (3, 4)])
+    asserts.assert_that([m.span() for m in re.finditer("", text)]).is_equal_to(
+        [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)])
+
+    clamped = re.compile("x").search(text, -1, 200)
+    asserts.assert_that((clamped.pos, clamped.endpos)).is_equal_to((0, 4))
+    asserts.assert_that(re.sub("😀", lambda m: str(m.start()), "é😀a😀")).is_equal_to("é1a3")
+
+
+def _test_callable_subn_reads_mutable_input_again():
+    text = bytearray(b"aaa")
+
+    def replace(match):
+        text[1] = 120
+        return "Z"
+
+    asserts.assert_that(re.subn("a", replace, text)).is_equal_to(("ZaZ", 2))
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_compile))
@@ -238,6 +273,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_split))
     _suite.addTest(unittest.FunctionTestCase(_test_findall))
     _suite.addTest(unittest.FunctionTestCase(_test_finditer))
+    _suite.addTest(unittest.FunctionTestCase(_test_unicode_codepoint_positions))
+    _suite.addTest(unittest.FunctionTestCase(_test_callable_subn_reads_mutable_input_again))
     return _suite
 
 

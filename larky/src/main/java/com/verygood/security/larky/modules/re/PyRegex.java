@@ -25,12 +25,12 @@ import net.starlark.java.eval.EvalException;
  *       {@code (?m:$)}. Otherwise the pattern runs twice: with {@code $} as {@code \z} on the text,
  *       and on the text without its final newline; the leftmost match wins (the full text on a
  *       tie).
- *   <li>A match anchored at {@code pos > 0} runs on {@code text[pos-1:]} with the pattern prefixed
- *       by {@code (?s:.)}, so that {@code ^}, {@code \A} and {@code \b} see the character before
- *       {@code pos}, as in Python.
+ *   <li>A match anchored at {@code pos > 0} includes the preceding code point and prefixes
+ *       the pattern with {@code (?s:.)}, so {@code ^}, {@code \A} and {@code \b} see that
+ *       character.
  * </ul>
  *
- * <p>All positions are UTF-16 indices, like Larky's string indices.
+ * <p>Internal positions are UTF-16 indices. The Python wrapper converts its public positions.
  */
 final class PyRegex {
 
@@ -195,8 +195,9 @@ final class PyRegex {
       Matcher m = variant(asciiMode, dollar, false, full).matcher(text);
       return m.lookingAt() ? spans(m, 0, false) : null;
     }
-    Matcher m = variant(asciiMode, dollar, true, full).matcher(text.subSequence(pos - 1, n));
-    return m.lookingAt() ? spans(m, pos - 1, true) : null;
+    int prefixStart = pos - Character.charCount(Character.codePointBefore(text, pos));
+    Matcher m = variant(asciiMode, dollar, true, full).matcher(text.subSequence(prefixStart, n));
+    return m.lookingAt() ? spans(m, prefixStart, true) : null;
   }
 
   private static int[] spans(Matcher m, int offset, boolean prefixed) {

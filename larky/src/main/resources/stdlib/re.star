@@ -4,6 +4,10 @@ Emulates python's re module but using Google's re2. More on the syntax and
 
   https://github.com/google/re2/wiki/Syntax
 
+For Unicode strings, match positions and pattern regions count code points.
+Use Match.group() to extract a match, since ordinary Larky string slicing
+counts UTF-16 units. The bytes compatibility path continues to count bytes.
+
 Java's standard regular expression package, java.util.regex, and many other
 widely used regular expression packages such as PCRE, Perl and Python use a
 backtracking implementation strategy: when a pattern presents two alternatives
@@ -68,9 +72,11 @@ def _expand_template(template, string, spans):
     ])
 
 
-def _Match(pattern, string, pos, endpos, spans):
+def _Match(pattern, input, pos, endpos, spans):
     """A Python re.Match object for the flat group spans returned by the py_* methods."""
     rx = pattern.patternobj
+    string = rx.py_text(input)
+    positions = rx.py_positions(input, spans)
     ngroups = rx.py_groups
 
     def _index(group):
@@ -99,7 +105,7 @@ def _Match(pattern, string, pos, endpos, spans):
 
     def span(group=0):
         index = _index(group)
-        return (spans[2 * index], spans[2 * index + 1])
+        return (positions[2 * index], positions[2 * index + 1])
 
     def start(group=0):
         return span(group)[0]
@@ -127,7 +133,7 @@ def _Match(pattern, string, pos, endpos, spans):
         endpos=endpos,
         re=pattern,
         string=string,
-        regs=tuple([(spans[2 * i], spans[2 * i + 1]) for i in range(ngroups + 1)]),
+        regs=tuple([(positions[2 * i], positions[2 * i + 1]) for i in range(ngroups + 1)]),
         __repr__=__repr__,
         __str__=__repr__,
     )
@@ -136,29 +142,32 @@ def _Match(pattern, string, pos, endpos, spans):
 def _pattern__init__(patternobj, flags):
     rx = patternobj
 
-    def _match_obj(string, pos, endpos, spans):
+    def _match_obj(input, pos, endpos, spans):
         if spans == None:
             return None
-        if endpos == None or endpos > len(string):
-            endpos = len(string)
-        return _Match(self, rx.py_text(string), pos, endpos, spans)
+        return _Match(self, input, pos, endpos, spans)
+
+    def _match_in_region(run, string, pos, endpos):
+        input = rx.py_prepare(string)
+        pos, endpos, start, stop = rx.py_region(input, pos, endpos)
+        return _match_obj(input, pos, endpos, run(input, start, stop))
 
     def match(string, pos=0, endpos=None):
-        return _match_obj(string, pos, endpos, rx.py_match(string, pos, endpos))
+        return _match_in_region(rx.py_match, string, pos, endpos)
 
     def fullmatch(string, pos=0, endpos=None):
-        return _match_obj(string, pos, endpos, rx.py_fullmatch(string, pos, endpos))
+        return _match_in_region(rx.py_fullmatch, string, pos, endpos)
 
     def search(string, pos=0, endpos=None):
-        return _match_obj(string, pos, endpos, rx.py_search(string, pos, endpos))
+        return _match_in_region(rx.py_search, string, pos, endpos)
 
-    def _all_spans(string, pos, endpos):
+    def _all_spans(input, pos, endpos):
         # Successive matches as in CPython 3.7+: the search continues where the last match
         # ended, and an empty match is not allowed right where the previous match ended empty.
         res = []
         must_advance = False
         for _while_ in larky.while_true():
-            spans = rx.py_search(string, pos, endpos, must_advance)
+            spans = rx.py_search(input, pos, endpos, must_advance)
             if spans == None:
                 break
             res.append(spans)
@@ -168,9 +177,11 @@ def _pattern__init__(patternobj, flags):
 
     def findall(string, pos=0, endpos=None):
         ngroups = rx.py_groups
-        text = rx.py_text(string)
+        input = rx.py_prepare(string)
+        _pos, _endpos, start, stop = rx.py_region(input, pos, endpos)
+        text = rx.py_text(input)
         res = []
-        for spans in _all_spans(string, pos, endpos):
+        for spans in _all_spans(input, start, stop):
             if ngroups == 0:
                 res.append(_group_text(text, spans, 0))
             elif ngroups == 1:
@@ -184,9 +195,11 @@ def _pattern__init__(patternobj, flags):
 
     def finditer(string, pos=0, endpos=None):
         # no generator/yield in starlark
+        input = rx.py_prepare(string)
+        pos, endpos, start, stop = rx.py_region(input, pos, endpos)
         return [
-            _match_obj(string, pos, endpos, spans)
-            for spans in _all_spans(string, pos, endpos)
+            _match_obj(input, pos, endpos, spans)
+            for spans in _all_spans(input, start, stop)
         ]
 
     def sub(repl, string, count=0):
@@ -194,10 +207,17 @@ def _pattern__init__(patternobj, flags):
         return new_string
 
     def subn(repl, string, count=0):
-        template = None
-        text = rx.py_text(string)
-        if not types.is_callable(repl):
+        input = rx.py_prepare(string)
+        text = rx.py_text(input)
+        callable_repl = types.is_callable(repl)
+        live_input = callable_repl and types.is_bytearray(string)
+        search_input = string if live_input else input
+        if callable_repl:
+            template = None
+            _pos, endpos, _start, _stop = rx.py_region(input, 0, None)
+        else:
             template = rx.py_template(repl)
+            endpos = None
         res = []
         n = 0
         pos = 0
@@ -206,12 +226,15 @@ def _pattern__init__(patternobj, flags):
         for _while_ in larky.while_true():
             if count > 0 and n >= count:
                 break
-            spans = rx.py_search(string, pos, None, must_advance)
+            spans = rx.py_search(search_input, pos, None, must_advance)
             if spans == None:
                 break
             res.append(text[last:spans[0]])
             if template == None:
-                res.append(repl(_match_obj(string, 0, None, spans)))
+                # A bytearray callback can mutate the input between matches.
+                match_input = rx.py_prepare(string) if live_input else input
+                match_endpos = len(string) if live_input else endpos
+                res.append(repl(_match_obj(match_input, 0, match_endpos, spans)))
             else:
                 res.append(_expand_template(template, text, spans))
             n += 1

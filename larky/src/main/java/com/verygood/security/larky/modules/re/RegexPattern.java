@@ -173,10 +173,69 @@ public class RegexPattern implements StarlarkValue {
   }
 
   private static CharSequence pyInput(Object input) {
+    if (input instanceof PyRegexInput prepared) {
+      return prepared.text;
+    }
     if (input instanceof StarlarkBytes) {
       return new ByteArrayCharSequence(((StarlarkBytes) input).toByteArray());
     }
     return (String) input;
+  }
+
+  @StarlarkMethod(
+      name = "py_prepare",
+      documented = false,
+      parameters = {@Param(name = "string", allowedTypes = {
+          @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)})})
+  public Object pyPrepare(Object string) {
+    String text = pyInput(string).toString();
+    boolean bytes = string instanceof StarlarkBytes;
+    int length = bytes ? text.length() : text.codePointCount(0, text.length());
+    return !bytes && length == text.length() ? text : new PyRegexInput(text, bytes, length);
+  }
+
+  @StarlarkMethod(
+      name = "py_region",
+      documented = false,
+      parameters = {
+          @Param(name = "input", allowedTypes = {
+              @ParamType(type = String.class), @ParamType(type = PyRegexInput.class)}),
+          @Param(name = "pos"),
+          @Param(name = "endpos", allowedTypes = {
+              @ParamType(type = StarlarkInt.class), @ParamType(type = NoneType.class)})})
+  public Tuple pyRegion(Object input, StarlarkInt pos, Object endpos) throws EvalException {
+    int length = input instanceof PyRegexInput prepared ? prepared.length : ((String) input).length();
+    int start = Math.clamp(pos.toInt("pos"), 0, length);
+    int end = endpos == Starlark.NONE
+        ? length
+        : Math.clamp(((StarlarkInt) endpos).toInt("endpos"), 0, length);
+    StarlarkInt startPosition = StarlarkInt.of(start);
+    StarlarkInt endPosition = StarlarkInt.of(end);
+    if (!(input instanceof PyRegexInput prepared) || !prepared.hasSupplementaryCharacters()) {
+      return Tuple.of(startPosition, endPosition, startPosition, endPosition);
+    }
+    return Tuple.of(
+        startPosition, endPosition,
+        StarlarkInt.of(prepared.toOffset(start)), StarlarkInt.of(prepared.toOffset(end)));
+  }
+
+  @StarlarkMethod(
+      name = "py_positions",
+      documented = false,
+      parameters = {
+          @Param(name = "input", allowedTypes = {
+              @ParamType(type = String.class), @ParamType(type = PyRegexInput.class)}),
+          @Param(name = "spans")})
+  public Tuple pyPositions(Object input, Tuple spans) throws EvalException {
+    if (!(input instanceof PyRegexInput prepared) || !prepared.hasSupplementaryCharacters()) {
+      return spans;
+    }
+    Object[] positions = new Object[spans.size()];
+    for (int i = 0; i < positions.length; i++) {
+      int offset = Starlark.toInt(spans.get(i), "span offset");
+      positions[i] = StarlarkInt.of(offset < 0 ? offset : prepared.toPosition(offset));
+    }
+    return Tuple.of(positions);
   }
 
   private Object pyRun(Object input, StarlarkInt pos, Object endpos, int kind, boolean mustAdvance)
@@ -195,7 +254,9 @@ public class RegexPattern implements StarlarkValue {
     if (end < len) {
       text = text.subSequence(0, end);
     }
-    int[] spans = py().run(text, start, kind, mustAdvance, input instanceof StarlarkBytes);
+    boolean bytes = input instanceof PyRegexInput prepared
+        ? prepared.bytes : input instanceof StarlarkBytes;
+    int[] spans = py().run(text, start, kind, mustAdvance, bytes);
     if (spans == null) {
       return Starlark.NONE;
     }
@@ -216,7 +277,8 @@ public class RegexPattern implements StarlarkValue {
           + " must_advance rejects an empty match at pos (for iterating after an empty match).",
       parameters = {
           @Param(name = "string", allowedTypes = {
-              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)}),
+              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class),
+              @ParamType(type = PyRegexInput.class)}),
           @Param(name = "pos", allowedTypes = {@ParamType(type = StarlarkInt.class)},
               defaultValue = "0"),
           @Param(name = "endpos", allowedTypes = {
@@ -235,7 +297,8 @@ public class RegexPattern implements StarlarkValue {
       doc = "Python's Pattern.match (anchored at pos); returns spans as py_search.",
       parameters = {
           @Param(name = "string", allowedTypes = {
-              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)}),
+              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class),
+              @ParamType(type = PyRegexInput.class)}),
           @Param(name = "pos", allowedTypes = {@ParamType(type = StarlarkInt.class)},
               defaultValue = "0"),
           @Param(name = "endpos", allowedTypes = {
@@ -251,7 +314,8 @@ public class RegexPattern implements StarlarkValue {
       doc = "Python's Pattern.fullmatch; returns spans as py_search.",
       parameters = {
           @Param(name = "string", allowedTypes = {
-              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)}),
+              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class),
+              @ParamType(type = PyRegexInput.class)}),
           @Param(name = "pos", allowedTypes = {@ParamType(type = StarlarkInt.class)},
               defaultValue = "0"),
           @Param(name = "endpos", allowedTypes = {
@@ -301,7 +365,8 @@ public class RegexPattern implements StarlarkValue {
           + " earlier Larky versions did, matches on bytes are str).",
       parameters = {
           @Param(name = "string", allowedTypes = {
-              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)})
+              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class),
+              @ParamType(type = PyRegexInput.class)})
       })
   public String pyText(Object string) {
     return pyInput(string).toString();
