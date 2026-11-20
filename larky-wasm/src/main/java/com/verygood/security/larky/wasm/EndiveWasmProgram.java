@@ -67,46 +67,126 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
   @Override
   public WasmRuntime.Result run(byte[] stdin, WasmRuntime.Limits limits)
       throws WasmException, InterruptedException {
-    return GuestThreads.run(() -> runOnThisThread(stdin, limits), limits.deadlineEpochMs());
+    return GuestThreads.run(() -> {
+      var io = newIo(stdin, limits);
+      var builder = instanceBuilder(memoryLimits(limits), imports(io.wasi()::bind, null, 0));
+      return execute(io, limits, () -> builder.build().export("_start").apply());
+    }, limits.deadlineEpochMs());
   }
 
-  /** Runs the guest on the calling thread, which the deadline interrupts. */
-  private WasmRuntime.Result runOnThisThread(byte[] stdin, WasmRuntime.Limits limits)
-      throws WasmException, InterruptedException {
-    MemoryLimits memoryLimits = memoryLimits(limits);
-    CappedOutputStream stdout = new CappedOutputStream("stdout", limits.maxOutputBytes());
-    CappedOutputStream stderr = new CappedOutputStream("stderr", limits.maxOutputBytes());
-    WasiHost wasi =
-        new WasiHost(stdin, stdout, stderr, limits.randomSeed(), limits.deadlineEpochMs(),
-            limits.wasiHostPolicy());
+  BrowserWasmRuntime.Reactor openBrowser(WasmRuntime.Limits limits,
+      BrowserWasmRuntime.Session browser) throws WasmException {
+    return new BrowserReactor(limits, browser, memoryLimits(limits));
+  }
 
+  private record GuestIo(WasiHost wasi, CappedOutputStream stdout, CappedOutputStream stderr) {}
+
+  private static GuestIo newIo(byte[] stdin, WasmRuntime.Limits limits) {
+    var stdout = new CappedOutputStream("stdout", limits.maxOutputBytes());
+    var stderr = new CappedOutputStream("stderr", limits.maxOutputBytes());
+    var wasi = new WasiHost(stdin, stdout, stderr, limits.randomSeed(), limits.deadlineEpochMs(),
+        limits.wasiHostPolicy());
+    return new GuestIo(wasi, stdout, stderr);
+  }
+
+  private Instance.Builder instanceBuilder(MemoryLimits memory, ImportValues imports) {
     int[] tableIndex = {0};
-    Instance.Builder builder =
-        Instance.builder(module)
-            .withImportValues(imports(wasi))
-            .withTableFactory((table, initial) ->
-                freshTable(table, initial, tableMaxima[tableIndex[0]++]))
-            .withMemoryLimits(memoryLimits)
-            .withStart(false);
+    var builder = Instance.builder(module)
+        .withImportValues(imports)
+        .withTableFactory((table, initial) ->
+            freshTable(table, initial, tableMaxima[tableIndex[0]++]))
+        .withMemoryLimits(memory)
+        .withStart(false);
     if (machineFactory != null) {
       builder.withMachineFactory(machineFactory);
     }
+    return builder;
+  }
+
+  private static WasmRuntime.Result execute(GuestIo io, WasmRuntime.Limits limits, Runnable action)
+      throws WasmException, InterruptedException {
     Deadline deadline = Deadline.start(Thread.currentThread(), limits.deadlineEpochMs());
     int exitCode;
     try {
-      Instance instance = builder.build();
-      instance.export("_start").apply();
+      action.run();
       exitCode = 0;
     } catch (WasiHost.ProcExit e) {
       exitCode = e.code;
     } catch (RuntimeException | StackOverflowError e) {
       // Stop the watchdog first, so an interrupt seen from here on is not the deadline's.
       deadline.finish();
-      throw failure(e, deadline, stdout, stderr);
+      throw failure(e, deadline, io.stdout(), io.stderr());
     } finally {
       deadline.finish();
     }
-    return result(exitCode, deadline, stdout, stderr, limits.maxOutputBytes());
+    return result(exitCode, deadline, io.stdout(), io.stderr(), limits.maxOutputBytes());
+  }
+
+  /** Keeps memory and globals while attaching fresh WASI streams to each call. */
+  private final class BrowserReactor implements BrowserWasmRuntime.Reactor {
+    private final WasmRuntime.Limits limits;
+    private final BrowserWasmRuntime.Session browser;
+    private final MemoryLimits memory;
+    private Instance instance;
+    private boolean closed;
+    // Only accessed on the guest thread while a step is active.
+    private WasiHost activeWasi;
+
+    BrowserReactor(WasmRuntime.Limits limits, BrowserWasmRuntime.Session browser,
+        MemoryLimits memory) {
+      this.limits = limits;
+      this.browser = browser;
+      this.memory = memory;
+    }
+
+    @Override
+    public synchronized WasmRuntime.Result step(byte[] input)
+        throws WasmException, InterruptedException {
+      if (closed) {
+        throw new IllegalStateException("browser guest is closed");
+      }
+      Instance previous = instance;
+      Instance[] completed = {null};
+      try {
+        WasmRuntime.Result output = GuestThreads.run(
+            () -> stepOnGuestThread(previous, input, completed), limits.deadlineEpochMs());
+        instance = completed[0];
+        if (instance == null) {
+          close(); // A guest that called proc_exit is done, including exit code 0.
+        }
+        return output;
+      } catch (WasmException | InterruptedException | RuntimeException failure) {
+        close();
+        throw failure;
+      }
+    }
+
+    private WasmRuntime.Result stepOnGuestThread(Instance previous, byte[] input,
+        Instance[] completed) throws WasmException, InterruptedException {
+      var io = newIo(input, limits);
+      activeWasi = io.wasi();
+      try {
+        return execute(io, limits, () -> {
+          Instance current = previous;
+          if (current == null) {
+            var imports = imports(name -> (args, guest) -> activeWasi.bind(name).call(args, guest),
+                browser, limits.deadlineEpochMs());
+            current = instanceBuilder(memory, imports).build();
+            current.export(BrowserWasmRuntime.INITIALIZE).apply();
+          }
+          current.export(BrowserWasmRuntime.STEP).apply();
+          completed[0] = current;
+        });
+      } finally {
+        activeWasi = null;
+      }
+    }
+
+    @Override
+    public synchronized void close() {
+      closed = true;
+      instance = null;
+    }
   }
 
   /**
@@ -148,7 +228,7 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
     int[] tableIndex = {0};
     Instance.Builder builder =
         Instance.builder(module)
-            .withImportValues(imports(wasi))
+            .withImportValues(imports(wasi::bind, null, 0))
             .withTableFactory((table, initial) ->
                 freshTable(table, initial, tableMaxima[tableIndex[0]++]))
             .withStart(false);
@@ -221,20 +301,22 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
     return false;
   }
 
-  /** The module's WASI imports, each served by {@code wasi} (see {@link WasiHost}). */
-  private ImportValues imports(WasiHost wasi) {
+  private ImportValues imports(Function<String, WasiHost.Function> wasi, BrowserWasmRuntime.Session browser,
+      long deadlineEpochMs) {
     List<ImportFunction> functions = new ArrayList<>();
     var imports = module.importSection();
     for (int i = 0; i < imports.importCount(); i++) {
-      // EndiveWasmRuntime checked that every import is a WASI function with its signature.
+      // EndiveWasmRuntime has verified the import's module, name, and signature.
       FunctionImport imp = (FunctionImport) imports.getImport(i);
       String name = imp.name();
       FunctionType type = module.typeSection().getType(imp.typeIndex());
       boolean returnsErrno = !type.returns().isEmpty();
-      WasiHost.Function function = wasi.bind(name);
+      WasiHost.Function function = imp.module().equals(WasiHost.MODULE)
+          ? wasi.apply(name)
+          : browser.bind(name, deadlineEpochMs);
       functions.add(
           new HostFunction(
-              WasiHost.MODULE,
+              imp.module(),
               name,
               type,
               (instance, args) -> {

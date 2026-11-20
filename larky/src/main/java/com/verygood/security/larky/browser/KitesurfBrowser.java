@@ -131,7 +131,7 @@ public final class KitesurfBrowser implements StarlarkValue, AutoCloseable {
     client.close();
   }
 
-  private static final class CdpSession implements WebSocket.Listener, AutoCloseable {
+  static final class CdpSession implements WebSocket.Listener, AutoCloseable {
     private final StarlarkThread thread;
     private final long deadline;
     private final ArrayBlockingQueue<String> messages = new ArrayBlockingQueue<>(16);

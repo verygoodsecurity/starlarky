@@ -1,0 +1,15 @@
+[package]
+name = "larky-kitesurf-guest"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Boa 0.22's Intl context also references its Temporal time-zone provider.
+boa_engine = { workspace = true, features = ["intl_bundled", "temporal"] }
+kitesurf-core = { path = "../core", features = ["native-host"] }
+serde_json = { workspace = true }
+url = "2"

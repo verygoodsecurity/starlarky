@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Workshop Store | Adyen Drop-in sandbox</title>
+  <link rel="stylesheet" href="/adyen.css" />
+</head>
+<body>
+  <header><h1>Workshop Store</h1><p>Adyen Drop-in sandbox checkout</p></header>
+  <main>
+    <aside><h2>Order summary</h2><p>One workshop pass · EUR 10.00</p></aside>
+    <section aria-label="Payment">
+      <p data-checkout-state role="status"></p>
+      <div id="payment-methods"></div>
+      <pre id="result" data-checkout-result role="status"></pre>
+    </section>
+  </main>
+  <script src="/config.js"></script>
+  <script src="/checkout-bundle.js" defer></script>
+</body>
+</html>
