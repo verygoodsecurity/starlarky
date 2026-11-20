@@ -101,7 +101,7 @@ def request_host(request):
     comparison.
     """
     url = request.full_url
-    host = urlparse(url)[1]
+    host = parse.urlsplit(url).netloc
     if host == "":
         host = request.get_header("Host", "")
 

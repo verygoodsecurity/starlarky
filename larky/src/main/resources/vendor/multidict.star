@@ -527,12 +527,13 @@ def CIMultiDict(*args, **kwargs):
         return key.title()
     self._title = _title
 
-    def __init__(*args, **kwargs):
-        # we have to re-init b/c _title is overridden.
-        self._impl = _Impl()
+    if len(args) == 1 and not kwargs and _is_small_string_keyed_dict(args[0]):
+        entries = [(key.title(), key, value) for key, value in args[0].items()]
+        self._impl._items = entries
+        # Match the version produced by adding the entries one at a time.
+        self._impl._version += len(entries)
+    else:
         self._extend(args, kwargs, self.__name__, self._extend_items)
-        return self
-    self = __init__(*args, **kwargs)
     return self
 
 
