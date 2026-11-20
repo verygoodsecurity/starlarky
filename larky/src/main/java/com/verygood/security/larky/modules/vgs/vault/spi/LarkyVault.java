@@ -8,7 +8,12 @@ public interface LarkyVault extends StarlarkValue {
 
     Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException;
 
-    Object reveal(Object value, Object storage) throws EvalException;
+    /** Reveals an alias or batch and reports the individual values actually found. */
+    RevealOutcome revealOutcome(Object value, Object storage) throws EvalException;
+
+    default Object reveal(Object value, Object storage) throws EvalException {
+        return revealOutcome(value, storage).value();
+    }
 
     /**
      * Delete the token, errors if not found.

@@ -29,11 +29,9 @@ public final class DiagnosticRedactor {
 
   public static final class Scope implements AutoCloseable {
     @Nullable private DiagnosticRedactor redactor;
-    @Nullable private Runnable restoreBinding;
 
-    private Scope(@Nullable DiagnosticRedactor redactor, @Nullable Runnable restoreBinding) {
+    private Scope(@Nullable DiagnosticRedactor redactor) {
       this.redactor = redactor;
-      this.restoreBinding = restoreBinding;
     }
 
     public boolean isTracking() {
@@ -44,14 +42,15 @@ public final class DiagnosticRedactor {
       return redactor == null ? message : redactor.sanitizePrint(message);
     }
 
+    public void registerRevealed(List<Object> values) {
+      if (redactor != null) {
+        redactor.registerRevealed(values);
+      }
+    }
+
     @Override
     public void close() {
-      Runnable restore = restoreBinding;
       redactor = null;
-      restoreBinding = null;
-      if (restore != null) {
-        restore.run();
-      }
     }
   }
 
@@ -157,15 +156,9 @@ public final class DiagnosticRedactor {
     return mode != Mode.OFF;
   }
 
-  /** Binds the redactor for a scope and restores the previous binding when the scope closes. */
-  public static Scope bind(StarlarkThread thread, @Nullable DiagnosticRedactor redactor) {
-    DiagnosticRedactor previous = thread.getThreadLocal(DiagnosticRedactor.class);
-    DiagnosticRedactor active = redactor != null && redactor.isTracking() ? redactor : null;
-    if (previous == active) {
-      return new Scope(active, null);
-    }
-    thread.setThreadLocal(DiagnosticRedactor.class, active);
-    return new Scope(active, () -> thread.setThreadLocal(DiagnosticRedactor.class, previous));
+  /** Gives execution callbacks access to the active redactor until the scope closes. */
+  public static Scope openScope(@Nullable DiagnosticRedactor redactor) {
+    return new Scope(redactor != null && redactor.isTracking() ? redactor : null);
   }
 
   /** Registers the scalar or flat batch result of an authorized reveal. */

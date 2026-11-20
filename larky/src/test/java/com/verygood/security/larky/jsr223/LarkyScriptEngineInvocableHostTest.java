@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import com.verygood.security.larky.jsr223.LarkyScriptEngine.GlobalScope;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
+import com.verygood.security.larky.modules.vgs.vault.spi.RevealOutcome;
 import com.verygood.security.larky.parser.LarkyEvaluator;
 import java.io.StringWriter;
 import java.lang.reflect.UndeclaredThrowableException;
@@ -34,8 +35,8 @@ public class LarkyScriptEngineInvocableHostTest {
     }
 
     @Override
-    public Object reveal(Object value, Object storage) {
-      return name + ":" + value;
+    public RevealOutcome revealOutcome(Object value, Object storage) {
+      return RevealOutcome.hit(name + ":" + value);
     }
 
     @Override

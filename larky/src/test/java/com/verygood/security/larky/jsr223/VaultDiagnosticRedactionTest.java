@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
+import com.verygood.security.larky.modules.vgs.vault.spi.RevealOutcome;
 import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
 import com.verygood.security.larky.parser.LarkyEvaluator;
 import java.io.StringWriter;
@@ -45,12 +46,12 @@ class VaultDiagnosticRedactionTest {
   }
 
   @Test
-  void distinguishesAnUnchangedAliasFromARevealWithEqualText() throws Exception {
+  void usesTheProvidersOutcomeForHitsAndMisses() throws Exception {
     LarkyVault vault = mock(LarkyVault.class);
-    when(vault.reveal(eq("missing alias"), any()))
-        .thenAnswer(call -> call.getArgument(0));
-    when(vault.reveal(eq("stored value"), any()))
-        .thenAnswer(call -> new String((String) call.getArgument(0)));
+    when(vault.revealOutcome(eq("missing alias"), any()))
+        .thenAnswer(call -> RevealOutcome.miss(new String((String) call.getArgument(0))));
+    when(vault.revealOutcome(eq("stored value"), any()))
+        .thenAnswer(call -> RevealOutcome.hit(call.getArgument(0)));
 
     LarkyScriptEngine engine = new LarkyScriptEngine();
     StringWriter output = writer(engine);
@@ -63,6 +64,27 @@ class VaultDiagnosticRedactionTest {
         """);
 
     assertEquals(List.of("missing alias", "***REDACTED***"), output.toString().lines().toList());
+  }
+
+  @Test
+  void masksOnlyTheHitsInAMixedBatchAndPreservesTheReturnValue() throws Exception {
+    LarkyVault vault = mock(LarkyVault.class);
+    List<Object> values = List.of("missing alias", SECRET);
+    when(vault.revealOutcome(any(), any()))
+        .thenReturn(new RevealOutcome(values, List.of(SECRET)));
+
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    StringWriter output = writer(engine);
+    engine.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(LarkyVault.class, vault));
+    engine.put(DiagnosticRedactor.BINDING_NAME, new DiagnosticRedactor(Mode.ENFORCE));
+    engine.eval("""
+        load('@vgs//vault', 'vault')
+        revealed = vault.reveal(['missing alias', 'mapped alias'])
+        print(revealed)
+        """);
+
+    assertEquals(values, List.copyOf((List<?>) engine.get("revealed")));
+    assertEquals("[\"missing alias\", \"***REDACTED***\"]", output.toString().strip());
   }
 
   @Test

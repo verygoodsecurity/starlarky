@@ -5,6 +5,7 @@ import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.RedactingPrintConsole;
 import com.verygood.security.larky.modules.utils.Reporter;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
+import com.verygood.security.larky.modules.vgs.vault.VaultAccess;
 import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.StarlarkUtil;
 import java.lang.reflect.InvocationHandler;
@@ -87,7 +88,8 @@ final class LarkyCalls {
       if (limits.expirationMs() != null) {
         thread.setExpirationMs(limits.expirationMs());
       }
-      try (var scope = DiagnosticRedactor.bind(thread, diagnosticRedactor)) {
+      try (var scope = DiagnosticRedactor.openScope(diagnosticRedactor);
+          var reveals = VaultAccess.observe(thread, scope.isTracking() ? scope::registerRevealed : null)) {
         Reporter reporter = new Reporter(RedactingPrintConsole.whenTracking(console, scope));
         thread.setThreadLocal(Reporter.class, reporter);
         thread.setPrintHandler(reporter::report);

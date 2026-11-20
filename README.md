@@ -70,8 +70,16 @@ mvn clean package -pl larky
 An embedding host can bind a `DiagnosticRedactor` under
 `DiagnosticRedactor.BINDING_NAME` in the execution's engine scope. Give each
 independent run its own instance and keep it through error handling. The
-`@vgs//vault` module registers revealed values. Hosts exposing additional
+`@vgs//vault` module reports successful reveals synchronously to the run's
+observer before returning the value to the script. Hosts exposing additional
 reveal APIs can call `registerRevealed` on the same instance.
+
+Vault providers must implement `LarkyVault.revealOutcome`. Its result carries the
+ordinary return value and a list of the values actually found. Use
+`RevealOutcome.hit(value)` for scalar hits and `RevealOutcome.miss(fallback)`
+for misses. For a batch, preserve the original return shape, including
+fallbacks, and include only successful values in the list of hits. Java callers
+can still use `LarkyVault.reveal` to get the ordinary result.
 
 With no binding or with `OFF`, diagnostics use the ordinary behavior.
 `OBSERVE` reports matches and leaves text intact. `ENFORCE` masks known values in

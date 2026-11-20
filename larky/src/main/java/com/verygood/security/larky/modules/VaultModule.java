@@ -5,8 +5,10 @@ import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig.InvalidDecoratorConfigException;
 import com.verygood.security.larky.modules.vgs.vault.NoopVault;
+import com.verygood.security.larky.modules.vgs.vault.VaultAccess;
 import com.verygood.security.larky.modules.vgs.vault.defaults.DefaultVault;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
+import com.verygood.security.larky.modules.vgs.vault.spi.RevealOutcome;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -17,7 +19,6 @@ import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
@@ -172,9 +173,7 @@ public class VaultModule implements LarkyVault {
                             })
             })
     public Object revealForRun(Object alias, Object storage, StarlarkThread thread) throws EvalException {
-        Object revealed = reveal(vaultFor(thread), alias, storage);
-        registerRevealForDiagnostics(thread, alias, revealed);
-        return revealed;
+        return VaultAccess.reveal(vaultFor(thread), alias, validateStorage(storage), thread);
     }
 
     @StarlarkMethod(
@@ -285,8 +284,8 @@ public class VaultModule implements LarkyVault {
     }
 
     @Override
-    public Object reveal(Object value, Object storage) throws EvalException {
-        return reveal(vault, value, storage);
+    public RevealOutcome revealOutcome(Object value, Object storage) throws EvalException {
+        return vault.revealOutcome(value, validateStorage(storage));
     }
 
     @Override
@@ -318,21 +317,6 @@ public class VaultModule implements LarkyVault {
         validateFormat(format);
         validateDecoratorConfig(decoratorConfig);
         return target.redact(value, storage, format, tags, decoratorConfig);
-    }
-
-    private Object reveal(LarkyVault target, Object value, Object storage) throws EvalException {
-        return target.reveal(value, validateStorage(storage));
-    }
-
-    private static void registerRevealForDiagnostics(StarlarkThread thread, Object alias, Object revealed) {
-        // A provider can return the original scalar alias object when there is no stored value.
-        if (revealed == alias && alias instanceof String) {
-            return;
-        }
-        DiagnosticRedactor redactor = thread.getThreadLocal(DiagnosticRedactor.class);
-        if (redactor != null) {
-            redactor.registerRevealed(revealed);
-        }
     }
 
     private void delete(LarkyVault target, Object value, Object storage) throws EvalException {

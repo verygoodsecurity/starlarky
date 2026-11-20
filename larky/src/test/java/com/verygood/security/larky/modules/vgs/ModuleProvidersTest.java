@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
+import com.verygood.security.larky.modules.vgs.vault.spi.RevealOutcome;
 import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.util.List;
@@ -30,8 +31,8 @@ public class ModuleProvidersTest {
     }
 
     @Override
-    public Object reveal(Object value, Object storage) {
-      return name + ":" + value + (storage instanceof String s ? "@" + s : "");
+    public RevealOutcome revealOutcome(Object value, Object storage) {
+      return RevealOutcome.hit(name + ":" + value + (storage instanceof String s ? "@" + s : ""));
     }
 
     @Override
