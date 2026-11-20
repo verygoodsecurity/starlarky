@@ -1,3 +1,4 @@
+# Ported from bazel-skylib 0.8.0-1.0.3, pinned to 1.0.3 (2ec2e6d): tests/dicts_tests.bzl. See larky/src/main/resources/VENDORED.md.
 """Unit tests for dicts.star."""
 
 load("@vendor//asserts",  "asserts")

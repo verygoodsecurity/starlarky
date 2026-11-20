@@ -1,3 +1,4 @@
+# Ported from CPython 3.9.0-3.10.0, pinned to 3.9.6 (db3ff76): Lib/random.py. See larky/src/main/resources/VENDORED.md.
 """Random variable generators.
     bytes
     -----

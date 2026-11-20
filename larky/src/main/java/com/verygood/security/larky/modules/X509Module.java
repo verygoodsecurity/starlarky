@@ -7,6 +7,7 @@ import net.starlark.java.eval.StarlarkValue;
     name = "jx509",
     category = "BUILTIN",
     doc = "A module that helps expose x509 helpers")
+@com.google.errorprone.annotations.Immutable
 public class X509Module implements StarlarkValue {
 
   public static final X509Module INSTANCE =  new X509Module();

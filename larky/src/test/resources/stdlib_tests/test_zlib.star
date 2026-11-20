@@ -1,3 +1,4 @@
+# Ported from CPython 3.9.0-3.9.6, pinned to 3.9.6 (db3ff76): Lib/test/test_zlib.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//json", "json")

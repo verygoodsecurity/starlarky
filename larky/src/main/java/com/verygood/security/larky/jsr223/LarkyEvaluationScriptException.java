@@ -14,6 +14,12 @@ public class LarkyEvaluationScriptException extends ScriptException {
 
   private final @NotNull String excToString;
 
+  /** For a failure with only a message, found before the script ran (see {@link LarkyGlobalScopeRefusedException}). */
+  protected LarkyEvaluationScriptException(@NotNull String message) {
+    super(message);
+    excToString = super.getMessage();
+  }
+
   private LarkyEvaluationScriptException(Exception e) {
     super(e); // do not construct this exception directly.
     excToString = super.getMessage();

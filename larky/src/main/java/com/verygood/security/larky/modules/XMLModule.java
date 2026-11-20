@@ -12,6 +12,7 @@ import net.starlark.java.eval.StarlarkValue;
     name = "jxml",
     category = "BUILTIN",
     doc = "java specific xml/xml-security/xmldsig/xml-crypto implementation")
+@com.google.errorprone.annotations.Immutable
 public class XMLModule implements StarlarkValue {
   public static final XMLModule INSTANCE = new XMLModule();
 

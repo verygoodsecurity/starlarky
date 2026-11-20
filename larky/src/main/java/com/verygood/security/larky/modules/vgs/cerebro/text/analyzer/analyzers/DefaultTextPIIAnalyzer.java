@@ -8,6 +8,7 @@ import net.starlark.java.eval.StarlarkFloat;
 
 import java.util.List;
 
+@com.google.errorprone.annotations.Immutable
 public class DefaultTextPIIAnalyzer implements TextPIIAnalyzer {
   @Override
   public List<TextPIIEntity> analyze(String text, String language, List<String> entities, StarlarkFloat scoreThreshold)

@@ -18,6 +18,7 @@ import org.bouncycastle.crypto.CryptoServicesRegistrar;
 import org.bouncycastle.math.Primes;
 
 
+@com.google.errorprone.annotations.Immutable
 public class CryptoMathModule implements StarlarkValue {
 
   public static final CryptoMathModule INSTANCE = new CryptoMathModule();

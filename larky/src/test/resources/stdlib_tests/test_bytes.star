@@ -1,3 +1,4 @@
+# Ported from starlark-go commit ebe61bd: starlark/testdata/bytes.star. See larky/src/main/resources/VENDORED.md.
 """Unit tests for test_bytes.star"""
 
 load("@stdlib//larky", "larky")

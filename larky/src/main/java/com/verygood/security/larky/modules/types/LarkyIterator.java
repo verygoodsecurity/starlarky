@@ -190,7 +190,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
       if (hasNext()) {
         return StringCache.valueOf(obj.charAt(pos++));
       }
-      throw LarkyStopIteration.getInstance();
+      throw LarkyStopIteration.newInstance();
     }
 
     @Override
@@ -229,7 +229,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
       if (hasNext()) {
         return iterator.next();
       }
-      throw LarkyStopIteration.getInstance();
+      throw LarkyStopIteration.newInstance();
     }
 
     @Override
@@ -334,7 +334,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
             throw new RuntimeException(e);
           }
         }
-        if (rval == LarkyStopIteration.getInstance()) {
+        if (rval == LarkyStopIteration.sentinel()) {
           rval = null;
         }
         return rval;
@@ -350,7 +350,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
     public Object __next__() throws EvalException {
       if (!hasNext()) {
         this.iterator_method = null;
-        throw LarkyStopIteration.getInstance();
+        throw LarkyStopIteration.newInstance();
       }
       Object rval = nextVal;
       checkedForNext = false;
@@ -413,7 +413,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
             }
 //            throw new RuntimeException(e);
           }
-          if (length < 0 && nextVal == LarkyIndexError.getInstance()) {
+          if (length < 0 && nextVal == LarkyIndexError.sentinel()) {
             // infinite iterator, so check to see if it's an IndexError
             nextVal = null;
           }
@@ -454,7 +454,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
         }
         // the callable is called until it returns the sentinel.
         // TODO: should we check to see if `__eq__` is defined?
-        if (Objects.equals(nextVal, sentinelO) || nextVal == LarkyStopIteration.getInstance()) {
+        if (Objects.equals(nextVal, sentinelO) || nextVal == LarkyStopIteration.sentinel()) {
           nextVal = null;
         }
         checkedForNext = true;

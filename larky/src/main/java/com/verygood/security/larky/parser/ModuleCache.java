@@ -16,9 +16,9 @@ import net.starlark.java.syntax.FileOptions;
  * Process-wide cache of loaded Larky modules (stdlib, vendor, vgs): the module values themselves,
  * shared by every evaluation instead of re-running each module's top-level code.
  *
- * <p>Sharing is safe because a loaded module is frozen: its lists, dicts, structs and classes
- * reject mutation (see SharedModuleIsolationTest), and each evaluation keeps its own top-level
- * module and globals, discarded when it ends.
+ * <p>A loaded module is frozen: its lists, dicts, structs and classes reject mutation (see
+ * SharedModuleIsolationTest), and each evaluation keeps its own top-level module and globals,
+ * discarded when it ends.
  *
  * <p>A module's values may capture the values of the predeclared names it uses and of the modules
  * it loads, so a cached module is reused only if, in the new evaluation's environment, every
@@ -26,13 +26,33 @@ import net.starlark.java.syntax.FileOptions;
  * reusable. Per-evaluation bindings (e.g. JSR-223's) that a module uses therefore prevent sharing
  * it rather than leaking one evaluation's values into another.
  *
- * <p>{@code -Dlarky.moduleCache.disable=true} turns it off.
+ * <p>Off by default: {@code -Dlarky.moduleCache.enable=true} turns it on, and
+ * {@code -Dlarky.moduleCache.disable=true} keeps it off even then. Frozen is not enough to make a
+ * module safe to share: some loaded values keep mutable state, or the evaluation thread that
+ * created them, and concurrent evaluations sharing them fail intermittently. Keep it off until
+ * only modules verified free of such state are shared.
  */
 final class ModuleCache {
 
-  private ModuleCache() {}
+  /**
+   * The cache evaluations use unless given another (see {@link LarkyScript#withModuleCache}): on
+   * only with {@code -Dlarky.moduleCache.enable=true}.
+   */
+  static final ModuleCache SHARED =
+      new ModuleCache(
+          Boolean.getBoolean("larky.moduleCache.enable")
+              && !Boolean.getBoolean("larky.moduleCache.disable"));
 
-  static final boolean DISABLED = Boolean.getBoolean("larky.moduleCache.disable");
+  private final boolean enabled;
+
+  /** A cache of its own, for tests: they never turn the process-wide one on or off. */
+  ModuleCache(boolean enabled) {
+    this.enabled = enabled;
+  }
+
+  boolean isEnabled() {
+    return enabled;
+  }
 
   private record Key(String path, FileOptions options, StarlarkSemantics semantics) {}
 
@@ -53,11 +73,15 @@ final class ModuleCache {
     }
   }
 
-  private static final ConcurrentHashMap<Key, Entry> CACHE = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<Key, Entry> cache = new ConcurrentHashMap<>();
 
-  // Cached (and native) modules by identity, to find a loaded module's entry.
-  private static final Map<Module, Entry> BY_MODULE =
-      Collections.synchronizedMap(new IdentityHashMap<>());
+  // Cached modules by identity, to find a loaded module's entry.
+  private final Map<Module, Entry> byModule = Collections.synchronizedMap(new IdentityHashMap<>());
+
+  // Native module wrappers: created once per process and never dependent on the evaluation, so
+  // every cache can share a module that loads one.
+  private static final Set<Module> STABLE =
+      Collections.synchronizedSet(Collections.newSetFromMap(new IdentityHashMap<>()));
 
   private static Key key(String path, FileOptions options, StarlarkSemantics semantics) {
     return new Key(path, options, semantics);
@@ -65,12 +89,12 @@ final class ModuleCache {
 
   /** Returns the cached module for {@code path} if it can be reused in {@code env}, else null. */
   @Nullable
-  static Module lookup(
+  Module lookup(
       String path, FileOptions options, StarlarkSemantics semantics, Map<String, Object> env) {
-    if (DISABLED) {
+    if (!enabled) {
       return null;
     }
-    Entry entry = CACHE.get(key(path, options, semantics));
+    Entry entry = cache.get(key(path, options, semantics));
     return entry != null && entry.reusableIn(env) ? entry.module() : null;
   }
 
@@ -81,7 +105,7 @@ final class ModuleCache {
    * @param env the environment the module was loaded in
    * @param loaded the modules it loaded
    */
-  static void put(
+  void put(
       String path,
       FileOptions options,
       StarlarkSemantics semantics,
@@ -89,7 +113,7 @@ final class ModuleCache {
       @Nullable Set<String> predeclaredNames,
       Map<String, Object> env,
       Map<String, Module> loaded) {
-    if (DISABLED || predeclaredNames == null) {
+    if (!enabled || predeclaredNames == null) {
       return;
     }
     Map<String, Object> captured = new java.util.HashMap<>();
@@ -105,7 +129,10 @@ final class ModuleCache {
         captured.put(load.getKey(), dependency); // a module from the environment itself
         continue;
       }
-      Entry entry = BY_MODULE.get(dependency);
+      if (STABLE.contains(dependency)) {
+        continue; // a native module wrapper: captures nothing
+      }
+      Entry entry = byModule.get(dependency);
       if (entry == null) {
         return; // depends on a module that is not shared: don't share this one either
       }
@@ -117,23 +144,23 @@ final class ModuleCache {
       }
     }
     Entry entry = new Entry(module, ImmutableMap.copyOf(captured));
-    CACHE.put(key(path, options, semantics), entry);
-    BY_MODULE.put(module, entry);
+    cache.put(key(path, options, semantics), entry);
+    byModule.put(module, entry);
   }
 
   /** Registers a module whose values never depend on the evaluation (a native module wrapper). */
   static void putStable(Module module) {
-    BY_MODULE.put(module, new Entry(module, ImmutableMap.of()));
+    STABLE.add(module);
   }
 
   /** Number of cached modules, for tests. */
-  static int size() {
-    return CACHE.size();
+  int size() {
+    return cache.size();
   }
 
   /** Empties the cache, for tests. */
-  static void clear() {
-    CACHE.clear();
-    BY_MODULE.clear();
+  void clear() {
+    cache.clear();
+    byModule.clear();
   }
 }

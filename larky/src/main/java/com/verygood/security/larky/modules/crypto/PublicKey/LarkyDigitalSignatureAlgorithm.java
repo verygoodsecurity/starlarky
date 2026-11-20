@@ -26,6 +26,7 @@ import org.bouncycastle.crypto.params.DSAPrivateKeyParameters;
 import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
 import org.bouncycastle.jcajce.provider.asymmetric.util.PrimeCertaintyCalculator;
 
+@com.google.errorprone.annotations.Immutable
 public class LarkyDigitalSignatureAlgorithm implements StarlarkValue {
   public static LarkyDigitalSignatureAlgorithm INSTANCE = new LarkyDigitalSignatureAlgorithm();
 

@@ -45,7 +45,8 @@ def LarkyECDH():
         headers = re.findall("(-----.*-----)", string)
         for header in headers:
             string = string.replace(header,"")
-        string.replace("\n","")
+        # str.replace returns a new string; the result must be kept.
+        string = string.replace("\r", "").replace("\n", "")
         return base64.b64decode(string)
     self._strip = _strip
 

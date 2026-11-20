@@ -1,24 +1,32 @@
 package com.verygood.security.larky.jsr223;
 
+import com.verygood.security.larky.console.StreamWriterConsole;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
+import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
+import com.verygood.security.larky.parser.LarkyEvaluator;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.script.Bindings;
 import javax.script.Compilable;
 import javax.script.CompiledScript;
+import javax.script.Invocable;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
+import net.starlark.java.eval.StarlarkCallable;
 
-public class LarkyScriptEngine implements Compilable, ScriptEngine {
+public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
 
   /** Engine property for script name. */
   public static final String SCRIPT_NAME = "larky.scriptName";
@@ -38,7 +46,91 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    */
   public static final String CACHE_NAMESPACE = "larky.cacheNamespace";
 
+  /** What an engine does with the {@code GLOBAL_SCOPE} bindings of a context it is given. */
+  public enum GlobalScope {
+
+    /**
+     * As JSR-223 describes them: a script reads their names (its engine scope wins over them), a script's top-level
+     * value of a name already in them is written back to them, and the engine's settings are also looked up in them.
+     * A {@code ScriptEngineManager} gives every engine it makes one shared global scope, so all of this reaches every
+     * script and every call of every engine of that manager.
+     */
+    JSR223,
+
+    /**
+     * Refused: {@code compile} and {@code eval} throw {@link LarkyGlobalScopeRefusedException} for a context whose
+     * global scope has any binding, and otherwise never read nor write it. A run's values go in its engine scope;
+     * nothing reaches a script that its host did not give that run.
+     */
+    REFUSE
+  }
+
+  /** Makes a {@link LarkyScriptEngine}; {@code new LarkyScriptEngine()} is {@code builder().build()}. */
+  public static final class Builder {
+
+    private GlobalScope globalScope = GlobalScope.JSR223;
+
+    private Builder() {
+    }
+
+    /** What the engine does with a context's global scope; {@link GlobalScope#JSR223} by default. */
+    public Builder globalScope(GlobalScope globalScope) {
+      this.globalScope = Objects.requireNonNull(globalScope, "globalScope");
+      return this;
+    }
+
+    public LarkyScriptEngine build() {
+      return new LarkyScriptEngine(globalScope);
+    }
+  }
+
+  private final GlobalScope globalScope;
+
   private ScriptContext context = new SimpleScriptContext();
+
+  /** An engine with the JSR-223 global scope ({@link GlobalScope#JSR223}). */
+  public LarkyScriptEngine() {
+    this(GlobalScope.JSR223);
+  }
+
+  private LarkyScriptEngine(GlobalScope globalScope) {
+    this.globalScope = globalScope;
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public GlobalScope globalScope() {
+    return globalScope;
+  }
+
+  /**
+   * The global-scope bindings of {@code context} as this engine uses them: as they are ({@link GlobalScope#JSR223}),
+   * or none ({@link GlobalScope#REFUSE}), after refusing a context whose global scope has any binding.
+   */
+  Bindings globalBindings(ScriptContext context) throws LarkyGlobalScopeRefusedException {
+    final Bindings global = context.getBindings(ScriptContext.GLOBAL_SCOPE);
+    if (globalScope == GlobalScope.JSR223) {
+      return global;
+    }
+    if (global != null && !global.isEmpty()) {
+      throw new LarkyGlobalScopeRefusedException(global.keySet());
+    }
+    return null;
+  }
+
+  /** Refuses {@code context} if this engine refuses its global scope; see {@link #globalBindings}. */
+  void checkGlobalScope(ScriptContext context) throws LarkyGlobalScopeRefusedException {
+    globalBindings(context);
+  }
+
+  /** The engine setting {@code name} of a context: from either scope, or only the engine scope when refused. */
+  private Object setting(ScriptContext context, String name) {
+    return globalScope == GlobalScope.JSR223
+        ? context.getAttribute(name)
+        : context.getAttribute(name, ScriptContext.ENGINE_SCOPE);
+  }
 
   /**
    * Compiles the script (source represented as a <code>String</code>) for later execution.
@@ -50,10 +142,12 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    * of the <code>eval</code> methods of <code>CompiledScript</code>.
    * @throws ScriptException if compilation fails.
    * @throws NullPointerException if the argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public CompiledScript compile(String script) throws ScriptException {
-    return compile(script, getScriptName());
+    return compile(script, getScriptName(context), context);
   }
 
   /**
@@ -63,29 +157,39 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    * @param scriptName The name of the script for error reporting.
    * @return A compiled script ready for execution.
    * @throws ScriptException if compilation fails.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   public LarkyCompiledScript compile(String script, String scriptName) throws ScriptException {
+    return compile(script, scriptName, context);
+  }
+
+  /** Compiles the script with the settings of {@code context}, which must be one this engine accepts. */
+  private LarkyCompiledScript compile(String script, String scriptName, ScriptContext context)
+      throws ScriptException {
+    checkGlobalScope(context);
     LarkyCompiledScript compiledScript = new LarkyCompiledScript(this);
-    if (context.getAttribute(MODULES) instanceof java.util.Map<?, ?> modules) {
+    if (setting(context, MODULES) instanceof java.util.Map<?, ?> modules) {
       java.util.Map<String, String> files = new java.util.LinkedHashMap<>();
       modules.forEach((name, text) -> files.put(String.valueOf(name), String.valueOf(text)));
       compiledScript.setModules(files);
     }
-    if (context.getAttribute(CACHE_NAMESPACE) instanceof String namespace) {
+    if (setting(context, CACHE_NAMESPACE) instanceof String namespace) {
       compiledScript.setCacheNamespace(namespace);
     }
 
     compiledScript.compile(script, scriptName);
 
-    // Set reader for backward compatibility
-    Reader scriptReader = getScriptReader(script);
-    context.setReader(scriptReader);
+    // Set reader for backward compatibility, on the engine's own context only: eval leaves a caller's context as it was
+    if (context == this.context) {
+      context.setReader(getScriptReader(script));
+    }
 
     return compiledScript;
   }
 
-  private String getScriptName() {
-    Object nameObj = context.getAttribute(SCRIPT_NAME);
+  private String getScriptName(ScriptContext context) {
+    Object nameObj = setting(context, SCRIPT_NAME);
     if (nameObj instanceof String) {
       return (String) nameObj;
     }
@@ -103,6 +207,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    * of its <code>eval</code> methods of <code>CompiledScript</code>.
    * @throws ScriptException      if compilation fails.
    * @throws NullPointerException if argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public CompiledScript compile(Reader script) throws ScriptException {
@@ -145,10 +251,13 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if either argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses {@code context}'s global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(String script, ScriptContext context) throws ScriptException {
-    return eval(script, context.getBindings(ScriptContext.ENGINE_SCOPE));
+    // the given context governs compiling and running: its global scope, settings and writer
+    return compile(script, getScriptName(context), context).eval(context);
   }
 
   /**
@@ -164,6 +273,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if either argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses {@code context}'s global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(Reader reader, ScriptContext context) throws ScriptException {
@@ -182,6 +293,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if the argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(String script) throws ScriptException {
@@ -200,6 +313,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if the argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(Reader reader) throws ScriptException {
@@ -224,6 +339,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if either argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(String script, Bindings n) throws ScriptException {
@@ -244,6 +361,8 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
    *                              thrown by underlying scripting
    *                              implementations.
    * @throws NullPointerException if either argument is null.
+   * @throws LarkyGlobalScopeRefusedException if this engine refuses its context's global scope
+   *     ({@link GlobalScope#REFUSE})
    */
   @Override
   public Object eval(Reader reader, Bindings n) throws ScriptException {
@@ -395,5 +514,76 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
 
   private Reader getScriptReader(String script) {
     return new StringReader(script);
+  }
+
+  /**
+   * Calls the function {@code name} that an earlier {@code eval} with this engine's context defined (eval leaves a
+   * script's globals in the context's bindings), on a thread of its own. Its print goes to the context's writer, and the
+   * step limit and expiration in the bindings apply as they do to eval. Its result is a Starlark value, frozen when the
+   * call ends.
+   */
+  @Override
+  public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
+    checkGlobalScope(context);
+    final Map<String, Object> bindings = bindings();
+    return LarkyCalls.call(function(name, bindings), args, console(bindings), LarkyCalls.Limits.of(bindings),
+        providers(bindings));
+  }
+
+  /** Calls the method {@code name} of {@code thiz}, a value a script evaluated with this engine returned. */
+  @Override
+  public Object invokeMethod(Object thiz, String name, Object... args)
+      throws ScriptException, NoSuchMethodException {
+    checkGlobalScope(context);
+    final Map<String, Object> bindings = bindings();
+    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), LarkyCalls.Limits.of(bindings),
+        providers(bindings));
+  }
+
+  @Override
+  public <T> T getInterface(Class<T> type) {
+    final Map<String, Object> bindings = bindings();
+    return LarkyCalls.proxy(type, name -> bindings.get(name) instanceof StarlarkCallable, this::invokeFunction);
+  }
+
+  @Override
+  public <T> T getInterface(Object thiz, Class<T> type) {
+    if (thiz == null) {
+      throw new IllegalArgumentException("thiz is null");
+    }
+    return LarkyCalls.proxy(type, name -> LarkyCalls.hasMethod(thiz, name),
+        (name, args) -> invokeMethod(thiz, name, args));
+  }
+
+  private static StarlarkCallable function(String name, Map<String, Object> bindings) throws NoSuchMethodException {
+    if (bindings.get(name) instanceof StarlarkCallable callable) {
+      return callable;
+    }
+    throw new NoSuchMethodException("no function " + name + " in this engine's bindings; eval a script that defines it");
+  }
+
+  /** The context's bindings, engine scope over global scope (global only as this engine reads it). */
+  private Map<String, Object> bindings() {
+    final Map<String, Object> bindings = new HashMap<>();
+    final Bindings global = globalScope == GlobalScope.JSR223 ? context.getBindings(ScriptContext.GLOBAL_SCOPE) : null;
+    final Bindings engine = context.getBindings(ScriptContext.ENGINE_SCOPE);
+    if (global != null) {
+      bindings.putAll(global);
+    }
+    if (engine != null) {
+      bindings.putAll(engine);
+    }
+    return bindings;
+  }
+
+  /** The module providers the bindings give, as an evaluation reads them (LarkyEvaluator.MODULE_PROVIDERS). */
+  private static ModuleProviders providers(Map<String, Object> bindings) {
+    return ModuleProviders.given(bindings.get(LarkyEvaluator.MODULE_PROVIDERS));
+  }
+
+  private StreamWriterConsole console(Map<String, Object> bindings) {
+    final boolean verbose = Boolean.parseBoolean(
+        String.valueOf(bindings.getOrDefault(DefaultLarkyInterpreter.VERBOSE, "false")));
+    return new StreamWriterConsole(LarkyCalls.writer(context), verbose);
   }
 }

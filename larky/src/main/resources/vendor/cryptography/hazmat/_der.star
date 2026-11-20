@@ -7,6 +7,7 @@
 #
 # Note this implementation treats an element's constructed bit as part of the
 # tag. This is fine for DER, where the bit is always computable from the type.
+# Ported from cryptography 3.4.x (<= 3.4.8), pinned to 3.4.8 (70ccc25): src/cryptography/hazmat/_der.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")

@@ -19,6 +19,7 @@ import net.starlark.java.eval.Tuple;
     name = "codecs",
     category = "BUILTIN",
     doc = "This module provides codecs")
+@com.google.errorprone.annotations.Immutable
 public class CodecsModule implements StarlarkValue {
 
   public static final CodecsModule INSTANCE = new CodecsModule();

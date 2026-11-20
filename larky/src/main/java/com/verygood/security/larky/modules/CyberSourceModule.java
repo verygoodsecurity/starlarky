@@ -7,10 +7,8 @@ import java.security.KeyFactory;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.Security;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.RSAPrivateKeySpec;
-import java.util.Base64;
 import java.util.Collections;
 
 import javax.xml.XMLConstants;
@@ -20,6 +18,8 @@ import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+
+import com.verygood.security.larky.modules.crypto.Util.PemDecoding;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -49,6 +49,7 @@ import org.w3c.dom.Document;
     category = "BUILTIN",
     doc = "Module providing tools for CyberSource payment gateway operations"
 )
+@com.google.errorprone.annotations.Immutable
 public class CyberSourceModule implements StarlarkValue {
 
     public static final CyberSourceModule INSTANCE = new CyberSourceModule();
@@ -74,7 +75,7 @@ public class CyberSourceModule implements StarlarkValue {
                       .replace("-----END PRIVATE KEY-----", "")
                       .replaceAll("\\s", "");
         
-        byte[] keyBytes = Base64.getDecoder().decode(pemKey);
+        byte[] keyBytes = PemDecoding.decodeBase64(pemKey);
         
         // Try to parse as PKCS#1 format
         try {
@@ -101,20 +102,11 @@ public class CyberSourceModule implements StarlarkValue {
      * Parse PEM formatted X509 certificate
      */
     private X509Certificate parseCertificate(String pemCert) throws Exception {
-        // Remove PEM headers/footers if present
+        // Remove PEM headers/footers if present, decode the Base64 body and parse the DER
         pemCert = pemCert.replace("-----BEGIN CERTIFICATE-----", "")
                         .replace("-----END CERTIFICATE-----", "")
                         .replaceAll("\\s", "");
-        
-        // Add them back in proper format for CertificateFactory
-        String formattedCert = "-----BEGIN CERTIFICATE-----\n" + 
-                              pemCert + "\n" +
-                              "-----END CERTIFICATE-----";
-        
-        CertificateFactory cf = CertificateFactory.getInstance("X.509");
-        return (X509Certificate) cf.generateCertificate(
-            new ByteArrayInputStream(formattedCert.getBytes(StandardCharsets.UTF_8))
-        );
+        return PemDecoding.certificateFromDer(PemDecoding.decodeBase64(pemCert));
     }
     
     /**

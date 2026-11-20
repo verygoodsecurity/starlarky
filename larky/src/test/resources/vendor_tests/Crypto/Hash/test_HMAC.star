@@ -1,3 +1,4 @@
+# Ported from pycryptodome <= 3.10.1 (some >= 3.10.0), pinned to 3.10.1 (339259c): lib/Crypto/SelfTest/Hash/test_HMAC.py. See larky/src/main/resources/VENDORED.md.
 load("@vendor//Crypto/Hash/HMAC", HMAC="HMAC")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//unittest", "unittest")
@@ -35,6 +36,16 @@ def HMAC_test_update():
     eq(hmac.hexdigest(), 'c7d49ccaae072a775cd168659c52698f')
 
 
+def HMAC_test_copy():
+    original = HMAC.new(b("Swordfish"), b("hel"), digestmod=SHA256)
+    clone = original.copy()
+    clone.update(b("lo"))
+    # the clone continues from the original's state
+    eq(clone.hexdigest(), '4711f1ab6eec04c80df9a24f01d2e4bd33564af6b128a0ffaf967b06547e268a')
+    # and updating it leaves the original unchanged
+    eq(original.hexdigest(), HMAC.new(b("Swordfish"), b("hel"), digestmod=SHA256).hexdigest())
+
+
 def HMAC_test_issue_179():
     # https://github.com/verygoodsecurity/starlarky/issues/179
     key = b'aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434ddabede0f3b482cd9aea9434d'
@@ -61,6 +72,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(HMAC_test_hex_digest))
     _suite.addTest(unittest.FunctionTestCase(HMAC_test_hexverify))
     _suite.addTest(unittest.FunctionTestCase(HMAC_test_update))
+    _suite.addTest(unittest.FunctionTestCase(HMAC_test_copy))
     _suite.addTest(unittest.FunctionTestCase(HMAC_test_issue_179))
     return _suite
 

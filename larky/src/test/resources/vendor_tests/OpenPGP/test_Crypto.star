@@ -1,3 +1,4 @@
+# Ported from OpenPGP-Python fork fork a174c38 (loosely): tests/test_Crypto.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//base64", base64="base64")
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//bz2", bz2="bz2")

@@ -37,6 +37,7 @@ import net.starlark.java.eval.StarlarkValue;
         "functions only accept bytes-like objects (such as bytes, bytearray and other objects " +
         "that support the buffer protocol)."
 )
+@com.google.errorprone.annotations.Immutable
 public class BinasciiModule implements StarlarkValue {
 
   public static final BinasciiModule INSTANCE = new BinasciiModule();

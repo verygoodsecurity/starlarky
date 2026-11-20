@@ -23,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
  * The classmethod builtin function.
  */
 @StarlarkBuiltin(name = "classmethod")
+@com.google.errorprone.annotations.Immutable
 public class LarkyClassMethod extends LarkyStaticMethod {
 
   public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType("classmethod");

@@ -20,6 +20,7 @@ import org.jetbrains.annotations.Nullable;
  * The staticmethod descriptor.
  */
 @StarlarkBuiltin(name = "staticmethod")
+@com.google.errorprone.annotations.Immutable
 public class LarkyStaticMethod implements ForwardingLarkyType, StarlarkCallable {
 
   public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType("staticmethod");

@@ -1,3 +1,4 @@
+# Ported from PyXML 0.8.4 (no git): test/test_c14n.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//base64", base64="base64")
 load("@stdlib//io", io="io")
 load("@stdlib//larky", larky="larky")

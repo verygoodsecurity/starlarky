@@ -27,6 +27,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 # ===================================================================
+# Ported from pycryptodome 3.10.1-3.11.0, pinned to 3.10.1 (339259c): lib/Crypto/PublicKey/ECC.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//binascii", binascii="binascii")
 load("@stdlib//codecs", codecs="codecs")
 load("@stdlib//collections", namedtuple="namedtuple")
