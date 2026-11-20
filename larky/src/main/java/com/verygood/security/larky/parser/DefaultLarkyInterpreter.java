@@ -30,40 +30,25 @@ public class DefaultLarkyInterpreter {
   private final LarkyScript interpreter;
 
   /** Builds an interpreter for JSR223 scopes. Only engine bindings may supply the redactor. */
-  public static Builder builder() {
-    return new Builder();
+  @lombok.Builder(builderClassName = "Builder")
+  private static DefaultLarkyInterpreter create(
+      StarlarkMode mode, @Nullable Bindings globalBindings, @Nullable Bindings engineBindings) {
+    Bindings scriptGlobals = globalBindings;
+    if (globalBindings != null && globalBindings.containsKey(DiagnosticRedactor.BINDING_NAME)) {
+      scriptGlobals = new SimpleBindings(Maps.filterKeys(
+          globalBindings, key -> !DiagnosticRedactor.BINDING_NAME.equals(key)));
+    }
+    return new DefaultLarkyInterpreter(
+        Objects.requireNonNull(mode, "mode"), scriptGlobals, engineBindings);
   }
 
   public static final class Builder {
-    private StarlarkMode mode;
-    @Nullable private Bindings globalBindings;
-    @Nullable private Bindings engineBindings;
-
     private Builder() {}
 
-    public Builder mode(StarlarkMode mode) {
-      this.mode = mode;
-      return this;
-    }
-
-    public Builder globalBindings(@Nullable Bindings globalBindings) {
-      this.globalBindings = globalBindings;
-      return this;
-    }
-
-    public Builder engineBindings(@Nullable Bindings engineBindings) {
-      this.engineBindings = engineBindings;
-      return this;
-    }
-
-    public DefaultLarkyInterpreter build() {
-      Bindings scriptGlobals = globalBindings;
-      if (globalBindings != null && globalBindings.containsKey(DiagnosticRedactor.BINDING_NAME)) {
-        scriptGlobals = new SimpleBindings(Maps.filterKeys(
-            globalBindings, key -> !DiagnosticRedactor.BINDING_NAME.equals(key)));
-      }
-      return new DefaultLarkyInterpreter(
-          Objects.requireNonNull(mode, "mode"), scriptGlobals, engineBindings);
+    @Override
+    public String toString() {
+      // Bindings can contain secrets and can define their own toString().
+      return "DefaultLarkyInterpreter.Builder";
     }
   }
 

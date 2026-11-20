@@ -67,26 +67,15 @@ public final class LarkyEvaluator {
   private final StarlarkSemantics larkySemantics;
   private final ModuleCache moduleCache;
 
-  public static Builder builder() {
-    return new Builder();
+  @lombok.Builder(builderClassName = "Builder")
+  private static LarkyEvaluator create(
+      LarkyScript script, Console console, @Nullable ModuleSupplier.ModuleSet moduleSet) {
+    checkNotNull(script, "script");
+    return new LarkyEvaluator(script, moduleSet == null ? script.getModuleSet() : moduleSet, console);
   }
 
   public static final class Builder {
-    private LarkyScript script;
-    private Console console;
-    @Nullable private ModuleSupplier.ModuleSet moduleSet;
-
     private Builder() {}
-
-    public Builder script(LarkyScript script) {
-      this.script = script;
-      return this;
-    }
-
-    public Builder console(Console console) {
-      this.console = console;
-      return this;
-    }
 
     /** Overrides the module set supplied by the script. */
     public Builder moduleSet(ModuleSupplier.ModuleSet moduleSet) {
@@ -94,9 +83,9 @@ public final class LarkyEvaluator {
       return this;
     }
 
-    public LarkyEvaluator build() {
-      LarkyScript source = checkNotNull(script, "script");
-      return new LarkyEvaluator(source, moduleSet == null ? source.getModuleSet() : moduleSet, console);
+    @Override
+    public String toString() {
+      return "LarkyEvaluator.Builder";
     }
   }
 
@@ -154,26 +143,33 @@ public final class LarkyEvaluator {
   public EvaluationResult eval(StarFile content)
       throws IOException, InterruptedException, EvalException {
     String path = content.path();
-    if (pending.contains(path)) {
-      throw throwCycleError(path);
-    }
     Module module = loaded.get(path);
     if (module != null) {
       return DefaultEvaluationResult.builder()
           .module(module)
           .build();
     }
-    pending.add(path);
-    try {
+    try (var evaluation = markPending(path)) {
       EvaluationResult result = switch (content) {
         case ResourceContentStarFile resource -> evalResource(resource);
         default -> evalScript(content);
       };
       loaded.put(path, result.module());
       return result;
-    } finally {
-      pending.remove(path);
     }
+  }
+
+  @FunctionalInterface
+  private interface PendingEvaluation extends AutoCloseable {
+    @Override
+    void close();
+  }
+
+  private PendingEvaluation markPending(String path) throws EvalException {
+    if (!pending.add(path)) {
+      throw cycleError(path);
+    }
+    return () -> pending.remove(path);
   }
 
   private EvaluationResult evalResource(ResourceContentStarFile content)
@@ -542,7 +538,7 @@ public final class LarkyEvaluator {
     }
   }
 
-  private RuntimeException throwCycleError(String cycleElement) throws EvalException {
+  private EvalException cycleError(String cycleElement) {
     StringBuilder sb = new StringBuilder();
     for (String element : pending) {
       sb.append(element.equals(cycleElement) ? "* " : "  ");
@@ -550,7 +546,7 @@ public final class LarkyEvaluator {
     }
     sb.append("* ").append(cycleElement).append("\n");
     console.error("Cycle was detected in the configuration: \n" + sb);
-    throw new EvalException("Cycle was detected");
+    return new EvalException("Cycle was detected");
   }
 
   /**
