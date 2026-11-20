@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CSE Shop: checkout (sandbox only)</title>
+  <link rel="stylesheet" href="/adyen.css" />
+  <style>
+    body { font-family: -apple-system, sans-serif; max-width: 480px; margin: 48px auto; }
+    #banner { background: #fff3cd; border: 1px solid #ffe69c; padding: 8px 12px; margin-bottom: 16px; font-size: 13px; }
+    #result { white-space: pre-wrap; background: #f6f6f6; padding: 12px; margin-top: 16px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="banner">Sandbox test checkout only. Adyen test environment, test cards only. No real payments.</div>
+  <h1>CSE Shop</h1>
+  <p>Order total: EUR 10.00</p>
+  <div id="card-container"></div>
+  <p id="state" role="status"></p>
+  <pre id="result" role="status"></pre>
+
+  <script src="/config.js"></script>
+  <script src="/checkout-bundle.js" defer></script>
+</body>
+</html>

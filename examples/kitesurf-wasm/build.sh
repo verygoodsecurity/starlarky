@@ -32,7 +32,7 @@ const netPath = 'packages/core/src/resources/net.rs';
 const net = readFileSync(netPath, 'utf8');
 const request = '        let id = {';
 if (net.split(request).length !== 2) throw new Error('Unexpected Kitesurf net provider');
-writeFileSync(netPath, net.replace(request, `        // The WASI port currently owns only the top-level document fetch.
+writeFileSync(netPath, net.replace(request, `        // The Larky guest routes browser requests through explicit host grants.
         if cfg!(target_os = "wasi") {
             settle_unfetchable(handler, url, infer_resource_kind(&request));
             return;
@@ -40,15 +40,12 @@ writeFileSync(netPath, net.replace(request, `        // The WASI port currently 
 
 ` + request));
 
-const lock = readFileSync('Cargo.lock', 'utf8');
-const packageAnchor = '[[package]]\nname = "lazy_static"';
-if (!lock.includes(packageAnchor)) throw new Error('Unexpected Kitesurf lockfile');
-writeFileSync('Cargo.lock', lock.replace(packageAnchor,
-  '[[package]]\nname = "larky-kitesurf-guest"\nversion = "0.1.0"\n'
-  + 'dependencies = [\n "kitesurf-core",\n "serde_json",\n]\n\n' + packageAnchor));
 NODE
 
+patch -s -p0 < "$example_dir/guest/Cargo.lock.patch"
+
 export CARGO_TARGET_WASM32_WASIP1_RUSTFLAGS="-C target-cpu=mvp -C target-feature=+bulk-memory,+mutable-globals -C link-arg=--strip-all"
-cargo build --locked --target wasm32-wasip1 --profile release-test -p larky-kitesurf-guest
-cp target/wasm32-wasip1/release-test/larky_kitesurf_guest.wasm "$output"
+build_dir="${CARGO_TARGET_DIR:-target}"
+cargo build --locked --target-dir "$build_dir" --target wasm32-wasip1 --profile release-test -p larky-kitesurf-guest
+cp "$build_dir/wasm32-wasip1/release-test/larky_kitesurf_guest.wasm" "$output"
 printf 'Built %s\n' "$output"

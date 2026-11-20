@@ -313,7 +313,7 @@ final class EndiveWasmProgram implements WasmRuntime.Program {
       boolean returnsErrno = !type.returns().isEmpty();
       WasiHost.Function function = imp.module().equals(WasiHost.MODULE)
           ? wasi.apply(name)
-          : (args, memory) -> browser.get(args, memory, deadlineEpochMs);
+          : browser.bind(name, deadlineEpochMs);
       functions.add(
           new HostFunction(
               imp.module(),

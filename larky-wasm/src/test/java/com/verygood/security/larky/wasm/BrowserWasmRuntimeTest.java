@@ -18,11 +18,62 @@ import run.endive.wabt.Wat2Wasm;
 public class BrowserWasmRuntimeTest {
   private static final URI ALLOWED = URI.create("https://checkout.example");
   private static final URI DENIED = URI.create("https://outside.example");
+  private static final URI RECEIPT = URI.create("https://checkout.example/receipt?id=demo");
 
   @Test
   public void ordinaryWasmCannotImportBrowserHttp() {
     assertThrows(WasmRuntime.WasmException.class,
         () -> new EndiveWasmRuntime().compile(fetchGuest(ALLOWED)));
+  }
+
+  @Test
+  public void theGetOnlyGrantDeniesBrowserPostBeforeTransport() throws Exception {
+    var urls = new ArrayList<URI>();
+    var result = fetch(BrowserWasmRuntime.compile(postGuest(RECEIPT, 512, 7)), session(urls));
+    assertThat(result.exitCode()).isEqualTo(100);
+    assertThat(urls).isEmpty();
+  }
+
+  @Test
+  public void browserPostSendsTheBodyOnlyToAnExactGrantedUrl() throws Exception {
+    var posts = new ArrayList<PostedRequest>();
+    var grant = postSession(new ArrayList<>(), posts);
+    for (URI denied : List.of(URI.create("https://checkout.example/receipt"),
+        URI.create("https://checkout.example/receipt?id=other"),
+        URI.create("https://checkout.example/receipt?id=demo#fragment"),
+        URI.create("https://outside.example/receipt?id=demo"))) {
+      assertThat(fetch(BrowserWasmRuntime.compile(postGuest(denied, 512, 7)), grant).exitCode())
+          .isEqualTo(100);
+    }
+    assertThat(posts).isEmpty();
+    assertThat(fetch(BrowserWasmRuntime.compile(postGuest(RECEIPT, 512, 7)), grant).exitCode())
+        .isEqualTo(2);
+    assertThat(posts).containsExactly(new PostedRequest(RECEIPT, "receipt", 256));
+  }
+
+  @Test
+  public void browserPostRejectsAnOutOfBoundsBodyBeforeTransport() throws Exception {
+    var posts = new ArrayList<PostedRequest>();
+    var grant = postSession(new ArrayList<>(), posts);
+    for (byte[] wasm : new byte[][] {
+        postGuest(RECEIPT, -1, 7), postGuest(RECEIPT, 512, -1),
+        postGuest(RECEIPT, 65530, 7)}) {
+      assertThat(fetch(BrowserWasmRuntime.compile(wasm), grant).exitCode()).isEqualTo(100);
+    }
+    assertThat(posts).isEmpty();
+  }
+
+  @Test
+  public void allowedGetAndPostShareTheRequestBudget() throws Exception {
+    var urls = new ArrayList<URI>();
+    var posts = new ArrayList<PostedRequest>();
+    var grant = postSession(urls, posts);
+    assertThat(fetch(BrowserWasmRuntime.compile(fetchGuest(ALLOWED)), grant).exitCode())
+        .isEqualTo(2);
+    assertThat(fetch(BrowserWasmRuntime.compile(postGuest(RECEIPT, 512, 7)), grant).exitCode())
+        .isEqualTo(100);
+    assertThat(urls).containsExactly(ALLOWED);
+    assertThat(posts).isEmpty();
   }
 
   @Test
@@ -112,6 +163,18 @@ public class BrowserWasmRuntimeTest {
     });
   }
 
+  private record PostedRequest(URI url, String body, int maxBytes) {}
+
+  private static BrowserWasmRuntime.Session postSession(List<URI> urls, List<PostedRequest> posts) {
+    return new BrowserWasmRuntime.Session(Set.of(ALLOWED), 1, (uri, deadline, maxBytes) -> {
+      urls.add(uri);
+      return "ok".getBytes(StandardCharsets.UTF_8);
+    }, Set.of(RECEIPT), (uri, body, deadline, maxBytes) -> {
+      posts.add(new PostedRequest(uri, new String(body, StandardCharsets.UTF_8), maxBytes));
+      return "ok".getBytes(StandardCharsets.UTF_8);
+    });
+  }
+
   private static WasmRuntime.Limits limits() {
     return new WasmRuntime.Limits(1 << 20, System.currentTimeMillis() + 10_000, 1024, null);
   }
@@ -132,5 +195,26 @@ public class BrowserWasmRuntimeTest {
               (then (call $exit (i32.const 101))))
             (call $exit (local.get $result))))
         """.formatted(url, url.toString().length()));
+  }
+
+  private static byte[] postGuest(URI url, int bodyAddress, int bodyLength) {
+    return Wat2Wasm.parse("""
+        (module
+          (import "vgs_browser_v1" "http_post"
+            (func $post (param i32 i32 i32 i32 i32 i32) (result i32)))
+          (import "wasi_snapshot_preview1" "proc_exit" (func $exit (param i32)))
+          (memory (export "memory") 1)
+          (data (i32.const 0) "%s")
+          (data (i32.const 512) "receipt")
+          (func (export "_initialize"))
+          (func (export "vgs_browser_step") (local $result i32)
+            (local.set $result (call $post (i32.const 0) (i32.const %d)
+              (i32.const %d) (i32.const %d) (i32.const 1024) (i32.const 256)))
+            (if (i32.lt_s (local.get $result) (i32.const 0))
+              (then (call $exit (i32.const 100))))
+            (if (i32.ne (i32.load8_u (i32.const 1024)) (i32.const 111))
+              (then (call $exit (i32.const 101))))
+            (call $exit (local.get $result))))
+        """.formatted(url, url.toString().length(), bodyAddress, bodyLength));
   }
 }

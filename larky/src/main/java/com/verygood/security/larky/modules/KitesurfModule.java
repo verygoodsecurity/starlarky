@@ -8,11 +8,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.verygood.security.larky.wasm.BrowserWasmRuntime;
 import com.verygood.security.larky.wasm.WasmRuntime;
+import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -61,6 +63,39 @@ public final class KitesurfModule implements StarlarkValue {
   }
 
   @StarlarkMethod(
+      name = "wait_for_text",
+      doc = "Pumps browser events until text appears in an element matched in the main document.",
+      parameters = {@Param(name = "selector"), @Param(name = "text"),
+          @Param(name = "timeout_ms", named = true, defaultValue = "5000")},
+      useStarlarkThread = true)
+  public boolean waitForText(String selector, String text, StarlarkInt timeoutMs,
+      StarlarkThread thread) throws EvalException, InterruptedException {
+    if (!currentInvocation(thread).documentOpen) {
+      throw Starlark.errorf("open a Kitesurf document before waiting for text");
+    }
+    if (selector.isBlank() || text.isEmpty()
+        || selector.getBytes(UTF_8).length > 512 || text.getBytes(UTF_8).length > 512) {
+      throw Starlark.errorf("invalid Kitesurf text query");
+    }
+    int timeout = timeoutMs.toInt("timeout_ms");
+    if (timeout < 0 || timeout > 30_000) {
+      throw Starlark.errorf("Kitesurf timeout_ms must be between 0 and 30000");
+    }
+    var command = Dict.immutableCopyOf(Map.of("op", "match_text", "selector", selector, "text", text));
+    long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeout);
+    while (true) {
+      if (Boolean.TRUE.equals(step(command, thread).get("matched"))) {
+        return true;
+      }
+      long remaining = deadline - System.nanoTime();
+      if (remaining <= 0) {
+        return false;
+      }
+      TimeUnit.NANOSECONDS.sleep(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(50)));
+    }
+  }
+
+  @StarlarkMethod(
       name = "fill",
       doc = "Enters a host-resolved value into a field in the current Wasm guest.",
       parameters = {@Param(name = "handle"), @Param(name = "reference")},
@@ -81,6 +116,22 @@ public final class KitesurfModule implements StarlarkValue {
         .filter(text -> text.length() <= 1024 && text.getBytes(UTF_8).length <= 1024)
         .orElseThrow(() -> Starlark.errorf("Kitesurf value reference is unavailable"));
     step(Dict.immutableCopyOf(Map.of("op", "fill", "handle", handle, "value", value)), thread);
+  }
+
+  @StarlarkMethod(
+      name = "click",
+      doc = "Dispatches a click to a control in the current Wasm guest.",
+      parameters = @Param(name = "handle"),
+      useStarlarkThread = true)
+  public void click(StarlarkInt handle, StarlarkThread thread)
+      throws EvalException, InterruptedException {
+    if (!currentInvocation(thread).documentOpen) {
+      throw Starlark.errorf("open a Kitesurf document before clicking a control");
+    }
+    if (handle.signum() <= 0 || handle.toBigInteger().bitLength() > 64) {
+      throw Starlark.errorf("invalid Kitesurf action handle");
+    }
+    step(Dict.immutableCopyOf(Map.of("op", "click", "handle", handle)), thread);
   }
 
   private static Invocation currentInvocation(StarlarkThread thread) throws EvalException {
@@ -129,7 +180,17 @@ public final class KitesurfModule implements StarlarkValue {
   public static Host prepareHost(byte[] guest, Set<URI> origins, int maxRequests,
       BrowserWasmRuntime.Fetcher fetcher, Function<String, Optional<String>> resolveValue)
       throws WasmRuntime.WasmException {
-    return new Host(BrowserWasmRuntime.compile(guest), origins, maxRequests, fetcher, resolveValue);
+    return prepareHost(guest, origins, maxRequests, fetcher, Set.of(),
+        (url, body, deadline, limit) -> { throw new IOException("browser POST unavailable"); },
+        resolveValue);
+  }
+
+  /** Gives this trusted guest a separate, exact URL allowlist for POST requests. */
+  public static Host prepareHost(byte[] guest, Set<URI> origins, int maxRequests,
+      BrowserWasmRuntime.Fetcher fetcher, Set<URI> postUrls, BrowserWasmRuntime.Poster poster,
+      Function<String, Optional<String>> resolveValue) throws WasmRuntime.WasmException {
+    return new Host(BrowserWasmRuntime.compile(guest), origins, maxRequests, fetcher, postUrls,
+        poster, resolveValue);
   }
 
   public static final class Host {
@@ -137,14 +198,19 @@ public final class KitesurfModule implements StarlarkValue {
     private final Set<URI> origins;
     private final int maxRequests;
     private final BrowserWasmRuntime.Fetcher fetcher;
+    private final Set<URI> postUrls;
+    private final BrowserWasmRuntime.Poster poster;
     private final Function<String, Optional<String>> resolveValue;
 
     private Host(BrowserWasmRuntime.Program program, Set<URI> origins, int maxRequests,
-        BrowserWasmRuntime.Fetcher fetcher, Function<String, Optional<String>> resolveValue) {
+        BrowserWasmRuntime.Fetcher fetcher, Set<URI> postUrls, BrowserWasmRuntime.Poster poster,
+        Function<String, Optional<String>> resolveValue) {
       this.program = program;
       this.origins = Set.copyOf(origins);
       this.maxRequests = maxRequests;
       this.fetcher = Objects.requireNonNull(fetcher);
+      this.postUrls = Set.copyOf(postUrls);
+      this.poster = Objects.requireNonNull(poster);
       this.resolveValue = Objects.requireNonNull(resolveValue);
     }
 
@@ -154,7 +220,8 @@ public final class KitesurfModule implements StarlarkValue {
         throw new IllegalStateException("A Kitesurf invocation is already open on this thread");
       }
       var invocation =
-          new Invocation(this, new BrowserWasmRuntime.Session(origins, maxRequests, fetcher));
+          new Invocation(this,
+              new BrowserWasmRuntime.Session(origins, maxRequests, fetcher, postUrls, poster));
       CURRENT.set(invocation);
       return invocation;
     }

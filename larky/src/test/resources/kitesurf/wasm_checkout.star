@@ -1,4 +1,4 @@
-load("@vgs//kitesurf", "kitesurf")
+load("@vgs//browsers", "kitesurf")
 
 def find_email_field(fields):
     for field in fields:

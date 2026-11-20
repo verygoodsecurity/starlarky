@@ -67,8 +67,8 @@ public class KitesurfWasmModuleTest {
     byte[] html = """
         <!DOCTYPE html>
         <title>Checkout &amp; payment</title>
-        <script src="/component.js"></script>
-        <iframe src="/secured-field"></iframe>
+        <script type="application/json">{}</script>
+        <iframe title="Blank frame"></iframe>
         <label for="email">Email address</label>
         <input id="email" type="email" autocomplete="email">
         <input type="hidden" value="ignored">
@@ -83,7 +83,9 @@ public class KitesurfWasmModuleTest {
       }
     });
     fixture.start();
-    String previousModuleLimit = System.setProperty("larky.wasm.maxModuleBytes", "16777216");
+    String previousModuleLimit = System.setProperty("larky.wasm.maxModuleBytes", "33554432");
+    String previousFunctionLimit = System.setProperty("larky.wasm.maxFunctions", "50000");
+    String previousLocalLimit = System.setProperty("larky.wasm.maxTotalLocals", "150000");
     String origin = "http://127.0.0.1:" + fixture.getAddress().getPort();
     try (var client = HttpClient.newBuilder()
         .proxy(HttpClient.Builder.NO_PROXY)
@@ -126,6 +128,16 @@ public class KitesurfWasmModuleTest {
         System.clearProperty("larky.wasm.maxModuleBytes");
       } else {
         System.setProperty("larky.wasm.maxModuleBytes", previousModuleLimit);
+      }
+      if (previousFunctionLimit == null) {
+        System.clearProperty("larky.wasm.maxFunctions");
+      } else {
+        System.setProperty("larky.wasm.maxFunctions", previousFunctionLimit);
+      }
+      if (previousLocalLimit == null) {
+        System.clearProperty("larky.wasm.maxTotalLocals");
+      } else {
+        System.setProperty("larky.wasm.maxTotalLocals", previousLocalLimit);
       }
       fixture.stop(0);
     }

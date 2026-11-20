@@ -199,14 +199,14 @@ final class EndiveWasmRuntime implements WasmRuntime {
       Import imp = imports.getImport(i);
       String what = "import " + imp.module() + "." + imp.name();
       boolean wasi = imp.module().equals(WasiHost.MODULE);
-      boolean browser = browserImports && imp.module().equals(BrowserWasmRuntime.MODULE)
-          && imp.name().equals(BrowserWasmRuntime.HTTP_GET);
-      if (!(imp instanceof FunctionImport function) || (!wasi && !browser)) {
+      String browserSignature = browserImports && imp.module().equals(BrowserWasmRuntime.MODULE)
+          ? BrowserWasmRuntime.SIGNATURES.get(imp.name()) : null;
+      if (!(imp instanceof FunctionImport function) || (!wasi && browserSignature == null)) {
         throw new WasmException(
             Kind.INVALID_MODULE, what + " is not a " + WasiHost.MODULE + " function");
       }
       String expected = wasi ? WasiHost.SIGNATURES.get(imp.name())
-          : BrowserWasmRuntime.HTTP_GET_SIGNATURE;
+          : browserSignature;
       if (expected == null) {
         throw new WasmException(Kind.INVALID_MODULE, what + " is not a WASI preview 1 function");
       }
