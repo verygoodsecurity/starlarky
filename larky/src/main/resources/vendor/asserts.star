@@ -1,3 +1,4 @@
+# Ported from assertpy assertpy 1.1; skylib <= 1.0.3 (b9ad7ee): assertpy/*.py (+ bazel-skylib lib/unittest.bzl). See larky/src/main/resources/VENDORED.md.
 """Unit testing support.
 
 This exports `asserts` which contains the assertions used within tests.

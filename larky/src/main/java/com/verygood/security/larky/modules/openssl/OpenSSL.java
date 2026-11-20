@@ -53,6 +53,7 @@ import org.bouncycastle.util.io.pem.PemWriter;
 import lombok.Builder;
 import lombok.Data;
 
+@com.google.errorprone.annotations.Immutable
 public class OpenSSL implements StarlarkValue {
   public static final OpenSSL INSTANCE = new OpenSSL();
   public static final DefaultAlgorithmNameFinder algFinder = new DefaultAlgorithmNameFinder();

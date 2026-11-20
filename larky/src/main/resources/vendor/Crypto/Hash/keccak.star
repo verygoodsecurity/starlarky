@@ -1,3 +1,4 @@
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/Hash/keccak.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//jcrypto", _JCrypto="jcrypto")
 load("@stdlib//binascii", hexlify="hexlify")
 load("@stdlib//codecs", codecs="codecs")

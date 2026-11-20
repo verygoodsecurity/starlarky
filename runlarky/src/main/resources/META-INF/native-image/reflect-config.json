@@ -434,6 +434,14 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.ResultModule$SafeFunction"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.StructModule"
   },
   {
@@ -1082,6 +1090,14 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.types.results.LarkyStopIteration$Sentinel"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.types.results.Ok"
   },
   {
@@ -1179,6 +1195,22 @@
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.vgs.PGPModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.vgs.agentgateway.AgentGatewayModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.vgs.agentgateway.AgentGatewayModule$Session"
   },
   {
       "allDeclaredFields": true,
@@ -1875,5 +1907,17 @@
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
       "name": "net.starlark.java.lib.json.Json"
+  },
+  {
+      "name": "sun.misc.Signal",
+      "methods": [
+          {"name": "<init>", "parameterTypes": ["java.lang.String"]},
+          {"name": "handle", "parameterTypes": ["sun.misc.Signal", "sun.misc.SignalHandler"]}
+      ]
+  },
+  {
+      "name": "sun.misc.SignalHandler",
+      "fields": [{"name": "SIG_DFL"}, {"name": "SIG_IGN"}],
+      "methods": [{"name": "handle", "parameterTypes": ["sun.misc.Signal"]}]
   }
 ]

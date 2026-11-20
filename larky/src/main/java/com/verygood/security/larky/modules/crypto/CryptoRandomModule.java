@@ -22,6 +22,7 @@ import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.crypto.CryptoServicesRegistrar;
 
+@com.google.errorprone.annotations.Immutable
 public class CryptoRandomModule implements StarlarkValue {
 
   public static final CryptoRandomModule INSTANCE = new CryptoRandomModule();

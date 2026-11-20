@@ -13,7 +13,11 @@
     * [Libstarlark](#libstarlark)
     * [Larky](#larky)
     * [Runlarky](#runlarky)
+        * [Larky REPL](#larky-repl)
     * [Pylarky](#pylarky)
+* [Examples](#examples)
+    * [Rejecting requests without a valid signed token](#rejecting-requests-without-a-valid-signed-token)
+    * [Shipping a host-owned module next to a script](#shipping-a-host-owned-module-next-to-a-script)
 * [Developer setup](#developer-setup)
 * [Depoyment process](#deployment-process)
 <!-- tocstop -->
@@ -74,6 +78,82 @@ mvn clean package -pl runlarky -Pnative
 
 This would build `larky-runner` executable in `runlarky/target` directory, that can be run from terminal
 
+#### Larky REPL
+
+Run `larky-runner` with no arguments to get an interactive Larky prompt. It has the same environment as a script run by the runner, so Python builtins and `load()` of `@stdlib`, `@vendor` and `@vgs` modules work. Use it to try out a snippet or poke at a module before putting it in a script.
+
+**Install a prebuilt binary.** Each release attaches native binaries to its [releases page](https://github.com/verygoodsecurity/starlarky/releases):
+
+| Platform | Asset |
+|---|---|
+| Linux x86-64 | `larky-<version>-linux` (every release from 1.0.0 on) |
+| Linux aarch64 | `larky-<version>-linux-aarch64` |
+| macOS (Apple Silicon) | `larky-<version>-macos-aarch64` |
+| Windows x64 | `larky-<version>-windows-x64.exe` |
+
+The Linux aarch64, macOS and Windows binaries are built from the first release after 1.1.0 on. There is no Intel macOS or ARM Windows build, because GraalVM doesn't publish one.
+
+```bash
+chmod +x larky-1.1.1-linux
+./larky-1.1.1-linux
+```
+
+The Linux binaries are dynamically linked against glibc (2.34 or newer) and zlib, so they run on Ubuntu 22.04+, Debian 12+ or RHEL 9+, but not on musl systems such as Alpine, nor in an empty (`scratch`) container image. In a container, use a glibc base image such as `debian:bookworm-slim` or `ubuntu:24.04`, or the published image below.
+
+**Or run the container image.** Release tags (such as `v1.2.3`) publish `ghcr.io/verygoodsecurity/larky:<version>` and `latest`, for linux/amd64 and linux/arm64. It runs the binary as `nobody` on `debian:bookworm-slim`:
+
+```bash
+docker run --rm -i ghcr.io/verygoodsecurity/larky:latest -s /dev/stdin -o /dev/stdout < script.star
+```
+
+The macOS binary isn't signed. If macOS refuses to open a downloaded copy, remove the quarantine flag with `xattr -d com.apple.quarantine larky-<version>-macos-aarch64`.
+
+**Build a native binary on macOS (Apple Silicon).** `install_graalvm.sh` downloads GraalVM into `.graalvm`, and the `native` profile builds `runlarky/target/larky-runner` with it. The native build takes several minutes.
+
+```bash
+./install_graalvm.sh
+JAVA_HOME="$PWD/.graalvm/Contents/Home" mvn -B -q -pl runlarky -am -Pnative -DskipTests package
+runlarky/target/larky-runner
+```
+
+**Or run it on the JVM, on any OS with Java 21.** This skips the native build:
+
+```bash
+mvn -B -q -pl runlarky -am -DskipTests package dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
+java -cp "runlarky/target/runlarky-1.0.0-SNAPSHOT.jar:$(cat runlarky/target/classpath.txt)" \
+  com.verygood.security.run.LarkyEntrypoint
+```
+
+Both print three SLF4J warnings when they start; they're harmless. If Maven can't download a dependency, set up GitHub Packages access first (see [Developer setup](#developer-setup)).
+
+**Use it:**
+
+```
+Larky interactive interpreter. Type :help for help, :quit or Ctrl-D to exit.
+>>> load("@stdlib//base64", "base64")
+>>> base64.b64encode(b"hi")
+b"aGk="
+>>> def add(a, b):
+...     return a + b
+...
+>>> add(2, 3)
+5
+```
+
+- The value of an expression is printed. A block (`def`, `if`, `for`) ends at a blank line.
+- Tab completes names, attributes (`base64.<Tab>`) and `load()` labels. Up and down arrows walk through history, which is kept in `~/.larky_history`.
+- Ctrl-C cancels the line you're typing, or stops a running evaluation, without leaving the REPL.
+- Commands: `:help`, `:load <file>` (run a `.star` file in the session), `:reset` (forget every binding), `:quit` or Ctrl-D.
+- Input can also be piped in. There's no prompt then, and the exit status is 1 if any input failed: `echo 'print(1 + 1)' | larky-runner` prints `2`.
+
+Script mode (`-s`, `-i`, `-o`, `-l`, `-d`) works as before. `-s` and `-o` take file paths, so a script can come in on standard input and its result go to standard output:
+
+```bash
+./larky-1.1.1-linux -s /dev/stdin -o /dev/stdout < script.star
+```
+
+The result of the script's last expression is printed. A failing script exits with status 1 and prints its traceback on standard error.
+
 ### Pylarky
 
 _Pylarky_ is pip lib-wrapper for runlarky to make larky calls conveniently from Python.
@@ -91,6 +171,66 @@ docker compose run --rm python /bin/sh -c "./build-and-test-python.sh"
 ```bash
 mvn -Dtest='StdLibTest*' -Dlarky.stdlib_test=test_bytes.star org.apache.maven.plugins:maven-surefire-plugin:3.0.0-M5:test -pl larky
 ```
+
+## Examples
+
+Example scripts live next to their tests in
+[`larky/src/test/resources/vgs_tests/examples`](larky/src/test/resources/vgs_tests/examples).
+`VGSLibTests` runs every `test_default_*.star` there:
+
+```bash
+mvn test -pl larky -am -Dtest=VGSLibTests -Dlarky.vgs_test=test_default_request_validation.star -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+### Rejecting requests without a valid signed token
+
+[`request_validation.star`](larky/src/test/resources/vgs_tests/examples/request_validation.star)
+reads `Authorization: Bearer <JWT>`, verifies the token with the issuer's public key (kept in
+the vault and revealed by alias), checks `exp`, `nbf`, `aud` and `iss` with
+`load("@vendor//jose", "jwt")`, and answers `401` with
+`proxy.ShortCircuitResponse(VGSHttpResponse(status_code=401, ...))` when any check fails.
+
+- **Algorithms.** `jwt.decode` verifies JWS signatures made with HS256, HS384, HS512 (HMAC),
+  RS256, RS384, RS512 (RSA PKCS#1 v1.5) and ES256, ES384, ES512 (ECDSA), as listed in
+  `vendor/jose/constants/algorithms.star`. `none` is never accepted, and a PEM public key is
+  refused as an HMAC secret. Pass only the algorithms your issuer uses in `algorithms=`.
+- **Time.** Scripts cannot read the clock, so `jwt.decode` requires `now=` (seconds since the
+  epoch) and fails without it. The time has to
+  come from the host. Larky does not provide it and does not define what the `ctx` argument of
+  `process(input, ctx)` contains; the example assumes the proxy sets a request header with the
+  time it received the request and drops any copy sent by the client.
+- **Proxy behaviour.** Larky only returns the `ShortCircuitResponse`. Whether the upstream is
+  skipped, whether aliases in the request are revealed or deleted, and whether the request is
+  billed are decided by the proxy that runs the script.
+
+### Shipping a host-owned module next to a script
+
+A host that runs a customer's script through the JSR223 engine can pass other files with it in
+the `LarkyScriptEngine.MODULES` engine property (a `Map<String, String>` of file name to
+source); the script loads them by name, e.g. `load("vgs_owned", "sign")` for `vgs_owned.star`.
+Each loads into its own module. `LarkyScriptEngine.CACHE_NAMESPACE` (e.g. a tenant ID) keeps
+the compiled programs of these files apart per namespace in Larky's cache.
+
+[`OpaqueModuleExampleTest`](larky/src/test/java/com/verygood/security/larky/jsr223/OpaqueModuleExampleTest.java)
+ships a module that keeps a vault alias in `_KEY_ALIAS` and exposes `sign(message)`, which
+reveals the key behind the alias and returns an HMAC. Names that start with `_` are private to
+their file, so `load("vgs_owned", "_KEY_ALIAS")` fails when the script is compiled with
+`symbol '_KEY_ALIAS' is private and cannot be imported`.
+
+```bash
+mvn test -pl larky -am -Dtest=OpaqueModuleExampleTest -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+What this hides, and what it does not:
+
+- The value stays hidden only while no public function returns it, returns something derived
+  from it that gives it away, or puts it in an error message. A private name is not access
+  control.
+- The script can call the public functions with any arguments, as often as it likes: the module
+  is an oracle for whatever they do (here, an HMAC of any message the script chooses).
+- The script can call `vault.reveal` itself on any alias it learns some other way.
+- Storing a module per tenant, choosing which modules to pass with which script, and keeping
+  tenants apart are up to the host (e.g. the proxy). Larky only loads the files it is given.
 
 ## Developer setup
 

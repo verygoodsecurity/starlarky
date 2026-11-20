@@ -51,6 +51,7 @@ import net.starlark.java.eval.StarlarkSemantics;
           "\n" +
           "This module is a port of: https://docs.python.org/3/library/struct.html"
 )
+@com.google.errorprone.annotations.Immutable
 public class StructModule implements StarlarkValue {
 
   public static final StructModule INSTANCE = new StructModule();

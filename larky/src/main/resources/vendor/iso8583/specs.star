@@ -1,3 +1,4 @@
+# Ported from pyiso8583 2.1.0 (0bf0538): iso8583/specs.py. See larky/src/main/resources/VENDORED.md.
 r"""An ISO8583 spec is a Python dictionary. It describes how each field
 needs to be encoded and decoded.
 

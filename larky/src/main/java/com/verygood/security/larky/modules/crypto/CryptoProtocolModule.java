@@ -37,6 +37,7 @@ import org.bouncycastle.crypto.generators.PKCS5S1ParametersGenerator;
 import org.bouncycastle.crypto.generators.PKCS5S2ParametersGenerator;
 import org.bouncycastle.crypto.params.KeyParameter;
 
+@com.google.errorprone.annotations.Immutable
 public class CryptoProtocolModule implements StarlarkValue {
 
   public static final CryptoProtocolModule INSTANCE = new CryptoProtocolModule();

@@ -1,3 +1,4 @@
+# Ported from CPython 3.3.3-3.3.7, pinned to 3.3.7 (17bf6b4): Lib/base64.py. See larky/src/main/resources/VENDORED.md.
 """RFC 3548: Base16, Base32, Base64 Data Encodings"""
 
 # Modified 04-Oct-1995 by Jack Jansen to use binascii module

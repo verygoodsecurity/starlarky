@@ -449,15 +449,21 @@ public class ASN1 {
       try (ByteArrayInputStream bais = new ByteArrayInputStream(asbytes)) {
         this.encodable = DERSequence.fromByteArray(asbytes);
       } catch (IOException e) {
-        String message = e.getMessage();
+        String message = e.getMessage() != null ? e.getMessage() : "Malformed DER data";
         if (message.contains("Extra data detected in stream")) {
           message = "ValueError: Extra data detected in stream";
         } else if (message.contains("end-of-contents marker")) {
           message = "ValueError: end-of-contents marker";
         } else if (message.contains("EOF found when length expected")) {
           message = "ValueError: EOF found when length expected";
+        } else if (!message.startsWith("ValueError")) {
+          // any other malformed/truncated DER (e.g. an out of bounds length)
+          message = "ValueError: " + message;
         }
-        throw Starlark.errorf(message);
+        throw Starlark.errorf("%s", message);
+      } catch (RuntimeException e) {
+        // e.g. the top-level DER object is not a SEQUENCE
+        throw Starlark.errorf("ValueError: Not a valid DER SEQUENCE");
       }
       if (this.encodable == null) {
         throw Starlark.errorf("ValueError: Not enough data for DER decoding");

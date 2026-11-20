@@ -12,6 +12,7 @@ import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
+@com.google.errorprone.annotations.Immutable
 public class Strxor implements StarlarkValue {
 
   @StarlarkMethod(name = "strxor",

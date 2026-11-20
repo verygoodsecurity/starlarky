@@ -1,3 +1,4 @@
+# Ported from CPython 3.11.0-3.11.3, pinned to 3.11.3 (f3909b8): Lib/zipfile.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//base64", base64="base64")
 load("@stdlib//binascii", binascii="binascii")

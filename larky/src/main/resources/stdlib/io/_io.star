@@ -1,3 +1,4 @@
+# Ported from CPython 2.7.x, pinned to 2.7.18 (8d21aa2): Lib/StringIO.py. See larky/src/main/resources/VENDORED.md.
 r"""File-like objects that read from or write to a string buffer.
 
 This implements (nearly) all stdio methods.
