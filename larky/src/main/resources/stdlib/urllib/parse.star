@@ -164,6 +164,12 @@ def _urlsplit(url, scheme='', allow_fragments=True):
     <scheme>://<netloc>/<path>?<query>#<fragment>
     """
     url, scheme, _coerce_result = _coerce_args(url, scheme)
+    parts = _split_url(url, scheme, allow_fragments)
+    if parts != None:
+        scheme, netloc, path, query, fragment = parts
+        return _coerce_result(_SplitResult(
+            scheme=scheme, netloc=netloc, path=path, query=query, fragment=fragment))
+
     # Only lstrip url as some applications rely on preserving trailing space.
     # (https://url.spec.whatwg.org/#concept-basic-url-parser would strip both)
     url = url.lstrip(_WHATWG_C0_CONTROL_OR_SPACE)

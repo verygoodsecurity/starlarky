@@ -1,5 +1,6 @@
 # Ported from multidict 4.7.6-5.1.0, pinned to 5.1.0 (c3eed83): multidict/_multidict_py.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
+load("@stdlib//jmultidict", _native="jmultidict")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")
 load("@vendor//option/result", Error="Error", Ok="Ok")
@@ -83,7 +84,9 @@ def istr(v=""):
     return larky.struct(**self.__dict__)
 
 
-_version = larky.utils.Counter()
+# Each multidict counts its own changes. Python's multidict uses one process-wide counter; a
+# counter in this module's globals would be shared by every evaluation that uses the module (and,
+# with the module cache, by concurrent ones), and is frozen once the module is loaded.
 
 
 def getversion(md):
@@ -94,30 +97,40 @@ def _Impl():
     self = larky.mutablestruct(_name__='_Impl', __class__=_Impl)
 
     def incr_version():
-        self._version = _version.add_and_get()
+        self._version += 1
 
     self.incr_version = incr_version
 
-    def __init__():
-        self._items = []
-        self.incr_version()
-        return self
-
-    self = __init__()
+    self._items = []
+    self._version = 1
     return self
 
 
-def _Base():
-    self = larky.mutablestruct(__name__='_Base', __class__=_Base)
+def _title(key):
+    return key
 
-    def _title(key):
+
+def _key(key):
+    if types.is_string(key) or hasattr(key, "__is_istr__"):
         return key
-    self._title = _title
+    return Error(
+        "TypeError: MultiDict keys should be str. Received %s" % type(key)
+    ).unwrap()
+
+
+def _Base(name, constructor, title):
+    self = larky.mutablestruct(__name__=name, __class__=constructor)
+    self._title = title
 
     def getall(key, default=_marker):
         """Return a list of all values matching the key."""
         identity = self._title(key)
-        res = [v for i, k, v in self._impl._items if operator.eq(i, identity)]
+        entries = self._impl._items
+        res = _native.matching_values(entries, identity)
+        if res == None:
+            res = _chunked_read(_native.matching_values, entries, identity)
+        if res == None:
+            res = [v for i, k, v in entries if operator.eq(i, identity)]
         if res:
             return res
         if not res and default != _marker:
@@ -129,9 +142,16 @@ def _Base():
     def getone(key, default=_marker):
         """Get first value matching the key."""
         identity = self._title(key)
-        for i, k, v in self._impl._items:
-            if i == identity:
-                return v
+        entries = self._impl._items
+        index = _native.find(entries, identity)
+        if index == -2:
+            index = _chunked_find(entries, identity)
+        if index >= 0:
+            return entries[index][2]
+        if index == -2:
+            for i, k, v in entries:
+                if i == identity:
+                    return v
         if default != _marker:
             return default
         return Error("KeyError: " + "Key not found: %r" % key).unwrap()
@@ -161,17 +181,26 @@ def _Base():
 
     def keys():
         """Return a new view of the dictionary's keys."""
-        return list(_KeysView(self._impl))
+        snapshot = _native.snapshot(self._impl._items, "keys")
+        if snapshot == None:
+            snapshot = _chunked_read(_native.snapshot, self._impl._items, "keys")
+        return snapshot if snapshot != None else list(_KeysView(self._impl))
     self.keys = keys
 
     def items():
         """Return a new view of the dictionary's items *(key, value) pairs)."""
-        return list(_ItemsView(self._impl))
+        snapshot = _native.snapshot(self._impl._items, "items")
+        if snapshot == None:
+            snapshot = _chunked_read(_native.snapshot, self._impl._items, "items")
+        return snapshot if snapshot != None else list(_ItemsView(self._impl))
     self.items = items
 
     def values():
         """Return a new view of the dictionary's values."""
-        return list(_ValuesView(self._impl))
+        snapshot = _native.snapshot(self._impl._items, "values")
+        if snapshot == None:
+            snapshot = _chunked_read(_native.snapshot, self._impl._items, "values")
+        return snapshot if snapshot != None else list(_ValuesView(self._impl))
     self.values = values
 
     def __eq__(other):
@@ -199,7 +228,13 @@ def _Base():
 
     def __contains__(key):
         identity = self._title(key)
-        for i, k, v in self._impl._items:
+        entries = self._impl._items
+        index = _native.find(entries, identity)
+        if index == -2:
+            index = _chunked_find(entries, identity)
+        if index != -2:
+            return index >= 0
+        for i, k, v in entries:
             if i == identity:
                 return True
         return False
@@ -258,28 +293,26 @@ def CIMultiDictProxy(arg):
 
 def MultiDict(*args, **kwargs):
     """Dictionary with the support for duplicate keys."""
-    self = _Base()
-    self.__name__ = 'MultiDict'
-    self.__class__ = MultiDict
+    return _mutable_multidict("MultiDict", MultiDict, _title, args, kwargs, False)
+
+
+def _mutable_multidict(name, constructor, title, args, kwargs, case_insensitive):
+    self = _Base(name, constructor, title)
+    initial_impl = _Impl()
+    initial_increment = initial_impl.incr_version
 
     def __reduce__():
         return self.__class__, (list(self.items()),)
     self.__reduce__ = __reduce__
 
-    def _title(key):
-        return key
-    self._title = _title
-
-    def _key(key):
-        if types.is_string(key) or hasattr(key, "__is_istr__"):
-            return key
-        return Error(
-            "TypeError: MultiDict keys should be str. Received %s" % type(key)
-        ).unwrap()
     self._key = _key
 
     def add(key, value):
         identity = self._title(key)
+        if (_native.same_object(self._key, _key) and
+            _native_backing(self, initial_impl, initial_increment) and
+            _native.add(self._impl, identity, key, value)):
+            return
         self._impl._items.append((identity, self._key(key), value))
         self._impl.incr_version()
     self.add = add
@@ -316,11 +349,14 @@ def MultiDict(*args, **kwargs):
                 if kwargs:
                     arg = list(arg)
                     arg.extend(list(kwargs.items()))
-                items = []
-                for item in arg:
-                    if not len(item) == 2:
-                        return Error().unwrap()
-                    items.append((self._title(item[0]), self._key(item[0]), item[1]))
+                case = _native_case(self)
+                items = _convert_entries(arg, case, False) if case != None else None
+                if items == None:
+                    items = []
+                    for item in arg:
+                        if not len(item) == 2:
+                            return Error().unwrap()
+                        items.append((self._title(item[0]), self._key(item[0]), item[1]))
 
             method(items)
         else:
@@ -333,12 +369,22 @@ def MultiDict(*args, **kwargs):
     self._extend = _extend
 
     def _extend_items(items):
+        case = _native_case(self)
+        if (case != None and _native.same_object(self.add, add) and _native_backing(self, initial_impl, initial_increment) and
+            _native.can_append(self._impl._items, items, self._impl._version)):
+            prepared = _convert_entries(items, case, True)
+            if prepared != None:
+                for start in range(0, len(prepared), _native.chunk_size):
+                    _native.append_chunk(self._impl, prepared, start)
+                return
         for identity, key, value in items:
             self.add(key, value)
     self._extend_items = _extend_items
 
     def clear():
         """Remove all items from MultiDict."""
+        if _native_backing(self, initial_impl, initial_increment) and _native.clear(self._impl):
+            return
         self._impl._items.clear()
         self._impl.incr_version()
     self.clear = clear
@@ -352,6 +398,12 @@ def MultiDict(*args, **kwargs):
 
     def __delitem__(key):
         identity = self._title(key)
+        if _native_backing(self, initial_impl, initial_increment):
+            removed = _native.remove_all(self._impl, identity, False)
+            if removed != None:
+                if removed:
+                    return
+                return Error("KeyError: %s" % key).unwrap()
         items = self._impl._items
         found = False
         for i in range(len(items) - 1, -1, -1):
@@ -367,9 +419,16 @@ def MultiDict(*args, **kwargs):
     def setdefault(key, default=None):
         """Return value for key, set value to default if key is not present."""
         identity = self._title(key)
-        for i, k, v in self._impl._items:
-            if i == identity:
-                return v
+        entries = self._impl._items
+        index = _native.find(entries, identity)
+        if index == -2:
+            index = _chunked_find(entries, identity)
+        if index >= 0:
+            return entries[index][2]
+        if index == -2:
+            for i, k, v in entries:
+                if i == identity:
+                    return v
         self.add(key, default)
         return default
     self.setdefault = setdefault
@@ -382,6 +441,14 @@ def MultiDict(*args, **kwargs):
 
         """
         identity = self._title(key)
+        if _native_backing(self, initial_impl, initial_increment):
+            result = _native.pop_one(self._impl, identity)
+            if result != None:
+                if result:
+                    return result[0]
+                if default == _marker:
+                    return Error("KeyError: %s" % key).unwrap()
+                return default
         for i in range(len(self._impl._items)):
             if self._impl._items[i][0] == identity:
                 value = self._impl._items[i][2]
@@ -406,6 +473,14 @@ def MultiDict(*args, **kwargs):
         """
         found = False
         identity = self._title(key)
+        if _native_backing(self, initial_impl, initial_increment):
+            values = _native.remove_all(self._impl, identity, True)
+            if values != None:
+                if values:
+                    return reversed(values)
+                if default == _marker:
+                    return Error("KeyError: %s" % key).unwrap()
+                return default
         ret = []
         for i in range(len(self._impl._items) - 1, -1, -1):
             item = self._impl._items[i]
@@ -426,6 +501,10 @@ def MultiDict(*args, **kwargs):
     def popitem():
         """Remove and return an arbitrary (key, value) pair."""
         if self._impl._items:
+            if _native_backing(self, initial_impl, initial_increment):
+                pair = _native.pop_item(self._impl)
+                if pair != None:
+                    return pair
             i = self._impl._items.pop(0)
             self._impl.incr_version()
             return i[1], i[2]
@@ -440,6 +519,8 @@ def MultiDict(*args, **kwargs):
 
     def _update_items(items):
         if not items:
+            return
+        if _native_backing(self, initial_impl, initial_increment) and _native.update(self._impl, items):
             return
         used_keys = {}
         for identity, key, value in items:
@@ -479,6 +560,8 @@ def MultiDict(*args, **kwargs):
         key = self._key(key)
         identity = self._title(key)
         items = self._impl._items
+        if _native_backing(self, initial_impl, initial_increment) and _native.replace(self._impl, identity, key, value):
+            return
         exhausted = True
         for i in range(len(items)):
             item = items[i]
@@ -506,31 +589,101 @@ def MultiDict(*args, **kwargs):
                 i += 1
     self._replace = _replace
 
-    def __init__(*args, **kwargs):
-        self._impl = _Impl()
-        self._extend(args, kwargs, self.__name__, self._extend_items)
-        return self
-    self = __init__(*args, **kwargs)
+    self._impl = initial_impl
+    if args or kwargs:
+        _initialize_entries(self, args, kwargs, case_insensitive)
     return self
 
 
 def CIMultiDict(*args, **kwargs):
     """Dictionary with the support for duplicate case-insensitive keys."""
-    self = MultiDict()
-    self.__name__ = 'CIMultiDict'
-    self.__class__ = CIMultiDict
+    return _mutable_multidict("CIMultiDict", CIMultiDict, _ci_title, args, kwargs, True)
 
+
+def _native_case(self):
+    if not _native.same_object(self._key, _key):
+        return None
+    if _native.same_object(self._title, _title):
+        return False
+    if _native.same_object(self._title, _ci_title):
+        return True
+    return None
+
+
+def _native_backing(self, initial_impl, initial_increment):
+    return (_native.same_object(self._impl, initial_impl) and
+            _native.same_object(self._impl.incr_version, initial_increment))
+
+
+def _make_ci_title():
+    # Preserve the function name in the facade's visible struct representation.
     def _title(key):
         return key.title()
-    self._title = _title
+    return _title
 
-    def __init__(*args, **kwargs):
-        # we have to re-init b/c _title is overridden.
-        self._impl = _Impl()
-        self._extend(args, kwargs, self.__name__, self._extend_items)
-        return self
-    self = __init__(*args, **kwargs)
-    return self
+
+_ci_title = _make_ci_title()
+
+
+def _install_entries(self, entries):
+    self._impl._items = entries
+    # Match the version produced by adding the entries one at a time.
+    self._impl._version += len(entries)
+
+
+def _initialize_entries(self, args, kwargs, case_insensitive):
+    if len(args) == 1 and not kwargs:
+        entries = _native.entries(args[0], case_insensitive)
+        if entries != None:
+            _install_entries(self, entries)
+            return
+
+    def convert(items):
+        entries = _convert_entries(items, case_insensitive, True)
+        if entries == None:
+            self._extend_items(items)
+        else:
+            _install_entries(self, entries)
+    self._extend(args, kwargs, self.__name__, convert)
+
+
+def _convert_entries(source, case_insensitive, triples):
+    size = _native.sequence_size(source)
+    if size < 0:
+        return None
+    if size <= _native.chunk_size:
+        return _native.entry_chunk(source, case_insensitive, 0, triples)
+    result = []
+    for start in range(0, size, _native.chunk_size):
+        part = _native.entry_chunk(source, case_insensitive, start, triples)
+        if part == None:
+            return None
+        result.extend(part)
+    return result
+
+
+def _chunked_read(read, entries, argument):
+    size = _native.sequence_size(entries)
+    if size <= _native.chunk_size:
+        return None
+    result = []
+    for start in range(0, size, _native.chunk_size):
+        part = read(entries, argument, start)
+        if part == None:
+            return None
+        result.extend(part)
+    return result
+
+
+def _chunked_find(entries, identity):
+    size = _native.sequence_size(entries)
+    if size <= _native.chunk_size:
+        return -2
+    for start in range(0, size, _native.chunk_size):
+        index = _native.find(entries, identity, start)
+        if index != -1:
+            return index
+    return -1
 
 
 def _Iter(size, iterator):

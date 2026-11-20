@@ -33,6 +33,7 @@ import com.verygood.security.larky.modules.CryptoModule;
 import com.verygood.security.larky.modules.CyberSourceModule;
 import com.verygood.security.larky.modules.ECDHModule;
 import com.verygood.security.larky.modules.JsonModule;
+import com.verygood.security.larky.modules.MultiDictModule;
 import com.verygood.security.larky.modules.OpenSSLModule;
 import com.verygood.security.larky.modules.ProtoBufModule;
 import com.verygood.security.larky.modules.RegexModule;
@@ -94,6 +95,7 @@ public class ModuleSupplier {
       CryptoModule.INSTANCE,
       ECDHModule.INSTANCE,
       JsonModule.INSTANCE,
+      MultiDictModule.INSTANCE,
       OpenSSLModule.INSTANCE,
       ProtoBufModule.INSTANCE,
       RegexModule.INSTANCE,
