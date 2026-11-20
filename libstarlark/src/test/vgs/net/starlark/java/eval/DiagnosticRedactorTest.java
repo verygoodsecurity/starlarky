@@ -8,9 +8,59 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
+import net.starlark.java.syntax.TokenKind;
 import org.junit.Test;
 
 public class DiagnosticRedactorTest {
+  @Test
+  public void binaryObservationCoexistsWithAHostObserverAndRestoresNestedScopes() throws Exception {
+    DiagnosticRedactor redactor = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE);
+    List<Object> outputs = new ArrayList<>();
+    try (Mutability mu = Mutability.create("nested diagnostic scopes")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      try (var host = EvaluationExtensions.observeBinary(thread,
+          (execution, op, left, right, result, augmented) -> {
+            outputs.add(result);
+            return result;
+          })) {
+        try (var diagnostics = DiagnosticRedactor.openScope(thread, redactor)) {
+          String source = "fixture";
+          Object hit = diagnostics.registerOutcome(thread, source, List.of(source));
+          assertThat(hit).isEqualTo(source);
+          assertThat(hit).isNotSameInstanceAs(source);
+          assertThat(EvalUtils.binaryOp(TokenKind.PLUS, hit, "-tracked", thread))
+              .isEqualTo("fixture-tracked");
+          try (var off = DiagnosticRedactor.openScope(thread, null)) {
+            assertThat(off.printer()).isNull();
+            assertThat(EvalUtils.binaryOp(TokenKind.PLUS, hit, "-off", thread))
+                .isEqualTo("fixture-off");
+          }
+          assertThat(thread.getThreadLocal(DiagnosticRedactor.Scope.class))
+              .isSameInstanceAs(diagnostics);
+        }
+        assertThat(thread.getThreadLocal(DiagnosticRedactor.Scope.class)).isNull();
+        EvalUtils.binaryOp(TokenKind.PLUS, "public", "-after", thread);
+      }
+    }
+    assertThat(outputs).containsExactly("fixture-tracked", "fixture-off", "public-after").inOrder();
+  }
+
+  @Test
+  public void boundIncludesTheSizeOfRetainedDerivedValues() throws Exception {
+    var limits = DiagnosticRedactor.Limits.builder().maxRegistrationInput(96).build();
+    var redactor = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE, limits);
+    try (Mutability mu = Mutability.create("retained size budget")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      try (var diagnostics = DiagnosticRedactor.openScope(thread, redactor)) {
+        String source = "fixture";
+        Object hit = diagnostics.registerOutcome(thread, source, List.of(source));
+        assertThat(EvalUtils.binaryOp(TokenKind.PLUS, "x".repeat(80), hit, thread))
+            .isEqualTo("x".repeat(80) + source);
+        assertThat(diagnostics.sanitizePrint("over budget")).isEqualTo(DiagnosticRedactor.MASK);
+      }
+    }
+  }
+
   @Test
   public void closingTheScopeDetachesExecutionCallbacks() {
     DiagnosticRedactor redactor = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE);

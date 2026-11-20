@@ -42,8 +42,21 @@ public final class DiagnosticMethodLibrary {
       extraPositionals = @Param(name = "args"),
       useStarlarkThread = true)
   public void print(String sep, Sequence<?> args, StarlarkThread thread) throws EvalException {
-    // Larky's print handler masks the complete diagnostic, including any caller location.
-    upstream.print(sep, args, thread);
+    DiagnosticRedactor.Scope scope = thread.getThreadLocal(DiagnosticRedactor.Scope.class);
+    DiagnosticPrinter printer = scope == null ? null : scope.printer();
+    if (printer == null) {
+      upstream.print(sep, args, thread);
+      return;
+    }
+    String separator = "";
+    for (Object arg : args) {
+      printer.debugPrint(separator, thread).debugPrint(arg, thread);
+      separator = sep;
+    }
+    if (thread.getSemantics().getBool(StarlarkSemantics.PRINT_TEST_MARKER)) {
+      printer.append("<== Starlark flag test ==>");
+    }
+    scope.print(thread, printer);
   }
 
   @StarlarkMethod(
@@ -66,7 +79,29 @@ public final class DiagnosticMethodLibrary {
   public void fail(
       Object msg, Object attr, String sep, Boolean stackTrace, Tuple args, StarlarkThread thread)
       throws EvalException {
-    // Keep the exception raw for script catches. The host masks it at the diagnostic sink.
-    upstream.fail(msg, attr, sep, stackTrace, args, thread);
+    DiagnosticRedactor.Scope scope = thread.getThreadLocal(DiagnosticRedactor.Scope.class);
+    DiagnosticPrinter printer = scope == null ? null : scope.printer();
+    if (printer == null) {
+      upstream.fail(msg, attr, sep, stackTrace, args, thread);
+      return;
+    }
+    boolean includeStack =
+        stackTrace || thread.getSemantics().getBool(StarlarkSemantics.FORCE_STARLARK_STACK_TRACE);
+    String separator = "";
+    if (attr != Starlark.NONE) {
+      printer.append("attribute ").debugPrint(attr, thread).append(":");
+      separator = sep;
+    }
+    if (msg != Starlark.NONE) {
+      printer.debugPrint(separator, thread).debugPrint(msg, thread);
+      separator = sep;
+    }
+    for (Object arg : args) {
+      printer.debugPrint(separator, thread).debugPrint(arg, thread);
+      separator = sep;
+    }
+    EvalException failure = new EvalException(printer.toString(), null, includeStack);
+    scope.recordFailure(failure, printer);
+    throw failure;
   }
 }

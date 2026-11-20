@@ -90,10 +90,26 @@ should sanitize the final diagnostic before logging, auditing, or returning it.
 By default, the scanner recognizes complete strings of at least three characters, bytes
 values of at least three bytes, and flat lists of those values. It checks
 literal text, Larky-escaped forms, standard URL and form encodings, Base64,
-Base64URL, and hex. When the tracking
-budget is exhausted, `ENFORCE` masks the whole diagnostic. This feature covers
-known values in diagnostics. It provides no propagation through operators or
-control flow.
+Base64URL, and hex. The scanner also covers host-registered values supplied
+directly through `registerRevealed`.
+
+Confirmed nonempty string and Starlark bytes hits carry identity tags for the
+run. Successful eager binary operations carry those tags into string and bytes
+results, including augmented assignment. String concatenation preserves the
+secret's span. An arbitrary tagged formatting result is masked as a value,
+with the surrounding diagnostic preserved. A format argument container is
+treated conservatively when it contains a tagged value. The observer reports
+these hits as `TAGGED`. The evaluator associates spans with the original
+`fail` exception when it escapes to the host. Call `sanitizeError` for that
+failure before the next evaluation. A wrapper that contains the original
+message verbatim keeps its surrounding context. A reformatted tagged failure
+uses whole-diagnostic masking in `ENFORCE`.
+
+Tags follow direct binary data flow. Indexing, slicing, native transforms, and
+control flow have separate coverage requirements, as do opaque native renderers. Use one redactor for a
+logical run, including any module loads and invocations that share its values.
+Start a fresh redactor for an independent run. When the tracking budget is
+exhausted, `ENFORCE` masks the whole diagnostic.
 
 Hosts can override individual limits with `DiagnosticRedactor.Limits.builder()`
 and pass the built limits to the redactor constructor. The builder starts with

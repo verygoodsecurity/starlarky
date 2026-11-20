@@ -142,6 +142,9 @@ public final class LarkyEvaluator {
 
   public EvaluationResult eval(StarFile content)
       throws IOException, InterruptedException, EvalException {
+    if (diagnosticRedactor != null) {
+      diagnosticRedactor.clearFailure();
+    }
     String path = content.path();
     Module module = loaded.get(path);
     if (module != null) {
@@ -246,7 +249,15 @@ public final class LarkyEvaluator {
         thread.setPrintHandler(reporter::report);
         starlarkOutput = prog.exec(module, thread);
       } catch (EvalException cause) {
+        if (diagnosticRedactor != null) {
+          diagnosticRedactor.captureFailure(cause);
+        }
         throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(cause, thread);
+      } catch (StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException cause) {
+        if (diagnosticRedactor != null) {
+          diagnosticRedactor.captureFailure(cause);
+        }
+        throw cause;
       }
 
       // Set some statistical information

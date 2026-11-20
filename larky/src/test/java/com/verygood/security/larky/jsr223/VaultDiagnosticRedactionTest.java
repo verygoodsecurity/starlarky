@@ -24,6 +24,7 @@ import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.DiagnosticRedactor.Mode;
+import net.starlark.java.eval.StarlarkBytes;
 import org.junit.jupiter.api.Test;
 
 class VaultDiagnosticRedactionTest {
@@ -205,6 +206,199 @@ class VaultDiagnosticRedactionTest {
         print(parse.quote(value), parse.quote_plus(value), sep=' | ')
         """);
 
+    assertEquals("***REDACTED*** | ***REDACTED***", output.toString().strip());
+  }
+
+  @Test
+  void masksAFormattedFragmentInPlaceThroughAugmentedAssignment() throws Exception {
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    StringWriter output = writer(engine);
+    engine.put(DiagnosticRedactor.BINDING_NAME, new DiagnosticRedactor(Mode.ENFORCE));
+
+    engine.eval(REVEAL + """
+        fragment = '%.4s'
+        fragment %= secret
+        message = 'before<'
+        message += fragment
+        message += '>after'
+        print(message)
+        matches = secret == 'other'
+        print('public synt')
+        """);
+
+    assertEquals("before<synt>after", engine.get("message"));
+    assertEquals(List.of("before<***REDACTED***>after", "public synt"),
+        output.toString().lines().toList());
+  }
+
+  @Test
+  void tracksBatchHitsAndLeavesAliasMissesReadableAfterFormatting() throws Exception {
+    String hit = new String(SECRET);
+    LarkyVault vault = mock(LarkyVault.class);
+    when(vault.revealOutcome(any(), any()))
+        .thenReturn(new RevealOutcome(List.of("missing alias", hit), List.of(hit)));
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    StringWriter output = writer(engine);
+    engine.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(LarkyVault.class, vault));
+    engine.put(DiagnosticRedactor.BINDING_NAME, new DiagnosticRedactor(Mode.ENFORCE));
+
+    engine.eval("""
+        load('@vgs//vault', 'vault')
+        values = vault.reveal(['missing alias', 'mapped alias'])
+        print('%.4s' % (values[0],), ['%.4s' % (values[1],)], sep=' | ')
+        """);
+
+    assertEquals(List.of("missing alias", SECRET), List.copyOf((List<?>) engine.get("values")));
+    assertEquals("miss | [\"***REDACTED***\"]", output.toString().strip());
+  }
+
+  @Test
+  void masksADerivedFailureAtTheHostSinkAndPreservesTheOriginalException() throws Exception {
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    DiagnosticRedactor redactor = new DiagnosticRedactor(Mode.ENFORCE);
+    engine.put(DiagnosticRedactor.BINDING_NAME, redactor);
+
+    ScriptException failure = assertThrows(ScriptException.class,
+        () -> engine.eval(REVEAL + """
+            fail('after', msg='before<' + ('%.4s' % secret) + '>', sep=' | ')
+            """));
+    assertTrue(failure.getMessage().contains("before<synt> | after"));
+    assertTrue(redactor.sanitizeError(failure.getMessage())
+        .contains("before<***REDACTED***> | after"));
+    assertFalse(redactor.sanitizeError(failure.getMessage()).contains("before<synt>"));
+  }
+
+  @Test
+  void keepsDerivedTagsThroughLoadsAndSameRunInvocationOnly() throws Exception {
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    StringWriter output = writer(engine);
+    engine.put(LarkyScriptEngine.MODULES, java.util.Map.of("helper.star", REVEAL + """
+        fragment = '%.4s' % secret
+        """));
+    DiagnosticRedactor redactor = new DiagnosticRedactor(Mode.ENFORCE);
+    engine.put(DiagnosticRedactor.BINDING_NAME, redactor);
+
+    engine.eval("""
+        load('helper', 'fragment')
+        def report():
+          print('value<' + fragment + '>')
+        report()
+        """);
+    engine.invokeFunction("report");
+    engine.put(DiagnosticRedactor.BINDING_NAME, new DiagnosticRedactor(Mode.ENFORCE));
+    engine.invokeFunction("report");
+
+    assertEquals(List.of("value<***REDACTED***>", "value<***REDACTED***>", "value<synt>"),
+        output.toString().lines().toList());
+  }
+
+  @Test
+  void cleanFailureKeepsItsMessageAfterAnEarlierTaggedFailure() throws Exception {
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    DiagnosticRedactor redactor = new DiagnosticRedactor(Mode.ENFORCE);
+    engine.put(DiagnosticRedactor.BINDING_NAME, redactor);
+
+    ScriptException tagged = assertThrows(ScriptException.class,
+        () -> engine.eval(REVEAL + "fail('%.4s' % secret)\n"));
+    assertFalse(redactor.sanitizeError(tagged.getMessage()).contains("synt"));
+
+    ScriptException syntax = assertThrows(ScriptException.class,
+        () -> engine.eval("def invalid("));
+    assertEquals(syntax.getMessage(), redactor.sanitizeError(syntax.getMessage()));
+
+    ScriptException clean = assertThrows(ScriptException.class,
+        () -> engine.eval("fail('public timeout')\n"));
+    assertEquals(clean.getMessage(), redactor.sanitizeError(clean.getMessage()));
+  }
+
+  @Test
+  void taggedPrintKeepsLongPublicContextAndLaterPublicLines() throws Exception {
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    StringWriter output = writer(engine);
+    engine.put(DiagnosticRedactor.BINDING_NAME, new DiagnosticRedactor(Mode.ENFORCE));
+
+    engine.eval(REVEAL + """
+        print('a' * 6000 + ('%.4s' % secret))
+        print('public after')
+        """);
+
+    assertEquals(List.of("a".repeat(6000) + "***REDACTED***", "public after"),
+        output.toString().lines().toList());
+  }
+
+  @Test
+  void preservesEscapedPublicContextInAQuotedDerivedString() throws Exception {
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    StringWriter output = writer(engine);
+    engine.put(DiagnosticRedactor.BINDING_NAME, new DiagnosticRedactor(Mode.ENFORCE));
+
+    engine.eval(REVEAL + "print(['public\\n<' + ('%.4s' % secret) + '>after'])\n");
+
+    assertEquals("[\"public\\n<***REDACTED***>after\"]", output.toString().strip());
+  }
+
+  @Test
+  void acceptsEqualButDistinctScalarHitMetadata() throws Exception {
+    LarkyVault vault = mock(LarkyVault.class);
+    when(vault.revealOutcome(any(), any()))
+        .thenReturn(new RevealOutcome(new String(SECRET), List.of(new String(SECRET))));
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    StringWriter output = writer(engine);
+    engine.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(LarkyVault.class, vault));
+    engine.put(DiagnosticRedactor.BINDING_NAME, new DiagnosticRedactor(Mode.ENFORCE));
+
+    engine.eval("""
+        load('@vgs//vault', 'vault')
+        value = vault.reveal('mapped alias')
+        print('%.4s' % value)
+        """);
+
+    assertEquals(SECRET, engine.get("value"));
+    assertEquals("***REDACTED***", output.toString().strip());
+  }
+
+  @Test
+  void masksDerivedBytesEvenWhenTheSourceIsTooShortForTextMatching() throws Exception {
+    StarlarkBytes hit = StarlarkBytes.immutableOf(new byte[] {'Q'});
+    LarkyVault vault = mock(LarkyVault.class);
+    when(vault.revealOutcome(any(), any())).thenReturn(RevealOutcome.hit(hit));
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    StringWriter output = writer(engine);
+    engine.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(LarkyVault.class, vault));
+    engine.put(DiagnosticRedactor.BINDING_NAME, new DiagnosticRedactor(Mode.ENFORCE));
+
+    engine.eval("""
+        load('@vgs//vault', 'vault')
+        derived = b'prefix' + vault.reveal('mapped alias')
+        print('before', derived, 'after')
+        print('public Q')
+        """);
+
+    assertEquals(StarlarkBytes.immutableOf("prefixQ".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+        engine.get("derived"));
+    assertEquals(List.of("before ***REDACTED*** after", "public Q"),
+        output.toString().lines().toList());
+  }
+
+  @Test
+  void countsRepeatedHitMetadataAfterMatchingExactBatchOccurrences() throws Exception {
+    String first = new String(SECRET);
+    String second = new String(SECRET);
+    LarkyVault vault = mock(LarkyVault.class);
+    when(vault.revealOutcome(any(), any()))
+        .thenReturn(new RevealOutcome(List.of(first, second), List.of(first, first)));
+    LarkyScriptEngine engine = new LarkyScriptEngine();
+    StringWriter output = writer(engine);
+    engine.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(LarkyVault.class, vault));
+    engine.put(DiagnosticRedactor.BINDING_NAME, new DiagnosticRedactor(Mode.ENFORCE));
+
+    engine.eval("""
+        load('@vgs//vault', 'vault')
+        values = vault.reveal(['one', 'two'])
+        print('%.4s' % values[0], '%.4s' % values[1], sep=' | ')
+        """);
+
+    assertEquals(List.of(SECRET, SECRET), List.copyOf((List<?>) engine.get("values")));
     assertEquals("***REDACTED*** | ***REDACTED***", output.toString().strip());
   }
 

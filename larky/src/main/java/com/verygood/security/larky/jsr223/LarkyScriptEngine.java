@@ -257,6 +257,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
    */
   @Override
   public Object eval(String script, ScriptContext context) throws ScriptException {
+    clearDiagnosticFailure(context.getBindings(ScriptContext.ENGINE_SCOPE));
     // the given context governs compiling and running: its global scope, settings and writer
     return compile(script, getScriptName(context), context).eval(context);
   }
@@ -279,6 +280,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
    */
   @Override
   public Object eval(Reader reader, ScriptContext context) throws ScriptException {
+    clearDiagnosticFailure(context.getBindings(ScriptContext.ENGINE_SCOPE));
     return eval(readScript(reader), context);
   }
 
@@ -319,6 +321,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
    */
   @Override
   public Object eval(Reader reader) throws ScriptException {
+    clearDiagnosticFailure(context.getBindings(ScriptContext.ENGINE_SCOPE));
     return eval(readScript(reader));
   }
 
@@ -345,6 +348,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
    */
   @Override
   public Object eval(String script, Bindings n) throws ScriptException {
+    clearDiagnosticFailure(n == null ? context.getBindings(ScriptContext.ENGINE_SCOPE) : n);
     CompiledScript compile = compile(script);
     return compile.eval(n);
   }
@@ -367,6 +371,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
    */
   @Override
   public Object eval(Reader reader, Bindings n) throws ScriptException {
+    clearDiagnosticFailure(n == null ? context.getBindings(ScriptContext.ENGINE_SCOPE) : n);
     return eval(readScript(reader), n);
   }
 
@@ -525,6 +530,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
    */
   @Override
   public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
+    clearDiagnosticFailure(context.getBindings(ScriptContext.ENGINE_SCOPE));
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
     return LarkyCalls.call(function(name, bindings), args, console(bindings), LarkyCalls.Limits.of(bindings),
@@ -535,10 +541,18 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
   @Override
   public Object invokeMethod(Object thiz, String name, Object... args)
       throws ScriptException, NoSuchMethodException {
+    clearDiagnosticFailure(context.getBindings(ScriptContext.ENGINE_SCOPE));
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
     return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), LarkyCalls.Limits.of(bindings),
         providers(bindings), diagnosticRedactor());
+  }
+
+  static void clearDiagnosticFailure(Bindings bindings) {
+    if (bindings != null
+        && bindings.get(DiagnosticRedactor.BINDING_NAME) instanceof DiagnosticRedactor redactor) {
+      redactor.clearFailure();
+    }
   }
 
   private DiagnosticRedactor diagnosticRedactor() {
