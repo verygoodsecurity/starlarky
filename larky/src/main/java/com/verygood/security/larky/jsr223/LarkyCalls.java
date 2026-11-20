@@ -89,8 +89,7 @@ final class LarkyCalls {
       if (limits.expirationMs() != null) {
         thread.setExpirationMs(limits.expirationMs());
       }
-      DiagnosticRedactor.installOn(thread, diagnosticRedactor);
-      try {
+      try (var scope = DiagnosticRedactor.bind(thread, diagnosticRedactor)) {
         return Starlark.call(thread, function, starlarkArgs, Map.of());
       } catch (EvalException e) {
         // as the interpreter reports a script whose top level fails (LarkyEvaluator, then LarkyCompiledScript)
@@ -100,8 +99,6 @@ final class LarkyCalls {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new ScriptException(e);
-      } finally {
-        DiagnosticRedactor.installOn(thread, null);
       }
     }
   }

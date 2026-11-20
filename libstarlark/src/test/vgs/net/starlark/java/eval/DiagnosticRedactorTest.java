@@ -1,6 +1,7 @@
 package net.starlark.java.eval;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -11,6 +12,26 @@ import java.util.List;
 import org.junit.Test;
 
 public class DiagnosticRedactorTest {
+  @Test
+  public void bindingRestoresThePreviousRedactorAfterAnException() {
+    try (Mutability mutability = Mutability.create("diagnostic binding test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mutability, StarlarkSemantics.DEFAULT);
+      DiagnosticRedactor outer = new DiagnosticRedactor(DiagnosticRedactor.Mode.OBSERVE);
+      DiagnosticRedactor inner = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE);
+
+      try (var scope = DiagnosticRedactor.bind(thread, outer)) {
+        assertThrows(IllegalStateException.class, () -> {
+          try (var nested = DiagnosticRedactor.bind(thread, inner)) {
+            assertThat(thread.getThreadLocal(DiagnosticRedactor.class)).isSameInstanceAs(inner);
+            throw new IllegalStateException("test failure");
+          }
+        });
+        assertThat(thread.getThreadLocal(DiagnosticRedactor.class)).isSameInstanceAs(outer);
+      }
+      assertThat(thread.getThreadLocal(DiagnosticRedactor.class)).isNull();
+    }
+  }
+
   @Test
   public void masksKnownEncodingsAndPreservesSurroundingText() {
     DiagnosticRedactor redactor = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE);

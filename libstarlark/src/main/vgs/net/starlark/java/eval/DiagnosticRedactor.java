@@ -34,6 +34,12 @@ public final class DiagnosticRedactor {
     void onHit(Sink sink, Reason reason);
   }
 
+  @FunctionalInterface
+  public interface Scope extends AutoCloseable {
+    @Override
+    void close();
+  }
+
   private final Mode mode;
   private final Observer observer;
   private final Set<String> forms = new LinkedHashSet<>();
@@ -68,10 +74,15 @@ public final class DiagnosticRedactor {
     return mode != Mode.OFF;
   }
 
-  /** Installs host state on a new execution thread. Install the same state for nested module loads. */
-  public static void installOn(StarlarkThread thread, @Nullable DiagnosticRedactor redactor) {
-    thread.setThreadLocal(
-        DiagnosticRedactor.class, redactor != null && redactor.isTracking() ? redactor : null);
+  /** Binds the redactor for a scope and restores the previous binding when the scope closes. */
+  public static Scope bind(StarlarkThread thread, @Nullable DiagnosticRedactor redactor) {
+    DiagnosticRedactor previous = thread.getThreadLocal(DiagnosticRedactor.class);
+    DiagnosticRedactor active = redactor != null && redactor.isTracking() ? redactor : null;
+    if (previous == active) {
+      return () -> {};
+    }
+    thread.setThreadLocal(DiagnosticRedactor.class, active);
+    return () -> thread.setThreadLocal(DiagnosticRedactor.class, previous);
   }
 
   /** Registers the scalar or flat batch result of an authorized reveal. */

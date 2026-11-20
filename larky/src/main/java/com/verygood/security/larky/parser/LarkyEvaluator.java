@@ -130,11 +130,11 @@ public final class LarkyEvaluator {
           .module(module)
           .build();
     }
-    // With the module cache on, Larky's own modules are loaded once per process and shared (see
-    // ModuleCache).
-    boolean shareEvaluatedModule = content instanceof ResourceContentStarFile
-        && (diagnosticRedactor == null || !diagnosticRedactor.isTracking());
-    if (shareEvaluatedModule) {
+    // A module evaluated with tracking can retain values registered by that run.
+    boolean trackingDiagnostics = diagnosticRedactor != null && diagnosticRedactor.isTracking();
+    boolean useSharedModuleCache =
+        content instanceof ResourceContentStarFile && !trackingDiagnostics;
+    if (useSharedModuleCache) {
       Module shared =
           moduleCache.lookup(
               content.path(), getStarlarkValidationOptions(), getLarkySemantics(), getEnvironment());
@@ -197,19 +197,16 @@ public final class LarkyEvaluator {
         thread.setExpirationMs(Long.parseLong(environment.get(EXPIRATION_MS).toString()));
       }
 
-      DiagnosticRedactor.installOn(thread, diagnosticRedactor);
-      try {
+      try (var scope = DiagnosticRedactor.bind(thread, diagnosticRedactor)) {
         starlarkOutput = prog.exec(module, thread);
       } catch (EvalException cause) {
         throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(cause, thread);
-      } finally {
-        DiagnosticRedactor.installOn(thread, null);
       }
 
       // Set some statistical information
       module.setGlobal(EXECUTION_STEPS, thread.getExecutedSteps());
     }
-    if (shareEvaluatedModule) {
+    if (useSharedModuleCache) {
       moduleCache.put(
           content.path(), options, getLarkySemantics(), module, prog.predeclaredNames(),
           getEnvironment(), loadedModules);
