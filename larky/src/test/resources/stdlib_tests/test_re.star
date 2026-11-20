@@ -55,6 +55,10 @@ def _test_match_with_args():
     pat = re.compile(r'(ab)')
     mo = pat.match(string='abracadabra', pos=7, endpos=10)
     asserts.assert_that(mo.span()).is_equal_to((7, 9))
+    mo = pat.match("abc", -1, 20)
+    asserts.assert_that((mo.pos, mo.endpos, mo.span())).is_equal_to((0, 3, (0, 2)))
+    mo = pat.search(b"_ab")
+    asserts.assert_that((mo.string, mo.span())).is_equal_to(("_ab", (1, 3)))
 
 
 def _test_same_pattern_with_different_flags():

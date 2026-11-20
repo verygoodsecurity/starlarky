@@ -54,6 +54,12 @@ RegexFlags = enum.enumify_iterable(iterable=[
 
 
 
+# Match kinds accepted by RegexPattern.py_match_region.
+_SEARCH = 0
+_MATCH = 1
+_FULLMATCH = 2
+
+
 def _group_text(string, spans, index, default=None):
     start = spans[2 * index]
     if start < 0:
@@ -72,11 +78,9 @@ def _expand_template(template, string, spans):
     ])
 
 
-def _Match(pattern, input, pos, endpos, spans):
+def _Match(pattern, string, pos, endpos, spans, positions):
     """A Python re.Match object for the flat group spans returned by the py_* methods."""
     rx = pattern.patternobj
-    string = rx.py_text(input)
-    positions = rx.py_positions(input, spans)
     ngroups = rx.py_groups
 
     def _index(group):
@@ -145,21 +149,27 @@ def _pattern__init__(patternobj, flags):
     def _match_obj(input, pos, endpos, spans):
         if spans == None:
             return None
-        return _Match(self, input, pos, endpos, spans)
+        return _Match(self, rx.py_text(input), pos, endpos, spans, rx.py_positions(input, spans))
 
-    def _match_in_region(run, string, pos, endpos):
-        input = rx.py_prepare(string)
-        pos, endpos, start, stop = rx.py_region(input, pos, endpos)
-        return _match_obj(input, pos, endpos, run(input, start, stop))
+    def _match_in_region(string, pos, endpos, result):
+        if result == None:
+            return None
+        # Flat spans are pairs. The 5-item result carries converted text, bounds and positions.
+        if len(result) == 5:
+            string, pos, endpos, spans, positions = result
+            return _Match(self, string, pos, endpos, spans, positions)
+        if endpos == None:
+            endpos = len(string)
+        return _Match(self, string, pos, endpos, result, result)
 
     def match(string, pos=0, endpos=None):
-        return _match_in_region(rx.py_match, string, pos, endpos)
+        return _match_in_region(string, pos, endpos, rx.py_match_region(_MATCH, string, pos, endpos))
 
     def fullmatch(string, pos=0, endpos=None):
-        return _match_in_region(rx.py_fullmatch, string, pos, endpos)
+        return _match_in_region(string, pos, endpos, rx.py_match_region(_FULLMATCH, string, pos, endpos))
 
     def search(string, pos=0, endpos=None):
-        return _match_in_region(rx.py_search, string, pos, endpos)
+        return _match_in_region(string, pos, endpos, rx.py_match_region(_SEARCH, string, pos, endpos))
 
     def _all_spans(input, pos, endpos):
         # Successive matches as in CPython 3.7+: the search continues where the last match

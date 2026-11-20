@@ -238,6 +238,50 @@ public class RegexPattern implements StarlarkValue {
     return Tuple.of(positions);
   }
 
+  @StarlarkMethod(
+      name = "py_match_region",
+      documented = false,
+      parameters = {
+          @Param(name = "kind"),
+          @Param(name = "string", allowedTypes = {
+              @ParamType(type = String.class), @ParamType(type = StarlarkBytes.class)}),
+          @Param(name = "pos"),
+          @Param(name = "endpos", allowedTypes = {
+              @ParamType(type = StarlarkInt.class), @ParamType(type = NoneType.class)})})
+  public Object pyMatchRegion(StarlarkInt kind, Object string, StarlarkInt pos, Object endpos)
+      throws EvalException {
+    int operation = kind.toInt("match kind");
+    if (operation < PyRegex.SEARCH || operation > PyRegex.FULLMATCH) {
+      throw new EvalException("unknown regex match kind");
+    }
+    CharSequence text = pyInput(string);
+    int utf16Length = text.length();
+    boolean bytes = string instanceof StarlarkBytes;
+    int length = bytes ? utf16Length : ((String) text).codePointCount(0, utf16Length);
+    int requestedStart = pos.toInt("pos");
+    int requestedEnd = endpos == Starlark.NONE ? length : ((StarlarkInt) endpos).toInt("endpos");
+    int start = Math.clamp(requestedStart, 0, length);
+    int end = Math.clamp(requestedEnd, 0, length);
+    if (end < start) {
+      return Starlark.NONE;
+    }
+    PyRegexInput coordinates =
+        length == utf16Length ? null : new PyRegexInput((String) text, false, length);
+    int from = coordinates == null ? start : coordinates.toOffset(start);
+    int to = coordinates == null ? end : coordinates.toOffset(end);
+    int[] offsets = matchSpans(text, from, to, operation, false, bytes);
+    if (offsets == null) {
+      return Starlark.NONE;
+    }
+    Tuple spans = intTuple(offsets);
+    if (!bytes && coordinates == null && start == requestedStart && end == requestedEnd) {
+      // Use the flat tuple when the caller already has the text and normalized bounds.
+      return spans;
+    }
+    Tuple positions = coordinates == null ? spans : pyPositions(coordinates, spans);
+    return Tuple.of(text.toString(), StarlarkInt.of(start), StarlarkInt.of(end), spans, positions);
+  }
+
   private Object pyRun(Object input, StarlarkInt pos, Object endpos, int kind, boolean mustAdvance)
       throws EvalException {
     CharSequence text = pyInput(input);
@@ -248,19 +292,20 @@ public class RegexPattern implements StarlarkValue {
     if (endpos != Starlark.NONE) {
       end = Math.max(0, Math.min(((StarlarkInt) endpos).toInt("endpos"), len));
     }
-    if (end < start) {
-      return Starlark.NONE;
-    }
-    if (end < len) {
-      text = text.subSequence(0, end);
-    }
     boolean bytes = input instanceof PyRegexInput prepared
         ? prepared.bytes : input instanceof StarlarkBytes;
-    int[] spans = py().run(text, start, kind, mustAdvance, bytes);
-    if (spans == null) {
-      return Starlark.NONE;
+    int[] spans = matchSpans(text, start, end, kind, mustAdvance, bytes);
+    return spans == null ? Starlark.NONE : intTuple(spans);
+  }
+
+  private int[] matchSpans(
+      CharSequence text, int start, int end, int kind, boolean mustAdvance, boolean bytes)
+      throws EvalException {
+    if (end < start) {
+      return null;
     }
-    return intTuple(spans);
+    CharSequence region = end == text.length() ? text : text.subSequence(0, end);
+    return py().run(region, start, kind, mustAdvance, bytes);
   }
 
   private static Tuple intTuple(int[] values) {
