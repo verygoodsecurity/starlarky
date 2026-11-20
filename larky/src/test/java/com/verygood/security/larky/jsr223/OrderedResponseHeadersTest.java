@@ -46,6 +46,24 @@ public class OrderedResponseHeadersTest {
   }
 
   @Test
+  public void caseOnlyRenameRetainsAllValuesWhenOldValuesAreRemovedFirst() throws Exception {
+    ParsedStarFile result = eval("""
+        def rename_headers():
+            response = VGSHttpResponse(headers=[("X-Name", "first"), ("x-name", "second")])
+            headers = response.headers
+            old_values = headers.popall("X-Name")
+            for value in old_values:
+                headers.add("x-name", value)
+            return list(headers.items())
+        items = rename_headers()
+        """);
+
+    assertThat(result.getGlobalEnvironmentVariable("items", List.class))
+        .containsExactly(Tuple.of("x-name", "first"), Tuple.of("x-name", "second"))
+        .inOrder();
+  }
+
+  @Test
   public void replacementAppendAndRemovalPreserveUnrelatedOrder() throws Exception {
     ParsedStarFile result = eval("""
         def exercise():
