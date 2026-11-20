@@ -22,6 +22,7 @@ package net.starlark.java.eval.compiler;
  *   <li><b>starlark-go</b>: separate operand stack and locals, as google/starlark-go
  *   <li><b>starlark-rust</b>: one slot array for locals and operands, as starlark-rust
  *   <li><b>buck</b>: Buck-style frame layout
+ *   <li><b>jvm</b>: each chunk compiled to a JVM method ({@code JvmBytecodeCompiler})
  * </ul>
  *
  * All of them share the instruction semantics in {@code BcOps}; they differ only in storage.
@@ -30,7 +31,8 @@ public enum BytecodeTarget {
   INTERPRETER("interpreter"),
   STARLARK_GO("starlark-go"),
   STARLARK_RUST("starlark-rust"),
-  BUCK("buck");
+  BUCK("buck"),
+  JVM("jvm");
 
   private final String id;
 
