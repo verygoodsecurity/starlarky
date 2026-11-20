@@ -926,7 +926,7 @@ public final class Starlark {
       throws EvalException, InterruptedException {
     thread.push(callable);
     try {
-      return argumentProcessor.call(thread);
+      return afterCall(thread, callable, argumentProcessor.call(thread));
     } catch (UncheckedEvalException | UncheckedEvalError ex) {
       throw ex; // already wrapped
     } catch (RuntimeException ex) {
@@ -960,7 +960,7 @@ public final class Starlark {
     // LINT.IfChange(positionalOnlyCall)
     thread.push(callable);
     try {
-      return callable.positionalOnlyCall(thread, positional);
+      return afterCall(thread, callable, callable.positionalOnlyCall(thread, positional));
     } catch (UncheckedEvalException | UncheckedEvalError ex) {
       throw ex; // already wrapped
     } catch (RuntimeException ex) {
@@ -974,6 +974,11 @@ public final class Starlark {
       thread.pop();
     }
     // LINT.ThenChange(:fastcall)
+  }
+
+  private static Object afterCall(StarlarkThread thread, StarlarkCallable callable, Object result) {
+    EvaluationHooks hooks = thread.evaluationHooks();
+    return hooks == null ? result : hooks.afterCall(thread, callable, result);
   }
 
   static StarlarkCallable getStarlarkCallable(StarlarkThread thread, Object fn)
@@ -1079,14 +1084,16 @@ public final class Starlark {
       String name,
       @Nullable Object defaultValue)
       throws EvalException, InterruptedException {
-    return getattr(mu, semantics, CallUtils.getBuiltinManager(semantics), x, name, defaultValue);
+    return getattr(mu, semantics, CallUtils.getBuiltinManager(semantics), x, name, defaultValue, null);
   }
 
   /**
    * Optimized version of {@link #getattr(Mutability, StarlarkSemantics, Object, String, Object)}
-   * that avoids a map lookup for the {@link BuiltinManager}.
+   * that avoids a map lookup for the {@link BuiltinManager} and reports resolved reads to the
+   * thread's evaluator extensions.
    */
-  static Object getattr(StarlarkThread thread, Object x, String name, @Nullable Object defaultValue)
+  public static Object getattr(
+      StarlarkThread thread, Object x, String name, @Nullable Object defaultValue)
       throws EvalException, InterruptedException {
     return getattr(
         thread.mutability(),
@@ -1094,7 +1101,8 @@ public final class Starlark {
         thread.getBuiltinManager(),
         x,
         name,
-        defaultValue);
+        defaultValue,
+        thread);
   }
 
   private static Object getattr(
@@ -1103,14 +1111,15 @@ public final class Starlark {
       CallUtils.BuiltinManager manager,
       Object x,
       String name,
-      @Nullable Object defaultValue)
+      @Nullable Object defaultValue,
+      @Nullable StarlarkThread thread)
       throws EvalException, InterruptedException {
     // Check if it's a user-defined struct field first. If it is, we bypass the overhead of
     // attempting to look up a non-existent MethodDescriptor.
     if (x instanceof Structure struct) {
       Object field = struct.getValue(semantics, name);
       if (field != null) {
-        return Starlark.checkValid(field);
+        return EvaluationExtensions.afterFieldRead(thread, x, name, Starlark.checkValid(field));
       }
     }
 
@@ -1118,9 +1127,10 @@ public final class Starlark {
     MethodDescriptor method = manager.getAnnotatedMethods(x.getClass()).get(name);
     if (method != null) {
       if (method.isStructField()) {
-        return method.callField(x, semantics, mu);
+        Object field = method.callField(x, semantics, mu);
+        return EvaluationExtensions.afterFieldRead(thread, x, name, field);
       } else {
-        return BuiltinFunction.of(x, method);
+        return EvaluationExtensions.afterFieldRead(thread, x, name, BuiltinFunction.of(x, method));
       }
     }
 

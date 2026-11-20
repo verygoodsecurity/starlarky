@@ -59,6 +59,14 @@ final class EvalUtils {
   /** Evaluates an eager binary operation, {@code x op y}. (Excludes AND and OR.) */
   static Object binaryOp(TokenKind op, Object x, Object y, StarlarkThread starlarkThread)
       throws EvalException {
+    EvaluationExtensions extensions = starlarkThread.evaluationExtensions;
+    return extensions == null
+        ? defaultBinaryOp(op, x, y, starlarkThread)
+        : extensions.binary(EvalUtils::defaultBinaryOp, op, x, y, starlarkThread, false);
+  }
+
+  static Object defaultBinaryOp(TokenKind op, Object x, Object y, StarlarkThread starlarkThread)
+      throws EvalException {
     StarlarkSemantics semantics = starlarkThread.getSemantics();
     Mutability mu = starlarkThread.mutability();
     switch (op) {
@@ -377,7 +385,7 @@ final class EvalUtils {
         break;
 
       case NOT_IN:
-        Object z = binaryOp(TokenKind.IN, x, y, starlarkThread);
+        Object z = defaultBinaryOp(TokenKind.IN, x, y, starlarkThread);
         if (z != null) {
           return !Starlark.truth(z);
         }
@@ -470,6 +478,23 @@ final class EvalUtils {
    */
   @Nullable
   static Object index(StarlarkThread starlarkThread, Object object, Object key)
+      throws EvalException {
+    EvaluationHooks hooks = starlarkThread.evaluationHooks();
+    if (hooks == null) {
+      return defaultIndex(starlarkThread, object, key);
+    }
+    Object result;
+    try {
+      result = defaultIndex(starlarkThread, object, key);
+    } catch (EvalException error) {
+      hooks.onIndexError(starlarkThread, object, key, error);
+      throw error;
+    }
+    return result == null ? null : hooks.afterIndex(starlarkThread, object, key, result);
+  }
+
+  @Nullable
+  private static Object defaultIndex(StarlarkThread starlarkThread, Object object, Object key)
       throws EvalException {
     Mutability mu = starlarkThread.mutability();
     StarlarkSemantics semantics = starlarkThread.getSemantics();

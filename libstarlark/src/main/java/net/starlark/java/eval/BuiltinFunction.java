@@ -85,8 +85,33 @@ public sealed class BuiltinFunction implements StarlarkCallable
     } else {
       vector = getPositionalOnlyArgumentVector(thread, positional);
     }
-    return desc.call(
-        obj instanceof String ? StringModule.INSTANCE : obj, vector, thread.mutability());
+    return invokeMethod(thread, vector);
+  }
+
+  private Object invokeMethod(StarlarkThread thread, Object[] vector)
+      throws EvalException, InterruptedException {
+    EvaluationHooks hooks = thread.evaluationHooks();
+    Object target = obj instanceof String ? StringModule.INSTANCE : obj;
+    return hooks == null
+        ? desc.call(target, vector, thread.mutability())
+        : invokeWithHooks(thread, vector, target, hooks);
+  }
+
+  private Object invokeWithHooks(
+      StarlarkThread thread, Object[] vector, Object target, EvaluationHooks hooks)
+      throws EvalException, InterruptedException {
+    var method = desc.getMethod();
+    Object state = hooks.beforeBuiltin(thread, method, obj, vector);
+    Object result;
+    try {
+      result = desc.call(target, vector, thread.mutability());
+    } catch (EvalException | InterruptedException | RuntimeException | Error error) {
+      if (!(error instanceof VirtualMachineError)) {
+        hooks.onBuiltinError(thread, method, obj, vector, state, error);
+      }
+      throw error;
+    }
+    return hooks.afterBuiltin(thread, method, obj, vector, state, result);
   }
 
   /**
@@ -451,10 +476,7 @@ public sealed class BuiltinFunction implements StarlarkCallable
         vector[i++] = thread;
       }
 
-      return desc.call(
-          owner.obj instanceof String ? StringModule.INSTANCE : owner.obj,
-          vector,
-          thread.mutability());
+      return owner.invokeMethod(thread, vector);
     }
   }
 

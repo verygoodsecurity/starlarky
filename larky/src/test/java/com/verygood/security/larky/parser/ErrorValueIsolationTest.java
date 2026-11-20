@@ -23,7 +23,16 @@ import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.modules.types.results.LarkyAttributeError;
 import com.verygood.security.larky.modules.types.results.LarkyIndexError;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.EvaluationExtensions;
+import net.starlark.java.eval.EvaluationHooks;
+import net.starlark.java.eval.Module;
+import net.starlark.java.eval.Mutability;
+import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.syntax.ParserInput;
 import org.junit.Test;
 
 /**
@@ -93,6 +102,43 @@ public class ErrorValueIsolationTest {
   public void theSharedValuesCannotBeThrown() {
     assertThat(Throwable.class.isAssignableFrom(LarkyIndexError.class)).isFalse();
     assertThat(Throwable.class.isAssignableFrom(LarkyAttributeError.class)).isFalse();
+  }
+
+  @Test
+  public void attributeReadHooksSkipTheLarkyMissingAttributeSentinel() throws Exception {
+    List<String> reads = new ArrayList<>();
+    EvaluationHooks hooks = new EvaluationHooks() {
+      @Override
+      public Object afterFieldRead(StarlarkThread thread, Object target, String name, Object result) {
+        if (name.equals("missing") || name.equals("present")) {
+          reads.add(name);
+        }
+        return result;
+      }
+    };
+    LarkyScript script = new LarkyScript(LarkyScript.StarlarkMode.STRICT);
+    LarkyEvaluator evaluator = new LarkyEvaluator(script, new TestingConsole());
+    var semantics = evaluator.getLarkySemantics();
+    Module module = Module.withPredeclared(semantics, evaluator.getEnvironment());
+    try (Mutability mu = Mutability.create("attribute read hooks")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, semantics);
+      try (var scope = new EvaluationExtensions(hooks).installOn(thread)) {
+        Starlark.execFile(
+            ParserInput.fromString("""
+                def missing_attr(name):
+                    return AttributeError()
+                obj = type('WithGetattr', (), {})()
+                obj.__getattr__ = missing_attr
+                obj.present = 'found'
+                found = getattr(obj, 'present')
+                absent = hasattr(obj, 'missing')
+                """, "getattr.star"),
+            LarkyScript.STARLARK_STRICT_FILE_OPTIONS, module, thread);
+      }
+    }
+    assertThat(module.getGlobal("found")).isEqualTo("found");
+    assertThat(module.getGlobal("absent")).isEqualTo(false);
+    assertThat(reads).containsExactly("present");
   }
 
   /** What scripts see of these values is unchanged. */

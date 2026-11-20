@@ -25,6 +25,7 @@ import net.starlark.java.eval.IntLimits;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.FormatSpec;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.EvaluationExtensions;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
@@ -535,16 +536,16 @@ public final class PythonBuiltins {
         throw new EvalException(ex.getCause());
       }
       result = res != null ? res : defaultValue;
+      if (result != defaultValue && result != Starlark.UNBOUND) {
+        return result == LarkyAttributeError.sentinel()
+            ? result
+            : EvaluationExtensions.afterFieldRead(thread, obj, name, result);
+      }
     }
 
     if (result == defaultValue) {
       try {
-        result = Starlark.getattr(
-          thread.mutability(),
-          thread.getSemantics(),
-          obj,
-          name,
-          defaultValue == Starlark.UNBOUND ? null : defaultValue);
+        result = Starlark.getattr(thread, obj, name, defaultValue == Starlark.UNBOUND ? null : defaultValue);
       } catch (InterruptedException e) {
         throw new EvalException(e.getCause());
       }

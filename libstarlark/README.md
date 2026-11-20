@@ -78,6 +78,31 @@ if square(2) == 4:
     print("square function works!") 
 ```
 
+### Per-run evaluator extensions
+
+Trusted Java embedders can install `EvaluationExtensions` on a `StarlarkThread`
+for one execution. Install the returned scope with try-with-resources to restore
+the prior configuration even if evaluation fails.
+
+```java
+var extensions = new EvaluationExtensions(hooks);
+try (var scope = extensions.installOn(thread)) {
+  Starlark.execFile(input, options, module, thread);
+}
+```
+
+`EvaluationHooks` observes operator results, reads, control flow and calls. A
+result callback can return an equivalent value with a different identity. A
+field-read callback receives the resolved value, including values returned by
+custom `Structure` implementations. Java `null` from a structure means to
+continue the lookup.
+
+A binary override can replace an eager operation or delegate to the interpreter
+once, including for augmented assignment. These callbacks run on the same
+execution thread and may receive sensitive values. Hosts should bypass shared
+evaluated-module caches when extensions can affect results or carry per-run
+state. Compiled programs can still be shared for runtime-only extensions.
+
 ### Language Lawyers
 
 If you want to read more about the specification, please visit the [official Starlark specification](https://github.com/bazelbuild/starlark/blob/master/spec.md)
