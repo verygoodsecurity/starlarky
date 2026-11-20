@@ -9,7 +9,7 @@ fi
 candidate="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 sha256="$2"
 fixture_port="${3:-}"
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 
 python3 - "$candidate" "$sha256" <<'PY'
 import hashlib

@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/kitesurf-guest.yaml
-      - examples/kitesurf-wasm/**
+      - larky-wasm-browser/**
       - examples/kitesurf-adyen/**
       - pom.xml
       - larky/pom.xml
@@ -50,7 +50,7 @@ jobs:
         run: |
           rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal \
             --target wasm32-wasip1 --component rustfmt --component clippy
-          examples/kitesurf-wasm/build.sh target/kitesurf-guest.wasm --check
+          larky-wasm-browser/build.sh target/kitesurf-guest.wasm --check
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
@@ -61,7 +61,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           digest="$(jq -er .sha256 target/kitesurf-guest.wasm.build.json)"
-          examples/kitesurf-wasm/check-candidate.sh target/kitesurf-guest.wasm "$digest"
+          larky-wasm-browser/check-candidate.sh target/kitesurf-guest.wasm "$digest"
       - name: Build the sandbox fixture
         if: github.event_name == 'workflow_dispatch'
         run: |
@@ -79,7 +79,7 @@ jobs:
           unset ADYEN_CLIENT_KEY
           curl --fail --silent --retry 15 --retry-connrefused http://127.0.0.1:18801/ >/dev/null
           digest="$(jq -er .sha256 target/kitesurf-guest.wasm.build.json)"
-          examples/kitesurf-wasm/check-candidate.sh target/kitesurf-guest.wasm "$digest" "$ADYEN_FIXTURE_PORT"
+          larky-wasm-browser/check-candidate.sh target/kitesurf-guest.wasm "$digest" "$ADYEN_FIXTURE_PORT"
           printf 'sha256=%s\n' "$digest" >> "$GITHUB_OUTPUT"
 
       - name: Pack the tested guest

@@ -57,7 +57,7 @@ outside the module's memory traps.
 
 Returning from `_start` exits with 0; `proc_exit(n)` exits with `n`.
 
-The [embedded Kitesurf experiment](../examples/kitesurf-wasm/README.md) uses a
+The [embedded Kitesurf experiment](../larky-wasm-browser/README.md) uses a
 dedicated Endive reactor with an invocation-scoped HTTP grant. Its browser
 imports are available through `@vgs//browsers`.
 

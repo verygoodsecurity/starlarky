@@ -65,7 +65,7 @@ mvn clean package -pl larky
 Customer scripts load the embedded Kitesurf guest with
 `load("@vgs//browsers", "kitesurf")`. A Java host grants the guest access to
 approved origins and resolves value references during a Larky invocation.
-See the [embedded Wasm example](examples/kitesurf-wasm/README.md) for form
+See the [Wasm browser component](larky-wasm-browser/README.md) for form
 discovery, hosted frames, and the Adyen sandbox test.
 
 #### CDP rendering harness

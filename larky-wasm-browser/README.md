@@ -1,6 +1,11 @@
-# Embedded Kitesurf Wasm experiment
+# Kitesurf Wasm browser
 
-[The checkout script](../../larky/src/test/resources/kitesurf/wasm_checkout.star)
+This directory builds and qualifies the browser guest. [`larky-wasm`](../larky-wasm/)
+hosts the Wasm runtime, [`larky`](../larky/) exposes the script API, and
+[`examples/kitesurf-adyen`](../examples/kitesurf-adyen/) contains the sandbox
+checkout fixture.
+
+[The checkout script](../larky/src/test/resources/kitesurf/wasm_checkout.star)
 loads `@vgs//browsers`, opens a loopback checkout, discovers its email field, and
 fills it using a value reference. The Java host supplies a synthetic value for
 that reference. The guest retains the Kitesurf DOM between calls, and the script
@@ -18,7 +23,7 @@ filled = kitesurf.inspect()
 
 The guest runs page JavaScript in a separate context per frame. Filling a field
 dispatches browser input events, and clicking dispatches a browser click. The
-[cross-origin test](../../larky/src/test/java/com/verygood/security/larky/modules/KitesurfWasmJavaScriptTest.java)
+[cross-origin test](../larky/src/test/java/com/verygood/security/larky/modules/KitesurfWasmJavaScriptTest.java)
 verifies that a child frame encrypts a synthetic value with WebCrypto, sends
 the result to its parent using `postMessage`, and the parent submits the
 ciphertext to a local receipt. It also checks parent-document access, wrong-target
@@ -36,7 +41,7 @@ and builds the guest against Kitesurf's patched Rust dependencies.
 ```sh
 rustup toolchain install 1.99.0 --profile minimal --target wasm32-wasip1 \
   --component rustfmt --component clippy
-RUSTUP_TOOLCHAIN=1.99.0 examples/kitesurf-wasm/build.sh target/kitesurf-guest.wasm --check
+RUSTUP_TOOLCHAIN=1.99.0 larky-wasm-browser/build.sh target/kitesurf-guest.wasm --check
 mvn -B -ntp -pl larky -am \
   -Dtest=KitesurfWasmModuleTest,KitesurfWasmJavaScriptTest,BrowserWasmRuntimeTest \
   -Dsurefire.failIfNoSpecifiedTests=false \
@@ -51,7 +56,7 @@ compiles the DOM shim with the pinned Kitesurf core.
 
 ## Adyen sandbox checkout
 
-[The checkout script](../../larky/src/test/resources/kitesurf/embedded_adyen_checkout.star)
+[The checkout script](../larky/src/test/resources/kitesurf/embedded_adyen_checkout.star)
 discovers the test card fields in Adyen's hosted frames using their labels,
 autocomplete hints, and origin. It fills them from host-owned references,
 waits for the merchant page to report that the card fields are encrypted,
@@ -85,7 +90,7 @@ mvn -B -ntp -pl larky -am -Dtest=KitesurfWasmAdyenTest \
 ## Release the prebuilt guest
 
 Merchant and hosted payment iframe JavaScript execute inside the Larky Wasm
-guest. The [guest workflow](../../.github/workflows/kitesurf-guest.yaml)
+guest. The [guest workflow](../.github/workflows/kitesurf-guest.yaml)
 checks and builds the Rust guest and runs the deterministic browser tests on
 pull requests. Once the workflow is on the default
 branch, a manual dispatch against an existing release tag runs the browser and
@@ -115,13 +120,13 @@ candidate and its expected digest to the same release gate.
 
 ```sh
 candidate=target/kitesurf-guest.wasm
-examples/kitesurf-wasm/check-candidate.sh "$candidate" \
+larky-wasm-browser/check-candidate.sh "$candidate" \
   "$(jq -er .sha256 "$candidate.build.json")" 18801
 ```
 
 ## Embedding host
 
-[The Java integration test](../../larky/src/test/java/com/verygood/security/larky/modules/KitesurfWasmModuleTest.java)
+[The Java integration test](../larky/src/test/java/com/verygood/security/larky/modules/KitesurfWasmModuleTest.java)
 shows the setup. The host prepares a trusted guest binary with
 `KitesurfModule.prepareHost` with the authenticated SHA-256, supplies an
 exact-origin HTTP grant and a field-aware value resolver, and wraps the normal Larky evaluation in

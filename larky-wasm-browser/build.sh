@@ -2,15 +2,15 @@
 set -euo pipefail
 
 revision=a58b15dfabc0a238a4ab37c9ba9c1813c865bf21
-example_dir="$(cd "$(dirname "$0")" && pwd)"
-output="${1:-$example_dir/../../target/kitesurf-guest.wasm}"
+browser_dir="$(cd "$(dirname "$0")" && pwd)"
+output="${1:-$browser_dir/../target/kitesurf-guest.wasm}"
 checks="${2:-}"
 if [[ -n "$checks" && "$checks" != "--check" ]] || [[ $# -gt 2 ]]; then
   printf 'Usage: %s [output.wasm] [--check]\n' "$0" >&2
   exit 2
 fi
 if [[ "$checks" == "--check" ]]; then
-  rustfmt --edition 2021 --check "$example_dir/guest/src/lib.rs" "$example_dir/core-wasi.rs"
+  rustfmt --edition 2021 --check "$browser_dir/guest/src/lib.rs" "$browser_dir/core-wasi.rs"
 fi
 mkdir -p "$(dirname "$output")"
 output="$(cd "$(dirname "$output")" && pwd)/$(basename "$output")"
@@ -25,9 +25,9 @@ tar -xf "$scratch/source.tar.gz" -C "$scratch/source" --strip-components=1
 cd "$scratch/source"
 # Kitesurf carries patches for its native DOM, layout and JavaScript dependencies.
 node scripts/get-patched-vendor-crates.mjs
-cp -R "$example_dir/guest" packages/larky-guest
+cp -R "$browser_dir/guest" packages/larky-guest
 printf '\ninclude!("larky_wasi.rs");\n' >> packages/core/src/lib.rs
-cp "$example_dir/core-wasi.rs" packages/core/src/larky_wasi.rs
+cp "$browser_dir/core-wasi.rs" packages/core/src/larky_wasi.rs
 
 node --input-type=module <<'NODE'
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -50,7 +50,7 @@ writeFileSync(netPath, net.replace(request, `        // The Larky guest routes b
 
 NODE
 
-patch -s -p0 < "$example_dir/guest/Cargo.lock.patch"
+patch -s -p0 < "$browser_dir/guest/Cargo.lock.patch"
 
 export CARGO_TARGET_WASM32_WASIP1_RUSTFLAGS="-C target-cpu=mvp -C target-feature=+bulk-memory,+mutable-globals -C link-arg=--strip-all"
 build_dir="${CARGO_TARGET_DIR:-target}"
