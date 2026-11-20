@@ -23,6 +23,7 @@ import org.bouncycastle.crypto.modes.SICBlockCipher;
 import org.bouncycastle.crypto.params.DESedeParameters;
 import org.bouncycastle.crypto.params.KeyParameter;
 
+@com.google.errorprone.annotations.Immutable
 public class CryptoCipherModule implements StarlarkValue {
 
   public static final CryptoCipherModule INSTANCE = new CryptoCipherModule();

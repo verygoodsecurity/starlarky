@@ -1,12 +1,8 @@
 package com.verygood.security.run;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.google.common.base.Strings;
-import java.io.BufferedReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,16 +17,7 @@ import com.verygood.security.larky.console.LogConsole;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 import com.verygood.security.larky.parser.PrependMergedStarFile;
-
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.Module;
-import net.starlark.java.eval.Mutability;
-import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkSemantics;
-import net.starlark.java.eval.StarlarkThread;
-import net.starlark.java.syntax.FileOptions;
-import net.starlark.java.syntax.ParserInput;
-import net.starlark.java.syntax.SyntaxError;
+import com.verygood.security.run.repl.LarkyRepl;
 
 import lombok.SneakyThrows;
 import picocli.CommandLine;
@@ -46,22 +33,6 @@ import picocli.CommandLine;
   subcommands = {}
 )
 public class LarkyEntrypoint implements Callable<Integer> {
-
-  //REPL
-  private static final String START_PROMPT = ">> ";
-  private static final String CONTINUATION_PROMPT = ".. ";
-  private static final FileOptions OPTIONS = FileOptions.DEFAULT;
-  private static final BufferedReader reader =
-      new BufferedReader(new InputStreamReader(System.in, UTF_8));
-  private static final StarlarkThread thread;
-  private static final Module module = Module.create();
-
-  static {
-    Mutability mu = Mutability.create("interpreter");
-    thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
-    thread.setPrintHandler((th, msg) -> System.out.println(msg));
-  }
-  //REPL end
 
   @CommandLine.Option(names = {"-s", "--script"}, arity = "1", description = "Starlark script")
   private String filePath; // String script = readFile(commandLine.getOptionValue('s'));
@@ -86,8 +57,7 @@ public class LarkyEntrypoint implements Callable<Integer> {
 
   public static void main(String[] args) {
     if(args.length == 0) {
-      readEvalPrintLoop();
-      Runtime.getRuntime().exit(0);
+      Runtime.getRuntime().exit(LarkyRepl.runConsole());
     }
     int exitCode = new CommandLine(new LarkyEntrypoint()).execute(args);
     Runtime.getRuntime().exit(exitCode);
@@ -151,60 +121,6 @@ public class LarkyEntrypoint implements Callable<Integer> {
       throw new RuntimeException(e.getMessage(), e);
     }
   }
-
-  private static void readEvalPrintLoop() {
-    System.err.println("Welcome to Starlark (java.starlark.net)");
-    String line;
-
-    // TODO(adonovan): parse a compound statement, like the Python and
-    // go.starlark.net REPLs. This requires a new grammar production, and
-    // integration with the lexer so that it consumes new
-    // lines only until the parse is complete.
-
-    while ((line = prompt()) != null) {
-      ParserInput input = ParserInput.fromString(line, "<stdin>");
-      try {
-        Object result = Starlark.execFile(input, OPTIONS, module, thread);
-        if (result != Starlark.NONE) {
-          System.out.println(Starlark.repr(result, StarlarkSemantics.DEFAULT));
-        }
-      } catch (SyntaxError.Exception ex) {
-        for (SyntaxError error : ex.errors()) {
-          System.err.println(error);
-        }
-      } catch (EvalException ex) {
-        // TODO(adonovan): provide a SourceReader. Requires that we buffer the
-        // entire history so that line numbers don't reset in each chunk.
-        System.err.println(ex.getMessageWithStack());
-      } catch (InterruptedException ex) {
-        System.err.println("Interrupted");
-      }
-    }
-  }
-
-  private static String prompt() {
-    StringBuilder input = new StringBuilder();
-    System.out.print(START_PROMPT);
-    try {
-      String lineSeparator = "";
-      while (true) {
-        String line = reader.readLine();
-        if (line == null) {
-          return null;
-        }
-        if (line.isEmpty()) {
-          return input.toString();
-        }
-        input.append(lineSeparator).append(line);
-        lineSeparator = "\n";
-        System.out.print(CONTINUATION_PROMPT);
-      }
-    } catch (IOException e) {
-      System.err.format("Error reading line: %s\n", e);
-      return null;
-    }
-  }
-
 
   private static String readFile(String filePath) {
     try {

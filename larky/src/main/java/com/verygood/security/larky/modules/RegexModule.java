@@ -21,6 +21,7 @@ import net.starlark.java.eval.StarlarkValue;
         "The current API is rather small and intended for compatibility with java.util.regex, but the underlying implementation supports some additional features, such as the ability to process input character streams encoded as UTF-8 byte arrays. These may be exposed in a future release if there is sufficient interest." +
         "\n" +
         "More on syntax here: https://github.com/google/re2/wiki/Syntax")
+@com.google.errorprone.annotations.Immutable
 public class RegexModule implements StarlarkValue {
 
   public static final RegexModule INSTANCE = new RegexModule();

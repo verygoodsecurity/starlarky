@@ -1,3 +1,4 @@
+# Ported from ElementTree (effbot) 1.2.6 (r1862): elementtree/SimpleXMLTreeBuilder.py. See larky/src/main/resources/VENDORED.md.
 # This file is here to avoid circular imports
 #
 #

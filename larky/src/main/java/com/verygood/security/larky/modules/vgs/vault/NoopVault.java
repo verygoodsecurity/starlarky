@@ -5,6 +5,7 @@ import java.util.List;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 
+@com.google.errorprone.annotations.Immutable
 public class NoopVault implements LarkyVault {
     @Override
     public Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException {

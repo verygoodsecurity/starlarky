@@ -27,6 +27,7 @@
 # SUCH DAMAGE.
 #
 # Copied from https://github.com/Mastercard/oauth1-signer-python/blob/main/tests/test_oauth.py
+# Ported from oauth1-signer-python (Mastercard) 1.4.0-1.5.0, pinned to 1.5.0 (3752107): tests/test_oauth.py, test_utils.py, test_signer.py. See larky/src/main/resources/VENDORED.md.
 
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//unittest","unittest")

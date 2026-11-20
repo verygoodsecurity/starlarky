@@ -21,6 +21,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/Random/random.py. See larky/src/main/resources/VENDORED.md.
 
 # __all__ = ['StrongRandom', 'getrandbits', 'randrange', 'randint', 'choice', 'shuffle', 'sample']
 

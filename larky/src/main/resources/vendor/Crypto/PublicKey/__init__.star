@@ -17,6 +17,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # ===================================================================
+# Ported from pycryptodome 3.10.0-3.10.1, pinned to 3.10.1 (339259c): lib/Crypto/PublicKey/__init__.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//binascii", unhexlify="unhexlify", hexlify="hexlify")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//types", types="types")

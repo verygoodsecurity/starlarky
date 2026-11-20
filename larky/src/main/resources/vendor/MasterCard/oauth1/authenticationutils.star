@@ -26,6 +26,7 @@
 # SUCH DAMAGE.
 #
 #from OpenSSL import crypto
+# Ported from oauth1-signer-python (Mastercard) 1.4.0-1.5.0, pinned to 1.5.0 (3752107): oauth1/authenticationutils.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
 load("@vendor//Crypto/PublicKey/RSA", RSA="RSA")
 load("@vendor//OpenSSL/crypto", crypto="crypto")

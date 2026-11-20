@@ -1,0 +1,8 @@
+# The native runlarky binary in a small image: ghcr.io/verygoodsecurity/larky (see native-binaries.yaml).
+# The Linux binaries link glibc (2.34 or newer) and zlib dynamically, so the base is a glibc distribution, not
+# scratch or Alpine. The build context holds larky-linux-amd64 and larky-linux-arm64.
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
+ARG TARGETARCH
+COPY larky-linux-${TARGETARCH} /usr/local/bin/larky
+USER nobody
+ENTRYPOINT ["/usr/local/bin/larky"]

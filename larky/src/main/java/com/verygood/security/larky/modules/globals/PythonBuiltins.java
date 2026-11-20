@@ -320,18 +320,18 @@ public final class PythonBuiltins {
   }
 
   @StarlarkMethod(name = "StopIteration")
-  public LarkyStopIteration stopIteration() {//throws LarkyStopIteration {
-    return LarkyStopIteration.getInstance();
+  public LarkyStopIteration.Sentinel stopIteration() {
+    return LarkyStopIteration.sentinel();
   }
 
   @StarlarkMethod(name = "IndexError")
-  public LarkyIndexError indexError() {//throws LarkyIndexError {
-    return LarkyIndexError.getInstance();
+  public LarkyIndexError indexError() {
+    return LarkyIndexError.sentinel();
   }
 
   @StarlarkMethod(name = "AttributeError")
-  public LarkyAttributeError attributeError() {//throws LarkyAttributeError {
-    return LarkyAttributeError.getInstance();
+  public LarkyAttributeError attributeError() {
+    return LarkyAttributeError.sentinel();
   }
 
   // iter(object[, sentinel])
@@ -394,7 +394,7 @@ public final class PythonBuiltins {
       return defaultO;
     }
     // else raise StopIteration
-    throw LarkyStopIteration.getInstance();
+    throw LarkyStopIteration.newInstance();
   }
 
   @StarlarkMethod(
@@ -485,7 +485,7 @@ public final class PythonBuiltins {
     // would not do: getattr treats it as "no default" and throws.)
     try {
       Object res = getattr(obj, name, MISSING, thread);
-      return res != null && res != MISSING && res != LarkyAttributeError.getInstance();
+      return res != null && res != MISSING && res != LarkyAttributeError.sentinel();
     } catch(EvalException ex) {
       return false;
     }

@@ -4,6 +4,7 @@ import com.verygood.security.larky.modules.vgs.metrics.spi.LarkyMetrics;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 
+@com.google.errorprone.annotations.Immutable
 public class DefaultMetrics implements LarkyMetrics {
 
   public static final String OUTPUT_STRING = """
