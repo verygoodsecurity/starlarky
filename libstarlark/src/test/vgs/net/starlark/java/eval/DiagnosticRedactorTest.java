@@ -43,6 +43,50 @@ public class DiagnosticRedactorTest {
   }
 
   @Test
+  public void masksEachPercentEncodingIncludingLiteralPercentEscapes() {
+    DiagnosticRedactor redactor = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE);
+    redactor.registerRevealed("a /%20+~*");
+
+    for (String spelling : List.of(
+        "a%20/%2520%2B~%2A",
+        "a%20%2F%2520%2B~%2A",
+        "a+%2F%2520%2B~%2A",
+        "a+%2F%2520%2B%7E*")) {
+      assertThat(redactor.sanitizePrint("before[" + spelling + "]after"))
+          .isEqualTo("before[***REDACTED***]after");
+    }
+  }
+
+  @Test
+  public void masksBothBase64AlphabetsWithAndWithoutPadding() {
+    for (byte[] bytes : List.of(
+        new byte[] {(byte) 0xfb, (byte) 0xff, (byte) 0xff, (byte) 0xfb},
+        new byte[] {(byte) 0xfb, (byte) 0xff, (byte) 0xff, (byte) 0xfb, (byte) 0xff},
+        "ordinary".getBytes(StandardCharsets.UTF_8),
+        "abc".getBytes(StandardCharsets.UTF_8))) {
+      DiagnosticRedactor redactor = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE);
+      redactor.registerRevealed(bytes);
+      for (Base64.Encoder encoder : List.of(Base64.getEncoder(), Base64.getUrlEncoder())) {
+        for (String spelling : List.of(
+            encoder.encodeToString(bytes), encoder.withoutPadding().encodeToString(bytes))) {
+          assertThat(redactor.sanitizeError("before[" + spelling + "]after"))
+              .isEqualTo("before[***REDACTED***]after");
+        }
+      }
+    }
+  }
+
+  @Test
+  public void equivalentEncodingsCountOnceAgainstTheFormBudget() {
+    var limits = DiagnosticRedactor.Limits.builder().maxForms(3).maxFormChars(13).build();
+    var redactor = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE, limits);
+    redactor.registerRevealed("abc");
+
+    assertThat(redactor.sanitizePrint("before[abc,YWJj,616263]after"))
+        .isEqualTo("before[***REDACTED***,***REDACTED***,***REDACTED***]after");
+  }
+
+  @Test
   public void mergesOverlapsAndLeavesInsertedMasksIntact() {
     DiagnosticRedactor redactor = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE);
     redactor.registerRevealed(List.of("abcdef", "defxyz", "RED"));

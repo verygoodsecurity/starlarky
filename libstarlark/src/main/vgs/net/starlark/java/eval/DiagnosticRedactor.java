@@ -238,26 +238,40 @@ public final class DiagnosticRedactor {
   }
 
   private void addBytes(byte[] value) {
-    addForm(forms, percentEncode(value, true, false));
-    addForm(forms, percentEncode(value, false, false));
-    addForm(forms, percentEncode(value, false, true));
-    addForm(forms, Base64.getEncoder().encodeToString(value));
-    addForm(forms, Base64.getEncoder().withoutPadding().encodeToString(value));
-    addForm(forms, Base64.getUrlEncoder().encodeToString(value));
-    addForm(forms, Base64.getUrlEncoder().withoutPadding().encodeToString(value));
+    String escaped = percentEncode(value);
+    // The encoder escapes literal '%' as '%25', so these replacements match whole escapes.
+    addForm(forms, escaped.replace("%2F", "/"));
+    addForm(forms, escaped);
+    addForm(forms, escaped.replace("%20", "+"));
+
+    String base64 = Base64.getEncoder().encodeToString(value);
+    addBase64Forms(base64);
+    // The URL alphabet differs only for those two digits.
+    if (base64.indexOf('+') >= 0 || base64.indexOf('/') >= 0) {
+      addBase64Forms(Base64.getUrlEncoder().encodeToString(value));
+    }
     addForm(hexForms, HexFormat.of().formatHex(value));
   }
 
-  private static String percentEncode(byte[] value, boolean allowSlash, boolean plusForSpace) {
+  private void addBase64Forms(String padded) {
+    addForm(forms, padded);
+    int end = padded.length();
+    while (end > 0 && padded.charAt(end - 1) == '=') {
+      end--;
+    }
+    if (end != padded.length()) {
+      addForm(forms, padded.substring(0, end));
+    }
+  }
+
+  private static String percentEncode(byte[] value) {
     HexFormat hex = HexFormat.of().withUpperCase();
     StringBuilder output = new StringBuilder(value.length);
     for (byte raw : value) {
       int c = Byte.toUnsignedInt(raw);
       if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-          || c == '-' || c == '.' || c == '_' || c == '~' || (allowSlash && c == '/')) {
+          || c == '-' || c == '.' || c == '_' || c == '~') {
         output.append((char) c);
-      } else if (plusForSpace && c == ' ') {
-        output.append('+');
       } else {
         hex.toHexDigits(output.append('%'), raw);
       }
