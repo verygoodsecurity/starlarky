@@ -3,7 +3,6 @@ package com.verygood.security.larky.runtime;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.flogger.FluentLogger;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
@@ -44,9 +43,6 @@ import org.jetbrains.annotations.VisibleForTesting;
 public final class LarkyEvaluator {
 
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
-  /** Host binding for the ordered, duplicate-preserving VGSHttpResponse headers API. */
-  public static final String ORDERED_RESPONSE_HEADERS = "LARKY_ORDERED_RESPONSE_HEADERS";
-
   /**
    * The prefix of the bindings that once carried a run's settings ({@code LARKY_EVAL_STEP_LIMIT},
    * {@code LARKY_EVAL_EXPIRATION_MS}, {@code LARKY_EVAL_MODULE_PROVIDERS}, {@code
@@ -86,20 +82,6 @@ public final class LarkyEvaluator {
     }
   }
 
-  private enum OrderedResponseHeaders {
-    ENABLED
-  }
-
-  public static void installOrderedResponseHeaders(StarlarkThread thread, Map<String, ?> bindings) {
-    if (Boolean.TRUE.equals(bindings.get(ORDERED_RESPONSE_HEADERS))) {
-      thread.setThreadLocal(OrderedResponseHeaders.class, OrderedResponseHeaders.ENABLED);
-    }
-  }
-
-  public static boolean orderedResponseHeadersEnabled(StarlarkThread thread) {
-    return thread.getThreadLocal(OrderedResponseHeaders.class) == OrderedResponseHeaders.ENABLED;
-  }
-
   private final LinkedHashSet<String> pending = new LinkedHashSet<>();
   private final Map<String, Module> loaded = new HashMap<>();
   private final Reporter reporter;
@@ -115,7 +97,6 @@ public final class LarkyEvaluator {
   @Getter
   private final StarlarkSemantics larkySemantics;
   private final ModuleCache moduleCache;
-  private final Map<String, Object> globals;
 
   public LarkyEvaluator(LarkyScript larkyScript, Console console) {
     this(larkyScript, larkyScript.getModuleSet(), console);
@@ -137,8 +118,7 @@ public final class LarkyEvaluator {
     this.moduleCache = checkNotNull(moduleCache);
     //todo(mahmoudimus): convert to builder pattern
     this.settings = larkyScript.getSettings();
-    this.globals = larkyScript.getGlobals();
-    this.environment = createEnvironment(larkyScript.getBuiltinModules(), globals);
+    this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
   }
 
   /**
@@ -357,10 +337,6 @@ public final class LarkyEvaluator {
       thread.setPrintHandler(reporter::report);
       // the step limit is the evaluation's: this file gets what the files before it left
       settings.applyTo(thread, libraryFile, chargedSteps());
-      // Bundled library initialization must be independent of per-run header settings.
-      if (!libraryFile) {
-        installOrderedResponseHeaders(thread, globals);
-      }
 
       try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
         starlarkOutput = prog.exec(module, thread);
@@ -726,14 +702,11 @@ public final class LarkyEvaluator {
 
   private ImmutableMap<String, Object> createEnvironment(Iterable<Class<?>> globalModules,
       Map<String, Object> globals) {
-    Map<String, Object> scriptGlobals = globals.containsKey(ORDERED_RESPONSE_HEADERS)
-        ? Maps.filterKeys(globals, name -> !ORDERED_RESPONSE_HEADERS.equals(name))
-        : globals;
     return ImmutableMap.<String, Object>builder()
         .putAll(MERGED_BUILTIN_BINDINGS.computeIfAbsent(
             com.google.common.collect.ImmutableList.copyOf(globalModules),
             LarkyEvaluator::mergedBuiltinBindings))
-        .putAll(scriptGlobals)
+        .putAll(globals)
         .buildKeepingLast();
   }
 

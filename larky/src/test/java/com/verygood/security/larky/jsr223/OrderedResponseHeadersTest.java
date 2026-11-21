@@ -2,19 +2,15 @@ package com.verygood.security.larky.jsr223;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.util.List;
-import javax.script.Bindings;
 import javax.script.CompiledScript;
-import javax.script.ScriptContext;
 import javax.script.SimpleBindings;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.Tuple;
 import org.junit.Test;
 
 public class OrderedResponseHeadersTest {
-  private static final String BINDING = LarkyEvaluator.ORDERED_RESPONSE_HEADERS;
   private static final String IMPORT = "load('@vgs//http/response', 'VGSHttpResponse')\n";
   private static final String COOKIE_WITH_EXPIRES = "a=1; Expires=Wed, 09 Jun 2027 10:18:14 GMT";
 
@@ -130,49 +126,30 @@ public class OrderedResponseHeadersTest {
   }
 
   @Test
-  public void requiresBooleanOptInOnEachEvaluation() throws Exception {
+  public void oldHostBindingCannotDisableOrderedHeaders() throws Exception {
     LarkyScriptEngine engine = new LarkyScriptEngine();
     CompiledScript script = engine.compile(IMPORT + """
-        response = VGSHttpResponse(headers={"Set-Cookie": "a=1"})
-        header_type = type(response.headers)
+        header_type = type(VGSHttpResponse().headers)
         """);
-    assertThat(headerType(script.eval(orderedBindings()))).isEqualTo("VGSCIMultiDict");
-    assertThat(headerType(script.eval(new SimpleBindings()))).isEqualTo("dict");
-    Bindings disabled = new SimpleBindings();
-    disabled.put(BINDING, false);
-    assertThat(headerType(script.eval(disabled))).isEqualTo("dict");
-    disabled.put(BINDING, "true");
-    assertThat(headerType(script.eval(disabled))).isEqualTo("dict");
-    assertThat(headerType(script.eval(orderedBindings()))).isEqualTo("VGSCIMultiDict");
+    var bindings = new SimpleBindings();
+    bindings.put("LARKY_ORDERED_RESPONSE_HEADERS", false);
+    var result = (ParsedStarFile) script.eval(bindings);
+    assertThat(result.getGlobalEnvironmentVariable("header_type", String.class))
+        .isEqualTo("VGSCIMultiDict");
   }
 
   @Test
-  public void settingTheNameInScriptCannotEnableOrderedHeadersOnReusedBindings()
-      throws Exception {
-    LarkyScriptEngine engine = new LarkyScriptEngine();
-    Bindings bindings = new SimpleBindings();
-    engine.eval("LARKY_ORDERED_RESPONSE_HEADERS = True\n", bindings);
-    assertThat(headerType(engine.eval(
-        IMPORT + "header_type = type(VGSHttpResponse().headers)\n", bindings)))
-        .isEqualTo("dict");
-  }
-
-  @Test
-  public void invokingAnExistingFunctionUsesTheCallMode() throws Exception {
+  public void invokingAnExistingFunctionUsesOrderedHeaders() throws Exception {
     LarkyScriptEngine engine = new LarkyScriptEngine();
     engine.eval(IMPORT + """
         def header_type():
             return type(VGSHttpResponse().headers)
         """);
-    assertThat(engine.invokeFunction("header_type")).isEqualTo("dict");
-    engine.put(BINDING, true);
     assertThat(engine.invokeFunction("header_type")).isEqualTo("VGSCIMultiDict");
-    engine.getBindings(ScriptContext.ENGINE_SCOPE).remove(BINDING);
-    assertThat(engine.invokeFunction("header_type")).isEqualTo("dict");
   }
 
   @Test
-  public void legacyCopiesConstructorDictAndAliasesAssignedDict() throws Exception {
+  public void copiesHeaderDictDuringConstructionAndAssignment() throws Exception {
     ParsedStarFile result = (ParsedStarFile) new LarkyScriptEngine().eval(IMPORT + """
         def exercise():
             original = {"Set-Cookie": "a=1"}
@@ -181,31 +158,14 @@ public class OrderedResponseHeadersTest {
             original_cookie = response.headers["Set-Cookie"]
             response.headers = original
             response.add_header("set-cookie", "c=3")
-            return [original_cookie, type(response.headers), original.items(), response.body]
+            return [original_cookie, original.items(), response.headers.items(), response.body]
         actual = exercise()
         """);
     List<?> actual = result.getGlobalEnvironmentVariable("actual", List.class);
     assertThat(actual.get(0)).isEqualTo("a=1");
-    assertThat(actual.get(1)).isEqualTo("dict");
-    assertThat((List<?>) actual.get(2))
-        .containsExactly(Tuple.of("Set-Cookie", "b=2"), Tuple.of("set-cookie", "c=3"))
-        .inOrder();
+    assertThat((List<?>) actual.get(1)).containsExactly(Tuple.of("Set-Cookie", "b=2"));
+    assertThat((List<?>) actual.get(2)).containsExactly(Tuple.of("set-cookie", "c=3"));
     assertThat(actual.get(3)).isEqualTo(Starlark.NONE);
-  }
-
-  @Test
-  public void changingLegacyBodyClearsStaleLengthsFromTheAssignedDict() throws Exception {
-    ParsedStarFile result = (ParsedStarFile) new LarkyScriptEngine().eval(IMPORT + """
-        def exercise():
-            headers = {"Content-length": "3", "CONTENT-LENGTH": "3", "X-Trace": "trace"}
-            response = VGSHttpResponse("old")
-            response.headers = headers
-            response.body = "new"
-            return headers.items()
-        items = exercise()
-        """);
-    assertThat(result.getGlobalEnvironmentVariable("items", List.class))
-        .containsExactly(Tuple.of("X-Trace", "trace"));
   }
 
   @Test
@@ -232,16 +192,6 @@ public class OrderedResponseHeadersTest {
   }
 
   private static ParsedStarFile eval(String script) throws Exception {
-    return (ParsedStarFile) new LarkyScriptEngine().eval(IMPORT + script, orderedBindings());
-  }
-
-  private static Bindings orderedBindings() {
-    Bindings bindings = new SimpleBindings();
-    bindings.put(BINDING, true);
-    return bindings;
-  }
-
-  private static String headerType(Object result) {
-    return ((ParsedStarFile) result).getGlobalEnvironmentVariable("header_type", String.class);
+    return (ParsedStarFile) new LarkyScriptEngine().eval(IMPORT + script);
   }
 }

@@ -194,11 +194,9 @@ mvn test -pl larky -am -Dtest=VGSLibTests -Dlarky.vgs_test=test_default_request_
 
 ### Preserving repeated HTTP response headers
 
-Hosts can set `LarkyEvaluator.ORDERED_RESPONSE_HEADERS` to `Boolean.TRUE` in the
-evaluation bindings to enable ordered headers on `VGSHttpResponse`. In that
-mode the constructor and `response.headers` assignment accept a dict or a
-sequence of `(name, value)` pairs. `response.headers.items()` returns the header
-lines in order, with their original name spelling.
+The `VGSHttpResponse` constructor and `response.headers` assignment accept a
+dict or a sequence of `(name, value)` pairs. `response.headers.items()` returns
+every header line in insertion order, with its original name spelling.
 
 - `response.headers[name]` reads the first value, ignoring case.
 - `response.get_all_headers(name)` returns every value in order.
@@ -208,7 +206,7 @@ lines in order, with their original name spelling.
 - `response.remove_header(name)` removes every value for the name.
 
 The host can materialize the ordered pairs inside the script and serialize them
-as separate header lines. Without the binding, `response.headers` remains a dict.
+as separate header lines.
 
 ### Rejecting requests without a valid signed token
 

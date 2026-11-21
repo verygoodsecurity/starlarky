@@ -66,7 +66,6 @@ final class LarkyCalls {
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
       settings.moduleProviders().installOn(thread);
-      LarkyEvaluator.installOrderedResponseHeaders(thread, bindings);
       settings.stepLimit().ifPresent(thread::setMaxExecutionSteps);
       settings.expirationMs().ifPresent(thread::setExpirationMs);
       try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
