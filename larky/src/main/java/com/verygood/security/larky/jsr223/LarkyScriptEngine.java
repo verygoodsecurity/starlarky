@@ -1,9 +1,8 @@
 package com.verygood.security.larky.jsr223;
 
 import com.verygood.security.larky.console.StreamWriterConsole;
-import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
-import com.verygood.security.larky.parser.LarkyEvaluator;
+import com.verygood.security.larky.parser.EvaluationSettings;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
@@ -519,14 +518,14 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
   /**
    * Calls the function {@code name} that an earlier {@code eval} with this engine's context defined (eval leaves a
    * script's globals in the context's bindings), on a thread of its own. Its print goes to the context's writer, and the
-   * step limit and expiration in the bindings apply as they do to eval. Its result is a Starlark value, frozen when the
+   * step limit and expiration from the script context apply as they do to eval. Its result is a Starlark value, frozen when the
    * call ends.
    */
   @Override
   public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
-    return LarkyCalls.call(function(name, bindings), args, console(bindings), bindings, providers(bindings));
+    return LarkyCalls.call(function(name, bindings), args, console(bindings), bindings, invocationSettings());
   }
 
   /** Calls the method {@code name} of {@code thiz}, a value a script evaluated with this engine returned. */
@@ -535,7 +534,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
       throws ScriptException, NoSuchMethodException {
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
-    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), bindings, providers(bindings));
+    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), bindings, invocationSettings());
   }
 
   @Override
@@ -574,9 +573,10 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
     return bindings;
   }
 
-  /** The module providers the bindings give, as an evaluation reads them (LarkyEvaluator.MODULE_PROVIDERS). */
-  private static ModuleProviders providers(Map<String, Object> bindings) {
-    return ModuleProviders.given(bindings.get(LarkyEvaluator.MODULE_PROVIDERS));
+  private EvaluationSettings invocationSettings() {
+    return context instanceof LarkyScriptContext larkyContext
+        ? larkyContext.getSettings()
+        : EvaluationSettings.NONE;
   }
 
   private StreamWriterConsole console(Map<String, Object> bindings) {

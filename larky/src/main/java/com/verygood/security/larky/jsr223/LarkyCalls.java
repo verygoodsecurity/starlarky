@@ -3,7 +3,8 @@ package com.verygood.security.larky.jsr223;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
-import com.verygood.security.larky.modules.vgs.ModuleProviders;
+import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.parser.EvaluationSettings;
 import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.StarlarkUtil;
 import java.lang.reflect.InvocationHandler;
@@ -32,22 +33,6 @@ import net.starlark.java.eval.StarlarkThread;
  */
 final class LarkyCalls {
 
-  /** What a call needs besides its function and arguments. */
-  record Limits(@Nullable Long stepLimit, @Nullable Long expirationMs) {
-
-    /** The limits named by these bindings (see {@link LarkyEvaluator#STEP_LIMIT}). */
-    static Limits of(Map<String, ?> bindings) {
-      return new Limits(asLong(bindings.get(LarkyEvaluator.STEP_LIMIT)),
-          asLong(bindings.get(LarkyEvaluator.EXPIRATION_MS)));
-    }
-
-    @Nullable
-    private static Long asLong(@Nullable Object value) {
-      // the interpreter reads these from its bindings with Long.parseLong(value.toString())
-      return value == null ? null : Long.parseLong(value.toString());
-    }
-  }
-
   /** Runs a call of a function by name. */
   @FunctionalInterface
   interface Invoker {
@@ -64,12 +49,11 @@ final class LarkyCalls {
   }
 
   /**
-   * Calls {@code function} with {@code args}, converted to Starlark values as bindings are, on a new thread whose
-   * {@code print} goes to {@code console} and whose run gets {@code providers}, as an evaluation's does.
+   * Calls {@code function} with {@code args}, converted to Starlark values on a new thread with the host's settings and print console.
    */
   static Object call(StarlarkCallable function, Object[] args, Console console, Map<String, ?> bindings,
-      ModuleProviders providers) throws ScriptException {
-    Limits limits = Limits.of(bindings);
+      EvaluationSettings settings) throws ScriptException {
+    LarkyEvaluator.refuseRetiredSettings(bindings.keySet());
     final List<Object> starlarkArgs = new ArrayList<>(args == null ? 0 : args.length);
     if (args != null) {
       for (Object arg : args) {
@@ -81,15 +65,11 @@ final class LarkyCalls {
       final Reporter reporter = new Reporter(console);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
-      providers.installOn(thread);
+      settings.moduleProviders().installOn(thread);
       LarkyEvaluator.installOrderedResponseHeaders(thread, bindings);
-      if (limits.stepLimit() != null) {
-        thread.setMaxExecutionSteps(limits.stepLimit());
-      }
-      if (limits.expirationMs() != null) {
-        thread.setExpirationMs(limits.expirationMs());
-      }
-      try {
+      settings.stepLimit().ifPresent(thread::setMaxExecutionSteps);
+      settings.expirationMs().ifPresent(thread::setExpirationMs);
+      try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
         return Starlark.call(thread, function, starlarkArgs, Map.of());
       } catch (EvalException e) {
         // as the interpreter reports a script whose top level fails (LarkyEvaluator, then LarkyCompiledScript)
