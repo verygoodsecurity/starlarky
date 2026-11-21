@@ -83,7 +83,7 @@ public final class LarkyGlobals {
 
 
   @com.google.errorprone.annotations.Immutable
-  static class Sentinel implements StarlarkValue {
+  static final class Sentinel implements StarlarkValue {
     private static Sentinel SINGLETON = null;
 //    public static final Set<Integer> SINGLETON = Collections.singleton(1);
 
@@ -178,7 +178,6 @@ public final class LarkyGlobals {
   )
   public Property property(StarlarkCallable getter, Object setter, Tuple args, Dict<String, Object> kwargs, StarlarkThread thread) {
     return Property.builder()
-        .thread(thread)
         .fget(getter)
         .fset(setter != Starlark.NONE ? (StarlarkCallable) setter : null)
         .build();

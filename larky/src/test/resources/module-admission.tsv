@@ -1,4 +1,5 @@
 @stdlib//_markupbase	ADMITTED
+@stdlib//_rich_compare	ADMITTED
 @stdlib//base64	ADMITTED
 @stdlib//binascii	ADMITTED
 @stdlib//builtins	ADMITTED
@@ -125,6 +126,7 @@
 @vendor//OpenPGP/Crypto	ADMITTED
 @vendor//OpenPGP/__init__	ADMITTED
 @vendor//OpenSSL/crypto	ADMITTED
+@vendor//_multidict_core	ADMITTED
 @vendor//asserts	TEST_ONLY
 @vendor//cryptography/__init__	ADMITTED
 @vendor//cryptography/hazmat/__init__	ADMITTED
@@ -184,6 +186,7 @@
 @vendor//lxml/builder	LOAD_FAILED
 @vendor//lxml/etree	ADMITTED
 @vendor//multidict	ADMITTED
+@vendor//option/_result_core	ADMITTED
 @vendor//option/result	ADMITTED
 @vendor//past/__init__	LOAD_FAILED
 @vendor//past/builtins	ADMITTED
@@ -205,6 +208,7 @@
 @vgs//Chase/jwk	HOST_SERVICE com.verygood.security.larky.modules.ChaseModule at Chase
 @vgs//agent_gateway	HOST_SERVICE com.verygood.security.larky.modules.vgs.agentgateway.AgentGatewayModule at _agent_gateway
 @vgs//cerebro/text/analyzer	HOST_SERVICE com.verygood.security.larky.modules.vgs.cerebro.text.analyzer.TextAnalyzerModule at pii_analyzer.fields{2}.<receiver>
+@vgs//http/headers	ADMITTED
 @vgs//http/request	ADMITTED
 @vgs//http/response	ADMITTED
 @vgs//jks/jks2pycryptodome	ADMITTED
