@@ -11,7 +11,6 @@ import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 import com.verygood.security.larky.objects.type.LarkyTypeObject;
-import com.verygood.security.larky.parser.LarkyEvaluator;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -44,14 +43,6 @@ import net.starlark.java.eval.StarlarkSemantics;
  */
 @Library
 public final class LarkyGlobals {
-
-  @StarlarkMethod(
-      name = "_ordered_response_headers_enabled",
-      documented = false,
-      useStarlarkThread = true)
-  public boolean orderedResponseHeadersEnabled(StarlarkThread thread) {
-    return LarkyEvaluator.orderedResponseHeadersEnabled(thread);
-  }
 
   @StarlarkMethod(
       name = "_struct",

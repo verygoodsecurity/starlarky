@@ -307,8 +307,7 @@ public class LarkyCompiledScript extends CompiledScript {
       String name = entry.getKey();
       Object value = entry.getValue();
       // Keep host settings out of the script's binding writeback.
-      if (LarkyEvaluator.ORDERED_RESPONSE_HEADERS.equals(name)
-          || LarkyEvaluator.isRetiredSettingName(name)) {
+      if (LarkyEvaluator.isRetiredSettingName(name)) {
         continue;
       }
       if (globalBindings != null && globalBindings.containsKey(name)) {
