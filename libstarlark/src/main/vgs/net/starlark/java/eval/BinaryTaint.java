@@ -152,7 +152,8 @@ final class BinaryTaint {
 
   private Object tagReveal(Object value, boolean detach) {
     if (detach && value instanceof String text) {
-      if (!reserveTag(value)) {
+      // A new reveal of a partly tagged string needs a separate whole-value tag.
+      if (tag(text) == whole || !reserveTag(text)) {
         return value;
       }
       // An interned String returned by a provider may also be used as a public literal.

@@ -94,10 +94,11 @@ public final class DiagnosticRedactor {
 
     private void attach(StarlarkThread thread) {
       Scope previous = thread.getThreadLocal(Scope.class);
+      Attachment previousAttachment = previous == null ? null : previous.attachment;
       EvaluationExtensions.BinaryObserver current = thread.binaryObserver;
       EvaluationExtensions.BinaryObserver external =
-          previous != null && previous.attachment.observer == current
-              ? previous.attachment.external : current;
+          previousAttachment != null && previousAttachment.observer == current
+              ? previousAttachment.external : current;
       EvaluationExtensions.BinaryObserver observer = external == null
           ? this::afterBinary
           : (execution, op, left, right, result, augmented) ->

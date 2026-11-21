@@ -5,6 +5,7 @@ import static com.google.common.truth.Truth.assertThat;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
@@ -12,6 +13,68 @@ import net.starlark.java.syntax.TokenKind;
 import org.junit.Test;
 
 public class DiagnosticRedactorTest {
+  @Test
+  public void nestedScopePreservesTheObserverOfAnUnattachedPriorScope() throws Exception {
+    List<Object> outputs = new ArrayList<>();
+    try (Mutability mu = Mutability.create("unattached diagnostic scope");
+        var prior = DiagnosticRedactor.openScope(null)) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      try (var host = EvaluationExtensions.observeBinary(thread,
+          (execution, op, left, right, result, augmented) -> {
+            outputs.add(result);
+            return result;
+          })) {
+        thread.setThreadLocal(DiagnosticRedactor.Scope.class, prior);
+        try {
+          try (var nested = DiagnosticRedactor.openScope(thread, null)) {
+            assertThat(thread.getThreadLocal(DiagnosticRedactor.Scope.class)).isSameInstanceAs(nested);
+            EvalUtils.binaryOp(TokenKind.PLUS, "public", "-nested", thread);
+          }
+          assertThat(thread.getThreadLocal(DiagnosticRedactor.Scope.class)).isSameInstanceAs(prior);
+          EvalUtils.binaryOp(TokenKind.PLUS, "public", "-after", thread);
+        } finally {
+          thread.setThreadLocal(DiagnosticRedactor.Scope.class, null);
+        }
+      }
+    }
+    assertThat(outputs).containsExactly("public-nested", "public-after").inOrder();
+  }
+
+  @Test
+  public void revealingTheSameWhollyTaggedStringDoesNotSpendAnotherTag() {
+    BinaryTaint taint = new BinaryTaint(1, 64);
+    String source = "fixture";
+    Object tagged = taint.onReveal(source, List.of(source));
+
+    assertThat(tagged).isNotSameInstanceAs(source);
+    assertThat(taint.onReveal(tagged, List.of(tagged))).isSameInstanceAs(tagged);
+    assertThat(taint.isLimited()).isFalse();
+  }
+
+  @Test
+  public void revealingAPartlyTaggedStringUpgradesOnlyTheRevealedCopy() {
+    try (Mutability mu = Mutability.create("new whole-value reveal")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      BinaryTaint taint = new BinaryTaint(3, 256);
+      String source = "fixture";
+      String tagged = (String) taint.onReveal(source, List.of(source));
+      String prefix = "public-";
+      String combined = prefix + tagged;
+      assertThat(taint.afterBinary(thread, TokenKind.PLUS, prefix, tagged, combined, false))
+          .isSameInstanceAs(combined);
+
+      Object revealed = taint.onReveal(combined, List.of(combined));
+      assertThat(revealed).isEqualTo(combined);
+      assertThat(revealed).isNotSameInstanceAs(combined);
+      BitSet originalSpans = new BitSet();
+      taint.markRendered(combined, 0, combined.length(), false, originalSpans);
+      assertThat(originalSpans.nextSetBit(0)).isEqualTo(prefix.length());
+      BitSet revealedSpans = new BitSet();
+      taint.markRendered(revealed, 0, combined.length(), false, revealedSpans);
+      assertThat(revealedSpans.nextClearBit(0)).isEqualTo(combined.length());
+    }
+  }
+
   @Test
   public void binaryObservationCoexistsWithAHostObserverAndRestoresNestedScopes() throws Exception {
     DiagnosticRedactor redactor = new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE);
