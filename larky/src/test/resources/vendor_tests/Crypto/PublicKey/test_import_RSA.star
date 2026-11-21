@@ -766,6 +766,55 @@ def TestImport_2048_test_import_openssh_private_password():
     asserts.assert_that(key).is_equal_to(key_old)
 
 
+# Throwaway key material (generated with openssl for this test only).
+_EC_PRIVATE_DER_B64 = "MHcCAQEEIEJ/XysIQ5Dwp7Uo5wZvRxcnxOXyZVrCeo9yycdOKOjpoAoGCCqGSM49AwEHoUQDQgAE5Lteh7VFlJSnwTDW9NY4AFSku90HigVY5VWkKfHSEmKk8oSrbs27yTJJbJR3kH8N+HFDF79RfJH6BrY+MvQqYw=="
+_EC_SPKI_DER_B64 = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5Lteh7VFlJSnwTDW9NY4AFSku90HigVY5VWkKfHSEmKk8oSrbs27yTJJbJR3kH8N+HFDF79RfJH6BrY+MvQqYw=="
+_EC_PKCS8_DER_B64 = "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgQn9fKwhDkPCntSjnBm9HFyfE5fJlWsJ6j3LJx04o6OmhRANCAATku16HtUWUlKfBMNb01jgAVKS73QeKBVjlVaQp8dISYqTyhKtuzbvJMklslHeQfw34cUMXv1F8kfoGtj4y9Cpj"
+
+
+def ImportKeyTests_test_import_non_rsa_der_raises_value_error():
+    ec_private = binascii.a2b_base64(_EC_PRIVATE_DER_B64)
+    ec_spki = binascii.a2b_base64(_EC_SPKI_DER_B64)
+    ec_pkcs8 = binascii.a2b_base64(_EC_PKCS8_DER_B64)
+    blobs = [
+        ec_private,
+        ec_spki,
+        ec_pkcs8,
+        # SEQUENCE { INTEGER 0, OCTET STRING } (looks like PKCS#1 up to the 2nd element)
+        binascii.unhexlify("3006020100040141"),
+        # SEQUENCE { INTEGER 1, OCTET STRING }
+        binascii.unhexlify("3006020101040141"),
+        # SEQUENCE { INTEGER 0 }
+        binascii.unhexlify("3003020100"),
+        # empty SEQUENCE
+        binascii.unhexlify("3000"),
+        # SEQUENCE { OCTET STRING }
+        binascii.unhexlify("3003040141"),
+        # SEQUENCE { INTEGER 0, SEQUENCE {} }
+        binascii.unhexlify("3005020100" + "3000"),
+        # tag only
+        binascii.unhexlify("30"),
+        # declared length longer than the data
+        binascii.unhexlify("30820100"),
+        binascii.unhexlify("3082ffff0201"),
+        # truncated real structures
+        ec_private[:40],
+        ec_spki[:30],
+        ec_pkcs8[:50],
+        ec_private[:-1],
+        # not DER at all after a SEQUENCE tag
+        binascii.unhexlify("30ffffffffffffffffffff"),
+    ]
+    for blob in blobs:
+        asserts.assert_fails(lambda: RSA.import_key(blob), ".*?ValueError")
+        asserts.assert_fails(lambda: RSA.importKey(blob), ".*?ValueError")
+    # with a passphrase, too
+    for blob in [ec_private, ec_spki, ec_pkcs8, ec_private[:40]]:
+        asserts.assert_fails(
+            lambda: RSA.import_key(blob, passphrase="secret"), ".*?ValueError"
+        )
+
+
 # noinspection DuplicatedCode
 def _testsuite():
     _suite = unittest.TestSuite()
@@ -788,6 +837,7 @@ def _testsuite():
         _case(ImportKeyTests_test_import_key_windows_cr_lf)
     )
     _suite.addTest(_case(ImportKeyTests_test_import_empty))
+    _suite.addTest(_case(ImportKeyTests_test_import_non_rsa_der_raises_value_error))
     _suite.addTest(_case(ImportKeyTests_testExportKey1))
     _suite.addTest(_case(ImportKeyTests_testExportKey2))
     _suite.addTest(_case(ImportKeyTests_testExportKey3))
