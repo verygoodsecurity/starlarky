@@ -200,25 +200,6 @@ lines in order, with their original name spelling.
 The host can materialize the ordered pairs inside the script and serialize them
 as separate header lines. Without the binding, `response.headers` remains a dict.
 
-### Migrating scripts to case-insensitive headers
-
-A request already exposes a case-insensitive multidict. A response uses one
-when the host enables ordered response headers. In a multidict, `X-Name` and
-`x-name` identify the same header. To change only its spelling, remove the
-existing values first, then add them under the desired spelling.
-
-```python
-for value in response.headers.popall("X-Name", []):
-    response.append_header("x-name", value)
-```
-
-This appends the renamed lines. To preserve their exact positions, rebuild the
-ordered list of pairs with the desired names and assign it to `response.headers`.
-
-Use `list(headers.items())` to copy every line, including duplicates. Use
-`dict(headers.items())` when an API requires a plain dictionary and one value
-per exact key is sufficient.
-
 ### Rejecting requests without a valid signed token
 
 [`request_validation.star`](larky/src/test/resources/vgs_tests/examples/request_validation.star)
