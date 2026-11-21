@@ -526,8 +526,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
   public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
-    return LarkyCalls.call(function(name, bindings), args, console(bindings), LarkyCalls.Limits.of(bindings),
-        providers(bindings));
+    return LarkyCalls.call(function(name, bindings), args, console(bindings), bindings, providers(bindings));
   }
 
   /** Calls the method {@code name} of {@code thiz}, a value a script evaluated with this engine returned. */
@@ -536,8 +535,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
       throws ScriptException, NoSuchMethodException {
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
-    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), LarkyCalls.Limits.of(bindings),
-        providers(bindings));
+    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), bindings, providers(bindings));
   }
 
   @Override

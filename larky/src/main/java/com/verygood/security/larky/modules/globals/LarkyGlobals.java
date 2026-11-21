@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.globals;
 
+import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.annot.StarlarkConstructor;
 import com.verygood.security.larky.modules.types.LarkyCounter;
@@ -9,17 +10,24 @@ import com.verygood.security.larky.objects.type.TypeClassLookup;
 import com.verygood.security.larky.modules.types.Partial;
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
+import com.verygood.security.larky.objects.type.LarkyTypeObject;
+import com.verygood.security.larky.parser.LarkyEvaluator;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.BuiltinFunction;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkBytes;
+import net.starlark.java.eval.StarlarkBytes.StarlarkByteArray;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
@@ -36,6 +44,14 @@ import net.starlark.java.eval.StarlarkSemantics;
  */
 @Library
 public final class LarkyGlobals {
+
+  @StarlarkMethod(
+      name = "_ordered_response_headers_enabled",
+      documented = false,
+      useStarlarkThread = true)
+  public boolean orderedResponseHeadersEnabled(StarlarkThread thread) {
+    return LarkyEvaluator.orderedResponseHeadersEnabled(thread);
+  }
 
   @StarlarkMethod(
       name = "_struct",
@@ -185,6 +201,75 @@ public final class LarkyGlobals {
         useStarlarkThread = true)
   public Object typeClass(Object obj, StarlarkThread thread) {
     return TypeClassLookup.pythonLikeBehavior(obj, thread);
+  }
+
+  @StarlarkMethod(
+      name = "_builtin_instance",
+      documented = false,
+      doc = "Check instance membership for native values and built-in classes.",
+      parameters = {
+        @Param(name = "value"), @Param(name = "cls"), @Param(name = "bindings")
+      },
+      useStarlarkThread = true)
+  public Object builtinInstance(Object value, Object cls, Tuple bindings, StarlarkThread thread) {
+    if (!(cls instanceof BuiltinFunction builtin)
+        || bindings.size() != 6
+        || thread.getSemantics().getBool(LarkySemantics.PYCOMPAT_TYPE_BUILTIN_FUNCTION)) {
+      return Starlark.NONE;
+    }
+    // The Starlark implementation checks __class__ and __name__ on other values.
+    String typeName = switch (value) {
+      case String ignored -> "string";
+      case StarlarkInt ignored -> "int";
+      case StarlarkFloat ignored -> "float";
+      case Boolean ignored -> "bool";
+      case StarlarkList<?> ignored -> "list";
+      case Tuple ignored -> "tuple";
+      case Dict<?, ?> ignored -> "dict";
+      case StarlarkByteArray ignored -> "bytearray";
+      case StarlarkBytes ignored -> "bytes";
+      default -> null;
+    };
+    if (typeName == null) {
+      return Starlark.NONE;
+    }
+
+    Object typeFunction = bindings.get(4);
+    if ((typeFunction != LarkyTypeObject.getInstance()
+        && typeFunction != Starlark.UNIVERSE.get("type"))
+        || !(bindings.get(5) instanceof BuiltinFunction getter)
+        || !getter.getName().equals("getattr")) {
+      return Starlark.NONE;
+    }
+
+    // Use the constructor identities visible to larky.star for its special cases.
+    Object strType = bindings.get(0);
+    Object intType = bindings.get(1);
+    Object floatType = bindings.get(2);
+    Object boolType = bindings.get(3);
+    boolean isBoolean = value instanceof Boolean;
+    if (cls == intType && (isBoolean || value instanceof StarlarkInt)) {
+      return true;
+    }
+    if (cls == boolType) {
+      return isBoolean;
+    }
+    if ((value instanceof String && cls == strType)
+        || (value instanceof StarlarkFloat && cls == floatType)) {
+      return true;
+    }
+    return typeName.equals(builtin.getName());
+  }
+
+  @StarlarkMethod(
+      name = "_split_url",
+      documented = false,
+      doc = "Split a short URL into the five urllib.parse components.",
+      parameters = {
+        @Param(name = "url"), @Param(name = "scheme"), @Param(name = "allow_fragments")
+      })
+  public Object splitUrl(Object url, Object scheme, Object allowFragments) {
+    return UrlSplitter.split(url, scheme, allowFragments);
   }
 
   @StarlarkMethod(

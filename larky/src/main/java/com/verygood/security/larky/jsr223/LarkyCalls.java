@@ -67,8 +67,9 @@ final class LarkyCalls {
    * Calls {@code function} with {@code args}, converted to Starlark values as bindings are, on a new thread whose
    * {@code print} goes to {@code console} and whose run gets {@code providers}, as an evaluation's does.
    */
-  static Object call(StarlarkCallable function, Object[] args, Console console, Limits limits,
+  static Object call(StarlarkCallable function, Object[] args, Console console, Map<String, ?> bindings,
       ModuleProviders providers) throws ScriptException {
+    Limits limits = Limits.of(bindings);
     final List<Object> starlarkArgs = new ArrayList<>(args == null ? 0 : args.length);
     if (args != null) {
       for (Object arg : args) {
@@ -81,6 +82,7 @@ final class LarkyCalls {
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
       providers.installOn(thread);
+      LarkyEvaluator.installOrderedResponseHeaders(thread, bindings);
       if (limits.stepLimit() != null) {
         thread.setMaxExecutionSteps(limits.stepLimit());
       }
