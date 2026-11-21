@@ -5,6 +5,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.verygood.security.larky.parser.EvaluationSettings;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
@@ -216,23 +217,24 @@ public class LarkyScriptEngineInvocableTest {
   }
 
   @Test
-  public void theStepLimitOfTheBindingsApplies() throws Exception {
+  public void theStepLimitOfTheContextApplies() throws Exception {
     final ScriptEngine engine = evaluated("def spin():\n    for i in range(100000):\n        pass\n"
         + "def quick():\n    return 1\n");
-    engine.getBindings(ScriptContext.ENGINE_SCOPE).put("LARKY_EVAL_STEP_LIMIT", 1000L);
+    ((LarkyScriptContext) engine.getContext()).setSettings(EvaluationSettings.builder().stepLimit(1000L).build());
 
     assertEquals(StarlarkInt.of(1), ((Invocable) engine).invokeFunction("quick"));
     final ScriptException e = assertThrows(ScriptException.class, () -> ((Invocable) engine).invokeFunction("spin"));
     assertTrue(e.getMessage(), e.getMessage().toLowerCase().contains("step"));
 
-    engine.getBindings(ScriptContext.ENGINE_SCOPE).remove("LARKY_EVAL_STEP_LIMIT");
+    ((LarkyScriptContext) engine.getContext()).setSettings(EvaluationSettings.NONE);
     ((Invocable) engine).invokeFunction("spin");
   }
 
   @Test
-  public void theExpirationOfTheBindingsApplies() throws Exception {
+  public void theExpirationOfTheContextApplies() throws Exception {
     final ScriptEngine engine = evaluated("def spin():\n    for i in range(10000000):\n        pass\n");
-    engine.getBindings(ScriptContext.ENGINE_SCOPE).put("LARKY_EVAL_EXPIRATION_MS", System.currentTimeMillis() - 1000);
+    ((LarkyScriptContext) engine.getContext()).setSettings(
+        EvaluationSettings.builder().expirationMs(System.currentTimeMillis() - 1000).build());
 
     final ScriptException e = assertThrows(ScriptException.class, () -> ((Invocable) engine).invokeFunction("spin"));
     assertTrue(e.getMessage(), e.getMessage().toLowerCase().contains("expiration"));
