@@ -11,9 +11,10 @@ public final class RunDiagnostics implements AutoCloseable {
   private final VaultAccess.Scope observation;
 
   public RunDiagnostics(StarlarkThread thread, @Nullable DiagnosticRedactor redactor) {
-    redaction = DiagnosticRedactor.openScope(redactor);
+    redaction = DiagnosticRedactor.openScope(thread, redactor);
     if (redaction.isTracking()) {
-      observation = VaultAccess.observe(thread, redaction::registerRevealed);
+      observation = VaultAccess.observeOutcomes(thread, (execution, outcome) ->
+          redaction.registerOutcome(execution, outcome.value(), outcome.revealedValues()));
     } else {
       observation = VaultAccess.suspendObservation(thread);
     }

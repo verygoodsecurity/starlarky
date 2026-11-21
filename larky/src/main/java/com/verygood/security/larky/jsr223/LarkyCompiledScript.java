@@ -199,8 +199,9 @@ public class LarkyCompiledScript extends CompiledScript {
   @Override
   public Object eval(ScriptContext context) throws LarkyEvaluationScriptException {
     // the global scope as the engine uses it: as JSR-223 describes it, or none (LarkyScriptEngine.GlobalScope)
-    Bindings globalBindings = engine.globalBindings(context);
     Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
+    LarkyScriptEngine.clearDiagnosticFailure(engineBindings);
+    Bindings globalBindings = engine.globalBindings(context);
 
     // Evaluation goes through the Larky interpreter, so bindings, load() and print() behave as
     // they do for an uncompiled script.

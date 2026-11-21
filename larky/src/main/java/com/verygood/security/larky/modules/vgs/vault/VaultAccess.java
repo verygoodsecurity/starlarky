@@ -18,6 +18,12 @@ public final class VaultAccess {
         void onRevealed(List<Object> values);
     }
 
+    @FunctionalInterface
+    public interface OutcomeObserver {
+        /** Observes a confirmed outcome and returns its script-visible value. */
+        Object onOutcome(StarlarkThread thread, RevealOutcome outcome);
+    }
+
     public static final class Scope implements AutoCloseable {
         @Nullable private Runnable restore;
 
@@ -37,6 +43,15 @@ public final class VaultAccess {
 
     /** Installs an observer for the scope and restores the previous observer on close. */
     public static Scope observe(StarlarkThread thread, RevealObserver observer) {
+        Objects.requireNonNull(observer);
+        return observeOutcomes(thread, (execution, outcome) -> {
+            observer.onRevealed(outcome.revealedValues());
+            return outcome.value();
+        });
+    }
+
+    /** Installs a run observer that can attach metadata to the script-visible result. */
+    public static Scope observeOutcomes(StarlarkThread thread, OutcomeObserver observer) {
         return bindObserver(thread, Objects.requireNonNull(observer));
     }
 
@@ -45,22 +60,21 @@ public final class VaultAccess {
         return bindObserver(thread, null);
     }
 
-    private static Scope bindObserver(StarlarkThread thread, @Nullable RevealObserver observer) {
-        RevealObserver previous = thread.getThreadLocal(RevealObserver.class);
+    private static Scope bindObserver(StarlarkThread thread, @Nullable OutcomeObserver observer) {
+        OutcomeObserver previous = thread.getThreadLocal(OutcomeObserver.class);
         if (previous == observer) {
             return new Scope(null);
         }
-        thread.setThreadLocal(RevealObserver.class, observer);
-        return new Scope(() -> thread.setThreadLocal(RevealObserver.class, previous));
+        thread.setThreadLocal(OutcomeObserver.class, observer);
+        return new Scope(() -> thread.setThreadLocal(OutcomeObserver.class, previous));
     }
 
     public static Object reveal(LarkyVault provider, Object alias, Object storage, StarlarkThread thread)
         throws EvalException {
         RevealOutcome outcome = provider.revealOutcome(alias, storage);
-        RevealObserver observer = thread.getThreadLocal(RevealObserver.class);
-        if (observer != null && !outcome.revealedValues().isEmpty()) {
-            observer.onRevealed(outcome.revealedValues());
-        }
-        return outcome.value();
+        OutcomeObserver observer = thread.getThreadLocal(OutcomeObserver.class);
+        return observer == null || outcome.revealedValues().isEmpty()
+            ? outcome.value()
+            : observer.onOutcome(thread, outcome);
     }
 }

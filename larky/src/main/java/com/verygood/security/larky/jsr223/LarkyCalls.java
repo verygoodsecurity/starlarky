@@ -93,9 +93,15 @@ final class LarkyCalls {
         thread.setPrintHandler(reporter::report);
         return Starlark.call(thread, function, starlarkArgs, Map.of());
       } catch (EvalException e) {
+        if (diagnosticRedactor != null) {
+          diagnosticRedactor.captureFailure(e);
+        }
         // as the interpreter reports a script whose top level fails (LarkyEvaluator, then LarkyCompiledScript)
         throw LarkyEvaluationScriptException.of(new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, thread));
       } catch (StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException e) {
+        if (diagnosticRedactor != null) {
+          diagnosticRedactor.captureFailure(e);
+        }
         throw LarkyEvaluationScriptException.of(e);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
