@@ -2,9 +2,13 @@ package com.verygood.security.larky.parser;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import org.junit.Test;
 
@@ -20,6 +24,33 @@ public class ResourceContentStarFileTest {
 
   private static void assertSameAsRegex(String label) {
     assertArrayEquals(label, regexSplit(label), ResourceContentStarFile.splitLabel(label));
+  }
+
+  @Test
+  public void bundledLibraryProvenanceRequiresClasspathLoading() throws Exception {
+    ResourceContentStarFile bundled = ResourceContentStarFile.buildStarFile("@stdlib//math");
+    byte[] source = "value = 42\n".getBytes(StandardCharsets.UTF_8);
+    ResourceContentStarFile supplied =
+        ResourceContentStarFile.buildStarFile(bundled.path(), new ByteArrayInputStream(source));
+
+    assertTrue(bundled.isBundledLibrary());
+    assertFalse(supplied.isBundledLibrary());
+    assertArrayEquals(source, supplied.readContentBytes());
+    assertEquals("stdlib/math.star", supplied.resolve("math").path());
+  }
+
+  @Test
+  public void bundledResourceReturnsIndependentContentBytes() throws Exception {
+    String label = "@stdlib//math";
+    ResourceContentStarFile file = ResourceContentStarFile.buildStarFile(label);
+    byte[] firstRead = file.readContentBytes();
+    byte originalFirstByte = firstRead[0];
+    firstRead[0] ^= 1;
+    try {
+      assertEquals(originalFirstByte, ResourceContentStarFile.buildStarFile(label).readContentBytes()[0]);
+    } finally {
+      firstRead[0] = originalFirstByte;
+    }
   }
 
   @Test

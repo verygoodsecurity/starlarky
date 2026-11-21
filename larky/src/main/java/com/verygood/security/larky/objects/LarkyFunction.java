@@ -45,6 +45,20 @@ public class LarkyFunction extends LarkyDescriptor implements ForwardingLarkyTyp
     return new LarkyFunction(TYPE, function, thread);
   }
 
+  /**
+   * The same function, not bound to any class, owned by {@code thread}'s evaluation: what a class
+   * binds instead of a frozen function it is given.
+   */
+  public LarkyFunction unboundCopy(StarlarkThread thread) {
+    return create(fget, thread);
+  }
+
+  static void checkUnfrozen(LarkyDescriptor d) {
+    if (d.mutability().isFrozen()) {
+      throw new IllegalStateException("cannot bind a frozen " + d.getClass().getSimpleName());
+    }
+  }
+
   @Override
   public LarkyType delegate() {
     return __class__();
@@ -57,6 +71,7 @@ public class LarkyFunction extends LarkyDescriptor implements ForwardingLarkyTyp
 
   @Override
   public void bindToOwner(LarkyType cls) {
+    checkUnfrozen(this);
     im_class = cls;
   }
 

@@ -1,5 +1,6 @@
 package com.verygood.security.larky.objects;
 
+import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.type.ForwardingLarkyType;
@@ -19,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 
 @StarlarkBuiltin(name = "super")
-public class LarkySuper implements LarkyNonDataDescriptor, ForwardingLarkyType, StarlarkCallable {
+public final class LarkySuper implements LarkyNonDataDescriptor, ForwardingLarkyType, StarlarkCallable {
 
   public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType("super");
 
@@ -29,7 +30,6 @@ public class LarkySuper implements LarkyNonDataDescriptor, ForwardingLarkyType, 
     return INSTANCE;
   }
 
-  private StarlarkThread thread;
   LarkyType objType;
   PyObject obj;
   LarkyType superType;
@@ -116,7 +116,6 @@ public class LarkySuper implements LarkyNonDataDescriptor, ForwardingLarkyType, 
     newsuper.superType = type;
     newsuper.obj = (obj != null) ? (PyObject) obj : null;
     newsuper.objType = objType;
-    newsuper.thread = thread;
     return newsuper;
   }
 
@@ -134,7 +133,7 @@ public class LarkySuper implements LarkyNonDataDescriptor, ForwardingLarkyType, 
       // if it is a descriptor object, bind it
       if (LarkyNonDataDescriptor.isNonDataDescriptor(descr)) {
         try {
-          return ((LarkyNonDataDescriptor) descr).__get__(objType == obj ? null : obj, objType, getCurrentThread());
+          return ((LarkyNonDataDescriptor) descr).__get__(objType == obj ? null : obj, objType, CurrentEvaluation.orRequire(thread));
         } catch (InterruptedException e) {
           throw new EvalException(e);
         }
@@ -190,7 +189,7 @@ public class LarkySuper implements LarkyNonDataDescriptor, ForwardingLarkyType, 
     }
     if (typeClass() != TYPE && typeClass() != null) {
       // If an instance of a (strict) subclass of super, call its type
-      StarlarkThread newThread = thread == null ? ((PyObject) obj).getCurrentThread() : thread;
+      StarlarkThread newThread = CurrentEvaluation.orRequire(thread);
       return ((StarlarkCallable) typeClass()).call(newThread, Tuple.of(type, obj), Dict.empty());
     } else {
       // Inline the common case
@@ -199,7 +198,6 @@ public class LarkySuper implements LarkyNonDataDescriptor, ForwardingLarkyType, 
       newsuper.superType = this.superType;
       newsuper.obj = (PyObject) obj;
       newsuper.objType = objType;
-      newsuper.thread = thread;
       return newsuper;
     }
 
@@ -207,6 +205,6 @@ public class LarkySuper implements LarkyNonDataDescriptor, ForwardingLarkyType, 
 
   @Override
   public StarlarkThread getCurrentThread() {
-    return thread;
+    return CurrentEvaluation.currentOrNull();
   }
 }

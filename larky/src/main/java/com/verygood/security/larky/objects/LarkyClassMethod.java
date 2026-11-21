@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
  */
 @StarlarkBuiltin(name = "classmethod")
 @com.google.errorprone.annotations.Immutable
-public class LarkyClassMethod extends LarkyStaticMethod {
+public final class LarkyClassMethod extends LarkyStaticMethod {
 
   public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType("classmethod");
   public static final LarkyClassMethod INSTANCE = new LarkyClassMethod();
@@ -55,6 +55,11 @@ public class LarkyClassMethod extends LarkyStaticMethod {
 
     private LarkyClassMethodInstance(StarlarkCallable function, StarlarkThread thread) {
       super(LarkyClassMethod.TYPE, function, thread);
+    }
+
+    @Override
+    public LarkyFunction unboundCopy(StarlarkThread thread) {
+      return new LarkyClassMethodInstance(fget, thread);
     }
 
     @StarlarkMethod(name = "__func__", structField = true)

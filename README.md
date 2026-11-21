@@ -221,6 +221,25 @@ the vault and revealed by alias), checks `exp`, `nbf`, `aud` and `iss` with
   skipped, whether aliases in the request are revealed or deleted, and whether the request is
   billed are decided by the proxy that runs the script.
 
+### Sharing library modules across evaluations
+
+The evaluated-module cache can reuse a loaded library module after verifying that its
+globals and dependencies are safe to share. Modules that retain evaluation-owned state or
+host services still load separately for each evaluation. This is distinct from the cache
+for compiled programs.
+
+Sharing is opt-in with `-Dlarky.moduleCache.enable=true`. Adding
+`-Dlarky.moduleCache.disable=true` overrides that setting. Qualify a host's concurrent
+workload before enabling sharing. Native images decline admission because their available
+reflection metadata can omit instance fields.
+
+JSR-223 hosts supply per-run limits and module providers through
+`LarkyScriptContext.setSettings(EvaluationSettings)`. Migrate any
+`LARKY_EVAL_*` bindings before adopting this version. Use
+`LarkyScriptContext.metadata()` for evaluation and library initialization steps and
+to inspect reasons that modules were kept private. Hosts using `LarkyScript` directly
+can pass the settings to the evaluation overload.
+
 ### Shipping a host-owned module next to a script
 
 A host that runs a customer's script through the JSR223 engine can pass other files with it in

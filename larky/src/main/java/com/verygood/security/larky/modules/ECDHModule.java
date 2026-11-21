@@ -33,7 +33,7 @@ import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
         doc = "A backend for ECDH operations."
 )
 @com.google.errorprone.annotations.Immutable
-public class ECDHModule implements StarlarkValue {
+public final class ECDHModule implements StarlarkValue {
 
     private static final String ECC_ALGORITHM = "EC";
 

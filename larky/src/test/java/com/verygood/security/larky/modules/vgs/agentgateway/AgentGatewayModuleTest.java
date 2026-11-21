@@ -6,7 +6,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
-import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.modules.vgs.agentgateway.spi.AgentGatewaySession;
 import com.verygood.security.larky.modules.vgs.agentgateway.spi.LarkyAgentGateway;
 import com.verygood.security.larky.parser.ParsedStarFile;
@@ -121,6 +120,17 @@ public class AgentGatewayModuleTest {
     assertTrue(e.getMessage(), e.getMessage().contains(AgentGatewayModule.UNAVAILABLE));
   }
 
+  // As a JSR-223 host gives a run its providers: in the settings of the engine's context.
+  private static ParsedStarFile evalWith(ModuleProviders providers, String script) throws ScriptException {
+    final LarkyScriptEngine engine = new LarkyScriptEngine();
+    final com.verygood.security.larky.jsr223.LarkyScriptContext context =
+        new com.verygood.security.larky.jsr223.LarkyScriptContext();
+    context.setSettings(
+        com.verygood.security.larky.parser.EvaluationSettings.builder().moduleProviders(providers).build());
+    engine.setContext(context);
+    return (ParsedStarFile) engine.eval(script, new javax.script.SimpleBindings());
+  }
+
   /** A session whose single card is named after it. */
   private static AgentGatewaySession named(String name) {
     return new FakeSession() {
@@ -133,11 +143,8 @@ public class AgentGatewayModuleTest {
 
   @Test
   public void aSessionGivenToTheRunIsUsedWithoutAHostSession() throws Exception {
-    final javax.script.Bindings bindings = new javax.script.SimpleBindings();
-    bindings.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(AgentGatewaySession.class, named("given")));
-
-    final ParsedStarFile result = (ParsedStarFile) new LarkyScriptEngine().eval(
-        "load(\"@vgs//agent_gateway\", \"session\")\nout = session.card()\n", bindings);
+    final ParsedStarFile result = evalWith(ModuleProviders.of().with(AgentGatewaySession.class, named("given")),
+        "load(\"@vgs//agent_gateway\", \"session\")\nout = session.card()\n");
 
     assertEquals("card:given", result.getGlobalEnvironmentVariable("out", Object.class));
   }
@@ -145,11 +152,8 @@ public class AgentGatewayModuleTest {
   @Test
   public void aSessionGivenToTheRunWinsOverTheHostsSession() throws Exception {
     TestAgentGateway.CURRENT.set(named("host"));
-    final javax.script.Bindings bindings = new javax.script.SimpleBindings();
-    bindings.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(AgentGatewaySession.class, named("given")));
-
-    final ParsedStarFile result = (ParsedStarFile) new LarkyScriptEngine().eval(
-        "load(\"@vgs//agent_gateway\", \"session\")\nout = session.card()\n", bindings);
+    final ParsedStarFile result = evalWith(ModuleProviders.of().with(AgentGatewaySession.class, named("given")),
+        "load(\"@vgs//agent_gateway\", \"session\")\nout = session.card()\n");
 
     assertEquals("card:given", result.getGlobalEnvironmentVariable("out", Object.class));
   }
@@ -158,9 +162,8 @@ public class AgentGatewayModuleTest {
   public void eachEvaluationSeesItsOwnSession() throws Exception {
     final String script = "load(\"@vgs//agent_gateway\", \"session\")\nout = session.card()\n";
     for (String name : List.of("first", "second")) {
-      final javax.script.Bindings bindings = new javax.script.SimpleBindings();
-      bindings.put(LarkyEvaluator.MODULE_PROVIDERS, ModuleProviders.of().with(AgentGatewaySession.class, named(name)));
-      final ParsedStarFile result = (ParsedStarFile) new LarkyScriptEngine().eval(script, bindings);
+      final ParsedStarFile result =
+          evalWith(ModuleProviders.of().with(AgentGatewaySession.class, named(name)), script);
       assertEquals("card:" + name, result.getGlobalEnvironmentVariable("out", Object.class));
     }
     final ScriptException e = assertThrows(ScriptException.class,

@@ -3,7 +3,9 @@ package com.verygood.security.larky.modules.crypto.Hash;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
+import com.verygood.security.larky.modules.types.NativeMutability;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
@@ -12,7 +14,15 @@ import net.starlark.java.ext.ByteList;
 import org.bouncycastle.crypto.ExtendedDigest;
 import org.bouncycastle.util.Memoable;
 
-public abstract class LarkyDigest implements StarlarkValue {
+public abstract class LarkyDigest implements StarlarkValue, NativeMutability.Guarded {
+
+  // The evaluation that created this hash; update() fails once it is frozen.
+  private final Mutability mutability = NativeMutability.current();
+
+  @Override
+  public Mutability mutability() {
+    return mutability;
+  }
 
   public abstract ExtendedDigest getDigest();
 
@@ -25,7 +35,8 @@ public abstract class LarkyDigest implements StarlarkValue {
           @ParamType(type = StarlarkBytes.class)
       })}
   )
-  public void update(StarlarkBytes data) {
+  public void update(StarlarkBytes data) throws EvalException {
+    NativeMutability.checkMutable(this);
     byte[] input = data.toByteArray();
     this.getDigest().update(input, 0, input.length);
   }
@@ -40,7 +51,11 @@ public abstract class LarkyDigest implements StarlarkValue {
     return StarlarkBytes.of(thread.mutability(), reuseDigestIfPossible());
   }
 
-  protected byte[] reuseDigestIfPossible() {
+  protected byte[] reuseDigestIfPossible() throws EvalException {
+    if (!(this.getDigest() instanceof Memoable)) {
+      // doFinal on the digest itself resets it, which changes its state
+      NativeMutability.checkMutable(this);
+    }
     byte[] resBuf = new byte[this.getDigest().getDigestSize()];
     final ExtendedDigest copy;
     if(this.getDigest() instanceof Memoable) {
@@ -57,7 +72,7 @@ public abstract class LarkyDigest implements StarlarkValue {
       doc = "Like digest() except the digest is returned as a string\n" +
           "of double length, containing only hexadecimal digits."
   )
-  public String hexDigest() {
+  public String hexDigest() throws EvalException {
     return ByteList.wrap(reuseDigestIfPossible()).hex();
   }
 }

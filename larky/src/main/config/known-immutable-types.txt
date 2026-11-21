@@ -1,0 +1,13 @@
+# Library types that Error Prone's @Immutable check (and the module cache admission check) treat
+# as deeply immutable, because we cannot annotate them. Format: fully qualified name<TAB>reason.
+# Keep in sync with -XepOpt:Immutable:KnownImmutable in larky/pom.xml (IsolationStructureTest checks).
+com.google.re2j.Pattern	re2j documents Pattern as immutable and safe for concurrent use; all fields are final and set at compile time.
+java.util.regex.Pattern	The JDK documents Pattern instances as immutable and safe for use by multiple concurrent threads.
+org.bouncycastle.math.ec.custom.sec.SecP256K1Curve	A fixed named curve: its parameters are constants; points are created per operation.
+org.bouncycastle.math.ec.custom.sec.SecP256R1Curve	A fixed named curve: its parameters are constants; points are created per operation.
+org.bouncycastle.math.ec.custom.sec.SecP384R1Curve	A fixed named curve: its parameters are constants; points are created per operation.
+org.bouncycastle.math.ec.custom.sec.SecP521R1Curve	A fixed named curve: its parameters are constants; points are created per operation.
+org.bouncycastle.math.ec.custom.sec.SecP256K1Point	A point's coordinates are set only by its constructors; arithmetic returns new points. Its one later write, the precomputation cache, is filled under the point's lock with tables derived only from the point (BouncyCastleImmutabilityTest checks the bytecode).
+org.bouncycastle.math.ec.custom.sec.SecP256R1Point	A point's coordinates are set only by its constructors; arithmetic returns new points. Its one later write, the precomputation cache, is filled under the point's lock with tables derived only from the point (BouncyCastleImmutabilityTest checks the bytecode).
+org.bouncycastle.math.ec.custom.sec.SecP384R1Point	A point's coordinates are set only by its constructors; arithmetic returns new points. Its one later write, the precomputation cache, is filled under the point's lock with tables derived only from the point (BouncyCastleImmutabilityTest checks the bytecode).
+org.bouncycastle.math.ec.custom.sec.SecP521R1Point	A point's coordinates are set only by its constructors; arithmetic returns new points. Its one later write, the precomputation cache, is filled under the point's lock with tables derived only from the point (BouncyCastleImmutabilityTest checks the bytecode).

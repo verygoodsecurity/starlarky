@@ -20,7 +20,7 @@ import net.starlark.java.eval.StarlarkValue;
     category = "BUILTIN",
     doc = "*Larky* system-specific parameters and functions")
 @com.google.errorprone.annotations.Immutable
-public class SysModule implements StarlarkValue {
+public final class SysModule implements StarlarkValue {
 
   public static final SysModule INSTANCE = new SysModule();
   private static final String LITTLE = "little";

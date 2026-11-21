@@ -12,7 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @com.google.errorprone.annotations.Immutable
-public class InMemoryTextPIIAnalyzer implements TextPIIAnalyzer {
+public final class InMemoryTextPIIAnalyzer implements TextPIIAnalyzer {
 
   private static final Set<String> SUPPORTED_LANGUAGES = Sets.newHashSet("en");
 

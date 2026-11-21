@@ -24,7 +24,7 @@ import net.starlark.java.eval.StarlarkValue;
     category = "BUILTIN",
     doc = "This module implements a ")
 @com.google.errorprone.annotations.Immutable
-public class AssertionsModule implements StarlarkValue {
+public final class AssertionsModule implements StarlarkValue {
 
   public static final AssertionsModule INSTANCE = new AssertionsModule();
 

@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
+import com.verygood.security.larky.parser.CurrentEvaluation;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -41,7 +43,7 @@ class PropertyTest {
   void classAccessReturnsPropertyWithoutCallingGetter() throws Exception {
     try (Mutability mu = Mutability.create("property")) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
-      Property property = Property.builder().thread(thread).build();
+      Property property = Property.builder().build();
       LarkyDataDescriptor descriptor = (LarkyDataDescriptor) property;
       assertSame(property, descriptor.__get__(null, null, thread));
       assertSame(property, descriptor.__get__(Starlark.NONE, null, null));
@@ -49,22 +51,52 @@ class PropertyTest {
   }
 
   @Test
-  void descriptorAccessUsesActiveThreadOrFallsBackToCreatingThread() throws Exception {
-    try (Mutability creating = Mutability.create("creating");
+  void getWithoutAGetterIsAnEvalException() throws Exception {
+    try (Mutability mu = Mutability.create("property")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      Property property = Property.builder().build();
+      EvalException e = assertThrows(EvalException.class, () -> property.get(thread));
+      assertEquals("AttributeError: unreadable attribute", e.getMessage());
+      assertEquals("null", property.toString());
+    }
+  }
+
+  @Test
+  void descriptorAccessUsesSuppliedThreadOrFallsBackToCurrentEvaluation() throws Exception {
+    try (Mutability current = Mutability.create("current");
          Mutability active = Mutability.create("active")) {
-      StarlarkThread creatingThread = StarlarkThread.createTransient(creating, StarlarkSemantics.DEFAULT);
+      StarlarkThread currentThread = StarlarkThread.createTransient(current, StarlarkSemantics.DEFAULT);
       StarlarkThread activeThread = StarlarkThread.createTransient(active, StarlarkSemantics.DEFAULT);
       for (StarlarkThread suppliedThread : new StarlarkThread[]{activeThread, null}) {
-        StarlarkThread expectedThread = suppliedThread == null ? creatingThread : activeThread;
+        StarlarkThread expectedThread = suppliedThread == null ? currentThread : activeThread;
         Property property = Property.builder()
-          .thread(creatingThread)
           .fget(accessor(expectedThread, Tuple.of("instance")))
           .fset(accessor(expectedThread, Tuple.of("instance", "assigned")))
           .build();
         LarkyDataDescriptor descriptor = (LarkyDataDescriptor) property;
-        assertEquals("value", descriptor.__get__("instance", null, suppliedThread));
-        descriptor.__set__("instance", "assigned", suppliedThread);
+        try (CurrentEvaluation ignored = CurrentEvaluation.enter(currentThread)) {
+          assertEquals("value", descriptor.__get__("instance", null, suppliedThread));
+          descriptor.__set__("instance", "assigned", suppliedThread);
+        }
       }
+    }
+  }
+
+  @Test
+  void getAndSetUseTheCallersThreadAndNoThreadOutsideAnEvaluationFailsClosed() throws Exception {
+    try (Mutability mu = Mutability.create("caller")) {
+      StarlarkThread caller = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      Property property = Property.builder()
+        .fget(accessor(caller, Tuple.empty()))
+        .fset(accessor(caller, Tuple.of("assigned")))
+        .build();
+      assertEquals("value", property.get(caller));
+      property.set("assigned", "name", caller);
+      IllegalStateException e = assertThrows(IllegalStateException.class, () -> property.get(null));
+      assertTrue(e.getMessage().contains("no Starlark evaluation is active"));
+      assertThrows(IllegalStateException.class, () -> property.set("assigned", "name", null));
+      assertThrows(IllegalStateException.class,
+        () -> ((LarkyDataDescriptor) property).__get__("instance", null, null));
     }
   }
 
@@ -73,7 +105,6 @@ class PropertyTest {
     try (Mutability mu = Mutability.create("write-only property")) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
       Property property = Property.builder()
-        .thread(thread)
         .fset(accessor(thread, Tuple.of("instance", "assigned")))
         .build();
       for (StarlarkThread suppliedThread : new StarlarkThread[]{thread, null}) {
@@ -82,7 +113,9 @@ class PropertyTest {
         assertEquals("AttributeError: unreadable attribute",
           assertThrows(EvalException.class,
             () -> property.__get__("instance", null, suppliedThread)).getMessage());
-        property.__set__("instance", "assigned", suppliedThread);
+        try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
+          property.__set__("instance", "assigned", suppliedThread);
+        }
       }
     }
   }

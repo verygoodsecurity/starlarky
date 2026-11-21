@@ -5,11 +5,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
 
-public interface LarkyCounter extends StarlarkValue {
+public interface LarkyCounter extends StarlarkValue, NativeMutability.Guarded {
 
   /**
    * Adds the given delta to the counters current value
@@ -19,6 +20,8 @@ public interface LarkyCounter extends StarlarkValue {
    */
   @StarlarkMethod(name = "add_and_get", parameters = {@Param(name="delta", defaultValue = "1")})
   default StarlarkInt Counter__addAndGet(StarlarkInt delta) throws EvalException {
+    // A counter belongs to the evaluation that created it, as a list does.
+    NativeMutability.checkMutable(this);
     return StarlarkInt.of(addAndGet(delta.toLong("not a long!")));
   }
 
@@ -59,6 +62,13 @@ public interface LarkyCounter extends StarlarkValue {
 
 
   final class NotThreadSafeLarkyCounter implements LarkyCounter {
+
+    private final Mutability mutability = NativeMutability.current();
+
+    @Override
+    public Mutability mutability() {
+      return mutability;
+    }
     private long count = 0;
 
     @Override
@@ -74,6 +84,13 @@ public interface LarkyCounter extends StarlarkValue {
   }
 
   final class AtomicLarkyCounter implements LarkyCounter {
+
+    private final Mutability mutability = NativeMutability.current();
+
+    @Override
+    public Mutability mutability() {
+      return mutability;
+    }
     private final AtomicLong count = new AtomicLong();
 
     @Override

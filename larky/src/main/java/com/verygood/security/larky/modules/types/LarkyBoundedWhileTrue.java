@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.types;
 
+import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.google.common.collect.ImmutableList;
 
 import net.starlark.java.eval.EvalException;
@@ -11,7 +12,7 @@ import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.StarlarkSemantics;
 
 @com.google.errorprone.annotations.Immutable
-public class LarkyBoundedWhileTrue implements StarlarkValue {
+public final class LarkyBoundedWhileTrue implements StarlarkValue {
 
   /**
    * The maximum number of iterations allowed for this instance.
@@ -54,7 +55,6 @@ public class LarkyBoundedWhileTrue implements StarlarkValue {
       private LarkyBoundedWhileTrueIterator(String errorMessage,
                                             int maxIterations,
                                             StarlarkThread thread) {
-        this.setCurrentThread(thread);
         this.errorMessage = errorMessage;
         this.maxIterations = maxIterations;
         this.callStack = captureLoopCallStack(thread);
@@ -79,7 +79,7 @@ public class LarkyBoundedWhileTrue implements StarlarkValue {
       private StarlarkEvalWrapper.Exc.WrappedUncheckedEvalException limitExceededException() {
         return StarlarkEvalWrapper.Exc.WrappedUncheckedEvalException.of(
             errorMessage, 
-            this.getCurrentThread(), 
+            CurrentEvaluation.requireThread(),
             this.callStack
           );
       }

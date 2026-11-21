@@ -10,7 +10,6 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
-import net.starlark.java.eval.StarlarkThread;
 
 @StarlarkBuiltin(
     name = "TextPIIEntity",
@@ -31,8 +30,8 @@ public class TextPIIEntity extends SimpleStruct {
   private final StarlarkInt end;
 
 
-  TextPIIEntity(String entityType, StarlarkFloat score, StarlarkInt start, StarlarkInt end, StarlarkThread thread) {
-    super(dictOf(entityType, score, start, end), thread);
+  TextPIIEntity(String entityType, StarlarkFloat score, StarlarkInt start, StarlarkInt end) {
+    super(dictOf(entityType, score, start, end));
     this.entityType = entityType;
     this.score = score;
     this.start = start;
@@ -40,11 +39,11 @@ public class TextPIIEntity extends SimpleStruct {
   }
 
   public static TextPIIEntity immutableOf(String entityType, double score, int start, int end) {
-    return TextPIIEntity.of(entityType, score, start, end, null);
+    return TextPIIEntity.of(entityType, score, start, end);
   }
 
-  public static TextPIIEntity of(String entityType, double score, int start, int end, StarlarkThread thread) {
-    return new TextPIIEntity(entityType, StarlarkFloat.of(score), StarlarkInt.of(start), StarlarkInt.of(end), thread);
+  public static TextPIIEntity of(String entityType, double score, int start, int end) {
+    return new TextPIIEntity(entityType, StarlarkFloat.of(score), StarlarkInt.of(start), StarlarkInt.of(end));
   }
 
   @StarlarkMethod(

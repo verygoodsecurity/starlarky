@@ -300,7 +300,7 @@ def EccPoint(x, y, curve="p256"):
 
     def __neg__():
         np = self.copy()
-        np._point.negate()
+        np._point = np._point.negate()
         return np
     self.__neg__ = __neg__
 
@@ -350,13 +350,13 @@ def EccPoint(x, y, curve="p256"):
         :Return:
             :class:`EccPoint` : this same object (to enable chaining)
         """
-        self._point.twice()
+        self._point = self._point.twice()
         return self
     self.double = double
 
     def __iadd__(point):
         """Add a second point to this one"""
-        self._point.add(point._point)
+        self._point = self._point.add(point._point)
         return self
     self.__iadd__ = __iadd__
 
@@ -371,7 +371,7 @@ def EccPoint(x, y, curve="p256"):
         """Multiply this point by a scalar"""
         if operator.lt(scalar, 0):
             return Error("ValueError: Scalar multiplication is only defined for non-negative integers").unwrap()
-        self._point.multiply(operator.index(scalar))
+        self._point = self._point.multiply(operator.index(scalar))
         return self
     self.__imul__ = __imul__
 

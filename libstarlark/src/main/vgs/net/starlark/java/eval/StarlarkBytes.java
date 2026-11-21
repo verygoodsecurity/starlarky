@@ -341,8 +341,9 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public @Nullable Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
-      Object rval = super.binaryOp(op, that, thisLeft);
+    public @Nullable Object binaryOp(
+        TokenKind op, Object that, boolean thisLeft, @Nullable Mutability mu) throws EvalException {
+      Object rval = super.binaryOp(op, that, thisLeft, mu);
       if (rval == null) {
         return rval;
       }
@@ -1512,6 +1513,17 @@ public class StarlarkBytes implements ByteStringModuleApi,
   @Nullable
   @Override
   public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
+    return binaryOp(op, that, thisLeft, this.mutability);
+  }
+
+  /**
+   * As {@link #binaryOp(TokenKind, Object, boolean)}, with a new bytearray owned by {@code mu}:
+   * the Mutability of the evaluation computing it, which EvalUtils passes. Without it, {@code ba +
+   * b} on a bytearray from a loaded (frozen) module would be frozen too.
+   */
+  @Nullable
+  public Object binaryOp(TokenKind op, Object that, boolean thisLeft, @Nullable Mutability mu)
+      throws EvalException {
     switch (op) {
       case STAR:
         /*
@@ -1519,7 +1531,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
           to the appropriate sub-type.
          */
         if (that instanceof StarlarkInt) {
-          return repeat((StarlarkInt) that, this.mutability);
+          return repeat((StarlarkInt) that, mu);
         }
         return null;
       case PLUS:
@@ -1527,9 +1539,9 @@ public class StarlarkBytes implements ByteStringModuleApi,
           return null; // unsupported binary operation: bytes + bytes only, as in the spec
         }
         if (thisLeft) {
-          return BinaryOperations.add(this, that, this.mutability);
+          return BinaryOperations.add(this, that, mu);
         } else {
-          return BinaryOperations.add(that, this, this.mutability);
+          return BinaryOperations.add(that, this, mu);
         }
       default:
         // unsupported binary operation!
