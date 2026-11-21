@@ -77,7 +77,7 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Set up JDK
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78  # v6.2.0
         with:
           distribution: temurin
           java-version: "21"
@@ -97,14 +97,9 @@ jobs:
         if: ${{ runner.os == 'Linux' }}
         run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zlib1g-dev
 
-      - name: Set up MSVC
-        if: ${{ runner.os == 'Windows' }}
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756  # v1.13.0
-        with:
-          arch: x64
-
       - name: Build native runner
         # The tests run in build-test-publish.yaml's Linux build; this builds the binary only.
+        # On Windows, native-image finds the runner's Visual Studio and sets up MSVC itself.
         run: mvn -B -ntp package -Pnative -DskipTests -pl runlarky -am
         env:
           GRAALVM_HOME: ${{ github.workspace }}/${{ matrix.graalvm-home }}

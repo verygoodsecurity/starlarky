@@ -1,24 +1,32 @@
 package com.verygood.security.larky.jsr223;
 
+import com.verygood.security.larky.console.StreamWriterConsole;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
+import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
+import com.verygood.security.larky.parser.LarkyEvaluator;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.script.Bindings;
 import javax.script.Compilable;
 import javax.script.CompiledScript;
+import javax.script.Invocable;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineFactory;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
+import net.starlark.java.eval.StarlarkCallable;
 
-public class LarkyScriptEngine implements Compilable, ScriptEngine {
+public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
 
   /** Engine property for script name. */
   public static final String SCRIPT_NAME = "larky.scriptName";
@@ -506,5 +514,76 @@ public class LarkyScriptEngine implements Compilable, ScriptEngine {
 
   private Reader getScriptReader(String script) {
     return new StringReader(script);
+  }
+
+  /**
+   * Calls the function {@code name} that an earlier {@code eval} with this engine's context defined (eval leaves a
+   * script's globals in the context's bindings), on a thread of its own. Its print goes to the context's writer, and the
+   * step limit and expiration in the bindings apply as they do to eval. Its result is a Starlark value, frozen when the
+   * call ends.
+   */
+  @Override
+  public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
+    checkGlobalScope(context);
+    final Map<String, Object> bindings = bindings();
+    return LarkyCalls.call(function(name, bindings), args, console(bindings), LarkyCalls.Limits.of(bindings),
+        providers(bindings));
+  }
+
+  /** Calls the method {@code name} of {@code thiz}, a value a script evaluated with this engine returned. */
+  @Override
+  public Object invokeMethod(Object thiz, String name, Object... args)
+      throws ScriptException, NoSuchMethodException {
+    checkGlobalScope(context);
+    final Map<String, Object> bindings = bindings();
+    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), LarkyCalls.Limits.of(bindings),
+        providers(bindings));
+  }
+
+  @Override
+  public <T> T getInterface(Class<T> type) {
+    final Map<String, Object> bindings = bindings();
+    return LarkyCalls.proxy(type, name -> bindings.get(name) instanceof StarlarkCallable, this::invokeFunction);
+  }
+
+  @Override
+  public <T> T getInterface(Object thiz, Class<T> type) {
+    if (thiz == null) {
+      throw new IllegalArgumentException("thiz is null");
+    }
+    return LarkyCalls.proxy(type, name -> LarkyCalls.hasMethod(thiz, name),
+        (name, args) -> invokeMethod(thiz, name, args));
+  }
+
+  private static StarlarkCallable function(String name, Map<String, Object> bindings) throws NoSuchMethodException {
+    if (bindings.get(name) instanceof StarlarkCallable callable) {
+      return callable;
+    }
+    throw new NoSuchMethodException("no function " + name + " in this engine's bindings; eval a script that defines it");
+  }
+
+  /** The context's bindings, engine scope over global scope (global only as this engine reads it). */
+  private Map<String, Object> bindings() {
+    final Map<String, Object> bindings = new HashMap<>();
+    final Bindings global = globalScope == GlobalScope.JSR223 ? context.getBindings(ScriptContext.GLOBAL_SCOPE) : null;
+    final Bindings engine = context.getBindings(ScriptContext.ENGINE_SCOPE);
+    if (global != null) {
+      bindings.putAll(global);
+    }
+    if (engine != null) {
+      bindings.putAll(engine);
+    }
+    return bindings;
+  }
+
+  /** The module providers the bindings give, as an evaluation reads them (LarkyEvaluator.MODULE_PROVIDERS). */
+  private static ModuleProviders providers(Map<String, Object> bindings) {
+    return ModuleProviders.given(bindings.get(LarkyEvaluator.MODULE_PROVIDERS));
+  }
+
+  private StreamWriterConsole console(Map<String, Object> bindings) {
+    final boolean verbose = Boolean.parseBoolean(
+        String.valueOf(bindings.getOrDefault(DefaultLarkyInterpreter.VERBOSE, "false")));
+    return new StreamWriterConsole(LarkyCalls.writer(context), verbose);
   }
 }

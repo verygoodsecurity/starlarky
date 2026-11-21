@@ -16,6 +16,7 @@
         * [Larky REPL](#larky-repl)
     * [Pylarky](#pylarky)
 * [Examples](#examples)
+    * [Rejecting requests without a valid signed token](#rejecting-requests-without-a-valid-signed-token)
     * [Shipping a host-owned module next to a script](#shipping-a-host-owned-module-next-to-a-script)
 * [Developer setup](#developer-setup)
 * [Depoyment process](#deployment-process)
@@ -172,6 +173,35 @@ mvn -Dtest='StdLibTest*' -Dlarky.stdlib_test=test_bytes.star org.apache.maven.pl
 ```
 
 ## Examples
+
+Example scripts live next to their tests in
+[`larky/src/test/resources/vgs_tests/examples`](larky/src/test/resources/vgs_tests/examples).
+`VGSLibTests` runs every `test_default_*.star` there:
+
+```bash
+mvn test -pl larky -am -Dtest=VGSLibTests -Dlarky.vgs_test=test_default_request_validation.star -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+### Rejecting requests without a valid signed token
+
+[`request_validation.star`](larky/src/test/resources/vgs_tests/examples/request_validation.star)
+reads `Authorization: Bearer <JWT>`, verifies the token with the issuer's public key (kept in
+the vault and revealed by alias), checks `exp`, `nbf`, `aud` and `iss` with
+`load("@vendor//jose", "jwt")`, and answers `401` with
+`proxy.ShortCircuitResponse(VGSHttpResponse(status_code=401, ...))` when any check fails.
+
+- **Algorithms.** `jwt.decode` verifies JWS signatures made with HS256, HS384, HS512 (HMAC),
+  RS256, RS384, RS512 (RSA PKCS#1 v1.5) and ES256, ES384, ES512 (ECDSA), as listed in
+  `vendor/jose/constants/algorithms.star`. `none` is never accepted, and a PEM public key is
+  refused as an HMAC secret. Pass only the algorithms your issuer uses in `algorithms=`.
+- **Time.** Scripts cannot read the clock, so `jwt.decode` requires `now=` (seconds since the
+  epoch) and fails without it. The time has to
+  come from the host. Larky does not provide it and does not define what the `ctx` argument of
+  `process(input, ctx)` contains; the example assumes the proxy sets a request header with the
+  time it received the request and drops any copy sent by the client.
+- **Proxy behaviour.** Larky only returns the `ShortCircuitResponse`. Whether the upstream is
+  skipped, whether aliases in the request are revealed or deleted, and whether the request is
+  billed are decided by the proxy that runs the script.
 
 ### Sharing library modules across evaluations
 
