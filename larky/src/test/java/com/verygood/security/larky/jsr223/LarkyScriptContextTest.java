@@ -22,7 +22,10 @@ public class LarkyScriptContextTest {
   public void compiledHostCanSupplySettingsAndWriterDirectly() throws Exception {
     var writer = new StringWriter();
     var settings = EvaluationSettings.builder().stepLimit(1000).build();
-    var context = new LarkyScriptContext(settings, writer);
+    var context = LarkyScriptContext.builder()
+        .settings(settings)
+        .writer(writer)
+        .build();
     context.setAttribute("message", "hello", ENGINE_SCOPE);
     var compiled = new LarkyScriptEngine().compile("print(message)\n", "context.star");
 
@@ -31,6 +34,19 @@ public class LarkyScriptContextTest {
     assertSame(writer, context.getWriter());
     assertSame(settings, context.getSettings());
     assertEquals("hello" + System.lineSeparator(), writer.toString());
+  }
+
+  @Test
+  public void builderKeepsContextDefaultsAndOmitsConfigurationFromToString() {
+    var builder = LarkyScriptContext.builder();
+    var context = builder.build();
+    assertSame(EvaluationSettings.NONE, context.getSettings());
+    assertEquals(List.of(ENGINE_SCOPE, GLOBAL_SCOPE), context.getScopes());
+
+    var writer = new StringWriter();
+    writer.write("sample request log");
+    builder.writer(writer);
+    assertEquals("LarkyScriptContext.Builder", builder.toString());
   }
 
   @Test

@@ -54,7 +54,7 @@ import javax.script.SimpleBindings;
  * {@link LarkyScriptEngine}'s default context is a {@code LarkyScriptContext}.
  *
  * <p>Standard streams are wrapped on first access. A Java host that already has a log writer
- * can provide it together with the settings via {@link #LarkyScriptContext(EvaluationSettings, Writer)}.
+ * can configure the settings and writer through {@code LarkyScriptContext.builder()}.
  *
  * <p>Settings were formerly given as {@code LARKY_EVAL_*} bindings; a binding with such a name, or
  * {@code _EXECUTION_STEPS_}, is now refused.
@@ -84,6 +84,25 @@ public class LarkyScriptContext implements ScriptContext {
     this.settings = Objects.requireNonNull(settings, "settings");
     this.writer = Objects.requireNonNull(writer, "writer");
     defaultOutput = null;
+  }
+
+  @lombok.Builder(builderClassName = "Builder")
+  private static LarkyScriptContext create(EvaluationSettings settings, @Nullable Writer writer) {
+    if (writer != null) {
+      return new LarkyScriptContext(settings, writer);
+    }
+    var context = new LarkyScriptContext();
+    context.setSettings(settings);
+    return context;
+  }
+
+  public static final class Builder {
+    private EvaluationSettings settings = EvaluationSettings.NONE;
+
+    @Override
+    public String toString() {
+      return "LarkyScriptContext.Builder";
+    }
   }
 
   @Override
