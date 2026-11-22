@@ -306,10 +306,8 @@ public final class LarkyEvaluator {
   private static final String PAST_EXPIRATION =
       "Starlark computation cancelled: past expiration date";
 
-  // Why the file run on thread failed with cause: the thread's own step-limit or expiration error
-  // (its message, and the thread in that state, so a script's own fail() with the same text is
-  // still a script error), or the script.
-  private static EvaluationMetadata.Outcome failureOf(StarlarkThread thread, EvalException cause) {
+  /** Classifies a script failure using the error message and the thread's execution limits. */
+  public static EvaluationMetadata.Outcome failureOf(StarlarkThread thread, EvalException cause) {
     String message = cause.getMessage();
     if (TOO_MANY_STEPS.equals(message)
         && thread.getExecutedSteps() >= thread.getMaxExecutionSteps()) {
