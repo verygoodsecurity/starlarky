@@ -382,6 +382,16 @@ Written for Larky; no upstream file to pin and no header. Paths are relative to 
 
 - Pure-Python `_multidict_py.py` reworked into Larky structs. The content
   matches 4.7.6-5.1.0 equally; 5.1.0 was the release current at port time.
+- The multidicts and their proxies are implemented in Java
+  (`com.verygood.security.larky.modules.multidict`);
+  `vendor/_multidict_core.star` is their facade (with `istr`), re-exported by
+  `vendor/multidict.star`, and forwards to the native `jmultidict` module. The
+  Java port keeps the Larky port's behavior, including its per-instance
+  version counter and error messages, with three differences: a non-pair item
+  reports a `TypeError` (it failed with an unrelated error), `__eq__` between
+  multidicts of different classes returns False when the other lacks a key (it
+  raised `KeyError`), and the proxies have the read-only methods (they had
+  only `copy`, which failed).
 
 ### MasterCard
 

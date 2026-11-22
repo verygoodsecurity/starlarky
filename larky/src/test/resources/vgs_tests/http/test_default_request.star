@@ -65,8 +65,9 @@ def _test_request_header_dict_preserves_duplicate_case_insensitive_keys():
 
 
 def _test_request_header_wrapper_can_use_a_dict_type_name():
+    # a custom mapping that calls itself dict is read through its items(), not as a dict
     headers = MultiDict([("X-Trace", "example")])
-    wrapper = larky.struct(__name__="dict", _impl=headers._impl)
+    wrapper = larky.struct(__name__="dict", items=headers.items)
     request = VGSHttpRequest("https://example.test", headers=wrapper)
 
     asserts.assert_that(list(request.headers.items())).is_equal_to([("X-Trace", "example")])

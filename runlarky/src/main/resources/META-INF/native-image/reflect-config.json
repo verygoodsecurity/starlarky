@@ -922,7 +922,7 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
-      "name": "com.verygood.security.larky.modules.MultiDictModule"
+      "name": "com.verygood.security.larky.modules.multidict.MultiDictModule"
   },
   {
       "allDeclaredFields": true,
