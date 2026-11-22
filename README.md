@@ -243,10 +243,11 @@ directly can pass the settings to the evaluation overload.
 ### Calling a compiled script within one evaluation
 
 Java hosts can build Starlark inputs, call script functions, and inspect or update their
-results with `LarkyCompiledScript.compute`.
+results with `LarkyScriptEvaluator`. Pass the compiled script and the context for this run.
 
 ```java
-Object result = compiled.compute(context, input, (run, value) -> run.call("process", value));
+var evaluator = new LarkyScriptEvaluator();
+Object result = evaluator.compute(compiled, context, input, (run, value) -> run.call("process", value));
 ```
 
 The callback runs synchronously after the script's top level, on the same Starlark thread

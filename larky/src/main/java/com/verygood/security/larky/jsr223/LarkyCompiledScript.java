@@ -6,11 +6,9 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.verygood.security.larky.LarkySemantics;
-import com.verygood.security.larky.parser.Computation;
 import com.verygood.security.larky.runtime.EvaluationMetadata;
 import com.verygood.security.larky.runtime.EvaluationSettings;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
@@ -52,7 +50,7 @@ import javax.script.ScriptException;
  */
 public class LarkyCompiledScript extends CompiledScript {
 
-  private static final LarkyScript.StarlarkMode LARKY_MODE = LarkyScript.StarlarkMode.STRICT;
+  static final LarkyScript.StarlarkMode LARKY_MODE = LarkyScript.StarlarkMode.STRICT;
   private static final String DEFAULT_SCRIPT_NAME = "larky.star";
 
   private final LarkyScriptEngine engine;
@@ -268,44 +266,11 @@ public class LarkyCompiledScript extends CompiledScript {
     return result;
   }
 
-  /**
-   * Evaluates the entry module and runs the host computation before its values freeze.
-   * Bindings supply evaluation inputs. The computation returns its result directly and records
-   * execution metadata on {@code context}. Use a context per invocation.
-   */
-  public <I, O> O compute(LarkyScriptContext context, I input, Computation<I, O> computation)
-      throws LarkyEvaluationScriptException {
-    return compute(context, List.of(), input, computation);
+  Bindings globalBindings(ScriptContext context) throws LarkyGlobalScopeRefusedException {
+    return engine.globalBindings(context);
   }
 
-  /**
-   * As {@link #compute(LarkyScriptContext, Object, Computation)}, with additional modules for
-   * the host to use through {@link Computation.Scope#export}. These modules use the normal
-   * script loader and are already frozen when the computation begins.
-   */
-  public <I, O> O compute(
-      LarkyScriptContext context, List<String> imports, I input, Computation<I, O> computation)
-      throws LarkyEvaluationScriptException {
-    Objects.requireNonNull(computation, "computation");
-    context.setMetadata(null);
-    try {
-      var interpreter = new DefaultLarkyInterpreter(
-          LARKY_MODE, context.getSettings(), engine.globalBindings(context),
-          context.getBindings(ScriptContext.ENGINE_SCOPE));
-      return interpreter.compute(
-          interpretedFile(context), context.getWriter(), imports, input, computation, context::setMetadata);
-    } catch (IOException | InterruptedException | EvalException | StarlarkEvalWrapper.Exc.RuntimeEvalException
-             | Starlark.UncheckedEvalException e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      }
-      var failure = LarkyEvaluationScriptException.of(e).withMetadataIfAbsent(context.metadata());
-      context.setMetadata(failure.metadata());
-      throw failure;
-    }
-  }
-
-  private StarFile interpretedFile(ScriptContext context) throws IOException {
+  StarFile interpretedFile(ScriptContext context) throws IOException {
     String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
     String scriptName = cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
     if (modules.isEmpty() && cacheNamespace.isEmpty()) {
