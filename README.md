@@ -244,6 +244,8 @@ directly can pass the settings to the evaluation overload.
 
 Java hosts can build Starlark inputs, call script functions, and inspect or update their
 results with `LarkyScriptEvaluator`. Pass the compiled script and the context for this run.
+Use `new LarkyScriptContext(settings, logWriter)` when the host supplies the log writer.
+The standard console streams are wrapped only when a caller asks for them.
 
 ```java
 var evaluator = new LarkyScriptEvaluator();

@@ -42,7 +42,7 @@ public class LarkyScriptContextTest {
     context.setAttribute("message", "hello", ENGINE_SCOPE);
     var compiled = new LarkyScriptEngine().compile("print(message)\n", "context.star");
 
-    compiled.eval(context);
+    new LarkyScriptEvaluator().compute(compiled, context, null, (run, unused) -> null);
 
     assertSame(writer, context.getWriter());
     assertSame(settings, context.getSettings());
