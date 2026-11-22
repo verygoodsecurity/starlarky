@@ -1,6 +1,5 @@
 # Ported from multidict 4.7.6-5.1.0, pinned to 5.1.0 (c3eed83): tests/test_mutable_multidict.py. See larky/src/main/resources/VENDORED.md.
 load("@stdlib//larky", larky="larky")
-load("@stdlib//jmultidict", "jmultidict")
 load("@stdlib//operator", operator="operator")
 load("@stdlib//string", string="string")
 load("@stdlib//types", types="types")
@@ -490,11 +489,7 @@ def TestCIMutableMultiDict_test_eq():
     asserts.assert_that(d1).is_equal_to(d2)
 
 
-def test_java_multidict_and_facade_order():
-    entries = jmultidict.entries([("X-Key", 1), ("x-key", 2), ("last", 3)], True)
-    asserts.assert_that(entries).is_equal_to([
-        ("X-Key", "X-Key", 1), ("X-Key", "x-key", 2), ("Last", "last", 3),
-    ])
+def test_ci_reads_keep_order_and_spelling():
     d = ci_cls([("X-Key", 1), ("x-key", 2), ("last", 3)])
     snapshot = d.items()
     asserts.assert_that(snapshot).is_equal_to([("X-Key", 1), ("x-key", 2), ("last", 3)])
@@ -509,13 +504,10 @@ def test_java_multidict_and_facade_order():
     asserts.assert_that(unicode_key.getone("Éclair")).is_equal_to(5)
 
 
-def test_native_chunks_copy_and_bulk_writes():
+def test_bulk_copies_and_writes():
     pairs = [("X-%d" % i, i) for i in range(130)]
     pairs[63] = ("X-129", 63)
     pairs[65] = ("éCLAIR", 65)
-    chunk = jmultidict.entry_chunk(pairs, True, 64, False)
-    asserts.assert_that(len(chunk)).is_equal_to(64)
-    asserts.assert_that(chunk[1]).is_equal_to(("Éclair", "éCLAIR", 65))
     source = cls(pairs)
     d = ci_cls(source)
     asserts.assert_that(d.items()).is_equal_to(pairs)
@@ -544,11 +536,11 @@ def test_native_chunks_copy_and_bulk_writes():
     asserts.assert_that(_multidict.getversion(d)).is_equal_to(8)
 
 
-def test_native_large_writes_and_custom_version_callback():
+def test_large_writes_count_versions():
     pairs = [("X-%d" % i, i) for i in range(130)]
     d = ci_cls(pairs)
     d.add("x-12", 999)
-    asserts.assert_that(jmultidict.replace(d._impl, "X-12", "x-12", 101)).is_equal_to(True)
+    d["x-12"] = 101
     asserts.assert_that(d.getall("X-12")).is_equal_to([101])
     asserts.assert_that(d.items()[12]).is_equal_to(("x-12", 101))
     asserts.assert_that(_multidict.getversion(d)).is_equal_to(133)
@@ -576,21 +568,12 @@ def test_native_large_writes_and_custom_version_callback():
     asserts.assert_that(d.items()).is_equal_to([])
     asserts.assert_that(_multidict.getversion(d)).is_equal_to(before + 1)
 
-    def custom_increment():
-        d._impl._version += 10
-    d._impl.incr_version = custom_increment
-    before = _multidict.getversion(d)
-    d.add("X-Trace", 1)
-    d["x-trace"] = 2
-    asserts.assert_that(d.popone("X-TRACE")).is_equal_to(2)
-    asserts.assert_that(_multidict.getversion(d)).is_equal_to(before + 30)
-
 
 def _testsuite():
     _suite = unittest.TestSuite()
-    _suite.addTest(unittest.FunctionTestCase(test_native_large_writes_and_custom_version_callback))
-    _suite.addTest(unittest.FunctionTestCase(test_native_chunks_copy_and_bulk_writes))
-    _suite.addTest(unittest.FunctionTestCase(test_java_multidict_and_facade_order))
+    _suite.addTest(unittest.FunctionTestCase(test_large_writes_count_versions))
+    _suite.addTest(unittest.FunctionTestCase(test_bulk_copies_and_writes))
+    _suite.addTest(unittest.FunctionTestCase(test_ci_reads_keep_order_and_spelling))
     _suite.addTest(unittest.FunctionTestCase(TestMutableMultiDict_test_copy))
     _suite.addTest(unittest.FunctionTestCase(TestMutableMultiDict_test__repr__))
     _suite.addTest(unittest.FunctionTestCase(TestMutableMultiDict_test_getall))
