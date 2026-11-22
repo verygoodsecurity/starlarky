@@ -249,8 +249,8 @@ var context = LarkyScriptContext.builder()
     .settings(settings)
     .writer(logWriter)
     .build();
-var evaluator = new LarkyScriptEvaluator();
-Object result = evaluator.compute(compiled, context, input, (run, value) -> run.call("process", value));
+Object result = LarkyScriptEvaluator.compute(
+    compiled, context, input, (run, value) -> run.call("process", value));
 ```
 
 The callback runs synchronously after the script's top level, on the same Starlark thread

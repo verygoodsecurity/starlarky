@@ -28,8 +28,6 @@ import org.junit.Test;
 
 public class LarkyCompiledComputationTest {
 
-  private final LarkyScriptEvaluator evaluator = new LarkyScriptEvaluator();
-
   @Test
   public void evaluatorUsesTheSuppliedScriptAndItsBindingPolicy() throws Exception {
     var permissive = new LarkyScriptEngine();
@@ -40,10 +38,12 @@ public class LarkyCompiledComputationTest {
     firstContext.setBindings(new SimpleBindings(Map.of("from_host", "first")), ScriptContext.GLOBAL_SCOPE);
     var secondContext = new LarkyScriptContext();
 
-    assertEquals("first", evaluator.compute(first, firstContext, null, (run, unused) -> run.call("process")));
-    assertEquals("second", evaluator.compute(second, secondContext, null, (run, unused) -> run.call("process")));
+    assertEquals("first",
+        LarkyScriptEvaluator.compute(first, firstContext, null, (run, unused) -> run.call("process")));
+    assertEquals("second",
+        LarkyScriptEvaluator.compute(second, secondContext, null, (run, unused) -> run.call("process")));
     assertThrows(LarkyGlobalScopeRefusedException.class, () ->
-        evaluator.compute(second, firstContext, null, (run, unused) -> run.call("process")));
+        LarkyScriptEvaluator.compute(second, firstContext, null, (run, unused) -> run.call("process")));
   }
 
   @Test
@@ -59,7 +59,7 @@ public class LarkyCompiledComputationTest {
     var context = new LarkyScriptContext();
     var scope = new AtomicReference<Computation.Scope>();
 
-    StarlarkList<?> result = evaluator.compute(compiled, context, "input", (run, input) -> {
+    StarlarkList<?> result = LarkyScriptEvaluator.compute(compiled, context, "input", (run, input) -> {
       scope.set(run);
       var output = (StarlarkList<?>) run.call("process", List.of(input), Map.of("suffix", ""));
       run.callMethod(output, "append", "host");
@@ -90,7 +90,8 @@ public class LarkyCompiledComputationTest {
       var context = new LarkyScriptContext();
       var logs = new StringWriter();
       context.setWriter(logs);
-      List<?> headers = evaluator.compute(compiled, context, List.of("@vgs//http/response"), shortCircuit, (run, stop) -> {
+      List<?> headers = LarkyScriptEvaluator.compute(
+          compiled, context, List.of("@vgs//http/response"), shortCircuit, (run, stop) -> {
         var constructor = run.export("@vgs//http/response", "VGSHttpResponse");
         Object input = run.callValue(constructor, List.of(), Map.of("status_code", 403, "body", "blocked"));
         Object result = run.call("process", input, Map.of("short", stop));
@@ -119,13 +120,13 @@ public class LarkyCompiledComputationTest {
             return values
         """, "steps.star");
     var baseline = new LarkyScriptContext();
-    evaluator.compute(compiled, baseline, null, (run, unused) -> run.call("process"));
+    LarkyScriptEvaluator.compute(compiled, baseline, null, (run, unused) -> run.call("process"));
 
     var context = new LarkyScriptContext();
     context.setSettings(EvaluationSettings.builder().stepLimit(baseline.metadata().executedSteps() + 1).build());
     var firstResult = new AtomicReference<StarlarkList<?>>();
     var failure = assertThrows(LarkyEvaluationScriptException.class, () ->
-        evaluator.compute(compiled, context, null, (run, unused) -> {
+        LarkyScriptEvaluator.compute(compiled, context, null, (run, unused) -> {
           firstResult.set((StarlarkList<?>) run.call("process"));
           return run.call("process");
         }));
@@ -146,7 +147,7 @@ public class LarkyCompiledComputationTest {
     var result = new AtomicReference<StarlarkList<?>>();
 
     assertThrows(LarkyEvaluationScriptException.class, () ->
-        evaluator.compute(compiled, context, null, (run, unused) -> {
+        LarkyScriptEvaluator.compute(compiled, context, null, (run, unused) -> {
           result.set((StarlarkList<?>) run.call("process"));
           CurrentEvaluation.requireThread().setClock(Clock.fixed(expiration.plusMillis(1), ZoneOffset.UTC));
           return result.get();
@@ -168,7 +169,7 @@ public class LarkyCompiledComputationTest {
             return values
         """, "caller.star");
 
-    evaluator.compute(compiled, new LarkyScriptContext(), List.of("helper"), null, (run, unused) -> {
+    LarkyScriptEvaluator.compute(compiled, new LarkyScriptContext(), List.of("helper"), null, (run, unused) -> {
       Object libraryValue = run.export("helper", "values");
       assertSame(libraryValue, run.call("process"));
       EvalException error = assertThrows(EvalException.class, () -> run.callMethod(libraryValue, "append", 1));
