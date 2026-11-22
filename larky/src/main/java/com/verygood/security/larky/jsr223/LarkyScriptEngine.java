@@ -2,6 +2,7 @@ package com.verygood.security.larky.jsr223;
 
 import com.verygood.security.larky.console.StreamWriterConsole;
 import com.verygood.security.larky.runtime.EvaluationSettings;
+import com.verygood.security.larky.parser.ParsedStarFile;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
@@ -536,7 +537,11 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
     return LarkyCalls.call(function(name, bindings), args, console(LarkyCalls.writer(context)), bindings, invocationSettings());
   }
 
-  /** Calls the method {@code name} of {@code thiz}, a value a script evaluated with this engine returned. */
+  /**
+   * Calls a method on an evaluated Starlark value. A {@link ParsedStarFile} receiver selects
+   * a global function from that file. The engine's current context supplies the call settings
+   * and log writer.
+   */
   @Override
   public Object invokeMethod(Object thiz, String name, Object... args)
       throws ScriptException, NoSuchMethodException {

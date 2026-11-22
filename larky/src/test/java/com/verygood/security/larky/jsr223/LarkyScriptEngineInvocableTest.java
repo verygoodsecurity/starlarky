@@ -150,6 +150,21 @@ public class LarkyScriptEngineInvocableTest {
   }
 
   @Test
+  public void invokeMethodResolvesFunctionsFromTheEvaluatedFile() throws Exception {
+    var engine = new LarkyScriptEngine();
+    engine.eval("def process(value): return 'engine ' + value\n");
+    Object first = engine.compile("def process(value): return 'first ' + value\n", "first.star")
+        .eval(new LarkyScriptContext());
+    Object second = engine.compile("def process(value): return 'second ' + value\n", "second.star")
+        .eval(new LarkyScriptContext());
+
+    assertEquals("first result", engine.invokeMethod(first, "process", "result"));
+    assertEquals("second result", engine.invokeMethod(second, "process", "result"));
+    assertEquals("engine result", engine.invokeFunction("process", "result"));
+    assertThrows(NoSuchMethodException.class, () -> engine.invokeMethod(first, "missing"));
+  }
+
+  @Test
   public void getInterfaceCallsTheFunctionsOfTheSameName() throws Exception {
     final Invocable engine = (Invocable) evaluated("def add(a, b):\n    return a + b\n");
 
