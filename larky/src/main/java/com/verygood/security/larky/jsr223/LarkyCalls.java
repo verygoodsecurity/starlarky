@@ -6,6 +6,7 @@ import com.verygood.security.larky.modules.utils.Reporter;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.EvaluationSettings;
 import com.verygood.security.larky.parser.LarkyEvaluator;
+import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.StarlarkUtil;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -82,7 +83,7 @@ final class LarkyCalls {
     }
   }
 
-  /** The method {@code name} of the Starlark value {@code thiz}. */
+  /** The named method of a Starlark value or global function of an evaluated file. */
   static StarlarkCallable method(Object thiz, String name) throws NoSuchMethodException {
     if (thiz == null) {
       throw new IllegalArgumentException("no object to call " + name + " on");
@@ -93,13 +94,16 @@ final class LarkyCalls {
     throw new NoSuchMethodException(Starlark.type(thiz) + " has no method " + name);
   }
 
-  /** Whether the Starlark value {@code thiz} has a method {@code name}. */
+  /** Whether the named method or global function is callable. */
   static boolean hasMethod(Object thiz, String name) {
     return attribute(thiz, name) instanceof StarlarkCallable;
   }
 
   @Nullable
   private static Object attribute(Object thiz, String name) {
+    if (thiz instanceof ParsedStarFile file) {
+      return file.getModule().getGlobal(name);
+    }
     try {
       return Starlark.getattr(Mutability.IMMUTABLE, LarkySemantics.LARKY_SEMANTICS, thiz, name, Starlark.NONE);
     } catch (EvalException e) {
