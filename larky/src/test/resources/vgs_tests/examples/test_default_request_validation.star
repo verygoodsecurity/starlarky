@@ -111,10 +111,10 @@ def _assert_passes(request):
 def _assert_401(request, public_key_alias=KEY_ALIAS):
     result = check_request(request, public_key_alias)
     asserts.assert_that(result.__name__).is_equal_to("ShortCircuitResponse")
-    asserts.assert_that(result.response.status_code).is_equal_to(401)
-    asserts.assert_that(json.loads(result.response.body.decode("utf-8"))).is_equal_to(
+    asserts.assert_that(result.status_code).is_equal_to(401)
+    asserts.assert_that(json.loads(result.body.decode("utf-8"))).is_equal_to(
         {"error": "unauthorized"})
-    asserts.assert_that(result.response.headers["WWW-Authenticate"]).is_equal_to(
+    asserts.assert_that(result.headers["WWW-Authenticate"]).is_equal_to(
         'Bearer error="invalid_token"')
 
 
@@ -232,7 +232,7 @@ def test_unknown_key_alias():
 def test_process_with_placeholder_alias():
     # process() uses PUBLIC_KEY_ALIAS, which is not in the test vault.
     result = process(_request("Bearer " + _token()), {})
-    asserts.assert_that(result.response.status_code).is_equal_to(401)
+    asserts.assert_that(result.status_code).is_equal_to(401)
 
 
 def _suite():

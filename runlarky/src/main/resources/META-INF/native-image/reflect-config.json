@@ -1141,6 +1141,10 @@
       "name": "com.verygood.security.larky.modules.types.structs.MutableStruct"
   },
   {
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.types.structs.ShortCircuitHttpResponse"
+  },
+  {
       "allDeclaredFields": true,
       "allDeclaredMethods": true,
       "allPublicMethods": true,
@@ -1155,6 +1159,31 @@
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.types.structs.SimpleStructWithMethods"
+  },
+  {
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.types.structs.HttpRequest",
+      "methods": [{ "name": "dunderDict", "parameterTypes": [] }]
+  },
+  {
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.types.structs.VgsHttpRequest",
+      "methods": [{ "name": "dunderDict", "parameterTypes": [] }]
+  },
+  {
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.types.structs.VgsHttpResponse",
+      "methods": [{ "name": "dunderDict", "parameterTypes": [] }]
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.HttpRequestNativeModule"
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.vgs.HttpResponseNativeModule"
   },
   {
       "allDeclaredFields": true,

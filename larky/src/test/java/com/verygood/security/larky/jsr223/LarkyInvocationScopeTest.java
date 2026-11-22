@@ -8,6 +8,8 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.modules.types.structs.ShortCircuitHttpResponse;
+import com.verygood.security.larky.modules.types.structs.VgsHttpResponse;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.EvaluationMetadata;
 import com.verygood.security.larky.parser.EvaluationSettings;
@@ -17,8 +19,10 @@ import java.util.List;
 import java.util.Map;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.Mutability;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
+import net.starlark.java.eval.Tuple;
 import org.junit.Test;
 
 public class LarkyInvocationScopeTest {
@@ -89,6 +93,36 @@ public class LarkyInvocationScopeTest {
 
       assertSame(headers, result);
       assertEquals("value", headers.get("new"));
+    }
+  }
+
+  @Test
+  public void borrowedInvocationReturnsATypedShortCircuitWithOrderedHeaders() throws Exception {
+    var engine = new LarkyScriptEngine();
+    var file = engine.eval("""
+        load("@vgs//http/response", "VGSHttpResponse")
+        load("@vgs//proxy", "proxy")
+
+        def process(stop):
+            response = proxy.ShortCircuitResponse(body="blocked", status_code=403) if stop else VGSHttpResponse()
+            response.__name__ = "ShortCircuitResponse"
+            response.append_header("Set-Cookie", "first=1")
+            response.append_header("set-cookie", "second=2")
+            return response
+        """);
+    var mutability = Mutability.create("host-http");
+    var thread = StarlarkThread.createTransient(mutability, LarkySemantics.LARKY_SEMANTICS);
+    try (mutability; var scope = CurrentEvaluation.enter(thread)) {
+      var response = (ShortCircuitHttpResponse) engine.invokeMethodInScope(thread, file, "process", true);
+      assertEquals("blocked", response.body(thread));
+      assertEquals(StarlarkInt.of(403), response.statusCode(thread));
+      assertNull(response.getValue("response"));
+      var headers = response.headerItems(thread);
+      assertEquals(List.of(Tuple.pair("Set-Cookie", "first=1"), Tuple.pair("set-cookie", "second=2")), headers);
+      var ordinaryResponse = (VgsHttpResponse) engine.invokeMethodInScope(thread, file, "process", false);
+      assertEquals("ShortCircuitResponse", ordinaryResponse.getValue("__name__"));
+      assertFalse(ordinaryResponse instanceof ShortCircuitHttpResponse);
+      assertFalse(mutability.isFrozen());
     }
   }
 

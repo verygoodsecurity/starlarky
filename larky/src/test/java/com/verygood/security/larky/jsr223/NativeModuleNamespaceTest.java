@@ -54,4 +54,16 @@ public class NativeModuleNamespaceTest {
     assertThat(e.getMessage())
         .contains("cannot load '@stdlib//vault': vault is a @vgs module; load it as '@vgs//vault'");
   }
+
+  @Test
+  public void nativeHttpResponseFactoryIsVgsOnly() throws Exception {
+    eval("load('@vgs//http_response_native', 'http_response_native')\nbuild = http_response_native.create\n");
+
+    ScriptException wrongNamespace = assertThrows(ScriptException.class,
+        () -> eval("load('@stdlib//http_response_native', 'http_response_native')\n"));
+    assertThat(wrongNamespace.getMessage()).contains("load it as '@vgs//http_response_native'");
+
+    ScriptException missingGlobal = assertThrows(ScriptException.class, () -> eval("build = _http_response\n"));
+    assertThat(missingGlobal.getMessage()).contains("name '_http_response' is not defined");
+  }
 }

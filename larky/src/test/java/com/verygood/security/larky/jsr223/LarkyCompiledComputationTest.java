@@ -8,6 +8,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.verygood.security.larky.modules.types.structs.ShortCircuitHttpResponse;
 import com.verygood.security.larky.parser.Computation;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.EvaluationMetadata;
@@ -80,10 +81,13 @@ public class LarkyCompiledComputationTest {
     var compiled = new LarkyScriptEngine().compile("""
         load("@vgs//proxy", "proxy")
         def process(response, ctx):
+            if ctx["short"]:
+                response = proxy.ShortCircuitResponse(
+                    body=response.body, headers=response.headers, status_code=response.status_code)
             response.append_header("Set-Cookie", "first=1")
             ctx["seen"] = True
             print("handled")
-            return proxy.ShortCircuitResponse(response) if ctx["short"] else response
+            return response
         """, "atlas.star");
 
     for (boolean shortCircuit : List.of(false, true)) {
@@ -94,11 +98,8 @@ public class LarkyCompiledComputationTest {
           compiled, context, List.of("@vgs//http/response"), shortCircuit, (run, stop) -> {
         var constructor = run.export("@vgs//http/response", "VGSHttpResponse");
         Object input = run.callValue(constructor, List.of(), Map.of("status_code", 403, "body", "blocked"));
-        Object result = run.call("process", input, Map.of("short", stop));
-        boolean shortCircuitResult =
-            "ShortCircuitResponse".equals(run.getField(result, "__name__"));
-        assertEquals(stop, shortCircuitResult);
-        Object response = shortCircuitResult ? run.getField(result, "response") : result;
+        Object response = run.call("process", input, Map.of("short", stop));
+        assertEquals(stop, response instanceof ShortCircuitHttpResponse);
         assertSame(constructor, run.getField(response, "__class__"));
         run.callMethod(response, "append_header", "set-cookie", "second=2");
         return List.copyOf((List<?>) run.callMethod(run.getField(response, "headers"), "items"));

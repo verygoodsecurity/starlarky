@@ -10,7 +10,7 @@ the request reach the upstream:
 check_request verifies the token's signature with the issuer's public key and
 checks its "exp", "nbf", "aud" and "iss" claims with jose.jwt.decode. It
 returns the request unchanged when the token is valid, or a
-proxy.ShortCircuitResponse wrapping a 401 VGSHttpResponse when it is not.
+proxy.ShortCircuitResponse with status 401 when it is not.
 
 The public key. A real route keeps the PEM in the vault and the script holds
 only its alias; vault.reveal returns the PEM at run time. PUBLIC_KEY_ALIAS
@@ -38,7 +38,6 @@ load("@stdlib//json", json="json")
 load("@stdlib//types", types="types")
 load("@vendor//jose", jwt="jwt")
 load("@vendor//option/result", Result="Result")
-load("@vgs//http/response", "VGSHttpResponse")
 load("@vgs//proxy", "proxy")
 load("@vgs//vault", "vault")
 
@@ -67,14 +66,14 @@ DECODE_OPTIONS = {
 def unauthorized():
     """A ShortCircuitResponse that answers 401 without calling the upstream."""
     body = json.dumps({"error": "unauthorized"})
-    return proxy.ShortCircuitResponse(VGSHttpResponse(
+    return proxy.ShortCircuitResponse(
         body=bytes(body, encoding="utf-8"),
         headers={
             "Content-Type": "application/json",
             "WWW-Authenticate": 'Bearer error="invalid_token"',
         },
         status_code=401,
-    ))
+    )
 
 
 def bearer_token(request):
