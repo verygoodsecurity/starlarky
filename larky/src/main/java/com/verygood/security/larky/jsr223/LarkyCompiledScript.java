@@ -6,9 +6,11 @@ import java.io.IOException;
 import java.io.Reader;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.parser.Computation;
 import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
 import com.verygood.security.larky.parser.EvaluationMetadata;
 import com.verygood.security.larky.parser.EvaluationSettings;
@@ -260,19 +262,7 @@ public class LarkyCompiledScript extends CompiledScript {
         new java.util.concurrent.atomic.AtomicReference<>();
 
     try {
-      String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
-      String scriptName = cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
-
-      final StarFile script;
-      if (modules.isEmpty() && cacheNamespace.isEmpty()) {
-        script = InMemMapBackedStarFile.createStarFile(scriptName, source);
-      } else {
-        ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
-        files.put(scriptName, source.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        modules.forEach(
-            (name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
-      }
+      StarFile script = interpretedFile(context);
       final DefaultLarkyInterpreter larkyInterpreter =
           new DefaultLarkyInterpreter(LARKY_MODE, settings, globalBindings, engineBindings);
       result = larkyInterpreter.evaluate(script, context.getWriter(), metadata::set);
@@ -290,6 +280,55 @@ public class LarkyCompiledScript extends CompiledScript {
     }
     setBindingsValue(globalBindings, engineBindings, result.getGlobals());
     return result;
+  }
+
+  /**
+   * Evaluates the entry module and runs the host computation before its values freeze.
+   * Bindings supply evaluation inputs. The computation returns its result directly and records
+   * execution metadata on {@code context}. Use a context per invocation.
+   */
+  public <I, O> O compute(LarkyScriptContext context, I input, Computation<I, O> computation)
+      throws LarkyEvaluationScriptException {
+    return compute(context, List.of(), input, computation);
+  }
+
+  /**
+   * As {@link #compute(LarkyScriptContext, Object, Computation)}, with additional modules for
+   * the host to use through {@link Computation.Scope#export}. These modules use the normal
+   * script loader and are already frozen when the computation begins.
+   */
+  public <I, O> O compute(
+      LarkyScriptContext context, List<String> imports, I input, Computation<I, O> computation)
+      throws LarkyEvaluationScriptException {
+    Objects.requireNonNull(computation, "computation");
+    context.setMetadata(null);
+    try {
+      var interpreter = new DefaultLarkyInterpreter(
+          LARKY_MODE, context.getSettings(), engine.globalBindings(context),
+          context.getBindings(ScriptContext.ENGINE_SCOPE));
+      return interpreter.compute(
+          interpretedFile(context), context.getWriter(), imports, input, computation, context::setMetadata);
+    } catch (IOException | InterruptedException | EvalException | StarlarkEvalWrapper.Exc.RuntimeEvalException
+             | Starlark.UncheckedEvalException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      var failure = LarkyEvaluationScriptException.of(e).withMetadataIfAbsent(context.metadata());
+      context.setMetadata(failure.metadata());
+      throw failure;
+    }
+  }
+
+  private StarFile interpretedFile(ScriptContext context) throws IOException {
+    String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
+    String scriptName = cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
+    if (modules.isEmpty() && cacheNamespace.isEmpty()) {
+      return InMemMapBackedStarFile.createStarFile(scriptName, source);
+    }
+    ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
+    files.put(scriptName, source.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    modules.forEach((name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    return new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
   }
 
   /**

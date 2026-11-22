@@ -238,6 +238,21 @@ JSR-223 hosts supply per-run limits and module providers through
 to inspect reasons that modules were kept private. Hosts using `LarkyScript` directly
 can pass the settings to the evaluation overload.
 
+### Calling a compiled script within one evaluation
+
+Java hosts can build Starlark inputs, call script functions, and inspect or update their
+results with `LarkyCompiledScript.compute`.
+
+```java
+Object result = compiled.compute(context, input, (run, value) -> run.call("process", value));
+```
+
+The callback runs synchronously after the script's top level, on the same Starlark thread
+and with the same limits and log writer. It can call other functions and mutate values
+owned by this evaluation until it returns. Those values freeze when the scope closes,
+including on failure. Loaded library globals are already frozen. The result goes back
+to Java and the evaluation metadata is available on `context`.
+
 ### Shipping a host-owned module next to a script
 
 A host that runs a customer's script through the JSR223 engine can pass other files with it in
