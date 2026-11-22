@@ -96,6 +96,23 @@ public class DefaultLarkyInterpreter {
     return larkyScript.evaluate(script, moduleSet, console, metadata);
   }
 
+  /** Executes a host computation with the entry module still mutable. */
+  public <I, O> O compute(
+      StarFile script, Writer writer, java.util.List<String> imports, I input,
+      Computation<I, O> computation, java.util.function.Consumer<EvaluationMetadata> metadata)
+      throws IOException, EvalException, InterruptedException {
+    String verbose = interpreter.getGlobals().getOrDefault(VERBOSE, "false").toString();
+    var console = new StreamWriterConsole(writer, Boolean.parseBoolean(verbose));
+    var evaluator = new LarkyEvaluator(interpreter, moduleSet, console);
+    try {
+      return evaluator.compute(script, imports, input, computation);
+    } finally {
+      if (evaluator.lastMetadata() != null) {
+        metadata.accept(evaluator.lastMetadata());
+      }
+    }
+  }
+
   public ParsedStarFile evaluate(StarFile script, Console console) throws IOException, EvalException {
     return larkyScript.evaluate(script, moduleSet, console);
   }

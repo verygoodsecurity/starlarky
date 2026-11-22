@@ -204,15 +204,60 @@ public final class LarkyEvaluator {
   public EvaluationResult eval(StarFile content)
       throws IOException, InterruptedException, EvalException {
     if (evalDepth > 0) {
-      return evalFile(content);
+      return evalFile(content, null);
     }
+    return evalEntry(content, null);
+  }
+
+  <I, O> O compute(StarFile content, List<String> imports, I input, Computation<I, O> computation)
+      throws IOException, InterruptedException, EvalException {
+    var pending = new PendingComputation<>(List.copyOf(imports), input, computation);
+    evalEntry(content, pending);
+    return pending.output;
+  }
+
+  private static final class PendingComputation<I, O> {
+    final List<String> imports;
+    final I input;
+    final Computation<I, O> computation;
+    O output;
+
+    PendingComputation(List<String> imports, I input, Computation<I, O> computation) {
+      this.imports = imports;
+      this.input = input;
+      this.computation = computation;
+    }
+
+    void run(Module module, Map<String, Module> loadedModules, StarlarkThread thread)
+        throws EvalException, InterruptedException {
+      checkComputationLimits(thread);
+      var scope = new Computation.Scope(module, loadedModules, thread.mutability());
+      output = computation.run(scope, input);
+      checkComputationLimits(thread);
+    }
+  }
+
+  private static void checkComputationLimits(StarlarkThread thread) throws EvalException, InterruptedException {
+    if (Thread.interrupted()) {
+      throw new InterruptedException();
+    }
+    if (thread.getExecutedSteps() >= thread.getMaxExecutionSteps()) {
+      throw Starlark.errorf(TOO_MANY_STEPS);
+    }
+    if (thread.getExpirationMs() != Long.MAX_VALUE && thread.isExpired()) {
+      throw Starlark.errorf(PAST_EXPIRATION);
+    }
+  }
+
+  private EvaluationResult evalEntry(StarFile content, @Nullable PendingComputation<?, ?> computation)
+      throws IOException, InterruptedException, EvalException {
     evalDepth++;
     evaluationSteps = 0;
     libraryInitSteps = 0;
     failure = null;
     long start = System.nanoTime();
     try {
-      EvaluationResult result = evalFile(content);
+      EvaluationResult result = evalFile(content, computation);
       lastMetadata = metadata(EvaluationMetadata.Outcome.OK, start);
       return result;
     } catch (StarlarkEvalWrapper.Exc.RuntimeEvalException e) {
@@ -266,7 +311,7 @@ public final class LarkyEvaluator {
     return EvaluationMetadata.Outcome.SCRIPT_ERROR;
   }
 
-  private EvaluationResult evalFile(StarFile content)
+  private EvaluationResult evalFile(StarFile content, @Nullable PendingComputation<?, ?> computation)
       throws IOException, InterruptedException, EvalException {
     if (pending.contains(content.path())) {
       throw throwCycleError(content.path());
@@ -278,7 +323,7 @@ public final class LarkyEvaluator {
           .build();
     }
     ResourceContentStarFile library =
-        content instanceof ResourceContentStarFile resource && resource.isBundledLibrary()
+        computation == null && content instanceof ResourceContentStarFile resource && resource.isBundledLibrary()
             ? resource
             : null;
     boolean libraryFile = library != null;
@@ -327,6 +372,14 @@ public final class LarkyEvaluator {
       loadedModules = processLoads(content, prog.loads());
     }
 
+    if (computation != null && !computation.imports.isEmpty()) {
+      List<String> extraLoads = new ArrayList<>(computation.imports);
+      extraLoads.removeAll(loadedModules.keySet());
+      if (!extraLoads.isEmpty()) {
+        loadedModules.putAll(processLoads(content, extraLoads));
+      }
+    }
+
     Object starlarkOutput;
 
     // execute
@@ -340,6 +393,9 @@ public final class LarkyEvaluator {
 
       try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
         starlarkOutput = prog.exec(module, thread);
+        if (computation != null) {
+          computation.run(module, loadedModules, thread);
+        }
       } catch (EvalException cause) {
         if (failure == null) {
           failure = failureOf(thread, cause);
