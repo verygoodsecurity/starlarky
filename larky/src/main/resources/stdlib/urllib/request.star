@@ -78,6 +78,7 @@ load("@stdlib//re", re="re")
 load("@stdlib//types", types="types")
 load("@stdlib//urllib/parse", parse="parse")
 load("@vendor//option/result", Result="Result", Error="Error")
+load("@stdlib//http_request_native", _native_request="http_request_native")
 
 
 __all__ = [
@@ -162,7 +163,21 @@ def parse_http_list(s):
 
     return [part.strip() for part in res]
 
-def Request(
+def _set_item(mapping, key, value):
+    mapping[key] = value
+
+
+def _contains(mapping, key):
+    return key in mapping
+
+
+def _copy_header_items(self, headers):
+    for key, value in headers.items():
+        self.add_header(key, value)
+
+
+def _initialize_request(
+    self,
     url,
     data=None,
     headers={},
@@ -170,47 +185,27 @@ def Request(
     unverifiable=False,
     method=None
 ):
-    self = larky.mutablestruct(__name__ = "Request", __class__ = Request)
-
-    # full_url property
+    # Keep the bound closures as Starlark functions with their existing signatures. In
+    # particular, scripts can inspect and replace these fields or call __init__ again.
     def _get_full_url():
-        if self.fragment:
-            return "{}#{}".format(self._full_url, self.fragment)
-        return self._full_url
+        return _native_request.full_url(self)
     def _set_full_url(url):
-        # unwrap('<URL:type://host/path>') --> 'type://host/path'
-        self._full_url = unwrap(url)
-        self._full_url, self.fragment = _splittag(self._full_url)
-        self._parse()
+        _native_request.set_full_url(self, url, parse)
     self.full_url = larky.property(_get_full_url, _set_full_url)
 
-    # data property
     def _get_data():
         return self._data
-
     def _set_data(data):
-        if data != self._data:
-            self._data = data
-            # issue 16464
-            # if we change data we need to remove content-length header
-            # (cause it's most probably calculated for previous value)
-            if self.has_header("Content-length"):
-                self.remove_header("Content-length")
+        _native_request.set_data(self, data)
     self.data = larky.property(_get_data, _set_data)
 
     def _parse():
-        self.type, rest = parse._splittype(self._full_url)
-        if self.type == None:
-            fail("ValueError: " + "unknown url type: %r" % self.full_url)
-        self.host, self.selector = parse._splithost(rest)
-        if self.host:
-            self.host = parse.unquote(self.host)
+        _native_request.parse_url(self, parse)
     self._parse = _parse
 
     def get_method():
         """Return a string indicating the HTTP request method."""
-        default_method = "POST" if self.data != None else "GET"
-        return getattr(self, "method", default_method)
+        return _native_request.get_method(self, getattr)
     self.get_method = get_method
 
     def get_full_url():
@@ -218,51 +213,36 @@ def Request(
     self.get_full_url = get_full_url
 
     def set_proxy(host, type):
-        if self.type == "https" and not self._tunnel_host:
-            self._tunnel_host = self.host
-        else:
-            self.type = type
-            self.selector = self.full_url
-        self.host = host
+        _native_request.set_proxy(self, host, type)
     self.set_proxy = set_proxy
 
     def has_proxy():
-        return self.selector == self.full_url
+        return _native_request.has_proxy(self)
     self.has_proxy = has_proxy
 
     def add_header(key, val):
-        # useful for something like authentication
-        self.headers[key.capitalize()] = val
+        _native_request.add_header(self, "headers", key, val, True, _set_item)
     self.add_header = add_header
 
     def add_unredirected_header(key, val):
-        # will not be added to a redirected request
-        self.unredirected_hdrs[key.capitalize()] = val
+        _native_request.add_header(self, "unredirected_hdrs", key, val, True, _set_item)
     self.add_unredirected_header = add_unredirected_header
 
     def has_header(header_name):
-        return header_name in self.headers or header_name in self.unredirected_hdrs
+        return _native_request.has_header(self, header_name, _contains)
     self.has_header = has_header
 
     def get_header(header_name, default=None):
-        return self.headers.get(
-            header_name,
-            self.unredirected_hdrs.get(header_name, default)
-        )
+        return _native_request.get_header(self, header_name, default)
     self.get_header = get_header
 
     def remove_header(header_name):
-        self.headers.pop(header_name, None)
-        self.unredirected_hdrs.pop(header_name, None)
+        _native_request.remove_header(self, header_name)
     self.remove_header = remove_header
 
     def header_items():
-        hdrs = {}
-        hdrs.update(self.unredirected_hdrs)
-        hdrs.update(self.headers)
-        return list(hdrs.items())
+        return _native_request.header_items(self)
     self.header_items = header_items
-
 
     def __init__(
         url,
@@ -272,29 +252,23 @@ def Request(
         unverifiable=False,
         method=None
     ):
-        self.full_url = url
-        self.unredirected_hdrs = {}
-        self.headers = {}
-        self._data = None
-        self.data = data
-        self._tunnel_host = None
-        for key, value in headers.items():
-            self.add_header(key, value)
-        if origin_req_host == None:
-            origin_req_host = request_host(self)
-        self.origin_req_host = origin_req_host
-        self.unverifiable = unverifiable
-        if method:
-            self.method = method
-        return self
+        return _native_request.initialize(
+            self, url, data, headers, origin_req_host, unverifiable, method,
+            request_host, _copy_header_items,
+        )
     self.__init__ = __init__
 
     self.__init__(url, data, headers, origin_req_host, unverifiable, method)
-
     return self
+
+
+def Request(url, data=None, headers={}, origin_req_host=None, unverifiable=False, method=None):
+    self = _native_request.create_generic(Request)
+    return _initialize_request(self, url, data, headers, origin_req_host, unverifiable, method)
 
 
 request = larky.struct(
     __name__='request',
     Request=Request,
+    _initialize=_initialize_request,
 )

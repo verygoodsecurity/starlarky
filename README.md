@@ -184,6 +184,11 @@ mvn test -pl larky -am -Dtest=VGSLibTests -Dlarky.vgs_test=test_default_request_
 
 ### Preserving repeated HTTP response headers
 
+```python
+load("@vgs//http/request", "VGSHttpRequest")
+load("@vgs//http/response", "VGSHttpResponse", "ShortCircuitResponse")
+```
+
 The `VGSHttpResponse` constructor and `response.headers` assignment accept a
 dict or a sequence of `(name, value)` pairs. `response.headers.items()` returns
 every header line in insertion order, with its original name spelling.
@@ -204,7 +209,7 @@ as separate header lines.
 reads `Authorization: Bearer <JWT>`, verifies the token with the issuer's public key (kept in
 the vault and revealed by alias), checks `exp`, `nbf`, `aud` and `iss` with
 `load("@vendor//jose", "jwt")`, and answers `401` with
-`proxy.ShortCircuitResponse(VGSHttpResponse(status_code=401, ...))` when any check fails.
+`proxy.ShortCircuitResponse(status_code=401, ...)` when any check fails.
 
 - **Algorithms.** `jwt.decode` verifies JWS signatures made with HS256, HS384, HS512 (HMAC),
   RS256, RS384, RS512 (RSA PKCS#1 v1.5) and ES256, ES384, ES512 (ECDSA), as listed in

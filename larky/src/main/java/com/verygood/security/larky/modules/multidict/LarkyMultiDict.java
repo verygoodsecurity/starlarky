@@ -182,6 +182,22 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
     return store.mutability;
   }
 
+  /**
+   * Gives {@code visitor} each (key, value) pair, in order, without copying them: what items()
+   * returns, for hosts that read the headers natively. Returns false, visiting nothing, when an
+   * items attribute set on the instance replaces items(); the host then calls it instead. The
+   * visitor must not change the multidict.
+   */
+  public boolean visitItems(java.util.function.BiConsumer<Object, Object> visitor) {
+    if (attrs.containsKey("items")) {
+      return false;
+    }
+    for (Entry e : store.entries) {
+      visitor.accept(e.key(), e.value());
+    }
+    return true;
+  }
+
   /** The multidict's change counter: 1 when created empty, plus one per change. */
   int version() {
     return store.version;

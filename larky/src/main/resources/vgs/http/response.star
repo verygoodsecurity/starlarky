@@ -1,41 +1,13 @@
-load("@stdlib//larky", larky="larky")
 load("@vgs//http/headers", "VGSCIMultiDict")
+load("@vgs//http_response_native", _native_response="http_response_native")
 
-def VGSHttpResponse(
-    body=None,
-    headers=None,
-    status_code=200
-):
 
-    """Build a response with ordered, case-insensitive headers."""
-    self = larky.mutablestruct(__name__ = "VGSHttpResponse", __class__ = VGSHttpResponse)
-
-    # body property
-    def _get_body():
-        return self._body
-
-    def _set_body(body):
-        if body != self._body:
-            self._body = body
-            # The stored length applies to the previous body (issue 16464).
-            self.headers.popall("Content-Length", [])
-    self.body = larky.property(_get_body, _set_body)
+def _make_response(body, headers, status_code, short_circuit):
+    self = _native_response.create(VGSHttpResponse, VGSCIMultiDict, body, headers or {}, status_code, short_circuit)
 
     def add_header(key, val):
         self.headers[key] = val
     self.add_header = add_header
-
-    self._body = body
-    headers = headers or {}
-
-    self._headers = VGSCIMultiDict(headers)
-
-    def _get_headers():
-        return self._headers
-
-    def _set_headers(value):
-        self._headers = VGSCIMultiDict(value)
-    self.headers = larky.property(_get_headers, _set_headers)
 
     def append_header(key, val):
         self.headers.add(key, val)
@@ -49,5 +21,18 @@ def VGSHttpResponse(
         return self.headers.getall(key, [])
     self.get_all_headers = get_all_headers
 
-    self.status_code = status_code
     return self
+
+
+def VGSHttpResponse(body=None, headers=None, status_code=200):
+    """Build a response with ordered, case-insensitive headers."""
+    return _make_response(body, headers, status_code, False)
+
+
+def ShortCircuitResponse(body=None, headers=None, status_code=200):
+    """Build a final HTTP response and stop processing the message.
+
+    In the request phase the upstream is not called. In either phase the remaining filters are
+    skipped.
+    """
+    return _make_response(body, headers, status_code, True)
