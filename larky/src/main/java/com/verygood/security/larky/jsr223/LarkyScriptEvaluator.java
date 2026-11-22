@@ -29,12 +29,14 @@ import net.starlark.java.eval.StarlarkEvalWrapper;
 /** Executes compiled scripts for Java hosts. Each invocation creates its own evaluation. */
 public final class LarkyScriptEvaluator {
 
+  private LarkyScriptEvaluator() {}
+
   /**
    * Evaluates the entry module and runs the host computation before its values freeze.
    * Bindings supply evaluation inputs. The computation returns its result directly and records
    * execution metadata on {@code context}. Use a context per invocation.
    */
-  public <I, O> O compute(
+  public static <I, O> O compute(
       LarkyCompiledScript script, LarkyScriptContext context, I input, Computation<I, O> computation)
       throws LarkyEvaluationScriptException {
     return compute(script, context, List.of(), input, computation);
@@ -45,7 +47,7 @@ public final class LarkyScriptEvaluator {
    * the host to use through {@link Computation.Scope#export}. These modules use the normal
    * script loader and are already frozen when the computation begins.
    */
-  public <I, O> O compute(
+  public static <I, O> O compute(
       LarkyCompiledScript script,
       LarkyScriptContext context,
       List<String> imports,
