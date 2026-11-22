@@ -1,0 +1,121 @@
+package com.verygood.security.larky.jsr223;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
+
+import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.parser.EvaluationMetadata;
+import com.verygood.security.larky.parser.EvaluationSettings;
+import java.io.StringWriter;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import net.starlark.java.eval.Dict;
+import net.starlark.java.eval.Mutability;
+import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkThread;
+import org.junit.Test;
+
+public class LarkyInvocationScopeTest {
+
+  @Test
+  public void invocationConvertsJavaCollectionsInItsMutableScope() throws Exception {
+    var engine = new LarkyScriptEngine();
+    engine.eval("""
+        def process(headers):
+            headers["X-Test"].append("second")
+            headers["X-New"] = ["added"]
+            return headers
+        """);
+    var input = Map.of("X-Test", List.of("first"));
+
+    var result = (Dict<?, ?>) engine.invokeFunction("process", input);
+
+    assertEquals(List.of("first", "second"), result.get("X-Test"));
+    assertEquals(List.of("added"), result.get("X-New"));
+    assertEquals(Map.of("X-Test", List.of("first")), input);
+    assertTrue(result.mutability().isFrozen());
+  }
+
+  @Test
+  public void invocationBorrowsTheOwnersThreadAndLeavesItsValuesMutable() throws Exception {
+    var engine = new LarkyScriptEngine();
+    var file = engine.eval("""
+        def process(values):
+            print("from borrowed thread")
+            values.append("script")
+            return values
+        """);
+    StarlarkList<?> result;
+    var logs = new StringBuilder();
+    var mutability = Mutability.create("host");
+    var thread = StarlarkThread.createTransient(mutability, LarkySemantics.LARKY_SEMANTICS);
+    thread.setPrintHandler((running, message) -> logs.append(message));
+    try (mutability) {
+      result = (StarlarkList<?>) engine.invokeMethodInScope(thread, file, "process", List.of("input"));
+      assertSame(mutability, result.mutability());
+      assertFalse(result.mutability().isFrozen());
+      engine.invokeMethodInScope(thread, result, "append", "host");
+      assertEquals(List.of("input", "script", "host"), List.copyOf(result));
+      assertEquals("from borrowed thread", logs.toString());
+      assertNull(CurrentEvaluation.currentOrNull());
+
+      thread.setMaxExecutionSteps(thread.getExecutedSteps() + 1);
+      assertThrows(LarkyEvaluationScriptException.class, () ->
+          engine.invokeMethodInScope(thread, file, "process", List.of("input")));
+      assertFalse(mutability.isFrozen());
+      assertNull(CurrentEvaluation.currentOrNull());
+    }
+    assertTrue(result.mutability().isFrozen());
+    assertThrows(IllegalStateException.class, () ->
+        engine.invokeMethodInScope(thread, file, "process", List.of("input")));
+  }
+
+  @Test
+  public void borrowingPreservesTheIdentityOfAnExistingStarlarkDictionary() throws Exception {
+    var engine = new LarkyScriptEngine();
+    var file = engine.eval("def process(headers):\n    headers['new'] = 'value'\n    return headers\n");
+    try (var mutability = Mutability.create("host-dict")) {
+      var thread = StarlarkThread.createTransient(mutability, LarkySemantics.LARKY_SEMANTICS);
+      var headers = Dict.<String, Object>of(mutability);
+      headers.putEntry("old", StarlarkList.copyOf(mutability, List.of("value")));
+
+      var result = engine.invokeMethodInScope(thread, file, "process", headers);
+
+      assertSame(headers, result);
+      assertEquals("value", headers.get("new"));
+    }
+  }
+
+  @Test
+  public void explicitInvocationContextOwnsTheWriterAndMetadata() throws Exception {
+    var engine = new LarkyScriptEngine();
+    var loadContext = LarkyScriptContext.builder().build();
+    var file = engine.eval("""
+        def process(value):
+            print(value)
+            return value
+        """, loadContext);
+    var loadMetadata = loadContext.metadata();
+    var writer = new StringWriter();
+    var callContext = LarkyScriptContext.builder().writer(writer).build();
+
+    assertEquals("hello", engine.invokeMethodWithContext(callContext, file, "process", "hello"));
+    assertEquals("hello\n", writer.toString());
+    assertEquals(EvaluationMetadata.Outcome.OK, callContext.metadata().outcome());
+    assertTrue(callContext.metadata().executedSteps() > 0);
+    assertSame(loadMetadata, loadContext.metadata());
+
+    callContext.setSettings(EvaluationSettings.builder().expiration(Instant.EPOCH).build());
+    var error = assertThrows(LarkyEvaluationScriptException.class, () ->
+        engine.invokeMethodWithContext(callContext, file, "process", "late"));
+    assertEquals(EvaluationMetadata.Outcome.DEADLINE, callContext.metadata().outcome());
+    assertSame(callContext.metadata(), error.metadata());
+    assertSame(loadMetadata, loadContext.metadata());
+  }
+}

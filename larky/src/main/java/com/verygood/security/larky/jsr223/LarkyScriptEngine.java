@@ -1,7 +1,6 @@
 package com.verygood.security.larky.jsr223;
 
 import com.verygood.security.larky.console.StreamWriterConsole;
-import com.verygood.security.larky.runtime.EvaluationSettings;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -24,6 +23,7 @@ import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import javax.script.SimpleScriptContext;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkThread;
 
 public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
 
@@ -532,9 +532,9 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
    */
   @Override
   public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
-    checkGlobalScope(context);
-    final Map<String, Object> bindings = bindings();
-    return LarkyCalls.call(function(name, bindings), args, console(LarkyCalls.writer(context)), bindings, invocationSettings());
+    ScriptContext callContext = context;
+    var bindings = invocationBindings(callContext);
+    return LarkyCalls.call(function(name, bindings), args, console(LarkyCalls.writer(callContext)), bindings, callContext);
   }
 
   /**
@@ -545,14 +545,32 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
   @Override
   public Object invokeMethod(Object thiz, String name, Object... args)
       throws ScriptException, NoSuchMethodException {
-    checkGlobalScope(context);
-    final Map<String, Object> bindings = bindings();
-    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(LarkyCalls.writer(context)), bindings, invocationSettings());
+    return invokeMethodWithContext(context, thiz, name, args);
+  }
+
+  /**
+   * Invokes using the given context for settings and logs. A Larky context receives this call's
+   * metadata. The result's mutability closes when the call returns.
+   */
+  public Object invokeMethodWithContext(ScriptContext callContext, Object thiz, String name, Object... args)
+      throws ScriptException, NoSuchMethodException {
+    var bindings = invocationBindings(callContext);
+    return LarkyCalls.call(
+        LarkyCalls.method(thiz, name), args, console(LarkyCalls.writer(callContext)), bindings, callContext);
+  }
+
+  /**
+   * Invokes on a caller-owned Starlark thread. The caller configures the thread, uses it on one
+   * Java thread at a time, and closes its mutability after it finishes handling live values.
+   */
+  public Object invokeMethodInScope(StarlarkThread thread, Object thiz, String name, Object... args)
+      throws ScriptException, NoSuchMethodException {
+    return LarkyCalls.callMethodInScope(thread, thiz, name, args);
   }
 
   @Override
   public <T> T getInterface(Class<T> type) {
-    final Map<String, Object> bindings = bindings();
+    final Map<String, Object> bindings = bindings(context);
     return LarkyCalls.proxy(type, name -> bindings.get(name) instanceof StarlarkCallable, this::invokeFunction);
   }
 
@@ -573,10 +591,10 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
   }
 
   /** The context's bindings, engine scope over global scope (global only as this engine reads it). */
-  private Map<String, Object> bindings() {
+  private Map<String, Object> bindings(ScriptContext callContext) {
     final Map<String, Object> bindings = new HashMap<>();
-    final Bindings global = globalScope == GlobalScope.JSR223 ? context.getBindings(ScriptContext.GLOBAL_SCOPE) : null;
-    final Bindings engine = context.getBindings(ScriptContext.ENGINE_SCOPE);
+    final Bindings global = globalScope == GlobalScope.JSR223 ? callContext.getBindings(ScriptContext.GLOBAL_SCOPE) : null;
+    final Bindings engine = callContext.getBindings(ScriptContext.ENGINE_SCOPE);
     if (global != null) {
       bindings.putAll(global);
     }
@@ -586,10 +604,12 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
     return bindings;
   }
 
-  private EvaluationSettings invocationSettings() {
-    return context instanceof LarkyScriptContext larkyContext
-        ? larkyContext.getSettings()
-        : EvaluationSettings.NONE;
+  private Map<String, Object> invocationBindings(ScriptContext callContext) throws ScriptException {
+    if (callContext instanceof LarkyScriptContext larky) {
+      larky.setMetadata(null);
+    }
+    checkGlobalScope(callContext);
+    return bindings(callContext);
   }
 
   StreamWriterConsole console(Writer writer) {
