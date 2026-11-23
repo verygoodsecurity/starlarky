@@ -41,7 +41,7 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
     TokenKind.GREATER,
     TokenKind.GREATER_EQUALS
   };
-  final Map<String, Object> fields;
+  protected final Map<String, Object> fields;
 
   // A struct stores no StarlarkThread: structs live in module globals that outlive (and, once
   // modules are cached, are shared across) the evaluations that use them. Callbacks that have no

@@ -1142,7 +1142,7 @@
   },
   {
       "allPublicMethods": true,
-      "name": "com.verygood.security.larky.modules.types.structs.ShortCircuitHttpResponse"
+      "name": "com.verygood.security.larky.modules.vgs.ShortCircuitHttpResponse"
   },
   {
       "allDeclaredFields": true,
@@ -1172,7 +1172,7 @@
   },
   {
       "allPublicMethods": true,
-      "name": "com.verygood.security.larky.modules.types.structs.VgsHttpResponse",
+      "name": "com.verygood.security.larky.modules.vgs.VgsHttpResponse",
       "methods": [{ "name": "dunderDict", "parameterTypes": [] }]
   },
   {

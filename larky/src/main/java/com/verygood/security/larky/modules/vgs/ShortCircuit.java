@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.modules.types.structs;
+package com.verygood.security.larky.modules.vgs;
 
 /**
  * A response that stops processing the message: the host sends it instead of continuing (in the request phase,

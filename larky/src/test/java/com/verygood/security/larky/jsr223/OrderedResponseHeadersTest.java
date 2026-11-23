@@ -4,7 +4,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.verygood.security.larky.LarkySemantics;
-import com.verygood.security.larky.modules.types.structs.VgsHttpResponse;
+import com.verygood.security.larky.modules.vgs.VgsHttpResponse;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.util.ArrayList;

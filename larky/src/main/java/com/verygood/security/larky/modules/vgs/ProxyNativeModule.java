@@ -16,7 +16,6 @@
 
 package com.verygood.security.larky.modules.vgs;
 
-import com.verygood.security.larky.modules.types.structs.ProtocolResponse;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;

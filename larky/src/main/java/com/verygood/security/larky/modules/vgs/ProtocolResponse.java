@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.modules.types.structs;
+package com.verygood.security.larky.modules.vgs;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkThread;

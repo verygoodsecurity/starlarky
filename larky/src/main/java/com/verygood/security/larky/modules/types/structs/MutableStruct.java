@@ -17,11 +17,11 @@ import org.jetbrains.annotations.Nullable;
 
 import lombok.SneakyThrows;
 
-class MutableStruct extends SimpleStruct {
+public class MutableStruct extends SimpleStruct {
   // The struct's own freeze state: the Mutability of the thread that created it. Not the thread.
   private final Mutability mutability;
 
-  MutableStruct(Dict<String, Object> fields, Mutability mutability) {
+  protected MutableStruct(Dict<String, Object> fields, Mutability mutability) {
     super(fields);
     this.mutability = mutability;
   }

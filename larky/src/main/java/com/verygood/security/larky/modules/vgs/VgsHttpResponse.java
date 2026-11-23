@@ -13,10 +13,12 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.modules.types.structs;
+package com.verygood.security.larky.modules.vgs;
 
 import com.verygood.security.larky.modules.multidict.LarkyMultiDict;
 import com.verygood.security.larky.modules.types.Property;
+import com.verygood.security.larky.modules.types.structs.MutableStruct;
+import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import java.util.Arrays;
 import java.util.function.BiConsumer;
@@ -141,6 +143,12 @@ public sealed class VgsHttpResponse extends MutableStruct implements ProtocolRes
       Thread.currentThread().interrupt();
       throw new EvalException(e);
     }
+  }
+
+  /** This response's fields, which a {@link ShortCircuitHttpResponse} decorating it shares. */
+  @SuppressWarnings("unchecked")
+  final Dict<String, Object> sharedFields() {
+    return (Dict<String, Object>) fields;
   }
 
   @Override

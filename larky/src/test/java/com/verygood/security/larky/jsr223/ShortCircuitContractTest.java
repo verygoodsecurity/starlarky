@@ -21,7 +21,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import com.verygood.security.larky.modules.types.structs.ShortCircuit;
+import com.verygood.security.larky.modules.vgs.ShortCircuit;
 import org.junit.Test;
 
 /** What a host relies on: {@code instanceof ShortCircuit}, and {@link ShortCircuit#response()} to encode. */

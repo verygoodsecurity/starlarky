@@ -8,7 +8,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.verygood.security.larky.modules.types.structs.ShortCircuitHttpResponse;
+import com.verygood.security.larky.modules.vgs.ShortCircuitHttpResponse;
 import com.verygood.security.larky.parser.Computation;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.EvaluationMetadata;

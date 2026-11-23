@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.modules.types.structs;
+package com.verygood.security.larky.modules.vgs;
 
 import javax.annotation.Nullable;
 import net.starlark.java.eval.Dict;
@@ -31,13 +31,8 @@ public final class ShortCircuitHttpResponse extends VgsHttpResponse implements S
   }
 
   private ShortCircuitHttpResponse(VgsHttpResponse decorated, StarlarkThread thread) {
-    super(fieldsOf(decorated), thread);
+    super(decorated.sharedFields(), thread);
     this.decorated = decorated;
-  }
-
-  @SuppressWarnings("unchecked")
-  private static Dict<String, Object> fieldsOf(VgsHttpResponse response) {
-    return (Dict<String, Object>) response.fields;
   }
 
   /**
