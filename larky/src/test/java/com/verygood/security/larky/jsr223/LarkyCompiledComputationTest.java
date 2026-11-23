@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Very Good Security Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.verygood.security.larky.jsr223;
 
 import static org.junit.Assert.assertEquals;
@@ -8,7 +24,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import com.verygood.security.larky.modules.vgs.ShortCircuitHttpResponse;
+import com.verygood.security.larky.modules.vgs.ShortCircuitResponse;
 import com.verygood.security.larky.parser.Computation;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.EvaluationMetadata;
@@ -44,8 +60,11 @@ public class LarkyCompiledComputationTest {
         LarkyScriptEvaluator.compute(first, firstContext, null, (run, unused) -> run.call("process")));
     assertEquals("second",
         LarkyScriptEvaluator.compute(second, secondContext, null, (run, unused) -> run.call("process")));
+    var before = firstContext.metadata();
     assertThrows(LarkyGlobalScopeRefusedException.class, () ->
         LarkyScriptEvaluator.compute(second, firstContext, null, (run, unused) -> run.call("process")));
+    // refused before it started: the context keeps the last computation's metadata
+    assertSame(before, firstContext.metadata());
   }
 
   @Test
@@ -97,9 +116,9 @@ public class LarkyCompiledComputationTest {
         var constructor = run.export("@vgs//http/response", "VGSHttpResponse");
         Object input = run.callValue(constructor, List.of(), Map.of("status_code", 403, "body", "blocked"));
         Object output = run.call("process", input, Map.of("short", stop));
-        assertEquals(stop, output instanceof ShortCircuitHttpResponse);
+        assertEquals(stop, output instanceof ShortCircuitResponse);
         // a short circuit holds the response it stops with
-        Object response = output instanceof ShortCircuitHttpResponse held ? held.response() : output;
+        Object response = output instanceof ShortCircuitResponse held ? held.response() : output;
         assertSame(input, response);
         assertSame(constructor, run.getField(response, "__class__"));
         run.callMethod(response, "append_header", "set-cookie", "second=2");

@@ -67,6 +67,8 @@ public class LarkyScriptContext implements ScriptContext {
   @Nullable private Bindings globalBindings;
 
   // Remember the standard streams at construction, but allocate their wrappers only on use.
+  // The standard streams are wrapped on first use. The accessors are synchronized: a context, such as an
+  // engine's own, may be shared by threads, and none of them may see a stream half set up.
   @Nullable private InputStream defaultInput = System.in;
   @Nullable private PrintStream defaultOutput = System.out;
   @Nullable private PrintStream defaultError = System.err;
@@ -173,7 +175,7 @@ public class LarkyScriptContext implements ScriptContext {
   }
 
   @Override
-  public @Nullable Reader getReader() {
+  public synchronized @Nullable Reader getReader() {
     if (defaultInput != null) {
       reader = new InputStreamReader(defaultInput);
       defaultInput = null;
@@ -182,13 +184,13 @@ public class LarkyScriptContext implements ScriptContext {
   }
 
   @Override
-  public void setReader(@Nullable Reader reader) {
+  public synchronized void setReader(@Nullable Reader reader) {
     this.reader = reader;
     defaultInput = null;
   }
 
   @Override
-  public @Nullable Writer getWriter() {
+  public synchronized @Nullable Writer getWriter() {
     if (defaultOutput != null) {
       writer = new PrintWriter(defaultOutput, true);
       defaultOutput = null;
@@ -197,13 +199,13 @@ public class LarkyScriptContext implements ScriptContext {
   }
 
   @Override
-  public void setWriter(@Nullable Writer writer) {
+  public synchronized void setWriter(@Nullable Writer writer) {
     this.writer = writer;
     defaultOutput = null;
   }
 
   @Override
-  public @Nullable Writer getErrorWriter() {
+  public synchronized @Nullable Writer getErrorWriter() {
     if (defaultError != null) {
       errorWriter = new PrintWriter(defaultError, true);
       defaultError = null;
@@ -212,7 +214,7 @@ public class LarkyScriptContext implements ScriptContext {
   }
 
   @Override
-  public void setErrorWriter(@Nullable Writer writer) {
+  public synchronized void setErrorWriter(@Nullable Writer writer) {
     errorWriter = writer;
     defaultError = null;
   }

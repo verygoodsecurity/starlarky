@@ -312,12 +312,16 @@ public sealed class HttpRequest extends LarkyInstance permits VgsHttpRequest {
 
   // full_url and data
 
-  private Object fullUrl(StarlarkThread thread) throws EvalException, InterruptedException {
+  /** {@code full_url}. Without an evaluation (a host reading it), it needs a string URL and fragment. */
+  protected final Object fullUrl(@Nullable StarlarkThread thread) throws EvalException, InterruptedException {
     if (!Starlark.truth(fragment)) {
       return fullUrl;
     }
     if (fullUrl instanceof String url && fragment instanceof String text) {
       return url + "#" + text;
+    }
+    if (thread == null) {
+      throw new IllegalStateException("full_url of a non-string URL or fragment needs an active evaluation");
     }
     // Keep the original format operation for other values.
     return callField(thread, "{}#{}", "format", fullUrl, fragment);

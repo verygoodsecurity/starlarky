@@ -372,12 +372,32 @@ public final class LarkyMultiDict extends LarkyInstance
       LarkyCollection.super.str(printer, semantics);
       return;
     }
-    charge(CurrentEvaluation.currentOrNull(), store.entries.size());
+    StarlarkThread thread = CurrentEvaluation.currentOrNull();
+    Iterable<?> lines = store.entries;
+    if (overridden("items")) {
+      // as the Starlark __str__ did, from self.items(), which an override replaces
+      try {
+        lines = Starlark.toIterable(itemsAttr(CurrentEvaluation.requireThread()));
+      } catch (EvalException | InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    charge(thread, store.entries.size());
     printer.append("{");
     String separator = "";
-    for (Entry e : store.entries) {
-      printer.append(separator).append("\"").append(Starlark.str(e.key(), semantics)).append("\": ")
-          .append(Starlark.repr(e.value(), semantics));
+    for (Object line : lines) {
+      Object key;
+      Object value;
+      if (line instanceof Entry e) {
+        key = e.key();
+        value = e.value();
+      } else {
+        Sequence<?> pair = (Sequence<?>) line;
+        key = pair.get(0);
+        value = pair.get(1);
+      }
+      printer.append(separator).append("\"").append(Starlark.str(key, semantics)).append("\": ")
+          .append(Starlark.repr(value, semantics));
       separator = ", ";
     }
     printer.append("}");

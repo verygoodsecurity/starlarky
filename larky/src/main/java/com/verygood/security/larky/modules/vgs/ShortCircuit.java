@@ -21,7 +21,7 @@ package com.verygood.security.larky.modules.vgs;
  * without calling the upstream), and skips the remaining filters. Hosts test {@code instanceof ShortCircuit} and
  * encode {@link #response()} by its protocol.
  */
-public interface ShortCircuit extends ProtocolResponse {
+public interface ShortCircuit {
 
   /** The protocol response to stop processing the message with. */
   ProtocolResponse response();

@@ -165,11 +165,6 @@ public final class VgsHttpResponse extends LarkyInstance implements ProtocolResp
     return callField(thread, headers, "getall", key, StarlarkList.newList(thread.mutability()));
   }
 
-  @Override
-  public ShortCircuit shortCircuit(Object constructor) {
-    return new ShortCircuitHttpResponse(constructor, this);
-  }
-
   public Object body(StarlarkThread thread) {
     return body;
   }

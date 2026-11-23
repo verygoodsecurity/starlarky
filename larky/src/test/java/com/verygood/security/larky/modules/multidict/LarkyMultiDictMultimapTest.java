@@ -68,6 +68,19 @@ public class LarkyMultiDictMultimapTest {
   }
 
   @Test
+  public void vgsHeadersPrintTheirItemsOrAnOverride() throws Exception {
+    var file = (ParsedStarFile) new LarkyScriptEngine().eval("""
+        load("@vgs//http/headers", "VGSCIMultiDict")
+        headers = VGSCIMultiDict([("Authorization", "secret"), ("X-Trace", "one")])
+        plain = str(headers)
+        headers.items = lambda: [("Masked", "***")]
+        masked = str(headers)
+        """);
+    assertEquals("{\"Authorization\": \"secret\", \"X-Trace\": \"one\"}", file.getModule().getGlobal("plain"));
+    assertEquals("{\"Masked\": \"***\"}", file.getModule().getGlobal("masked"));
+  }
+
+  @Test
   public void aCaseSensitiveMultidictMatchesKeysExactly() throws Exception {
     ListMultimap<Object, Object> md = global("""
         load("@vendor//multidict", "MultiDict")

@@ -2,6 +2,7 @@ package com.verygood.security.larky.jsr223;
 
 import com.verygood.security.larky.console.StreamWriterConsole;
 import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
+import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -601,7 +602,10 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
 
   private Map<String, Object> invocationBindings(ScriptContext callContext) throws ScriptException {
     checkGlobalScope(callContext);
-    return bindings(callContext);
+    Map<String, Object> bindings = bindings(callContext);
+    // refused before the metadata is cleared, as a missing function is
+    LarkyEvaluator.refuseRetiredSettings(bindings.keySet());
+    return bindings;
   }
 
   // A call that cannot start (no such function, an unusable context) leaves the context's

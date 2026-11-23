@@ -191,14 +191,17 @@ public abstract class LarkyInstance implements LarkyObject, Mutability.Freezable
     return names.build();
   }
 
-  /** The instance's state: its declared plain attributes, then those a script added. */
+  /**
+   * The instance's state: its declared plain attributes, then those a script added. A copy, in the
+   * instance's mutability (as a struct's {@code __dict__} was), so a script may change it.
+   */
   public final Dict<String, Object> dunderDict() {
     Map<String, Object> state = new LinkedHashMap<>();
     addState(state);
     if (attributes != null) {
       state.putAll(attributes);
     }
-    return Dict.immutableCopyOf(state);
+    return Dict.copyOf(mutability, state);
   }
 
   /** The attribute {@code name} as a script reads it, including a value set in the instance dict. */

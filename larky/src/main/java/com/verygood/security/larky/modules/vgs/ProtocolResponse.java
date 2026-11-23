@@ -20,14 +20,7 @@ import net.starlark.java.eval.StarlarkValue;
 
 /**
  * A protocol's own response that a script returns, such as an HTTP response ({@link VgsHttpResponse}). A script can
- * return it as is, or wrapped by {@code proxy.ShortCircuitResponse(response)} to stop processing the message with
- * it. A new protocol's response type implements this, and short-circuits the same way.
+ * return it as is, or as {@code proxy.ShortCircuitResponse(response)} to stop processing the message with it. A new
+ * protocol's response type implements this, and short-circuits the same way.
  */
-public interface ProtocolResponse extends StarlarkValue {
-
-  /**
-   * A {@link ShortCircuit} holding this response, to stop processing the message with it. Its class
-   * ({@code __class__}) is {@code constructor}, {@code proxy.ShortCircuitResponse}.
-   */
-  ShortCircuit shortCircuit(Object constructor);
-}
+public interface ProtocolResponse extends StarlarkValue {}
