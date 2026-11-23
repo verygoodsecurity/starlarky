@@ -16,12 +16,9 @@
 
 package com.verygood.security.larky.modules.vgs;
 
-import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.modules.multidict.LarkyMultiDict;
 import com.verygood.security.larky.modules.urllib.UrllibRequest;
-import com.verygood.security.larky.objects.descriptor.LarkyNativeProperty;
-import com.verygood.security.larky.objects.type.LarkyType;
-import com.verygood.security.larky.objects.type.LarkyTypeObject;
+import com.verygood.security.larky.objects.LarkyNativeClass;
 import java.util.function.BiConsumer;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -46,29 +43,27 @@ import net.starlark.java.eval.StarlarkThread;
 @StarlarkBuiltin(name = "VGSHttpRequest", documented = false)
 public final class VgsHttpRequest extends UrllibRequest {
 
+  private static final String HEADERS = "_headers";
+
   /**
    * The class, a subclass of {@code Request}: it adds the properties {@code url}, {@code body} and
    * {@code headers}. The header container is {@code _headers} in the request's {@code __dict__}.
    */
-  public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType(
-      "VGSHttpRequest", UrllibRequest.TYPE, ImmutableMap.of(
+  public static final LarkyNativeClass<VgsHttpRequest> CLASS =
+      LarkyNativeClass.named("VGSHttpRequest", VgsHttpRequest.class)
+          .extending(UrllibRequest.CLASS)
           // full_url is a property: an instance attribute cannot replace it
-          "url", LarkyNativeProperty.of("url", VgsHttpRequest.class, VgsHttpRequest::fullUrl, VgsHttpRequest::setUrl),
-          "body", LarkyNativeProperty.of(
-              "body", VgsHttpRequest.class,
-              (self, thread) -> self.data(), (self, value, thread) -> self.__setattr__("data", value, thread)),
-          "headers", LarkyNativeProperty.of(
-              "headers", VgsHttpRequest.class,
-              (self, thread) -> self.state("_headers"), VgsHttpRequest::setHeaders)));
-
-  private static final String HEADERS = "_headers";
+          .property("url", VgsHttpRequest::fullUrl, VgsHttpRequest::setUrl)
+          .property("body", (self, thread) -> self.data(), (self, value, thread) -> self.setAttr(thread, "data", value))
+          .property("headers", (self, thread) -> self.state(HEADERS), VgsHttpRequest::setHeaders)
+          .build();
 
   private final StarlarkCallable headerFactory;
   private final StarlarkCallable urlSplitter;
 
   private VgsHttpRequest(
       Object constructor, UrllibRequest base, StarlarkCallable headerFactory, StarlarkCallable urlSplitter) {
-    super(TYPE, constructor, base);
+    super(CLASS, constructor, base);
     this.headerFactory = headerFactory;
     this.urlSplitter = urlSplitter;
   }
@@ -89,14 +84,14 @@ public final class VgsHttpRequest extends UrllibRequest {
     }
     VgsHttpRequest request = new VgsHttpRequest(constructor, base, headerFactory, urlSplitter);
     // urllib's plain headers attribute gives way to the property over _headers
-    request.__dict__().pop("headers", Starlark.NONE, thread);
+    request.removeState("headers", thread);
     request.setState(HEADERS, call(thread, headerFactory, headers));
     request.updatePath(url, thread);
     return request;
   }
 
   private void setUrl(Object value, StarlarkThread thread) throws EvalException, InterruptedException {
-    __setattr__("full_url", value, thread);
+    setAttr(thread, "full_url", value);
     updatePath(value, thread);
   }
 

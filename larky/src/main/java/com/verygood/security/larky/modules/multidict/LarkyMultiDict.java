@@ -22,10 +22,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multiset;
 import com.verygood.security.larky.modules.types.LarkyCollection;
+import com.verygood.security.larky.objects.LarkyNativeClass;
 import com.verygood.security.larky.objects.LarkyNativeObject;
-import com.verygood.security.larky.objects.descriptor.LarkyNativeMethod;
-import com.verygood.security.larky.objects.type.LarkyType;
-import com.verygood.security.larky.objects.type.LarkyTypeObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 import com.verygood.security.larky.runtime.CurrentEvaluation;
@@ -159,7 +157,7 @@ public final class LarkyMultiDict extends LarkyNativeObject
       boolean proxy,
       @Nullable Object proxyCopyClass,
       boolean dictStr) {
-    super(proxy ? PROXY_TYPE : TYPE, cls, store.mutability);
+    super(proxy ? PROXY_CLASS : CLASS, cls, store.mutability);
     this.name = name;
     this.store = store;
     this.caseInsensitive = caseInsensitive;
@@ -228,21 +226,19 @@ public final class LarkyMultiDict extends LarkyNativeObject
   // instance comes before the method of the same name
 
   /** The class of a multidict; its instances report the name of the facade class that built them. */
-  public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType("MultiDict", null, methods(false));
+  public static final LarkyNativeClass<LarkyMultiDict> CLASS = define("MultiDict", false);
 
   /** The class of a multidict proxy: a multidict's class without the methods that change it. */
-  public static final LarkyType PROXY_TYPE =
-      LarkyTypeObject.createBuiltinType("MultiDictProxy", null, methods(true));
+  public static final LarkyNativeClass<LarkyMultiDict> PROXY_CLASS = define("MultiDictProxy", true);
 
-  private static ImmutableMap<String, Object> methods(boolean proxy) {
-    ImmutableMap.Builder<String, Object> methods = ImmutableMap.builder();
+  private static LarkyNativeClass<LarkyMultiDict> define(String name, boolean proxy) {
+    LarkyNativeClass.Builder<LarkyMultiDict> cls = LarkyNativeClass.named(name, LarkyMultiDict.class);
     for (Method method : Method.values()) {
       if (!(proxy && method.mutableOnly)) {
-        methods.put(method.starlarkName, LarkyNativeMethod.of(
-            method.starlarkName, LarkyMultiDict.class, self -> new BoundMethod(self, method)));
+        cls.method(method.starlarkName, self -> new BoundMethod(self, method));
       }
     }
-    return methods.buildOrThrow();
+    return cls.build();
   }
 
   private boolean overridden(String name) {

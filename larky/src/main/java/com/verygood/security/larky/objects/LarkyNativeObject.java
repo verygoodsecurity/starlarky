@@ -36,15 +36,17 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
 /**
- * An instance of a class that is written in Java: a {@link PyObject} whose {@link LarkyType} is
- * built in Java rather than by {@code type(name, bases, dict)}.
+ * An instance of a class that is written in Java. The class is defined with {@link
+ * LarkyNativeClass}; a subclass of this one holds the Java code of its properties and methods and
+ * needs none of the Python protocols, which this class implements for it.
  *
- * <p>It follows the object model of this package. Its state is its {@code __dict__}. Its class's
- * dictionary holds the properties (data descriptors, {@link
- * com.verygood.security.larky.objects.descriptor.LarkyNativeProperty}) and is searched along the
- * MRO, so a class written in Java can extend another. Its methods are {@code @StarlarkMethod}s, or
- * non-data descriptors in the class's dictionary. Lookup is Python's: a data descriptor of the
- * class, then the instance's dictionary, then the methods and the rest of the class.
+ * <p>It follows the object model of this package: it is a {@link PyObject} whose {@link LarkyType}
+ * is built in Java rather than by {@code type(name, bases, dict)}. Its state is its {@code
+ * __dict__} ({@link #state}, {@link #setState}). Its class's dictionary holds the properties (data
+ * descriptors) and is searched along the MRO, so a class written in Java can extend another. Its
+ * methods are {@code @StarlarkMethod}s, or non-data descriptors in the class's dictionary. Lookup
+ * is Python's: a data descriptor of the class, then the instance's dictionary, then the methods
+ * and the rest of the class.
  *
  * <p>Larky's classes are functions: scripts see {@code __class__} as the function that built the
  * instance and {@code __name__} as its name, as on the structs these classes replace. The {@link
@@ -60,20 +62,23 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
   private final Mutability mutability;
   private final Dict<String, Object> dict;
 
-  /** An instance of {@code type} with an empty dictionary, built by the function {@code constructor}. */
-  protected LarkyNativeObject(LarkyType type, Object constructor, Mutability mutability) {
-    this.type = type;
+  /**
+   * An instance of {@code cls} with an empty dictionary. {@code constructor} is the function that
+   * builds it, which scripts see as its {@code __class__}.
+   */
+  protected LarkyNativeObject(LarkyNativeClass<?> cls, Object constructor, Mutability mutability) {
+    this.type = cls.type();
     this.constructor = constructor;
     this.mutability = mutability;
     this.dict = Dict.of(mutability);
   }
 
   /**
-   * An instance of {@code type} that takes over the dictionary of {@code base}, an instance of a
-   * base class of {@code type} that nothing else refers to.
+   * An instance of {@code cls} that takes over the dictionary of {@code base}, an instance of a
+   * base class of {@code cls} that nothing else refers to.
    */
-  protected LarkyNativeObject(LarkyType type, Object constructor, LarkyNativeObject base) {
-    this.type = type;
+  protected LarkyNativeObject(LarkyNativeClass<?> cls, Object constructor, LarkyNativeObject base) {
+    this.type = cls.type();
     this.constructor = constructor;
     this.mutability = base.mutability;
     this.dict = base.dict;
@@ -174,6 +179,12 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
   protected final void setState(String name, Object value) throws EvalException {
     checkMutable();
     dict.putEntry(name, value);
+  }
+
+  /** Removes the entry {@code name} of the instance's dictionary, if there is one. */
+  protected final void removeState(String name, StarlarkThread thread) throws EvalException {
+    checkMutable();
+    dict.pop(name, Starlark.NONE, thread);
   }
 
   // Attribute access
@@ -312,7 +323,12 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
 
   // For the Java code of a class
 
-  /** The attribute {@code name} as a script reads it. */
+  /** Sets the attribute {@code name} as a script does: {@code self.name = value}. */
+  protected final void setAttr(StarlarkThread thread, String name, Object value) throws EvalException {
+    __setattr__(name, value, thread);
+  }
+
+  /** The attribute {@code name} as a script reads it, or null if there is none. */
   protected final Object attr(StarlarkThread thread, String name) throws EvalException, InterruptedException {
     return Starlark.getattr(thread.mutability(), thread.getSemantics(), this, name, null);
   }

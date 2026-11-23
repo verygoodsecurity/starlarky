@@ -17,11 +17,8 @@
 package com.verygood.security.larky.modules.vgs;
 
 import com.verygood.security.larky.modules.multidict.LarkyMultiDict;
-import com.google.common.collect.ImmutableMap;
+import com.verygood.security.larky.objects.LarkyNativeClass;
 import com.verygood.security.larky.objects.LarkyNativeObject;
-import com.verygood.security.larky.objects.descriptor.LarkyNativeProperty;
-import com.verygood.security.larky.objects.type.LarkyType;
-import com.verygood.security.larky.objects.type.LarkyTypeObject;
 import java.util.function.BiConsumer;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
@@ -52,16 +49,16 @@ public final class VgsHttpResponse extends LarkyNativeObject implements Protocol
    * The class: {@code body} and {@code headers} are properties over {@code _body} and {@code
    * _headers}, which are in the response's {@code __dict__} with {@code status_code}.
    */
-  public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType("VGSHttpResponse", null, ImmutableMap.of(
-      "body", LarkyNativeProperty.of(
-          "body", VgsHttpResponse.class, (self, thread) -> self.state("_body"), VgsHttpResponse::setBody),
-      "headers", LarkyNativeProperty.of(
-          "headers", VgsHttpResponse.class, (self, thread) -> self.state("_headers"), VgsHttpResponse::setHeaders)));
+  public static final LarkyNativeClass<VgsHttpResponse> CLASS =
+      LarkyNativeClass.named("VGSHttpResponse", VgsHttpResponse.class)
+          .property("body", (self, thread) -> self.state("_body"), VgsHttpResponse::setBody)
+          .property("headers", (self, thread) -> self.state("_headers"), VgsHttpResponse::setHeaders)
+          .build();
 
   private final StarlarkCallable headerFactory;
 
   private VgsHttpResponse(StarlarkCallable constructor, StarlarkCallable headerFactory, StarlarkThread thread) {
-    super(TYPE, constructor, thread.mutability());
+    super(CLASS, constructor, thread.mutability());
     this.headerFactory = headerFactory;
   }
 

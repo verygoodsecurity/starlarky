@@ -16,11 +16,8 @@
 
 package com.verygood.security.larky.modules.urllib;
 
-import com.google.common.collect.ImmutableMap;
+import com.verygood.security.larky.objects.LarkyNativeClass;
 import com.verygood.security.larky.objects.LarkyNativeObject;
-import com.verygood.security.larky.objects.descriptor.LarkyNativeProperty;
-import com.verygood.security.larky.objects.type.LarkyType;
-import com.verygood.security.larky.objects.type.LarkyTypeObject;
 import java.util.Map;
 import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
@@ -57,11 +54,11 @@ public class UrllibRequest extends LarkyNativeObject {
    * The class: {@code full_url} and {@code data} are properties, and the rest of a request's state
    * is in its {@code __dict__}, under CPython's names.
    */
-  public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType("Request", null, ImmutableMap.of(
-      "full_url", LarkyNativeProperty.of(
-          "full_url", UrllibRequest.class, UrllibRequest::fullUrl, UrllibRequest::setFullUrl),
-      "data", LarkyNativeProperty.of(
-          "data", UrllibRequest.class, (self, thread) -> self.data(), UrllibRequest::setData)));
+  public static final LarkyNativeClass<UrllibRequest> CLASS =
+      LarkyNativeClass.named("Request", UrllibRequest.class)
+          .property("full_url", UrllibRequest::fullUrl, UrllibRequest::setFullUrl)
+          .property("data", (self, thread) -> self.data(), UrllibRequest::setData)
+          .build();
 
   private final StarlarkCallable unquote;
   private final StarlarkCallable requestHost;
@@ -75,19 +72,19 @@ public class UrllibRequest extends LarkyNativeObject {
   private UrllibRequest(
       Object constructor, StarlarkCallable unquote, StarlarkCallable requestHost, StarlarkCallable copyHeaderItems,
       StarlarkThread thread) {
-    super(TYPE, constructor, thread.mutability());
+    super(CLASS, constructor, thread.mutability());
     this.unquote = unquote;
     this.requestHost = requestHost;
     this.copyHeaderItems = copyHeaderItems;
   }
 
   /**
-   * A request of the class {@code type}, a subclass of {@link #TYPE} such as {@code
+   * A request of the class {@code cls}, a subclass of {@link #CLASS} such as {@code
    * VGSHttpRequest}'s, that takes over the state of {@code base}. {@code base} is a request that
    * {@code urllib.request.Request(...)} has just built and that nothing else refers to.
    */
-  protected UrllibRequest(LarkyType type, Object constructor, UrllibRequest base) {
-    super(type, constructor, base);
+  protected UrllibRequest(LarkyNativeClass<? extends UrllibRequest> cls, Object constructor, UrllibRequest base) {
+    super(cls, constructor, base);
     this.unquote = base.unquote;
     this.requestHost = base.requestHost;
     this.copyHeaderItems = base.copyHeaderItems;
@@ -114,12 +111,12 @@ public class UrllibRequest extends LarkyNativeObject {
   protected final void initialize(
       Object url, Object data, Object headers, Object originReqHost, Object unverifiable, Object method,
       StarlarkThread thread) throws EvalException, InterruptedException {
-    __setattr__("full_url", url, thread);
-    __setattr__("unredirected_hdrs", Dict.of(thread.mutability()), thread);
-    __setattr__("headers", Dict.of(thread.mutability()), thread);
-    __setattr__("_data", Starlark.NONE, thread);
-    __setattr__("data", data, thread);
-    __setattr__("_tunnel_host", Starlark.NONE, thread);
+    setAttr(thread, "full_url", url);
+    setAttr(thread, "unredirected_hdrs", Dict.of(thread.mutability()));
+    setAttr(thread, "headers", Dict.of(thread.mutability()));
+    setAttr(thread, "_data", Starlark.NONE);
+    setAttr(thread, "data", data);
+    setAttr(thread, "_tunnel_host", Starlark.NONE);
     if (headers instanceof Dict<?, ?> dict) {
       chargeSteps(thread, dict.size());
       // Snapshot the items, as the Starlark loop does: add_header can change the source.
@@ -131,11 +128,11 @@ public class UrllibRequest extends LarkyNativeObject {
     } else {
       Starlark.positionalOnlyCall(thread, copyHeaderItems, this, headers);
     }
-    __setattr__("origin_req_host", Starlark.checkedEquals(originReqHost, Starlark.NONE)
-        ? Starlark.positionalOnlyCall(thread, requestHost, this) : originReqHost, thread);
-    __setattr__("unverifiable", unverifiable, thread);
+    setAttr(thread, "origin_req_host", Starlark.checkedEquals(originReqHost, Starlark.NONE)
+        ? Starlark.positionalOnlyCall(thread, requestHost, this) : originReqHost);
+    setAttr(thread, "unverifiable", unverifiable);
     if (Starlark.truth(method)) {
-      __setattr__("method", method, thread);
+      setAttr(thread, "method", method);
     }
   }
 

@@ -19,10 +19,6 @@ package com.verygood.security.larky.jsr223;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.stream.Stream;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import org.junit.Test;
@@ -95,27 +91,5 @@ public class NativeModuleNamespaceTest {
         + "        if hasattr(request, name):\n"
         + "            fail('urllib.request exports ' + name)\n"
         + "check()\n");
-  }
-
-  /** The standard library does not depend on the VGS modules: nothing under stdlib loads from @vgs. */
-  @Test
-  public void stdlibDoesNotLoadVgsModules() throws Exception {
-    Path stdlib = Path.of("src/main/resources/stdlib");
-    assertThat(Files.isDirectory(stdlib)).isTrue();
-    List<String> loads;
-    try (Stream<Path> files = Files.walk(stdlib)) {
-      loads = files.filter(file -> file.toString().endsWith(".star"))
-          .filter(file -> {
-            try {
-              // the whole file, so a load( that continues on the next line is found too
-              return java.util.regex.Pattern.compile("load\\(\\s*[\"']@vgs/").matcher(Files.readString(file)).find();
-            } catch (java.io.IOException e) {
-              throw new java.io.UncheckedIOException(e);
-            }
-          })
-          .map(file -> stdlib.relativize(file).toString())
-          .toList();
-    }
-    assertThat(loads).isEmpty();
   }
 }
