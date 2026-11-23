@@ -26,10 +26,10 @@ import net.starlark.java.eval.StarlarkValue;
 
 /** Native construction for the public VGS HTTP response constructors. */
 @StarlarkBuiltin(name = "jhttpresponse", documented = false, doc = "VGS HTTP response construction.")
-public final class HttpResponseNativeModule implements StarlarkValue {
-  public static final HttpResponseNativeModule INSTANCE = new HttpResponseNativeModule();
+public final class HttpResponseModule implements StarlarkValue {
+  public static final HttpResponseModule INSTANCE = new HttpResponseModule();
 
-  private HttpResponseNativeModule() {}
+  private HttpResponseModule() {}
 
   @Override
   public boolean isImmutable() {

@@ -4,7 +4,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.verygood.security.larky.LarkySemantics;
-import com.verygood.security.larky.modules.types.HttpRequest;
+import com.verygood.security.larky.modules.vgs.HttpRequest;
 import com.verygood.security.larky.modules.vgs.VgsHttpRequest;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.ParsedStarFile;
@@ -142,7 +142,7 @@ public class VgsHttpRequestTest {
   }
 
   private static final String CUSTOM_PARSER = """
-      load("@stdlib//http_request_native", "http_request_native")
+      load("@vgs//jhttprequest", "jhttprequest")
       load("@stdlib//larky", "larky")
       load("@stdlib//urllib/parse", "parse")
       load("@stdlib//urllib/request", "request")
@@ -152,7 +152,7 @@ public class VgsHttpRequestTest {
           functions.update(overrides)
           return larky.struct(**functions)
       def build(url, p):
-          return http_request_native.Request(request.Request, p, request.request_host,
+          return jhttprequest.Request(request.Request, p, request.request_host,
                                              request._copy_header_items, url, None, {}, "origin", False, None)
       """;
 

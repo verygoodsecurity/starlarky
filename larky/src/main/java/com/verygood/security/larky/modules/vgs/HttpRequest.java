@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.modules.types;
+package com.verygood.security.larky.modules.vgs;
 
 import com.google.common.base.Ascii;
 import com.google.common.base.CharMatcher;
 import com.google.common.collect.ImmutableList;
+import com.verygood.security.larky.modules.types.LarkyInstance;
 import java.util.Map;
 import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
@@ -50,7 +51,7 @@ import net.starlark.java.eval.Tuple;
  * Starlark {@code urllib.parse} functions, as before.
  */
 @StarlarkBuiltin(name = "Request", documented = false)
-public class HttpRequest extends LarkyInstance {
+public sealed class HttpRequest extends LarkyInstance permits VgsHttpRequest {
 
   // Use the Starlark parser for unusual values and large strings. Native scans are bounded.
   private static final int MAX_FAST_STRING_LENGTH = 16 * 1024;
@@ -81,7 +82,7 @@ public class HttpRequest extends LarkyInstance {
    * and {@code copyHeaderItems} are {@code urllib.request}'s {@code request_host(request)} and the
    * loop that adds the headers of a mapping other than a dict.
    */
-  protected HttpRequest(
+  HttpRequest(
       Object constructor, Structure parse, StarlarkCallable requestHost, StarlarkCallable copyHeaderItems,
       StarlarkThread thread) {
     super(constructor, thread.mutability());

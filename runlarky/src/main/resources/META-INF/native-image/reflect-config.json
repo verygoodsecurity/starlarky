@@ -1163,7 +1163,7 @@
   {
       "allDeclaredMethods": true,
       "allPublicMethods": true,
-      "name": "com.verygood.security.larky.modules.types.HttpRequest"
+      "name": "com.verygood.security.larky.modules.vgs.HttpRequest"
   },
   {
       "allDeclaredMethods": true,
@@ -1178,12 +1178,12 @@
   {
       "allDeclaredMethods": true,
       "allPublicMethods": true,
-      "name": "com.verygood.security.larky.modules.HttpRequestNativeModule"
+      "name": "com.verygood.security.larky.modules.vgs.HttpRequestModule"
   },
   {
       "allDeclaredMethods": true,
       "allPublicMethods": true,
-      "name": "com.verygood.security.larky.modules.vgs.HttpResponseNativeModule"
+      "name": "com.verygood.security.larky.modules.vgs.HttpResponseModule"
   },
   {
       "allDeclaredMethods": true,
