@@ -17,12 +17,20 @@ def test_instances_name_their_facade_class():
 
 def test_attributes_set_on_an_instance_override_its_methods():
     d = MultiDict([("a", "1")])
-    d.__name__ = "Renamed"
     d.items = lambda: [("b", "2")]
-    asserts.assert_that(type(d)).is_equal_to("Renamed")
     asserts.assert_that(d.items()).is_equal_to([("b", "2")])
     # copy() calls self.items(), so it copies what the override returns
     asserts.assert_that(d.copy().getall("b")).is_equal_to(["2"])
+
+
+def test_the_class_and_its_name_are_read_only():
+    d = MultiDict([("a", "1")])
+
+    def rename():
+        d.__name__ = "Renamed"
+
+    asserts.assert_fails(rename, ".*MultiDict attribute '__name__' is read-only")
+    asserts.assert_that(type(d)).is_equal_to("MultiDict")
 
 
 def test_version_counts_each_change():
@@ -83,6 +91,7 @@ def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(test_instances_name_their_facade_class))
     _suite.addTest(unittest.FunctionTestCase(test_attributes_set_on_an_instance_override_its_methods))
+    _suite.addTest(unittest.FunctionTestCase(test_the_class_and_its_name_are_read_only))
     _suite.addTest(unittest.FunctionTestCase(test_version_counts_each_change))
     _suite.addTest(unittest.FunctionTestCase(test_proxy_is_a_live_read_only_view))
     _suite.addTest(unittest.FunctionTestCase(test_multidicts_of_different_classes_compare_contents))

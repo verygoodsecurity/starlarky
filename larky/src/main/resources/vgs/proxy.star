@@ -6,13 +6,19 @@
     def process(input, ctx):
         return proxy.ShortCircuitResponse(VGSHttpResponse(body=b"blocked", status_code=403))
 
-ShortCircuitResponse decorates the protocol's own response (a VGSHttpResponse for HTTP) to stop
-processing the message with it: the result shares that response's state.
+ShortCircuitResponse takes the protocol's own response (a VGSHttpResponse for HTTP) and stops
+processing the message with it. The result cannot be changed; the response it holds, `.response`,
+can.
 """
 load("@stdlib//larky", larky="larky")
 load("@vgs//jproxy", _jproxy="jproxy")
 
 
+def ShortCircuitResponse(response):
+    """Stop processing the message with `response`, the protocol's response (a VGSHttpResponse for HTTP)."""
+    return _jproxy.ShortCircuitResponse(ShortCircuitResponse, response)
+
+
 proxy = larky.struct(
-    ShortCircuitResponse=_jproxy.ShortCircuitResponse,
+    ShortCircuitResponse=ShortCircuitResponse,
 )

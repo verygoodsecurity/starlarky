@@ -29,6 +29,32 @@ public final class StarlarkStrings {
     return StringModule.INSTANCE.title(s, thread);
   }
 
+  /**
+   * {@code s.title()} under {@code semantics}, for native code that has the semantics but no
+   * thread. The same as {@link #title(String, StarlarkThread)}.
+   */
+  public static String title(String s, StarlarkSemantics semantics) {
+    if (PythonStrings.unicode(semantics)) {
+      return PythonStrings.title(s);
+    }
+    // StringModule.title's Starlark rules
+    char[] data = s.toCharArray();
+    boolean previousWasLetter = false;
+    for (int pos = 0; pos < data.length; ++pos) {
+      char current = data[pos];
+      boolean currentIsLetter = Character.isLetter(current);
+      if (currentIsLetter) {
+        if (previousWasLetter && Character.isUpperCase(current)) {
+          data[pos] = Character.toLowerCase(current);
+        } else if (!previousWasLetter && Character.isLowerCase(current)) {
+          data[pos] = Character.toUpperCase(current);
+        }
+      }
+      previousWasLetter = currentIsLetter;
+    }
+    return new String(data);
+  }
+
   /** {@code pattern % operand}, under the thread's semantics. */
   public static String percent(StarlarkThread thread, String pattern, Object operand)
       throws EvalException {

@@ -226,9 +226,10 @@ public class LarkyScriptContext implements ScriptContext {
   }
 
   /**
-   * What happened in the last evaluation run in this context (or, when it is the engine's
-   * context, through {@code eval(script, bindings)}), whether it succeeded or failed; null before
-   * the first one has ended.
+   * What happened in the last evaluation or invocation run in this context (or, when it is the
+   * engine's context, through {@code eval(script, bindings)}), whether it succeeded or failed; null
+   * before the first one has ended. An invocation that cannot start, because the function does not
+   * exist, leaves it unchanged.
    */
   @Nullable
   public EvaluationMetadata metadata() {

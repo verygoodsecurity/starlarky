@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.script.ScriptContext;
 import javax.script.SimpleBindings;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.Tuple;
@@ -81,12 +82,10 @@ public class LarkyCompiledComputationTest {
     var compiled = new LarkyScriptEngine().compile("""
         load("@vgs//proxy", "proxy")
         def process(response, ctx):
-            if ctx["short"]:
-                response = proxy.ShortCircuitResponse(response)
             response.append_header("Set-Cookie", "first=1")
             ctx["seen"] = True
             print("handled")
-            return response
+            return proxy.ShortCircuitResponse(response) if ctx["short"] else response
         """, "atlas.star");
 
     for (boolean shortCircuit : List.of(false, true)) {
@@ -97,8 +96,11 @@ public class LarkyCompiledComputationTest {
           compiled, context, List.of("@vgs//http/response"), shortCircuit, (run, stop) -> {
         var constructor = run.export("@vgs//http/response", "VGSHttpResponse");
         Object input = run.callValue(constructor, List.of(), Map.of("status_code", 403, "body", "blocked"));
-        Object response = run.call("process", input, Map.of("short", stop));
-        assertEquals(stop, response instanceof ShortCircuitHttpResponse);
+        Object output = run.call("process", input, Map.of("short", stop));
+        assertEquals(stop, output instanceof ShortCircuitHttpResponse);
+        // a short circuit holds the response it stops with
+        Object response = output instanceof ShortCircuitHttpResponse held ? held.response() : output;
+        assertSame(input, response);
         assertSame(constructor, run.getField(response, "__class__"));
         run.callMethod(response, "append_header", "set-cookie", "second=2");
         return List.copyOf((List<?>) run.callMethod(run.getField(response, "headers"), "items"));
@@ -176,5 +178,54 @@ public class LarkyCompiledComputationTest {
       assertTrue(error.getMessage().contains("frozen"));
       return null;
     });
+  }
+
+  @Test
+  public void aHostsStarlarkDictionaryReachesTheScriptAsItIs() throws Exception {
+    var compiled = new LarkyScriptEngine().compile("""
+        def make():
+            return {"X-A": ["1"]}
+        def add_trace(headers):
+            headers["X-Trace"] = ["1"]
+            return headers
+        """, "identity.star");
+
+    Object result = LarkyScriptEvaluator.compute(compiled, new LarkyScriptContext(), null, (run, unused) -> {
+      var headers = (Dict<?, ?>) run.call("make");
+      // a dict whose first value is a list used to be rebuilt, so the script changed a copy
+      Object returned = run.call("add_trace", headers);
+      return returned == headers && headers.containsKey("X-Trace");
+    });
+
+    assertEquals(Boolean.TRUE, result);
+  }
+
+  @Test
+  public void aNativeRequestHelperOutOfStepsReportsTheStepLimit() throws Exception {
+    var compiled = new LarkyScriptEngine().compile("""
+        load("@stdlib//urllib/request", "request")
+        def headers(n):
+            return {str(i): "v" for i in range(n)}
+        def build(h):
+            return request.Request("http://example.com/", headers=h)
+        """, "native-steps.star");
+    Computation<Object, Object> run = (scope, input) -> {
+      Object many = scope.call("headers", 5000);
+      Object none = scope.call("headers", 0);
+      return scope.call("build", "fail".equals(input) ? many : none);
+    };
+    var baseline = new LarkyScriptContext();
+    LarkyScriptEvaluator.compute(compiled, baseline, null, run);
+
+    // Enough steps to reach the native header loop (library initialization counts against the
+    // limit too), far fewer than its 5,000 headers need.
+    long reachesTheLoop = baseline.metadata().executedSteps() + baseline.metadata().libraryInitSteps() + 50;
+    var context = new LarkyScriptContext();
+    context.setSettings(EvaluationSettings.builder().stepLimit(reachesTheLoop).build());
+    var failure = assertThrows(LarkyEvaluationScriptException.class, () ->
+        LarkyScriptEvaluator.compute(compiled, context, "fail", run));
+
+    assertTrue(failure.getMessage(), failure.getMessage().contains("too many steps"));
+    assertEquals(EvaluationMetadata.Outcome.STEP_LIMIT, context.metadata().outcome());
   }
 }
