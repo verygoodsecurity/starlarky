@@ -24,6 +24,7 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
+import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
@@ -45,6 +46,18 @@ public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHt
       StarlarkCallable constructor, StarlarkCallable headerFactory, Object body, Object headers,
       Object status, boolean shortCircuit, StarlarkThread thread)
       throws EvalException, InterruptedException {
+    if (shortCircuit && body instanceof VgsHttpResponse response) {
+      // Larky 1.3 and earlier: proxy.ShortCircuitResponse(VGSHttpResponse(...)). The response's body, ordered
+      // headers and status code make the short-circuit response; given more than the response, it is ambiguous.
+      if (!(Starlark.isNullOrNone(headers) || headers instanceof Dict<?, ?> dict && dict.isEmpty())
+          || !DEFAULT_STATUS.equals(status)) {
+        throw Starlark.errorf(
+            "ShortCircuitResponse takes either a VGSHttpResponse or body, headers and status_code, not both");
+      }
+      body = response.body(thread);
+      headers = response.headerItems(thread);
+      status = response.statusCode(thread);
+    }
     SimpleStruct headerMap = buildHeaders(headerFactory, headers, thread);
     var fields = Dict.<String, Object>builder()
         .put("__name__", shortCircuit ? "ShortCircuitResponse" : "VGSHttpResponse")
@@ -59,6 +72,9 @@ public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHt
         ? new ShortCircuitHttpResponse(fields, thread)
         : new VgsHttpResponse(fields, thread);
   }
+
+  // the facade's status_code default (vgs/http/response.star)
+  private static final StarlarkInt DEFAULT_STATUS = StarlarkInt.of(200);
 
   VgsHttpResponse(Dict<String, Object> fields, StarlarkThread thread) {
     super(fields, thread.mutability());
