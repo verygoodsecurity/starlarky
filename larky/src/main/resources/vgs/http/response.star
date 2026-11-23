@@ -1,5 +1,5 @@
 load("@vgs//http/headers", "VGSCIMultiDict")
-load("@vgs//http_response_native", _native_response="http_response_native")
+load("@vgs//jhttpresponse", _native_response="jhttpresponse")
 
 
 def _make_response(body, headers, status_code, short_circuit):

@@ -37,6 +37,7 @@ MUTABLE	com.verygood.security.larky.objects.LarkyPyObject#__class__:com.verygood
 MUTABLE	com.verygood.security.larky.objects.type.LarkyBaseObjectType#__dict__:java.util.Map	type dict of the process-wide `object`; written only through __setattr__/__delattr__, which refuse for built-in types
 MUTABLE	com.verygood.security.larky.objects.type.LarkyBaseObjectType#type:com.verygood.security.larky.objects.type.LarkyType	the metatype LarkyType: an interface, so the implementation (and its state) is unknown
 MUTABLE	net.starlark.java.eval.StarlarkBytes#delegate:net.starlark.java.ext.ByteList	bytes storage (ByteList is mutable); only the StarlarkByteArray subclass writes it, behind checkMutable, but the bytes class has no write guard of its own
+MUTABLE	com.verygood.security.larky.modules.vgs.ShortCircuitHttpResponse#decorated:com.verygood.security.larky.modules.vgs.VgsHttpResponse	the response this short circuit decorates, whose fields it shares (SimpleStruct#fields): as mutable as that struct, and frozen with it
 NONFINAL	com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyASN1Encodable#encodable:org.bouncycastle.asn1.ASN1Encodable	encodable reassigned after construction; not freeze-guarded (audit B)
 NONFINAL	com.verygood.security.larky.modules.testing.UnittestModule$LarkyFunctionTestCase#function:net.starlark.java.eval.StarlarkCallable	test-only module (TEST_MODULES)
 NONFINAL	com.verygood.security.larky.modules.types.LarkyBoundedWhileTrue$LarkyBoundedWhileTrueIterator#counter:int	iteration counter; per-iteration state, not freeze-guarded (audit B)
