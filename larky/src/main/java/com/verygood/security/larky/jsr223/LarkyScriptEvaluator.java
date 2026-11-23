@@ -55,10 +55,12 @@ public final class LarkyScriptEvaluator {
       Computation<I, O> computation)
       throws LarkyEvaluationScriptException {
     Objects.requireNonNull(computation, "computation");
-    context.setMetadata(null);
     try {
+      // a computation refused here (its global scope) leaves the context's metadata as it was
+      var globals = script.globalBindings(context);
+      context.setMetadata(null);
       var interpreter = new DefaultLarkyInterpreter(
-          LarkyCompiledScript.LARKY_MODE, context.getSettings(), script.globalBindings(context),
+          LarkyCompiledScript.LARKY_MODE, context.getSettings(), globals,
           context.getBindings(ScriptContext.ENGINE_SCOPE));
       return interpreter.compute(
           script.interpretedFile(context), context.getWriter(), imports, input, computation,

@@ -24,30 +24,26 @@ import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.Structure;
 
 /**
- * {@code proxy.ShortCircuitResponse(response)} for an HTTP response. It holds the response and
- * nothing else, and cannot be changed; the response it holds can.
+ * {@code proxy.ShortCircuitResponse(response)}: the response of any protocol (a
+ * {@link ProtocolResponse}, such as a {@code VGSHttpResponse}) to stop processing the message with.
+ * It holds the response and nothing else, and cannot be changed; the response it holds can.
  */
 @StarlarkBuiltin(name = "ShortCircuitResponse", documented = false)
-public final class ShortCircuitHttpResponse implements ShortCircuit, Structure {
+public final class ShortCircuitResponse implements ShortCircuit, Structure {
 
   private static final ImmutableList<String> FIELDS = ImmutableList.of("__class__", "__name__", "response");
 
   private final Object constructor;
-  private final VgsHttpResponse response;
+  private final ProtocolResponse response;
 
-  ShortCircuitHttpResponse(Object constructor, VgsHttpResponse response) {
+  ShortCircuitResponse(Object constructor, ProtocolResponse response) {
     this.constructor = constructor;
     this.response = response;
   }
 
   @Override
-  public VgsHttpResponse response() {
+  public ProtocolResponse response() {
     return response;
-  }
-
-  @Override
-  public ShortCircuit shortCircuit(Object constructor) {
-    return this;
   }
 
   @Nullable

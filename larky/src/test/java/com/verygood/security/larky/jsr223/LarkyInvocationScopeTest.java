@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Very Good Security Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.verygood.security.larky.jsr223;
 
 import static org.junit.Assert.assertEquals;
@@ -9,7 +25,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.modules.vgs.ShortCircuit;
-import com.verygood.security.larky.modules.vgs.ShortCircuitHttpResponse;
+import com.verygood.security.larky.modules.vgs.ShortCircuitResponse;
 import com.verygood.security.larky.modules.vgs.VgsHttpResponse;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.EvaluationMetadata;
@@ -113,8 +129,10 @@ public class LarkyInvocationScopeTest {
     var mutability = Mutability.create("host-http");
     var thread = StarlarkThread.createTransient(mutability, LarkySemantics.LARKY_SEMANTICS);
     try (mutability; var scope = CurrentEvaluation.enter(thread)) {
-      var shortCircuit = (ShortCircuitHttpResponse) engine.invokeMethodInScope(thread, file, "process", true);
-      VgsHttpResponse response = shortCircuit.response();
+      var shortCircuit = (ShortCircuitResponse) engine.invokeMethodInScope(thread, file, "process", true);
+      // any protocol's response; this one is HTTP
+      assertTrue(shortCircuit.response() instanceof VgsHttpResponse);
+      var response = (VgsHttpResponse) shortCircuit.response();
       assertEquals("blocked", response.body(thread));
       assertEquals(StarlarkInt.of(403), response.statusCode(thread));
       assertSame(response, shortCircuit.getValue("response"));

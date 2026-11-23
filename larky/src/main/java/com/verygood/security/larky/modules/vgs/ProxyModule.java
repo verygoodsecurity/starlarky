@@ -48,6 +48,6 @@ public final class ProxyModule implements StarlarkValue {
       throw Starlark.errorf(
           "ShortCircuitResponse(response=...) expected `VGSHttpResponse`; got %s", Starlark.type(response));
     }
-    return protocolResponse.shortCircuit(constructor);
+    return new ShortCircuitResponse(constructor, protocolResponse);
   }
 }
