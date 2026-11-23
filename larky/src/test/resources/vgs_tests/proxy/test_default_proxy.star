@@ -36,12 +36,37 @@ def _test_short_circuit_response_clears_length_when_body_changes():
     asserts.assert_that(response.headers.items()).is_equal_to([("X-Trace", "one")])
 
 
+def _test_short_circuit_response_accepts_a_vgs_http_response():
+    # the form of Larky 1.3 and earlier
+    wrapped = VGSHttpResponse(
+        body=b"blocked",
+        headers=[("Set-Cookie", "a=1"), ("X-Marker", "middle"), ("set-cookie", "b=2")],
+        status_code=403,
+    )
+    response = proxy.ShortCircuitResponse(wrapped)
+    asserts.assert_that(response.__name__).is_equal_to("ShortCircuitResponse")
+    asserts.assert_that(builtins.isinstance(response, VGSHttpResponse)).is_equal_to(True)
+    asserts.assert_that(response.status_code).is_equal_to(403)
+    asserts.assert_that(response.body).is_equal_to(b"blocked")
+    asserts.assert_that(response.headers.items()).is_equal_to(
+        [("Set-Cookie", "a=1"), ("X-Marker", "middle"), ("set-cookie", "b=2")],
+    )
+
+
+def _test_short_circuit_response_refuses_a_response_with_fields():
+    wrapped = VGSHttpResponse(body=b"blocked", status_code=403)
+    asserts.assert_fails(lambda: proxy.ShortCircuitResponse(wrapped, status_code=401), ".*not both")
+    asserts.assert_fails(lambda: proxy.ShortCircuitResponse(wrapped, headers={"X": "1"}), ".*not both")
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_exposes_response_fields))
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_is_a_vgs_http_response))
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_preserves_ordered_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_clears_length_when_body_changes))
+    _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_accepts_a_vgs_http_response))
+    _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_refuses_a_response_with_fields))
     return _suite
 
 
