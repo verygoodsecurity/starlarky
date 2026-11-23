@@ -17,13 +17,32 @@ import org.jetbrains.annotations.Nullable;
 
 import lombok.SneakyThrows;
 
-class MutableStruct extends SimpleStruct {
+public class MutableStruct extends SimpleStruct {
   // The struct's own freeze state: the Mutability of the thread that created it. Not the thread.
   private final Mutability mutability;
 
-  MutableStruct(Dict<String, Object> fields, Mutability mutability) {
+  protected MutableStruct(Dict<String, Object> fields, Mutability mutability) {
     super(fields);
     this.mutability = mutability;
+  }
+
+  /**
+   * A struct that shares {@code shared}'s fields: a change made through either is a change to both. For a
+   * decorator, such as a short-circuit response decorating the response it stops with.
+   */
+  protected MutableStruct(MutableStruct shared, Mutability mutability) {
+    super(shared.fields);
+    this.mutability = mutability;
+  }
+
+  /** The field as stored, without resolving a property or {@code __getattr__} ({@link #getField} does). */
+  protected final Object rawField(String name) {
+    return fields.get(name);
+  }
+
+  /** Whether the fields are frozen (their dict's mutability). */
+  protected final boolean fieldsFrozen() {
+    return fields instanceof Dict<?, ?> dict && dict.mutability().isFrozen();
   }
 
   @Override

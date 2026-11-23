@@ -13,10 +13,12 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.modules.types.structs;
+package com.verygood.security.larky.modules.vgs;
 
 import com.verygood.security.larky.modules.multidict.LarkyMultiDict;
 import com.verygood.security.larky.modules.types.Property;
+import com.verygood.security.larky.modules.types.structs.MutableStruct;
+import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import java.util.Arrays;
 import java.util.function.BiConsumer;
@@ -30,7 +32,8 @@ import net.starlark.java.eval.Tuple;
 import org.jetbrains.annotations.Nullable;
 
 /** Java backing for the response constructed by {@code @vgs//http/response}. */
-public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHttpResponse {
+public sealed class VgsHttpResponse extends MutableStruct implements ProtocolResponse
+    permits ShortCircuitHttpResponse {
 
   private static final int HEADER_FACTORY = 0;
   private static final int HEADER_OWNER = 1;
@@ -45,6 +48,12 @@ public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHt
       StarlarkCallable constructor, StarlarkCallable headerFactory, Object body, Object headers,
       Object status, boolean shortCircuit, StarlarkThread thread)
       throws EvalException, InterruptedException {
+    if (body instanceof ProtocolResponse response) {
+      // a response is short-circuited by proxy.ShortCircuitResponse(response); as a body it would be sent as text
+      throw Starlark.errorf(
+          "%s body must not be a %s; to stop with that response, return proxy.ShortCircuitResponse(response)",
+          shortCircuit ? "ShortCircuitResponse" : "VGSHttpResponse", scriptName(response, thread));
+    }
     SimpleStruct headerMap = buildHeaders(headerFactory, headers, thread);
     var fields = Dict.<String, Object>builder()
         .put("__name__", shortCircuit ? "ShortCircuitResponse" : "VGSHttpResponse")
@@ -82,10 +91,10 @@ public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHt
 
   @Override
   public Object getField(String name, @Nullable StarlarkThread thread) {
-    if ("body".equals(name) && fields.get("body") == Starlark.NONE) {
+    if ("body".equals(name) && rawField("body") == Starlark.NONE) {
       return super.getField("_body", thread);
     }
-    if ("headers".equals(name) && fields.get("headers") instanceof Tuple) {
+    if ("headers".equals(name) && rawField("headers") instanceof Tuple) {
       return super.getField("_headers", thread);
     }
     return super.getField(name, thread);
@@ -94,8 +103,8 @@ public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHt
   @Override
   public void setField(String name, Object value) throws EvalException {
     if (!(value instanceof Property)
-        && (("body".equals(name) && fields.get("body") == Starlark.NONE)
-            || ("headers".equals(name) && fields.get("headers") instanceof Tuple))) {
+        && (("body".equals(name) && rawField("body") == Starlark.NONE)
+            || ("headers".equals(name) && rawField("headers") instanceof Tuple))) {
       setResponseProperty(name, value);
     } else {
       super.setField(name, value);
@@ -103,13 +112,13 @@ public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHt
   }
 
   private void setResponseProperty(String name, Object value) throws EvalException {
-    if (((Dict<?, ?>) fields).mutability().isFrozen()) {
+    if (fieldsFrozen()) {
       throw Starlark.errorf("Attempting to update a frozen structure");
     }
     StarlarkThread thread = CurrentEvaluation.requireThread();
     try {
       if ("headers".equals(name)) {
-        var property = (Tuple) fields.get("headers");
+        var property = (Tuple) rawField("headers");
         var headerFactory = (StarlarkCallable) property.get(HEADER_FACTORY);
         SimpleStruct headers = buildHeaders(headerFactory, value, thread);
         super.setField("_headers", headers);
@@ -126,6 +135,21 @@ public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHt
     }
   }
 
+  // the name a script knows a response by (VGSHttpResponse, ShortCircuitResponse); Starlark.type gives the Java one
+  private static Object scriptName(ProtocolResponse response, StarlarkThread thread) {
+    return response instanceof VgsHttpResponse http ? http.getField("__name__", thread) : Starlark.type(response);
+  }
+
+  /** A response that shares {@code decorated}'s fields (see {@link ShortCircuitHttpResponse}). */
+  VgsHttpResponse(VgsHttpResponse decorated, StarlarkThread thread) {
+    super(decorated, thread.mutability());
+  }
+
+  @Override
+  public ShortCircuit shortCircuit(StarlarkThread thread) {
+    return ShortCircuitHttpResponse.decorating(this, thread);
+  }
+
   public Object body(StarlarkThread thread) {
     return getField("body", thread);
   }
@@ -140,8 +164,8 @@ public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHt
    * use the script's {@code items()} path instead.
    */
   public boolean visitHeaderLines(BiConsumer<Object, Object> visitor) {
-    if (!(fields.get("headers") instanceof Tuple property)
-        || !(fields.get("_headers") instanceof LarkyMultiDict headers)
+    if (!(rawField("headers") instanceof Tuple property)
+        || !(rawField("_headers") instanceof LarkyMultiDict headers)
         || headers != property.get(HEADER_OWNER)) {
       return false;
     }
