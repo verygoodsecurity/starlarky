@@ -1,7 +1,6 @@
 package com.verygood.security.larky.parser;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assume.assumeTrue;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -47,10 +46,12 @@ public class ModuleCacheTest {
   }
 
   @Test
-  public void theProcessWideCacheIsOnUnlessTurnedOff() {
-    assumeTrue(System.getProperty("larky.moduleCache.enable") == null
-        && System.getProperty("larky.moduleCache.disable") == null);
-    assertThat(ModuleCache.SHARED.isEnabled()).isTrue();
+  public void theProcessWideCacheFollowsTheProperties() {
+    // whatever the run sets (on by default: see eitherPropertyTurnsTheProcessWideCacheOff)
+    assertThat(ModuleCache.SHARED.isEnabled())
+        .isEqualTo(ModuleCache.enabled(
+            System.getProperty("larky.moduleCache.enable"),
+            Boolean.getBoolean("larky.moduleCache.disable")));
   }
 
   @Test
