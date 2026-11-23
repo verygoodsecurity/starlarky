@@ -53,6 +53,22 @@ def _test_short_circuit_response_accepts_a_vgs_http_response():
     )
 
 
+def _test_short_circuit_response_decorates_the_response():
+    wrapped = VGSHttpResponse(body=b"blocked", headers=[("X-Trace", "one")], status_code=403)
+    response = proxy.ShortCircuitResponse(wrapped)
+    # one response: a change through either is seen through both
+    wrapped.append_header("X-Trace", "two")
+    response.status_code = 401
+    response.body = b"denied"
+    asserts.assert_that(response.headers.items()).is_equal_to([("X-Trace", "one"), ("X-Trace", "two")])
+    asserts.assert_that(wrapped.status_code).is_equal_to(401)
+    asserts.assert_that(wrapped.body).is_equal_to(b"denied")
+    asserts.assert_that(wrapped.__name__).is_equal_to("VGSHttpResponse")
+    asserts.assert_that(response.__name__).is_equal_to("ShortCircuitResponse")
+    # wrapping a short-circuit response again returns it
+    asserts.assert_that(proxy.ShortCircuitResponse(response) == response).is_equal_to(True)
+
+
 def _test_short_circuit_response_refuses_a_response_with_fields():
     wrapped = VGSHttpResponse(body=b"blocked", status_code=403)
     asserts.assert_fails(lambda: proxy.ShortCircuitResponse(wrapped, status_code=401), ".*not both")
@@ -66,6 +82,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_preserves_ordered_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_clears_length_when_body_changes))
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_accepts_a_vgs_http_response))
+    _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_decorates_the_response))
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_refuses_a_response_with_fields))
     return _suite
 

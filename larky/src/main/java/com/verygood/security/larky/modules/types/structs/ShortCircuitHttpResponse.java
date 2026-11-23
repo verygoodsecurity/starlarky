@@ -15,6 +15,7 @@
 
 package com.verygood.security.larky.modules.types.structs;
 
+import javax.annotation.Nullable;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.StarlarkThread;
 
@@ -22,5 +23,24 @@ import net.starlark.java.eval.StarlarkThread;
 public final class ShortCircuitHttpResponse extends VgsHttpResponse {
   ShortCircuitHttpResponse(Dict<String, Object> fields, StarlarkThread thread) {
     super(fields, thread);
+  }
+
+  /**
+   * A short-circuit response that decorates {@code response}: it shares the response's state (body, headers, status
+   * code and any other field), so a change made through either is a change to the one response. Only its type and
+   * its {@code __name__} say that the message stops here.
+   */
+  @SuppressWarnings("unchecked")
+  static ShortCircuitHttpResponse decorating(VgsHttpResponse response, StarlarkThread thread) {
+    if (response instanceof ShortCircuitHttpResponse shortCircuit) {
+      return shortCircuit;
+    }
+    return new ShortCircuitHttpResponse((Dict<String, Object>) response.fields, thread);
+  }
+
+  @Override
+  public Object getField(String name, @Nullable StarlarkThread thread) {
+    // the decorated response's fields name it VGSHttpResponse
+    return "__name__".equals(name) ? "ShortCircuitResponse" : super.getField(name, thread);
   }
 }

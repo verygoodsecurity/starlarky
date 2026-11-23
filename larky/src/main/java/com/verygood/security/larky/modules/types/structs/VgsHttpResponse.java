@@ -47,16 +47,14 @@ public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHt
       Object status, boolean shortCircuit, StarlarkThread thread)
       throws EvalException, InterruptedException {
     if (shortCircuit && body instanceof VgsHttpResponse response) {
-      // Larky 1.3 and earlier: proxy.ShortCircuitResponse(VGSHttpResponse(...)). The response's body, ordered
-      // headers and status code make the short-circuit response; given more than the response, it is ambiguous.
+      // proxy.ShortCircuitResponse(VGSHttpResponse(...)): the short-circuit response decorates the protocol's own
+      // response. Given fields besides the response, it is ambiguous.
       if (!(Starlark.isNullOrNone(headers) || headers instanceof Dict<?, ?> dict && dict.isEmpty())
           || !DEFAULT_STATUS.equals(status)) {
         throw Starlark.errorf(
             "ShortCircuitResponse takes either a VGSHttpResponse or body, headers and status_code, not both");
       }
-      body = response.body(thread);
-      headers = response.headerItems(thread);
-      status = response.statusCode(thread);
+      return ShortCircuitHttpResponse.decorating(response, thread);
     }
     SimpleStruct headerMap = buildHeaders(headerFactory, headers, thread);
     var fields = Dict.<String, Object>builder()
