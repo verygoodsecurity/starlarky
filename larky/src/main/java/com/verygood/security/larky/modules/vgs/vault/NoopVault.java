@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules.vgs.vault;
 
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
+import com.verygood.security.larky.modules.vgs.vault.spi.RevealOutcome;
 import java.util.List;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
@@ -13,7 +14,7 @@ public class NoopVault implements LarkyVault {
     }
 
     @Override
-    public Object reveal(Object value, Object storage) throws EvalException {
+    public RevealOutcome revealOutcome(Object value, Object storage) throws EvalException {
         throw Starlark.errorf("vault.reveal operation must be overridden");
     }
 

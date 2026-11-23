@@ -2,6 +2,7 @@ package com.verygood.security.larky.jsr223;
 
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.console.Console;
+import com.verygood.security.larky.console.RunDiagnostics;
 import com.verygood.security.larky.modules.utils.Reporter;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.parser.LarkyEvaluator;
@@ -17,6 +18,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import javax.script.ScriptException;
+import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
@@ -68,7 +70,8 @@ final class LarkyCalls {
    * {@code print} goes to {@code console} and whose run gets {@code providers}, as an evaluation's does.
    */
   static Object call(StarlarkCallable function, Object[] args, Console console, Limits limits,
-      ModuleProviders providers) throws ScriptException {
+      ModuleProviders providers, @Nullable DiagnosticRedactor diagnosticRedactor)
+      throws ScriptException {
     final List<Object> starlarkArgs = new ArrayList<>(args == null ? 0 : args.length);
     if (args != null) {
       for (Object arg : args) {
@@ -77,9 +80,6 @@ final class LarkyCalls {
     }
     try (Mutability mu = Mutability.create("larky-call")) {
       final StarlarkThread thread = StarlarkThread.createTransient(mu, LarkySemantics.LARKY_SEMANTICS);
-      final Reporter reporter = new Reporter(console);
-      thread.setThreadLocal(Reporter.class, reporter);
-      thread.setPrintHandler(reporter::report);
       providers.installOn(thread);
       if (limits.stepLimit() != null) {
         thread.setMaxExecutionSteps(limits.stepLimit());
@@ -87,7 +87,10 @@ final class LarkyCalls {
       if (limits.expirationMs() != null) {
         thread.setExpirationMs(limits.expirationMs());
       }
-      try {
+      try (var diagnostics = new RunDiagnostics(thread, diagnosticRedactor)) {
+        Reporter reporter = new Reporter(diagnostics.printConsole(console));
+        thread.setThreadLocal(Reporter.class, reporter);
+        thread.setPrintHandler(reporter::report);
         return Starlark.call(thread, function, starlarkArgs, Map.of());
       } catch (EvalException e) {
         // as the interpreter reports a script whose top level fails (LarkyEvaluator, then LarkyCompiledScript)

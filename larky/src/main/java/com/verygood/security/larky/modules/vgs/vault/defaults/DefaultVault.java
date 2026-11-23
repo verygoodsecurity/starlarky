@@ -3,6 +3,7 @@ package com.verygood.security.larky.modules.vgs.vault.defaults;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
+import com.verygood.security.larky.modules.vgs.vault.spi.RevealOutcome;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,10 +68,10 @@ public class DefaultVault implements LarkyVault {
     }
 
     @Override
-    public Object reveal(Object value, Object storage) throws EvalException {
-        String sValue = getValue(value);
-        Object secret = getStorage(storage).get(sValue);
-        return secret == null ? sValue : secret; // return value of alias if secret not found
+    public RevealOutcome revealOutcome(Object value, Object storage) throws EvalException {
+        String alias = getValue(value);
+        Object secret = getStorage(storage).get(alias);
+        return secret == null ? RevealOutcome.miss(alias) : RevealOutcome.hit(secret);
     }
 
     @Override

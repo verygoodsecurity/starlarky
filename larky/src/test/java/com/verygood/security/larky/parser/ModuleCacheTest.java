@@ -5,8 +5,10 @@ import static org.junit.Assume.assumeFalse;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import java.util.Map;
+import net.starlark.java.eval.DiagnosticRedactor;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkSemantics;
@@ -43,6 +45,26 @@ public class ModuleCacheTest {
         newEvaluator(cache).eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
     assertThat(second).isSameInstanceAs(first);
     assertThat(cache.size()).isGreaterThan(0);
+  }
+
+  @Test
+  public void trackingEvaluationsLeaveSharedModulesAlone() throws Exception {
+    ResourceContentStarFile content = ResourceContentStarFile.buildStarFile("@stdlib//sets");
+    Module shared = newEvaluator(cache).eval(content).module();
+    LarkyScript script = new LarkyScript(
+        ModuleSupplier.CORE_MODULES,
+        LarkyScript.StarlarkMode.STRICT,
+        Map.of(DiagnosticRedactor.BINDING_NAME, new DiagnosticRedactor(DiagnosticRedactor.Mode.ENFORCE)))
+        .withModuleCache(cache);
+    LarkyEvaluator trackingEvaluator = LarkyEvaluator.builder()
+        .script(script)
+        .console(new TestingConsole())
+        .build();
+
+    Module tracked = trackingEvaluator.eval(content).module();
+    assertThat(tracked).isNotSameInstanceAs(shared);
+    assertThat(trackingEvaluator.eval(content).module()).isSameInstanceAs(tracked);
+    assertThat(newEvaluator(cache).eval(content).module()).isSameInstanceAs(shared);
   }
 
   @Test

@@ -12,6 +12,7 @@
 * [Project overview](#project-overview)
     * [Libstarlark](#libstarlark)
     * [Larky](#larky)
+        * [Vault diagnostic redaction](#vault-diagnostic-redaction)
     * [Runlarky](#runlarky)
         * [Larky REPL](#larky-repl)
     * [Pylarky](#pylarky)
@@ -63,6 +64,40 @@ mvn versions:set -DnewVersion=<your-version> -pl larky (optional)
 mvn versions:set-property -Dproperty=libstarlark.version -DnewVersion=<larky-version> -pl larky
 mvn clean package -pl larky
 ```
+
+#### Vault diagnostic redaction
+
+An embedding host can bind a `DiagnosticRedactor` under
+`DiagnosticRedactor.BINDING_NAME` in the execution's engine scope. Give each
+independent run its own instance and keep it through error handling. The
+`@vgs//vault` module reports successful reveals synchronously to the run's
+observer before returning the value to the script. Hosts exposing additional
+reveal APIs can call `registerRevealed` on the same instance.
+
+Vault providers must implement `LarkyVault.revealOutcome`. Its result carries the
+ordinary return value and a list of the values actually found. Use
+`RevealOutcome.hit(value)` for scalar hits and `RevealOutcome.miss(fallback)`
+for misses. For a batch, preserve the original return shape, including
+fallbacks, and include only successful values in the list of hits. Java callers
+can still use `LarkyVault.reveal` to get the ordinary result.
+
+With no binding or with `OFF`, diagnostics use the ordinary behavior.
+`OBSERVE` reports matches and leaves text intact. `ENFORCE` masks known values in
+Larky's `print` output and text the host passes to `sanitizeError`. The host
+should sanitize the final diagnostic before logging, auditing, or returning it.
+`fail` raises the ordinary script exception so script catches behave as before.
+
+By default, the scanner recognizes complete strings of at least three characters, bytes
+values of at least three bytes, and flat lists of those values. It checks
+literal text, Larky-escaped forms, standard URL and form encodings, Base64,
+Base64URL, and hex. When the tracking
+budget is exhausted, `ENFORCE` masks the whole diagnostic. This feature covers
+known values in diagnostics. It provides no propagation through operators or
+control flow.
+
+Hosts can override individual limits with `DiagnosticRedactor.Limits.builder()`
+and pass the built limits to the redactor constructor. The builder starts with
+the default values.
 
 ### Runlarky
 
