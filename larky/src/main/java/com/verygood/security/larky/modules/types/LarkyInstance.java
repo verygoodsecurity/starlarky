@@ -37,7 +37,8 @@ import net.starlark.java.eval.Tuple;
  * setter) and plain attributes (slots). Its methods are {@code @StarlarkMethod}s. Any other
  * attribute a script sets goes into the instance's own dict, as on a Python object. Lookup
  * follows Python: declared attributes first, then the instance dict, which can shadow a method,
- * then the methods.
+ * then the methods. A type whose methods are not {@code @StarlarkMethod}s returns them from
+ * {@link #getMethod}.
  *
  * <p>An instance belongs to the {@link Mutability} of the evaluation that creates it and freezes
  * with it. It keeps no {@link StarlarkThread}; calls that need one use the evaluation active on
@@ -82,6 +83,26 @@ public abstract class LarkyInstance implements LarkyObject, Mutability.Freezable
 
   /** The names of the declared attributes that are set, for {@code dir()}. */
   protected abstract ImmutableList<String> declaredNames();
+
+  /**
+   * The method {@code name}, for a type whose methods are not {@code @StarlarkMethod}s, or null.
+   * It is looked up after the instance dict, so an attribute of the same name overrides it.
+   */
+  @Nullable
+  protected Object getMethod(String name) {
+    return null;
+  }
+
+  /** The names {@link #getMethod} answers, for {@code dir()}. */
+  protected ImmutableList<String> methodNames() {
+    return ImmutableList.of();
+  }
+
+  /** The attribute {@code name} set in the instance dict, or null. */
+  @Nullable
+  protected final Object instanceAttribute(String name) {
+    return attributes == null ? null : attributes.get(name);
+  }
 
   @Override
   public final Mutability mutability() {
@@ -128,7 +149,8 @@ public abstract class LarkyInstance implements LarkyObject, Mutability.Freezable
       }
       throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, active);
     }
-    return attributes == null ? null : attributes.get(name);
+    Object attribute = instanceAttribute(name);
+    return attribute != null ? attribute : getMethod(name);
   }
 
   @Override
@@ -160,6 +182,11 @@ public abstract class LarkyInstance implements LarkyObject, Mutability.Freezable
     names.addAll(declaredNames());
     if (attributes != null) {
       names.addAll(attributes.keySet());
+    }
+    for (String method : methodNames()) {
+      if (instanceAttribute(method) == null) {
+        names.add(method);
+      }
     }
     return names.build();
   }

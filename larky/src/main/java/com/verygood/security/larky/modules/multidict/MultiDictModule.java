@@ -42,6 +42,8 @@ public final class MultiDictModule implements StarlarkValue {
         @Param(name = "case_insensitive"),
         @Param(name = "args"),
         @Param(name = "kwargs"),
+        // str() lists the lines as {"key": repr(value), ...} (VGSCIMultiDict)
+        @Param(name = "dict_str", named = true, defaultValue = "False"),
       },
       useStarlarkThread = true)
   public LarkyMultiDict newMultiDict(
@@ -50,11 +52,12 @@ public final class MultiDictModule implements StarlarkValue {
       Boolean caseInsensitive,
       Tuple args,
       Dict<?, ?> kwargs,
+      Boolean dictStr,
       StarlarkThread thread)
       throws EvalException, InterruptedException {
     return LarkyMultiDict.create(
-        cls, name, caseInsensitive, args, Dict.cast(kwargs, String.class, Object.class, "kwargs"),
-        thread);
+        cls, name, caseInsensitive, dictStr, args,
+        Dict.cast(kwargs, String.class, Object.class, "kwargs"), thread);
   }
 
   @StarlarkMethod(

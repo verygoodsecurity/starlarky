@@ -16,16 +16,30 @@ package com.verygood.security.larky.modules.multidict;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultiset;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multiset;
+import com.verygood.security.larky.modules.types.LarkyCollection;
+import com.verygood.security.larky.modules.types.LarkyInstance;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.parser.StarlarkUtil;
+import java.util.AbstractList;
+import java.util.AbstractSet;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -43,16 +57,28 @@ import net.starlark.java.eval.Tuple;
 
 /**
  * The multidicts of {@code @vendor//multidict} ({@code MultiDict}, {@code CIMultiDict} and their
- * read-only proxies), implemented natively behind the same Larky facade: an instance is a struct
- * whose {@code __name__} and {@code __class__} name the facade function that made it, whose
- * attributes may be set (as {@code VGSCIMultiDict} does), and whose methods behave as the
- * {@code .star} implementation's did (ported from multidict 5.1.0's {@code _multidict_py.py}),
- * including its error messages and per-instance version counter.
+ * read-only proxies) and {@code VGSCIMultiDict}: an ordered list of (key, value) lines in which a
+ * key may repeat. The methods behave as the {@code .star} implementation's did (ported from
+ * multidict 5.1.0's {@code _multidict_py.py}), including its error messages and per-instance
+ * version counter. Like any {@link LarkyInstance}, an instance's {@code __name__} and
+ * {@code __class__} name the facade function that made it, and an attribute set on an instance
+ * overrides the method of that name.
  *
- * <p>Methods are looked up after the instance's own attributes, so an attribute set on an instance
- * overrides the method of that name, as it did when the methods were attributes.
+ * <p>For Java hosts it is a read-only {@link ListMultimap}: {@link #entries()} gives every line in
+ * insertion order, {@link #size()} counts lines, and {@link #get} gives every value of a key. It is
+ * not a {@link Map}, which would show one value per key. Where it differs from Guava's contract:
+ * <ul>
+ *   <li>a case-insensitive multidict matches keys by {@code key.title()}, as a {@code TreeMap} with
+ *       {@code String.CASE_INSENSITIVE_ORDER} does, while each entry keeps its own spelling;
+ *   <li>its mutators throw {@link UnsupportedOperationException}: scripts change it through its
+ *       Starlark methods, which check its mutability;
+ *   <li>{@link #equals} and {@link #hashCode} are Starlark's {@code ==} and identity, not
+ *       {@link Multimap#equals};
+ *   <li>{@link #keys()} and {@link #asMap()} are copies, not views.
+ * </ul>
  */
-public final class LarkyMultiDict extends SimpleStruct implements Mutability.Freezable {
+public final class LarkyMultiDict extends LarkyInstance
+    implements LarkyCollection, ListMultimap<Object, Object> {
 
   /** {@code (identity, key, value)}: the identity is the key, or {@code key.title()} if case-insensitive. */
   private record Entry(Object identity, Object key, Object value) {}
@@ -61,10 +87,13 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
   private static final class Store {
     private final ArrayList<Entry> entries = new ArrayList<>();
     private final Mutability mutability;
+    /** The semantics of the evaluation that created it, for {@code title()} outside an evaluation. */
+    private final StarlarkSemantics semantics;
     private int version = 1;
 
-    private Store(Mutability mutability) {
-      this.mutability = mutability;
+    private Store(StarlarkThread thread) {
+      this.mutability = thread.mutability();
+      this.semantics = thread.getSemantics();
     }
   }
 
@@ -117,33 +146,33 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
     METHODS = methods.buildOrThrow();
   }
 
-  /** The instance's attributes, which SimpleStruct reads as its fields. */
-  private final Map<String, Object> attrs;
+  private static final String READ_ONLY =
+      "a multidict is changed through its Starlark methods; its Java view is read-only";
+
+  private final String name;
   private final Store store;
   private final boolean caseInsensitive;
   private final boolean proxy;
   /** What a proxy's copy() calls with its items: the facade's MultiDict or CIMultiDict. */
   @Nullable private final Object proxyCopyClass;
+  /** str() lists the lines as {"key": repr(value), ...}, as VGSCIMultiDict's __str__ did. */
+  private final boolean dictStr;
 
   private LarkyMultiDict(
-      Map<String, Object> attrs,
+      Object cls,
+      String name,
       Store store,
       boolean caseInsensitive,
       boolean proxy,
-      @Nullable Object proxyCopyClass) {
-    super(attrs);
-    this.attrs = attrs;
+      @Nullable Object proxyCopyClass,
+      boolean dictStr) {
+    super(cls, store.mutability);
+    this.name = name;
     this.store = store;
     this.caseInsensitive = caseInsensitive;
     this.proxy = proxy;
     this.proxyCopyClass = proxyCopyClass;
-  }
-
-  private static Map<String, Object> attrs(Object cls, String name) {
-    Map<String, Object> attrs = new LinkedHashMap<>(4);
-    attrs.put(PyProtocols.__NAME__, name);
-    attrs.put(PyProtocols.__CLASS__, cls);
-    return attrs;
+    this.dictStr = dictStr;
   }
 
   /**
@@ -154,13 +183,13 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
       Object cls,
       String name,
       boolean caseInsensitive,
+      boolean dictStr,
       Tuple args,
       Dict<String, Object> kwargs,
       StarlarkThread thread)
       throws EvalException, InterruptedException {
     LarkyMultiDict md =
-        new LarkyMultiDict(
-            attrs(cls, name), new Store(thread.mutability()), caseInsensitive, false, null);
+        new LarkyMultiDict(cls, name, new Store(thread), caseInsensitive, false, null, dictStr);
     md.extend(args, kwargs, name, false, thread);
     return md;
   }
@@ -173,13 +202,12 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
       throw Starlark.errorf(
           "TypeError: %s requires a multidict, not %s", name, StarlarkUtil.richType(arg));
     }
-    return new LarkyMultiDict(attrs(cls, name), md.store, caseInsensitive, true, copyClass);
+    return new LarkyMultiDict(cls, name, md.store, caseInsensitive, true, copyClass, false);
   }
 
-  /** The Mutability of the evaluation that created the multidict (a proxy: its multidict's). */
   @Override
-  public Mutability mutability() {
-    return store.mutability;
+  public String typeName() {
+    return name;
   }
 
   /**
@@ -189,7 +217,7 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
    * visitor must not change the multidict.
    */
   public boolean visitItems(java.util.function.BiConsumer<Object, Object> visitor) {
-    if (attrs.containsKey("items")) {
+    if (overridden("items")) {
       return false;
     }
     for (Entry e : store.entries) {
@@ -203,47 +231,55 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
     return store.version;
   }
 
-  // Attributes
+  // Attributes: a multidict declares none; its methods come after the instance's own attributes
 
   @Nullable
   @Override
-  public Object getField(String name, @Nullable StarlarkThread thread) {
-    Object attr = attrs.get(name);
-    if (attr != null) {
-      return attr;
-    }
-    Method method = METHODS.get(name);
-    if (method != null && has(method)) {
-      return new BoundMethod(this, method);
-    }
-    return super.getField(name, thread);
-  }
-
-  private boolean has(Method method) {
-    return !(proxy && method.mutableOnly);
+  protected Object getDeclared(String name, StarlarkThread thread) {
+    return null;
   }
 
   @Override
-  public ImmutableList<String> getFieldNames() {
-    ImmutableList.Builder<String> names = ImmutableList.<String>builder().addAll(attrs.keySet());
+  protected boolean setDeclared(String name, Object value, StarlarkThread thread) {
+    return false;
+  }
+
+  @Override
+  protected void addState(Map<String, Object> state) {}
+
+  @Override
+  protected ImmutableList<String> declaredNames() {
+    return ImmutableList.of();
+  }
+
+  @Nullable
+  @Override
+  protected Object getMethod(String name) {
+    Method method = METHODS.get(name);
+    return method != null && has(method) ? new BoundMethod(this, method) : null;
+  }
+
+  @Override
+  protected ImmutableList<String> methodNames() {
+    ImmutableList.Builder<String> names = ImmutableList.builder();
     for (Method m : Method.values()) {
-      if (has(m) && !attrs.containsKey(m.starlarkName)) {
+      if (has(m)) {
         names.add(m.starlarkName);
       }
     }
     return names.build();
   }
 
-  @Override
-  public void setField(String name, Object value) throws EvalException {
-    if (store.mutability.isFrozen()) {
-      throw new EvalException("Attempting to update a frozen structure");
-    }
-    attrs.put(name, value);
+  private boolean has(Method method) {
+    return !(proxy && method.mutableOnly);
   }
 
   private boolean overridden(String name) {
-    return attrs.containsKey(name);
+    return instanceAttribute(name) != null;
+  }
+
+  private Object callOverride(String name, Object... args) throws EvalException {
+    return invoke(instanceAttribute(name), List.of(args));
   }
 
   // Operators: the native methods unless the instance overrides them
@@ -252,7 +288,7 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
   public Object getIndex(StarlarkThread thread, StarlarkSemantics semantics, Object key)
       throws EvalException {
     if (overridden(PyProtocols.__GETITEM__)) {
-      return super.getIndex(thread, semantics, key);
+      return LarkyCollection.super.getIndex(thread, semantics, key);
     }
     return getone(thread, key, null);
   }
@@ -261,7 +297,7 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
   public void setIndex(StarlarkThread thread, StarlarkSemantics semantics, Object key, Object value)
       throws EvalException {
     if (proxy || overridden(PyProtocols.__SETITEM__)) {
-      super.setIndex(thread, semantics, key, value);
+      LarkyCollection.super.setIndex(thread, semantics, key, value);
       return;
     }
     Starlark.checkHashable(key);
@@ -272,7 +308,7 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
   public boolean containsKey(StarlarkThread thread, StarlarkSemantics semantics, Object key)
       throws EvalException {
     if (overridden(PyProtocols.__CONTAINS__)) {
-      return super.containsKey(thread, semantics, key);
+      return LarkyCollection.super.containsKey(thread, semantics, key);
     }
     try {
       return contains(thread, key);
@@ -290,7 +326,7 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
   @Override
   public Iterator<Object> iterator() {
     if (overridden(PyProtocols.__ITER__)) {
-      return super.iterator();
+      return LarkyCollection.super.iterator();
     }
     // iterates a copy of the keys, as the .star implementation did (iter(self.keys()))
     charge(CurrentEvaluation.currentOrNull(), store.entries.size());
@@ -303,8 +339,15 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
 
   @Override
   public boolean truth() {
-    if (overridden(PyProtocols.__BOOL__) || overridden(PyProtocols.__LEN__)) {
-      return super.truth();
+    try {
+      if (overridden(PyProtocols.__BOOL__)) {
+        return Starlark.truth(callOverride(PyProtocols.__BOOL__));
+      }
+      if (overridden(PyProtocols.__LEN__)) {
+        return Starlark.truth(callOverride(PyProtocols.__LEN__));
+      }
+    } catch (EvalException e) {
+      throw new RuntimeException(e);
     }
     return !store.entries.isEmpty();
   }
@@ -312,7 +355,11 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
   @Override
   public void repr(Printer printer, StarlarkSemantics semantics) {
     if (overridden(PyProtocols.__REPR__)) {
-      super.repr(printer, semantics);
+      try {
+        printer.append(Starlark.str(callOverride(PyProtocols.__REPR__), semantics));
+      } catch (EvalException e) {
+        throw new RuntimeException(e);
+      }
       return;
     }
     charge(CurrentEvaluation.currentOrNull(), store.entries.size());
@@ -320,20 +367,36 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
   }
 
   @Override
+  public void str(Printer printer, StarlarkSemantics semantics) {
+    if (overridden(PyProtocols.__STR__) || !dictStr) {
+      LarkyCollection.super.str(printer, semantics);
+      return;
+    }
+    charge(CurrentEvaluation.currentOrNull(), store.entries.size());
+    printer.append("{");
+    String separator = "";
+    for (Entry e : store.entries) {
+      printer.append(separator).append("\"").append(Starlark.str(e.key(), semantics)).append("\": ")
+          .append(Starlark.repr(e.value(), semantics));
+      separator = ", ";
+    }
+    printer.append("}");
+  }
+
+  @Override
   public boolean equals(Object obj) {
     if (this == obj) {
       return true;
     }
-    if (overridden(PyProtocols.__EQ__)) {
-      return super.equals(obj);
-    }
-    // As for any struct, == consults __eq__ only when the other side is a struct too.
-    if (!(obj instanceof SimpleStruct)) {
-      return false;
-    }
-    StarlarkThread thread = CurrentEvaluation.currentOrNull();
     try {
-      return eq(thread, obj);
+      if (overridden(PyProtocols.__EQ__)) {
+        return Starlark.truth(callOverride(PyProtocols.__EQ__, obj));
+      }
+      // As for any struct, == consults __eq__ only when the other side is a struct or multidict too.
+      if (!(obj instanceof SimpleStruct) && !(obj instanceof LarkyMultiDict)) {
+        return false;
+      }
+      return eq(CurrentEvaluation.currentOrNull(), obj);
     } catch (EvalException | InterruptedException e) {
       throw new RuntimeException(e);
     }
@@ -342,7 +405,19 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
   @Override
   public int hashCode() {
     if (overridden(PyProtocols.__HASH__)) {
-      return super.hashCode();
+      try {
+        Object hash = callOverride(PyProtocols.__HASH__);
+        if (hash instanceof Boolean b) {
+          // bool is an int in Python: hash(True) == hash(1)
+          return StarlarkInt.of(b ? 1 : 0).hashCode();
+        }
+        if (hash instanceof StarlarkInt) {
+          return hash.hashCode();
+        }
+        throw Starlark.errorf("TypeError: __hash__ method should return an integer");
+      } catch (EvalException e) {
+        throw new RuntimeException(e);
+      }
     }
     return System.identityHashCode(this);
   }
@@ -409,7 +484,7 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
       }
       case COPY, DUNDER_COPY -> {
         Args.bind(fn, args, kwargs, 0);
-        Object cls = proxy ? proxyCopyClass : attrs.get(PyProtocols.__CLASS__);
+        Object cls = proxy ? proxyCopyClass : getField(PyProtocols.__CLASS__, thread);
         return Starlark.call(thread, cls, ImmutableList.of(itemsAttr(thread)), ImmutableMap.of());
       }
       case REDUCE -> {
@@ -417,7 +492,7 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
         if (proxy) {
           throw Starlark.errorf("TypeError: can't pickle %s objects", typeName());
         }
-        return Tuple.pair(attrs.get(PyProtocols.__CLASS__), Tuple.of(itemsAttr(thread)));
+        return Tuple.pair(getField(PyProtocols.__CLASS__, thread), Tuple.of(itemsAttr(thread)));
       }
       case ADD -> {
         Object[] a = Args.bind(fn, args, kwargs, 2, "key", "value");
@@ -482,10 +557,6 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
     if (thread != null && entries > 0) {
       thread.incrementExecutedSteps(entries);
     }
-  }
-
-  private void checkMutable() throws EvalException {
-    Starlark.checkMutable(this);
   }
 
   /** The identity of {@code key}: {@code key.title()} if case-insensitive, else {@code key}. */
@@ -623,7 +694,7 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
 
   /** {@code self.items()}: an items attribute set on the instance if there is one, as before. */
   private Object itemsAttr(StarlarkThread thread) throws EvalException, InterruptedException {
-    Object override = attrs.get("items");
+    Object override = instanceAttribute("items");
     if (override == null) {
       return items(thread);
     }
@@ -648,14 +719,14 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
       body.append('\'').append(Starlark.str(e.key(), semantics)).append("': ")
           .append(Starlark.repr(e.value(), semantics));
     }
-    return "<" + Starlark.str(attrs.get(PyProtocols.__NAME__), semantics) + "(" + body + ")>";
+    return "<" + name + "(" + body + ")>";
   }
 
   private boolean eq(@Nullable StarlarkThread thread, Object other)
       throws EvalException, InterruptedException {
     if (other instanceof LarkyMultiDict md
         && Starlark.checkedEquals(
-            md.attrs.get(PyProtocols.__CLASS__), attrs.get(PyProtocols.__CLASS__))) {
+            md.getField(PyProtocols.__CLASS__, thread), getField(PyProtocols.__CLASS__, thread))) {
       List<Entry> lft = store.entries;
       List<Entry> rht = md.store.entries;
       charge(thread != null ? thread : CurrentEvaluation.currentOrNull(), lft.size());
@@ -956,6 +1027,213 @@ public final class LarkyMultiDict extends SimpleStruct implements Mutability.Fre
       return dflt;
     }
     throw keyError(thread, key);
+  }
+
+  // ListMultimap: a read-only view for Java hosts. Reads charge no steps; they are the host's work.
+
+  /** The identity a Java caller's key matches by: {@code key.title()} for a string key if case-insensitive. */
+  @Nullable
+  private Object javaIdentity(@Nullable Object key) {
+    return caseInsensitive && key instanceof String s ? StarlarkStrings.title(s, store.semantics) : key;
+  }
+
+  private boolean matches(Entry entry, @Nullable Object identity) {
+    return Objects.equals(entry.identity(), identity);
+  }
+
+  /** The number of lines. */
+  @Override
+  public int size() {
+    return store.entries.size();
+  }
+
+  @Override
+  public boolean isEmpty() {
+    return store.entries.isEmpty();
+  }
+
+  @Override
+  public boolean containsKey(@Nullable Object key) {
+    Object identity = javaIdentity(key);
+    for (Entry e : store.entries) {
+      if (matches(e, identity)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public boolean containsValue(@Nullable Object value) {
+    for (Entry e : store.entries) {
+      if (Objects.equals(e.value(), value)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public boolean containsEntry(@Nullable Object key, @Nullable Object value) {
+    Object identity = javaIdentity(key);
+    for (Entry e : store.entries) {
+      if (matches(e, identity) && Objects.equals(e.value(), value)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Every value of {@code key}, in order: a view that follows changes to the multidict. */
+  @Override
+  public List<Object> get(@Nullable Object key) {
+    Object identity = javaIdentity(key);
+    return new AbstractList<>() {
+      @Override
+      public Object get(int index) {
+        int seen = 0;
+        for (Entry e : store.entries) {
+          if (matches(e, identity) && seen++ == index) {
+            return e.value();
+          }
+        }
+        throw new IndexOutOfBoundsException(index);
+      }
+
+      @Override
+      public int size() {
+        int count = 0;
+        for (Entry e : store.entries) {
+          if (matches(e, identity)) {
+            count++;
+          }
+        }
+        return count;
+      }
+    };
+  }
+
+  /** One key per identity, spelled as its first line spells it: a view. */
+  @Override
+  public Set<Object> keySet() {
+    return new AbstractSet<>() {
+      @Override
+      public Iterator<Object> iterator() {
+        Map<Object, Object> first = new LinkedHashMap<>();
+        for (Entry e : store.entries) {
+          first.putIfAbsent(e.identity(), e.key());
+        }
+        return Collections.unmodifiableCollection(first.values()).iterator();
+      }
+
+      @Override
+      public int size() {
+        Set<Object> identities = new LinkedHashSet<>();
+        for (Entry e : store.entries) {
+          identities.add(e.identity());
+        }
+        return identities.size();
+      }
+
+      @Override
+      public boolean contains(Object key) {
+        return containsKey(key);
+      }
+    };
+  }
+
+  /** Every line's key, as spelled: a copy. */
+  @Override
+  public Multiset<Object> keys() {
+    ImmutableMultiset.Builder<Object> keys = ImmutableMultiset.builder();
+    for (Entry e : store.entries) {
+      keys.add(e.key());
+    }
+    return keys.build();
+  }
+
+  /** Every line's value, in order: a view. */
+  @Override
+  public List<Object> values() {
+    return new AbstractList<>() {
+      @Override
+      public Object get(int index) {
+        return store.entries.get(index).value();
+      }
+
+      @Override
+      public int size() {
+        return store.entries.size();
+      }
+    };
+  }
+
+  /** Every line as (key, value), in insertion order across keys: a view. */
+  @Override
+  public List<Map.Entry<Object, Object>> entries() {
+    return new AbstractList<>() {
+      @Override
+      public Map.Entry<Object, Object> get(int index) {
+        Entry e = store.entries.get(index);
+        return Maps.immutableEntry(e.key(), e.value());
+      }
+
+      @Override
+      public int size() {
+        return store.entries.size();
+      }
+    };
+  }
+
+  /** Each key, spelled as its first line spells it, with all its values: a copy. */
+  @Override
+  public Map<Object, Collection<Object>> asMap() {
+    Map<Object, Object> spelling = new LinkedHashMap<>();
+    Map<Object, List<Object>> values = new LinkedHashMap<>();
+    for (Entry e : store.entries) {
+      spelling.putIfAbsent(e.identity(), e.key());
+      values.computeIfAbsent(e.identity(), unused -> new ArrayList<>()).add(e.value());
+    }
+    Map<Object, Collection<Object>> map = new LinkedHashMap<>();
+    for (Map.Entry<Object, List<Object>> e : values.entrySet()) {
+      map.put(spelling.get(e.getKey()), Collections.unmodifiableList(e.getValue()));
+    }
+    return Collections.unmodifiableMap(map);
+  }
+
+  @Override
+  public boolean put(Object key, Object value) {
+    throw new UnsupportedOperationException(READ_ONLY);
+  }
+
+  @Override
+  public boolean remove(@Nullable Object key, @Nullable Object value) {
+    throw new UnsupportedOperationException(READ_ONLY);
+  }
+
+  @Override
+  public boolean putAll(Object key, Iterable<?> values) {
+    throw new UnsupportedOperationException(READ_ONLY);
+  }
+
+  @Override
+  public boolean putAll(Multimap<?, ?> multimap) {
+    throw new UnsupportedOperationException(READ_ONLY);
+  }
+
+  @Override
+  public List<Object> replaceValues(Object key, Iterable<?> values) {
+    throw new UnsupportedOperationException(READ_ONLY);
+  }
+
+  @Override
+  public List<Object> removeAll(@Nullable Object key) {
+    throw new UnsupportedOperationException(READ_ONLY);
+  }
+
+  @Override
+  public void clear() {
+    throw new UnsupportedOperationException(READ_ONLY);
   }
 
   /** A method of one multidict, as {@code md.name} returns it. */
