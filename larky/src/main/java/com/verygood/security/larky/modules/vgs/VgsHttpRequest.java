@@ -92,7 +92,8 @@ public final class VgsHttpRequest extends HttpRequest {
     if (vgsFields) {
       switch (name) {
         case "url":
-          return attr(thread, "full_url");
+          // full_url is a property: an instance attribute cannot replace it
+          return fullUrl(thread);
         case "body":
           return data();
         case "headers":

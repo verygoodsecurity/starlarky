@@ -67,6 +67,8 @@ public class LarkyScriptContext implements ScriptContext, SupportsMetadata {
   @Nullable private Bindings globalBindings;
 
   // Remember the standard streams at construction, but allocate their wrappers only on use.
+  // The standard streams are wrapped on first use. The accessors are synchronized: a context, such as an
+  // engine's own, may be shared by threads, and none of them may see a stream half set up.
   @Nullable private InputStream defaultInput = System.in;
   @Nullable private PrintStream defaultOutput = System.out;
   @Nullable private PrintStream defaultError = System.err;

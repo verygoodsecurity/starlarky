@@ -54,9 +54,11 @@ def _test_a_short_circuit_cannot_be_changed():
     asserts.assert_fails(change, ".*ShortCircuitResponse value does not support field assignment.*")
 
 
-def _test_wrapping_a_short_circuit_again_returns_it():
+def _test_a_short_circuit_is_not_a_protocol_response():
+    # it holds one; it cannot be wrapped again
     short_circuit = proxy.ShortCircuitResponse(VGSHttpResponse())
-    asserts.assert_that(proxy.ShortCircuitResponse(short_circuit) == short_circuit).is_equal_to(True)
+    asserts.assert_fails(lambda: proxy.ShortCircuitResponse(short_circuit),
+                         ".*expected `VGSHttpResponse`; got ShortCircuitResponse")
 
 
 def _test_a_body_can_be_any_value():
@@ -87,7 +89,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_the_held_response_keeps_ordered_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_changes_to_the_response_reach_the_short_circuit))
     _suite.addTest(unittest.FunctionTestCase(_test_a_short_circuit_cannot_be_changed))
-    _suite.addTest(unittest.FunctionTestCase(_test_wrapping_a_short_circuit_again_returns_it))
+    _suite.addTest(unittest.FunctionTestCase(_test_a_short_circuit_is_not_a_protocol_response))
     _suite.addTest(unittest.FunctionTestCase(_test_a_body_can_be_any_value))
     _suite.addTest(unittest.FunctionTestCase(_test_reprs_show_the_status))
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_refuses_what_is_not_a_protocol_response))
