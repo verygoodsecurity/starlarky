@@ -26,6 +26,25 @@ public class MutableStruct extends SimpleStruct {
     this.mutability = mutability;
   }
 
+  /**
+   * A struct that shares {@code shared}'s fields: a change made through either is a change to both. For a
+   * decorator, such as a short-circuit response decorating the response it stops with.
+   */
+  protected MutableStruct(MutableStruct shared, Mutability mutability) {
+    super(shared.fields);
+    this.mutability = mutability;
+  }
+
+  /** The field as stored, without resolving a property or {@code __getattr__} ({@link #getField} does). */
+  protected final Object rawField(String name) {
+    return fields.get(name);
+  }
+
+  /** Whether the fields are frozen (their dict's mutability). */
+  protected final boolean fieldsFrozen() {
+    return fields instanceof Dict<?, ?> dict && dict.mutability().isFrozen();
+  }
+
   @Override
   @StarlarkMethod(name = PyProtocols.__DICT__, structField = true)
   public Dict<String, Object> dunderDict() throws EvalException {

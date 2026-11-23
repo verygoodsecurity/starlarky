@@ -31,7 +31,7 @@ public final class ShortCircuitHttpResponse extends VgsHttpResponse implements S
   }
 
   private ShortCircuitHttpResponse(VgsHttpResponse decorated, StarlarkThread thread) {
-    super(decorated.sharedFields(), thread);
+    super(decorated, thread);
     this.decorated = decorated;
   }
 

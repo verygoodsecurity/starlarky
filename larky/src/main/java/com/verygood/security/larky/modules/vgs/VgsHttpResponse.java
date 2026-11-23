@@ -91,10 +91,10 @@ public sealed class VgsHttpResponse extends MutableStruct implements ProtocolRes
 
   @Override
   public Object getField(String name, @Nullable StarlarkThread thread) {
-    if ("body".equals(name) && fields.get("body") == Starlark.NONE) {
+    if ("body".equals(name) && rawField("body") == Starlark.NONE) {
       return super.getField("_body", thread);
     }
-    if ("headers".equals(name) && fields.get("headers") instanceof Tuple) {
+    if ("headers".equals(name) && rawField("headers") instanceof Tuple) {
       return super.getField("_headers", thread);
     }
     return super.getField(name, thread);
@@ -103,8 +103,8 @@ public sealed class VgsHttpResponse extends MutableStruct implements ProtocolRes
   @Override
   public void setField(String name, Object value) throws EvalException {
     if (!(value instanceof Property)
-        && (("body".equals(name) && fields.get("body") == Starlark.NONE)
-            || ("headers".equals(name) && fields.get("headers") instanceof Tuple))) {
+        && (("body".equals(name) && rawField("body") == Starlark.NONE)
+            || ("headers".equals(name) && rawField("headers") instanceof Tuple))) {
       setResponseProperty(name, value);
     } else {
       super.setField(name, value);
@@ -112,13 +112,13 @@ public sealed class VgsHttpResponse extends MutableStruct implements ProtocolRes
   }
 
   private void setResponseProperty(String name, Object value) throws EvalException {
-    if (((Dict<?, ?>) fields).mutability().isFrozen()) {
+    if (fieldsFrozen()) {
       throw Starlark.errorf("Attempting to update a frozen structure");
     }
     StarlarkThread thread = CurrentEvaluation.requireThread();
     try {
       if ("headers".equals(name)) {
-        var property = (Tuple) fields.get("headers");
+        var property = (Tuple) rawField("headers");
         var headerFactory = (StarlarkCallable) property.get(HEADER_FACTORY);
         SimpleStruct headers = buildHeaders(headerFactory, value, thread);
         super.setField("_headers", headers);
@@ -140,10 +140,9 @@ public sealed class VgsHttpResponse extends MutableStruct implements ProtocolRes
     return response instanceof VgsHttpResponse http ? http.getField("__name__", thread) : Starlark.type(response);
   }
 
-  /** This response's fields, which a {@link ShortCircuitHttpResponse} decorating it shares. */
-  @SuppressWarnings("unchecked")
-  final Dict<String, Object> sharedFields() {
-    return (Dict<String, Object>) fields;
+  /** A response that shares {@code decorated}'s fields (see {@link ShortCircuitHttpResponse}). */
+  VgsHttpResponse(VgsHttpResponse decorated, StarlarkThread thread) {
+    super(decorated, thread.mutability());
   }
 
   @Override
@@ -165,8 +164,8 @@ public sealed class VgsHttpResponse extends MutableStruct implements ProtocolRes
    * use the script's {@code items()} path instead.
    */
   public boolean visitHeaderLines(BiConsumer<Object, Object> visitor) {
-    if (!(fields.get("headers") instanceof Tuple property)
-        || !(fields.get("_headers") instanceof LarkyMultiDict headers)
+    if (!(rawField("headers") instanceof Tuple property)
+        || !(rawField("_headers") instanceof LarkyMultiDict headers)
         || headers != property.get(HEADER_OWNER)) {
       return false;
     }

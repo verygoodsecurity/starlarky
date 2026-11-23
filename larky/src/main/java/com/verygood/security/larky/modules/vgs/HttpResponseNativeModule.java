@@ -25,7 +25,7 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 /** Native construction for the public VGS HTTP response constructors. */
-@StarlarkBuiltin(name = "http_response_native", documented = false, doc = "VGS HTTP response construction.")
+@StarlarkBuiltin(name = "jhttpresponse", documented = false, doc = "VGS HTTP response construction.")
 public final class HttpResponseNativeModule implements StarlarkValue {
   public static final HttpResponseNativeModule INSTANCE = new HttpResponseNativeModule();
 

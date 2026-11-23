@@ -57,11 +57,11 @@ public class NativeModuleNamespaceTest {
 
   @Test
   public void nativeHttpResponseFactoryIsVgsOnly() throws Exception {
-    eval("load('@vgs//http_response_native', 'http_response_native')\nbuild = http_response_native.create\n");
+    eval("load('@vgs//jhttpresponse', 'jhttpresponse')\nbuild = jhttpresponse.create\n");
 
     ScriptException wrongNamespace = assertThrows(ScriptException.class,
-        () -> eval("load('@stdlib//http_response_native', 'http_response_native')\n"));
-    assertThat(wrongNamespace.getMessage()).contains("load it as '@vgs//http_response_native'");
+        () -> eval("load('@stdlib//jhttpresponse', 'jhttpresponse')\n"));
+    assertThat(wrongNamespace.getMessage()).contains("load it as '@vgs//jhttpresponse'");
 
     ScriptException missingGlobal = assertThrows(ScriptException.class, () -> eval("build = _http_response\n"));
     assertThat(missingGlobal.getMessage()).contains("name '_http_response' is not defined");
