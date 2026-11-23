@@ -212,7 +212,10 @@ for both the `.star` files and the Java code; the rest are for authors and revie
   whose jar is not signed, and a jar that repackages BouncyCastle (`jar-with-dependencies`) is
   not. The JDK's own error does not say so: for ECDH with a PEM key it is "Not an EC key: ECDSA".
 - Where code asks the JCA for an algorithm without naming a provider, the provider depends on the
-  key and on the JVM. When such a call fails, report which provider was refused and why.
+  key and on the JVM. If the JDK's provider can do the same work, fall back to it, naming that
+  provider (ECDH does, for a SEC1 key). An error a script's author sees says what the author can
+  do. Log what the JVM refused rather than leaving it in the exception's cause: a host that runs
+  scripts through `javax.script` gets the message without its cause.
 - Anything reachable from a library's frozen top-level values is shared by concurrent evaluations
   when the module cache is on. After changing how such values are read (attribute access, structs,
   types, key objects), replay scripts concurrently with the cache on and compare every

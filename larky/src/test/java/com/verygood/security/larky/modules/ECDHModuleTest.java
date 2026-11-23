@@ -17,85 +17,135 @@
 package com.verygood.security.larky.modules;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import java.security.InvalidKeyException;
+import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.PrivateKey;
+import java.security.NoSuchProviderException;
+import java.security.Provider;
+import java.security.Security;
 import java.security.spec.ECGenParameterSpec;
+import javax.crypto.KeyAgreement;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Test;
 
-/** {@link ECDHModule#explain}: the cause it reports when no provider accepted the private key. */
+/**
+ * {@link ECDHModule#agreementWithJdkKey}: what happens to a key that no provider accepted. The JVM that refuses
+ * BouncyCastle is simulated by the probe; this JVM accepts it.
+ */
 public class ECDHModuleTest {
 
+  private static final Provider BC = new BouncyCastleProvider();
   private static final InvalidKeyException NOT_AN_EC_KEY = new InvalidKeyException("Not an EC key: ECDSA");
+  private static final ECDHModule.ProviderProbe REFUSED = () -> {
+    // what JDK 21 throws from KeyAgreement.getInstance("ECDH", "BC") for a provider it refuses
+    throw new NoSuchProviderException("JCE cannot authenticate the provider BC");
+  };
 
-  private static PrivateKey key(java.security.Provider provider) throws Exception {
+  private static KeyPair keys(Provider provider, String curve) throws Exception {
     KeyPairGenerator generator =
         provider == null ? KeyPairGenerator.getInstance("EC") : KeyPairGenerator.getInstance("EC", provider);
-    generator.initialize(new ECGenParameterSpec("secp256r1"));
-    return generator.generateKeyPair().getPrivate();
+    generator.initialize(new ECGenParameterSpec(curve));
+    return generator.generateKeyPair();
   }
 
   @Test
-  public void aBouncyCastleKeyOnAJvmThatRefusesBouncyCastleNamesTheCause() throws Exception {
-    PrivateKey bouncyCastleKey = key(new BouncyCastleProvider());
-    assertThat(bouncyCastleKey.getClass().getName()).startsWith("org.bouncycastle.");
+  public void aBouncyCastleKeyOnAJvmThatRefusesBouncyCastleIsUsedThroughTheJdk() throws Exception {
+    for (String curve : new String[] {"secp256r1", "secp384r1", "secp521r1"}) {
+      KeyPair mine = keys(BC, curve);
+      KeyPair theirs = keys(null, curve);
+      assertThat(mine.getPrivate().getClass().getName()).startsWith("org.bouncycastle.");
 
-    // what JDK 21 throws from KeyAgreement.getInstance("ECDH", "BC") for a provider it refuses
-    InvalidKeyException explained = ECDHModule.explain(bouncyCastleKey, NOT_AN_EC_KEY, () -> {
-      throw new java.security.NoSuchProviderException("JCE cannot authenticate the provider BC");
+      KeyAgreement viaJdk = ECDHModule.agreementWithJdkKey(mine.getPrivate(), NOT_AN_EC_KEY, REFUSED);
+      viaJdk.doPhase(theirs.getPublic(), true);
+
+      assertThat(viaJdk.getProvider().getName()).isNotEqualTo(BouncyCastleProvider.PROVIDER_NAME);
+      // the same secret BouncyCastle computes with the key as it was
+      KeyAgreement viaBouncyCastle = KeyAgreement.getInstance("ECDH", BC);
+      viaBouncyCastle.init(mine.getPrivate());
+      viaBouncyCastle.doPhase(theirs.getPublic(), true);
+      assertThat(viaJdk.generateSecret()).isEqualTo(viaBouncyCastle.generateSecret());
+    }
+  }
+
+  @Test
+  public void theFallbackDoesNotUseBouncyCastleEvenWhenItIsTheFirstProvider() throws Exception {
+    Provider registered = Security.getProvider(BouncyCastleProvider.PROVIDER_NAME);
+    Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+    Security.insertProviderAt(BC, 1);
+    try {
+      KeyAgreement viaJdk = ECDHModule.agreementWithJdkKey(keys(BC, "secp256r1").getPrivate(), NOT_AN_EC_KEY, REFUSED);
+      assertThat(viaJdk.getProvider().getName()).isNotEqualTo(BouncyCastleProvider.PROVIDER_NAME);
+    } finally {
+      // as it was: after the JDK's providers, where CryptoModule adds it
+      Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+      Security.addProvider(registered != null ? registered : BC);
+    }
+  }
+
+  @Test
+  public void aSecurityExceptionFromTheProbeIsARefusalToo() throws Exception {
+    KeyAgreement viaJdk = ECDHModule.agreementWithJdkKey(keys(BC, "secp384r1").getPrivate(), NOT_AN_EC_KEY, () -> {
+      throw new SecurityException("JCE cannot authenticate the provider BC");
     });
+    assertThat(viaJdk.getProvider().getName()).isNotEqualTo(BouncyCastleProvider.PROVIDER_NAME);
+  }
 
-    assertThat(explained).isNotSameInstanceAs(NOT_AN_EC_KEY);
-    assertThat(explained).hasMessageThat().contains("does not accept the BouncyCastle provider");
-    assertThat(explained).hasMessageThat().contains("JCE cannot authenticate the provider BC");
-    assertThat(explained).hasMessageThat().contains("Not an EC key: ECDSA");
-    assertThat(explained).hasCauseThat().isInstanceOf(java.security.NoSuchProviderException.class);
-    assertThat(explained.getSuppressed()).asList().containsExactly(NOT_AN_EC_KEY);
+  @Test
+  public void aCurveTheJdkDoesNotSupportSaysSoAndKeepsTheRefusalAsTheCause() throws Exception {
+    // BouncyCastle has secp256k1; the JDK's provider does not (removed in JDK 16)
+    KeyPair mine = keys(BC, "secp256k1");
+
+    InvalidKeyException explained = assertThrows(InvalidKeyException.class,
+        () -> ECDHModule.agreementWithJdkKey(mine.getPrivate(), NOT_AN_EC_KEY, REFUSED));
+
+    // to the script's author: what they can do
+    assertThat(explained).hasMessageThat().contains("is not one this runtime supports");
+    assertThat(explained).hasMessageThat().contains("P-256, P-384 or P-521");
+    assertThat(explained).hasMessageThat().doesNotContain("BouncyCastle");
+    // to the host, in the cause: what the JVM refused and what to run with
+    assertThat(explained).hasCauseThat().hasMessageThat().contains("JCE cannot authenticate the provider BC");
+    assertThat(explained).hasCauseThat().hasMessageThat().contains("BouncyCastle's own signed jars");
+    assertThat(explained).hasCauseThat().hasCauseThat().isInstanceOf(NoSuchProviderException.class);
+    assertThat(explained.getSuppressed()).asList().contains(NOT_AN_EC_KEY);
   }
 
   @Test
   public void aBouncyCastleKeyOnAJvmThatAcceptsBouncyCastleKeepsTheFailure() throws Exception {
-    assertThat(ECDHModule.explain(key(new BouncyCastleProvider()), NOT_AN_EC_KEY, () -> {}))
-        .isSameInstanceAs(NOT_AN_EC_KEY);
+    InvalidKeyException thrown = assertThrows(InvalidKeyException.class,
+        () -> ECDHModule.agreementWithJdkKey(keys(BC, "secp256r1").getPrivate(), NOT_AN_EC_KEY, () -> {}));
+    assertThat(thrown).isSameInstanceAs(NOT_AN_EC_KEY);
   }
 
   @Test
   public void aJdkKeyKeepsTheFailureWithoutAskingBouncyCastle() throws Exception {
-    PrivateKey jdkKey = key(null);
-    assertThat(jdkKey.getClass().getName()).doesNotContain("bouncycastle");
-    assertThat(ECDHModule.explain(jdkKey, NOT_AN_EC_KEY, () -> {
-      throw new AssertionError("BouncyCastle is not asked about a key it did not make");
-    })).isSameInstanceAs(NOT_AN_EC_KEY);
-  }
-
-  @Test
-  public void aSecurityExceptionFromTheProbeNamesTheCauseToo() throws Exception {
-    InvalidKeyException explained = ECDHModule.explain(key(new BouncyCastleProvider()), NOT_AN_EC_KEY, () -> {
-      throw new SecurityException("JCE cannot authenticate the provider BC");
-    });
-    assertThat(explained).hasMessageThat().contains("does not accept the BouncyCastle provider");
-    assertThat(explained).hasCauseThat().isInstanceOf(SecurityException.class);
+    KeyPair jdk = keys(null, "secp256r1");
+    assertThat(jdk.getPrivate().getClass().getName()).doesNotContain("bouncycastle");
+    InvalidKeyException thrown = assertThrows(InvalidKeyException.class,
+        () -> ECDHModule.agreementWithJdkKey(jdk.getPrivate(), NOT_AN_EC_KEY, () -> {
+          throw new AssertionError("BouncyCastle is not asked about a key it did not make");
+        }));
+    assertThat(thrown).isSameInstanceAs(NOT_AN_EC_KEY);
   }
 
   @Test
   public void noKeyKeepsTheFailure() {
     // an unknown key type, or a PKCS12 with no key entry: the failure is the JCA's, as before
     InvalidKeyException noProvider = new InvalidKeyException("No installed provider supports this key: (null)");
-    assertThat(ECDHModule.explain(null, noProvider, () -> {
-      throw new AssertionError("BouncyCastle is not asked when there is no key");
-    })).isSameInstanceAs(noProvider);
+    InvalidKeyException thrown = assertThrows(InvalidKeyException.class,
+        () -> ECDHModule.agreementWithJdkKey(null, noProvider, () -> {
+          throw new AssertionError("BouncyCastle is not asked when there is no key");
+        }));
+    assertThat(thrown).isSameInstanceAs(noProvider);
   }
 
   @Test
   public void theRealProbeSucceedsWhereBouncyCastleIsAccepted() throws Exception {
     // registered as CryptoModule registers it; this JVM accepts it, or the suite's crypto tests would fail
-    if (java.security.Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-      java.security.Security.addProvider(new BouncyCastleProvider());
+    if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+      Security.addProvider(new BouncyCastleProvider());
     }
     ECDHModule.bouncyCastleKeyAgreement();
-    assertThat(ECDHModule.explain(key(new BouncyCastleProvider()), NOT_AN_EC_KEY, ECDHModule::bouncyCastleKeyAgreement))
-        .isSameInstanceAs(NOT_AN_EC_KEY);
   }
 }

@@ -21,6 +21,14 @@ AwEHoUQDQgAED44gNZExKHUk9sMuXeZEBazNA+agV/VJK8vFug/rwuzqmzKE5v7q
 UTNRkR3gNi2lU68AJ6RoaDtBE6mBdjbuFQ==
 -----END EC PRIVATE KEY-----"""
 
+# private_key_PEM as PKCS8: openssl pkcs8 -topk8 -nocrypt -in sec1.pem
+# nosemgrep: secrets.misc.generic_private_key.generic_private_key
+private_key_PEM_as_pkcs8 = b"""-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgOqukXQoQVbg1xvvq
+/IGLdK0UuJPbbawULTALcuw/Uz2hRANCAAQPjiA1kTEodST2wy5d5kQFrM0D5qBX
+9Ukry8W6D+vC7OqbMoTm/upRM1GRHeA2LaVTrwAnpGhoO0ETqYF2Nu4V
+-----END PRIVATE KEY-----"""
+
 public_key_x509 = b"""-----BEGIN PUBLIC KEY-----
 MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEgJOZmQJwFpa4reM893yNFSxXV5/f
 aPBDWKsJNnEgfrH8hhKqPrR5f3dhxhkGLJgOB/PAk1XuUfUbZ7hz1rSX8A==
@@ -183,6 +191,20 @@ def test_multiline_equals_single_line_body():
 
 
 
+def test_a_sec1_key_and_the_same_key_as_pkcs8_give_the_same_secret():
+    """On a JVM that refuses BouncyCastle, ECDH re-reads a SEC1 key from its PKCS8 encoding and the
+    JDK's provider does the exchange: the two forms of a key must give the same secret."""
+    def secret(key, type):
+        ecdh = LarkyECDH()
+        ecdh.set_private_key(key, type=type)
+        ecdh.set_public_key(public_key_ephemeral, "X509")
+        return ecdh.exchange()
+
+    sec1 = secret(private_key_PEM, "PEM")
+    asserts.assert_that(len(sec1)).is_equal_to(32)
+    asserts.assert_that(secret(private_key_PEM_as_pkcs8, "PKCS8")).is_equal_to(sec1)
+
+
 def _testsuite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(test_generated_keypair))
@@ -198,6 +220,7 @@ def _testsuite():
     _suite.addTest(unittest.FunctionTestCase(test_multiline_pem_both_sides_agree))
     _suite.addTest(unittest.FunctionTestCase(test_multiline_pem_crlf_both_sides_agree))
     _suite.addTest(unittest.FunctionTestCase(test_multiline_equals_single_line_body))
+    _suite.addTest(unittest.FunctionTestCase(test_a_sec1_key_and_the_same_key_as_pkcs8_give_the_same_secret))
     return _suite
 
 _runner = unittest.TextTestRunner()
