@@ -16,7 +16,6 @@
 
 package com.verygood.security.larky.jsr223;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
@@ -35,8 +34,6 @@ public class ShortCircuitContractTest {
           response = VGSHttpResponse(body=b"blocked", status_code=403)
           original.append(response)
           return proxy.ShortCircuitResponse(response)
-      def from_fields():
-          return proxy.ShortCircuitResponse(body=b"blocked", status_code=403)
       def first_original():
           return original
       def plain():
@@ -57,13 +54,9 @@ public class ShortCircuitContractTest {
   }
 
   @Test
-  public void theHttpShorthandIsAShortCircuitOfItself() throws Exception {
+  public void aPlainResponseIsNotAShortCircuit() throws Exception {
     var compiled = new LarkyScriptEngine().compile(SCRIPT, "short_circuit.star");
     LarkyScriptEvaluator.compute(compiled, new LarkyScriptContext(), null, (run, unused) -> {
-      Object result = run.call("from_fields");
-      assertTrue(result instanceof ShortCircuit);
-      assertSame(result, ((ShortCircuit) result).response());
-      assertEquals("403", String.valueOf(run.getField(result, "status_code")));
       assertFalse(run.call("plain") instanceof ShortCircuit);
       return null;
     });

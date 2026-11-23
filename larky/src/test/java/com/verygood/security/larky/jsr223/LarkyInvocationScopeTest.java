@@ -104,7 +104,7 @@ public class LarkyInvocationScopeTest {
         load("@vgs//proxy", "proxy")
 
         def process(stop):
-            response = proxy.ShortCircuitResponse(body="blocked", status_code=403) if stop else VGSHttpResponse()
+            response = proxy.ShortCircuitResponse(VGSHttpResponse(body="blocked", status_code=403)) if stop else VGSHttpResponse()
             response.__name__ = "ShortCircuitResponse"
             response.append_header("Set-Cookie", "first=1")
             response.append_header("set-cookie", "second=2")

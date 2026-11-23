@@ -82,8 +82,7 @@ public class LarkyCompiledComputationTest {
         load("@vgs//proxy", "proxy")
         def process(response, ctx):
             if ctx["short"]:
-                response = proxy.ShortCircuitResponse(
-                    body=response.body, headers=response.headers, status_code=response.status_code)
+                response = proxy.ShortCircuitResponse(response)
             response.append_header("Set-Cookie", "first=1")
             ctx["seen"] = True
             print("handled")

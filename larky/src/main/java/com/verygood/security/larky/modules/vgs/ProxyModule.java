@@ -19,13 +19,10 @@ package com.verygood.security.larky.modules.vgs;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
-import net.starlark.java.eval.Tuple;
 
 /** Native construction for {@code @vgs//proxy} ({@code @vgs//jproxy}). */
 @StarlarkBuiltin(name = "jproxy", documented = false, doc = "VGS proxy control types.")
@@ -39,52 +36,20 @@ public final class ProxyModule implements StarlarkValue {
     return true;
   }
 
-  @StarlarkMethod(
-      name = "short_circuit_response", documented = false,
-      parameters = {@Param(name = "protocol_short_circuit")})
-  public StarlarkCallable shortCircuitResponse(StarlarkCallable protocolShortCircuit) {
-    return new ShortCircuitResponse(protocolShortCircuit);
-  }
-
   /**
-   * {@code proxy.ShortCircuitResponse}: given a protocol response ({@link ProtocolResponse}, such as a
-   * {@code VGSHttpResponse}), that response decorated to stop processing the message; given only {@code body},
-   * {@code headers} and {@code status_code}, the protocol's own short circuit built from them (for HTTP,
-   * {@code @vgs//http/response}'s ShortCircuitResponse).
+   * {@code proxy.ShortCircuitResponse(response)}: the protocol response ({@link ProtocolResponse}, such as a
+   * {@code VGSHttpResponse}) decorated to stop processing the message with it.
    */
-  static final class ShortCircuitResponse implements StarlarkCallable {
-    private final StarlarkCallable protocolShortCircuit;
-
-    ShortCircuitResponse(StarlarkCallable protocolShortCircuit) {
-      this.protocolShortCircuit = protocolShortCircuit;
+  @StarlarkMethod(
+      name = "ShortCircuitResponse", documented = false,
+      parameters = {@Param(name = "response")},
+      useStarlarkThread = true)
+  public ShortCircuit shortCircuitResponse(Object response, StarlarkThread thread) throws EvalException {
+    if (!(response instanceof ProtocolResponse protocolResponse)) {
+      throw Starlark.errorf(
+          "ShortCircuitResponse takes a protocol response, one of [VGSHttpResponse], got %s",
+          Starlark.type(response));
     }
-
-    @Override
-    public String getName() {
-      return "ShortCircuitResponse";
-    }
-
-    @Override
-    public boolean isImmutable() {
-      return true;
-    }
-
-    @Override
-    public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs)
-        throws EvalException, InterruptedException {
-      if (args.isEmpty()) {
-        return Starlark.call(thread, protocolShortCircuit, args, kwargs);
-      }
-      if (args.size() > 1 || !kwargs.isEmpty()) {
-        throw Starlark.errorf(
-            "ShortCircuitResponse takes either a protocol response or body, headers and status_code, not both");
-      }
-      if (!(args.get(0) instanceof ProtocolResponse response)) {
-        throw Starlark.errorf(
-            "ShortCircuitResponse takes a protocol response, one of [VGSHttpResponse], got %s",
-            Starlark.type(args.get(0)));
-      }
-      return response.shortCircuit(thread);
-    }
+    return protocolResponse.shortCircuit(thread);
   }
 }
