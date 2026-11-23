@@ -14,6 +14,11 @@ load("@stdlib//larky", larky="larky")
 load("@vgs//jproxy", _jproxy="jproxy")
 
 
+def ShortCircuitResponse(response):
+    """Stop processing the message with `response`, the protocol's response (a VGSHttpResponse for HTTP)."""
+    return _jproxy.ShortCircuitResponse(ShortCircuitResponse, response)
+
+
 proxy = larky.struct(
-    ShortCircuitResponse=_jproxy.ShortCircuitResponse,
+    ShortCircuitResponse=ShortCircuitResponse,
 )

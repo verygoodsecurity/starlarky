@@ -16,8 +16,6 @@
 
 package com.verygood.security.larky.modules.vgs;
 
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 /**
@@ -27,6 +25,9 @@ import net.starlark.java.eval.StarlarkValue;
  */
 public interface ProtocolResponse extends StarlarkValue {
 
-  /** This response as a {@link ShortCircuit}: the same response, decorated to stop processing the message. */
-  ShortCircuit shortCircuit(StarlarkThread thread) throws EvalException;
+  /**
+   * A {@link ShortCircuit} holding this response, to stop processing the message with it. Its class
+   * ({@code __class__}) is {@code constructor}, {@code proxy.ShortCircuitResponse}.
+   */
+  ShortCircuit shortCircuit(Object constructor);
 }

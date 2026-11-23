@@ -21,7 +21,6 @@ import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 /** Native construction for {@code @vgs//proxy} ({@code @vgs//jproxy}). */
@@ -39,16 +38,16 @@ public final class ProxyModule implements StarlarkValue {
   /**
    * {@code proxy.ShortCircuitResponse(response)}: a {@link ShortCircuit} holding the protocol response
    * ({@link ProtocolResponse}, such as a {@code VGSHttpResponse}) to stop processing the message with.
+   * Its class is {@code constructor}, the {@code proxy.ShortCircuitResponse} function that calls this.
    */
   @StarlarkMethod(
       name = "ShortCircuitResponse", documented = false,
-      parameters = {@Param(name = "response")},
-      useStarlarkThread = true)
-  public ShortCircuit shortCircuitResponse(Object response, StarlarkThread thread) throws EvalException {
+      parameters = {@Param(name = "constructor"), @Param(name = "response")})
+  public ShortCircuit shortCircuitResponse(Object constructor, Object response) throws EvalException {
     if (!(response instanceof ProtocolResponse protocolResponse)) {
       throw Starlark.errorf(
           "ShortCircuitResponse(response=...) expected `VGSHttpResponse`; got %s", Starlark.type(response));
     }
-    return protocolResponse.shortCircuit(thread);
+    return protocolResponse.shortCircuit(constructor);
   }
 }
