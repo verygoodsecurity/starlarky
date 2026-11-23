@@ -51,18 +51,45 @@ import net.starlark.java.eval.Tuple;
 public class UrllibRequest extends LarkyNativeObject {
 
   /**
-   * The class: {@code full_url} and {@code data} are properties, and the rest of a request's state
-   * is in its {@code __dict__}, under CPython's names.
+   * The class: the properties {@code full_url} and {@code data}, and the plain attributes, which
+   * have CPython's names and are fields of this class.
    */
   public static final LarkyNativeClass<UrllibRequest> CLASS =
       LarkyNativeClass.named("Request", UrllibRequest.class)
           .property("full_url", UrllibRequest::fullUrl, UrllibRequest::setFullUrl)
-          .property("data", (self, thread) -> self.state("_data"), UrllibRequest::setData)
+          .property("data", (self, thread) -> self.data, UrllibRequest::setData)
+          .attribute("_full_url", self -> self.fullUrl, (self, value) -> self.fullUrl = self.checkMutable(value))
+          .attribute("fragment", self -> self.fragment, (self, value) -> self.fragment = self.checkMutable(value))
+          .attribute("type", self -> self.type, (self, value) -> self.type = self.checkMutable(value))
+          .attribute("host", self -> self.host, (self, value) -> self.host = self.checkMutable(value))
+          .attribute("selector", self -> self.selector, (self, value) -> self.selector = self.checkMutable(value))
+          .attribute("headers", self -> self.headers, (self, value) -> self.headers = self.checkMutable(value))
+          .attribute("unredirected_hdrs", self -> self.unredirectedHdrs, (self, value) -> self.unredirectedHdrs = self.checkMutable(value))
+          .attribute("_data", self -> self.data, (self, value) -> self.data = self.checkMutable(value))
+          .attribute("_tunnel_host", self -> self.tunnelHost, (self, value) -> self.tunnelHost = self.checkMutable(value))
+          .attribute("origin_req_host", self -> self.originReqHost, (self, value) -> self.originReqHost = self.checkMutable(value))
+          .attribute("unverifiable", self -> self.unverifiable, (self, value) -> self.unverifiable = self.checkMutable(value))
+          .attribute("method", self -> self.method, (self, value) -> self.method = self.checkMutable(value))
           .build();
 
   private final StarlarkCallable unquote;
   private final StarlarkCallable requestHost;
   private final StarlarkCallable copyHeaderItems;
+
+  // The plain attributes. Null is an attribute that is not set: method when none was given, the
+  // rest before __init__ sets them or after a script deletes them.
+  @Nullable private Object fullUrl;
+  @Nullable private Object fragment;
+  @Nullable private Object type;
+  @Nullable private Object host;
+  @Nullable private Object selector;
+  @Nullable private Object headers;
+  @Nullable private Object unredirectedHdrs;
+  @Nullable private Object data;
+  @Nullable private Object tunnelHost;
+  @Nullable private Object originReqHost;
+  @Nullable private Object unverifiable;
+  @Nullable private Object method;
 
   /**
    * An uninitialized request. {@code unquote} is {@code urllib.parse.unquote}; {@code requestHost}
@@ -88,6 +115,18 @@ public class UrllibRequest extends LarkyNativeObject {
     this.unquote = base.unquote;
     this.requestHost = base.requestHost;
     this.copyHeaderItems = base.copyHeaderItems;
+    this.fullUrl = base.fullUrl;
+    this.fragment = base.fragment;
+    this.type = base.type;
+    this.host = base.host;
+    this.selector = base.selector;
+    this.headers = base.headers;
+    this.unredirectedHdrs = base.unredirectedHdrs;
+    this.data = base.data;
+    this.tunnelHost = base.tunnelHost;
+    this.originReqHost = base.originReqHost;
+    this.unverifiable = base.unverifiable;
+    this.method = base.method;
   }
 
   /** {@code Request(url, data, headers, origin_req_host, unverifiable, method)}, whose class is {@code constructor}. */
@@ -102,8 +141,24 @@ public class UrllibRequest extends LarkyNativeObject {
 
   /** The value of {@code _data}, for hosts. */
   public final Object data() {
-    Object data = state("_data");
     return data == null ? Starlark.NONE : data;
+  }
+
+  /** The data, for a subclass's property over it; null if a script deleted {@code _data}. */
+  @Nullable
+  protected final Object dataField() {
+    return data;
+  }
+
+  /** The header container, for a subclass that shows it under another name. */
+  @Nullable
+  protected final Object headersField() {
+    return headers;
+  }
+
+  protected final void setHeadersField(@Nullable Object value) throws EvalException {
+    checkMutable();
+    headers = value;
   }
 
   // Initialization
@@ -157,36 +212,36 @@ public class UrllibRequest extends LarkyNativeObject {
 
   /** {@code full_url}. Without an evaluation (a host reading it), it needs a string URL and fragment. */
   protected final Object fullUrl(@Nullable StarlarkThread thread) throws EvalException, InterruptedException {
-    Object fullUrl = requireState("_full_url");
-    Object fragment = requireState("fragment");
-    if (!Starlark.truth(fragment)) {
-      return fullUrl;
+    Object url = required("_full_url", fullUrl);
+    Object tag = required("fragment", fragment);
+    if (!Starlark.truth(tag)) {
+      return url;
     }
-    if (fullUrl instanceof String url && fragment instanceof String text) {
-      return url + "#" + text;
+    if (url instanceof String text && tag instanceof String tagText) {
+      return text + "#" + tagText;
     }
     if (thread == null) {
       throw new IllegalStateException("full_url of a non-string URL or fragment needs an active evaluation");
     }
     // Keep the original format operation for other values.
-    return callField(thread, "{}#{}", "format", fullUrl, fragment);
+    return callField(thread, "{}#{}", "format", url, tag);
   }
 
   private void setFullUrl(Object url, StarlarkThread thread) throws EvalException, InterruptedException {
+    checkMutable();
     // unwrap('<URL:type://host/path>') --> 'type://host/path'
     String unwrapped = UrlParts.unwrap(
         url instanceof String text ? text : Starlark.str(url, thread.getSemantics()), thread);
     Tuple parts = UrlParts.splittag(unwrapped);
-    setState("_full_url", parts.get(0));
-    setState("fragment", parts.get(1));
+    fullUrl = parts.get(0);
+    fragment = parts.get(1);
     callAttr(thread, "_parse");
   }
 
   private void setData(Object value, StarlarkThread thread) throws EvalException, InterruptedException {
     checkMutable();
-    Object current = state("_data");
-    if (current == null || !Starlark.checkedEquals(value, current)) {
-      setState("_data", value);
+    if (data == null || !Starlark.checkedEquals(value, data)) {
+      data = value;
       // If the data changes, the Content-length header is most probably for the previous value (issue 16464).
       if (Starlark.truth(callAttr(thread, "has_header", "Content-length"))) {
         callAttr(thread, "remove_header", "Content-length");
@@ -196,18 +251,19 @@ public class UrllibRequest extends LarkyNativeObject {
 
   @StarlarkMethod(name = "_parse", documented = false, useStarlarkThread = true)
   public void parseUrl(StarlarkThread thread) throws EvalException, InterruptedException {
-    Tuple typeAndRest = UrlParts.splittype(requireState("_full_url"), thread);
-    setState("type", typeAndRest.get(0));
+    checkMutable();
+    Tuple typeAndRest = UrlParts.splittype(required("_full_url", fullUrl), thread);
+    type = typeAndRest.get(0);
     if (typeAndRest.get(0) == Starlark.NONE) {
       throw Starlark.errorf("ValueError: unknown url type: %s",
           Starlark.repr(attr(thread, "full_url"), thread.getSemantics()));
     }
     Tuple hostAndSelector = UrlParts.splithost(typeAndRest.get(1));
-    setState("host", hostAndSelector.get(0));
-    setState("selector", hostAndSelector.get(1));
+    host = hostAndSelector.get(0);
+    selector = hostAndSelector.get(1);
     // unquote returns a string without a '%' as it is
     if (hostAndSelector.get(0) instanceof String name && name.indexOf('%') >= 0) {
-      setState("host", Starlark.positionalOnlyCall(thread, unquote, name));
+      host = Starlark.positionalOnlyCall(thread, unquote, name);
     }
   }
 
@@ -216,7 +272,6 @@ public class UrllibRequest extends LarkyNativeObject {
   @StarlarkMethod(name = "get_method", documented = false, useStarlarkThread = true)
   public Object getMethod(StarlarkThread thread) throws EvalException, InterruptedException {
     // getattr(self, 'method', default_method): method is set only when given
-    Object method = state("method");
     if (method != null) {
       return method;
     }
@@ -232,18 +287,19 @@ public class UrllibRequest extends LarkyNativeObject {
       parameters = {@Param(name = "host", named = true), @Param(name = "type", named = true)}, useStarlarkThread = true)
   public void setProxy(Object proxyHost, Object proxyType, StarlarkThread thread)
       throws EvalException, InterruptedException {
-    if ("https".equals(state("type")) && !Starlark.truth(state("_tunnel_host"))) {
-      setState("_tunnel_host", requireState("host"));
+    checkMutable();
+    if ("https".equals(type) && (tunnelHost == null || !Starlark.truth(tunnelHost))) {
+      tunnelHost = required("host", host);
     } else {
-      setState("type", proxyType);
-      setState("selector", attr(thread, "full_url"));
+      type = proxyType;
+      selector = attr(thread, "full_url");
     }
-    setState("host", proxyHost);
+    host = proxyHost;
   }
 
   @StarlarkMethod(name = "has_proxy", documented = false, useStarlarkThread = true)
   public boolean hasProxy(StarlarkThread thread) throws EvalException, InterruptedException {
-    return Starlark.checkedEquals(requireState("selector"), attr(thread, "full_url"));
+    return Starlark.checkedEquals(required("selector", selector), attr(thread, "full_url"));
   }
 
   @StarlarkMethod(name = "add_header", documented = false,
@@ -362,11 +418,10 @@ public class UrllibRequest extends LarkyNativeObject {
 
   /** The method a script would see, without calling a script's override: {@code method}, else GET or POST. */
   protected final Object methodForDisplay() {
-    Object method = state("method");
     if (method != null) {
       return method;
     }
-    return state("_data") == Starlark.NONE ? "GET" : "POST";
+    return data == Starlark.NONE ? "GET" : "POST";
   }
 
   @Override

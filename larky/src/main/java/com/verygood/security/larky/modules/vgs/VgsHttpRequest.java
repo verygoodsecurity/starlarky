@@ -20,6 +20,7 @@ import com.verygood.security.larky.modules.multidict.LarkyMultiDict;
 import com.verygood.security.larky.modules.urllib.UrllibRequest;
 import com.verygood.security.larky.objects.LarkyNativeClass;
 import java.util.function.BiConsumer;
+import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -43,23 +44,28 @@ import net.starlark.java.eval.StarlarkThread;
 @StarlarkBuiltin(name = "VGSHttpRequest", documented = false)
 public final class VgsHttpRequest extends UrllibRequest {
 
-  private static final String HEADERS = "_headers";
-
   /**
    * The class, a subclass of {@code Request}: it adds the properties {@code url}, {@code body} and
-   * {@code headers}. The header container is {@code _headers} in the request's {@code __dict__}.
+   * {@code headers}, and the plain attributes {@code path} and {@code query_string}. The header
+   * container is the plain attribute {@code _headers}; urllib's {@code headers} is the property
+   * over it.
    */
   public static final LarkyNativeClass<VgsHttpRequest> CLASS =
       LarkyNativeClass.named("VGSHttpRequest", VgsHttpRequest.class)
           .extending(UrllibRequest.CLASS)
           // full_url is a property: an instance attribute cannot replace it
           .property("url", VgsHttpRequest::fullUrl, VgsHttpRequest::setUrl)
-          .property("body", (self, thread) -> self.state("_data"), (self, value, thread) -> self.setAttr(thread, "data", value))
-          .property("headers", (self, thread) -> self.state(HEADERS), VgsHttpRequest::setHeaders)
+          .property("body", (self, thread) -> self.dataField(), (self, value, thread) -> self.setAttr(thread, "data", value))
+          .property("headers", (self, thread) -> self.headersField(), VgsHttpRequest::setHeaders)
+          .attribute("_headers", VgsHttpRequest::headersField, VgsHttpRequest::setHeadersField)
+          .attribute("path", self -> self.path, (self, value) -> self.path = self.checkMutable(value))
+          .attribute("query_string", self -> self.queryString, (self, value) -> self.queryString = self.checkMutable(value))
           .build();
 
   private final StarlarkCallable headerFactory;
   private final StarlarkCallable urlSplitter;
+  @Nullable private Object path;
+  @Nullable private Object queryString;
 
   private VgsHttpRequest(
       Object constructor, UrllibRequest base, StarlarkCallable headerFactory, StarlarkCallable urlSplitter) {
@@ -83,9 +89,7 @@ public final class VgsHttpRequest extends UrllibRequest {
           "VGSHttpRequest(request=...) expected `Request`; got %s", Starlark.type(base));
     }
     VgsHttpRequest request = new VgsHttpRequest(constructor, base, headerFactory, urlSplitter);
-    // urllib's plain headers attribute gives way to the property over _headers
-    request.removeState("headers", thread);
-    request.setState(HEADERS, call(thread, headerFactory, headers));
+    request.setHeadersField(call(thread, headerFactory, headers));
     request.updatePath(url, thread);
     return request;
   }
@@ -97,14 +101,14 @@ public final class VgsHttpRequest extends UrllibRequest {
 
   private void setHeaders(Object value, StarlarkThread thread) throws EvalException, InterruptedException {
     checkMutable();
-    setState(HEADERS, call(thread, headerFactory, value));
+    setHeadersField(call(thread, headerFactory, value));
   }
 
   private void updatePath(Object url, StarlarkThread thread) throws EvalException, InterruptedException {
     checkMutable();
     Object parsed = call(thread, urlSplitter, url);
-    setState("path", Starlark.getattr(thread.mutability(), thread.getSemantics(), parsed, "path", null));
-    setState("query_string", Starlark.getattr(thread.mutability(), thread.getSemantics(), parsed, "query", null));
+    path = Starlark.getattr(thread.mutability(), thread.getSemantics(), parsed, "path", null);
+    queryString = Starlark.getattr(thread.mutability(), thread.getSemantics(), parsed, "query", null);
   }
 
   // Unlike urllib's, these keep the key as given.
@@ -138,12 +142,12 @@ public final class VgsHttpRequest extends UrllibRequest {
    * replaced its {@code items}.
    */
   public boolean visitHeaderLines(BiConsumer<Object, Object> visitor) {
-    return state(HEADERS) instanceof LarkyMultiDict multiDict && multiDict.visitItems(visitor);
+    return headersField() instanceof LarkyMultiDict multiDict && multiDict.visitItems(visitor);
   }
 
   /** The header container's {@code items()}, or None when the headers are None. */
   public Object headerItems(StarlarkThread thread) throws EvalException, InterruptedException {
-    Object headers = state(HEADERS);
+    Object headers = headersField();
     return Starlark.isNullOrNone(headers) ? Starlark.NONE : callField(thread, headers, "items");
   }
 }

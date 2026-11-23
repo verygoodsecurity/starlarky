@@ -20,6 +20,7 @@ import com.verygood.security.larky.modules.multidict.LarkyMultiDict;
 import com.verygood.security.larky.objects.LarkyNativeClass;
 import com.verygood.security.larky.objects.LarkyNativeObject;
 import java.util.function.BiConsumer;
+import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -46,16 +47,23 @@ import net.starlark.java.eval.StarlarkThread;
 public final class VgsHttpResponse extends LarkyNativeObject implements ProtocolResponse {
 
   /**
-   * The class: {@code body} and {@code headers} are properties over {@code _body} and {@code
-   * _headers}, which are in the response's {@code __dict__} with {@code status_code}.
+   * The class: {@code body} and {@code headers} are properties over the plain attributes {@code
+   * _body} and {@code _headers}; {@code status_code} is a plain attribute too.
    */
   public static final LarkyNativeClass<VgsHttpResponse> CLASS =
       LarkyNativeClass.named("VGSHttpResponse", VgsHttpResponse.class)
-          .property("body", (self, thread) -> self.state("_body"), VgsHttpResponse::setBody)
-          .property("headers", (self, thread) -> self.state("_headers"), VgsHttpResponse::setHeaders)
+          .property("body", (self, thread) -> self.body, VgsHttpResponse::setBody)
+          .property("headers", (self, thread) -> self.headers, VgsHttpResponse::setHeaders)
+          .attribute("_body", self -> self.body, (self, value) -> self.body = self.checkMutable(value))
+          .attribute("_headers", self -> self.headers, (self, value) -> self.headers = self.checkMutable(value))
+          .attribute("status_code", self -> self.statusCode, (self, value) -> self.statusCode = self.checkMutable(value))
           .build();
 
   private final StarlarkCallable headerFactory;
+  // The plain attributes; null after a script deletes one.
+  @Nullable private Object body;
+  @Nullable private Object headers;
+  @Nullable private Object statusCode;
 
   private VgsHttpResponse(StarlarkCallable constructor, StarlarkCallable headerFactory, StarlarkThread thread) {
     super(CLASS, constructor, thread.mutability());
@@ -71,25 +79,24 @@ public final class VgsHttpResponse extends LarkyNativeObject implements Protocol
       Object statusCode, StarlarkThread thread) throws EvalException, InterruptedException {
     Object headerContainer = call(thread, headerFactory, headers);
     VgsHttpResponse response = new VgsHttpResponse(constructor, headerFactory, thread);
-    response.setState("_body", body);
-    response.setState("_headers", headerContainer);
-    response.setState("status_code", statusCode);
+    response.body = body;
+    response.headers = headerContainer;
+    response.statusCode = statusCode;
     return response;
   }
 
   private void setBody(Object value, StarlarkThread thread) throws EvalException, InterruptedException {
     checkMutable();
-    Object current = state("_body");
-    if (current == null || !Starlark.checkedEquals(value, current)) {
-      setState("_body", value);
+    if (body == null || !Starlark.checkedEquals(value, body)) {
+      body = value;
       // The stored length applies to the previous body (issue 16464).
-      callField(thread, requireState("_headers"), "popall", "Content-Length", StarlarkList.newList(thread.mutability()));
+      callField(thread, required("_headers", headers), "popall", "Content-Length", StarlarkList.newList(thread.mutability()));
     }
   }
 
   private void setHeaders(Object value, StarlarkThread thread) throws EvalException, InterruptedException {
     checkMutable();
-    setState("_headers", call(thread, headerFactory, value));
+    headers = call(thread, headerFactory, value);
   }
 
   @StarlarkMethod(name = "add_header", documented = false,
@@ -97,35 +104,33 @@ public final class VgsHttpResponse extends LarkyNativeObject implements Protocol
   public void addHeader(Object key, Object value, StarlarkThread thread)
       throws EvalException, InterruptedException {
     // self.headers[key] = val
-    StarlarkOperators.setIndex(thread, requireState("_headers"), key, value);
+    StarlarkOperators.setIndex(thread, required("_headers", headers), key, value);
   }
 
   @StarlarkMethod(name = "append_header", documented = false,
       parameters = {@Param(name = "key", named = true), @Param(name = "val", named = true)}, useStarlarkThread = true)
   public void appendHeader(Object key, Object value, StarlarkThread thread)
       throws EvalException, InterruptedException {
-    callField(thread, requireState("_headers"), "add", key, value);
+    callField(thread, required("_headers", headers), "add", key, value);
   }
 
   @StarlarkMethod(name = "remove_header", documented = false,
       parameters = {@Param(name = "key", named = true)}, useStarlarkThread = true)
   public void removeHeader(Object key, StarlarkThread thread) throws EvalException, InterruptedException {
-    callField(thread, requireState("_headers"), "popall", key, StarlarkList.newList(thread.mutability()));
+    callField(thread, required("_headers", headers), "popall", key, StarlarkList.newList(thread.mutability()));
   }
 
   @StarlarkMethod(name = "get_all_headers", documented = false,
       parameters = {@Param(name = "key", named = true)}, useStarlarkThread = true)
   public Object getAllHeaders(Object key, StarlarkThread thread) throws EvalException, InterruptedException {
-    return callField(thread, requireState("_headers"), "getall", key, StarlarkList.newList(thread.mutability()));
+    return callField(thread, required("_headers", headers), "getall", key, StarlarkList.newList(thread.mutability()));
   }
 
   public Object body(StarlarkThread thread) {
-    Object body = state("_body");
     return body == null ? Starlark.NONE : body;
   }
 
   public Object statusCode(StarlarkThread thread) {
-    Object statusCode = state("status_code");
     return statusCode == null ? Starlark.NONE : statusCode;
   }
 
@@ -136,12 +141,11 @@ public final class VgsHttpResponse extends LarkyNativeObject implements Protocol
    * script replaced its {@code items}.
    */
   public boolean visitHeaderLines(BiConsumer<Object, Object> visitor) {
-    return state("_headers") instanceof LarkyMultiDict multiDict && multiDict.visitItems(visitor);
+    return headers instanceof LarkyMultiDict multiDict && multiDict.visitItems(visitor);
   }
 
   /** The header container's {@code items()}, or None when the headers are None. */
   public Object headerItems(StarlarkThread thread) throws EvalException, InterruptedException {
-    Object headers = state("_headers");
     return Starlark.isNullOrNone(headers) ? Starlark.NONE : callField(thread, headers, "items");
   }
 

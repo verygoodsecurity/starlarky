@@ -1,7 +1,8 @@
 """Request, VGSHttpRequest and VGSHttpResponse as Python objects.
 
-Their classes are written in Java on the object model of type(): state in __dict__, properties
-as data descriptors of the class, and VGSHttpRequest's class extending Request's.
+Their classes are written in Java on the object model of type(): plain attributes and properties
+are descriptors of the class, and VGSHttpRequest's class extends Request's. __dict__ lists the
+plain attributes that are set and the attributes a script added.
 """
 load("@stdlib//unittest", unittest="unittest")
 load("@stdlib//urllib/request", "Request")
@@ -21,11 +22,16 @@ def _test_request_state_is_its_dict():
     asserts.assert_that(state["_full_url"]).is_equal_to("https://example.test/p?q=1")
     asserts.assert_that(state["host"]).is_equal_to("example.test")
 
-    # the dict is the instance's own, not a copy
+    # an attribute a script adds is listed after them
     request.tag = "t"
+    asserts.assert_that(list(request.__dict__.keys())[-1]).is_equal_to("tag")
     asserts.assert_that(request.__dict__["tag"]).is_equal_to("t")
+
+    # the dict is a copy: changing it does not change the request
     request.__dict__["other"] = 1
-    asserts.assert_that(request.other).is_equal_to(1)
+    request.__dict__["host"] = "changed"
+    asserts.assert_that(hasattr(request, "other")).is_false()
+    asserts.assert_that(request.host).is_equal_to("example.test")
 
     # a request built without a method has no method attribute
     asserts.assert_that("method" in Request("https://example.test/").__dict__).is_false()
@@ -34,11 +40,9 @@ def _test_request_state_is_its_dict():
 
 def _test_properties_are_the_class_s():
     request = Request("https://example.test/a")
-    # a property is not in the instance's dict, and an entry of its name does not replace it
+    # a property is not part of the state
     asserts.assert_that("full_url" in request.__dict__).is_false()
     asserts.assert_that("data" in request.__dict__).is_false()
-    request.__dict__["full_url"] = "shadow"
-    asserts.assert_that(request.full_url).is_equal_to("https://example.test/a")
 
     request.full_url = "<URL:http://other.test/b#f>"
     asserts.assert_that((request.type, request.host, request.selector, request.fragment)).is_equal_to(
@@ -139,8 +143,13 @@ def _test_removed_state_is_a_missing_attribute():
     request.__delattr__("fragment")
     asserts.assert_fails(lambda: request.full_url, "'Request' object has no attribute 'fragment'")
     asserts.assert_that(hasattr(request, "fragment")).is_false()
-    request.__dict__.pop("_full_url")
+    request.__delattr__("_full_url")
     asserts.assert_fails(lambda: request._parse(), "'Request' object has no attribute '_full_url'")
+    asserts.assert_that("_full_url" in request.__dict__).is_false()
+    asserts.assert_that("_full_url" in dir(request)).is_false()
+    request._full_url = "http://again.test/x"
+    request._parse()
+    asserts.assert_that(request.host).is_equal_to("again.test")
     asserts.assert_fails(lambda: request.__delattr__("nope"), "'Request' object has no attribute 'nope'")
     asserts.assert_fails(lambda: request.__delattr__("data"), "can't delete attribute 'data'")
 
@@ -150,10 +159,11 @@ def _test_removed_state_is_a_missing_attribute():
     response.__delattr__("status_code")
     asserts.assert_that(repr(response)).is_equal_to("<VGSHttpResponse [None]>")
 
-    # a key that is not a name does not break dir() or a failed lookup
+    # an attribute a script added can be deleted too
     request = Request("https://example.test/")
-    request.__dict__[1] = 2
-    asserts.assert_that("host" in dir(request)).is_true()
+    request.tag = 1
+    request.__delattr__("tag")
+    asserts.assert_that(hasattr(request, "tag")).is_false()
     asserts.assert_fails(lambda: request.nope, "no field or method 'nope'")
 
 
@@ -182,7 +192,7 @@ def _test_getattr_hook_and_super():
 def _test_multidict_methods_are_the_class_s():
     headers = VGSCIMultiDict([("A", "1"), ("a", "2")])
     asserts.assert_that(headers.getall("A")).is_equal_to(["1", "2"])
-    asserts.assert_that("getall" in headers.__dict__).is_false()
+    asserts.assert_that(headers.__dict__).is_equal_to({})
     asserts.assert_that("getall" in dir(headers)).is_true()
 
     # an attribute a script sets comes before the method

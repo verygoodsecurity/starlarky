@@ -16,6 +16,7 @@
 
 package com.verygood.security.larky.objects;
 
+import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.objects.descriptor.LarkyNativeMethod;
 import com.verygood.security.larky.objects.descriptor.LarkyNativeProperty;
 import com.verygood.security.larky.objects.type.LarkyType;
@@ -41,7 +42,7 @@ import net.starlark.java.eval.StarlarkThread;
  * public final class Point extends LarkyNativeObject {
  *   public static final LarkyNativeClass<Point> CLASS = LarkyNativeClass.named("Point", Point.class)
  *       .property("norm", (self, thread) -> self.norm())        // read-only
- *       .property("x", (self, thread) -> self.state("_x"), Point::setX)
+ *       .attribute("x", self -> self.x, (self, value) -> self.x = self.checkMutable(value))
  *       .build();
  *
  *   @StarlarkMethod(name = "scale", parameters = {@Param(name = "by")})
@@ -57,9 +58,10 @@ import net.starlark.java.eval.StarlarkThread;
  *       dispatches its methods itself, given here with {@link Builder#method});
  *   <li>a base class, given with {@link Builder#extending}, whose properties and methods it
  *       inherits;
- *   <li>plain attributes, which need no definition: they are the entries of an instance's {@code
- *       __dict__}, read and written from Java with {@link LarkyNativeObject#state} and {@link
- *       LarkyNativeObject#setState}.
+ *   <li>plain attributes, given here with {@link Builder#attribute}: each is a field of the Java
+ *       class, as a member of a C struct is, so an instance allocates no dictionary for them;
+ *   <li>any other attribute a script sets on an instance, which goes into a dictionary that the
+ *       instance creates when the first one is set.
  * </ul>
  *
  * @param <T> the Java class of the instances
@@ -78,10 +80,24 @@ public final class LarkyNativeClass<T extends LarkyNativeObject> {
     void set(T self, Object value, StarlarkThread thread) throws EvalException, InterruptedException;
   }
 
-  private final LarkyType type;
+  /** Writes the field of a plain attribute of {@code self}; {@code value} is null to delete it. */
+  @FunctionalInterface
+  public interface FieldSetter<T> {
+    void set(T self, @Nullable Object value) throws EvalException;
+  }
 
-  private LarkyNativeClass(LarkyType type) {
+  private final LarkyType type;
+  // the plain attributes of the class and its bases, in order: an instance's state
+  private final ImmutableList<LarkyNativeProperty<?>> fields;
+
+  private LarkyNativeClass(LarkyType type, ImmutableList<LarkyNativeProperty<?>> fields) {
     this.type = type;
+    this.fields = fields;
+  }
+
+  /** The plain attributes of the class and its bases, in the order {@code __dict__} lists them. */
+  ImmutableList<LarkyNativeProperty<?>> fields() {
+    return fields;
   }
 
   /** Starts the definition of the class {@code name}, whose instances are of the Java class {@code javaClass}. */
@@ -123,6 +139,18 @@ public final class LarkyNativeClass<T extends LarkyNativeObject> {
       return this;
     }
 
+    /**
+     * A plain attribute, held in a field of the Java class: {@code get} reads the field and {@code
+     * set} writes it, after {@link LarkyNativeObject#checkMutable(Object)}. A null field means the
+     * attribute is not set, and {@code set} is given null when a script deletes it. Plain
+     * attributes are the instance's state: {@code __dict__} lists them, in the order they are
+     * given here.
+     */
+    public Builder<T> attribute(String name, Function<T, Object> get, FieldSetter<T> set) {
+      dict.put(name, LarkyNativeProperty.ofField(name, javaClass, get, set));
+      return this;
+    }
+
     /** A property that scripts can read; setting it fails. */
     public Builder<T> property(String name, Getter<T> getter) {
       dict.put(name, LarkyNativeProperty.of(name, javaClass, getter, null));
@@ -139,8 +167,22 @@ public final class LarkyNativeClass<T extends LarkyNativeObject> {
     }
 
     public LarkyNativeClass<T> build() {
+      ImmutableList.Builder<LarkyNativeProperty<?>> fields = ImmutableList.builder();
+      if (base != null) {
+        for (LarkyNativeProperty<?> inherited : base.fields) {
+          // a name this class defines again is this class's
+          if (!dict.containsKey(inherited.name())) {
+            fields.add(inherited);
+          }
+        }
+      }
+      for (Object attribute : dict.values()) {
+        if (attribute instanceof LarkyNativeProperty<?> property && property.isField()) {
+          fields.add(property);
+        }
+      }
       return new LarkyNativeClass<>(
-          LarkyTypeObject.createBuiltinType(name, base == null ? null : base.type, dict));
+          LarkyTypeObject.createBuiltinType(name, base == null ? null : base.type, dict), fields.build());
     }
   }
 }

@@ -16,9 +16,11 @@
 
 package com.verygood.security.larky.objects.descriptor;
 
+import com.verygood.security.larky.objects.LarkyNativeClass;
 import com.verygood.security.larky.objects.LarkyNativeClass.Getter;
 import com.verygood.security.larky.objects.LarkyNativeClass.Setter;
 import com.verygood.security.larky.objects.type.LarkyType;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
@@ -40,18 +42,50 @@ public final class LarkyNativeProperty<T> implements LarkyDataDescriptor, Starla
   private final Class<T> owner;
   private final Getter<T> getter;
   @Nullable private final Setter<T> setter;
+  // a plain attribute held in a Java field: part of the instance's state, as __dict__ shows it
+  @Nullable private final Function<T, Object> field;
 
-  private LarkyNativeProperty(String name, Class<T> owner, Getter<T> getter, @Nullable Setter<T> setter) {
+  private LarkyNativeProperty(
+      String name, Class<T> owner, Getter<T> getter, @Nullable Setter<T> setter,
+      @Nullable Function<T, Object> field) {
     this.name = name;
     this.owner = owner;
     this.getter = getter;
     this.setter = setter;
+    this.field = field;
+  }
+
+  /**
+   * The plain attribute {@code name} of the instances of {@code owner}, held in a Java field that
+   * {@code get} reads and {@code set} writes. A null value means the attribute is not set; {@code
+   * set} is given null to delete it.
+   */
+  public static <T> LarkyNativeProperty<T> ofField(
+      String name, Class<T> owner, Function<T, Object> get, LarkyNativeClass.FieldSetter<T> set) {
+    return new LarkyNativeProperty<>(
+        name, owner, (self, thread) -> get.apply(self), (self, value, thread) -> set.set(self, value), get);
+  }
+
+  /** Whether this is a plain attribute, part of the instance's state. */
+  public boolean isField() {
+    return field != null;
+  }
+
+  /** The value of this plain attribute on {@code obj}, or null if it is not set. */
+  @Nullable
+  public Object fieldValue(Object obj) {
+    return field.apply(owner.cast(obj));
+  }
+
+  /** The attribute's name. */
+  public String name() {
+    return name;
   }
 
   /** The property {@code name} of the instances of {@code owner}; read-only if {@code setter} is null. */
   public static <T> LarkyNativeProperty<T> of(
       String name, Class<T> owner, Getter<T> getter, @Nullable Setter<T> setter) {
-    return new LarkyNativeProperty<>(name, owner, getter, setter);
+    return new LarkyNativeProperty<>(name, owner, getter, setter, null);
   }
 
   @Override
@@ -80,8 +114,16 @@ public final class LarkyNativeProperty<T> implements LarkyDataDescriptor, Starla
   }
 
   @Override
-  public void __delete__(Object obj, @Nullable StarlarkThread thread) throws EvalException {
-    throw Starlark.errorf("AttributeError: can't delete attribute '%s'", name);
+  public void __delete__(Object obj, @Nullable StarlarkThread thread)
+      throws EvalException, InterruptedException {
+    if (field == null) {
+      throw Starlark.errorf("AttributeError: can't delete attribute '%s'", name);
+    }
+    T self = self(obj);
+    if (field.apply(self) == null) {
+      throw Starlark.errorf("AttributeError: '%s' object has no attribute '%s'", Starlark.type(obj), name);
+    }
+    setter.set(self, null, thread);
   }
 
   @Override

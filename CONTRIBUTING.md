@@ -127,9 +127,11 @@ In this section, we want to add a new Larky (example) module `ex_module` to an e
   public final class Point extends LarkyNativeObject {
 
     public static final LarkyNativeClass<Point> CLASS = LarkyNativeClass.named("Point", Point.class)
-        .property("x", (self, thread) -> self.state("_x"), Point::setX)   // read and set
-        .property("norm", (self, thread) -> self.norm())                  // read-only
+        .attribute("x", self -> self.x, (self, value) -> self.x = self.checkMutable(value))  // a field
+        .property("norm", (self, thread) -> self.norm())                                    // read-only
         .build();
+
+    private Object x;
 
     Point(Object constructor, StarlarkThread thread) {
       super(CLASS, constructor, thread.mutability());
@@ -144,8 +146,10 @@ In this section, we want to add a new Larky (example) module `ex_module` to an e
   `larky/src/main/java/com/verygood/security/larky/objects/`, so a script uses an instance like any
   Python object: it can add attributes, and an attribute it sets comes before a method of the same
   name.
-* Plain attributes need no definition: they are entries of the instance's `__dict__`, which Java
-  reads and writes with `state(name)` and `setState(name, value)`.
+* A plain attribute is a field of the Java class, as a member of a C struct is, so an instance
+  allocates no dictionary for its state. `__dict__` lists the plain attributes that are set. An
+  attribute a script sets that the class does not define goes into a dictionary the instance
+  creates on first use.
 * `constructor` is the `.star` function that scripts call to build an instance. It is what they see
   as the instance's `__class__`.
 * `ArchitectureTest` checks that such a class does not use the descriptors or types of the object

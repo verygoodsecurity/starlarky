@@ -17,11 +17,14 @@
 package com.verygood.security.larky.objects;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
+import com.verygood.security.larky.objects.descriptor.LarkyNativeProperty;
 import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.type.LarkyType;
 import com.verygood.security.larky.parser.CurrentEvaluation;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -42,12 +45,14 @@ import net.starlark.java.eval.Tuple;
  * needs none of the Python protocols, which this class implements for it.
  *
  * <p>It follows the object model of this package: it is a {@link PyObject} whose {@link LarkyType}
- * is built in Java rather than by {@code type(name, bases, dict)}. Its state is its {@code
- * __dict__} ({@link #state}, {@link #setState}). Its class's dictionary holds the properties (data
- * descriptors) and is searched along the MRO, so a class written in Java can extend another. Its
- * methods are {@code @StarlarkMethod}s, or non-data descriptors in the class's dictionary. Lookup
- * is Python's: a data descriptor of the class, then the instance's dictionary, then the methods
- * and the rest of the class.
+ * is built in Java rather than by {@code type(name, bases, dict)}. Its plain attributes are fields
+ * of the Java class, as the members of a type written in C are fields of its struct, so an
+ * instance has no dictionary until a script sets an attribute that the class does not define.
+ * The class's dictionary holds the plain attributes and the properties (data descriptors) and is
+ * searched along the MRO, so a class written in Java can extend another. Its methods are {@code
+ * @StarlarkMethod}s, or non-data descriptors in the class's dictionary. Lookup is Python's: a data
+ * descriptor of the class, then the attributes set on the instance, then the methods and the rest
+ * of the class.
  *
  * <p>Larky's classes are functions: scripts see {@code __class__} as the function that built the
  * instance and {@code __name__} as its name, as on the structs these classes replace. The {@link
@@ -58,31 +63,35 @@ import net.starlark.java.eval.Tuple;
  */
 public abstract class LarkyNativeObject implements PyObject, Mutability.Freezable {
 
+  private final LarkyNativeClass<?> cls;
   private final LarkyType type;
   private final Object constructor;
   private final Mutability mutability;
-  private final Dict<String, Object> dict;
+  // The attributes a script set that the class does not define, created with the first one.
+  @Nullable private Dict<String, Object> attributes;
 
   /**
-   * An instance of {@code cls} with an empty dictionary. {@code constructor} is the function that
-   * builds it, which scripts see as its {@code __class__}.
+   * An instance of {@code cls}. {@code constructor} is the function that builds it, which scripts
+   * see as its {@code __class__}.
    */
   protected LarkyNativeObject(LarkyNativeClass<?> cls, Object constructor, Mutability mutability) {
+    this.cls = cls;
     this.type = cls.type();
     this.constructor = constructor;
     this.mutability = mutability;
-    this.dict = Dict.of(mutability);
   }
 
   /**
-   * An instance of {@code cls} that takes over the dictionary of {@code base}, an instance of a
-   * base class of {@code cls} that nothing else refers to.
+   * An instance of {@code cls} in place of {@code base}, an instance of a base class of {@code
+   * cls} that nothing else refers to: it takes over the attributes a script set on it. The
+   * subclass's constructor takes over its fields.
    */
   protected LarkyNativeObject(LarkyNativeClass<?> cls, Object constructor, LarkyNativeObject base) {
+    this.cls = cls;
     this.type = cls.type();
     this.constructor = constructor;
     this.mutability = base.mutability;
-    this.dict = base.dict;
+    this.attributes = base.attributes;
   }
 
   // The class
@@ -148,21 +157,45 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
     Starlark.checkMutable(this);
   }
 
+  /**
+   * {@code value}, after failing if the instance is frozen: for the setter of a plain attribute,
+   * {@code self.field = self.checkMutable(value)}.
+   */
+  protected final <V> V checkMutable(V value) throws EvalException {
+    Starlark.checkMutable(this);
+    return value;
+  }
+
   @Override
   public final StarlarkThread getCurrentThread() {
     return CurrentEvaluation.currentOrNull();
   }
 
-  // The instance's dictionary
+  // The instance's state
 
+  /**
+   * {@code __dict__}: the plain attributes that are set, in the class's order, then the attributes
+   * a script added. It is a copy, in the instance's mutability, so a script may change it without
+   * changing the instance.
+   */
   @Override
   public final Dict<String, Object> __dict__() {
-    return dict;
+    Map<String, Object> state = new LinkedHashMap<>();
+    for (LarkyNativeProperty<?> field : cls.fields()) {
+      Object value = field.fieldValue(this);
+      if (value != null) {
+        state.put(field.name(), value);
+      }
+    }
+    if (attributes != null) {
+      state.putAll(attributes);
+    }
+    return Dict.copyOf(mutability, state);
   }
 
   @Override
   public final Map<String, Object> getInternalDictUnsafe() {
-    return dict;
+    return attributes == null ? ImmutableMap.of() : attributes;
   }
 
   @Override
@@ -170,31 +203,30 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
     setState((String) key, value);
   }
 
-  /** The entry {@code name} of the instance's dictionary, or null. No descriptor is consulted. */
+  /** The attribute {@code name} that a script set on the instance and the class does not define, or null. */
   @Nullable
   protected final Object state(String name) {
-    return dict.get(name);
+    return attributes == null ? null : attributes.get(name);
   }
 
-  /** The entry {@code name} of the instance's dictionary; fails as a missing attribute if a script removed it. */
-  protected final Object requireState(String name) throws EvalException {
-    Object value = dict.get(name);
+  /** Sets the attribute {@code name} on the instance. No descriptor is consulted. */
+  protected final void setState(String name, Object value) throws EvalException {
+    checkMutable();
+    if (attributes == null) {
+      attributes = Dict.of(mutability);
+    }
+    attributes.putEntry(name, value);
+  }
+
+  /**
+   * {@code value}, the field behind the plain attribute {@code name}; fails as a missing attribute
+   * if it is null, which is how a field is when a script deleted the attribute.
+   */
+  protected final Object required(String name, @Nullable Object value) throws EvalException {
     if (value == null) {
       throw Starlark.errorf("AttributeError: '%s' object has no attribute '%s'", typeName(), name);
     }
     return value;
-  }
-
-  /** Sets the entry {@code name} of the instance's dictionary. No descriptor is consulted. */
-  protected final void setState(String name, Object value) throws EvalException {
-    checkMutable();
-    dict.putEntry(name, value);
-  }
-
-  /** Removes the entry {@code name} of the instance's dictionary, if there is one. */
-  protected final void removeState(String name, StarlarkThread thread) throws EvalException {
-    checkMutable();
-    dict.pop(name, Starlark.NONE, thread);
   }
 
   // Attribute access
@@ -224,7 +256,7 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
       case PyProtocols.__NAME__:
         return typeName();
       case PyProtocols.__DICT__:
-        return dict;
+        return __dict__();
       default:
         break;
     }
@@ -232,9 +264,10 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
     Object classAttribute = classAttribute(name);
     try {
       if (classAttribute instanceof LarkyDataDescriptor descriptor) {
+        // null for a plain attribute that is not set: the instance has no attribute of that name
         return descriptor.__get__(this, type, active);
       }
-      Object value = dict.get(name);
+      Object value = state(name);
       if (value != null) {
         return value;
       }
@@ -286,7 +319,7 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
       }
       return;
     }
-    dict.putEntry(name, value);
+    setState(name, value);
   }
 
   @Override
@@ -302,10 +335,10 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
       }
       return;
     }
-    if (!dict.containsKey(name)) {
+    if (attributes == null || !attributes.containsKey(name)) {
       throw Starlark.errorf("AttributeError: '%s' object has no attribute '%s'", typeName(), name);
     }
-    dict.pop(name, Starlark.NONE, thread);
+    attributes.pop(name, Starlark.NONE, thread);
   }
 
   private void checkNotReserved(String name) throws EvalException {
@@ -322,13 +355,18 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
     names.add(PyProtocols.__NAME__);
     names.add(PyProtocols.__DICT__);
     for (Object base : type.getMRO()) {
-      names.addAll(((LarkyType) base).getInternalDictUnsafe().keySet());
-    }
-    // a script can put a key that is not a name into __dict__
-    for (Object key : dict.keySet()) {
-      if (key instanceof String name) {
-        names.add(name);
+      for (Map.Entry<String, Object> attribute : ((LarkyType) base).getInternalDictUnsafe().entrySet()) {
+        // a plain attribute that is not set is not an attribute of this instance
+        if (!(attribute.getValue() instanceof LarkyNativeProperty<?> field)
+            || !field.isField()
+            || type.lookup(attribute.getKey()) != field
+            || field.fieldValue(this) != null) {
+          names.add(attribute.getKey());
+        }
       }
+    }
+    if (attributes != null) {
+      names.addAll(attributes.keySet());
     }
     return ImmutableList.copyOf(names);
   }
