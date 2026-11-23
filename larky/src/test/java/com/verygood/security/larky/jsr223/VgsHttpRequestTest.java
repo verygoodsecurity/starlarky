@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThrows;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.modules.urllib.UrllibRequest;
 import com.verygood.security.larky.modules.vgs.VgsHttpRequest;
+import com.verygood.security.larky.objects.type.TypeClassLookup;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.util.ArrayList;
@@ -278,5 +279,34 @@ public class VgsHttpRequestTest {
         jhttprequest.VGSHttpRequest(VGSHttpRequest, VGSHttpRequest(url), VGSCIMultiDict, parse.urlsplit, url, {})
         """));
     assertThat(error).hasMessageThat().contains("VGSHttpRequest(request=...) expected `Request`; got VGSHttpRequest");
+  }
+
+  @Test
+  public void typeOfAnInstanceIsItsConstructorWhenTypeReturnsClasses() throws Exception {
+    var file = (ParsedStarFile) new LarkyScriptEngine().eval("""
+        load("@stdlib//urllib/request", "Request")
+        load("@vendor//multidict", "CIMultiDict")
+        load("@vgs//http/request", "VGSHttpRequest")
+        load("@vgs//http/response", "VGSHttpResponse")
+        values = [Request("https://example.test/"), VGSHttpRequest("https://example.test/"),
+                  VGSHttpResponse(), CIMultiDict()]
+        classes = [Request, VGSHttpRequest, VGSHttpResponse, CIMultiDict]
+        names = [type(value) for value in values]
+        """);
+    // by default type() is the name
+    assertThat((List<?>) file.getModule().getGlobal("names"))
+        .containsExactly("Request", "VGSHttpRequest", "VGSHttpResponse", "CIMultiDict").inOrder();
+
+    // with -pycompat_type_builtin_function it is the class, which for these is the function that builds them
+    var semantics = LarkySemantics.LARKY_SEMANTICS.toBuilder()
+        .setBool(LarkySemantics.PYCOMPAT_TYPE_BUILTIN_FUNCTION, true).build();
+    List<?> values = (List<?>) file.getModule().getGlobal("values");
+    List<?> classes = (List<?>) file.getModule().getGlobal("classes");
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, semantics);
+      for (int i = 0; i < values.size(); i++) {
+        assertThat(TypeClassLookup.type(values.get(i), thread)).isSameInstanceAs(classes.get(i));
+      }
+    }
   }
 }
