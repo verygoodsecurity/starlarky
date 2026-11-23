@@ -16,8 +16,11 @@
 
 package com.verygood.security.larky.modules.urllib;
 
-import com.google.common.collect.ImmutableList;
-import com.verygood.security.larky.modules.types.LarkyInstance;
+import com.google.common.collect.ImmutableMap;
+import com.verygood.security.larky.objects.LarkyNativeObject;
+import com.verygood.security.larky.objects.descriptor.LarkyNativeProperty;
+import com.verygood.security.larky.objects.type.LarkyType;
+import com.verygood.security.larky.objects.type.LarkyTypeObject;
 import java.util.Map;
 import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
@@ -48,24 +51,21 @@ import net.starlark.java.eval.Tuple;
  * the one called. The URL is taken apart by {@link UrlParts}, which {@code urllib.parse} uses too.
  */
 @StarlarkBuiltin(name = "Request", documented = false)
-public class UrllibRequest extends LarkyInstance {
+public class UrllibRequest extends LarkyNativeObject {
+
+  /**
+   * The class: {@code full_url} and {@code data} are properties, and the rest of a request's state
+   * is in its {@code __dict__}, under CPython's names.
+   */
+  public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType("Request", null, ImmutableMap.of(
+      "full_url", LarkyNativeProperty.of(
+          "full_url", UrllibRequest.class, UrllibRequest::fullUrl, UrllibRequest::setFullUrl),
+      "data", LarkyNativeProperty.of(
+          "data", UrllibRequest.class, (self, thread) -> self.data(), UrllibRequest::setData)));
 
   private final StarlarkCallable unquote;
   private final StarlarkCallable requestHost;
   private final StarlarkCallable copyHeaderItems;
-
-  private Object fullUrl = Starlark.NONE;
-  private Object fragment = Starlark.NONE;
-  @Nullable private Object type;
-  @Nullable private Object host;
-  @Nullable private Object selector;
-  private Object headers = Starlark.NONE;
-  private Object unredirectedHdrs = Starlark.NONE;
-  private Object data = Starlark.NONE;
-  private Object tunnelHost = Starlark.NONE;
-  private Object originReqHost = Starlark.NONE;
-  private Object unverifiable = Boolean.FALSE;
-  @Nullable private Object method;
 
   /**
    * An uninitialized request. {@code unquote} is {@code urllib.parse.unquote}; {@code requestHost}
@@ -75,35 +75,22 @@ public class UrllibRequest extends LarkyInstance {
   private UrllibRequest(
       Object constructor, StarlarkCallable unquote, StarlarkCallable requestHost, StarlarkCallable copyHeaderItems,
       StarlarkThread thread) {
-    super(constructor, thread.mutability());
+    super(TYPE, constructor, thread.mutability());
     this.unquote = unquote;
     this.requestHost = requestHost;
     this.copyHeaderItems = copyHeaderItems;
   }
 
   /**
-   * A request of the class {@code constructor} that takes over the state of {@code base}, for a
-   * subclass such as {@code VGSHttpRequest}. {@code base} is a request that {@code
-   * urllib.request.Request(...)} has just built: the new request shares its header containers, so
-   * {@code base} must not be used afterwards.
+   * A request of the class {@code type}, a subclass of {@link #TYPE} such as {@code
+   * VGSHttpRequest}'s, that takes over the state of {@code base}. {@code base} is a request that
+   * {@code urllib.request.Request(...)} has just built and that nothing else refers to.
    */
-  protected UrllibRequest(Object constructor, UrllibRequest base, StarlarkThread thread) {
-    super(constructor, thread.mutability());
+  protected UrllibRequest(LarkyType type, Object constructor, UrllibRequest base) {
+    super(type, constructor, base);
     this.unquote = base.unquote;
     this.requestHost = base.requestHost;
     this.copyHeaderItems = base.copyHeaderItems;
-    this.fullUrl = base.fullUrl;
-    this.fragment = base.fragment;
-    this.type = base.type;
-    this.host = base.host;
-    this.selector = base.selector;
-    this.headers = base.headers;
-    this.unredirectedHdrs = base.unredirectedHdrs;
-    this.data = base.data;
-    this.tunnelHost = base.tunnelHost;
-    this.originReqHost = base.originReqHost;
-    this.unverifiable = base.unverifiable;
-    this.method = base.method;
   }
 
   /** {@code Request(url, data, headers, origin_req_host, unverifiable, method)}, whose class is {@code constructor}. */
@@ -116,167 +103,9 @@ public class UrllibRequest extends LarkyInstance {
     return request;
   }
 
-  @Override
-  public String typeName() {
-    return "Request";
-  }
-
-  // Attributes
-
-  @Nullable
-  @Override
-  protected Object getDeclared(String name, StarlarkThread thread) throws EvalException, InterruptedException {
-    switch (name) {
-      case "full_url":
-        return fullUrl(thread);
-      case "data":
-      case "_data":
-        return data;
-      case "_full_url":
-        return fullUrl;
-      case "fragment":
-        return fragment;
-      case "type":
-        return type;
-      case "host":
-        return host;
-      case "selector":
-        return selector;
-      case "headers":
-        return headers;
-      case "unredirected_hdrs":
-        return unredirectedHdrs;
-      case "_tunnel_host":
-        return tunnelHost;
-      case "origin_req_host":
-        return originReqHost;
-      case "unverifiable":
-        return unverifiable;
-      case "method":
-        return method;
-      default:
-        return null;
-    }
-  }
-
-  @Override
-  protected boolean setDeclared(String name, Object value, StarlarkThread thread)
-      throws EvalException, InterruptedException {
-    checkMutable();
-    switch (name) {
-      case "full_url":
-        setFullUrl(value, thread);
-        return true;
-      case "data":
-        setData(value, thread);
-        return true;
-      case "_data":
-        data = value;
-        return true;
-      case "_full_url":
-        fullUrl = value;
-        return true;
-      case "fragment":
-        fragment = value;
-        return true;
-      case "type":
-        type = value;
-        return true;
-      case "host":
-        host = value;
-        return true;
-      case "selector":
-        selector = value;
-        return true;
-      case "headers":
-        headers = value;
-        return true;
-      case "unredirected_hdrs":
-        unredirectedHdrs = value;
-        return true;
-      case "_tunnel_host":
-        tunnelHost = value;
-        return true;
-      case "origin_req_host":
-        originReqHost = value;
-        return true;
-      case "unverifiable":
-        unverifiable = value;
-        return true;
-      case "method":
-        method = value;
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  /** The name under which {@code __dict__} shows the header container. */
-  protected String headersStateName() {
-    return "headers";
-  }
-
-  @Override
-  protected void addState(Map<String, Object> state) {
-    state.put("_full_url", fullUrl);
-    state.put("fragment", fragment);
-    putIfSet(state, "type", type);
-    putIfSet(state, "host", host);
-    putIfSet(state, "selector", selector);
-    state.put(headersStateName(), headers);
-    state.put("unredirected_hdrs", unredirectedHdrs);
-    state.put("_data", data);
-    state.put("_tunnel_host", tunnelHost);
-    state.put("origin_req_host", originReqHost);
-    state.put("unverifiable", unverifiable);
-    putIfSet(state, "method", method);
-  }
-
-  private static void putIfSet(Map<String, Object> state, String name, @Nullable Object value) {
-    if (value != null) {
-      state.put(name, value);
-    }
-  }
-
-  @Override
-  protected ImmutableList<String> declaredNames() {
-    ImmutableList.Builder<String> names = ImmutableList.builder();
-    names.add("full_url", "data", "_full_url", "fragment");
-    for (String name : new String[] {"type", "host", "selector"}) {
-      if (getDeclaredQuietly(name) != null) {
-        names.add(name);
-      }
-    }
-    names.add("headers", "unredirected_hdrs", "_data", "_tunnel_host", "origin_req_host", "unverifiable");
-    if (method != null) {
-      names.add("method");
-    }
-    return names.build();
-  }
-
-  @Nullable
-  private Object getDeclaredQuietly(String name) {
-    return switch (name) {
-      case "type" -> type;
-      case "host" -> host;
-      case "selector" -> selector;
-      default -> null;
-    };
-  }
-
   /** The value of {@code _data}, for hosts. */
   public final Object data() {
-    return data;
-  }
-
-  /** The header container, for hosts and subclasses. */
-  protected final Object headersValue() {
-    return headers;
-  }
-
-  protected final void setHeadersValue(Object value) throws EvalException {
-    checkMutable();
-    headers = value;
+    return state("_data");
   }
 
   // Initialization
@@ -285,12 +114,12 @@ public class UrllibRequest extends LarkyInstance {
   protected final void initialize(
       Object url, Object data, Object headers, Object originReqHost, Object unverifiable, Object method,
       StarlarkThread thread) throws EvalException, InterruptedException {
-    setField("full_url", url);
-    setField("unredirected_hdrs", Dict.of(thread.mutability()));
-    setField("headers", Dict.of(thread.mutability()));
-    setField("_data", Starlark.NONE);
-    setField("data", data);
-    setField("_tunnel_host", Starlark.NONE);
+    __setattr__("full_url", url, thread);
+    __setattr__("unredirected_hdrs", Dict.of(thread.mutability()), thread);
+    __setattr__("headers", Dict.of(thread.mutability()), thread);
+    __setattr__("_data", Starlark.NONE, thread);
+    __setattr__("data", data, thread);
+    __setattr__("_tunnel_host", Starlark.NONE, thread);
     if (headers instanceof Dict<?, ?> dict) {
       chargeSteps(thread, dict.size());
       // Snapshot the items, as the Starlark loop does: add_header can change the source.
@@ -302,11 +131,11 @@ public class UrllibRequest extends LarkyInstance {
     } else {
       Starlark.positionalOnlyCall(thread, copyHeaderItems, this, headers);
     }
-    setField("origin_req_host", Starlark.checkedEquals(originReqHost, Starlark.NONE)
-        ? Starlark.positionalOnlyCall(thread, requestHost, this) : originReqHost);
-    setField("unverifiable", unverifiable);
+    __setattr__("origin_req_host", Starlark.checkedEquals(originReqHost, Starlark.NONE)
+        ? Starlark.positionalOnlyCall(thread, requestHost, this) : originReqHost, thread);
+    __setattr__("unverifiable", unverifiable, thread);
     if (Starlark.truth(method)) {
-      setField("method", method);
+      __setattr__("method", method, thread);
     }
   }
 
@@ -329,6 +158,8 @@ public class UrllibRequest extends LarkyInstance {
 
   /** {@code full_url}. Without an evaluation (a host reading it), it needs a string URL and fragment. */
   protected final Object fullUrl(@Nullable StarlarkThread thread) throws EvalException, InterruptedException {
+    Object fullUrl = state("_full_url");
+    Object fragment = state("fragment");
     if (!Starlark.truth(fragment)) {
       return fullUrl;
     }
@@ -343,20 +174,20 @@ public class UrllibRequest extends LarkyInstance {
   }
 
   private void setFullUrl(Object url, StarlarkThread thread) throws EvalException, InterruptedException {
-    checkMutable();
     // unwrap('<URL:type://host/path>') --> 'type://host/path'
     String unwrapped = UrlParts.unwrap(
         url instanceof String text ? text : Starlark.str(url, thread.getSemantics()), thread);
     Tuple parts = UrlParts.splittag(unwrapped);
-    fullUrl = parts.get(0);
-    fragment = parts.get(1);
+    setState("_full_url", parts.get(0));
+    setState("fragment", parts.get(1));
     callAttr(thread, "_parse");
   }
 
   private void setData(Object value, StarlarkThread thread) throws EvalException, InterruptedException {
     checkMutable();
-    if (!Starlark.checkedEquals(value, data)) {
-      data = value;
+    Object current = state("_data");
+    if (current == null || !Starlark.checkedEquals(value, current)) {
+      setState("_data", value);
       // If the data changes, the Content-length header is most probably for the previous value (issue 16464).
       if (Starlark.truth(callAttr(thread, "has_header", "Content-length"))) {
         callAttr(thread, "remove_header", "Content-length");
@@ -366,19 +197,18 @@ public class UrllibRequest extends LarkyInstance {
 
   @StarlarkMethod(name = "_parse", documented = false, useStarlarkThread = true)
   public void parseUrl(StarlarkThread thread) throws EvalException, InterruptedException {
-    checkMutable();
-    Tuple typeAndRest = UrlParts.splittype(fullUrl, thread);
-    type = typeAndRest.get(0);
-    if (type == Starlark.NONE) {
+    Tuple typeAndRest = UrlParts.splittype(state("_full_url"), thread);
+    setState("type", typeAndRest.get(0));
+    if (typeAndRest.get(0) == Starlark.NONE) {
       throw Starlark.errorf("ValueError: unknown url type: %s",
           Starlark.repr(attr(thread, "full_url"), thread.getSemantics()));
     }
     Tuple hostAndSelector = UrlParts.splithost(typeAndRest.get(1));
-    host = hostAndSelector.get(0);
-    selector = hostAndSelector.get(1);
+    setState("host", hostAndSelector.get(0));
+    setState("selector", hostAndSelector.get(1));
     // unquote returns a string without a '%' as it is
-    if (host instanceof String name && name.indexOf('%') >= 0) {
-      host = Starlark.positionalOnlyCall(thread, unquote, name);
+    if (hostAndSelector.get(0) instanceof String name && name.indexOf('%') >= 0) {
+      setState("host", Starlark.positionalOnlyCall(thread, unquote, name));
     }
   }
 
@@ -387,6 +217,7 @@ public class UrllibRequest extends LarkyInstance {
   @StarlarkMethod(name = "get_method", documented = false, useStarlarkThread = true)
   public Object getMethod(StarlarkThread thread) throws EvalException, InterruptedException {
     // getattr(self, 'method', default_method): method is set only when given
+    Object method = state("method");
     if (method != null) {
       return method;
     }
@@ -402,19 +233,18 @@ public class UrllibRequest extends LarkyInstance {
       parameters = {@Param(name = "host", named = true), @Param(name = "type", named = true)}, useStarlarkThread = true)
   public void setProxy(Object proxyHost, Object proxyType, StarlarkThread thread)
       throws EvalException, InterruptedException {
-    checkMutable();
-    if (Starlark.checkedEquals(type, "https") && !Starlark.truth(tunnelHost)) {
-      tunnelHost = host;
+    if ("https".equals(state("type")) && !Starlark.truth(state("_tunnel_host"))) {
+      setState("_tunnel_host", state("host"));
     } else {
-      type = proxyType;
-      selector = attr(thread, "full_url");
+      setState("type", proxyType);
+      setState("selector", attr(thread, "full_url"));
     }
-    host = proxyHost;
+    setState("host", proxyHost);
   }
 
   @StarlarkMethod(name = "has_proxy", documented = false, useStarlarkThread = true)
   public boolean hasProxy(StarlarkThread thread) throws EvalException, InterruptedException {
-    return Starlark.checkedEquals(selector, attr(thread, "full_url"));
+    return Starlark.checkedEquals(state("selector"), attr(thread, "full_url"));
   }
 
   @StarlarkMethod(name = "add_header", documented = false,
@@ -533,10 +363,11 @@ public class UrllibRequest extends LarkyInstance {
 
   /** The method a script would see, without calling a script's override: {@code method}, else GET or POST. */
   protected final Object methodForDisplay() {
+    Object method = state("method");
     if (method != null) {
       return method;
     }
-    return data == Starlark.NONE ? "GET" : "POST";
+    return state("_data") == Starlark.NONE ? "GET" : "POST";
   }
 
   @Override

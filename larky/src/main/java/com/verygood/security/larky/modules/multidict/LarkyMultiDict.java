@@ -22,7 +22,10 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multiset;
 import com.verygood.security.larky.modules.types.LarkyCollection;
-import com.verygood.security.larky.modules.types.LarkyInstance;
+import com.verygood.security.larky.objects.LarkyNativeObject;
+import com.verygood.security.larky.objects.descriptor.LarkyNativeMethod;
+import com.verygood.security.larky.objects.type.LarkyType;
+import com.verygood.security.larky.objects.type.LarkyTypeObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.modules.types.structs.SimpleStruct;
 import com.verygood.security.larky.runtime.CurrentEvaluation;
@@ -60,7 +63,7 @@ import net.starlark.java.eval.Tuple;
  * read-only proxies) and {@code VGSCIMultiDict}: an ordered list of (key, value) lines in which a
  * key may repeat. The methods behave as the {@code .star} implementation's did (ported from
  * multidict 5.1.0's {@code _multidict_py.py}), including its error messages and per-instance
- * version counter. Like any {@link LarkyInstance}, an instance's {@code __name__} and
+ * version counter. Like any {@link LarkyNativeObject}, an instance's {@code __name__} and
  * {@code __class__} name the facade function that made it, and an attribute set on an instance
  * overrides the method of that name.
  *
@@ -77,7 +80,7 @@ import net.starlark.java.eval.Tuple;
  *   <li>{@link #keys()} and {@link #asMap()} are copies, not views.
  * </ul>
  */
-public final class LarkyMultiDict extends LarkyInstance
+public final class LarkyMultiDict extends LarkyNativeObject
     implements LarkyCollection, ListMultimap<Object, Object> {
 
   /** {@code (identity, key, value)}: the identity is the key, or {@code key.title()} if case-insensitive. */
@@ -136,16 +139,6 @@ public final class LarkyMultiDict extends LarkyInstance
     }
   }
 
-  private static final ImmutableMap<String, Method> METHODS;
-
-  static {
-    ImmutableMap.Builder<String, Method> methods = ImmutableMap.builder();
-    for (Method m : Method.values()) {
-      methods.put(m.starlarkName, m);
-    }
-    METHODS = methods.buildOrThrow();
-  }
-
   private static final String READ_ONLY =
       "a multidict is changed through its Starlark methods; its Java view is read-only";
 
@@ -166,7 +159,7 @@ public final class LarkyMultiDict extends LarkyInstance
       boolean proxy,
       @Nullable Object proxyCopyClass,
       boolean dictStr) {
-    super(cls, store.mutability);
+    super(proxy ? PROXY_TYPE : TYPE, cls, store.mutability);
     this.name = name;
     this.store = store;
     this.caseInsensitive = caseInsensitive;
@@ -231,55 +224,33 @@ public final class LarkyMultiDict extends LarkyInstance
     return store.version;
   }
 
-  // Attributes: a multidict declares none; its methods come after the instance's own attributes
+  // The classes: the methods are in the class's dictionary, so an attribute a script sets on an
+  // instance comes before the method of the same name
 
-  @Nullable
-  @Override
-  protected Object getDeclared(String name, StarlarkThread thread) {
-    return null;
-  }
+  /** The class of a multidict; its instances report the name of the facade class that built them. */
+  public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType("MultiDict", null, methods(false));
 
-  @Override
-  protected boolean setDeclared(String name, Object value, StarlarkThread thread) {
-    return false;
-  }
+  /** The class of a multidict proxy: a multidict's class without the methods that change it. */
+  public static final LarkyType PROXY_TYPE =
+      LarkyTypeObject.createBuiltinType("MultiDictProxy", null, methods(true));
 
-  @Override
-  protected void addState(Map<String, Object> state) {}
-
-  @Override
-  protected ImmutableList<String> declaredNames() {
-    return ImmutableList.of();
-  }
-
-  @Nullable
-  @Override
-  protected Object getMethod(String name) {
-    Method method = METHODS.get(name);
-    return method != null && has(method) ? new BoundMethod(this, method) : null;
-  }
-
-  @Override
-  protected ImmutableList<String> methodNames() {
-    ImmutableList.Builder<String> names = ImmutableList.builder();
-    for (Method m : Method.values()) {
-      if (has(m)) {
-        names.add(m.starlarkName);
+  private static ImmutableMap<String, Object> methods(boolean proxy) {
+    ImmutableMap.Builder<String, Object> methods = ImmutableMap.builder();
+    for (Method method : Method.values()) {
+      if (!(proxy && method.mutableOnly)) {
+        methods.put(method.starlarkName, LarkyNativeMethod.of(
+            method.starlarkName, LarkyMultiDict.class, self -> new BoundMethod(self, method)));
       }
     }
-    return names.build();
-  }
-
-  private boolean has(Method method) {
-    return !(proxy && method.mutableOnly);
+    return methods.buildOrThrow();
   }
 
   private boolean overridden(String name) {
-    return instanceAttribute(name) != null;
+    return state(name) != null;
   }
 
   private Object callOverride(String name, Object... args) throws EvalException {
-    return invoke(instanceAttribute(name), List.of(args));
+    return invoke(state(name), List.of(args));
   }
 
   // Operators: the native methods unless the instance overrides them
@@ -714,7 +685,7 @@ public final class LarkyMultiDict extends LarkyInstance
 
   /** {@code self.items()}: an items attribute set on the instance if there is one, as before. */
   private Object itemsAttr(StarlarkThread thread) throws EvalException, InterruptedException {
-    Object override = instanceAttribute("items");
+    Object override = state("items");
     if (override == null) {
       return items(thread);
     }

@@ -1168,6 +1168,11 @@
   {
       "allDeclaredMethods": true,
       "allPublicMethods": true,
+      "name": "com.verygood.security.larky.objects.LarkyNativeObject"
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
       "name": "com.verygood.security.larky.modules.vgs.VgsHttpRequest"
   },
   {

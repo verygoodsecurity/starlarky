@@ -16,12 +16,13 @@
 
 package com.verygood.security.larky.modules.vgs;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.modules.multidict.LarkyMultiDict;
 import com.verygood.security.larky.modules.urllib.UrllibRequest;
-import java.util.Map;
+import com.verygood.security.larky.objects.descriptor.LarkyNativeProperty;
+import com.verygood.security.larky.objects.type.LarkyType;
+import com.verygood.security.larky.objects.type.LarkyTypeObject;
 import java.util.function.BiConsumer;
-import javax.annotation.Nullable;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -45,15 +46,29 @@ import net.starlark.java.eval.StarlarkThread;
 @StarlarkBuiltin(name = "VGSHttpRequest", documented = false)
 public final class VgsHttpRequest extends UrllibRequest {
 
+  /**
+   * The class, a subclass of {@code Request}: it adds the properties {@code url}, {@code body} and
+   * {@code headers}. The header container is {@code _headers} in the request's {@code __dict__}.
+   */
+  public static final LarkyType TYPE = LarkyTypeObject.createBuiltinType(
+      "VGSHttpRequest", UrllibRequest.TYPE, ImmutableMap.of(
+          // full_url is a property: an instance attribute cannot replace it
+          "url", LarkyNativeProperty.of("url", VgsHttpRequest.class, VgsHttpRequest::fullUrl, VgsHttpRequest::setUrl),
+          "body", LarkyNativeProperty.of(
+              "body", VgsHttpRequest.class,
+              (self, thread) -> self.data(), (self, value, thread) -> self.__setattr__("data", value, thread)),
+          "headers", LarkyNativeProperty.of(
+              "headers", VgsHttpRequest.class,
+              (self, thread) -> self.state("_headers"), VgsHttpRequest::setHeaders)));
+
+  private static final String HEADERS = "_headers";
+
   private final StarlarkCallable headerFactory;
   private final StarlarkCallable urlSplitter;
-  private Object path = Starlark.NONE;
-  private Object queryString = Starlark.NONE;
 
   private VgsHttpRequest(
-      Object constructor, UrllibRequest base, StarlarkCallable headerFactory, StarlarkCallable urlSplitter,
-      StarlarkThread thread) {
-    super(constructor, base, thread);
+      Object constructor, UrllibRequest base, StarlarkCallable headerFactory, StarlarkCallable urlSplitter) {
+    super(TYPE, constructor, base);
     this.headerFactory = headerFactory;
     this.urlSplitter = urlSplitter;
   }
@@ -72,92 +87,29 @@ public final class VgsHttpRequest extends UrllibRequest {
       throw Starlark.errorf(
           "VGSHttpRequest(request=...) expected `Request`; got %s", Starlark.type(base));
     }
-    VgsHttpRequest request = new VgsHttpRequest(constructor, base, headerFactory, urlSplitter, thread);
-    request.setHeadersValue(call(thread, headerFactory, headers));
+    VgsHttpRequest request = new VgsHttpRequest(constructor, base, headerFactory, urlSplitter);
+    // urllib's plain headers attribute gives way to the property over _headers
+    request.__dict__().pop("headers", Starlark.NONE, thread);
+    request.setState(HEADERS, call(thread, headerFactory, headers));
     request.updatePath(url, thread);
     return request;
   }
 
-  @Override
-  public String typeName() {
-    return "VGSHttpRequest";
+  private void setUrl(Object value, StarlarkThread thread) throws EvalException, InterruptedException {
+    __setattr__("full_url", value, thread);
+    updatePath(value, thread);
   }
 
-  @Nullable
-  @Override
-  protected Object getDeclared(String name, StarlarkThread thread) throws EvalException, InterruptedException {
-    switch (name) {
-      case "url":
-        // full_url is a property: an instance attribute cannot replace it
-        return fullUrl(thread);
-      case "body":
-        return data();
-      case "headers":
-      case "_headers":
-        return headersValue();
-      case "path":
-        return path;
-      case "query_string":
-        return queryString;
-      default:
-        break;
-    }
-    return super.getDeclared(name, thread);
-  }
-
-  @Override
-  protected boolean setDeclared(String name, Object value, StarlarkThread thread)
-      throws EvalException, InterruptedException {
+  private void setHeaders(Object value, StarlarkThread thread) throws EvalException, InterruptedException {
     checkMutable();
-    switch (name) {
-      case "url":
-        setField("full_url", value);
-        updatePath(value, thread);
-        return true;
-      case "body":
-        setField("data", value);
-        return true;
-      case "headers":
-        setHeadersValue(call(thread, headerFactory, value));
-        return true;
-      case "_headers":
-        setHeadersValue(value);
-        return true;
-      case "path":
-        path = value;
-        return true;
-      case "query_string":
-        queryString = value;
-        return true;
-      default:
-        break;
-    }
-    return super.setDeclared(name, value, thread);
+    setState(HEADERS, call(thread, headerFactory, value));
   }
 
   private void updatePath(Object url, StarlarkThread thread) throws EvalException, InterruptedException {
     checkMutable();
     Object parsed = call(thread, urlSplitter, url);
-    path = Starlark.getattr(thread.mutability(), thread.getSemantics(), parsed, "path", null);
-    queryString = Starlark.getattr(thread.mutability(), thread.getSemantics(), parsed, "query", null);
-  }
-
-  @Override
-  protected String headersStateName() {
-    return "_headers";
-  }
-
-  @Override
-  protected void addState(Map<String, Object> state) {
-    super.addState(state);
-    state.put("path", path);
-    state.put("query_string", queryString);
-  }
-
-  @Override
-  protected ImmutableList<String> declaredNames() {
-    return ImmutableList.<String>builder()
-        .addAll(super.declaredNames()).add("url", "body", "_headers", "path", "query_string").build();
+    setState("path", Starlark.getattr(thread.mutability(), thread.getSemantics(), parsed, "path", null));
+    setState("query_string", Starlark.getattr(thread.mutability(), thread.getSemantics(), parsed, "query", null));
   }
 
   // Unlike urllib's, these keep the key as given.
@@ -191,12 +143,12 @@ public final class VgsHttpRequest extends UrllibRequest {
    * replaced its {@code items}.
    */
   public boolean visitHeaderLines(BiConsumer<Object, Object> visitor) {
-    return headersValue() instanceof LarkyMultiDict multiDict && multiDict.visitItems(visitor);
+    return state(HEADERS) instanceof LarkyMultiDict multiDict && multiDict.visitItems(visitor);
   }
 
   /** The header container's {@code items()}, or None when the headers are None. */
   public Object headerItems(StarlarkThread thread) throws EvalException, InterruptedException {
-    Object headers = headersValue();
+    Object headers = state(HEADERS);
     return Starlark.isNullOrNone(headers) ? Starlark.NONE : callField(thread, headers, "items");
   }
 }
