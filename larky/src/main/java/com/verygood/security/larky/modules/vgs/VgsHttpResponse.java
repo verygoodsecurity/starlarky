@@ -26,7 +26,6 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
-import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
@@ -42,24 +41,18 @@ public sealed class VgsHttpResponse extends MutableStruct implements ProtocolRes
   public static VgsHttpResponse create(
       StarlarkCallable constructor, StarlarkCallable headerFactory, Object body, Object headers,
       Object status, StarlarkThread thread) throws EvalException, InterruptedException {
-    return (VgsHttpResponse) create(constructor, headerFactory, body, headers, status, false, thread);
+    return create(constructor, headerFactory, body, headers, status, false, thread);
   }
 
-  /**
-   * A response built from fields, or, for a short circuit given a {@link ProtocolResponse} as its body, that
-   * response's {@link ShortCircuit} (the {@code @vgs//http/response} constructor reached with a response).
-   */
-  public static Object create(
+  public static VgsHttpResponse create(
       StarlarkCallable constructor, StarlarkCallable headerFactory, Object body, Object headers,
       Object status, boolean shortCircuit, StarlarkThread thread)
       throws EvalException, InterruptedException {
-    if (shortCircuit && body instanceof ProtocolResponse response) {
-      if (!(Starlark.isNullOrNone(headers) || headers instanceof Dict<?, ?> dict && dict.isEmpty())
-          || !DEFAULT_STATUS.equals(status)) {
-        throw Starlark.errorf(
-            "ShortCircuitResponse takes either a protocol response or body, headers and status_code, not both");
-      }
-      return response.shortCircuit(thread);
+    if (body instanceof ProtocolResponse response) {
+      // a response is short-circuited by proxy.ShortCircuitResponse(response); as a body it would be sent as text
+      throw Starlark.errorf(
+          "%s body must not be a %s; to stop with that response, return proxy.ShortCircuitResponse(response)",
+          shortCircuit ? "ShortCircuitResponse" : "VGSHttpResponse", scriptName(response, thread));
     }
     SimpleStruct headerMap = buildHeaders(headerFactory, headers, thread);
     var fields = Dict.<String, Object>builder()
@@ -75,9 +68,6 @@ public sealed class VgsHttpResponse extends MutableStruct implements ProtocolRes
         ? new ShortCircuitHttpResponse(fields, thread)
         : new VgsHttpResponse(fields, thread);
   }
-
-  // the facade's status_code default (vgs/http/response.star)
-  private static final StarlarkInt DEFAULT_STATUS = StarlarkInt.of(200);
 
   VgsHttpResponse(Dict<String, Object> fields, StarlarkThread thread) {
     super(fields, thread.mutability());
@@ -143,6 +133,11 @@ public sealed class VgsHttpResponse extends MutableStruct implements ProtocolRes
       Thread.currentThread().interrupt();
       throw new EvalException(e);
     }
+  }
+
+  // the name a script knows a response by (VGSHttpResponse, ShortCircuitResponse); Starlark.type gives the Java one
+  private static Object scriptName(ProtocolResponse response, StarlarkThread thread) {
+    return response instanceof VgsHttpResponse http ? http.getField("__name__", thread) : Starlark.type(response);
   }
 
   /** This response's fields, which a {@link ShortCircuitHttpResponse} decorating it shares. */

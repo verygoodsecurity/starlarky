@@ -41,21 +41,22 @@ public final class ProxyNativeModule implements StarlarkValue {
 
   @StarlarkMethod(
       name = "short_circuit_response", documented = false,
-      parameters = {@Param(name = "http_short_circuit")})
-  public StarlarkCallable shortCircuitResponse(StarlarkCallable httpShortCircuit) {
-    return new ShortCircuitResponse(httpShortCircuit);
+      parameters = {@Param(name = "protocol_short_circuit")})
+  public StarlarkCallable shortCircuitResponse(StarlarkCallable protocolShortCircuit) {
+    return new ShortCircuitResponse(protocolShortCircuit);
   }
 
   /**
    * {@code proxy.ShortCircuitResponse}: given a protocol response ({@link ProtocolResponse}, such as a
    * {@code VGSHttpResponse}), that response decorated to stop processing the message; given only {@code body},
-   * {@code headers} and {@code status_code}, the HTTP shorthand, which builds the HTTP response from them.
+   * {@code headers} and {@code status_code}, the protocol's own short circuit built from them (for HTTP,
+   * {@code @vgs//http/response}'s ShortCircuitResponse).
    */
   static final class ShortCircuitResponse implements StarlarkCallable {
-    private final StarlarkCallable httpShortCircuit;
+    private final StarlarkCallable protocolShortCircuit;
 
-    ShortCircuitResponse(StarlarkCallable httpShortCircuit) {
-      this.httpShortCircuit = httpShortCircuit;
+    ShortCircuitResponse(StarlarkCallable protocolShortCircuit) {
+      this.protocolShortCircuit = protocolShortCircuit;
     }
 
     @Override
@@ -72,7 +73,7 @@ public final class ProxyNativeModule implements StarlarkValue {
     public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs)
         throws EvalException, InterruptedException {
       if (args.isEmpty()) {
-        return Starlark.call(thread, httpShortCircuit, args, kwargs);
+        return Starlark.call(thread, protocolShortCircuit, args, kwargs);
       }
       if (args.size() > 1 || !kwargs.isEmpty()) {
         throw Starlark.errorf(

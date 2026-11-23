@@ -44,7 +44,7 @@ public final class HttpResponseNativeModule implements StarlarkValue {
         @Param(name = "short_circuit")
       },
       useStarlarkThread = true)
-  public Object create(
+  public VgsHttpResponse create(
       StarlarkCallable constructor, StarlarkCallable headerFactory, Object body, Object headers,
       Object status, boolean shortCircuit, StarlarkThread thread)
       throws EvalException, InterruptedException {

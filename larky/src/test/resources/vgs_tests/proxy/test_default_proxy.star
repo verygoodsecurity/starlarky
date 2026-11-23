@@ -76,6 +76,13 @@ def _test_short_circuit_response_refuses_a_response_with_fields():
     asserts.assert_fails(lambda: proxy.ShortCircuitResponse(wrapped, wrapped), ".*not both")
 
 
+def _test_a_response_is_not_a_body():
+    wrapped = VGSHttpResponse(body=b"blocked", status_code=403)
+    asserts.assert_fails(lambda: proxy.ShortCircuitResponse(body=wrapped),
+                         ".*body must not be a VGSHttpResponse.*proxy.ShortCircuitResponse\\(response\\)")
+    asserts.assert_fails(lambda: VGSHttpResponse(body=wrapped), ".*body must not be a VGSHttpResponse.*")
+
+
 def _test_short_circuit_response_refuses_what_is_not_a_protocol_response():
     asserts.assert_fails(lambda: proxy.ShortCircuitResponse(b"blocked"),
                          ".*takes a protocol response, one of \\[VGSHttpResponse\\], got bytes")
@@ -93,6 +100,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_decorates_the_response))
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_refuses_a_response_with_fields))
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_refuses_what_is_not_a_protocol_response))
+    _suite.addTest(unittest.FunctionTestCase(_test_a_response_is_not_a_body))
     return _suite
 
 
