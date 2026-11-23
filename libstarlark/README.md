@@ -78,6 +78,29 @@ if square(2) == 4:
     print("square function works!") 
 ```
 
+### Per-run binary observation
+
+Trusted Java embedders can install a binary observer on a `StarlarkThread` for
+one execution. Close the returned scope to restore the prior observer.
+
+```java
+try (var scope = EvaluationExtensions.observeBinary(thread, observer)) {
+  Starlark.execFile(input, options, module, thread);
+}
+```
+
+The observer receives the operator, operands, and result after each successful
+eager binary operation, including augmented assignment. An in-place operation
+such as list `+=` has already mutated its receiver when the callback runs.
+Short-circuit `and` and `or` and expressions folded at compile time are outside
+this callback. The callback runs synchronously on the execution thread and may
+receive sensitive values. It may return an equivalent value with a different
+identity for run-specific metadata and must preserve evaluation semantics.
+
+Use run-specific evaluated-module results if observation depends on values
+produced during module evaluation or adds run-specific metadata. Compiled
+programs can still be shared.
+
 ### Language Lawyers
 
 If you want to read more about the specification, please visit the [official Starlark specification](https://github.com/bazelbuild/starlark/blob/master/spec.md)

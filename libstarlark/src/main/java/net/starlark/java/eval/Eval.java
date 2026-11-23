@@ -508,9 +508,15 @@ final class Eval {
     }
   }
 
-  @SuppressWarnings("unchecked")
   private static Object inplaceBinaryOp(StarlarkThread.Frame fr, TokenKind op, Object x, Object y)
       throws EvalException {
+    Object result = defaultInplaceBinaryOp(fr, op, x, y);
+    return EvalUtils.observeBinaryResult(fr.thread, op, x, y, result, /* augmented= */ true);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Object defaultInplaceBinaryOp(
+      StarlarkThread.Frame fr, TokenKind op, Object x, Object y) throws EvalException {
     switch (op) {
       case PLUS:
         // list += iterable  behaves like  list.extend(iterable)
@@ -563,7 +569,7 @@ final class Eval {
 
       default: // fall through
     }
-    return EvalUtils.binaryOp(op, x, y, fr.thread);
+    return EvalUtils.defaultBinaryOp(op, x, y, fr.thread);
   }
 
   // ---- expressions ----

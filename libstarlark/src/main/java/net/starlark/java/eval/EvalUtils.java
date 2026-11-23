@@ -59,6 +59,18 @@ final class EvalUtils {
   /** Evaluates an eager binary operation, {@code x op y}. (Excludes AND and OR.) */
   static Object binaryOp(TokenKind op, Object x, Object y, StarlarkThread starlarkThread)
       throws EvalException {
+    Object result = defaultBinaryOp(op, x, y, starlarkThread);
+    return observeBinaryResult(starlarkThread, op, x, y, result, /* augmented= */ false);
+  }
+
+  static Object observeBinaryResult(
+      StarlarkThread thread, TokenKind op, Object x, Object y, Object result, boolean augmented) {
+    EvaluationExtensions.BinaryObserver observer = thread.binaryObserver;
+    return observer == null ? result : observer.afterBinary(thread, op, x, y, result, augmented);
+  }
+
+  static Object defaultBinaryOp(TokenKind op, Object x, Object y, StarlarkThread starlarkThread)
+      throws EvalException {
     StarlarkSemantics semantics = starlarkThread.getSemantics();
     Mutability mu = starlarkThread.mutability();
     switch (op) {
@@ -377,7 +389,7 @@ final class EvalUtils {
         break;
 
       case NOT_IN:
-        Object z = binaryOp(TokenKind.IN, x, y, starlarkThread);
+        Object z = defaultBinaryOp(TokenKind.IN, x, y, starlarkThread);
         if (z != null) {
           return !Starlark.truth(z);
         }
