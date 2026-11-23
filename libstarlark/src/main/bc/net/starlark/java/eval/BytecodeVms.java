@@ -59,6 +59,12 @@ final class BytecodeVms {
       BytecodeChunk chunk, StarlarkThread thread, Map<String, Object> globals, String filename)
       throws EvalException, InterruptedException {
     switch (VM) {
+      case STARLARK_GO:
+        return StarlarkGoInterpreter.execute(chunk, thread, globals, null, filename, false);
+      case STARLARK_RUST:
+        return StarlarkRustInterpreter.execute(chunk, thread, globals, filename);
+      case BUCK:
+        return BuckStyleInterpreter.execute(chunk, thread, globals, filename);
       default:
         return BytecodeInterpreter.execute(chunk, thread, globals, filename);
     }
@@ -74,6 +80,15 @@ final class BytecodeVms {
       Tuple freevars)
       throws EvalException, InterruptedException {
     switch (VM) {
+      case STARLARK_GO:
+        return StarlarkGoInterpreter.executeWithLocals(
+            chunk, thread, locals, globals, filename, freevars);
+      case STARLARK_RUST:
+        return StarlarkRustInterpreter.executeWithLocals(
+            chunk, thread, locals, globals, filename, freevars);
+      case BUCK:
+        return BuckStyleInterpreter.executeWithLocals(
+            chunk, thread, locals, globals, filename, freevars);
       default:
         return BytecodeInterpreter.executeWithLocals(
             chunk, thread, locals, globals, filename, freevars);
