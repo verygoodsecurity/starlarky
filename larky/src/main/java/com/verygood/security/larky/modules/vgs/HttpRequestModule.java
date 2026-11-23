@@ -13,10 +13,8 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.modules;
+package com.verygood.security.larky.modules.vgs;
 
-import com.verygood.security.larky.modules.types.HttpRequest;
-import com.verygood.security.larky.modules.vgs.VgsHttpRequest;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
@@ -30,12 +28,12 @@ import net.starlark.java.eval.Structure;
  * Constructors for {@code urllib.request.Request} ({@link HttpRequest}) and {@code VGSHttpRequest}
  * ({@link VgsHttpRequest}), for their Starlark facades.
  */
-@StarlarkBuiltin(name = "http_request_native", documented = false, doc = "HTTP request construction.")
-public final class HttpRequestNativeModule implements StarlarkValue {
+@StarlarkBuiltin(name = "jhttprequest", documented = false, doc = "HTTP request construction.")
+public final class HttpRequestModule implements StarlarkValue {
 
-  public static final HttpRequestNativeModule INSTANCE = new HttpRequestNativeModule();
+  public static final HttpRequestModule INSTANCE = new HttpRequestModule();
 
-  private HttpRequestNativeModule() {}
+  private HttpRequestModule() {}
 
   @Override
   public boolean isImmutable() {

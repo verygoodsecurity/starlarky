@@ -78,7 +78,7 @@ load("@stdlib//re", re="re")
 load("@stdlib//types", types="types")
 load("@stdlib//urllib/parse", parse="parse")
 load("@vendor//option/result", Result="Result", Error="Error")
-load("@stdlib//http_request_native", _native_request="http_request_native")
+load("@vgs//jhttprequest", _native_request="jhttprequest")
 
 
 __all__ = [

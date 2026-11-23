@@ -18,7 +18,6 @@ package com.verygood.security.larky.modules.vgs;
 
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.multidict.LarkyMultiDict;
-import com.verygood.security.larky.modules.types.HttpRequest;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import javax.annotation.Nullable;

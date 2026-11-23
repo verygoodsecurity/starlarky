@@ -33,7 +33,6 @@ import com.verygood.security.larky.modules.CryptoModule;
 import com.verygood.security.larky.modules.CyberSourceModule;
 import com.verygood.security.larky.modules.ECDHModule;
 import com.verygood.security.larky.modules.JsonModule;
-import com.verygood.security.larky.modules.HttpRequestNativeModule;
 import com.verygood.security.larky.modules.multidict.MultiDictModule;
 import com.verygood.security.larky.modules.OpenSSLModule;
 import com.verygood.security.larky.modules.ProtoBufModule;
@@ -45,7 +44,8 @@ import com.verygood.security.larky.modules.VaultModule;
 import com.verygood.security.larky.modules.X509Module;
 import com.verygood.security.larky.modules.XMLModule;
 import com.verygood.security.larky.modules.ZLibModule;
-import com.verygood.security.larky.modules.vgs.HttpResponseNativeModule;
+import com.verygood.security.larky.modules.vgs.HttpRequestModule;
+import com.verygood.security.larky.modules.vgs.HttpResponseModule;
 import com.verygood.security.larky.modules.vgs.PGPModule;
 import com.verygood.security.larky.modules.vgs.ProxyModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
@@ -97,7 +97,6 @@ public class ModuleSupplier {
       CollectionsModule.INSTANCE,
       CryptoModule.INSTANCE,
       ECDHModule.INSTANCE,
-      HttpRequestNativeModule.INSTANCE,
       JsonModule.INSTANCE,
       MultiDictModule.INSTANCE,
       OpenSSLModule.INSTANCE,
@@ -116,7 +115,8 @@ public class ModuleSupplier {
       CerebroModule.INSTANCE,
       ChaseModule.INSTANCE,
       CyberSourceModule.INSTANCE,
-      HttpResponseNativeModule.INSTANCE,
+      HttpRequestModule.INSTANCE,
+      HttpResponseModule.INSTANCE,
       JKSModule.INSTANCE,
       MetricsModule.INSTANCE,
       NetworkTokenModule.INSTANCE,
