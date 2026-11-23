@@ -166,8 +166,8 @@ public final class VgsHttpResponse extends LarkyInstance implements ProtocolResp
   }
 
   @Override
-  public ShortCircuit shortCircuit(StarlarkThread thread) {
-    return new ShortCircuitHttpResponse(this);
+  public ShortCircuit shortCircuit(Object constructor) {
+    return new ShortCircuitHttpResponse(constructor, this);
   }
 
   public Object body(StarlarkThread thread) {

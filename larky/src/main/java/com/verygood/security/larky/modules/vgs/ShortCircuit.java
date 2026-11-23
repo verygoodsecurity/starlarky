@@ -23,6 +23,6 @@ package com.verygood.security.larky.modules.vgs;
  */
 public interface ShortCircuit extends ProtocolResponse {
 
-  /** The protocol response this short circuit decorates. */
+  /** The protocol response to stop processing the message with. */
   ProtocolResponse response();
 }

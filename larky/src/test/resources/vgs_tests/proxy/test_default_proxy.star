@@ -17,6 +17,14 @@ def _test_short_circuit_response_holds_the_response():
     asserts.assert_that(builtins.isinstance(short_circuit.response, VGSHttpResponse)).is_equal_to(True)
 
 
+def _test_isinstance_tells_a_short_circuit():
+    response = VGSHttpResponse(status_code=403)
+    short_circuit = proxy.ShortCircuitResponse(response)
+    asserts.assert_that(builtins.isinstance(short_circuit, proxy.ShortCircuitResponse)).is_equal_to(True)
+    asserts.assert_that(builtins.isinstance(response, proxy.ShortCircuitResponse)).is_equal_to(False)
+    asserts.assert_that(short_circuit.__class__ == proxy.ShortCircuitResponse).is_equal_to(True)
+
+
 def _test_the_held_response_keeps_ordered_headers():
     short_circuit = proxy.ShortCircuitResponse(VGSHttpResponse(headers=[("Set-Cookie", "a=1"), ("X-Marker", "middle")]))
     short_circuit.response.append_header("set-cookie", "b=2")
@@ -75,6 +83,7 @@ def _test_short_circuit_response_refuses_what_is_not_a_protocol_response():
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_holds_the_response))
+    _suite.addTest(unittest.FunctionTestCase(_test_isinstance_tells_a_short_circuit))
     _suite.addTest(unittest.FunctionTestCase(_test_the_held_response_keeps_ordered_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_changes_to_the_response_reach_the_short_circuit))
     _suite.addTest(unittest.FunctionTestCase(_test_a_short_circuit_cannot_be_changed))

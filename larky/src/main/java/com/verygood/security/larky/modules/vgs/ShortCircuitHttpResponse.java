@@ -21,7 +21,6 @@ import javax.annotation.Nullable;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.StarlarkSemantics;
-import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Structure;
 
 /**
@@ -31,11 +30,13 @@ import net.starlark.java.eval.Structure;
 @StarlarkBuiltin(name = "ShortCircuitResponse", documented = false)
 public final class ShortCircuitHttpResponse implements ShortCircuit, Structure {
 
-  private static final ImmutableList<String> FIELDS = ImmutableList.of("__name__", "response");
+  private static final ImmutableList<String> FIELDS = ImmutableList.of("__class__", "__name__", "response");
 
+  private final Object constructor;
   private final VgsHttpResponse response;
 
-  ShortCircuitHttpResponse(VgsHttpResponse response) {
+  ShortCircuitHttpResponse(Object constructor, VgsHttpResponse response) {
+    this.constructor = constructor;
     this.response = response;
   }
 
@@ -45,7 +46,7 @@ public final class ShortCircuitHttpResponse implements ShortCircuit, Structure {
   }
 
   @Override
-  public ShortCircuit shortCircuit(StarlarkThread thread) {
+  public ShortCircuit shortCircuit(Object constructor) {
     return this;
   }
 
@@ -53,6 +54,8 @@ public final class ShortCircuitHttpResponse implements ShortCircuit, Structure {
   @Override
   public Object getValue(String name) {
     switch (name) {
+      case "__class__":
+        return constructor;
       case "__name__":
         return "ShortCircuitResponse";
       case "response":
