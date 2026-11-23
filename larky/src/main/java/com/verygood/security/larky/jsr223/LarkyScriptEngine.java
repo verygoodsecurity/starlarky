@@ -534,7 +534,9 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
   public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
     ScriptContext callContext = context;
     var bindings = invocationBindings(callContext);
-    return LarkyCalls.call(function(name, bindings), args, console(LarkyCalls.writer(callContext)), bindings, callContext);
+    StarlarkCallable function = function(name, bindings);
+    startInvocation(callContext);
+    return LarkyCalls.call(function, args, console(LarkyCalls.writer(callContext)), bindings, callContext);
   }
 
   /**
@@ -555,8 +557,9 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
   public Object invokeMethodWithContext(ScriptContext callContext, Object thiz, String name, Object... args)
       throws ScriptException, NoSuchMethodException {
     var bindings = invocationBindings(callContext);
-    return LarkyCalls.call(
-        LarkyCalls.method(thiz, name), args, console(LarkyCalls.writer(callContext)), bindings, callContext);
+    StarlarkCallable method = LarkyCalls.method(thiz, name);
+    startInvocation(callContext);
+    return LarkyCalls.call(method, args, console(LarkyCalls.writer(callContext)), bindings, callContext);
   }
 
   /**
@@ -605,11 +608,16 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
   }
 
   private Map<String, Object> invocationBindings(ScriptContext callContext) throws ScriptException {
+    checkGlobalScope(callContext);
+    return bindings(callContext);
+  }
+
+  // A call that cannot start (no such function, an unusable context) leaves the context's
+  // metadata as it was; one that starts replaces it with its own when it ends.
+  private static void startInvocation(ScriptContext callContext) {
     if (callContext instanceof LarkyScriptContext larky) {
       larky.setMetadata(null);
     }
-    checkGlobalScope(callContext);
-    return bindings(callContext);
   }
 
   StreamWriterConsole console(Writer writer) {

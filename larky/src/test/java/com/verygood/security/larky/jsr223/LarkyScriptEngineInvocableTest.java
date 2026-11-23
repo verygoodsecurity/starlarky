@@ -1,10 +1,13 @@
 package com.verygood.security.larky.jsr223;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.verygood.security.larky.runtime.EvaluationMetadata;
 import com.verygood.security.larky.runtime.EvaluationSettings;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -284,5 +287,18 @@ public class LarkyScriptEngineInvocableTest {
     } finally {
       pool.shutdownNow();
     }
+  }
+
+  @Test
+  public void aCallThatCannotStartKeepsTheLastEvaluationsMetadata() throws Exception {
+    final ScriptEngine engine = evaluated("value = 1\n");
+    final LarkyScriptContext context = (LarkyScriptContext) engine.getContext();
+    final EvaluationMetadata evaluation = context.metadata();
+    assertNotNull(evaluation);
+
+    assertThrows(NoSuchMethodException.class, () -> ((Invocable) engine).invokeFunction("missing"));
+    assertThrows(NoSuchMethodException.class, () -> ((Invocable) engine).invokeMethod("text", "missing"));
+
+    assertSame(evaluation, context.metadata());
   }
 }

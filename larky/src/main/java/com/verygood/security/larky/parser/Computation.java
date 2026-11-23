@@ -66,13 +66,13 @@ public interface Computation<I, O> {
       StarlarkThread thread = checkActive();
       List<Object> values = new ArrayList<>(arguments.size());
       for (Object argument : arguments) {
-        values.add(StarlarkUtil.valueToStarlark(argument, mutability));
+        values.add(toStarlark(argument));
       }
       Map<String, Object> named = Map.of();
       if (!keywords.isEmpty()) {
         named = new LinkedHashMap<>();
         for (var entry : keywords.entrySet()) {
-          named.put(entry.getKey(), StarlarkUtil.valueToStarlark(entry.getValue(), mutability));
+          named.put(entry.getKey(), toStarlark(entry.getValue()));
         }
       }
       return Starlark.call(thread, callable, values, named);
@@ -102,6 +102,12 @@ public interface Computation<I, O> {
         throw Starlark.errorf("module '%s' does not export '%s'", label, name);
       }
       return value;
+    }
+
+    // A Starlark value passes through as it is, as in LarkyCalls: converting a mutable dict of
+    // lists would hand the script a copy, so its changes would not reach the host's value.
+    private Object toStarlark(Object value) {
+      return Starlark.valid(value) ? value : StarlarkUtil.valueToStarlark(value, mutability);
     }
 
     private StarlarkThread checkActive() {
