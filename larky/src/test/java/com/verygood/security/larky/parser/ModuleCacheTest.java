@@ -1,7 +1,7 @@
 package com.verygood.security.larky.parser;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -47,9 +47,19 @@ public class ModuleCacheTest {
   }
 
   @Test
-  public void theProcessWideCacheIsOffUnlessEnabled() {
-    assumeFalse(Boolean.getBoolean("larky.moduleCache.enable"));
-    assertThat(ModuleCache.SHARED.isEnabled()).isFalse();
+  public void theProcessWideCacheIsOnUnlessTurnedOff() {
+    assumeTrue(System.getProperty("larky.moduleCache.enable") == null
+        && System.getProperty("larky.moduleCache.disable") == null);
+    assertThat(ModuleCache.SHARED.isEnabled()).isTrue();
+  }
+
+  @Test
+  public void eitherPropertyTurnsTheProcessWideCacheOff() {
+    assertThat(ModuleCache.enabled(null, false)).isTrue();
+    assertThat(ModuleCache.enabled("true", false)).isTrue();
+    assertThat(ModuleCache.enabled("false", false)).isFalse();
+    assertThat(ModuleCache.enabled(null, true)).isFalse();
+    assertThat(ModuleCache.enabled("true", true)).isFalse();
   }
 
   private static final ModuleCache.Registry REGISTRY = ModuleCache.Registry.DEFAULT;

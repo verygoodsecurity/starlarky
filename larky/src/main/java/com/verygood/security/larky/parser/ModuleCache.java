@@ -34,19 +34,28 @@ import net.starlark.java.syntax.FileOptions;
  * that loads it runs it itself. A declined module is never run again to be cached: the evaluation
  * that ran it keeps using it.
  *
- * <p>Off by default: {@code -Dlarky.moduleCache.enable=true} turns it on, and
- * {@code -Dlarky.moduleCache.disable=true} keeps it off even then.
+ * <p>On by default: {@code -Dlarky.moduleCache.enable=false} or {@code -Dlarky.moduleCache.disable=true}
+ * turns it off.
  */
 final class ModuleCache {
 
   /**
    * The cache evaluations use unless given another (see {@link LarkyScript#withModuleCache}): on
-   * only with {@code -Dlarky.moduleCache.enable=true}.
+   * unless {@code -Dlarky.moduleCache.enable=false} or {@code -Dlarky.moduleCache.disable=true}.
    */
   static final ModuleCache SHARED =
       new ModuleCache(
-          Boolean.getBoolean("larky.moduleCache.enable")
-              && !Boolean.getBoolean("larky.moduleCache.disable"));
+          enabled(
+              System.getProperty("larky.moduleCache.enable"),
+              Boolean.getBoolean("larky.moduleCache.disable")));
+
+  /**
+   * Whether the process-wide cache is on, given {@code larky.moduleCache.enable} (null when unset)
+   * and {@code larky.moduleCache.disable}: on unless either turns it off.
+   */
+  static boolean enabled(@Nullable String enable, boolean disable) {
+    return (enable == null || Boolean.parseBoolean(enable)) && !disable;
+  }
 
   private final boolean enabled;
 

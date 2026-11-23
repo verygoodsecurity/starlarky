@@ -168,7 +168,7 @@ public class LarkyEntrypoint implements Callable<Integer> {
         + " elapsed_ms=" + m.elapsedNanos() / 1_000_000;
   }
 
-  // With the module cache on (-Dlarky.moduleCache.enable=true), one line per Larky module the run
+  // With the module cache on (the default), one line per Larky module the run
   // loaded that the cache did not share, and why: names only, as EvaluationMetadata gives them.
   static java.util.List<String> describeUncached(EvaluationMetadata m) {
     java.util.List<String> lines = new java.util.ArrayList<>();

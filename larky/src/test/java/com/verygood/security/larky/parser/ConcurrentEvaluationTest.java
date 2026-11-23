@@ -87,7 +87,8 @@ public class ConcurrentEvaluationTest {
   private static final int EVALUATIONS = 64;
 
   // Through the JSR-223 engine with per-evaluation bindings, as services embedding Larky run it,
-  // with the process-wide module cache (off unless -Dlarky.moduleCache.enable=true).
+  // with the process-wide module cache (on unless -Dlarky.moduleCache.enable=false or
+  // -Dlarky.moduleCache.disable=true).
   private static String evaluate() throws Exception {
     Bindings bindings = new SimpleBindings();
     bindings.put("ctx", new HashMap<String, Object>());

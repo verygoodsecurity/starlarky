@@ -231,10 +231,9 @@ globals and dependencies are safe to share. Modules that retain evaluation-owned
 host services still load separately for each evaluation. This is distinct from the cache
 for compiled programs.
 
-Sharing is opt-in with `-Dlarky.moduleCache.enable=true`. Adding
-`-Dlarky.moduleCache.disable=true` overrides that setting. Qualify a host's concurrent
-workload before enabling sharing. Native images decline admission because their available
-reflection metadata can omit instance fields.
+Sharing is on by default. `-Dlarky.moduleCache.enable=false` or
+`-Dlarky.moduleCache.disable=true` turns it off. Native images decline admission because their
+available reflection metadata can omit instance fields.
 
 JSR-223 hosts supply per-run limits and module providers through
 `LarkyScriptContext.setSettings(EvaluationSettings)`. Migrate any
