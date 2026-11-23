@@ -66,4 +66,13 @@ public class NativeModuleNamespaceTest {
     ScriptException missingGlobal = assertThrows(ScriptException.class, () -> eval("build = _http_response\n"));
     assertThat(missingGlobal.getMessage()).contains("name '_http_response' is not defined");
   }
+
+  @Test
+  public void nativeHttpRequestFactoryIsVgsOnly() throws Exception {
+    eval("load('@vgs//jhttprequest', 'jhttprequest')\nbuild = jhttprequest.VGSHttpRequest\n");
+
+    ScriptException wrongNamespace = assertThrows(ScriptException.class,
+        () -> eval("load('@stdlib//jhttprequest', 'jhttprequest')\n"));
+    assertThat(wrongNamespace.getMessage()).contains("load it as '@vgs//jhttprequest'");
+  }
 }
