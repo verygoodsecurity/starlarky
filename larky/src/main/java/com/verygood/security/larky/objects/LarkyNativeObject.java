@@ -83,15 +83,15 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
 
   /**
    * An instance of {@code cls} in place of {@code base}, an instance of a base class of {@code
-   * cls} that nothing else refers to: it takes over the attributes a script set on it. The
-   * subclass's constructor takes over its fields.
+   * cls}: it starts with a copy of the attributes a script set on it. The subclass's constructor
+   * copies its fields.
    */
   protected LarkyNativeObject(LarkyNativeClass<?> cls, Object constructor, LarkyNativeObject base) {
     this.cls = cls;
     this.type = cls.type();
     this.constructor = constructor;
     this.mutability = base.mutability;
-    this.attributes = base.attributes;
+    this.attributes = base.attributes == null ? null : Dict.copyOf(base.mutability, base.attributes);
   }
 
   // The class
@@ -200,7 +200,12 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
 
   @Override
   public final <K, V> void setItemUnsafe(K key, V value) throws EvalException {
-    setState((String) key, value);
+    String name = (String) key;
+    if (classAttribute(name) instanceof LarkyDataDescriptor) {
+      // its value is a field or computed: an entry here would only shadow it in __dict__
+      throw Starlark.errorf("%s attribute '%s' is set through the attribute, not the instance's dict", typeName(), name);
+    }
+    setState(name, value);
   }
 
   /** The attribute {@code name} that a script set on the instance and the class does not define, or null. */
@@ -357,9 +362,9 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
     for (Object base : type.getMRO()) {
       for (Map.Entry<String, Object> attribute : ((LarkyType) base).getInternalDictUnsafe().entrySet()) {
         // a plain attribute that is not set is not an attribute of this instance
-        if (!(attribute.getValue() instanceof LarkyNativeProperty<?> field)
+        // the attribute as this class resolves the name, which a subclass may have redefined
+        if (!(type.lookup(attribute.getKey()) instanceof LarkyNativeProperty<?> field)
             || !field.isField()
-            || type.lookup(attribute.getKey()) != field
             || field.fieldValue(this) != null) {
           names.add(attribute.getKey());
         }

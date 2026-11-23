@@ -168,7 +168,6 @@ public class UrllibRequest extends LarkyNativeObject {
       Object url, Object data, Object headers, Object originReqHost, Object unverifiable, Object method,
       StarlarkThread thread) throws EvalException, InterruptedException {
     setAttr(thread, "full_url", url);
-    // headers first: the order of __dict__
     setAttr(thread, "headers", Dict.of(thread.mutability()));
     setAttr(thread, "unredirected_hdrs", Dict.of(thread.mutability()));
     setAttr(thread, "_data", Starlark.NONE);
@@ -288,7 +287,7 @@ public class UrllibRequest extends LarkyNativeObject {
   public void setProxy(Object proxyHost, Object proxyType, StarlarkThread thread)
       throws EvalException, InterruptedException {
     checkMutable();
-    if ("https".equals(type) && (tunnelHost == null || !Starlark.truth(tunnelHost))) {
+    if ("https".equals(type) && !Starlark.truth(required("_tunnel_host", tunnelHost))) {
       tunnelHost = required("host", host);
     } else {
       type = proxyType;

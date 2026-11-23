@@ -167,6 +167,30 @@ def _test_removed_state_is_a_missing_attribute():
     asserts.assert_fails(lambda: request.nope, "no field or method 'nope'")
 
 
+def _test_methods_after_a_deleted_attribute():
+    request = Request("https://example.test/p", data=b"x")
+    request.__delattr__("_tunnel_host")
+    asserts.assert_fails(lambda: request.set_proxy("p:1", "http"), "'Request' object has no attribute '_tunnel_host'")
+    request.__delattr__("selector")
+    asserts.assert_fails(lambda: request.has_proxy(), "'Request' object has no attribute 'selector'")
+
+    # deleted, set again, with an attribute added in between: __dict__ keeps the class's order
+    request = Request("https://example.test/p")
+    request.__delattr__("type")
+    request.extra = 1
+    request.type = "http"
+    keys = list(request.__dict__.keys())
+    asserts.assert_that(keys.index("type")).is_equal_to(2)
+    asserts.assert_that(keys[-1]).is_equal_to("extra")
+
+    vgs = VGSHttpRequest("https://example.test/p", headers={"A": "1"})
+    vgs.__delattr__("_headers")
+    asserts.assert_that(hasattr(vgs, "headers")).is_false()
+    asserts.assert_that("_headers" in vgs.__dict__).is_false()
+    vgs._headers = {"plain": "dict"}
+    asserts.assert_that(vgs.headers).is_equal_to({"plain": "dict"})
+
+
 def _test_explicit_protocol_calls():
     request = Request("https://example.test/")
     asserts.assert_that(request.__getattribute__("host")).is_equal_to("example.test")
@@ -219,6 +243,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_explicit_protocol_calls))
     _suite.addTest(unittest.FunctionTestCase(_test_getattr_hook_and_super))
     _suite.addTest(unittest.FunctionTestCase(_test_multidict_methods_are_the_class_s))
+    _suite.addTest(unittest.FunctionTestCase(_test_methods_after_a_deleted_attribute))
     return _suite
 
 

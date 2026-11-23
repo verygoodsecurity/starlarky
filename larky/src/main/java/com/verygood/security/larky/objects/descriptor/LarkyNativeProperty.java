@@ -32,7 +32,9 @@ import net.starlark.java.eval.StarlarkValue;
 /**
  * A property of a class written in Java ({@link com.verygood.security.larky.objects.LarkyNativeClass}):
  * a data descriptor in the class's dictionary, as {@code property(fget, fset)} is in a Python
- * class, whose getter and setter are Java code.
+ * class, whose getter and setter are Java code. A plain attribute ({@link #ofField}) is one whose
+ * getter and setter read and write a field of the Java class, as a member descriptor of a type
+ * written in C does; it is part of the instance's state.
  *
  * @param <T> the Java class of the instances
  */

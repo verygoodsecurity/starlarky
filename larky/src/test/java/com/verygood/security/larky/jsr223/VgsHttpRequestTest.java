@@ -309,4 +309,54 @@ public class VgsHttpRequestTest {
       }
     }
   }
+
+  @Test
+  public void aFrozenInstanceCannotBeChanged() throws Exception {
+    var file = (ParsedStarFile) new LarkyScriptEngine().eval("""
+        load("@stdlib//urllib/request", "Request")
+        load("@vgs//http/request", "VGSHttpRequest")
+        load("@vgs//http/response", "VGSHttpResponse")
+        REQUEST = Request("https://example.test/p")
+        VGS_REQUEST = VGSHttpRequest("https://example.test/p")
+        RESPONSE = VGSHttpResponse()
+
+        def set_plain(value, name):
+            setattr(value, name, 1)
+        def set_added(value, name):
+            value.added = 1
+        def delete_plain(value, name):
+            value.__delattr__(name)
+        def set_property(value, name):
+            setattr(value, "data" if hasattr(value, "data") else "body", b"x")
+        def call_method(value, name):
+            value.add_header("A", "1")
+        def change_dict(value, name):
+            value.__dict__.update(x=1)
+        """);
+    var module = file.getModule();
+    record Case(String global, String type, String plain) {}
+    List<Case> cases = List.of(
+        new Case("REQUEST", "Request", "host"),
+        new Case("VGS_REQUEST", "VGSHttpRequest", "path"),
+        new Case("RESPONSE", "VGSHttpResponse", "status_code"));
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, LarkySemantics.LARKY_SEMANTICS);
+      try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
+        for (Case c : cases) {
+          for (String function : List.of("set_plain", "set_added", "delete_plain", "set_property", "call_method")) {
+            var error = assertThrows(c.global() + " " + function, EvalException.class,
+                () -> net.starlark.java.eval.Starlark.call(
+                    thread, module.getGlobal(function), List.of(module.getGlobal(c.global()), c.plain()),
+                    java.util.Map.of()));
+            assertThat(error).hasMessageThat().contains("trying to mutate a frozen");
+          }
+          var error = assertThrows(EvalException.class,
+              () -> net.starlark.java.eval.Starlark.call(
+                  thread, module.getGlobal("change_dict"), List.of(module.getGlobal(c.global()), c.plain()),
+                  java.util.Map.of()));
+          assertThat(error).hasMessageThat().contains("trying to mutate a frozen dict value");
+        }
+      }
+    }
+  }
 }
