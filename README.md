@@ -196,7 +196,7 @@ mvn test -pl larky -am -Dtest=VGSLibTests -Dlarky.vgs_test=test_default_request_
 
 ```python
 load("@vgs//http/request", "VGSHttpRequest")
-load("@vgs//http/response", "VGSHttpResponse", "ShortCircuitResponse")
+load("@vgs//http/response", "VGSHttpResponse")
 ```
 
 The `VGSHttpResponse` constructor and `response.headers` assignment accept a

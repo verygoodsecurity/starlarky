@@ -37,8 +37,8 @@ public final class ProxyModule implements StarlarkValue {
   }
 
   /**
-   * {@code proxy.ShortCircuitResponse(response)}: the protocol response ({@link ProtocolResponse}, such as a
-   * {@code VGSHttpResponse}) decorated to stop processing the message with it.
+   * {@code proxy.ShortCircuitResponse(response)}: a {@link ShortCircuit} holding the protocol response
+   * ({@link ProtocolResponse}, such as a {@code VGSHttpResponse}) to stop processing the message with.
    */
   @StarlarkMethod(
       name = "ShortCircuitResponse", documented = false,
@@ -47,8 +47,7 @@ public final class ProxyModule implements StarlarkValue {
   public ShortCircuit shortCircuitResponse(Object response, StarlarkThread thread) throws EvalException {
     if (!(response instanceof ProtocolResponse protocolResponse)) {
       throw Starlark.errorf(
-          "ShortCircuitResponse takes a protocol response, one of [VGSHttpResponse], got %s",
-          Starlark.type(response));
+          "ShortCircuitResponse(response=...) expected `VGSHttpResponse`; got %s", Starlark.type(response));
     }
     return protocolResponse.shortCircuit(thread);
   }

@@ -40,14 +40,13 @@ public final class HttpResponseNativeModule implements StarlarkValue {
       name = "create", documented = false,
       parameters = {
         @Param(name = "constructor"), @Param(name = "header_factory"),
-        @Param(name = "body"), @Param(name = "headers"), @Param(name = "status_code"),
-        @Param(name = "short_circuit")
+        @Param(name = "body"), @Param(name = "headers"), @Param(name = "status_code")
       },
       useStarlarkThread = true)
   public VgsHttpResponse create(
       StarlarkCallable constructor, StarlarkCallable headerFactory, Object body, Object headers,
-      Object status, boolean shortCircuit, StarlarkThread thread)
+      Object status, StarlarkThread thread)
       throws EvalException, InterruptedException {
-    return VgsHttpResponse.create(constructor, headerFactory, body, headers, status, shortCircuit, thread);
+    return VgsHttpResponse.create(constructor, headerFactory, body, headers, status, thread);
   }
 }

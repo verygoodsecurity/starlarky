@@ -163,112 +163,22 @@ def parse_http_list(s):
 
     return [part.strip() for part in res]
 
-def _set_item(mapping, key, value):
-    mapping[key] = value
-
-
-def _contains(mapping, key):
-    return key in mapping
-
-
 def _copy_header_items(self, headers):
     for key, value in headers.items():
         self.add_header(key, value)
 
 
-def _initialize_request(
-    self,
-    url,
-    data=None,
-    headers={},
-    origin_req_host=None,
-    unverifiable=False,
-    method=None
-):
-    # Keep the bound closures as Starlark functions with their existing signatures. In
-    # particular, scripts can inspect and replace these fields or call __init__ again.
-    def _get_full_url():
-        return _native_request.full_url(self)
-    def _set_full_url(url):
-        _native_request.set_full_url(self, url, parse)
-    self.full_url = larky.property(_get_full_url, _set_full_url)
-
-    def _get_data():
-        return self._data
-    def _set_data(data):
-        _native_request.set_data(self, data)
-    self.data = larky.property(_get_data, _set_data)
-
-    def _parse():
-        _native_request.parse_url(self, parse)
-    self._parse = _parse
-
-    def get_method():
-        """Return a string indicating the HTTP request method."""
-        return _native_request.get_method(self, getattr)
-    self.get_method = get_method
-
-    def get_full_url():
-        return self.full_url
-    self.get_full_url = get_full_url
-
-    def set_proxy(host, type):
-        _native_request.set_proxy(self, host, type)
-    self.set_proxy = set_proxy
-
-    def has_proxy():
-        return _native_request.has_proxy(self)
-    self.has_proxy = has_proxy
-
-    def add_header(key, val):
-        _native_request.add_header(self, "headers", key, val, True, _set_item)
-    self.add_header = add_header
-
-    def add_unredirected_header(key, val):
-        _native_request.add_header(self, "unredirected_hdrs", key, val, True, _set_item)
-    self.add_unredirected_header = add_unredirected_header
-
-    def has_header(header_name):
-        return _native_request.has_header(self, header_name, _contains)
-    self.has_header = has_header
-
-    def get_header(header_name, default=None):
-        return _native_request.get_header(self, header_name, default)
-    self.get_header = get_header
-
-    def remove_header(header_name):
-        _native_request.remove_header(self, header_name)
-    self.remove_header = remove_header
-
-    def header_items():
-        return _native_request.header_items(self)
-    self.header_items = header_items
-
-    def __init__(
-        url,
-        data=None,
-        headers={},
-        origin_req_host=None,
-        unverifiable=False,
-        method=None
-    ):
-        return _native_request.initialize(
-            self, url, data, headers, origin_req_host, unverifiable, method,
-            request_host, _copy_header_items,
-        )
-    self.__init__ = __init__
-
-    self.__init__(url, data, headers, origin_req_host, unverifiable, method)
-    return self
-
-
 def Request(url, data=None, headers={}, origin_req_host=None, unverifiable=False, method=None):
-    self = _native_request.create_generic(Request)
-    return _initialize_request(self, url, data, headers, origin_req_host, unverifiable, method)
+    """An HTTP request: CPython's urllib.request.Request, implemented in Java."""
+    return _native_request.Request(
+        Request, parse, request_host, _copy_header_items,
+        url, data, headers, origin_req_host, unverifiable, method,
+    )
 
 
 request = larky.struct(
     __name__='request',
     Request=Request,
-    _initialize=_initialize_request,
+    request_host=request_host,
+    _copy_header_items=_copy_header_items,
 )

@@ -31,7 +31,7 @@ public class OrderedResponseHeadersTest {
     var response = (VgsHttpResponse) file.getModule().getGlobal("response");
     assertThat(file.getGlobalEnvironmentVariable("same_class", Boolean.class)).isTrue();
     assertThat(assertThrows(EvalException.class, () -> response.setField("body", "changed")))
-        .hasMessageThat().contains("frozen structure");
+        .hasMessageThat().contains("trying to mutate a frozen VGSHttpResponse value");
   }
 
   @Test
@@ -67,10 +67,11 @@ public class OrderedResponseHeadersTest {
         assertThat(visited).isEmpty();
         assertThat((List<?>) customized.headerItems(thread)).containsExactly(Tuple.pair("Overridden", "yes"));
 
+        // a replaced container is still a native multidict, read directly
         var replaced = (VgsHttpResponse) engine.invokeMethodInScope(thread, file, "build", "backing");
         assertThat(replaced.visitHeaderLines((name, value) -> visited.add(Tuple.pair(name, value))))
-            .isFalse();
-        assertThat(visited).isEmpty();
+            .isTrue();
+        assertThat(visited).containsExactly(Tuple.pair("Replaced", "yes"));
         assertThat((List<?>) replaced.headerItems(thread)).containsExactly(Tuple.pair("Replaced", "yes"));
       }
     }
