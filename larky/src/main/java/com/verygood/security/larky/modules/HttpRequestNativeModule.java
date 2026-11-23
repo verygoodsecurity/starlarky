@@ -442,7 +442,11 @@ public final class HttpRequestNativeModule implements StarlarkValue {
     if (thread.getExpirationMs() != Long.MAX_VALUE && thread.isExpired()) {
       throw Starlark.errorf("Starlark computation cancelled: past expiration date");
     }
-    if (steps >= thread.getMaxExecutionSteps() - thread.getExecutedSteps()) {
+    long remaining = thread.getMaxExecutionSteps() - thread.getExecutedSteps();
+    if (steps >= remaining) {
+      // Spend the rest of the budget before failing, as the evaluator's ++steps >= limit does, so the
+      // failure is reported as the step limit (LarkyEvaluator.failureOf) rather than a script error.
+      thread.incrementExecutedSteps(Math.max(remaining, 0));
       throw Starlark.errorf("Starlark computation cancelled: too many steps");
     }
     thread.incrementExecutedSteps(steps);
