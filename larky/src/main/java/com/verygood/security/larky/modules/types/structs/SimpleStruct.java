@@ -83,6 +83,12 @@ public class SimpleStruct implements LarkyCallable, LarkyCollection, HasBinary, 
     return ImmutableList.copyOf(fields.keySet());
   }
 
+  /** {@code x.name}, read by the interpreter with its thread. */
+  @Override
+  public Object getValue(StarlarkThread thread, String name) {
+    return getField(name, thread);
+  }
+
   @Override
   public Object getField(String name, StarlarkThread thread) {
     if (

@@ -142,6 +142,19 @@ public interface PyObject extends LarkyObject {
     __setattr__(field, value, getCurrentThread());
   }
 
+  /** {@code x.field = value}, by the interpreter with its thread. */
+  @Override
+  default void setField(StarlarkThread thread, String field, Object value) throws EvalException {
+    __setattr__(field, value, thread);
+  }
+
+  /** {@code x.name}, read by the interpreter with its thread. */
+  @Nullable
+  @Override
+  default Object getValue(StarlarkThread thread, String name) {
+    return getField(name, thread);
+  }
+
   default void setField(String field, Object value, StarlarkThread thread) throws EvalException {
     __setattr__(field, value, thread);
   }

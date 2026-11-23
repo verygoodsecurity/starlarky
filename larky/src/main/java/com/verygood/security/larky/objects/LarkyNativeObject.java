@@ -32,6 +32,7 @@ import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkEvalWrapper;
+import net.starlark.java.eval.StarlarkOperators;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 
@@ -253,7 +254,7 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
   public final Object __getattribute__(String name, StarlarkThread thread) throws EvalException {
     try {
       // fails, as reading the attribute does, if there is none
-      return Starlark.getattr(thread.mutability(), thread.getSemantics(), this, name, null);
+      return StarlarkOperators.getattr(thread, this, name, null);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new EvalException(e);
@@ -341,7 +342,7 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
 
   /** The attribute {@code name} as a script reads it, or null if there is none. */
   protected final Object attr(StarlarkThread thread, String name) throws EvalException, InterruptedException {
-    return Starlark.getattr(thread.mutability(), thread.getSemantics(), this, name, null);
+    return StarlarkOperators.getattr(thread, this, name, null);
   }
 
   /** Calls the attribute {@code name}, so an override in the instance's dictionary is called instead of the method. */
@@ -361,7 +362,7 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
   /** Calls the attribute {@code name} of {@code owner} with positional arguments. */
   public static Object callField(StarlarkThread thread, Object owner, String name, Object... args)
       throws EvalException, InterruptedException {
-    return call(thread, Starlark.getattr(thread.mutability(), thread.getSemantics(), owner, name, null), args);
+    return call(thread, StarlarkOperators.getattr(thread, owner, name, null), args);
   }
 
   /**

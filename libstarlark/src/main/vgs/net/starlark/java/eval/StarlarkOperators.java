@@ -35,4 +35,21 @@ public final class StarlarkOperators {
       throws EvalException {
     return (Boolean) EvalUtils.binaryOp(TokenKind.IN, key, container, thread);
   }
+
+  /**
+   * {@code getattr(object, name, defaultValue)}: the attribute as the expression {@code
+   * object.name} reads it, with the thread, or {@code defaultValue} if there is none. With a null
+   * default it fails as the expression does.
+   */
+  public static Object getattr(
+      StarlarkThread thread, Object object, String name, @javax.annotation.Nullable Object defaultValue)
+      throws EvalException, InterruptedException {
+    return Starlark.getattr(thread, object, name, defaultValue);
+  }
+
+  /** {@code object.name = value}. */
+  public static void setattr(StarlarkThread thread, Object object, String name, Object value)
+      throws EvalException, InterruptedException {
+    EvalUtils.setField(thread, object, name, value);
+  }
 }
