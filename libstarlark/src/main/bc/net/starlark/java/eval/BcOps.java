@@ -29,9 +29,9 @@ import net.starlark.java.syntax.TypeTable;
 import net.starlark.java.syntax.Types;
 
 /**
- * The semantics of the bytecode instructions that do more than move values, shared by the VMs
- * ({@link AbstractBytecodeVM}), so that they behave exactly like each other and like the
- * tree-walker.
+ * The semantics of the bytecode instructions that do more than move values, shared by the
+ * interpreting VMs ({@link AbstractBytecodeVM}) and JVM-compiled code ({@link JvmBytecodeCompiler}),
+ * so that both behave exactly like each other and like the tree-walker.
  *
  * <p>Operands arrive as arguments (in stack order: deepest first) and results are returned.
  */

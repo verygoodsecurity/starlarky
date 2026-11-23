@@ -98,6 +98,8 @@ final class BytecodeVms {
         return StarlarkRustInterpreter.execute(chunk, thread, globals, filename);
       case BUCK:
         return BuckStyleInterpreter.execute(chunk, thread, globals, filename);
+      case JVM:
+        return JvmBytecodeCompiler.runToplevel(chunk, thread, globals, filename);
       default:
         return BytecodeInterpreter.execute(chunk, thread, globals, filename);
     }
@@ -121,6 +123,9 @@ final class BytecodeVms {
             chunk, thread, locals, globals, filename, freevars);
       case BUCK:
         return BuckStyleInterpreter.executeWithLocals(
+            chunk, thread, locals, globals, filename, freevars);
+      case JVM:
+        return JvmBytecodeCompiler.runWithLocals(
             chunk, thread, locals, globals, filename, freevars);
       default:
         return BytecodeInterpreter.executeWithLocals(

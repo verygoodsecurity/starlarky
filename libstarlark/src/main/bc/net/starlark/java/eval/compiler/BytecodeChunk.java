@@ -68,6 +68,38 @@ public final class BytecodeChunk {
     this.frozen = frozen;
   }
 
+  // Code generated for this chunk by a JIT backend (JvmBytecodeCompiler), set once; null until
+  // then. Chunks are shared by every execution of a (cached) program, so this is too.
+  private volatile Object jitCode;
+
+  // The constant pool as an array, for generated code.
+  private volatile Object[] constantsArray;
+
+  // Executions of this chunk so far, for tiered compilation (approximate: updated without locks).
+  private int executions;
+
+  /** Counts one execution and returns the new count. */
+  public int countExecution() {
+    return ++executions;
+  }
+
+  public Object getJitCode() {
+    return jitCode;
+  }
+
+  public void setJitCode(Object code) {
+    this.jitCode = code;
+  }
+
+  public Object[] getConstantsArray() {
+    Object[] a = constantsArray;
+    if (a == null) {
+      a = constantPool.getConstants().toArray();
+      constantsArray = a;
+    }
+    return a;
+  }
+
   public String getName() {
     return name;
   }
