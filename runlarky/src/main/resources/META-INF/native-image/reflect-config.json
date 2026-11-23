@@ -1163,7 +1163,7 @@
   {
       "allDeclaredMethods": true,
       "allPublicMethods": true,
-      "name": "com.verygood.security.larky.modules.vgs.HttpRequest"
+      "name": "com.verygood.security.larky.modules.urllib.UrllibRequest"
   },
   {
       "allDeclaredMethods": true,
@@ -1179,6 +1179,11 @@
       "allDeclaredMethods": true,
       "allPublicMethods": true,
       "name": "com.verygood.security.larky.modules.vgs.HttpRequestModule"
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.UrllibModule"
   },
   {
       "allDeclaredMethods": true,

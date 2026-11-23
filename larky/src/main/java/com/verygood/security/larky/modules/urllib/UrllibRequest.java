@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.modules.vgs;
+package com.verygood.security.larky.modules.urllib;
 
 import com.google.common.base.Ascii;
 import com.google.common.base.CharMatcher;
@@ -51,7 +51,7 @@ import net.starlark.java.eval.Tuple;
  * Starlark {@code urllib.parse} functions, as before.
  */
 @StarlarkBuiltin(name = "Request", documented = false)
-public sealed class HttpRequest extends LarkyInstance permits VgsHttpRequest {
+public class UrllibRequest extends LarkyInstance {
 
   // Use the Starlark parser for unusual values and large strings. Native scans are bounded.
   private static final int MAX_FAST_STRING_LENGTH = 16 * 1024;
@@ -82,7 +82,7 @@ public sealed class HttpRequest extends LarkyInstance permits VgsHttpRequest {
    * and {@code copyHeaderItems} are {@code urllib.request}'s {@code request_host(request)} and the
    * loop that adds the headers of a mapping other than a dict.
    */
-  HttpRequest(
+  private UrllibRequest(
       Object constructor, Structure parse, StarlarkCallable requestHost, StarlarkCallable copyHeaderItems,
       StarlarkThread thread) {
     super(constructor, thread.mutability());
@@ -91,12 +91,37 @@ public sealed class HttpRequest extends LarkyInstance permits VgsHttpRequest {
     this.copyHeaderItems = copyHeaderItems;
   }
 
+  /**
+   * A request of the class {@code constructor} that takes over the state of {@code base}, for a
+   * subclass such as {@code VGSHttpRequest}. {@code base} is a request that {@code
+   * urllib.request.Request(...)} has just built: the new request shares its header containers, so
+   * {@code base} must not be used afterwards.
+   */
+  protected UrllibRequest(Object constructor, UrllibRequest base, StarlarkThread thread) {
+    super(constructor, thread.mutability());
+    this.parse = base.parse;
+    this.requestHost = base.requestHost;
+    this.copyHeaderItems = base.copyHeaderItems;
+    this.fullUrl = base.fullUrl;
+    this.fragment = base.fragment;
+    this.type = base.type;
+    this.host = base.host;
+    this.selector = base.selector;
+    this.headers = base.headers;
+    this.unredirectedHdrs = base.unredirectedHdrs;
+    this.data = base.data;
+    this.tunnelHost = base.tunnelHost;
+    this.originReqHost = base.originReqHost;
+    this.unverifiable = base.unverifiable;
+    this.method = base.method;
+  }
+
   /** {@code Request(url, data, headers, origin_req_host, unverifiable, method)}, whose class is {@code constructor}. */
-  public static HttpRequest create(
+  public static UrllibRequest create(
       Object constructor, Structure parse, StarlarkCallable requestHost, StarlarkCallable copyHeaderItems,
       Object url, Object data, Object headers, Object originReqHost, Object unverifiable, Object method,
       StarlarkThread thread) throws EvalException, InterruptedException {
-    HttpRequest request = new HttpRequest(constructor, parse, requestHost, copyHeaderItems, thread);
+    UrllibRequest request = new UrllibRequest(constructor, parse, requestHost, copyHeaderItems, thread);
     request.initialize(url, data, headers, originReqHost, unverifiable, method, thread);
     return request;
   }

@@ -15,20 +15,18 @@
 
 package com.verygood.security.larky.modules.vgs;
 
+import com.verygood.security.larky.modules.urllib.UrllibRequest;
 import net.starlark.java.annot.Param;
+import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
-import net.starlark.java.eval.Structure;
 
-/**
- * Constructors for {@code urllib.request.Request} ({@link HttpRequest}) and {@code VGSHttpRequest}
- * ({@link VgsHttpRequest}), for their Starlark facades.
- */
-@StarlarkBuiltin(name = "jhttprequest", documented = false, doc = "HTTP request construction.")
+/** The constructor of {@code VGSHttpRequest} ({@link VgsHttpRequest}), for its Starlark facade. */
+@StarlarkBuiltin(name = "jhttprequest", documented = false, doc = "VGS HTTP request construction.")
 public final class HttpRequestModule implements StarlarkValue {
 
   public static final HttpRequestModule INSTANCE = new HttpRequestModule();
@@ -41,36 +39,25 @@ public final class HttpRequestModule implements StarlarkValue {
   }
 
   @StarlarkMethod(
-      name = "Request", documented = false,
+      name = "VGSHttpRequest",
+      documented = false,
+      doc = "VGSHttpRequest(url, data, headers, method), from the urllib request of the same url, data and method.",
       parameters = {
-        @Param(name = "constructor"), @Param(name = "parse"), @Param(name = "request_host"),
-        @Param(name = "copy_header_items"), @Param(name = "url"), @Param(name = "data"),
-        @Param(name = "headers"), @Param(name = "origin_req_host"), @Param(name = "unverifiable"),
-        @Param(name = "method")
-      },
-      useStarlarkThread = true)
-  public HttpRequest request(
-      StarlarkCallable constructor, Structure parse, StarlarkCallable requestHost,
-      StarlarkCallable copyHeaderItems, Object url, Object data, Object headers, Object originReqHost,
-      Object unverifiable, Object method, StarlarkThread thread) throws EvalException, InterruptedException {
-    return HttpRequest.create(constructor, parse, requestHost, copyHeaderItems, url, data, headers,
-        originReqHost, unverifiable, method, thread);
-  }
-
-  @StarlarkMethod(
-      name = "VGSHttpRequest", documented = false,
-      parameters = {
-        @Param(name = "constructor"), @Param(name = "parse"), @Param(name = "request_host"),
-        @Param(name = "copy_header_items"), @Param(name = "header_factory"), @Param(name = "url_splitter"),
-        @Param(name = "url"), @Param(name = "data"), @Param(name = "headers"), @Param(name = "method")
+        @Param(name = "cls", doc = "The VGSHttpRequest function, the request's __class__."),
+        @Param(
+            name = "request",
+            doc = "urllib.request.Request(url, data=data, method=method). It is not usable afterwards.",
+            allowedTypes = {@ParamType(type = UrllibRequest.class)}),
+        @Param(name = "header_factory", doc = "Builds the header container: VGSCIMultiDict."),
+        @Param(name = "url_splitter", doc = "urllib.parse.urlsplit."),
+        @Param(name = "url"),
+        @Param(name = "headers")
       },
       useStarlarkThread = true)
   public VgsHttpRequest vgsHttpRequest(
-      StarlarkCallable constructor, Structure parse, StarlarkCallable requestHost,
-      StarlarkCallable copyHeaderItems, StarlarkCallable headerFactory, StarlarkCallable urlSplitter,
-      Object url, Object data, Object headers, Object method, StarlarkThread thread)
+      StarlarkCallable cls, UrllibRequest request, StarlarkCallable headerFactory, StarlarkCallable urlSplitter,
+      Object url, Object headers, StarlarkThread thread)
       throws EvalException, InterruptedException {
-    return VgsHttpRequest.create(constructor, parse, requestHost, copyHeaderItems, headerFactory, urlSplitter,
-        url, data, headers, method, thread);
+    return VgsHttpRequest.create(cls, request, headerFactory, urlSplitter, url, headers, thread);
   }
 }

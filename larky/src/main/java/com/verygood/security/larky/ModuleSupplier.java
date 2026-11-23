@@ -40,6 +40,7 @@ import com.verygood.security.larky.modules.RegexModule;
 import com.verygood.security.larky.modules.ResultModule;
 import com.verygood.security.larky.modules.StructModule;
 import com.verygood.security.larky.modules.SysModule;
+import com.verygood.security.larky.modules.UrllibModule;
 import com.verygood.security.larky.modules.VaultModule;
 import com.verygood.security.larky.modules.X509Module;
 import com.verygood.security.larky.modules.XMLModule;
@@ -105,6 +106,7 @@ public class ModuleSupplier {
       ResultModule.INSTANCE,
       StructModule.INSTANCE,
       SysModule.INSTANCE,
+      UrllibModule.INSTANCE,
       X509Module.INSTANCE,
       XMLModule.INSTANCE,
       ZLibModule.INSTANCE

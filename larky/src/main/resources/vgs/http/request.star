@@ -17,6 +17,10 @@ def VGSHttpRequest(
 ):
     """A urllib.request.Request with ordered, case-insensitive headers, implemented in Java."""
     return _native_request.VGSHttpRequest(
-        VGSHttpRequest, parse, urllib_request.request_host, urllib_request._copy_header_items,
-        VGSCIMultiDict, parse.urlsplit, url, data, headers, method,
+        VGSHttpRequest,
+        urllib_request.Request(url, data=data, method=method),
+        VGSCIMultiDict,
+        parse.urlsplit,
+        url,
+        headers,
     )

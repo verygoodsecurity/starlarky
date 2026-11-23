@@ -78,7 +78,7 @@ load("@stdlib//re", re="re")
 load("@stdlib//types", types="types")
 load("@stdlib//urllib/parse", parse="parse")
 load("@vendor//option/result", Result="Result", Error="Error")
-load("@vgs//jhttprequest", _native_request="jhttprequest")
+load("@stdlib//jurllib", _jurllib="jurllib")
 
 
 __all__ = [
@@ -170,7 +170,7 @@ def _copy_header_items(self, headers):
 
 def Request(url, data=None, headers={}, origin_req_host=None, unverifiable=False, method=None):
     """An HTTP request: CPython's urllib.request.Request, implemented in Java."""
-    return _native_request.Request(
+    return _jurllib.Request(
         Request, parse, request_host, _copy_header_items,
         url, data, headers, origin_req_host, unverifiable, method,
     )
@@ -179,6 +179,4 @@ def Request(url, data=None, headers={}, origin_req_host=None, unverifiable=False
 request = larky.struct(
     __name__='request',
     Request=Request,
-    request_host=request_host,
-    _copy_header_items=_copy_header_items,
 )

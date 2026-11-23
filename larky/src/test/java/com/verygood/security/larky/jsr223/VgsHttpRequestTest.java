@@ -20,7 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.verygood.security.larky.LarkySemantics;
-import com.verygood.security.larky.modules.vgs.HttpRequest;
+import com.verygood.security.larky.modules.urllib.UrllibRequest;
 import com.verygood.security.larky.modules.vgs.VgsHttpRequest;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.ParsedStarFile;
@@ -80,8 +80,8 @@ public class VgsHttpRequestTest {
         generic = request.Request("https://example.test/")
         vgs = VGSHttpRequest("https://example.test/")
         """);
-    assertThat(file.getModule().getGlobal("generic")).isInstanceOf(HttpRequest.class);
-    assertThat(file.getModule().getGlobal("vgs")).isInstanceOf(HttpRequest.class);
+    assertThat(file.getModule().getGlobal("generic")).isInstanceOf(UrllibRequest.class);
+    assertThat(file.getModule().getGlobal("vgs")).isInstanceOf(UrllibRequest.class);
   }
 
   @Test
@@ -158,7 +158,7 @@ public class VgsHttpRequestTest {
   }
 
   private static final String CUSTOM_PARSER = """
-      load("@vgs//jhttprequest", "jhttprequest")
+      load("@stdlib//jurllib", "jurllib")
       load("@stdlib//larky", "larky")
       load("@stdlib//urllib/parse", "parse")
       load("@stdlib//urllib/request", "request")
@@ -167,9 +167,13 @@ public class VgsHttpRequestTest {
                            _splithost=parse._splithost, unquote=parse.unquote)
           functions.update(overrides)
           return larky.struct(**functions)
+      def no_request_host(request):
+          fail("origin_req_host is given")
+      def no_header_items(request, headers):
+          fail("headers is a dict")
       def build(url, p):
-          return jhttprequest.Request(request.Request, p, request.request_host,
-                                             request._copy_header_items, url, None, {}, "origin", False, None)
+          return jurllib.Request(request.Request, p, no_request_host, no_header_items,
+                                 url, None, {}, "origin", False, None)
       """;
 
   @Test
@@ -284,5 +288,17 @@ public class VgsHttpRequestTest {
         .isEqualTo(Tuple.of("/new", "x=1", "https://example.test/new?x=1"));
     assertThat(file.getGlobalEnvironmentVariable("data", String.class)).isEqualTo("two");
     assertThat(file.getGlobalEnvironmentVariable("body", String.class)).isEqualTo("three");
+  }
+
+  @Test
+  public void theNativeConstructorTakesAPlainUrllibRequest() {
+    var error = assertThrows(ScriptException.class, () -> new LarkyScriptEngine().eval("""
+        load("@stdlib//urllib/parse", "parse")
+        load("@vgs//http/request", "VGSHttpRequest", "VGSCIMultiDict")
+        load("@vgs//jhttprequest", "jhttprequest")
+        url = "https://example.test/"
+        jhttprequest.VGSHttpRequest(VGSHttpRequest, VGSHttpRequest(url), VGSCIMultiDict, parse.urlsplit, url, {})
+        """));
+    assertThat(error).hasMessageThat().contains("VGSHttpRequest(request=...) expected `Request`; got VGSHttpRequest");
   }
 }

@@ -7,15 +7,29 @@ public attribute is compared.
 """
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//larky", larky="larky")
+load("@stdlib//re", re="re")
 load("@stdlib//unittest", unittest="unittest")
 load("@stdlib//urllib/parse", parse="parse")
-load("@stdlib//urllib/request", urllib_request="request")
 load("@vendor//asserts", asserts="asserts")
 load("@vendor//option/result", safe="safe")
 load("@vgs//http/request", VGSHttpRequest="VGSHttpRequest", VGSCIMultiDict="VGSCIMultiDict")
 
 
-# Larky 1.3.0 stdlib/urllib/request.star, with unwrap/_splittag/request_host qualified.
+# Larky 1.3.0 stdlib/urllib/request.star, with unwrap/_splittag qualified.
+_cut_port_re = re.compile(r":\d+$")
+
+
+def _legacy_request_host(request):
+    url = request.full_url
+    host = parse.urlsplit(url).netloc
+    if host == "":
+        host = request.get_header("Host", "")
+
+    # remove port, if present
+    host = _cut_port_re.sub("", host, 1)
+    return host.lower()
+
+
 def _legacy_Request(
     url,
     data=None,
@@ -135,7 +149,7 @@ def _legacy_Request(
         for key, value in headers.items():
             self.add_header(key, value)
         if origin_req_host == None:
-            origin_req_host = urllib_request.request_host(self)
+            origin_req_host = _legacy_request_host(self)
         self.origin_req_host = origin_req_host
         self.unverifiable = unverifiable
         if method:

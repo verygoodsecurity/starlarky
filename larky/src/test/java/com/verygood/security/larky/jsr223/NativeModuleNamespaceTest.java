@@ -19,6 +19,10 @@ package com.verygood.security.larky.jsr223;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.stream.Stream;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 import org.junit.Test;
@@ -74,5 +78,44 @@ public class NativeModuleNamespaceTest {
     ScriptException wrongNamespace = assertThrows(ScriptException.class,
         () -> eval("load('@stdlib//jhttprequest', 'jhttprequest')\n"));
     assertThat(wrongNamespace.getMessage()).contains("load it as '@vgs//jhttprequest'");
+  }
+
+  @Test
+  public void nativeUrllibRequestIsStdlibOnly() throws Exception {
+    eval("load('@stdlib//jurllib', 'jurllib')\nbuild = jurllib.Request\n");
+
+    ScriptException wrongNamespace = assertThrows(ScriptException.class,
+        () -> eval("load('@vgs//jurllib', 'jurllib')\n"));
+    assertThat(wrongNamespace.getMessage()).contains("load it as '@stdlib//jurllib'");
+
+    // urllib.request keeps its helpers to itself: other modules build on Request.
+    eval("load('@stdlib//urllib/request', 'request')\n"
+        + "def check():\n"
+        + "    for name in ('request_host', '_copy_header_items'):\n"
+        + "        if hasattr(request, name):\n"
+        + "            fail('urllib.request exports ' + name)\n"
+        + "check()\n");
+  }
+
+  /** The standard library does not depend on the VGS modules: nothing under stdlib loads from @vgs. */
+  @Test
+  public void stdlibDoesNotLoadVgsModules() throws Exception {
+    Path stdlib = Path.of("src/main/resources/stdlib");
+    assertThat(Files.isDirectory(stdlib)).isTrue();
+    List<String> loads;
+    try (Stream<Path> files = Files.walk(stdlib)) {
+      loads = files.filter(file -> file.toString().endsWith(".star"))
+          .filter(file -> {
+            try {
+              // the whole file, so a load( that continues on the next line is found too
+              return java.util.regex.Pattern.compile("load\\(\\s*[\"']@vgs/").matcher(Files.readString(file)).find();
+            } catch (java.io.IOException e) {
+              throw new java.io.UncheckedIOException(e);
+            }
+          })
+          .map(file -> stdlib.relativize(file).toString())
+          .toList();
+    }
+    assertThat(loads).isEmpty();
   }
 }
