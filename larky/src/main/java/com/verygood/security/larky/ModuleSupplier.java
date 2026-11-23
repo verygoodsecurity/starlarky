@@ -47,6 +47,7 @@ import com.verygood.security.larky.modules.XMLModule;
 import com.verygood.security.larky.modules.ZLibModule;
 import com.verygood.security.larky.modules.vgs.HttpResponseNativeModule;
 import com.verygood.security.larky.modules.vgs.PGPModule;
+import com.verygood.security.larky.modules.vgs.ProxyNativeModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.vgs.jks.JKSModule;
@@ -120,6 +121,7 @@ public class ModuleSupplier {
       MetricsModule.INSTANCE,
       NetworkTokenModule.INSTANCE,
       PGPModule.INSTANCE,
+      ProxyNativeModule.INSTANCE,
       VaultModule.INSTANCE
   );
 

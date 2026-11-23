@@ -31,7 +31,8 @@ import net.starlark.java.eval.Tuple;
 import org.jetbrains.annotations.Nullable;
 
 /** Java backing for the response constructed by {@code @vgs//http/response}. */
-public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHttpResponse {
+public sealed class VgsHttpResponse extends MutableStruct implements ProtocolResponse
+    permits ShortCircuitHttpResponse {
 
   private static final int HEADER_FACTORY = 0;
   private static final int HEADER_OWNER = 1;
@@ -39,22 +40,24 @@ public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHt
   public static VgsHttpResponse create(
       StarlarkCallable constructor, StarlarkCallable headerFactory, Object body, Object headers,
       Object status, StarlarkThread thread) throws EvalException, InterruptedException {
-    return create(constructor, headerFactory, body, headers, status, false, thread);
+    return (VgsHttpResponse) create(constructor, headerFactory, body, headers, status, false, thread);
   }
 
-  public static VgsHttpResponse create(
+  /**
+   * A response built from fields, or, for a short circuit given a {@link ProtocolResponse} as its body, that
+   * response's {@link ShortCircuit} (the {@code @vgs//http/response} constructor reached with a response).
+   */
+  public static Object create(
       StarlarkCallable constructor, StarlarkCallable headerFactory, Object body, Object headers,
       Object status, boolean shortCircuit, StarlarkThread thread)
       throws EvalException, InterruptedException {
-    if (shortCircuit && body instanceof VgsHttpResponse response) {
-      // proxy.ShortCircuitResponse(VGSHttpResponse(...)): the short-circuit response decorates the protocol's own
-      // response. Given fields besides the response, it is ambiguous.
+    if (shortCircuit && body instanceof ProtocolResponse response) {
       if (!(Starlark.isNullOrNone(headers) || headers instanceof Dict<?, ?> dict && dict.isEmpty())
           || !DEFAULT_STATUS.equals(status)) {
         throw Starlark.errorf(
-            "ShortCircuitResponse takes either a VGSHttpResponse or body, headers and status_code, not both");
+            "ShortCircuitResponse takes either a protocol response or body, headers and status_code, not both");
       }
-      return ShortCircuitHttpResponse.decorating(response, thread);
+      return response.shortCircuit(thread);
     }
     SimpleStruct headerMap = buildHeaders(headerFactory, headers, thread);
     var fields = Dict.<String, Object>builder()
@@ -138,6 +141,11 @@ public sealed class VgsHttpResponse extends MutableStruct permits ShortCircuitHt
       Thread.currentThread().interrupt();
       throw new EvalException(e);
     }
+  }
+
+  @Override
+  public ShortCircuit shortCircuit(StarlarkThread thread) {
+    return ShortCircuitHttpResponse.decorating(this, thread);
   }
 
   public Object body(StarlarkThread thread) {

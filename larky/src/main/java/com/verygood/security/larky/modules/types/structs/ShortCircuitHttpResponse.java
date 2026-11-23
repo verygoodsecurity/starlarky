@@ -20,9 +20,24 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.StarlarkThread;
 
 /** An HTTP response that the host sends to the client immediately. */
-public final class ShortCircuitHttpResponse extends VgsHttpResponse {
+public final class ShortCircuitHttpResponse extends VgsHttpResponse implements ShortCircuit {
+
+  // the response this decorates: a script's VgsHttpResponse, or this one when built from fields
+  private final VgsHttpResponse decorated;
+
   ShortCircuitHttpResponse(Dict<String, Object> fields, StarlarkThread thread) {
     super(fields, thread);
+    this.decorated = this;
+  }
+
+  private ShortCircuitHttpResponse(VgsHttpResponse decorated, StarlarkThread thread) {
+    super(fieldsOf(decorated), thread);
+    this.decorated = decorated;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Dict<String, Object> fieldsOf(VgsHttpResponse response) {
+    return (Dict<String, Object>) response.fields;
   }
 
   /**
@@ -30,12 +45,20 @@ public final class ShortCircuitHttpResponse extends VgsHttpResponse {
    * code and any other field), so a change made through either is a change to the one response. Only its type and
    * its {@code __name__} say that the message stops here.
    */
-  @SuppressWarnings("unchecked")
   static ShortCircuitHttpResponse decorating(VgsHttpResponse response, StarlarkThread thread) {
-    if (response instanceof ShortCircuitHttpResponse shortCircuit) {
-      return shortCircuit;
-    }
-    return new ShortCircuitHttpResponse((Dict<String, Object>) response.fields, thread);
+    return response instanceof ShortCircuitHttpResponse shortCircuit
+        ? shortCircuit
+        : new ShortCircuitHttpResponse(response, thread);
+  }
+
+  @Override
+  public ProtocolResponse response() {
+    return decorated;
+  }
+
+  @Override
+  public ShortCircuit shortCircuit(StarlarkThread thread) {
+    return this;
   }
 
   @Override

@@ -1186,6 +1186,11 @@
       "name": "com.verygood.security.larky.modules.vgs.HttpResponseNativeModule"
   },
   {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.vgs.ProxyNativeModule"
+  },
+  {
       "allDeclaredFields": true,
       "allDeclaredMethods": true,
       "allPublicMethods": true,

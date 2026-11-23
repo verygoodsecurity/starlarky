@@ -73,6 +73,14 @@ def _test_short_circuit_response_refuses_a_response_with_fields():
     wrapped = VGSHttpResponse(body=b"blocked", status_code=403)
     asserts.assert_fails(lambda: proxy.ShortCircuitResponse(wrapped, status_code=401), ".*not both")
     asserts.assert_fails(lambda: proxy.ShortCircuitResponse(wrapped, headers={"X": "1"}), ".*not both")
+    asserts.assert_fails(lambda: proxy.ShortCircuitResponse(wrapped, wrapped), ".*not both")
+
+
+def _test_short_circuit_response_refuses_what_is_not_a_protocol_response():
+    asserts.assert_fails(lambda: proxy.ShortCircuitResponse(b"blocked"),
+                         ".*takes a protocol response, one of \\[VGSHttpResponse\\], got bytes")
+    asserts.assert_fails(lambda: proxy.ShortCircuitResponse({"status_code": 403}),
+                         ".*takes a protocol response.*got dict")
 
 
 def _suite():
@@ -84,6 +92,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_accepts_a_vgs_http_response))
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_decorates_the_response))
     _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_refuses_a_response_with_fields))
+    _suite.addTest(unittest.FunctionTestCase(_test_short_circuit_response_refuses_what_is_not_a_protocol_response))
     return _suite
 
 
