@@ -12,9 +12,9 @@ status_code=...) is the same as wrapping a VGSHttpResponse built from those fiel
 """
 load("@stdlib//larky", larky="larky")
 load("@vgs//http/response", _protocol_short_circuit="ShortCircuitResponse")
-load("@vgs//proxy_native", _proxy_native="proxy_native")
+load("@vgs//jproxy", _jproxy="jproxy")
 
 
 proxy = larky.struct(
-    ShortCircuitResponse=_proxy_native.short_circuit_response(_protocol_short_circuit),
+    ShortCircuitResponse=_jproxy.short_circuit_response(_protocol_short_circuit),
 )

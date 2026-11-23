@@ -27,12 +27,12 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Tuple;
 
-/** Native construction for {@code @vgs//proxy}. */
-@StarlarkBuiltin(name = "proxy_native", documented = false, doc = "VGS proxy control types.")
-public final class ProxyNativeModule implements StarlarkValue {
-  public static final ProxyNativeModule INSTANCE = new ProxyNativeModule();
+/** Native construction for {@code @vgs//proxy} ({@code @vgs//jproxy}). */
+@StarlarkBuiltin(name = "jproxy", documented = false, doc = "VGS proxy control types.")
+public final class ProxyModule implements StarlarkValue {
+  public static final ProxyModule INSTANCE = new ProxyModule();
 
-  private ProxyNativeModule() {}
+  private ProxyModule() {}
 
   @Override
   public boolean isImmutable() {

@@ -1188,7 +1188,7 @@
   {
       "allDeclaredMethods": true,
       "allPublicMethods": true,
-      "name": "com.verygood.security.larky.modules.vgs.ProxyNativeModule"
+      "name": "com.verygood.security.larky.modules.vgs.ProxyModule"
   },
   {
       "allDeclaredFields": true,
