@@ -82,12 +82,10 @@ public class LarkyCompiledComputationTest {
     var compiled = new LarkyScriptEngine().compile("""
         load("@vgs//proxy", "proxy")
         def process(response, ctx):
-            if ctx["short"]:
-                response = proxy.ShortCircuitResponse(response)
             response.append_header("Set-Cookie", "first=1")
             ctx["seen"] = True
             print("handled")
-            return response
+            return proxy.ShortCircuitResponse(response) if ctx["short"] else response
         """, "atlas.star");
 
     for (boolean shortCircuit : List.of(false, true)) {
@@ -98,8 +96,11 @@ public class LarkyCompiledComputationTest {
           compiled, context, List.of("@vgs//http/response"), shortCircuit, (run, stop) -> {
         var constructor = run.export("@vgs//http/response", "VGSHttpResponse");
         Object input = run.callValue(constructor, List.of(), Map.of("status_code", 403, "body", "blocked"));
-        Object response = run.call("process", input, Map.of("short", stop));
-        assertEquals(stop, response instanceof ShortCircuitHttpResponse);
+        Object output = run.call("process", input, Map.of("short", stop));
+        assertEquals(stop, output instanceof ShortCircuitHttpResponse);
+        // a short circuit holds the response it stops with
+        Object response = output instanceof ShortCircuitHttpResponse held ? held.response() : output;
+        assertSame(input, response);
         assertSame(constructor, run.getField(response, "__class__"));
         run.callMethod(response, "append_header", "set-cookie", "second=2");
         return List.copyOf((List<?>) run.callMethod(run.getField(response, "headers"), "items"));

@@ -4,8 +4,8 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.verygood.security.larky.LarkySemantics;
-import com.verygood.security.larky.modules.types.structs.HttpRequest;
-import com.verygood.security.larky.modules.types.structs.VgsHttpRequest;
+import com.verygood.security.larky.modules.types.HttpRequest;
+import com.verygood.security.larky.modules.vgs.VgsHttpRequest;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.util.ArrayList;
@@ -38,6 +38,7 @@ public class VgsHttpRequestTest {
         removed = not req.has_header(header_name="Content-length")
         headers = req.header_items()
         dict_names = sorted(req.__dict__.keys())
+        dir_names = dir(req)
         """);
     assertThat(file.getGlobalEnvironmentVariable("same_class", Boolean.class)).isTrue();
     assertThat(file.getModule().getGlobal("initial")).isEqualTo(Tuple.of(
@@ -47,8 +48,12 @@ public class VgsHttpRequestTest {
     assertThat(file.getGlobalEnvironmentVariable("removed", Boolean.class)).isTrue();
     assertThat((List<?>) file.getModule().getGlobal("headers"))
         .containsExactly(Tuple.pair("X-mixed", "initial"));
+    // as in Python, __dict__ is the instance's state; the class and its methods are not in it
     assertThat((List<?>) file.getModule().getGlobal("dict_names"))
-        .containsAtLeast("__class__", "__init__", "__name__", "headers", "unredirected_hdrs");
+        .containsExactly("_data", "_full_url", "_tunnel_host", "fragment", "headers", "host",
+            "origin_req_host", "selector", "type", "unredirected_hdrs", "unverifiable");
+    assertThat((List<?>) file.getModule().getGlobal("dir_names"))
+        .containsAtLeast("__class__", "__init__", "__name__", "full_url", "get_method", "headers");
   }
 
   @Test
@@ -136,43 +141,45 @@ public class VgsHttpRequestTest {
         Tuple.pair("X-Custom", "value"), Tuple.pair("X-Second", "second")).inOrder();
   }
 
+  private static final String CUSTOM_PARSER = """
+      load("@stdlib//http_request_native", "http_request_native")
+      load("@stdlib//larky", "larky")
+      load("@stdlib//urllib/parse", "parse")
+      load("@stdlib//urllib/request", "request")
+      def parser(**overrides):
+          functions = dict(unwrap=parse.unwrap, _splittag=parse._splittag, _splittype=parse._splittype,
+                           _splithost=parse._splithost, unquote=parse.unquote)
+          functions.update(overrides)
+          return larky.struct(**functions)
+      def build(url, p):
+          return http_request_native.Request(request.Request, p, request.request_host,
+                                             request._copy_header_items, url, None, {}, "origin", False, None)
+      """;
+
   @Test
-  public void legacyParserDelegatesAnOversizedHostToUnquote() throws Exception {
-    var file = (ParsedStarFile) new LarkyScriptEngine().eval("""
-        load("@stdlib//http_request_native", "http_request_native")
-        load("@stdlib//larky", "larky")
-        load("@stdlib//urllib/request", "Request")
-        req = Request("https://example.test/")
-        host = "x" * 17000
-        req.host = larky.property(lambda: host, lambda value: None)
+  public void anOversizedHostGoesThroughUrllibUnquote() throws Exception {
+    var file = (ParsedStarFile) new LarkyScriptEngine().eval(CUSTOM_PARSER + """
         calls = []
         def unquote(value):
             calls.append(len(value))
             return value
-        http_request_native.parse_url(req, larky.struct(unquote=unquote))
+        req = build("https://" + "x" * 17000 + "/", parser(unquote=unquote))
         """);
     assertThat((List<?>) file.getModule().getGlobal("calls"))
         .containsExactly(net.starlark.java.eval.StarlarkInt.of(17000));
   }
 
   @Test
-  public void legacyParserRejectsMalformedCallbackResults() {
+  public void malformedUrllibParseResultsAreRejected() {
     var engine = new LarkyScriptEngine();
-    var script = """
-        load("@stdlib//http_request_native", "http_request_native")
-        load("@stdlib//larky", "larky")
-        load("@stdlib//urllib/request", "Request")
-        req = Request("https://example.test/")
-        req._full_url = "https://example.test/é"
-        """;
+    // a non-ASCII URL is parsed by the urllib.parse functions, not natively
     for (String body : List.of(
-        "http_request_native.parse_url(req, larky.struct(_splittype=lambda url: None))",
-        "http_request_native.parse_url(req, larky.struct(_splittype=lambda url: ('https', url), "
+        "build('https://example.test/é', parser(_splittype=lambda url: None))",
+        "build('https://example.test/é', parser(_splittype=lambda url: ('https', url), "
             + "_splithost=lambda rest: ('host',)))",
-        "http_request_native.set_full_url(req, req._full_url, larky.struct(unwrap=lambda url: url, "
-            + "_splittag=lambda url: [url]))")) {
-      var error = assertThrows(ScriptException.class, () -> engine.eval(script + body + "\n"));
-      assertThat(error).hasMessageThat().contains("must return two values");
+        "build('https://example.test/é', parser(unwrap=lambda url: url, _splittag=lambda url: [url]))")) {
+      var error = assertThrows(ScriptException.class, () -> engine.eval(CUSTOM_PARSER + body + "\n"));
+      assertThat(error).hasMessageThat().contains("expected `tuple` of length 2; got");
     }
   }
 
@@ -186,7 +193,7 @@ public class VgsHttpRequestTest {
     var request = (VgsHttpRequest) file.getModule().getGlobal("request");
     assertThat(file.getGlobalEnvironmentVariable("same_class", Boolean.class)).isTrue();
     assertThat(assertThrows(EvalException.class, () -> request.setField("body", "new")))
-        .hasMessageThat().contains("frozen structure");
+        .hasMessageThat().contains("trying to mutate a frozen VGSHttpRequest value");
   }
 
   @Test
@@ -212,35 +219,38 @@ public class VgsHttpRequestTest {
         assertThat(request.visitHeaderLines((name, value) -> pairs.add(Tuple.pair(name, value)))).isTrue();
         assertThat(pairs).containsExactly(Tuple.pair("X-Trace", "first"), Tuple.pair("x-trace", "second"))
             .inOrder();
-        for (String customization : List.of("items", "backing")) {
-          var custom = (VgsHttpRequest) engine.invokeMethodInScope(thread, file, "build", customization);
-          pairs.clear();
-          assertThat(custom.visitHeaderLines((name, value) -> pairs.add(Tuple.pair(name, value)))).isFalse();
-          assertThat(pairs).isEmpty();
-          assertThat((List<?>) custom.headerItems(thread)).containsExactly(Tuple.pair("custom", "value"));
-        }
+        var overridden = (VgsHttpRequest) engine.invokeMethodInScope(thread, file, "build", "items");
+        pairs.clear();
+        assertThat(overridden.visitHeaderLines((name, value) -> pairs.add(Tuple.pair(name, value)))).isFalse();
+        assertThat(pairs).isEmpty();
+        assertThat((List<?>) overridden.headerItems(thread)).containsExactly(Tuple.pair("custom", "value"));
+        // a replaced container is still a native multidict, read directly
+        var replaced = (VgsHttpRequest) engine.invokeMethodInScope(thread, file, "build", "backing");
+        pairs.clear();
+        assertThat(replaced.visitHeaderLines((name, value) -> pairs.add(Tuple.pair(name, value)))).isTrue();
+        assertThat(pairs).containsExactly(Tuple.pair("custom", "value"));
       }
     }
   }
 
   @Test
-  public void urlAndBodyKeepCustomUnderlyingAccessors() throws Exception {
+  public void urlAndBodyFollowFullUrlAndData() throws Exception {
     var file = (ParsedStarFile) new LarkyScriptEngine().eval("""
         load("@vgs//http/request", "VGSHttpRequest")
-        load("@stdlib//larky", "larky")
-        request = VGSHttpRequest("https://example.test/initial")
-        request.full_url = larky.property(lambda: "https://example.test/custom", lambda value: None)
+        request = VGSHttpRequest("https://example.test/initial?a=1#frag", data="one")
         url = request.url
         request.url = "https://example.test/new?x=1"
-        parts = (request.path, request.query_string)
-        request.data = larky.property(lambda: "custom", lambda value: None)
+        parts = (request.path, request.query_string, request.full_url)
+        request.body = "two"
         data = request.data
+        request.data = "three"
         body = request.body
         """);
     assertThat(file.getGlobalEnvironmentVariable("url", String.class))
-        .isEqualTo("https://example.test/custom");
-    assertThat(file.getGlobalEnvironmentVariable("parts", Object.class)).isEqualTo(Tuple.pair("/new", "x=1"));
-    assertThat(file.getGlobalEnvironmentVariable("data", String.class)).isEqualTo("custom");
-    assertThat(file.getModule().getGlobal("body")).isEqualTo(net.starlark.java.eval.Starlark.NONE);
+        .isEqualTo("https://example.test/initial?a=1#frag");
+    assertThat(file.getGlobalEnvironmentVariable("parts", Object.class))
+        .isEqualTo(Tuple.of("/new", "x=1", "https://example.test/new?x=1"));
+    assertThat(file.getGlobalEnvironmentVariable("data", String.class)).isEqualTo("two");
+    assertThat(file.getGlobalEnvironmentVariable("body", String.class)).isEqualTo("three");
   }
 }

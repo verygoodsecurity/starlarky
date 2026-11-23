@@ -6,6 +6,7 @@
  * You may obtain a copy of the License at
  *
  * http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,172 +16,187 @@
 
 package com.verygood.security.larky.modules.vgs;
 
+import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.multidict.LarkyMultiDict;
-import com.verygood.security.larky.modules.types.Property;
-import com.verygood.security.larky.modules.types.structs.MutableStruct;
-import com.verygood.security.larky.modules.types.structs.SimpleStruct;
-import com.verygood.security.larky.parser.CurrentEvaluation;
-import java.util.Arrays;
+import com.verygood.security.larky.modules.types.LarkyInstance;
+import java.util.Map;
 import java.util.function.BiConsumer;
-import net.starlark.java.eval.Dict;
+import javax.annotation.Nullable;
+import net.starlark.java.annot.Param;
+import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkOperators;
+import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
-import net.starlark.java.eval.Tuple;
-import org.jetbrains.annotations.Nullable;
 
-/** Java backing for the response constructed by {@code @vgs//http/response}. */
-public sealed class VgsHttpResponse extends MutableStruct implements ProtocolResponse
-    permits ShortCircuitHttpResponse {
+/**
+ * {@code VGSHttpResponse} from {@code @vgs//http/response}: an HTTP response with ordered,
+ * case-insensitive headers.
+ *
+ * <p>Its attributes are those of the Starlark class it replaces: the properties {@code body} and
+ * {@code headers} over the plain attributes {@code _body} and {@code _headers}, and the plain
+ * attribute {@code status_code}. Setting {@code body} to a different value drops
+ * {@code Content-Length}, which applied to the previous body (issue 16464). Setting
+ * {@code headers} builds a new header container from the value.
+ */
+@StarlarkBuiltin(name = "VGSHttpResponse", documented = false)
+public final class VgsHttpResponse extends LarkyInstance implements ProtocolResponse {
 
-  private static final int HEADER_FACTORY = 0;
-  private static final int HEADER_OWNER = 1;
+  private static final ImmutableList<String> DECLARED =
+      ImmutableList.of("body", "_body", "headers", "_headers", "status_code");
 
+  private final StarlarkCallable headerFactory;
+  private Object body;
+  private Object headers;
+  private Object statusCode;
+
+  private VgsHttpResponse(
+      StarlarkCallable constructor, StarlarkCallable headerFactory, Object body, Object headers,
+      Object statusCode, StarlarkThread thread) {
+    super(constructor, thread.mutability());
+    this.headerFactory = headerFactory;
+    this.body = body;
+    this.headers = headers;
+    this.statusCode = statusCode;
+  }
+
+  /**
+   * Builds the response {@code VGSHttpResponse(body, headers, status_code)}, whose class is
+   * {@code constructor} and whose headers {@code headerFactory} builds from {@code headers}.
+   */
   public static VgsHttpResponse create(
       StarlarkCallable constructor, StarlarkCallable headerFactory, Object body, Object headers,
-      Object status, StarlarkThread thread) throws EvalException, InterruptedException {
-    return create(constructor, headerFactory, body, headers, status, false, thread);
-  }
-
-  public static VgsHttpResponse create(
-      StarlarkCallable constructor, StarlarkCallable headerFactory, Object body, Object headers,
-      Object status, boolean shortCircuit, StarlarkThread thread)
-      throws EvalException, InterruptedException {
-    if (body instanceof ProtocolResponse response) {
-      // a response is short-circuited by proxy.ShortCircuitResponse(response); as a body it would be sent as text
-      throw Starlark.errorf(
-          "%s body must not be a %s; to stop with that response, return proxy.ShortCircuitResponse(response)",
-          shortCircuit ? "ShortCircuitResponse" : "VGSHttpResponse", scriptName(response, thread));
-    }
-    SimpleStruct headerMap = buildHeaders(headerFactory, headers, thread);
-    var fields = Dict.<String, Object>builder()
-        .put("__name__", shortCircuit ? "ShortCircuitResponse" : "VGSHttpResponse")
-        .put("__class__", constructor)
-        .put("_body", body)
-        .put("body", Starlark.NONE)
-        .put("_headers", headerMap)
-        .put("headers", headerProperty(headerFactory, headerMap))
-        .put("status_code", status)
-        .build(thread.mutability());
-    return shortCircuit
-        ? new ShortCircuitHttpResponse(fields, thread)
-        : new VgsHttpResponse(fields, thread);
-  }
-
-  VgsHttpResponse(Dict<String, Object> fields, StarlarkThread thread) {
-    super(fields, thread.mutability());
-  }
-
-  // The tuple captures the constructor and the original header access path. Scripts read the
-  // header object through getField, which resolves this marker.
-  private static Tuple headerProperty(StarlarkCallable factory, SimpleStruct headers) {
-    return Tuple.of(factory, headers);
-  }
-
-  private static SimpleStruct buildHeaders(
-      StarlarkCallable factory, Object source, StarlarkThread thread)
-      throws EvalException, InterruptedException {
-    Object value = Starlark.positionalOnlyCall(thread, factory, source);
-    if (!(value instanceof SimpleStruct headers)) {
-      throw Starlark.errorf("Expected a response header struct");
-    }
-    return headers;
+      Object statusCode, StarlarkThread thread) throws EvalException, InterruptedException {
+    Object headerContainer = call(thread, headerFactory, headers);
+    return new VgsHttpResponse(constructor, headerFactory, body, headerContainer, statusCode, thread);
   }
 
   @Override
-  public Object getField(String name, @Nullable StarlarkThread thread) {
-    if ("body".equals(name) && rawField("body") == Starlark.NONE) {
-      return super.getField("_body", thread);
+  public String typeName() {
+    return "VGSHttpResponse";
+  }
+
+  @Nullable
+  @Override
+  protected Object getDeclared(String name, StarlarkThread thread) {
+    switch (name) {
+      case "body":
+      case "_body":
+        return body;
+      case "headers":
+      case "_headers":
+        return headers;
+      case "status_code":
+        return statusCode;
+      default:
+        return null;
     }
-    if ("headers".equals(name) && rawField("headers") instanceof Tuple) {
-      return super.getField("_headers", thread);
-    }
-    return super.getField(name, thread);
   }
 
   @Override
-  public void setField(String name, Object value) throws EvalException {
-    if (!(value instanceof Property)
-        && (("body".equals(name) && rawField("body") == Starlark.NONE)
-            || ("headers".equals(name) && rawField("headers") instanceof Tuple))) {
-      setResponseProperty(name, value);
-    } else {
-      super.setField(name, value);
+  protected boolean setDeclared(String name, Object value, StarlarkThread thread)
+      throws EvalException, InterruptedException {
+    checkMutable();
+    switch (name) {
+      case "body":
+        if (!Starlark.checkedEquals(value, body)) {
+          body = value;
+          callField(thread, headers, "popall", "Content-Length", StarlarkList.newList(thread.mutability()));
+        }
+        return true;
+      case "_body":
+        body = value;
+        return true;
+      case "headers":
+        headers = call(thread, headerFactory, value);
+        return true;
+      case "_headers":
+        headers = value;
+        return true;
+      case "status_code":
+        statusCode = value;
+        return true;
+      default:
+        return false;
     }
   }
 
-  private void setResponseProperty(String name, Object value) throws EvalException {
-    if (fieldsFrozen()) {
-      throw Starlark.errorf("Attempting to update a frozen structure");
-    }
-    StarlarkThread thread = CurrentEvaluation.requireThread();
-    try {
-      if ("headers".equals(name)) {
-        var property = (Tuple) rawField("headers");
-        var headerFactory = (StarlarkCallable) property.get(HEADER_FACTORY);
-        SimpleStruct headers = buildHeaders(headerFactory, value, thread);
-        super.setField("_headers", headers);
-        super.setField("headers", headerProperty(headerFactory, headers));
-      } else if (!Starlark.checkedEquals(value, body(thread))) {
-        super.setField("_body", value);
-        // The stored length applies to the previous body (issue 16464).
-        callHeaderMethod(thread, getField("headers", thread), "popall", "Content-Length",
-            StarlarkList.newList(thread.mutability()));
-      }
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new EvalException(e);
-    }
+  @Override
+  protected void addState(Map<String, Object> state) {
+    state.put("_body", body);
+    state.put("_headers", headers);
+    state.put("status_code", statusCode);
   }
 
-  // the name a script knows a response by (VGSHttpResponse, ShortCircuitResponse); Starlark.type gives the Java one
-  private static Object scriptName(ProtocolResponse response, StarlarkThread thread) {
-    return response instanceof VgsHttpResponse http ? http.getField("__name__", thread) : Starlark.type(response);
+  @Override
+  protected ImmutableList<String> declaredNames() {
+    return DECLARED;
   }
 
-  /** A response that shares {@code decorated}'s fields (see {@link ShortCircuitHttpResponse}). */
-  VgsHttpResponse(VgsHttpResponse decorated, StarlarkThread thread) {
-    super(decorated, thread.mutability());
+  @StarlarkMethod(name = "add_header", documented = false,
+      parameters = {@Param(name = "key", named = true), @Param(name = "val", named = true)}, useStarlarkThread = true)
+  public void addHeader(Object key, Object value, StarlarkThread thread)
+      throws EvalException, InterruptedException {
+    // self.headers[key] = val
+    StarlarkOperators.setIndex(thread, headers, key, value);
+  }
+
+  @StarlarkMethod(name = "append_header", documented = false,
+      parameters = {@Param(name = "key", named = true), @Param(name = "val", named = true)}, useStarlarkThread = true)
+  public void appendHeader(Object key, Object value, StarlarkThread thread)
+      throws EvalException, InterruptedException {
+    callField(thread, headers, "add", key, value);
+  }
+
+  @StarlarkMethod(name = "remove_header", documented = false,
+      parameters = {@Param(name = "key", named = true)}, useStarlarkThread = true)
+  public void removeHeader(Object key, StarlarkThread thread) throws EvalException, InterruptedException {
+    callField(thread, headers, "popall", key, StarlarkList.newList(thread.mutability()));
+  }
+
+  @StarlarkMethod(name = "get_all_headers", documented = false,
+      parameters = {@Param(name = "key", named = true)}, useStarlarkThread = true)
+  public Object getAllHeaders(Object key, StarlarkThread thread) throws EvalException, InterruptedException {
+    return callField(thread, headers, "getall", key, StarlarkList.newList(thread.mutability()));
   }
 
   @Override
   public ShortCircuit shortCircuit(StarlarkThread thread) {
-    return ShortCircuitHttpResponse.decorating(this, thread);
+    return new ShortCircuitHttpResponse(this);
   }
 
   public Object body(StarlarkThread thread) {
-    return getField("body", thread);
+    return body;
   }
 
   public Object statusCode(StarlarkThread thread) {
-    return getField("status_code", thread);
+    return statusCode;
   }
 
   /**
-   * Streams standard header pairs during the response's evaluation. The visitor must not
-   * modify the response. Returns false without visiting any pairs when the caller needs to
-   * use the script's {@code items()} path instead.
+   * Streams the header lines of a native header container without allocating an items list. The
+   * visitor must not modify the response. Returns false without visiting any pairs when the
+   * caller must call the container's {@code items()} instead: it is not a native container, or a
+   * script replaced its {@code items}.
    */
   public boolean visitHeaderLines(BiConsumer<Object, Object> visitor) {
-    if (!(rawField("headers") instanceof Tuple property)
-        || !(rawField("_headers") instanceof LarkyMultiDict headers)
-        || headers != property.get(HEADER_OWNER)) {
-      return false;
-    }
-    return headers.visitItems(visitor);
+    return headers instanceof LarkyMultiDict multiDict && multiDict.visitItems(visitor);
   }
 
-  /** Calls the current header container's script-visible {@code items()} method. */
+  /** The header container's {@code items()}, or None when the headers are None. */
   public Object headerItems(StarlarkThread thread) throws EvalException, InterruptedException {
-    Object headers = getField("headers", thread);
-    return Starlark.isNullOrNone(headers) ? Starlark.NONE : callHeaderMethod(thread, headers, "items");
+    return Starlark.isNullOrNone(headers) ? Starlark.NONE : callField(thread, headers, "items");
   }
 
-  private static Object callHeaderMethod(StarlarkThread thread, Object headers, String name, Object... args)
-      throws EvalException, InterruptedException {
-    Object method = Starlark.getattr(thread.mutability(), thread.getSemantics(), headers, name, null);
-    return Starlark.call(thread, method, Arrays.asList(args), Dict.empty());
+  @Override
+  public void repr(Printer printer, StarlarkSemantics semantics) {
+    printer.append("<VGSHttpResponse [");
+    printer.repr(statusCode, semantics);
+    printer.append("]>");
   }
 }

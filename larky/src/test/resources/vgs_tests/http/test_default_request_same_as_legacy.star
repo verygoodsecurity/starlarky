@@ -1,8 +1,9 @@
-"""VGSHttpRequest builds the same object as its previous implementation.
+"""VGSHttpRequest behaves as its Starlark implementation did.
 
-_legacy_VGSHttpRequest is a verbatim copy of VGSHttpRequest before it stopped
-initializing the request twice; both are built from the same inputs, then changed
-in the same ways, and compared field by field.
+_legacy_Request is urllib's Request as Larky 1.3.0 implemented it in Starlark, and
+_legacy_VGSHttpRequest is VGSHttpRequest's implementation on top of it. Both are built
+from the same inputs, then changed in the same ways through the public API, and every
+public attribute is compared.
 """
 load("@stdlib//builtins", builtins="builtins")
 load("@stdlib//larky", larky="larky")
@@ -14,13 +15,146 @@ load("@vendor//option/result", safe="safe")
 load("@vgs//http/request", VGSHttpRequest="VGSHttpRequest", VGSCIMultiDict="VGSCIMultiDict")
 
 
+# Larky 1.3.0 stdlib/urllib/request.star, with unwrap/_splittag/request_host qualified.
+def _legacy_Request(
+    url,
+    data=None,
+    headers={},
+    origin_req_host=None,
+    unverifiable=False,
+    method=None
+):
+    self = larky.mutablestruct(__name__ = "Request", __class__ = _legacy_Request)
+
+    # full_url property
+    def _get_full_url():
+        if self.fragment:
+            return "{}#{}".format(self._full_url, self.fragment)
+        return self._full_url
+    def _set_full_url(url):
+        # unwrap('<URL:type://host/path>') --> 'type://host/path'
+        self._full_url = parse.unwrap(url)
+        self._full_url, self.fragment = parse._splittag(self._full_url)
+        self._parse()
+    self.full_url = larky.property(_get_full_url, _set_full_url)
+
+    # data property
+    def _get_data():
+        return self._data
+
+    def _set_data(data):
+        if data != self._data:
+            self._data = data
+            # issue 16464
+            # if we change data we need to remove content-length header
+            # (cause it's most probably calculated for previous value)
+            if self.has_header("Content-length"):
+                self.remove_header("Content-length")
+    self.data = larky.property(_get_data, _set_data)
+
+    def _parse():
+        self.type, rest = parse._splittype(self._full_url)
+        if self.type == None:
+            fail("ValueError: " + "unknown url type: %r" % self.full_url)
+        self.host, self.selector = parse._splithost(rest)
+        if self.host:
+            self.host = parse.unquote(self.host)
+    self._parse = _parse
+
+    def get_method():
+        """Return a string indicating the HTTP request method."""
+        default_method = "POST" if self.data != None else "GET"
+        return getattr(self, "method", default_method)
+    self.get_method = get_method
+
+    def get_full_url():
+        return self.full_url
+    self.get_full_url = get_full_url
+
+    def set_proxy(host, type):
+        if self.type == "https" and not self._tunnel_host:
+            self._tunnel_host = self.host
+        else:
+            self.type = type
+            self.selector = self.full_url
+        self.host = host
+    self.set_proxy = set_proxy
+
+    def has_proxy():
+        return self.selector == self.full_url
+    self.has_proxy = has_proxy
+
+    def add_header(key, val):
+        # useful for something like authentication
+        self.headers[key.capitalize()] = val
+    self.add_header = add_header
+
+    def add_unredirected_header(key, val):
+        # will not be added to a redirected request
+        self.unredirected_hdrs[key.capitalize()] = val
+    self.add_unredirected_header = add_unredirected_header
+
+    def has_header(header_name):
+        return header_name in self.headers or header_name in self.unredirected_hdrs
+    self.has_header = has_header
+
+    def get_header(header_name, default=None):
+        return self.headers.get(
+            header_name,
+            self.unredirected_hdrs.get(header_name, default)
+        )
+    self.get_header = get_header
+
+    def remove_header(header_name):
+        self.headers.pop(header_name, None)
+        self.unredirected_hdrs.pop(header_name, None)
+    self.remove_header = remove_header
+
+    def header_items():
+        hdrs = {}
+        hdrs.update(self.unredirected_hdrs)
+        hdrs.update(self.headers)
+        return list(hdrs.items())
+    self.header_items = header_items
+
+
+    def __init__(
+        url,
+        data=None,
+        headers={},
+        origin_req_host=None,
+        unverifiable=False,
+        method=None
+    ):
+        self.full_url = url
+        self.unredirected_hdrs = {}
+        self.headers = {}
+        self._data = None
+        self.data = data
+        self._tunnel_host = None
+        for key, value in headers.items():
+            self.add_header(key, value)
+        if origin_req_host == None:
+            origin_req_host = urllib_request.request_host(self)
+        self.origin_req_host = origin_req_host
+        self.unverifiable = unverifiable
+        if method:
+            self.method = method
+        return self
+    self.__init__ = __init__
+
+    self.__init__(url, data, headers, origin_req_host, unverifiable, method)
+
+    return self
+
+
 def _legacy_VGSHttpRequest(
     url,
     data=None,
     headers={},
     method=None
 ):
-    super = urllib_request.Request(url)
+    super = _legacy_Request(url)
 
     self = super
     self.__name__ = "VGSHttpRequest"
@@ -113,20 +247,25 @@ HEADERS = [
 METHODS = [None, "", "GET", "POST"]
 
 
+ATTRIBUTES = [
+    "__name__", "full_url", "_full_url", "fragment", "type", "host", "selector", "url", "path",
+    "query_string", "data", "_data", "body", "headers", "_headers", "unredirected_hdrs",
+    "_tunnel_host", "origin_req_host", "unverifiable", "method",
+]
+
+
 def _snapshot(r):
-    """Every field of r: values, or the type for functions (closures differ by identity)."""
+    """Every public attribute of r: its type and repr, or that it is missing."""
     out = []
-    d = r.__dict__
-    for k in sorted(d.keys()):
-        v = d[k]
-        if k == "__class__":
-            out.append((k, "class"))
-        elif type(v) == "function":
-            out.append((k, "function"))
-        elif type(v) == "VGSCIMultiDict":
-            out.append((k, type(v), list(v.items()), str(v)))
+    for name in ATTRIBUTES:
+        if not hasattr(r, name):
+            out.append((name, "missing"))
+            continue
+        v = getattr(r, name)
+        if type(v) == "VGSCIMultiDict":
+            out.append((name, type(v), list(v.items()), str(v)))
         else:
-            out.append((k, type(v), repr(v)))
+            out.append((name, type(v), repr(v)))
     return out
 
 

@@ -1161,19 +1161,19 @@
       "name": "com.verygood.security.larky.modules.types.structs.SimpleStructWithMethods"
   },
   {
+      "allDeclaredMethods": true,
       "allPublicMethods": true,
-      "name": "com.verygood.security.larky.modules.types.structs.HttpRequest",
-      "methods": [{ "name": "dunderDict", "parameterTypes": [] }]
+      "name": "com.verygood.security.larky.modules.types.HttpRequest"
   },
   {
+      "allDeclaredMethods": true,
       "allPublicMethods": true,
-      "name": "com.verygood.security.larky.modules.types.structs.VgsHttpRequest",
-      "methods": [{ "name": "dunderDict", "parameterTypes": [] }]
+      "name": "com.verygood.security.larky.modules.vgs.VgsHttpRequest"
   },
   {
+      "allDeclaredMethods": true,
       "allPublicMethods": true,
-      "name": "com.verygood.security.larky.modules.vgs.VgsHttpResponse",
-      "methods": [{ "name": "dunderDict", "parameterTypes": [] }]
+      "name": "com.verygood.security.larky.modules.vgs.VgsHttpResponse"
   },
   {
       "allDeclaredMethods": true,

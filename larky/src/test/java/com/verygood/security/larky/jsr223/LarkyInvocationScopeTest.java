@@ -8,6 +8,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.modules.vgs.ShortCircuit;
 import com.verygood.security.larky.modules.vgs.ShortCircuitHttpResponse;
 import com.verygood.security.larky.modules.vgs.VgsHttpResponse;
 import com.verygood.security.larky.parser.CurrentEvaluation;
@@ -104,24 +105,25 @@ public class LarkyInvocationScopeTest {
         load("@vgs//proxy", "proxy")
 
         def process(stop):
-            response = proxy.ShortCircuitResponse(VGSHttpResponse(body="blocked", status_code=403)) if stop else VGSHttpResponse()
-            response.__name__ = "ShortCircuitResponse"
+            response = VGSHttpResponse(body="blocked", status_code=403)
             response.append_header("Set-Cookie", "first=1")
             response.append_header("set-cookie", "second=2")
-            return response
+            return proxy.ShortCircuitResponse(response) if stop else response
         """);
     var mutability = Mutability.create("host-http");
     var thread = StarlarkThread.createTransient(mutability, LarkySemantics.LARKY_SEMANTICS);
     try (mutability; var scope = CurrentEvaluation.enter(thread)) {
-      var response = (ShortCircuitHttpResponse) engine.invokeMethodInScope(thread, file, "process", true);
+      var shortCircuit = (ShortCircuitHttpResponse) engine.invokeMethodInScope(thread, file, "process", true);
+      VgsHttpResponse response = shortCircuit.response();
       assertEquals("blocked", response.body(thread));
       assertEquals(StarlarkInt.of(403), response.statusCode(thread));
-      assertNull(response.getValue("response"));
+      assertSame(response, shortCircuit.getValue("response"));
+      assertEquals("ShortCircuitResponse", shortCircuit.getValue("__name__"));
       var headers = response.headerItems(thread);
       assertEquals(List.of(Tuple.pair("Set-Cookie", "first=1"), Tuple.pair("set-cookie", "second=2")), headers);
-      var ordinaryResponse = (VgsHttpResponse) engine.invokeMethodInScope(thread, file, "process", false);
-      assertEquals("ShortCircuitResponse", ordinaryResponse.getValue("__name__"));
-      assertFalse(ordinaryResponse instanceof ShortCircuitHttpResponse);
+      Object ordinaryResponse = engine.invokeMethodInScope(thread, file, "process", false);
+      assertTrue(ordinaryResponse instanceof VgsHttpResponse);
+      assertFalse(ordinaryResponse instanceof ShortCircuit);
       assertFalse(mutability.isFrozen());
     }
   }
