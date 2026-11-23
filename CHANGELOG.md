@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/verygoodsecurity/starlarky/compare/v1.3.0...v1.3.1) (2026-11-23)
+
+
+### Tests
+
+* **libstarlark:** make PrinterTest's stack overflow independent of JIT state ([#810](https://github.com/verygoodsecurity/starlarky/issues/810)) ([9c182be](https://github.com/verygoodsecurity/starlarky/commit/9c182be66f56af39ccf039f9928dd605d0a45547))
+
 ## [1.3.0](https://github.com/verygoodsecurity/starlarky/compare/v1.2.0...v1.3.0) (2026-11-19)
 
 
