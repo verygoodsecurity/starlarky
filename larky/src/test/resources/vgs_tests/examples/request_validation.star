@@ -38,6 +38,7 @@ load("@stdlib//json", json="json")
 load("@stdlib//types", types="types")
 load("@vendor//jose", jwt="jwt")
 load("@vendor//option/result", Result="Result")
+load("@vgs//http/response", "VGSHttpResponse")
 load("@vgs//proxy", "proxy")
 load("@vgs//vault", "vault")
 
@@ -66,14 +67,14 @@ DECODE_OPTIONS = {
 def unauthorized():
     """A ShortCircuitResponse that answers 401 without calling the upstream."""
     body = json.dumps({"error": "unauthorized"})
-    return proxy.ShortCircuitResponse(
+    return proxy.ShortCircuitResponse(VGSHttpResponse(
         body=bytes(body, encoding="utf-8"),
         headers={
             "Content-Type": "application/json",
             "WWW-Authenticate": 'Bearer error="invalid_token"',
         },
         status_code=401,
-    )
+    ))
 
 
 def bearer_token(request):

@@ -8,8 +8,8 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.verygood.security.larky.LarkySemantics;
-import com.verygood.security.larky.modules.types.structs.ShortCircuitHttpResponse;
-import com.verygood.security.larky.modules.types.structs.VgsHttpResponse;
+import com.verygood.security.larky.modules.vgs.ShortCircuitHttpResponse;
+import com.verygood.security.larky.modules.vgs.VgsHttpResponse;
 import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.EvaluationMetadata;
 import com.verygood.security.larky.parser.EvaluationSettings;
@@ -104,7 +104,7 @@ public class LarkyInvocationScopeTest {
         load("@vgs//proxy", "proxy")
 
         def process(stop):
-            response = proxy.ShortCircuitResponse(body="blocked", status_code=403) if stop else VGSHttpResponse()
+            response = proxy.ShortCircuitResponse(VGSHttpResponse(body="blocked", status_code=403)) if stop else VGSHttpResponse()
             response.__name__ = "ShortCircuitResponse"
             response.append_header("Set-Cookie", "first=1")
             response.append_header("set-cookie", "second=2")
