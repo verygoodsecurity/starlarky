@@ -148,6 +148,19 @@ def _test_request_pylarky():
     asserts.assert_that(modified_request.headers).is_equal_to({"Content-type": "application/json","Accept": "application/json"})
 
 
+def _test_request_with_a_url_that_is_not_ascii():
+    request = Request("  <URL:HTTPS://ex\u00e4mple.test:8443/p\u00e4th?q=\U0001f600#fr\u00e4g>  ")
+    asserts.assert_that(request.full_url).is_equal_to("HTTPS://ex\u00e4mple.test:8443/p\u00e4th?q=\U0001f600#fr\u00e4g")
+    asserts.assert_that(request.type).is_equal_to("https")
+    asserts.assert_that(request.host).is_equal_to("ex\u00e4mple.test:8443")
+    asserts.assert_that(request.selector).is_equal_to("/p\u00e4th?q=\U0001f600")
+    asserts.assert_that(request.fragment).is_equal_to("fr\u00e4g")
+    asserts.assert_that(request.origin_req_host).is_equal_to("ex\u00e4mple.test")
+
+    request = Request("http://ex%41mple.test/" + "x" * 20000)
+    asserts.assert_that(request.host).is_equal_to("exAmple.test")
+    asserts.assert_that(len(request.selector)).is_equal_to(20001)
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_data))
@@ -164,6 +177,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_request_pylarky))
 
 
+    _suite.addTest(unittest.FunctionTestCase(_test_request_with_a_url_that_is_not_ascii))
     return _suite
 
 

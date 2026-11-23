@@ -171,7 +171,7 @@ def _copy_header_items(self, headers):
 def Request(url, data=None, headers={}, origin_req_host=None, unverifiable=False, method=None):
     """An HTTP request: CPython's urllib.request.Request, implemented in Java."""
     return _jurllib.Request(
-        Request, parse, request_host, _copy_header_items,
+        Request, parse.unquote, request_host, _copy_header_items,
         url, data, headers, origin_req_host, unverifiable, method,
     )
 

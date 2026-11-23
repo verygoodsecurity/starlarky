@@ -157,50 +157,28 @@ public class VgsHttpRequestTest {
         Tuple.pair("X-Custom", "value"), Tuple.pair("X-Second", "second")).inOrder();
   }
 
-  private static final String CUSTOM_PARSER = """
-      load("@stdlib//jurllib", "jurllib")
-      load("@stdlib//larky", "larky")
-      load("@stdlib//urllib/parse", "parse")
-      load("@stdlib//urllib/request", "request")
-      def parser(**overrides):
-          functions = dict(unwrap=parse.unwrap, _splittag=parse._splittag, _splittype=parse._splittype,
-                           _splithost=parse._splithost, unquote=parse.unquote)
-          functions.update(overrides)
-          return larky.struct(**functions)
-      def no_request_host(request):
-          fail("origin_req_host is given")
-      def no_header_items(request, headers):
-          fail("headers is a dict")
-      def build(url, p):
-          return jurllib.Request(request.Request, p, no_request_host, no_header_items,
-                                 url, None, {}, "origin", False, None)
-      """;
-
   @Test
-  public void anOversizedHostGoesThroughUrllibUnquote() throws Exception {
-    var file = (ParsedStarFile) new LarkyScriptEngine().eval(CUSTOM_PARSER + """
+  public void aHostIsUnquotedOnlyWhenItHasAnEscape() throws Exception {
+    var file = (ParsedStarFile) new LarkyScriptEngine().eval("""
+        load("@stdlib//jurllib", "jurllib")
+        load("@stdlib//urllib/request", "request")
         calls = []
         def unquote(value):
-            calls.append(len(value))
-            return value
-        req = build("https://" + "x" * 17000 + "/", parser(unquote=unquote))
+            calls.append(value)
+            return "unquoted"
+        def no_request_host(request):
+            fail("origin_req_host is given")
+        def no_header_items(request, headers):
+            fail("headers is a dict")
+        def build(url):
+            return jurllib.Request(request.Request, unquote, no_request_host, no_header_items,
+                                   url, None, {}, "origin", False, None)
+        plain = build("https://" + "x" * 17000 + "/").host
+        escaped = build("https://ex%41mple.test/").host
         """);
-    assertThat((List<?>) file.getModule().getGlobal("calls"))
-        .containsExactly(net.starlark.java.eval.StarlarkInt.of(17000));
-  }
-
-  @Test
-  public void malformedUrllibParseResultsAreRejected() {
-    var engine = new LarkyScriptEngine();
-    // a non-ASCII URL is parsed by the urllib.parse functions, not natively
-    for (String body : List.of(
-        "build('https://example.test/é', parser(_splittype=lambda url: None))",
-        "build('https://example.test/é', parser(_splittype=lambda url: ('https', url), "
-            + "_splithost=lambda rest: ('host',)))",
-        "build('https://example.test/é', parser(unwrap=lambda url: url, _splittag=lambda url: [url]))")) {
-      var error = assertThrows(ScriptException.class, () -> engine.eval(CUSTOM_PARSER + body + "\n"));
-      assertThat(error).hasMessageThat().contains("expected `tuple` of length 2; got");
-    }
+    assertThat((List<?>) file.getModule().getGlobal("calls")).containsExactly("ex%41mple.test");
+    assertThat(file.getModule().getGlobal("plain")).isEqualTo("x".repeat(17000));
+    assertThat(file.getModule().getGlobal("escaped")).isEqualTo("unquoted");
   }
 
   @Test

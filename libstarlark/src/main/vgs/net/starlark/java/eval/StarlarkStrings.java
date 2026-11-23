@@ -24,6 +24,21 @@ public final class StarlarkStrings {
 
   private StarlarkStrings() {}
 
+  /** {@code s.strip()}, under {@code semantics}. */
+  public static String strip(String s, StarlarkSemantics semantics) {
+    return StringModule.INSTANCE.stripSemantics(s, Starlark.NONE, semantics);
+  }
+
+  /** {@code s.lower()}, under the thread's semantics. */
+  public static String lower(String s, StarlarkThread thread) {
+    return StringModule.INSTANCE.lower(s, thread);
+  }
+
+  /** {@code s.capitalize()}, under the thread's semantics. */
+  public static String capitalize(String s, StarlarkThread thread) throws EvalException {
+    return StringModule.INSTANCE.capitalize(s, thread);
+  }
+
   /** {@code s.title()}, under the thread's semantics. */
   public static String title(String s, StarlarkThread thread) throws EvalException {
     return StringModule.INSTANCE.title(s, thread);

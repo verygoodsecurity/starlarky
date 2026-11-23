@@ -16,8 +16,6 @@
 
 package com.verygood.security.larky.modules.urllib;
 
-import com.google.common.base.Ascii;
-import com.google.common.base.CharMatcher;
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.types.LarkyInstance;
 import java.util.Map;
@@ -34,8 +32,8 @@ import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkOperators;
 import net.starlark.java.eval.StarlarkSemantics;
+import net.starlark.java.eval.StarlarkStrings;
 import net.starlark.java.eval.StarlarkThread;
-import net.starlark.java.eval.Structure;
 import net.starlark.java.eval.Tuple;
 
 /**
@@ -47,20 +45,12 @@ import net.starlark.java.eval.Tuple;
  * {@code origin_req_host}, {@code unverifiable} and, when it was given, {@code method}. Where
  * CPython calls a method on {@code self} ({@code self.add_header}, {@code self._parse},
  * {@code self.has_header}, ...), so does this class, so a method a script sets on the instance is
- * the one called. Strings up to 16 KiB of ASCII are parsed natively; other values go through the
- * Starlark {@code urllib.parse} functions, as before.
+ * the one called. The URL is taken apart by {@link UrlParts}, which {@code urllib.parse} uses too.
  */
 @StarlarkBuiltin(name = "Request", documented = false)
 public class UrllibRequest extends LarkyInstance {
 
-  // Use the Starlark parser for unusual values and large strings. Native scans are bounded.
-  private static final int MAX_FAST_STRING_LENGTH = 16 * 1024;
-  private static final CharMatcher ASCII = CharMatcher.ascii();
-  // StringModule strips these ASCII characters in both its Python and Bazel modes.
-  private static final CharMatcher STRIP = CharMatcher.anyOf("\t\n\u000b\f\r\u001c\u001d\u001e\u001f ");
-  private static final CharMatcher HOST_END = CharMatcher.anyOf("/#?");
-
-  private final Structure parse;
+  private final StarlarkCallable unquote;
   private final StarlarkCallable requestHost;
   private final StarlarkCallable copyHeaderItems;
 
@@ -78,15 +68,15 @@ public class UrllibRequest extends LarkyInstance {
   @Nullable private Object method;
 
   /**
-   * An uninitialized request. {@code parse} is the {@code urllib.parse} module; {@code requestHost}
+   * An uninitialized request. {@code unquote} is {@code urllib.parse.unquote}; {@code requestHost}
    * and {@code copyHeaderItems} are {@code urllib.request}'s {@code request_host(request)} and the
    * loop that adds the headers of a mapping other than a dict.
    */
   private UrllibRequest(
-      Object constructor, Structure parse, StarlarkCallable requestHost, StarlarkCallable copyHeaderItems,
+      Object constructor, StarlarkCallable unquote, StarlarkCallable requestHost, StarlarkCallable copyHeaderItems,
       StarlarkThread thread) {
     super(constructor, thread.mutability());
-    this.parse = parse;
+    this.unquote = unquote;
     this.requestHost = requestHost;
     this.copyHeaderItems = copyHeaderItems;
   }
@@ -99,7 +89,7 @@ public class UrllibRequest extends LarkyInstance {
    */
   protected UrllibRequest(Object constructor, UrllibRequest base, StarlarkThread thread) {
     super(constructor, thread.mutability());
-    this.parse = base.parse;
+    this.unquote = base.unquote;
     this.requestHost = base.requestHost;
     this.copyHeaderItems = base.copyHeaderItems;
     this.fullUrl = base.fullUrl;
@@ -118,10 +108,10 @@ public class UrllibRequest extends LarkyInstance {
 
   /** {@code Request(url, data, headers, origin_req_host, unverifiable, method)}, whose class is {@code constructor}. */
   public static UrllibRequest create(
-      Object constructor, Structure parse, StarlarkCallable requestHost, StarlarkCallable copyHeaderItems,
+      Object constructor, StarlarkCallable unquote, StarlarkCallable requestHost, StarlarkCallable copyHeaderItems,
       Object url, Object data, Object headers, Object originReqHost, Object unverifiable, Object method,
       StarlarkThread thread) throws EvalException, InterruptedException {
-    UrllibRequest request = new UrllibRequest(constructor, parse, requestHost, copyHeaderItems, thread);
+    UrllibRequest request = new UrllibRequest(constructor, unquote, requestHost, copyHeaderItems, thread);
     request.initialize(url, data, headers, originReqHost, unverifiable, method, thread);
     return request;
   }
@@ -354,25 +344,12 @@ public class UrllibRequest extends LarkyInstance {
 
   private void setFullUrl(Object url, StarlarkThread thread) throws EvalException, InterruptedException {
     checkMutable();
-    if (isFastString(url)) {
-      String text = STRIP.trimFrom((String) url);
-      if (text.startsWith("<") && text.endsWith(">")) {
-        text = STRIP.trimFrom(text.substring(1, text.length() - 1));
-      }
-      url = text.startsWith("URL:") ? STRIP.trimFrom(text.substring(4)) : text;
-    } else {
-      url = callField(thread, parse, "unwrap", url);
-    }
-    if (isFastString(url)) {
-      String text = (String) url;
-      int hash = text.lastIndexOf('#');
-      fullUrl = hash < 0 ? text : text.substring(0, hash);
-      fragment = hash < 0 ? Starlark.NONE : text.substring(hash + 1);
-    } else {
-      Sequence<?> parts = parsePair(thread, "_splittag", url);
-      fullUrl = parts.get(0);
-      fragment = parts.get(1);
-    }
+    // unwrap('<URL:type://host/path>') --> 'type://host/path'
+    String unwrapped = UrlParts.unwrap(
+        url instanceof String text ? text : Starlark.str(url, thread.getSemantics()), thread);
+    Tuple parts = UrlParts.splittag(unwrapped);
+    fullUrl = parts.get(0);
+    fragment = parts.get(1);
     callAttr(thread, "_parse");
   }
 
@@ -390,56 +367,19 @@ public class UrllibRequest extends LarkyInstance {
   @StarlarkMethod(name = "_parse", documented = false, useStarlarkThread = true)
   public void parseUrl(StarlarkThread thread) throws EvalException, InterruptedException {
     checkMutable();
-    Object rest;
-    boolean nativeParts = isFastString(fullUrl);
-    if (nativeParts) {
-      String text = (String) fullUrl;
-      int colon = text.indexOf(':');
-      int slash = text.indexOf('/');
-      boolean hasType = colon > 0 && (slash < 0 || colon < slash);
-      type = hasType ? Ascii.toLowerCase(text.substring(0, colon)) : Starlark.NONE;
-      rest = hasType ? text.substring(colon + 1) : text;
-    } else {
-      Sequence<?> parts = parsePair(thread, "_splittype", fullUrl);
-      type = parts.get(0);
-      rest = parts.get(1);
-    }
-    if (Starlark.checkedEquals(type, Starlark.NONE)) {
+    Tuple typeAndRest = UrlParts.splittype(fullUrl, thread);
+    type = typeAndRest.get(0);
+    if (type == Starlark.NONE) {
       throw Starlark.errorf("ValueError: unknown url type: %s",
           Starlark.repr(attr(thread, "full_url"), thread.getSemantics()));
     }
-    if (nativeParts) {
-      String text = (String) rest;
-      if (text.startsWith("//")) {
-        int end = HOST_END.indexIn(text, 2);
-        String path = end < 0 ? "" : text.substring(end);
-        host = text.substring(2, end < 0 ? text.length() : end);
-        selector = path.isEmpty() || path.startsWith("/") ? path : "/" + path;
-      } else {
-        host = Starlark.NONE;
-        selector = text;
-      }
-    } else {
-      Sequence<?> parts = parsePair(thread, "_splithost", rest);
-      host = parts.get(0);
-      selector = parts.get(1);
+    Tuple hostAndSelector = UrlParts.splithost(typeAndRest.get(1));
+    host = hostAndSelector.get(0);
+    selector = hostAndSelector.get(1);
+    // unquote returns a string without a '%' as it is
+    if (host instanceof String name && name.indexOf('%') >= 0) {
+      host = Starlark.positionalOnlyCall(thread, unquote, name);
     }
-    if (Starlark.truth(host)) {
-      if (!(host instanceof String name) || name.length() > MAX_FAST_STRING_LENGTH || name.indexOf('%') >= 0) {
-        host = callField(thread, parse, "unquote", host);
-      }
-    }
-  }
-
-  private Sequence<?> parsePair(StarlarkThread thread, String function, Object value)
-      throws EvalException, InterruptedException {
-    Object result = callField(thread, parse, function, value);
-    if (result instanceof Sequence<?> pair && pair.size() == 2) {
-      return pair;
-    }
-    String got = result instanceof Sequence<?> sequence
-        ? Starlark.type(result) + " of length " + sequence.size() : Starlark.type(result);
-    throw Starlark.errorf("urllib.parse.%s(url=...) expected `tuple` of length 2; got %s", function, got);
   }
 
   // Methods
@@ -493,11 +433,9 @@ public class UrllibRequest extends LarkyInstance {
   }
 
   private static Object capitalize(Object key, StarlarkThread thread) throws EvalException, InterruptedException {
-    if (isFastString(key)) {
-      String text = (String) key;
-      return text.isEmpty() ? text : Ascii.toUpperCase(text.charAt(0)) + Ascii.toLowerCase(text.substring(1));
-    }
-    return callField(thread, key, "capitalize");
+    return key instanceof String text
+        ? StarlarkStrings.capitalize(text, thread)
+        : callField(thread, key, "capitalize");
   }
 
   @StarlarkMethod(name = "has_header", documented = false,
@@ -591,10 +529,6 @@ public class UrllibRequest extends LarkyInstance {
       throw Starlark.errorf("in update, item #%d has length %d, but exactly two elements are required",
           position, length);
     }
-  }
-
-  private static boolean isFastString(Object value) {
-    return value instanceof String text && text.length() <= MAX_FAST_STRING_LENGTH && ASCII.matchesAllOf(text);
   }
 
   /** The method a script would see, without calling a script's override: {@code method}, else GET or POST. */
