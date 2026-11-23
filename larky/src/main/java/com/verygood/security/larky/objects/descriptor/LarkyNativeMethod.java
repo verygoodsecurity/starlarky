@@ -19,7 +19,9 @@ package com.verygood.security.larky.objects.descriptor;
 import com.verygood.security.larky.objects.type.LarkyType;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
@@ -50,8 +52,15 @@ public final class LarkyNativeMethod<T> implements LarkyNonDataDescriptor, Starl
   }
 
   @Override
-  public Object __get__(Object obj, LarkyType type, @Nullable StarlarkThread thread) {
-    return obj == null ? this : bind.apply(owner.cast(obj));
+  public Object __get__(Object obj, LarkyType type, @Nullable StarlarkThread thread) throws EvalException {
+    if (obj == null) {
+      return this;
+    }
+    if (!owner.isInstance(obj)) {
+      throw Starlark.errorf(
+          "TypeError: method '%s' needs an instance of its class; got %s", name, Starlark.type(obj));
+    }
+    return bind.apply(owner.cast(obj));
   }
 
   @Override

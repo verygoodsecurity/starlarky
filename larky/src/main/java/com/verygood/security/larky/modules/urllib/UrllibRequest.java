@@ -57,7 +57,7 @@ public class UrllibRequest extends LarkyNativeObject {
   public static final LarkyNativeClass<UrllibRequest> CLASS =
       LarkyNativeClass.named("Request", UrllibRequest.class)
           .property("full_url", UrllibRequest::fullUrl, UrllibRequest::setFullUrl)
-          .property("data", (self, thread) -> self.data(), UrllibRequest::setData)
+          .property("data", (self, thread) -> self.state("_data"), UrllibRequest::setData)
           .build();
 
   private final StarlarkCallable unquote;
@@ -102,7 +102,8 @@ public class UrllibRequest extends LarkyNativeObject {
 
   /** The value of {@code _data}, for hosts. */
   public final Object data() {
-    return state("_data");
+    Object data = state("_data");
+    return data == null ? Starlark.NONE : data;
   }
 
   // Initialization
@@ -112,8 +113,9 @@ public class UrllibRequest extends LarkyNativeObject {
       Object url, Object data, Object headers, Object originReqHost, Object unverifiable, Object method,
       StarlarkThread thread) throws EvalException, InterruptedException {
     setAttr(thread, "full_url", url);
-    setAttr(thread, "unredirected_hdrs", Dict.of(thread.mutability()));
+    // headers first: the order of __dict__
     setAttr(thread, "headers", Dict.of(thread.mutability()));
+    setAttr(thread, "unredirected_hdrs", Dict.of(thread.mutability()));
     setAttr(thread, "_data", Starlark.NONE);
     setAttr(thread, "data", data);
     setAttr(thread, "_tunnel_host", Starlark.NONE);
@@ -155,8 +157,8 @@ public class UrllibRequest extends LarkyNativeObject {
 
   /** {@code full_url}. Without an evaluation (a host reading it), it needs a string URL and fragment. */
   protected final Object fullUrl(@Nullable StarlarkThread thread) throws EvalException, InterruptedException {
-    Object fullUrl = state("_full_url");
-    Object fragment = state("fragment");
+    Object fullUrl = requireState("_full_url");
+    Object fragment = requireState("fragment");
     if (!Starlark.truth(fragment)) {
       return fullUrl;
     }
@@ -194,7 +196,7 @@ public class UrllibRequest extends LarkyNativeObject {
 
   @StarlarkMethod(name = "_parse", documented = false, useStarlarkThread = true)
   public void parseUrl(StarlarkThread thread) throws EvalException, InterruptedException {
-    Tuple typeAndRest = UrlParts.splittype(state("_full_url"), thread);
+    Tuple typeAndRest = UrlParts.splittype(requireState("_full_url"), thread);
     setState("type", typeAndRest.get(0));
     if (typeAndRest.get(0) == Starlark.NONE) {
       throw Starlark.errorf("ValueError: unknown url type: %s",
@@ -231,7 +233,7 @@ public class UrllibRequest extends LarkyNativeObject {
   public void setProxy(Object proxyHost, Object proxyType, StarlarkThread thread)
       throws EvalException, InterruptedException {
     if ("https".equals(state("type")) && !Starlark.truth(state("_tunnel_host"))) {
-      setState("_tunnel_host", state("host"));
+      setState("_tunnel_host", requireState("host"));
     } else {
       setState("type", proxyType);
       setState("selector", attr(thread, "full_url"));
@@ -241,7 +243,7 @@ public class UrllibRequest extends LarkyNativeObject {
 
   @StarlarkMethod(name = "has_proxy", documented = false, useStarlarkThread = true)
   public boolean hasProxy(StarlarkThread thread) throws EvalException, InterruptedException {
-    return Starlark.checkedEquals(state("selector"), attr(thread, "full_url"));
+    return Starlark.checkedEquals(requireState("selector"), attr(thread, "full_url"));
   }
 
   @StarlarkMethod(name = "add_header", documented = false,

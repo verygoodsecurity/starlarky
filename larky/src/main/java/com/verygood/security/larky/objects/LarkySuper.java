@@ -105,7 +105,8 @@ public class LarkySuper implements LarkyNonDataDescriptor, ForwardingLarkyType, 
     }
 
     if (obj != null) {
-      if (obj instanceof PyObject) {
+      // an instance of a class written in Java has no class object that scripts can name
+      if (obj instanceof PyObject && !(obj instanceof LarkyNativeObject)) {
         objType = supercheck(type, (PyObject) obj);
       } else {
         throw Starlark.errorf("was expecting obj to of type PyObject, but got %s", Starlark.type(obj));

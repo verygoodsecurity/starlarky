@@ -54,7 +54,7 @@ public final class VgsHttpRequest extends UrllibRequest {
           .extending(UrllibRequest.CLASS)
           // full_url is a property: an instance attribute cannot replace it
           .property("url", VgsHttpRequest::fullUrl, VgsHttpRequest::setUrl)
-          .property("body", (self, thread) -> self.data(), (self, value, thread) -> self.setAttr(thread, "data", value))
+          .property("body", (self, thread) -> self.state("_data"), (self, value, thread) -> self.setAttr(thread, "data", value))
           .property("headers", (self, thread) -> self.state(HEADERS), VgsHttpRequest::setHeaders)
           .build();
 

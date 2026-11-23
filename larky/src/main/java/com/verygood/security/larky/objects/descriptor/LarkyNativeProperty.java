@@ -58,7 +58,7 @@ public final class LarkyNativeProperty<T> implements LarkyDataDescriptor, Starla
   public Object __get__(Object obj, LarkyType type, @Nullable StarlarkThread thread)
       throws EvalException, InterruptedException {
     // read from the class, not from an instance: the property itself, as in Python
-    return obj == null ? this : getter.get(owner.cast(obj), thread);
+    return obj == null ? this : getter.get(self(obj), thread);
   }
 
   @Override
@@ -67,7 +67,16 @@ public final class LarkyNativeProperty<T> implements LarkyDataDescriptor, Starla
     if (setter == null) {
       throw Starlark.errorf("AttributeError: can't set attribute '%s'", name);
     }
-    setter.set(owner.cast(obj), value, thread);
+    setter.set(self(obj), value, thread);
+  }
+
+  /** {@code obj} as an instance of the class: the property of a class written in Java works on no other object. */
+  private T self(Object obj) throws EvalException {
+    if (!owner.isInstance(obj)) {
+      throw Starlark.errorf(
+          "TypeError: property '%s' needs an instance of its class; got %s", name, Starlark.type(obj));
+    }
+    return owner.cast(obj);
   }
 
   @Override

@@ -6,7 +6,8 @@ as data descriptors of the class, and VGSHttpRequest's class extending Request's
 load("@stdlib//unittest", unittest="unittest")
 load("@stdlib//urllib/request", "Request")
 load("@vendor//asserts", asserts="asserts")
-load("@vgs//http/request", "VGSHttpRequest")
+load("@vendor//multidict", "CIMultiDict", "CIMultiDictProxy")
+load("@vgs//http/request", "VGSHttpRequest", "VGSCIMultiDict")
 load("@vgs//http/response", "VGSHttpResponse")
 
 
@@ -119,6 +120,82 @@ def _test_the_class_attributes_cannot_be_set():
             asserts.assert_fails(lambda: setattr(value, name, 1), "attribute '%s' is read-only" % name)
 
 
+def _test_dict_order():
+    request = Request("https://example.test/p#f", data=b"d", method="PUT")
+    asserts.assert_that(list(request.__dict__.keys())).is_equal_to([
+        "_full_url", "fragment", "type", "host", "selector", "headers", "unredirected_hdrs",
+        "_data", "_tunnel_host", "origin_req_host", "unverifiable", "method",
+    ])
+    request = VGSHttpRequest("https://example.test/p#f", data=b"d", method="PUT")
+    asserts.assert_that(list(request.__dict__.keys())).is_equal_to([
+        "_full_url", "fragment", "type", "host", "selector", "unredirected_hdrs",
+        "_data", "_tunnel_host", "origin_req_host", "unverifiable", "method",
+        "_headers", "path", "query_string",
+    ])
+
+
+def _test_removed_state_is_a_missing_attribute():
+    request = Request("https://example.test/p#f")
+    request.__delattr__("fragment")
+    asserts.assert_fails(lambda: request.full_url, "'Request' object has no attribute 'fragment'")
+    asserts.assert_that(hasattr(request, "fragment")).is_false()
+    request.__dict__.pop("_full_url")
+    asserts.assert_fails(lambda: request._parse(), "'Request' object has no attribute '_full_url'")
+    asserts.assert_fails(lambda: request.__delattr__("nope"), "'Request' object has no attribute 'nope'")
+    asserts.assert_fails(lambda: request.__delattr__("data"), "can't delete attribute 'data'")
+
+    response = VGSHttpResponse(body=b"b", status_code=200)
+    response.__delattr__("_headers")
+    asserts.assert_fails(lambda: setattr(response, "body", b"n"), "'VGSHttpResponse' object has no attribute '_headers'")
+    response.__delattr__("status_code")
+    asserts.assert_that(repr(response)).is_equal_to("<VGSHttpResponse [None]>")
+
+    # a key that is not a name does not break dir() or a failed lookup
+    request = Request("https://example.test/")
+    request.__dict__[1] = 2
+    asserts.assert_that("host" in dir(request)).is_true()
+    asserts.assert_fails(lambda: request.nope, "no field or method 'nope'")
+
+
+def _test_explicit_protocol_calls():
+    request = Request("https://example.test/")
+    asserts.assert_that(request.__getattribute__("host")).is_equal_to("example.test")
+    asserts.assert_fails(lambda: request.__getattribute__("nope"), "no field or method 'nope'")
+    request.__setattr__("full_url", "http://other.test/x")
+    asserts.assert_that(request.host).is_equal_to("other.test")
+    request.__setattr__("tag", 1)
+    asserts.assert_that(request.__dict__["tag"]).is_equal_to(1)
+
+
+def _test_getattr_hook_and_super():
+    request = Request("https://example.test/")
+    request.__getattr__ = lambda name: "hooked:" + name
+    asserts.assert_that(getattr(request, "zzz", "D")).is_equal_to("hooked:zzz")
+    asserts.assert_that(hasattr(request, "zzz")).is_true()
+
+    # the class is the function: there is no class object for super() to hand out
+    asserts.assert_fails(
+        lambda: super(object, Request("https://example.test/")),
+        "was expecting obj to of type PyObject, but got Request")
+
+
+def _test_multidict_methods_are_the_class_s():
+    headers = VGSCIMultiDict([("A", "1"), ("a", "2")])
+    asserts.assert_that(headers.getall("A")).is_equal_to(["1", "2"])
+    asserts.assert_that("getall" in headers.__dict__).is_false()
+    asserts.assert_that("getall" in dir(headers)).is_true()
+
+    # an attribute a script sets comes before the method
+    headers.getall = lambda key: ["custom"]
+    asserts.assert_that(headers.getall("A")).is_equal_to(["custom"])
+    asserts.assert_that(headers.__dict__["getall"] == headers.getall).is_true()
+
+    proxy = CIMultiDictProxy(CIMultiDict([("A", "1")]))
+    asserts.assert_that(proxy.getall("a")).is_equal_to(["1"])
+    asserts.assert_that(hasattr(proxy, "add")).is_false()
+    asserts.assert_that(hasattr(proxy, "getall")).is_true()
+
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_request_state_is_its_dict))
@@ -127,6 +204,11 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_vgs_request_extends_request))
     _suite.addTest(unittest.FunctionTestCase(_test_response_state_and_properties))
     _suite.addTest(unittest.FunctionTestCase(_test_the_class_attributes_cannot_be_set))
+    _suite.addTest(unittest.FunctionTestCase(_test_dict_order))
+    _suite.addTest(unittest.FunctionTestCase(_test_removed_state_is_a_missing_attribute))
+    _suite.addTest(unittest.FunctionTestCase(_test_explicit_protocol_calls))
+    _suite.addTest(unittest.FunctionTestCase(_test_getattr_hook_and_super))
+    _suite.addTest(unittest.FunctionTestCase(_test_multidict_methods_are_the_class_s))
     return _suite
 
 

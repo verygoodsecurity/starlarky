@@ -83,7 +83,7 @@ public final class VgsHttpResponse extends LarkyNativeObject implements Protocol
     if (current == null || !Starlark.checkedEquals(value, current)) {
       setState("_body", value);
       // The stored length applies to the previous body (issue 16464).
-      callField(thread, state("_headers"), "popall", "Content-Length", StarlarkList.newList(thread.mutability()));
+      callField(thread, requireState("_headers"), "popall", "Content-Length", StarlarkList.newList(thread.mutability()));
     }
   }
 
@@ -97,34 +97,36 @@ public final class VgsHttpResponse extends LarkyNativeObject implements Protocol
   public void addHeader(Object key, Object value, StarlarkThread thread)
       throws EvalException, InterruptedException {
     // self.headers[key] = val
-    StarlarkOperators.setIndex(thread, state("_headers"), key, value);
+    StarlarkOperators.setIndex(thread, requireState("_headers"), key, value);
   }
 
   @StarlarkMethod(name = "append_header", documented = false,
       parameters = {@Param(name = "key", named = true), @Param(name = "val", named = true)}, useStarlarkThread = true)
   public void appendHeader(Object key, Object value, StarlarkThread thread)
       throws EvalException, InterruptedException {
-    callField(thread, state("_headers"), "add", key, value);
+    callField(thread, requireState("_headers"), "add", key, value);
   }
 
   @StarlarkMethod(name = "remove_header", documented = false,
       parameters = {@Param(name = "key", named = true)}, useStarlarkThread = true)
   public void removeHeader(Object key, StarlarkThread thread) throws EvalException, InterruptedException {
-    callField(thread, state("_headers"), "popall", key, StarlarkList.newList(thread.mutability()));
+    callField(thread, requireState("_headers"), "popall", key, StarlarkList.newList(thread.mutability()));
   }
 
   @StarlarkMethod(name = "get_all_headers", documented = false,
       parameters = {@Param(name = "key", named = true)}, useStarlarkThread = true)
   public Object getAllHeaders(Object key, StarlarkThread thread) throws EvalException, InterruptedException {
-    return callField(thread, state("_headers"), "getall", key, StarlarkList.newList(thread.mutability()));
+    return callField(thread, requireState("_headers"), "getall", key, StarlarkList.newList(thread.mutability()));
   }
 
   public Object body(StarlarkThread thread) {
-    return state("_body");
+    Object body = state("_body");
+    return body == null ? Starlark.NONE : body;
   }
 
   public Object statusCode(StarlarkThread thread) {
-    return state("status_code");
+    Object statusCode = state("status_code");
+    return statusCode == null ? Starlark.NONE : statusCode;
   }
 
   /**
@@ -146,7 +148,7 @@ public final class VgsHttpResponse extends LarkyNativeObject implements Protocol
   @Override
   public void repr(Printer printer, StarlarkSemantics semantics) {
     printer.append("<VGSHttpResponse [");
-    printer.repr(state("status_code"), semantics);
+    printer.repr(statusCode(null), semantics);
     printer.append("]>");
   }
 }

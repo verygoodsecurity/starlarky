@@ -286,9 +286,17 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
     if (attributes == null) {
       return LarkyType.super.lookup(name);
     }
-    Object value = attributes.get(name);
-    // the names LarkyType.lookup answers for the class itself, and those of object
-    return value != null || !name.startsWith("__") ? value : LarkyType.super.lookup(name);
+    switch (name) {
+      // the names LarkyType.lookup answers for the class itself
+      case "__class__":
+      case "__dict__":
+      case "__bases__":
+      case "__base__":
+      case "__mro__":
+        return LarkyType.super.lookup(name);
+      default:
+        return attributes.get(name);
+    }
   }
 
   @Override

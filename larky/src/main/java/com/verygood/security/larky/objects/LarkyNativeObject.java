@@ -175,6 +175,15 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
     return dict.get(name);
   }
 
+  /** The entry {@code name} of the instance's dictionary; fails as a missing attribute if a script removed it. */
+  protected final Object requireState(String name) throws EvalException {
+    Object value = dict.get(name);
+    if (value == null) {
+      throw Starlark.errorf("AttributeError: '%s' object has no attribute '%s'", typeName(), name);
+    }
+    return value;
+  }
+
   /** Sets the entry {@code name} of the instance's dictionary. No descriptor is consulted. */
   protected final void setState(String name, Object value) throws EvalException {
     checkMutable();
@@ -243,11 +252,8 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
   @Override
   public final Object __getattribute__(String name, StarlarkThread thread) throws EvalException {
     try {
-      Object value = Starlark.getattr(thread.mutability(), thread.getSemantics(), this, name, null);
-      if (value == null) {
-        throw Starlark.errorf("AttributeError: '%s' object has no attribute '%s'", typeName(), name);
-      }
-      return value;
+      // fails, as reading the attribute does, if there is none
+      return Starlark.getattr(thread.mutability(), thread.getSemantics(), this, name, null);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new EvalException(e);
@@ -317,7 +323,12 @@ public abstract class LarkyNativeObject implements PyObject, Mutability.Freezabl
     for (Object base : type.getMRO()) {
       names.addAll(((LarkyType) base).getInternalDictUnsafe().keySet());
     }
-    names.addAll(dict.keySet());
+    // a script can put a key that is not a name into __dict__
+    for (Object key : dict.keySet()) {
+      if (key instanceof String name) {
+        names.add(name);
+      }
+    }
     return ImmutableList.copyOf(names);
   }
 

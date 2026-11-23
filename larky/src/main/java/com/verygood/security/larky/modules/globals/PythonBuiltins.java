@@ -14,6 +14,7 @@ import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.modules.types.results.LarkyAttributeError;
 import com.verygood.security.larky.modules.types.results.LarkyIndexError;
 import com.verygood.security.larky.modules.types.results.LarkyStopIteration;
+import com.verygood.security.larky.objects.LarkyNativeObject;
 import com.verygood.security.larky.objects.PyObject;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
@@ -517,7 +518,7 @@ public final class PythonBuiltins {
     if (obj instanceof LarkyObject) {
       Object res;
       try {
-        if (obj instanceof PyObject) {
+        if (obj instanceof PyObject && !(obj instanceof LarkyNativeObject)) {
           res = ((PyObject) obj).getField(name, thread);
         } else {
           // TODO(mahmoudimus): delete all this code when merging LarkyObject into PyObject
