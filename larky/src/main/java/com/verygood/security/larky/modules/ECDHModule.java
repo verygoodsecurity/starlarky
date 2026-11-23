@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
+import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyStore;
@@ -23,6 +24,7 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
@@ -103,9 +105,50 @@ public class ECDHModule implements StarlarkValue {
     private static byte[] ellipticCurveDHExchange(PrivateKey privateKey, PublicKey publicKey)
             throws NoSuchAlgorithmException, InvalidKeyException {
         KeyAgreement ka = KeyAgreement.getInstance("ECDH");
-        ka.init(privateKey);
+        try {
+            // The provider is the first one that accepts the key: the JDK's for a key the JDK made (PKCS8,
+            // PKCS12), BouncyCastle's for a key BouncyCastle made (a SEC1 PEM).
+            ka.init(privateKey);
+        } catch (InvalidKeyException e) {
+            throw explain(privateKey, e, ECDHModule::bouncyCastleKeyAgreement);
+        }
         ka.doPhase(publicKey, true);
         return ka.generateSecret();
+    }
+
+    /** Asks BouncyCastle for a key agreement, which is where a JVM refuses a provider it does not accept. */
+    interface ProviderProbe {
+        void run() throws GeneralSecurityException;
+    }
+
+    static void bouncyCastleKeyAgreement() throws GeneralSecurityException {
+        KeyAgreement.getInstance("ECDH", BouncyCastleProvider.PROVIDER_NAME);
+    }
+
+    /**
+     * Why no provider accepted {@code privateKey}. For a BouncyCastle key the JDK's own provider says "Not an EC key:
+     * ECDSA", which hides the cause when BouncyCastle is the provider that should have taken it and the JVM
+     * does not accept BouncyCastle: Oracle's JDK refuses a cryptographic provider whose jar is not signed, as
+     * BouncyCastle's classes are when they are repackaged into another jar ("JCE cannot authenticate the
+     * provider BC"). This names that cause; any other failure is returned as it is.
+     */
+    static InvalidKeyException explain(PrivateKey privateKey, InvalidKeyException failure, ProviderProbe bouncyCastle) {
+        // null: the key type was not one this module loads, or a PKCS12 held no key
+        if (privateKey == null || !privateKey.getClass().getName().startsWith("org.bouncycastle.")) {
+            return failure;
+        }
+        try {
+            bouncyCastle.run();
+            return failure;
+        } catch (GeneralSecurityException | SecurityException refused) {
+            InvalidKeyException explained = new InvalidKeyException(
+                "ECDH: this JVM does not accept the BouncyCastle provider, which this key needs (" + refused.getMessage()
+                    + "). Run Larky with BouncyCastle's own signed jars on the class path: classes repackaged into"
+                    + " another jar are not signed. The JDK's provider said: " + failure.getMessage(),
+                refused);
+            explained.addSuppressed(failure);
+            return explained;
+        }
     }
 
 
