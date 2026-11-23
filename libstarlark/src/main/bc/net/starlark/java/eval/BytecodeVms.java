@@ -17,7 +17,13 @@ package net.starlark.java.eval;
 import java.util.Map;
 import net.starlark.java.eval.compiler.BytecodeChunk;
 import net.starlark.java.eval.compiler.BytecodeTarget;
+import net.starlark.java.syntax.Identifier;
+import net.starlark.java.syntax.NodeVisitor;
 import net.starlark.java.syntax.Program;
+import net.starlark.java.syntax.Resolver;
+import net.starlark.java.syntax.Statement;
+import net.starlark.java.syntax.StarlarkType;
+import net.starlark.java.syntax.TypeTable;
 
 /**
  * Dispatches file and function bodies to the VM selected by {@code -Dstarlark.bytecode.vm}, so
@@ -31,14 +37,17 @@ final class BytecodeVms {
 
   /**
    * Runs a file's top-level code: on the bytecode VM if the program was compiled to bytecode,
-   * otherwise (or if it carries a type table, whose checks only the tree-walker enforces) by
-   * calling {@code toplevel}, as {@link Starlark#execFileProgram} does without the VM.
+   * otherwise by calling {@code toplevel}, as {@link Starlark#execFileProgram} does without the VM.
    */
   static Object execFile(
       Program prog, Module module, StarlarkThread thread, StarlarkCallable toplevel)
       throws EvalException, InterruptedException {
-    if (!prog.hasBytecode() || prog.getTypeTable() != null) {
+    if (!prog.hasBytecode()) {
       return Starlark.positionalOnlyCall(thread, toplevel);
+    }
+    TypeTable typeTable = prog.getTypeTable();
+    if (typeTable != null) {
+      declareGlobalTypes(prog.getResolvedFunction(), typeTable, module);
     }
     // The VM reads and writes the module's globals directly; predeclared and universal names are
     // read separately (LOAD_BUILTIN: predeclared, then universe) so that file-level bindings
@@ -47,12 +56,36 @@ final class BytecodeVms {
         execute(
             prog.getBytecode(),
             thread,
-            new BytecodeGlobals(module, module.getPredeclaredBindings()),
+            new BytecodeGlobals(module, module.getPredeclaredBindings(), typeTable),
             prog.getFilename());
     if (Boolean.getBoolean("debug.globals")) {
       System.out.println("Bytecode execution completed successfully. Result: " + result);
     }
     return result;
+  }
+
+  /**
+   * Records the declared types of a typed file's globals in its module, which the tree-walker does
+   * on each assignment (Eval.assignIdentifier); a global's declared type never changes.
+   */
+  private static void declareGlobalTypes(
+      Resolver.Function toplevel, TypeTable typeTable, Module module) {
+    NodeVisitor visitor =
+        new NodeVisitor() {
+          @Override
+          public void visit(Identifier id) {
+            Resolver.Binding binding = id.getBinding();
+            if (binding != null && binding.getScope() == Resolver.Scope.GLOBAL) {
+              StarlarkType type = typeTable.getGlobalDeclaredType(binding);
+              if (type != null) {
+                module.setGlobalTypeByIndex(module.getIndexOfGlobal(id.getName()), type);
+              }
+            }
+          }
+        };
+    for (Statement stmt : toplevel.getBody()) {
+      visitor.visit(stmt);
+    }
   }
 
   static Object execute(

@@ -633,6 +633,10 @@ abstract class AbstractBytecodeVM implements BcFrame {
                 this, (String) chunk.getConstantPool().getConstant(instr.getOperand1()), pop());
             break;
 
+          case TYPE_ALIAS:
+            BcOps.typeAlias(this, chunk.getConstantPool().getConstant(instr.getOperand1()));
+            break;
+
           case MAKE_FUNCTION:
             {
               Object descriptor = chunk.getConstantPool().getConstant(instr.getOperand1());
