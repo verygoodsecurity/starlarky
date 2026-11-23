@@ -36,6 +36,7 @@ import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkOperators;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
@@ -631,13 +632,14 @@ public final class PythonBuiltins {
     },
     useStarlarkThread = true)
   public void setattr(Object obj, String name, Object value, StarlarkThread thread)
-    throws EvalException {
+    throws EvalException, InterruptedException {
     if (!Structure.class.isAssignableFrom(obj.getClass())) {
       throw Starlark.errorf(
         "type(%s) does not support setattr. Must inherit from " +
           "Structure. See LarkyObject.", Starlark.type(obj));
     }
-    ((Structure) obj).setField(name, value);
+    // as the statement x.name = value: a Structure.Threaded gets the thread
+    StarlarkOperators.setattr(thread, obj, name, value);
   }
 
   @StarlarkMethod(
