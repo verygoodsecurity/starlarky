@@ -26,7 +26,7 @@ import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import com.verygood.security.larky.console.Console;
-import com.verygood.security.larky.runtime.HostValues;
+import com.verygood.security.larky.runtime.StarlarkInterop;
 import com.verygood.security.larky.runtime.LarkyEvaluator;
 import java.io.IOException;
 import java.util.Map;
@@ -187,7 +187,7 @@ public class LarkyScript {
 
   /**
    * Runs {@code content} and returns its output as Java's {@code toString} of it (what the larky
-   * runner writes), computed through the evaluation's {@link HostValues}: the output may be a
+   * runner writes), computed through the evaluation's {@link StarlarkInterop}: the output may be a
    * struct whose {@code __repr__} is Starlark code, which needs a current evaluation.
    */
   public String executeStarlarkWithOutputAsString(
@@ -195,7 +195,7 @@ public class LarkyScript {
       throws IOException, InterruptedException, EvalException {
     LarkyEvaluator evaluator = new LarkyEvaluator(this, moduleSet, console);
     Object output = evaluator.eval(content).output();
-    return evaluator.hostValues().javaString(output);
+    return evaluator.interop().javaString(output);
   }
 
   public ParsedStarFile evaluate(StarFile content, Console console)
@@ -252,7 +252,7 @@ public class LarkyScript {
         .putAll(module.getGlobals())
         .buildKeepingLast(),
         module,
-        evaluator.hostValues());
+        evaluator.interop());
   }
 
   private static class StarFilesSupplier

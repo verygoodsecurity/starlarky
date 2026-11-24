@@ -33,8 +33,7 @@ import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 
 /**
- * How embedding code (a service that evaluated a script and now reads its results) uses the
- * values of that script: converts them to strings, reads their fields, and calls them.
+ * Java access to Starlark values after a script finishes.
  *
  * <p>Script values are not plain data. A struct field may be a {@code larky.property} whose getter
  * is Starlark code, a struct may define {@code __getattr__}, {@code __str__} or {@code __repr__},
@@ -44,7 +43,7 @@ import net.starlark.java.eval.StarlarkThread;
  * StarlarkSemantics.DEFAULT} and no step limit either: callbacks would then run with other
  * semantics than the script and without the script's bounds.
  *
- * <p>Obtain an instance from the evaluation result: {@link ParsedStarFile#hostValues()}. It
+ * <p>Obtain an instance from the evaluation result: {@link ParsedStarFile#interop()}. It
  * carries that evaluation's
  *
  * <ul>
@@ -74,7 +73,7 @@ import net.starlark.java.eval.StarlarkThread;
  *   <li>Every failure of a callback is an {@link EvalException}, also an unchecked exception
  *       thrown by Java code it calls (the {@code EvalException}'s cause).
  *   <li>{@code print()} output of the callbacks goes where it went before host code read values
- *       this way: an instance from {@link ParsedStarFile#hostValues()} sends it to the
+ *       this way: an instance from {@link ParsedStarFile#interop()} sends it to the
  *       evaluation's reporter, as a callback run on the evaluation's own thread did; an instance
  *       without one ({@link #create()}, {@link #of}) leaves Starlark's default handler (standard
  *       error), as a thread the host created itself did. Use {@link #withPrintHandler} to send it
@@ -86,18 +85,18 @@ import net.starlark.java.eval.StarlarkThread;
  *
  * <pre>{@code
  * ParsedStarFile parsed = interpreter.evaluate(script, console);
- * HostValues host = parsed.hostValues();
+ * StarlarkInterop interop = parsed.interop();
  * Object result = parsed.getGlobalEnvironmentVariable("result", Object.class);
- * Object body = host.getField(result, "body");        // runs the property getter, fresh thread
- * Object headers = host.getField(result, "headers");  // frozen once the call returns
- * String text = host.str(body);
+ * Object body = interop.getField(result, "body");        // runs the property getter, fresh thread
+ * Object headers = interop.getField(result, "headers");  // frozen once the call returns
+ * String text = interop.str(body);
  * }</pre>
  *
  * <p>Do not call {@code struct.getField(name, null)}, {@code Starlark.str(value, semantics)} or
  * {@code Starlark.repr(value, semantics)} directly on script values after the evaluation: with no
  * evaluation active they fail with an {@link IllegalStateException}.
  */
-public final class HostValues {
+public final class StarlarkInterop {
 
   /** What all calls through an instance and the instances derived from it may use, together. */
   private static final class Budget {
@@ -117,7 +116,7 @@ public final class HostValues {
   @Nullable private final StarlarkThread.PrintHandler printHandler;
   private final Budget budget;
 
-  private HostValues(
+  private StarlarkInterop(
       StarlarkSemantics semantics,
       @Nullable ModuleProviders providers,
       @Nullable StarlarkThread.PrintHandler printHandler,
@@ -129,7 +128,7 @@ public final class HostValues {
   }
 
   /** Larky's default semantics, no step limit, no providers, Starlark's default print handler. */
-  public static HostValues create() {
+  public static StarlarkInterop create() {
     return of(LarkySemantics.LARKY_SEMANTICS, null, null);
   }
 
@@ -138,7 +137,7 @@ public final class HostValues {
    *     limit
    * @param providers the module providers visible to callbacks, or null
    */
-  public static HostValues of(
+  public static StarlarkInterop of(
       StarlarkSemantics semantics, @Nullable Long maxSteps, @Nullable ModuleProviders providers) {
     return of(semantics, maxSteps, Long.MAX_VALUE, providers);
   }
@@ -150,20 +149,20 @@ public final class HostValues {
    *     Long.MAX_VALUE} for none
    * @param providers the module providers visible to callbacks, or null
    */
-  public static HostValues of(
+  public static StarlarkInterop of(
       StarlarkSemantics semantics,
       @Nullable Long maxSteps,
       long expirationMs,
       @Nullable ModuleProviders providers) {
-    return new HostValues(semantics, providers, null, new Budget(maxSteps, expirationMs));
+    return new StarlarkInterop(semantics, providers, null, new Budget(maxSteps, expirationMs));
   }
 
   /**
    * The same (sharing this instance's step budget), delivering {@code print()} output of
    * callbacks to {@code handler}.
    */
-  public HostValues withPrintHandler(StarlarkThread.PrintHandler handler) {
-    return new HostValues(semantics, providers, handler, budget);
+  public StarlarkInterop withPrintHandler(StarlarkThread.PrintHandler handler) {
+    return new StarlarkInterop(semantics, providers, handler, budget);
   }
 
   /**
@@ -172,8 +171,8 @@ public final class HostValues {
    * itself and never gives a handler. For hosts that read values on their own thread today and must
    * keep printing where they did.
    */
-  public HostValues withStarlarkDefaultPrintHandler() {
-    return new HostValues(semantics, providers, null, budget);
+  public StarlarkInterop withStarlarkDefaultPrintHandler() {
+    return new StarlarkInterop(semantics, providers, null, budget);
   }
 
   /** The semantics callbacks run with. */
@@ -215,7 +214,7 @@ public final class HostValues {
   }
 
   private static String internalErrorMessage(String name, @Nullable Throwable e) {
-    return "internal error in HostValues." + name + ": "
+    return "internal error in StarlarkInterop." + name + ": "
         + (e == null ? "unknown" : e.getClass().getSimpleName()
             + (e.getMessage() == null ? "" : ": " + e.getMessage()));
   }
@@ -233,7 +232,7 @@ public final class HostValues {
         && System.currentTimeMillis() > budget.expirationMs) {
       throw new EvalException("Starlark computation cancelled: past expiration date");
     }
-    try (Mutability mu = Mutability.create("HostValues." + name)) {
+    try (Mutability mu = Mutability.create("StarlarkInterop." + name)) {
       StarlarkThread thread = StarlarkThread.createTransient(mu, semantics);
       if (printHandler != null) {
         thread.setPrintHandler(printHandler);

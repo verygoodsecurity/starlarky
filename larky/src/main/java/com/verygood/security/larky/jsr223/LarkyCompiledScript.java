@@ -228,7 +228,7 @@ public class LarkyCompiledScript extends CompiledScript {
         script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
       }
       final DefaultLarkyInterpreter larkyInterpreter = new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings);
-      result = larkyInterpreter.evaluate(script, context.getWriter());
+      result = larkyInterpreter.evaluate(script, engine.console(context.getWriter()));
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
              EvalException e) {
       throw LarkyEvaluationScriptException.of(e);

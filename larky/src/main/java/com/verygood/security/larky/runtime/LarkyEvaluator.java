@@ -93,11 +93,11 @@ public final class LarkyEvaluator {
    * How host code reads the values of what this evaluator ran: with this evaluator's semantics,
    * the steps left of its step limit, its expiration date, and its reporter (where {@code print()}
    * of callbacks went when they ran on the evaluation's own thread), each access on a fresh
-   * thread. See {@link HostValues}.
+   * thread. See {@link StarlarkInterop}.
    */
-  public HostValues hostValues() {
+  public StarlarkInterop interop() {
     Object stepLimit = environment.get(STEP_LIMIT);
-    return HostValues.of(
+    return StarlarkInterop.of(
         getLarkySemantics(),
         stepLimit == null ? null : Long.parseLong(stepLimit.toString()) - lastExecutedSteps,
         lastExpirationMs,
@@ -106,7 +106,7 @@ public final class LarkyEvaluator {
   }
 
   // The steps and expiration date of the last file this evaluator executed: the main script, whose
-  // loads execute before it. hostValues() continues from them.
+  // loads execute before it. interop() continues from them.
   private long lastExecutedSteps;
   private long lastExpirationMs = Long.MAX_VALUE;
 

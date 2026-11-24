@@ -46,7 +46,7 @@ import net.starlark.java.eval.StarlarkThread;
  *
  * <p>Outside any evaluation {@link #requireThread()} fails with an {@link IllegalStateException}
  * rather than falling back to some other thread. Embedding code that reads script values after
- * the evaluation has finished should use {@link HostValues}, which runs each read on a fresh
+ * the evaluation has finished should use {@link StarlarkInterop}, which runs each read on a fresh
  * thread.
  */
 public final class CurrentEvaluation implements AutoCloseable {
@@ -90,8 +90,8 @@ public final class CurrentEvaluation implements AutoCloseable {
     if (thread == null) {
       throw new IllegalStateException(
           "no Starlark evaluation is active on this thread: a script value was used outside the"
-              + " evaluation that created it. Read script values through HostValues"
-              + " (ParsedStarFile#hostValues), which runs each access on a fresh thread.");
+              + " evaluation that created it. Read script values through StarlarkInterop"
+              + " (ParsedStarFile#interop), which runs each access on a fresh thread.");
     }
     return thread;
   }

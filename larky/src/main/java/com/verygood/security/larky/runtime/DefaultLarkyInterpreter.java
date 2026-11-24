@@ -25,9 +25,8 @@ import javax.script.Bindings;
 
 public class DefaultLarkyInterpreter {
 
-  public static final String VERBOSE = "__VERBOSE__";
   private final ModuleSet moduleSet;
-  private final LarkyScript interpreter;
+  private final LarkyScript larkyScript;
 
   /**
    * @throws EvalException if converting a binding runs Starlark code that fails: a binding may be
@@ -39,21 +38,21 @@ public class DefaultLarkyInterpreter {
     // later bindings win, as before
     Map<String, Object> merged = new LinkedHashMap<>();
     Arrays.stream(bindings).filter(Objects::nonNull).forEach(merged::putAll);
-    this.interpreter = new LarkyScript(ModuleSupplier.CORE_MODULES, mode, toStarlark(merged));
+    this.larkyScript = new LarkyScript(ModuleSupplier.CORE_MODULES, mode, toStarlark(merged));
   }
 
-  // Converts on a HostValues thread, bounded by the step limit the bindings ask for, if any.
+  // Converts on a fresh Starlark thread using the bindings' step limit, if given.
   private static Map<String, Object> toStarlark(Map<String, Object> merged) throws EvalException {
     Object stepLimit = merged.get(LarkyEvaluator.STEP_LIMIT);
-    HostValues host =
-        HostValues.of(
+    StarlarkInterop interop =
+        StarlarkInterop.of(
             LarkySemantics.LARKY_SEMANTICS,
             stepLimit == null ? null : Long.parseLong(stepLimit.toString()),
             null);
     Map<String, Object> converted = new HashMap<>();
     try {
       for (Map.Entry<String, Object> e : merged.entrySet()) {
-        converted.put(e.getKey(), host.toStarlark(e.getValue()));
+        converted.put(e.getKey(), interop.toStarlark(e.getValue()));
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -63,12 +62,10 @@ public class DefaultLarkyInterpreter {
   }
 
   public ParsedStarFile evaluate(StarFile script, Writer writer) throws IOException, EvalException {
-    String verbose = interpreter.getGlobals().getOrDefault(VERBOSE, "false").toString();
-    return evaluate(script, new StreamWriterConsole(writer, Boolean.parseBoolean(verbose)));
+    return evaluate(script, new StreamWriterConsole(writer));
   }
 
   public ParsedStarFile evaluate(StarFile script, Console console) throws IOException, EvalException {
-    return interpreter.evaluate(
-        script, moduleSet, console);
+    return larkyScript.evaluate(script, moduleSet, console);
   }
 }

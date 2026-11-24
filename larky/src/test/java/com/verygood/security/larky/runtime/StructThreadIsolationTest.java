@@ -39,7 +39,7 @@ import org.junit.Test;
 /**
  * A struct created by an evaluation must not run its callbacks (property getters, {@code
  * __getattr__}, {@code __str__}, {@code __eq__}, {@code __hash__}) on that evaluation's thread
- * once it has finished: without an active evaluation they fail closed, and {@link HostValues}
+ * once it has finished: without an active evaluation they fail closed, and {@link StarlarkInterop}
  * runs them on a fresh thread.
  */
 public class StructThreadIsolationTest {
@@ -80,7 +80,7 @@ public class StructThreadIsolationTest {
 
   @Test
   public void afterTheEvaluationValuesFailClosedWithoutTheHelper() throws Exception {
-    ParsedStarFile parsed = HostValuesTest.evaluate(SCRIPT, null);
+    ParsedStarFile parsed = StarlarkInteropTest.evaluate(SCRIPT, null);
     LarkyObject s = (LarkyObject) global(parsed, "S");
 
     IllegalStateException property =
@@ -89,7 +89,7 @@ public class StructThreadIsolationTest {
     // a __getattr__ is not run on the finished evaluation's thread either
     assertThrows(IllegalStateException.class, () -> s.getField("missing", null));
     assertThrows(
-        IllegalStateException.class, () -> Starlark.str(s, parsed.hostValues().semantics()));
+        IllegalStateException.class, () -> Starlark.str(s, parsed.interop().semantics()));
     // plain fields need no thread
     assertThat(s.getField("headers", null)).isInstanceOf(Dict.class);
 
@@ -102,8 +102,8 @@ public class StructThreadIsolationTest {
 
   @Test
   public void throughTheHelperTheyRunOnAFreshThread() throws Exception {
-    ParsedStarFile parsed = HostValuesTest.evaluate(SCRIPT, null);
-    HostValues host = parsed.hostValues();
+    ParsedStarFile parsed = StarlarkInteropTest.evaluate(SCRIPT, null);
+    StarlarkInterop host = parsed.interop();
     Object s = global(parsed, "S");
 
     assertThat(host.str(s)).isEqualTo("struct-as-string");
@@ -117,20 +117,20 @@ public class StructThreadIsolationTest {
 
   @Test
   public void hostCallbacksPrintToTheHelperNotTheFinishedEvaluation() throws Exception {
-    ParsedStarFile parsed = HostValuesTest.evaluate(SCRIPT, null);
+    ParsedStarFile parsed = StarlarkInteropTest.evaluate(SCRIPT, null);
     Object s = global(parsed, "S");
     List<String> printed = new ArrayList<>();
-    parsed.hostValues().withPrintHandler((t, m) -> printed.add(m)).getField(s, "body");
+    parsed.interop().withPrintHandler((t, m) -> printed.add(m)).getField(s, "body");
     assertThat(printed).containsExactly("getter ran");
   }
 
   @Test
   public void aLoopingGetterStopsAtTheEvaluationsStepLimit() throws Exception {
-    ParsedStarFile parsed = HostValuesTest.evaluate(SCRIPT, 2_000_000L);
+    ParsedStarFile parsed = StarlarkInteropTest.evaluate(SCRIPT, 2_000_000L);
     Object s = global(parsed, "S");
     // an EvalException, not the RuntimeException the struct wraps it in
     EvalException e =
-        assertThrows(EvalException.class, () -> parsed.hostValues().getField(s, "spin"));
+        assertThrows(EvalException.class, () -> parsed.interop().getField(s, "spin"));
     assertThat(e).hasMessageThat().contains("too many steps");
   }
 
@@ -166,7 +166,7 @@ public class StructThreadIsolationTest {
             "p.set(5)",
             "got = seen[0]",
             "");
-    ParsedStarFile parsed = HostValuesTest.evaluate(script, null);
+    ParsedStarFile parsed = StarlarkInteropTest.evaluate(script, null);
     assertThat(global(parsed, "got")).isEqualTo(StarlarkInt.of(5));
 
     // LarkyScript reports a failed script as RuntimeEvalException, with the EvalException as cause
@@ -174,7 +174,7 @@ public class StructThreadIsolationTest {
         assertThrows(
             RuntimeException.class,
             () ->
-                HostValuesTest.evaluate(
+                StarlarkInteropTest.evaluate(
                     "load('@stdlib//larky', 'larky')\n"
                         + "p = larky.property(lambda: 41, lambda v: None)\n"
                         + "p.set()\n",
@@ -209,7 +209,7 @@ public class StructThreadIsolationTest {
     StarlarkThread creator;
     SimpleStruct struct;
     try (Mutability mu = Mutability.create("creator")) {
-      creator = StarlarkThread.createTransient(mu, HostValues.create().semantics());
+      creator = StarlarkThread.createTransient(mu, StarlarkInterop.create().semantics());
       struct =
           SimpleStruct.mutable(
               Dict.<String, Object>builder()
@@ -223,7 +223,7 @@ public class StructThreadIsolationTest {
     assertThrows(IllegalStateException.class, () -> struct.getField("body", null));
     assertThat(probe.threads).isEmpty();
 
-    HostValues host = HostValues.create();
+    StarlarkInterop host = StarlarkInterop.create();
     assertThat(host.getField(struct, "body")).isEqualTo("probed");
     assertThat(host.getField(struct, "other")).isEqualTo("probed");
     assertThat(host.str(struct)).isEqualTo("probed");
