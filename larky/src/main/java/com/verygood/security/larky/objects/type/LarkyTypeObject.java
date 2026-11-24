@@ -112,11 +112,13 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
       name,
       bases,
       dict,
-      (type) -> {
-        type.mutability = thread.mutability();
-        return new LarkyProvidedTypeClass(thread, type);
-      }
+      type -> createProvidedType(thread, type)
     );
+  }
+
+  private static ForwardingLarkyType createProvidedType(StarlarkThread thread, LarkyTypeObject type) {
+    type.mutability = thread.mutability();
+    return new LarkyProvidedTypeClass(thread, type);
   }
 
   public static LarkyType create(
