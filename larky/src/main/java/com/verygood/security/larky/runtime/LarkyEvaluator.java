@@ -3,8 +3,6 @@ package com.verygood.security.larky.runtime;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.verygood.security.larky.parser.Computation;
-import com.verygood.security.larky.runtime.EvaluationMetadata;
-import com.verygood.security.larky.runtime.EvaluationSettings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.flogger.FluentLogger;
 import com.verygood.security.larky.ModuleSupplier;

@@ -4,8 +4,6 @@ import static com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import static com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 
 import com.verygood.security.larky.parser.Computation;
-import com.verygood.security.larky.runtime.EvaluationMetadata;
-import com.verygood.security.larky.runtime.EvaluationSettings;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Arrays;
