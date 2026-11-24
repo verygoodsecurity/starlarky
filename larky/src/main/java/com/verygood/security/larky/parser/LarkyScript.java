@@ -190,7 +190,7 @@ public class LarkyScript {
    * runner writes), computed through the evaluation's {@link HostValues}: the output may be a
    * struct whose {@code __repr__} is Starlark code, which needs a current evaluation.
    */
-  public String executeSkylarkWithOutputAsString(
+  public String executeStarlarkWithOutputAsString(
       StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException, EvalException {
     LarkyEvaluator evaluator = new LarkyEvaluator(this, moduleSet, console);

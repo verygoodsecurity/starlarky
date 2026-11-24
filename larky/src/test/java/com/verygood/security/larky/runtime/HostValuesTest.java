@@ -279,7 +279,7 @@ public class HostValuesTest {
             "");
     String out =
         new LarkyScript(LarkyScript.StarlarkMode.STRICT)
-            .executeSkylarkWithOutputAsString(
+            .executeStarlarkWithOutputAsString(
                 InMemMapBackedStarFile.createStarFile("main.star", script),
                 new ModuleSupplier().create(),
                 new TestingConsole());

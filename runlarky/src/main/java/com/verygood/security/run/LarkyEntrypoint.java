@@ -103,7 +103,7 @@ public class LarkyEntrypoint implements Callable<Integer> {
     // through the evaluation's HostValues: a struct's toString runs its __repr__ (Starlark code)
     String output =
       new LarkyScript(StarlarkMode.STRICT)
-        .executeSkylarkWithOutputAsString(
+        .executeStarlarkWithOutputAsString(
           prependMergedStarFile,
           new ModuleSupplier().create(),
           console
