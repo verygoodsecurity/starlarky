@@ -9,12 +9,12 @@ import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.verygood.security.larky.LarkySemantics;
-import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
-import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.StarFile;
+import com.verygood.security.larky.runtime.DefaultLarkyInterpreter;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;

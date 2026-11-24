@@ -7,7 +7,7 @@ import static org.junit.Assert.assertTrue;
 import com.verygood.security.larky.jsr223.LarkyScriptEngine.GlobalScope;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
-import com.verygood.security.larky.parser.LarkyEvaluator;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 import java.io.StringWriter;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.List;

@@ -2,8 +2,8 @@ package com.verygood.security.larky.jsr223;
 
 import com.verygood.security.larky.console.StreamWriterConsole;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
-import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
-import com.verygood.security.larky.parser.LarkyEvaluator;
+import com.verygood.security.larky.runtime.DefaultLarkyInterpreter;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;

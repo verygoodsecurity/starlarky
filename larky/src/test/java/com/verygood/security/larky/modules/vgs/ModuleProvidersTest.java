@@ -6,8 +6,8 @@ import static org.junit.Assert.assertTrue;
 
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
-import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.ParsedStarFile;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 import java.util.List;
 import java.util.Map;
 import javax.script.Bindings;

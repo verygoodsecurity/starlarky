@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;

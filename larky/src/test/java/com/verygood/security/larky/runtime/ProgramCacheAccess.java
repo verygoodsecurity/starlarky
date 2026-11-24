@@ -1,4 +1,4 @@
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 /** Exposes ProgramCache's counters to tests in other packages. */
 public final class ProgramCacheAccess {

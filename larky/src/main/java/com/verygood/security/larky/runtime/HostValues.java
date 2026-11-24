@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
+import com.verygood.security.larky.parser.ParsedStarFile;
+import com.verygood.security.larky.parser.StarlarkUtil;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;

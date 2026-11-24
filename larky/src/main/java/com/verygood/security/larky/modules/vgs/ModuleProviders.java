@@ -23,7 +23,7 @@ import net.starlark.java.eval.StarlarkValue;
  * </ul>
  *
  * <p>The run's {@code StarlarkThread} carries them, so they reach exactly that run: give them in the bindings of an
- * evaluation, under {@link com.verygood.security.larky.parser.LarkyEvaluator#MODULE_PROVIDERS}.
+ * evaluation, under {@link com.verygood.security.larky.runtime.LarkyEvaluator#MODULE_PROVIDERS}.
  */
 public final class ModuleProviders implements StarlarkValue {
 
@@ -66,7 +66,7 @@ public final class ModuleProviders implements StarlarkValue {
   }
 
   /**
-   * The providers a host gave under {@link com.verygood.security.larky.parser.LarkyEvaluator#MODULE_PROVIDERS}: none
+   * The providers a host gave under {@link com.verygood.security.larky.runtime.LarkyEvaluator#MODULE_PROVIDERS}: none
    * for {@code null}.
    *
    * @throws IllegalArgumentException if {@code value} is anything else than providers
@@ -78,7 +78,7 @@ public final class ModuleProviders implements StarlarkValue {
     if (value instanceof ModuleProviders providers) {
       return providers;
     }
-    throw new IllegalArgumentException(com.verygood.security.larky.parser.LarkyEvaluator.MODULE_PROVIDERS
+    throw new IllegalArgumentException(com.verygood.security.larky.runtime.LarkyEvaluator.MODULE_PROVIDERS
         + " must be a " + ModuleProviders.class.getName() + ", not " + value.getClass().getName());
   }
 
