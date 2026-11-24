@@ -60,10 +60,12 @@ public final class ParsedStarFile {
   }
 
   /**
-   * How to read the values of this result (struct fields that are properties, {@code str()} of a
-   * struct, calling a function value) after the evaluation has finished. It carries the
-   * semantics and step limit of the evaluation that produced this result, and runs each access on
-   * a fresh thread. See {@link HostValues}.
+   * Returns a helper for using Starlark values from Java after the script finishes.
+   * Use it to read fields, convert values to strings, or call functions.
+   *
+   * <p>These operations can run Starlark code, such as a property's getter. {@link HostValues}
+   * runs each operation on a fresh Starlark thread with the evaluation's settings and remaining
+   * step budget.
    */
   public HostValues hostValues() {
     return hostValues;
