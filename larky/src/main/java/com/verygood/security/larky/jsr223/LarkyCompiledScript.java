@@ -9,6 +9,7 @@ import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.runtime.EvaluationMetadata;
 import com.verygood.security.larky.runtime.EvaluationSettings;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
@@ -77,6 +78,10 @@ public class LarkyCompiledScript extends CompiledScript {
   @Override
   public ScriptEngine getEngine() {
     return engine;
+  }
+
+  Console console(ScriptContext context) {
+    return engine.console(context.getWriter());
   }
 
   /**
@@ -248,7 +253,7 @@ public class LarkyCompiledScript extends CompiledScript {
       StarFile script = interpretedFile(context);
       final DefaultLarkyInterpreter larkyInterpreter =
           new DefaultLarkyInterpreter(LARKY_MODE, settings, globalBindings, engineBindings);
-      result = larkyInterpreter.evaluate(script, engine.console(context.getWriter()), metadata::set);
+      result = larkyInterpreter.evaluate(script, console(context), metadata::set);
       EvaluationMetadata resultMetadata = result.metadata();
       completedMetadata = resultMetadata != null ? resultMetadata : metadata.get();
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |

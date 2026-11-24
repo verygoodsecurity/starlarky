@@ -299,7 +299,7 @@ public class LarkyScriptEngineInvocableTest {
     assertThrows(NoSuchMethodException.class, () -> ((Invocable) engine).invokeFunction("missing"));
     assertThrows(NoSuchMethodException.class, () -> ((Invocable) engine).invokeMethod("text", "missing"));
     // a call refused for a retired setting binding does not start either
-    engine.put(com.verygood.security.larky.parser.LarkyEvaluator.RETIRED_EXECUTION_STEPS, 1);
+    engine.put(com.verygood.security.larky.runtime.LarkyEvaluator.RETIRED_EXECUTION_STEPS, 1);
     assertThrows(IllegalArgumentException.class, () -> ((Invocable) engine).invokeFunction("missing"));
 
     assertSame(evaluation, context.metadata());

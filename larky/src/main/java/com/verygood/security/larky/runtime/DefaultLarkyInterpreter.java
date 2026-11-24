@@ -3,6 +3,9 @@ package com.verygood.security.larky.runtime;
 import static com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import static com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 
+import com.verygood.security.larky.parser.Computation;
+import com.verygood.security.larky.runtime.EvaluationMetadata;
+import com.verygood.security.larky.runtime.EvaluationSettings;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Arrays;
@@ -101,9 +104,14 @@ public class DefaultLarkyInterpreter {
       StarFile script, Writer writer, java.util.List<String> imports, I input,
       Computation<I, O> computation, java.util.function.Consumer<EvaluationMetadata> metadata)
       throws IOException, EvalException, InterruptedException {
-    String verbose = interpreter.getGlobals().getOrDefault(VERBOSE, "false").toString();
-    var console = new StreamWriterConsole(writer, Boolean.parseBoolean(verbose));
-    var evaluator = new LarkyEvaluator(interpreter, moduleSet, console);
+    return compute(script, new StreamWriterConsole(writer), imports, input, computation, metadata);
+  }
+
+  public <I, O> O compute(
+      StarFile script, Console console, java.util.List<String> imports, I input,
+      Computation<I, O> computation, java.util.function.Consumer<EvaluationMetadata> metadata)
+      throws IOException, EvalException, InterruptedException {
+    var evaluator = new LarkyEvaluator(larkyScript, moduleSet, console);
     try {
       return evaluator.compute(script, imports, input, computation);
     } finally {

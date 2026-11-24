@@ -25,7 +25,7 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Maps;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.util.List;
 import java.util.Map;

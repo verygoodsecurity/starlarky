@@ -5,7 +5,7 @@ import static org.junit.Assert.assertThrows;
 
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.modules.vgs.VgsHttpResponse;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.util.ArrayList;
 import java.util.List;

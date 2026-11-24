@@ -23,7 +23,7 @@ import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
 import com.verygood.security.larky.objects.descriptor.LarkyNativeProperty;
 import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.type.LarkyType;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;

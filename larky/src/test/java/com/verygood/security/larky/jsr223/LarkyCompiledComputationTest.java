@@ -26,7 +26,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.verygood.security.larky.modules.vgs.ShortCircuitResponse;
 import com.verygood.security.larky.parser.Computation;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.parser.EvaluationMetadata;
 import com.verygood.security.larky.parser.EvaluationSettings;
 import java.io.StringWriter;
@@ -65,6 +65,19 @@ public class LarkyCompiledComputationTest {
         LarkyScriptEvaluator.compute(second, firstContext, null, (run, unused) -> run.call("process")));
     // refused before it started: the context keeps the last computation's metadata
     assertSame(before, firstContext.metadata());
+  }
+
+  @Test
+  public void computationUsesTheEngineVerboseConsole() throws Exception {
+    var engine = LarkyScriptEngine.builder().verbose(true).build();
+    var compiled = engine.compile("def process(): print('hello')", "console.star");
+    var context = new LarkyScriptContext();
+    var writer = new StringWriter();
+    context.setWriter(writer);
+
+    LarkyScriptEvaluator.compute(compiled, context, null, (run, unused) -> run.call("process"));
+
+    assertEquals("console.star:1:21: hello" + System.lineSeparator(), writer.toString());
   }
 
   @Test

@@ -18,6 +18,7 @@ package com.verygood.security.larky.parser;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.LarkySemantics;

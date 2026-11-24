@@ -17,7 +17,7 @@
 package com.verygood.security.larky.jsr223;
 
 import com.verygood.security.larky.parser.Computation;
-import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
+import com.verygood.security.larky.runtime.DefaultLarkyInterpreter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
@@ -63,7 +63,7 @@ public final class LarkyScriptEvaluator {
           LarkyCompiledScript.LARKY_MODE, context.getSettings(), globals,
           context.getBindings(ScriptContext.ENGINE_SCOPE));
       return interpreter.compute(
-          script.interpretedFile(context), context.getWriter(), imports, input, computation,
+          script.interpretedFile(context), script.console(context), imports, input, computation,
           context::setMetadata);
     } catch (IOException | InterruptedException | EvalException | StarlarkEvalWrapper.Exc.RuntimeEvalException
              | Starlark.UncheckedEvalException e) {

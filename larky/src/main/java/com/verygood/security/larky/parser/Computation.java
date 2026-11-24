@@ -16,6 +16,7 @@
 
 package com.verygood.security.larky.parser;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -44,7 +45,8 @@ public interface Computation<I, O> {
     private final Map<String, Module> imports;
     private final Mutability mutability;
 
-    Scope(Module module, Map<String, Module> imports, Mutability mutability) {
+    /** Creates a scope tied to the mutability of an active entry evaluation. */
+    public Scope(Module module, Map<String, Module> imports, Mutability mutability) {
       this.module = module;
       this.imports = imports;
       this.mutability = mutability;

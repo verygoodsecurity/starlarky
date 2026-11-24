@@ -27,7 +27,7 @@ import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.modules.vgs.ShortCircuit;
 import com.verygood.security.larky.modules.vgs.ShortCircuitResponse;
 import com.verygood.security.larky.modules.vgs.VgsHttpResponse;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.parser.EvaluationMetadata;
 import com.verygood.security.larky.parser.EvaluationSettings;
 import java.io.StringWriter;

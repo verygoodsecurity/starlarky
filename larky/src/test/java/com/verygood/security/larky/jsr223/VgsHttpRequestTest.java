@@ -23,7 +23,7 @@ import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.modules.urllib.UrllibRequest;
 import com.verygood.security.larky.modules.vgs.VgsHttpRequest;
 import com.verygood.security.larky.objects.type.TypeClassLookup;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.util.ArrayList;
 import java.util.List;
