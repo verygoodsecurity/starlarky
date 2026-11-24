@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import java.io.PrintWriter;
@@ -105,7 +108,7 @@ class OwnedNativeInventoryTest {
       }
       String script = "load(\"" + label + "\", \"" + sym + "\")\n";
       try {
-        new LarkyScript(
+        new CachedTestScript(
                 ModuleSupplier.CORE_MODULES,
                 LarkyScript.StarlarkMode.STRICT,
                 Map.of("ctx", new HashMap<String, Object>()))
@@ -161,7 +164,7 @@ class OwnedNativeInventoryTest {
       ParsedStarFile result;
       try {
         result =
-            new LarkyScript(
+            new CachedTestScript(
                     ModuleSupplier.CORE_MODULES,
                     LarkyScript.StarlarkMode.STRICT,
                     Map.of("ctx", new HashMap<String, Object>()))

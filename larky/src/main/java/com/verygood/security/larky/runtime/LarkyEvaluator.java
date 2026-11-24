@@ -1,13 +1,19 @@
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.verygood.security.larky.parser.EvaluationMetadata;
+import com.verygood.security.larky.parser.EvaluationSettings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.flogger.FluentLogger;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ResourceContentStarFile;
+import com.verygood.security.larky.parser.StarFile;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -114,14 +120,22 @@ public final class LarkyEvaluator {
     this(larkyScript, larkyScript.getModuleSet(), console);
   }
 
-  LarkyEvaluator(LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console) {
+  public LarkyEvaluator(
+      LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console) {
+    this(larkyScript, moduleSet, console, ModuleCache.SHARED);
+  }
+
+  @VisibleForTesting
+  LarkyEvaluator(
+      LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console,
+      ModuleCache moduleCache) {
     this.reporter = new Reporter(checkNotNull(console));
     this.moduleSet = checkNotNull(moduleSet);
     this.validationMode = larkyScript.getValidation();
     this.larkySemantics = larkyScript.getLarkySemantics();
-    this.moduleCache = larkyScript.getModuleCache();
+    this.moduleCache = checkNotNull(moduleCache);
     this.moduleRegistry =
-        moduleCache.isEnabled() ? ModuleCache.Registry.from(moduleSet.getModules()) : null;
+        this.moduleCache.isEnabled() ? ModuleCache.Registry.from(moduleSet.getModules()) : null;
     //todo(mahmoudimus): convert to builder pattern
     this.settings = larkyScript.getSettings();
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
@@ -131,10 +145,10 @@ public final class LarkyEvaluator {
    * How host code reads the values of what this evaluator ran: with this evaluator's semantics,
    * the steps left of its step limit, its expiration date, and its reporter (where {@code print()}
    * of callbacks went when they ran on the evaluation's own thread), each access on a fresh
-   * thread. See {@link HostValues}.
+   * thread. See {@link StarlarkInterop}.
    */
-  public HostValues hostValues() {
-    return HostValues.of(
+  public StarlarkInterop interop() {
+    return StarlarkInterop.of(
         getLarkySemantics(),
         settings.stepLimit().isPresent()
             ? Long.valueOf(Math.max(0, settings.stepLimit().getAsLong() - chargedSteps()))
@@ -169,7 +183,7 @@ public final class LarkyEvaluator {
   @Nullable private EvaluationMetadata lastMetadata;
 
   // The expiration date of the last file this evaluator executed (the main script, whose loads
-  // execute before it), and with evaluationSteps what hostValues() continues from.
+  // execute before it), and with evaluationSteps what interop() continues from.
   private long lastExpirationMs = Long.MAX_VALUE;
 
   /**

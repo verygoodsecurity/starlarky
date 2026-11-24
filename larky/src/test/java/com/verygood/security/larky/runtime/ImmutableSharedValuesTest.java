@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.modules.crypto.PublicKey.ECC.LarkyECPoint;
@@ -44,8 +46,8 @@ public class ImmutableSharedValuesTest {
   private static final ModuleCache CACHE = new ModuleCache(true);
 
   private static LarkyEvaluator newEvaluator() {
-    return new LarkyEvaluator(
-        new LarkyScript(LarkyScript.StarlarkMode.STRICT).withModuleCache(CACHE),
+    return CachedTestScript.evaluator(
+        new CachedTestScript(LarkyScript.StarlarkMode.STRICT).withModuleCache(CACHE),
         new TestingConsole());
   }
 

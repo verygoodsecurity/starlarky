@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import com.verygood.security.larky.parser.EvaluationSettings;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ResourceContentStarFile;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
@@ -73,8 +77,8 @@ public class ModuleAdmissionSnapshotTest {
     Map<String, String> status = new TreeMap<>();
     for (String label : order) {
       LarkyEvaluator ev =
-          new LarkyEvaluator(
-              new LarkyScript(
+          CachedTestScript.evaluator(
+              new CachedTestScript(
                       ModuleSupplier.CORE_MODULES,
                       LarkyScript.StarlarkMode.STRICT,
                       ImmutableMap.of(),

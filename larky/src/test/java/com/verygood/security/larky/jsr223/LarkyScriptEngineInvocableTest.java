@@ -114,6 +114,18 @@ public class LarkyScriptEngineInvocableTest {
   }
 
   @Test
+  public void invokeFunctionPrintsSourceLocationWhenEnabled() throws Exception {
+    LarkyScriptEngine engine = LarkyScriptEngine.builder().verbose(true).build();
+    StringWriter writer = new StringWriter();
+    engine.getContext().setWriter(writer);
+    engine.eval("def hello():\n    print('hello')\n");
+
+    engine.invokeFunction("hello");
+
+    assertEquals("larky.star:2:10: hello" + System.lineSeparator(), writer.toString());
+  }
+
+  @Test
   public void aFunctionNoEvalDefinedIsNoSuchMethod() throws Exception {
     final Invocable engine = (Invocable) evaluated("value = 1\n");
 

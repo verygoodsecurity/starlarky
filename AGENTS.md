@@ -12,6 +12,9 @@ Read [README.md](README.md), [CONTRIBUTING.md](CONTRIBUTING.md), and
   may describe an earlier upstream revision.
 - `larky/`: the JSR223 engine, module loading and caching, Python compatibility
   layer, native Java modules, and `.star` libraries in `src/main/resources/`.
+  Use `com.verygood.security.larky.runtime` for evaluation, execution context,
+  and host access to script values. File sources, load labels, and Java
+  entry points such as `LarkyScript` and `ParsedStarFile` are in `parser`.
 - `runlarky/`: the picocli CLI and REPL, packaged as a GraalVM native executable.
 - `pylarky/`: the Python wrapper around the bundled native runner.
 - `bin/` and `third_party/`: upstream synchronization scripts, patches, and

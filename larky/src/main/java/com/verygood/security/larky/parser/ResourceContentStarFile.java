@@ -110,7 +110,7 @@ public class ResourceContentStarFile implements StarFile {
    * ResourceContentStarFileTest compares the two.
    */
   @Nullable
-  static String[] splitLabel(String label) {
+  public static String[] splitLabel(String label) {
     int n = label.length();
     for (int at = label.indexOf('@'); at >= 0; at = label.indexOf('@', at + 1)) {
       int end = at + 1;
@@ -152,7 +152,7 @@ public class ResourceContentStarFile implements StarFile {
    * The load label of a resource path made by {@link #resolveResourceName}: {@code
    * "stdlib/re.star"} is {@code "@stdlib//re"}.
    */
-  static String labelOf(String resourcePath) {
+  public static String labelOf(String resourcePath) {
     int slash = resourcePath.indexOf('/');
     if (slash <= 0) {
       return resourcePath;
@@ -204,7 +204,7 @@ public class ResourceContentStarFile implements StarFile {
     return content.clone();
   }
 
-  final boolean isBundledLibrary() {
+  public final boolean isBundledLibrary() {
     return bundledLibrary;
   }
 

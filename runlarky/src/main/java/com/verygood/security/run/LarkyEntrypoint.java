@@ -130,10 +130,10 @@ public class LarkyEntrypoint implements Callable<Integer> {
             java.util.Map.of(),
             settings.build());
 
-    // through the evaluation's HostValues: a struct's toString runs its __repr__ (Starlark code)
+    // through the evaluation's StarlarkInterop: a struct's toString runs its __repr__ (Starlark code)
     String output =
       larkyScript
-        .executeSkylarkWithOutputAsString(
+        .executeStarlarkWithOutputAsString(
           prependMergedStarFile,
           new ModuleSupplier().create(),
           console,

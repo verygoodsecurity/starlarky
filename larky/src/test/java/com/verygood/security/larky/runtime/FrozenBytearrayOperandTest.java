@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import java.util.HashMap;
@@ -42,7 +45,7 @@ public class FrozenBytearrayOperandTest {
             "result = (type(x), x, BA)",
             "");
     ParsedStarFile r =
-        new LarkyScript(
+        new CachedTestScript(
                 ModuleSupplier.CORE_MODULES,
                 LarkyScript.StarlarkMode.STRICT,
                 Map.of("ctx", new HashMap<String, Object>()))

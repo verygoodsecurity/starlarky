@@ -132,12 +132,12 @@ public class LarkyScriptEngineModulesTest {
     // Scripts no other test evaluates, so neither is cached yet.
     String host = HOST + "\nhost_marker = 'namespaces'\n";
     String customer = CUSTOMER + "\nmarker = 'namespaces'\n";
-    long before = com.verygood.security.larky.parser.ProgramCacheAccess.scriptCount();
+    long before = com.verygood.security.larky.runtime.ProgramCacheAccess.scriptCount();
     eval(host, Map.of("larky.star", customer), "tenant-a");
     eval(host, Map.of("larky.star", customer), "tenant-a");
-    long one = com.verygood.security.larky.parser.ProgramCacheAccess.scriptCount();
+    long one = com.verygood.security.larky.runtime.ProgramCacheAccess.scriptCount();
     eval(host, Map.of("larky.star", customer), "tenant-b");
-    long two = com.verygood.security.larky.parser.ProgramCacheAccess.scriptCount();
+    long two = com.verygood.security.larky.runtime.ProgramCacheAccess.scriptCount();
     // The host script is cached once; the customer file once per namespace.
     assertThat(one - before).isEqualTo(2);
     assertThat(two - one).isEqualTo(1);

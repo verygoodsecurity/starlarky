@@ -16,6 +16,8 @@
 
 package com.verygood.security.larky.parser;
 
+import com.verygood.security.larky.runtime.LarkyEvaluator;
+import com.verygood.security.larky.runtime.StarlarkInterop;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import java.time.Instant;
 import java.util.Objects;
@@ -41,7 +43,7 @@ import javax.annotation.Nullable;
  *
  * <p>They are the host's, not the script's: the script cannot read them, and nothing the script
  * does changes them for this evaluation or a later one. Each evaluation reads them once, when it
- * starts, and {@link HostValues} reads after it continue from them.
+ * starts, and {@link StarlarkInterop} reads after it continue from them.
  *
  * <p>They were formerly given as {@code LARKY_EVAL_*} bindings; such bindings are now refused
  * ({@link LarkyEvaluator#refuseRetiredSettings}).
@@ -107,7 +109,8 @@ public final class EvaluationSettings {
 
   // Applied to every file the evaluation executes. chargedSteps is what the files before it used
   // of the evaluation's step limit; a library file that is not charged has no step limit.
-  void applyTo(
+  /** Installs these settings on a script thread, accounting for steps already charged. */
+  public void applyTo(
       net.starlark.java.eval.StarlarkThread thread, boolean libraryFile, long chargedSteps) {
     moduleProviders.installOn(thread);
     if (stepLimit != Long.MAX_VALUE && !(libraryFile && !chargeLibraryInit)) {

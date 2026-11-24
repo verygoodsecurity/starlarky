@@ -1,4 +1,4 @@
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 
 import static com.google.common.truth.Truth.assertThat;
@@ -7,6 +7,8 @@ import static org.junit.Assert.assertThrows;
 import com.google.common.collect.ImmutableMap;
 
 import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
 
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.Mutability;

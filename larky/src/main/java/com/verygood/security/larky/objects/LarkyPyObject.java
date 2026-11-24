@@ -1,6 +1,6 @@
 package com.verygood.security.larky.objects;
 
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.objects.type.LarkyClassType;
 import net.starlark.java.syntax.StarlarkType;
 import com.google.common.collect.ImmutableCollection;

@@ -18,7 +18,7 @@ package com.verygood.security.run.repl;
 
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.ModuleSupplier;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import java.io.IOException;
 import java.net.JarURLConnection;
 import java.net.URI;

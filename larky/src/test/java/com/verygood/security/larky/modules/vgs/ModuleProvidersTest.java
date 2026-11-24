@@ -13,6 +13,7 @@ import com.verygood.security.larky.parser.EvaluationSettings;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 import java.util.List;
 import java.util.Map;
 import javax.script.ScriptException;

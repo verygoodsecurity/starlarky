@@ -1,6 +1,7 @@
 package com.verygood.security.larky.modules.re;
 
 import com.google.errorprone.annotations.concurrent.LazyInit;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
@@ -54,8 +55,9 @@ final class PyRegex {
   // Translated on first use. Translation and RE2 Patterns are immutable, so the racy lazy
   // initialization below is harmless: two threads may both compute a value, and either is correct.
   @LazyInit private volatile Translation ascii;
-  // Compiled variants by variantKey(), added copy-on-write: a lost update only means compiling a
-  // variant again.
+  // Compiled variants by variantKey(), added copy-on-write. Reads take no lock; a thread that
+  // compiled a missing variant publishes it under the lock on this, so concurrent misses cannot
+  // drop each other's entries.
   @LazyInit private volatile ImmutableMap<Integer, Pattern> variants = ImmutableMap.of();
 
   PyRegex(String source, int flags) throws EvalException {
@@ -91,7 +93,8 @@ final class PyRegex {
     return t;
   }
 
-  private Pattern variant(boolean asciiMode, int dollar, boolean prefixed, boolean full)
+  @VisibleForTesting
+  Pattern variant(boolean asciiMode, int dollar, boolean prefixed, boolean full)
       throws EvalException {
     int key = ((asciiMode ? 1 : 0) * 3 + dollar) * 4 + (prefixed ? 2 : 0) + (full ? 1 : 0);
     Pattern p = variants.get(key);
@@ -132,15 +135,31 @@ final class PyRegex {
       throw new EvalException("re.error: " + e.getDescription() + " (unsupported by Larky's "
           + "linear-time regex engine)");
     }
+    return publish(key, p);
+  }
+
+  /**
+   * Caches {@code p} as variant {@code key} unless another thread did first, and returns the
+   * cached pattern.
+   */
+  private synchronized Pattern publish(int key, Pattern p) {
     ImmutableMap<Integer, Pattern> current = variants;
-    if (!current.containsKey(key)) {
-      variants =
-          ImmutableMap.<Integer, Pattern>builderWithExpectedSize(current.size() + 1)
-              .putAll(current)
-              .put(key, p)
-              .buildOrThrow();
+    Pattern existing = current.get(key);
+    if (existing != null) {
+      return existing;
     }
+    variants =
+        ImmutableMap.<Integer, Pattern>builderWithExpectedSize(current.size() + 1)
+            .putAll(current)
+            .put(key, p)
+            .buildOrThrow();
     return p;
+  }
+
+  /** The number of variants compiled and cached so far. */
+  @VisibleForTesting
+  int cachedVariantCount() {
+    return variants.size();
   }
 
   /**

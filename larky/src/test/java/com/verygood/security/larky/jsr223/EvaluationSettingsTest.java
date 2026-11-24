@@ -7,7 +7,7 @@ import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.parser.EvaluationMetadata;
 import com.verygood.security.larky.parser.EvaluationMetadata.Outcome;
 import com.verygood.security.larky.parser.EvaluationSettings;
-import com.verygood.security.larky.parser.LarkyEvaluator;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import java.time.Instant;
 import java.util.HashMap;
@@ -156,7 +156,7 @@ public class EvaluationSettingsTest {
     assertThat(result.getGlobals()).doesNotContainKey(LarkyEvaluator.RETIRED_EXECUTION_STEPS);
     assertThat(((LarkyScriptContext) engine.getContext()).metadata()).isSameInstanceAs(m);
     // host reads continue from what the whole evaluation left of the limit
-    assertThat(result.hostValues().remainingSteps()).isEqualTo(1_000_000L - m.executedSteps());
+    assertThat(result.interop().remainingSteps()).isEqualTo(1_000_000L - m.executedSteps());
   }
 
   @Test

@@ -13,11 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.testing.TestingConsole;
@@ -51,7 +54,7 @@ public class ThreadFieldIsolationTest {
 
   private static ParsedStarFile run(String script, ModuleCache cache, Console console)
       throws Exception {
-    return new LarkyScript(ModuleSupplier.CORE_MODULES, LarkyScript.StarlarkMode.STRICT)
+    return new CachedTestScript(ModuleSupplier.CORE_MODULES, LarkyScript.StarlarkMode.STRICT)
         .withModuleCache(cache)
         .evaluate(InMemMapBackedStarFile.createStarFile("main.star", script), console);
   }

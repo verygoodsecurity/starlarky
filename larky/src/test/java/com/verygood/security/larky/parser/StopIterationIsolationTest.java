@@ -21,6 +21,7 @@ import static org.junit.Assert.fail;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.modules.types.results.LarkyStopIteration;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 import java.nio.charset.StandardCharsets;
 import net.starlark.java.eval.EvalException;
 import org.junit.Test;

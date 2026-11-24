@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;

@@ -112,7 +112,7 @@ public class IsolationStructureTest {
   private static final String STARLARK_VALUE = "net/starlark/java/eval/StarlarkValue";
   private static final String FREEZABLE = "net/starlark/java/eval/Mutability$Freezable";
   private static final String THREAD = "net/starlark/java/eval/StarlarkThread";
-  private static final String CURRENT_EVALUATION = "com.verygood.security.larky.parser.CurrentEvaluation";
+  private static final String CURRENT_EVALUATION = "com.verygood.security.larky.runtime.CurrentEvaluation";
   private static final String MUTABILITY_DESC = "Lnet/starlark/java/eval/Mutability;";
   private static final Set<String> IMMUTABLE_ANNOTATIONS =
       Set.of(
@@ -432,7 +432,7 @@ public class IsolationStructureTest {
       }
     }
     java.lang.reflect.Field f =
-        Class.forName("com.verygood.security.larky.parser.ModuleAdmission")
+        Class.forName("com.verygood.security.larky.runtime.ModuleAdmission")
             .getDeclaredField("KNOWN_IMMUTABLE");
     f.setAccessible(true);
     @SuppressWarnings("unchecked")

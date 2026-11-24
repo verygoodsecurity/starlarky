@@ -1,8 +1,10 @@
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import static com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 
+import com.verygood.security.larky.parser.EvaluationMetadata;
+import com.verygood.security.larky.parser.EvaluationSettings;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Arrays;
@@ -15,6 +17,9 @@ import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.StreamWriterConsole;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ParsedStarFile;
+import com.verygood.security.larky.parser.StarFile;
 
 import net.starlark.java.eval.EvalException;
 
@@ -22,9 +27,8 @@ import javax.script.Bindings;
 
 public class DefaultLarkyInterpreter {
 
-  public static final String VERBOSE = "__VERBOSE__";
   private final ModuleSet moduleSet;
-  private final LarkyScript interpreter;
+  private final LarkyScript larkyScript;
 
   /** As {@link #DefaultLarkyInterpreter(StarlarkMode, EvaluationSettings, Bindings...)}, with no settings. */
   public DefaultLarkyInterpreter(StarlarkMode mode, Bindings... bindings) throws EvalException {
@@ -46,7 +50,7 @@ public class DefaultLarkyInterpreter {
     Map<String, Object> merged = new LinkedHashMap<>();
     Arrays.stream(bindings).filter(Objects::nonNull).forEach(merged::putAll);
     LarkyEvaluator.refuseRetiredSettings(merged.keySet());
-    this.interpreter =
+    this.larkyScript =
         new LarkyScript(
             ModuleSupplier.CORE_MODULES,
             mode,
@@ -56,11 +60,11 @@ public class DefaultLarkyInterpreter {
             settings);
   }
 
-  // Converts on a HostValues thread, bounded by the evaluation's step limit and expiration date.
+  // Converts on a fresh Starlark thread using the evaluation's step limit and deadline.
   private static Map<String, Object> toStarlark(Map<String, Object> merged, EvaluationSettings settings)
       throws EvalException {
-    HostValues host =
-        HostValues.of(
+    StarlarkInterop interop =
+        StarlarkInterop.of(
             LarkySemantics.LARKY_SEMANTICS,
             settings.stepLimit().isPresent() ? settings.stepLimit().getAsLong() : null,
             settings.expirationMs().orElse(Long.MAX_VALUE),
@@ -68,7 +72,7 @@ public class DefaultLarkyInterpreter {
     Map<String, Object> converted = new HashMap<>();
     try {
       for (Map.Entry<String, Object> e : merged.entrySet()) {
-        converted.put(e.getKey(), host.toStarlark(e.getValue()));
+        converted.put(e.getKey(), interop.toStarlark(e.getValue()));
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -78,21 +82,23 @@ public class DefaultLarkyInterpreter {
   }
 
   public ParsedStarFile evaluate(StarFile script, Writer writer) throws IOException, EvalException {
-    String verbose = interpreter.getGlobals().getOrDefault(VERBOSE, "false").toString();
-    return evaluate(script, new StreamWriterConsole(writer, Boolean.parseBoolean(verbose)));
+    return evaluate(script, new StreamWriterConsole(writer));
   }
 
   /** As {@link #evaluate(StarFile, Writer)}; see {@link LarkyScript#evaluate(StarFile, ModuleSet, Console, java.util.function.Consumer)}. */
   public ParsedStarFile evaluate(
       StarFile script, Writer writer, java.util.function.Consumer<EvaluationMetadata> metadata)
       throws IOException, EvalException {
-    String verbose = interpreter.getGlobals().getOrDefault(VERBOSE, "false").toString();
-    return interpreter.evaluate(
-        script, moduleSet, new StreamWriterConsole(writer, Boolean.parseBoolean(verbose)), metadata);
+    return evaluate(script, new StreamWriterConsole(writer), metadata);
+  }
+
+  public ParsedStarFile evaluate(
+      StarFile script, Console console, java.util.function.Consumer<EvaluationMetadata> metadata)
+      throws IOException, EvalException {
+    return larkyScript.evaluate(script, moduleSet, console, metadata);
   }
 
   public ParsedStarFile evaluate(StarFile script, Console console) throws IOException, EvalException {
-    return interpreter.evaluate(
-        script, moduleSet, console);
+    return larkyScript.evaluate(script, moduleSet, console);
   }
 }

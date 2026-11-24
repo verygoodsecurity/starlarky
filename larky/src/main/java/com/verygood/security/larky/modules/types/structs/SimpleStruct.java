@@ -8,8 +8,8 @@ import com.verygood.security.larky.modules.types.LarkyCallable;
 import com.verygood.security.larky.modules.types.LarkyCollection;
 import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
-import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.StarlarkUtil;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;

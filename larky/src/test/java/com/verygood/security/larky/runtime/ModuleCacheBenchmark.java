@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static org.junit.Assume.assumeTrue;
 
+import com.verygood.security.larky.parser.EvaluationMetadata;
+import com.verygood.security.larky.parser.EvaluationSettings;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
@@ -56,7 +60,7 @@ public class ModuleCacheBenchmark {
 
   private static long[] run(String name, String src, ModuleCache cache) throws Exception {
     LarkyScript script =
-        new LarkyScript(
+        new CachedTestScript(
                 ModuleSupplier.CORE_MODULES,
                 LarkyScript.StarlarkMode.STRICT,
                 ImmutableMap.of(),

@@ -16,6 +16,7 @@
 
 package com.verygood.security.larky.parser;
 
+import com.verygood.security.larky.runtime.StarlarkInterop;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
@@ -44,31 +45,31 @@ public final class ParsedStarFile {
   private final Module module;
 
   @EqualsAndHashCode.Exclude @ToString.Exclude
-  private final HostValues hostValues;
+  private final StarlarkInterop interop;
 
   @EqualsAndHashCode.Exclude @ToString.Exclude
   @Nullable
   private final EvaluationMetadata metadata;
 
   public ParsedStarFile(String location, Map<String, Object> globals, Module module) {
-    this(location, globals, module, HostValues.create());
+    this(location, globals, module, StarlarkInterop.create());
   }
 
   public ParsedStarFile(
-      String location, Map<String, Object> globals, Module module, HostValues hostValues) {
-    this(location, globals, module, hostValues, null);
+      String location, Map<String, Object> globals, Module module, StarlarkInterop interop) {
+    this(location, globals, module, interop, null);
   }
 
   public ParsedStarFile(
       String location,
       Map<String, Object> globals,
       Module module,
-      HostValues hostValues,
+      StarlarkInterop interop,
       @Nullable EvaluationMetadata metadata) {
     this.location = Preconditions.checkNotNull(location);
     this.globals = ImmutableMap.copyOf(Preconditions.checkNotNull(globals));
     this.module = module;
-    this.hostValues = Preconditions.checkNotNull(hostValues);
+    this.interop = Preconditions.checkNotNull(interop);
     this.metadata = metadata;
   }
 
@@ -82,13 +83,15 @@ public final class ParsedStarFile {
   }
 
   /**
-   * How to read the values of this result (struct fields that are properties, {@code str()} of a
-   * struct, calling a function value) after the evaluation has finished. It carries the
-   * semantics and step limit of the evaluation that produced this result, and runs each access on
-   * a fresh thread. See {@link HostValues}.
+   * Returns a helper for using Starlark values from Java after the script finishes.
+   * Use it to read fields, convert values to strings, or call functions.
+   *
+   * <p>These operations can run Starlark code, such as a property's getter. {@link StarlarkInterop}
+   * runs each operation on a fresh Starlark thread with the evaluation's settings and remaining
+   * step budget.
    */
-  public HostValues hostValues() {
-    return hostValues;
+  public StarlarkInterop interop() {
+    return interop;
   }
 
   /**

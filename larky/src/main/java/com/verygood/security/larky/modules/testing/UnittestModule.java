@@ -7,7 +7,7 @@ import java.util.Enumeration;
 import java.util.Iterator;
 
 import com.verygood.security.larky.modules.utils.NullPrintStream;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 
 import junit.framework.Test;
 import junit.framework.TestCase;

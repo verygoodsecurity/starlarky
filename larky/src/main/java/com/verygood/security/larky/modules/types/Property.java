@@ -1,7 +1,7 @@
 package com.verygood.security.larky.modules.types;
 
 import com.verygood.security.larky.objects.descriptor.LarkyDataDescriptor;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.objects.type.LarkyType;
 
 import net.starlark.java.annot.Param;

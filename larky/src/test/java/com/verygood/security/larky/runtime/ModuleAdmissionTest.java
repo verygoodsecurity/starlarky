@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -90,8 +92,8 @@ class ModuleAdmissionTest {
           "");
 
   private static LarkyEvaluator evaluator(ModuleCache cache) {
-    return new LarkyEvaluator(
-        new LarkyScript(
+    return CachedTestScript.evaluator(
+        new CachedTestScript(
                 ModuleSupplier.CORE_MODULES,
                 LarkyScript.StarlarkMode.STRICT,
                 Map.of("init_counter", InitCounter.INSTANCE))

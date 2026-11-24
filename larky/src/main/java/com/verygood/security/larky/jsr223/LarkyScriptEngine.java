@@ -1,7 +1,6 @@
 package com.verygood.security.larky.jsr223;
 
 import com.verygood.security.larky.console.StreamWriterConsole;
-import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
 import com.verygood.security.larky.parser.EvaluationSettings;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -68,6 +67,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
   public static final class Builder {
 
     private GlobalScope globalScope = GlobalScope.JSR223;
+    private boolean verbose;
 
     private Builder() {
     }
@@ -78,22 +78,30 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
       return this;
     }
 
+    /** Includes the Starlark source location in print output when enabled. */
+    public Builder verbose(boolean verbose) {
+      this.verbose = verbose;
+      return this;
+    }
+
     public LarkyScriptEngine build() {
-      return new LarkyScriptEngine(globalScope);
+      return new LarkyScriptEngine(globalScope, verbose);
     }
   }
 
   private final GlobalScope globalScope;
+  private final boolean verbose;
 
   private ScriptContext context = new LarkyScriptContext();
 
   /** An engine with the JSR-223 global scope ({@link GlobalScope#JSR223}). */
   public LarkyScriptEngine() {
-    this(GlobalScope.JSR223);
+    this(GlobalScope.JSR223, false);
   }
 
-  private LarkyScriptEngine(GlobalScope globalScope) {
+  private LarkyScriptEngine(GlobalScope globalScope, boolean verbose) {
     this.globalScope = globalScope;
+    this.verbose = verbose;
   }
 
   public static Builder builder() {
@@ -525,7 +533,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
   public Object invokeFunction(String name, Object... args) throws ScriptException, NoSuchMethodException {
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
-    return LarkyCalls.call(function(name, bindings), args, console(bindings), bindings, invocationSettings());
+    return LarkyCalls.call(function(name, bindings), args, console(LarkyCalls.writer(context)), bindings, invocationSettings());
   }
 
   /** Calls the method {@code name} of {@code thiz}, a value a script evaluated with this engine returned. */
@@ -534,7 +542,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
       throws ScriptException, NoSuchMethodException {
     checkGlobalScope(context);
     final Map<String, Object> bindings = bindings();
-    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(bindings), bindings, invocationSettings());
+    return LarkyCalls.call(LarkyCalls.method(thiz, name), args, console(LarkyCalls.writer(context)), bindings, invocationSettings());
   }
 
   @Override
@@ -579,9 +587,7 @@ public class LarkyScriptEngine implements Compilable, Invocable, ScriptEngine {
         : EvaluationSettings.NONE;
   }
 
-  private StreamWriterConsole console(Map<String, Object> bindings) {
-    final boolean verbose = Boolean.parseBoolean(
-        String.valueOf(bindings.getOrDefault(DefaultLarkyInterpreter.VERBOSE, "false")));
-    return new StreamWriterConsole(LarkyCalls.writer(context), verbose);
+  StreamWriterConsole console(Writer writer) {
+    return new StreamWriterConsole(writer, verbose);
   }
 }
