@@ -6,8 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.function.BiFunction;
 
 import net.starlark.java.eval.StarlarkBytes;
-import net.starlark.java.eval.StarlarkBytes;
-import net.starlark.java.eval.StarlarkBytes;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -16,7 +14,6 @@ import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkThread;

@@ -4,8 +4,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import com.verygood.security.larky.parser.CurrentEvaluation;
 import com.verygood.security.larky.parser.StarlarkUtil;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;

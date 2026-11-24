@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.modules.types.results.LarkyAttributeError;
 import com.verygood.security.larky.modules.types.results.LarkyIndexError;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 import java.nio.charset.StandardCharsets;
 import net.starlark.java.eval.EvalException;
 import org.junit.Test;

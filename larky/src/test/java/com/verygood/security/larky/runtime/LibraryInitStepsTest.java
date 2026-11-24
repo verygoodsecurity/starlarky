@@ -1,8 +1,13 @@
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.verygood.security.larky.parser.EvaluationMetadata;
+import com.verygood.security.larky.parser.EvaluationSettings;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ResourceContentStarFile;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
@@ -32,7 +37,7 @@ public class LibraryInitStepsTest {
   // a cold one loaded, without touching the process-wide cache.
   private static EvaluationMetadata run(EvaluationSettings settings, ModuleCache cache)
       throws Exception {
-    return new LarkyScript(
+    return new CachedTestScript(
             ModuleSupplier.CORE_MODULES,
             LarkyScript.StarlarkMode.STRICT,
             ImmutableMap.of(),

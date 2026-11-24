@@ -4,6 +4,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 

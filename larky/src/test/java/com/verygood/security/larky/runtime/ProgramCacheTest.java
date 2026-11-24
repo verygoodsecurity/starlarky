@@ -1,10 +1,13 @@
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ResourceContentStarFile;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.starlark.java.eval.EvalException;
@@ -132,9 +135,9 @@ public class ProgramCacheTest {
   }
 
   private static LarkyEvaluator newEvaluator() {
+    LarkyScript script = new LarkyScript(LarkyScript.StarlarkMode.STRICT);
+    // A cached module would skip the program cache entirely.
     return new LarkyEvaluator(
-        // without a module cache: a cached module would skip the program cache entirely
-        new LarkyScript(LarkyScript.StarlarkMode.STRICT).withModuleCache(new ModuleCache(false)),
-        new TestingConsole());
+        script, script.getModuleSet(), new TestingConsole(), new ModuleCache(false));
   }
 }

@@ -14,16 +14,20 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.verygood.security.larky.parser.EvaluationSettings;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.console.Message.MessageType;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ParsedStarFile;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,8 +41,8 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import org.junit.Test;
 
-/** {@link CurrentEvaluation} and {@link HostValues}. */
-public class HostValuesTest {
+/** {@link CurrentEvaluation} and {@link StarlarkInterop}. */
+public class StarlarkInteropTest {
 
   static final String SCRIPT =
       String.join(
@@ -126,7 +130,7 @@ public class HostValuesTest {
 
   @Test
   public void everyHostCallRunsOnAFreshThreadThatIsTheCurrentEvaluation() throws Exception {
-    HostValues host = HostValues.create();
+    StarlarkInterop host = StarlarkInterop.create();
     Probe probe = new Probe();
     host.call(probe);
     host.call(probe);
@@ -141,7 +145,7 @@ public class HostValuesTest {
   @Test
   public void hostCallsDoNotShareMutability() throws Exception {
     ParsedStarFile parsed = evaluate(SCRIPT, null);
-    HostValues host = parsed.hostValues();
+    StarlarkInterop host = parsed.interop();
     Object make = parsed.getGlobalEnvironmentVariable("make", Object.class);
     Object first = host.call(make);
     Object second = host.call(make);
@@ -161,7 +165,7 @@ public class HostValuesTest {
   @Test
   public void helperCallsFunctionsWithArgumentsAndKeywords() throws Exception {
     ParsedStarFile parsed = evaluate(SCRIPT, null);
-    HostValues host = parsed.hostValues();
+    StarlarkInterop host = parsed.interop();
     Object add = parsed.getGlobalEnvironmentVariable("add", Object.class);
     assertThat(host.call(add, net.starlark.java.eval.StarlarkInt.of(1)))
         .isEqualTo(net.starlark.java.eval.StarlarkInt.of(11));
@@ -172,7 +176,7 @@ public class HostValuesTest {
   @Test
   public void helperContinuesTheEvaluationsStepBudget() throws Exception {
     ParsedStarFile parsed = evaluate(SCRIPT, 2_000_000L);
-    HostValues host = parsed.hostValues();
+    StarlarkInterop host = parsed.interop();
     assertThat(host.semantics()).isSameInstanceAs(LarkySemantics.LARKY_SEMANTICS);
     // what the evaluation left of its limit
     long used = parsed.metadata().executedSteps() + parsed.metadata().libraryInitSteps();
@@ -196,7 +200,7 @@ public class HostValuesTest {
     // a getter that takes ~3,000 steps, under a budget of 10,000 for all calls
     String script = "def work():\n    for i in range(1000):\n        pass\n    return 1\n";
     ParsedStarFile parsed = evaluate(script, 10_000L);
-    HostValues host = parsed.hostValues();
+    StarlarkInterop host = parsed.interop();
     Object work = parsed.getGlobalEnvironmentVariable("work", Object.class);
     int ok = 0;
     EvalException e = null;
@@ -216,7 +220,7 @@ public class HostValuesTest {
 
   @Test
   public void withoutAStepLimitTheHelperHasNone() throws Exception {
-    assertThat(evaluate(SCRIPT, null).hostValues().remainingSteps()).isNull();
+    assertThat(evaluate(SCRIPT, null).interop().remainingSteps()).isNull();
   }
 
   @Test
@@ -229,17 +233,17 @@ public class HostValuesTest {
                 ImmutableMap.of(),
                 EvaluationSettings.builder().expirationMs(expiration).build())
             .evaluate(InMemMapBackedStarFile.createStarFile("main.star", SCRIPT), new TestingConsole());
-    assertThat(parsed.hostValues().expirationMs()).isEqualTo(expiration);
+    assertThat(parsed.interop().expirationMs()).isEqualTo(expiration);
 
-    HostValues past =
-        HostValues.of(LarkySemantics.LARKY_SEMANTICS, null, System.currentTimeMillis() - 1, null);
+    StarlarkInterop past =
+        StarlarkInterop.of(LarkySemantics.LARKY_SEMANTICS, null, System.currentTimeMillis() - 1, null);
     Object add = parsed.getGlobalEnvironmentVariable("add", Object.class);
     EvalException e = assertThrows(EvalException.class, () -> past.call(add, StarlarkInt.of(1)));
     assertThat(e).hasMessageThat().contains("past expiration date");
 
     // a call runs on a thread with that date, so a callback that runs past it stops there
     Probe probe = new Probe();
-    parsed.hostValues().call(probe);
+    parsed.interop().call(probe);
     assertThat(probe.threads.get(0).getExpirationMs()).isEqualTo(expiration);
   }
 
@@ -259,8 +263,8 @@ public class HostValuesTest {
   @Test
   public void uncheckedExceptionsOfCallbacksAreEvalExceptions() throws Exception {
     EvalException e =
-        assertThrows(EvalException.class, () -> HostValues.create().call(new Broken()));
-    assertThat(e).hasMessageThat().contains("internal error in HostValues.call");
+        assertThrows(EvalException.class, () -> StarlarkInterop.create().call(new Broken()));
+    assertThat(e).hasMessageThat().contains("internal error in StarlarkInterop.call");
     assertThat(e).hasMessageThat().contains("IllegalArgumentException: java detail");
   }
 
@@ -277,7 +281,7 @@ public class HostValuesTest {
             "");
     String out =
         new LarkyScript(LarkyScript.StarlarkMode.STRICT)
-            .executeSkylarkWithOutputAsString(
+            .executeStarlarkWithOutputAsString(
                 InMemMapBackedStarFile.createStarFile("main.star", script),
                 new ModuleSupplier().create(),
                 new TestingConsole());
@@ -291,9 +295,9 @@ public class HostValuesTest {
     ParsedStarFile parsed =
         evaluate("def say(word):\n    print(word)\n    return 1\n", null, console);
     Object say = parsed.getGlobalEnvironmentVariable("say", Object.class);
-    parsed.hostValues().call(say, "to-console");
+    parsed.interop().call(say, "to-console");
     List<String> printed = new ArrayList<>();
-    parsed.hostValues().withPrintHandler((t, m) -> printed.add(m)).call(say, "to-handler");
+    parsed.interop().withPrintHandler((t, m) -> printed.add(m)).call(say, "to-handler");
     assertThat(printed).containsExactly("to-handler");
     console.assertThat().onceInLog(MessageType.VERBOSE, ".*to-console.*");
     console.assertThat().timesInLog(0, MessageType.VERBOSE, ".*to-handler.*");
@@ -309,7 +313,7 @@ public class HostValuesTest {
     java.io.PrintStream saved = System.err;
     System.setErr(new java.io.PrintStream(err, true, StandardCharsets.UTF_8));
     try {
-      parsed.hostValues().withStarlarkDefaultPrintHandler().call(say, "to-stderr");
+      parsed.interop().withStarlarkDefaultPrintHandler().call(say, "to-stderr");
     } finally {
       System.setErr(saved);
     }

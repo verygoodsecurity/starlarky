@@ -1,6 +1,6 @@
 package com.verygood.security.larky.objects;
 
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.objects.descriptor.LarkyNonDataDescriptor;
 import com.verygood.security.larky.objects.type.ForwardingLarkyType;

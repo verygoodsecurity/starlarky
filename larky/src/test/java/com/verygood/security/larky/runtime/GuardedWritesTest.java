@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertWithMessage;
 

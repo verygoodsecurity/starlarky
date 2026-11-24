@@ -1,6 +1,6 @@
 package com.verygood.security.larky.modules.types;
 
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.google.common.collect.ImmutableList;
 
 import net.starlark.java.eval.EvalException;

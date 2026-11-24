@@ -4,7 +4,7 @@ package com.verygood.security.larky;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;

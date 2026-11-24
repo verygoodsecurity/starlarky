@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 import java.nio.charset.StandardCharsets;
 import net.starlark.java.eval.StarlarkSemantics;
 import org.junit.Test;

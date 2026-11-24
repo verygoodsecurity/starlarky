@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import java.io.IOException;
@@ -114,7 +117,7 @@ class ModuleGlobalStateConcurrencyTest {
   private static String evaluate(Case c, ModuleCache cache) {
     try {
       ParsedStarFile result =
-          new LarkyScript(
+          new CachedTestScript(
                   ModuleSupplier.CORE_MODULES,
                   LarkyScript.StarlarkMode.STRICT,
                   Map.of("ctx", new HashMap<String, Object>()))
@@ -320,7 +323,7 @@ class ModuleGlobalStateConcurrencyTest {
             "push(1)",
             "");
     ParsedStarFile result =
-        new LarkyScript(
+        new CachedTestScript(
                 ModuleSupplier.CORE_MODULES,
                 LarkyScript.StarlarkMode.STRICT,
                 Map.of("ctx", new HashMap<String, Object>()))
@@ -333,10 +336,10 @@ class ModuleGlobalStateConcurrencyTest {
     EvalException hash =
         assertThrows(
             EvalException.class,
-            () -> result.hostValues().call(step, StarlarkBytes.immutableOf(new byte[] {'b'})));
+            () -> result.interop().call(step, StarlarkBytes.immutableOf(new byte[] {'b'})));
     EvalException list =
         assertThrows(
-            EvalException.class, () -> result.hostValues().call(push, StarlarkInt.of(2)));
+            EvalException.class, () -> result.interop().call(push, StarlarkInt.of(2)));
     assertThat(hash).hasMessageThat().contains("trying to mutate a frozen");
     assertThat(list).hasMessageThat().contains("trying to mutate a frozen list value");
   }

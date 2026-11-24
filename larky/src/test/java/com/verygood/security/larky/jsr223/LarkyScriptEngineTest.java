@@ -55,6 +55,17 @@ public class LarkyScriptEngineTest {
   }
 
   @Test
+  public void verboseBindingIsOnlyAScriptValue() throws ScriptException {
+    StringWriter writer = new StringWriter();
+    instance.getContext().setWriter(writer);
+    instance.put("__VERBOSE__", "true");
+
+    instance.eval("print(__VERBOSE__)");
+
+    assertEquals("true" + System.lineSeparator(), writer.toString());
+  }
+
+  @Test
   public void testCompile_String() throws ScriptException, EvalException {
     assertNotNull(instance);
     String script = String.join("\n",

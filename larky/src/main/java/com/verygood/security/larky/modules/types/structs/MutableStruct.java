@@ -2,7 +2,7 @@ package com.verygood.security.larky.modules.types.structs;
 
 import com.verygood.security.larky.modules.types.Property;
 import com.verygood.security.larky.modules.types.PyProtocols;
-import com.verygood.security.larky.parser.CurrentEvaluation;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
