@@ -34,7 +34,7 @@ final class SimpleStructWithMethods extends SimpleStruct {
             "collision_field",
             "fromValues",
             "collision_method",
-            returnFromValues), null);
+            returnFromValues));
   }
 
   @StarlarkMethod(name = "callable_only_field", documented = false, structField = true)

@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
+import com.verygood.security.larky.parser.InMemMapBackedStarFile;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ParsedStarFile;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -99,14 +102,17 @@ public class ConcurrentEvaluationTest {
   // The same, with per-evaluation globals and a module cache of this test's own, so the test never
   // turns the process-wide cache on or off.
   private static String evaluate(ModuleCache cache) throws Exception {
-    ParsedStarFile result =
+    LarkyScript script =
         new LarkyScript(
-                ModuleSupplier.CORE_MODULES,
-                LarkyScript.StarlarkMode.STRICT,
-                Map.of("ctx", new HashMap<String, Object>()))
-            .withModuleCache(cache)
-            .evaluate(InMemMapBackedStarFile.createStarFile("main.star", SCRIPT), new TestingConsole());
-    return Starlark.str(result.getGlobalEnvironmentVariable("result", Object.class), null);
+            ModuleSupplier.CORE_MODULES,
+            LarkyScript.StarlarkMode.STRICT,
+            Map.of("ctx", new HashMap<String, Object>()));
+    LarkyEvaluator evaluator =
+        new LarkyEvaluator(script, script.getModuleSet(), new TestingConsole(), cache);
+    return Starlark.str(
+        evaluator.eval(InMemMapBackedStarFile.createStarFile("main.star", SCRIPT))
+            .module().getGlobal("result"),
+        null);
   }
 
   /** Runs {@code evaluation} concurrently; returns each distinct outcome and how often it occurred. */

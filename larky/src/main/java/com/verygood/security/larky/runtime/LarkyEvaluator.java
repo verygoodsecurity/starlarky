@@ -1,4 +1,4 @@
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -9,6 +9,9 @@ import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ResourceContentStarFile;
+import com.verygood.security.larky.parser.StarFile;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -68,15 +71,44 @@ public final class LarkyEvaluator {
     this(larkyScript, larkyScript.getModuleSet(), console);
   }
 
-  LarkyEvaluator(LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console) {
+  public LarkyEvaluator(
+      LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console) {
+    this(larkyScript, moduleSet, console, ModuleCache.SHARED);
+  }
+
+  @VisibleForTesting
+  LarkyEvaluator(
+      LarkyScript larkyScript, ModuleSupplier.ModuleSet moduleSet, Console console,
+      ModuleCache moduleCache) {
     this.reporter = new Reporter(checkNotNull(console));
     this.moduleSet = checkNotNull(moduleSet);
     this.validationMode = larkyScript.getValidation();
     this.larkySemantics = larkyScript.getLarkySemantics();
-    this.moduleCache = larkyScript.getModuleCache();
+    this.moduleCache = checkNotNull(moduleCache);
     //todo(mahmoudimus): convert to builder pattern
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
   }
+
+  /**
+   * How host code reads the values of what this evaluator ran: with this evaluator's semantics,
+   * the steps left of its step limit, its expiration date, and its reporter (where {@code print()}
+   * of callbacks went when they ran on the evaluation's own thread), each access on a fresh
+   * thread. See {@link StarlarkInterop}.
+   */
+  public StarlarkInterop interop() {
+    Object stepLimit = environment.get(STEP_LIMIT);
+    return StarlarkInterop.of(
+        getLarkySemantics(),
+        stepLimit == null ? null : Long.parseLong(stepLimit.toString()) - lastExecutedSteps,
+        lastExpirationMs,
+        ModuleProviders.given(environment.get(MODULE_PROVIDERS)))
+        .withPrintHandler(reporter::report);
+  }
+
+  // The steps and expiration date of the last file this evaluator executed: the main script, whose
+  // loads execute before it. interop() continues from them.
+  private long lastExecutedSteps;
+  private long lastExpirationMs = Long.MAX_VALUE;
 
   /**
    * The output of a Larky script is an evaluated {@link Module} that contains various attributes such as
@@ -191,7 +223,7 @@ public final class LarkyEvaluator {
         thread.setExpirationMs(Long.parseLong(environment.get(EXPIRATION_MS).toString()));
       }
 
-      try {
+      try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
         starlarkOutput = prog.exec(module, thread);
       } catch (EvalException cause) {
         throw new StarlarkEvalWrapper.Exc.RuntimeEvalException(cause, thread);
@@ -199,6 +231,8 @@ public final class LarkyEvaluator {
 
       // Set some statistical information
       module.setGlobal(EXECUTION_STEPS, thread.getExecutedSteps());
+      lastExecutedSteps = thread.getExecutedSteps();
+      lastExpirationMs = thread.getExpirationMs();
     }
     if (content instanceof ResourceContentStarFile) {
       moduleCache.put(
@@ -359,7 +393,7 @@ public final class LarkyEvaluator {
       // TODO(mahmoudimus): Move this to ModuleSupplier?
       try (Mutability mu = Mutability.create("InMemoryNativeModule")) {
         StarlarkThread thread = StarlarkThread.createTransient(mu, evaluator.getLarkySemantics());
-        try {
+        try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
           // Not Starlark.execFile, which would type-check this generated file when the
           // semantics enable type checking (its options do not allow type syntax).
           Starlark.execFileProgram(

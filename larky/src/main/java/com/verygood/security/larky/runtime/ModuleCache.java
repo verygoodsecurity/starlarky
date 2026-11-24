@@ -1,4 +1,4 @@
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
@@ -35,7 +35,7 @@ import net.starlark.java.syntax.FileOptions;
 final class ModuleCache {
 
   /**
-   * The cache evaluations use unless given another (see {@link LarkyScript#withModuleCache}): on
+   * The cache evaluations use unless given another (see {@link LarkyEvaluator}): on
    * only with {@code -Dlarky.moduleCache.enable=true}.
    */
   static final ModuleCache SHARED =

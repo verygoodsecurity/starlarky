@@ -9,12 +9,12 @@ import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.verygood.security.larky.LarkySemantics;
-import com.verygood.security.larky.parser.DefaultLarkyInterpreter;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
-import com.verygood.security.larky.parser.LarkyEvaluator;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.parser.StarFile;
+import com.verygood.security.larky.runtime.DefaultLarkyInterpreter;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
@@ -228,7 +228,7 @@ public class LarkyCompiledScript extends CompiledScript {
         script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
       }
       final DefaultLarkyInterpreter larkyInterpreter = new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings);
-      result = larkyInterpreter.evaluate(script, context.getWriter());
+      result = larkyInterpreter.evaluate(script, engine.console(context.getWriter()));
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
              EvalException e) {
       throw LarkyEvaluationScriptException.of(e);

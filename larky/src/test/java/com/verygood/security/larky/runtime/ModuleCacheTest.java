@@ -1,4 +1,4 @@
-package com.verygood.security.larky.parser;
+package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assume.assumeFalse;
@@ -6,6 +6,8 @@ import static org.junit.Assume.assumeFalse;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.verygood.security.larky.console.testing.TestingConsole;
+import com.verygood.security.larky.parser.LarkyScript;
+import com.verygood.security.larky.parser.ResourceContentStarFile;
 import java.util.Map;
 import net.starlark.java.eval.Module;
 import net.starlark.java.eval.StarlarkInt;
@@ -19,9 +21,8 @@ public class ModuleCacheTest {
   private final ModuleCache cache = new ModuleCache(true);
 
   private static LarkyEvaluator newEvaluator(ModuleCache cache) {
-    return new LarkyEvaluator(
-        new LarkyScript(LarkyScript.StarlarkMode.STRICT).withModuleCache(cache),
-        new TestingConsole());
+    LarkyScript script = new LarkyScript(LarkyScript.StarlarkMode.STRICT);
+    return new LarkyEvaluator(script, script.getModuleSet(), new TestingConsole(), cache);
   }
 
   @Test

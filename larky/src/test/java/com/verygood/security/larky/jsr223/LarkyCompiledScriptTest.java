@@ -197,6 +197,18 @@ public class LarkyCompiledScriptTest {
   }
 
   @Test
+  public void compiledScriptUsesTheEngineVerboseConsole() throws Exception {
+    LarkyScriptEngine engine = LarkyScriptEngine.builder().verbose(true).build();
+    ScriptContext context = new SimpleScriptContext();
+    StringWriter writer = new StringWriter();
+    context.setWriter(writer);
+
+    engine.compile("print('hello')", "console.star").eval(context);
+
+    assertEquals("console.star:1:6: hello" + System.lineSeparator(), writer.toString());
+  }
+
+  @Test
   public void testEval_bindings() throws Exception {
     LarkyScriptEngineFactory factory = new LarkyScriptEngineFactory();
     LarkyScriptEngine engine = (LarkyScriptEngine) factory.getScriptEngine();

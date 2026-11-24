@@ -57,6 +57,16 @@ Here are some of them:
 - Annotations to define additional libraries
 - Extension [modules](https://github.com/verygoodsecurity/starlarky/blob/master/larky/src/main/java/com/verygood/security/larky/modules/README.md)
 
+When upgrading Larky, update Java imports of `LarkyEvaluator` and
+`DefaultLarkyInterpreter` to `com.verygood.security.larky.runtime`.
+The interpreter constructor can throw `EvalException` if binding conversion fails.
+Use `ParsedStarFile.interop()` to read, format, or call Starlark values from Java
+after evaluation. It returns a `StarlarkInterop`.
+
+To include source locations in `print()` output, create the engine with
+`LarkyScriptEngine.builder().verbose(true).build()`. Output goes to the script
+context's writer.
+
 To build run this command:
 ```bash
 mvn versions:set -DnewVersion=<your-version> -pl larky (optional)

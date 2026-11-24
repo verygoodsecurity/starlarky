@@ -18,6 +18,7 @@ package com.verygood.security.run.repl;
 
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.ModuleSupplier;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import java.io.IOException;
 import java.net.JarURLConnection;
 import java.net.URI;
@@ -163,7 +164,7 @@ final class ReplCompleter {
     }
     Object getattr = session.builtin("getattr");
     StarlarkThread thread = boundedThread(session);
-    try {
+    try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
       for (int i = 1; i < parts.length && value != null; i++) {
         Object attr = Starlark.call(thread, getattr, List.of(value, parts[i], Starlark.NONE), Map.of());
         value = attr == Starlark.NONE ? null : attr;
@@ -180,8 +181,9 @@ final class ReplCompleter {
   // The names dir(value) lists.
   private static List<String> members(ReplSession session, Object value) {
     List<String> names = new ArrayList<>();
-    try {
-      Object dir = Starlark.call(boundedThread(session), session.builtin("dir"), List.of(value), Map.of());
+    StarlarkThread thread = boundedThread(session);
+    try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
+      Object dir = Starlark.call(thread, session.builtin("dir"), List.of(value), Map.of());
       for (Object name : Starlark.toIterable(dir)) {
         if (name instanceof String s) {
           names.add(s);

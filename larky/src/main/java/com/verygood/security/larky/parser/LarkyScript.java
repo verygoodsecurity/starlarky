@@ -26,6 +26,8 @@ import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import com.verygood.security.larky.console.Console;
+import com.verygood.security.larky.runtime.StarlarkInterop;
+import com.verygood.security.larky.runtime.LarkyEvaluator;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
@@ -33,7 +35,6 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import lombok.AccessLevel;
 import lombok.Getter;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Module;
@@ -112,9 +113,6 @@ public class LarkyScript {
   private final ModuleSet moduleSet;
   @Getter
   private final StarlarkSemantics larkySemantics;
-  // the cache of Larky's own loaded modules; a test gives its own (see ModuleCache)
-  @Getter(AccessLevel.PACKAGE)
-  private ModuleCache moduleCache = ModuleCache.SHARED;
 
   // TODO: convert to builder
   public LarkyScript(StarlarkMode validation) {
@@ -165,13 +163,6 @@ public class LarkyScript {
     this.larkySemantics = larkySemantics;
   }
 
-  /** Evaluates with {@code cache} instead of the process-wide {@link ModuleCache#SHARED}. */
-  @VisibleForTesting
-  LarkyScript withModuleCache(ModuleCache cache) {
-    this.moduleCache = Objects.requireNonNull(cache);
-    return this;
-  }
-
   private LarkyEvaluator.EvaluationResult executeStarlark(StarFile content, ModuleSet moduleSet, Console console)
     throws IOException, InterruptedException, EvalException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
@@ -192,6 +183,19 @@ public class LarkyScript {
   public Object executeSkylarkWithOutput(StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException, EvalException {
     return executeStarlark(content, moduleSet, console).output();
+  }
+
+  /**
+   * Runs {@code content} and returns its output as Java's {@code toString} of it (what the larky
+   * runner writes), computed through the evaluation's {@link StarlarkInterop}: the output may be a
+   * struct whose {@code __repr__} is Starlark code, which needs a current evaluation.
+   */
+  public String executeStarlarkWithOutputAsString(
+      StarFile content, ModuleSet moduleSet, Console console)
+      throws IOException, InterruptedException, EvalException {
+    LarkyEvaluator evaluator = new LarkyEvaluator(this, moduleSet, console);
+    Object output = evaluator.eval(content).output();
+    return evaluator.interop().javaString(output);
   }
 
   public ParsedStarFile evaluate(StarFile content, Console console)
@@ -234,8 +238,9 @@ public class LarkyScript {
                                               Console console)
       throws IOException, EvalException {
     Module module;
+    final LarkyEvaluator evaluator = new LarkyEvaluator(this, moduleSet, console);
     try {
-      module = new LarkyEvaluator(this, moduleSet, console).eval(content).module();
+      module = evaluator.eval(content).module();
     } catch (InterruptedException e) {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
@@ -246,7 +251,8 @@ public class LarkyScript {
         .putAll(module.getPredeclaredBindings())
         .putAll(module.getGlobals())
         .buildKeepingLast(),
-        module);
+        module,
+        evaluator.interop());
   }
 
   private static class StarFilesSupplier

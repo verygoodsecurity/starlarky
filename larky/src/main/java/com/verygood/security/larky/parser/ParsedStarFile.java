@@ -16,6 +16,7 @@
 
 package com.verygood.security.larky.parser;
 
+import com.verygood.security.larky.runtime.StarlarkInterop;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
@@ -43,10 +44,31 @@ public final class ParsedStarFile {
   @Getter
   private final Module module;
 
+  @EqualsAndHashCode.Exclude @ToString.Exclude
+  private final StarlarkInterop interop;
+
   public ParsedStarFile(String location, Map<String, Object> globals, Module module) {
+    this(location, globals, module, StarlarkInterop.create());
+  }
+
+  public ParsedStarFile(
+      String location, Map<String, Object> globals, Module module, StarlarkInterop interop) {
     this.location = Preconditions.checkNotNull(location);
     this.globals = ImmutableMap.copyOf(Preconditions.checkNotNull(globals));
     this.module = module;
+    this.interop = Preconditions.checkNotNull(interop);
+  }
+
+  /**
+   * Returns a helper for using Starlark values from Java after the script finishes.
+   * Use it to read fields, convert values to strings, or call functions.
+   *
+   * <p>These operations can run Starlark code, such as a property's getter. {@link StarlarkInterop}
+   * runs each operation on a fresh Starlark thread with the evaluation's settings and remaining
+   * step budget.
+   */
+  public StarlarkInterop interop() {
+    return interop;
   }
 
   /**

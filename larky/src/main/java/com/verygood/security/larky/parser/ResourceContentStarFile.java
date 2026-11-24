@@ -105,7 +105,7 @@ public class ResourceContentStarFile implements StarFile {
    * ResourceContentStarFileTest compares the two.
    */
   @Nullable
-  static String[] splitLabel(String label) {
+  public static String[] splitLabel(String label) {
     int n = label.length();
     for (int at = label.indexOf('@'); at >= 0; at = label.indexOf('@', at + 1)) {
       int end = at + 1;

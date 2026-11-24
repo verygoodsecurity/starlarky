@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.verygood.security.larky.parser.StarlarkUtil;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -166,7 +167,8 @@ public interface LarkyObject extends Structure {
   }
 
   default Object invoke(Object function, List<Object> args, Map<String, Object> kwargs) throws EvalException {
-    return invoke(getCurrentThread(), function, args, kwargs);
+    StarlarkThread thread = getCurrentThread();
+    return invoke(thread != null ? thread : CurrentEvaluation.requireThread(), function, args, kwargs);
   }
 
   default Object invoke(StarlarkThread thread, Object function, List<Object> args, Map<String, Object> kwargs) throws EvalException {

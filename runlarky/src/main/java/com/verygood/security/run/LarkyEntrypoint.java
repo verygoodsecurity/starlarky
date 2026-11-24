@@ -100,13 +100,14 @@ public class LarkyEntrypoint implements Callable<Integer> {
     Console console = new FileConsole(CapturingConsole.captureAllConsole(
         LogConsole.writeOnlyConsole(System.out, true)), Path.of(logPath), Duration.ZERO);
 
+    // through the evaluation's StarlarkInterop: a struct's toString runs its __repr__ (Starlark code)
     String output =
       new LarkyScript(StarlarkMode.STRICT)
-        .executeSkylarkWithOutput(
+        .executeStarlarkWithOutputAsString(
           prependMergedStarFile,
           new ModuleSupplier().create(),
           console
-        ).toString();
+        );
 
     if (debug) {
       System.err.println(output);
