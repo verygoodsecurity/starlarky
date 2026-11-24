@@ -57,6 +57,10 @@ Here are some of them:
 - Annotations to define additional libraries
 - Extension [modules](https://github.com/verygoodsecurity/starlarky/blob/master/larky/src/main/java/com/verygood/security/larky/modules/README.md)
 
+When upgrading Larky, update Java imports of `LarkyEvaluator` and
+`DefaultLarkyInterpreter` to `com.verygood.security.larky.runtime`.
+The interpreter constructor can throw `EvalException` if binding conversion fails.
+
 To build run this command:
 ```bash
 mvn versions:set -DnewVersion=<your-version> -pl larky (optional)
