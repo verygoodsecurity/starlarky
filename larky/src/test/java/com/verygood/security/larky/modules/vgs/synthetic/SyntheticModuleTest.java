@@ -15,7 +15,7 @@ public class SyntheticModuleTest {
     private static final SyntheticModule MODULE = SyntheticModule.INSTANCE;
 
     private static AliasSpec spec(String kind) throws EvalException {
-        return MODULE.aliasSpec(kind, "record-a", "GB", Starlark.NONE, false, Starlark.NONE);
+        return MODULE.aliasSpec(kind, "entity-a", "GB", Starlark.NONE, false, Starlark.NONE, false);
     }
 
     @Test
@@ -60,62 +60,76 @@ public class SyntheticModuleTest {
         for (String kind : SyntheticModule.KINDS) {
             AliasSpec spec = spec(kind);
             assertEquals("SYNTHETIC", spec.getFormat());
-            assertEquals(ImmutableMap.of("kind", kind, "record", "record-a", "country", "GB"),
+            assertEquals(ImmutableMap.of("kind", kind, "entity_key", "entity-a", "country", "GB", "scope_kind", false),
                     spec.getDecoratorConfigMap());
             assertEquals(kind, spec.kind());
-            assertEquals("record-a", spec.record());
+            assertEquals("entity-a", spec.entityKey());
+            assertEquals(false, spec.scopeKind());
             assertEquals("GB", spec.country());
             assertEquals("SYNTHETIC", spec.format());
         }
     }
 
     @Test
+    public void scopeKindIsCarriedInTheSpec() throws Exception {
+        AliasSpec scoped = MODULE.aliasSpec("city", "e", "GB", Starlark.NONE, false, Starlark.NONE, true);
+        assertEquals(ImmutableMap.of("kind", "city", "entity_key", "e", "country", "GB", "scope_kind", true),
+                scoped.getDecoratorConfigMap());
+        assertTrue(scoped.scopeKind());
+        AliasSpec unscoped = MODULE.aliasSpec("city", "e", "GB", Starlark.NONE, false, Starlark.NONE, false);
+        assertTrue(!scoped.equals(unscoped));
+    }
+
+    @Test
     public void optionsAreCarriedWhenSetForTheirKind() throws Exception {
         assertEquals(
-                ImmutableMap.of("kind", "email", "record", "r", "country", "GB", "email_domain", "example.org"),
-                MODULE.aliasSpec("email", "r", "GB", "example.org", false, Starlark.NONE).getDecoratorConfigMap());
+                ImmutableMap.of("kind", "email", "entity_key", "e", "country", "GB", "scope_kind", false,
+                        "email_domain", "example.org"),
+                MODULE.aliasSpec("email", "e", "GB", "example.org", false, Starlark.NONE, false).getDecoratorConfigMap());
         assertEquals(
-                ImmutableMap.of("kind", "phone", "record", "r", "country", "GB", "allow_unreserved_phone", true),
-                MODULE.aliasSpec("phone", "r", "GB", Starlark.NONE, true, Starlark.NONE).getDecoratorConfigMap());
+                ImmutableMap.of("kind", "phone", "entity_key", "e", "country", "GB", "scope_kind", false,
+                        "allow_unreserved_phone", true),
+                MODULE.aliasSpec("phone", "e", "GB", Starlark.NONE, true, Starlark.NONE, false).getDecoratorConfigMap());
         assertEquals(
-                ImmutableMap.of("kind", "age", "record", "r", "country", "GB", "dob", "1990-05-17"),
-                MODULE.aliasSpec("age", "r", "GB", Starlark.NONE, false, "1990-05-17").getDecoratorConfigMap());
+                ImmutableMap.of("kind", "age", "entity_key", "e", "country", "GB", "scope_kind", false,
+                        "dob", "1990-05-17"),
+                MODULE.aliasSpec("age", "e", "GB", Starlark.NONE, false, "1990-05-17", false).getDecoratorConfigMap());
     }
 
     @Test
     public void optionsAreRejectedForOtherKinds() {
         assertThrows(EvalException.class,
-                () -> MODULE.aliasSpec("city", "r", "GB", "example.org", false, Starlark.NONE));
+                () -> MODULE.aliasSpec("city", "e", "GB", "example.org", false, Starlark.NONE, false));
         assertThrows(EvalException.class,
-                () -> MODULE.aliasSpec("email", "r", "GB", Starlark.NONE, true, Starlark.NONE));
+                () -> MODULE.aliasSpec("email", "e", "GB", Starlark.NONE, true, Starlark.NONE, false));
         assertThrows(EvalException.class,
-                () -> MODULE.aliasSpec("dob", "r", "GB", Starlark.NONE, false, "1990-05-17"));
+                () -> MODULE.aliasSpec("dob", "e", "GB", Starlark.NONE, false, "1990-05-17", false));
     }
 
     @Test
     public void invalidFieldsAreRejected() {
         assertThrows(EvalException.class, () -> spec("nickname"));
-        for (String record : List.of("", " ", "\t\n")) {
+        for (String entityKey : List.of("", " ", "\t\n")) {
             EvalException e = assertThrows(EvalException.class,
-                    () -> MODULE.aliasSpec("city", record, "GB", Starlark.NONE, false, Starlark.NONE));
-            assertEquals("record must not be empty or blank", e.getMessage());
+                    () -> MODULE.aliasSpec("city", entityKey, "GB", Starlark.NONE, false, Starlark.NONE, false));
+            assertEquals("entity_key must not be empty or blank", e.getMessage());
         }
         for (String country : List.of("", "G", "GBR", "gb", "G1")) {
             assertThrows(EvalException.class,
-                    () -> MODULE.aliasSpec("city", "r", country, Starlark.NONE, false, Starlark.NONE));
+                    () -> MODULE.aliasSpec("city", "e", country, Starlark.NONE, false, Starlark.NONE, false));
         }
         for (String domain : List.of("", " ", "a@b.org", "a b.org")) {
             assertThrows(EvalException.class,
-                    () -> MODULE.aliasSpec("email", "r", "GB", domain, false, Starlark.NONE));
+                    () -> MODULE.aliasSpec("email", "e", "GB", domain, false, Starlark.NONE, false));
         }
         assertThrows(EvalException.class,
-                () -> MODULE.aliasSpec("age", "r", "GB", Starlark.NONE, false, " "));
+                () -> MODULE.aliasSpec("age", "e", "GB", Starlark.NONE, false, " ", false));
     }
 
     @Test
     public void textFormsNeverContainTheDateOfBirth() throws Exception {
         String dob = "1987-06-05";
-        AliasSpec spec = MODULE.aliasSpec("age", "record-a", "GB", Starlark.NONE, false, dob);
+        AliasSpec spec = MODULE.aliasSpec("age", "entity-a", "GB", Starlark.NONE, false, dob, false);
         String[] forms = {
             spec.toString(),
             Starlark.repr(spec, net.starlark.java.eval.StarlarkSemantics.DEFAULT),
@@ -126,7 +140,7 @@ public class SyntheticModuleTest {
         for (String form : forms) {
             assertTrue(!form.contains(dob) && !form.contains("1987"), form);
             assertTrue(form.contains("dob=<set>"), form);
-            assertTrue(form.contains("record-a"), form);
+            assertTrue(form.contains("entity-a"), form);
         }
         // The value itself is still available to the vault.
         assertEquals(dob, spec.getDecoratorConfigMap().get("dob"));

@@ -86,7 +86,10 @@ public class SyntheticModule implements StarlarkValue {
       doc = "Validates and builds the specification of a SYNTHETIC alias.",
       parameters = {
         @Param(name = "kind", doc = "kind of value to generate", allowedTypes = {@ParamType(type = String.class)}),
-        @Param(name = "record", doc = "record the alias belongs to", allowedTypes = {@ParamType(type = String.class)}),
+        @Param(
+            name = "entity_key",
+            doc = "entity the alias belongs to; lookup scope, so reveal and delete must pass the same one",
+            allowedTypes = {@ParamType(type = String.class)}),
         @Param(name = "country", doc = "two-letter upper-case country code", allowedTypes = {@ParamType(type = String.class)}),
         @Param(
             name = "email_domain",
@@ -109,20 +112,29 @@ public class SyntheticModule implements StarlarkValue {
             positional = false,
             defaultValue = "None",
             allowedTypes = {@ParamType(type = NoneType.class), @ParamType(type = String.class)}),
+        @Param(
+            name = "scope_kind",
+            doc = "whether kind is lookup scope as well as a generation input; when True, reveal and "
+                + "delete must pass the same kind",
+            named = true,
+            positional = false,
+            defaultValue = "False",
+            allowedTypes = {@ParamType(type = Boolean.class)}),
       })
   public AliasSpec aliasSpec(
       String kind,
-      String record,
+      String entityKey,
       String country,
       Object emailDomain,
       boolean allowUnreservedPhone,
-      Object dob)
+      Object dob,
+      boolean scopeKind)
       throws EvalException {
     if (!KINDS.contains(kind)) {
       throw Starlark.errorf("Unknown kind '%s': expected one of %s", kind, KINDS);
     }
-    if (record.isBlank()) {
-      throw Starlark.errorf("record must not be empty or blank");
+    if (entityKey.isBlank()) {
+      throw Starlark.errorf("entity_key must not be empty or blank");
     }
     if (!COUNTRY.matcher(country).matches()) {
       throw Starlark.errorf(
@@ -131,8 +143,9 @@ public class SyntheticModule implements StarlarkValue {
 
     Map<String, Object> config = new LinkedHashMap<>();
     config.put("kind", kind);
-    config.put("record", record);
+    config.put("entity_key", entityKey);
     config.put("country", country);
+    config.put("scope_kind", scopeKind);
 
     if (!(emailDomain instanceof NoneType)) {
       String domain = (String) emailDomain;

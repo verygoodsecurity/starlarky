@@ -14,8 +14,14 @@ import net.starlark.java.eval.Starlark;
 
 public class DefaultVault implements LarkyVault {
 
-    /** Entries are keyed on (record, alias); record is null for aliases stored without a record. */
-    private record StorageKey(String record, String alias) {}
+    /**
+     * Entries are keyed on the lookup context and the alias. A context field is null when the
+     * redact gave none, so it adds no scope; a lookup matches only exactly the same context.
+     */
+    private record StorageKey(String entityKey, String kind, String alias) {}
+
+    /** The lookup context a redact stores an alias under. */
+    private record RedactContext(String entityKey, String kind) {}
 
     private final Map<StorageKey, Object> persistentVaultStorage = new HashMap<>();
     private final Map<StorageKey, Object> volatileVaultStorage = new HashMap<>();
@@ -46,14 +52,14 @@ public class DefaultVault implements LarkyVault {
     @Override
     public Object redact(Object value, Object storage, Object format, List<Object> tags, Object decoratorConfig) throws EvalException {
         String sValue = getValue(value);
-        String record = getRecord(decoratorConfig);
+        RedactContext context = getRedactContext(decoratorConfig);
         AliasGenerator generator = getAliasGenerator(format);
         Optional<AliasDecorator> aliasDecorator = resolveAliasDecorator(decoratorConfig, generator);
 
         String alias = aliasDecorator.isPresent()
             ? aliasDecorator.get().tokenize(sValue)
             : generator.generate(sValue);
-        getStorage(storage).put(new StorageKey(record, alias), value);
+        getStorage(storage).put(new StorageKey(context.entityKey(), context.kind(), alias), value);
         return alias;
     }
 
@@ -73,25 +79,25 @@ public class DefaultVault implements LarkyVault {
 
     @Override
     public Object reveal(Object value, Object storage) throws EvalException {
-        return reveal(value, storage, Starlark.NONE);
+        return reveal(value, storage, Starlark.NONE, Starlark.NONE);
     }
 
     @Override
-    public Object reveal(Object value, Object storage, Object record) throws EvalException {
+    public Object reveal(Object value, Object storage, Object entityKey, Object kind) throws EvalException {
         String sValue = getValue(value);
-        Object secret = getStorage(storage).get(new StorageKey(getRecordName(record), sValue));
+        Object secret = getStorage(storage).get(lookupKey(entityKey, kind, sValue));
         return secret == null ? sValue : secret; // return value of alias if secret not found
     }
 
     @Override
     public void delete(Object value, Object storage) throws EvalException {
-        delete(value, storage, Starlark.NONE);
+        delete(value, storage, Starlark.NONE, Starlark.NONE);
     }
 
     @Override
-    public void delete(Object value, Object storage, Object record) throws EvalException {
+    public void delete(Object value, Object storage, Object entityKey, Object kind) throws EvalException {
         String sValue = getValue(value);
-        getStorage(storage).remove(new StorageKey(getRecordName(record), sValue));
+        getStorage(storage).remove(lookupKey(entityKey, kind, sValue));
     }
 
     // These don't make a ton of sense in memory, we could hash and return if we really wanted to.
@@ -113,27 +119,47 @@ public class DefaultVault implements LarkyVault {
         return value.toString();
     }
 
-    /** The record named by a decorator config's "record" entry, or null when it names none. */
-    private String getRecord(Object decoratorConfig) throws EvalException {
-        if (!(decoratorConfig instanceof Map<?, ?> config) || !config.containsKey("record")) {
-            return null;
-        }
-        return getRecordName(config.get("record"));
+    private StorageKey lookupKey(Object entityKey, Object kind, String alias) throws EvalException {
+        return new StorageKey(getContextField("entity_key", entityKey), getContextField("kind", kind), alias);
     }
 
-    /** Validates a record: null for None, otherwise a non-empty String. */
-    private String getRecordName(Object record) throws EvalException {
-        if (record == null || record instanceof NoneType) {
+    /**
+     * The lookup context of a redact: decorator_config's "entity_key", and its
+     * "kind" only when "scope_kind" is True. Otherwise kind is only a generation input and adds no
+     * scope.
+     */
+    private RedactContext getRedactContext(Object decoratorConfig) throws EvalException {
+        if (!(decoratorConfig instanceof Map<?, ?> config)) {
+            return new RedactContext(null, null);
+        }
+        String entityKey = getContextField("entity_key", config.get("entity_key"));
+        String kind = isScopeKind(config.get("scope_kind")) ? getContextField("kind", config.get("kind")) : null;
+        return new RedactContext(entityKey, kind);
+    }
+
+    private boolean isScopeKind(Object scopeKind) throws EvalException {
+        if (scopeKind == null || scopeKind instanceof NoneType) {
+            return false;
+        }
+        if (!(scopeKind instanceof Boolean flag)) {
+            throw Starlark.errorf("scope_kind must be a bool, not %s", Starlark.type(scopeKind));
+        }
+        return flag;
+    }
+
+    /** Validates a lookup context field: null for None, otherwise a non-blank String. */
+    private String getContextField(String field, Object value) throws EvalException {
+        if (value == null || value instanceof NoneType) {
             return null;
         }
-        if (!(record instanceof String name)) {
+        if (!(value instanceof String name)) {
             throw Starlark.errorf(String.format(
-                    "Record of type %s is not supported in DefaultVault, expecting String",
-                    record.getClass().getName()
+                    "%s of type %s is not supported in DefaultVault, expecting String",
+                    field, value.getClass().getName()
             ));
         }
         if (name.isBlank()) {
-            throw Starlark.errorf("record must not be empty or blank");
+            throw Starlark.errorf("%s must not be empty or blank", field);
         }
         return name;
     }
