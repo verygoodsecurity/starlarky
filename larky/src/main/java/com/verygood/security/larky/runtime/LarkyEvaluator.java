@@ -158,9 +158,13 @@ public final class LarkyEvaluator {
           .module(module)
           .build();
     }
-    // With the module cache on, Larky's own modules are loaded once per process and shared (see
-    // ModuleCache).
-    if (content instanceof ResourceContentStarFile) {
+    ResourceContentStarFile library =
+        content instanceof ResourceContentStarFile resource && resource.isBundledLibrary()
+            ? resource
+            : null;
+    boolean libraryFile = library != null;
+    // The process-wide caches use only Larky's bundled library files.
+    if (libraryFile) {
       Module shared =
           moduleCache.lookup(
               content.path(), getStarlarkValidationOptions(), getLarkySemantics(), getEnvironment());
@@ -179,7 +183,7 @@ public final class LarkyEvaluator {
     final Module env = module;
     ProgramCache.Executable prog;
     Map<String, Module> loadedModules;
-    if (typeChecking() && !(content instanceof ResourceContentStarFile)) {
+    if (typeChecking() && !libraryFile) {
       // A typed script is tagged with the types of the modules it loads, so it is compiled here
       // rather than cached. Its annotations may name the classes it defines.
       module.allowForwardTypeReferences();
@@ -191,14 +195,14 @@ public final class LarkyEvaluator {
       loadedModules = processLoads(content, program.getLoads());
       prog = ProgramCache.Executable.of(withTypeInfo(program, module, loadedModules));
     } else {
-      prog = content instanceof ResourceContentStarFile resource
+      prog = library != null
           ? ProgramCache.get(
-              resource.path(),
+              library.path(),
               env,
               options,
               getLarkySemantics(),
               parsed -> compileStarlarkProgram(
-                  env, ParserInput.fromUTF8(resource.readContentBytes(), resource.path()), options,
+                  env, ParserInput.fromUTF8(library.readContentBytes(), library.path()), options,
                   parsed))
           : scriptProgram(content, module, options);
       loadedModules = processLoads(content, prog.loads());
@@ -234,7 +238,7 @@ public final class LarkyEvaluator {
       lastExecutedSteps = thread.getExecutedSteps();
       lastExpirationMs = thread.getExpirationMs();
     }
-    if (content instanceof ResourceContentStarFile) {
+    if (libraryFile) {
       moduleCache.put(
           content.path(), options, getLarkySemantics(), module, prog.predeclaredNames(),
           getEnvironment(), loadedModules);
