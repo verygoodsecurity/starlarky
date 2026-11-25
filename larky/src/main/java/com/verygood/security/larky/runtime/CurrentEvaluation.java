@@ -16,6 +16,7 @@
 
 package com.verygood.security.larky.runtime;
 
+import com.verygood.security.larky.parser.ParsedStarFile;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.StarlarkThread;

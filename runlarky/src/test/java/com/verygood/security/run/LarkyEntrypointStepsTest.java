@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
+import com.verygood.security.larky.runtime.EvaluationMetadata;
+import com.verygood.security.larky.runtime.EvaluationSettings;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -62,6 +64,23 @@ public class LarkyEntrypointStepsTest {
     assertEquals("tree-walker", first.group(4));
     assertNotEquals("0", first.group(2));
     assertEquals(first.group(2), second.group(2));
+  }
+
+  @Test
+  public void modulesTheCacheDidNotShareAreListedWithWhy() {
+    EvaluationMetadata m =
+        new EvaluationMetadata(
+            EvaluationMetadata.Outcome.OK,
+            1,
+            0,
+            0,
+            EvaluationMetadata.TREE_WALKER,
+            EvaluationSettings.NONE,
+            java.util.Map.of("@vgs//metrics", "RETAINS_HOST_SUPPLIED_PROVIDER com.example.Metrics at _metrics"));
+    assertEquals(
+        java.util.List.of(
+            "larky: uncached @vgs//metrics RETAINS_HOST_SUPPLIED_PROVIDER com.example.Metrics at _metrics"),
+        LarkyEntrypoint.describeUncached(m));
   }
 
   @Test

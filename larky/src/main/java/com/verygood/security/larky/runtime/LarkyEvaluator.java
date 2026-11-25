@@ -9,6 +9,7 @@ import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
+import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ResourceContentStarFile;
 import com.verygood.security.larky.parser.StarFile;
@@ -85,10 +86,18 @@ public final class LarkyEvaluator {
 
   private final LinkedHashSet<String> pending = new LinkedHashSet<>();
   private final Map<String, Module> loaded = new HashMap<>();
+
+  /** The module this evaluator loaded from {@code path} (a resource path), for tests. */
+  @VisibleForTesting
+  @Nullable
+  Module loadedModule(String path) {
+    return loaded.get(path);
+  }
   private final Reporter reporter;
   // Predeclared environment shared by all files (modules) loaded.
   @Getter
   private final ImmutableMap<String, Object> environment;
+  // The host's settings for this run (LarkyScript#getSettings).
   @Getter
   private final EvaluationSettings settings;
   @Getter
@@ -98,6 +107,13 @@ public final class LarkyEvaluator {
   @Getter
   private final StarlarkSemantics larkySemantics;
   private final ModuleCache moduleCache;
+  @Nullable private final ModuleCache.Registry moduleRegistry;
+  // The predeclared builtins, created once per process and shared by every evaluation whatever
+  // the module cache does (set by createEnvironment).
+  private ImmutableMap<String, Object> builtinBindings = ImmutableMap.of();
+  // ...and with them ModuleSupplier.CORE_ENVIRONMENT's (object, type, super...): the predeclared
+  // values that are the same objects in every evaluation of the process.
+  private ImmutableMap<String, Object> sharedBuiltins = ImmutableMap.of();
 
   public LarkyEvaluator(LarkyScript larkyScript, Console console) {
     this(larkyScript, larkyScript.getModuleSet(), console);
@@ -117,6 +133,8 @@ public final class LarkyEvaluator {
     this.validationMode = larkyScript.getValidation();
     this.larkySemantics = larkyScript.getLarkySemantics();
     this.moduleCache = checkNotNull(moduleCache);
+    this.moduleRegistry =
+        this.moduleCache.isEnabled() ? ModuleCache.Registry.from(moduleSet.getModules()) : null;
     //todo(mahmoudimus): convert to builder pattern
     this.settings = larkyScript.getSettings();
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
@@ -153,6 +171,8 @@ public final class LarkyEvaluator {
   private int evalDepth;
   private long evaluationSteps; // the script's own files (EvaluationMetadata.executedSteps)
   private long libraryInitSteps; // Larky's own modules' top-level code
+  // With the module cache on, why each Larky module this evaluation ran was not shared.
+  private final Map<String, String> uncachedModules = new java.util.LinkedHashMap<>();
 
   // what the evaluation has used of its step limit
   private long chargedSteps() {
@@ -255,6 +275,7 @@ public final class LarkyEvaluator {
     evalDepth++;
     evaluationSteps = 0;
     libraryInitSteps = 0;
+    uncachedModules.clear();
     failure = null;
     long start = System.nanoTime();
     try {
@@ -290,7 +311,8 @@ public final class LarkyEvaluator {
         libraryInitSteps,
         System.nanoTime() - start,
         EvaluationMetadata.TREE_WALKER,
-        settings);
+        settings,
+        uncachedModules);
   }
 
   private static final String TOO_MANY_STEPS = "Starlark computation cancelled: too many steps";
@@ -326,11 +348,12 @@ public final class LarkyEvaluator {
             ? resource
             : null;
     boolean libraryFile = library != null;
-    // The process-wide caches use only Larky's bundled library files.
-    if (libraryFile) {
+    boolean shareLibrary = libraryFile && moduleRegistry != null;
+    if (shareLibrary) {
       Module shared =
           moduleCache.lookup(
-              content.path(), getStarlarkValidationOptions(), getLarkySemantics(), getEnvironment());
+              content.path(), getStarlarkValidationOptions(), getLarkySemantics(), moduleRegistry,
+              getEnvironment());
       if (shared != null) {
         loaded.put(content.path(), shared);
         return DefaultEvaluationResult.builder().module(shared).build();
@@ -379,6 +402,18 @@ public final class LarkyEvaluator {
       }
     }
 
+    if (shareLibrary && prog.predeclaredNames() != null) {
+      // A cached module must not retain unrelated bindings from the evaluation that loaded it.
+      ImmutableMap.Builder<String, Object> used = ImmutableMap.builder();
+      for (String name : prog.predeclaredNames()) {
+        Object value = getEnvironment().get(name);
+        if (value != null) {
+          used.put(name, value);
+        }
+      }
+      module = Module.withPredeclared(getLarkySemantics(), used.buildOrThrow());
+    }
+
     Object starlarkOutput;
 
     // execute
@@ -410,10 +445,26 @@ public final class LarkyEvaluator {
 
       lastExpirationMs = thread.getExpirationMs();
     }
-    if (libraryFile) {
-      moduleCache.put(
-          content.path(), options, getLarkySemantics(), module, prog.predeclaredNames(),
-          getEnvironment(), loadedModules);
+    if (shareLibrary) {
+      ModuleAdmission.Decline declined =
+          moduleCache.put(
+              content.path(), options, getLarkySemantics(), moduleRegistry, module,
+              prog.predeclaredNames(), prog.universalNames(), getEnvironment(), sharedBuiltins,
+              loadedModules);
+      if (declined != null) {
+        String label = ResourceContentStarFile.labelOf(content.path());
+        uncachedModules.put(label, declined.toString());
+        UncachedModuleLog.once(label, declined);
+      } else {
+        // A compatible winner may have been published while this evaluation initialized the
+        // module. Use it for further loads so a parent depends on an admitted instance.
+        Module shared =
+            moduleCache.lookup(content.path(), options, getLarkySemantics(), moduleRegistry,
+                getEnvironment());
+        if (shared != null) {
+          module = shared;
+        }
+      }
     }
     pending.remove(content.path());
     loaded.put(content.path(), module);
@@ -547,12 +598,15 @@ public final class LarkyEvaluator {
         return cached;
       }
       Module wrapper = newNativeModule(moduleToLoad);
-      Module previous = NATIVE_WRAPPERS.putIfAbsent(key, wrapper);
-      if (previous != null) {
-        return previous;
+      synchronized (NATIVE_WRAPPERS) {
+        Module previous = NATIVE_WRAPPERS.get(key);
+        if (previous != null) {
+          return previous;
+        }
+        ModuleCache.putStable(wrapper);
+        NATIVE_WRAPPERS.put(key, wrapper);
+        return wrapper;
       }
-      ModuleCache.putStable(wrapper);
-      return wrapper;
     }
 
     private Module newNativeModule(String moduleToLoad) throws IOException, InterruptedException {
@@ -757,10 +811,17 @@ public final class LarkyEvaluator {
 
   private ImmutableMap<String, Object> createEnvironment(Iterable<Class<?>> globalModules,
       Map<String, Object> globals) {
-    return ImmutableMap.<String, Object>builder()
-        .putAll(MERGED_BUILTIN_BINDINGS.computeIfAbsent(
+    builtinBindings =
+        MERGED_BUILTIN_BINDINGS.computeIfAbsent(
             com.google.common.collect.ImmutableList.copyOf(globalModules),
-            LarkyEvaluator::mergedBuiltinBindings))
+            LarkyEvaluator::mergedBuiltinBindings);
+    sharedBuiltins =
+        ImmutableMap.<String, Object>builder()
+            .putAll(builtinBindings)
+            .putAll(com.verygood.security.larky.ModuleSupplier.CORE_ENVIRONMENT)
+            .buildKeepingLast();
+    return ImmutableMap.<String, Object>builder()
+        .putAll(builtinBindings)
         .putAll(globals)
         .buildKeepingLast();
   }
