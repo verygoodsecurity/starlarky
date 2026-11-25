@@ -110,7 +110,7 @@ public final class UnittestModule implements StarlarkValue {
 
   public static class LarkyTestRunner extends TestRunner implements StarlarkValue {
 
-    private String FINAL_TEST_RESULT = "Total number of tests: %d, started: %d, success: %d, error: %d, skipped: %d";
+    private static final String FINAL_TEST_RESULT = "Total number of tests: %d, started: %d, success: %d, error: %d, skipped: %d";
 
     public LarkyTestRunner() {
       //super(System.out);
