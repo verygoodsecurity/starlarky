@@ -52,8 +52,8 @@ def request_and_header_edits():
 
 
 def host_projection():
-    """What Atlas's post-processing reads: request.__dict__, then the headers' items()."""
-    return request_from_pairs().__dict__["headers"].items()
+    """Project request headers into the pairs a host can serialize."""
+    return request_from_pairs().headers.items()
 
 
 def headers_from_pairs():
