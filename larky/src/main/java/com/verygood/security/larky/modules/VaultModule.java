@@ -173,14 +173,18 @@ public class VaultModule implements LarkyVault {
 
     private Object redactWithAlias(LarkyVault target, Object value, Object storage, Object format, List<Object> tags,
         Object decoratorConfig, Object alias) throws EvalException {
-        if (alias instanceof AliasSpec spec) {
-            if (!(format instanceof NoneType) || !(decoratorConfig instanceof NoneType)) {
-                throw Starlark.errorf("alias cannot be combined with format or decorator_config");
-            }
-            format = spec.getFormat();
-            decoratorConfig = Dict.immutableCopyOf(spec.getDecoratorConfigMap());
+        // Java callers pass null where scripts pass None: both mean "not given".
+        if (Starlark.isNullOrNone(alias)) {
+            return redact(target, value, storage, format, tags, decoratorConfig);
         }
-        return redact(target, value, storage, format, tags, decoratorConfig);
+        if (!(alias instanceof AliasSpec spec)) {
+            throw Starlark.errorf("alias must be an alias_spec, got %s", Starlark.type(alias));
+        }
+        if (!Starlark.isNullOrNone(format) || !Starlark.isNullOrNone(decoratorConfig)) {
+            throw Starlark.errorf("alias cannot be combined with format or decorator_config");
+        }
+        return redact(target, value, storage, spec.getFormat(), tags,
+            Dict.immutableCopyOf(spec.getDecoratorConfigMap()));
     }
 
     @StarlarkMethod(
