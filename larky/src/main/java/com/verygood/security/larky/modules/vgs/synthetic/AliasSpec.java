@@ -29,8 +29,9 @@ public final class AliasSpec implements StarlarkValue {
   public static final String FORMAT = "SYNTHETIC";
 
   private final String kind;
-  private final String record;
+  private final String entityKey;
   private final String country;
+  private final boolean scopeKind;
   private final String emailDomain;
   private final String dob;
   private final boolean allowUnreservedPhone;
@@ -41,8 +42,9 @@ public final class AliasSpec implements StarlarkValue {
    */
   AliasSpec(ImmutableMap<String, Object> decoratorConfig) {
     this.kind = (String) decoratorConfig.get("kind");
-    this.record = (String) decoratorConfig.get("record");
+    this.entityKey = (String) decoratorConfig.get("entity_key");
     this.country = (String) decoratorConfig.get("country");
+    this.scopeKind = Boolean.TRUE.equals(decoratorConfig.get("scope_kind"));
     this.emailDomain = (String) decoratorConfig.get("email_domain");
     this.dob = (String) decoratorConfig.get("dob");
     this.allowUnreservedPhone = Boolean.TRUE.equals(decoratorConfig.get("allow_unreserved_phone"));
@@ -53,10 +55,14 @@ public final class AliasSpec implements StarlarkValue {
     return FORMAT;
   }
 
-  /** The decorator config for the vault, as an immutable Java map. */
+  /**
+   * The decorator config for the vault, as an immutable Java map. It always carries {@code
+   * scope_kind}, so a provider knows whether {@code kind} is lookup scope or only a generation
+   * input.
+   */
   public ImmutableMap<String, Object> getDecoratorConfigMap() {
     ImmutableMap.Builder<String, Object> builder = ImmutableMap.<String, Object>builder()
-        .put("kind", kind).put("record", record).put("country", country);
+        .put("kind", kind).put("entity_key", entityKey).put("country", country).put("scope_kind", scopeKind);
     if (emailDomain != null) {
       builder.put("email_domain", emailDomain);
     }
@@ -87,9 +93,17 @@ public final class AliasSpec implements StarlarkValue {
     return kind;
   }
 
-  @StarlarkMethod(name = "record", doc = "The record the alias belongs to.", structField = true)
-  public String record() {
-    return record;
+  @StarlarkMethod(name = "entity_key", doc = "The entity the alias belongs to.", structField = true)
+  public String entityKey() {
+    return entityKey;
+  }
+
+  @StarlarkMethod(
+      name = "scope_kind",
+      doc = "Whether kind is lookup scope (reveal and delete must pass it) or only a generation input.",
+      structField = true)
+  public boolean scopeKind() {
+    return scopeKind;
   }
 
   @StarlarkMethod(name = "country", doc = "The two-letter country code.", structField = true)

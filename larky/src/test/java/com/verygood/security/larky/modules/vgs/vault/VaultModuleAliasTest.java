@@ -26,7 +26,10 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-/** VaultModule.redactForStarlark's alias argument: validation and the call the provider sees. */
+/**
+ * VaultModule.redactForStarlark's alias argument (the Java entry point): validation and the call the
+ * provider sees. {@link VaultModuleAliasScriptTest} drives the script path, {@code redactForRun}.
+ */
 public class VaultModuleAliasTest {
 
     /** Records what the module passes to the provider. */
@@ -98,7 +101,7 @@ public class VaultModuleAliasTest {
     }
 
     private static AliasSpec spec(String kind) throws EvalException {
-        return SyntheticModule.INSTANCE.aliasSpec(kind, "record-a", "GB", Starlark.NONE, false, Starlark.NONE);
+        return SyntheticModule.INSTANCE.aliasSpec(kind, "entity-a", "GB", Starlark.NONE, false, Starlark.NONE, false);
     }
 
     private static Object[] onlyCall() {
@@ -110,7 +113,7 @@ public class VaultModuleAliasTest {
     public void aliasMakesTheSameProviderCallAsTheLongForm() throws Exception {
         VaultModule module = capturingModule();
         AliasSpec spec = SyntheticModule.INSTANCE.aliasSpec(
-                "email", "record-a", "GB", "example.org", false, Starlark.NONE);
+                "email", "entity-a", "GB", "example.org", false, Starlark.NONE, false);
 
         Object viaAlias = module.redactForStarlark(
                 "x@example.net", Starlark.NONE, Starlark.NONE, Collections.emptyList(), Starlark.NONE, spec);
@@ -118,7 +121,8 @@ public class VaultModuleAliasTest {
         CapturingVault.REDACTS.clear();
 
         Dict<String, Object> longConfig = Dict.immutableCopyOf(new java.util.LinkedHashMap<>(ImmutableMap.of(
-                "kind", "email", "record", "record-a", "country", "GB", "email_domain", "example.org")));
+                "kind", "email", "entity_key", "entity-a", "country", "GB", "scope_kind", false,
+                "email_domain", "example.org")));
         Object viaLongForm = module.redactForStarlark(
                 "x@example.net", Starlark.NONE, "SYNTHETIC", Collections.emptyList(), longConfig, Starlark.NONE);
         Object[] longCall = onlyCall();

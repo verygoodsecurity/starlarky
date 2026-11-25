@@ -3,17 +3,31 @@
     load("@vgs//synthetic", "Faker")
     load("@vgs//vault", "vault")
 
-    fake = Faker("en_GB", record=customer_id)
+    fake = Faker("en_GB", entity_key=customer_id)
     row["email"] = vault.redact(row["email"], alias=fake.email())
     row["age"] = vault.redact(row["age"], alias=fake.age(dob=row["dob"]))
 
-    vault.reveal(alias, record=customer_id)   # the same as fake.reveal(alias)
+    fake.reveal(alias)                          # the same as vault.reveal(alias, entity_key=customer_id)
 
-`Faker(locale, record, email_domain=None, allow_unreserved_phone=False)` binds a locale and a
-record. `locale` is `xx_CC` or `xx-CC` (any case), or a bare upper-case country `CC`; only the country is used.
-A bare lower-case value such as `en` is rejected, because faker-style bare values are language codes.
-`record` is required and must not be blank: a SYNTHETIC alias is only unique within its record, so
-the same record must be given to reveal it.
+`Faker(locale, entity_key, email_domain=None, allow_unreserved_phone=False, scope_kind=False)` binds a
+locale and an entity key. `locale` is `xx_CC` or `xx-CC` (any case), or a bare upper-case country `CC`;
+only the country is used. A bare lower-case value such as `en` is rejected, because faker-style bare
+values are language codes. `entity_key` is required and must not be blank: it is the lookup scope of
+every alias this Faker makes, so reveal and delete must give the same one.
+
+Lookup uses exactly the context used at redact and never searches other scopes. Whether the kind of
+value (email, city, ...) is part of that context is the caller's choice:
+
+- `scope_kind=False` (the default): kind is only a generation input. `fake.reveal(alias)` and
+  `fake.delete(alias)` need only the entity key, and passing `kind=` to them is an error.
+- `scope_kind=True`: kind is lookup scope too. `fake.reveal(alias, kind="email")` and
+  `fake.delete(alias, kind="email")` must name the kind the alias was made with; omitting it is an
+  error. A kind that differs from the redact's finds nothing.
+
+The choice travels in each spec's decorator config as `scope_kind`, so a vault provider knows whether
+`kind` is scope or only a generation input. Without this module, the same context is
+`vault.reveal(alias, entity_key=..., kind=...)`, where each field is optional and an omitted one adds
+no scope.
 
 Each generator method returns an immutable spec to pass as `vault.redact(..., alias=spec)`:
 
@@ -37,26 +51,31 @@ def _dob_text(dob):
         fail("dob must be a string, not %s" % type(dob))
     return dob
 
-def Faker(locale, record, email_domain = None, allow_unreserved_phone = False):
-    """Creates a Faker for a locale and a record.
+def Faker(locale, entity_key, email_domain = None, allow_unreserved_phone = False, scope_kind = False):
+    """Creates a Faker for a locale and an entity key.
 
     Args:
       locale: `xx_CC` or `xx-CC` in any case, or an upper-case two-letter country code.
-      record: the record every alias made by this Faker belongs to; not blank.
+      entity_key: the entity every alias made by this Faker belongs to; not blank. It is lookup
+        scope: reveal and delete use it.
       email_domain: the domain of email() addresses.
       allow_unreserved_phone: let phone_number() leave the reserved fictional ranges.
+      scope_kind: whether kind is lookup scope as well as a generation input. When True, reveal
+        and delete require `kind=`; when False (the default) they reject it.
 
     Returns:
       a struct of generator methods, reveal and delete.
     """
-    if type(record) != "string":
-        fail("record must be a string, not %s" % type(record))
-    if not record.strip():
-        fail("record must not be empty or blank")
+    if type(entity_key) != "string":
+        fail("entity_key must be a string, not %s" % type(entity_key))
+    if not entity_key.strip():
+        fail("entity_key must not be empty or blank")
+    if type(scope_kind) != "bool":
+        fail("scope_kind must be a bool, not %s" % type(scope_kind))
     country = _native.locale_country(locale)
 
     def _spec(kind, **options):
-        return _native.alias_spec(kind, record, country, **options)
+        return _native.alias_spec(kind, entity_key, country, scope_kind = scope_kind, **options)
 
     def _email():
         return _spec("email", email_domain = email_domain)
@@ -67,11 +86,23 @@ def Faker(locale, record, email_domain = None, allow_unreserved_phone = False):
     def _age(dob = None):
         return _spec("age", dob = _dob_text(dob))
 
-    def _reveal(alias, storage = None):
-        return vault.reveal(alias, storage = storage, record = record)
+    def _lookup_kind(kind):
+        """The kind to look up with: required when kind is scope, rejected when it is not."""
+        if scope_kind:
+            if kind == None:
+                fail("kind is required: this Faker has scope_kind=True, so kind is lookup scope")
+            if type(kind) != "string":
+                fail("kind must be a string, not %s" % type(kind))
+            return kind
+        if kind != None:
+            fail("kind is not lookup scope for this Faker (scope_kind=False); omit it")
+        return None
 
-    def _delete(alias, storage = None):
-        return vault.delete(alias, storage = storage, record = record)
+    def _reveal(alias, storage = None, kind = None):
+        return vault.reveal(alias, storage = storage, entity_key = entity_key, kind = _lookup_kind(kind))
+
+    def _delete(alias, storage = None, kind = None):
+        return vault.delete(alias, storage = storage, entity_key = entity_key, kind = _lookup_kind(kind))
 
     return larky.struct(
         name = lambda: _spec("full_name"),
