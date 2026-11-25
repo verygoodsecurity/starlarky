@@ -91,7 +91,7 @@ public final class FunctionsCaller implements StarlarkValue, AutoCloseable {
 
   @StarlarkMethod(name = "invoke", doc = "Invokes an immutable function version in the host's vault.",
       parameters = {@Param(name = "version_id"), @Param(name = "body"),
-          @Param(name = "content_type", defaultValue = "\"application/octet-stream\"")},
+          @Param(name = "content_type", named = true, defaultValue = "\"application/octet-stream\"")},
       useStarlarkThread = true)
   public Dict<String, Object> invoke(String versionId, StarlarkBytes body, String contentType, StarlarkThread thread)
       throws EvalException {

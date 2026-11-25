@@ -14,6 +14,8 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyStore;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -68,6 +70,20 @@ public class FunctionsCallerTest {
     assertEquals("Bearer synthetic.token", received.authorization());
     assertEquals("application/octet-stream", received.contentType());
     assertArrayEquals(new byte[] {0, -1}, received.body());
+  }
+
+  @Test
+  public void acceptsNamedAndPositionalContentType() throws Exception {
+    final var contentTypes = new CopyOnWriteArrayList<String>();
+    serve(exchange -> {
+      contentTypes.add(exchange.getRequestHeaders().getFirst("Content-Type"));
+      respond(exchange, 204, new byte[0]);
+    }, origin -> assertEquals("ok", run(origin, """
+        functions.invoke("%s", b"", content_type="application/json")
+        functions.invoke("%s", b"", "text/plain")
+        "ok"
+        """.formatted(FN, FN))));
+    assertEquals(List.of("application/json", "text/plain"), contentTypes);
   }
 
   @Test
