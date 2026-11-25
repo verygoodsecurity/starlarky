@@ -42,6 +42,14 @@ public class SyntheticModuleTest {
     }
 
     @Test
+    public void aJavaNullLocaleIsAnEvalException() {
+        EvalException e = assertThrows(EvalException.class, () -> SyntheticModule.countryOfLocale(null));
+        assertEquals("locale must not be null", e.getMessage());
+        EvalException m = assertThrows(EvalException.class, () -> MODULE.localeCountry(null));
+        assertEquals("locale must not be null", m.getMessage());
+    }
+
+    @Test
     public void rejectsOtherLocales() {
         String[] bad = {
             "", " ", "G", "GBR", "eng_GB", "en_GBR", "en__GB", "en_G", "en GB", "en.GB", "en_GB_x",

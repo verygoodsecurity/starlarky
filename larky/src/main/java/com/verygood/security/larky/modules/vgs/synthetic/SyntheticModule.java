@@ -55,6 +55,9 @@ public class SyntheticModule implements StarlarkValue {
    * is a language, not a country, so accepting it would read {@code "en"} as the country EN.
    */
   public static String countryOfLocale(String locale) throws EvalException {
+    if (locale == null) {
+      throw Starlark.errorf("locale must not be null");
+    }
     java.util.regex.Matcher m = LANGUAGE_COUNTRY.matcher(locale);
     if (m.matches()) {
       return m.group(1).toUpperCase(java.util.Locale.ROOT);
