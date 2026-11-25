@@ -4,6 +4,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 
 import java.util.regex.Pattern;
 
+@com.google.errorprone.annotations.Immutable
 final class NumberLengthPreserving extends ValidatingAliasGenerator {
 
     private final Pattern cardPattern = Pattern.compile("\\d{3,16}");

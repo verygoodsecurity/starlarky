@@ -1,5 +1,8 @@
 package com.verygood.security.larky.modules.crypto.Cipher;
 
+import com.verygood.security.larky.annot.CacheableWhenFrozen;
+import net.starlark.java.eval.Mutability;
+import com.verygood.security.larky.modules.types.NativeMutability;
 import java.nio.ByteBuffer;
 import java.security.ProviderException;
 
@@ -23,7 +26,16 @@ import org.bouncycastle.crypto.modes.gcm.GCMUtil;
  *
  * @since 1.8
  */
-public class GHash implements StarlarkValue {
+@CacheableWhenFrozen
+public class GHash implements Mutability.Freezable, StarlarkValue {
+  // The evaluation that created this value; methods that change its state fail once it is frozen.
+  private final Mutability mutability = NativeMutability.current();
+
+  @Override
+  public Mutability mutability() {
+    return mutability;
+  }
+
 
     private static long getLong(byte[] buffer, int offset) {
         long result = 0;
@@ -57,9 +69,6 @@ public class GHash implements StarlarkValue {
     // buffer for storing hash
     private final long[] state;
 
-    // variables for save/restore calls
-    private long stateSave0, stateSave1;
-
     /**
      * Initializes the cipher in the specified mode with the given key
      * and iv.
@@ -91,22 +100,6 @@ public class GHash implements StarlarkValue {
         state[1] = 0;
     }
 
-    /**
-     * Save the current snapshot of this GHASH object.
-     */
-    void save() {
-        stateSave0 = state[0];
-        stateSave1 = state[1];
-    }
-
-    /**
-     * Restores this object using the saved snapshot.
-     */
-    void restore() {
-        state[0] = stateSave0;
-        state[1] = stateSave1;
-    }
-
     private static void processBlock(byte[] data, int ofs, long[] st, long[] subH) {
         st[0] ^= getLong(data, ofs);
         st[1] ^= getLong(data, ofs + 8);
@@ -120,6 +113,7 @@ public class GHash implements StarlarkValue {
           useStarlarkThread = true
       )
       public StarlarkBytes digest(StarlarkThread thread) throws EvalException {
+        NativeMutability.checkMutable(this); // digest() resets the state
         byte[] resBuf = this.digest();
         return StarlarkBytes.of(thread.mutability(),resBuf);
 //        return StarlarkBytes.builder(thread).setSequence(resBuf).build();
@@ -134,7 +128,8 @@ public class GHash implements StarlarkValue {
               @ParamType(type = StarlarkBytes.class)
           })}
       )
-    public void update(StarlarkBytes data) {
+    public void update(StarlarkBytes data) throws EvalException {
+        NativeMutability.checkMutable(this);
         byte[] input = data.toByteArray();
         update(input);
     }

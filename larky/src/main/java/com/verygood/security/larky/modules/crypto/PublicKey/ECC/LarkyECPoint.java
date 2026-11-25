@@ -1,11 +1,13 @@
 package com.verygood.security.larky.modules.crypto.PublicKey.ECC;
 
+import com.verygood.security.larky.modules.types.NativeMutability;
 import java.math.BigInteger;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
@@ -14,8 +16,20 @@ import net.starlark.java.eval.Tuple;
 import org.bouncycastle.math.ec.ECCurve;
 import org.bouncycastle.math.ec.ECPoint;
 
-public class LarkyECPoint implements StarlarkValue {
-  private ECPoint point;
+/**
+ * An immutable elliptic-curve point. Every operation returns a new point; the receiver is never
+ * changed, so a point can be shared between evaluations.
+ */
+public class LarkyECPoint implements Mutability.Freezable, StarlarkValue {
+  // The evaluation that created this point. Nothing changes a point, so this only tells the module
+  // cache's admission walk that a point in a frozen module is frozen.
+  private final Mutability mutability = NativeMutability.current();
+  private final ECPoint point;
+
+  @Override
+  public Mutability mutability() {
+    return mutability;
+  }
 
   private LarkyECPoint(ECPoint point) {
     this.point = point;
@@ -35,8 +49,7 @@ public class LarkyECPoint implements StarlarkValue {
 
   @StarlarkMethod(name = "negate")
   public LarkyECPoint negate() {
-    this.point = this.point.normalize().negate();
-    return this;
+    return new LarkyECPoint(this.point.normalize().negate());
   }
 
   @StarlarkMethod(name = "is_infinity")
@@ -64,8 +77,7 @@ public class LarkyECPoint implements StarlarkValue {
 
   @StarlarkMethod(name = "twice")
   public LarkyECPoint twice() {
-    this.point = this.point.twice().normalize();
-    return this;
+    return new LarkyECPoint(this.point.twice().normalize());
   }
 
   @StarlarkMethod(name = "add", parameters = {@Param(name = "point", allowedTypes = {@ParamType(type = LarkyECPoint.class)})})
@@ -73,14 +85,12 @@ public class LarkyECPoint implements StarlarkValue {
     if (!(this.point.getCurve().equals(other.point.getCurve()))) {
       throw Starlark.errorf("ValueError: EC points are not on the same curve");
     }
-    this.point = this.point.add(other.point).normalize();
-    return this;
+    return new LarkyECPoint(this.point.add(other.point).normalize());
   }
 
   @StarlarkMethod(name = "multiply", parameters = {@Param(name = "point", allowedTypes = {@ParamType(type = StarlarkInt.class)})})
   public LarkyECPoint multiply(StarlarkInt scale) {
-    this.point = this.point.multiply(scale.toBigInteger()).normalize();
-    return this;
+    return new LarkyECPoint(this.point.multiply(scale.toBigInteger()).normalize());
   }
 
   @Override

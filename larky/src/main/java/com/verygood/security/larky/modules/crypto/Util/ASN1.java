@@ -1,5 +1,8 @@
 package com.verygood.security.larky.modules.crypto.Util;
 
+import com.verygood.security.larky.annot.CacheableWhenFrozen;
+import net.starlark.java.eval.Mutability;
+import com.verygood.security.larky.modules.types.NativeMutability;
 import static com.verygood.security.larky.modules.crypto.Util.ASN1Utils.ASN1EncodableFactory;
 
 import com.google.common.collect.Iterators;
@@ -53,6 +56,12 @@ import lombok.SneakyThrows;
 
 public class ASN1 {
 
+  /**
+   * Base of the DER wrappers. {@code encodable} is replaced by the in-place builder methods
+   * ({@code append}, {@code decode}), as PyCryptodome's DER objects are mutable, and has no owning
+   * Mutability to check: these objects are per-evaluation and must not be reachable from shared
+   * module globals.
+   */
   public abstract static class LarkyASN1Encodable extends ASN1Object implements ASN1Encodable, StarlarkValue {
 
     protected ASN1Encodable encodable;
@@ -221,8 +230,17 @@ public class ASN1 {
     }
   }
 
+  @CacheableWhenFrozen
   public static class LarkySetOf extends LarkyASN1Encodable
-    implements StarlarkIterable<LarkyASN1Encodable>, StarlarkIndexable {
+    implements StarlarkIterable<LarkyASN1Encodable>, StarlarkIndexable, Mutability.Freezable {
+
+    // The evaluation that created this value; append() fails once it is frozen, as for a list.
+    private final Mutability mutability = NativeMutability.current();
+
+    @Override
+    public Mutability mutability() {
+      return mutability;
+    }
 
     LarkySetOf(ASN1Set asn1Set) {
       super(asn1Set);
@@ -283,6 +301,7 @@ public class ASN1 {
       doc = "Adds an item to the end of the list.",
       parameters = {@Param(name = "item", doc = "Item to add at the end.")})
     public void append(Object item) throws EvalException {
+      NativeMutability.checkMutable(this);
       ASN1Encodable atom;
       if (item instanceof String) {
         String s = (String) item;
@@ -304,6 +323,7 @@ public class ASN1 {
       @Param(name = "strict", named = true, defaultValue = "False"),
     }, useStarlarkThread = true)
     public StarlarkList<?> decode(StarlarkBytes barr, Boolean strict, StarlarkThread thread) throws EvalException {
+      NativeMutability.checkMutable(this); // decoding replaces this object's contents
       byte[] asbytes = barr.toByteArray();
       try {
         this.encodable = ASN1Set.fromByteArray(asbytes);
@@ -393,8 +413,17 @@ public class ASN1 {
   }
 
 
+  @CacheableWhenFrozen
   public static class LarkyASN1Sequence extends LarkyASN1Encodable
-    implements StarlarkIterable<LarkyASN1Encodable>, StarlarkIndexable {
+    implements StarlarkIterable<LarkyASN1Encodable>, StarlarkIndexable, Mutability.Freezable {
+
+    // The evaluation that created this value; append() fails once it is frozen, as for a list.
+    private final Mutability mutability = NativeMutability.current();
+
+    @Override
+    public Mutability mutability() {
+      return mutability;
+    }
 
     public LarkyASN1Sequence(ASN1Sequence seq) {
       super(seq);
@@ -424,6 +453,7 @@ public class ASN1 {
       parameters = {@Param(name = "item", doc = "Item to add at the end.")})
     @SuppressWarnings("unchecked")
     public void append(Object item) throws EvalException {
+      NativeMutability.checkMutable(this);
       ASN1Encodable atom;
       if (item instanceof String) {
         String s = (String) item;
@@ -445,6 +475,7 @@ public class ASN1 {
       @Param(name = "strict", named = true, defaultValue = "False"),
     }, useStarlarkThread = true)
     public StarlarkList<?> decode(StarlarkBytes barr, Boolean strict, StarlarkThread thread) throws EvalException {
+      NativeMutability.checkMutable(this); // decoding replaces this object's contents
       byte[] asbytes = barr.toByteArray();
       try (ByteArrayInputStream bais = new ByteArrayInputStream(asbytes)) {
         this.encodable = DERSequence.fromByteArray(asbytes);
