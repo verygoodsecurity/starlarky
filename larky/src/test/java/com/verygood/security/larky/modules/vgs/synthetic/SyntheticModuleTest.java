@@ -117,6 +117,16 @@ public class SyntheticModuleTest {
     }
 
     @Test
+    public void aJavaNullEmailDomainIsNotGiven() throws Exception {
+        assertEquals(MODULE.aliasSpec("email", "e", "GB", Starlark.NONE, false, Starlark.NONE, false),
+                MODULE.aliasSpec("email", "e", "GB", null, false, Starlark.NONE, false));
+        // Not given, so it is not rejected for a kind it does not apply to either.
+        assertEquals(spec("city").getDecoratorConfigMap().keySet(),
+                MODULE.aliasSpec("city", "entity-a", "GB", null, false, Starlark.NONE, false)
+                        .getDecoratorConfigMap().keySet());
+    }
+
+    @Test
     public void optionsAreRejectedForOtherKinds() {
         assertThrows(EvalException.class,
                 () -> MODULE.aliasSpec("city", "e", "GB", "example.org", false, Starlark.NONE, false));

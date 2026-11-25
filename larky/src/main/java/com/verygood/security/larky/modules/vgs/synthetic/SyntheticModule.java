@@ -165,7 +165,8 @@ public class SyntheticModule implements StarlarkValue {
     config.put("country", country);
     config.put("scope_kind", scopeKind);
 
-    if (!(emailDomain instanceof NoneType)) {
+    // Java callers pass null where scripts pass None: both mean "not given".
+    if (!Starlark.isNullOrNone(emailDomain)) {
       String domain = (String) emailDomain;
       if (!kind.equals("email")) {
         throw Starlark.errorf("email_domain only applies to kind 'email', not '%s'", kind);
