@@ -21,7 +21,7 @@ import net.starlark.java.eval.StarlarkValue;
   category = "BUILTIN",
   doc = "This module provides access to the mathematical functions defined by the C99 standard")
 @com.google.errorprone.annotations.Immutable
-public class C99MathModule implements StarlarkValue {
+public final class C99MathModule implements StarlarkValue {
 
   public static final C99MathModule INSTANCE = new C99MathModule();
 

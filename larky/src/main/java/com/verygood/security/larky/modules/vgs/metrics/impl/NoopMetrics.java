@@ -6,7 +6,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 
 @com.google.errorprone.annotations.Immutable
-public class NoopMetrics implements LarkyMetrics {
+public final class NoopMetrics implements LarkyMetrics {
 
   /**
    * Not used in production

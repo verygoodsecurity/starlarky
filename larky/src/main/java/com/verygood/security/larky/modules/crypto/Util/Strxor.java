@@ -13,7 +13,7 @@ import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 
 @com.google.errorprone.annotations.Immutable
-public class Strxor implements StarlarkValue {
+public final class Strxor implements StarlarkValue {
 
   @StarlarkMethod(name = "strxor",
       doc = "XOR two byte strings.\n" +

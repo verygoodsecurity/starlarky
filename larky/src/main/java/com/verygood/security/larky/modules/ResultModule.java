@@ -33,7 +33,7 @@ import net.starlark.java.eval.Tuple;
       " conditionals."
 )
 @com.google.errorprone.annotations.Immutable
-public class ResultModule implements StarlarkValue {
+public final class ResultModule implements StarlarkValue {
 
   public static final ResultModule INSTANCE = new ResultModule();
 

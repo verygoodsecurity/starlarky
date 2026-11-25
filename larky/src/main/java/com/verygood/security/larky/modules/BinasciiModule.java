@@ -38,7 +38,7 @@ import net.starlark.java.eval.StarlarkValue;
         "that support the buffer protocol)."
 )
 @com.google.errorprone.annotations.Immutable
-public class BinasciiModule implements StarlarkValue {
+public final class BinasciiModule implements StarlarkValue {
 
   public static final BinasciiModule INSTANCE = new BinasciiModule();
   private static final String NON_HEX_DIGIT_FOUND = "Found non hex digit";

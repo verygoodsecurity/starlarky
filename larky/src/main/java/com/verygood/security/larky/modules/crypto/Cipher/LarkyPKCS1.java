@@ -26,7 +26,7 @@ import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
 import org.bouncycastle.util.BigIntegers;
 
 @com.google.errorprone.annotations.Immutable
-public class LarkyPKCS1 implements StarlarkValue {
+public final class LarkyPKCS1 implements StarlarkValue {
 
   public static final LarkyPKCS1 INSTANCE = new LarkyPKCS1();
   // https://github.com/Legrandin/pycryptodome/blob/5dace638b70ac35bb5d9b565f3e75f7869c9d851/src/pkcs1_decode.c#L190

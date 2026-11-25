@@ -62,7 +62,7 @@ import javax.crypto.SecretKeyFactory;
 import lombok.Getter;
 
 @com.google.errorprone.annotations.Immutable
-public class CryptoIOModule implements StarlarkValue {
+public final class CryptoIOModule implements StarlarkValue {
 
   public static final CryptoIOModule INSTANCE = new CryptoIOModule();
 
@@ -73,7 +73,7 @@ public class CryptoIOModule implements StarlarkValue {
   public static final PKCS8 PKCS8_INSTANCE = new PKCS8();
 
   @com.google.errorprone.annotations.Immutable
-  public static class PKCS8 implements StarlarkValue {
+  public static final class PKCS8 implements StarlarkValue {
 
     @StarlarkMethod(
         name = "wrap", parameters = {
@@ -214,7 +214,7 @@ public class CryptoIOModule implements StarlarkValue {
   private static final PEM PEM_INSTANCE = new PEM();
 
   @com.google.errorprone.annotations.Immutable
-  public static class PEM implements StarlarkValue {
+  public static final class PEM implements StarlarkValue {
 
     @StarlarkMethod(
         name = "encode",
