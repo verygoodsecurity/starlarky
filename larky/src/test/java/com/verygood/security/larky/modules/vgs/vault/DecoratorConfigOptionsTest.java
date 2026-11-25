@@ -21,13 +21,14 @@ import org.junit.jupiter.api.Test;
 public class DecoratorConfigOptionsTest {
 
     private static final String DOB = "1987-06-05";
-    private static final String RECORD = "record-private-7";
+    private static final String ENTITY_KEY = "entity-private-7";
 
     private static Map<String, Object> allOptions() {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("kind", "age");
-        m.put("record", RECORD);
+        m.put("entity_key", ENTITY_KEY);
         m.put("country", "GB");
+        m.put("scope_kind", true);
         m.put("email_domain", "example.org");
         m.put("allow_unreserved_phone", true);
         m.put("dob", DOB);
@@ -35,7 +36,7 @@ public class DecoratorConfigOptionsTest {
     }
 
     @Test
-    public void keepsExactlyTheSixKeysAsText() {
+    public void keepsExactlyTheSevenKeysAsText() {
         Map<String, Object> config = allOptions();
         config.put("searchPattern", "(a)");
         config.put("replacePattern", "b${1}");
@@ -43,9 +44,11 @@ public class DecoratorConfigOptionsTest {
         DecoratorConfig parsed = DecoratorConfig.fromObject(config);
 
         assertEquals(ImmutableMap.of(
-                "kind", "age", "record", RECORD, "country", "GB",
+                "kind", "age", "entity_key", ENTITY_KEY, "country", "GB", "scope_kind", "true",
                 "email_domain", "example.org", "allow_unreserved_phone", "true", "dob", DOB),
                 parsed.getOptions());
+        assertEquals(List.of("kind", "entity_key", "country", "scope_kind", "email_domain",
+                "allow_unreserved_phone", "dob"), List.copyOf(parsed.getOptions().keySet()));
         assertEquals("(a)", parsed.getSearchPattern());
         assertEquals("b${1}", parsed.getReplacePattern());
     }
@@ -53,8 +56,9 @@ public class DecoratorConfigOptionsTest {
     @Test
     public void booleansAreTrueOrFalseAndNumbersAreText() {
         DecoratorConfig parsed = DecoratorConfig.fromObject(ImmutableMap.of(
-                "allow_unreserved_phone", false, "country", 44, "kind", StarlarkInt.of(7)));
-        assertEquals(ImmutableMap.of("allow_unreserved_phone", "false", "country", "44", "kind", "7"),
+                "allow_unreserved_phone", false, "country", 44, "kind", StarlarkInt.of(7), "scope_kind", false));
+        assertEquals(ImmutableMap.of("allow_unreserved_phone", "false", "country", "44", "kind", "7",
+                        "scope_kind", "false"),
                 parsed.getOptions());
     }
 
@@ -72,7 +76,8 @@ public class DecoratorConfigOptionsTest {
         assertTrue(DecoratorConfig.fromObject(ImmutableMap.of()).getOptions().isEmpty());
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("kind", null);
-        m.put("record", Starlark.NONE);
+        m.put("entity_key", Starlark.NONE);
+        m.put("scope_kind", Starlark.NONE);
         assertTrue(DecoratorConfig.fromObject(m).getOptions().isEmpty());
         assertNull(DecoratorConfig.fromObject("not a map"));
         assertNull(DecoratorConfig.fromObject(Starlark.NONE));
@@ -89,11 +94,11 @@ public class DecoratorConfigOptionsTest {
         for (String key : DecoratorConfig.OPTION_KEYS) {
             for (Object bad : new Object[] {
                 ImmutableList.of(DOB), ImmutableMap.of("secret", DOB), Dict.immutableCopyOf(ImmutableMap.of("k", DOB)),
-                List.of(RECORD), new Object[] {DOB}}) {
+                List.of(ENTITY_KEY), new Object[] {DOB}}) {
                 InvalidDecoratorConfigException e = assertThrows(InvalidDecoratorOptionException.class,
                         () -> DecoratorConfig.fromObject(ImmutableMap.of(key, bad)));
                 assertEquals("'" + key + "' field must be a string, boolean or number", e.getMessage());
-                assertFalse(e.getMessage().contains(DOB) || e.getMessage().contains(RECORD));
+                assertFalse(e.getMessage().contains(DOB) || e.getMessage().contains(ENTITY_KEY));
             }
         }
     }
@@ -102,21 +107,25 @@ public class DecoratorConfigOptionsTest {
     public void toStringPrintsKeysOnly() {
         DecoratorConfig parsed = DecoratorConfig.fromObject(allOptions());
         String text = parsed.toString();
-        for (String secret : new String[] {DOB, "1987", RECORD, "example.org", "GB", "age"}) {
+        for (String secret : new String[] {DOB, "1987", ENTITY_KEY, "example.org", "GB", "age"}) {
             assertFalse(text.contains(secret), text);
         }
-        assertTrue(text.contains("options=[kind, record, country, email_domain, allow_unreserved_phone, dob]"), text);
+        assertTrue(text.contains(
+                "options=[kind, entity_key, country, scope_kind, email_domain, allow_unreserved_phone, dob]"), text);
         assertEquals(text, String.format("%s", parsed));
     }
 
     @Test
     public void equalityAndHashCodeCoverOptions() {
-        DecoratorConfig a = DecoratorConfig.fromObject(ImmutableMap.of("kind", "city", "record", "r1"));
-        DecoratorConfig b = DecoratorConfig.fromObject(ImmutableMap.of("kind", "city", "record", "r1"));
-        DecoratorConfig c = DecoratorConfig.fromObject(ImmutableMap.of("kind", "city", "record", "r2"));
+        DecoratorConfig a = DecoratorConfig.fromObject(ImmutableMap.of("kind", "city", "entity_key", "e1"));
+        DecoratorConfig b = DecoratorConfig.fromObject(ImmutableMap.of("kind", "city", "entity_key", "e1"));
+        DecoratorConfig c = DecoratorConfig.fromObject(ImmutableMap.of("kind", "city", "entity_key", "e2"));
+        DecoratorConfig d = DecoratorConfig.fromObject(
+                ImmutableMap.of("kind", "city", "entity_key", "e1", "scope_kind", true));
         assertEquals(a, b);
         assertEquals(a.hashCode(), b.hashCode());
         assertFalse(a.equals(c));
+        assertFalse(a.equals(d));
     }
 
     @Test

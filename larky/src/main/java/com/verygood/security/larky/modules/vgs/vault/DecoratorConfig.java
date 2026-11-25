@@ -23,9 +23,13 @@ public class DecoratorConfig {
   /**
    * The decorator config keys that describe a SYNTHETIC alias. They are kept, stringified, in
    * {@link #getOptions()} so a provider can forward them; any other unknown key is ignored.
+   *
+   * <p>{@code entity_key} is lookup scope. {@code kind} is a generation input, and lookup scope too
+   * only when {@code scope_kind} is {@code "true"}: a provider must then store and look up with the
+   * kind, and otherwise must not.
    */
-  public static final ImmutableSet<String> OPTION_KEYS =
-      ImmutableSet.of("kind", "record", "country", "email_domain", "allow_unreserved_phone", "dob");
+  public static final ImmutableSet<String> OPTION_KEYS = ImmutableSet.of(
+      "kind", "entity_key", "country", "scope_kind", "email_domain", "allow_unreserved_phone", "dob");
 
   /** A decorator option whose value is not a string, boolean or number. Never echoes the value. */
   public static class InvalidDecoratorOptionException extends InvalidDecoratorConfigException {
@@ -69,7 +73,7 @@ public class DecoratorConfig {
   /**
    * The SYNTHETIC keys present in the config ({@link #OPTION_KEYS}), with scalar values as text:
    * booleans as "true" or "false". Immutable, never null. Values can be personal data (a date of
-   * birth, a record), so {@link #toString()} prints the keys only.
+   * birth, an entity key), so {@link #toString()} prints the keys only.
    */
   private final Map<String, String> options;
 

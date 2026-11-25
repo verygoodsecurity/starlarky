@@ -112,19 +112,20 @@ public class VaultModuleDecoratorOptionsTest {
     @Test
     public void aliasAndTheLongFormGiveTheSameOptions() throws Exception {
         VaultModule module = parsingModule();
-        AliasSpec spec = SyntheticModule.INSTANCE.aliasSpec("age", "record-a", "GB", Starlark.NONE, false, DOB);
+        AliasSpec spec = SyntheticModule.INSTANCE.aliasSpec("age", "entity-a", "GB", Starlark.NONE, false, DOB, false);
         redact(module, Starlark.NONE, Starlark.NONE, spec);
 
         Map<String, Object> longForm = new LinkedHashMap<>();
         longForm.put("kind", "age");
-        longForm.put("record", "record-a");
+        longForm.put("entity_key", "entity-a");
         longForm.put("country", "GB");
+        longForm.put("scope_kind", false);
         longForm.put("dob", DOB);
         redact(module, "SYNTHETIC", Dict.immutableCopyOf(longForm), Starlark.NONE);
 
         assertEquals(2, ParsingVault.PARSED.size());
         Map<String, String> expected = ImmutableMap.of(
-                "kind", "age", "record", "record-a", "country", "GB", "dob", DOB);
+                "kind", "age", "entity_key", "entity-a", "country", "GB", "scope_kind", "false", "dob", DOB);
         assertEquals(expected, ParsingVault.PARSED.get(0).getOptions());
         assertEquals(expected, ParsingVault.PARSED.get(1).getOptions());
         assertEquals(ParsingVault.PARSED.get(0), ParsingVault.PARSED.get(1));
@@ -135,13 +136,15 @@ public class VaultModuleDecoratorOptionsTest {
     public void everyOptionReachesTheProvider() throws Exception {
         VaultModule module = parsingModule();
         redact(module, Starlark.NONE, Starlark.NONE,
-                SyntheticModule.INSTANCE.aliasSpec("email", "r", "GB", "example.org", false, Starlark.NONE));
+                SyntheticModule.INSTANCE.aliasSpec("email", "e", "GB", "example.org", false, Starlark.NONE, false));
         redact(module, Starlark.NONE, Starlark.NONE,
-                SyntheticModule.INSTANCE.aliasSpec("phone", "r", "GB", Starlark.NONE, true, Starlark.NONE));
+                SyntheticModule.INSTANCE.aliasSpec("phone", "e", "GB", Starlark.NONE, true, Starlark.NONE, true));
 
-        assertEquals(ImmutableMap.of("kind", "email", "record", "r", "country", "GB", "email_domain", "example.org"),
+        assertEquals(ImmutableMap.of("kind", "email", "entity_key", "e", "country", "GB", "scope_kind", "false",
+                        "email_domain", "example.org"),
                 ParsingVault.PARSED.get(0).getOptions());
-        assertEquals(ImmutableMap.of("kind", "phone", "record", "r", "country", "GB", "allow_unreserved_phone", "true"),
+        assertEquals(ImmutableMap.of("kind", "phone", "entity_key", "e", "country", "GB", "scope_kind", "true",
+                        "allow_unreserved_phone", "true"),
                 ParsingVault.PARSED.get(1).getOptions());
     }
 
@@ -158,7 +161,7 @@ public class VaultModuleDecoratorOptionsTest {
         VaultModule module = new VaultModule();
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("kind", "age");
-        config.put("record", "record-private-7");
+        config.put("entity_key", "entity-private-7");
         config.put("dob", StarlarkList.immutableOf(DOB));
         EvalException e = assertThrows(EvalException.class,
                 () -> redact(module, "SYNTHETIC", Dict.immutableCopyOf(config), Starlark.NONE));
@@ -169,7 +172,7 @@ public class VaultModuleDecoratorOptionsTest {
     public void anotherDecoratorErrorDoesNotEchoSyntheticValuesEither() {
         VaultModule module = new VaultModule();
         Map<String, Object> config = new LinkedHashMap<>();
-        config.put("record", "record-private-7");
+        config.put("entity_key", "entity-private-7");
         config.put("dob", DOB);
         config.put("searchPattern", StarlarkList.empty());
         EvalException e = assertThrows(EvalException.class,
