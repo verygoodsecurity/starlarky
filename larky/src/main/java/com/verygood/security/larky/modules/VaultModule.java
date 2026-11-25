@@ -491,7 +491,7 @@ public class VaultModule implements LarkyVault {
                 // config carries any, report the problem without echoing the config.
                 if (decoratorConfig instanceof Map<?, ?> map
                         && DecoratorConfig.OPTION_KEYS.stream().anyMatch(map::containsKey)) {
-                    throw Starlark.errorf(String.format("Decorator config is invalid. %s", e.getMessage()));
+                    throw Starlark.errorf("Decorator config is invalid. %s", e.getMessage());
                 }
                 throw Starlark.errorf(
                     "Decorator config '%s' is invalid. %s",

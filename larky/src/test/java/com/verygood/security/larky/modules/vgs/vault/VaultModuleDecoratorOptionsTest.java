@@ -169,6 +169,19 @@ public class VaultModuleDecoratorOptionsTest {
     }
 
     @Test
+    public void aDecoratorErrorContainingAFormatSpecifierIsAnEvalException() {
+        // DecoratorConfig quotes the bad transform pattern, so its message carries the caller's "%d".
+        VaultModule module = new VaultModule();
+        Map<String, Object> config = new LinkedHashMap<>();
+        config.put("kind", "age");
+        config.put("nonLuhnValidPattern", Dict.immutableCopyOf(ImmutableMap.of(
+                "validatePattern", "x", "transformPatterns", StarlarkList.immutableOf("50%d"))));
+        EvalException e = assertThrows(EvalException.class,
+                () -> redact(module, Starlark.NONE, Dict.immutableCopyOf(config), Starlark.NONE));
+        assertEquals("Decorator config is invalid. '50%d' must be dict", e.getMessage());
+    }
+
+    @Test
     public void anotherDecoratorErrorDoesNotEchoSyntheticValuesEither() {
         VaultModule module = new VaultModule();
         Map<String, Object> config = new LinkedHashMap<>();
