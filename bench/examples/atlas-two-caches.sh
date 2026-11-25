@@ -5,9 +5,8 @@
 #   ATLAS_OVERLAY=<optional dir of Atlas classes to put first, e.g. stable helper names> \
 #   bench/examples/atlas-two-caches.sh A-CLASSPATH B-CLASSPATH [extra larky-bench options]
 #
-# A-CLASSPATH and B-CLASSPATH are each a build's Larky and libstarlark jars. Atlas generates its
-# helper function names at random per call; without an overlay that makes them stable, the
-# compiled-program cache misses on every call and the profile's cache check fails.
+# A-CLASSPATH and B-CLASSPATH are each a build's Larky and libstarlark jars. If the Atlas build
+# generates helper names per call, use an overlay with stable names so the program cache can hit.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/.." && pwd)
 a=${1:?A classpath}; b=${2:?B classpath}; shift 2

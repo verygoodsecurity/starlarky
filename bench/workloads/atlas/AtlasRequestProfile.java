@@ -54,10 +54,11 @@ public final class AtlasRequestProfile {
                 return request
             """;
     private static final String STOP_SCRIPT = """
+            load("@vgs//http/response", "VGSHttpResponse")
             load("@vgs//proxy", "proxy")
 
             def process(request, ctx):
-                return proxy.ShortCircuitResponse(
+                return proxy.ShortCircuitResponse(VGSHttpResponse(
                     status_code=403,
                     body=b"request blocked",
                     headers=[
@@ -65,7 +66,7 @@ public final class AtlasRequestProfile {
                         ("X-Reject-Stage", ctx["attributes"]["stage"]),
                         ("Set-Cookie", "second=two; Path=/; Secure"),
                     ],
-                )
+                ))
             """;
     private static HTTPRequest buildRequest() {
         var h = new LinkedHashMap<String, String>();
@@ -112,8 +113,7 @@ public final class AtlasRequestProfile {
 
             def process(response, ctx):
                 response.headers["X-Bench"] = ctx["attributes"]["route"]
-                return proxy.ShortCircuitResponse(
-                    body=response.body, headers=response.headers, status_code=response.status_code)
+                return proxy.ShortCircuitResponse(response)
             """;
 
     private static volatile Payload payload;
@@ -208,17 +208,25 @@ public final class AtlasRequestProfile {
         return field.get(instance);
     }
 
+    private static Class<?> cacheClass(String name) throws ClassNotFoundException {
+        try {
+            return Class.forName("com.verygood.security.larky.runtime." + name);
+        } catch (ClassNotFoundException e) {
+            return Class.forName("com.verygood.security.larky.parser." + name);
+        }
+    }
+
     private static void assertWarmCaches() throws Exception {
         require(Boolean.getBoolean("larky.moduleCache.enable"), "verified module cache flag");
         require(libraryInitSteps == 0, "warm library init steps: " + libraryInitSteps);
         var wrapperCache = (Cache<?, ?>) field(LarkyCompiledScript.class, "COMPILED", null);
-        var parsedCache = (Cache<?, ?>) field(Class.forName("com.verygood.security.larky.parser.ProgramCache"),
+        var parsedCache = (Cache<?, ?>) field(cacheClass("ProgramCache"),
                 "SCRIPTS", null);
         require(wrapperCache.size() == 1 && parsedCache.size() == 1,
                 "each compile cache must have one entry: " + wrapperCache.size() + "/" + parsedCache.size());
         Object newWrapperProgram = wrapperCache.asMap().values().iterator().next();
         Object newEvaluatorProgram = parsedCache.asMap().values().iterator().next();
-        Class<?> moduleCacheType = Class.forName("com.verygood.security.larky.parser.ModuleCache");
+        Class<?> moduleCacheType = cacheClass("ModuleCache");
         var moduleCache = (Map<?, ?>) field(moduleCacheType, "cache", field(moduleCacheType, "SHARED", null));
         require(!moduleCache.isEmpty(), "verified module cache contains no modules");
         if (wrapperProgram == null) {

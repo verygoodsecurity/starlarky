@@ -85,9 +85,9 @@ A workload is a class with JDK types only in its signatures, because it crosses 
   and program cache warm. The scenarios are `response`, `short-response`, `ordinary` and
   `terminal`. Its fingerprint checks the output, and checks that each compile cache keeps a single
   program and the same module identities, with no warm library initialization. Run it with
-  `examples/atlas-two-caches.sh`, giving Atlas's classes and dependencies in `ATLAS_CP`. Atlas
-  names its generated helpers at random on every call. A benchmark-only overlay that makes those
-  names stable (`ATLAS_OVERLAY`) lets the program cache hit, and without it the cache check fails.
+  `examples/atlas-two-caches.sh`, giving Atlas's classes and dependencies compatible with both
+  Larky builds in `ATLAS_CP`. If the Atlas build generates new helper names on every call, supply a
+  benchmark overlay with stable names (`ATLAS_OVERLAY`) so the program cache can hit.
 
 ## Cold start: absh itself
 
