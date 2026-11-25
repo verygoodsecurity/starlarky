@@ -42,6 +42,14 @@ public class SyntheticModuleTest {
     }
 
     @Test
+    public void aJavaNullLocaleIsAnEvalException() {
+        EvalException e = assertThrows(EvalException.class, () -> SyntheticModule.countryOfLocale(null));
+        assertEquals("locale must not be null", e.getMessage());
+        EvalException m = assertThrows(EvalException.class, () -> MODULE.localeCountry(null));
+        assertEquals("locale must not be null", m.getMessage());
+    }
+
+    @Test
     public void rejectsOtherLocales() {
         String[] bad = {
             "", " ", "G", "GBR", "eng_GB", "en_GBR", "en__GB", "en_G", "en GB", "en.GB", "en_GB_x",
@@ -106,6 +114,25 @@ public class SyntheticModuleTest {
                 ImmutableMap.of("kind", "age", "entity_key", "e", "country", "GB", "scope_kind", false,
                         "dob", "1990-05-17"),
                 MODULE.aliasSpec("age", "e", "GB", Starlark.NONE, false, "1990-05-17", false).getDecoratorConfigMap());
+    }
+
+    @Test
+    public void aJavaNullEmailDomainIsNotGiven() throws Exception {
+        assertEquals(MODULE.aliasSpec("email", "e", "GB", Starlark.NONE, false, Starlark.NONE, false),
+                MODULE.aliasSpec("email", "e", "GB", null, false, Starlark.NONE, false));
+        // Not given, so it is not rejected for a kind it does not apply to either.
+        assertEquals(spec("city").getDecoratorConfigMap().keySet(),
+                MODULE.aliasSpec("city", "entity-a", "GB", null, false, Starlark.NONE, false)
+                        .getDecoratorConfigMap().keySet());
+    }
+
+    @Test
+    public void aJavaNullDobIsNotGiven() throws Exception {
+        assertEquals(MODULE.aliasSpec("age", "e", "GB", Starlark.NONE, false, Starlark.NONE, false),
+                MODULE.aliasSpec("age", "e", "GB", Starlark.NONE, false, null, false));
+        assertEquals(spec("dob").getDecoratorConfigMap().keySet(),
+                MODULE.aliasSpec("dob", "entity-a", "GB", Starlark.NONE, false, null, false)
+                        .getDecoratorConfigMap().keySet());
     }
 
     @Test

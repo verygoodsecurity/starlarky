@@ -164,6 +164,42 @@ public class VaultModuleAliasTest {
     }
 
     @Test
+    public void javaNullFormatAndDecoratorConfigCountAsNotGivenWithAnAlias() throws Exception {
+        VaultModule module = capturingModule();
+        module.redactForStarlark("v", Starlark.NONE, null, Collections.emptyList(), null, spec("city"));
+        Object[] call = onlyCall();
+        assertEquals("SYNTHETIC", call[2]);
+        assertEquals(new HashMap<>(spec("city").getDecoratorConfigMap()), new HashMap<>((Map<?, ?>) call[4]));
+        CapturingVault.REDACTS.clear();
+        module.redactForStarlark("v", Starlark.NONE, null, Collections.emptyList(), Starlark.NONE, spec("city"));
+        module.redactForStarlark("v", Starlark.NONE, Starlark.NONE, Collections.emptyList(), null, spec("city"));
+        assertEquals(2, CapturingVault.REDACTS.size());
+    }
+
+    @Test
+    public void aJavaNullAliasIsTheLongForm() throws Exception {
+        VaultModule module = capturingModule();
+        module.redactForStarlark("v", Starlark.NONE, "UUID", Collections.emptyList(), Starlark.NONE, null);
+        assertEquals("UUID", onlyCall()[2]);
+    }
+
+    @Test
+    public void anAliasThatIsNotAnAliasSpecIsRejected() throws Exception {
+        VaultModule module = capturingModule();
+        for (Object[] c : new Object[][] {
+            {"city", "string"},
+            {Dict.immutableCopyOf(ImmutableMap.of("kind", "city")), "dict"},
+            // A Java map from a Java caller: reported by its Starlark type name, whatever that is.
+            {ImmutableMap.of("kind", "city"), Starlark.type(ImmutableMap.of("kind", "city"))},
+        }) {
+            EvalException e = assertThrows(EvalException.class, () -> module.redactForStarlark(
+                    "v", Starlark.NONE, Starlark.NONE, Collections.emptyList(), Starlark.NONE, c[0]));
+            assertEquals("alias must be an alias_spec, got " + c[1], e.getMessage());
+        }
+        assertTrue(CapturingVault.REDACTS.isEmpty());
+    }
+
+    @Test
     public void longFormIsUnchangedWithoutAlias() throws Exception {
         VaultModule module = capturingModule();
         module.redactForStarlark("v", Starlark.NONE, Starlark.NONE, Collections.emptyList(), Starlark.NONE, Starlark.NONE);

@@ -55,6 +55,9 @@ public class SyntheticModule implements StarlarkValue {
    * is a language, not a country, so accepting it would read {@code "en"} as the country EN.
    */
   public static String countryOfLocale(String locale) throws EvalException {
+    if (locale == null) {
+      throw Starlark.errorf("locale must not be null");
+    }
     java.util.regex.Matcher m = LANGUAGE_COUNTRY.matcher(locale);
     if (m.matches()) {
       return m.group(1).toUpperCase(java.util.Locale.ROOT);
@@ -162,7 +165,8 @@ public class SyntheticModule implements StarlarkValue {
     config.put("country", country);
     config.put("scope_kind", scopeKind);
 
-    if (!(emailDomain instanceof NoneType)) {
+    // Java callers pass null where scripts pass None: both mean "not given".
+    if (!Starlark.isNullOrNone(emailDomain)) {
       String domain = (String) emailDomain;
       if (!kind.equals("email")) {
         throw Starlark.errorf("email_domain only applies to kind 'email', not '%s'", kind);
@@ -179,7 +183,7 @@ public class SyntheticModule implements StarlarkValue {
       }
       config.put("allow_unreserved_phone", Boolean.TRUE);
     }
-    if (!(dob instanceof NoneType)) {
+    if (!Starlark.isNullOrNone(dob)) {
       String d = (String) dob;
       if (!kind.equals("age")) {
         throw Starlark.errorf("dob only applies to kind 'age', not '%s'", kind);
