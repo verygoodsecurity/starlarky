@@ -444,18 +444,18 @@ public class VaultModule implements LarkyVault {
     /** Returns the storage name in lowercase: scripts may write 'VOLATILE' or 'volatile'. */
     private Object validateStorage(Object storage) throws EvalException {
         if (!(storage instanceof NoneType) && !(storage instanceof String)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                 "Storage of type %s is not supported in VAULT, expecting String",
                 storage.getClass().getName()
-            ));
+            );
         } else if (storage instanceof String name) {
             String lower = name.toLowerCase(Locale.ROOT);
             if (!supportedStorage.contains(lower)) {
-                throw Starlark.errorf(String.format(
+                throw Starlark.errorf(
                     "Storage '%s' not found in supported storage types: %s",
                     storage,
                     supportedStorage
-                ));
+                );
             }
             return lower;
         }
@@ -464,33 +464,33 @@ public class VaultModule implements LarkyVault {
 
     private void validateFormat(Object format) throws EvalException {
         if (!(format instanceof NoneType) && !(format instanceof String)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                     "Format of type %s is not supported in VAULT, expecting String",
                     format.getClass().getName()
-            ));
+            );
         } else if ((format instanceof String) && !supportedFormat.contains(format.toString())) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                     "Format '%s' not found in supported format types: %s",
                     format,
                     supportedFormat
-            ));
+            );
         }
     }
 
     private void validateDecoratorConfig(Object decoratorConfig) throws EvalException {
         if (decoratorConfig != null && !(decoratorConfig instanceof NoneType) && !(decoratorConfig instanceof Map)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                 "Decorator config of type %s is not supported in VAULT, expecting Map",
                 decoratorConfig.getClass().getName()
-            ));
+            );
         } else {
             try {
                 DecoratorConfig.fromObject(decoratorConfig);
             } catch (InvalidDecoratorConfigException e) {
-                throw Starlark.errorf(String.format(
+                throw Starlark.errorf(
                     "Decorator config '%s' is invalid. %s",
                     decoratorConfig, e.getMessage()
-                ));
+                );
             }
         }
     }
@@ -502,10 +502,10 @@ public class VaultModule implements LarkyVault {
         }
         // Scripts cannot pass a non-String (the parameter is typed), but Java callers can.
         if (!(value instanceof String name)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                 "%s of type %s is not supported in VAULT, expecting String",
                 field, value.getClass().getName()
-            ));
+            );
         }
         if (name.isBlank()) {
             throw Starlark.errorf("%s must not be empty or blank", field);
@@ -514,11 +514,11 @@ public class VaultModule implements LarkyVault {
 
     private void validateSigningAlgorithm(String algorithm) throws EvalException {
         if (!supportedSigningAlgorithms.contains(algorithm)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                 "Algorithm '%s' not found in supported algorithms: %s",
                 algorithm,
                 supportedSigningAlgorithms
-            ));
+            );
         }
     }
 
