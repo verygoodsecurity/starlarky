@@ -137,7 +137,10 @@ public class FunctionsCallerTest {
 
   private void serve(com.sun.net.httpserver.HttpHandler handler, WithOrigin test) throws Exception {
     final var store = Path.of(files.getRoot().getPath(), "fixture.p12");
-    final var process = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "keytool").toString(),
+    final var bin = Path.of(System.getProperty("java.home"), "bin");
+    final var unixKeytool = bin.resolve("keytool");
+    final var keytool = Files.isRegularFile(unixKeytool) ? unixKeytool : bin.resolve("keytool.exe");
+    final var process = new ProcessBuilder(keytool.toString(),
         "-genkeypair", "-storetype", "PKCS12", "-keystore", store.toString(), "-storepass", "synthetic",
         "-alias", "https", "-keyalg", "EC", "-dname", "CN=localhost", "-ext", "SAN=dns:localhost",
         "-validity", "1", "-noprompt").redirectErrorStream(true).start();
