@@ -192,6 +192,27 @@ Example scripts live next to their tests in
 mvn test -pl larky -am -Dtest=VGSLibTests -Dlarky.vgs_test=test_default_request_validation.star -Dsurefire.failIfNoSpecifiedTests=false
 ```
 
+### Preserving repeated HTTP response headers
+
+```python
+load("@vgs//http/request", "VGSHttpRequest")
+load("@vgs//http/response", "VGSHttpResponse")
+```
+
+The `VGSHttpResponse` constructor and `response.headers` assignment accept a
+dict or a sequence of `(name, value)` pairs. `response.headers.items()` returns
+every header line in insertion order, with its original name spelling.
+
+- `response.headers[name]` reads the first value, ignoring case.
+- `response.get_all_headers(name)` returns every value in order.
+- `response.add_header(name, value)` and `response.headers[name] = value` replace
+  all values for the name.
+- `response.append_header(name, value)` adds a line at the end.
+- `response.remove_header(name)` removes every value for the name.
+
+The host can materialize the ordered pairs inside the script and serialize them
+as separate header lines.
+
 ### Rejecting requests without a valid signed token
 
 [`request_validation.star`](larky/src/test/resources/vgs_tests/examples/request_validation.star)
@@ -212,6 +233,38 @@ the vault and revealed by alias), checks `exp`, `nbf`, `aud` and `iss` with
 - **Proxy behaviour.** Larky only returns the `ShortCircuitResponse`. Whether the upstream is
   skipped, whether aliases in the request are revealed or deleted, and whether the request is
   billed are decided by the proxy that runs the script.
+
+### Configuring a Starlark evaluation
+
+JSR-223 hosts supply per-run limits and module providers through
+`LarkyScriptContext.setSettings(EvaluationSettings)`. Import `EvaluationSettings` and
+`EvaluationMetadata` from `com.verygood.security.larky.runtime`. Migrate any
+`LARKY_EVAL_*` bindings before adopting this version. Use
+`LarkyScriptContext.metadata()` for the evaluation outcome and step counts, with library
+initialization steps reported separately. Custom JSR-223 contexts can implement
+`SupportsMetadata` to receive compiled evaluation metadata. Hosts using `LarkyScript`
+directly can pass the settings to the evaluation overload.
+
+### Calling a compiled script within one evaluation
+
+Java hosts can build Starlark inputs, call script functions, and inspect or update their
+results with `LarkyScriptEvaluator`. Pass the compiled script and the context for this run.
+The standard console streams are wrapped only when a caller asks for them.
+
+```java
+var context = LarkyScriptContext.builder()
+    .settings(settings)
+    .writer(logWriter)
+    .build();
+Object result = LarkyScriptEvaluator.compute(
+    compiled, context, input, (run, value) -> run.call("process", value));
+```
+
+The callback runs synchronously after the script's top level, on the same Starlark thread
+and with the same limits and log writer. It can call other functions and mutate values
+owned by this evaluation until it returns. Those values freeze when the scope closes,
+including on failure. Loaded library globals are already frozen. The result goes back
+to Java and the evaluation metadata is available on `context`.
 
 ### Shipping a host-owned module next to a script
 

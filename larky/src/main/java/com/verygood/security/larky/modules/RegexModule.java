@@ -22,7 +22,7 @@ import net.starlark.java.eval.StarlarkValue;
         "\n" +
         "More on syntax here: https://github.com/google/re2/wiki/Syntax")
 @com.google.errorprone.annotations.Immutable
-public class RegexModule implements StarlarkValue {
+public final class RegexModule implements StarlarkValue {
 
   public static final RegexModule INSTANCE = new RegexModule();
 

@@ -1079,7 +1079,7 @@ public final class Starlark {
       String name,
       @Nullable Object defaultValue)
       throws EvalException, InterruptedException {
-    return getattr(mu, semantics, CallUtils.getBuiltinManager(semantics), x, name, defaultValue);
+    return getattr(null, mu, semantics, CallUtils.getBuiltinManager(semantics), x, name, defaultValue);
   }
 
   /**
@@ -1089,6 +1089,7 @@ public final class Starlark {
   static Object getattr(StarlarkThread thread, Object x, String name, @Nullable Object defaultValue)
       throws EvalException, InterruptedException {
     return getattr(
+        thread,
         thread.mutability(),
         thread.getSemantics(),
         thread.getBuiltinManager(),
@@ -1098,6 +1099,7 @@ public final class Starlark {
   }
 
   private static Object getattr(
+      @Nullable StarlarkThread thread, // VGS: for Structure.Threaded; null if the caller has none
       Mutability mu,
       StarlarkSemantics semantics,
       CallUtils.BuiltinManager manager,
@@ -1108,7 +1110,10 @@ public final class Starlark {
     // Check if it's a user-defined struct field first. If it is, we bypass the overhead of
     // attempting to look up a non-existent MethodDescriptor.
     if (x instanceof Structure struct) {
-      Object field = struct.getValue(semantics, name);
+      Object field =
+          thread != null && struct instanceof Structure.Threaded threaded
+              ? threaded.getValue(thread, name) // VGS
+              : struct.getValue(semantics, name);
       if (field != null) {
         return Starlark.checkValid(field);
       }

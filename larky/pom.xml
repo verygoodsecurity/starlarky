@@ -54,6 +54,7 @@
         <google.guava.version>31.1-jre</google.guava.version>
         <google.jimfs.version>1.3.2</google.jimfs.version>
         <google.re2j.version>1.8</google.re2j.version>
+        <archunit.version>1.4.2</archunit.version>
         <google.truth.version>1.4.5</google.truth.version>
         <javax.xml.bind.jaxb-api.version>2.3.1</javax.xml.bind.jaxb-api.version>
         <org.bouncycastle.version>1.86</org.bouncycastle.version>
@@ -254,11 +255,24 @@
             <artifactId>error_prone_annotations</artifactId>
             <version>${google.errorprone.version}</version>
         </dependency>
+        <!-- ArchitectureTest: rules about which packages may depend on which. -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit</artifactId>
+            <version>${archunit.version}</version>
+            <scope>test</scope>
+        </dependency>
         <!-- IsolationStructureTest reads class files with ASM (the version Truth already brings). -->
         <dependency>
             <groupId>org.ow2.asm</groupId>
             <artifactId>asm</artifactId>
             <version>9.11.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-analysis</artifactId>
+            <version>9.8</version>
             <scope>test</scope>
         </dependency>
         <!--
@@ -331,7 +345,9 @@
                              a valid check in this version. See IsolationStructureTest for the structural side. -->
                         <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
-                        <arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:Immutable:ERROR -Xep:ImmutableEnumChecker:WARN -Xep:GuardedBy:ERROR</arg>
+                        <!-- Library types Error Prone may treat as deeply immutable; one reason each in
+                             src/main/config/known-immutable-types.txt (IsolationStructureTest checks the two lists match). -->
+                        <arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:Immutable:ERROR -Xep:ImmutableEnumChecker:WARN -Xep:GuardedBy:ERROR -XepOpt:Immutable:KnownImmutable=com.google.re2j.Pattern,java.util.regex.Pattern</arg>
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
@@ -395,4 +411,6 @@
             </extension>
         </extensions>
     </build>
+    <profiles>
+    </profiles>
 </project>

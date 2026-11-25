@@ -29,7 +29,7 @@ import org.bouncycastle.crypto.digests.MD4Digest;
 import org.bouncycastle.crypto.digests.RIPEMD160Digest;
 
 @com.google.errorprone.annotations.Immutable
-public class CryptoHashModule implements StarlarkValue {
+public final class CryptoHashModule implements StarlarkValue {
 
   public static final CryptoHashModule INSTANCE = new CryptoHashModule();
 

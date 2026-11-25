@@ -12,7 +12,7 @@ import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.StarlarkSemantics;
 
 @com.google.errorprone.annotations.Immutable
-public class LarkyBoundedWhileTrue implements StarlarkValue {
+public final class LarkyBoundedWhileTrue implements StarlarkValue {
 
   /**
    * The maximum number of iterations allowed for this instance.

@@ -13,6 +13,7 @@ load("@stdlib//re", "re")
 load("@stdlib//binascii", "unhexlify")
 load("@stdlib//sets", "sets")
 load("@stdlib//collections", namedtuple="namedtuple")
+load("@stdlib//jurllib", _jurllib="jurllib")
 load("@vendor//option/result", Result="Result", Error="Error", _safe="safe")
 
 # Leading and trailing C0 control and space to be stripped per WHATWG spec.
@@ -164,6 +165,12 @@ def _urlsplit(url, scheme='', allow_fragments=True):
     <scheme>://<netloc>/<path>?<query>#<fragment>
     """
     url, scheme, _coerce_result = _coerce_args(url, scheme)
+    parts = _split_url(url, scheme, allow_fragments)
+    if parts != None:
+        scheme, netloc, path, query, fragment = parts
+        return _coerce_result(_SplitResult(
+            scheme=scheme, netloc=netloc, path=path, query=query, fragment=fragment))
+
     # Only lstrip url as some applications rely on preserving trailing space.
     # (https://url.spec.whatwg.org/#concept-basic-url-parser would strip both)
     url = url.lstrip(_WHATWG_C0_CONTROL_OR_SPACE)
@@ -590,40 +597,17 @@ def unwrap(url):
     """Transform a string like '<URL:scheme://host/path>' into 'scheme://host/path'.
     The string is returned unchanged if it's not a wrapped URL.
     """
-    # url = bytes(url, encoding='utf-8').strip()
-    # if url[:1] == b'<' and url[-1:] == b'>':
-    #     url = url[1:-1].strip()
-    # if url[:4] == b'URL:':
-    #     url = url[4:].strip()
-    # return url.decode('utf-8')
-    url = str(url).strip()
-    if url[:1] == '<' and url[-1:] == '>':
-        url = url[1:-1].strip()
-    if url[:4] == 'URL:':
-        url = url[4:].strip()
-    return url
+    return _jurllib.unwrap(str(url))
 
 
-_typeprog = re.compile('([^/:]+):(.*)', re.DOTALL)
 def _splittype(url):
     """splittype('type:opaquestring') --> 'type', 'opaquestring'."""
-    match = _typeprog.match(url)
-    if match:
-        scheme, data = match.groups()
-        return scheme.lower(), data
-    return None, url
+    return _jurllib.splittype(url)
 
 
-_hostprog = re.compile('//([^/#?]*)(.*)', re.DOTALL)
 def _splithost(url):
     """splithost('//host[:port]/path') --> 'host[:port]', '/path'."""
-    match = _hostprog.match(url)
-    if match:
-        host_port, path = match.groups()
-        if path and path[0] != '/':
-            path = '/' + path
-        return host_port, path
-    return None, url
+    return _jurllib.splithost(url)
 
 
 def _splituser(host):
@@ -675,10 +659,7 @@ def _splitquery(url):
 
 def _splittag(url):
     """splittag('/path#tag') --> '/path', 'tag'."""
-    path, delim, tag = url.rpartition('#')
-    if delim:
-        return path, tag
-    return url, None
+    return _jurllib.splittag(url)
 
 
 def _splitattr(url):

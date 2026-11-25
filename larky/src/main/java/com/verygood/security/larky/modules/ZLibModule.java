@@ -26,7 +26,7 @@ import org.jetbrains.annotations.NotNull;
     category = "BUILTIN",
     doc = "java specific zlib implementation")
 @com.google.errorprone.annotations.Immutable
-public class ZLibModule implements StarlarkValue {
+public final class ZLibModule implements StarlarkValue {
 
   public static final ZLibModule INSTANCE = new ZLibModule();
 

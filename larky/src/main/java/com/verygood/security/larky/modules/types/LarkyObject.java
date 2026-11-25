@@ -21,7 +21,7 @@ import net.starlark.java.spelling.SpellChecker;
 
 import javax.annotation.Nullable;
 
-public interface LarkyObject extends Structure {
+public interface LarkyObject extends Structure.Threaded {
 
   List<Object> EMPTY_ARGS = Collections.emptyList();
   Map<String, Object> EMPTY_KWARGS = Collections.emptyMap();
@@ -42,6 +42,23 @@ public interface LarkyObject extends Structure {
   @Override
   default Object getValue(String name) throws EvalException {
     return getField(name);
+  }
+
+  /**
+   * {@code x.name}, read by the interpreter. A class whose {@link #getField(String,
+   * StarlarkThread)} is its whole lookup overrides this to pass the thread to it.
+   */
+  @Nullable
+  @Override
+  default Object getValue(StarlarkThread thread, String name) throws EvalException, InterruptedException {
+    return getValue(thread.getSemantics(), name);
+  }
+
+  /** {@code x.name = value}, by the interpreter. A class that runs a setter overrides this to give it the thread. */
+  @Override
+  default void setField(StarlarkThread thread, String field, Object value)
+      throws EvalException, InterruptedException {
+    setField(field, value);
   }
 
   @Nullable

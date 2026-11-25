@@ -6,7 +6,7 @@ load("@stdlib//unittest", unittest="unittest")
 
 
 load("@vendor//asserts", asserts="asserts")
-load("@vendor//multidict", CIMultiDict="CIMultiDict")
+load("@vendor//multidict", CIMultiDict="CIMultiDict", MultiDict="MultiDict", getversion="getversion")
 
 load("@vgs//http/request", VGSHttpRequest="VGSHttpRequest", VGSCIMultiDict="VGSCIMultiDict")
 
@@ -52,6 +52,25 @@ def _test_request_get_headers():
         'header2': 'key2',
     }
     asserts.assert_that(request.headers.items()).is_equal_to(headers.items())
+
+
+def _test_request_header_dict_preserves_duplicate_case_insensitive_keys():
+    headers = {"X-Trace": "first", "x-trace": "second", "Last": "third"}
+    request = VGSHttpRequest("https://example.test", headers=headers)
+    expected = VGSCIMultiDict(headers.items())
+
+    asserts.assert_that(list(request.headers.items())).is_equal_to(headers.items())
+    asserts.assert_that(request.headers.getall("X-TRACE")).is_equal_to(["first", "second"])
+    asserts.assert_that(getversion(request.headers)).is_equal_to(getversion(expected))
+
+
+def _test_request_header_wrapper_can_use_a_dict_type_name():
+    # a custom mapping that calls itself dict is read through its items(), not as a dict
+    headers = MultiDict([("X-Trace", "example")])
+    wrapper = larky.struct(__name__="dict", items=headers.items)
+    request = VGSHttpRequest("https://example.test", headers=wrapper)
+
+    asserts.assert_that(list(request.headers.items())).is_equal_to([("X-Trace", "example")])
 
 
 def _test_request_remove_header():
@@ -219,6 +238,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_request_set_body))
     _suite.addTest(unittest.FunctionTestCase(_test_request_has_headers))
     _suite.addTest(unittest.FunctionTestCase(_test_request_get_headers))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_header_dict_preserves_duplicate_case_insensitive_keys))
+    _suite.addTest(unittest.FunctionTestCase(_test_request_header_wrapper_can_use_a_dict_type_name))
     _suite.addTest(unittest.FunctionTestCase(_test_request_remove_header))
     larky.parametrize(
         _suite.addTest, unittest.FunctionTestCase, "val", [

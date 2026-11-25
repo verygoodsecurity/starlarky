@@ -1,10 +1,13 @@
 package com.verygood.security.larky.modules.re;
 
+import com.google.errorprone.annotations.concurrent.LazyInit;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.Map;
 
 import com.verygood.security.larky.modules.re.PyRegexTranslator.Marker;
@@ -32,6 +35,7 @@ import net.starlark.java.eval.EvalException;
  *
  * <p>All positions are UTF-16 indices, like Larky's string indices.
  */
+@com.google.errorprone.annotations.Immutable
 final class PyRegex {
 
   static final int SEARCH = 0;
@@ -48,9 +52,16 @@ final class PyRegex {
   final String source;
   final int flags;
   private final Translation unicode;
-  private volatile Translation ascii;
-  // Indexed by variantKey(); RE2 Patterns are immutable, so a racy lazy init is harmless.
-  private final Pattern[] variants = new Pattern[2 * 3 * 2 * 2];
+  // Translated on first use. Translation and RE2 Patterns are immutable, so the racy lazy
+  // initialization below is harmless: two threads may both compute a value, and either is correct.
+  @LazyInit private volatile Translation ascii;
+  // ASCII mode, three anchor modes, prefix handling, and full-match mode.
+  private static final int VARIANT_COUNT = 2 * 3 * 2 * 2;
+
+  // A slot records the compiled pattern for one fixed combination of flags. Every slot
+  // transitions from null to an immutable Pattern at most once.
+  @SuppressWarnings("Immutable") // Private, bounded memoization of deterministic results.
+  private final AtomicReferenceArray<Pattern> variants = new AtomicReferenceArray<>(VARIANT_COUNT);
 
   PyRegex(String source, int flags) throws EvalException {
     this.source = source;
@@ -85,10 +96,11 @@ final class PyRegex {
     return t;
   }
 
-  private Pattern variant(boolean asciiMode, int dollar, boolean prefixed, boolean full)
+  @VisibleForTesting
+  Pattern variant(boolean asciiMode, int dollar, boolean prefixed, boolean full)
       throws EvalException {
     int key = ((asciiMode ? 1 : 0) * 3 + dollar) * 4 + (prefixed ? 2 : 0) + (full ? 1 : 0);
-    Pattern p = variants[key];
+    Pattern p = variants.get(key);
     if (p != null) {
       return p;
     }
@@ -105,13 +117,13 @@ final class PyRegex {
       sb.append("(?s:.)");
     }
     sb.append("(?:");
-    for (Object piece : t.pieces) {
+    for (PyRegexTranslator.Piece piece : t.pieces) {
       if (piece == Marker.DOLLAR) {
         sb.append(dollar == DOLLAR_MULTILINE ? "(?m:$)" : "\\z");
       } else if (piece == Marker.END_OF_STRING) {
         sb.append(dollar == DOLLAR_TRUNCATED ? NEVER : "\\z");
       } else {
-        sb.append((String) piece);
+        sb.append(((PyRegexTranslator.Text) piece).re2());
       }
     }
     sb.append(')');
@@ -126,8 +138,20 @@ final class PyRegex {
       throw new EvalException("re.error: " + e.getDescription() + " (unsupported by Larky's "
           + "linear-time regex engine)");
     }
-    variants[key] = p;
-    return p;
+    Pattern published = variants.compareAndExchange(key, null, p);
+    return published == null ? p : published;
+  }
+
+  /** The number of variants compiled and cached so far. */
+  @VisibleForTesting
+  int cachedVariantCount() {
+    int count = 0;
+    for (int i = 0; i < variants.length(); i++) {
+      if (variants.get(i) != null) {
+        count++;
+      }
+    }
+    return count;
   }
 
   /**

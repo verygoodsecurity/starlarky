@@ -384,7 +384,7 @@ final class Eval {
       Object object = eval(fr, dot.getObject());
       String field = dot.getField().getName();
       try {
-        EvalUtils.setField(object, field, value);
+        EvalUtils.setField(fr.thread, object, field, value);
       } catch (EvalException ex) {
         fr.setErrorLocation(dot.getDotLocation());
         throw ex;
@@ -495,7 +495,7 @@ final class Eval {
           fr.setErrorLocation(stmt.getOperatorLocation());
           throw ex;
         }
-        EvalUtils.setField(object, field, z);
+        EvalUtils.setField(fr.thread, object, field, z);
       } catch (EvalException ex) {
         fr.setErrorLocation(dot.getDotLocation());
         throw ex;

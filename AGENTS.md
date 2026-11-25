@@ -153,6 +153,74 @@ make py_test_and_package
   `bin/update-starlark.py` and `bin/regenerate-differences-patch.sh` and preserve
   the local delta; these scripts can replace source trees.
 
+## Layering, classes written in Java, and measurement
+
+These rules come from mistakes that reached review. `ArchitectureTest` enforces the first one,
+for both the `.star` files and the Java code; the rest are for authors and reviewers.
+
+### Layering
+
+- The standard library does not depend on VGS code. Nothing under `resources/stdlib` loads from
+  `@vgs`, and the Java behind it (`STD_MODULES`, `objects/`, the packages under `modules/` other
+  than `modules/vgs`) does not use `modules.vgs`. A VGS class that extends a standard one lives in
+  `modules/vgs` and builds on the standard one's public API.
+- A module's struct exports its public API only. Do not export a helper so that another module can
+  hand it to native code.
+- Keep one implementation of a piece of logic. Either the `.star` function is the implementation,
+  or it is a shim over one native function that every caller uses. Do not add a native fast path
+  that falls back to the `.star` code for the inputs it does not handle: the two must then agree
+  for ever, and only a test says they do.
+
+### Classes written in Java
+
+- Define the class with `LarkyNativeClass` and extend `LarkyNativeObject` (see CONTRIBUTING.md).
+  Do not hand-write attribute dispatch, and do not add another base class for objects.
+- A plain attribute is a field of the Java class. Do not give each instance a dict for its state:
+  for a request that was 0.75 to 1 KB per instance.
+- `__dict__` is not a contract for hosts. A host reads a result by attribute name or through the
+  class's Java methods.
+- Code that reads or writes a field with a thread in hand passes it (`Structure.Threaded`,
+  `StarlarkOperators.getattr`). Do not add a lookup of the current evaluation where a thread
+  parameter can be added instead.
+
+### Work at a library's top level
+
+- A library's top level runs each time the library is loaded, and without the shared module cache
+  that is once per evaluation that loads it. `re.compile`, a table built in a loop, or a call into
+  native code at the top level is paid by every script that loads the library, used or not. Two
+  `re.compile` lines at the top of `urllib/parse.star` cost about 10 KB per evaluation.
+- Do not count on the module cache to hide that cost: hosts can run with it off.
+
+### Measuring a change
+
+- Compare builds in one run, alternating them, on the same host. Report the ratio per input with
+  an interval, and the ratio of the same build against itself as the noise floor. A difference
+  inside the noise floor is not a result.
+- A sum over inputs follows its few largest inputs; say so if you report one. Allocation per call
+  repeats to a fraction of a percent; time does not.
+- A harness refuses a run in which any input fails, and checks that outputs are equal before it
+  times anything. Two inputs that failed the same way on both builds once sat in a timing table.
+- To say which commit caused a change, replay each commit. Do not infer the cause from the size or
+  direction of the change: such an inference has been wrong before.
+- A benchmark of one class and a replay of whole scripts can point in opposite directions. Report
+  both and say which one the claim rests on.
+
+### Cryptography and shared state
+
+- Run anything that uses BouncyCastle with BouncyCastle's own signed jars on the class path.
+  Oracle's JDK refuses `javax.crypto` services (`KeyAgreement`, `Cipher`, `Mac`) from a provider
+  whose jar is not signed, and a jar that repackages BouncyCastle (`jar-with-dependencies`) is
+  not. The JDK's own error does not say so: for ECDH with a PEM key it is "Not an EC key: ECDSA".
+- Where code asks the JCA for an algorithm without naming a provider, the provider depends on the
+  key and on the JVM. If the JDK's provider can do the same work, fall back to it, naming that
+  provider (ECDH does, for a SEC1 key). An error a script's author sees says what the author can
+  do. Log what the JVM refused rather than leaving it in the exception's cause: a host that runs
+  scripts through `javax.script` gets the message without its cause.
+- Anything reachable from a library's frozen top-level values is shared by concurrent evaluations
+  when the module cache is on. After changing how such values are read (attribute access, structs,
+  types, key objects), replay scripts concurrently with the cache on and compare every
+  deterministic output with a sequential run with the cache off.
+
 ## Maven and dependency changes
 
 - The root POM aggregates the three Java modules; their POMs do not currently

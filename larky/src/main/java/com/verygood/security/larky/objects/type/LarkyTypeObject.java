@@ -1,5 +1,7 @@
 package com.verygood.security.larky.objects.type;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableList;
 import net.starlark.java.syntax.StarlarkType;
 import net.starlark.java.syntax.TypeConstructor;
@@ -80,6 +82,10 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
   private final Set<LarkyType> allSubclasses =
       Collections.synchronizedSet(Collections.newSetFromMap(new MapMaker().weakKeys().makeMap()));
   private List<LarkyType> __mro__;
+  // The attributes of a class written in Java, resolved along its MRO; null for any other type.
+  @Nullable private ImmutableMap<String, Object> builtinAttributes;
+  // __mro__ as the tuple scripts see; attribute lookup walks it on every access
+  private Tuple mroTuple = Tuple.empty();
   private String name;
   private LarkyType[] __bases__;
   private LarkyType __base__;
@@ -106,11 +112,13 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
       name,
       bases,
       dict,
-      (type) -> {
-        type.mutability = thread.mutability();
-        return new LarkyProvidedTypeClass(thread, type);
-      }
+      type -> createProvidedType(thread, type)
     );
+  }
+
+  private static ForwardingLarkyType createProvidedType(StarlarkThread thread, LarkyTypeObject type) {
+    type.mutability = thread.mutability();
+    return new LarkyProvidedTypeClass(thread, type);
   }
 
   public static LarkyType create(
@@ -136,6 +144,25 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
     return result;
   }
 
+  /**
+   * A class that is written in Java: a built-in type named {@code name} that extends {@code base}
+   * ({@code object} when null) and whose dictionary is {@code dict}, the descriptors of its
+   * properties and methods. See {@link com.verygood.security.larky.objects.LarkyNativeObject}.
+   */
+  public static @NotNull LarkyType createBuiltinType(
+      @NotNull String name, @Nullable LarkyType base, @NotNull Map<String, Object> dict) {
+    final LarkyTypeObject type =
+        new LarkyTypeObject(Origin.BUILTIN, name, Dict.<String, Object>builder().putAll(dict).buildImmutable());
+    LarkyType.setupInheritanceHierarchy(type, base == null ? DEFAULT_HIERARCHY.get() : new LarkyType[] {base});
+    // A built-in class and its bases never change, so resolve its attributes along the MRO once.
+    Map<String, Object> attributes = new HashMap<>();
+    for (LarkyType ancestor : Lists.reverse(type.__mro__)) {
+      attributes.putAll(ancestor.getInternalDictUnsafe());
+    }
+    type.builtinAttributes = ImmutableMap.copyOf(attributes);
+    return type;
+  }
+
   public static @NotNull LarkyType createBuiltinType(@NotNull String name) {
     final LarkyTypeObject type = new LarkyTypeObject(Origin.BUILTIN, name, Dict.empty());
     LarkyType.setupInheritanceHierarchy(type, DEFAULT_HIERARCHY.get());
@@ -145,6 +172,7 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
   @Override
   public void setMRO(List<LarkyType> mro) {
     this.__mro__ = mro;
+    this.mroTuple = Tuple.copyOf(mro);
   }
 
   @Override
@@ -255,8 +283,27 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
 
 
   @Override
+  public Object lookup(String name) {
+    ImmutableMap<String, Object> attributes = builtinAttributes;
+    if (attributes == null) {
+      return LarkyType.super.lookup(name);
+    }
+    switch (name) {
+      // the names LarkyType.lookup answers for the class itself
+      case "__class__":
+      case "__dict__":
+      case "__bases__":
+      case "__base__":
+      case "__mro__":
+        return LarkyType.super.lookup(name);
+      default:
+        return attributes.get(name);
+    }
+  }
+
+  @Override
   public Tuple getMRO() {
-    return Tuple.copyOf(__mro__);
+    return mroTuple;
   }
 
   @Override

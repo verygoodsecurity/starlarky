@@ -59,6 +59,12 @@ class MutableStruct extends SimpleStruct {
 
   @Override
   public void setField(String name, Object value) throws EvalException {
+    setField(null, name, value);
+  }
+
+  /** {@code x.name = value}: {@code thread} is the interpreter's, or null for a caller that has none. */
+  @Override
+  public void setField(@Nullable StarlarkThread thread, String name, Object value) throws EvalException {
     if (this.mutability.isFrozen()) {
       throw new EvalException("Attempting to update a frozen structure");
     }
@@ -72,7 +78,7 @@ class MutableStruct extends SimpleStruct {
     }
 
     try {
-      ((Property) field).set(value, name, CurrentEvaluation.requireThread());
+      ((Property) field).set(value, name, thread != null ? thread : CurrentEvaluation.requireThread());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new EvalException(e);

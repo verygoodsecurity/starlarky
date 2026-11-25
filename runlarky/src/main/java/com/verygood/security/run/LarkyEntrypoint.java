@@ -14,6 +14,8 @@ import com.verygood.security.larky.console.CapturingConsole;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.console.FileConsole;
 import com.verygood.security.larky.console.LogConsole;
+import com.verygood.security.larky.runtime.EvaluationMetadata;
+import com.verygood.security.larky.runtime.EvaluationSettings;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 import com.verygood.security.larky.parser.PrependMergedStarFile;
@@ -53,6 +55,22 @@ public class LarkyEntrypoint implements Callable<Integer> {
   //      : "";
   @CommandLine.Option(names = {"-d", "--debug"}, description="Verbose merged script")
   private boolean debug; //  boolean debug = commandLine.hasOption("d");
+
+  @CommandLine.Option(
+      names = {"--steps"},
+      description = "Print the run's steps, outcome and engine to stderr, as a host reads them")
+  private boolean steps;
+
+  @CommandLine.Option(
+      names = {"--step-limit"},
+      arity = "1",
+      description = "Stop the run after this many steps, as a host's step limit does")
+  private Long stepLimit;
+
+  @CommandLine.Option(
+      names = {"--no-charge-library-init"},
+      description = "Do not count initializing Larky's own modules against --step-limit")
+  private boolean noChargeLibraryInit;
 
 
   public static void main(String[] args) {
@@ -100,13 +118,30 @@ public class LarkyEntrypoint implements Callable<Integer> {
     Console console = new FileConsole(CapturingConsole.captureAllConsole(
         LogConsole.writeOnlyConsole(System.out, true)), Path.of(logPath), Duration.ZERO);
 
+    EvaluationSettings.Builder settings =
+        EvaluationSettings.builder().chargeLibraryInit(!noChargeLibraryInit);
+    if (stepLimit != null) {
+      settings.stepLimit(stepLimit);
+    }
+    LarkyScript larkyScript =
+        new LarkyScript(
+            ModuleSupplier.CORE_MODULES,
+            StarlarkMode.STRICT,
+            java.util.Map.of(),
+            settings.build());
+
     // through the evaluation's StarlarkInterop: a struct's toString runs its __repr__ (Starlark code)
     String output =
-      new LarkyScript(StarlarkMode.STRICT)
+      larkyScript
         .executeStarlarkWithOutputAsString(
           prependMergedStarFile,
           new ModuleSupplier().create(),
-          console
+          console,
+          metadata -> {
+            if (steps) {
+              System.err.println(describe(metadata));
+            }
+          }
         );
 
     if (debug) {
@@ -121,6 +156,15 @@ public class LarkyEntrypoint implements Callable<Integer> {
       e.printStackTrace(System.err);
       throw new RuntimeException(e.getMessage(), e);
     }
+  }
+
+  // One line, for people and scripts: the same numbers a host reads from EvaluationMetadata.
+  static String describe(EvaluationMetadata m) {
+    return "larky: outcome=" + m.outcome()
+        + " steps=" + m.executedSteps()
+        + " library_init_steps=" + m.libraryInitSteps()
+        + " engine=" + m.engine()
+        + " elapsed_ms=" + m.elapsedNanos() / 1_000_000;
   }
 
   private static String readFile(String filePath) {

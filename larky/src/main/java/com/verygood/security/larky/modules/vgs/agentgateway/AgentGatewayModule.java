@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.vgs.agentgateway;
 
+import com.verygood.security.larky.annot.RetainsHostSuppliedProvider;
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.modules.vgs.agentgateway.spi.AgentGatewaySession;
@@ -31,6 +32,7 @@ import net.starlark.java.eval.StarlarkValue;
     name = "native_agent_gateway",
     category = "BUILTIN",
     doc = "Agent Web Gateway API for adapter functions; load @vgs//agent_gateway")
+@RetainsHostSuppliedProvider
 public final class AgentGatewayModule implements StarlarkValue {
 
   public static final AgentGatewayModule INSTANCE = new AgentGatewayModule(providers());
