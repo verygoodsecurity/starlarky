@@ -178,7 +178,7 @@ public class StarlarkInteropTest {
     StarlarkInterop host = parsed.interop();
     assertThat(host.semantics()).isSameInstanceAs(LarkySemantics.LARKY_SEMANTICS);
     // what the evaluation left of its limit
-    long used = parsed.getGlobalEnvironmentVariable(LarkyEvaluator.EXECUTION_STEPS, Long.class);
+    long used = parsed.metadata().executedSteps() + parsed.metadata().libraryInitSteps();
     assertThat(used).isGreaterThan(0L);
     assertThat(host.remainingSteps()).isEqualTo(2_000_000L - used);
     Object spin = parsed.getGlobalEnvironmentVariable("spin", Object.class);

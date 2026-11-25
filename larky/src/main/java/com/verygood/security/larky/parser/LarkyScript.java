@@ -26,6 +26,7 @@ import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import com.verygood.security.larky.console.Console;
+import com.verygood.security.larky.runtime.EvaluationMetadata;
 import com.verygood.security.larky.runtime.EvaluationSettings;
 import com.verygood.security.larky.runtime.LarkyEvaluator;
 import com.verygood.security.larky.runtime.StarlarkInterop;
@@ -224,6 +225,28 @@ public class LarkyScript {
     return evaluator.interop().javaString(output);
   }
 
+  /**
+   * As {@link #executeStarlarkWithOutputAsString(StarFile, ModuleSet, Console)}, and gives {@code
+   * metadata} what happened in the evaluation, whether it succeeded or failed.
+   */
+  public String executeStarlarkWithOutputAsString(
+      StarFile content,
+      ModuleSet moduleSet,
+      Console console,
+      java.util.function.Consumer<EvaluationMetadata> metadata)
+      throws IOException, InterruptedException, EvalException {
+    LarkyEvaluator evaluator = newEvaluator(moduleSet, console);
+    Object output;
+    try {
+      output = evaluator.eval(content).output();
+    } finally {
+      if (evaluator.lastMetadata() != null) {
+        metadata.accept(evaluator.lastMetadata());
+      }
+    }
+    return evaluator.interop().javaString(output);
+  }
+
   public ParsedStarFile evaluate(StarFile content, Console console)
       throws IOException, EvalException {
     return evaluate(content, moduleSet, console);
@@ -232,6 +255,20 @@ public class LarkyScript {
   public ParsedStarFile evaluate(StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, EvalException {
     return getStarFileWithTransitiveImports(content, moduleSet, console).getStarFile();
+  }
+
+  /**
+   * As {@link #evaluate(StarFile, ModuleSet, Console)}, and gives {@code metadata} what happened
+   * in the evaluation whether it succeeded or failed: a failure that surfaces as a plain {@link
+   * EvalException} (an error in a file the script loads, say) carries none itself.
+   */
+  public ParsedStarFile evaluate(
+      StarFile content,
+      ModuleSet moduleSet,
+      Console console,
+      java.util.function.Consumer<EvaluationMetadata> metadata)
+      throws IOException, EvalException {
+    return getStarFileWithTransitiveImports(content, moduleSet, console, metadata).getStarFile();
   }
 
   /**
@@ -247,11 +284,20 @@ public class LarkyScript {
   public StarFileWithDependencies getStarFileWithTransitiveImports(
       StarFile starScriptFile, ModuleSet moduleSet, Console console)
       throws IOException, EvalException {
+    return getStarFileWithTransitiveImports(starScriptFile, moduleSet, console, null);
+  }
+
+  private StarFileWithDependencies getStarFileWithTransitiveImports(
+      StarFile starScriptFile,
+      ModuleSet moduleSet,
+      Console console,
+      @javax.annotation.Nullable java.util.function.Consumer<EvaluationMetadata> metadata)
+      throws IOException, EvalException {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(starScriptFile);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
     ParsedStarFile parsedConfig = loadStarFileInternal(capturingConfigFile, moduleSet,
-        console);
+        console, metadata);
 
     ImmutableMap<String, StarFile> allLoadedFiles = capturingConfigFile.getAllLoadedFiles();
 
@@ -261,7 +307,8 @@ public class LarkyScript {
   }
 
   private ParsedStarFile loadStarFileInternal(StarFile content, ModuleSet moduleSet,
-                                              Console console)
+                                              Console console,
+                                              @javax.annotation.Nullable java.util.function.Consumer<EvaluationMetadata> metadata)
       throws IOException, EvalException {
     Module module;
     final LarkyEvaluator evaluator = newEvaluator(moduleSet, console);
@@ -270,6 +317,10 @@ public class LarkyScript {
     } catch (InterruptedException e) {
       // This should not happen since we shouldn't have anything interruptable during loading.
       throw new RuntimeException("Internal error", e);
+    } finally {
+      if (metadata != null && evaluator.lastMetadata() != null) {
+        metadata.accept(evaluator.lastMetadata());
+      }
     }
     return new ParsedStarFile(
         content.path(),
@@ -278,7 +329,8 @@ public class LarkyScript {
         .putAll(module.getGlobals())
         .buildKeepingLast(),
         module,
-        evaluator.interop());
+        evaluator.interop(),
+        evaluator.lastMetadata());
   }
 
   private static class StarFilesSupplier
