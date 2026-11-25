@@ -113,9 +113,9 @@ public class DefaultVault implements LarkyVault {
 
     private String getValue(Object value) throws EvalException {
         if (!(value instanceof String)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                     "Value of type %s is not supported in DefaultVault, expecting String", value.getClass().getName()
-            ));
+            );
         }
 
         return value.toString();
@@ -155,10 +155,10 @@ public class DefaultVault implements LarkyVault {
             return null;
         }
         if (!(value instanceof String name)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                     "%s of type %s is not supported in DefaultVault, expecting String",
                     field, value.getClass().getName()
-            ));
+            );
         }
         if (name.isBlank()) {
             throw Starlark.errorf("%s must not be empty or blank", field);
@@ -172,20 +172,20 @@ public class DefaultVault implements LarkyVault {
             return persistentVaultStorage;
         } else if (storage instanceof String) {
             if (!storageConfig.containsKey(storage)) {
-                throw Starlark.errorf(String.format(
+                throw Starlark.errorf(
                         "Storage '%s' not found in supported storage types: %s",
                         storage,
                         storageConfig.keySet().toString()
-                ));
+                );
             }
 
             return storageConfig.get(storage);
         }
 
-        throw Starlark.errorf(String.format(
+        throw Starlark.errorf(
                 "Storage of type %s is not supported in DefaultVault, expecting String",
                 storage.getClass().getName()
-        ));
+        );
     }
 
     private AliasGenerator getAliasGenerator(Object format) throws EvalException {
@@ -196,18 +196,18 @@ public class DefaultVault implements LarkyVault {
             if (formatToAliasGenerator.containsKey(format)) {
                 return formatToAliasGenerator.get(format);
             } else {
-                throw Starlark.errorf(String.format(
+                throw Starlark.errorf(
                         "Format '%s' not found in supported format types: %s",
                         format,
                         formatToAliasGenerator.keySet().toString()
-                ));
+                );
             }
         }
 
-        throw Starlark.errorf(String.format(
+        throw Starlark.errorf(
                 "Format of type %s is not supported in DefaultVault, expecting String",
                 format.getClass().getName()
-        ));
+        );
     }
 
 }
