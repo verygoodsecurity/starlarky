@@ -183,7 +183,7 @@ public class SyntheticModule implements StarlarkValue {
       }
       config.put("allow_unreserved_phone", Boolean.TRUE);
     }
-    if (!(dob instanceof NoneType)) {
+    if (!Starlark.isNullOrNone(dob)) {
       String d = (String) dob;
       if (!kind.equals("age")) {
         throw Starlark.errorf("dob only applies to kind 'age', not '%s'", kind);

@@ -127,6 +127,15 @@ public class SyntheticModuleTest {
     }
 
     @Test
+    public void aJavaNullDobIsNotGiven() throws Exception {
+        assertEquals(MODULE.aliasSpec("age", "e", "GB", Starlark.NONE, false, Starlark.NONE, false),
+                MODULE.aliasSpec("age", "e", "GB", Starlark.NONE, false, null, false));
+        assertEquals(spec("dob").getDecoratorConfigMap().keySet(),
+                MODULE.aliasSpec("dob", "entity-a", "GB", Starlark.NONE, false, null, false)
+                        .getDecoratorConfigMap().keySet());
+    }
+
+    @Test
     public void optionsAreRejectedForOtherKinds() {
         assertThrows(EvalException.class,
                 () -> MODULE.aliasSpec("city", "e", "GB", "example.org", false, Starlark.NONE, false));
