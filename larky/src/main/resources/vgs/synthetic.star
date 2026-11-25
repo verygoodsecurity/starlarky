@@ -22,7 +22,9 @@ value (email, city, ...) is part of that context is the caller's choice:
   `fake.delete(alias)` need only the entity key, and passing `kind=` to them is an error.
 - `scope_kind=True`: kind is lookup scope too. `fake.reveal(alias, kind="email")` and
   `fake.delete(alias, kind="email")` must name the kind the alias was made with; omitting it is an
-  error. A kind that differs from the redact's finds nothing.
+  error. `kind` is the stored kind in the right-hand column of the table below (`full_name`, not
+  the method name `name`); any other value is an error that lists them. A valid kind that differs
+  from the redact's finds nothing.
 
 The choice travels in each spec's decorator config as `scope_kind`, so a vault provider knows whether
 `kind` is scope or only a generation input. Without this module, the same context is
@@ -93,7 +95,8 @@ def Faker(locale, entity_key, email_domain = None, allow_unreserved_phone = Fals
                 fail("kind is required: this Faker has scope_kind=True, so kind is lookup scope")
             if type(kind) != "string":
                 fail("kind must be a string, not %s" % type(kind))
-            return kind
+            # Only the stored kind names: a method name such as "name" would look up another scope.
+            return _native.check_kind(kind)
         if kind != None:
             fail("kind is not lookup scope for this Faker (scope_kind=False); omit it")
         return None

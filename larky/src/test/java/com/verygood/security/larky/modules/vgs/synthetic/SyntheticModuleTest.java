@@ -71,6 +71,18 @@ public class SyntheticModuleTest {
     }
 
     @Test
+    public void checkKindAcceptsOnlyTheStoredKinds() throws Exception {
+        for (String kind : SyntheticModule.KINDS) {
+            assertEquals(kind, MODULE.checkKind(kind));
+        }
+        for (String name : List.of("name", "state", "administrative_unit", "street_address", "phone_number",
+                "date_of_birth", "", " ", "FULL_NAME")) {
+            EvalException e = assertThrows(EvalException.class, () -> MODULE.checkKind(name), name);
+            assertEquals("Unknown kind '" + name + "': expected one of " + SyntheticModule.KINDS, e.getMessage());
+        }
+    }
+
+    @Test
     public void scopeKindIsCarriedInTheSpec() throws Exception {
         AliasSpec scoped = MODULE.aliasSpec("city", "e", "GB", Starlark.NONE, false, Starlark.NONE, true);
         assertEquals(ImmutableMap.of("kind", "city", "entity_key", "e", "country", "GB", "scope_kind", true),
