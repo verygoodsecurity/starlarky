@@ -11,7 +11,7 @@ import org.bouncycastle.math.ec.custom.sec.SecP384R1Curve;
 import org.bouncycastle.math.ec.custom.sec.SecP521R1Curve;
 
 @com.google.errorprone.annotations.Immutable
-public class LarkyEllipticCurveCryptography implements StarlarkValue {
+public final class LarkyEllipticCurveCryptography implements StarlarkValue {
   public static LarkyEllipticCurveCryptography INSTANCE = new LarkyEllipticCurveCryptography();
 
   @StarlarkMethod(name = "P256R1Curve")

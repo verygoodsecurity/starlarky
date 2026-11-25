@@ -24,7 +24,7 @@ import net.starlark.java.eval.StarlarkThread;
     name = "native_nts",
     category = "BUILTIN",
     doc = "Overridable Network Token API in Larky")
-public class NetworkTokenModule implements LarkyNetworkToken {
+public final class NetworkTokenModule implements LarkyNetworkToken {
   public static final NetworkTokenModule INSTANCE = new NetworkTokenModule();
 
   public static final String ENABLE_MOCK_PROPERTY = "larky.modules.vgs.nts.enableMockNetworkToken";

@@ -11,7 +11,7 @@ import net.starlark.java.eval.StarlarkValue;
 
 import org.bouncycastle.math.ec.ECCurve;
 
-public class LarkyECCurve implements StarlarkValue {
+public final class LarkyECCurve implements StarlarkValue {
   final private ECCurve curve;
 
   public LarkyECCurve(ECCurve curve) {

@@ -19,7 +19,7 @@ import net.starlark.java.eval.StarlarkBytes;
           " fetch the subsequent private keys for decryption operations."
 )
 
-public class ChaseModule implements ChaseCrypto {
+public final class ChaseModule implements ChaseCrypto {
 
   public static final ChaseModule INSTANCE = new ChaseModule();
 

@@ -11,7 +11,7 @@ import net.starlark.java.eval.StarlarkValue;
     category = "BUILTIN",
     doc = "")
 @com.google.errorprone.annotations.Immutable
-public class OpenSSLModule implements StarlarkValue {
+public final class OpenSSLModule implements StarlarkValue {
 
   public static final OpenSSLModule INSTANCE =  new OpenSSLModule();
 

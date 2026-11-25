@@ -28,7 +28,7 @@ import net.starlark.java.eval.StarlarkThread;
         category = "BUILTIN",
         doc = "Overridable Vault API in Larky. A host may give a run its own vault (ModuleProviders); otherwise "
             + "calls go to the vault found with ServiceLoader.")
-public class VaultModule implements LarkyVault {
+public final class VaultModule implements LarkyVault {
 
     public static final VaultModule INSTANCE = new VaultModule();
     public static final String ENABLE_INMEMORY_PROPERTY = "larky.modules.vgs.vault.enableInMemoryVault";
