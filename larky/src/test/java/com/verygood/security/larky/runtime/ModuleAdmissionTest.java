@@ -78,19 +78,17 @@ class ModuleAdmissionTest {
   private static final String FIXTURES = "vendor/_admission_fixtures/";
 
   private static final String SAFE_SCRIPT =
-      String.join(
-          "\n",
-          "load(\"@vendor//_admission_fixtures/safe\", \"digest\", \"lookup\")",
-          "result = digest(b\"abc\") + \":\" + str(lookup(\"a\"))",
-          "");
+      """
+      load("@vendor//_admission_fixtures/safe", "digest", "lookup")
+      result = digest(b"abc") + ":" + str(lookup("a"))
+      """;
 
   private static final String DECLINED_SCRIPT =
-      String.join(
-          "\n",
-          "load(\"@vendor//_admission_fixtures/depends\", \"call\")",
-          "load(\"@vendor//_admission_fixtures/loads_host_service_too\", \"again\")",
-          "result = call() + again()",
-          "");
+      """
+      load("@vendor//_admission_fixtures/depends", "call")
+      load("@vendor//_admission_fixtures/loads_host_service_too", "again")
+      result = call() + again()
+      """;
 
   private static LarkyEvaluator evaluator(ModuleCache cache) {
     return CachedTestScript.evaluator(
