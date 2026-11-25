@@ -1,10 +1,10 @@
 package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assume.assumeFalse;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.console.testing.TestingConsole;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ResourceContentStarFile;
@@ -47,11 +47,19 @@ public class ModuleCacheTest {
   }
 
   @Test
-  public void theProcessWideCacheIsOffUnlessEnabled() {
-    assumeFalse(Boolean.getBoolean("larky.moduleCache.enable"));
-    assertThat(ModuleCache.SHARED.isEnabled()).isFalse();
+  public void processWideSharingRequiresOptInAndHonorsDisableOverride() throws Exception {
+    boolean shouldShare = Boolean.getBoolean("larky.moduleCache.enable")
+        && !Boolean.getBoolean("larky.moduleCache.disable");
+    Module first = newEvaluator(ModuleCache.SHARED)
+        .eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
+    Module second = newEvaluator(ModuleCache.SHARED)
+        .eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
+
+    assertThat(ModuleCache.SHARED.isEnabled()).isEqualTo(shouldShare);
+    assertThat(second == first).isEqualTo(shouldShare);
   }
 
+  private static final ModuleCache.Registry REGISTRY = ModuleCache.Registry.DEFAULT;
   private static final FileOptions OPTIONS = FileOptions.DEFAULT;
   private static final StarlarkSemantics SEMANTICS = StarlarkSemantics.DEFAULT;
 
@@ -59,15 +67,15 @@ public class ModuleCacheTest {
   public void notReusedWhenAUsedNameIsBoundToADifferentObject() {
     Module module = Module.create();
     Object v1 = new Object();
-    cache.put("a.star", OPTIONS, SEMANTICS, module, ImmutableSet.of("x"),
-        ImmutableMap.of("x", v1), ImmutableMap.of());
-    assertThat(cache.lookup("a.star", OPTIONS, SEMANTICS, ImmutableMap.of("x", v1)))
+    cache.put("a.star", OPTIONS, SEMANTICS, REGISTRY, module, ImmutableSet.of("x"), ImmutableSet.of(),
+        ImmutableMap.of("x", v1), ImmutableMap.of(), ImmutableMap.of());
+    assertThat(cache.lookup("a.star", OPTIONS, SEMANTICS, REGISTRY, ImmutableMap.of("x", v1)))
         .isSameInstanceAs(module);
     // Another evaluation's object.
-    assertThat(cache.lookup("a.star", OPTIONS, SEMANTICS,
+    assertThat(cache.lookup("a.star", OPTIONS, SEMANTICS, REGISTRY,
         ImmutableMap.of("x", new Object()))).isNull();
     // Unused names don't matter.
-    assertThat(cache.lookup("a.star", OPTIONS, SEMANTICS,
+    assertThat(cache.lookup("a.star", OPTIONS, SEMANTICS, REGISTRY,
         ImmutableMap.of("x", v1, "other", StarlarkInt.of(1)))).isSameInstanceAs(module);
   }
 
@@ -75,14 +83,14 @@ public class ModuleCacheTest {
   public void notReusedWhenADependencyIsNotReusable() {
     Object v1 = new Object();
     Module dep = Module.create();
-    cache.put("dep.star", OPTIONS, SEMANTICS, dep, ImmutableSet.of("x"),
-        ImmutableMap.of("x", v1), ImmutableMap.of());
+    cache.put("dep.star", OPTIONS, SEMANTICS, REGISTRY, dep, ImmutableSet.of("x"), ImmutableSet.of(),
+        ImmutableMap.of("x", v1), ImmutableMap.of(), ImmutableMap.of());
     Module top = Module.create();
-    cache.put("top.star", OPTIONS, SEMANTICS, top, ImmutableSet.of(),
-        ImmutableMap.of("x", v1), Map.of("dep", dep));
-    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS, ImmutableMap.of("x", v1)))
+    cache.put("top.star", OPTIONS, SEMANTICS, REGISTRY, top, ImmutableSet.of(), ImmutableSet.of(),
+        ImmutableMap.of("x", v1), ImmutableMap.of(), Map.of("dep", dep));
+    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS, REGISTRY, ImmutableMap.of("x", v1)))
         .isSameInstanceAs(top);
-    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS,
+    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS, REGISTRY,
         ImmutableMap.of("x", new Object()))).isNull();
   }
 
@@ -90,8 +98,78 @@ public class ModuleCacheTest {
   public void notCachedWhenADependencyIsNotShared() {
     Module unshared = Module.create();
     Module top = Module.create();
-    cache.put("top.star", OPTIONS, SEMANTICS, top, ImmutableSet.of(),
-        ImmutableMap.of(), Map.of("unshared", unshared));
-    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS, ImmutableMap.of())).isNull();
+    cache.put("top.star", OPTIONS, SEMANTICS, REGISTRY, top, ImmutableSet.of(), ImmutableSet.of(),
+        ImmutableMap.of(), ImmutableMap.of(), Map.of("unshared", unshared));
+    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS, REGISTRY, ImmutableMap.of())).isNull();
   }
+
+  @Test
+  public void sharedResourceDoesNotRetainUnusedHostBindings() throws Exception {
+    LarkyEvaluator evaluator =
+        CachedTestScript.evaluator(
+            new CachedTestScript(
+                    ModuleSupplier.CORE_MODULES,
+                    LarkyScript.StarlarkMode.STRICT,
+                    Map.of("unused_host_binding", "request value"))
+                .withModuleCache(cache),
+            new TestingConsole());
+    Module module = evaluator.eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
+
+    assertThat(cache.admitted(module)).isTrue();
+    assertThat(module.getPredeclaredBindings()).doesNotContainKey("unused_host_binding");
+  }
+
+  @Test
+  public void overridingAUniversalNameDoesNotReuseTheResourceModule() throws Exception {
+    var starlarkFile = ResourceContentStarFile.buildStarFile("@stdlib//sets");
+    Module original = newEvaluator(cache).eval(starlarkFile).module();
+    LarkyEvaluator evaluator =
+        CachedTestScript.evaluator(
+            new CachedTestScript(
+                    ModuleSupplier.CORE_MODULES,
+                    LarkyScript.StarlarkMode.STRICT,
+                    Map.of("dict", StarlarkInt.of(1)))
+                .withModuleCache(cache),
+            new TestingConsole());
+
+    Module overridden = evaluator.eval(starlarkFile).module();
+
+    assertThat(original).isNotSameInstanceAs(overridden);
+    assertThat(overridden.getPredeclaredBindings()).containsKey("dict");
+  }
+
+  @Test
+  public void transitiveResolutionMustMatch() {
+    Module nativeModule = Module.create();
+    ModuleCache.putStable(nativeModule);
+    Module dependency = Module.create();
+    cache.put("dep.star", OPTIONS, SEMANTICS, REGISTRY, dependency, ImmutableSet.of(),
+        ImmutableSet.of("dict"), ImmutableMap.of(), ImmutableMap.of(),
+        Map.of("@stdlib//c99math", nativeModule));
+    Module top = Module.create();
+    cache.put("top.star", OPTIONS, SEMANTICS, REGISTRY, top, ImmutableSet.of(),
+        ImmutableSet.of(), ImmutableMap.of(), ImmutableMap.of(), Map.of("dep", dependency));
+
+    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS, REGISTRY, ImmutableMap.of()))
+        .isSameInstanceAs(top);
+    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS, ModuleCache.Registry.TEST,
+        ImmutableMap.of())).isNull();
+    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS, REGISTRY,
+        Map.of("dict", StarlarkInt.of(1)))).isNull();
+    assertThat(cache.lookup("top.star", OPTIONS, SEMANTICS, REGISTRY,
+        Map.of("c99math", Module.create()))).isNull();
+  }
+
+  @Test
+  public void aLosingCandidateIsNotRetained() {
+    Module winner = Module.create();
+    Module loser = Module.create();
+    for (Module module : new Module[] {winner, loser}) {
+      cache.put("entry.star", OPTIONS, SEMANTICS, REGISTRY, module, ImmutableSet.of(),
+          ImmutableSet.of(), ImmutableMap.of(), ImmutableMap.of(), ImmutableMap.of());
+    }
+    assertThat(cache.admitted(winner)).isTrue();
+    assertThat(cache.admitted(loser)).isFalse();
+  }
+
 }

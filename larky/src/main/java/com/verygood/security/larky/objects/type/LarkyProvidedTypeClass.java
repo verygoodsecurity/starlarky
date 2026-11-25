@@ -11,6 +11,7 @@ import java.util.Map;
 import com.verygood.security.larky.modules.types.LarkyCollection;
 import com.verygood.security.larky.objects.LarkyBindable;
 import com.verygood.security.larky.objects.LarkyFunction;
+import com.verygood.security.larky.objects.LarkyMethod;
 import com.verygood.security.larky.objects.LarkyPyObject;
 import com.verygood.security.larky.objects.PyObject;
 
@@ -50,19 +51,38 @@ final public class LarkyProvidedTypeClass implements
   private void init(StarlarkThread thread) {
     final Map<String, Object> clsDict = this.getInternalDictUnsafe();
     for (Map.Entry<String, Object> entry : clsDict.entrySet()) {
-      Object value = entry.getValue();
-      if(value instanceof StarlarkFunction) {
-        // We are decorating a StarlarkFunction with a LarkyFunction so
-        // that we can enable python descriptor support.
-        value = LarkyFunction.create((StarlarkFunction) value, thread);
-      }
-
-      if (value instanceof LarkyBindable) {
-        ((LarkyBindable) value).bindToOwnerIfNotBound(this);
+      Object value = prepareClassAttribute(entry.getValue(), thread);
+      if (value instanceof LarkyBindable bindable) {
+        bindable.bindToOwnerIfNotBound(this);
       }
 
       clsDict.put(entry.getKey(), value);
     }
+  }
+
+  private Object prepareClassAttribute(Object value, StarlarkThread thread) {
+    if (value instanceof StarlarkFunction function) {
+      value = LarkyFunction.create(function, thread);
+    }
+    if (value instanceof LarkyMethod) {
+      // A bound method keeps its receiver.
+      return value;
+    }
+    if (!(value instanceof LarkyFunction function)) {
+      return value;
+    }
+
+    // This class binds its own copy of a function owned by another class or frozen with a module.
+    boolean needsCopy;
+    if (function.isBound()) {
+      needsCopy = function.getBoundOwner() != this;
+    } else {
+      needsCopy = function.mutability().isFrozen();
+    }
+    if (needsCopy) {
+      return function.unboundCopy(thread);
+    }
+    return function;
   }
 
   @Override

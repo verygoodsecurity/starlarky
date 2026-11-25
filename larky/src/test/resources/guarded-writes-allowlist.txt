@@ -1,0 +1,25 @@
+# Writes to state that ModuleAdmission trusts (frozen values, frozen Larky classes, and
+# GUARDING_LIBSTARLARK) made with no Mutability check on the way. GuardedWritesTest fails on any
+# write not listed here, and on an entry that no longer occurs.
+# Format: Class.method<TAB>write<TAB>why no evaluation can change a value another one shares.
+com.verygood.security.larky.modules.types.LarkyCounter$NotThreadSafeLarkyCounter.addAndGet	sets com.verygood.security.larky.modules.types.LarkyCounter$NotThreadSafeLarkyCounter#count	Java API with no EvalException to throw; Starlark reaches it only through Counter__addAndGet, which checks the Mutability first.
+com.verygood.security.larky.modules.xml.LarkyXMLNamespaceContext.freeze	sets com.verygood.security.larky.modules.xml.LarkyXMLNamespaceContext#mutability	Freezing: sets Mutability.IMMUTABLE, so it can only make the value read-only.
+com.verygood.security.larky.objects.type.LarkyTypeObject.getSpecialMethods	sets com.verygood.security.larky.objects.type.LarkyTypeObject#specialMethods	Volatile cache of an immutable set computed from the field names, which a frozen type no longer changes: every evaluation computes the same set.
+com.verygood.security.larky.objects.type.LarkyTypeObject.createProvidedType	sets com.verygood.security.larky.objects.type.LarkyTypeObject#mutability	Runs once, inside create(), on the type create() has just constructed, before anything else can see it.
+com.verygood.security.larky.objects.type.LarkyTypeObject.setBaseClasses	sets com.verygood.security.larky.objects.type.LarkyTypeObject#__base__	Called only by LarkyType.setupInheritanceHierarchy while the type is created.
+com.verygood.security.larky.objects.type.LarkyTypeObject.setBaseClasses	sets com.verygood.security.larky.objects.type.LarkyTypeObject#__bases__	Called only by LarkyType.setupInheritanceHierarchy while the type is created.
+com.verygood.security.larky.objects.type.LarkyTypeObject.setMRO	sets com.verygood.security.larky.objects.type.LarkyTypeObject#__mro__	Called only by LarkyType.setupInheritanceHierarchy while the type is created.
+com.verygood.security.larky.objects.type.LarkyTypeObject.setMRO	sets com.verygood.security.larky.objects.type.LarkyTypeObject#mroTuple	The same list as __mro__, as the tuple scripts read: set with it, only by LarkyType.setupInheritanceHierarchy while the type is created.
+net.starlark.java.eval.Dict$MutableDict.unsafeShallowFreeze	sets net.starlark.java.eval.Dict$MutableDict#mutability	Freezing: sets Mutability.IMMUTABLE, so it can only make the value read-only.
+net.starlark.java.eval.Eval.assignIdentifier	sets net.starlark.java.eval.StarlarkFunction$Cell#x	A closure cell is written only by the call that created it; Starlark has no nonlocal, so nothing writes it once that call returns.
+net.starlark.java.eval.LazyImmutableStarlarkList.elems	sets net.starlark.java.eval.LazyImmutableStarlarkList#elems	Lazy initialization under a lock (volatile, double-checked): computed once, to the same elements.
+net.starlark.java.eval.LazyImmutableStarlarkList.elems	sets net.starlark.java.eval.LazyImmutableStarlarkList#supplier	Lazy initialization under a lock: drops the supplier once the elements exist.
+net.starlark.java.eval.MutableStarlarkList.unsafeShallowFreeze	sets net.starlark.java.eval.MutableStarlarkList#mutability	Freezing: sets Mutability.IMMUTABLE, so it can only make the value read-only.
+net.starlark.java.eval.StarlarkFunction.export	sets net.starlark.java.eval.StarlarkFunction#token	Returns unless the calling thread is the one that defined the function (token owner), so only the defining module's load can export it.
+net.starlark.java.eval.StarlarkSet.unsafeShallowFreeze	sets net.starlark.java.eval.StarlarkSet#mutability	Freezing: sets Mutability.IMMUTABLE, so it can only make the value read-only.
+net.starlark.java.eval.SymbolGenerator$LocalSymbol.hashCode	sets net.starlark.java.eval.SymbolGenerator$LocalSymbol#lazyHashCode	Cached hash code of immutable fields (as String.hash): a race only computes the same int twice.
+net.starlark.java.eval.StarlarkBytes.capitalize	calls net.starlark.java.ext.ByteList.capitalize on net.starlark.java.eval.StarlarkBytes#delegate	ByteList.capitalize writes only into ByteList.copy(this), a new array.
+net.starlark.java.eval.StarlarkBytes.lower	calls net.starlark.java.ext.ByteList.lower on net.starlark.java.eval.StarlarkBytes#delegate	ByteList.lower writes only into ByteList.copy(this), a new array.
+net.starlark.java.eval.StarlarkBytes.title	calls net.starlark.java.ext.ByteList.title on net.starlark.java.eval.StarlarkBytes#delegate	ByteList.title writes only into ByteList.wrap(copy()), a new array.
+net.starlark.java.eval.StarlarkBytes.upper	calls net.starlark.java.ext.ByteList.upper on net.starlark.java.eval.StarlarkBytes#delegate	ByteList.upper writes only into ByteList.copy(this), a new array.
+net.starlark.java.eval.StarlarkBytes.zfill	calls net.starlark.java.ext.ByteList.zfill on net.starlark.java.eval.StarlarkBytes#delegate	ByteList.zfill writes only into the result of pad(fill, 0, '0') with fill > 0, a new array.

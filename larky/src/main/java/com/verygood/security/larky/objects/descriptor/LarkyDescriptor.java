@@ -12,6 +12,7 @@ import com.verygood.security.larky.objects.type.LarkyType;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkThread;
@@ -22,7 +23,8 @@ import org.jetbrains.annotations.Nullable;
 
 // https://docs.python.org/3.10/reference/datamodel.html#invoking-descriptors
 // Mimic the *_get, *_set, and *_delete descriptors in CPython's descrobject.c
-public abstract class LarkyDescriptor extends LarkyPyObject implements LarkyBindable, LarkyNonDataDescriptor {
+public abstract class LarkyDescriptor extends LarkyPyObject
+    implements LarkyBindable, LarkyNonDataDescriptor, Mutability.Freezable {
 
   /**
    * Name of the object described, e.g. "__add__" or "to_bytes". This is
@@ -36,6 +38,15 @@ public abstract class LarkyDescriptor extends LarkyPyObject implements LarkyBind
     super(forType, thread);
     this.name = name;
     this.fget = fget;
+  }
+
+  /**
+   * The evaluation that created this descriptor (its {@code __dict__}'s owner). Once that is
+   * frozen, binding the descriptor to a class would change a value other evaluations may share.
+   */
+  @Override
+  public Mutability mutability() {
+    return ((Dict<?, ?>) __dict__()).mutability();
   }
 
   /**

@@ -11,7 +11,7 @@ import net.starlark.java.eval.StarlarkValue;
     doc = "Module that exposes API for intelligent data analysis of PII data on VGS platform"
 )
 @com.google.errorprone.annotations.Immutable
-public class CerebroModule implements StarlarkValue {
+public final class CerebroModule implements StarlarkValue {
 
   public static final CerebroModule INSTANCE = new CerebroModule();
 

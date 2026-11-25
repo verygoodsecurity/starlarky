@@ -121,7 +121,7 @@ final class LarkyCalls {
     } finally {
       if (context != null) {
         var metadata = new EvaluationMetadata(outcome, thread.getExecutedSteps(), 0,
-            System.nanoTime() - start, EvaluationMetadata.TREE_WALKER, settings);
+            System.nanoTime() - start, EvaluationMetadata.TREE_WALKER, settings, Map.of());
         context.setMetadata(metadata);
         if (failure != null) {
           failure.withMetadataIfAbsent(metadata);

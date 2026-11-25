@@ -19,7 +19,7 @@ import org.bouncycastle.math.Primes;
 
 
 @com.google.errorprone.annotations.Immutable
-public class CryptoMathModule implements StarlarkValue {
+public final class CryptoMathModule implements StarlarkValue {
 
   public static final CryptoMathModule INSTANCE = new CryptoMathModule();
   private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);

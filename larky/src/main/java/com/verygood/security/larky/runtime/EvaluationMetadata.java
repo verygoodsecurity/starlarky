@@ -16,7 +16,9 @@
 
 package com.verygood.security.larky.runtime;
 
+import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.parser.ParsedStarFile;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -42,6 +44,14 @@ import java.util.Objects;
  * @param engine what executed the steps, e.g. {@link #TREE_WALKER}; steps of different engines
  *     are not comparable
  * @param settings the settings the evaluation ran with
+ * @param uncachedModules with the module cache on, the Larky modules this evaluation loaded and
+ *     ran that the cache declined to share, by load label (e.g. {@code @vgs//vault}), each with why:
+ *     a reason ({@code RETAINS_HOST_SUPPLIED_PROVIDER}, {@code OWNED_MUTABLE}, {@code UNKNOWN_CLASS},
+ *     {@code MUTABLE_FIELD}, {@code THREAD}, {@code DEPENDS_ON}, {@code TOO_LARGE},
+ *     {@code NOT_ANALYZED}), what blocked it (a class name,
+ *     or the module it depends on) and where, by global and field names and collection positions, e.g. {@code
+ *     "RETAINS_HOST_SUPPLIED_PROVIDER com.verygood.security.larky.modules.VaultModule at vault"}. Never a value.
+ *     Empty with the cache off.
  */
 public record EvaluationMetadata(
     Outcome outcome,
@@ -49,7 +59,8 @@ public record EvaluationMetadata(
     long libraryInitSteps,
     long elapsedNanos,
     String engine,
-    EvaluationSettings settings) {
+    EvaluationSettings settings,
+    Map<String, String> uncachedModules) {
 
   /**
    * Starlark's tree-walking evaluator ({@code net.starlark.java.eval.Eval}): one step per
@@ -77,5 +88,6 @@ public record EvaluationMetadata(
     Objects.requireNonNull(outcome, "outcome");
     Objects.requireNonNull(engine, "engine");
     Objects.requireNonNull(settings, "settings");
+    uncachedModules = ImmutableMap.copyOf(uncachedModules);
   }
 }
