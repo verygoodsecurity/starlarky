@@ -2,12 +2,12 @@ package com.verygood.security.larky.modules.re;
 
 import com.google.errorprone.annotations.concurrent.LazyInit;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.Map;
 
 import com.verygood.security.larky.modules.re.PyRegexTranslator.Marker;
@@ -55,10 +55,13 @@ final class PyRegex {
   // Translated on first use. Translation and RE2 Patterns are immutable, so the racy lazy
   // initialization below is harmless: two threads may both compute a value, and either is correct.
   @LazyInit private volatile Translation ascii;
-  // Compiled variants by variantKey(), added copy-on-write. Reads take no lock; a thread that
-  // compiled a missing variant publishes it under the lock on this, so concurrent misses cannot
-  // drop each other's entries.
-  @LazyInit private volatile ImmutableMap<Integer, Pattern> variants = ImmutableMap.of();
+  // ASCII mode, three anchor modes, prefix handling, and full-match mode.
+  private static final int VARIANT_COUNT = 2 * 3 * 2 * 2;
+
+  // A slot records the compiled pattern for one fixed combination of flags. Every slot
+  // transitions from null to an immutable Pattern at most once.
+  @SuppressWarnings("Immutable") // Private, bounded memoization of deterministic results.
+  private final AtomicReferenceArray<Pattern> variants = new AtomicReferenceArray<>(VARIANT_COUNT);
 
   PyRegex(String source, int flags) throws EvalException {
     this.source = source;
@@ -135,31 +138,20 @@ final class PyRegex {
       throw new EvalException("re.error: " + e.getDescription() + " (unsupported by Larky's "
           + "linear-time regex engine)");
     }
-    return publish(key, p);
-  }
-
-  /**
-   * Caches {@code p} as variant {@code key} unless another thread did first, and returns the
-   * cached pattern.
-   */
-  private synchronized Pattern publish(int key, Pattern p) {
-    ImmutableMap<Integer, Pattern> current = variants;
-    Pattern existing = current.get(key);
-    if (existing != null) {
-      return existing;
-    }
-    variants =
-        ImmutableMap.<Integer, Pattern>builderWithExpectedSize(current.size() + 1)
-            .putAll(current)
-            .put(key, p)
-            .buildOrThrow();
-    return p;
+    Pattern published = variants.compareAndExchange(key, null, p);
+    return published == null ? p : published;
   }
 
   /** The number of variants compiled and cached so far. */
   @VisibleForTesting
   int cachedVariantCount() {
-    return variants.size();
+    int count = 0;
+    for (int i = 0; i < variants.length(); i++) {
+      if (variants.get(i) != null) {
+        count++;
+      }
+    }
+    return count;
   }
 
   /**

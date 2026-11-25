@@ -323,7 +323,15 @@ public class IsolationStructureTest {
       for (FieldInfo f : instanceFieldsWithInherited(c)) {
         // @LazyInit (checked by Error Prone): a volatile field set once, racily, to an immutable value.
         boolean lazy = c.lazyInit.contains(f.name()) && (f.access() & Opcodes.ACC_VOLATILE) != 0;
-        if ((!f.isFinal() && !lazy) || !isShareableField(f)) {
+        // PyRegex inserts each immutable RE2 Pattern into its private slot just once.
+        boolean regexVariants =
+            c.name.equals("com/verygood/security/larky/modules/re/PyRegex")
+                && f.name().equals("variants")
+                && f.isFinal()
+                && (f.access() & Opcodes.ACC_PRIVATE) != 0
+                && "Ljava/util/concurrent/atomic/AtomicReferenceArray<Lcom/google/re2j/Pattern;>;"
+                    .equals(f.signature());
+        if ((!f.isFinal() && !lazy) || (!regexVariants && !isShareableField(f))) {
           broken.add(c.name.replace('/', '.') + "#" + f.name() + ":" + f.typeName());
         }
       }
