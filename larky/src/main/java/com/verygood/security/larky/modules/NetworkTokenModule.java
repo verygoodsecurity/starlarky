@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules;
 
+import com.verygood.security.larky.annot.RetainsHostSuppliedProvider;
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.vgs.nts.LarkyNetworkToken;
 import com.verygood.security.larky.modules.vgs.nts.MockNetworkTokenService;
@@ -24,6 +25,7 @@ import net.starlark.java.eval.StarlarkThread;
     name = "native_nts",
     category = "BUILTIN",
     doc = "Overridable Network Token API in Larky")
+@RetainsHostSuppliedProvider
 public final class NetworkTokenModule implements LarkyNetworkToken {
   public static final NetworkTokenModule INSTANCE = new NetworkTokenModule();
 

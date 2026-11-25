@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules;
 
+import com.verygood.security.larky.annot.RetainsHostSuppliedProvider;
 import com.google.common.collect.ImmutableList;
 import com.verygood.security.larky.modules.vgs.crypto.ChaseCrypto;
 import java.util.List;
@@ -19,6 +20,7 @@ import net.starlark.java.eval.StarlarkBytes;
           " fetch the subsequent private keys for decryption operations."
 )
 
+@RetainsHostSuppliedProvider
 public final class ChaseModule implements ChaseCrypto {
 
   public static final ChaseModule INSTANCE = new ChaseModule();

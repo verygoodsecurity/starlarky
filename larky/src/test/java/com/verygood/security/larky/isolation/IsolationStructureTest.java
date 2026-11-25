@@ -221,10 +221,13 @@ public class IsolationStructureTest {
     List<String> interfaces = new ArrayList<>();
     List<FieldInfo> fields = new ArrayList<>();
     boolean callsFreezeCheck;
-    List<String> permittedSubclasses = new ArrayList<>();
     boolean annotatedImmutable;
+    /** Annotated {@code @RetainsHostSuppliedProvider}: a native module keeping a host's provider. */
+    boolean retainsHostSuppliedProvider;
     /** Fields annotated Error Prone {@code @LazyInit}: a racy, idempotent lazy initialization. */
     Set<String> lazyInit = new HashSet<>();
+    /** Classes named in a PermittedSubclasses attribute: non-empty for a sealed class. */
+    List<String> permittedSubclasses = new ArrayList<>();
     /** static field name -> true while every <clinit> store is an immutable factory result. */
     Map<String, Boolean> immutableInit = new HashMap<>();
     /** static field name -> true while every <clinit> store is an empty immutable collection. */
@@ -420,6 +423,28 @@ public class IsolationStructureTest {
         java.util.regex.Pattern.compile("-XepOpt:Immutable:KnownImmutable=([^\\s<]+)").matcher(pom);
     assertWithMessage("-XepOpt:Immutable:KnownImmutable in larky/pom.xml").that(m.find()).isTrue();
     assertThat(new TreeSet<>(List.of(m.group(1).split(",")))).isEqualTo(listed);
+  }
+
+  /**
+   * A class keeping a host's provider (a field whose type is in a {@code .spi.} package) is marked
+   * {@code @RetainsHostSuppliedProvider}, so the module cache declines a module that reaches it by that reason.
+   */
+  @Test
+  public void classesWithHostProviderFieldsAreAnnotated() {
+    TreeSet<String> unmarked = new TreeSet<>();
+    for (ClassInfo c : scanned) {
+      if (c.retainsHostSuppliedProvider || c.name.contains("/spi/")) {
+        continue;
+      }
+      for (FieldInfo f : c.fields) {
+        if (!f.isStatic() && f.desc().contains("/spi/")) {
+          unmarked.add(c.name.replace('/', '.') + "#" + f.name());
+        }
+      }
+    }
+    assertWithMessage("fields keeping a host provider in a class not marked @RetainsHostSuppliedProvider")
+        .that(unmarked)
+        .isEmpty();
   }
 
   @Test
@@ -852,6 +877,8 @@ public class IsolationStructureTest {
           @Override
           public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
             ci.annotatedImmutable |= IMMUTABLE_ANNOTATIONS.contains(desc);
+            ci.retainsHostSuppliedProvider |=
+                desc.equals("Lcom/verygood/security/larky/annot/RetainsHostSuppliedProvider;");
             return null;
           }
 
