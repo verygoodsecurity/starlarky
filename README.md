@@ -343,5 +343,11 @@ Maven must also be configured to retrieve artifacts from Github.
     </settings>
 ```
 
+### Benchmarks
+
+`bench/` compares two Larky builds in one JVM: absh-style summaries of wall time, CPU and
+allocation per call, with the B/A ratio and its 95% interval, plus a table per fork. It is not part
+of the root build; see [bench/README.md](bench/README.md).
+
 ## Deployment process
 Release-please plugin manages creation of tag&release.
