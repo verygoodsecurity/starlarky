@@ -3,10 +3,10 @@ package com.verygood.security.larky.modules.vgs.vault.defaults;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
@@ -23,8 +23,10 @@ public class DefaultVault implements LarkyVault {
     /** The lookup context a redact stores an alias under. */
     private record RedactContext(String entityKey, String kind) {}
 
-    private final Map<StorageKey, Object> persistentVaultStorage = new HashMap<>();
-    private final Map<StorageKey, Object> volatileVaultStorage = new HashMap<>();
+    // VaultModule.INSTANCE holds one DefaultVault for every script run, so runs on different threads
+    // share these maps. Keys are StorageKey records and values the String secrets: never null.
+    private final Map<StorageKey, Object> persistentVaultStorage = new ConcurrentHashMap<>();
+    private final Map<StorageKey, Object> volatileVaultStorage = new ConcurrentHashMap<>();
 
     private final ImmutableMap<String, Map<StorageKey, Object>> storageConfig = ImmutableMap.of(
             "persistent", persistentVaultStorage,
