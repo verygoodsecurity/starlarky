@@ -51,28 +51,38 @@ final public class LarkyProvidedTypeClass implements
   private void init(StarlarkThread thread) {
     final Map<String, Object> clsDict = this.getInternalDictUnsafe();
     for (Map.Entry<String, Object> entry : clsDict.entrySet()) {
-      Object value = entry.getValue();
-      if(value instanceof StarlarkFunction) {
-        // We are decorating a StarlarkFunction with a LarkyFunction so
-        // that we can enable python descriptor support.
-        value = LarkyFunction.create((StarlarkFunction) value, thread);
-      }
-
-      if (value instanceof LarkyFunction f
-          && !(f instanceof LarkyMethod)
-          && (f.isBound() ? f.getBoundOwner() != this : f.mutability().isFrozen())) {
-        // A function, classmethod or staticmethod that another class has bound, or that a loaded
-        // module froze (and later evaluations may share): this class binds its own copy. Python
-        // binds such an object on each lookup, so one object may serve several classes. A bound
-        // method keeps its self, as in Python.
-        value = f.unboundCopy(thread);
-      }
-      if (value instanceof LarkyBindable) {
-        ((LarkyBindable) value).bindToOwnerIfNotBound(this);
+      Object value = prepareClassAttribute(entry.getValue(), thread);
+      if (value instanceof LarkyBindable bindable) {
+        bindable.bindToOwnerIfNotBound(this);
       }
 
       clsDict.put(entry.getKey(), value);
     }
+  }
+
+  private Object prepareClassAttribute(Object value, StarlarkThread thread) {
+    if (value instanceof StarlarkFunction function) {
+      value = LarkyFunction.create(function, thread);
+    }
+    if (value instanceof LarkyMethod) {
+      // A bound method keeps its receiver.
+      return value;
+    }
+    if (!(value instanceof LarkyFunction function)) {
+      return value;
+    }
+
+    // This class binds its own copy of a function owned by another class or frozen with a module.
+    boolean needsCopy;
+    if (function.isBound()) {
+      needsCopy = function.getBoundOwner() != this;
+    } else {
+      needsCopy = function.mutability().isFrozen();
+    }
+    if (needsCopy) {
+      return function.unboundCopy(thread);
+    }
+    return function;
   }
 
   @Override
