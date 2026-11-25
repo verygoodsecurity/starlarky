@@ -146,6 +146,13 @@ def _test_urlsplit_strips_c0_control_and_space():
     asserts.assert_that(split(" \x01//h/p")).is_equal_to(("", "h", "/p", "", ""))
     asserts.assert_that(split("h\ttp://x")).is_equal_to(("htp", "x", "", "", ""))
     asserts.assert_that(split("//h/", scheme=" \thttp ")).is_equal_to(("http", "h", "/", "", ""))
+    asserts.assert_that(split("HTTPS://[2001:db8::1]/😀?x=é#frag?rest")).is_equal_to(
+        ("https", "[2001:db8::1]", "/😀", "x=é", "frag?rest"))
+    asserts.assert_that(split("//host#frag?x", allow_fragments=False)).is_equal_to(
+        ("", "host", "#frag", "x", ""))
+    path = "/" + "a" * 16384
+    asserts.assert_that(split("//host" + path)).is_equal_to(("", "host", path, "", ""))
+    asserts.assert_fails(lambda: split("//[host/path"), ".*Invalid IPv6 URL.*")
     r = parse.urlparse(" \x02https://h/p;x?q#f")
     asserts.assert_that((r.scheme, r.netloc, r.path, r.params, r.query, r.fragment)).is_equal_to(
         ("https", "h", "/p", "x", "q", "f"))

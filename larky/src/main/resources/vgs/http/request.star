@@ -2,20 +2,11 @@ load("@stdlib//larky", larky="larky")
 load("@stdlib//urllib/parse", parse="parse")
 load("@stdlib//urllib/request", urllib_request="request")
 
-load("@vendor//multidict", CIMultiDict="CIMultiDict")
+load("@vgs//http/headers", _VGSCIMultiDict="VGSCIMultiDict")
+load("@vendor//_multidict_core", "CIMultiDict")
 
 
-def VGSCIMultiDict(*args, **kwargs):
-    """VGS specific CI MultiDict with the support for duplicate case-insensitive keys."""
-    self = CIMultiDict(*args, **kwargs)
-    self.__name__ = 'VGSCIMultiDict'
-    self.__class__ = VGSCIMultiDict
-
-    def __str__():
-        body = ", ".join(["\"{}\": {}".format(k, repr(v)) for k, v in iter(self.items())])
-        return "{{{}}}".format(body)
-    self.__str__= __str__
-    return self
+VGSCIMultiDict = _VGSCIMultiDict
 
 
 def VGSHttpRequest(

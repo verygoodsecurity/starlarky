@@ -105,81 +105,90 @@ def __is_iterable(x):
     return type(x) == type(tuple()) or type(x) == type(list())
 
 
+_INSTANCE_BINDINGS = (str, int, float, bool, type, getattr)
+
+
+def _check(kl, _kls):
+    """Return true if one of the parents of obj class is cls"""
+    if kl == _kls:
+        return True
+    if type(_kls) == "builtin_function_or_method":
+        if kl == _func_name(_kls):
+            return True
+    # As we have built more patterns in Larky, there are
+    # various metadata annotations that we've attached to
+    # mutablestructs that are able to identify classes.
+    #
+    # One is __class__ or __name__ and sometimes they're just
+    # plain functions.
+    #
+    # We check to see if these annotations are there or
+    # if the function name was passed in.
+    for attr in ('__class__', '__name__',):
+        if kl == getattr(_kls, attr, None):
+            return True
+    # FWIW, this might be a problem if we pass in two diff
+    # functions from different modules but with the same name.
+    if kl == _func_name(_kls):
+        return True
+
+
+def __isinstance(_obj, _kls):
+    # // PEP 585
+    # check if generic alias? not supported in larky
+    if not _kls:
+        fail("isinstance() arg 2 must be a type or tuple of types")
+
+    # mimic python isinstance(True, int)?
+    if _kls == int and (_obj == True or _obj == False):
+        return True
+
+    if _kls == bool:
+        return {
+            "str": False,
+            "int": False,
+            "float": False,
+            "bool": True,
+        }.get(type(_obj))
+
+    for attr in ('__class__', '__name__',):
+        klass = getattr(_obj, attr, None)
+        # check if we're doing isinstance(builtin, builtin..)
+        if klass == None:
+            if type(_obj) == "string":
+                if _kls == str:
+                    return True
+                elif type(_kls) != "builtin_function_or_method":
+                    return False
+            elif type(_obj) == "int" and _kls == int:
+                return True
+            elif type(_obj) == "float" and _kls == float:
+                return True
+            klass = type(_obj)
+
+        if klass == None:
+            continue
+
+        if _check(klass, _kls):
+            return True
+
+        # start of support of "inheritance"...
+        mro = getattr(klass, '__mro__', [])
+        for mro_kl in mro:
+            if _check(mro_kl, _kls):
+                return True
+        # do not support __instancecheck__ yet
+
+    return False
+
+
 def _is_instance(obj, cls):
     if obj == None:
         return cls == None
 
-    def __isinstance(_obj, _kls):
-        # // PEP 585
-        # check if generic alias? not supported in larky
-        if not _kls:
-            fail("isinstance() arg 2 must be a type or tuple of types")
-
-        # mimic python isinstance(True, int)?
-        if _kls == int and (_obj == True or _obj == False):
-            return True
-
-        if _kls == bool:
-            return {
-                "str": False,
-                "int": False,
-                "float": False,
-                "bool": True,
-            }.get(type(_obj))
-
-        for attr in ('__class__', '__name__',):
-            klass = getattr(_obj, attr, None)
-            # check if we're doing isinstance(builtin, builtin..)
-            if klass == None:
-                if type(_obj) == "string":
-                    if _kls == str:
-                        return True
-                    elif type(_kls) != "builtin_function_or_method":
-                        return False
-                elif type(_obj) == "int" and _kls == int:
-                    return True
-                elif type(_obj) == "float" and _kls == float:
-                    return True
-                klass = type(_obj)
-
-            if klass == None:
-                continue
-
-            def _check(kl, _kls):
-                """Return true if one of the parents of obj class is cls"""
-                if kl == _kls:
-                    return True
-                if type(_kls) == "builtin_function_or_method":
-                    if kl == _func_name(_kls):
-                        return True
-                # As we have built more patterns in Larky, there are
-                # various metadata annotations that we've attached to
-                # mutablestructs that are able to identify classes.
-                #
-                # One is __class__ or __name__ and sometimes they're just
-                # plain functions.
-                #
-                # We check to see if these annotations are there or
-                # if the function name was passed in.
-                for attr in ('__class__', '__name__',):
-                    if kl == getattr(_kls, attr, None):
-                        return True
-                # FWIW, this might be a problem if we pass in two diff
-                # functions from different modules but with the same name.
-                if kl == _func_name(kls):
-                    return True
-
-            if _check(klass, _kls):
-                return True
-
-            # start of support of "inheritance"...
-            mro = getattr(klass, '__mro__', [])
-            for mro_kl in mro:
-                if _check(mro_kl, _kls):
-                    return True
-            # do not support __instancecheck__ yet
-
-        return False
+    native_result = _builtin_instance(obj, cls, _INSTANCE_BINDINGS)
+    if native_result != None:
+        return native_result
 
     if not __is_iterable(cls):
         cls = [cls]

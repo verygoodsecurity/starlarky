@@ -13,6 +13,7 @@ variants without leading and trailing '__' are also provided for convenience.
 This is a pure Python implementation of the module.
 Taken from: https://github.com/python/cpython/blob/main/Lib/operator.py
 """
+load("@stdlib//_rich_compare", _create_rich_comparison="create_rich_comparison", _rich_eq="eq")
 load("@stdlib//larky", larky="larky")
 load("@stdlib//types", types="types")
 load("@stdlib//builtins", builtins="builtins")
@@ -23,52 +24,6 @@ _pow = builtins.pow
 
 
 # Comparison Operations *******************************************************#
-def _create_rich_comparison(operator,    # type: str
-                            name,        # type: str
-                            reflection,  # type: str
-                            default      # type: Callable[[str, Any, Any], bool]
-                            ):
-    # type: (...)  -> Callable[[Any, Any], Any]
-    """Create a rich comparison function.
-    The 'operator' parameter is the human-readable symbol of the operation (e.g.
-    `>`). The 'name' parameter is the primary function (e.g. __gt__), while
-    'reflection' is the reflection of that function (e.g. __lt__). The 'default'
-    parameter is a callable to use when both functions don't exist and/or return
-    NotImplemented.
-    """
-
-    def _rich_comparison(lhs, rhs):
-        # type:  (Any, Any) -> Any
-        """Implement the rich comparison `a {operator} b`."""
-        lhs_type = type(lhs)
-        lhs_method = getattr(lhs, name, larky.SENTINEL)
-
-        rhs_type = type(rhs)
-        rhs_method = getattr(rhs, reflection, larky.SENTINEL)
-
-        call_lhs = lhs, lhs_method, rhs
-        call_rhs = rhs, rhs_method, lhs
-        # print("here1 @ ", name, operator, lhs_type, ":", call_lhs)
-        # print("here2 @ ", name, operator, rhs_type, ":", call_rhs, "reflection?", reflection)
-        if rhs_type == lhs_type:
-            calls = call_rhs, call_lhs
-        else:
-            calls = call_lhs, call_rhs
-
-        _larky_forelse_run_else = True
-        for first_obj, meth, second_obj in calls:
-            if meth == larky.SENTINEL:
-                continue
-            # print(meth, first_obj, second_obj)
-            value = meth(second_obj)
-            return value
-
-        if _larky_forelse_run_else:
-            return default(operator, lhs, rhs)
-
-    return _rich_comparison
-
-
 def _rich_comparison_unsupported(operator, lhs, rhs):
     # type: (str, Any, Any) -> None
     """Raise TypeError when a rich comparison has no fallback logic."""
@@ -86,8 +41,7 @@ __ge__ = _create_rich_comparison(">=",
                                  "__ge__", "__le__", lambda _, a, b: a >= b)
 __le__ = _create_rich_comparison("<=",
                                  "__le__", "__ge__", lambda _, a, b: a <= b)
-__eq__ = _create_rich_comparison("==",
-                                 "__eq__", "__eq__", lambda _, a, b: a == b)
+__eq__ = _rich_eq
 __ne__ = _create_rich_comparison("!=",
                                  "__ne__", "__ne__", lambda _, a, b: a != b)
 
