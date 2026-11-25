@@ -172,6 +172,10 @@ public class StarlarkEvalWrapper {
      * <p>The original exception can be retrieved using {@link #getCause}.
      */
     final class RuntimeEvalException extends RuntimeException {
+      // what happened in the evaluation that failed; set once, by the evaluator that ran it
+      @Nullable
+      private transient com.verygood.security.larky.runtime.EvaluationMetadata metadata;
+
       public RuntimeEvalException(Throwable cause, @Nullable StarlarkThread thread) {
         super(createUncheckedEvalMessage(cause, thread), cause);
         if (thread != null) {
@@ -183,6 +187,22 @@ public class StarlarkEvalWrapper {
         super(message, cause);
         if (thread != null) {
           thread.fillInStackTrace(this);
+        }
+      }
+
+      /**
+       * What happened in the evaluation that failed with this exception (how it ended, its steps
+       * and time), or null when it was not thrown by an evaluation (a host call, say).
+       */
+      @Nullable
+      public com.verygood.security.larky.runtime.EvaluationMetadata metadata() {
+        return metadata;
+      }
+
+      /** Records what happened in the evaluation that failed with this exception; once. */
+      public void setMetadata(com.verygood.security.larky.runtime.EvaluationMetadata metadata) {
+        if (this.metadata == null) {
+          this.metadata = metadata;
         }
       }
     }

@@ -218,7 +218,9 @@ the vault and revealed by alias), checks `exp`, `nbf`, `aud` and `iss` with
 JSR-223 hosts set per-run limits and module providers through
 `LarkyScriptContext.setSettings(EvaluationSettings)`. Java hosts using
 `LarkyScript` directly pass settings to its constructor. Move any
-`LARKY_EVAL_*` bindings to the typed settings API.
+`LARKY_EVAL_*` bindings to the typed settings API. Java callers can read the
+evaluation outcome and steps through `ParsedStarFile.metadata()`. Library
+initialization steps are reported separately from the steps of the script.
 
 ### Shipping a host-owned module next to a script
 

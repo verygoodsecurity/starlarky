@@ -16,6 +16,7 @@
 
 package com.verygood.security.larky.parser;
 
+import com.verygood.security.larky.runtime.EvaluationMetadata;
 import com.verygood.security.larky.runtime.StarlarkInterop;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -47,16 +48,39 @@ public final class ParsedStarFile {
   @EqualsAndHashCode.Exclude @ToString.Exclude
   private final StarlarkInterop interop;
 
+  @EqualsAndHashCode.Exclude @ToString.Exclude
+  @Nullable
+  private final EvaluationMetadata metadata;
+
   public ParsedStarFile(String location, Map<String, Object> globals, Module module) {
     this(location, globals, module, StarlarkInterop.create());
   }
 
   public ParsedStarFile(
       String location, Map<String, Object> globals, Module module, StarlarkInterop interop) {
+    this(location, globals, module, interop, null);
+  }
+
+  public ParsedStarFile(
+      String location,
+      Map<String, Object> globals,
+      Module module,
+      StarlarkInterop interop,
+      @Nullable EvaluationMetadata metadata) {
     this.location = Preconditions.checkNotNull(location);
     this.globals = ImmutableMap.copyOf(Preconditions.checkNotNull(globals));
     this.module = module;
     this.interop = Preconditions.checkNotNull(interop);
+    this.metadata = metadata;
+  }
+
+  /**
+   * What happened in the evaluation that produced this result: its steps (the script's own
+   * code, and initializing Larky's modules), how long it took and the settings it ran with. Null for a result not made by an evaluation.
+   */
+  @Nullable
+  public EvaluationMetadata metadata() {
+    return metadata;
   }
 
   /**

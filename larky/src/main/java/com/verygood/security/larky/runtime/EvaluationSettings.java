@@ -55,18 +55,24 @@ public final class EvaluationSettings {
   private final long stepLimit; // Long.MAX_VALUE: none
   private final long expirationMs; // Long.MAX_VALUE: none
   private final ModuleProviders moduleProviders;
+  private final boolean chargeLibraryInit;
 
   private EvaluationSettings(Builder b) {
     this.stepLimit = b.stepLimit;
     this.expirationMs = b.expirationMs;
     this.moduleProviders = b.moduleProviders;
+    this.chargeLibraryInit = b.chargeLibraryInit;
   }
 
   public static Builder builder() {
     return new Builder();
   }
 
-  /** The configured execution step limit, if present. */
+  /**
+   * The number of steps the evaluation may execute, if limited: the steps of the script's own code
+   * ({@link EvaluationMetadata#executedSteps()}), and those of initializing Larky's modules when
+   * {@link #chargeLibraryInit()}.
+   */
   public OptionalLong stepLimit() {
     return stepLimit == Long.MAX_VALUE ? OptionalLong.empty() : OptionalLong.of(stepLimit);
   }
@@ -80,20 +86,34 @@ public final class EvaluationSettings {
     return moduleProviders;
   }
 
+  /**
+   * Whether initializing Larky's own modules ({@link EvaluationMetadata#libraryInitSteps()})
+   * counts against {@link #stepLimit()}; true unless the host says otherwise. When it does not,
+   * that initialization is bounded by the expiration date alone: it is Larky's code, fixed and
+   * finite, and runs only for modules not already loaded in the process.
+   */
+  public boolean chargeLibraryInit() {
+    return chargeLibraryInit;
+  }
+
   /** A builder starting from these settings. */
   public Builder toBuilder() {
     Builder b = new Builder();
     b.stepLimit = stepLimit;
     b.expirationMs = expirationMs;
     b.moduleProviders = moduleProviders;
+    b.chargeLibraryInit = chargeLibraryInit;
     return b;
   }
 
-  /** Applies the host settings to a file's evaluation thread. */
-  public void applyTo(net.starlark.java.eval.StarlarkThread thread) {
+  // Applied to every file the evaluation executes. chargedSteps is what the files before it used
+  // of the evaluation's step limit; a library file that is not charged has no step limit.
+  /** Installs these settings on a script thread, accounting for steps already charged. */
+  public void applyTo(
+      net.starlark.java.eval.StarlarkThread thread, boolean libraryFile, long chargedSteps) {
     moduleProviders.installOn(thread);
-    if (stepLimit != Long.MAX_VALUE) {
-      thread.setMaxExecutionSteps(stepLimit);
+    if (stepLimit != Long.MAX_VALUE && !(libraryFile && !chargeLibraryInit)) {
+      thread.setMaxExecutionSteps(Math.max(0, stepLimit - chargedSteps));
     }
     if (expirationMs != Long.MAX_VALUE) {
       thread.setExpirationMs(expirationMs);
@@ -105,19 +125,20 @@ public final class EvaluationSettings {
     return o instanceof EvaluationSettings that
         && stepLimit == that.stepLimit
         && expirationMs == that.expirationMs
-        && moduleProviders.equals(that.moduleProviders);
+        && moduleProviders.equals(that.moduleProviders)
+        && chargeLibraryInit == that.chargeLibraryInit;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(stepLimit, expirationMs, moduleProviders);
+    return Objects.hash(stepLimit, expirationMs, moduleProviders, chargeLibraryInit);
   }
 
   @Override
   public String toString() {
     return "EvaluationSettings{stepLimit=" + stepLimit() + ", expirationMs=" + expirationMs()
         + ", moduleProviders=" + (moduleProviders.isEmpty() ? "none" : "given")
-        + "}";
+        + ", chargeLibraryInit=" + chargeLibraryInit + "}";
   }
 
   /** Builds {@link EvaluationSettings}; every setting is optional. */
@@ -125,8 +146,15 @@ public final class EvaluationSettings {
     private long stepLimit = Long.MAX_VALUE;
     private long expirationMs = Long.MAX_VALUE;
     private ModuleProviders moduleProviders = ModuleProviders.NONE;
+    private boolean chargeLibraryInit = true;
 
     private Builder() {}
+
+    /** See {@link EvaluationSettings#chargeLibraryInit()}; true by default. */
+    public Builder chargeLibraryInit(boolean charge) {
+      this.chargeLibraryInit = charge;
+      return this;
+    }
 
     /** At most {@code steps} steps in all (see {@link EvaluationSettings#stepLimit()}); must be positive. */
     public Builder stepLimit(long steps) {
