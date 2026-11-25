@@ -189,8 +189,40 @@ def _test_scoped_faker_requires_kind_on_reveal_and_delete():
     message = "kind is required: this Faker has scope_kind=True, so kind is lookup scope"
     asserts.assert_fails(lambda: fake.reveal("tok"), message)
     asserts.assert_fails(lambda: fake.delete("tok"), message)
-    asserts.assert_fails(lambda: fake.reveal("tok", kind = " "), "kind must not be empty or blank")
+    asserts.assert_fails(lambda: fake.reveal("tok", kind = " "), "Unknown kind ' ': expected one of")
     asserts.assert_fails(lambda: fake.reveal("tok", kind = 1), "kind must be a string, not int")
+
+_KINDS = "\\[full_name, first_name, last_name, email, street, city, postcode, region, country, dob, phone, age\\]"
+
+def _test_scoped_faker_rejects_method_names_as_kinds():
+    # Each method stores its kind; the method name is not accepted as another name for it.
+    fake = Faker("en_GB", entity_key = "customer-a", scope_kind = True)
+    alias = vault.redact("Jane Doe", decorator_config = _config(fake.name()))
+    for method in ["name", "state", "administrative_unit", "street_address", "phone_number", "date_of_birth"]:
+        message = "Unknown kind '" + method + "': expected one of " + _KINDS
+        asserts.assert_fails(lambda: fake.reveal(alias, kind = method), message)
+        asserts.assert_fails(lambda: fake.delete(alias, kind = method), message)
+    asserts.assert_fails(lambda: fake.reveal(alias, kind = "nickname"), "Unknown kind 'nickname'")
+    # The failed deletes removed nothing, and the stored kind still finds it.
+    asserts.assert_that(fake.reveal(alias, kind = "full_name")).is_equal_to("Jane Doe")
+
+def _test_scoped_faker_round_trips_every_stored_kind():
+    fake = Faker("en_GB", entity_key = "customer-a", scope_kind = True)
+    specs = {
+        "full_name": fake.name(),
+        "region": fake.state(),
+        "street": fake.street_address(),
+        "phone": fake.phone_number(),
+        "dob": fake.date_of_birth(),
+    }
+    for kind, spec in specs.items():
+        asserts.assert_that(spec.kind).is_equal_to(kind)
+        secret = "example-secret-" + kind
+        alias = vault.redact(secret, decorator_config = _config(spec))
+        asserts.assert_that(fake.reveal(alias, kind = kind)).is_equal_to(secret)
+        fake.delete(alias, kind = kind)
+        asserts.assert_that(fake.reveal(alias, kind = kind)).is_equal_to(alias)
+    asserts.assert_that(_config(fake.administrative_unit())["kind"]).is_equal_to("region")
 
 def _test_scoped_faker_reveals_and_deletes_with_the_same_kind():
     fake = Faker("en_GB", entity_key = "entity-a", scope_kind = True)
@@ -233,6 +265,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_default_faker_does_not_find_a_kind_scoped_entry))
     _suite.addTest(unittest.FunctionTestCase(_test_scoped_faker_requires_kind_on_reveal_and_delete))
     _suite.addTest(unittest.FunctionTestCase(_test_scoped_faker_reveals_and_deletes_with_the_same_kind))
+    _suite.addTest(unittest.FunctionTestCase(_test_scoped_faker_rejects_method_names_as_kinds))
+    _suite.addTest(unittest.FunctionTestCase(_test_scoped_faker_round_trips_every_stored_kind))
     return _suite
 
 _runner = unittest.TextTestRunner()

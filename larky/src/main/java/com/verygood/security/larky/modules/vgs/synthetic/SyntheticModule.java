@@ -81,6 +81,23 @@ public class SyntheticModule implements StarlarkValue {
     return countryOfLocale(locale);
   }
 
+  /** Throws unless {@code kind} is one of {@link #KINDS}; the message lists them. */
+  public static void requireKind(String kind) throws EvalException {
+    if (!KINDS.contains(kind)) {
+      throw Starlark.errorf("Unknown kind '%s': expected one of %s", kind, KINDS);
+    }
+  }
+
+  @StarlarkMethod(
+      name = "check_kind",
+      doc = "Fails unless kind is one of the kinds an alias spec stores (for example 'full_name', not the "
+          + "method name 'name'); the error lists them. Returns kind.",
+      parameters = {@Param(name = "kind", doc = "the kind", allowedTypes = {@ParamType(type = String.class)})})
+  public String checkKind(String kind) throws EvalException {
+    requireKind(kind);
+    return kind;
+  }
+
   @StarlarkMethod(
       name = "alias_spec",
       doc = "Validates and builds the specification of a SYNTHETIC alias.",
@@ -130,9 +147,7 @@ public class SyntheticModule implements StarlarkValue {
       Object dob,
       boolean scopeKind)
       throws EvalException {
-    if (!KINDS.contains(kind)) {
-      throw Starlark.errorf("Unknown kind '%s': expected one of %s", kind, KINDS);
-    }
+    requireKind(kind);
     if (entityKey.isBlank()) {
       throw Starlark.errorf("entity_key must not be empty or blank");
     }
