@@ -426,6 +426,29 @@ public class IsolationStructureTest {
   }
 
   /**
+   * The module cache's admission walk accepts the same library types (ModuleAdmission#
+   * KNOWN_IMMUTABLE) as Error Prone and the reasons file.
+   */
+  @Test
+  public void admissionKnownImmutableTypesMatchTheirReasons() throws Exception {
+    java.nio.file.Path larky = java.nio.file.Path.of(System.getProperty("user.dir"));
+    TreeSet<String> listed = new TreeSet<>();
+    for (String line :
+        java.nio.file.Files.readAllLines(larky.resolve("src/main/config/known-immutable-types.txt"))) {
+      if (!line.isBlank() && !line.startsWith("#")) {
+        listed.add(line.split("\t", 2)[0]);
+      }
+    }
+    java.lang.reflect.Field f =
+        Class.forName("com.verygood.security.larky.runtime.ModuleAdmission")
+            .getDeclaredField("KNOWN_IMMUTABLE");
+    f.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    java.util.Collection<String> walk = (java.util.Collection<String>) f.get(null);
+    assertThat(new TreeSet<>(walk)).isEqualTo(listed);
+  }
+
+  /**
    * A class keeping a host's provider (a field whose type is in a {@code .spi.} package) is marked
    * {@code @RetainsHostSuppliedProvider}, so the module cache declines a module that reaches it by that reason.
    */
