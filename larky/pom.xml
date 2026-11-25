@@ -261,6 +261,12 @@
             <version>9.11.1</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.ow2.asm</groupId>
+            <artifactId>asm-analysis</artifactId>
+            <version>9.8</version>
+            <scope>test</scope>
+        </dependency>
         <!--
             junit is not scoped for test because we are using
             it in larky/nativelib to offer unittest interface
@@ -331,7 +337,9 @@
                              a valid check in this version. See IsolationStructureTest for the structural side. -->
                         <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
                         <arg>--should-stop=ifError=FLOW</arg>
-                        <arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:Immutable:ERROR -Xep:ImmutableEnumChecker:WARN -Xep:GuardedBy:ERROR</arg>
+                        <!-- Library types Error Prone may treat as deeply immutable; one reason each in
+                             src/main/config/known-immutable-types.txt (IsolationStructureTest checks the two lists match). -->
+                        <arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:Immutable:ERROR -Xep:ImmutableEnumChecker:WARN -Xep:GuardedBy:ERROR -XepOpt:Immutable:KnownImmutable=com.google.re2j.Pattern,java.util.regex.Pattern</arg>
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                         <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
@@ -395,4 +403,6 @@
             </extension>
         </extensions>
     </build>
+    <profiles>
+    </profiles>
 </project>
