@@ -234,14 +234,26 @@ the vault and revealed by alias), checks `exp`, `nbf`, `aud` and `iss` with
   skipped, whether aliases in the request are revealed or deleted, and whether the request is
   billed are decided by the proxy that runs the script.
 
-### Configuring a Starlark evaluation
+### Sharing library modules across evaluations
+
+The evaluated-module cache can reuse a loaded library module after verifying that its
+globals and dependencies are safe to share. Libraries that reach a native module marked
+`@RetainsHostSuppliedProvider` or retain evaluation-owned state load separately for each evaluation.
+Native values marked `@CacheableWhenFrozen` use ordinary Starlark freezing. Cache admission treats
+the frozen wrapper and its private Java state as a single value.
+The compiled-program cache is separate.
+
+Sharing is opt-in with `-Dlarky.moduleCache.enable=true`. Adding
+`-Dlarky.moduleCache.disable=true` overrides that setting. Qualify a host's concurrent
+workload before enabling sharing. Native images decline admission because their available
+reflection metadata can omit instance fields.
 
 JSR-223 hosts supply per-run limits and module providers through
 `LarkyScriptContext.setSettings(EvaluationSettings)`. Import `EvaluationSettings` and
 `EvaluationMetadata` from `com.verygood.security.larky.runtime`. Migrate any
 `LARKY_EVAL_*` bindings before adopting this version. Use
-`LarkyScriptContext.metadata()` for the evaluation outcome and step counts, with library
-initialization steps reported separately. Custom JSR-223 contexts can implement
+`LarkyScriptContext.metadata()` for evaluation and library initialization steps and
+to inspect reasons that modules were kept private. Custom JSR-223 contexts can implement
 `SupportsMetadata` to receive compiled evaluation metadata. Hosts using `LarkyScript`
 directly can pass the settings to the evaluation overload.
 

@@ -46,11 +46,15 @@ final class ProgramCache {
     /** The names the file resolved as PREDECLARED (whose values its module may capture). */
     java.util.Set<String> predeclaredNames();
 
+    /** Universal names that must remain unshadowed in a reused module. */
+    java.util.Set<String> universalNames();
+
     static Executable of(Program program) {
-      return of(program, null);
+      return of(program, null, ImmutableSet.of());
     }
 
-    static Executable of(Program program, java.util.Set<String> predeclared) {
+    static Executable of(
+        Program program, java.util.Set<String> predeclared, java.util.Set<String> universal) {
       return new Executable() {
         @Override
         public List<String> loads() {
@@ -66,6 +70,11 @@ final class ProgramCache {
         @Override
         public java.util.Set<String> predeclaredNames() {
           return predeclared;
+        }
+
+        @Override
+        public java.util.Set<String> universalNames() {
+          return universal;
         }
       };
     }
@@ -117,7 +126,7 @@ final class ProgramCache {
     }
     ImmutableSet<String> predeclared = namesOf(parsed[0], Resolver.Scope.PREDECLARED);
     ImmutableSet<String> universal = namesOf(parsed[0], Resolver.Scope.UNIVERSAL);
-    Executable executable = Executable.of(program, predeclared);
+    Executable executable = Executable.of(program, predeclared, universal);
     CACHE.put(key, new Entry(executable, validity(predeclared, universal)));
     return executable;
   }
@@ -162,7 +171,7 @@ final class ProgramCache {
     }
     ImmutableSet<String> predeclared = namesOf(parsed[0], Resolver.Scope.PREDECLARED);
     ImmutableSet<String> universal = namesOf(parsed[0], Resolver.Scope.UNIVERSAL);
-    Executable executable = Executable.of(program, predeclared);
+    Executable executable = Executable.of(program, predeclared, universal);
     SCRIPTS.put(key, new Entry(executable, validity(predeclared, universal)));
     return executable;
   }

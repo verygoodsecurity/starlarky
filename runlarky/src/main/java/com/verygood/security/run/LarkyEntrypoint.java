@@ -140,6 +140,7 @@ public class LarkyEntrypoint implements Callable<Integer> {
           metadata -> {
             if (steps) {
               System.err.println(describe(metadata));
+              describeUncached(metadata).forEach(System.err::println);
             }
           }
         );
@@ -165,6 +166,14 @@ public class LarkyEntrypoint implements Callable<Integer> {
         + " library_init_steps=" + m.libraryInitSteps()
         + " engine=" + m.engine()
         + " elapsed_ms=" + m.elapsedNanos() / 1_000_000;
+  }
+
+  // With the module cache on (-Dlarky.moduleCache.enable=true), one line per Larky module the run
+  // loaded that the cache did not share, and why: names only, as EvaluationMetadata gives them.
+  static java.util.List<String> describeUncached(EvaluationMetadata m) {
+    java.util.List<String> lines = new java.util.ArrayList<>();
+    m.uncachedModules().forEach((label, why) -> lines.add("larky: uncached " + label + " " + why));
+    return lines;
   }
 
   private static String readFile(String filePath) {
