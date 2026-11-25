@@ -8,7 +8,6 @@ import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.annot.Library;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
-import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ResourceContentStarFile;
 import com.verygood.security.larky.parser.StarFile;
@@ -45,13 +44,40 @@ public final class LarkyEvaluator {
 
   private static final FluentLogger logger = FluentLogger.forEnclosingClass();
   public static final String EXECUTION_STEPS = "_EXECUTION_STEPS_";
-  public static final String STEP_LIMIT = "LARKY_EVAL_STEP_LIMIT";
-  public static final String EXPIRATION_MS = "LARKY_EVAL_EXPIRATION_MS";
+
   /**
-   * The binding that gives a run its {@code @vgs//} module providers: a
-   * {@link com.verygood.security.larky.modules.vgs.ModuleProviders}.
+   * The prefix of the bindings that once carried a run's settings ({@code LARKY_EVAL_STEP_LIMIT},
+   * {@code LARKY_EVAL_EXPIRATION_MS}, {@code LARKY_EVAL_MODULE_PROVIDERS}, {@code
+   * LARKY_EVAL_SETTINGS}). Settings are now an {@link EvaluationSettings} passed outside the
+   * bindings, and a binding with such a name is refused.
    */
-  public static final String MODULE_PROVIDERS = "LARKY_EVAL_MODULE_PROVIDERS";
+  public static final String RETIRED_SETTING_PREFIX = "LARKY_EVAL_";
+
+  /**
+   * Whether a name starts with the retired settings prefix. The engine refuses such host
+   * bindings and skips script variables with these names when copying globals back.
+   */
+  public static boolean isRetiredSettingName(String name) {
+    return name.startsWith(RETIRED_SETTING_PREFIX);
+  }
+
+  /**
+   * Refuses bindings that use a retired setting name, so a host that still passes its settings as
+   * bindings fails instead of running without them.
+   *
+   * @throws IllegalArgumentException naming the first such binding
+   */
+  public static void refuseRetiredSettings(Iterable<String> names) {
+    for (String name : names) {
+      if (isRetiredSettingName(name)) {
+        throw new IllegalArgumentException(
+            name + " is no longer read from bindings: pass the run's settings as an "
+                + EvaluationSettings.class.getName()
+                + " (LarkyScriptContext#setSettings for JSR-223, or LarkyScript's settings"
+                + " parameter)");
+      }
+    }
+  }
 
   private final LinkedHashSet<String> pending = new LinkedHashSet<>();
   private final Map<String, Module> loaded = new HashMap<>();
@@ -59,6 +85,8 @@ public final class LarkyEvaluator {
   // Predeclared environment shared by all files (modules) loaded.
   @Getter
   private final ImmutableMap<String, Object> environment;
+  @Getter
+  private final EvaluationSettings settings;
   @Getter
   private final ModuleSupplier.ModuleSet moduleSet;
   private final LarkyScript.StarlarkMode validationMode;
@@ -86,6 +114,7 @@ public final class LarkyEvaluator {
     this.larkySemantics = larkyScript.getLarkySemantics();
     this.moduleCache = checkNotNull(moduleCache);
     //todo(mahmoudimus): convert to builder pattern
+    this.settings = larkyScript.getSettings();
     this.environment = createEnvironment(larkyScript.getBuiltinModules(), larkyScript.getGlobals());
   }
 
@@ -96,12 +125,13 @@ public final class LarkyEvaluator {
    * thread. See {@link StarlarkInterop}.
    */
   public StarlarkInterop interop() {
-    Object stepLimit = environment.get(STEP_LIMIT);
     return StarlarkInterop.of(
         getLarkySemantics(),
-        stepLimit == null ? null : Long.parseLong(stepLimit.toString()) - lastExecutedSteps,
+        settings.stepLimit().isPresent()
+            ? Long.valueOf(Math.max(0, settings.stepLimit().getAsLong() - lastExecutedSteps))
+            : null,
         lastExpirationMs,
-        ModuleProviders.given(environment.get(MODULE_PROVIDERS)))
+        settings.moduleProviders())
         .withPrintHandler(reporter::report);
   }
 
@@ -216,16 +246,7 @@ public final class LarkyEvaluator {
       thread.setLoader(loadedModules::get);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
-      // refused when it is not providers, as LarkyLoadedScript.invoke refuses it
-      ModuleProviders.given(environment.get(MODULE_PROVIDERS)).installOn(thread);
-
-      if (environment.containsKey(STEP_LIMIT) && environment.get(STEP_LIMIT) != null) {
-        thread.setMaxExecutionSteps(Long.parseLong(environment.get(STEP_LIMIT).toString()));
-      }
-
-      if (environment.containsKey(EXPIRATION_MS) && environment.get(EXPIRATION_MS) != null) {
-        thread.setExpirationMs(Long.parseLong(environment.get(EXPIRATION_MS).toString()));
-      }
+      settings.applyTo(thread);
 
       try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
         starlarkOutput = prog.exec(module, thread);

@@ -213,6 +213,13 @@ the vault and revealed by alias), checks `exp`, `nbf`, `aud` and `iss` with
   skipped, whether aliases in the request are revealed or deleted, and whether the request is
   billed are decided by the proxy that runs the script.
 
+### Configuring a Starlark evaluation
+
+JSR-223 hosts set per-run limits and module providers through
+`LarkyScriptContext.setSettings(EvaluationSettings)`. Java hosts using
+`LarkyScript` directly pass settings to its constructor. Move any
+`LARKY_EVAL_*` bindings to the typed settings API.
+
 ### Shipping a host-owned module next to a script
 
 A host that runs a customer's script through the JSR223 engine can pass other files with it in

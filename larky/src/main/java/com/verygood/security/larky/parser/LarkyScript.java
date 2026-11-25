@@ -26,8 +26,9 @@ import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.ModuleSupplier;
 import com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import com.verygood.security.larky.console.Console;
-import com.verygood.security.larky.runtime.StarlarkInterop;
+import com.verygood.security.larky.runtime.EvaluationSettings;
 import com.verygood.security.larky.runtime.LarkyEvaluator;
+import com.verygood.security.larky.runtime.StarlarkInterop;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
@@ -113,6 +114,9 @@ public class LarkyScript {
   private final ModuleSet moduleSet;
   @Getter
   private final StarlarkSemantics larkySemantics;
+  /** The host's settings for each evaluation this runs; never a binding of the script. */
+  @Getter
+  private final EvaluationSettings settings;
 
   // TODO: convert to builder
   public LarkyScript(StarlarkMode validation) {
@@ -138,8 +142,25 @@ public class LarkyScript {
     this(builtinModules, validation, globals, moduleSet, LarkySemantics.LARKY_SEMANTICS);
   }
 
+  /** As the five-argument constructor, with no settings ({@link EvaluationSettings#NONE}). */
   public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals, ModuleSet moduleSet, StarlarkSemantics larkySemantics) {
+    this(builtinModules, validation, globals, moduleSet, larkySemantics, EvaluationSettings.NONE);
+  }
 
+  /** A script runner whose evaluations run with the host's {@code settings}. */
+  public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals, EvaluationSettings settings) {
+    this(builtinModules, validation, globals, new ModuleSupplier().create(), LarkySemantics.LARKY_SEMANTICS, settings);
+  }
+
+  /**
+   * A script runner whose evaluations run with the host's {@code settings}.
+   *
+   * @throws IllegalArgumentException if a global uses a retired setting name (see {@link
+   *     LarkyEvaluator#refuseRetiredSettings})
+   */
+  public LarkyScript(Set<Class<?>> builtinModules, StarlarkMode validation, Map<String, Object> globals, ModuleSet moduleSet, StarlarkSemantics larkySemantics, EvaluationSettings settings) {
+    LarkyEvaluator.refuseRetiredSettings(globals.keySet());
+    this.settings = Objects.requireNonNull(settings, "settings");
     this.builtinModules = ImmutableSet.<Class<?>>builder()
         .addAll(builtinModules)
         .build();
@@ -168,7 +189,7 @@ public class LarkyScript {
     CapturingStarFile capturingConfigFile = new CapturingStarFile(content);
     StarFilesSupplier starFilesSupplier = new StarFilesSupplier();
 
-    LarkyEvaluator.EvaluationResult result = new LarkyEvaluator(this, moduleSet, console).eval(content);
+    LarkyEvaluator.EvaluationResult result = newEvaluator(moduleSet, console).eval(content);
     starFilesSupplier.setStarFiles(capturingConfigFile.getAllLoadedFiles());
     return result;
   }
@@ -185,6 +206,11 @@ public class LarkyScript {
     return executeStarlark(content, moduleSet, console).output();
   }
 
+  @VisibleForTesting
+  protected LarkyEvaluator newEvaluator(ModuleSet moduleSet, Console console) {
+    return new LarkyEvaluator(this, moduleSet, console);
+  }
+
   /**
    * Runs {@code content} and returns its output as Java's {@code toString} of it (what the larky
    * runner writes), computed through the evaluation's {@link StarlarkInterop}: the output may be a
@@ -193,7 +219,7 @@ public class LarkyScript {
   public String executeStarlarkWithOutputAsString(
       StarFile content, ModuleSet moduleSet, Console console)
       throws IOException, InterruptedException, EvalException {
-    LarkyEvaluator evaluator = new LarkyEvaluator(this, moduleSet, console);
+    LarkyEvaluator evaluator = newEvaluator(moduleSet, console);
     Object output = evaluator.eval(content).output();
     return evaluator.interop().javaString(output);
   }
@@ -238,7 +264,7 @@ public class LarkyScript {
                                               Console console)
       throws IOException, EvalException {
     Module module;
-    final LarkyEvaluator evaluator = new LarkyEvaluator(this, moduleSet, console);
+    final LarkyEvaluator evaluator = newEvaluator(moduleSet, console);
     try {
       module = evaluator.eval(content).module();
     } catch (InterruptedException e) {

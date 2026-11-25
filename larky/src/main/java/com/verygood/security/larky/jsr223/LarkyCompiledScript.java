@@ -9,6 +9,7 @@ import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.runtime.EvaluationSettings;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
@@ -207,12 +208,32 @@ public class LarkyCompiledScript extends CompiledScript {
   }
 
   /**
+   * {@inheritDoc}
+   *
+   * <p>Uses {@code bindings} as the engine scope for this evaluation. The engine's context supplies
+   * the global scope, I/O, and any evaluation settings.
+   */
+  @Override
+  public Object eval(Bindings bindings) throws ScriptException {
+    ScriptContext engineContext = engine.getContext();
+    if (bindings == null) {
+      return eval(engineContext);
+    }
+    return evalInterpreted(engineContext, engine.globalBindings(engineContext), bindings);
+  }
+
+  /**
    * Evaluates through the Larky interpreter.
    */
-  private Object evalInterpreted(ScriptContext context, Bindings globalBindings, Bindings engineBindings)
+  private Object evalInterpreted(
+      ScriptContext context,
+      Bindings globalBindings,
+      Bindings engineBindings)
       throws LarkyEvaluationScriptException {
+    // read once, when the evaluation starts
+    final EvaluationSettings settings =
+        context instanceof LarkyScriptContext larky ? larky.getSettings() : EvaluationSettings.NONE;
     ParsedStarFile result;
-
     try {
       String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
       String scriptName = cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
@@ -227,7 +248,8 @@ public class LarkyCompiledScript extends CompiledScript {
             (name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
       }
-      final DefaultLarkyInterpreter larkyInterpreter = new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings);
+      final DefaultLarkyInterpreter larkyInterpreter =
+          new DefaultLarkyInterpreter(LARKY_MODE, settings, globalBindings, engineBindings);
       result = larkyInterpreter.evaluate(script, engine.console(context.getWriter()));
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
              EvalException e) {
@@ -251,6 +273,11 @@ public class LarkyCompiledScript extends CompiledScript {
     for (Map.Entry<String, Object> entry : moduleGlobals.entrySet()) {
       String name = entry.getKey();
       Object value = entry.getValue();
+      // a retired setting name is refused as a binding: copying a script's variable of that name
+      // back would make the next run on these bindings fail
+      if (LarkyEvaluator.isRetiredSettingName(name)) {
+        continue;
+      }
       if (globalBindings != null && globalBindings.containsKey(name)) {
         globalBindings.put(name, value);
       }

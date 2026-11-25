@@ -312,6 +312,7 @@ STATIC	com.verygood.security.larky.objects.type.LarkyTypeObject#DEFAULT_HIERARCH
 STATIC	com.verygood.security.larky.objects.type.SpecialMethod#MAP:java.util.Map	static collection filled in <clinit>; relies on never being written afterwards (wrap in an immutable collection)
 STATIC	com.verygood.security.larky.objects.type.TypeClassLookup#TYPENAMES_TO_CLASS:java.util.Map	memoized Suppliers of builtin type objects (Object); not provably immutable
 STATIC	com.verygood.security.larky.parser.ResourceContentStarFile#RESOURCES:java.util.concurrent.ConcurrentHashMap	process-wide cache/registry by design; written at runtime
+STATIC	com.verygood.security.larky.runtime.EvaluationSettings#NONE:com.verygood.security.larky.runtime.EvaluationSettings	default settings: final fields only (two longs and ModuleProviders.NONE); not provably immutable only because ModuleProviders holds Object values (see STATIC ModuleProviders#NONE)
 STATIC	com.verygood.security.larky.runtime.CurrentEvaluation#CURRENT:java.lang.ThreadLocal	per Java thread record of the running evaluation, set only for the duration of one run and restored in close(); per-call context, not state shared between evaluations
 STATIC	com.verygood.security.larky.runtime.LarkyEvaluator#BUILTIN_BINDINGS:java.util.concurrent.ConcurrentHashMap	process-wide cache/registry by design; written at runtime
 STATIC	com.verygood.security.larky.runtime.LarkyEvaluator#MERGED_BUILTIN_BINDINGS:java.util.concurrent.ConcurrentHashMap	process-wide cache/registry by design; written at runtime
