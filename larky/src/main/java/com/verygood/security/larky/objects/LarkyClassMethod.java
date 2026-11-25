@@ -57,6 +57,11 @@ public final class LarkyClassMethod extends LarkyStaticMethod {
       super(LarkyClassMethod.TYPE, function, thread);
     }
 
+    @Override
+    public LarkyFunction unboundCopy(StarlarkThread thread) {
+      return new LarkyClassMethodInstance(fget, thread);
+    }
+
     @StarlarkMethod(name = "__func__", structField = true)
     public StarlarkCallable wrapped() {
       return this.fget;
