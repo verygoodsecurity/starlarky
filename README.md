@@ -78,6 +78,28 @@ mvn clean package -pl runlarky -Pnative
 
 This would build `larky-runner` executable in `runlarky/target` directory, that can be run from terminal
 
+#### Invoke a vault function from a script
+
+Give `larky-runner` the Vault API OAuth HTTPS origin and a file containing a short-lived,
+vault-bound service-account token with `function-invocations:write`. The runner reads the token
+at startup and adds a `functions` binding for that script run.
+
+```bash
+larky-runner --script invoke.star --output invocation.out \
+  --functions-origin "$VAULT_OAUTH_ORIGIN" --functions-token-file "$VAULT_OAUTH_TOKEN_FILE"
+```
+
+```python
+response = functions.invoke("FN4vM8r7Kq3sR9xY2bL6pD5n", b'{"message":"hello"}',
+                            content_type="application/json")
+print(response["status_code"], response["outcome"], response["invocation_id"])
+```
+
+The result contains `status_code`, `headers`, `body` as bytes, `invocation_id`, and `outcome`.
+The runner sends one POST and does not follow redirects. When no response is received,
+`status_code` is `None` and `outcome` is `unknown`. If an invocation ID was received, use
+`GET /v1/function-invocations/{id}` with `function-invocations:read` to check its status.
+
 #### Larky REPL
 
 Run `larky-runner` with no arguments to get an interactive Larky prompt. It has the same environment as a script run by the runner, so Python builtins and `load()` of `@stdlib`, `@vendor` and `@vgs` modules work. Use it to try out a snippet or poke at a module before putting it in a script.
