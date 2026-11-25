@@ -63,13 +63,10 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
     () -> new LarkyType[]{(LarkyType) LarkyBaseObjectType.getInstance()}
   );
 
-  private final Supplier<ImmutableSet<SpecialMethod>> specialMethods =
-    Suppliers.memoize(
-      () -> getFieldNames()
-            .stream()
-            .map(SpecialMethod::of)
-            .filter(p -> p != SpecialMethod.NOT_SET)
-            .collect(Sets.toImmutableEnumSet()));
+  // Computed on first use, as the Supplier it replaces was: an immutable set, so a type shared
+  // between evaluations keeps no mutable Java object (two threads may compute it at once, to equal
+  // sets).
+  @Nullable private volatile ImmutableSet<SpecialMethod> specialMethods;
 
 
   private Origin origin;
@@ -77,10 +74,6 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
   // The mutability of the thread that defined this type (for types defined by a script), which
   // decides when the type becomes frozen; see isFrozenType.
   @Nullable private Mutability mutability;
-  // Weak and synchronized, like object's: a class shared between evaluations (e.g. from a cached
-  // stdlib module) gets subclasses from concurrent evaluations, which must not be kept alive.
-  private final Set<LarkyType> allSubclasses =
-      Collections.synchronizedSet(Collections.newSetFromMap(new MapMaker().weakKeys().makeMap()));
   private List<LarkyType> __mro__;
   // The attributes of a class written in Java, resolved along its MRO; null for any other type.
   @Nullable private ImmutableMap<String, Object> builtinAttributes;
@@ -178,7 +171,7 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
   @Override
   public void setBaseClasses(LarkyType[] parentClasses) {
     this.__bases__ = parentClasses;
-    this.__base__ = null;
+    this.__base__ = parentClasses.length > 0 ? parentClasses[0] : null;
   }
 
   //override built-in type
@@ -261,9 +254,6 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
 
   @Override
   public Object getBase() {
-    if (this.__base__ == null && this.__bases__ != null) {
-      this.__base__ = this.__bases__[0];
-    }
     return this.__base__;
   }
 
@@ -275,11 +265,6 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
     return Tuple.empty();
   }
 
-  @SuppressWarnings("scwjava_CollectionsDonotexposeinternalSets")
-  @Override
-  public Set<LarkyType> getAllSubclasses() {
-    return this.allSubclasses;
-  }
 
 
   @Override
@@ -356,7 +341,16 @@ final public class LarkyTypeObject implements LarkyType, TypeConstructor {
 
   @Override
   public ImmutableSet<SpecialMethod> getSpecialMethods() {
-    return specialMethods.get();
+    ImmutableSet<SpecialMethod> methods = specialMethods;
+    if (methods == null) {
+      methods =
+          getFieldNames().stream()
+              .map(SpecialMethod::of)
+              .filter(p -> p != SpecialMethod.NOT_SET)
+              .collect(Sets.toImmutableEnumSet());
+      specialMethods = methods;
+    }
+    return methods;
   }
 
   @Nullable

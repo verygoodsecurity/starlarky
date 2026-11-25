@@ -77,8 +77,13 @@ public sealed class LarkyStaticMethod implements ForwardingLarkyType, StarlarkCa
   }
 
   public static class LarkyStaticMethodInstance extends LarkyFunction {
-    private LarkyStaticMethodInstance(StarlarkFunction function, StarlarkThread thread) {
+    private LarkyStaticMethodInstance(StarlarkCallable function, StarlarkThread thread) {
       super(LarkyStaticMethod.TYPE, function, thread);
+    }
+
+    @Override
+    public LarkyFunction unboundCopy(StarlarkThread thread) {
+      return new LarkyStaticMethodInstance(fget, thread);
     }
 
     @StarlarkMethod(name = "__func__", structField = true)

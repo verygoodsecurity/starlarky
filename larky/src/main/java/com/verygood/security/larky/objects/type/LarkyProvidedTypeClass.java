@@ -11,6 +11,7 @@ import java.util.Map;
 import com.verygood.security.larky.modules.types.LarkyCollection;
 import com.verygood.security.larky.objects.LarkyBindable;
 import com.verygood.security.larky.objects.LarkyFunction;
+import com.verygood.security.larky.objects.LarkyMethod;
 import com.verygood.security.larky.objects.LarkyPyObject;
 import com.verygood.security.larky.objects.PyObject;
 
@@ -57,6 +58,15 @@ final public class LarkyProvidedTypeClass implements
         value = LarkyFunction.create((StarlarkFunction) value, thread);
       }
 
+      if (value instanceof LarkyFunction f
+          && !(f instanceof LarkyMethod)
+          && (f.isBound() ? f.getBoundOwner() != this : f.mutability().isFrozen())) {
+        // A function, classmethod or staticmethod that another class has bound, or that a loaded
+        // module froze (and later evaluations may share): this class binds its own copy. Python
+        // binds such an object on each lookup, so one object may serve several classes. A bound
+        // method keeps its self, as in Python.
+        value = f.unboundCopy(thread);
+      }
       if (value instanceof LarkyBindable) {
         ((LarkyBindable) value).bindToOwnerIfNotBound(this);
       }
