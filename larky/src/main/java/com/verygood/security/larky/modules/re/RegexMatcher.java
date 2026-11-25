@@ -29,7 +29,7 @@ public class RegexMatcher implements StarlarkValue {
   /**
    * The Pattern object that created this Matcher.
    */
-  private RegexPattern parentPattern;
+  private final RegexPattern parentPattern;
   private final CharSequence input;
 
   private int lastMatchStart;
@@ -39,20 +39,6 @@ public class RegexMatcher implements StarlarkValue {
     this.matcher = matcher;
     this.parentPattern = parentPattern;
     this.input = input;
-  }
-
-  public RegexMatcher usePattern(Pattern newPattern) {
-    // Per JVM documentation, current search position & last append position
-    // do not change. region behavior is not mentioned, but JVM preserves
-    // the region.
-    //
-    // Info on groups from lastmatch is lost.
-    if (newPattern == null) {
-      throw new IllegalArgumentException("Pattern cannot be null");
-    }
-    this.parentPattern = this.parentPattern.pattern(newPattern);
-    this.matcher = newPattern.matcher(input); // ???
-    return this;
   }
 
   @StarlarkMethod(

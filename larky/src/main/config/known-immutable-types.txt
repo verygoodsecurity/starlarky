@@ -1,0 +1,5 @@
+# Library types that Error Prone's @Immutable check treat
+# as deeply immutable, because we cannot annotate them. Format: fully qualified name<TAB>reason.
+# Keep in sync with -XepOpt:Immutable:KnownImmutable in larky/pom.xml (IsolationStructureTest checks).
+com.google.re2j.Pattern	re2j documents Pattern as immutable and safe for concurrent use; all fields are final and set at compile time.
+java.util.regex.Pattern	The JDK documents Pattern instances as immutable and safe for use by multiple concurrent threads.

@@ -69,9 +69,6 @@ NONFINAL	com.verygood.security.larky.modules.crypto.Util.ASN1$LarkyASN1Encodable
 NONFINAL	com.verygood.security.larky.modules.re.RegexMatcher#lastMatchEnd:int	java.util.regex.Matcher state (match positions); stateful by design (audit B)
 NONFINAL	com.verygood.security.larky.modules.re.RegexMatcher#lastMatchStart:int	java.util.regex.Matcher state (match positions); stateful by design (audit B)
 NONFINAL	com.verygood.security.larky.modules.re.RegexMatcher#matcher:com.google.re2j.Matcher	java.util.regex.Matcher state (match positions); stateful by design (audit B)
-NONFINAL	com.verygood.security.larky.modules.re.RegexMatcher#parentPattern:com.verygood.security.larky.modules.re.RegexPattern	java.util.regex.Matcher state (match positions); stateful by design (audit B)
-NONFINAL	com.verygood.security.larky.modules.re.RegexPattern#pattern:com.google.re2j.Pattern	pattern/py reassigned after construction; not freeze-guarded (audit B)
-NONFINAL	com.verygood.security.larky.modules.re.RegexPattern#py:com.verygood.security.larky.modules.re.PyRegex	pattern/py reassigned after construction; not freeze-guarded (audit B)
 NONFINAL	com.verygood.security.larky.modules.testing.UnittestModule$LarkyFunctionTestCase#function:net.starlark.java.eval.StarlarkCallable	test-only module (TEST_MODULES)
 NONFINAL	com.verygood.security.larky.modules.testing.UnittestModule$LarkyTestRunner#FINAL_TEST_RESULT:java.lang.String	test-only module (TEST_MODULES): accumulated result
 NONFINAL	com.verygood.security.larky.modules.types.LarkyBoundedWhileTrue$LarkyBoundedWhileTrueIterator#counter:int	iteration counter; per-iteration state, not freeze-guarded (audit B)
@@ -105,7 +102,6 @@ STATIC	com.verygood.security.larky.modules.BinasciiModule#CRC32_TABLE:int[]	stat
 STATIC	com.verygood.security.larky.modules.ChaseModule#INSTANCE:com.verygood.security.larky.modules.ChaseModule	module singleton holding a host SPI service (see its MUTABLE entry)
 STATIC	com.verygood.security.larky.modules.JsonModule#HEX:char[]	static final array lookup table, written only in <clinit>; contents are mutable
 STATIC	com.verygood.security.larky.modules.NetworkTokenModule#INSTANCE:com.verygood.security.larky.modules.NetworkTokenModule	module singleton holding a host SPI service (see its MUTABLE entry)
-STATIC	com.verygood.security.larky.modules.RegexModule#_Pattern:com.verygood.security.larky.modules.re.RegexPattern	the `re.Pattern` value: one RegexPattern shared process-wide; RegexPattern has non-final fields (see NONFINAL)
 STATIC	com.verygood.security.larky.modules.StructModule#bigendianTable:com.verygood.security.larky.modules.StructModule$FormatDef[]	static final array lookup table, written only in <clinit>; contents are mutable
 STATIC	com.verygood.security.larky.modules.StructModule#littleEndian:com.verygood.security.larky.modules.StructModule$FormatDef[]	static final array lookup table, written only in <clinit>; contents are mutable
 STATIC	com.verygood.security.larky.modules.StructModule#nativeTable:com.verygood.security.larky.modules.StructModule$FormatDef[]	static final array lookup table, written only in <clinit>; contents are mutable

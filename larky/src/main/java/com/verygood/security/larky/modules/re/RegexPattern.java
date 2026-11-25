@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.re;
 
+import javax.annotation.Nullable;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
@@ -21,14 +22,14 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Starlark;
-import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.StarlarkSemantics;
 
 // java <> larky objects
-public class RegexPattern implements StarlarkValue {
+@com.google.errorprone.annotations.Immutable
+public final class RegexPattern implements StarlarkValue {
 
   @StarlarkMethod(name = "CASE_INSENSITIVE", doc = "Flag: case insensitive matching.", structField = true)
   public StarlarkInt CASE_INSENSITIVE() {
@@ -55,11 +56,17 @@ public class RegexPattern implements StarlarkValue {
     return StarlarkInt.of(Pattern.MULTILINE);
   }
 
-  private Pattern pattern;
+  // The RE2 pattern, or null for the facade that re.star reaches compile() and the flags through.
+  @Nullable private final Pattern pattern;
 
-  protected RegexPattern pattern(Pattern pattern) {
+  /** The facade: no pattern of its own. */
+  public RegexPattern() {
+    this(null, null);
+  }
+
+  private RegexPattern(@Nullable Pattern pattern, @Nullable PyRegex py) {
     this.pattern = pattern;
-    return this;
+    this.py = py;
   }
 
   public Map<String, Integer> namedGroups() {
@@ -87,7 +94,7 @@ public class RegexPattern implements StarlarkValue {
   public static RegexPattern compile(String regex, StarlarkInt flags) throws EvalException {
     int flag = flags.toIntUnchecked();
     try {
-      return new RegexPattern().pattern(compiled(regex, flag));
+      return new RegexPattern(compiled(regex, flag), null);
     } catch (PatternSyntaxException | IllegalArgumentException e) {
       throw new EvalException("re.error: " + e.getMessage());
     }
@@ -96,7 +103,7 @@ public class RegexPattern implements StarlarkValue {
   // --- Python re semantics (used by stdlib/re.star) ---------------------------------------------
 
   /** Set for patterns made by py_compile: the Python pattern this RE2 pattern was translated from. */
-  private PyRegex py;
+  @Nullable private final PyRegex py;
 
   private record PyKey(String regex, int flags) {}
 
@@ -120,8 +127,7 @@ public class RegexPattern implements StarlarkValue {
     RegexPattern compiled = PY_COMPILED.getIfPresent(key);
     if (compiled == null) {
       PyRegex py = new PyRegex(regex, key.flags());
-      compiled = new RegexPattern().pattern(py.mainPattern());
-      compiled.py = py;
+      compiled = new RegexPattern(py.mainPattern(), py);
       PY_COMPILED.put(key, compiled);
     }
     return compiled;

@@ -15,6 +15,7 @@
  */
 package com.verygood.security.larky.isolation;
 
+import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import java.io.IOException;
@@ -107,11 +108,11 @@ import org.objectweb.asm.Type;
  * <p>Set {@code -Disolation.print=true} to print the current violations in allowlist format.
  */
 public class IsolationStructureTest {
-  private static final String CURRENT_EVALUATION = "com.verygood.security.larky.runtime.CurrentEvaluation";
 
   private static final String STARLARK_VALUE = "net/starlark/java/eval/StarlarkValue";
   private static final String FREEZABLE = "net/starlark/java/eval/Mutability$Freezable";
   private static final String THREAD = "net/starlark/java/eval/StarlarkThread";
+  private static final String CURRENT_EVALUATION = "com.verygood.security.larky.runtime.CurrentEvaluation";
   private static final String MUTABILITY_DESC = "Lnet/starlark/java/eval/Mutability;";
   private static final Set<String> IMMUTABLE_ANNOTATIONS =
       Set.of(
@@ -221,6 +222,8 @@ public class IsolationStructureTest {
     List<FieldInfo> fields = new ArrayList<>();
     boolean callsFreezeCheck;
     boolean annotatedImmutable;
+    /** Fields annotated Error Prone {@code @LazyInit}: a racy, idempotent lazy initialization. */
+    Set<String> lazyInit = new HashSet<>();
     /** static field name -> true while every <clinit> store is an immutable factory result. */
     Map<String, Boolean> immutableInit = new HashMap<>();
     /** static field name -> true while every <clinit> store is an empty immutable collection. */
@@ -318,7 +321,9 @@ public class IsolationStructureTest {
         continue;
       }
       for (FieldInfo f : instanceFieldsWithInherited(c)) {
-        if (!f.isFinal() || !isShareableField(f)) {
+        // @LazyInit (checked by Error Prone): a volatile field set once, racily, to an immutable value.
+        boolean lazy = c.lazyInit.contains(f.name()) && (f.access() & Opcodes.ACC_VOLATILE) != 0;
+        if ((!f.isFinal() && !lazy) || !isShareableField(f)) {
           broken.add(c.name.replace('/', '.') + "#" + f.name() + ":" + f.typeName());
         }
       }
@@ -326,6 +331,28 @@ public class IsolationStructureTest {
     assertWithMessage("fields of @Immutable classes that are not final and shareable")
         .that(broken)
         .isEmpty();
+  }
+
+  /** The library types Error Prone treats as immutable are the ones listed, with a reason, in the
+   * checked-in file (larky/src/main/config/known-immutable-types.txt). */
+  @Test
+  public void knownImmutableTypesMatchTheirReasons() throws Exception {
+    java.nio.file.Path larky = java.nio.file.Path.of(System.getProperty("user.dir"));
+    TreeSet<String> listed = new TreeSet<>();
+    for (String line :
+        java.nio.file.Files.readAllLines(larky.resolve("src/main/config/known-immutable-types.txt"))) {
+      if (line.isBlank() || line.startsWith("#")) {
+        continue;
+      }
+      String[] p = line.split("\t", 2);
+      assertWithMessage("a reason for %s", p[0]).that(p.length == 2 && !p[1].isBlank()).isTrue();
+      listed.add(p[0]);
+    }
+    String pom = java.nio.file.Files.readString(larky.resolve("pom.xml"));
+    java.util.regex.Matcher m =
+        java.util.regex.Pattern.compile("-XepOpt:Immutable:KnownImmutable=([^\\s<]+)").matcher(pom);
+    assertWithMessage("-XepOpt:Immutable:KnownImmutable in larky/pom.xml").that(m.find()).isTrue();
+    assertThat(new TreeSet<>(List.of(m.group(1).split(",")))).isEqualTo(listed);
   }
 
   @Test
@@ -759,7 +786,15 @@ public class IsolationStructureTest {
           @Override
           public FieldVisitor visitField(int acc, String name, String desc, String sig, Object val) {
             ci.fields.add(new FieldInfo(name, desc, sig, acc));
-            return null;
+            return new FieldVisitor(Opcodes.ASM9) {
+              @Override
+              public AnnotationVisitor visitAnnotation(String adesc, boolean visible) {
+                if (adesc.equals("Lcom/google/errorprone/annotations/concurrent/LazyInit;")) {
+                  ci.lazyInit.add(name);
+                }
+                return null;
+              }
+            };
           }
 
           @Override
