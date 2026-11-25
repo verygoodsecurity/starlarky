@@ -37,17 +37,20 @@ public class Larky {
 
   private static final BufferedReader reader =
       new BufferedReader(new InputStreamReader(System.in, UTF_8));
-  private static final StarlarkThread thread;
-  private static final Module module = Module.create();
 
   // TODO(adonovan): set load-binds-globally option when we support load,
   // so that loads bound in one REPL chunk are visible in the next.
   private static final FileOptions OPTIONS = FileOptions.DEFAULT;
 
-  static {
+  /**
+   * A thread for one REPL session or one {@link #execute} call. It is never kept in a field, so
+   * separate runs share no globals, print handler or step count.
+   */
+  private static StarlarkThread newThread() {
     Mutability mu = Mutability.create("interpreter");
-    thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+    StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
     thread.setPrintHandler((th, msg) -> System.out.println(msg));
+    return thread;
   }
 
   private static String prompt() {
@@ -80,6 +83,9 @@ public class Larky {
   private static void readEvalPrintLoop() {
     System.err.println("Welcome to Starlark (java.starlark.net)");
     String line;
+    // One thread and module for the session, so later lines see earlier definitions.
+    StarlarkThread thread = newThread();
+    Module module = Module.create();
 
     // TODO(adonovan): parse a compound statement, like the Python and
     // go.starlark.net REPLs. This requires a new grammar production, and
@@ -119,6 +125,8 @@ public class Larky {
             input);
       }
       Object returnValue;
+      StarlarkThread thread = newThread();
+      Module module = Module.create();
       try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
         returnValue = Starlark.execFile(input, OPTIONS, module, thread);
       }

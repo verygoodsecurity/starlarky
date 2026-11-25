@@ -129,9 +129,9 @@ public final class JsonModule implements StarlarkValue {
       useStarlarkThread = true)
   public String encode(Object x, Object defaultFn, StarlarkThread thread)
       throws EvalException, InterruptedException {
-    Encoder enc = new Encoder(thread, Starlark.isNullOrNone(defaultFn) ? null : defaultFn);
+    Encoder enc = new Encoder(Starlark.isNullOrNone(defaultFn) ? null : defaultFn);
     try {
-      enc.encode(x);
+      enc.encode(x, thread);
     } catch (StackOverflowError unused) {
       throw Starlark.errorf("nesting depth limit exceeded");
     }
@@ -165,19 +165,17 @@ public final class JsonModule implements StarlarkValue {
     private static final int MAX_DEFAULT_DEPTH = 200;
 
     private final StringBuilder out = new StringBuilder();
-    private final StarlarkThread thread;
     // The function given as dumps(default=...), or null.
     @Nullable private final Object defaultFn;
     // The values whose default replacement is being encoded: as in Python's json, a default
     // that returns (a container of) a value it is already replacing is a circular reference.
     private final Set<Object> replacing = Collections.newSetFromMap(new IdentityHashMap<>());
 
-    private Encoder(StarlarkThread thread, @Nullable Object defaultFn) {
-      this.thread = thread;
+    private Encoder(@Nullable Object defaultFn) {
       this.defaultFn = defaultFn;
     }
 
-    private void encode(Object x) throws EvalException, InterruptedException {
+    private void encode(Object x, StarlarkThread thread) throws EvalException, InterruptedException {
       if (x instanceof StarlarkEncodable encodable) {
         // Java-defined values may define their own JSON encoding, as for upstream's json module.
         x = encodable.objectForEncoding(thread.getSemantics());
@@ -229,7 +227,7 @@ public final class JsonModule implements StarlarkValue {
           appendQuoted((String) key);
           out.append(':');
           try {
-            encode(m.get(key));
+            encode(m.get(key), thread);
           } catch (EvalException ex) {
             throw Starlark.errorf(
                 "in %s key %s: %s", Starlark.type(x), Starlark.repr(key, StarlarkSemantics.DEFAULT), ex.getMessage());
@@ -249,7 +247,7 @@ public final class JsonModule implements StarlarkValue {
           out.append(sep);
           sep = ",";
           try {
-            encode(elem);
+            encode(elem, thread);
           } catch (EvalException ex) {
             throw Starlark.errorf("at %s index %d: %s", Starlark.type(x), i, ex.getMessage());
           }
@@ -272,7 +270,7 @@ public final class JsonModule implements StarlarkValue {
         throw Starlark.errorf("nesting depth limit exceeded");
       }
       try {
-        encode(Starlark.call(thread, defaultFn, ImmutableList.of(x), ImmutableMap.of()));
+        encode(Starlark.call(thread, defaultFn, ImmutableList.of(x), ImmutableMap.of()), thread);
       } finally {
         replacing.remove(x);
       }

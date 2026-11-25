@@ -82,7 +82,7 @@ index bf7eeac3..a171a8e4 100644
        throws EvalException, InterruptedException {
      Object x = eval(fr, slice.getObject());
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java a/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
-index 1655e0a9..7c660d45 100644
+index 1655e0a9..ca41ac94 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
 @@ -13,6 +13,7 @@
@@ -111,7 +111,47 @@ index 1655e0a9..7c660d45 100644
            try {
              if (y instanceof Tuple) {
                return Starlark.formatWithList(semantics, xs, (Tuple) y);
-@@ -417,7 +422,10 @@ final class EvalUtils {
+@@ -382,24 +387,28 @@ final class EvalUtils {
+         throw new AssertionError("not a binary operator: " + op);
+     }
+ 
+-    // custom binary operator?
+-    if (x instanceof HasBinary) {
+-      Object z = ((HasBinary) x).binaryOp(op, y, true);
+-      if (z != null) {
+-        return z;
+-      }
++    Object result = customBinaryOp(starlarkThread, op, x, y, true);
++    if (result == null) {
++      result = customBinaryOp(starlarkThread, op, y, x, false);
+     }
+-    if (y instanceof HasBinary) {
+-      Object z = ((HasBinary) y).binaryOp(op, x, false);
+-      if (z != null) {
+-        return z;
+-      }
++    if (result != null) {
++      return result;
+     }
+ 
+     throw Starlark.errorf(
+         "unsupported binary operation: %s %s %s", Starlark.type(x), op, Starlark.type(y));
+   }
+ 
++  @Nullable
++  private static Object customBinaryOp(
++      StarlarkThread thread, TokenKind op, Object operand, Object other, boolean thisLeft)
++      throws EvalException {
++    if (operand instanceof HasBinary.Threaded threaded) {
++      return threaded.binaryOp(thread, op, other, thisLeft);
++    }
++    return operand instanceof HasBinary binary ? binary.binaryOp(op, other, thisLeft) : null;
++  }
++
+   // Defines the behavior of the language's ordered comparison operators (< <= => >).
+   private static int compare(Object x, Object y) throws EvalException {
+     try {
+@@ -417,7 +426,10 @@ final class EvalUtils {
        // Would exceed max length of a java String.
        throw Starlark.errorf("excessive repeat (%d * %d characters)", s.length(), n);
      } else {
@@ -123,7 +163,7 @@ index 1655e0a9..7c660d45 100644
      }
    }
  
-@@ -489,7 +497,7 @@ final class EvalUtils {
+@@ -489,7 +501,7 @@ final class EvalUtils {
     *
     * @throws EvalException if the object is not a list or dict.
     */
@@ -132,7 +172,7 @@ index 1655e0a9..7c660d45 100644
      if (object instanceof Dict) {
        @SuppressWarnings("unchecked")
        Dict<Object, Object> dict = (Dict<Object, Object>) object;
-@@ -502,10 +510,15 @@ final class EvalUtils {
+@@ -502,10 +514,15 @@ final class EvalUtils {
        index = EvalUtils.getSequenceIndex(index, list.size());
        list.setElementAt(index, value);
  
@@ -150,6 +190,42 @@ index 1655e0a9..7c660d45 100644
      }
    }
  
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/HasBinary.java a/libstarlark/src/main/java/net/starlark/java/eval/HasBinary.java
+index d55702f4..629fc82e 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/HasBinary.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/HasBinary.java
+@@ -20,11 +20,10 @@ import net.starlark.java.syntax.TokenKind;
+ /**
+  * A Starlark value that supports binary operators such as {@code x+y}.
+  *
+- * <p>During evaluation of a Starlark binary operation, if none of the built-in cases match, then
+- * the left operand is queried; if it implements HasBinary, its {@link #binaryOp} method is called.
+- * If the left operand does not implement HasBinary, or declines to implement the particular
+- * operation by returning null, then the right operand is queried for HasBinary and its {@link
+- * #binaryOp} method is called. If neither operand defines the operator, evaluation fails.
++ * <p>When no built-in case handles the operation, the operands are tried left to right. For each
++ * operand, the evaluator calls {@link Threaded#binaryOp} if available, otherwise {@link #binaryOp}
++ * if implemented. A {@code null} result declines the operation. Evaluation fails if neither
++ * operand handles it.
+  *
+  * <p>Subclasses should strive for appropriate symmetries in their implementations, such as {@code x
+  * * y == y * x}.
+@@ -38,4 +37,15 @@ public interface HasBinary extends StarlarkValue {
+    */
+   @Nullable
+   Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException;
++
++  /** A binary operator implementation that receives the executing Starlark thread. */
++  interface Threaded extends StarlarkValue {
++    /**
++     * Handles the operator as in {@link HasBinary#binaryOp}, using {@code thread} for the current
++     * evaluation.
++     */
++    @Nullable
++    Object binaryOp(StarlarkThread thread, TokenKind op, Object that, boolean thisLeft)
++        throws EvalException;
++  }
+ }
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java a/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java
 index ec4ebbfa..3efac2fc 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/MethodLibrary.java
@@ -1331,6 +1407,69 @@ index 9d7c125d..e2c3fea8 100644
              "bool: ([object], /) -> bool; is a reified type",
              "getattr: (object, str, [object], /) -> Any",
              "hasattr: (object, str, /) -> bool",
+diff --git b/libstarlark/src/test/java/net/starlark/java/eval/EvalUtilsTest.java a/libstarlark/src/test/java/net/starlark/java/eval/EvalUtilsTest.java
+index 39fb6667..cff7f833 100644
+--- b/libstarlark/src/test/java/net/starlark/java/eval/EvalUtilsTest.java
++++ a/libstarlark/src/test/java/net/starlark/java/eval/EvalUtilsTest.java
+@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableMap;
+ import java.math.BigInteger;
+ import net.starlark.java.annot.StarlarkBuiltin;
++import net.starlark.java.syntax.TokenKind;
+ import org.junit.Test;
+ import org.junit.runner.RunWith;
+ import org.junit.runners.JUnit4;
+@@ -40,6 +41,50 @@ public final class EvalUtilsTest {
+   public static class MockClassB extends MockClassA {
+   }
+ 
++  @Test
++  public void threadedBinaryOperatorReceivesTheExecutingThread() throws Exception {
++    try (Mutability mu = Mutability.create("test")) {
++      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
++      HasBinary right = (op, other, thisLeft) -> {
++        throw new AssertionError("left operand handled the operation");
++      };
++      HasBinary.Threaded left = (actualThread, op, other, thisLeft) -> {
++        assertThat(actualThread).isSameInstanceAs(thread);
++        assertThat(op).isEqualTo(TokenKind.PLUS);
++        assertThat(other).isSameInstanceAs(right);
++        assertThat(thisLeft).isTrue();
++        return "left";
++      };
++      assertThat(EvalUtils.binaryOp(TokenKind.PLUS, left, right, thread)).isEqualTo("left");
++    }
++  }
++
++  @Test
++  public void threadedBinaryOperatorDeclineAdvancesToTheRightOperand() throws Exception {
++    class DecliningOperand implements HasBinary, HasBinary.Threaded {
++      @Override
++      public Object binaryOp(TokenKind op, Object other, boolean thisLeft) {
++        throw new AssertionError("threaded operand was already tried");
++      }
++
++      @Override
++      public Object binaryOp(StarlarkThread thread, TokenKind op, Object other, boolean thisLeft) {
++        return null;
++      }
++    }
++    DecliningOperand left = new DecliningOperand();
++    HasBinary right = (op, other, thisLeft) -> {
++      assertThat(op).isEqualTo(TokenKind.PLUS);
++      assertThat(other).isSameInstanceAs(left);
++      assertThat(thisLeft).isFalse();
++      return "right";
++    };
++    try (Mutability mu = Mutability.create("test")) {
++      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
++      assertThat(EvalUtils.binaryOp(TokenKind.PLUS, left, right, thread)).isEqualTo("right");
++    }
++  }
++
+   @Test
+   public void testDataTypeNames() throws Exception {
+     assertThat(Starlark.type("foo")).isEqualTo("string");
 diff --git b/libstarlark/src/test/java/net/starlark/java/eval/EvaluationTest.java a/libstarlark/src/test/java/net/starlark/java/eval/EvaluationTest.java
 index 934b3b3d..9680ad8a 100644
 --- b/libstarlark/src/test/java/net/starlark/java/eval/EvaluationTest.java

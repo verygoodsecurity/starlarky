@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigInteger;
 import net.starlark.java.annot.StarlarkBuiltin;
+import net.starlark.java.syntax.TokenKind;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -38,6 +39,50 @@ public final class EvalUtilsTest {
 
   /** MockClassB */
   public static class MockClassB extends MockClassA {
+  }
+
+  @Test
+  public void threadedBinaryOperatorReceivesTheExecutingThread() throws Exception {
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      HasBinary right = (op, other, thisLeft) -> {
+        throw new AssertionError("left operand handled the operation");
+      };
+      HasBinary.Threaded left = (actualThread, op, other, thisLeft) -> {
+        assertThat(actualThread).isSameInstanceAs(thread);
+        assertThat(op).isEqualTo(TokenKind.PLUS);
+        assertThat(other).isSameInstanceAs(right);
+        assertThat(thisLeft).isTrue();
+        return "left";
+      };
+      assertThat(EvalUtils.binaryOp(TokenKind.PLUS, left, right, thread)).isEqualTo("left");
+    }
+  }
+
+  @Test
+  public void threadedBinaryOperatorDeclineAdvancesToTheRightOperand() throws Exception {
+    class DecliningOperand implements HasBinary, HasBinary.Threaded {
+      @Override
+      public Object binaryOp(TokenKind op, Object other, boolean thisLeft) {
+        throw new AssertionError("threaded operand was already tried");
+      }
+
+      @Override
+      public Object binaryOp(StarlarkThread thread, TokenKind op, Object other, boolean thisLeft) {
+        return null;
+      }
+    }
+    DecliningOperand left = new DecliningOperand();
+    HasBinary right = (op, other, thisLeft) -> {
+      assertThat(op).isEqualTo(TokenKind.PLUS);
+      assertThat(other).isSameInstanceAs(left);
+      assertThat(thisLeft).isFalse();
+      return "right";
+    };
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      assertThat(EvalUtils.binaryOp(TokenKind.PLUS, left, right, thread)).isEqualTo("right");
+    }
   }
 
   @Test

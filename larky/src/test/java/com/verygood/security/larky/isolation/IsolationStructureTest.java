@@ -107,6 +107,7 @@ import org.objectweb.asm.Type;
  * <p>Set {@code -Disolation.print=true} to print the current violations in allowlist format.
  */
 public class IsolationStructureTest {
+  private static final String CURRENT_EVALUATION = "com.verygood.security.larky.runtime.CurrentEvaluation";
 
   private static final String STARLARK_VALUE = "net/starlark/java/eval/StarlarkValue";
   private static final String FREEZABLE = "net/starlark/java/eval/Mutability$Freezable";
@@ -923,6 +924,13 @@ public class IsolationStructureTest {
             .that(p[2].trim().toUpperCase(java.util.Locale.ROOT).startsWith("TODO"))
             .isFalse();
         assertWithMessage("unknown kind on allowlist line %s", lineNo).that(KINDS).contains(p[0]);
+        // A StarlarkThread may be held only by CurrentEvaluation, which sets and restores the
+        // running thread around each evaluation. Anything else takes the thread as a parameter or
+        // reads CurrentEvaluation; there is no reason that makes a stored thread acceptable.
+        assertWithMessage(
+                "allowlist line %s: only CurrentEvaluation may hold a StarlarkThread", lineNo)
+            .that(!p[0].equals("THREAD") || p[1].startsWith(CURRENT_EVALUATION + "#"))
+            .isTrue();
         Violation v = new Violation(p[0], p[1]);
         assertWithMessage("duplicate allowlist entry on line %s: %s", lineNo, v)
             .that(out.put(v, p[2]))
