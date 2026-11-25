@@ -1,7 +1,6 @@
 package com.verygood.security.larky.runtime;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assume.assumeFalse;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -48,9 +47,16 @@ public class ModuleCacheTest {
   }
 
   @Test
-  public void theProcessWideCacheIsOffUnlessEnabled() {
-    assumeFalse(Boolean.getBoolean("larky.moduleCache.enable"));
-    assertThat(ModuleCache.SHARED.isEnabled()).isFalse();
+  public void processWideSharingRequiresOptInAndHonorsDisableOverride() throws Exception {
+    boolean shouldShare = Boolean.getBoolean("larky.moduleCache.enable")
+        && !Boolean.getBoolean("larky.moduleCache.disable");
+    Module first = newEvaluator(ModuleCache.SHARED)
+        .eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
+    Module second = newEvaluator(ModuleCache.SHARED)
+        .eval(ResourceContentStarFile.buildStarFile("@stdlib//sets")).module();
+
+    assertThat(ModuleCache.SHARED.isEnabled()).isEqualTo(shouldShare);
+    assertThat(second == first).isEqualTo(shouldShare);
   }
 
   private static final ModuleCache.Registry REGISTRY = ModuleCache.Registry.DEFAULT;
