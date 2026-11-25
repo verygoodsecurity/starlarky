@@ -98,6 +98,18 @@ def _test_storage_name_ignores_case():
             "Storage 'UNKNOWN' not found in supported storage types: \\[persistent, volatile\\]"
     )
 
+def _test_storage_with_a_percent_sign():
+    # The name is part of the message: a '%' in it must not be read as a format specifier.
+    asserts.assert_fails(lambda : vault.redact("v", storage="50%"),
+            "Storage '50%' not found in supported storage types: \\[persistent, volatile\\]"
+    )
+    asserts.assert_fails(lambda : vault.reveal("v", storage="%d%s"),
+            "Storage '%d%s' not found in supported storage types: \\[persistent, volatile\\]"
+    )
+
+def _test_format_with_a_percent_sign():
+    asserts.assert_fails(lambda : vault.redact("v", format="50%d"), "Format '50%d' not found in supported format types")
+
 def _test_unknown_storage():
     card_number = "4111111111111116"
     asserts.assert_fails(lambda : vault.redact(card_number, storage="unknown"),
@@ -111,7 +123,7 @@ def _test_unknown_format():
         "\\[RAW_UUID, UUID, NUM_LENGTH_PRESERVING, PFPT, FPE_SIX_T_FOUR, FPE_T_FOUR, NON_LUHN_FPE_ALPHANUMERIC, " +
         "FPE_SSN_T_FOUR, FPE_ACC_NUM_T_FOUR, FPE_ALPHANUMERIC_ACC_NUM_T_FOUR, GENERIC_T_FOUR, ALPHANUMERIC_SIX_T_FOUR, VGS_FIXED_LEN_GENERIC, " +
         "ALPHANUMERIC_LENGTH_PRESERVING, ALPHANUMERIC_LENGTH_PRESERVING_T_FOUR, ALPHANUMERIC_LENGTH_PRESERVING_SIX_T_FOUR, " +
-        "ALPHANUMERIC_SSN_T_FOUR, ALPHANUMERIC_LENGTH_PRESERVING_ONE_T_TWO\\]"
+        "ALPHANUMERIC_SSN_T_FOUR, ALPHANUMERIC_LENGTH_PRESERVING_ONE_T_TWO, SYNTHETIC\\]"
     )
 
 def _test_unsupported_format():
@@ -301,6 +313,8 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_persistent_storage))
     _suite.addTest(unittest.FunctionTestCase(_test_volatile_storage))
     _suite.addTest(unittest.FunctionTestCase(_test_unknown_storage))
+    _suite.addTest(unittest.FunctionTestCase(_test_storage_with_a_percent_sign))
+    _suite.addTest(unittest.FunctionTestCase(_test_format_with_a_percent_sign))
     _suite.addTest(unittest.FunctionTestCase(_test_storage_name_ignores_case))
 
     # Format Tests

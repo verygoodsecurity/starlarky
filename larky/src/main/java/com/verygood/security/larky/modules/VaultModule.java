@@ -59,7 +59,8 @@ public class VaultModule implements LarkyVault {
             "ALPHANUMERIC_LENGTH_PRESERVING_T_FOUR",
             "ALPHANUMERIC_LENGTH_PRESERVING_SIX_T_FOUR",
             "ALPHANUMERIC_SSN_T_FOUR",
-            "ALPHANUMERIC_LENGTH_PRESERVING_ONE_T_TWO"
+            "ALPHANUMERIC_LENGTH_PRESERVING_ONE_T_TWO",
+            "SYNTHETIC"
     );
 
     private final ImmutableList<String> supportedSigningAlgorithms = ImmutableList.of(
@@ -135,7 +136,9 @@ public class VaultModule implements LarkyVault {
                             }),
                     @Param(
                             name = "decorator_config",
-                            doc = "alias decorator config",
+                            doc = "alias decorator config. Optional lookup context: 'entity_key' scopes the "
+                                + "alias to an entity, and 'kind' scopes it only when 'scope_kind' is True; "
+                                + "reveal and delete must pass the same context",
                             named = true,
                             defaultValue = "None",
                             allowedTypes = {
@@ -168,10 +171,34 @@ public class VaultModule implements LarkyVault {
                             allowedTypes = {
                                     @ParamType(type = NoneType.class),
                                     @ParamType(type = String.class),
+                            }),
+                    @Param(
+                            name = "entity_key",
+                            doc = "entity key the alias was redacted with (decorator_config['entity_key']); "
+                                + "None adds no entity scope. Use exactly the context used at redact: "
+                                + "other scopes are never searched",
+                            named = true,
+                            positional = false,
+                            defaultValue = "None",
+                            allowedTypes = {
+                                    @ParamType(type = NoneType.class),
+                                    @ParamType(type = String.class),
+                            }),
+                    @Param(
+                            name = "kind",
+                            doc = "kind the alias was redacted with, when the redact made kind lookup scope "
+                                + "(decorator_config['scope_kind'] True); None adds no kind scope",
+                            named = true,
+                            positional = false,
+                            defaultValue = "None",
+                            allowedTypes = {
+                                    @ParamType(type = NoneType.class),
+                                    @ParamType(type = String.class),
                             })
             })
-    public Object revealForRun(Object value, Object storage, StarlarkThread thread) throws EvalException {
-        return reveal(vaultFor(thread), value, storage);
+    public Object revealForRun(Object value, Object storage, Object entityKey, Object kind, StarlarkThread thread)
+        throws EvalException {
+        return reveal(vaultFor(thread), value, storage, entityKey, kind);
     }
 
     @StarlarkMethod(
@@ -194,10 +221,34 @@ public class VaultModule implements LarkyVault {
                 allowedTypes = {
                     @ParamType(type = NoneType.class),
                     @ParamType(type = String.class),
+                }),
+            @Param(
+                name = "entity_key",
+                doc = "entity key the alias was redacted with (decorator_config['entity_key']); "
+                    + "None adds no entity scope. Use exactly the context used at redact: "
+                    + "other scopes are never searched",
+                named = true,
+                positional = false,
+                defaultValue = "None",
+                allowedTypes = {
+                    @ParamType(type = NoneType.class),
+                    @ParamType(type = String.class),
+                }),
+            @Param(
+                name = "kind",
+                doc = "kind the alias was redacted with, when the redact made kind lookup scope "
+                    + "(decorator_config['scope_kind'] True); None adds no kind scope",
+                named = true,
+                positional = false,
+                defaultValue = "None",
+                allowedTypes = {
+                    @ParamType(type = NoneType.class),
+                    @ParamType(type = String.class),
                 })
         })
-    public void deleteForRun(Object value, Object storage, StarlarkThread thread) throws EvalException {
-        delete(vaultFor(thread), value, storage);
+    public void deleteForRun(Object value, Object storage, Object entityKey, Object kind, StarlarkThread thread)
+        throws EvalException {
+        delete(vaultFor(thread), value, storage, entityKey, kind);
     }
 
     @StarlarkMethod(
@@ -283,12 +334,22 @@ public class VaultModule implements LarkyVault {
 
     @Override
     public Object reveal(Object value, Object storage) throws EvalException {
-        return reveal(vault, value, storage);
+        return reveal(vault, value, storage, Starlark.NONE, Starlark.NONE);
     }
 
     @Override
     public void delete(Object value, Object storage) throws EvalException {
-        delete(vault, value, storage);
+        delete(vault, value, storage, Starlark.NONE, Starlark.NONE);
+    }
+
+    @Override
+    public Object reveal(Object value, Object storage, Object entityKey, Object kind) throws EvalException {
+        return reveal(vault, value, storage, entityKey, kind);
+    }
+
+    @Override
+    public void delete(Object value, Object storage, Object entityKey, Object kind) throws EvalException {
+        delete(vault, value, storage, entityKey, kind);
     }
 
     @Override
@@ -317,12 +378,20 @@ public class VaultModule implements LarkyVault {
         return target.redact(value, storage, format, tags, decoratorConfig);
     }
 
-    private Object reveal(LarkyVault target, Object value, Object storage) throws EvalException {
-        return target.reveal(value, validateStorage(storage));
+    private Object reveal(LarkyVault target, Object value, Object storage, Object entityKey, Object kind)
+        throws EvalException {
+        storage = validateStorage(storage);
+        validateLookupContext("entity_key", entityKey);
+        validateLookupContext("kind", kind);
+        return target.reveal(value, storage, entityKey, kind);
     }
 
-    private void delete(LarkyVault target, Object value, Object storage) throws EvalException {
-        target.delete(value, validateStorage(storage));
+    private void delete(LarkyVault target, Object value, Object storage, Object entityKey, Object kind)
+        throws EvalException {
+        storage = validateStorage(storage);
+        validateLookupContext("entity_key", entityKey);
+        validateLookupContext("kind", kind);
+        target.delete(value, storage, entityKey, kind);
     }
 
     private Object sign(LarkyVault target, String keyId, String message, String algorithm) throws EvalException {
@@ -339,18 +408,18 @@ public class VaultModule implements LarkyVault {
     /** Returns the storage name in lowercase: scripts may write 'VOLATILE' or 'volatile'. */
     private Object validateStorage(Object storage) throws EvalException {
         if (!(storage instanceof NoneType) && !(storage instanceof String)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                 "Storage of type %s is not supported in VAULT, expecting String",
                 storage.getClass().getName()
-            ));
+            );
         } else if (storage instanceof String name) {
             String lower = name.toLowerCase(Locale.ROOT);
             if (!supportedStorage.contains(lower)) {
-                throw Starlark.errorf(String.format(
+                throw Starlark.errorf(
                     "Storage '%s' not found in supported storage types: %s",
                     storage,
                     supportedStorage
-                ));
+                );
             }
             return lower;
         }
@@ -359,44 +428,61 @@ public class VaultModule implements LarkyVault {
 
     private void validateFormat(Object format) throws EvalException {
         if (!(format instanceof NoneType) && !(format instanceof String)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                     "Format of type %s is not supported in VAULT, expecting String",
                     format.getClass().getName()
-            ));
+            );
         } else if ((format instanceof String) && !supportedFormat.contains(format.toString())) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                     "Format '%s' not found in supported format types: %s",
                     format,
                     supportedFormat
-            ));
+            );
         }
     }
 
     private void validateDecoratorConfig(Object decoratorConfig) throws EvalException {
         if (decoratorConfig != null && !(decoratorConfig instanceof NoneType) && !(decoratorConfig instanceof Map)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                 "Decorator config of type %s is not supported in VAULT, expecting Map",
                 decoratorConfig.getClass().getName()
-            ));
+            );
         } else {
             try {
                 DecoratorConfig.fromObject(decoratorConfig);
             } catch (InvalidDecoratorConfigException e) {
-                throw Starlark.errorf(String.format(
+                throw Starlark.errorf(
                     "Decorator config '%s' is invalid. %s",
                     decoratorConfig, e.getMessage()
-                ));
+                );
             }
+        }
+    }
+
+    /** A lookup context field (entity_key or kind): None for no scope, otherwise a non-blank String. */
+    private void validateLookupContext(String field, Object value) throws EvalException {
+        if (value == null || value instanceof NoneType) {
+            return;
+        }
+        // Scripts cannot pass a non-String (the parameter is typed), but Java callers can.
+        if (!(value instanceof String name)) {
+            throw Starlark.errorf(
+                "%s of type %s is not supported in VAULT, expecting String",
+                field, value.getClass().getName()
+            );
+        }
+        if (name.isBlank()) {
+            throw Starlark.errorf("%s must not be empty or blank", field);
         }
     }
 
     private void validateSigningAlgorithm(String algorithm) throws EvalException {
         if (!supportedSigningAlgorithms.contains(algorithm)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                 "Algorithm '%s' not found in supported algorithms: %s",
                 algorithm,
                 supportedSigningAlgorithms
-            ));
+            );
         }
     }
 

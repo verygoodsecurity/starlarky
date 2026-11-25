@@ -18,7 +18,17 @@ public class NoopVault implements LarkyVault {
     }
 
     @Override
+    public Object reveal(Object value, Object storage, Object entityKey, Object kind) throws EvalException {
+        throw Starlark.errorf("vault.reveal operation must be overridden");
+    }
+
+    @Override
     public void delete(Object value, Object storage) throws EvalException {
+        throw Starlark.errorf("vault.delete operation must be overridden");
+    }
+
+    @Override
+    public void delete(Object value, Object storage, Object entityKey, Object kind) throws EvalException {
         throw Starlark.errorf("vault.delete operation must be overridden");
     }
 
