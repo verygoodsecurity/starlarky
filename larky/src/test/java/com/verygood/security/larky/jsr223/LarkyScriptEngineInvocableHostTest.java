@@ -7,16 +7,14 @@ import static org.junit.Assert.assertTrue;
 import com.verygood.security.larky.jsr223.LarkyScriptEngine.GlobalScope;
 import com.verygood.security.larky.modules.vgs.ModuleProviders;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
-import com.verygood.security.larky.runtime.LarkyEvaluator;
+import com.verygood.security.larky.runtime.EvaluationSettings;
 import java.io.StringWriter;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.List;
 import java.util.Map;
-import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
-import javax.script.SimpleScriptContext;
 import org.junit.Test;
 
 /**
@@ -70,8 +68,8 @@ public class LarkyScriptEngineInvocableHostTest {
     return ModuleProviders.of().with(LarkyVault.class, new NamedVault(name));
   }
 
-  private static ScriptContext clean() {
-    final ScriptContext context = new SimpleScriptContext();
+  private static LarkyScriptContext clean() {
+    final LarkyScriptContext context = new LarkyScriptContext();
     context.setWriter(new StringWriter());
     context.setBindings(new SimpleBindings(), ScriptContext.ENGINE_SCOPE);
     return context;
@@ -87,29 +85,29 @@ public class LarkyScriptEngineInvocableHostTest {
   }
 
   @Test
-  public void callsGetTheProvidersInTheBindingsAtTheTimeOfTheCall() throws Exception {
+  public void callsGetTheProvidersFromTheContextAtTheTimeOfTheCall() throws Exception {
     final LarkyScriptEngine engine = LarkyScriptEngine.builder().build();
     engine.setContext(clean());
     engine.eval(SCRIPT);
-    final Bindings bindings = engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE);
+    final LarkyScriptContext context = (LarkyScriptContext) engine.getContext();
 
-    bindings.put(LarkyEvaluator.MODULE_PROVIDERS, vault("A"));
+    context.setSettings(EvaluationSettings.builder().moduleProviders(vault("A")).build());
     assertEquals(List.of("A:tok", "A:tok", "A:tok"), reveals(engine, "tok"));
 
-    bindings.put(LarkyEvaluator.MODULE_PROVIDERS, vault("B"));
+    context.setSettings(EvaluationSettings.builder().moduleProviders(vault("B")).build());
     assertEquals(List.of("B:tok", "B:tok", "B:tok"), reveals(engine, "tok"));
 
     // without providers, the vault found with ServiceLoader answers (in these tests, the in-memory one)
-    bindings.remove(LarkyEvaluator.MODULE_PROVIDERS);
+    context.setSettings(EvaluationSettings.NONE);
     assertEquals(List.of("tok", "tok", "tok"), reveals(engine, "tok"));
   }
 
   @Test
-  public void bindingsThatAreNotProvidersAreRefusedAsEvalRefusesThem() throws Exception {
+  public void retiredProviderBindingsAreRefusedAsEvalRefusesThem() throws Exception {
     final LarkyScriptEngine engine = LarkyScriptEngine.builder().build();
     engine.setContext(clean());
     engine.eval(SCRIPT);
-    engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE).put(LarkyEvaluator.MODULE_PROVIDERS, "not providers");
+    engine.getContext().getBindings(ScriptContext.ENGINE_SCOPE).put("LARKY_EVAL_MODULE_PROVIDERS", vault("A"));
 
     assertThrows(IllegalArgumentException.class, () -> engine.invokeFunction("reveal", "tok"));
   }

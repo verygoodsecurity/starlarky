@@ -28,26 +28,44 @@ public class DefaultLarkyInterpreter {
   private final ModuleSet moduleSet;
   private final LarkyScript larkyScript;
 
+  /** As {@link #DefaultLarkyInterpreter(StarlarkMode, EvaluationSettings, Bindings...)}, with no settings. */
+  public DefaultLarkyInterpreter(StarlarkMode mode, Bindings... bindings) throws EvalException {
+    this(mode, EvaluationSettings.NONE, bindings);
+  }
+
   /**
+   * @param settings the host's settings for each evaluation (never a binding)
+   * @throws IllegalArgumentException if a binding uses a retired setting name (see {@link
+   *     LarkyEvaluator#refuseRetiredSettings})
    * @throws EvalException if converting a binding runs Starlark code that fails: a binding may be
    *     a value of an earlier evaluation (a JSR-223 engine keeps the globals of each eval), and
    *     copying a dict hashes its keys, which runs a struct's {@code __hash__}/{@code __eq__}
    */
-  public DefaultLarkyInterpreter(StarlarkMode mode, Bindings... bindings) throws EvalException {
+  public DefaultLarkyInterpreter(StarlarkMode mode, EvaluationSettings settings, Bindings... bindings)
+      throws EvalException {
     this.moduleSet = new ModuleSupplier().create();
     // later bindings win, as before
     Map<String, Object> merged = new LinkedHashMap<>();
     Arrays.stream(bindings).filter(Objects::nonNull).forEach(merged::putAll);
-    this.larkyScript = new LarkyScript(ModuleSupplier.CORE_MODULES, mode, toStarlark(merged));
+    LarkyEvaluator.refuseRetiredSettings(merged.keySet());
+    this.larkyScript =
+        new LarkyScript(
+            ModuleSupplier.CORE_MODULES,
+            mode,
+            toStarlark(merged, settings),
+            moduleSet,
+            LarkySemantics.LARKY_SEMANTICS,
+            settings);
   }
 
-  // Converts on a fresh Starlark thread using the bindings' step limit, if given.
-  private static Map<String, Object> toStarlark(Map<String, Object> merged) throws EvalException {
-    Object stepLimit = merged.get(LarkyEvaluator.STEP_LIMIT);
+  // Converts on a fresh Starlark thread using the evaluation's step limit and deadline.
+  private static Map<String, Object> toStarlark(Map<String, Object> merged, EvaluationSettings settings)
+      throws EvalException {
     StarlarkInterop interop =
         StarlarkInterop.of(
             LarkySemantics.LARKY_SEMANTICS,
-            stepLimit == null ? null : Long.parseLong(stepLimit.toString()),
+            settings.stepLimit().isPresent() ? settings.stepLimit().getAsLong() : null,
+            settings.expirationMs().orElse(Long.MAX_VALUE),
             null);
     Map<String, Object> converted = new HashMap<>();
     try {

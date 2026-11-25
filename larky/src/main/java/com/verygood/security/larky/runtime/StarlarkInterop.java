@@ -48,15 +48,15 @@ import net.starlark.java.eval.StarlarkThread;
  *
  * <ul>
  *   <li>semantics ({@link LarkySemantics}),
- *   <li>remaining step budget: the step limit ({@link LarkyEvaluator#STEP_LIMIT}) minus the steps
+ *   <li>remaining step budget: the step limit ({@link EvaluationSettings#stepLimit()}) minus the steps
  *       the evaluation used. All calls through the instance (and through instances derived from it
  *       with {@code with...}) draw on that one budget, as callbacks run on the evaluation's own
  *       thread did; once it is spent, every call fails with "too many steps". Calls running at the
  *       same time each start with the budget left when they start, so together they can exceed it
  *       by the steps of the calls that overlap,
- *   <li>expiration date ({@link LarkyEvaluator#EXPIRATION_MS}): the same absolute time; a call
+ *   <li>expiration date ({@link EvaluationSettings#expirationMs()}): the same absolute time; a call
  *       past it fails with "past expiration date", as on the evaluation's own thread,
- *   <li>module providers ({@link LarkyEvaluator#MODULE_PROVIDERS}).
+ *   <li>module providers ({@link EvaluationSettings#moduleProviders()}).
  * </ul>
  *
  * <p>Every method creates a fresh {@link Mutability} and {@link StarlarkThread}, makes the thread

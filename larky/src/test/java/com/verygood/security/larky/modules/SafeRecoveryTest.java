@@ -4,18 +4,26 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.verygood.security.larky.jsr223.LarkyScriptContext;
 import com.verygood.security.larky.jsr223.LarkyScriptEngine;
+import com.verygood.security.larky.runtime.EvaluationSettings;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
-import javax.script.SimpleScriptContext;
 import org.junit.Test;
 
 /** safe() recovers from a script's errors, but not from cancellation, and leaves no frames. */
 public class SafeRecoveryTest {
 
   private static Object eval(String script, SimpleBindings bindings) throws Exception {
+    return eval(script, bindings, EvaluationSettings.NONE);
+  }
+
+  private static Object eval(String script, SimpleBindings bindings, EvaluationSettings settings)
+      throws Exception {
     LarkyScriptEngine engine = new LarkyScriptEngine();
-    engine.setContext(new SimpleScriptContext());
+    LarkyScriptContext context = new LarkyScriptContext();
+    context.setSettings(settings);
+    engine.setContext(context);
     engine.eval(script, bindings);
     return bindings.get("OUT");
   }
@@ -58,8 +66,9 @@ public class SafeRecoveryTest {
             "OUT = main()");
     SimpleBindings bindings = new SimpleBindings();
     long start = System.currentTimeMillis();
-    bindings.put("LARKY_EVAL_EXPIRATION_MS", start + 300);
-    ScriptException e = assertThrows(ScriptException.class, () -> eval(script, bindings));
+    EvaluationSettings settings = EvaluationSettings.builder().expirationMs(start + 300).build();
+    ScriptException e =
+        assertThrows(ScriptException.class, () -> eval(script, bindings, settings));
     assertTrue(e.getMessage(), e.getMessage().contains("past expiration date"));
     long elapsed = System.currentTimeMillis() - start;
     assertTrue("ran " + elapsed + "ms past a 300ms deadline", elapsed < 5_000);
