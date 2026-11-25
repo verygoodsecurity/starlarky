@@ -1,5 +1,6 @@
 package com.verygood.security.larky.objects.type;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.google.common.collect.ImmutableList;
 import net.starlark.java.syntax.StarlarkType;
 import net.starlark.java.syntax.TypeConstructor;
@@ -33,10 +34,8 @@ final public class LarkyProvidedTypeClass implements
 {
 
   private final ImmutableSet<SpecialMethod> operations;
-  private final StarlarkThread thread;
   private final LarkyTypeObject type;
   public LarkyProvidedTypeClass(StarlarkThread thread, LarkyTypeObject type) {
-    this.thread = thread;
     this.type = type;
     this.operations =
       getInternalDictUnsafe()
@@ -145,13 +144,13 @@ final public class LarkyProvidedTypeClass implements
 
   @Override
   public StarlarkThread getCurrentThread() {
-    return thread;
+    return CurrentEvaluation.currentOrNull();
   }
 
   @Nullable
   @Override
   public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
-    return BinaryOpHelper.operatorDispatch(this, op, that, thisLeft, this.getCurrentThread());
+    return BinaryOpHelper.operatorDispatch(this, op, that, thisLeft, CurrentEvaluation.requireThread());
   }
 
   @Override

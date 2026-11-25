@@ -55,6 +55,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
                                         Comparable<StarlarkBytes>,
                                         CharSequence,
                                         HasBinary,
+                                        HasBinary.Threaded,
                                         StarlarkValue {
 
   @StarlarkBuiltin(
@@ -341,8 +342,9 @@ public class StarlarkBytes implements ByteStringModuleApi,
     }
 
     @Override
-    public @Nullable Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
-      Object rval = super.binaryOp(op, that, thisLeft);
+    @Nullable Object binaryOpWithMutability(TokenKind op, Object that, boolean thisLeft, Mutability mu)
+        throws EvalException {
+      Object rval = super.binaryOpWithMutability(op, that, thisLeft, mu);
       if (rval == null) {
         return rval;
       }
@@ -1512,6 +1514,20 @@ public class StarlarkBytes implements ByteStringModuleApi,
   @Nullable
   @Override
   public Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException {
+    return binaryOpWithMutability(op, that, thisLeft, this.mutability);
+  }
+
+  /** Gives the executing evaluation ownership of any bytearray the operation creates. */
+  @Nullable
+  @Override
+  public Object binaryOp(StarlarkThread thread, TokenKind op, Object that, boolean thisLeft)
+      throws EvalException {
+    return binaryOpWithMutability(op, that, thisLeft, thread.mutability());
+  }
+
+  @Nullable
+  Object binaryOpWithMutability(TokenKind op, Object that, boolean thisLeft, Mutability mu)
+      throws EvalException {
     switch (op) {
       case STAR:
         /*
@@ -1519,7 +1535,7 @@ public class StarlarkBytes implements ByteStringModuleApi,
           to the appropriate sub-type.
          */
         if (that instanceof StarlarkInt) {
-          return repeat((StarlarkInt) that, this.mutability);
+          return repeat((StarlarkInt) that, mu);
         }
         return null;
       case PLUS:
@@ -1527,9 +1543,9 @@ public class StarlarkBytes implements ByteStringModuleApi,
           return null; // unsupported binary operation: bytes + bytes only, as in the spec
         }
         if (thisLeft) {
-          return BinaryOperations.add(this, that, this.mutability);
+          return BinaryOperations.add(this, that, mu);
         } else {
-          return BinaryOperations.add(that, this, this.mutability);
+          return BinaryOperations.add(that, this, mu);
         }
       default:
         // unsupported binary operation!

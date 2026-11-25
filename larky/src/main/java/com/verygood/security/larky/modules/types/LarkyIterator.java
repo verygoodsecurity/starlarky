@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.types;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -58,13 +59,9 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
 
   final protected ImmutableSet<String> fieldNames = fields.keySet();
 
-  private StarlarkThread currentThread;
-
   public static LarkyIterator from(Object obj, StarlarkThread thread) throws EvalException {
     if (obj instanceof LarkyIterator) {
-      final LarkyIterator obj1 = (LarkyIterator) obj;
-      obj1.setCurrentThread(thread);
-      return obj1;
+      return (LarkyIterator) obj;
     } else if (obj instanceof String) {
       return LarkyStringIterator.of((String) obj, thread);
     } else if (obj instanceof StarlarkIterable) {
@@ -116,11 +113,7 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
 
   @Override
   public StarlarkThread getCurrentThread() {
-    return this.currentThread;
-  }
-
-  public void setCurrentThread(StarlarkThread thread) {
-    this.currentThread = thread;
+    return CurrentEvaluation.currentOrNull();
   }
 
   @Override
@@ -181,7 +174,6 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
 
     public static LarkyStringIterator of(String obj, StarlarkThread thread) {
       final LarkyStringIterator rval = new LarkyStringIterator(obj);
-      rval.setCurrentThread(thread);
       return rval;
     }
 
@@ -215,7 +207,6 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
 
     public static LarkyIterableIterator of(Iterable<?> obj, StarlarkThread thread) {
       final LarkyIterableIterator rval = new LarkyIterableIterator(obj);
-      rval.setCurrentThread(thread);
       return rval;
     }
 
@@ -276,7 +267,6 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
             (StarlarkCallable) next_func
           ), obj.typeName());
       }
-      larkIter.setCurrentThread(thread);
       return larkIter;
     }
 
@@ -394,7 +384,6 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
           len = Starlark.toInt(obj.invoke(len_func), "len_func in LarkyGetItemIterator");
         }
         final LarkyGetItemIterator rval = new LarkyGetItemIterator(() -> gi_func, obj.typeName(), len);
-        rval.setCurrentThread(thread);
         return rval;
       }
 
@@ -438,7 +427,6 @@ public abstract class LarkyIterator implements HasBinary, LarkyObject, StarlarkI
         throw Starlark.errorf("TypeError: iter(v, w): v must be callable");
       }
       final LarkyCallableIterator rval = new LarkyCallableIterator(() -> method, Starlark.type(method), sentinelO);
-      rval.setCurrentThread(thread);
       return rval;
     }
 

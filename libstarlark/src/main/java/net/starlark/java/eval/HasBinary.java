@@ -20,11 +20,10 @@ import net.starlark.java.syntax.TokenKind;
 /**
  * A Starlark value that supports binary operators such as {@code x+y}.
  *
- * <p>During evaluation of a Starlark binary operation, if none of the built-in cases match, then
- * the left operand is queried; if it implements HasBinary, its {@link #binaryOp} method is called.
- * If the left operand does not implement HasBinary, or declines to implement the particular
- * operation by returning null, then the right operand is queried for HasBinary and its {@link
- * #binaryOp} method is called. If neither operand defines the operator, evaluation fails.
+ * <p>When no built-in case handles the operation, the operands are tried left to right. For each
+ * operand, the evaluator calls {@link Threaded#binaryOp} if available, otherwise {@link #binaryOp}
+ * if implemented. A {@code null} result declines the operation. Evaluation fails if neither
+ * operand handles it.
  *
  * <p>Subclasses should strive for appropriate symmetries in their implementations, such as {@code x
  * * y == y * x}.
@@ -38,4 +37,15 @@ public interface HasBinary extends StarlarkValue {
    */
   @Nullable
   Object binaryOp(TokenKind op, Object that, boolean thisLeft) throws EvalException;
+
+  /** A binary operator implementation that receives the executing Starlark thread. */
+  interface Threaded extends StarlarkValue {
+    /**
+     * Handles the operator as in {@link HasBinary#binaryOp}, using {@code thread} for the current
+     * evaluation.
+     */
+    @Nullable
+    Object binaryOp(StarlarkThread thread, TokenKind op, Object that, boolean thisLeft)
+        throws EvalException;
+  }
 }

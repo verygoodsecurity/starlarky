@@ -387,22 +387,26 @@ final class EvalUtils {
         throw new AssertionError("not a binary operator: " + op);
     }
 
-    // custom binary operator?
-    if (x instanceof HasBinary) {
-      Object z = ((HasBinary) x).binaryOp(op, y, true);
-      if (z != null) {
-        return z;
-      }
+    Object result = customBinaryOp(starlarkThread, op, x, y, true);
+    if (result == null) {
+      result = customBinaryOp(starlarkThread, op, y, x, false);
     }
-    if (y instanceof HasBinary) {
-      Object z = ((HasBinary) y).binaryOp(op, x, false);
-      if (z != null) {
-        return z;
-      }
+    if (result != null) {
+      return result;
     }
 
     throw Starlark.errorf(
         "unsupported binary operation: %s %s %s", Starlark.type(x), op, Starlark.type(y));
+  }
+
+  @Nullable
+  private static Object customBinaryOp(
+      StarlarkThread thread, TokenKind op, Object operand, Object other, boolean thisLeft)
+      throws EvalException {
+    if (operand instanceof HasBinary.Threaded threaded) {
+      return threaded.binaryOp(thread, op, other, thisLeft);
+    }
+    return operand instanceof HasBinary binary ? binary.binaryOp(op, other, thisLeft) : null;
   }
 
   // Defines the behavior of the language's ordered comparison operators (< <= => >).

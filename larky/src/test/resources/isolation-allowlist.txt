@@ -5,7 +5,6 @@
 # The test fails when a violation is missing here, when a line here no longer matches a violation
 # (a change that fixes a violation must delete its line), and when a reason says TODO.
 MUTABLE	com.verygood.security.larky.modules.ChaseModule#chaseCrypto:com.verygood.security.larky.modules.vgs.crypto.ChaseCrypto	host service found with ServiceLoader (or given by the host) once per process; shared by every evaluation, its thread safety is the host's contract
-MUTABLE	com.verygood.security.larky.modules.CollectionsModule$LarkyNamedTuple#currentThread:net.starlark.java.eval.StarlarkThread	stored creating thread; see the THREAD entry for this field
 MUTABLE	com.verygood.security.larky.modules.NetworkTokenModule#networkTokenService:com.verygood.security.larky.modules.vgs.nts.spi.NetworkTokenService	host service found with ServiceLoader (or given by the host) once per process; shared by every evaluation, its thread safety is the host's contract
 MUTABLE	com.verygood.security.larky.modules.ResultModule$SafeFunction#func:net.starlark.java.eval.StarlarkCallable	a Starlark callable; StarlarkCallable is an interface, so the implementation (and its state) is unknown
 MUTABLE	com.verygood.security.larky.modules.VaultModule#vault:com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault	host service found with ServiceLoader (or given by the host) once per process; shared by every evaluation, its thread safety is the host's contract
@@ -50,14 +49,12 @@ MUTABLE	com.verygood.security.larky.modules.x509.LarkyKeyPair#privateKey:java.se
 MUTABLE	com.verygood.security.larky.modules.x509.LarkyKeyPair#publicKey:java.security.PublicKey	JCA key object (interface type); implementation not provably immutable
 MUTABLE	com.verygood.security.larky.modules.x509.LarkyX509Certificate#cert:org.bouncycastle.cert.X509CertificateHolder	BouncyCastle X509CertificateHolder; not provably immutable
 MUTABLE	com.verygood.security.larky.objects.LarkyPyObject#__class__:com.verygood.security.larky.objects.type.LarkyType	the object's LarkyType, whose subclass registry is written at runtime
-MUTABLE	com.verygood.security.larky.objects.LarkyPyObject#thread:net.starlark.java.eval.StarlarkThread	stored creating thread; see the THREAD entry for this field
 MUTABLE	com.verygood.security.larky.objects.descriptor.LarkyDescriptor#fget:net.starlark.java.eval.StarlarkCallable	a Starlark callable; StarlarkCallable is an interface, so the implementation (and its state) is unknown
 MUTABLE	com.verygood.security.larky.objects.descriptor.LarkyDescriptor$LarkyDataDescriptor#fdel:net.starlark.java.eval.StarlarkCallable	a Starlark callable; StarlarkCallable is an interface, so the implementation (and its state) is unknown
 MUTABLE	com.verygood.security.larky.objects.descriptor.LarkyDescriptor$LarkyDataDescriptor#fset:net.starlark.java.eval.StarlarkCallable	a Starlark callable; StarlarkCallable is an interface, so the implementation (and its state) is unknown
 MUTABLE	com.verygood.security.larky.objects.type.LarkyBaseObjectType#__dict__:java.util.Map	type dict / subclass registry of `object`, written when classes are defined (by any evaluation)
 MUTABLE	com.verygood.security.larky.objects.type.LarkyBaseObjectType#allSubclasses:java.util.Set	type dict / subclass registry of `object`, written when classes are defined (by any evaluation)
 MUTABLE	com.verygood.security.larky.objects.type.LarkyBaseObjectType#type:com.verygood.security.larky.objects.type.LarkyType	the metatype LarkyType, whose subclass registry is written at runtime
-MUTABLE	com.verygood.security.larky.objects.type.LarkyProvidedTypeClass#thread:net.starlark.java.eval.StarlarkThread	stored creating thread; see the THREAD entry for this field
 MUTABLE	net.starlark.java.eval.StarlarkBytes#delegate:net.starlark.java.ext.ByteList	bytes storage (ByteList is mutable); only the StarlarkByteArray subclass writes it, behind checkMutable, but the bytes class has no write guard of its own
 NONFINAL	com.verygood.security.larky.modules.ZLibModule$LarkyInflater#zdict:byte[]	zlib decompressobj state: stateful Java object by design; not shareable (audit B)
 NONFINAL	com.verygood.security.larky.modules.crypto.Cipher.GHash#stateSave0:long	GCM GHASH running state in Java arrays; stateful by design (audit B)
@@ -76,11 +73,9 @@ NONFINAL	com.verygood.security.larky.modules.re.RegexMatcher#parentPattern:com.v
 NONFINAL	com.verygood.security.larky.modules.re.RegexPattern#pattern:com.google.re2j.Pattern	pattern/py reassigned after construction; not freeze-guarded (audit B)
 NONFINAL	com.verygood.security.larky.modules.re.RegexPattern#py:com.verygood.security.larky.modules.re.PyRegex	pattern/py reassigned after construction; not freeze-guarded (audit B)
 NONFINAL	com.verygood.security.larky.modules.testing.UnittestModule$LarkyFunctionTestCase#function:net.starlark.java.eval.StarlarkCallable	test-only module (TEST_MODULES)
-NONFINAL	com.verygood.security.larky.modules.testing.UnittestModule$LarkyFunctionTestCase#thread:net.starlark.java.eval.StarlarkThread	test-only module (TEST_MODULES)
 NONFINAL	com.verygood.security.larky.modules.testing.UnittestModule$LarkyTestRunner#FINAL_TEST_RESULT:java.lang.String	test-only module (TEST_MODULES): accumulated result
 NONFINAL	com.verygood.security.larky.modules.types.LarkyBoundedWhileTrue$LarkyBoundedWhileTrueIterator#counter:int	iteration counter; per-iteration state, not freeze-guarded (audit B)
 NONFINAL	com.verygood.security.larky.modules.types.LarkyCounter$NotThreadSafeLarkyCounter#count:long	counter value mutated by increment; named not thread safe (audit B)
-NONFINAL	com.verygood.security.larky.modules.types.LarkyIterator#currentThread:net.starlark.java.eval.StarlarkThread	iterator cursor/thread state; per-iteration state, not freeze-guarded (audit B)
 NONFINAL	com.verygood.security.larky.modules.types.LarkyIterator$LarkyObjectIterator#checkedForNext:boolean	iterator cursor state; per-iteration state, not freeze-guarded (audit B)
 NONFINAL	com.verygood.security.larky.modules.types.LarkyIterator$LarkyObjectIterator#iterator_method:java.util.function.Supplier	iterator cursor state; per-iteration state, not freeze-guarded (audit B)
 NONFINAL	com.verygood.security.larky.modules.types.LarkyIterator$LarkyObjectIterator#nextVal:java.lang.Object	iterator cursor state; per-iteration state, not freeze-guarded (audit B)
@@ -93,16 +88,13 @@ NONFINAL	com.verygood.security.larky.objects.LarkyMethod#im_self:com.verygood.se
 NONFINAL	com.verygood.security.larky.objects.LarkySuper#obj:com.verygood.security.larky.objects.PyObject	obj/objType/superType/thread assigned per super() call (audit B)
 NONFINAL	com.verygood.security.larky.objects.LarkySuper#objType:com.verygood.security.larky.objects.type.LarkyType	obj/objType/superType/thread assigned per super() call (audit B)
 NONFINAL	com.verygood.security.larky.objects.LarkySuper#superType:com.verygood.security.larky.objects.type.LarkyType	obj/objType/superType/thread assigned per super() call (audit B)
-NONFINAL	com.verygood.security.larky.objects.LarkySuper#thread:net.starlark.java.eval.StarlarkThread	obj/objType/superType/thread assigned per super() call (audit B)
 NONFINAL	junit.framework.TestCase#fName:java.lang.String	inherited from JUnit 3 by the unittest module's LarkyTestSuite/LarkyFunctionTestCase/LarkyTestRunner; TEST_MODULES only
 NONFINAL	junit.framework.TestSuite#fName:java.lang.String	inherited from JUnit 3 by the unittest module's LarkyTestSuite/LarkyFunctionTestCase/LarkyTestRunner; TEST_MODULES only
 NONFINAL	junit.framework.TestSuite#fTests:java.util.Vector	inherited from JUnit 3 by the unittest module's LarkyTestSuite/LarkyFunctionTestCase/LarkyTestRunner; TEST_MODULES only
 NONFINAL	junit.runner.BaseTestRunner#fLoading:boolean	inherited from JUnit 3 by the unittest module's LarkyTestSuite/LarkyFunctionTestCase/LarkyTestRunner; TEST_MODULES only
 NONFINAL	junit.textui.TestRunner#fPrinter:junit.textui.ResultPrinter	inherited from JUnit 3 by the unittest module's LarkyTestSuite/LarkyFunctionTestCase/LarkyTestRunner; TEST_MODULES only
 NONFINAL	net.starlark.java.eval.EvalException#callstack:com.google.common.collect.ImmutableList	inherited by results.Error (a StarlarkValue); ensureStack sets it once, so an Error object must be created per raise and never shared (#847)
-STATIC	com.verygood.security.larky.Larky#module:net.starlark.java.eval.Module	larky CLI (main) REPL state; one per process, not used by embedded evaluation
 STATIC	com.verygood.security.larky.Larky#reader:java.io.BufferedReader	static final holder of mutable type: Ljava/io/BufferedReader;
-STATIC	com.verygood.security.larky.Larky#thread:net.starlark.java.eval.StarlarkThread	larky CLI (main) REPL state; one per process, not used by embedded evaluation
 STATIC	com.verygood.security.larky.ModuleSupplier#CORE_ENVIRONMENT:com.google.common.collect.ImmutableMap	set/map of builtin module objects (Object elements); each mutable module object is listed in this file under its own class
 STATIC	com.verygood.security.larky.ModuleSupplier#NAMED_MODULE_SETS:java.util.concurrent.ConcurrentHashMap	process-wide cache/registry by design; written at runtime
 STATIC	com.verygood.security.larky.ModuleSupplier#STD_MODULES:com.google.common.collect.ImmutableSet	set/map of builtin module objects (Object elements); each mutable module object is listed in this file under its own class
@@ -344,15 +336,5 @@ STATIC	net.starlark.java.ext.ByteList#SPACE:byte[]	static final array lookup tab
 STATIC	net.starlark.java.ext.ByteList$PY_ISSPACE#PY_CTF_SPACE:byte[]	static final array lookup table, written only in <clinit>; contents are mutable
 STATIC	net.starlark.java.ext.CodecHelper$ThreadLocalCoders#DECODERS:java.lang.ThreadLocal	per Java thread factory/codec cache; holds no evaluation state
 STATIC	net.starlark.java.ext.CodecHelper$ThreadLocalCoders#ENCODERS:java.lang.ThreadLocal	per Java thread factory/codec cache; holds no evaluation state
-THREAD	com.verygood.security.larky.Larky#thread:net.starlark.java.eval.StarlarkThread	REPL main class: static final thread, only used by Larky.java; fix: move into main() so the class has no static evaluation state
-THREAD	com.verygood.security.larky.modules.CollectionsModule$LarkyNamedTuple#currentThread:net.starlark.java.eval.StarlarkThread	only LarkyObject defaults (getErrorMessageForUnknownField) read it, no Starlark call is made on it; fix: delete the field (getCurrentThread() returns null as the built-in types do)
-THREAD	com.verygood.security.larky.modules.JsonModule$Encoder#thread:net.starlark.java.eval.StarlarkThread	transient helper created per json.dumps call, never stored in a value or outliving the call; no change needed (non-StarlarkValue helper)
-THREAD	com.verygood.security.larky.modules.testing.UnittestModule$LarkyFunctionTestCase#thread:net.starlark.java.eval.StarlarkThread	test-only (TEST_MODULES): junit TestCase.runTest() has no parameters; fix: run the suite from a builtin that has the thread and pass it down (lowest priority)
-THREAD	com.verygood.security.larky.modules.types.LarkyIterator#currentThread:net.starlark.java.eval.StarlarkThread	java.util.Iterator.hasNext()/next() and StarlarkIterable.iterator() have no thread; per-evaluation by nature, so keep out of module globals; fix: take the thread from the per-call context
-THREAD	com.verygood.security.larky.modules.xml.LarkyXMLNamespaceContext#currentThread:net.starlark.java.eval.StarlarkThread	already per evaluation (registry per file thread); fix: drop currentThread, keep the Mutability as its own freeze state
-THREAD	com.verygood.security.larky.objects.LarkyPyObject#thread:net.starlark.java.eval.StarlarkThread	read by thread-less __init__, equals, compareTo, PyObject.setField and descriptor __get__ fallbacks; fix: take a Mutability for __dict__ instead of a thread, __init__ gets the thread from LarkyProvidedTypeClass.call (covers LarkyDescriptor, LarkyFunction, LarkyMethod, class/static method instances)
-THREAD	com.verygood.security.larky.objects.LarkySuper#thread:net.starlark.java.eval.StarlarkThread	per-call super() object; __getattribute__(name, thread) ignores its thread argument and uses the stored one; fix: use the argument, delete field, make superType/obj/objType final
-THREAD	com.verygood.security.larky.objects.type.LarkyProvidedTypeClass#thread:net.starlark.java.eval.StarlarkThread	read by HasBinary.binaryOp and the LarkyObject defaults via getCurrentThread(), and passed to LarkyFunction.create for each method; fix: delete field, thread-aware binaryOp hook, LarkyFunction no longer needs a thread
 THREAD	com.verygood.security.larky.runtime.CurrentEvaluation#CURRENT:java.lang.ThreadLocal	holds the running StarlarkThread only while that evaluation executes on this Java thread; restored in close()
 THREAD	com.verygood.security.larky.runtime.CurrentEvaluation#previous:net.starlark.java.eval.StarlarkThread	the enclosing evaluation's thread, kept only to restore CURRENT in close(); the object lives for one try-with-resources block
-THREAD	net.starlark.java.eval.PercentFormat$Args#thread:net.starlark.java.eval.StarlarkThread	transient: one per str % args evaluation, never stored in a value; no change needed
