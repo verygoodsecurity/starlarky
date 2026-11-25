@@ -1,5 +1,6 @@
 package com.verygood.security.larky.modules.vgs.cerebro.text.analyzer;
 
+import com.verygood.security.larky.annot.RetainsHostSuppliedProvider;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import com.google.common.flogger.FluentLogger;
@@ -28,6 +29,7 @@ import java.util.logging.Level;
 /**
  * "Overridable Text PII Analysis API in Larky"
 */
+@RetainsHostSuppliedProvider
 public class TextAnalyzerModule implements TextPIIAnalyzer {
 
   private static final FluentLogger log = FluentLogger.forEnclosingClass();

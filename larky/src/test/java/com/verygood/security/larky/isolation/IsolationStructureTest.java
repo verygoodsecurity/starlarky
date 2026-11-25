@@ -222,8 +222,12 @@ public class IsolationStructureTest {
     List<FieldInfo> fields = new ArrayList<>();
     boolean callsFreezeCheck;
     boolean annotatedImmutable;
+    /** Annotated {@code @RetainsHostSuppliedProvider}: a native module keeping a host's provider. */
+    boolean retainsHostSuppliedProvider;
     /** Fields annotated Error Prone {@code @LazyInit}: a racy, idempotent lazy initialization. */
     Set<String> lazyInit = new HashSet<>();
+    /** Classes named in a PermittedSubclasses attribute: non-empty for a sealed class. */
+    List<String> permittedSubclasses = new ArrayList<>();
     /** static field name -> true while every <clinit> store is an immutable factory result. */
     Map<String, Boolean> immutableInit = new HashMap<>();
     /** static field name -> true while every <clinit> store is an empty immutable collection. */
@@ -341,6 +345,64 @@ public class IsolationStructureTest {
         .isEmpty();
   }
 
+  /**
+   * A class annotated {@code @Immutable} is final, or sealed with only final or sealed permitted
+   * subclasses (never {@code non-sealed}), so no subclass outside Larky can inherit the annotation
+   * and add mutable state.
+   */
+  @Test
+  public void immutableClassesCannotBeSubclassedOutsideLarky() {
+    Map<String, ClassInfo> byName = new HashMap<>();
+    scanned.forEach(c -> byName.put(c.name, c));
+    List<String> open = new ArrayList<>();
+    for (ClassInfo c : scanned) {
+      if (c.annotatedImmutable && !c.isInterface() && !closed(c, byName)) {
+        open.add(c.name.replace('/', '.'));
+      }
+    }
+    assertWithMessage("@Immutable classes that are neither final nor sealed").that(open).isEmpty();
+  }
+
+  private static boolean closed(ClassInfo c, Map<String, ClassInfo> byName) {
+    if (c.isFinal()) {
+      return true;
+    }
+    if (c.permittedSubclasses.isEmpty()) {
+      return false;
+    }
+    for (String sub : c.permittedSubclasses) {
+      ClassInfo s = byName.get(sub);
+      if (s == null || !closed(s, byName)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Every native module scripts can load ({@link com.verygood.security.larky.ModuleSupplier}) is a
+   * final or sealed class, so its Java state is what Larky declares.
+   */
+  @Test
+  public void moduleFacadesAreFinalOrSealed() {
+    List<String> open = new ArrayList<>();
+    for (Object m : new com.verygood.security.larky.ModuleSupplier().getModules(true)) {
+      Class<?> k = m.getClass();
+      if (!java.lang.reflect.Modifier.isFinal(k.getModifiers()) && !k.isSealed()) {
+        open.add(k.getName());
+      }
+    }
+    for (Object v : com.verygood.security.larky.ModuleSupplier.CORE_ENVIRONMENT.values()) {
+      Class<?> k = v.getClass();
+      if (k.getName().startsWith("com.verygood.security.larky.")
+          && !java.lang.reflect.Modifier.isFinal(k.getModifiers())
+          && !k.isSealed()) {
+        open.add(k.getName());
+      }
+    }
+    assertWithMessage("module facades that are neither final nor sealed").that(open).isEmpty();
+  }
+
   /** The library types Error Prone treats as immutable are the ones listed, with a reason, in the
    * checked-in file (larky/src/main/config/known-immutable-types.txt). */
   @Test
@@ -361,6 +423,28 @@ public class IsolationStructureTest {
         java.util.regex.Pattern.compile("-XepOpt:Immutable:KnownImmutable=([^\\s<]+)").matcher(pom);
     assertWithMessage("-XepOpt:Immutable:KnownImmutable in larky/pom.xml").that(m.find()).isTrue();
     assertThat(new TreeSet<>(List.of(m.group(1).split(",")))).isEqualTo(listed);
+  }
+
+  /**
+   * A class keeping a host's provider (a field whose type is in a {@code .spi.} package) is marked
+   * {@code @RetainsHostSuppliedProvider}, so the module cache declines a module that reaches it by that reason.
+   */
+  @Test
+  public void classesWithHostProviderFieldsAreAnnotated() {
+    TreeSet<String> unmarked = new TreeSet<>();
+    for (ClassInfo c : scanned) {
+      if (c.retainsHostSuppliedProvider || c.name.contains("/spi/")) {
+        continue;
+      }
+      for (FieldInfo f : c.fields) {
+        if (!f.isStatic() && f.desc().contains("/spi/")) {
+          unmarked.add(c.name.replace('/', '.') + "#" + f.name());
+        }
+      }
+    }
+    assertWithMessage("fields keeping a host provider in a class not marked @RetainsHostSuppliedProvider")
+        .that(unmarked)
+        .isEmpty();
   }
 
   @Test
@@ -786,8 +870,15 @@ public class IsolationStructureTest {
           }
 
           @Override
+          public void visitPermittedSubclass(String permitted) {
+            ci.permittedSubclasses.add(permitted);
+          }
+
+          @Override
           public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
             ci.annotatedImmutable |= IMMUTABLE_ANNOTATIONS.contains(desc);
+            ci.retainsHostSuppliedProvider |=
+                desc.equals("Lcom/verygood/security/larky/annot/RetainsHostSuppliedProvider;");
             return null;
           }
 

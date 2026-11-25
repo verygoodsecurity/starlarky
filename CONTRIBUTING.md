@@ -118,7 +118,44 @@ In this section, we want to add a new Larky (example) module `ex_module` to an e
       }
     ```
 
-#### 3. Testing the module 
+#### 3. Adding a class using Java (`.java`)
+
+* A module's native code can return objects of a class that is written in Java, as CPython has
+  types written in C. The Java class extends `LarkyNativeObject` and defines the class with
+  `LarkyNativeClass`: its name, its base, its properties and its methods.
+  ```
+  public final class Point extends LarkyNativeObject {
+
+    public static final LarkyNativeClass<Point> CLASS = LarkyNativeClass.named("Point", Point.class)
+        .attribute("x", self -> self.x, (self, value) -> self.x = self.checkMutable(value))  // a field
+        .property("norm", (self, thread) -> self.norm())                                    // read-only
+        .build();
+
+    private Object x;
+
+    Point(Object constructor, StarlarkThread thread) {
+      super(CLASS, constructor, thread.mutability());
+    }
+
+    @StarlarkMethod(name = "scale", parameters = {@Param(name = "by")})
+    public void scale(StarlarkInt by) throws EvalException { ... }        // a method
+  }
+  ```
+* The Java code only says what the class has. Attribute lookup, `__dict__`, `dir()`, inheritance
+  (`.extending(Base.CLASS)`) and freezing come from the object model in
+  `larky/src/main/java/com/verygood/security/larky/objects/`, so a script uses an instance like any
+  Python object: it can add attributes, and an attribute it sets comes before a method of the same
+  name.
+* A plain attribute is a field of the Java class, as a member of a C struct is, so an instance
+  allocates no dictionary for its state. `__dict__` lists the plain attributes that are set. An
+  attribute a script sets that the class does not define goes into a dictionary the instance
+  creates on first use.
+* `constructor` is the `.star` function that scripts call to build an instance. It is what they see
+  as the instance's `__class__`.
+* `ArchitectureTest` checks that such a class does not use the descriptors or types of the object
+  model directly.
+
+#### 4. Testing the module 
 * The module should be tested using Larky script (.star) tests, 
   stored in `larky/src/test/resources/stdlib_tests/test_ex_module.star`.
 
@@ -152,7 +189,7 @@ In this section, we want to add a new Larky (example) module `ex_module` to an e
   _runner.run(_suite())
   ```
 
-#### 4. Reflecting changes in Python `runlarky`
+#### 5. Reflecting changes in Python `runlarky`
 New modules should be reflected in `runlarky`. 
 Follow [these instruction](https://github.com/verygoodsecurity/starlarky/blob/master/larky/src/main/java/com/verygood/security/larky/modules/README.md#graalvm-support)
 for more information. 

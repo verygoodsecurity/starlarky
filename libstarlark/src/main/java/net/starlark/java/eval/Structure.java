@@ -101,4 +101,29 @@ public interface Structure extends StarlarkValue {
     }
     return Types.struct(fieldTypes.buildOrThrow());
   }
+
+  /**
+   * VGS: a structure whose fields can run Starlark code when they are read or written (a
+   * property, a descriptor), and so need the thread of the evaluation that does it.
+   *
+   * <p>For a value that implements it, the interpreter calls these methods with its thread for
+   * {@code x.f}, {@code getattr(x, "f")} and {@code x.f = v}, in place of {@link
+   * Structure#getValue(StarlarkSemantics, String)} and {@link Structure#setField(String,
+   * Object)}. Those remain for callers that have no thread. Like {@link
+   * StarlarkIndexable.Threaded}, it leaves {@link Structure}, whose fields are plain values, as
+   * upstream has it.
+   */
+  interface Threaded extends Structure {
+
+    /**
+     * Returns the value of the field {@code name}, or null if there is none, as {@link
+     * Structure#getValue(StarlarkSemantics, String)} does.
+     */
+    @Nullable
+    Object getValue(StarlarkThread thread, String name) throws EvalException, InterruptedException;
+
+    /** Updates the field {@code name}, as {@link Structure#setField(String, Object)} does. */
+    void setField(StarlarkThread thread, String field, Object value)
+        throws EvalException, InterruptedException;
+  }
 }

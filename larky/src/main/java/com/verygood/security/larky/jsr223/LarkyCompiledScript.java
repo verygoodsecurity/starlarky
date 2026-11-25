@@ -9,6 +9,9 @@ import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.console.Console;
+import com.verygood.security.larky.runtime.EvaluationMetadata;
+import com.verygood.security.larky.runtime.EvaluationSettings;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.LarkyScript;
 import com.verygood.security.larky.parser.ParsedStarFile;
@@ -48,7 +51,7 @@ import javax.script.ScriptException;
  */
 public class LarkyCompiledScript extends CompiledScript {
 
-  private static final LarkyScript.StarlarkMode LARKY_MODE = LarkyScript.StarlarkMode.STRICT;
+  static final LarkyScript.StarlarkMode LARKY_MODE = LarkyScript.StarlarkMode.STRICT;
   private static final String DEFAULT_SCRIPT_NAME = "larky.star";
 
   private final LarkyScriptEngine engine;
@@ -75,6 +78,10 @@ public class LarkyCompiledScript extends CompiledScript {
   @Override
   public ScriptEngine getEngine() {
     return engine;
+  }
+
+  Console console(ScriptContext context) {
+    return engine.console(context.getWriter());
   }
 
   /**
@@ -207,34 +214,77 @@ public class LarkyCompiledScript extends CompiledScript {
   }
 
   /**
+   * {@inheritDoc}
+   *
+   * <p>Uses {@code bindings} as the engine scope for this evaluation. The engine's context supplies
+   * the global scope, I/O, and any evaluation settings. If it implements {@link SupportsMetadata},
+   * it receives the evaluation's metadata.
+   */
+  @Override
+  public Object eval(Bindings bindings) throws ScriptException {
+    ScriptContext engineContext = engine.getContext();
+    if (bindings == null) {
+      return eval(engineContext);
+    }
+    return evalInterpreted(engineContext, engine.globalBindings(engineContext), bindings);
+  }
+
+  /**
    * Evaluates through the Larky interpreter.
    */
-  private Object evalInterpreted(ScriptContext context, Bindings globalBindings, Bindings engineBindings)
+  private Object evalInterpreted(
+      ScriptContext context,
+      Bindings globalBindings,
+      Bindings engineBindings)
       throws LarkyEvaluationScriptException {
+    // read once, when the evaluation starts
+    final EvaluationSettings settings =
+        context instanceof LarkyScriptContext larky ? larky.getSettings() : EvaluationSettings.NONE;
+    if (context instanceof SupportsMetadata metadataContext) {
+      metadataContext.setMetadata(null);
+    }
     ParsedStarFile result;
+    EvaluationMetadata completedMetadata = null;
+    // what happened in the evaluation, for a failure whose exception carries none
+    final java.util.concurrent.atomic.AtomicReference<EvaluationMetadata> metadata =
+        new java.util.concurrent.atomic.AtomicReference<>();
 
     try {
-      String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
-      String scriptName = cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
-
-      final StarFile script;
-      if (modules.isEmpty() && cacheNamespace.isEmpty()) {
-        script = InMemMapBackedStarFile.createStarFile(scriptName, source);
-      } else {
-        ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
-        files.put(scriptName, source.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        modules.forEach(
-            (name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
-      }
-      final DefaultLarkyInterpreter larkyInterpreter = new DefaultLarkyInterpreter(LARKY_MODE, globalBindings, engineBindings);
-      result = larkyInterpreter.evaluate(script, engine.console(context.getWriter()));
+      StarFile script = interpretedFile(context);
+      final DefaultLarkyInterpreter larkyInterpreter =
+          new DefaultLarkyInterpreter(LARKY_MODE, settings, globalBindings, engineBindings);
+      result = larkyInterpreter.evaluate(script, console(context), metadata::set);
+      EvaluationMetadata resultMetadata = result.metadata();
+      completedMetadata = resultMetadata != null ? resultMetadata : metadata.get();
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
              EvalException e) {
-      throw LarkyEvaluationScriptException.of(e);
+      LarkyEvaluationScriptException failure =
+          LarkyEvaluationScriptException.of(e).withMetadataIfAbsent(metadata.get());
+      completedMetadata = failure.metadata();
+      throw failure;
+    } finally {
+      if (context instanceof SupportsMetadata metadataContext) {
+        metadataContext.setMetadata(completedMetadata);
+      }
     }
     setBindingsValue(globalBindings, engineBindings, result.getGlobals());
     return result;
+  }
+
+  Bindings globalBindings(ScriptContext context) throws LarkyGlobalScopeRefusedException {
+    return engine.globalBindings(context);
+  }
+
+  StarFile interpretedFile(ScriptContext context) throws IOException {
+    String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
+    String scriptName = cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
+    if (modules.isEmpty() && cacheNamespace.isEmpty()) {
+      return InMemMapBackedStarFile.createStarFile(scriptName, source);
+    }
+    ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
+    files.put(scriptName, source.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    modules.forEach((name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    return new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
   }
 
   /**
@@ -251,6 +301,10 @@ public class LarkyCompiledScript extends CompiledScript {
     for (Map.Entry<String, Object> entry : moduleGlobals.entrySet()) {
       String name = entry.getKey();
       Object value = entry.getValue();
+      // Keep host settings out of the script's binding writeback.
+      if (LarkyEvaluator.isRetiredSettingName(name)) {
+        continue;
+      }
       if (globalBindings != null && globalBindings.containsKey(name)) {
         globalBindings.put(name, value);
       }

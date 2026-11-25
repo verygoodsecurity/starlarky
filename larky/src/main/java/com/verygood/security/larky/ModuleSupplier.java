@@ -33,17 +33,22 @@ import com.verygood.security.larky.modules.CryptoModule;
 import com.verygood.security.larky.modules.CyberSourceModule;
 import com.verygood.security.larky.modules.ECDHModule;
 import com.verygood.security.larky.modules.JsonModule;
+import com.verygood.security.larky.modules.multidict.MultiDictModule;
 import com.verygood.security.larky.modules.OpenSSLModule;
 import com.verygood.security.larky.modules.ProtoBufModule;
 import com.verygood.security.larky.modules.RegexModule;
 import com.verygood.security.larky.modules.ResultModule;
 import com.verygood.security.larky.modules.StructModule;
 import com.verygood.security.larky.modules.SysModule;
+import com.verygood.security.larky.modules.UrllibModule;
 import com.verygood.security.larky.modules.VaultModule;
 import com.verygood.security.larky.modules.X509Module;
 import com.verygood.security.larky.modules.XMLModule;
 import com.verygood.security.larky.modules.ZLibModule;
+import com.verygood.security.larky.modules.vgs.HttpRequestModule;
+import com.verygood.security.larky.modules.vgs.HttpResponseModule;
 import com.verygood.security.larky.modules.vgs.PGPModule;
+import com.verygood.security.larky.modules.vgs.ProxyModule;
 import com.verygood.security.larky.modules.globals.LarkyGlobals;
 import com.verygood.security.larky.modules.globals.PythonBuiltins;
 import com.verygood.security.larky.modules.vgs.jks.JKSModule;
@@ -94,12 +99,14 @@ public class ModuleSupplier {
       CryptoModule.INSTANCE,
       ECDHModule.INSTANCE,
       JsonModule.INSTANCE,
+      MultiDictModule.INSTANCE,
       OpenSSLModule.INSTANCE,
       ProtoBufModule.INSTANCE,
       RegexModule.INSTANCE,
       ResultModule.INSTANCE,
       StructModule.INSTANCE,
       SysModule.INSTANCE,
+      UrllibModule.INSTANCE,
       X509Module.INSTANCE,
       XMLModule.INSTANCE,
       ZLibModule.INSTANCE
@@ -110,10 +117,13 @@ public class ModuleSupplier {
       CerebroModule.INSTANCE,
       ChaseModule.INSTANCE,
       CyberSourceModule.INSTANCE,
+      HttpRequestModule.INSTANCE,
+      HttpResponseModule.INSTANCE,
       JKSModule.INSTANCE,
       MetricsModule.INSTANCE,
       NetworkTokenModule.INSTANCE,
       PGPModule.INSTANCE,
+      ProxyModule.INSTANCE,
       VaultModule.INSTANCE
   );
 

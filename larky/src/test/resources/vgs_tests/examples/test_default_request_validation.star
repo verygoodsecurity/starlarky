@@ -111,10 +111,11 @@ def _assert_passes(request):
 def _assert_401(request, public_key_alias=KEY_ALIAS):
     result = check_request(request, public_key_alias)
     asserts.assert_that(result.__name__).is_equal_to("ShortCircuitResponse")
-    asserts.assert_that(result.response.status_code).is_equal_to(401)
-    asserts.assert_that(json.loads(result.response.body.decode("utf-8"))).is_equal_to(
+    response = result.response
+    asserts.assert_that(response.status_code).is_equal_to(401)
+    asserts.assert_that(json.loads(response.body.decode("utf-8"))).is_equal_to(
         {"error": "unauthorized"})
-    asserts.assert_that(result.response.headers["WWW-Authenticate"]).is_equal_to(
+    asserts.assert_that(response.headers["WWW-Authenticate"]).is_equal_to(
         'Bearer error="invalid_token"')
 
 

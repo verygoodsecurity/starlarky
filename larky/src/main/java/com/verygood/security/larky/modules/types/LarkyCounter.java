@@ -1,15 +1,19 @@
 package com.verygood.security.larky.modules.types;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
+import com.verygood.security.larky.annot.CacheableWhenFrozen;
 import java.util.concurrent.atomic.AtomicLong;
 
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkValue;
 
 
-public interface LarkyCounter extends StarlarkValue {
+public interface LarkyCounter extends StarlarkValue, Mutability.Freezable {
 
   /**
    * Adds the given delta to the counters current value
@@ -19,6 +23,8 @@ public interface LarkyCounter extends StarlarkValue {
    */
   @StarlarkMethod(name = "add_and_get", parameters = {@Param(name="delta", defaultValue = "1")})
   default StarlarkInt Counter__addAndGet(StarlarkInt delta) throws EvalException {
+    // A counter belongs to the evaluation that created it, as a list does.
+    Starlark.checkMutable(this);
     return StarlarkInt.of(addAndGet(delta.toLong("not a long!")));
   }
 
@@ -58,7 +64,15 @@ public interface LarkyCounter extends StarlarkValue {
   }
 
 
+  @CacheableWhenFrozen
   final class NotThreadSafeLarkyCounter implements LarkyCounter {
+
+    private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
+
+    @Override
+    public Mutability mutability() {
+      return mutability;
+    }
     private long count = 0;
 
     @Override
@@ -73,7 +87,15 @@ public interface LarkyCounter extends StarlarkValue {
     ;
   }
 
+  @CacheableWhenFrozen
   final class AtomicLarkyCounter implements LarkyCounter {
+
+    private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
+
+    @Override
+    public Mutability mutability() {
+      return mutability;
+    }
     private final AtomicLong count = new AtomicLong();
 
     @Override

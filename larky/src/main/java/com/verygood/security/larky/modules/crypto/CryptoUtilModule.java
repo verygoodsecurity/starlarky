@@ -23,7 +23,7 @@ import org.bouncycastle.asn1.DEROctetString;
 
 
 @com.google.errorprone.annotations.Immutable
-public class CryptoUtilModule implements StarlarkValue {
+public final class CryptoUtilModule implements StarlarkValue {
 
   public static final CryptoUtilModule INSTANCE = new CryptoUtilModule();
 

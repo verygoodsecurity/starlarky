@@ -62,12 +62,12 @@ public class StarlarkInteropTest {
 
   static ParsedStarFile evaluate(String script, Object stepLimit, TestingConsole console)
       throws Exception {
-    ImmutableMap<String, Object> globals =
+    EvaluationSettings settings =
         stepLimit == null
-            ? ImmutableMap.of()
-            : ImmutableMap.of(LarkyEvaluator.STEP_LIMIT, stepLimit);
+            ? EvaluationSettings.NONE
+            : EvaluationSettings.builder().stepLimit(((Number) stepLimit).longValue()).build();
     return new LarkyScript(
-            ModuleSupplier.CORE_MODULES, LarkyScript.StarlarkMode.STRICT, globals)
+            ModuleSupplier.CORE_MODULES, LarkyScript.StarlarkMode.STRICT, ImmutableMap.of(), settings)
         .evaluate(
             InMemMapBackedStarFile.createStarFile(
                 "main.star", script),
@@ -178,7 +178,7 @@ public class StarlarkInteropTest {
     StarlarkInterop host = parsed.interop();
     assertThat(host.semantics()).isSameInstanceAs(LarkySemantics.LARKY_SEMANTICS);
     // what the evaluation left of its limit
-    long used = parsed.getGlobalEnvironmentVariable(LarkyEvaluator.EXECUTION_STEPS, Long.class);
+    long used = parsed.metadata().executedSteps() + parsed.metadata().libraryInitSteps();
     assertThat(used).isGreaterThan(0L);
     assertThat(host.remainingSteps()).isEqualTo(2_000_000L - used);
     Object spin = parsed.getGlobalEnvironmentVariable("spin", Object.class);
@@ -229,7 +229,8 @@ public class StarlarkInteropTest {
         new LarkyScript(
                 ModuleSupplier.CORE_MODULES,
                 LarkyScript.StarlarkMode.STRICT,
-                ImmutableMap.of(LarkyEvaluator.EXPIRATION_MS, expiration))
+                ImmutableMap.of(),
+                EvaluationSettings.builder().expirationMs(expiration).build())
             .evaluate(InMemMapBackedStarFile.createStarFile("main.star", SCRIPT), new TestingConsole());
     assertThat(parsed.interop().expirationMs()).isEqualTo(expiration);
 

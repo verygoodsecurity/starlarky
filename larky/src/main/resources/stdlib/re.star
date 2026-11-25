@@ -327,6 +327,22 @@ def _finditer(pattern, string, flags=0):
     return _rx_pattern.finditer(string)
 
 
+# Cost of compile() at a module's top level.
+#
+# A library that says `_prog = re.compile(...)` at its top level builds a Pattern each time the
+# library is loaded. The translated pattern itself is cached by source and flags; what is built
+# again is the Pattern object around it, with its methods. Without the shared module cache
+# (-Dlarky.moduleCache.enable=true) a library is loaded again by every evaluation that load()s it,
+# whether or not the script ever reaches the pattern.
+#
+# Measured on JDK 21 (2026-11-23): two such lines allocate about 10 KB per evaluation. Removing
+# two of the patterns that urllib/parse.star compiled at its top level took 8.7 KB off each
+# evaluation in a replay of scripts, the same for every script.
+#
+# So, in a library: prefer plain string operations or a native helper to a pattern in code that
+# runs often; build a pattern inside the function that uses it when that function is rarely
+# called; and when a top-level pattern is the right choice, know that it is paid per load.
+# AGENTS.md has the rule.
 def _compile(pattern, flags=0):
     "Compile a regular expression pattern, returning a Pattern object."
     if not types.is_string(pattern) and hasattr(pattern, "patternobj"):

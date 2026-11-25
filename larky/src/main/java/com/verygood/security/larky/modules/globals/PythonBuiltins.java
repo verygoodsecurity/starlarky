@@ -14,6 +14,7 @@ import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.modules.types.results.LarkyAttributeError;
 import com.verygood.security.larky.modules.types.results.LarkyIndexError;
 import com.verygood.security.larky.modules.types.results.LarkyStopIteration;
+import com.verygood.security.larky.objects.LarkyNativeObject;
 import com.verygood.security.larky.objects.PyObject;
 import com.verygood.security.larky.parser.StarlarkUtil;
 
@@ -35,6 +36,7 @@ import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkOperators;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
@@ -517,7 +519,7 @@ public final class PythonBuiltins {
     if (obj instanceof LarkyObject) {
       Object res;
       try {
-        if (obj instanceof PyObject) {
+        if (obj instanceof PyObject && !(obj instanceof LarkyNativeObject)) {
           res = ((PyObject) obj).getField(name, thread);
         } else {
           // TODO(mahmoudimus): delete all this code when merging LarkyObject into PyObject
@@ -630,13 +632,14 @@ public final class PythonBuiltins {
     },
     useStarlarkThread = true)
   public void setattr(Object obj, String name, Object value, StarlarkThread thread)
-    throws EvalException {
+    throws EvalException, InterruptedException {
     if (!Structure.class.isAssignableFrom(obj.getClass())) {
       throw Starlark.errorf(
         "type(%s) does not support setattr. Must inherit from " +
           "Structure. See LarkyObject.", Starlark.type(obj));
     }
-    ((Structure) obj).setField(name, value);
+    // as the statement x.name = value: a Structure.Threaded gets the thread
+    StarlarkOperators.setattr(thread, obj, name, value);
   }
 
   @StarlarkMethod(
