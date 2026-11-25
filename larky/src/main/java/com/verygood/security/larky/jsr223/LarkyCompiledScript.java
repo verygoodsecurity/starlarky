@@ -9,6 +9,7 @@ import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.runtime.EvaluationMetadata;
 import com.verygood.security.larky.runtime.EvaluationSettings;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
 import com.verygood.security.larky.parser.LarkyScript;
@@ -211,7 +212,8 @@ public class LarkyCompiledScript extends CompiledScript {
    * {@inheritDoc}
    *
    * <p>Uses {@code bindings} as the engine scope for this evaluation. The engine's context supplies
-   * the global scope, I/O, and any evaluation settings.
+   * the global scope, I/O, and any evaluation settings. If it implements {@link SupportsMetadata},
+   * it receives the evaluation's metadata.
    */
   @Override
   public Object eval(Bindings bindings) throws ScriptException {
@@ -233,7 +235,15 @@ public class LarkyCompiledScript extends CompiledScript {
     // read once, when the evaluation starts
     final EvaluationSettings settings =
         context instanceof LarkyScriptContext larky ? larky.getSettings() : EvaluationSettings.NONE;
+    if (context instanceof SupportsMetadata metadataContext) {
+      metadataContext.setMetadata(null);
+    }
     ParsedStarFile result;
+    EvaluationMetadata completedMetadata = null;
+    // what happened in the evaluation, for a failure whose exception carries none
+    final java.util.concurrent.atomic.AtomicReference<EvaluationMetadata> metadata =
+        new java.util.concurrent.atomic.AtomicReference<>();
+
     try {
       String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
       String scriptName = cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
@@ -250,10 +260,19 @@ public class LarkyCompiledScript extends CompiledScript {
       }
       final DefaultLarkyInterpreter larkyInterpreter =
           new DefaultLarkyInterpreter(LARKY_MODE, settings, globalBindings, engineBindings);
-      result = larkyInterpreter.evaluate(script, engine.console(context.getWriter()));
+      result = larkyInterpreter.evaluate(script, engine.console(context.getWriter()), metadata::set);
+      EvaluationMetadata resultMetadata = result.metadata();
+      completedMetadata = resultMetadata != null ? resultMetadata : metadata.get();
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
              EvalException e) {
-      throw LarkyEvaluationScriptException.of(e);
+      LarkyEvaluationScriptException failure =
+          LarkyEvaluationScriptException.of(e).withMetadataIfAbsent(metadata.get());
+      completedMetadata = failure.metadata();
+      throw failure;
+    } finally {
+      if (context instanceof SupportsMetadata metadataContext) {
+        metadataContext.setMetadata(completedMetadata);
+      }
     }
     setBindingsValue(globalBindings, engineBindings, result.getGlobals());
     return result;

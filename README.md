@@ -215,12 +215,14 @@ the vault and revealed by alias), checks `exp`, `nbf`, `aud` and `iss` with
 
 ### Configuring a Starlark evaluation
 
-JSR-223 hosts set per-run limits and module providers through
-`LarkyScriptContext.setSettings(EvaluationSettings)`. Java hosts using
-`LarkyScript` directly pass settings to its constructor. Move any
-`LARKY_EVAL_*` bindings to the typed settings API. Java callers can read the
-evaluation outcome and steps through `ParsedStarFile.metadata()`. Library
-initialization steps are reported separately from the steps of the script.
+JSR-223 hosts supply per-run limits and module providers through
+`LarkyScriptContext.setSettings(EvaluationSettings)`. Import `EvaluationSettings` and
+`EvaluationMetadata` from `com.verygood.security.larky.runtime`. Migrate any
+`LARKY_EVAL_*` bindings before adopting this version. Use
+`LarkyScriptContext.metadata()` for the evaluation outcome and step counts, with library
+initialization steps reported separately. Custom JSR-223 contexts can implement
+`SupportsMetadata` to receive compiled evaluation metadata. Hosts using `LarkyScript`
+directly can pass the settings to the evaluation overload.
 
 ### Shipping a host-owned module next to a script
 

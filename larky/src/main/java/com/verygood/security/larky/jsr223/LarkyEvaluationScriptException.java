@@ -5,7 +5,9 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.syntax.Location;
 
+import com.verygood.security.larky.runtime.EvaluationMetadata;
 import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.NotNull;
 
 import javax.script.ScriptException;
@@ -13,6 +15,9 @@ import javax.script.ScriptException;
 public class LarkyEvaluationScriptException extends ScriptException {
 
   private final @NotNull String excToString;
+
+  // what happened in the evaluation that failed, when an evaluation threw it
+  private @Nullable EvaluationMetadata metadata;
 
   /** For a failure with only a message, found before the script ran (see {@link LarkyGlobalScopeRefusedException}). */
   protected LarkyEvaluationScriptException(@NotNull String message) {
@@ -36,14 +41,37 @@ public class LarkyEvaluationScriptException extends ScriptException {
 
   @Contract("_ -> new")
   public static @NotNull LarkyEvaluationScriptException of(@NotNull Exception e) {
+    final LarkyEvaluationScriptException exception;
     if (e instanceof StarlarkEvalWrapper.Exc.RuntimeEvalException
           || e instanceof Starlark.UncheckedEvalException) {
-      return onUnchecked(e);
+      exception = onUnchecked(e);
     } else if (e instanceof EvalException) {
-      return onEvalException((EvalException) e);
+      exception = onEvalException((EvalException) e);
     } else {
-      return new LarkyEvaluationScriptException(e);
+      exception = new LarkyEvaluationScriptException(e);
     }
+    if (e instanceof StarlarkEvalWrapper.Exc.RuntimeEvalException failure) {
+      exception.metadata = failure.metadata();
+    }
+    return exception;
+  }
+
+  /**
+   * What happened in the evaluation that failed: how it ended ({@link
+   * EvaluationMetadata.Outcome#STEP_LIMIT}, {@link EvaluationMetadata.Outcome#DEADLINE} or {@link
+   * EvaluationMetadata.Outcome#SCRIPT_ERROR}), its steps and its time. Null for a failure outside
+   * an evaluation (converting the bindings, say).
+   */
+  public @Nullable EvaluationMetadata metadata() {
+    return metadata;
+  }
+
+  // the evaluation's metadata, for an exception that did not carry it (an EvalException)
+  LarkyEvaluationScriptException withMetadataIfAbsent(@Nullable EvaluationMetadata metadata) {
+    if (this.metadata == null) {
+      this.metadata = metadata;
+    }
+    return this;
   }
 
   /**
